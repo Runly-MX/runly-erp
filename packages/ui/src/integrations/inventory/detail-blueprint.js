@@ -47,23 +47,15 @@ export const INVENTORY_ITEM_DETAIL = {
           // (area id or "__none__") and hasAreas, and adds the "Mover de área" button via fieldActions.
           { field: 'areaPath', label: 'Área', icon: 'Folder', filterBy: { param: 'areaId', valueField: 'areaFilterValue' }, visibleWhen: { field: 'hasAreas', truthy: true } },
           { field: 'folio', label: 'Folio', icon: 'Hash', filterBy: { param: 'folio' } },
+          { field: 'model', label: 'Modelo', icon: 'Package', filterBy: { param: 'model' } },
+          { field: 'categoryName', label: 'Tipo', icon: 'Layers', filterBy: { param: 'categoryId', valueField: 'categoryId' } },
+          { field: 'brandName', label: 'Marca', icon: 'Tag', filterBy: { param: 'brandId', valueField: 'brandId' } },
           { field: 'serialNumber', label: 'Número de serie', icon: 'Barcode', filterBy: { param: 'serialNumber' } },
           { field: 'assetTag', label: 'Número de activo', icon: 'Hash', filterBy: { param: 'assetTag' } },
           { field: 'partNumber', label: 'Número de parte', icon: 'Hash', filterBy: { param: 'partNumber' } },
           // Related Compras documents (EntityRelation); only for users who can read Compras.
           { field: 'purchaseOrderLink', label: 'Orden de compra', type: 'document-link', icon: 'ClipboardList', emptyLabel: 'Sin orden de compra', visibleWhen: { field: 'canReadPurchases', truthy: true } },
           { field: 'purchaseInvoiceLink', label: 'Factura', type: 'document-link', icon: 'ReceiptText', emptyLabel: 'Sin factura', visibleWhen: { field: 'canReadPurchases', truthy: true } },
-        ],
-      },
-      {
-        label: 'Modelo, tipo y marca',
-        icon: 'Boxes',
-        column: 'main',
-        columns: 3,
-        fields: [
-          { field: 'model', label: 'Modelo', icon: 'Package', filterBy: { param: 'model' } },
-          { field: 'categoryName', label: 'Tipo', icon: 'Layers', filterBy: { param: 'categoryId', valueField: 'categoryId' } },
-          { field: 'brandName', label: 'Marca', icon: 'Tag', filterBy: { param: 'brandId', valueField: 'brandId' } },
         ],
       },
       {

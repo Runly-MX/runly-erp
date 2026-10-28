@@ -29,6 +29,8 @@ import { FilterByValueButton } from "../components/FilterByValueButton.jsx";
 import { SchemaTabBar } from "./SchemaTabBar.jsx";
 import { resolveFieldIcon } from "./field-icons.js";
 import { cn } from "../lib/utils.js";
+import { Checkbox } from "../components/Checkbox.jsx";
+import { DetailSelectionBar } from "./DetailSelectionBar.jsx";
 
 const STATUS_LABELS = {
   active: "Activo",
@@ -474,6 +476,34 @@ function renderValue(field, value, record = {}) {
   return str;
 }
 
+// Plain text of a displayed value, for the card "copy all" button.
+function plainValue(field, value, record) {
+  if (field?.type === "document-link") return value?.number ?? "";
+  if (field?.type === "file-asset") return "";
+  if (field?.type === "select" && Array.isArray(field?.options)) {
+    const found = normalizeSelectOptions(field.options).find((o) => String(o.value) === String(value));
+    if (found?.label) return String(found.label);
+  }
+  const rendered = renderValue(field, value, record);
+  if (typeof rendered === "string") return rendered === "—" ? "" : rendered;
+  return value != null && typeof value !== "object" ? String(value) : "";
+}
+
+// "Label: value" lines for every visible, non-empty field of a fields section.
+function sectionCopyText(section, fieldMap, data) {
+  if (section.type !== "fields") return null;
+  const lines = [];
+  for (const fieldName of section.fields) {
+    const field = fieldMap.get(fieldName);
+    if (!field) continue;
+    if (field.visibleWhen && !matchesFieldRule(field.visibleWhen, data)) continue;
+    if (field.hiddenWhen && matchesFieldRule(field.hiddenWhen, data)) continue;
+    const text = plainValue(field, data[field.name], data).trim();
+    if (text) lines.push(`${field.label}: ${text}`);
+  }
+  return lines.length ? lines.join("\n") : null;
+}
+
 function gridClass(columns) {
   if (columns === 1) return "grid grid-cols-1 gap-4";
   if (columns === 2) return "grid grid-cols-1 gap-4 md:grid-cols-2";
@@ -563,6 +593,9 @@ export function RunlyDetail({
     [allTabs, data],
   );
   const [activeTab, setActiveTab] = useState(null);
+  // Field selection mode: checkboxes next to each field + floating action bar.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedFields, setSelectedFields] = useState(() => new Set());
   const currentTab = tabs.some((tab) => tab.key === activeTab) ? activeTab : (tabs[0]?.key ?? null);
   const visibleSections = useMemo(() => {
     const shown = filterVisibleSections(sections, allTabs, data ?? {}, tabOfSection);
@@ -583,6 +616,34 @@ export function RunlyDetail({
       </Alert>
     );
   }
+
+  // Selectable fields in display order (visible "fields" sections only).
+  const selectable = [];
+  for (const section of visibleSections) {
+    if (section.type !== "fields") continue;
+    for (const fieldName of section.fields) {
+      const field = fieldMap.get(fieldName);
+      if (!field || selectable.some((f) => f.name === field.name)) continue;
+      if (field.visibleWhen && !matchesFieldRule(field.visibleWhen, data)) continue;
+      if (field.hiddenWhen && matchesFieldRule(field.hiddenWhen, data)) continue;
+      selectable.push(field);
+    }
+  }
+  const selectedEntries = selectable
+    .filter((field) => selectedFields.has(field.name))
+    .map((field) => ({ label: field.label, text: plainValue(field, data[field.name], data).trim() }))
+    .filter((entry) => entry.text);
+  const toggleField = (name) =>
+    setSelectedFields((prev) => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedFields(new Set());
+  };
 
   // Mobile order of main sections, and of aside ones that ask to follow one.
   const mobileOrder = new Map(mainSections.map((section, index) => [section.id, (index + 1) * 10]));
@@ -619,6 +680,7 @@ export function RunlyDetail({
     <DetailSectionShell
       key={section.id}
       section={section}
+      copyText={sectionCopyText(section, fieldMap, data ?? {})}
       className={cn(
         section.type === "fields" &&
           "border-l-2 border-l-(--brand-primary) shadow-[inset_10px_0_16px_-14px_var(--brand-primary)]",
@@ -712,7 +774,18 @@ export function RunlyDetail({
                   className={`min-w-0 space-y-1.5${isMarkdown ? " col-span-full" : ""}`}
                 >
                   <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-                    <FieldLabel field={field} />
+                    {selectMode ? (
+                      <label className="inline-flex cursor-pointer items-center gap-2">
+                        <Checkbox
+                          checked={selectedFields.has(field.name)}
+                          onCheckedChange={() => toggleField(field.name)}
+                          aria-label={`Seleccionar ${field.label}`}
+                        />
+                        <FieldLabel field={field} />
+                      </label>
+                    ) : (
+                      <FieldLabel field={field} />
+                    )}
                   </dt>
                   <dd className={cn("text-sm font-semibold text-[hsl(var(--foreground))]", (canFilter || fieldActions?.[field.name]) && "flex items-center gap-2")}>
                     {isMarkdown ? (
@@ -821,6 +894,34 @@ export function RunlyDetail({
 
       <SchemaTabBar tabs={tabs} activeKey={currentTab} onChange={setActiveTab} />
 
+      {selectable.length > 0 ? (
+        <div className="flex items-center justify-end gap-2">
+          {selectMode ? (
+            <>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() =>
+                  setSelectedFields(
+                    selectedFields.size === selectable.length ? new Set() : new Set(selectable.map((f) => f.name)),
+                  )
+                }
+              >
+                {selectedFields.size === selectable.length ? "Quitar selección" : "Seleccionar todos"}
+              </Button>
+              <Button type="button" variant="outline" size="sm" onClick={exitSelectMode}>
+                Listo
+              </Button>
+            </>
+          ) : (
+            <Button type="button" variant="outline" size="sm" onClick={() => setSelectMode(true)}>
+              Seleccionar campos
+            </Button>
+          )}
+        </div>
+      ) : null}
+
       {sections.length === 0 && (
         <Alert variant="warning">
           <AlertTitle>Detalle sin secciones</AlertTitle>
@@ -863,6 +964,14 @@ export function RunlyDetail({
           {asideExtra ? <div className={EXTRA_STACK}>{asideExtra}</div> : null}
         </div>
       )}
+
+      {selectMode ? (
+        <DetailSelectionBar
+          entries={selectedEntries}
+          exportName={schema.entity}
+          onClear={() => setSelectedFields(new Set())}
+        />
+      ) : null}
     </div>
   );
 }

@@ -6,21 +6,19 @@ const INTERACTIVE = "a,button,input,textarea,select,[role='button'],[contentedit
 
 // Double click copies the displayed value (or `text`) and shows a toast.
 // Links, buttons and inputs inside keep their normal behavior; blank values
-// ("—") are ignored. The wrapper is select-none so the double click leaves no
-// highlighted word.
+// ("—") are ignored. The text stays selectable so users can drag-select and
+// copy several values at once.
 export function CopyOnDoubleClick({ text, className, children, as: Tag = "span" }) {
   const ref = useRef(null);
   const copy = useCopyValue();
 
   const onDoubleClick = (event) => {
     if (event.target instanceof Element && event.target.closest(INTERACTIVE)) return;
-    const value = text ?? ref.current?.textContent;
-    window.getSelection?.()?.removeAllRanges();
-    void copy(value);
+    void copy(text ?? ref.current?.textContent);
   };
 
   return (
-    <Tag ref={ref} title="Doble clic para copiar" onDoubleClick={onDoubleClick} className={cn("cursor-copy select-none", className)}>
+    <Tag ref={ref} title="Doble clic para copiar" onDoubleClick={onDoubleClick} className={cn("select-text", className)}>
       {children}
     </Tag>
   );
