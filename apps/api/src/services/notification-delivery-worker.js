@@ -9,6 +9,7 @@ const DEFAULT_BATCH_SIZE = 25;
 // A row parked in 'sending' longer than this was almost certainly abandoned by a
 // killed/crashed pass — reclaim it on the next tick.
 const SENDING_RECLAIM_MINUTES = 5;
+const RECLAIM_SCAN_INTERVAL_MS = 60_000;
 
 function asErrorMessage(err) {
   if (err instanceof Error) return err.message;
@@ -389,6 +390,8 @@ export function createNotificationDeliveryWorker({
     return brands;
   }
 
+  const lastReclaimAt = new Map();
+
   async function processPendingNotificationDeliveries({
     channel = "email",
     limit = DEFAULT_BATCH_SIZE,
@@ -397,7 +400,6 @@ export function createNotificationDeliveryWorker({
     // out immediately without draining every other queued delivery too.
     notificationIds = null,
   } = {}) {
-    const appBaseUrl = await resolveAppBaseUrl({ prisma });
     const take = Math.min(Math.max(Number(limit) || DEFAULT_BATCH_SIZE, 1), 200);
     const restrict =
       Array.isArray(notificationIds) && notificationIds.length
@@ -406,14 +408,19 @@ export function createNotificationDeliveryWorker({
 
     // Reclaim rows a killed/crashed pass abandoned mid-flight (status 'sending'
     // with no recent heartbeat).
-    await prisma.notificationDelivery.updateMany({
-      where: {
-        channel,
-        status: "sending",
-        updatedAt: { lt: new Date(Date.now() - SENDING_RECLAIM_MINUTES * 60_000) },
-      },
-      data: { status: "queued" },
-    });
+    // The abandonment threshold is minutes, so scanning on every tick is wasted
+    // work: reclaim at most once a minute per channel.
+    if (Date.now() - (lastReclaimAt.get(channel) ?? 0) >= RECLAIM_SCAN_INTERVAL_MS) {
+      lastReclaimAt.set(channel, Date.now());
+      await prisma.notificationDelivery.updateMany({
+        where: {
+          channel,
+          status: "sending",
+          updatedAt: { lt: new Date(Date.now() - SENDING_RECLAIM_MINUTES * 60_000) },
+        },
+        data: { status: "queued" },
+      });
+    }
 
     // Claim this pass's batch atomically: read candidates, then flip them
     // queued -> sending guarded by `status: 'queued'`. Postgres serialises the
@@ -458,6 +465,8 @@ export function createNotificationDeliveryWorker({
         })
       : [];
 
+    // Only email renders absolute links, and an idle pass has nothing to render.
+    const appBaseUrl = rows.length && channel === "email" ? await resolveAppBaseUrl({ prisma }) : null;
     const brandByCompany =
       channel === "email"
         ? await resolveCompanyBrands(rows.map((d) => d.notification?.companyId))
