@@ -98,6 +98,7 @@ const ALL_IMAGES = [
       "infra/docker/api.Dockerfile",
       "infra/docker/api-entrypoint.sh",
       "infra/installer/supabase/volumes/db/studio-realtime-role.sql",
+      "infra/installer/supabase/volumes/db/notes-private-storage-owner.sql",
       "scripts/diagnose-studio-catalog.mjs",
     ],
   },

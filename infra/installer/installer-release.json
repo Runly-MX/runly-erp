@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.10.27.1",
+  "version": "2026.10.28.1",
   "files": {
     ".env.local.example": {
       "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
@@ -343,7 +343,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "18187a1c9b8737481bc83cd57e0b062a664a4215424f78c0270f659bbd36802e",
+      "sha256": "4f19809799ff01c609eeb2ab2abf6b19050d66cc6297d61a083e82a13b2b9f81",
       "modes": [
         "local"
       ],
@@ -398,6 +398,7 @@
         "ca02959e95a5aa18e5206ff0db3927fdaaec77ee",
         "d32eb1faa67d7a3f1da10f6b13050ea61ef4942d",
         "d79d2e080b450602c267b975ad5b01dff2fd8e10",
+        "dfef7e9d73ff571d5710fb5d4d4a07c8d941acb0",
         "e26c6f83049b0a3cb54f73183d604d6d6e41d242",
         "e540292aee3740f51ac3b318b1d6a09f0ab3f554",
         "f4552848f19dc5114dc69a72f5e732ec73378f6f",
@@ -492,6 +493,14 @@
       "sha256": "1cc94a4f16f6e2932b383cd68e211a96bcae298437ca4120d8a5106396c58465",
       "modes": [
         "local"
+      ],
+      "legacyGitBlobs": []
+    },
+    "supabase/volumes/db/notes-private-storage-owner.sql": {
+      "sha256": "348308e58cc482c3e1082f023cf27ea6df7b6d5ad7b97f061651f77cf4ba6f08",
+      "modes": [
+        "local",
+        "external"
       ],
       "legacyGitBlobs": []
     },

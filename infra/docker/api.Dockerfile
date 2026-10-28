@@ -45,6 +45,7 @@ COPY --from=deps /app /app
 COPY prisma prisma
 COPY packages packages
 COPY infra/installer/supabase/volumes/db/studio-realtime-role.sql infra/installer/supabase/volumes/db/studio-realtime-role.sql
+COPY infra/installer/supabase/volumes/db/notes-private-storage-owner.sql infra/installer/supabase/volumes/db/notes-private-storage-owner.sql
 COPY modules modules
 COPY apps/api apps/api
 COPY apps/shared apps/shared

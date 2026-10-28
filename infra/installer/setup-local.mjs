@@ -1289,6 +1289,11 @@ async function main() {
       execute:createStudioDatabaseRunner({composeArgs:composeFiles,cwd:installerDir}),
       sqlFile:path.join(installerDir,'supabase/volumes/db/studio-realtime-role.sql'),
     });
+    console.log('[6d/8] Preparing Notes private image Storage with the database schema owner...');
+    await prepareStudioRealtimeOwner({
+      execute:createStudioDatabaseRunner({composeArgs:composeFiles,cwd:installerDir}),
+      sqlFile:path.join(installerDir,'supabase/volumes/db/notes-private-storage-owner.sql'),
+    });
     // migrate/seed run as one-shot `docker run` containers (not compose
     // services), so they must explicitly join this project's network to
     // reach supabase-db by service name — Compose's default network is
