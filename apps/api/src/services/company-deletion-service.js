@@ -39,6 +39,10 @@ export function createCompanyDeletionService({ prisma, supabaseAdmin, resources 
         VALUES ($1::uuid, $2::uuid, $3) ON CONFLICT (company_id) DO UPDATE SET state = 'PENDING',
         requested_by = EXCLUDED.requested_by, requested_at = now(), purge_after = now() + interval '72 hours',
         previous_enabled = EXCLUDED.previous_enabled, updated_at = now(), error_code = NULL, attempts = 0, completed_at = NULL`, companyId, member.userId, member.company.enabled)
+      // Rotating the Realtime revision makes every open client refetch its
+      // memberships and pending deletions right away (authorizedRealtime.js).
+      // Cancel and purge already rotate it through their company update trigger.
+      await db.$executeRawUnsafe('UPDATE public.realtime_authorization_revision SET revision = revision + 1 WHERE id')
       // The company stays enabled during the recovery window so members can still
       // read and rescue data; DB guards freeze writes. It is disabled when purging starts.
       return { companyId, created: true, companyName: member.company.name, requestedByName: member.user?.displayName ?? null }

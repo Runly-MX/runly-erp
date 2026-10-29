@@ -45,6 +45,11 @@ describe('company deletion on isolated PostgreSQL', { skip: !url }, () => {
       CREATE TABLE custom_lifecycle_child(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), item_id uuid NOT NULL REFERENCES custom_lifecycle_item(id) ON DELETE RESTRICT);
       CREATE TABLE custom_lifecycle_other(id uuid PRIMARY KEY DEFAULT gen_random_uuid(), company_id uuid, item_id uuid REFERENCES custom_lifecycle_item(id));`)
     await pool.query(readFileSync(new URL('../../../../../prisma/migrations/20261014180000_company_deletion/migration.sql', import.meta.url), 'utf8'))
+    // Realtime revision as in 20260920010000_realtime_revocation: company writes rotate it.
+    await pool.query(`CREATE TABLE realtime_authorization_revision(id boolean PRIMARY KEY DEFAULT true CHECK (id), revision bigint NOT NULL DEFAULT 1);
+      INSERT INTO realtime_authorization_revision DEFAULT VALUES;
+      CREATE FUNCTION runly_rotate_realtime() RETURNS trigger LANGUAGE plpgsql AS $$ BEGIN UPDATE realtime_authorization_revision SET revision = revision + 1 WHERE id; RETURN NULL; END $$;
+      CREATE TRIGGER runly_realtime_grants AFTER INSERT OR UPDATE OR DELETE ON company FOR EACH STATEMENT EXECUTE FUNCTION runly_rotate_realtime()`)
     prisma = new PrismaClient({ adapter: new PrismaPg(pool) })
     a = await prisma.company.create({ data: { name: 'Empresa A', slug: 'company-a' } })
     b = await prisma.company.create({ data: { name: 'Empresa B', slug: 'company-b' } })
@@ -74,13 +79,17 @@ describe('company deletion on isolated PostgreSQL', { skip: !url }, () => {
     moduleRoot = await mkdtemp(path.join(tmpdir(),'runly-lifecycle-test-'))
     service = createCompanyDeletionService({ prisma, supabaseAdmin: storage, resources: createCompanyDeletionResources({ supabaseAdmin: storage, modulesDir:async()=>moduleRoot, bundlesDir:moduleRoot }) })
   })
+  const realtimeRevision = async () => BigInt((await pool.query('SELECT revision FROM realtime_authorization_revision')).rows[0].revision)
   after(async () => { await prisma?.$disconnect(); await pool?.end(); if(moduleRoot) await rm(moduleRoot,{recursive:true,force:true}) })
   it('only the target administrator can request deletion and exact name is required', async () => {
     await assert.rejects(service.request({ companyId: a.id, authUserId: member.authUserId, confirmation: a.name }), { status: 403 })
     await assert.rejects(service.request({ companyId: a.id, authUserId: admin.authUserId, confirmation: 'wrong' }), { status: 422 })
   })
   it('suspends without destroying, freezes writes, blocks public capabilities, preserves other-company access', async () => {
+    const revisionBefore = await realtimeRevision()
     const result = await service.request({ companyId: a.id, authUserId: admin.authUserId, confirmation: a.name })
+    // Open clients of every member refetch the deletion state on rotation.
+    assert.equal(await realtimeRevision(), revisionBefore + 1n)
     assert.equal(result.pending.canRestore, true)
     assert.equal(new Date(result.pending.purgeAfter) - new Date(result.pending.requestedAt), 72*3600000)
     assert.equal((await prisma.company.findUnique({ where: { id:a.id } })).enabled, true)
@@ -98,9 +107,12 @@ describe('company deletion on isolated PostgreSQL', { skip: !url }, () => {
   })
   it('is idempotent and cancellation restores memberships and access', async () => {
     const first = (await service.list(admin.authUserId))[0]
+    const unchanged = await realtimeRevision()
     await service.request({companyId:a.id,authUserId:admin.authUserId,confirmation:a.name})
     assert.equal(String((await service.list(admin.authUserId))[0].purgeAfter),String(first.purgeAfter))
+    assert.equal(await realtimeRevision(), unchanged)
     await service.cancel({companyId:a.id,authUserId:admin.authUserId})
+    assert.ok(await realtimeRevision() > unchanged)
     assert.equal((await prisma.company.findUnique({where:{id:a.id}})).enabled,true)
     assert.equal(await prisma.membership.count({where:{companyId:a.id,enabled:true}}),2)
   })

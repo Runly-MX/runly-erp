@@ -27,6 +27,20 @@ reintentar; no se presenta como eliminada mientras existan dependencias o errore
 de almacenamiento. Las cuentas, avatares, firmas y recursos personales globales se
 conservan. También se conservan los módulos y recursos utilizados por otra empresa.
 
+### Propagación a otros clientes abiertos
+
+Los clientes abiertos se actualizan cuando rota la revisión de autorización de
+Realtime (`realtime_authorization_revision`), que cada cliente consulta cada 10 s.
+La solicitud rota la revisión en su misma transacción
+(`company-deletion-service.js`). La cancelación y el inicio de la purga la rotan
+con el trigger existente sobre `company`, y la purga completada lo hace al borrar
+las membresías. El paso `PURGING` → `FAILED` no la rota: los clientes lo ven en
+su consulta de respaldo (15 s con una eliminación pendiente, 2 min si no hay
+ninguna). Cuando ocurre, la empresa ya está deshabilitada y el acceso ya se
+revocó al iniciar la purga, así que el retraso solo afecta a la etiqueta de
+estado. Si hiciera falta cubrirlo, la alternativa mínima es rotar la revisión en
+esa misma sentencia del worker. No hace falta ninguna migración ni trigger.
+
 ## Qué elimina el worker
 
 - Registros activos y desactivados con `company_id`, incluyendo tablas RME3 de
