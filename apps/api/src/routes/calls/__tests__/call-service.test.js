@@ -789,7 +789,7 @@ describe("createCallService.inviteMembersToLiveCall", () => {
   const HOST = CALLER_ID;
   const GUEST = CALLEE_ID;
 
-  function buildPrisma({ liveCall = null, existingMemberIds = [], existingParticipantIds = [] } = {}) {
+  function buildPrisma({ liveCall = null, existingMemberIds = [], existingParticipantIds = [], type = "group" } = {}) {
     const calls = { executeRaw: [], createManyParticipants: null };
     const prisma = {
       membership: { findFirst: async () => ({ companyId: "co-1" }) },
@@ -809,7 +809,7 @@ describe("createCallService.inviteMembersToLiveCall", () => {
           return existingMemberIds.map((userId) => ({ userId }));
         }
         if (sql.includes("FROM chat_conversations")) {
-          return [{ companyId: "co-1" }];
+          return [{ companyId: "co-1", type }];
         }
         return [];
       },
@@ -889,6 +889,44 @@ describe("createCallService.inviteMembersToLiveCall", () => {
     assert.deepEqual(out.notified, [GUEST]);
     assert.equal(calls.createManyParticipants, null);
     assert.ok(!calls.executeRaw.some((sql) => sql.includes("INSERT INTO chat_conversation_members")));
+  });
+
+  it("in a direct chat attaches the invitee to the call without making them a member", async () => {
+    const { prisma, calls } = buildPrisma({
+      liveCall: { id: CALL_ID, kind: "VIDEO", initiatedByUserId: HOST },
+      type: "direct",
+    });
+    const published = [];
+    const broadcasts = [];
+    const service = createCallService({
+      prisma,
+      env: enabledEnv(),
+      notificationService: { publish: async (args) => { published.push(args); return { data: [] }; } },
+      broadcaster: { broadcastToUsers: async (ids, event) => { broadcasts.push(event); } },
+    });
+
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [{ userId: GUEST }],
+    });
+
+    assert.deepEqual(out.addedMembers, []);
+    assert.deepEqual(out.addedParticipants, [GUEST]);
+    assert.ok(!calls.executeRaw.some((sql) => sql.includes("chat_conversation_members")));
+    assert.equal(published[0].input.link, "/app/m/runly.chat/chat/inbox");
+    assert.deepEqual(broadcasts, ["chat.call.incoming"]);
+  });
+
+  it("in a direct chat with no live call invites nobody", async () => {
+    const { prisma } = buildPrisma({ liveCall: null, type: "direct" });
+    const service = createCallService({ prisma, env: enabledEnv() });
+    const out = await service.inviteMembersToLiveCall({
+      conversationId: CONVERSATION_ID,
+      inviterProfileId: HOST,
+      users: [{ userId: GUEST }],
+    });
+    assert.deepEqual(out, { notified: [], addedMembers: [], addedParticipants: [] });
   });
 
   it("still notifies (no ring / no participant) when there is no live call", async () => {

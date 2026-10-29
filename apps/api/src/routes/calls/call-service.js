@@ -168,8 +168,29 @@ export function createCallService({
     return call;
   }
 
+  // Members of the conversation, or — in a direct chat, whose outsiders are
+  // never made members (see call-invite-service.js) — someone attached to this
+  // very call.
+  async function assertCallMembership(call, profileId) {
+    try {
+      await assertMembership(call.conversationId, profileId);
+    } catch (error) {
+      const participant = call.participants.find((entry) => entry.userId === profileId);
+      if (!participant || participant.status === "REMOVED") throw error;
+      const rows = await prisma.$queryRaw`
+        SELECT c.id FROM chat_conversations c
+        WHERE c.id = ${call.conversationId}
+          AND c.type = 'direct'
+          AND c.deleted_at IS NULL
+          AND public.runly_member_active(c.company_id, ${profileId}, 'chat.conversations.read')
+        LIMIT 1
+      `;
+      if (!rows.length) throw error;
+    }
+  }
+
   async function assertCallAccess(call, profileId) {
-    await assertMembership(call.conversationId, profileId);
+    await assertCallMembership(call, profileId);
     const participant = call.participants.find((entry) => entry.userId === profileId);
     if (!participant) throw new CallServiceError("No formas parte de esta llamada.", 403);
     return participant;
@@ -642,7 +663,7 @@ export function createCallService({
     if (before.status === "ENDED") throw new CallServiceError("Esta llamada ya termino.", 409);
     // Any member of the conversation may join (or re-join) a live meeting —
     // even if they declined, missed the ring, left, or were never rung.
-    await assertMembership(before.conversationId, profile.id);
+    await assertCallMembership(before, profile.id);
     let participant = before.participants.find((entry) => entry.userId === profile.id) ?? null;
     if (participant?.status === "REMOVED") {
       throw new CallServiceError("El anfitrión te quitó de esta llamada.", 403);
@@ -769,10 +790,11 @@ export function createCallService({
     return getCallRecord(callId);
   }
 
-  // A 1:1 call ends when either side hangs up. A group call or meeting keeps
-  // going while anyone is still in it — even after the host leaves (the host
-  // ends it for everyone with endCall, "Finalizar para todos"). Someone still
-  // inside the reconnect grace counts as in it.
+  // A 1:1 call ends when either side hangs up — once a direct chat's call has
+  // grown past two people it keeps going until one is left alone. A group call
+  // or meeting keeps going while anyone is still in it — even after the host
+  // leaves (the host ends it for everyone with endCall, "Finalizar para
+  // todos"). Someone still inside the reconnect grace counts as in it.
   async function endCallIfEmptied(call, leftProfileId) {
     const remaining = await prisma.callParticipant.count({
       where: { callId: call.id, userId: { not: leftProfileId }, status: "JOINED" },
@@ -780,7 +802,7 @@ export function createCallService({
     const [conversation] = await prisma.$queryRaw`
       SELECT type FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
     `;
-    if (conversation?.type === "direct" || remaining === 0) {
+    if ((conversation?.type === "direct" && remaining <= 1) || remaining === 0) {
       await endCallRecord(call, "ended");
     }
   }
@@ -890,10 +912,15 @@ export function createCallService({
   async function revokeUnauthorizedParticipants() {
     const config = getConfig();
     if (!config.enabled) return;
+    // A direct chat's call outsiders are participants, not members (see
+    // assertCallMembership): they keep access while active in the company.
     const rows = await prisma.$queryRaw`SELECT cp.id, cp.livekit_identity, c.livekit_room_name
       FROM call_participant cp JOIN call c ON c.id = cp.call_id
+      JOIN chat_conversations conv ON conv.id = c.conversation_id
       WHERE c.status IN ('RINGING', 'ACTIVE')
-        AND NOT public.runly_chat_user_access(c.conversation_id, cp.user_id)`;
+        AND NOT public.runly_chat_user_access(c.conversation_id, cp.user_id)
+        AND NOT (conv.type = 'direct' AND conv.deleted_at IS NULL AND cp.status <> 'REMOVED'
+          AND public.runly_member_active(conv.company_id, cp.user_id, 'chat.conversations.read'))`;
     const rooms = new RoomServiceClientImpl(config.internalUrl, config.apiKey, config.apiSecret);
     // Keep checking LEFT participants: self-hosted LiveKit does not revoke old
     // tokens, so a reconnect must be removed again, including screen publishers.

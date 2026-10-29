@@ -23,14 +23,26 @@ export function createCallInviteService({ prisma, notificationService = null, br
     // for why (a multi-company inviter's "most recent membership" is not
     // necessarily this call's company).
     const [conversationRow] = await prisma.$queryRaw`
-      SELECT company_id AS "companyId" FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
+      SELECT company_id AS "companyId", type FROM chat_conversations WHERE id = ${conversationId} LIMIT 1
     `;
     const companyId = conversationRow?.companyId ?? null;
+    // A direct chat stays between its two people: whoever joins its call is a
+    // call participant only, never a conversation member (that would hand them
+    // the whole private history and show them in read receipts).
+    const isDirect = conversationRow?.type === "direct";
 
     const [inviter] = await prisma.$queryRaw`
       SELECT display_name AS "displayName" FROM user_profile WHERE id = ${inviterProfileId} LIMIT 1
     `;
     const inviterName = inviter?.displayName ?? "Alguien";
+
+    // Without a live call a direct chat has nothing to invite outsiders to.
+    const liveCall = await prisma.call.findFirst({
+      where: { conversationId, status: { in: LIVE_CALL_STATUSES } },
+      orderBy: { createdAt: "desc" },
+      select: { id: true, kind: true, initiatedByUserId: true },
+    });
+    if (isDirect && !liveCall) return { notified: [], addedMembers: [], addedParticipants: [] };
 
     // 1. Add anyone who is not already an active member of the conversation.
     const memberRows = await prisma.$queryRaw`
@@ -41,7 +53,7 @@ export function createCallInviteService({ prisma, notificationService = null, br
     `;
     const alreadyMembers = new Set(memberRows.map((r) => r.userId));
     const addedMembers = [];
-    for (const uid of targetIds) {
+    for (const uid of isDirect ? [] : targetIds) {
       if (alreadyMembers.has(uid)) continue;
       // (conversation_id, user_id) is a PARTIAL unique index
       // (WHERE user_id IS NOT NULL AND left_at IS NULL); the ON CONFLICT clause
@@ -65,11 +77,6 @@ export function createCallInviteService({ prisma, notificationService = null, br
 
     // 2. Attach them to the live call (if any) so their client can fetch it and
     //    they can actually join.
-    const liveCall = await prisma.call.findFirst({
-      where: { conversationId, status: { in: LIVE_CALL_STATUSES } },
-      orderBy: { createdAt: "desc" },
-      select: { id: true, kind: true, initiatedByUserId: true },
-    });
     const addedParticipants = [];
     if (liveCall) {
       const existing = await prisma.callParticipant.findMany({
@@ -141,7 +148,7 @@ export function createCallInviteService({ prisma, notificationService = null, br
             body: kind === "VIDEO"
               ? "Te invitaron a una videollamada"
               : "Te invitaron a una llamada",
-            link: `/app/m/runly.chat/chat/inbox/${conversationId}`,
+            link: isDirect ? "/app/m/runly.chat/chat/inbox" : `/app/m/runly.chat/chat/inbox/${conversationId}`,
             recipients: { userIds: targetIds },
             channels: ["in_app", "web_push"],
             priority: "critical",
@@ -166,9 +173,11 @@ export function createCallInviteService({ prisma, notificationService = null, br
     }
 
     // 5. Realtime nudges: ring the online ones now, refresh their channel list.
-    await broadcaster
-      ?.broadcastToUsers?.(targetIds, "chat.conversation.new", { conversationId })
-      .catch(() => {});
+    if (!isDirect) {
+      await broadcaster
+        ?.broadcastToUsers?.(targetIds, "chat.conversation.new", { conversationId })
+        .catch(() => {});
+    }
     if (liveCall) {
       await broadcaster
         ?.broadcastToUsers?.(targetIds, "chat.call.incoming", incomingPayload)
