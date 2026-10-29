@@ -1,0 +1,533 @@
+[
+  {
+    "name": "build",
+    "webRef": "9820d6585",
+    "apiImage": "runly-traffic-test:api-new",
+    "combinedPresenceClient": false
+  },
+  {
+    "name": "idle-60s",
+    "minutes": 1.0108,
+    "totalHttp": 16,
+    "httpPerMinute": 15.829046299960428,
+    "bytes": 25693,
+    "cpuSeconds": {
+      "runly-api": 0.155,
+      "supabase-db": 0.417,
+      "supabase-realtime": 0.302
+    },
+    "heapBytes": [
+      31515168
+    ],
+    "latencyMs": {
+      "api GET /realtime/revision": {
+        "p50": 4.8,
+        "p95": 5,
+        "n": 7
+      },
+      "api GET /notifications/summary": {
+        "p50": 28.5,
+        "p95": 28.5,
+        "n": 1
+      },
+      "api POST /realtime/presence": {
+        "p50": 16.5,
+        "p95": 28.1,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 10.4,
+        "p95": 10.4,
+        "n": 1
+      }
+    },
+    "http": {
+      "api GET /realtime/revision": 7,
+      "api POST /realtime/presence": 7,
+      "api GET /notifications/summary": 1,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent phx_leave realtime:user::id:events@rev": 1,
+      "sent phx_leave realtime:company::id:presence@rev": 1,
+      "sent phx_leave realtime:company::id:events@rev": 1,
+      "sent phx_leave realtime:chat:company::id@rev": 1,
+      "recv phx_reply realtime:chat:company::id@rev error Unauthorized: You do not have permissions to read from this Channel topic: chat:company:01a187f8-486f-7776-98d6-626df9b7887a@1439": 1,
+      "sent phx_join realtime:user::id:events@rev": 1,
+      "sent phx_join realtime:company::id:presence@rev": 1,
+      "sent phx_join realtime:company::id:events@rev": 1,
+      "sent phx_join realtime:chat:company::id@rev": 1,
+      "sent heartbeat": 3,
+      "recv phx_reply realtime:user::id:events@rev error Unauthorized: You do not have permissions to read from this Channel topic: user:01a187f8-4907-7a38-8ab8-ae79f1282746:events@1439": 1,
+      "recv phx_reply realtime:user::id:events@rev ok": 3,
+      "recv phx_reply realtime:company::id:presence@rev ok": 4,
+      "recv phx_reply realtime:company::id:events@rev ok": 4,
+      "recv phx_reply realtime:chat:company::id@rev ok": 4,
+      "recv phx_reply": 3,
+      "recv phx_close realtime:user::id:events@rev": 1,
+      "recv phx_close realtime:company::id:presence@rev": 1,
+      "recv phx_close realtime:company::id:events@rev": 1,
+      "recv phx_close realtime:chat:company::id@rev": 1
+    }
+  },
+  {
+    "name": "chat-incoming-60s",
+    "minutes": 1.0177833333333333,
+    "totalHttp": 95,
+    "httpPerMinute": 93.34010185533923,
+    "bytes": 287007,
+    "cpuSeconds": {
+      "runly-api": 1.246,
+      "supabase-db": 1.7,
+      "supabase-realtime": 0.467
+    },
+    "heapBytes": [
+      43904591
+    ],
+    "latencyMs": {
+      "api GET /chat/conversations": {
+        "p50": 14.7,
+        "p95": 20.4,
+        "n": 24
+      },
+      "api GET /chat/conversations/:id/messages?limit=40": {
+        "p50": 14.7,
+        "p95": 21.2,
+        "n": 12
+      },
+      "api GET /realtime/revision": {
+        "p50": 3.2,
+        "p95": 6,
+        "n": 7
+      },
+      "api POST /realtime/presence": {
+        "p50": 15.2,
+        "p95": 27.3,
+        "n": 14
+      },
+      "api PATCH /notifications/read-by-source": {
+        "p50": 14.1,
+        "p95": 29,
+        "n": 12
+      },
+      "api POST /chat/conversations/:id/read": {
+        "p50": 18.6,
+        "p95": 31.1,
+        "n": 12
+      },
+      "api GET /notifications/summary": {
+        "p50": 11,
+        "p95": 16,
+        "n": 12
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 8.7,
+        "p95": 8.7,
+        "n": 1
+      },
+      "api GET /chat/saved": {
+        "p50": 10.3,
+        "p95": 10.3,
+        "n": 1
+      }
+    },
+    "http": {
+      "api GET /chat/conversations": 24,
+      "api POST /realtime/presence": 14,
+      "api GET /chat/conversations/:id/messages?limit=40": 12,
+      "api PATCH /notifications/read-by-source": 12,
+      "api POST /chat/conversations/:id/read": 12,
+      "api GET /notifications/summary": 12,
+      "api GET /realtime/revision": 7,
+      "api GET /notifications/subscriptions/webpush/public-key": 1,
+      "api GET /chat/saved": 1
+    },
+    "ws": {
+      "recv postgres_changes realtime:chat:messages::id": 12,
+      "recv broadcast realtime:user::id:events@rev": 24,
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "functional",
+    "checks": [
+      {
+        "name": "on-screen message marked read on the server",
+        "ok": true,
+        "detail": {
+          "unread": 0
+        }
+      },
+      {
+        "name": "on-screen message notification cleared",
+        "ok": true
+      },
+      {
+        "name": "on-screen: one mark-read per message",
+        "ok": true,
+        "detail": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "on-screen: conversation list refreshed",
+        "ok": true,
+        "detail": [
+          2,
+          2,
+          2
+        ]
+      },
+      {
+        "name": "hidden tab leaves the message unread",
+        "ok": true,
+        "detail": {
+          "unread": 1
+        }
+      },
+      {
+        "name": "hidden tab keeps the notification unread",
+        "ok": true
+      },
+      {
+        "name": "hidden tab does not mark read",
+        "ok": true,
+        "detail": {
+          "api GET /notifications/summary": 1,
+          "api GET /chat/conversations": 2,
+          "api GET /chat/conversations/:id/messages?limit=40": 1,
+          "api GET /realtime/revision": 1,
+          "api POST /realtime/presence": 2
+        }
+      },
+      {
+        "name": "off-screen message shows a toast",
+        "ok": true
+      },
+      {
+        "name": "mute request",
+        "ok": true
+      },
+      {
+        "name": "muted conversation shows no toast",
+        "ok": true
+      },
+      {
+        "name": "muted conversation still counts unread",
+        "ok": true,
+        "detail": {
+          "before": 2,
+          "after": 3
+        }
+      },
+      {
+        "name": "reconnect reconciles the conversation list",
+        "ok": true,
+        "detail": {
+          "afterRestartMs": 6031
+        }
+      },
+      {
+        "name": "revoked user: company channel join denied",
+        "ok": true,
+        "detail": {
+          "ms": 6035,
+          "key": "recv phx_reply realtime:company::id:presence@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187f8-486f-7776-98d6-626df9b7887a:presence@1443"
+        }
+      },
+      {
+        "name": "revoked user: memberships refetched",
+        "ok": true,
+        "detail": {
+          "ms": 1029
+        }
+      },
+      {
+        "name": "revoked user: no successful company presence afterwards",
+        "ok": true,
+        "detail": [
+          [
+            1033,
+            403
+          ],
+          [
+            1069,
+            403
+          ]
+        ]
+      },
+      {
+        "name": "deletion request accepted",
+        "ok": true,
+        "detail": 200
+      },
+      {
+        "name": "other admin sees the pending deletion",
+        "ok": true,
+        "detail": {
+          "ms": 10040
+        }
+      },
+      {
+        "name": "deletion cancel accepted",
+        "ok": true,
+        "detail": 200
+      },
+      {
+        "name": "other admin sees the cancellation",
+        "ok": true,
+        "detail": {
+          "ms": 6959
+        }
+      }
+    ],
+    "timings": {
+      "deliveryMs": [
+        128,
+        113,
+        113
+      ],
+      "onScreenListFetches": [
+        2,
+        2,
+        2
+      ],
+      "otherDeviceListFetches": [
+        1,
+        1,
+        1
+      ],
+      "otherDeviceToasts": 0,
+      "perMessage": [
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api GET /chat/conversations": 2,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1
+          },
+          "otherDevice": {
+            "api GET /realtime/revision": 1,
+            "api POST /realtime/presence": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          }
+        },
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api GET /chat/conversations": 2,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /realtime/revision": 1,
+            "api POST /realtime/presence": 2
+          },
+          "otherDevice": {
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1,
+            "api GET /realtime/revision": 1,
+            "api POST /realtime/presence": 1
+          }
+        },
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api GET /chat/conversations": 2,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1
+          },
+          "otherDevice": {
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          }
+        }
+      ],
+      "hiddenHttp": {
+        "api GET /notifications/summary": 1,
+        "api GET /chat/conversations": 2,
+        "api GET /chat/conversations/:id/messages?limit=40": 1,
+        "api GET /realtime/revision": 1,
+        "api POST /realtime/presence": 2
+      },
+      "unreadAfterVisible": 1,
+      "reconnectMs": 6031,
+      "revocation": {
+        "deniedMs": 6035,
+        "membershipsMs": 1029,
+        "events": [
+          {
+            "ms": 1017,
+            "key": "GET /realtime/revision",
+            "status": 200
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_leave realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_leave realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_leave realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_leave realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_join realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_join realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_join realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1020,
+            "key": "sent phx_join realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1024,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 1024,
+            "key": "recv phx_close realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1026,
+            "key": "GET /companies/deletions",
+            "status": 200
+          },
+          {
+            "ms": 1029,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 1029,
+            "key": "GET /memberships/me",
+            "status": 200
+          },
+          {
+            "ms": 1033,
+            "key": "POST /realtime/presence",
+            "status": 403
+          },
+          {
+            "ms": 1058,
+            "key": "sent phx_leave realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1058,
+            "key": "sent phx_leave realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1058,
+            "key": "sent phx_leave realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1058,
+            "key": "GET /notifications/summary",
+            "status": 403
+          },
+          {
+            "ms": 1061,
+            "key": "GET /companies/deletions",
+            "status": 200
+          },
+          {
+            "ms": 1061,
+            "key": "GET /user/me",
+            "status": 200
+          },
+          {
+            "ms": 1069,
+            "key": "POST /realtime/presence",
+            "status": 403
+          },
+          {
+            "ms": 1069,
+            "key": "sent phx_leave realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 6035,
+            "key": "recv phx_reply realtime:company::id:presence@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187f8-486f-7776-98d6-626df9b7887a:presence@1443"
+          },
+          {
+            "ms": 6035,
+            "key": "recv phx_reply realtime:company::id:presence@rev ok"
+          },
+          {
+            "ms": 6035,
+            "key": "recv phx_close realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 11010,
+            "key": "GET /realtime/revision",
+            "status": 200
+          },
+          {
+            "ms": 11042,
+            "key": "recv phx_reply realtime:company::id:events@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187f8-486f-7776-98d6-626df9b7887a:events@1443"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:chat:company::id@rev error Unauthorized: You do not have permissions to read from this Channel topic: chat:company:01a187f8-486f-7776-98d6-626df9b7887a@1443"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:company::id:events@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_close realtime:company::id:events@rev"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:chat:company::id@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_close realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:company::id:events@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:chat:company::id@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:company::id:presence@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 16049,
+            "key": "recv phx_close realtime:user::id:events@rev"
+          }
+        ]
+      },
+      "deletion": {
+        "requestMs": 10040,
+        "cancelMs": 6959
+      }
+    }
+  }
+]

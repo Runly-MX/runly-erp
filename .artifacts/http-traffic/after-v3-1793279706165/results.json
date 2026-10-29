@@ -1,0 +1,958 @@
+[
+  {
+    "name": "build",
+    "webRef": "working-tree",
+    "apiImage": "runly-traffic-test:api-new",
+    "combinedPresenceClient": true
+  },
+  {
+    "name": "idle-60s",
+    "minutes": 1.0109,
+    "totalHttp": 10,
+    "httpPerMinute": 9.892175289346127,
+    "bytes": 19657,
+    "cpuSeconds": {
+      "runly-api": 0.127,
+      "supabase-db": 0.422,
+      "supabase-realtime": 0.295
+    },
+    "heapBytes": [
+      31534070
+    ],
+    "latencyMs": {
+      "api GET /realtime/revision": {
+        "p50": 4.9,
+        "p95": 4.9,
+        "n": 1
+      },
+      "api GET /notifications/summary": {
+        "p50": 20.3,
+        "p95": 20.3,
+        "n": 1
+      },
+      "api POST /realtime/presence": {
+        "p50": 17.6,
+        "p95": 23.2,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 9.5,
+        "p95": 9.5,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /realtime/revision": 1,
+      "api GET /notifications/summary": 1,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent phx_leave realtime:user::id:events@rev": 1,
+      "sent phx_leave realtime:company::id:presence@rev": 1,
+      "sent phx_leave realtime:company::id:events@rev": 1,
+      "sent phx_leave realtime:chat:company::id@rev": 1,
+      "recv phx_reply realtime:chat:company::id@rev error Unauthorized: You do not have permissions to read from this Channel topic: chat:company:01a187cd-4a9c-7c08-85ba-4e65a3cefd17@1439": 1,
+      "sent phx_join realtime:user::id:events@rev": 1,
+      "sent phx_join realtime:company::id:presence@rev": 1,
+      "sent phx_join realtime:company::id:events@rev": 1,
+      "sent phx_join realtime:chat:company::id@rev": 1,
+      "sent heartbeat": 3,
+      "recv phx_reply realtime:user::id:events@rev error Unauthorized: You do not have permissions to read from this Channel topic: user:01a187cd-4b3d-7605-a922-bc71cc6dfc0d:events@1439": 1,
+      "recv phx_reply realtime:user::id:events@rev ok": 4,
+      "recv phx_reply realtime:company::id:presence@rev ok": 4,
+      "recv phx_reply realtime:company::id:events@rev ok": 4,
+      "recv phx_reply realtime:chat:company::id@rev ok": 4,
+      "recv phx_reply": 3,
+      "recv phx_close realtime:user::id:events@rev": 1,
+      "recv phx_close realtime:company::id:presence@rev": 1,
+      "recv phx_close realtime:company::id:events@rev": 1,
+      "recv phx_close realtime:chat:company::id@rev": 1
+    }
+  },
+  {
+    "name": "hidden-60s",
+    "minutes": 1.01155,
+    "totalHttp": 6,
+    "httpPerMinute": 5.931491275764915,
+    "bytes": 12720,
+    "cpuSeconds": {
+      "runly-api": 0.098,
+      "supabase-db": 0.373,
+      "supabase-realtime": 0.283
+    },
+    "heapBytes": [
+      31847641
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 18.6,
+        "p95": 20.3,
+        "n": 6
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 6
+    },
+    "ws": {
+      "sent heartbeat": 2,
+      "recv phx_reply": 2
+    }
+  },
+  {
+    "name": "back-visible-20s",
+    "minutes": 0.3444,
+    "totalHttp": 4,
+    "httpPerMinute": 11.614401858304298,
+    "bytes": 8051,
+    "cpuSeconds": {
+      "runly-api": 0.041,
+      "supabase-db": 0.126,
+      "supabase-realtime": 0.081
+    },
+    "heapBytes": [
+      31925835
+    ],
+    "latencyMs": {
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 12.5,
+        "p95": 12.5,
+        "n": 1
+      },
+      "api GET /notifications/summary": {
+        "p50": 14.8,
+        "p95": 14.8,
+        "n": 1
+      },
+      "api POST /realtime/presence": {
+        "p50": 19.9,
+        "p95": 19.9,
+        "n": 2
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 2,
+      "api GET /notifications/subscriptions/webpush/public-key": 1,
+      "api GET /notifications/summary": 1
+    },
+    "ws": {
+      "sent heartbeat": 1,
+      "recv phx_reply": 1
+    }
+  },
+  {
+    "name": "chat-open-60s",
+    "minutes": 1.0110833333333333,
+    "totalHttp": 8,
+    "httpPerMinute": 7.912305283112174,
+    "bytes": 16742,
+    "cpuSeconds": {
+      "runly-api": 0.113,
+      "supabase-db": 0.374,
+      "supabase-realtime": 0.284
+    },
+    "heapBytes": [
+      36061265
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 17.9,
+        "p95": 22.2,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 8.9,
+        "p95": 8.9,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "chat-closed-60s",
+    "minutes": 1.0112833333333333,
+    "totalHttp": 8,
+    "httpPerMinute": 7.910740478270185,
+    "bytes": 16742,
+    "cpuSeconds": {
+      "runly-api": 0.097,
+      "supabase-db": 0.414,
+      "supabase-realtime": 0.281
+    },
+    "heapBytes": [
+      32933208
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 17,
+        "p95": 21.1,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 15.2,
+        "p95": 15.2,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "chat-incoming-60s",
+    "minutes": 1.01795,
+    "totalHttp": 76,
+    "httpPerMinute": 74.65985559212143,
+    "bytes": 230068,
+    "cpuSeconds": {
+      "runly-api": 1.039,
+      "supabase-db": 1.741,
+      "supabase-realtime": 0.474
+    },
+    "heapBytes": [
+      48894716
+    ],
+    "latencyMs": {
+      "api GET /chat/conversations/:id/messages?limit=40": {
+        "p50": 16.1,
+        "p95": 22.1,
+        "n": 12
+      },
+      "api POST /realtime/presence": {
+        "p50": 15.2,
+        "p95": 26.6,
+        "n": 14
+      },
+      "api PATCH /notifications/read-by-source": {
+        "p50": 13.8,
+        "p95": 18.3,
+        "n": 12
+      },
+      "api POST /chat/conversations/:id/read": {
+        "p50": 18.2,
+        "p95": 23.8,
+        "n": 12
+      },
+      "api GET /notifications/summary": {
+        "p50": 10.2,
+        "p95": 15.3,
+        "n": 12
+      },
+      "api GET /chat/conversations": {
+        "p50": 15.5,
+        "p95": 22.1,
+        "n": 12
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 11.2,
+        "p95": 11.2,
+        "n": 1
+      },
+      "api GET /chat/saved": {
+        "p50": 10,
+        "p95": 10,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 14,
+      "api GET /chat/conversations/:id/messages?limit=40": 12,
+      "api PATCH /notifications/read-by-source": 12,
+      "api POST /chat/conversations/:id/read": 12,
+      "api GET /notifications/summary": 12,
+      "api GET /chat/conversations": 12,
+      "api GET /notifications/subscriptions/webpush/public-key": 1,
+      "api GET /chat/saved": 1
+    },
+    "ws": {
+      "recv broadcast realtime:user::id:events@rev": 24,
+      "recv postgres_changes realtime:chat:messages::id": 12,
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "notes-60s",
+    "minutes": 1.0110333333333332,
+    "totalHttp": 8,
+    "httpPerMinute": 7.912696581055687,
+    "bytes": 16742,
+    "cpuSeconds": {
+      "runly-api": 0.077,
+      "supabase-db": 0.926,
+      "supabase-realtime": 0.394
+    },
+    "heapBytes": [
+      34424833
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 15.2,
+        "p95": 17,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 9.3,
+        "p95": 9.3,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "canvas-60s",
+    "minutes": 1.0106333333333333,
+    "totalHttp": 8,
+    "httpPerMinute": 7.915828358455094,
+    "bytes": 16742,
+    "cpuSeconds": {
+      "runly-api": 0.098,
+      "supabase-db": 0.933,
+      "supabase-realtime": 0.386
+    },
+    "heapBytes": [
+      34676653
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 17.7,
+        "p95": 18.6,
+        "n": 7
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 9,
+        "p95": 9,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "studio-60s",
+    "minutes": 1.0114333333333334,
+    "totalHttp": 10,
+    "httpPerMinute": 9.886959100945852,
+    "bytes": 20260,
+    "cpuSeconds": {
+      "runly-api": 0.116,
+      "supabase-db": 0.885,
+      "supabase-realtime": 0.403
+    },
+    "heapBytes": [
+      45908600
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 16.3,
+        "p95": 19.9,
+        "n": 7
+      },
+      "api GET /studio/designs?page=1&shared=all": {
+        "p50": 20.8,
+        "p95": 20.8,
+        "n": 2
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 9.2,
+        "p95": 9.2,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 7,
+      "api GET /studio/designs?page=1&shared=all": 2,
+      "api GET /notifications/subscriptions/webpush/public-key": 1
+    },
+    "ws": {
+      "sent heartbeat": 3,
+      "recv phx_reply": 3
+    }
+  },
+  {
+    "name": "two-tabs-same-user-60s",
+    "minutes": 1.0108833333333334,
+    "totalHttp": 16,
+    "httpPerMinute": 15.827741414274644,
+    "bytes": 33484,
+    "cpuSeconds": {
+      "runly-api": 0.143,
+      "supabase-db": 0.974,
+      "supabase-realtime": 0.41
+    },
+    "heapBytes": [
+      36523684,
+      30196876
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 16,
+        "p95": 18.8,
+        "n": 14
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 9,
+        "p95": 9,
+        "n": 2
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 14,
+      "api GET /notifications/subscriptions/webpush/public-key": 2
+    },
+    "ws": {
+      "sent heartbeat": 6,
+      "recv phx_reply": 6
+    }
+  },
+  {
+    "name": "users-5-idle-60s",
+    "minutes": 1.0109,
+    "totalHttp": 49,
+    "httpPerMinute": 48.47165891779603,
+    "bytes": 131397,
+    "cpuSeconds": {
+      "runly-api": 0.668,
+      "supabase-db": 1.115,
+      "supabase-realtime": 0.394
+    },
+    "heapBytes": [
+      37732221,
+      31899814,
+      32203199,
+      31786358,
+      31548252
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 19.8,
+        "p95": 25.2,
+        "n": 31
+      },
+      "api GET /memberships/me": {
+        "p50": 14.5,
+        "p95": 24.4,
+        "n": 3
+      },
+      "api GET /companies/deletions": {
+        "p50": 5.7,
+        "p95": 7.9,
+        "n": 3
+      },
+      "api GET /chat/conversations": {
+        "p50": 17.9,
+        "p95": 18.7,
+        "n": 3
+      },
+      "api GET /chat/external/inbox?status=open": {
+        "p50": 11,
+        "p95": 11.3,
+        "n": 3
+      },
+      "api GET /notifications/summary": {
+        "p50": 9.3,
+        "p95": 12.6,
+        "n": 3
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 8.2,
+        "p95": 10.9,
+        "n": 3
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 31,
+      "api GET /memberships/me": 3,
+      "api GET /companies/deletions": 3,
+      "api GET /chat/conversations": 3,
+      "api GET /chat/external/inbox?status=open": 3,
+      "api GET /notifications/summary": 3,
+      "api GET /notifications/subscriptions/webpush/public-key": 3
+    },
+    "ws": {
+      "sent heartbeat": 13,
+      "recv phx_reply": 13
+    }
+  },
+  {
+    "name": "users-10-idle-60s",
+    "minutes": 1.0112166666666667,
+    "totalHttp": 108,
+    "httpPerMinute": 106.80203714996786,
+    "bytes": 346456,
+    "cpuSeconds": {
+      "runly-api": 1.364,
+      "supabase-db": 1.408,
+      "supabase-realtime": 0.353
+    },
+    "heapBytes": [
+      38657873,
+      32321291,
+      32130501,
+      32367393,
+      32139134,
+      32007353,
+      32087530,
+      31881792,
+      31627220,
+      31756416
+    ],
+    "latencyMs": {
+      "api POST /realtime/presence": {
+        "p50": 22.9,
+        "p95": 28.7,
+        "n": 62
+      },
+      "api GET /notifications/subscriptions/webpush/public-key": {
+        "p50": 7.9,
+        "p95": 12.7,
+        "n": 10
+      },
+      "api GET /memberships/me": {
+        "p50": 12.5,
+        "p95": 15.3,
+        "n": 7
+      },
+      "api GET /companies/deletions": {
+        "p50": 5.7,
+        "p95": 6.9,
+        "n": 7
+      },
+      "api GET /chat/conversations": {
+        "p50": 15.6,
+        "p95": 20.7,
+        "n": 7
+      },
+      "api GET /chat/external/inbox?status=open": {
+        "p50": 10.8,
+        "p95": 14.9,
+        "n": 7
+      },
+      "api GET /notifications/summary": {
+        "p50": 10,
+        "p95": 11.2,
+        "n": 7
+      },
+      "api GET /notifications/dnd": {
+        "p50": 8,
+        "p95": 8,
+        "n": 1
+      }
+    },
+    "http": {
+      "api POST /realtime/presence": 62,
+      "api GET /notifications/subscriptions/webpush/public-key": 10,
+      "api GET /memberships/me": 7,
+      "api GET /companies/deletions": 7,
+      "api GET /chat/conversations": 7,
+      "api GET /chat/external/inbox?status=open": 7,
+      "api GET /notifications/summary": 7,
+      "api GET /notifications/dnd": 1
+    },
+    "ws": {
+      "sent heartbeat": 24,
+      "recv phx_reply": 24
+    }
+  },
+  {
+    "name": "functional",
+    "checks": [
+      {
+        "name": "on-screen message marked read on the server",
+        "ok": true,
+        "detail": {
+          "unread": 0
+        }
+      },
+      {
+        "name": "on-screen message notification cleared",
+        "ok": true
+      },
+      {
+        "name": "on-screen: one mark-read per message",
+        "ok": true,
+        "detail": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "on-screen: conversation list refreshed",
+        "ok": true,
+        "detail": [
+          1,
+          1,
+          1
+        ]
+      },
+      {
+        "name": "hidden tab leaves the message unread",
+        "ok": true,
+        "detail": {
+          "unread": 1
+        }
+      },
+      {
+        "name": "hidden tab keeps the notification unread",
+        "ok": true
+      },
+      {
+        "name": "hidden tab does not mark read",
+        "ok": true,
+        "detail": {
+          "api GET /notifications/summary": 1,
+          "api GET /chat/conversations": 2,
+          "api GET /chat/conversations/:id/messages?limit=40": 1,
+          "api POST /realtime/presence": 2
+        }
+      },
+      {
+        "name": "off-screen message shows a toast",
+        "ok": true
+      },
+      {
+        "name": "mute request",
+        "ok": true
+      },
+      {
+        "name": "muted conversation shows no toast",
+        "ok": true
+      },
+      {
+        "name": "muted conversation still counts unread",
+        "ok": true,
+        "detail": {
+          "before": 2,
+          "after": 3
+        }
+      },
+      {
+        "name": "reconnect reconciles the conversation list",
+        "ok": true,
+        "detail": {
+          "afterRestartMs": 5973
+        }
+      },
+      {
+        "name": "revoked user: company channel join denied",
+        "ok": true,
+        "detail": {
+          "ms": 6040,
+          "key": "recv phx_reply realtime:company::id:presence@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187cd-4a9c-7c08-85ba-4e65a3cefd17:presence@1443"
+        }
+      },
+      {
+        "name": "revoked user: memberships refetched",
+        "ok": true,
+        "detail": {
+          "ms": 1036
+        }
+      },
+      {
+        "name": "revoked user: no successful company presence afterwards",
+        "ok": true,
+        "detail": [
+          [
+            1016,
+            403
+          ],
+          [
+            1075,
+            403
+          ]
+        ]
+      },
+      {
+        "name": "deletion request accepted",
+        "ok": true,
+        "detail": 200
+      },
+      {
+        "name": "other admin sees the pending deletion",
+        "ok": true,
+        "detail": {
+          "ms": 10057
+        }
+      },
+      {
+        "name": "deletion cancel accepted",
+        "ok": true,
+        "detail": 200
+      },
+      {
+        "name": "other admin sees the cancellation",
+        "ok": true,
+        "detail": {
+          "ms": 6961
+        }
+      }
+    ],
+    "timings": {
+      "deliveryMs": [
+        119,
+        124,
+        105
+      ],
+      "onScreenListFetches": [
+        1,
+        1,
+        1
+      ],
+      "otherDeviceListFetches": [
+        1,
+        1,
+        1
+      ],
+      "otherDeviceToasts": 0,
+      "perMessage": [
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          },
+          "otherDevice": {
+            "api POST /realtime/presence": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          }
+        },
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1,
+            "api POST /realtime/presence": 2
+          },
+          "otherDevice": {
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1,
+            "api POST /realtime/presence": 1
+          }
+        },
+        {
+          "onScreen": {
+            "api GET /chat/conversations/:id/messages?limit=40": 1,
+            "api PATCH /notifications/read-by-source": 1,
+            "api POST /chat/conversations/:id/read": 1,
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          },
+          "otherDevice": {
+            "api GET /notifications/summary": 1,
+            "api GET /chat/conversations": 1
+          }
+        }
+      ],
+      "hiddenHttp": {
+        "api GET /notifications/summary": 1,
+        "api GET /chat/conversations": 2,
+        "api GET /chat/conversations/:id/messages?limit=40": 1,
+        "api POST /realtime/presence": 2
+      },
+      "unreadAfterVisible": 1,
+      "reconnectMs": 5973,
+      "revocation": {
+        "deniedMs": 6040,
+        "membershipsMs": 1036,
+        "events": [
+          {
+            "ms": 1016,
+            "key": "POST /realtime/presence",
+            "status": 403
+          },
+          {
+            "ms": 1020,
+            "key": "GET /realtime/revision",
+            "status": 200
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_leave realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_leave realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_leave realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_leave realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_join realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_join realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_join realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1023,
+            "key": "sent phx_join realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1029,
+            "key": "GET /companies/deletions",
+            "status": 200
+          },
+          {
+            "ms": 1033,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 1036,
+            "key": "GET /memberships/me",
+            "status": 200
+          },
+          {
+            "ms": 1036,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 1036,
+            "key": "recv phx_close realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1063,
+            "key": "sent phx_leave realtime:user::id:events@rev"
+          },
+          {
+            "ms": 1063,
+            "key": "sent phx_leave realtime:company::id:events@rev"
+          },
+          {
+            "ms": 1063,
+            "key": "sent phx_leave realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 1066,
+            "key": "GET /notifications/summary",
+            "status": 403
+          },
+          {
+            "ms": 1066,
+            "key": "GET /user/me",
+            "status": 200
+          },
+          {
+            "ms": 1066,
+            "key": "GET /companies/deletions",
+            "status": 200
+          },
+          {
+            "ms": 1075,
+            "key": "POST /realtime/presence",
+            "status": 403
+          },
+          {
+            "ms": 1075,
+            "key": "sent phx_leave realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 6040,
+            "key": "recv phx_reply realtime:company::id:presence@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187cd-4a9c-7c08-85ba-4e65a3cefd17:presence@1443"
+          },
+          {
+            "ms": 6040,
+            "key": "recv phx_reply realtime:company::id:presence@rev ok"
+          },
+          {
+            "ms": 6040,
+            "key": "recv phx_close realtime:company::id:presence@rev"
+          },
+          {
+            "ms": 11020,
+            "key": "GET /realtime/revision",
+            "status": 200
+          },
+          {
+            "ms": 11048,
+            "key": "recv phx_reply realtime:company::id:events@rev error Unauthorized: You do not have permissions to read from this Channel topic: company:01a187cd-4a9c-7c08-85ba-4e65a3cefd17:events@1443"
+          },
+          {
+            "ms": 16055,
+            "key": "recv phx_reply realtime:chat:company::id@rev error Unauthorized: You do not have permissions to read from this Channel topic: chat:company:01a187cd-4a9c-7c08-85ba-4e65a3cefd17@1443"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:company::id:events@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_close realtime:company::id:events@rev"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:chat:company::id@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_close realtime:chat:company::id@rev"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:company::id:events@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:chat:company::id@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:company::id:presence@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_reply realtime:user::id:events@rev ok"
+          },
+          {
+            "ms": 16056,
+            "key": "recv phx_close realtime:user::id:events@rev"
+          }
+        ]
+      },
+      "deletion": {
+        "requestMs": 10057,
+        "cancelMs": 6961
+      }
+    }
+  }
+]
