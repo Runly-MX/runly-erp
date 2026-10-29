@@ -3,6 +3,7 @@ import { Fragment, createContext, useCallback, useContext, useEffect, useMemo, u
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider'
 import { runly, setActiveCompanyId as setSdkActiveCompanyId, getActiveCompanyId as getSdkActiveCompanyId } from '../lib/runly'
+import { getSupabaseClient } from '../lib/supabase'
 import { pickActiveCompany } from './pickActiveCompany.js'
 import { useBootLoader } from '../stores/bootLoader'
 import { clearCompanyQueryCache } from './companyQueryCache.js'
@@ -49,8 +50,19 @@ export function ActiveCompanyProvider({ children }) {
     queryFn: () => runly.memberships.me(token),
     enabled: Boolean(token),
     staleTime: 10_000,
-    refetchInterval: 15_000,
+    // Safety net only: grant changes rotate the shared Realtime revision (polled
+    // once per client in authorizedRealtime.js), which refetches this right away.
+    // Company deletion scheduling does not rotate it, hence the bounded interval.
+    refetchInterval: 120_000,
   })
+
+  useEffect(() => {
+    if (!token) return undefined
+    return getSupabaseClient().onRealtimeRevision(() => {
+      queryClient.invalidateQueries({ queryKey: ['memberships-me', authUserId] })
+      queryClient.invalidateQueries({ queryKey: ['company-deletions', authUserId] })
+    })
+  }, [token, authUserId, queryClient])
 
   // A failed background request does not revoke an existing membership. Explicit
   // auth rejection or a successful response removing it does revoke access.

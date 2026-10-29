@@ -1,5 +1,7 @@
 const HEALTH_PROBE_INTERVAL_MS = 30_000
 
+const isDocumentHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden'
+
 export class OnlineDetector {
   constructor({ getNavigatorOnline = () => (typeof navigator !== 'undefined' ? navigator.onLine : true), probeUrl = null } = {}) {
     this._getNavigatorOnline = getNavigatorOnline
@@ -11,6 +13,7 @@ export class OnlineDetector {
 
     this._handleOnline = this._handleOnline.bind(this)
     this._handleOffline = this._handleOffline.bind(this)
+    this._handleVisibility = this._handleVisibility.bind(this)
 
     if (typeof window !== 'undefined') {
       window.addEventListener('online', this._handleOnline)
@@ -18,8 +21,14 @@ export class OnlineDetector {
     }
 
     if (probeUrl) {
-      this._probeTimer = setInterval(() => this._probe(), HEALTH_PROBE_INTERVAL_MS)
+      // Hidden tabs skip the periodic probe and check once when shown again.
+      this._probeTimer = setInterval(() => { if (!isDocumentHidden()) this._probe() }, HEALTH_PROBE_INTERVAL_MS)
+      if (typeof document !== 'undefined') document.addEventListener('visibilitychange', this._handleVisibility)
     }
+  }
+
+  _handleVisibility() {
+    if (!isDocumentHidden()) this._probe()
   }
 
   isOnline() {
@@ -36,6 +45,7 @@ export class OnlineDetector {
       window.removeEventListener('online', this._handleOnline)
       window.removeEventListener('offline', this._handleOffline)
     }
+    if (typeof document !== 'undefined') document.removeEventListener('visibilitychange', this._handleVisibility)
     if (this._probeTimer) {
       clearInterval(this._probeTimer)
       this._probeTimer = null

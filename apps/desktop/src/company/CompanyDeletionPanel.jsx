@@ -32,7 +32,9 @@ function useDeletionJobs() {
     queryKey: ['company-deletions', session?.user?.id],
     queryFn: () => runly.company.pendingDeletions(token),
     enabled: Boolean(userProfile?.isAdmin),
-    refetchInterval: 15000,
+    // Follow an in-flight job closely; otherwise mutations and revision rotations
+    // (ActiveCompanyProvider) refresh it, with a slow safety net.
+    refetchInterval: (query) => (query.state.data?.data?.length ? 15_000 : 120_000),
   })
   const restore = useMutation({
     mutationFn: id => runly.company.cancelDeletion(id, token),

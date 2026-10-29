@@ -61,8 +61,12 @@ export async function createStudioStack({apiImage='runly-studio-test:api-local',
   // Fail a test outage promptly; production gateway timeouts remain unchanged.
   const kongSource = services['supabase-kong'].volumes.find(mount => mount.target === '/home/kong/temp.yml')
   const kongConfig = join(directory, 'kong.yml')
+  // The Realtime WebSocket keeps Kong's 60 s idle window: at 3 s every socket was
+  // dropped (1006) between 25 s heartbeats and rejoined, inflating join, presence
+  // and reconciliation traffic in every measurement.
   await writeFile(kongConfig, (await readFile(kongSource.source, 'utf8')).replace(/^    url:/gm,
-    '    connect_timeout: 2000\n    read_timeout: 3000\n    write_timeout: 3000\n    retries: 0\n    url:'))
+    '    connect_timeout: 2000\n    read_timeout: 3000\n    write_timeout: 3000\n    retries: 0\n    url:')
+    .replace(/read_timeout: 3000\n    write_timeout: 3000(\n    retries: 0\n    url:.*\n    protocol: ws)/g, 'read_timeout: 60000\n    write_timeout: 60000$1'))
   kongSource.source = kongConfig
   const databaseUrl = `postgresql://postgres:${secret.SUPABASE_POSTGRES_PASSWORD}@supabase-db:5432/postgres`
   services['runly-api'] = { image: apiImage, pull_policy: 'never', restart: 'no',

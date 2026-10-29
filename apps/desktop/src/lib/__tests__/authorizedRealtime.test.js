@@ -24,13 +24,23 @@ test('protected sockets rotate grants, relay every write and stop all timers on 
   }
   try {
     authorizeRealtimeClient(client)
+    const rotations = []
+    const stopListening = client.onRealtimeRevision((value) => rotations.push(value))
     const channel = client.channel('chat:presence:room').subscribe()
+    client.channel('company:00000000-0000-7000-8000-000000000000:events').subscribe()
     await new Promise(setImmediate)
     assert.equal(sockets[0].topic, 'realtime:chat:presence:room@1')
     assert.equal(channel.identityProtocol,1)
+    // Every channel and listener shares one timer and one revision request.
+    assert.equal(timers.size, 1)
+    assert.equal(requests.filter((r) => r.url.endsWith('/realtime/revision')).length, 1)
     revision = '2'
     identityProtocol = undefined
     await Promise.all([...timers].map((fn) => fn()))
+    assert.equal(requests.filter((r) => r.url.endsWith('/realtime/revision')).length, 2)
+    assert.deepEqual(rotations, ['2'])
+    stopListening()
+    await client.removeChannel(client.getChannels().at(-1))
     assert.equal(sockets.length, 1)
     assert.equal(sockets[0].topic, 'realtime:chat:presence:room@2')
     assert.equal(channel.identityProtocol,0)

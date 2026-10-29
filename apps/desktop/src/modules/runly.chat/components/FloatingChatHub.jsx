@@ -20,6 +20,7 @@ import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { MiniChatWindow, AvatarCircle, getAvatarUrl, getAvatarEmoji } from "./MiniChatWindow";
 import { ConversationRowActions } from "./ConversationRowActions";
 import { useConversationActionHandler } from "../hooks/useChatConversations";
+import { useExternalInbox } from "../hooks/useExternalInbox";
 import { ChatPreferencesProvider, useChatPreferences, chatPreferencesStyle } from "../hooks/useChatPreferences";
 import { BubbleDropZone } from "../../../components/BubbleDropZone";
 import { isInBubbleDropZone } from "../../../lib/bubbleDropZone";
@@ -423,32 +424,29 @@ function FloatingChatHubInner() {
     queryFn: () => runly.chat.listConversations({}, session?.access_token),
     enabled: Boolean(session?.access_token),
     staleTime: 30_000,
-    refetchInterval: 30_000,
+    // Safety net: RealtimeProvider invalidates this on every chat broadcast and
+    // on each (re)join of the user channel.
+    refetchInterval: 120_000,
     refetchOnWindowFocus: true,
   });
   const conversations = data?.data ?? [];
   const totalUnread = conversations.reduce((sum, c) => sum + (c.unread_count ?? 0), 0);
 
-  const { data: externalData } = useQuery({
-    queryKey: ["chat-external-inbox-bubble"],
-    queryFn: () => runly.chat.listExternalInbox({ status: "open" }, session?.access_token),
-    enabled: Boolean(session?.access_token),
-    staleTime: 30_000,
-    refetchInterval: 30_000,
-    refetchOnWindowFocus: true,
-  });
+  // Same cache entry as the external inbox screen, kept fresh by its company
+  // broadcast subscription, so both never fetch the same list twice.
+  const { data: externalData } = useExternalInbox("open");
   const externalConversations = externalData?.data ?? [];
 
   // Internal previews are invalidated once by RealtimeProvider. External
-  // inbox events additionally affect the bubble's separate inbox query.
+  // inbox events additionally affect the shared inbox query.
   useEffect(() => {
     const unsub2 = on("external_message", () => {
       invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
-      invalidateRealtimeQuery(queryClient, ["chat-external-inbox-bubble"]);
+      invalidateRealtimeQuery(queryClient, ["chat-external-inbox"]);
     });
     const unsub3 = on("new_external_conversation", () => {
       invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
-      invalidateRealtimeQuery(queryClient, ["chat-external-inbox-bubble"]);
+      invalidateRealtimeQuery(queryClient, ["chat-external-inbox"]);
     });
     return () => { unsub2(); unsub3(); };
   }, [on, queryClient]);

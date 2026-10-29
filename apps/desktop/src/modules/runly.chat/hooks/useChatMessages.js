@@ -24,7 +24,8 @@ export function useChatMessages(conversationId) {
     queryFn: () => runly.chat.listMessages(conversationId, { limit: 40 }, token),
     enabled: Boolean(token && conversationId),
     staleTime: 5_000,
-    refetchInterval: 30_000,
+    // Safety net: new messages arrive over Realtime and every rejoin refetches (onReconnect below).
+    refetchInterval: 120_000,
     refetchOnWindowFocus: true,
   });
 

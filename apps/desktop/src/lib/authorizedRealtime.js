@@ -26,21 +26,52 @@ export function authorizeRealtimeClient(client) {
     return response.json()
   }
 
-  // All protected channels poll the same revision; share one in-flight request
-  // and back off after a failure so an API restart does not cause a request storm.
-  let revisionPromise = null, revisionFailedAt = 0
+  // All protected channels and revision listeners share one poll per client:
+  // one timer, one in-flight request, a short reuse window for channels that
+  // subscribe right after another, and a back-off after a failure so an API
+  // restart does not cause a request storm.
+  let revisionPromise = null, revisionFailedAt = 0, lastRevision, lastRevisionAt = 0, ticker = null
+  const revisionListeners = new Set()
   function fetchRevision() {
     if (Date.now() - revisionFailedAt < 5_000) return Promise.reject(new Error('Recurso no disponible'))
+    if (lastRevision && Date.now() - lastRevisionAt < 2_000) return Promise.resolve(lastRevision)
     revisionPromise ??= request('revision')
+      .then((result) => {
+        const changed = lastRevision !== undefined && lastRevision.revision !== result.revision
+        lastRevision = result
+        lastRevisionAt = Date.now()
+        if (changed) revisionListeners.forEach((fn) => { try { fn(result.revision) } catch {} })
+        return result
+      })
       .catch((error) => { revisionFailedAt = Date.now(); throw error })
       .finally(() => { revisionPromise = null })
     return revisionPromise
+  }
+  function tick() {
+    lastRevisionAt = 0
+    if (!channels.size) return fetchRevision().catch(() => {})
+    return Promise.all([...channels].map((channel) => channel.refresh()))
+  }
+  function syncTicker() {
+    const needed = channels.size > 0 || revisionListeners.size > 0
+    if (needed && !ticker) ticker = setInterval(tick, 10_000)
+    if (!needed && ticker) { clearInterval(ticker); ticker = null }
+  }
+
+  // Grant changes (membership, role, permission, company...) rotate the
+  // revision; callers such as the membership list refetch on that signal
+  // instead of polling on their own.
+  client.onRealtimeRevision = (fn) => {
+    revisionListeners.add(fn)
+    syncTicker()
+    if (!lastRevision) fetchRevision().catch(() => {})
+    return () => { revisionListeners.delete(fn); syncTicker() }
   }
 
   client.channel = (topic, options) => {
     if (!protectedTopic.test(topic)) return nativeChannel(topic, options)
     const bindings = []
-    let socket, currentRevision, callback, timer, closed = false, busy = false, identityProtocol = 0
+    let socket, currentRevision, callback, subscribed = false, closed = false, busy = false, identityProtocol = 0
     let tracked = false, presence = {}
     const sender = crypto.randomUUID()
     const emitPresence = (event, payload) => bindings.filter(([type, filter]) => type === 'presence' && filter.event === event).forEach(([, , fn]) => fn(payload))
@@ -63,16 +94,18 @@ export function authorizeRealtimeClient(client) {
           return 'ok'
         } catch { return 'error' }
       },
+      refresh() { return subscribed ? refresh() : undefined },
       subscribe(fn) {
         callback = fn
+        subscribed = true
         refresh()
-        timer = setInterval(refresh, 10_000)
+        syncTicker()
         return wrapper
       },
       async unsubscribe() {
         closed = true
-        clearInterval(timer)
         channels.delete(wrapper)
+        syncTicker()
         if (tracked) await wrapper.untrack()
         return socket ? nativeRemove(socket) : 'ok'
       },

@@ -17,7 +17,8 @@ export function useExternalInbox(status = "open", search = null) {
     queryFn: () => runly.chat.listExternalInbox({ status, ...(search ? { search } : {}) }, token),
     enabled: Boolean(token && companyId),
     staleTime: 15_000,
-    refetchInterval: 60_000,
+    // Safety net: the company broadcast below invalidates this on every change.
+    refetchInterval: 120_000,
   });
 
   const invalidate = useCallback(() => {

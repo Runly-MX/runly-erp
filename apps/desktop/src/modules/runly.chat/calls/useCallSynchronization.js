@@ -24,8 +24,9 @@ export function useCallSynchronization({
   useEffect(() => {
     if (!enabled || !token || !userId || activeCallId) return undefined;
     let running = false;
-    async function sync() {
-      if (running) return;
+    async function sync(event) {
+      // Hidden tabs rely on Realtime and push; they resync when shown again.
+      if (running || (!event && document.visibilityState === "hidden")) return;
       running = true;
       try {
         await syncCurrentCall();

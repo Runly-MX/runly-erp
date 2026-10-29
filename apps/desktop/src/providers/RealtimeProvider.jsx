@@ -20,6 +20,15 @@ import { isCommentsQuery } from '../lib/createCommentHooks'
 
 const RealtimeContext = createContext(null)
 
+// Open in a floating chat window, on its inbox route, or as the visible MirAI
+// conversation. Callers add the document.hidden check where it matters.
+function isConversationOnScreen(convId) {
+  if (!convId) return false
+  return useChatFloatStore.getState().openChats.some((c) => c.id === convId && !c.minimized)
+    || window.location.pathname.includes(`/runly.chat/chat/inbox/${convId}`)
+    || isMiraiConversationVisible(convId)
+}
+
 export function RealtimeProvider({ children }) {
   const { userProfile, session } = useAuth()
   const { activeCompanyId } = useActiveCompany()
@@ -64,8 +73,37 @@ export function RealtimeProvider({ children }) {
 
   useEffect(() => {
     if (!userProfile?.id || !session?.access_token) return
-    let disposed = false
+    let disposed = false, joinedOnce = false
     const client = getSupabaseClient()
+    // The recipient is actively looking at this conversation right now
+    // — clear its chat.message.new notification instead of leaving an
+    // unread bell entry for a message they're already reading, AND
+    // bump last_read_at so any OTHER session of this same account
+    // (e.g. a desktop tab left open while chatting on a phone) learns
+    // — on its next chat-conversations refetch — that this
+    // conversation is already read and stays quiet too (see
+    // alreadyReadElsewhere in both handlers below). The notification row
+    // is created asynchronously on the server (fire-and-forget after
+    // sendMessage returns), so this is debounced and delayed rather than
+    // raced against it. Both refreshes run even if the write fails: they
+    // are the only list/counter update for an on-screen message.
+    function scheduleMarkConversationRead(convId) {
+      const timers = markConversationReadTimersRef.current
+      clearTimeout(timers.get(convId))
+      timers.set(convId, setTimeout(() => {
+        timers.delete(convId)
+        const currentToken = sessionRef.current?.access_token
+        if (!currentToken) return
+        runly.notifications
+          .markReadBySource(currentToken, 'chat_conversation', convId)
+          .catch(() => {})
+          .finally(() => invalidateRealtimeQuery(queryClient, ['notifications']))
+        runly.chat
+          .markRead(convId, currentToken)
+          .catch(() => {})
+          .finally(() => invalidateRealtimeQuery(queryClient, ['chat-conversations']))
+      }, 1500))
+    }
     // private: true enables Realtime Authorization — the server checks the
     // user_events_receive RLS policy (migration
     // 20260911140000_chat_company_realtime_authorization), so only this
@@ -73,10 +111,15 @@ export function RealtimeProvider({ children }) {
     const channel = client
       .channel(`user:${userProfile.id}:events`, { config: { private: true } })
       .on('broadcast', { event: 'notification.new' }, async ({ payload }) => {
+        // A message in a conversation on screen is marked read by the
+        // chat.message.new handler below, which refreshes the counters itself.
+        const showingChat = payload?.eventType === 'chat.message.new' && isConversationOnScreen(payload.sourceId) && !document.hidden
         // Instant badge feedback, then an authoritative counters refresh (leading +
         // trailing, at most one per second). The payload is a hint, never the state.
-        applyIncomingNotification(queryClient, payload)
-        refreshNotifications(queryClient)
+        if (!showingChat) {
+          applyIncomingNotification(queryClient, payload)
+          refreshNotifications(queryClient)
+        }
         // A mention/comment notification means some thread changed; refresh
         // any comment thread cached or on screen so its link opens fresh.
         queryClient.invalidateQueries({ predicate: isCommentsQuery })
@@ -101,12 +144,9 @@ export function RealtimeProvider({ children }) {
         // has caught up — shouldn't ding or raise an OS notification. Other
         // event types have no such per-conversation read state, so this only
         // applies to chat.message.new.
-        let chatAlreadyRead = false
-        if (payload.eventType === 'chat.message.new' && payload.sourceId) {
+        let chatAlreadyRead = showingChat
+        if (!showingChat && payload.eventType === 'chat.message.new' && payload.sourceId) {
           const convId = payload.sourceId
-          const openChats = useChatFloatStore.getState().openChats
-          const isOpenAndVisible = openChats.some((c) => c.id === convId && !c.minimized)
-          const isOnRoute = window.location.pathname.includes(`/runly.chat/chat/inbox/${convId}`)
           // Must be freshly refetched, not the cache as of right before this
           // message: unread_count from a moment ago reflects the state
           // BEFORE this message existed, which would read as "0 unread" for
@@ -114,8 +154,7 @@ export function RealtimeProvider({ children }) {
           await invalidateRealtimeQuery(queryClient, ['chat-conversations'])
           if (disposed) return
           const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
-          const alreadyReadElsewhere = cachedConversations.some((c) => c.id === convId && c.unread_count === 0)
-          chatAlreadyRead = alreadyReadElsewhere || ((isOpenAndVisible || isOnRoute) && !document.hidden)
+          chatAlreadyRead = cachedConversations.some((c) => c.id === convId && c.unread_count === 0)
         }
         if (!chatAlreadyRead && !useNotificationSoundStore.getState().muted) playCallSound('notification')
         // The service worker's `push` handler already raises the OS notification
@@ -172,6 +211,14 @@ export function RealtimeProvider({ children }) {
           return
         }
         const convId = payload?.conversationId
+        const onScreen = isConversationOnScreen(convId)
+        // Being read right here: no toast to decide, and the mark-read below
+        // refreshes the list once instead of refetching it twice.
+        if (onScreen && !document.hidden) {
+          dispatch('chat.message.new', payload)
+          scheduleMarkConversationRead(convId)
+          return
+        }
         // Must be freshly refetched, not whatever was cached right before
         // this message: unread_count from a moment ago reflects the state
         // BEFORE this message existed, which would read as "0 unread" for
@@ -179,10 +226,6 @@ export function RealtimeProvider({ children }) {
         await invalidateRealtimeQuery(queryClient, ['chat-conversations'])
         if (disposed) return
         dispatch('chat.message.new', payload)
-        const openChats = useChatFloatStore.getState().openChats
-        const isOpenAndVisible = convId && openChats.some((c) => c.id === convId && !c.minimized)
-        const isOnRoute = (convId && window.location.pathname.includes(`/runly.chat/chat/inbox/${convId}`))
-          || isMiraiConversationVisible(convId)
         const cachedConversations = queryClient.getQueryData(['chat-conversations'])?.data ?? []
         const isMuted = convId && cachedConversations.some((c) => c.id === convId && c.is_muted)
         // unread_count is computed server-side against this user's own
@@ -194,7 +237,7 @@ export function RealtimeProvider({ children }) {
         const alreadyReadElsewhere = convId
           && cachedConversations.some((c) => c.id === convId && c.unread_count === 0)
         const dupKey = convId ? `c:chat.message.new|${payload.senderName}|${convId}` : null
-        if (!isOpenAndVisible && !isOnRoute && !isMuted && !alreadyReadElsewhere && claimNotification(dupKey)) {
+        if (!onScreen && !isMuted && !alreadyReadElsewhere && claimNotification(dupKey)) {
           toast(payload.senderName, {
             description: payload.preview || (payload.hasAttachments ? 'Envió un archivo' : 'Nuevo mensaje'),
             duration: 5000,
@@ -203,34 +246,6 @@ export function RealtimeProvider({ children }) {
               onClick: () => navigate(`/app/m/runly.chat/chat/inbox/${convId}`),
             } : undefined,
           })
-        }
-        // The recipient is actively looking at this conversation right now
-        // — clear its chat.message.new notification instead of leaving an
-        // unread bell entry for a message they're already reading, AND
-        // bump last_read_at so any OTHER session of this same account
-        // (e.g. a desktop tab left open while chatting on a phone) learns
-        // — on its next chat-conversations refetch — that this
-        // conversation is already read and stays quiet too (see
-        // alreadyReadElsewhere above / in the notification.new handler).
-        // The notification row is created asynchronously on the server
-        // (fire-and-forget after sendMessage returns), so this is
-        // debounced and delayed rather than raced against it.
-        if ((isOpenAndVisible || isOnRoute) && !document.hidden && convId) {
-          const timers = markConversationReadTimersRef.current
-          clearTimeout(timers.get(convId))
-          timers.set(convId, setTimeout(() => {
-            timers.delete(convId)
-            const currentToken = sessionRef.current?.access_token
-            if (!currentToken) return
-            runly.notifications
-              .markReadBySource(currentToken, 'chat_conversation', convId)
-              .then(() => invalidateRealtimeQuery(queryClient, ['notifications']))
-              .catch(() => {})
-            runly.chat
-              .markRead(convId, currentToken)
-              .then(() => invalidateRealtimeQuery(queryClient, ['chat-conversations']))
-              .catch(() => {})
-          }, 1500))
         }
       })
       .on('broadcast', { event: 'chat.status.changed' }, () => {
@@ -302,7 +317,11 @@ export function RealtimeProvider({ children }) {
       .subscribe((status) => {
         // Every (re)join, including after a dropped socket, reconciles with HTTP: a
         // broadcast sent while this client was away is not replayed by Realtime.
-        if (status === 'SUBSCRIBED') refreshNotifications(queryClient)
+        if (status !== 'SUBSCRIBED') return
+        refreshNotifications(queryClient)
+        // The first join coincides with the initial fetch; later ones may have missed messages.
+        if (joinedOnce) invalidateRealtimeQuery(queryClient, ['chat-conversations'])
+        joinedOnce = true
       })
 
     return () => {

@@ -54,6 +54,28 @@ test('OnlineDetector - checkNow probes immediately and reports the result', asyn
   }
 })
 
+test('OnlineDetector - hidden tabs skip the periodic probe and check once when shown', async () => {
+  const real = { fetch: globalThis.fetch, setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval, document: globalThis.document }
+  const listeners = {}
+  let tick = null, probes = 0, visibilityState = 'hidden'
+  globalThis.setInterval = (fn) => { tick = fn; return 1 }
+  globalThis.clearInterval = () => {}
+  globalThis.fetch = async () => { probes++; return {} }
+  globalThis.document = { get visibilityState() { return visibilityState }, addEventListener: (e, fn) => { listeners[e] = fn }, removeEventListener: () => {} }
+  const detector = new OnlineDetector({ getNavigatorOnline: () => true, probeUrl: 'http://api.example/health' })
+  try {
+    tick()
+    assert.equal(probes, 0)
+    visibilityState = 'visible'
+    listeners.visibilitychange()
+    await new Promise(setImmediate)
+    assert.equal(probes, 1)
+  } finally {
+    detector.destroy()
+    Object.assign(globalThis, real)
+  }
+})
+
 test('OnlineDetector - destroy removes all listeners', () => {
   const detector = new OnlineDetector({ getNavigatorOnline: () => true })
   const calls = []

@@ -8,7 +8,7 @@ export function CompanyAccessScreen() {
   const { session, logout } = useAuth()
   const { refreshCompanyAccess } = useActiveCompany()
   const token = session?.access_token
-  const pending = useQuery({ queryKey: ['company-deletions', session?.user?.id], queryFn: () => runly.company.pendingDeletions(token), refetchInterval: 15000 })
+  const pending = useQuery({ queryKey: ['company-deletions', session?.user?.id], queryFn: () => runly.company.pendingDeletions(token), refetchInterval: (query) => (query.state.data?.data?.length ? 15_000 : 120_000) })
   const restore = useMutation({
     mutationFn: id => runly.company.cancelDeletion(id, token),
     onSuccess: () => refreshCompanyAccess(),
