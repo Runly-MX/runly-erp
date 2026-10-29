@@ -1,12 +1,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { computeActionSheetLayout } from "../messageActionLayout.js";
+import { computeAnchoredMenuLayout, computeSpotlightLayout } from "../messageActionLayout.js";
 
 const base = {
   vw: 390,
   vh: 844,
-  pillSize: { width: 220, height: 44 },
-  panelSize: { width: 240, height: 300 },
+  pillSize: { width: 276, height: 44 },
+  cardSize: { width: 240, height: 560 },
   safeTop: 59,
   safeBottom: 34,
   gap: 8,
@@ -15,144 +15,56 @@ const base = {
 const mTop = base.margin + base.safeTop;       // 67
 const mBottom = base.margin + base.safeBottom;  // 42
 
-describe("computeActionSheetLayout — touch spotlight", () => {
-  it("does not scale or move a small message that already fits", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: false,
-      anchorPoint: null,
-      rect: { top: 380, bottom: 430, left: 12, right: 300 },
-    });
-    assert.equal(out.mode, "spotlight");
-    assert.equal(out.scale, 1);
-    assert.equal(out.cloneTop, 380, "clone stays exactly over the real bubble");
-    assert.equal(out.cloneLeft, 12);
-    // origin echoes the real bubble so the raise transition is a no-op here
-    assert.equal(out.originTop, 380);
-    assert.equal(out.originLeft, 12);
+function assertNoOverlap(out) {
+  assert.ok(out.pillTop >= mTop - 0.5, `pill top ${out.pillTop}`);
+  assert.ok(out.pillTop + base.pillSize.height <= out.cloneTop, "pill above the bubble");
+  assert.ok(out.cloneTop + out.cloneHeight <= out.cardTop, "card below the bubble");
+  assert.ok(out.cardTop + out.cardMaxHeight <= base.vh - mBottom + 0.5, `card bottom ${out.cardTop + out.cardMaxHeight}`);
+}
+
+describe("computeSpotlightLayout", () => {
+  it("leaves a small mid-screen message in place with the full card", () => {
+    const out = computeSpotlightLayout({ ...base, cardSize: { width: 240, height: 300 }, rect: { top: 300, bottom: 350, left: 12, right: 300 } });
+    assert.equal(out.cloneTop, 300);
+    assert.equal(out.cardMaxHeight, 300);
+    assert.equal(out.cropped, false);
+    assertNoOverlap(out);
   });
 
-  it("scales the copy down when pill + bubble + card can't fit the safe area", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: false,
-      anchorPoint: null,
-      rect: { top: 60, bottom: 660, left: 12, right: 320 }, // 600px tall
-    });
-    assert.ok(out.scale < 1, `expected scale < 1, got ${out.scale}`);
-    assert.ok(out.scale >= 0.55, `never past minScale, got ${out.scale}`);
-    // the whole stack now fits between the insets
-    assert.ok(out.pillTop >= mTop - 0.5, `pillTop ${out.pillTop}`);
-    assert.ok(
-      out.panelTop + base.panelSize.height <= base.vh - mBottom + 0.5,
-      `card bottom ${out.panelTop + base.panelSize.height}`,
-    );
-    // sRect (on-screen copy) height reflects the scale
-    assert.ok(
-      Math.abs((out.sRect.bottom - out.sRect.top) - 600 * out.scale) < 1,
-      "sRect height tracks the scaled copy",
-    );
+  it("shifts a message near the bottom up instead of covering it", () => {
+    const out = computeSpotlightLayout({ ...base, isOwn: true, rect: { top: 740, bottom: 790, left: 90, right: 378 } });
+    assert.ok(out.cloneTop < 740, `cloneTop ${out.cloneTop}`);
+    assertNoOverlap(out);
   });
 
-  it("pushes the copy down so the pill clears the top inset for a message near the top", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: false,
-      anchorPoint: null,
-      rect: { top: 20, bottom: 70, left: 12, right: 300 },
-    });
-    assert.ok(out.cloneTop >= mTop + base.pillSize.height + base.gap - 0.5, `cloneTop ${out.cloneTop}`);
-    assert.ok(out.pillTop >= mTop - 0.5, `pillTop ${out.pillTop}`);
+  it("caps the card so it scrolls when actions don't fit, keeping the whole bubble", () => {
+    const out = computeSpotlightLayout({ ...base, rect: { top: 400, bottom: 640, left: 12, right: 300 } });
+    assert.ok(out.cardMaxHeight < base.cardSize.height);
+    assert.ok(out.cardMaxHeight >= 200);
+    assert.equal(out.cloneHeight, 240);
+    assertNoOverlap(out);
   });
 
-  it("pulls the copy up so the card clears the bottom inset for a message near the bottom", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: true,
-      anchorPoint: null,
-      rect: { top: 790, bottom: 838, left: 90, right: 378 },
-    });
-    assert.ok(out.cloneTop < 790, `expected upward move, cloneTop ${out.cloneTop}`);
-    assert.ok(
-      out.panelTop + base.panelSize.height <= base.vh - mBottom + 0.5,
-      `card bottom ${out.panelTop + base.panelSize.height}`,
-    );
+  it("crops only a bubble taller than the remaining room", () => {
+    const out = computeSpotlightLayout({ ...base, rect: { top: 100, bottom: 1500, left: 12, right: 320 } });
+    assert.equal(out.cropped, true);
+    assert.equal(out.cardMaxHeight, 200);
+    assertNoOverlap(out);
   });
 
-  it("hugs the right edge of an own message for the pill and the card", () => {
-    const rect = { top: 380, bottom: 430, left: 120, right: 378 };
-    const out = computeActionSheetLayout({
-      ...base, coarse: true, isOwn: true, anchorPoint: null, rect,
-    });
-    assert.ok(out.pillLeft + base.pillSize.width <= rect.right + 0.5, `pill right ${out.pillLeft + base.pillSize.width}`);
-    assert.ok(out.panelLeft + base.panelSize.width <= rect.right + 0.5, `card right ${out.panelLeft + base.panelSize.width}`);
-  });
-
-  it("hugs the left edge of a received message", () => {
-    const rect = { top: 380, bottom: 430, left: 14, right: 260 };
-    const out = computeActionSheetLayout({
-      ...base, coarse: true, isOwn: false, anchorPoint: null, rect,
-    });
-    assert.equal(out.cloneLeft, 14);
-    assert.ok(out.pillLeft >= base.margin);
-    assert.ok(out.panelLeft >= base.margin);
-  });
-  it("pins the card to the bubble's own edge instead of overlapping a huge message", () => {
-    // 2200px-tall content: even minScale can't shrink it into the safe area.
-    const ownOut = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: true,
-      anchorPoint: null,
-      rect: { top: 100, bottom: 2300, left: 40, right: 378 },
-    });
-    assert.equal(ownOut.scale, 0.55, "clamped to minScale");
-    // Pinned near the top-right edge — clear of the centered bubble copy.
-    assert.ok(ownOut.panelLeft + base.panelSize.width <= base.vw - base.margin + 0.5);
-    assert.ok(ownOut.panelLeft >= base.vw - base.margin - base.panelSize.width - 0.5);
-    assert.ok(ownOut.panelTop >= mTop - 0.5);
-
-    const receivedOut = computeActionSheetLayout({
-      ...base,
-      coarse: true,
-      isOwn: false,
-      anchorPoint: null,
-      rect: { top: 100, bottom: 2300, left: 12, right: 320 },
-    });
-    // Pinned near the top-left edge for a received message.
-    assert.ok(receivedOut.panelLeft <= base.margin + 0.5);
+  it("hugs the sender's side for pill and card", () => {
+    const own = computeSpotlightLayout({ ...base, isOwn: true, rect: { top: 300, bottom: 350, left: 100, right: 378 } });
+    assert.equal(own.cardLeft + base.cardSize.width, 378);
+    assert.equal(own.pillLeft + base.pillSize.width, 378);
+    const received = computeSpotlightLayout({ ...base, rect: { top: 300, bottom: 350, left: 14, right: 200 } });
+    assert.equal(received.cardLeft, 14);
+    assert.equal(received.pillLeft, 14);
   });
 });
 
-describe("computeActionSheetLayout — mouse", () => {
-  it("anchors a bare menu at the cursor, no spotlight, no scale", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: false,
-      isOwn: true,
-      anchorPoint: { x: 200, y: 400 },
-      rect: { top: 380, bottom: 430, left: 120, right: 378 },
-    });
-    assert.equal(out.mode, "menu");
-    assert.equal(out.scale, 1);
-    assert.ok(out.panelLeft >= base.margin);
-    assert.ok(out.panelLeft <= base.vw - base.panelSize.width - base.margin);
-    assert.ok(out.panelTop >= mTop - 0.5);
-    assert.ok(out.pillTop >= mTop - 0.5);
-  });
-
+describe("computeAnchoredMenuLayout — mouse", () => {
   it("clamps the menu inside the bottom inset when the cursor is low", () => {
-    const out = computeActionSheetLayout({
-      ...base,
-      coarse: false,
-      isOwn: false,
-      anchorPoint: { x: 40, y: 830 },
-      rect: null,
-    });
-    assert.ok(out.panelTop + base.panelSize.height <= base.vh - mBottom + 0.5);
+    const out = computeAnchoredMenuLayout({ ...base, rect: null, anchorPoint: { x: 40, y: 830 }, size: { width: 240, height: 300 } });
+    assert.ok(out.top + 300 <= base.vh - mBottom + 0.5);
   });
 });

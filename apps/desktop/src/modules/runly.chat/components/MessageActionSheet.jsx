@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { getSafeAreaInsets, useCoarsePointer, useOfficeActions } from "@runly/ui";
 import { Plus } from "lucide-react";
 import { buildMessageActions, QUICK_REACTIONS } from "../lib/messageActions";
-import { computeAnchoredMenuLayout } from "../lib/messageActionLayout";
+import { computeAnchoredMenuLayout, computeSpotlightLayout } from "../lib/messageActionLayout";
 import { useAttachmentUrl, buildAttachmentActions } from "./MessageAttachments";
 
 // Theme custom properties set on the `.chat-glass-theme` root; the lifted clone
@@ -14,12 +14,14 @@ const THEME_VARS = [
   "--chat-font-display", "--chat-font-mono", "--chat-zoom",
 ];
 
-// Unified action menu for a message — one scrollable popover (reaction row +
-// actions) for every trigger. Touch long-press (WhatsApp-style): the page is
-// dimmed and a pixel copy of the pressed bubble is lifted exactly where the
-// bubble is (no move, no scale), with the menu anchored beside it; mouse
-// right-click anchors it at the cursor, highlighting the bubble in place. A short arm delay on touch keeps the finger-lift from activating an
-// item. No Radix menu: a programmatically-opened Radix DropdownMenu under the
+// Action menu for a message. Touch long-press (WhatsApp-style): the page is
+// dimmed, a pixel copy of the pressed bubble is lifted with the reaction pill
+// above it and the action card below; the group shifts vertically to fit the
+// safe area, the card scrolls when it is still too tall, and only a very tall
+// bubble is cropped (see computeSpotlightLayout). Mouse right-click: one
+// combined popover (reactions + actions) at the cursor, highlighting the
+// bubble in place. A short arm delay on touch keeps the finger-lift from
+// activating an item. No Radix menu: a programmatically-opened Radix DropdownMenu under the
 // cursor swallowed the first click.
 export function MessageActionSheet({
   open,
@@ -45,6 +47,7 @@ export function MessageActionSheet({
   const attachmentActions = attachment ? buildAttachmentActions({ att: attachment, url: attUrl, office }) : [];
 
   const menuRef = useRef(null);
+  const pillRef = useRef(null);
   const cloneHostRef = useRef(null);
   const [pos, setPos] = useState(null);
   const [lifted, setLifted] = useState(false);
@@ -63,10 +66,11 @@ export function MessageActionSheet({
     const menu = menuRef.current;
     if (!menu) return;
     const { top: safeTop, bottom: safeBottom } = getSafeAreaInsets();
-    // Measure the menu at its natural (unclamped) height.
+    // Measure the menu (touch: the action card) at its natural height.
     menu.style.maxHeight = "none";
     const mr = menu.getBoundingClientRect();
     menu.style.maxHeight = "";
+    const pr = pillRef.current?.getBoundingClientRect() ?? null;
     const liveEl = anchorEl && anchorEl.isConnected ? anchorEl : null;
     const measured = liveEl ? liveEl.getBoundingClientRect() : (anchorRect ?? null);
     const rect = measured
@@ -101,6 +105,20 @@ export function MessageActionSheet({
       didLift = true;
     }
     setLifted(didLift);
+
+    if (coarse && pr) {
+      setPos(computeSpotlightLayout({
+        vw: window.innerWidth,
+        vh: window.innerHeight,
+        rect,
+        pillSize: { width: pr.width, height: pr.height },
+        cardSize: { width: mr.width, height: mr.height },
+        isOwn,
+        safeTop,
+        safeBottom,
+      }));
+      return;
+    }
 
     setPos(computeAnchoredMenuLayout({
       vw: window.innerWidth,
@@ -161,6 +179,29 @@ export function MessageActionSheet({
     </button>
   );
 
+  const reactionButtons = (size, plusSize) => (
+    <>
+      {QUICK_REACTIONS.map((emoji) => (
+        <button
+          key={emoji}
+          type="button"
+          onClick={() => { close(); onQuickReact?.(emoji); }}
+          className={`${size} flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] active:scale-90 transition`}
+        >
+          {emoji}
+        </button>
+      ))}
+      <button
+        type="button"
+        aria-label="Mas emojis"
+        onClick={() => { close(); onOpenFullPicker?.(); }}
+        className={`${size} flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]`}
+      >
+        <Plus className={plusSize} />
+      </button>
+    </>
+  );
+
   return createPortal(
     <div
       data-msg-action-menu
@@ -183,11 +224,12 @@ export function MessageActionSheet({
           role="button"
           aria-label="Cerrar"
           onClick={close}
-          className="fixed"
+          className={["fixed", pos?.cropped ? "overflow-hidden rounded-[var(--chat-radius-bubble,1rem)]" : ""].join(" ")}
           style={{
             left: pos?.cloneLeft ?? -9999,
             top: pos?.cloneTop ?? -9999,
             width: pos?.cloneWidth ?? 0,
+            height: pos?.cropped ? pos.cloneHeight : undefined,
             visibility: lifted && pos ? "visible" : "hidden",
           }}
         >
@@ -201,17 +243,35 @@ export function MessageActionSheet({
         </div>
       )}
 
-      {/* One scrollable menu: reactions row on top, actions below. Hidden until
+      {/* Touch: the reaction pill floats above the lifted bubble. */}
+      {coarse && (
+        <div
+          ref={pillRef}
+          style={{
+            position: "fixed",
+            left: pos?.pillLeft ?? -9999,
+            top: pos?.pillTop ?? -9999,
+            transformOrigin: `${isOwn ? "right" : "left"} bottom`,
+            visibility: pos ? "visible" : "hidden",
+          }}
+          className={["flex items-center gap-0.5 px-1.5 py-1 rounded-full", pos ? "chat-menu-in" : "", surface, gate].join(" ")}
+        >
+          {reactionButtons("h-9 w-9 text-2xl", "h-5 w-5")}
+        </div>
+      )}
+
+      {/* Touch: the action card below the bubble (scrolls when the layout caps
+          it). Mouse: one menu with the reaction row on top. Hidden until
           positioned, and the entrance only starts then, so it never flashes at
           a corner before jumping into place. */}
       <div
         ref={menuRef}
         style={{
           position: "fixed",
-          left: pos?.left ?? -9999,
-          top: pos?.top ?? -9999,
-          maxHeight: pos?.maxHeight,
-          transformOrigin: `${isOwn ? "right" : "left"} ${pos?.originY ?? "top"}`,
+          left: (coarse ? pos?.cardLeft : pos?.left) ?? -9999,
+          top: (coarse ? pos?.cardTop : pos?.top) ?? -9999,
+          maxHeight: coarse ? pos?.cardMaxHeight : pos?.maxHeight,
+          transformOrigin: `${isOwn ? "right" : "left"} ${coarse ? "top" : pos?.originY ?? "top"}`,
           visibility: pos ? "visible" : "hidden",
         }}
         className={[
@@ -221,26 +281,11 @@ export function MessageActionSheet({
           gate,
         ].join(" ")}
       >
-        <div className="flex items-center justify-between gap-0.5 px-1.5 py-1.5 border-b border-[hsl(var(--border))]">
-          {QUICK_REACTIONS.map((emoji) => (
-            <button
-              key={emoji}
-              type="button"
-              onClick={() => { close(); onQuickReact?.(emoji); }}
-              className="h-8 w-8 text-lg flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] active:scale-90 transition"
-            >
-              {emoji}
-            </button>
-          ))}
-          <button
-            type="button"
-            aria-label="Mas emojis"
-            onClick={() => { close(); onOpenFullPicker?.(); }}
-            className="h-8 w-8 flex items-center justify-center rounded-full hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-          >
-            <Plus className="h-4 w-4" />
-          </button>
-        </div>
+        {!coarse && (
+          <div className="flex items-center justify-between gap-0.5 px-1.5 py-1.5 border-b border-[hsl(var(--border))]">
+            {reactionButtons("h-8 w-8 text-lg", "h-4 w-4")}
+          </div>
+        )}
         <div className="py-1">
           {primary.map((a) => menuItem(a))}
           {attachmentActions.length > 0 && (

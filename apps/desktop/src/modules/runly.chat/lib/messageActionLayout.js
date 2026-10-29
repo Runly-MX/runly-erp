@@ -1,137 +1,69 @@
 // apps/desktop/src/modules/runly.chat/lib/messageActionLayout.js
 //
 // Pure positioning math for MessageActionSheet — extracted so the safe-area /
-// scale / flip logic is unit-testable (the repo has no React-component test
+// shift / scroll logic is unit-testable (the repo has no React-component test
 // runner). The component measures the DOM, calls this, and renders.
-//
-// Touch (WhatsApp-style): a pixel copy of the pressed bubble is lifted onto an
-// overlay, the pill sits above it and the action card below. When that stack
-// (pill + bubble + card) is taller than the space between the safe insets the
-// bubble copy is scaled down uniformly — never clipped, never overlapping the
-// dimmed original — and the whole group is nudged vertically to land inside the
-// safe area. Mouse: a bare menu anchored at the cursor, no spotlight, no scale.
-export function computeActionSheetLayout({
+
+// Touch (WhatsApp-style): a pixel copy of the pressed bubble is lifted onto the
+// dimmed overlay, the reaction pill sits right above it and the action card
+// right below. Nothing ever overlaps the copy:
+//   1. the copy stays where the real bubble is when the stack fits;
+//   2. otherwise the whole group shifts vertically into the safe area;
+//   3. when there still isn't room, the card gets a max height and scrolls
+//      (never below `minCard`, so a few actions stay visible);
+//   4. only a bubble taller than what remains is cropped (`cloneHeight`), and
+//      the component clips it — the copy is never scaled.
+export function computeSpotlightLayout({
   vw,
   vh,
-  rect,                 // LIVE bubble/attachment rect { top, bottom, left, right }, measured at open
-  anchorPoint,          // { x, y } cursor point for mouse, else null
+  rect,                 // LIVE bubble rect { top, bottom, left, right }
   pillSize,             // { width, height }
-  panelSize,            // { width, height }
-  coarse,               // touch?
-  isOwn,                // hug the bubble's right edge on touch
+  cardSize,             // { width, height } natural (unclamped) size of the action card
+  isOwn = false,
   safeTop = 0,
   safeBottom = 0,
   gap = 8,
   margin = 8,
-  minScale = 0.55,
+  minCard = 200,
 }) {
   const mTop = margin + safeTop;
   const mBottom = margin + safeBottom;
-  const pw = panelSize.width;
-  const ph = panelSize.height;
-  const pillW = pillSize.width;
-  const pillH = pillSize.height;
+  const safeH = Math.max(0, vh - mTop - mBottom);
   const clampX = (x, w) => Math.max(margin, Math.min(x, vw - w - margin));
 
-  // --- MOUSE: anchor a bare menu at the cursor. No spotlight, no scale, no shift.
-  if (!coarse && anchorPoint) {
-    const panelLeft = clampX(anchorPoint.x, pw);
-    const panelTop = Math.max(mTop, Math.min(anchorPoint.y, vh - ph - mBottom));
-    return {
-      mode: "menu",
-      scale: 1,
-      cloneLeft: 0, cloneTop: 0, cloneWidth: 0, cloneHeight: 0,
-      panelLeft,
-      panelTop,
-      pillLeft: panelLeft,
-      pillTop: Math.max(mTop, panelTop - gap - pillH),
-      sRect: rect
-        ? { top: rect.top, bottom: rect.bottom, left: rect.left, right: rect.right }
-        : { top: anchorPoint.y, bottom: anchorPoint.y, left: anchorPoint.x, right: anchorPoint.x },
-    };
-  }
-
-  // --- TOUCH: lift + spotlight the pressed bubble.
   const r = rect ?? { top: vh / 2 - 40, bottom: vh / 2 + 40, left: margin, right: vw - margin };
-  const bw = Math.max(1, r.right - r.left);   // pre-scale width  (the copy renders at this width, then scale())
-  const bh = Math.max(1, r.bottom - r.top);   // pre-scale height
+  const bw = Math.max(1, r.right - r.left);
+  const bh = Math.max(1, r.bottom - r.top);
+  const pillH = pillSize.height;
+  const cardNatural = cardSize.height;
 
-  const safeH = vh - mTop - mBottom;
+  // Room shared by the bubble copy and the card once the pill and gaps are out.
+  const room = Math.max(0, safeH - pillH - gap * 2);
+  const cardFloor = Math.min(cardNatural, minCard, room);
+  const cardH = Math.min(cardNatural, Math.max(cardFloor, room - bh));
+  const cloneHeight = Math.min(bh, Math.max(0, room - cardH));
+  const cropped = cloneHeight < bh;
 
-  // Scale the bubble copy down only as far as needed for pill + bubble + card to
-  // fit vertically, and never past `minScale` (below that it's unreadable — the
-  // card is allowed to run long instead).
-  const roomForBubble = safeH - pillH - ph - gap * 2;
-  let scale = 1;
-  if (roomForBubble > 0 && bh > roomForBubble) scale = roomForBubble / bh;
-  const maxW = vw - margin * 2;
-  if (bw * scale > maxW) scale = maxW / bw;
-  scale = Math.max(minScale, Math.min(1, scale));
+  // Vertical: keep the copy over the real bubble, then shift the group so the
+  // pill clears the top inset and the card clears the bottom one.
+  const minTop = mTop + pillH + gap;
+  const maxTop = vh - mBottom - cardH - gap - cloneHeight;
+  const cloneTop = cropped ? minTop : Math.max(minTop, Math.min(r.top, maxTop));
 
-  const cw = bw * scale;                       // on-screen size of the lifted copy
-  const ch = bh * scale;
-
-  // Horizontal: keep the copy on the sender's own side; only pull it in when
-  // scaling shrank it off that edge or it would cross a screen margin.
-  const cloneLeft = isOwn ? clampX(r.right - cw, cw) : clampX(r.left, cw);
-
-  // Vertical: prefer leaving the copy exactly where the real bubble is, then
-  // clamp so the pill clears the top inset and the card clears the bottom one.
-  const stackH = pillH + gap + ch + gap + ph;
-  // Even at minScale the full pill+bubble+card stack can't fit the safe area
-  // (a very tall image/attachment message) — no vertical position avoids the
-  // card overlapping the bubble in that case, so it's detached entirely and
-  // pinned to a screen corner instead of tracking the bubble's position.
-  const sideOverflow = stackH > safeH;
-  let cloneTop;
-  if (!sideOverflow) {
-    const minTop = mTop + pillH + gap;
-    const maxTop = vh - mBottom - ph - gap - ch;
-    cloneTop = Math.max(minTop, Math.min(r.top, maxTop));
-  } else {
-    cloneTop = Math.max(mTop + pillH + gap, Math.round((vh - ch) / 2));
-  }
-
-  const alignRight = Boolean(isOwn);
-
-  let pillLeft, panelLeft, panelTop, pillTop;
-  if (sideOverflow) {
-    // Pin pill + card to the same edge the bubble hugs — own (right-aligned)
-    // messages open their menu on the right, received (left-aligned) ones on
-    // the left — near the top of the safe area, well clear of the (still
-    // centered, possibly full-height) bubble copy below.
-    pillLeft = alignRight ? clampX(vw - margin - pillW, pillW) : clampX(margin, pillW);
-    panelLeft = alignRight ? clampX(vw - margin - pw, pw) : clampX(margin, pw);
-    pillTop = mTop;
-    panelTop = mTop + pillH + gap;
-  } else {
-    pillLeft = alignRight ? clampX(cloneLeft + cw - pillW, pillW) : clampX(cloneLeft, pillW);
-    panelLeft = alignRight ? clampX(cloneLeft + cw - pw, pw) : clampX(cloneLeft, pw);
-    const belowTop = cloneTop + ch + gap;
-    const flip = belowTop + ph > vh - mBottom;
-    panelTop = flip
-      ? Math.max(mTop + pillH + gap, cloneTop - gap - ph)
-      : belowTop;
-    pillTop = Math.max(mTop, cloneTop - gap - pillH);
-  }
+  const cloneLeft = clampX(r.left, Math.min(bw, vw - margin * 2));
+  const side = (w) => (isOwn ? clampX(r.right - w, w) : clampX(r.left, w));
 
   return {
-    mode: "spotlight",
-    scale,
     cloneLeft,
     cloneTop,
-    cloneWidth: bw,      // component sets width:bw and transform:scale(scale), origin top-left
-    cloneHeight: bh,
-    // Where the real bubble actually sits — the lifted copy animates FROM here
-    // TO (cloneLeft, cloneTop) so it reads as the message itself rising, not a
-    // separate card sliding in.
-    originLeft: r.left,
-    originTop: r.top,
-    panelLeft,
-    panelTop,
-    pillLeft,
-    pillTop,
-    sRect: { top: cloneTop, bottom: cloneTop + ch, left: cloneLeft, right: cloneLeft + cw },
+    cloneWidth: bw,
+    cloneHeight,
+    cropped,
+    pillLeft: side(pillSize.width),
+    pillTop: cloneTop - gap - pillH,
+    cardLeft: side(cardSize.width),
+    cardTop: cloneTop + cloneHeight + gap,
+    cardMaxHeight: cardH,
   };
 }
 
@@ -180,7 +112,5 @@ export function computeAnchoredMenuLayout({
     // clamped on screen — the menu scrolls internally.
     top = Math.max(mTop, Math.min(r.bottom - h, vh - mBottom - h));
   }
-  // cloneLeft/Top/Width: where the lifted bubble copy sits — exactly over the
-  // real bubble (only used when keepClear / a copy is mounted).
-  return { left, top, maxHeight, originY, cloneLeft: r.left, cloneTop: r.top, cloneWidth: r.right - r.left };
+  return { left, top, maxHeight, originY };
 }
