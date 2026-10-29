@@ -1,9 +1,11 @@
 # Obtener un respaldo completo de la external para el ensayo de actualizacion
 
-Estado: **procedimiento preparado, no ejecutado.** Nada de lo que sigue se ha corrido contra
-produccion. Las ordenes se han leido contra el codigo (`apps/backup/`, `scripts/recovery/`,
-`infra/installer/`); los comandos de la Parte 2 y 3 **no se han ejecutado todavia** ni siquiera
-en un entorno desechable (ver "Paso 0").
+Estado: **procedimiento ensayado en local con recursos desechables (Paso 0 ejecutado el 2026-10-28);
+nada se ha ejecutado contra produccion ni con datos reales.** El ensayo corrio el flujo real de
+respaldo y recuperacion de Runly sobre dos instalaciones Supabase desechables independientes y un MinIO
+local, y encontro varios fallos del procedimiento original que ya estan corregidos aqui (C.3, B.2, B.3).
+Resultados, hallazgos del producto, limites y dictamen en la **seccion D**; comandos efectivos en
+`BACKUP_RESTORE_REHEARSAL_COMMANDS.md`. Lo no cubierto por el ensayo se lista en D.6.
 
 Los valores entre `<...>` son marcadores. Ningun secreto, direccion real, nombre de bucket ni
 identificador de instancia se escribe aqui ni se pega en la conversacion: viven en el gestor
@@ -186,11 +188,18 @@ modifica el servidor de forma minima (un contenedor efimero de lectura) y crea d
 
 ## B.0 Paso 0: ensayar el propio procedimiento de respaldo en el entorno desechable
 
-Antes de tocar produccion, ejecutar **esta misma secuencia** (imagen fija, repositorio temporal,
-configuracion redactada, extraccion y comprobaciones) contra un Supabase desechable con MinIO
-como destino, como hacen las pruebas de `apps/backup/tests/` (`RUN_BACKUP_PIPELINE_TESTS=1`).
-Los comandos de abajo son una plantilla leida del codigo y **no estan probados de punta a punta**;
-este paso es lo que los valida.
+**Ejecutado.** La secuencia (imagen fija, repositorio temporal, configuracion redactada, extraccion,
+comprobaciones, restauracion en una segunda instalacion, auditoria, aislamiento y fallos simulados)
+esta automatizada en `scripts/rehearsal/verify-backup-restore.mjs` y se puede repetir antes de cada uso:
+
+```text
+node scripts/rehearsal/verify-backup-restore.mjs --run=<id> --api-image=<api certificada> --worker-image=<worker certificado> --backup-image=<imagen de respaldo fija> --stage=all
+```
+
+Las etapas son `source`, `prepare`, `backup`, `verify`, `diagnostic`, `roles`, `replica`, `audit`, `isolation` y
+`failures`, y se pueden lanzar por separado sobre la misma ejecucion. Los comandos de redaccion y filtrado de B.2 y
+B.3 no estan reescritos en el arnes: se leen **del texto de este documento** y se ejecutan tal cual, de modo que lo que
+el operador copia es lo que se probo. Resultados en la seccion D.
 
 ## B.1 Precondiciones
 
@@ -234,10 +243,10 @@ contrasena de restic), el archivo de entorno que se pasa al contenedor se filtra
 variables de respaldo se entregan solo desde el entorno del operador:
 
 ```text
-# 1. Entorno de la base y de la instancia, SIN ninguna variable de respaldo.
-grep -v -E '^(BACKUP_|RESTIC_)' .env.external > env.sin-respaldo
+# 1. Entorno de la base y de la instancia, SIN variables de respaldo ni de correo.
+grep -v -E '^(BACKUP_|RESTIC_|SMTP_)' .env.external > env.sin-respaldo
 # Debe imprimir 0 (si imprime otro numero, detener):
-grep -c -E '^(BACKUP_|RESTIC_)' env.sin-respaldo
+grep -c -E '^(BACKUP_|RESTIC_|SMTP_)' env.sin-respaldo
 
 # 2. Las variables del ensayo se exportan desde el gestor de secretos en esta sesion
 #    (BACKUP_S3_ENDPOINT, BACKUP_S3_BUCKET, BACKUP_S3_ACCESS_KEY_ID, BACKUP_S3_SECRET_ACCESS_KEY,
@@ -258,6 +267,11 @@ gestor): no queda escrito en la linea de comandos ni en el historial. No usar `d
 sin filtrar para "comprobar": imprime los valores del entorno. Si hace falta confirmar, listar
 solo los nombres (`... --format '{{range .Config.Env}}{{println .}}{{end}}' | cut -d= -f1`).
 `run-backup.sh` termina con `restic forget --prune`: sobre un repositorio nuevo no borra nada.
+
+**Por que tambien se quita `SMTP_*`** (observado en el ensayo): si el trabajo falla, `run-backup.sh` intenta enviar un
+correo de alerta con el SMTP del entorno a `RUNLY_SUPPORT_EMAIL` o, si no existe, a la direccion de soporte por
+defecto. Con el SMTP de produccion en el entorno, un fallo del ensayo enviaria un correo real desde produccion. Sin
+`SMTP_HOST` el trabajo solo registra `cannot send failure alert` y sigue.
 
 El trabajo termina con `[backup] ... backup run complete (complete)` o falla sin publicar un
 snapshot completo.
@@ -345,31 +359,51 @@ empezar, la maquina de ensayo no debe tener ninguna credencial de produccion.
   valores **no se pueden descifrar**: la replica no puede enviar correo, push ni llamar a Google
   en nombre de nadie aunque tuviera salida. Efecto en el ensayo: esas funciones fallaran;
   registrarlas como "inertes por diseno", no como fallos de la actualizacion. **Nunca** copiar
-  esas claves de produccion a la replica.
+  esas claves de produccion a la replica. Comprobado (D): el valor cifrado no se descifra con la clave de la replica y
+  si con la clave original guardada en el respaldo integral.
+- **Las claves nuevas NO neutralizan todo.** No cubren las URLs ni los webhooks, las credenciales guardadas en claro,
+  las automatizaciones, los calendarios de ejecucion, las colas de entrega pendientes ni las tablas de modulos propios.
+  En el ensayo la auditoria de la copia encontro ocho capacidades activas y credenciales en claro (una clave de API en
+  una tabla de un modulo, otra en `instance_config`, un encabezado `Authorization` dentro de una automatizacion). Por eso
+  C.5 es obligatoria y el aislamiento de red (C.1) es la garantia que no depende de que la auditoria sea exhaustiva.
 - `RUNLY_INSTANCE_ID` propio y distinto del de produccion; `BACKUP_MODE=disabled`.
 - Aplicar `node scripts/rehearsal/replica-guard.mjs --print-overrides` al entorno de la replica y
   verificar con `replica-guard.mjs --env-file=...` (sale con error si algo apunta fuera o lleva una
   credencial real; imprime solo nombres). Ahora tambien apaga MCP (`RUNLY_MCP_ENABLED=false`).
 
-## C.3 Restaurar (API, Worker y trabajos programados detenidos)
+## C.3 Restaurar (probado: orden y comandos efectivos)
 
-1. Extraer en carpeta nueva del volumen cifrado (`extract`) y mover `config/` a una carpeta
-   aparte con acceso restringido: contiene el `.env.external` original si el respaldo no se hizo
-   con configuracion redactada. **Nunca** apuntar la replica a ese archivo.
-2. Levantar solo base, Auth, Storage, Kong y Realtime nuevos (misma version que produccion).
-3. Restaurar la base con `pg_restore --clean --if-exists --dbname <replica>` desde la imagen de
-   respaldo fija, en la red interna y con el archivo de entorno de **destino** (nunca el de
-   produccion). El volcado trae todos los esquemas de la base: tratar aparte lo ajeno a Runly
-   (p. ej. `_realtime` guarda el inquilino de Realtime con claves cifradas del servicio original;
-   excluirlo con `-N _realtime` y dejar que Realtime cree el suyo). Clasificar cada error
-   contra la linea base del mismo Supabase; no se admite ocultarlos todos. Un error por
-   propiedad/trigger de evento de Supabase ya se vio en el ensayo historico; tablas, roles,
-   permisos o datos que falten son fallo.
-4. Restaurar los objetos en el almacenamiento de la replica **conservando las claves**
-   (`<bucket>/<ruta>`), via la API de Storage o S3 de la replica con la clave de servicio **de la
-   replica**.
-5. Aun sin API ni Worker: tomar el inventario 0
-   (`scripts/rehearsal/replica-inventory.mjs collect`, ver el plan del ensayo).
+Orden que funciono de punta a punta (detalle y comandos literales en
+`BACKUP_RESTORE_REHEARSAL_COMMANDS.md`). Cualquier otro orden dio errores o una replica mas abierta que el origen.
+
+1. Extraer en carpeta nueva del volumen cifrado (`extract`, luego `assess`). Si el respaldo es el
+   **integral**, mover `config/` a una carpeta aparte con acceso restringido y borrar la extraccion;
+   **nunca** apuntar la replica a ese archivo.
+2. Levantar **solo la base** del Supabase nuevo (misma version que produccion). No arrancar Auth, Storage,
+   Realtime ni Kong todavia: los servicios crean y migran sus propios esquemas, y un `DROP` sobre tablas en uso
+   es innecesario.
+3. **Roles** (propietario del cluster, `supabase_admin`): aplicar del volcado `--roles-only --no-role-passwords`
+   solo las sentencias de los roles que la replica **no** tiene (`scripts/rehearsal/lib/roles.mjs`,
+   `missingRoleStatements`). Sin este paso `pg_restore` falla con `role "..." does not exist` (observado con los roles
+   propios de la instalacion y con `supabase_realtime_admin`, que lo crea el servicio Realtime al arrancar y por eso no
+   existe en una base recien levantada). Nunca se toca un rol existente.
+4. **Vaciar los privilegios por defecto de la replica** (`scripts/rehearsal/lib/privileges.mjs`,
+   `resetDefaultPrivileges`). Un Supabase nuevo concede por defecto todo a `anon` y `authenticated` sobre cada tabla nueva
+   de `public`; `pg_restore` crea las tablas bajo esos privilegios y el volcado solo **anade** `GRANT`, nunca quita los de
+   fabrica. Observado sin este paso: la replica tenia 4.840 privilegios de mas (`anon` y `authenticated` con todos los
+   privilegios en las 304 tablas de `public`), mientras que el origen no daba ninguno a `anon`. Con el vaciado, el volcado
+   reinstala los privilegios por defecto y las ACL del origen y el resumen de ACL de la replica coincide con el del origen.
+5. `pg_restore --clean --if-exists -N _realtime --dbname postgres /restore/db.dump` con la imagen de respaldo fija,
+   como `supabase_admin` (para que se apliquen los propietarios de los esquemas `auth` y `storage`), en la red de la
+   replica y con la contrasena **de la replica** por entorno. `-N _realtime` deja que Realtime cree su propio inquilino
+   (el original lleva claves cifradas del servicio de origen). Resultado observado: salida 0 y **cero** lineas de error.
+   Si hay errores, clasificar cada uno contra un restore de control; ninguno se oculta.
+6. Levantar Auth, Rest, Realtime, Storage y Kong de la replica.
+7. **Objetos de Storage**: tras el paso 5 las filas de `storage.objects` ya existen pero los archivos no. Sin precaucion,
+   `rclone copy` ve "el objeto ya esta" y pide una copia en el servidor (`CopyObject`), que Storage responde con 500.
+   Subir con `--no-check-dest` (via el endpoint S3 de la replica y las claves S3 **de la replica**, conservando
+   `<bucket>/<ruta>`). El endpoint S3 debe usar exactamente el host de `STORAGE_PUBLIC_URL` de esa replica (ver B.3).
+8. Tomar el inventario de la replica y compararlo con el del origen (`C.4`).
 
 ## C.4 Verificaciones de consistencia entre base y objetos
 
@@ -391,18 +425,20 @@ Todas de solo lectura en la replica, antes de neutralizar y antes de actualizar.
    WHERE f.size_bytes <> (o.metadata->>'size')::bigint;
    ```
    Se espera cero filas; cada fila se explica una a una (puede ser previa al respaldo).
-4. **Notas**: con la imagen de la API certificada, el inventario de solo lectura de Notes
+4. **Notas** (no ejecutado en el ensayo; queda para la copia real): con la imagen de la API certificada, el inventario de solo lectura de Notes
    (`node apps/api/scripts/notes-storage-preflight.mjs --inventory --output=<ruta privada>` con
    las variables de la replica) compara las referencias de imagen en notas, Y.Doc y lienzos con los
    objetos; no mueve ni borra nada.
-5. **Identidad y permisos**: conteos de usuarios, empresas, membresias y concesiones, y los
-   resumenes semanticos del inventario, contra la fecha del snapshot (no contra produccion en
+5. **Identidad, permisos y privilegios** (comprobado): conteos y resumenes semanticos de usuarios, empresas, membresias y
+   concesiones, resumen de los hashes de acceso (`auth.users`, sin exponerlos), roles y membresias de roles, resumen de las ACL de
+   todos los objetos y privilegios por defecto (`scripts/rehearsal/lib/inventory.mjs`), contra la fecha del snapshot (no contra produccion en
    vivo: la base sigue cambiando; el volcado es una instantanea consistente).
 6. **Migraciones**: `_prisma_migrations` define si la replica esta en estado previo o
    intermedio (con `20261028011349_notes_private_images` y
    `20261211000000_studio_retired_asset_lineage`).
 
-No se ejecuta el inventario completo contra produccion: calcula un hash por tabla y es costoso.
+No se ejecuta el inventario completo contra produccion: calcula un hash por tabla y es costoso. Los puntos 1, 2, 3 y 5 se
+ejecutaron en el ensayo (inventario identico: 304 tablas, 226 migraciones, 19 roles, 7 objetos, 0 huerfanos).
 
 ## C.5 Neutralizacion en la copia (nunca en el respaldo)
 
@@ -410,7 +446,9 @@ Orden: **red bloqueada y verificada (C.1) -> claves propias (C.2) -> datos**. El
 es la garantia fuerte; la neutralizacion de datos es una segunda capa para evitar reintentos y
 ruido.
 
-- Con la base restaurada y la API/Worker detenidos, usar el inventario (`externalReach`) para
+- Implementado y probado en `scripts/rehearsal/lib/audit-data.mjs` (auditoria de solo lectura, sin imprimir valores) y
+  `neutralize.mjs` (una transaccion, solo la replica, con "compuerta": API y Worker no arrancan mientras quede una capacidad
+  activa o un hallazgo sin revisar). Con la base restaurada y la API/Worker detenidos, usar el inventario (`externalReach`) para
   listar las tablas con alcance externo (entregas de notificaciones, tokens push/FCM,
   suscripciones, conexiones de calendario y de modulo, eventos de webhook, tareas y automatizaciones
   programadas) y las claves de `instance_config` relacionadas.
@@ -442,6 +480,142 @@ restaurado conocido, con la credencial exclusiva de la replica; luego la interru
 y las metricas.
 
 ---
+
+# Seccion D. Resultados del Paso 0: ensayo local de respaldo y recuperacion (2026-10-28)
+
+Todo con recursos desechables propios: dos instalaciones Supabase independientes (origen y replica), un MinIO local con
+credenciales generadas, Docker en esta maquina. Sin produccion, sin SSH, sin credenciales reales, sin publicar nada.
+
+## D.1 Que se ejecuto
+
+| Elemento | Valor |
+|---|---|
+| Arnes | `scripts/rehearsal/verify-backup-restore.mjs` (etapas `source`, `prepare`, `backup`, `verify`, `diagnostic`, `roles`, `replica`, `audit`, `isolation`, `failures`) |
+| Resultado final (ejecucion `r4`, mas la etapa `diagnostic`) | **63 de 64 comprobaciones superadas, 1 hallazgo del producto, 0 fallos** |
+| API y Worker certificados usados para la instalacion y la recuperacion | `runly-notifications:api-40e1b6b0a6d6` (`sha256:42101cf2c44162522a4dd1c83b4b0ad96df9c8ceb589b8f3388415a28247766a`) y `worker-40e1b6b0a6d6` (`sha256:d08b38102dad335fe02d7256840de4ab10941fc7ee51be3b6d7adf7e90dc3537`) |
+| Imagen de respaldo | construida del commit `8bf95a479d43` con `infra/docker/backup.Dockerfile` (`sha256:53826b29f7fbc70515140829e0a070ddd2c99f73c3229c9205e41d2bc4402056`; `postgres:17-alpine`, restic, rclone) |
+| Destino S3 | `minio/minio:latest` (imagen `14cea493d9a3`; **version sin fijar**) |
+| Origen | esquema certificado (226 migraciones), 2 empresas, 4 usuarios, 719 concesiones, 304 tablas publicas, 4 buckets con 7 objetos (PNG, PDF, binario de 3 MB, archivo vacio, texto, JPG; nombres con espacios, parentesis y `+`), un modulo propio instalado (con carpeta `.staging` que no debe respaldarse), una tabla de integracion propia, un rol de base propio con login y contrasena, y datos de integraciones (automatizacion con webhook, entrega en cola, push, FCM, OAuth de Google, SMTP cifrado, claves en claro) |
+| Comandos efectivos | `BACKUP_RESTORE_REHEARSAL_COMMANDS.md` (generado del registro de la ejecucion, secretos y datos locales sustituidos) |
+
+## D.2 Que se probo, requisito por requisito
+
+| Requisito | Resultado | Comprobacion |
+|---|---|---|
+| Instalacion representativa con datos testigo | 304 tablas, 7 objetos, 19 roles | `source-installation` |
+| Flujo real de respaldo hacia restic en MinIO con credenciales generadas | `run-backup.sh` completa; un respaldo completo, uno solo de base y uno heredado conviven | `backup-complete-1`, `backup-database-only`, `backup-legacy-snapshot` |
+| Cifrado | contrasena incorrecta rechazada; la de otro repositorio tambien; sin texto en claro (testigo, PDF, cabecera `PGDMP`) en los archivos del repositorio y la misma busqueda si los encuentra en la copia descifrada | `encryption` |
+| Manifiesto y hashes | 13 archivos: SHA-256 y tamano recalculados de forma independiente, sin archivos de mas | `manifest-hashes` |
+| Cobertura de PostgreSQL | 337 tablas en el volcado (esquemas public, auth y storage) y los datos de las 24 tablas publicas con filas | `database-coverage` |
+| Cobertura de Storage | los 7 objetos con los bytes originales (hash del fixture, no del manifiesto) | `storage-bytes`, `manifest-coverage` |
+| Modulos y configuracion | arbol del modulo identico; `.staging` excluido; configuracion redactada sin ningun secreto | `modules-tree`, `config-is-redacted` |
+| Retencion y clasificacion | completo, solo base y heredado clasificados; la retencion respeta los dos ultimos; **no poda** (H1) | `inspect-classification`, `backup-retention-scope`, `backup-retention-effective` |
+| Restauracion en una segunda instalacion independiente | 0 errores de `pg_restore`; inventario identico (304 tablas con digest de contenido, 226 migraciones, 19 roles, membresias, resumen de ACL, usuarios de autenticacion, buckets, SHA-256 de cada objeto); 0 asociaciones huerfanas; un usuario restaurado inicia sesion con su contrasena original | `restore-database`, `restore-comparison`, `restore-associations`, `restore-login` |
+| Roles globales sin contrasenas | `pg_dumpall --roles-only --no-role-passwords` lista los 19 roles y ninguna clausula `PASSWORD`; como control, sin la opcion el superusuario obtiene 8 | `roles-dump-no-passwords`, `roles-flag-control` |
+| Fallos simulados (ninguno se reporta como completo y recuperable) | respaldo interrumpido tras la subida (solo un snapshot pendiente), interrumpido durante el volcado (nada publicado), objeto faltante en el origen (se niega), archivo alterado y archivo borrado en la extraccion, repositorio corrupto (`check --read-data` y `restore --verify` fallan), credencial incorrecta, snapshot solo de base, volcado ilegible (no restaura nada), datos dañados (restauracion parcial: 304 tablas y 28 diferencias) y roles ausentes (restauracion parcial: 15 errores) | `fail-*` |
+| Aislamiento antes de arrancar API y Worker | prueba negativa: con una red normal el gate se niega y no se crea ningun contenedor; control positivo: la misma sonda en una red normal si llega al "servicio de produccion" simulado y a Internet; en la red interna no llega a nada (Internet, DNS, servicio en el anfitrion, contenedor de "produccion"), y desde dentro de la API en ejecucion tampoco | `isolation-*`, `api-egress-blocked` |
+| Las claves nuevas no neutralizan todo | la auditoria encontro 8 capacidades activas y credenciales en claro; el gate se cierra; una tabla de modulo que ninguna lista conoce lo mantiene cerrado hasta que se revisa; el respaldo y el origen no cambian | `audit-*`, `gate-*`, `neutralize-known`, `backup-and-source-untouched` |
+| Redactado frente a integro | dos repositorios con contrasenas distintas; el redactado no contiene ningun secreto; el integro si, y se mueve a una carpeta aparte; el valor cifrado solo se descifra con la clave original | `integral-vs-redacted`, `secrets-stay-outside` |
+| Aplicacion recuperada | la API certificada arranca solo tras preparar Storage; con el Worker en la red interna, un usuario restaurado inicia sesion y lista las notas restauradas | `api-*`, `worker-isolated`, `recovered-app-works` |
+| Diagnostico de solo lectura del runbook | presencia de variables sin valores, `verify-backup.sh` (`[verify] OK: verified complete snapshot within 36 hours`) y `inspect`; el repositorio queda identico antes y despues (18 objetos, mismo nombre, tamano y fecha) | `diagnostic-*` |
+
+## D.3 Hallazgos
+
+Del producto (no corregidos: el candidato esta congelado; se listan para decidirlos):
+
+- **H1 La retencion no poda nunca.** `restic forget` agrupa por `host,paths` por defecto y cada ejecucion respalda un
+  directorio temporal distinto (`/tmp/tmp.XXXX`), asi que cada snapshot es su propio grupo y `--keep-daily` jamas elimina
+  ninguno. Observado con `BACKUP_RETENTION_DAYS=1`: dos snapshots completos conviven. Consecuencia: crecimiento sin limite del
+  repositorio (coste), no perdida de datos. Correccion propuesta: `--group-by host,tags` en `apps/backup/run-backup.sh`.
+- **H6 `assess` solo valida la cabecera del volcado** (`databaseValidation: header-only`, `installationRecovered: false`).
+  Una extraccion "completa" no demuestra que PostgreSQL se pueda restaurar; solo una restauracion lo hace.
+- **H7 La CLI muestra un snapshot pendiente como `legacy-unknown`** (por la lectura del codigo: solo conoce las
+  etiquetas completa y solo base). Un respaldo interrumpido y uno antiguo se ven igual.
+- **H8 Con un secreto S3 incorrecto, restic reintenta la firma rechazada con esperas crecientes** y la CLI parece colgada
+  (sin respuesta durante mas de un minuto). Cancelar la orden no es un fallo de red del servidor.
+- **H9 El Worker, con su comando por defecto (`pnpm --filter @runly/worker start`), necesita Internet al arrancar** porque corepack
+  descarga pnpm. Sin red falla (`registry.npmjs.org`). Arrancar `src/index.js` directamente evita la dependencia.
+- **H10 Supabase Storage rechaza claves de objeto con caracteres no ASCII** (`Invalid key`); admite espacios, parentesis y `+`.
+
+Del procedimiento (corregidos en este documento):
+
+- **H2 La replica quedaba mas abierta que el origen.** Un Supabase nuevo concede por defecto todo a `anon` y `authenticated`
+  sobre cada tabla nueva; `pg_restore` crea las tablas bajo esos privilegios y el volcado solo anade `GRANT`. Observado: 4.840
+  privilegios de mas (todos sobre 304 tablas), mientras el origen no daba ninguno a `anon`. Correccion: vaciar los privilegios por
+  defecto antes de restaurar (C.3, paso 4). Con ella el resumen de ACL coincide.
+- **H3 Storage: tras `pg_restore` las filas existen pero no los archivos.** `rclone copy` vio los objetos "ya presentes" y pidio
+  `CopyObject`, que Storage responde con 500. Correccion: `--no-check-dest` (C.3, paso 7).
+- **H4 El host del endpoint S3 debe ser el de `STORAGE_PUBLIC_URL`.** Storage firma con ese host, no con el que recibe; cualquier otro
+  produce `SignatureDoesNotMatch` (lo reprodujo hasta el CLI oficial de AWS).
+- **H5 El contenedor efimero intentaba enviar un correo de alerta al fallar**, con el SMTP del entorno. Correccion: filtrar
+  `SMTP_*` junto con `BACKUP_*` y `RESTIC_*` (B.3).
+- **H12 `supabase_realtime_admin` no existe en una base recien levantada** (lo crea el servicio Realtime) y el volcado concede
+  permisos a ese rol. Correccion: aplicar del volcado de roles los que falten (C.3, paso 3).
+
+Esperado y confirmado: la API certificada se niega a arrancar sobre el Storage restaurado sin proteger
+(`NOTES_STORAGE_OWNER_PREPARATION_REQUIRED`), por lo que la preparacion del propietario es el primer paso de la actualizacion.
+
+## D.4 Redactado frente a integro (no confundirlos)
+
+| | Respaldo redactado (ensayo) | Respaldo integro (recuperacion real) |
+|---|---|---|
+| Para que sirve | probar el procedimiento y ensayar la actualizacion en una replica | reconstruir una instalacion destruida |
+| Configuracion que contiene | solo modos, puertos y etiquetas de imagen (secretos, URLs, buckets, hosts y correos vaciados) | el `.env.external` original con todos sus secretos |
+| Repositorio | propio, con contrasena de restic unica | otro repositorio y otra contrasena |
+| Donde puede estar | equipo de ensayo con disco cifrado | solo en custodia, **fuera de cualquier replica** |
+| Por que existen los dos | el primero no arrastra secretos de produccion | el segundo conserva las claves que hacen legibles los valores cifrados de la base (la contrasena SMTP, las claves de push y los tokens de Google) |
+
+Comprobado: ni la configuracion del respaldo redactado ni el entorno de la replica contienen ningun secreto del origen, y la
+clave original del respaldo integro descifra el valor guardado mientras la de la replica no.
+
+## D.5 Reproducir
+
+`node scripts/rehearsal/verify-backup-restore.mjs --run=<id> --api-image=... --worker-image=... --backup-image=... --stage=all`
+(unos 40 minutos). Deja un informe en `.artifacts/rehearsal/run-<id>/report.json` y los recursos desechables vivos hasta que se
+borren (instalaciones, MinIO y redes). Pruebas unitarias de las piezas: `node --test scripts/rehearsal/__tests__/*.test.js`.
+
+## D.6 Lo que este ensayo NO demuestra (pendiente)
+
+- Nada contra Backblaze B2 ni contra el Supabase real: versiones, volumen, latencia y permisos reales pueden diferir. MinIO
+  se uso con `latest` sin fijar; las versiones de Supabase fueron las del Installer (PostgreSQL 17, storage-api 1.60.4).
+- Datos pequenos (13 archivos en el respaldo, 7 objetos, 3 MB): no mide tiempos, memoria, coste de `restic check` ni de la
+  extraccion en un repositorio grande, ni la duracion de la ventana de `pg_dump`.
+- El origen estaba en reposo: la consistencia "no atomica" con trafico en vivo (un objeto subido durante la copia) no se probo.
+- Docker Desktop en Windows: la red `--internal` demostro el bloqueo frente a un servicio de "produccion" simulado, no frente a una
+  red real ni a un anfitrion Linux con reglas de firewall. Para datos reales sigue siendo preferible una maquina sin ruta de salida.
+- La actualizacion con el Installer `.6` no se ejecuto sobre la replica; solo la preparacion de Storage y el arranque de la API.
+  El inventario de Notes (`notes-storage-preflight --inventory`) tampoco.
+- El Worker se arranco directamente (H9), sin tareas encoladas ni proveedores.
+- No se probo el trabajo programado (`supercronic`), la ausencia de ejecucion ni un monitor externo; ni la rotacion de claves.
+- La recuperacion real con el respaldo integro (reinstalar con las claves originales) no se ejecuto de punta a punta; solo se
+  comprobo que la clave original recupera el valor cifrado. La custodia fue una carpeta aparte, no un gestor de secretos.
+- No se comparan `ALTER ROLE ... SET` ni opciones a nivel de base de datos.
+- El ensayo se detuvo y reanudo varias veces por una interrupcion del equipo; el resultado citado es de una ejecucion limpia
+  completa (`r4`) mas la etapa de diagnostico sobre el mismo estado.
+
+## D.7 Dictamen
+
+**GO para iniciar el diagnostico de solo lectura de los respaldos existentes en la instancia external (Parte 1).** Sigue
+**sin autorizar** la generacion de un respaldo (Parte 2), la restauracion con datos reales y cualquier cambio en produccion.
+
+Motivos: las tres ordenes de la Parte 1 se ejecutaron en positivo y en negativo; no escriben nada (el repositorio quedo
+identico); el formato de salida no incluye valores; y el comportamiento ante un respaldo parcial, pendiente, corrupto o con
+credenciales erroneas es negar, no aprobar.
+
+Condiciones para ese diagnostico:
+
+1. Empezar por A.1 desde el equipo del operador con una credencial de **solo lectura**; usar A.2 en el servidor solo si no hay
+   kit, y solo las ordenes listadas (presencia de variables, estado del contenedor, `verify-backup.sh`).
+2. Compartir unicamente las salidas marcadas como seguras; ningun valor de variable, endpoint, bucket ni id de instancia.
+3. Si `inspect` no responde en un minuto con una credencial S3 que se sospecha incorrecta, cancelarlo (H8): no es un fallo
+   del servidor.
+4. Que el resultado "no hay respaldo recuperable" es un resultado valido, no un incidente: lleva a la Parte 2, que requiere
+   una autorizacion aparte.
+5. La imagen de respaldo del servidor puede ser anterior a la del ensayo (si carece de `backup-coverage.mjs`, sus snapshots
+   son `legacy-unknown`).
+
+Antes de autorizar la Parte 2 conviene decidir H1, repetir este ensayo con la version exacta de Supabase de produccion y
+con el volumen real de objetos, y fijar la version de MinIO si se vuelve a usar.
 
 # Resumen de lo que necesito del responsable
 

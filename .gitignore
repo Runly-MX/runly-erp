@@ -128,3 +128,4 @@ kotlin-compiler-*.log
 infra/installer/.runly-installer/
 .artifacts/notifications/
 .artifacts/rc/
+.artifacts/rehearsal/

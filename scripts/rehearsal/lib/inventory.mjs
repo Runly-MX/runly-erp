@@ -40,6 +40,12 @@ export async function collectInventory({ pool, admin = null, hashTables = true, 
     memberships: (await one("SELECT md5(string_agg(company_id::text || ':' || user_id::text || ':' || role_id::text, ',' ORDER BY company_id::text, user_id::text)) AS d FROM membership"))?.d ?? null,
     identities: (await one("SELECT md5(string_agg(id::text || ':' || coalesce(email,''), ',' ORDER BY id::text)) AS d FROM user_profile"))?.d ?? null,
   }
+  // Not only application data: who can log in (hash digest, never the hashes), which roles exist and what they may touch.
+  inventory.semantic.authUsers = (await one("SELECT md5(string_agg(id::text || ':' || coalesce(email,'') || ':' || coalesce(encrypted_password,''), ',' ORDER BY id::text)) AS d FROM auth.users"))?.d ?? null
+  inventory.roles = await rows("SELECT rolname, rolsuper, rolinherit, rolcreaterole, rolcreatedb, rolcanlogin, rolreplication, rolbypassrls, rolconnlimit FROM pg_roles WHERE rolname !~ '^pg_' ORDER BY rolname").catch(() => [])
+  inventory.roleMemberships = await rows("SELECT r.rolname AS role, m.rolname AS member FROM pg_auth_members a JOIN pg_roles r ON r.oid = a.roleid JOIN pg_roles m ON m.oid = a.member WHERE r.rolname !~ '^pg_' ORDER BY 1, 2").catch(() => [])
+  inventory.acl = (await one("SELECT md5(string_agg(x, ',' ORDER BY x)) AS d FROM (SELECT n.nspname || '.' || c.relname || ':' || a.privilege_type || ':' || CASE a.grantee WHEN 0 THEN 'PUBLIC' ELSE a.grantee::regrole::text END AS x FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace, LATERAL aclexplode(c.relacl) a WHERE n.nspname IN ('public', 'storage', 'auth') AND c.relkind IN ('r', 'v', 'm', 'S') AND c.relacl IS NOT NULL) t"))?.d ?? null
+  inventory.defaultAcl = await rows("SELECT d.defaclrole::regrole::text AS creator, n.nspname AS schema, d.defaclobjtype AS type, d.defaclacl::text AS acl FROM pg_default_acl d LEFT JOIN pg_namespace n ON n.oid = d.defaclnamespace ORDER BY 1, 2, 3").catch(() => [])
   inventory.storage.buckets = await rows("SELECT id, public, file_size_limit FROM storage.buckets ORDER BY id").catch(() => [])
   const objects = await rows("SELECT bucket_id, name, (metadata->>'size')::bigint AS size, metadata->>'mimetype' AS mimetype FROM storage.objects ORDER BY bucket_id, name").catch(() => [])
   for (const object of objects) {
@@ -82,6 +88,10 @@ export function diffInventories(before, after, { allow = [] } = {}) {
     else if (a.sha256 !== b.sha256 || a.size !== b.size) note('objects', `${key}: content or size changed`)
   }
   for (const key of new Set([...Object.keys(before.semantic ?? {}), ...Object.keys(after.semantic ?? {})])) if (before.semantic?.[key] !== after.semantic?.[key]) note(`semantic:${key}`, 'permissions, memberships or identities changed')
+  if (JSON.stringify(before.roles) !== JSON.stringify(after.roles)) note('roles', 'role attributes differ')
+  if (JSON.stringify(before.roleMemberships) !== JSON.stringify(after.roleMemberships)) note('role-memberships', 'role memberships differ')
+  if (before.acl !== after.acl) note('acl', 'object privileges differ')
+  if (JSON.stringify(before.defaultAcl) !== JSON.stringify(after.defaultAcl)) note('default-acl', 'default privileges differ')
   if (JSON.stringify(before.storage.buckets) !== JSON.stringify(after.storage.buckets)) note('buckets', JSON.stringify({ before: before.storage.buckets, after: after.storage.buckets }))
   if (JSON.stringify(before.protections) !== JSON.stringify(after.protections)) note('protections', JSON.stringify({ before: before.protections, after: after.protections }))
   if (JSON.stringify(before.modules) !== JSON.stringify(after.modules)) note('modules', 'installed module list changed')
