@@ -11,7 +11,7 @@ export function useChatMessages(conversationId) {
   const token = session?.access_token;
   const queryClient = useQueryClient();
   const unsubRef = useRef(null);
-  const { on } = useRealtimeContext();
+  const { on, markReadIfOnScreen } = useRealtimeContext();
 
   // Older pages accumulated via "load more" — stored separately from the latest page
   const [olderMessages, setOlderMessages] = useState([]);
@@ -84,12 +84,17 @@ export function useChatMessages(conversationId) {
         );
         return { ...old, data: [...filtered, newMsg] };
       });
-      invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      // A peer's message read right here: the debounced mark-read refreshes the
+      // list (unread counts included) once, shared with the user-channel event.
+      const fromPeer = userProfile?.id && newMsg.sender_user_id !== userProfile.id;
+      if (!(fromPeer && markReadIfOnScreen(conversationId))) {
+        invalidateRealtimeQuery(queryClient, ["chat-conversations"]);
+      }
       if (Number(newMsg.attachment_count) > 0) {
         invalidateRealtimeQuery(queryClient, ["chat-messages", conversationId]);
       }
     },
-    [conversationId, queryClient],
+    [conversationId, queryClient, userProfile?.id, markReadIfOnScreen],
   );
 
   const updateMessageInCache = useCallback(

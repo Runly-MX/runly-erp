@@ -71,39 +71,50 @@ export function RealtimeProvider({ children }) {
     useChatFloatStore.setState({ openChats: [], isOpen: false })
   }, [activeCompanyId, userProfile?.id])
 
+  // The recipient is actively looking at this conversation right now
+  // — clear its chat.message.new notification instead of leaving an
+  // unread bell entry for a message they're already reading, AND
+  // bump last_read_at so any OTHER session of this same account
+  // (e.g. a desktop tab left open while chatting on a phone) learns
+  // — on its next chat-conversations refetch — that this
+  // conversation is already read and stays quiet too (see
+  // alreadyReadElsewhere in both handlers below). The notification row
+  // is created asynchronously on the server (fire-and-forget after
+  // sendMessage returns), so this is debounced and delayed rather than
+  // raced against it. Both refreshes run even if the write fails: they
+  // are the only list/counter update for an on-screen message. The user
+  // channel broadcast and the open conversation's row insert both land
+  // here, so one message costs one mark-read and one list refresh.
+  const scheduleMarkConversationRead = useCallback((convId) => {
+    const timers = markConversationReadTimersRef.current
+    clearTimeout(timers.get(convId))
+    timers.set(convId, setTimeout(() => {
+      timers.delete(convId)
+      const currentToken = sessionRef.current?.access_token
+      if (!currentToken) return
+      runly.notifications
+        .markReadBySource(currentToken, 'chat_conversation', convId)
+        .catch(() => {})
+        .finally(() => invalidateRealtimeQuery(queryClient, ['notifications']))
+      runly.chat
+        .markRead(convId, currentToken)
+        .catch(() => {})
+        .finally(() => invalidateRealtimeQuery(queryClient, ['chat-conversations']))
+    }, 1500))
+  }, [queryClient])
+
+  // For a peer's message in a conversation the user is reading: true when the
+  // mark-read above took over the list refresh, false when the caller must do it.
+  const markReadIfOnScreen = useCallback((convId) => {
+    if (!isConversationOnScreen(convId) || document.hidden) return false
+    scheduleMarkConversationRead(convId)
+    return true
+  }, [scheduleMarkConversationRead])
+
   useEffect(() => {
     if (!userProfile?.id || !session?.access_token) return
     let disposed = false, joinedOnce = false
     const client = getSupabaseClient()
-    // The recipient is actively looking at this conversation right now
-    // — clear its chat.message.new notification instead of leaving an
-    // unread bell entry for a message they're already reading, AND
-    // bump last_read_at so any OTHER session of this same account
-    // (e.g. a desktop tab left open while chatting on a phone) learns
-    // — on its next chat-conversations refetch — that this
-    // conversation is already read and stays quiet too (see
-    // alreadyReadElsewhere in both handlers below). The notification row
-    // is created asynchronously on the server (fire-and-forget after
-    // sendMessage returns), so this is debounced and delayed rather than
-    // raced against it. Both refreshes run even if the write fails: they
-    // are the only list/counter update for an on-screen message.
-    function scheduleMarkConversationRead(convId) {
-      const timers = markConversationReadTimersRef.current
-      clearTimeout(timers.get(convId))
-      timers.set(convId, setTimeout(() => {
-        timers.delete(convId)
-        const currentToken = sessionRef.current?.access_token
-        if (!currentToken) return
-        runly.notifications
-          .markReadBySource(currentToken, 'chat_conversation', convId)
-          .catch(() => {})
-          .finally(() => invalidateRealtimeQuery(queryClient, ['notifications']))
-        runly.chat
-          .markRead(convId, currentToken)
-          .catch(() => {})
-          .finally(() => invalidateRealtimeQuery(queryClient, ['chat-conversations']))
-      }, 1500))
-    }
     // private: true enables Realtime Authorization — the server checks the
     // user_events_receive RLS policy (migration
     // 20260911140000_chat_company_realtime_authorization), so only this
@@ -432,11 +443,12 @@ export function RealtimeProvider({ children }) {
 
   const value = useMemo(() => ({
     on,
+    markReadIfOnScreen,
     onlineUsers,
     lastSeenMap,
     isUserOnline,
     getLastSeen,
-  }), [on, onlineUsers, lastSeenMap, isUserOnline, getLastSeen])
+  }), [on, markReadIfOnScreen, onlineUsers, lastSeenMap, isUserOnline, getLastSeen])
 
   return <RealtimeContext.Provider value={value}>{children}</RealtimeContext.Provider>
 }
