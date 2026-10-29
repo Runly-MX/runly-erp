@@ -71,7 +71,10 @@ export function LiveMeetingBanner({ conversationId }) {
   return (
     <div
       role="status"
-      className="mx-3 mt-2 flex items-center gap-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2"
+      className="mx-3 mt-2 flex items-center gap-3 rounded-xl border border-emerald-500/30 px-3 py-2 backdrop-blur-xl"
+      // Floats over the message list with the chat header: a solid-enough
+      // surface under the green tint keeps it readable over any bubble.
+      style={{ background: "linear-gradient(rgb(16 185 129 / 0.12), rgb(16 185 129 / 0.12)), hsl(var(--surface-2) / 0.82)" }}
     >
       <span className="relative flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-emerald-500 text-white">
         <Icon className="h-4 w-4" aria-hidden />

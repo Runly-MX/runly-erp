@@ -38,6 +38,8 @@ import { ChatHeader } from "./ChatHeader";
 import { Moon } from "lucide-react";
 import { StatusLookupContext, useStatusLookup } from "../../../hooks/useStatusDnd";
 import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
+import { useDockedProfile } from "../hooks/useDockedProfile";
+import { useOverlayInsets } from "../hooks/useOverlayInsets";
 
 // Same pattern as ConversationProfilePanel's backHeader — an explicit,
 // always-visible way out of a view that replaces the message list in place.
@@ -49,6 +51,10 @@ function ExchangeViewBackHeader({ title, onBack }) {
     </div>
   );
 }
+
+// Views that replace the message list keep clear of the floating header and
+// composer (see useOverlayInsets).
+const RESERVE_INSETS = { paddingTop: "var(--chat-inset-top)", paddingBottom: "var(--chat-inset-bottom)" };
 
 // ── Helpers for local "delete for me" ─────────────────────────────────────────
 
@@ -121,6 +127,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const isMirai = conversation?.type === "mirai";
   const { data: miraiStatus } = useMiraiStatus();
   const miraiAvailable = !isMirai || miraiStatus?.available !== false;
+  const { dockByDefault, remember: rememberDockedProfile } = useDockedProfile();
+  const profileDocks = dockByDefault && !embedded && !isExternal && !isMirai;
+  const overlay = useOverlayInsets(Boolean(conversation));
   // "Leer en voz alta" — one shared instance for this whole chat window, so
   // both the per-message buttons (ChatMessageList) and the persistent "now
   // playing"/"generando audio" bar right under the header stay in sync.
@@ -219,6 +228,12 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     setEditingMessage(null);
   }, [conversationId, initialFilesView]);
 
+  // Declared after the reset above so it wins: on very wide screens every
+  // conversation opens with its profile docked alongside.
+  useEffect(() => {
+    if (!initialFilesView) setMembersView(profileDocks);
+  }, [conversationId, profileDocks, initialFilesView]);
+
   useEffect(() => {
     if (conversationId && token) markReadRef.current();
   }, [conversationId, token]);
@@ -288,12 +303,14 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     setMembersView(true);
     setFilesView(false);
     setRecordingsView(false);
-  }, []);
+    rememberDockedProfile(true);
+  }, [rememberDockedProfile]);
 
   const closeProfile = useCallback(() => {
     setMembersView(false);
     setProfileInitialTab(null);
-  }, []);
+    rememberDockedProfile(false);
+  }, [rememberDockedProfile]);
 
   // Files/recordings replace the message list in place, with no other visible
   // way back besides re-finding the same header toggle/dropdown item that
@@ -572,6 +589,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   }
 
   const messages = messagesData?.data ?? [];
+  const showMiraiIntro = isMirai && !isLoading && (messages?.length ?? 0) <= 1;
 
   return (
     <StatusLookupContext.Provider value={peopleStatus}>
@@ -590,11 +608,18 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           ConversationProfilePanel's own header stacked under ChatHeader
           instead of flush with the top of the window, and left the composer
           spanning full width underneath the sidebar instead of stopping at
-          this column's edge. */}
-      <div className={[
-        "w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden",
-        membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
-      ].join(" ")}>
+          this column's edge.
+          The header stack and the composer float over the message area
+          (glass, messages scroll underneath); useOverlayInsets publishes
+          their heights so the content below reserves exactly that space. */}
+      <div
+        className={[
+          "relative w-full min-w-0 max-w-full min-h-0 flex-col overflow-hidden",
+          membersView ? "hidden xl:flex xl:flex-1" : "flex flex-1",
+        ].join(" ")}
+        style={overlay.style}
+      >
+      <div ref={overlay.topRef} className="pointer-events-none absolute inset-x-0 top-0 z-20 [&>*]:pointer-events-auto">
       <ChatHeader
         conversation={conversation}
         currentUserId={userProfile?.id}
@@ -654,15 +679,16 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       {!isExternal && callsEnabled && !embedded && conversationId && (
         <LiveMeetingBanner conversationId={conversationId} />
       )}
+      </div>
 
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {recordingsView ? (
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col" style={RESERVE_INSETS}>
               <ExchangeViewBackHeader title="Grabaciones" onBack={closeExchangeView} />
               <ChatRecordingsGallery conversationId={conversationId} />
             </div>
           ) : filesView ? (
-            <div className="flex-1 min-h-0 flex flex-col">
+            <div className="flex-1 min-h-0 flex flex-col" style={RESERVE_INSETS}>
               <ExchangeViewBackHeader title="Archivos" onBack={closeExchangeView} />
               {filesHistory.isError && <ErrorState title="No se pudieron cargar los archivos" onRetry={filesHistory.refetch} />}
               <ChatFilesGallery
@@ -692,11 +718,14 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             </div>
           ) : (
             <>
-            {isMirai && !isLoading && (messages?.length ?? 0) <= 1 && (
-              <MirAIIntro onPickPrompt={(text) => composerRef.current?.prefill?.(text)} />
+            {showMiraiIntro && (
+              <div style={{ paddingTop: "var(--chat-inset-top)" }}>
+                <MirAIIntro onPickPrompt={(text) => composerRef.current?.prefill?.(text)} />
+              </div>
             )}
             <ChatMessageList
               key={conversationId}
+              reserveTop={!showMiraiIntro}
               messages={messages}
               isLoading={isLoading}
               ttsEnabled={ttsEnabled}
@@ -761,6 +790,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           handles that. At xl and up this column stays visible alongside the
           sidebar (see below), composer included, so you can keep chatting
           while looking at the profile. */}
+      <div ref={overlay.bottomRef} className="chat-float-band absolute inset-x-0 bottom-0 z-20">
       {!filesView && isExternal && conversation?.status !== "closed" && (
         <div className="shrink-0">
           <div className="flex items-center gap-2 px-3 pt-2">
@@ -785,6 +815,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
             onCancelReply={() => setReplyingTo(null)}
             dropZoneDisabled
             edgeInset
+            floating
           />
         </div>
       )}
@@ -821,9 +852,11 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           onSubmitEdit={handleSubmitEdit}
           dropZoneDisabled
           edgeInset
+          floating
           disabled={!canSendMessages || !miraiAvailable}
         />
       )}
+      </div>
       </div>
 
       {/* True full-height sidebar, alongside the whole chat column above —

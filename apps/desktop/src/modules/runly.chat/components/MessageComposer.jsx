@@ -124,6 +124,10 @@ export const MessageComposer = forwardRef(function MessageComposer(
     // mini windows and any nested reuse leave this false so the inset is
     // never stacked twice (the bug that pushed the input bar upward).
     edgeInset = false,
+    // ChatWindow overlays the composer on the message list inside its own
+    // fade band (.chat-float-band): no tinted bar here, the input is the
+    // glass card.
+    floating = false,
   },
   ref,
 ) {
@@ -760,7 +764,8 @@ export const MessageComposer = forwardRef(function MessageComposer(
 
   return (
     <div className={[
-      "chat-tint-bar w-full min-w-0 shrink-0",
+      floating ? "" : "chat-tint-bar",
+      "w-full min-w-0 shrink-0",
       // Device geometry must stay outside chat-scale-target: zooming text
       // must not enlarge the space reserved for the iOS home indicator.
       edgeInset ? "safe-bottom" : "",

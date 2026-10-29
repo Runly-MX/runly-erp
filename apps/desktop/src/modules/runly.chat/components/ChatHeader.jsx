@@ -81,12 +81,15 @@ export function ChatHeader({
     if (searchMode) setTimeout(() => searchInputRef.current?.focus(), 50);
   }, [searchMode]);
 
+  // Every mode is the same floating glass bar: ChatWindow overlays it on the
+  // message list, so messages scroll underneath it.
+  const barCls = "chat-glass chat-float-bar relative z-10 mx-2 mt-2 flex h-14 items-center rounded-2xl px-3 shrink-0";
   const headerBtnCls = "shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation";
 
   // ── Selection mode ──────────────────────────────────────────────────────────
   if (selectionMode) {
     return (
-      <div className="flex items-center gap-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] px-3 py-2.5 shrink-0">
+      <div className={`${barCls} gap-2`}>
         <button type="button" onClick={onSelectionCancel} className={headerBtnCls} title="Cancelar">
           <XIcon className="h-4 w-4" />
         </button>
@@ -119,7 +122,7 @@ export function ChatHeader({
   if (searchMode) {
     const hasMatches = searchMatchCount > 0;
     return (
-      <div className="chat-glass flex items-center gap-1.5 rounded-full mx-2 mt-2 px-3 py-2.5 shrink-0">
+      <div className={`${barCls} gap-1.5`}>
         <button type="button" onClick={onSearchToggle} className={headerBtnCls} title="Cerrar busqueda">
           <XIcon className="h-4 w-4" />
         </button>
@@ -176,7 +179,7 @@ export function ChatHeader({
     const guestName = conversation?.guest_name ?? conversation?.guest_email ?? "Visitante";
     const closed = externalStatus === "closed";
     return (
-      <div className="chat-glass chat-tint-bar relative z-10 flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className={`${barCls} gap-3`}>
         {onClose && (
           <BackButton onClick={onClose} className="-mr-1 md:hidden" />
         )}
@@ -227,7 +230,7 @@ export function ChatHeader({
   // ── Normal mode ─────────────────────────────────────────────────────────────
   return (
     <>
-      <div className="chat-glass chat-tint-bar relative z-10 flex h-16 items-center gap-3 px-3 sm:px-4 shrink-0 border-x-0! border-t-0! border-b! border-[hsl(var(--border))]!">
+      <div className={`${barCls} gap-3`}>
         {embedded === "call" ? (
           <button
             type="button"

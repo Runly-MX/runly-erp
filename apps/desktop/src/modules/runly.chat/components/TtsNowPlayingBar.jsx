@@ -13,7 +13,7 @@ export function TtsNowPlayingBar({ speech }) {
   const loading = speech.isAnyLoading;
 
   return (
-    <div className="flex items-center gap-2 px-3 py-1.5 border-b border-[hsl(var(--border))] bg-[var(--brand-primary)]/8 text-[var(--brand-primary)] shrink-0">
+    <div className="chat-glass chat-float-bar mx-2 mt-1.5 flex items-center gap-2 rounded-xl px-3 py-1.5 text-[var(--brand-primary)] shrink-0">
       {loading
         ? <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" />
         : <Volume2 className="h-3.5 w-3.5 shrink-0" />}

@@ -83,6 +83,10 @@ export function ChatMessageList({
   onJumpToPinnedMessage,
   onUnpinMessage,
   canUnpinMessages = false,
+  // ChatWindow floats its header over this list and publishes its height as
+  // --chat-inset-top (and the composer's as --chat-inset-bottom); false when
+  // something above the list (MirAI's intro) already clears the header.
+  reserveTop = true,
   // Unread count for this conversation captured the instant it was opened —
   // see ChatWindow.jsx/MiniChatWindow.jsx's unreadSnapshotRef comment. Used
   // to land the initial scroll on the first unread message instead of the
@@ -99,6 +103,10 @@ export function ChatMessageList({
   // Tileable line-art wallpaper — a masked, tinted layer painted BEHIND the
   // scrolling column (z-index:-1 inside an `isolate`d, `chat-wallpaper`
   // container). See chat-theme.css. Rendered only when the pref is on.
+  // Outside ChatWindow (mini windows) the variables are unset and fall to 0.
+  const insetTop = reserveTop ? "var(--chat-inset-top, 0px)" : "0px";
+  const insetBottom = "var(--chat-inset-bottom, 0px)";
+  const hasPins = (pinnedMessages?.length ?? 0) > 0;
   const wallpaperLayer = prefs.wallpaper ? (
     <div {...wallpaperLayerProps(prefs)} />
   ) : null;
@@ -532,7 +540,8 @@ export function ChatMessageList({
   if (isLoading) {
     return (
       <div
-        className={["chat-scale-target chat-wallpaper relative isolate", "flex-1 min-h-0 overflow-y-auto p-4 space-y-3"].join(" ")}
+        className={["chat-scale-target chat-wallpaper relative isolate", "flex-1 min-h-0 overflow-y-auto px-4 space-y-3"].join(" ")}
+        style={{ paddingTop: `calc(${insetTop} + 1rem)`, paddingBottom: `calc(${insetBottom} + 1rem)` }}
       >
         {wallpaperLayer}
         {[40, 60, 50, 70, 45].map((w, i) => (
@@ -549,6 +558,7 @@ export function ChatMessageList({
     return (
       <div
         className={["chat-scale-target chat-wallpaper relative isolate", "flex-1 min-h-0 flex items-center justify-center"].join(" ")}
+        style={{ paddingTop: insetTop, paddingBottom: insetBottom }}
       >
         {wallpaperLayer}
         <div className="text-center space-y-1">
@@ -572,7 +582,12 @@ export function ChatMessageList({
   const grouped = enrichWithGroupInfo(groupMessagesByDate(visibleMessages));
 
   return (
-    <div className="chat-wallpaper relative isolate flex-1 min-h-0 flex flex-col">
+    <div
+      className="chat-wallpaper relative isolate flex-1 min-h-0 flex flex-col"
+      // With pins the strip sits right under the header and messages scroll
+      // from below it; otherwise they scroll under the header itself.
+      style={{ paddingTop: hasPins ? insetTop : 0 }}
+    >
       {wallpaperLayer}
       <PinnedMessagesBar
         pinnedMessages={pinnedMessages}
@@ -584,7 +599,14 @@ export function ChatMessageList({
       <div
         ref={listRef}
         onScroll={handleScroll}
-        className={["chat-scale-target", "flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain py-3"].join(" ")}
+        className={["chat-scale-target", "flex flex-col flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain"].join(" ")}
+        style={{
+          paddingTop: `calc(${hasPins ? "0px" : insetTop} + 0.75rem)`,
+          paddingBottom: `calc(${insetBottom} + 0.75rem)`,
+          // scrollIntoView (unread divider, jumps) lands clear of the glass.
+          scrollPaddingTop: hasPins ? 0 : insetTop,
+          scrollPaddingBottom: insetBottom,
+        }}
       >
         {/* Sentinel watched by IntersectionObserver — triggers auto-load when scrolled into view */}
         <div ref={topSentinelRef} className="h-px" />
@@ -713,7 +735,7 @@ export function ChatMessageList({
       </div>
 
       {(pendingMentionIds.length > 0 || showScrollButton) && (
-        <div className="absolute bottom-3 right-3 flex flex-col items-end gap-2 z-10">
+        <div className="absolute right-3 flex flex-col items-end gap-2 z-10" style={{ bottom: `calc(${insetBottom} + 0.75rem)` }}>
           {pendingMentionIds.length > 0 && (
             <button
               type="button"
