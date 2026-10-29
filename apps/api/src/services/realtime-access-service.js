@@ -81,10 +81,18 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
     return true;
   }
 
-  async function presence({ topic, actorId, leave = false }) {
+  // withRevision lets one heartbeat per client tick replace GET /realtime/revision.
+  // The revision is read by the same statement, after the access check, so a
+  // denied heartbeat never carries it and the client falls back to the GET.
+  async function presence({ topic, actorId, leave = false, withRevision = false }) {
     if (!actorId || !(await allowed(topic, actorId))) return null;
+    let revision;
     if (leave) {
       await prisma.$executeRaw`DELETE FROM realtime_user_presence WHERE topic = ${topic} AND user_id = ${actorId}::uuid`;
+    } else if (withRevision) {
+      [{ revision }] = await prisma.$queryRaw`INSERT INTO realtime_user_presence (topic, user_id) VALUES (${topic}, ${actorId}::uuid)
+        ON CONFLICT (topic, user_id) DO UPDATE SET seen_at = now()
+        RETURNING (SELECT revision::text FROM realtime_authorization_revision WHERE id) AS revision`;
     } else {
       await prisma.$executeRaw`INSERT INTO realtime_user_presence (topic, user_id) VALUES (${topic}, ${actorId}::uuid)
         ON CONFLICT (topic, user_id) DO UPDATE SET seen_at = now()`;
@@ -97,7 +105,7 @@ export function createRealtimeAccessService({ prisma, broadcaster }) {
       if (!(await allowed(topic, user.id))) continue;
       state[user.id] = [{ userId: user.id, displayName: user.display_name, status: 'online', user: { id: user.id, name: user.display_name } }];
     }
-    return state;
+    return revision ? { data: state, revision } : { data: state };
   }
   return { revision, allowed, relay, presence };
 }

@@ -67,3 +67,34 @@ describe('realtime relay', () => {
     } finally {awareness.destroy();peer.destroy();doc.destroy();peerDoc.destroy()}
   })
 })
+
+describe('realtime presence heartbeat', () => {
+  const topic = 'company:00000000-0000-4000-8000-000000000001:presence'
+  function fixture(allowed) {
+    const statements = []
+    const prisma = {
+      $queryRaw: async (strings) => {
+        const sql = strings.join('?')
+        statements.push(sql)
+        if (sql.includes('runly_member_active')) return [{ allowed }]
+        if (sql.includes('RETURNING')) return [{ revision: '7' }]
+        return [{ id: 'user-1', display_name: 'Ana' }]
+      },
+      $executeRaw: async (strings) => { statements.push(strings.join('?')); return 1 },
+    }
+    return { statements, service: createRealtimeAccessService({ prisma, broadcaster: {} }) }
+  }
+  it('returns the revision from the same upsert, without an extra query', async () => {
+    const plain = fixture(true), combined = fixture(true)
+    assert.deepEqual(Object.keys(await plain.service.presence({ topic, actorId: 'user-1' })), ['data'])
+    const result = await combined.service.presence({ topic, actorId: 'user-1', withRevision: true })
+    assert.equal(result.revision, '7')
+    assert.ok(result.data['user-1'])
+    assert.equal(combined.statements.length, plain.statements.length)
+  })
+  it('never reads the revision for a denied heartbeat', async () => {
+    const { statements, service } = fixture(false)
+    assert.equal(await service.presence({ topic, actorId: 'user-1', withRevision: true }), null)
+    assert.ok(statements.every((sql) => !sql.includes('realtime_authorization_revision')))
+  })
+})

@@ -1882,8 +1882,10 @@ app.post('/realtime/presence', authMiddleware, async (c) => {
   if (!context?.profile?.enabled) return c.json({ error: 'Recurso no disponible.' }, 404);
   const body = await c.req.json().catch(() => null);
   if (!body) return c.json({ error: 'Cuerpo inválido.' }, 400);
-  const data = await realtimeAccess.presence({ topic: body.topic, actorId: context.profile.id, leave: body.leave === true });
-  return data ? c.json({ data }) : c.json({ error: 'Recurso no disponible.' }, 404);
+  const result = await realtimeAccess.presence({ topic: body.topic, actorId: context.profile.id, leave: body.leave === true, withRevision: body.revision === true });
+  if (!result) return c.json({ error: 'Recurso no disponible.' }, 404);
+  c.header('Cache-Control', 'no-store');
+  return c.json(result.revision ? { data: result.data, revision: result.revision, identityProtocol: 1 } : { data: result.data });
 });
 
 const collaborationInvitations = createCollaborationInvitationsService({ prisma });

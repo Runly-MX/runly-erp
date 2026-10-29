@@ -32,25 +32,34 @@ export function authorizeRealtimeClient(client) {
   // restart does not cause a request storm.
   let revisionPromise = null, revisionFailedAt = 0, lastRevision, lastRevisionAt = 0, ticker = null
   const revisionListeners = new Set()
+  function acceptRevision(result) {
+    // A slower response must never roll channels back to an older revision.
+    const numeric = (value) => /^\d+$/.test(value ?? '')
+    if (numeric(lastRevision?.revision) && numeric(result.revision) && BigInt(result.revision) < BigInt(lastRevision.revision)) return lastRevision
+    const changed = lastRevision !== undefined && lastRevision.revision !== result.revision
+    lastRevision = result
+    lastRevisionAt = Date.now()
+    if (changed) revisionListeners.forEach((fn) => { try { fn(result.revision) } catch {} })
+    return result
+  }
   function fetchRevision() {
     if (Date.now() - revisionFailedAt < 5_000) return Promise.reject(new Error('Recurso no disponible'))
     if (lastRevision && Date.now() - lastRevisionAt < 2_000) return Promise.resolve(lastRevision)
     revisionPromise ??= request('revision')
-      .then((result) => {
-        const changed = lastRevision !== undefined && lastRevision.revision !== result.revision
-        lastRevision = result
-        lastRevisionAt = Date.now()
-        if (changed) revisionListeners.forEach((fn) => { try { fn(result.revision) } catch {} })
-        return result
-      })
+      .then(acceptRevision)
       .catch((error) => { revisionFailedAt = Date.now(); throw error })
       .finally(() => { revisionPromise = null })
     return revisionPromise
   }
-  function tick() {
+  async function tick() {
     lastRevisionAt = 0
     if (!channels.size) return fetchRevision().catch(() => {})
-    return Promise.all([...channels].map((channel) => channel.refresh()))
+    // The first tracked channel's heartbeat also returns the revision, saving the
+    // GET. If it fails, is denied or the API predates it, lastRevisionAt stays 0
+    // and the refreshes below fetch the revision on their own.
+    const carrier = [...channels].find((channel) => channel.tracksPresence())
+    if (carrier) await carrier.heartbeat(true)
+    return Promise.all([...channels].map((channel) => channel.refresh(channel !== carrier)))
   }
   function syncTicker() {
     const needed = channels.size > 0 || revisionListeners.size > 0
@@ -94,7 +103,9 @@ export function authorizeRealtimeClient(client) {
           return 'ok'
         } catch { return 'error' }
       },
-      refresh() { return subscribed ? refresh() : undefined },
+      refresh(withPresence) { return subscribed ? refresh(withPresence) : undefined },
+      tracksPresence() { return subscribed && tracked && !closed },
+      heartbeat,
       subscribe(fn) {
         callback = fn
         subscribed = true
@@ -111,11 +122,13 @@ export function authorizeRealtimeClient(client) {
       },
     }
 
-    async function heartbeat() {
+    async function heartbeat(withRevision = false) {
       if (!tracked || closed) return
       try {
-        const { data } = await request('presence', { topic })
+        const result = await request('presence', withRevision ? { topic, revision: true } : { topic })
+        if (withRevision && typeof result.revision === 'string') acceptRevision({ revision: result.revision, identityProtocol: result.identityProtocol })
         if (closed) return
+        const { data } = result
         const left = Object.keys(presence).filter((id) => !data[id]).flatMap((id) => presence[id])
         presence = data
         emitPresence('sync', {})
@@ -126,7 +139,7 @@ export function authorizeRealtimeClient(client) {
       }
     }
 
-    async function refresh() {
+    async function refresh(withPresence = true) {
       if (closed || busy) return
       busy = true
       try {
@@ -148,7 +161,7 @@ export function authorizeRealtimeClient(client) {
           }
           socket.subscribe((status, error) => { if (!closed) callback?.(status, error) })
         }
-        await heartbeat()
+        if (withPresence) await heartbeat()
       } catch { if (!closed) callback?.('CHANNEL_ERROR') }
       finally { busy = false }
     }
