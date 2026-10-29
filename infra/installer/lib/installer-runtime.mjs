@@ -71,6 +71,19 @@ export function acquireInstallerDeployment(cwd) {
   return () => { if (existsSync(lock) && readFileSync(lock, 'utf8') === String(process.pid)) unlinkSync(lock) }
 }
 
+// API (migrate/seed/API start) and Worker (CMD) run pnpm through Corepack. Probe it
+// with networking disabled so an image that would download pnpm at runtime is
+// rejected before any database change, instead of failing midway on EAI_AGAIN.
+const OFFLINE_PNPM_KINDS = new Set(['api', 'worker'])
+export function verifyOfflineRuntime({ cwd, kind, image, reference = image, spawn = spawnSync }) {
+  const result = spawn('docker', ['run', '--rm', '--pull=never', '--network', 'none', '--entrypoint', 'pnpm', image, '--version'], { cwd, encoding: 'utf8', shell: false })
+  if (!result.error && result.status === 0 && /^\d+\.\d+\.\d+\s*$/.test(result.stdout ?? '')) return
+  const output = `${result.stderr ?? ''}\n${result.stdout ?? ''}`
+  const download = /registry\.npmjs\.org\/(\S+?)\/-\/\S+?-(\d+\.\d+\.\d+)\.tgz/.exec(output)
+  const missing = download ? `${download[1]}@${download[2]} from the npm registry` : 'pnpm (it could not start without network access)'
+  throw Error(`INSTALLER_RUNTIME_DEPENDENCY_UNAVAILABLE: ${kind} image ${reference} needs to download ${missing} at runtime, so migrations, seed and the ${kind === 'worker' ? 'Worker' : 'API'} would depend on Internet access. Nothing was migrated or restarted. Publish/select ${kind} images built with the bundled pnpm (infra/docker/${kind}.Dockerfile) and run the Installer again; do not change server DNS to work around this.`)
+}
+
 export function verifyRuntimeImages({ cwd, mode, images, spawn = spawnSync }) {
   const pinned = {}, selected = {}
   for (const [kind, image] of Object.entries(images)) {
@@ -79,6 +92,7 @@ export function verifyRuntimeImages({ cwd, mode, images, spawn = spawnSync }) {
     const [metadata] = JSON.parse(result.stdout)
     if (metadata.Config?.Labels?.['io.runly.installer.contract'] !== INSTALLER_CONTRACT) throw Error(`INSTALLER_IMAGE_INCOMPATIBLE: ${kind}; publish/select images with contract ${INSTALLER_CONTRACT} before migrating`)
     if (!/^sha256:[a-f0-9]{64}$/.test(metadata.Id)) throw Error('INSTALLER_IMAGE_ID_INVALID')
+    if (OFFLINE_PNPM_KINDS.has(kind)) verifyOfflineRuntime({ cwd, kind, image: metadata.Id, reference: image, spawn })
     pinned[kind] = metadata.Id
     selected[kind] = { reference: image, id: metadata.Id }
   }

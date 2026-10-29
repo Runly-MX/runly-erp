@@ -1,5 +1,8 @@
 FROM node:22-alpine AS deps
 WORKDIR /app
+# pnpm is cached in a fixed COREPACK_HOME so the final stage can copy it:
+# runtime containers must never download their package manager.
+ENV COREPACK_HOME=/opt/corepack
 RUN corepack enable
 # IMPORTANT: this `deps` stage must stay byte-identical to the one in
 # api.Dockerfile. BuildKit then reuses the same cached layers for both
@@ -22,7 +25,7 @@ COPY packages/ui/package.json packages/ui/package.json
 COPY packages/validators/package.json packages/validators/package.json
 # Install depends only on the manifests above, so it stays cached across
 # schema changes and new migrations (which land on almost every feature).
-RUN pnpm install --frozen-lockfile
+RUN corepack install && pnpm install --frozen-lockfile
 # Only schema.prisma is needed to generate the client; migrations/seed are
 # copied in the final stage so adding a migration never re-runs generate.
 COPY prisma/schema.prisma prisma/schema.prisma
@@ -32,9 +35,21 @@ RUN DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm prism
 FROM node:22-alpine
 LABEL io.runly.installer.contract="studio-realtime-1"
 WORKDIR /app
+# Offline runtime: the exact pnpm (package.json packageManager) is copied from
+# deps and Corepack/pnpm/Prisma are forbidden from reaching the network, so
+# Installer jobs (migrate, seed, recovery) and the Worker start without npm.
+ENV COREPACK_HOME=/opt/corepack \
+    COREPACK_ENABLE_NETWORK=0 \
+    COREPACK_ENABLE_DOWNLOAD_PROMPT=0 \
+    COREPACK_ENABLE_AUTO_PIN=0 \
+    npm_config_update_notifier=false \
+    CHECKPOINT_DISABLE=1
+COPY --from=deps /opt/corepack /opt/corepack
 RUN corepack enable
 # Pruned production tree only — devDependencies stay behind in the deps stage.
 COPY --from=deps /app /app
+# Fails the build, not the Installer, if pnpm would still need a download.
+RUN pnpm --version
 # Copy full sources after install: packages/* and modules/* change on nearly every
 # commit but neither is needed for `pnpm install` (modules/ isn't even a workspace
 # member), so copying them here keeps the expensive install+prisma layer cached.

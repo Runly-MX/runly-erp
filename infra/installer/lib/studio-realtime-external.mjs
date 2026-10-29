@@ -101,7 +101,9 @@ try { await check(${JSON.stringify({ sql, diagnose, recover, recoveryCommand, pr
   if (result.error || result.status !== 0) throw Error(result.stderr?.split('\n').find(line => line.startsWith('STUDIO_')) || 'STUDIO_DATABASE_CHECK_FAILED')
   if (diagnose) console.log(result.stdout.trim())
   if (recover) {
-    const resolved = spawn('docker', [...base, '--entrypoint', 'pnpm', image, 'exec', 'prisma', 'migrate', 'resolve', '--rolled-back', STUDIO_REALTIME_MIGRATION], { cwd, shell: false, stdio: 'inherit' })
+    // Prisma's CLI is invoked directly (not via pnpm/Corepack) so recovery also
+    // works offline with older images that never cached pnpm.
+    const resolved = spawn('docker', [...base, '--entrypoint', 'node', image, 'node_modules/prisma/build/index.js', 'migrate', 'resolve', '--rolled-back', STUDIO_REALTIME_MIGRATION], { cwd, shell: false, stdio: 'inherit' })
     if (resolved.error || resolved.status !== 0) throw Error('STUDIO_MIGRATION_RESOLVE_FAILED')
   }
 }

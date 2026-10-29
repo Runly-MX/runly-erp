@@ -32,7 +32,7 @@ try{
     prepareExternalStudioRealtime({ image, envFile:join(directory,'.env.local'), cwd:directory, diagnose:true, dockerArgs:networkArgs })
     await prepareStudioRealtimeOwner({execute,sqlFile:join(directory,'supabase/volumes/db/studio-realtime-role.sql')})
     assertRecoverableStudioFailure(inspectStudioRealtimeFailure(execute))
-    const result=spawnSync('docker',['run','--rm','--pull=never',...networkArgs,'--env-file',join(directory,'.env.local'),image,'pnpm','exec','prisma','migrate','resolve','--rolled-back',STUDIO_REALTIME_MIGRATION],{cwd:directory,env,stdio:'inherit',shell:false})
+    const result=spawnSync('docker',['run','--rm','--pull=never',...networkArgs,'--env-file',join(directory,'.env.local'),'--entrypoint','node',image,'node_modules/prisma/build/index.js','migrate','resolve','--rolled-back',STUDIO_REALTIME_MIGRATION],{cwd:directory,env,stdio:'inherit',shell:false})
     if(result.error||result.status!==0)throw Error('STUDIO_MIGRATION_RESOLVE_FAILED')
     console.log('Preparación completada y fallo conocido marcado como rolled back. Ejecuta de nuevo el Installer para aplicar la migración; no se marcó como aplicada.')
   }else console.log('Solo diagnóstico. No se modificó el rol, los datos ni el historial.')

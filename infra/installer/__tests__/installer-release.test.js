@@ -101,11 +101,28 @@ test('stored image selections survive and incompatible/mixed image contracts are
   assert.equal(env.RUNLY_API_IMAGE, undefined)
   assert.equal(env.ATLAS_API_IMAGE, 'example/api:explicit')
   assert.equal(env.RUNLY_WEB_EXTERNAL_IMAGE, 'example/web:chosen')
-  const inspect = label => () => ({ status: 0, stdout: JSON.stringify([{ Id: `sha256:${'c'.repeat(64)}`, Config: { Labels: { 'io.runly.installer.contract': label } } }]) })
+  const inspect = label => (_, args) => args[0] === 'run' ? { status: 0, stdout: '9.15.0\n' } : ({ status: 0, stdout: JSON.stringify([{ Id: `sha256:${'c'.repeat(64)}`, Config: { Labels: { 'io.runly.installer.contract': label } } }]) })
   assert.throws(() => verifyRuntimeImages({ cwd, mode: 'external', images: { api: 'example/api:old' }, spawn: inspect('old') }), /IMAGE_INCOMPATIBLE/)
   assert.equal(fs.existsSync(join(cwd, '.runly-installer/images.json')), false)
   const result = verifyRuntimeImages({ cwd, mode: 'external', images: { api: 'example/api:chosen' }, spawn: inspect(INSTALLER_CONTRACT) })
   assert.equal(result.api, `sha256:${'c'.repeat(64)}`)
+})
+
+test('images that download pnpm at runtime are rejected before migrating, with the probe run offline', t => {
+  const cwd = fixture(t), calls = []
+  const corepackDownload = { status: 1, stdout: '', stderr: '! Corepack is about to download https://registry.npmjs.org/pnpm/-/pnpm-9.15.0.tgz\nError: getaddrinfo EAI_AGAIN registry.npmjs.org' }
+  const spawn = runResult => (_, args) => {
+    calls.push(args)
+    return args[0] === 'run' ? runResult : { status: 0, stdout: JSON.stringify([{ Id: `sha256:${'d'.repeat(64)}`, Config: { Labels: { 'io.runly.installer.contract': INSTALLER_CONTRACT } } }]) }
+  }
+  assert.throws(() => verifyRuntimeImages({ cwd, mode: 'local', images: { worker: 'example/worker:old' }, spawn: spawn(corepackDownload) }),
+    /INSTALLER_RUNTIME_DEPENDENCY_UNAVAILABLE: worker image example\/worker:old needs to download pnpm@9\.15\.0 from the npm registry.*Nothing was migrated/)
+  assert.deepEqual(calls[1].slice(0, 5), ['run', '--rm', '--pull=never', '--network', 'none'])
+  assert.equal(fs.existsSync(join(cwd, '.runly-installer/images.json')), false)
+  calls.length = 0
+  const result = verifyRuntimeImages({ cwd, mode: 'local', images: { api: 'example/api:new', web: 'example/web:new' }, spawn: spawn({ status: 0, stdout: '9.15.0\n' }) })
+  assert.equal(result.api, `sha256:${'d'.repeat(64)}`)
+  assert.equal(calls.filter(args => args[0] === 'run').length, 1, 'web (nginx) has no pnpm to probe')
 })
 
 test('setup/recovery and script replacement cannot overlap', async t => {

@@ -241,12 +241,14 @@
       ]
     },
     "lib/installer-runtime.mjs": {
-      "sha256": "d3e4e7bd51af6551104561124686f5eafdf471cca326b215c19aa2ad3a421044",
+      "sha256": "fc2acc9651a771098d9740e5d3be53bea7c8f720531e098678f98a3abfa0876c",
       "modes": [
         "local",
         "external"
       ],
-      "legacyGitBlobs": []
+      "legacyGitBlobs": [
+        "bbbf861e02b440c3c4192e82215fd449b25c3652"
+      ]
     },
     "lib/api-health.mjs": {
       "sha256": "84538e1c33bd71042e8aeb2be19c0ac1ec666ec0dac403ba72b24028d56d39fa",
@@ -314,12 +316,13 @@
       ]
     },
     "lib/studio-realtime-external.mjs": {
-      "sha256": "344917b7d50e0124c9517411a3e12200ca37cb70dabf34c02681df3ac9646283",
+      "sha256": "702f3a9b23b55f38688219206ce3b8dfbf76ec7086130bf98769af2380a8ec00",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": [
+        "51cf6303189252c8de6aa9538288a5af0228a5a2",
         "95d1d7c73072b49186aa3af63ef59e8322335bf8"
       ]
     },
@@ -353,12 +356,13 @@
       ]
     },
     "recover-studio-realtime.mjs": {
-      "sha256": "3960711a520e519564a8a5dae4dd514d37260055c74bbb154cdef33e9361cab7",
+      "sha256": "44e4f2663e6f38a72e2bcde1a618750132b5e4ed3ddd7b61f4c2dce7f8ea1bba",
       "modes": [
         "local"
       ],
       "legacyGitBlobs": [
-        "50cd1beac84ee1cd9e1a6144e3fafe59f367817c"
+        "50cd1beac84ee1cd9e1a6144e3fafe59f367817c",
+        "584a021a7bad10344fb1a5cea61a8d4797027ef1"
       ]
     },
     "setup-local.mjs": {
