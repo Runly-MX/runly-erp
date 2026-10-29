@@ -28,6 +28,8 @@ import { getConversationDisplayName } from "../lib/chatUtils";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
+import { useCompanyPeople, useStartDirectChat } from "../hooks/useCompanyPeople";
+import { PeopleSearchResults, PeopleStrip } from "./PeopleStrip";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated, mediaActive = false, onOpenMedia }) {
   const { userProfile } = useAuth();
@@ -55,6 +57,10 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const savedDue = (savedItems ?? []).filter((item) => item.remindAt && !item.reminded).length;
   const { data: activity } = useChatActivity(true);
   const [sectionToDelete, setSectionToDelete] = useState(null);
+  const { people, onlineCount } = useCompanyPeople();
+  const { start: startDirectChat, startingId } = useStartDirectChat(onCreated);
+  const searchText = search.trim().toLowerCase();
+  const peopleMatch = Boolean(searchText) && people.some((p) => p.displayName?.toLowerCase().includes(searchText) || p.email?.toLowerCase().includes(searchText));
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
@@ -168,7 +174,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           onClear={() => setSearch('')}
-          placeholder="Buscar conversaciones..."
+          placeholder="Buscar chats o personas..."
         />
         <div className="mt-2 flex items-center gap-1">
           <div className="flex gap-1" role="group" aria-label="Filtrar conversaciones">
@@ -217,15 +223,30 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
           </div>
         )}
 
+        {!search.trim() && !isLoading && (
+          <PeopleStrip
+            people={people}
+            onlineCount={onlineCount}
+            startingId={startingId}
+            onStart={startDirectChat}
+            onSeeAll={() => setShowCreate(true)}
+          />
+        )}
+
+        {search.trim() && (
+          <PeopleSearchResults people={people} search={search} startingId={startingId} onStart={startDirectChat} />
+        )}
+
         {!isLoading && !filtered.length && !search && (
           <EmptyState
             className="py-8"
             title="Sin conversaciones"
-            description="Inicia un nuevo chat con el botón +"
+            description="Elige a alguien de arriba o inicia una conversación nueva."
+            action={{ label: "Nueva conversación", onClick: () => setShowCreate(true) }}
           />
         )}
 
-        {!isLoading && !filtered.length && search && !hasMessageQuery && (
+        {!isLoading && !filtered.length && search && !hasMessageQuery && !peopleMatch && (
           <EmptyState
             className="py-8"
             title="Sin resultados"

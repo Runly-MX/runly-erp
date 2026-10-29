@@ -11,13 +11,13 @@ import {
   SearchInput,
 } from "@runly/ui";
 import { X, Users } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
+import { useCompanyPeople } from "../hooks/useCompanyPeople";
 import { UserAvatar, UserPickerItem, UserListSkeleton } from "./UserPicker";
 
 export function CreateChatModal({ open, onClose, onCreated }) {
-  const { session, userProfile } = useAuth();
+  const { session } = useAuth();
   const token = session?.access_token;
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState([]);
@@ -25,16 +25,11 @@ export function CreateChatModal({ open, onClose, onCreated }) {
   const [isCreating, setIsCreating] = useState(false);
   const [error, setError] = useState(null);
 
-  const { data: usersData, isLoading } = useQuery({
-    queryKey: ["users-for-chat-picker"],
-    queryFn: () => runly.identity.listCandidates(token, { pageSize: 100, action: 'chat' }),
-    enabled: Boolean(token),
-    staleTime: 120_000,
-  });
+  // Online people first, each with their presence dot.
+  const { people, onlineCount, isLoading } = useCompanyPeople();
 
-  const users = (usersData?.data ?? []).filter(
+  const users = people.filter(
     (u) =>
-      u.id !== userProfile?.id &&
       (!search ||
         u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
         u.email?.toLowerCase().includes(search.toLowerCase())),
@@ -82,7 +77,8 @@ export function CreateChatModal({ open, onClose, onCreated }) {
             Nueva conversacion
           </DialogTitle>
           <DialogDescription>
-            Selecciona uno o varios usuarios para chatear.
+            Elige a una persona para un chat directo, o a varias para un grupo.
+            {onlineCount > 0 && ` ${onlineCount} en línea ahora.`}
           </DialogDescription>
         </DialogHeader>
 
