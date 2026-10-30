@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode } from './purchase-economic-mode.js'
 // Read-only, company-scoped helpers for a future MirAI integration with
 // runly.purchases (spec §10). Returns compact JSON. Not wired into MirAI yet;
 // follow the inventory-chat-actions.js pattern when it is.
@@ -30,13 +31,13 @@ export function createPurchasesAssistantContext({ prisma }) {
       take: Math.min(25, Math.max(1, Number(limit) || 10)),
     })
     const names = await supplierNames(prisma, companyId, rows.map(row => row.supplierId))
-    return rows.map(row => ({ kind, number: row.number ?? row.reference ?? null, status: row.status, total: num(row.total ?? row.estimatedTotal), currency: row.currency ?? null, supplier: names.get(row.supplierId) ?? null }))
+    return (await createPurchaseEconomicMode({ prisma }).projectMany(companyId, rows)).map(row => ({ kind, economicMode: row.economicMode, number: row.reference ?? row.number ?? null, status: row.status, total: row.total === null ? null : num(row.total ?? row.estimatedTotal), currency: row.currency ?? null, supplier: names.get(row.supplierId) ?? null }))
   }
 
   async function supplierSpend(companyId, { limit = 10 } = {}) {
     const grouped = await prisma.purchaseInvoice.groupBy({
       by: ['supplierId'],
-      where: { companyId, supplierId: { not: null }, status: { notIn: ['CANCELLED', 'DRAFT'] } },
+      where: { companyId, supplierId: { not: null }, total: { not: null }, status: { notIn: ['CANCELLED', 'DRAFT'] } },
       _sum: { total: true },
     })
     const top = grouped.sort((a, b) => num(b._sum.total) - num(a._sum.total)).slice(0, Math.min(25, Number(limit) || 10))
@@ -53,7 +54,7 @@ export function createPurchasesAssistantContext({ prisma }) {
       const ids = relations.filter(relation => relation.sourceType === def.entityType).map(relation => relation.sourceId)
       if (!ids.length) continue
       const rows = await prisma[def.model].findMany({ where: { companyId, id: { in: ids } } })
-      for (const row of rows) docs.push({ kind, number: row.number ?? row.reference ?? null, status: row.status, total: row.total != null ? num(row.total) : null })
+      for (const row of rows) docs.push({ kind, number: row.reference ?? row.number ?? null, status: row.status, total: row.total != null ? num(row.total) : null })
     }
     return { item: { assetTag: item.assetTag, name: item.name }, documents: docs }
   }

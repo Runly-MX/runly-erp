@@ -58,7 +58,7 @@ export function createPurchasesServices({ prisma, broadcaster, inventoryService,
 export function createPurchasesRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, inventoryService, supabaseAdmin }) {
   const router = new Hono()
   const services = createPurchasesServices({ prisma, broadcaster, inventoryService, supabaseAdmin })
-  const deps = { requirePermission, requireAnyPermission, services }
+  const deps = { prisma, requirePermission, requireAnyPermission, services }
   router.route('/', createPurchasesSettingsRouter(deps))
   router.route('/', createPurchasesRelationsRouter(deps))
   router.route('/', createPurchasesPaymentsRouter(deps))

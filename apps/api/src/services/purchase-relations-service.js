@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode } from './purchase-economic-mode.js'
 // runly.purchases relations: single/bulk create, delete, invoice propagation
 // preview/inheritance and the "Relacionar existente" document search.
 import {
@@ -61,6 +62,7 @@ export async function inheritFromOrders(tx, { companyId, actorId, invoiceId, ord
 }
 
 export function createPurchaseRelationsService({ prisma, broadcaster, workflowService }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   async function assertEndpoint(companyId, type, id) {
     if (!id) throw new PurchasesServiceError('La relación está incompleta.')
     if (type === 'inventory_item') {
@@ -75,10 +77,10 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
   }
 
   // A cancelled order or invoice keeps its history but takes no new links.
-  async function assertLiveDocument(companyId, type, id) {
+  async function assertLiveDocument(companyId, type, id, client = prisma) {
     const kind = ENTITY_TYPE_TO_KIND[type]
     if (!['orders', 'invoices'].includes(kind)) return
-    const row = await prisma[KINDS[kind].model].findFirst({ where: { id, companyId }, select: { status: true } })
+    const row = await client[KINDS[kind].model].findFirst({ where: { id, companyId }, select: { status: true } })
     if (row?.status === 'CANCELLED') throw conflict(`${kind === 'orders' ? 'La orden' : 'La factura'} está cancelada: no admite nuevas relaciones.`, 409, 'DOCUMENT_CANCELLED')
   }
 
@@ -138,6 +140,14 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     if (singleLink && !replace) await assertItemsFreeOfKind(prisma, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
     let cascade = null
     const relation = await prisma.$transaction(async tx => {
+      if (data.relationType === 'BILLED_FROM' && sourceType === 'purchase_invoice' && targetType === 'purchase_order') {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId + ':billed-from:' + data.sourceId}))::text`
+        const linked = await tx.entityRelation.findFirst({ where: { companyId, sourceModule: MODULE_KEY, sourceType, sourceId: data.sourceId, targetType, relationType: 'BILLED_FROM' } })
+        if (linked && linked.targetId !== data.targetId) throw conflict('La factura ya está relacionada con otra orden de compra.', 409, 'INVOICE_HAS_ORDER')
+        if (linked) return linked
+        await assertLiveDocument(companyId, sourceType, data.sourceId, tx)
+        await assertLiveDocument(companyId, targetType, data.targetId, tx)
+      }
       if (replace) await replaceLiveLinks(tx, { companyId, actorId, relationType: data.relationType, itemId: data.targetId, keepSourceId: data.sourceId })
       else if (singleLink) await assertItemsFreeInTx(tx, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
       const value = await tx.entityRelation.create({ data })
@@ -344,12 +354,14 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       })
       billedIds = billed.map(row => row.sourceId)
     }
+    const referenceIds = await economics.matchingIds(companyId, search, KINDS[kind].entityType)
     const where = {
       companyId,
       status: { not: 'CANCELLED' },
       ...(billedIds ? { id: { in: billedIds } } : {}),
       ...(search ? { OR: [
         { number: { contains: search, mode: 'insensitive' } },
+        ...(referenceIds.length ? [{ id: { in: referenceIds } }] : []),
         { notes: { contains: search, mode: 'insensitive' } },
         ...(kind === 'orders' ? [{ supplierReference: { contains: search, mode: 'insensitive' } }] : []),
         ...(extra?.supplierIds.length ? [{ supplierId: { in: extra.supplierIds } }] : []),
@@ -365,9 +377,9 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     const data = rows.map(row => ({
       ...plain(row), type: KINDS[kind].entityType, kind, supplierName: names.get(row.supplierId) ?? null,
       ...(kind === 'invoices' ? { order: orders.get(row.id) ?? null } : {}),
-      date: dateKey(row.issueDate), total: num(row.total), path: `${KINDS[kind].path}/${row.id}`,
+      date: dateKey(row.issueDate), total: row.total == null ? null : num(row.total), path: `${KINDS[kind].path}/${row.id}`,
     }))
-    return { data, total, page, pageSize }
+    return { data: await economics.projectMany(companyId, data), total, page, pageSize }
   }
 
   return { createRelation, bulkRelate, deleteRelation, relationImpact, propagationPreview, searchDocuments, assertEndpoint }

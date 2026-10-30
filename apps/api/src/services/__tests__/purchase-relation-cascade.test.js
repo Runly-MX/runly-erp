@@ -5,6 +5,7 @@ import { linkItemsToInvoiceOrder } from '../purchase-relation-cascade.js'
 function fakeTx({ billedFrom = 'o1', orders = [], cancelled = [] }) {
   const created = []
   return {
+    $queryRaw: async () => [],
     created,
     purchaseOrder: { findMany: async ({ where }) => where.id.in.filter(id => !cancelled.includes(id)).map(id => ({ id })) },
     entityRelation: {

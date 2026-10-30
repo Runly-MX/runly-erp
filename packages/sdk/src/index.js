@@ -2641,6 +2641,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         list: (kind, params, token) => get(`/purchases/${seg(kind)}${toQueryString(params)}`, token),
         get: (kind, id, token) => get(`/purchases/${seg(kind)}/${seg(id)}`, token),
         create: (kind, data, token) => send("POST", `/purchases/${seg(kind)}`, data, token),
+        createReference: (kind, data, token) => send("POST", `/purchases/${seg(kind)}/references`, data, token),
         update: (kind, id, data, token) => send("PATCH", `/purchases/${seg(kind)}/${seg(id)}`, data, token),
         transition: (kind, id, action, payload, token) =>
           send("POST", `/purchases/${seg(kind)}/${seg(id)}/transition`, { ...(payload ?? {}), action }, token),

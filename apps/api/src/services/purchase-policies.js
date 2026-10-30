@@ -217,11 +217,13 @@ export function caseReceiptStatus(bundle = {}) {
 // Derives the policy context from a case bundle
 // ({ case, requests, quotes, approvals, orders, receipts, invoices, lines, relatedItems }).
 export function contextFromBundle(bundle = {}, overrides = {}) {
-  const orders = (bundle.orders ?? []).filter(order => ACTIVE(order.status))
-  const invoices = (bundle.invoices ?? []).filter(invoice => ACTIVE(invoice.status))
-  const lines = bundle.lines ?? []
+  // Documentary references are evidence, never financial obligations or
+  // substitutes for the financial stages of a mixed historical case.
+  const orders = (bundle.orders ?? []).filter(order => order.total !== null && ACTIVE(order.status))
+  const invoices = (bundle.invoices ?? []).filter(invoice => invoice.total !== null && ACTIVE(invoice.status))
+  const lines = (bundle.lines ?? []).filter(line => line.total !== null)
   const goodsLines = lines.filter(line => (line.itemKind ?? 'GOODS') === 'GOODS')
-  const receipt = caseReceiptStatus(bundle)
+  const receipt = caseReceiptStatus({ ...bundle, orders, lines })
   const totals = [...orders, ...invoices].map(doc => num(doc.total))
   const approvals = bundle.approvals ?? []
   return {

@@ -63,6 +63,8 @@ test('la configuración registra en auditoría el perfil interno y no el usuario
       findFirst: async () => workflow,
     },
     $transaction: async callback => callback({
+      $queryRaw: async () => [],
+      instanceConfig: { upsert: async ({ create }) => create },
       purchaseWorkflow: {
         update: async ({ data }) => ({ ...workflow, ...data }),
       },

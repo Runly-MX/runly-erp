@@ -3,6 +3,7 @@ import { hasCapability } from '../../services/purchases-service.js';
 import { createPurchasesServices } from '../../routes/purchases/index.js';
 import { insist } from '../config.js';
 import { createPurchasesImportAction } from './purchases-import.js';
+import { createPurchaseEconomicMode } from '../../services/purchase-economic-mode.js';
 
 export function createPurchasesAdapter({ prisma }) {
   const capability = createPurchasesMiraiCapabilities({ prisma });
@@ -14,7 +15,7 @@ export function createPurchasesAdapter({ prisma }) {
     // Reads cover history, so they do not depend on the capabilities; writes do.
     keys.add('purchases_search_documents');
     keys.add('purchases_spend_summary');
-    if (hasCapability(current.capabilities, ['invoices', 'purchaseOrders'])) keys.add('purchases.documents.import');
+    if (await createPurchaseEconomicMode({ prisma }).companyMode(a.companyId) !== 'DOCUMENTARY' && hasCapability(current.capabilities, ['invoices', 'purchaseOrders'])) keys.add('purchases.documents.import');
     if (hasCapability(current.capabilities, 'requests')) keys.add('purchases.request.create');
     if (hasCapability(current.capabilities, 'approvals')) { keys.add('purchases_list_approvals'); keys.add('purchases.approval.decide'); }
     return keys;

@@ -37,7 +37,7 @@ const CAPTURE = new Set(['DRAFT', 'PENDING_APPROVAL'])
 export function billingSummary(invoices = [], today) {
   const live = invoices.filter(invoice => invoice.status !== 'CANCELLED')
   const byCurrency = new Map()
-  for (const invoice of live) {
+  for (const invoice of live.filter(invoice => invoice.total !== null)) {
     const key = invoice.currency ?? 'MXN'
     const entry = byCurrency.get(key) ?? { currency: key, total: 0, paid: 0 }
     entry.total += num(invoice.total)
@@ -48,7 +48,8 @@ export function billingSummary(invoices = [], today) {
   const overdue = live.filter(invoice => OPEN.has(invoice.status) && invoice.dueDate && dateKey(invoice.dueDate) < today).length
   let state = 'NONE'
   if (live.length) {
-    if (live.every(invoice => invoice.status === 'PAID')) state = 'PAID'
+    if (live.every(invoice => invoice.total === null)) state = 'DOCUMENTARY'
+    else if (live.every(invoice => invoice.status === 'PAID')) state = 'PAID'
     else if (live.every(invoice => CAPTURE.has(invoice.status))) state = 'CAPTURE'
     else state = overdue ? 'OVERDUE' : 'OPEN'
   }

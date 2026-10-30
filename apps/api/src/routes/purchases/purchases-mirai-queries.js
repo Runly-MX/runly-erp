@@ -127,7 +127,8 @@ export function createPurchasesMiraiQueries({ prisma, workflow, procurement, lis
         ...(capabilityEnabled ? {} : { nota: "Esta funcion esta desactivada en el flujo de compras: son documentos historicos de solo lectura." }),
         documentos: result.data.slice(0, LIST_MAX).map((row) => ({
           documentId: row.id,
-          numero: row.number,
+          numero: row.reference ?? row.number,
+          economicMode: row.economicMode,
           estado: row.status,
           proveedor: row.supplierName ?? null,
           total: row.total ?? null,
@@ -197,7 +198,7 @@ export function createPurchasesMiraiQueries({ prisma, workflow, procurement, lis
       if (range.error) return { error: range.error };
 
       const select = { supplierId: true, total: true, currency: true, status: true, issueDate: true };
-      const baseWhere = { companyId: actx.companyId, status: { notIn: ["CANCELLED", "DRAFT"] }, ...(supplier.supplierId ? { supplierId: supplier.supplierId } : {}) };
+      const baseWhere = { total: { not: null }, companyId: actx.companyId, status: { notIn: ["CANCELLED", "DRAFT"] }, ...(supplier.supplierId ? { supplierId: supplier.supplierId } : {}) };
       const [currentRows, previousRows] = await Promise.all([
         prisma[model].findMany({ where: { ...baseWhere, issueDate: { gte: range.current.start, lt: range.current.end } }, select }),
         prisma[model].findMany({ where: { ...baseWhere, issueDate: { gte: range.previous.start, lt: range.previous.end } }, select }),

@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode } from './purchase-economic-mode.js'
 // Turns raw entity_relation rows into labelled endpoints for the UI.
 // Every lookup is filtered by companyId, so a relation pointing at another
 // company's row (or at a deleted one) is dropped instead of leaking its label.
@@ -29,6 +30,7 @@ export function readCheckerFor(userContext) {
 const allowAll = () => true
 
 export function createRelationHydrator({ prisma }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   // Loads labelled summaries for { type -> ids }; returns Map(`${type}:${id}` -> endpoint).
   async function loadEndpoints(companyId, idsByType) {
     const out = new Map()
@@ -59,7 +61,8 @@ export function createRelationHydrator({ prisma }) {
         orderNumbers = new Map(orders.map(order => [order.id, order]))
         names = await supplierNames(prisma, companyId, orders.map(order => order.supplierId))
       }
-      for (const row of rows) {
+      const projected = ['orders', 'invoices'].includes(kind) ? await economics.projectMany(companyId, rows) : rows
+      for (const row of projected) {
         out.set(`${type}:${row.id}`, describe(kind, type, row, names, orderNumbers))
       }
     })
@@ -68,7 +71,7 @@ export function createRelationHydrator({ prisma }) {
   }
 
   function describe(kind, type, row, names, orderNumbers) {
-    const base = { module: 'runly.purchases', type, id: row.id, status: row.status, path: `${KINDS[kind].path}/${row.id}`, currency: row.currency ?? null }
+    const base = { economicMode: row.economicMode, economicCaptureEnabled: row.economicCaptureEnabled, reference: row.reference ?? null, module: 'runly.purchases', type, id: row.id, status: row.status, path: `${KINDS[kind].path}/${row.id}`, currency: row.currency ?? null }
     switch (kind) {
       case 'cases': return { ...base, label: row.number, sublabel: row.title, total: row.estimatedTotal != null ? num(row.estimatedTotal) : null, date: row.createdAt }
       case 'requests': return { ...base, label: row.number, sublabel: row.title, total: num(row.estimatedTotal), date: row.createdAt }
@@ -77,7 +80,7 @@ export function createRelationHydrator({ prisma }) {
         const order = orderNumbers.get(row.orderId)
         return { ...base, label: row.number, sublabel: order ? `${order.number}${names.get(order.supplierId) ? ' · ' + names.get(order.supplierId) : ''}` : null, total: null, currency: order?.currency ?? null, date: dateKey(row.receivedAt) }
       }
-      default: return { ...base, label: row.number, sublabel: names.get(row.supplierId) ?? null, total: num(row.total), date: dateKey(row.issueDate) }
+      default: return { ...base, label: row.reference ?? row.number, sublabel: names.get(row.supplierId) ?? null, total: row.total == null ? null : num(row.total), date: dateKey(row.issueDate) }
     }
   }
 

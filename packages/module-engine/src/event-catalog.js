@@ -27,6 +27,7 @@ const VEHICLE_FIELDS = [
   field('color', 'Color', 'text', 'Color del vehículo.', 'Blanco'),
 ]
 const PURCHASE_FIELDS = [
+  field('economicMode', 'Modalidad económica', 'text', 'FINANCIAL o DOCUMENTARY. Los importes documentales son desconocidos (null).', 'DOCUMENTARY'),
   ID('el documento de compra'),
   field('caseId', 'Expediente de compra', 'id', 'Expediente que agrupa la solicitud, la orden y la factura de una misma compra.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e33'),
   field('status', 'Estado', 'text', 'Estado del documento después del cambio.', 'APPROVED'),

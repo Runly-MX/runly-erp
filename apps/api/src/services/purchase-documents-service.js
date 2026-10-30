@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+import { createPurchaseEconomicMode, isDocumentary, assertDocumentaryInput, documentaryProjection } from './purchase-economic-mode.js'
 // runly.purchases — purchase orders and supplier invoices: detail, create,
 // draft edit (lines replaced as a set) and status transitions.
 import { publishDomainEvent } from './domain-events/events.js'
@@ -6,13 +8,14 @@ import { autoCloseCase } from './purchase-case-closure.js'
 import { correctionPlan } from './purchase-corrections-rules.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
-import { assertItemsFreeInTx, assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
+import { assertItemsFreeInTx } from './inventory-purchase-uniqueness.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertExpected, assertLineCategories, assertSupplier,
   broadcast, cleanText, createApproval, createCase, currency, currentVersion, dateKey, guardedUpdate, invalidTransition, markCaseInProgress, allocateNumber,
   normalizeLine, notFound, num, plain, policyBlocked, relate, replaceLines, resolveApprovals, totalsFromLines, writeAudit,
 } from './purchases-shared.js'
 import { hasCapability } from './purchases-service.js'
+import { invoiceItemIds, linkItemsToInvoiceOrder } from './purchase-relation-cascade.js'
 
 const EVENT = { orders: 'purchase.order', invoices: 'purchase.invoice' }
 
@@ -21,17 +24,19 @@ const EVENT = { orders: 'purchase.order', invoices: 'purchase.invoice' }
 export function purchaseEventPayload(doc) {
   const total = doc.total ?? doc.estimatedTotal
   return {
+    economicMode: isDocumentary(doc) ? 'DOCUMENTARY' : 'FINANCIAL',
     id: doc.id,
     caseId: doc.caseId ?? null,
     status: doc.status ?? null,
     number: doc.number ?? null,
     total: total == null ? null : Number(total),
-    currency: doc.currency ?? null,
+    currency: isDocumentary(doc) ? null : doc.currency ?? null,
     supplierId: doc.supplierId ?? null,
   }
 }
 
 export function createPurchaseDocumentsService({ prisma, broadcaster, workflowService, caseBundle, hydrator, payments }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   const def = kind => {
     if (!EVENT[kind]) throw new PurchasesServiceError('Tipo de documento no válido.')
     return KINDS[kind]
@@ -120,7 +125,18 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       data.balance = Math.max(0, Math.round((num(doc.total) - num(doc.paidAmount)) * 100) / 100)
       data.orders = related('purchase_order')
     }
-    return data
+    const [projected] = await economics.projectMany(companyId, [data])
+    projected.companyEconomicMode = workflow.economicMode ?? 'FINANCIAL'
+    if (isDocumentary(doc)) {
+      projected.stageMap = []
+      projected.policyCheck = { action: null, blocked: false, reasons: [], requirements: [], blocking: [] }
+      projected.correction = { fields: projected.editableFields.map(field => ({ field, value: projected[field] ?? null })), locked: [] }
+      projected.receipt = null
+      projected.editableFields = projected.editableFields.filter(field => kind === 'orders' ? field !== 'fiscalUuid' : field !== 'expectedDate')
+      projected.correction.fields = projected.correction.fields.filter(field => projected.editableFields.includes(field.field))
+      projected.lines = projected.lines.map(line => ({ ...line, pendingQuantity: null }))
+    }
+    return projected
   }
 
   async function orderHasPayments(companyId, orderId) {
@@ -172,7 +188,8 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     await workflowService.assertCapability(companyId, 'inventoryRelations')
     const rows = await prisma.invItem.findMany({ where: { companyId, id: { in: unique }, enabled: true }, select: { id: true } })
     if (rows.length !== unique.length) throw notFound('Uno o más inventarios no existen o pertenecen a otra empresa.')
-    await assertItemsFreeOfKind(prisma, companyId, kind === 'orders' ? 'PURCHASED_IN' : 'INVOICED_ITEM', unique, null, (message, status, code) => new PurchasesServiceError(message, status, code))
+    // Occupancy is checked after the idempotency lookup, under item locks in
+    // the creation transaction. A retry may already own these item links.
     return unique
   }
 
@@ -185,16 +202,35 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       await relate(tx, { companyId, actorId, sourceType: 'purchase_invoice', sourceId: invoiceId, targetType: 'purchase_order', targetId: order.id, relationType: 'BILLED_FROM' })
     }
     if (inheritItems) await inheritFromOrders(tx, { companyId, actorId, invoiceId, orderIds: orders.map(order => order.id) })
+    if (orders.length) await linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceId, orderId: orders[0].id, itemIds: await invoiceItemIds(tx, companyId, invoiceId) })
   }
 
-  async function create(kind, companyId, actorId, input = {}) {
+  function canonical(value) {
+    if (Array.isArray(value)) return value.map(canonical)
+    if (value && typeof value === 'object') return Object.fromEntries(Object.keys(value).filter(key => key !== 'idempotencyKey').sort().map(key => [key, canonical(value[key])]))
+    return value
+  }
+
+  function documentaryLine(line, index) {
+    const quantity = line.quantity == null || line.quantity === '' ? null : Number(line.quantity)
+    if (quantity != null && (!Number.isFinite(quantity) || quantity <= 0)) throw new PurchasesServiceError('La cantidad debe ser positiva.')
+    return { description: cleanText(line.description, 500) ?? '', quantity, unit: cleanText(line.unit, 20), itemKind: line.itemKind === 'SERVICE' ? 'SERVICE' : 'GOODS', inventoryCategoryId: line.categoryId || null, sortOrder: index, unitAmount: null, taxRate: null, taxAmount: null, total: null }
+  }
+
+  async function create(kind, companyId, actorId, input = {}, access = {}) {
     const meta = def(kind)
     const workflow = await workflowService.assertCapability(companyId, meta.capability, actorId)
+    const documentary = (workflow.economicMode ?? 'FINANCIAL') === 'DOCUMENTARY'
+    if (!documentary && ('economicMode' in input || 'reference' in input)) throw new PurchasesServiceError('Selecciona Control documental en la configuración de la empresa.', 409, 'DOCUMENTARY_MODE_REQUIRED')
+    if (documentary) { await economics.requireAvailable(); assertDocumentaryInput(input) }
+    const reference = documentary ? cleanText(input.reference, 255) : null
+    if (documentary && !reference) throw new PurchasesServiceError('Captura el nombre o referencia del documento.', 422, 'VALIDATION', { field: 'reference' })
     await assertSupplier(prisma, companyId, input.supplierId)
-    const lines = (Array.isArray(input.lines) ? input.lines : []).map(normalizeLine).filter(Boolean)
+    const lines = (Array.isArray(input.lines) ? input.lines : []).map((line, index) => documentary ? documentaryLine(line, index) : normalizeLine(line, index)).filter(Boolean)
     await assertLineCategories(prisma, companyId, lines)
     const orders = kind === 'invoices' ? await validateOrderIds(prisma, companyId, input.orderIds) : []
     const inventoryIds = await validateInventoryIds(companyId, input.inventoryIds, kind)
+    if (inventoryIds.length && access.assertInventory) await access.assertInventory(inventoryIds)
     let caseRow = null
     if (input.caseId) {
       caseRow = await prisma.purchaseCase.findFirst({ where: { id: input.caseId, companyId } })
@@ -206,16 +242,35 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       if (!caseRow) caseRow = await prisma.purchaseCase.findFirst({ where: { id: request.caseId, companyId } })
     }
     if (!caseRow && orders.length) caseRow = await prisma.purchaseCase.findFirst({ where: { id: orders[0].caseId, companyId } })
-    const totals = totalsFromLines(lines, input)
+    const totals = documentary ? { subtotal: null, tax: null, total: null } : totalsFromLines(lines, input)
+    const fingerprint = documentary ? createHash('sha256').update(JSON.stringify({ kind, ...canonical(input) })).digest('hex') : null
+    const key = cleanText(input.idempotencyKey, 120)
     const created = await prisma.$transaction(async tx => {
+      // Settings changes take an exclusive lock on this same workflow row.
+      await tx.$queryRaw`SELECT id FROM purchase_workflow WHERE id = ${workflow.id}::uuid AND company_id = ${companyId}::uuid FOR SHARE`
+      if (await economics.companyMode(companyId, tx) !== (documentary ? 'DOCUMENTARY' : 'FINANCIAL')) throw new PurchasesServiceError('El flujo cambió mientras registrabas el documento. Recarga la configuración.', 409, 'WORKFLOW_CHANGED')
+      if (inventoryIds.length && access.assertInventory) {
+        await tx.$queryRaw`SELECT id FROM inv_item WHERE company_id = ${companyId}::uuid AND id = ANY(${inventoryIds}::uuid[]) ORDER BY id FOR SHARE`
+        await access.assertInventory(inventoryIds, tx)
+      }
+      if (documentary && key) {
+        await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${companyId + ':documentary:' + key}))::text`
+        const [previous] = await tx.$queryRaw`SELECT document_id, document_type, request_fingerprint FROM purchase_documentary_reference WHERE company_id = ${companyId}::uuid AND idempotency_key = ${key}`
+        if (previous) {
+          if (previous.document_type !== meta.entityType || previous.request_fingerprint !== fingerprint) throw new PurchasesServiceError('La clave de operación ya se usó con otros datos.', 409, 'IDEMPOTENCY_KEY_REUSED')
+          return { ...await findDoc(kind, companyId, previous.document_id, tx), replayed: true }
+        }
+      }
       const { sequence, number } = await allocateNumber(tx, { companyId, kind, number: input.number, date: input.issueDate })
       const purchaseCase = caseRow ?? await createCase(tx, {
-        companyId, actorId, workflowId: workflow.id, title: (kind === 'orders' ? 'Orden ' : 'Factura ') + number,
+        companyId, actorId, workflowId: workflow.id, title: (kind === 'orders' ? 'Orden ' : 'Factura ') + (reference ?? number),
         currency: input.currency, estimatedTotal: totals.total, supplierId: input.supplierId,
       })
       const doc = await tx[meta.model].create({
-        data: { companyId, caseId: purchaseCase.id, number, sequence, status: 'DRAFT', ...headerData(kind, input), ...totals, createdById: actorId || null },
+        data: { companyId, caseId: purchaseCase.id, number, sequence, status: documentary ? 'REGISTERED' : 'DRAFT', ...headerData(kind, input), ...(documentary ? { issueDate: asDate(input.issueDate), ...(kind === 'invoices' ? { paidAmount: null } : {}) } : {}), ...totals, createdById: actorId || null },
       })
+      if (documentary) await tx.$executeRaw`INSERT INTO purchase_documentary_reference (company_id, document_type, document_id, reference, description, idempotency_key, request_fingerprint)
+        VALUES (${companyId}::uuid, ${meta.entityType}, ${doc.id}::uuid, ${reference}, ${cleanText(input.description)}, ${key}, ${fingerprint})`
       await replaceLines(tx, companyId, meta.ownerType, doc.id, lines)
       await relate(tx, { companyId, actorId, sourceType: 'purchase_case', sourceId: purchaseCase.id, targetType: meta.entityType, targetId: doc.id, relationType: 'CONTAINS', origin: 'AUTOMATIC' })
       if (inventoryIds.length) await assertItemsFreeInTx(tx, companyId, kind === 'orders' ? 'PURCHASED_IN' : 'INVOICED_ITEM', inventoryIds, doc.id, (message, status, code) => new PurchasesServiceError(message, status, code))
@@ -227,14 +282,15 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       await writeAudit(tx, { companyId, actorId, entityType: meta.entityType, entityId: doc.id, action: `${EVENT[kind]}.created`, after: doc })
       return doc
     })
-    await broadcast(broadcaster, companyId, `${EVENT[kind]}.created`, { id: created.id, caseId: created.caseId })
-    return plain(created)
+    if (!created.replayed) await broadcast(broadcaster, companyId, `${EVENT[kind]}.created`, { id: created.id, caseId: created.caseId, economicMode: documentary ? 'DOCUMENTARY' : 'FINANCIAL' })
+    return (await economics.projectMany(companyId, [created]))[0]
   }
 
   async function update(kind, companyId, actorId, id, input = {}) {
     const meta = def(kind)
     await workflowService.assertCapability(companyId, meta.capability, actorId)
     const before = await findDoc(kind, companyId, id)
+    if (isDocumentary(before)) throw new PurchasesServiceError('Utiliza la revisión documental con motivo y versión.', 409, 'DOCUMENTARY_CORRECTION_REQUIRED')
     if (before.status !== 'DRAFT') throw invalidTransition('Solo se pueden editar documentos en borrador.')
     assertExpected(before, input, await currentVersion(prisma, meta.entityType, id))
     if ('supplierId' in input) await assertSupplier(prisma, companyId, input.supplierId)
@@ -289,6 +345,22 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const meta = def(kind)
     const workflow = await workflowService.assertCapability(companyId, meta.capability, actorId)
     const doc = await findDoc(kind, companyId, id)
+    if (isDocumentary(doc)) {
+      if (action !== 'cancel' || doc.status === 'CANCELLED') throw new PurchasesServiceError('Acción no disponible para una referencia documental.', 409, 'DOCUMENTARY_OPERATION_BLOCKED')
+      const comment = cleanText(payload.comment)
+      if (!comment) throw new PurchasesServiceError('Indica el motivo de cancelación.')
+      const updated = await prisma.$transaction(async tx => {
+        await tx.$queryRawUnsafe(`SELECT id FROM ${meta.entityType} WHERE id = $1::uuid AND company_id = $2::uuid FOR UPDATE`, id, companyId)
+        const fresh = await findDoc(kind, companyId, id, tx)
+        assertExpected(fresh, payload, await currentVersion(tx, meta.entityType, id))
+        if (fresh.status === 'CANCELLED') throw invalidTransition()
+        const result = await guardedUpdate(tx, meta.model, fresh, { status: 'CANCELLED' })
+        await writeAudit(tx, { companyId, actorId, entityType: meta.entityType, entityId: id, action: `${EVENT[kind]}.cancel`, before: { status: fresh.status }, after: { status: result.status }, metadata: { comment, economicMode: 'DOCUMENTARY' } })
+        return result
+      })
+      await broadcast(broadcaster, companyId, `${EVENT[kind]}.cancel`, { id, economicMode: 'DOCUMENTARY' })
+      return (await economics.projectMany(companyId, [updated]))[0]
+    }
     const rule = resolveTransition(kind, action, doc.status)
     if (!rule) throw invalidTransition()
     assertExpected(doc, payload, await currentVersion(prisma, meta.entityType, id))

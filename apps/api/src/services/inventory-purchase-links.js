@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode, isDocumentary } from './purchase-economic-mode.js'
 // Purchase order / invoice of an inventory item as first-class fields.
 // The links are EntityRelation rows owned by runly.purchases (PURCHASED_IN for
 // orders, INVOICED_ITEM for invoices). The item form sends `purchaseOrderId` /
@@ -76,7 +77,7 @@ export async function loadPurchaseLinks(client, companyId, itemId) {
     if (!rows.length) continue
     const docs = await client[meta.model].findMany({
       where: { companyId, id: { in: rows.map(row => row.sourceId) } },
-      select: { id: true, number: true, status: true, supplierId: true },
+      select: { id: true, number: true, status: true, supplierId: true, total: true },
     })
     const cancelled = new Set(docs.filter(doc => doc.status === 'CANCELLED').map(doc => doc.id))
     const liveDocs = docs.filter(doc => !cancelled.has(doc.id))
@@ -91,7 +92,7 @@ export async function loadPurchaseLinks(client, companyId, itemId) {
     }
     const names = await supplierNames(client, companyId, [doc.supplierId])
     out[kind] = {
-      relationId: relation.id, relationIds, documentId: doc.id, id: doc.id, number: doc.number, status: doc.status, statusLabel: STATUS_LABELS[doc.status] ?? null,
+      relationId: relation.id, relationIds, documentId: doc.id, id: doc.id, number: doc.number, reference: isDocumentary(doc) ? (await createPurchaseEconomicMode({ prisma: client }).references(companyId, [doc.id])).get(doc.id) ?? null : null, economicMode: isDocumentary(doc) ? 'DOCUMENTARY' : 'FINANCIAL', status: doc.status, statusLabel: isDocumentary(doc) ? 'Referencia registrada' : STATUS_LABELS[doc.status] ?? null,
       supplierName: names.get(doc.supplierId) ?? null, path: `${meta.path}/${doc.id}`,
     }
   }
@@ -101,6 +102,7 @@ export async function loadPurchaseLinks(client, companyId, itemId) {
 // List columns: itemId -> { purchaseOrderNumber, purchaseInvoiceNumber } in two queries per page.
 export async function loadPurchaseNumbersForItems(client, companyId, itemIds) {
   const out = new Map()
+  const economics = createPurchaseEconomicMode({ prisma: client })
   if (!itemIds.length) return out
   const relations = await client.entityRelation.findMany({
     where: {
@@ -114,15 +116,16 @@ export async function loadPurchaseNumbersForItems(client, companyId, itemIds) {
     const meta = PURCHASE_LINK_KINDS[kind]
     const rows = relations.filter(row => row.sourceType === meta.sourceType && row.relationType === meta.relationType)
     if (!rows.length) continue
-    const docs = await client[meta.model].findMany({ where: { companyId, id: { in: [...new Set(rows.map(row => row.sourceId))] }, status: { not: 'CANCELLED' } }, select: { id: true, number: true } })
+    const docs = await client[meta.model].findMany({ where: { companyId, id: { in: [...new Set(rows.map(row => row.sourceId))] }, status: { not: 'CANCELLED' } }, select: { id: true, number: true, total: true } })
     const numbers = new Map(docs.map(doc => [doc.id, doc.number]))
+    const references = await economics.references(companyId, docs.filter(isDocumentary).map(doc => doc.id))
     for (const row of rows) {
       const number = numbers.get(row.sourceId)
       const entry = out.get(row.targetId) ?? {}
-      if (number && entry[`${kind}Number`] === undefined) out.set(row.targetId, { ...entry, [`${kind}Number`]: number })
+      if (number && entry[`${kind}Number`] === undefined) out.set(row.targetId, { ...entry, [`${kind}Number`]: number, [`${kind}Reference`]: references.get(row.sourceId) ?? null })
     }
   }
-  return new Map([...out].map(([id, value]) => [id, { purchaseOrderNumber: value.orderNumber ?? null, purchaseInvoiceNumber: value.invoiceNumber ?? null }]))
+  return new Map([...out].map(([id, value]) => [id, { purchaseOrderNumber: value.orderNumber ?? null, purchaseInvoiceNumber: value.invoiceNumber ?? null, purchaseOrderReference: value.orderReference ?? null, purchaseInvoiceReference: value.invoiceReference ?? null }]))
 }
 
 // Fields merged into the item detail/form payload.

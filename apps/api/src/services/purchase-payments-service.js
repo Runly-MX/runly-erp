@@ -1,3 +1,4 @@
+import { assertFinancialDocument, isDocumentary } from './purchase-economic-mode.js'
 // runly.purchases — individual payments of supplier invoices: an append-only
 // ledger (purchase_payment) with partial payments, idempotent retries and
 // audited reversals. Administrative record only: no bank transfer, no refund,
@@ -44,7 +45,9 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
   async function lockInvoice(tx, companyId, invoiceId) {
     const [row] = await tx.$queryRaw`SELECT id FROM purchase_invoice WHERE id = ${invoiceId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`
     if (!row) throw notFound('La factura no existe o pertenece a otra empresa.')
-    return findInvoice(companyId, invoiceId, tx)
+    const invoice = await findInvoice(companyId, invoiceId, tx)
+    assertFinancialDocument(invoice)
+    return invoice
   }
 
   const movementsOf = (client, companyId, invoiceId) =>
@@ -99,6 +102,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
   }
 
   function summaryOf(invoice, movements, ledger) {
+    if (isDocumentary(invoice)) return { invoiceId: invoice.id, economicMode: 'DOCUMENTARY', status: invoice.status, total: null, paid: null, balance: null, currency: null, recorded: null, unrecordedLegacy: null, consistent: true, ledgerAvailable: ledger, updatedAt: invoice.updatedAt }
     const total = toCents(invoice.total)
     const paid = toCents(invoice.paidAmount)
     const recorded = movements.reduce((sum, m) => sum + toCents(m.amount), 0)
@@ -128,7 +132,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
     const names = await userNames(movements.map(m => m.createdById))
     const workflow = await workflowService.ensureWorkflow(companyId)
     return {
-      summary: { ...summaryOf(invoice, movements, ledger), capabilityEnabled: workflow.capabilities?.payments === true, version: await currentVersion(prisma, 'purchase_invoice', invoiceId) },
+      summary: { ...summaryOf(invoice, movements, ledger), capabilityEnabled: !isDocumentary(invoice) && workflow.capabilities?.payments === true, version: await currentVersion(prisma, 'purchase_invoice', invoiceId) },
       payments: movements.map(m => serialize(m, { reversals, names })),
     }
   }
@@ -168,6 +172,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
   async function record(companyId, actorId, invoiceId, input = {}) {
     const workflow = await workflowService.assertCapability(companyId, 'payments', actorId)
     const before = await findInvoice(companyId, invoiceId)
+    assertFinancialDocument(before)
     const key = idempotencyKey(input)
     const amountCents = input.amount == null || input.amount === '' ? null : toCents(input.amount, { label: 'El monto del pago' })
     const ledger = await ledgerAvailable()

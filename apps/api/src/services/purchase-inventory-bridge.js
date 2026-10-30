@@ -1,3 +1,4 @@
+import { isDocumentary } from './purchase-economic-mode.js'
 // Inventory <-> Compras bridge: the "Compra" timeline of an item, the item
 // picker candidates and creating inventory items from a purchase line through
 // the official inventory service. Works (degrades) when runly.inventory is off.
@@ -72,9 +73,12 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
       _sum: { allocatedAmount: true },
     })
     return {
+      economicMode: workflow.economicMode ?? 'FINANCIAL',
+      economicCaptureEnabled: workflow.economicMode !== 'DOCUMENTARY',
+      historicalDataPreserved: true,
       capabilities,
-      timeline,
-      allocatedAmount: num(allocations._sum.allocatedAmount),
+      timeline: workflow.economicMode === 'DOCUMENTARY' ? timeline.map(stage => ({ ...stage, docs: stage.docs.map(doc => ({ ...doc, total: null, currency: null })) })) : timeline,
+      allocatedAmount: workflow.economicMode === 'DOCUMENTARY' ? null : num(allocations._sum.allocatedAmount),
       currency: docs.find(doc => doc.currency)?.currency ?? 'MXN',
     }
   }
@@ -119,6 +123,7 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
     const sourceType = line.ownerType === 'PURCHASE_ORDER' ? 'purchase_order' : 'purchase_invoice'
     const doc = await prisma[ownerModel].findFirst({ where: { id: line.ownerId, companyId } })
     if (!doc) throw notFound()
+    if (isDocumentary(doc)) throw new PurchasesServiceError('Relaciona inventarios existentes con la referencia documental.', 409, 'DOCUMENTARY_OPERATION_BLOCKED')
     if (doc.status === 'CANCELLED') throw new PurchasesServiceError('El documento está cancelado.', 409, 'INVALID_TRANSITION')
     const existing = await prisma.purchaseAllocation.count({ where: { companyId, purchaseLineId: line.id, targetType: 'inventory_item' } })
     const capacity = Math.ceil(num(line.quantity)) - existing

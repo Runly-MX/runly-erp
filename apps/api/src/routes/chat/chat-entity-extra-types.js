@@ -13,12 +13,14 @@ export const EXTRA_REFERENCE_PERMISSIONS = {
 };
 
 const STATUS_ES = {
+  REGISTERED: "Referencia registrada",
   OPEN: "Abierto", CLOSED: "Cerrado", CANCELLED: "Cancelado", DRAFT: "Borrador", ISSUED: "Emitida",
   PENDING: "Pendiente", PAID: "Pagada", PARTIAL: "Pago parcial", APPROVED: "Aprobada", RECEIVED: "Recibida",
 };
 const statusLabel = (status) => STATUS_ES[String(status ?? "").toUpperCase()] ?? status ?? null;
 
 function money(value, currency) {
+  if (value == null) return null;
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   return `${n.toLocaleString("es-MX", { style: "currency", currency: currency || "MXN" })}`;

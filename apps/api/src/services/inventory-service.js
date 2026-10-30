@@ -1,3 +1,4 @@
+import { createInventoryEconomicProjection } from './inventory-economic-projection.js';
 // inventory-service.js — business logic layer for runly.inventory module
 import { createActivityService } from './activity-service.js';
 import { createActivityBridge } from './activity-bridge.js';
@@ -103,6 +104,7 @@ export function buildAutoItemName({ brandName, typeName, model, assetTag }) {
 }
 
 export function createInventoryService({ prisma, activityBridge }) {
+  const economicProjection = createInventoryEconomicProjection({ prisma });
   const inventorySearch = createInventorySearch({ prisma });
   const bridge =
     activityBridge ??
@@ -253,7 +255,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       coverImageFileId: covers.get(item.id) ?? null,
     }));
 
-    return { data: enriched, total, page: normalizePage(page), limit: take };
+    return { data: await economicProjection.many(companyId, enriched), total, page: normalizePage(page), limit: take };
   }
 
   // Resolves the "cover photo" for an inventory item: the file explicitly
@@ -366,7 +368,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     });
     if (!item || (scope && !canViewItem(scope, item))) throw new InventoryServiceError('Item not found', 404);
     const coverImageFileId = await resolveCoverImageFileId(id);
-    return {
+    return economicProjection.one(companyId, {
       ...item,
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
@@ -380,7 +382,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       hasLegacyPurchaseData: Boolean(item.purchaseDate || item.purchasePrice != null || item.vendorName || item.invoiceNumber),
       // Drives the detail's "Campos personalizados" section.
       hasCustomValues: (item.customValues ?? []).some((cv) => cv.value != null && String(cv.value).trim() !== '' && !(cv.field?.fieldType === 'boolean' && String(cv.value).toLowerCase() === 'false')),
-    };
+    });
   }
 
   // afterWrite(tx, item): extra writes that must commit together with the item
@@ -526,7 +528,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       companyId,
     }).catch(() => {});
     await publishDomainEvent(prisma, { companyId, event: 'inventory.item.created', payload: itemEventPayload(created) });
-    return created;
+    return economicProjection.one(companyId, created);
   }
 
   // actorAuthId: the editor's auth user id (audit trail actor).
@@ -679,7 +681,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         companyId,
       }).catch(() => {});
       await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(result ?? { id }) });
-      return result;
+      return economicProjection.one(companyId, result);
     }
 
     const updated = await writeWith(afterWrite, (db) => db.invItem.update({
@@ -708,7 +710,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       companyId,
     }).catch(() => {});
     await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(updated) });
-    return updated;
+    return economicProjection.one(companyId, updated);
   }
 
   async function deleteItem(id, companyId, actorAuthId = null) {

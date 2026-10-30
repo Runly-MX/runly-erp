@@ -31,6 +31,7 @@ function fakePrisma(preset, tables = {}, capabilities = {}) {
   const values = PURCHASE_PRESETS[preset]
   const workflow = { id: 'w1', companyId: COMPANY, preset, isDefault: true, enabled: true, ...values, capabilities: { ...values.capabilities, ...capabilities } }
   const base = {
+    instanceConfig: { findUnique: async () => null },
     purchaseWorkflow: { findFirst: async () => workflow },
     auditLog: { create: async ({ data }) => data },
   }

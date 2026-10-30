@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode, isDocumentary } from './purchase-economic-mode.js'
 // Loads everything that belongs to a purchase case (the "expediente") so the
 // pure policy/stage-map functions can evaluate it. Company-scoped throughout.
 import { buildStageMap, contextFromBundle, evaluatePolicies, policyBlockers } from './purchase-policies.js'
@@ -12,6 +13,7 @@ export const POLICY_ACTIONS = {
 }
 
 export function policyCheckFor(workflow, bundle, kind, doc) {
+  if (isDocumentary(doc) || (bundle.orders?.length || bundle.invoices?.length) && [...(bundle.orders ?? []), ...(bundle.invoices ?? [])].every(isDocumentary)) return { action: null, blocked: false, reasons: [], requirements: [], blockers: [], context: {} }
   const gate = POLICY_ACTIONS[kind]
   const total = doc ? num(doc.total ?? doc.estimatedTotal) : undefined
   const context = contextFromBundle(bundle, kind === 'cases' || total == null ? {} : { total })
@@ -22,6 +24,7 @@ export function policyCheckFor(workflow, bundle, kind, doc) {
 }
 
 export function createPurchaseCaseBundle({ prisma }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   async function loadBundle(companyId, caseId, client = prisma) {
     if (!caseId) return { case: null, requests: [], quotes: [], approvals: [], orders: [], receipts: [], invoices: [], lines: [], relatedItems: 0 }
     const [purchaseCase, requests, quotes, approvals, orders, receipts, invoices] = await Promise.all([
@@ -39,7 +42,7 @@ export function createPurchaseCaseBundle({ prisma }) {
       ownerIds.length ? client.purchaseLine.findMany({ where: { companyId, ownerId: { in: ownerIds } }, orderBy: { sortOrder: 'asc' } }) : [],
       client.entityRelation.count({ where: { companyId, sourceModule: 'runly.purchases', sourceId: { in: docIds }, targetType: 'inventory_item' } }),
     ])
-    return { case: purchaseCase, requests, quotes, approvals, orders, receipts, invoices, lines, relatedItems }
+    return { case: purchaseCase, requests, quotes, approvals, orders: await economics.projectMany(companyId, orders, client), receipts, invoices: await economics.projectMany(companyId, invoices, client), lines, relatedItems }
   }
 
   async function stageMapFor(workflow, companyId, caseId) {

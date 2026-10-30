@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode, isDocumentary, assertDocumentaryInput, DOCUMENTARY_FIELDS } from './purchase-economic-mode.js'
 // runly.purchases — audited corrections of registered orders and invoices.
 // One transaction: lock the document row, check the version the user saw,
 // validate the fields against purchase-corrections-rules.js, update the
@@ -7,12 +8,13 @@ import { publishDomainEvent } from './domain-events/events.js'
 import { purchaseEventPayload } from './purchase-documents-service.js'
 import { correctionPlan, validateCorrection } from './purchase-corrections-rules.js'
 import {
-  KINDS, PurchasesServiceError, assertExpected, broadcast, cleanText, currentVersion, guardedUpdate, notFound, num, plain, versionsAvailable, writeAudit,
+  KINDS, PurchasesServiceError, asDate, dateKey, assertSupplier, assertExpected, broadcast, cleanText, currentVersion, guardedUpdate, notFound, num, plain, versionsAvailable, writeAudit,
 } from './purchases-shared.js'
 
 const CORRECTABLE_KINDS = { orders: 'purchases.order.corrected', invoices: 'purchases.invoice.corrected' }
 
 export function createPurchaseCorrectionsService({ prisma, broadcaster, workflowService }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   const meta = kind => {
     if (!CORRECTABLE_KINDS[kind]) throw new PurchasesServiceError('Este tipo de documento no admite correcciones.', 400, 'VALIDATION')
     return KINDS[kind]
@@ -63,9 +65,13 @@ export function createPurchaseCorrectionsService({ prisma, broadcaster, workflow
       const doc = await tx[def.model].findFirst({ where: { id, companyId } })
       const version = await currentVersion(tx, def.entityType, id)
       assertExpected(doc, input, version)
-      const changes = validateCorrection(kind, doc, input.changes, await contextFor(tx, kind, doc))
+      const documentary = isDocumentary(doc)
+      if (documentary && input.expectedVersion == null && !input.expectedUpdatedAt) throw new PurchasesServiceError('Env?a la versión que consultaste.', 422, 'EXPECTED_VERSION_REQUIRED')
+      const changes = documentary ? await documentaryChanges(tx, kind, doc, input.changes) : validateCorrection(kind, doc, input.changes, await contextFor(tx, kind, doc))
       if (changes.number) await assertUniqueNumber(tx, kind, doc, changes.number.after)
-      const data = Object.fromEntries(Object.entries(changes).map(([field, change]) => [field, change.data]))
+      const data = Object.fromEntries(Object.entries(changes).filter(([field]) => !['reference', 'description'].includes(field)).map(([field, change]) => [field, change.data]))
+      if (changes.reference) await tx.$executeRaw`UPDATE purchase_documentary_reference SET reference = ${changes.reference.after} WHERE company_id = ${companyId}::uuid AND document_id = ${id}::uuid AND document_type = ${def.entityType}`
+      if (changes.description) await tx.$executeRaw`UPDATE purchase_documentary_reference SET description = ${changes.description.after} WHERE company_id = ${companyId}::uuid AND document_id = ${id}::uuid AND document_type = ${def.entityType}`
       const fresh = await guardedUpdate(tx, def.model, doc, data)
       const diff = Object.fromEntries(Object.entries(changes).map(([field, change]) => [field, { before: change.before, after: change.after }]))
       const row = await tx.purchaseDocumentRevision.create({
@@ -81,7 +87,27 @@ export function createPurchaseCorrectionsService({ prisma, broadcaster, workflow
     })
     await broadcast(broadcaster, companyId, `${def.entityType.replace('_', '.')}.corrected`, { id, caseId: updated.caseId, version: updated.version })
     await publishDomainEvent(prisma, { companyId, event: CORRECTABLE_KINDS[kind], payload: purchaseEventPayload(updated) })
-    return { document: plain(updated), version: updated.version, revision: await serialize(revision) }
+    return { document: (await economics.projectMany(companyId, [updated]))[0], version: updated.version, revision: await serialize(revision) }
+  }
+
+  async function documentaryChanges(tx, kind, doc, input = {}) {
+    assertDocumentaryInput(input)
+    const allowed = doc.status === 'CANCELLED' ? ['notes'] : DOCUMENTARY_FIELDS.filter(field => kind === 'orders' ? field !== 'fiscalUuid' : field !== 'expectedDate')
+    const metadata = await economics.metadata(doc.companyId, [doc.id], tx)
+    const changes = {}
+    for (const [field, raw] of Object.entries(input)) {
+      if (!allowed.includes(field)) throw new PurchasesServiceError('Campo no corregible en este documento.', 422, 'FIELD_NOT_CORRECTABLE', { field })
+      let value = cleanText(raw, field === 'reference' ? 255 : ['notes', 'description'].includes(field) ? 2000 : 100)
+      if (field === 'reference' && !value) throw new PurchasesServiceError('La referencia es obligatoria.', 422, 'VALIDATION')
+      if (field === 'supplierId') { value = raw || null; await assertSupplier(tx, doc.companyId, value) }
+      if (field === 'issueDate' || field === 'expectedDate') value = asDate(raw)
+      const before = ['reference', 'description'].includes(field) ? metadata.get(doc.id)?.[field] ?? null : doc[field] ?? null
+      const oldValue = before instanceof Date ? dateKey(before) : before
+      const after = value instanceof Date ? dateKey(value) : value
+      if (oldValue !== after) changes[field] = { before: oldValue, after, data: value }
+    }
+    if (!Object.keys(changes).length) throw new PurchasesServiceError('No hay cambios para guardar.', 422, 'NO_CHANGES')
+    return changes
   }
 
   async function serialize(row, names = null) {
@@ -110,7 +136,8 @@ export function createPurchaseCorrectionsService({ prisma, broadcaster, workflow
       available,
       version: await currentVersion(prisma, def.entityType, id),
       revisions: await Promise.all(rows.map(row => serialize(row, names))),
-      totals: { total: num(doc.total), currency: doc.currency },
+      economicMode: isDocumentary(doc) ? 'DOCUMENTARY' : 'FINANCIAL',
+      totals: { total: doc.total == null ? null : num(doc.total), currency: isDocumentary(doc) ? null : doc.currency },
     }
   }
 

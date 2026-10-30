@@ -1,6 +1,7 @@
 // runly.purchases: purchase orders, invoices and cases (expedientes).
 import { Prisma } from "@prisma/client";
 import { defineProvider, tokenSearch, joinParts, safeTitle } from "./helpers.js";
+import { createPurchaseEconomicMode } from "../purchase-economic-mode.js";
 
 const BASE = "/app/m/runly.purchases/purchases";
 const money = (total, currency) =>
@@ -16,15 +17,18 @@ function documentProvider({ source, label, permission, icon, kind, table, titleP
     icon,
     target: (id) => `${BASE}/${kind}/${id}`,
     seeAllTarget: () => `${BASE}/${kind}`,
-    search: ({ prisma, companyId, q, limit }) =>
-      tokenSearch(prisma, {
+    search: async ({ prisma, companyId, q, limit }) => {
+      const documentaryAvailable = await createPurchaseEconomicMode({ prisma }).available();
+      const reference = documentaryAvailable ? 'COALESCE(dr.reference, t.number)' : 't.number';
+      const referenceJoin = documentaryAvailable ? ` LEFT JOIN purchase_documentary_reference dr ON dr.document_id = t.id AND dr.company_id = t.company_id AND dr.document_type = '${table}'` : '';
+      return tokenSearch(prisma, {
         q,
         limit,
-        from: `${table} t ${DOC_JOINS}`,
-        select: "t.id, t.number, t.status, t.total, t.currency, s.name AS supplier_name, c.title AS case_title",
+        from: `${table} t ${DOC_JOINS}${referenceJoin}`,
+        select: `t.id, ${reference} AS number, t.status, t.total, t.currency, s.name AS supplier_name, c.title AS case_title`,
         scope: Prisma.sql`t.company_id = ${companyId}::uuid`,
-        columns: ["t.number", "t.notes", ...extraColumns, "s.name", "s.legal_name", "c.number", "c.title"],
-        titleColumn: "t.number",
+        columns: [reference, "t.number", "t.notes", ...extraColumns, "s.name", "s.legal_name", "c.number", "c.title"],
+        titleColumn: reference,
         orderBy: "t.created_at DESC",
         map: (r) => ({
           id: r.id,
@@ -32,7 +36,8 @@ function documentProvider({ source, label, permission, icon, kind, table, titleP
           subtitle: joinParts([r.supplier_name, r.case_title, r.status, money(r.total, r.currency)]),
           icon,
         }),
-      }),
+      });
+    },
   });
 }
 

@@ -1,3 +1,4 @@
+import { createInventoryEconomicProjection, isEconomicInventoryField } from './inventory-economic-projection.js';
 // inventory-catalog-service.js — runly.inventory catalogs: types (InvCategory),
 // brands, locations, conditions and custom fields. Extracted from inventory-service.js.
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
@@ -246,6 +247,10 @@ export function createInventoryCatalogService({ prisma }) {
   // Distinct values other items already hold for a field, most used first
   // (the form suggests them so "Sub ubicacion" etc. stay consistent).
   async function listCustomFieldValues(companyId, fieldId, search = '') {
+    if (await createInventoryEconomicProjection({ prisma }).mode(companyId) === 'DOCUMENTARY') {
+      const field = await prisma.invCustomField.findFirst({ where: { id: fieldId, companyId } });
+      if (isEconomicInventoryField(field)) return [];
+    }
     assertCompany(companyId);
     const term = String(search ?? '').trim();
     const rows = await prisma.invCustomFieldValue.groupBy({
@@ -275,7 +280,8 @@ export function createInventoryCatalogService({ prisma }) {
       where.categoryId = null;
       where.onDemand = false;
     }
-    return prisma.invCustomField.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }] });
+    const fields = await prisma.invCustomField.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }] });
+    return await createInventoryEconomicProjection({ prisma }).mode(companyId) === 'DOCUMENTARY' ? fields.filter(f => !isEconomicInventoryField(f)) : fields;
   }
 
   async function createCustomField(data, companyId) {

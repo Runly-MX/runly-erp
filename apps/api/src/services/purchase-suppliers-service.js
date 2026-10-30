@@ -1,6 +1,7 @@
 // runly.purchases — suppliers. Contact stays the identity source of truth;
 // purchase_supplier_profile only adds purchasing data (code, terms, notes).
 import { buildAvatarUrlMapByFileIds } from '../lib/avatar-url-map.js'
+import { createPurchaseEconomicMode } from './purchase-economic-mode.js'
 import { KINDS, SUPPLIER_SELECT, broadcast, cleanText, dateKey, notFound, num, pagination, plain, writeAudit } from './purchases-shared.js'
 
 const COUNTED = { notIn: ['CANCELLED', 'DRAFT'] }
@@ -18,8 +19,8 @@ export function createPurchaseSuppliersService({ prisma, broadcaster, supabaseAd
   async function statsByContact(companyId, contactIds) {
     const where = { companyId, supplierId: contactIds ? { in: contactIds } : { not: null } }
     const [orders, invoices] = await Promise.all([
-      prisma.purchaseOrder.groupBy({ by: ['supplierId'], where: { ...where, status: COUNTED }, _sum: { total: true }, _count: { _all: true }, _max: { issueDate: true } }),
-      prisma.purchaseInvoice.groupBy({ by: ['supplierId'], where: { ...where, status: COUNTED }, _sum: { total: true, paidAmount: true }, _count: { _all: true }, _max: { issueDate: true } }),
+      prisma.purchaseOrder.groupBy({ by: ['supplierId'], where: { ...where, total: { not: null }, status: COUNTED }, _sum: { total: true }, _count: { _all: true }, _max: { issueDate: true } }),
+      prisma.purchaseInvoice.groupBy({ by: ['supplierId'], where: { ...where, total: { not: null }, status: COUNTED }, _sum: { total: true, paidAmount: true }, _count: { _all: true }, _max: { issueDate: true } }),
     ])
     const stats = new Map()
     const entry = id => {
@@ -96,23 +97,23 @@ export function createPurchaseSuppliersService({ prisma, broadcaster, supabaseAd
       statsByContact(companyId, [contactId]),
       prisma.purchaseOrder.findMany({ where: { companyId, supplierId: contactId }, orderBy: { issueDate: 'desc' }, take: 10 }),
       prisma.purchaseInvoice.findMany({ where: { companyId, supplierId: contactId }, orderBy: { issueDate: 'desc' }, take: 10 }),
-      prisma.purchaseOrder.findMany({ where: { companyId, supplierId: contactId, status: COUNTED, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
-      prisma.purchaseInvoice.findMany({ where: { companyId, supplierId: contactId, status: COUNTED, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
+      prisma.purchaseOrder.findMany({ where: { companyId, supplierId: contactId, total: { not: null }, status: COUNTED, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
+      prisma.purchaseInvoice.findMany({ where: { companyId, supplierId: contactId, total: { not: null }, status: COUNTED, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
     ])
     const monthly = months.map(month => ({ month, ordered: 0, invoiced: 0 }))
     const byMonth = new Map(monthly.map(row => [row.month, row]))
     for (const row of monthOrders) { const bucket = byMonth.get(dateKey(row.issueDate).slice(0, 7)); if (bucket) bucket.ordered += num(row.total) }
     for (const row of monthInvoices) { const bucket = byMonth.get(dateKey(row.issueDate).slice(0, 7)); if (bucket) bucket.invoiced += num(row.total) }
     const recent = [
-      ...orders.map(row => ({ kind: 'orders', type: 'purchase_order', id: row.id, number: row.number, status: row.status, total: num(row.total), currency: row.currency, date: dateKey(row.issueDate), path: `${KINDS.orders.path}/${row.id}` })),
-      ...invoices.map(row => ({ kind: 'invoices', type: 'purchase_invoice', id: row.id, number: row.number, status: row.status, total: num(row.total), currency: row.currency, date: dateKey(row.issueDate), path: `${KINDS.invoices.path}/${row.id}` })),
+      ...orders.map(row => ({ kind: 'orders', type: 'purchase_order', id: row.id, number: row.number, status: row.status, total: row.total == null ? null : num(row.total), currency: row.currency, date: dateKey(row.issueDate), path: `${KINDS.orders.path}/${row.id}` })),
+      ...invoices.map(row => ({ kind: 'invoices', type: 'purchase_invoice', id: row.id, number: row.number, status: row.status, total: row.total == null ? null : num(row.total), currency: row.currency, date: dateKey(row.issueDate), path: `${KINDS.invoices.path}/${row.id}` })),
     ].sort((a, b) => String(b.date).localeCompare(String(a.date))).slice(0, 12)
     const [withPhoto] = await withAvatars([contact], 'full')
     return {
       ...withPhoto,
       profile: profile ? plain(profile) : null,
       stats: stats.get(contactId) ?? { orders: 0, invoices: 0, ordered: 0, invoiced: 0, paid: 0, payable: 0, lastPurchaseAt: null },
-      recent,
+      recent: await createPurchaseEconomicMode({ prisma }).projectMany(companyId, recent),
       monthly,
     }
   }

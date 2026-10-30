@@ -4535,12 +4535,12 @@ model PurchaseOrder {
   supplierId  String?  @map("supplier_id") @db.Uuid
   number      String   @db.VarChar(40)
   sequence       Int
-  issueDate   DateTime @map("issue_date") @db.Date
+  issueDate   DateTime? @map("issue_date") @db.Date
   status      String   @default("DRAFT") @db.VarChar(30)
   currency    String   @default("MXN") @db.VarChar(3)
-  subtotal    Decimal  @default(0) @db.Decimal(14, 2)
-  tax         Decimal  @default(0) @db.Decimal(14, 2)
-  total       Decimal  @default(0) @db.Decimal(14, 2)
+  subtotal    Decimal?  @default(0) @db.Decimal(14, 2)
+  tax         Decimal?  @default(0) @db.Decimal(14, 2)
+  total       Decimal?  @default(0) @db.Decimal(14, 2)
   notes       String?  @db.VarChar(2000)
   expectedDate      DateTime? @map("expected_date") @db.Date
   supplierReference String?   @map("supplier_reference") @db.VarChar(100)
@@ -4568,18 +4568,18 @@ model PurchaseInvoice {
   number      String   @db.VarChar(100)
   sequence       Int
   fiscalUuid  String?  @map("fiscal_uuid") @db.VarChar(36)
-  issueDate   DateTime @map("issue_date") @db.Date
+  issueDate   DateTime? @map("issue_date") @db.Date
   status      String   @default("PENDING") @db.VarChar(30)
   currency    String   @default("MXN") @db.VarChar(3)
-  subtotal    Decimal  @default(0) @db.Decimal(14, 2)
-  tax         Decimal  @default(0) @db.Decimal(14, 2)
-  total       Decimal  @default(0) @db.Decimal(14, 2)
+  subtotal    Decimal?  @default(0) @db.Decimal(14, 2)
+  tax         Decimal?  @default(0) @db.Decimal(14, 2)
+  total       Decimal?  @default(0) @db.Decimal(14, 2)
   notes       String?  @db.VarChar(2000)
   dueDate          DateTime? @map("due_date") @db.Date
   paidAt           DateTime? @map("paid_at") @db.Date
   paymentReference String?   @map("payment_reference") @db.VarChar(120)
   paymentMethod    String?   @map("payment_method") @db.VarChar(40)
-  paidAmount       Decimal   @default(0) @map("paid_amount") @db.Decimal(14, 2)
+  paidAmount       Decimal?   @default(0) @map("paid_amount") @db.Decimal(14, 2)
   createdById String?  @map("created_by_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
@@ -4704,20 +4704,38 @@ model PurchaseReceiptReversalLine {
   @@map("purchase_receipt_reversal_line")
 }
 
+// Separate metadata: no extra scalar column is selected from legacy documents.
+model PurchaseDocumentaryReference {
+  companyId          String   @map("company_id") @db.Uuid
+  documentType       String   @map("document_type") @db.VarChar(30)
+  documentId         String   @map("document_id") @db.Uuid
+  economicMode       String   @default("DOCUMENTARY") @map("economic_mode")
+  reference          String   @db.VarChar(255)
+  description        String?  @db.VarChar(2000)
+  idempotencyKey     String?  @map("idempotency_key") @db.VarChar(120)
+  requestFingerprint String?  @map("request_fingerprint")
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz
+
+  @@id([documentType, documentId])
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, documentType], map: "purchase_documentary_company")
+  @@map("purchase_documentary_reference")
+}
+
 model PurchaseLine {
   id          String   @id @default(uuid(7)) @db.Uuid
   companyId   String   @map("company_id") @db.Uuid
   ownerType   String   @map("owner_type") @db.VarChar(30)
   ownerId     String   @map("owner_id") @db.Uuid
   description String   @db.VarChar(500)
-  quantity    Decimal  @default(1) @db.Decimal(14, 4)
-  unitAmount  Decimal  @default(0) @map("unit_amount") @db.Decimal(14, 2)
-  taxAmount   Decimal  @default(0) @map("tax_amount") @db.Decimal(14, 2)
-  total       Decimal  @default(0) @db.Decimal(14, 2)
+  quantity    Decimal?  @default(1) @db.Decimal(14, 4)
+  unitAmount  Decimal?  @default(0) @map("unit_amount") @db.Decimal(14, 2)
+  taxAmount   Decimal?  @default(0) @map("tax_amount") @db.Decimal(14, 2)
+  total       Decimal?  @default(0) @db.Decimal(14, 2)
   sortOrder   Int      @default(0) @map("sort_order")
   itemKind            String   @default("GOODS") @map("item_kind") @db.VarChar(20)
   unit                String?  @db.VarChar(20)
-  taxRate             Decimal  @default(0) @map("tax_rate") @db.Decimal(6, 4)
+  taxRate             Decimal?  @default(0) @map("tax_rate") @db.Decimal(6, 4)
   receivedQuantity    Decimal  @default(0) @map("received_quantity") @db.Decimal(14, 4)
   inventoryCategoryId String?  @map("inventory_category_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at")

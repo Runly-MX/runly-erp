@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode, isDocumentary } from './purchase-economic-mode.js'
 // Generic, company-scoped list endpoint for every purchase document kind.
 // Envelope: { data, total, page, pageSize, pagination }.
 import { toLocalIso } from '@runly/core'
@@ -19,6 +20,7 @@ const ITEM_PREVIEW = 3
 const DATE_FIELD = { quotes: 'issueDate', orders: 'issueDate', invoices: 'issueDate', receipts: 'receivedAt' }
 
 export function createPurchaseListing({ prisma }) {
+  const economics = createPurchaseEconomicMode({ prisma })
   // Documents whose inventory items match the text by asset number, serial or name.
   async function documentIdsByItem(kind, companyId, search) {
     const link = ITEM_LINK[kind]
@@ -112,7 +114,7 @@ export function createPurchaseListing({ prisma }) {
       const reversalCount = reversals.find(entry => entry.orderId === row.id)?._count._all ?? 0
       const mine = billed.filter(rel => rel.targetId === row.id).map(rel => invoiceById.get(rel.sourceId)).filter(Boolean)
         .sort((a, b) => invoices.indexOf(a) - invoices.indexOf(b))
-      out.set(row.id, { receipt: receiptSummary(row, own, reversalCount), billing: readInvoices ? billingSummary(mine, today) : null })
+      out.set(row.id, { receipt: isDocumentary(row) ? null : receiptSummary(row, own, reversalCount), billing: readInvoices ? billingSummary(mine, today) : null })
     }
     return out
   }
@@ -140,6 +142,8 @@ export function createPurchaseListing({ prisma }) {
     }
     if (search) {
       where.OR = SEARCH_FIELDS[kind].map(field => ({ [field]: { contains: search, mode: 'insensitive' } }))
+      const byReference = await economics.matchingIds(companyId, search, def.entityType)
+      if (byReference.length) where.OR.push({ id: { in: byReference } })
       const byItem = await documentIdsByItem(kind, companyId, search)
       if (byItem.length) where.OR.push({ id: { in: byItem } })
     }
@@ -177,7 +181,7 @@ export function createPurchaseListing({ prisma }) {
       if (kind === 'invoices') out.balance = Math.max(0, Math.round((num(row.total) - num(row.paidAmount)) * 100) / 100)
       return out
     })
-    return { data, total, page, pageSize, pagination: { page, pageSize, total } }
+    return { data: ['orders', 'invoices'].includes(kind) ? await economics.projectMany(companyId, data) : data, total, page, pageSize, pagination: { page, pageSize, total } }
   }
 
   return { list }

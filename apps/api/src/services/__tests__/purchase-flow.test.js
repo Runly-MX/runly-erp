@@ -97,6 +97,7 @@ const post = (app, path, payload) => app.request(path, { method: 'POST', headers
 function fakePrisma(workflow, tables = {}) {
   const writes = []
   const empty = name => ({
+    findUnique: async () => null,
     findMany: async () => [], findFirst: async () => null, count: async () => 0,
     updateMany: async args => { writes.push({ model: name, op: 'updateMany', ...args }); return { count: 1 } },
     update: async args => { writes.push({ model: name, op: 'update', ...args }); return { id: args.where.id, ...args.data } },

@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode, DOCUMENTARY_PROFILE } from './purchase-economic-mode.js'
 // runly.purchases — settings, workflow, capabilities and dashboard.
 // Document/procurement/receipt/relation/supplier logic lives in the sibling
 // purchase-*-service.js files. Spec: docs/superpowers/specs/2026-09-30-purchases-core-redesign-design.md
@@ -151,21 +152,29 @@ function sanitizePolicies(input, fallback) {
 }
 
 export function createPurchasesService({ prisma, broadcaster }) {
+  const economics = createPurchaseEconomicMode({ prisma })
+  async function withMode(workflow) {
+    const economicMode = await economics.companyMode(workflow.companyId)
+    return { ...workflow, economicMode, economicCaptureEnabled: economicMode === 'FINANCIAL' }
+  }
   async function ensureWorkflow(companyId, actorId) {
     const current = await prisma.purchaseWorkflow.findFirst({
       where: { companyId, enabled: true, isDefault: true },
       orderBy: { createdAt: 'asc' },
     })
-    if (current) return current
-    return prisma.purchaseWorkflow.create({
+    if (current) return withMode(current)
+    return withMode(await prisma.purchaseWorkflow.create({
       data: { companyId, name: 'Flujo básico', preset: 'BASIC', isDefault: true, ...PURCHASE_PRESETS.BASIC, createdById: actorId || null },
-    })
+    }))
   }
 
   async function getSettings(companyId, actorId) {
     const workflow = await ensureWorkflow(companyId, actorId)
     return {
       workflow: { ...workflow, numbering: { ...NUMBERING_DEFAULTS, ...(workflow.numbering ?? {}) } },
+      economicMode: workflow.economicMode, economicCaptureEnabled: workflow.economicCaptureEnabled,
+      documentaryAvailable: await economics.available(),
+      profiles: { DOCUMENTARY: { label: 'Control documental', preset: 'BASIC', economicMode: 'DOCUMENTARY', ...DOCUMENTARY_PROFILE } },
       presets: PURCHASE_PRESETS, stageLabels: STAGE_LABELS, numberingDefaults: NUMBERING_DEFAULTS,
     }
   }
@@ -182,7 +191,7 @@ export function createPurchasesService({ prisma, broadcaster }) {
   async function getCapabilities(companyId, actorId) {
     const workflow = await ensureWorkflow(companyId, actorId)
     const history = await purchaseHistoryFlags(prisma, companyId)
-    return { capabilities: workflow.capabilities, stages: workflow.stages, preset: workflow.preset, policies: workflow.policies ?? [], history }
+    return { economicMode: workflow.economicMode, economicCaptureEnabled: workflow.economicCaptureEnabled, capabilities: workflow.capabilities, stages: workflow.stages, preset: workflow.preset, policies: workflow.policies ?? [], history }
   }
 
   // Throws 409 CAPABILITY_DISABLED unless the gate (key or any-of array) is on.
@@ -196,7 +205,10 @@ export function createPurchasesService({ prisma, broadcaster }) {
 
   async function updateSettings(companyId, actorId, input = {}) {
     const workflow = await ensureWorkflow(companyId, actorId)
-    const preset = String(input.preset || workflow.preset).toUpperCase()
+    const economicMode = input.economicMode ?? (input.profile === 'DOCUMENTARY' ? 'DOCUMENTARY' : workflow.economicMode)
+    if (!['FINANCIAL', 'DOCUMENTARY'].includes(economicMode)) throw new PurchasesServiceError('Modalidad económica no válida.', 422, 'VALIDATION')
+    if (economicMode === 'DOCUMENTARY') await economics.requireAvailable()
+    const preset = String(input.profile === 'DOCUMENTARY' ? 'BASIC' : input.preset || workflow.preset).toUpperCase()
     const presetValues = PURCHASE_PRESETS[preset]
     if (!presetValues && preset !== 'CUSTOM') throw new PurchasesServiceError('La plantilla seleccionada no existe.')
     const presetChanged = preset !== workflow.preset
@@ -208,13 +220,16 @@ export function createPurchasesService({ prisma, broadcaster }) {
       policies: sanitizePolicies(input.policies, presetValues && presetChanged ? presetValues.policies : workflow.policies),
       ...(input.numbering !== undefined ? { numbering: normalizeNumbering(input.numbering, workflow.numbering) } : {}),
     }
+    if (economicMode === 'DOCUMENTARY') Object.assign(data, DOCUMENTARY_PROFILE)
     const updated = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM purchase_workflow WHERE id = ${workflow.id}::uuid FOR UPDATE`
+      await economics.setMode(tx, companyId, economicMode)
       const result = await tx.purchaseWorkflow.update({ where: { id: workflow.id }, data })
-      await writeAudit(tx, { companyId, actorId, entityType: 'purchase_workflow', entityId: workflow.id, action: 'purchase.workflow.updated', before: workflow, after: result })
+      await writeAudit(tx, { companyId, actorId, entityType: 'purchase_workflow', entityId: workflow.id, action: 'purchase.workflow.updated', before: workflow, after: { ...result, economicMode } })
       return result
     })
     await broadcast(broadcaster, companyId, 'purchase.workflow.updated', { workflowId: updated.id })
-    return updated
+    return withMode(updated)
   }
 
   function monthKeys(count = 12) {
@@ -249,14 +264,14 @@ export function createPurchasesService({ prisma, broadcaster }) {
       payableInvoices, payableList] = await Promise.all([
       prisma.purchaseCase.count({ where: { companyId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
       prisma.purchaseOrder.count({ where: { companyId, status: openOrders } }),
-      prisma.purchaseOrder.aggregate({ where: { companyId, status: counted }, _sum: { total: true } }),
-      prisma.purchaseInvoice.aggregate({ where: { companyId, status: counted }, _sum: { total: true } }),
+      prisma.purchaseOrder.aggregate({ where: { companyId, total: { not: null }, status: counted }, _sum: { total: true } }),
+      prisma.purchaseInvoice.aggregate({ where: { companyId, total: { not: null }, status: counted }, _sum: { total: true } }),
       prisma.purchaseInvoice.findMany({ where: { companyId, status: payable }, select: { total: true, paidAmount: true } }),
       prisma.purchaseInvoice.count({ where: { companyId, status: payable, dueDate: { lt: today } } }),
       prisma.purchaseApproval.count({ where: { companyId, status: 'PENDING' } }),
       prisma.purchaseOrder.count({ where: { companyId, status: { in: ['ISSUED', 'PARTIALLY_RECEIVED'] } } }),
-      prisma.purchaseOrder.findMany({ where: { companyId, status: counted, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
-      prisma.purchaseInvoice.findMany({ where: { companyId, status: counted, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
+      prisma.purchaseOrder.findMany({ where: { companyId, total: { not: null }, status: counted, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
+      prisma.purchaseInvoice.findMany({ where: { companyId, total: { not: null }, status: counted, issueDate: { gte: since } }, select: { issueDate: true, total: true } }),
       prisma.purchaseApproval.findMany({ where: { companyId, status: 'PENDING' }, orderBy: { createdAt: 'asc' }, take: 5 }),
       prisma.purchaseInvoice.findMany({ where: { companyId, status: payable, dueDate: { lt: today } }, orderBy: { dueDate: 'asc' }, take: 5 }),
       prisma.purchaseOrder.findMany({ where: { companyId, status: { in: ['ISSUED', 'PARTIALLY_RECEIVED'] } }, orderBy: [{ expectedDate: 'asc' }, { issueDate: 'asc' }], take: 5 }),
@@ -291,17 +306,21 @@ export function createPurchasesService({ prisma, broadcaster }) {
     const docRow = (kind, row) => ({ ...plain(row), kind, supplierName: names.get(row.supplierId) ?? null, path: `${KINDS[kind].path}/${row.id}` })
 
     const recent = [
-      ...recentOrders.map(row => ({ kind: 'orders', id: row.id, number: row.number, supplierName: names.get(row.supplierId) ?? null, total: num(row.total), currency: row.currency, status: row.status, date: row.createdAt })),
-      ...recentInvoices.map(row => ({ kind: 'invoices', id: row.id, number: row.number, supplierName: names.get(row.supplierId) ?? null, total: num(row.total), currency: row.currency, status: row.status, date: row.createdAt })),
+      ...recentOrders.map(row => ({ kind: 'orders', id: row.id, number: row.number, supplierName: names.get(row.supplierId) ?? null, total: row.total == null ? null : num(row.total), currency: row.currency, status: row.status, date: row.createdAt })),
+      ...recentInvoices.map(row => ({ kind: 'invoices', id: row.id, number: row.number, supplierName: names.get(row.supplierId) ?? null, total: row.total == null ? null : num(row.total), currency: row.currency, status: row.status, date: row.createdAt })),
       ...recentRequests.map(row => ({ kind: 'requests', id: row.id, number: row.number, supplierName: null, total: num(row.estimatedTotal), currency: row.currency, status: row.status, date: row.createdAt })),
       ...recentReceipts.map(row => {
         const order = receiptOrderMap.get(row.orderId)
         return { kind: 'receipts', id: row.id, number: row.number, supplierName: names.get(order?.supplierId) ?? null, total: order ? num(order.total) : null, currency: order?.currency ?? null, status: row.status, date: row.createdAt }
       }),
     ].filter(row => reads[row.kind]).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8)
-      .map(row => ({ ...row, path: `${KINDS[row.kind].path}/${row.id}` }))
+      .map(row => ({ ...row, dateKind: 'REGISTERED_AT', path: `${KINDS[row.kind].path}/${row.id}` }))
+    const projectedRecent = new Map((await economics.projectMany(companyId, recent.filter(row => ['orders', 'invoices'].includes(row.kind)))).map(row => [row.id, row]))
 
     return {
+      economicMode: workflow.economicMode,
+      economicCaptureEnabled: workflow.economicCaptureEnabled,
+      economicAggregatesInclude: 'FINANCIAL_ONLY',
       metrics: {
         openCases,
         ordersOpen: reads.orders ? ordersOpen : null,
@@ -331,7 +350,7 @@ export function createPurchasesService({ prisma, broadcaster }) {
         payable: reads.invoices ? payableList.map(row => docRow('invoices', row)) : [],
         awaitingReceipt: reads.orders ? awaitingReceipt.map(row => docRow('orders', row)) : [],
       },
-      recent,
+      recent: recent.map(row => projectedRecent.get(row.id) ?? row),
     }
   }
 
@@ -352,7 +371,7 @@ export function createPurchasesService({ prisma, broadcaster }) {
     const model = useInvoices ? prisma.purchaseInvoice : prisma.purchaseOrder
     const grouped = await model.groupBy({
       by: ['supplierId'],
-      where: { companyId, supplierId: { not: null }, status: { notIn: ['CANCELLED', 'DRAFT'] } },
+      where: { companyId, supplierId: { not: null }, total: { not: null }, status: { notIn: ['CANCELLED', 'DRAFT'] } },
       _sum: { total: true },
       _count: { _all: true },
     })

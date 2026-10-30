@@ -1,3 +1,4 @@
+import { createInventoryEconomicProjection, isEconomicInventoryField } from './inventory-economic-projection.js';
 // Inventory export: resolves the items (selected ids, or everything matching
 // the list filters/search), loads their relations in batches and writes a CSV
 // or Excel file with the columns the user chose.
@@ -27,11 +28,13 @@ const csvCell = (value) => {
 
 export function createInventoryExportService({ prisma, supabaseAdmin = null }) {
   const search = createInventorySearch({ prisma });
+  const economics = createInventoryEconomicProjection({ prisma });
 
   async function columnCatalog(companyId) {
     assertCompany(companyId);
-    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }], select: { id: true, label: true } });
-    const columns = [...EXPORT_COLUMNS, ...customFieldColumns(fields)];
+    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }], select: { id: true, label: true, fieldKey: true, fieldType: true, options: true } });
+    const documentary = await economics.mode(companyId) === 'DOCUMENTARY';
+    const columns = [...EXPORT_COLUMNS.filter(c => !documentary || c.key !== 'purchasePrice'), ...customFieldColumns(fields.filter(f => !documentary || !isEconomicInventoryField(f)))];
     return {
       groups: catalogGroups(fields.length > 0),
       columns: columns.map(({ key, label, group, default: isDefault }) => ({ key, label, group, default: isDefault })),
@@ -153,9 +156,11 @@ export function createInventoryExportService({ prisma, supabaseAdmin = null }) {
   async function exportItems(companyId, body, scope = null, mine = null) {
     assertCompany(companyId);
     const format = body.format === 'xlsx' ? 'xlsx' : 'csv';
-    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }], select: { id: true, label: true } });
-    const catalog = [...EXPORT_COLUMNS, ...customFieldColumns(fields)];
+    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }], select: { id: true, label: true, fieldKey: true, fieldType: true, options: true } });
+    const documentary = await economics.mode(companyId) === 'DOCUMENTARY';
+    const catalog = [...EXPORT_COLUMNS.filter(c => !documentary || c.key !== 'purchasePrice'), ...customFieldColumns(fields.filter(f => !documentary || !isEconomicInventoryField(f)))];
     const byKey = new Map(catalog.map((c) => [c.key, c]));
+    if (documentary && (body.columns ?? []).some(key => key === 'purchasePrice' || fields.some(f => isEconomicInventoryField(f) && key === CUSTOM_FIELD_PREFIX + f.id))) throw new InventoryServiceError('Las columnas económicas no están disponibles en control documental.', 422);
     const chosen = [...new Set(Array.isArray(body.columns) ? body.columns : [])].map((k) => byKey.get(k)).filter(Boolean);
     if (!chosen.length) throw new InventoryServiceError('Elige al menos una columna.', 400);
     const where = await resolveWhere(companyId, body, scope, mine);

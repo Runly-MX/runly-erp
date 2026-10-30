@@ -1,3 +1,4 @@
+import { createPurchaseEconomicMode } from './purchase-economic-mode.js';
 // inventory-dashboard-service.js — statistics for the inventory dashboard:
 // weekly/monthly trends (altas/bajas, asignaciones/devoluciones, vigentes), top groupings,
 // purchase value and warranties, on top of the administrative summary.
@@ -126,6 +127,7 @@ export function createInventoryDashboardService({ prisma }) {
     const timeZone = getConfiguredTimeZone();
     const active = { companyId, enabled: true, adminStatus: { not: 'deregistered' }, ...(scopeWhere(scope) ?? {}) };
     const today = localToday(timeZone);
+    const economicMode = await createPurchaseEconomicMode({ prisma }).companyMode(companyId);
 
     const [summary, monthly, byType, byBrand, byModel, byLocation, holders, value, expired, in30, in90, upcoming, withWarranty, typeStatus] = await Promise.all([
       admin.summary(companyId, scope),
@@ -164,8 +166,10 @@ export function createInventoryDashboardService({ prisma }) {
       ...summary,
       activeCount,
       assignedCount: summary.byStatus.assigned ?? 0,
-      purchaseValue: Number(value._sum.purchasePrice ?? 0),
-      pricedCount: value._count.purchasePrice ?? 0,
+      economicMode,
+      economicCaptureEnabled: economicMode !== 'DOCUMENTARY',
+      purchaseValue: economicMode === 'DOCUMENTARY' ? null : Number(value._sum.purchasePrice ?? 0),
+      pricedCount: economicMode === 'DOCUMENTARY' ? null : value._count.purchasePrice ?? 0,
       monthly: monthly.points.map((p) => ({ ...p, month: p.start.slice(0, 7) })),
       top: { types: byType, brands: byBrand, models: byModel, locations: byLocation, holders: holders.filter((h) => h.id) },
       warranties: { expired, in30, in90, upcoming, active: withWarranty },

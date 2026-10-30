@@ -4,7 +4,7 @@
 // Items that already carry another order are left alone and counted as skipped.
 // Receives the transaction client explicitly.
 import { MODULE_KEY, writeAudit } from './purchases-shared.js'
-import { liveDocumentIds } from './inventory-purchase-uniqueness.js'
+import { liveDocumentIds, lockItemLinks } from './inventory-purchase-uniqueness.js'
 
 export async function orderOfInvoice(client, companyId, invoiceId) {
   const relation = await client.entityRelation.findFirst({
@@ -28,6 +28,7 @@ export async function linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceI
   const targetOrderId = orderId ?? await orderOfInvoice(tx, companyId, invoiceId)
   const ids = [...new Set(itemIds ?? [])]
   if (!targetOrderId || !ids.length) return { orderId: targetOrderId, linked: 0, skipped: 0 }
+  await lockItemLinks(tx, companyId, 'PURCHASED_IN', ids)
   const existing = await tx.entityRelation.findMany({
     where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_order', targetType: 'inventory_item', relationType: 'PURCHASED_IN', targetId: { in: ids } },
     select: { targetId: true, sourceId: true },

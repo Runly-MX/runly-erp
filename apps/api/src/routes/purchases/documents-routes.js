@@ -3,6 +3,8 @@ import { Hono } from 'hono'
 import { actorId, assertPermission, body, canReadOf, companyOf, createHandler } from './route-helpers.js'
 import { KINDS } from '../../services/purchases-shared.js'
 import { hasCapability } from '../../services/purchases-service.js'
+import { PurchasesServiceError } from '../../services/purchases-shared.js'
+import { createInventoryScope, canWriteArea } from '../../services/inventory-scope.js'
 
 const PERMS = {
   orders: { read: 'purchases.order.read', create: 'purchases.order.create', update: 'purchases.order.update' },
@@ -23,10 +25,31 @@ export async function listWithCapability({ workflow, listing }, companyId, kind,
   return { ...(await listing.list(kind, companyId, query, access)), capabilityEnabled: hasCapability(current.capabilities, gate) }
 }
 
-export function createPurchasesDocumentsRouter({ requirePermission, services }) {
+export function createPurchasesDocumentsRouter({ prisma, requirePermission, services }) {
   const router = new Hono()
   const handle = createHandler('[purchases:documents]')
   const { workflow, listing, documents, receipts } = services
+  const inventoryScope = createInventoryScope({ prisma })
+  async function createDocument(c, kind, quick = false) {
+    const input = await body(c)
+    if (quick && !input.idempotencyKey) throw new PurchasesServiceError('Envía una clave de operación para reintentar sin duplicar.', 422, 'VALIDATION')
+    if (quick && (await workflow.ensureWorkflow(companyOf(c))).economicMode !== 'DOCUMENTARY') throw new PurchasesServiceError('Activa Control documental para crear referencias.', 409, 'DOCUMENTARY_MODE_REQUIRED')
+    if (input.orderIds?.length) {
+      assertPermission(c, 'purchases.relation.manage')
+      assertPermission(c, 'purchases.order.read')
+    }
+    if (input.inventoryIds?.length) {
+      assertPermission(c, 'purchases.relation.manage')
+      assertPermission(c, 'inventory.item.read')
+    }
+    return documents.create(kind, companyOf(c), actorId(c), input, {
+      assertInventory: async (ids, client = prisma) => {
+        const scope = await inventoryScope.fromContext(c)
+        const rows = await client.invItem.findMany({ where: { companyId: companyOf(c), id: { in: ids }, enabled: true }, select: { id: true, areaId: true } })
+        if (rows.length !== ids.length || rows.some(row => !canWriteArea(scope, row.areaId))) throw new PurchasesServiceError('Uno o más inventarios no están disponibles para esta operación.', 404, 'NOT_FOUND')
+      },
+    })
+  }
   const readableList = (c, kind, gate) => listWithCapability({ workflow, listing }, companyOf(c), kind, gate, c.req.query(), { canRead: canReadOf(c) })
 
   for (const kind of ['orders', 'invoices']) {
@@ -40,7 +63,15 @@ export function createPurchasesDocumentsRouter({ requirePermission, services }) 
       handle(c, () => readableList(c, kind, gate)))
 
     router.post(base, requirePermission(perms.create), c =>
-      handle(c, async () => ({ data: await documents.create(kind, companyOf(c), actorId(c), await body(c)) }), 201))
+      handle(c, async () => ({ data: await createDocument(c, kind) }), 201))
+
+    router.post(`${base}/references`, requirePermission(perms.create), c =>
+      handle(c, async () => {
+        assertPermission(c, perms.read)
+        const data = await createDocument(c, kind, true)
+        const candidates = await services.relations.searchDocuments(companyOf(c), { type: kind === 'orders' ? 'order' : 'invoice', search: data.reference, pageSize: 5 })
+        return { data, duplicateCandidates: candidates.data.filter(row => row.id !== data.id).map(row => ({ id: row.id, reference: row.reference ?? row.number, economicMode: row.economicMode })), automaticMerge: false }
+      }, 201))
 
     router.get(`${base}/:id`, requirePermission(perms.read), c =>
       handle(c, async () => ({ data: await documents.get(kind, companyOf(c), c.req.param('id'), canReadOf(c)) })))

@@ -86,6 +86,7 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
   async function prepare(input, actx) {
     const { companyId } = actx;
     const current = await workflow.ensureWorkflow(companyId);
+    insist(current.economicMode !== 'DOCUMENTARY', 'documentary_operation_blocked', 'La importación financiera no está disponible en Control documental.', 409);
     // Items outside the connected user's inventory areas resolve as not found (area scoping).
     const itemScope = scopeWhere(await createInventoryScope({ prisma }).resolve({ companyId, userId: actx.actorProfileId, userContext: actx }));
     const pendingSuppliers = new Map(), plan = [], claimed = { order: new Map(), invoice: new Map() }, missing = new Map();
@@ -170,6 +171,7 @@ export function createPurchasesImportAction({ prisma, documents, relations, work
 
   async function execute(input, actx) {
     const { companyId, actorProfileId: actorId } = actx;
+    insist((await workflow.ensureWorkflow(companyId)).economicMode !== 'DOCUMENTARY', 'documentary_operation_blocked', 'La importación financiera no está disponible en Control documental.', 409);
     const supplierIds = new Map(), results = [], createdOrders = new Map();
     for (const value of input.suppliers) {
       const contact = await prisma.contact.create({ data: { companyId, type: 'company', name: value.name, legalName: value.name, taxId: value.taxId } });

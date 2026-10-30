@@ -1,3 +1,4 @@
+import { isDocumentary } from './purchase-economic-mode.js'
 // When a purchase case (expediente) can close, and the automatic close used
 // by presets that do not expose cases (SIMPLE, BASIC, INVENTORY: the case
 // capability gate is off, so nobody can close it by hand).
@@ -38,7 +39,7 @@ export function caseClosureCheck(workflow = {}, bundle = {}) {
   const openDocuments = []
   for (const [kind, rows] of Object.entries(groups)) {
     for (const row of rows) {
-      if (!isFinalDocument(kind, row.status, capabilities)) {
+      if (!isDocumentary(row) && !isFinalDocument(kind, row.status, capabilities)) {
         openDocuments.push({ kind, id: row.id, number: row.number ?? null, status: row.status, reason: `${KIND_LABEL[kind]} ${row.number ?? ''} ${OPEN_REASON[kind]}`.replace(/\s+/g, ' ').trim() })
       }
     }
@@ -66,6 +67,8 @@ export async function autoCloseCase(tx, { workflow, caseBundle, companyId, caseI
   const [locked] = await tx.$queryRaw`SELECT status FROM purchase_case WHERE id = ${caseId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`
   if (!locked || !['OPEN', 'IN_PROGRESS'].includes(locked.status)) return null
   const bundle = await caseBundle.loadBundle(companyId, caseId, tx)
+  // Registration is independent of technical case completion.
+  if ([...bundle.orders, ...bundle.invoices].some(isDocumentary)) return null
   const closure = caseClosureCheck(workflow, bundle)
   if (!closure.ready) return null
   const status = closure.outcome

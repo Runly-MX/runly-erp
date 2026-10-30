@@ -60,7 +60,7 @@ const SAMPLE = {
   ],
 };
 
-const num = (value) => (value === null || value === undefined ? 0 : Number(value));
+const num = (value) => (value === null || value === undefined ? null : Number(value));
 
 export function createPurchasesOrderDocumentKind({ prisma }) {
   return {
@@ -84,7 +84,7 @@ export function createPurchasesOrderDocumentKind({ prisma }) {
       ]);
       return {
         orderNumber: order.number, caseNumber: purchaseCase?.number ?? "", caseTitle: purchaseCase?.title ?? "",
-        issueDate: order.issueDate, expectedDate: order.expectedDate, status: order.status, currency: order.currency,
+        issueDate: order.issueDate, expectedDate: order.expectedDate, status: order.status, currency: order.total === null ? null : order.currency,
         subtotal: num(order.subtotal), tax: num(order.tax), total: num(order.total),
         paymentTerms: order.paymentTerms ?? "", supplierReference: order.supplierReference ?? "", notes: order.notes ?? "",
         supplierName: supplier?.name ?? "", supplierLegalName: supplier?.legalName ?? "", supplierTaxId: supplier?.taxId ?? "",
