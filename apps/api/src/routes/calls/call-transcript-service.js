@@ -146,20 +146,12 @@ export function createCallTranscriptService({
     if (!rows.length) throw new CallTranscriptError("Conversación no encontrada.", 404);
   }
 
-  // Stricter than assertMember: proves the caller either requested this
-  // specific transcript or was an actual CallParticipant of that specific
-  // call — not just a current member of the conversation. This is the
-  // decision documented in docs/TRANSCRIPTION_SPEC.md §5.1 (transcripts are
-  // more sensitive than recordings — searchable text, not a video you must
-  // watch in full — so a member who joined the conversation after the
-  // meeting happened does not automatically inherit read access to it).
-  async function wasParticipantOrRequester(transcript, profileId) {
-    if (transcript.requestedByUserId === profileId) return true;
-    const rows = await prisma.$queryRaw`
-      SELECT 1 FROM call_participant WHERE call_id = ${transcript.callId} AND user_id = ${profileId} LIMIT 1
-    `;
-    return rows.length > 0;
-  }
+  // Read access is conversation membership (product decision 2026-10-29,
+  // replacing the stricter participant-or-requester rule of
+  // docs/TRANSCRIPTION_SPEC.md §5.1): once someone transcribes a call, every
+  // current member of the conversation — including people who joined it
+  // later — sees the transcript and the documents/reports built from it,
+  // same as the call's recordings.
 
   // `recordingId` pins the exact recording (a call can have several); without
   // it, the call's latest READY recording is used. One transcript per
@@ -656,6 +648,8 @@ export function createCallTranscriptService({
         ...(language === undefined ? {} : { requestedLanguage: normalizeLanguage(language) }),
         finalizedAt: null,
         expiresAt: null,
+        progressStage: null,
+        progressPercent: null,
       },
     });
 
@@ -675,15 +669,10 @@ export function createCallTranscriptService({
 
   async function listTranscripts({ conversationId, profileId }) {
     await assertMember(conversationId, profileId);
-    const rows = await prisma.callTranscript.findMany({
+    return prisma.callTranscript.findMany({
       where: { conversationId },
       orderBy: { createdAt: "desc" },
     });
-    const allowed = [];
-    for (const row of rows) {
-      if (await wasParticipantOrRequester(row, profileId)) allowed.push(row);
-    }
-    return allowed;
   }
 
   async function getTranscript({ transcriptId, profileId }) {
@@ -704,12 +693,6 @@ export function createCallTranscriptService({
     });
     if (!row) throw new CallTranscriptError("Transcripción no encontrada.", 404);
     await assertMember(row.conversationId, profileId);
-    // Non-leaking 404 for "member of the conversation but not entitled to
-    // read THIS transcript" — same convention as pinMessage/listThreadReplies
-    // in chat-service.js (never a distinguishable 403 here).
-    if (!(await wasParticipantOrRequester(row, profileId))) {
-      throw new CallTranscriptError("Transcripción no encontrada.", 404);
-    }
     // Flatten the resolved name onto speakerLabel — TranscriptViewerDialog.jsx
     // already renders segment.speakerLabel as a plain string (anticipated
     // ahead of V2 landing); it never reads speakerUser/speakerGuest directly.
@@ -723,10 +706,8 @@ export function createCallTranscriptService({
   }
 
   // Admin-style action: requires chat.calls.transcript.manage at the route
-  // level (role gate) plus conversation membership here (IDOR gate) — NOT
-  // the stricter wasParticipantOrRequester check, since the permission
-  // itself is the elevated-trust signal (mirrors how chat.calls.record
-  // gates recording deletion without an extra per-call participant check).
+  // level (role gate) plus conversation membership here (IDOR gate), mirroring
+  // how chat.calls.record gates recording deletion.
   async function deleteTranscript({ transcriptId, profileId }) {
     const row = await prisma.callTranscript.findUnique({ where: { id: transcriptId } });
     if (!row) throw new CallTranscriptError("Transcripción no encontrada.", 404);

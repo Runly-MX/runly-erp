@@ -137,7 +137,7 @@ export const TOOL_DEFS = [
     type: "function",
     function: {
       name: "list_call_transcripts",
-      description: "Lista las transcripciones de llamadas/videollamadas grabadas en una conversacion (por defecto la actual) a las que el usuario tiene acceso: id, estado, cuando se genero, duracion. Usa esto antes de get_call_transcript para saber que transcriptId pedir. Solo devuelve transcripciones en las que el usuario participo en la llamada o que el mismo solicito.",
+      description: "Lista las transcripciones de llamadas/videollamadas grabadas en una conversacion (por defecto la actual) a las que el usuario tiene acceso: id, estado, cuando se genero, duracion. Usa esto antes de get_call_transcript para saber que transcriptId pedir.",
       parameters: {
         type: "object",
         properties: { conversationId: { type: "string", description: "Id de la conversacion; por defecto la actual." } },
@@ -406,8 +406,8 @@ function formatSegmentTimestamp(ms) {
 // Spec 3 — tools for a `@MirAI` channel mention. get_channel_messages has no
 // assertMember: the mention came from a channel member and the reply is
 // public in that same channel, so reading its recent history exposes nothing
-// the members don't see. list/get_call_transcript are the exception — they
-// keep the stricter call-participant check regardless of channel membership.
+// the members don't see. list/get_call_transcript go through
+// callTranscriptService, which checks the actor's conversation membership.
 // ---------------------------------------------------------------------------
 export const CHANNEL_TOOL_DEFS = [
   {
@@ -423,10 +423,8 @@ export const CHANNEL_TOOL_DEFS = [
       },
     },
   },
-  // Unlike get_channel_messages, these two DO enforce the stricter transcript
-  // access rule (participated in that specific call, or requested it) via
-  // callTranscriptService — being a channel member is not enough on its own,
-  // same rule as the private 1:1/panel versions of these tools above.
+  // Access through callTranscriptService (conversation membership), same rule
+  // as the private 1:1/panel versions of these tools above.
   {
     type: "function",
     function: {

@@ -8,7 +8,7 @@ const row = (over = {}) => ({ id: tid, companyId, conversationId: 'c1', callId: 
 const build = (transcript, { member = true } = {}) => {
   const prisma = {
     callTranscript: { findUnique: async () => transcript },
-    $queryRaw: async (strings) => (member && !strings.join('?').includes('call_participant') ? [{ id: 1 }] : []),
+    $queryRaw: async () => (member ? [{ id: 1 }] : []),
     callTranscriptDocument: { findMany: async () => [{ kind: 'RESUMEN', status: 'READY', content: { overview: 'ok' }, updatedAt: new Date(), notes: { big: true } }] },
   };
   const queries = Object.fromEntries(createChatTranscriptQueries({ prisma }).map(q => [q.name, q]));
@@ -33,8 +33,14 @@ test('chat transcripts: search ignores case and accents', async () => {
   assert.equal(result.matches[0].at, '03:00');
 });
 
-test('chat transcripts: other company, non-member and non-participant are all 404', async () => {
-  for (const [transcript, opts] of [[row({ companyId: 'other' }), {}], [row(), { member: false }], [row({ requestedByUserId: 'someone-else' }), {}]]) {
+test('chat transcripts: any conversation member can read a transcript someone else requested', async () => {
+  const q = build(row({ requestedByUserId: 'someone-else' }));
+  const result = await q.chat_transcript_read.run({ transcriptId: tid, fromMs: 0, maxChars: 1000 }, actor);
+  assert.equal(result.transcriptId, tid);
+});
+
+test('chat transcripts: other company and non-member are 404', async () => {
+  for (const [transcript, opts] of [[row({ companyId: 'other' }), {}], [row(), { member: false }]]) {
     const q = build(transcript, opts);
     await assert.rejects(q.chat_transcript_read.run({ transcriptId: tid, fromMs: 0, maxChars: 1000 }, actor), (e) => e.status === 404 || e.code === 'not_found' || /no disponible|no encontrada/i.test(e.message));
   }

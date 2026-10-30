@@ -89,13 +89,24 @@ export function useDeleteTranscript(conversationId) {
   });
 }
 
+// The analysis someone already generated: { analysis, proofToken }, analysis
+// null when none exists yet.
+export function useTranscriptAnalysis(transcriptId, enabled = true) {
+  const { session } = useAuth();
+  return useQuery({
+    queryKey: ["chat-transcript-analysis", transcriptId],
+    enabled: Boolean(enabled && transcriptId && session?.access_token),
+    queryFn: () => runly.calls.getTranscriptAnalysis(transcriptId, session.access_token),
+  });
+}
+
 export function useAnalyzeTranscript(conversationId) {
   const { session } = useAuth();
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (transcriptId) => runly.calls.analyzeTranscript(transcriptId, session.access_token),
-    onSuccess: (_data, transcriptId) => {
-      qc.invalidateQueries({ queryKey: ["chat-transcript-analysis", transcriptId] });
+    onSuccess: (data, transcriptId) => {
+      qc.setQueryData(["chat-transcript-analysis", transcriptId], data);
     },
   });
 }

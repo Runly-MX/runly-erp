@@ -3,12 +3,12 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button, Skeleton, ErrorState, ComboboxField, SelectField, Checkbox,
 } from "@runly/ui";
-import { Copy, Check } from "lucide-react";
+import { Copy, Check, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
-import { useAnalyzeTranscript, useCommitTranscriptProposals } from "../hooks/useConversationTranscripts";
+import { useAnalyzeTranscript, useCommitTranscriptProposals, useTranscriptAnalysis } from "../hooks/useConversationTranscripts";
 import { analysisToPlainText, copyTextToClipboard } from "../lib/transcriptAnalysisExport";
 import { TYPE_OPTIONS as CONTACT_TYPE_OPTIONS } from "../../runly.contacts/constants";
 
@@ -92,8 +92,10 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
   const [contactAccepted, setContactAccepted] = useState({}); // { [index]: boolean }
   const [contactTypes, setContactTypes] = useState({}); // { [index]: type override }
 
-  const analysis = unwrap(analyze.data)?.analysis ?? unwrap(commit.data)?.analysis;
-  const proofToken = unwrap(analyze.data)?.proofToken;
+  // Stored analysis: whoever generated it, every member sees it on open.
+  const stored = useTranscriptAnalysis(transcriptId, open);
+  const analysis = unwrap(stored.data)?.analysis ?? null;
+  const proofToken = unwrap(stored.data)?.proofToken;
   const proposedContacts = analysis?.moduleProposals?.[CONTACTS_MODULE_KEY]?.proposed ?? [];
 
   // Picking a project/calendar per item, one at a time, was the friction the
@@ -163,21 +165,31 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl">
-        <DialogHeader className="flex flex-row items-start justify-between gap-3 space-y-0">
-          <div>
-            <DialogTitle>Análisis de MirAI</DialogTitle>
-            <DialogDescription>
-              Resumen, acuerdos y tareas/eventos propuestos a partir de la transcripción.
-            </DialogDescription>
-          </div>
-          {analysis && <CopyButton text={analysisToPlainText(analysis)} label="Copiar todo" />}
+      <DialogContent size="xl" scrollable>
+        <DialogHeader icon={Sparkles}>
+          <DialogTitle>Análisis de MirAI</DialogTitle>
+          <DialogDescription>
+            Resumen, acuerdos y tareas/eventos propuestos a partir de la transcripción.
+          </DialogDescription>
+          {analysis && (
+            <div className="flex flex-wrap items-center gap-2 pt-1">
+              {analysis.generatedAt && (
+                <span className="text-xs text-[hsl(var(--muted-foreground))]">
+                  Generado el {new Date(analysis.generatedAt).toLocaleString("es-MX", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
+              <CopyButton text={analysisToPlainText(analysis)} label="Copiar todo" />
+            </div>
+          )}
         </DialogHeader>
 
-        {!analysis && (
+        {stored.isLoading && <Skeleton className="h-24 w-full" />}
+        {stored.isError && <ErrorState title="No se pudo cargar el análisis" onRetry={stored.refetch} />}
+
+        {!analysis && !stored.isLoading && !stored.isError && !analyze.isPending && (
           <div className="flex flex-col items-center gap-3 py-6">
             <Button onClick={handleAnalyze} disabled={analyze.isPending}>
-              {analyze.isPending ? "Analizando..." : "Analizar con MirAI"}
+              Analizar con MirAI
             </Button>
           </div>
         )}
@@ -191,9 +203,9 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
           />
         )}
 
-        {analysis && (
-          <div className="flex flex-col gap-3">
-          <div className="flex max-h-[55vh] flex-col gap-4 overflow-y-auto pr-1">
+        {analysis && !analyze.isPending && (
+          <>
+          <div className="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto pr-1">
             <div className="rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/40 p-3">
               <div className="mb-1.5 flex items-center justify-between gap-2">
                 <h3 className="text-sm font-medium">Resumen</h3>
@@ -232,10 +244,10 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
                 </div>
                 <div className="flex flex-col gap-2">
                   {analysis.actionItems.map((item, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <span className="min-w-0 flex-1 text-sm">{item.text}</span>
                       <ComboboxField
-                        className="w-48"
+                        className="w-full sm:w-48"
                         placeholder="Elegir proyecto..."
                         options={projectOptions}
                         value={taskProjects[index] ?? ""}
@@ -263,12 +275,12 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
                 </div>
                 <div className="flex flex-col gap-2">
                   {analysis.proposedEvents.map((ev, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={index} className="flex flex-col gap-2 sm:flex-row sm:items-center">
                       <span className="min-w-0 flex-1 text-sm">
                         {ev.title} — {new Date(ev.startsAt).toLocaleString("es-MX")}
                       </span>
                       <ComboboxField
-                        className="w-48"
+                        className="w-full sm:w-48"
                         placeholder="Elegir calendario..."
                         options={calendarOptions}
                         value={eventCalendars[index] ?? ""}
@@ -324,7 +336,7 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
             )}
           </div>
 
-            <div className="flex justify-end gap-2 border-t border-[hsl(var(--border))] pt-3">
+            <div className="mt-3 flex shrink-0 flex-col-reverse gap-2 border-t border-[hsl(var(--border))] pt-3 sm:flex-row sm:justify-end">
               <Button variant="outline" onClick={handleAnalyze} disabled={analyze.isPending}>
                 Analizar de nuevo
               </Button>
@@ -332,7 +344,7 @@ export function TranscriptAnalysisDialog({ transcriptId, open, onOpenChange }) {
                 {commit.isPending ? "Confirmando..." : "Confirmar seleccionadas"}
               </Button>
             </div>
-          </div>
+          </>
         )}
       </DialogContent>
     </Dialog>

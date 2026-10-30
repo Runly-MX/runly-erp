@@ -4,7 +4,7 @@ import { AlertCircle, FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useRequestTranscript } from "../hooks/useConversationTranscripts";
 import { TranscriptViewerDialog } from "./TranscriptViewerDialog";
-import { LANGUAGE_OPTIONS, readTranscriptLanguage, writeTranscriptLanguage } from "../lib/transcriptDisplay";
+import { LANGUAGE_OPTIONS, readTranscriptLanguage, transcriptProgress, writeTranscriptLanguage } from "../lib/transcriptDisplay";
 
 // Per-recording action shown in ChatRecordingsGallery.jsx — one CallRecording
 // maps to at most one active/most-recent CallTranscript (server-enforced,
@@ -69,8 +69,13 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
   if (transcript?.status === "READY") {
     button = <CardActionButton icon={FileText} label="Transcripción" tone="brand" onClick={() => setViewerOpen(true)} title="Ver transcripción" />;
   } else if (["CAPTURING", "PENDING", "PROCESSING"].includes(transcript?.status)) {
-    const label = transcript.status === "CAPTURING" ? "Capturando…" : "Transcribiendo…";
-    button = <CardActionButton icon={Loader2} spin label={label} disabled title={transcript.status === "CAPTURING" ? "Capturando el audio de cada participante…" : "Transcribiendo…"} />;
+    const progress = transcriptProgress(transcript);
+    const label = transcript.status === "CAPTURING"
+      ? "Capturando…"
+      : transcript.status === "PENDING"
+        ? "En cola…"
+        : progress?.percent != null ? `Transcribiendo ${progress.percent}%` : "Transcribiendo…";
+    button = <CardActionButton icon={Loader2} spin label={label} onClick={() => setViewerOpen(true)} title={progress?.label ?? "Transcribiendo…"} />;
   } else if (transcript?.status === "FAILED") {
     button = <CardActionButton icon={AlertCircle} label="Reintentar" tone="danger" onClick={() => setViewerOpen(true)} title="La transcripción falló — ver detalle y reintentar" />;
   } else if (recording.status !== "READY") {
@@ -101,7 +106,7 @@ export function RecordingTranscriptAction({ recording, transcript, conversationI
       >
         <SelectField label="Idioma de la conversación" value={language} onValueChange={setLanguage} options={LANGUAGE_OPTIONS} />
       </ConfirmDialog>
-      {transcript && (transcript.status === "READY" || transcript.status === "FAILED") && (
+      {transcript && (
         <TranscriptViewerDialog
           transcriptId={transcript.id}
           open={viewerOpen}

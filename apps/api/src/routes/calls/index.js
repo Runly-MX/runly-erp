@@ -450,17 +450,26 @@ export function createCallsRouter({
       try {
         const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
         const profileId = c.get("userId");
-        // Same access bar as reading the transcript itself (spec §7.3): must
-        // have participated in the call, requested it, or hold
-        // chat.calls.transcript.manage — reuse getTranscript's own check by
-        // calling it first and discarding the result, rather than
-        // duplicating wasParticipantOrRequester here.
+        // Same access bar as reading the transcript itself — reuse
+        // getTranscript's own check by calling it first and discarding the
+        // result, rather than duplicating it here.
         await transcriptService.getTranscript({ transcriptId, profileId });
         const data = await analysisService.analyzeTranscript({ transcriptId, profileId });
         return c.json({ data });
       } catch (error) { return handleError(c, error, "Error analizando la transcripción."); }
     },
   );
+  // The stored analysis, so every member sees what someone already generated
+  // instead of re-running it. Confirming its proposals stays gated by
+  // chat.calls.transcript.analyze on /commit-proposals.
+  internal.get("/transcripts/:transcriptId/analysis", async (c) => {
+    try {
+      const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
+      const actorId = await profileId(c);
+      await transcriptService.getTranscript({ transcriptId, profileId: actorId });
+      return c.json({ data: await analysisService.getAnalysis({ transcriptId, profileId: actorId }) });
+    } catch (error) { return handleError(c, error, "Error obteniendo el análisis."); }
+  });
   internal.get("/transcripts/:transcriptId/documents", async (c) => {
     try {
       const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));

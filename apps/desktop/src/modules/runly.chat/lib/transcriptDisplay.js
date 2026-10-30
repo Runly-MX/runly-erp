@@ -42,7 +42,27 @@ export function activeSegmentIndex(segments, ms) {
   return found;
 }
 
-export const LANGUAGE_NAMES = { es: "Español", en: "Inglés", pt: "Portugués", fr: "Francés", de: "Alemán", it: "Italiano" };
+// Progress of an in-flight transcript: { label, percent } where percent is
+// null when unknown (indeterminate bar). progressStage/progressPercent are
+// written by the transcriber worker while PROCESSING.
+export function transcriptProgress(transcript) {
+  switch (transcript?.status) {
+    case "CAPTURING":
+      return { label: "Capturando el audio de cada participante — la transcripción comenzará cuando la llamada termine.", percent: null };
+    case "PENDING":
+      return { label: "En cola para transcribir…", percent: null };
+    case "PROCESSING": {
+      const percent = Number.isFinite(transcript.progressPercent) ? transcript.progressPercent : null;
+      if (transcript.progressStage === "SAVING") return { label: "Guardando la transcripción…", percent: 100 };
+      if (transcript.progressStage === "TRANSCRIBING") return { label: `Transcribiendo la llamada${percent != null ? ` (${percent}%)` : "…"}`, percent };
+      return { label: "Preparando el audio…", percent: null };
+    }
+    default:
+      return null;
+  }
+}
+
+export const LANGUAGE_NAMES ={ es: "Español", en: "Inglés", pt: "Portugués", fr: "Francés", de: "Alemán", it: "Italiano" };
 export const LANGUAGE_OPTIONS = [
   { value: "es", label: "Español" },
   { value: "en", label: "Inglés" },

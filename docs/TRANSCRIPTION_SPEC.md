@@ -343,6 +343,8 @@ RETURNING *;
 
 ### 5.1. Acceso — dirección adoptada: más estricto que grabaciones
 
+> **Superado (2026-10-29):** por decisión de producto, el acceso de lectura a una transcripción, su análisis de MirAI y sus documentos (minuta/resumen) es ahora la membresía activa de la conversación, igual que las grabaciones: un miembro que se une después de la llamada también los ve. El texto de abajo se conserva como historial de la decisión anterior.
+
 **Decisión de dirección (revisión 2, validación final pendiente antes de producción — ver `TRANSCRIPTION_OPEN_QUESTIONS.md` §1):** a diferencia de `listRecordings` (solo `assertMember` — cualquier miembro *actual* de la conversación, sin importar si participó en esa llamada), la lectura de una transcripción se restringe a:
 
 1. Quien la solicitó (`requestedByUserId`), o

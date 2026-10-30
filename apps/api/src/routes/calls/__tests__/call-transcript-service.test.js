@@ -212,47 +212,44 @@ describe("createCallTranscriptService.regenerateTranscript", () => {
   });
 });
 
-describe("createCallTranscriptService access control — stricter than recordings", () => {
-  // Central behavior of docs/TRANSCRIPTION_SPEC.md §5.1: unlike recordings
-  // (assertMember only), reading a transcript requires having REQUESTED it
-  // or having been an actual CallParticipant of that specific call — being a
-  // current member of the conversation is necessary but not sufficient.
+describe("createCallTranscriptService access control — conversation membership", () => {
+  // Any current member of the conversation reads its transcripts, including
+  // members who joined after the call (product decision 2026-10-29).
 
-  it("listTranscripts returns only transcripts the caller requested or participated in", async () => {
+  it("listTranscripts returns every transcript of the conversation to a member", async () => {
     const rows = [
       { id: "t-mine", conversationId: CONV, callId: "call-a", requestedByUserId: USER },
-      { id: "t-participated", conversationId: CONV, callId: "call-b", requestedByUserId: OTHER_USER },
-      { id: "t-not-mine", conversationId: CONV, callId: "call-c", requestedByUserId: OTHER_USER },
+      { id: "t-other", conversationId: CONV, callId: "call-b", requestedByUserId: OTHER_USER },
     ];
     const prisma = {
-      $queryRaw: async (strings, ...values) => {
-        // First call: conversation membership check (assertMember).
-        if (values[0] === CONV && values.length === 2) return memberRows();
-        // Subsequent calls: CallParticipant lookup per row, keyed by callId.
-        const [callId] = values;
-        return callId === "call-b" ? [{ 1: 1 }] : [];
-      },
+      $queryRaw: async () => memberRows(),
       callTranscript: { findMany: async () => rows },
     };
     const svc = createCallTranscriptService({ prisma });
     const out = await svc.listTranscripts({ conversationId: CONV, profileId: USER });
-    assert.deepEqual(out.map((r) => r.id).sort(), ["t-mine", "t-participated"]);
+    assert.deepEqual(out.map((r) => r.id).sort(), ["t-mine", "t-other"]);
   });
 
-  it("getTranscript returns a non-leaking 404 for a member who neither requested it nor participated in that call", async () => {
+  it("getTranscript succeeds for a member who neither requested it nor took part in the call", async () => {
     const prisma = {
       callTranscript: {
         findUnique: async () => ({
           id: TRANSCRIPT, conversationId: CONV, callId: CALL, requestedByUserId: OTHER_USER, segments: [],
         }),
       },
-      $queryRaw: async (strings, ...values) => {
-        // Conversation membership passes (caller IS a member)...
-        if (values[0] === CONV) return memberRows();
-        // ...but caller was never a CallParticipant of this specific call
-        // (the second query's first bound value is callId, not conversationId).
-        return [];
+      $queryRaw: async (strings, ...values) => (values[0] === CONV ? memberRows() : []),
+    };
+    const svc = createCallTranscriptService({ prisma });
+    const out = await svc.getTranscript({ transcriptId: TRANSCRIPT, profileId: USER });
+    assert.equal(out.id, TRANSCRIPT);
+  });
+
+  it("getTranscript is a 404 for a non-member", async () => {
+    const prisma = {
+      callTranscript: {
+        findUnique: async () => ({ id: TRANSCRIPT, conversationId: CONV, callId: CALL, requestedByUserId: OTHER_USER, segments: [] }),
       },
+      $queryRaw: async () => [],
     };
     const svc = createCallTranscriptService({ prisma });
     await assert.rejects(

@@ -2675,6 +2675,9 @@ model CallTranscript {
   workerInstanceId  String?                  @map("worker_instance_id")
   finalizedAt       DateTime?                @map("finalized_at") // API-side sweep set expiresAt + posted the system chat message
   captureStoppedAt  DateTime?                @map("capture_stopped_at") // PER_TRACK: capture closed (explicit stop or call ended); only then may it become PENDING
+  // Written by runly-transcriber while PROCESSING: DOWNLOADING | TRANSCRIBING | SAVING, and 0-100.
+  progressStage     String?                  @map("progress_stage") @db.VarChar(16)
+  progressPercent   Int?                     @map("progress_percent") @db.SmallInt
   createdAt         DateTime                 @default(now()) @map("created_at")
 
   call        Call            @relation(fields: [callId], references: [id], onDelete: Cascade)

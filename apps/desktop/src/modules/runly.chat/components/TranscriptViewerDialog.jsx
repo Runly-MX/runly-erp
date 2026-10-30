@@ -1,15 +1,15 @@
 import { useState } from "react";
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
-  Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField,
+  Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField, ProgressBar,
 } from "@runly/ui";
-import { ClipboardList, Copy, Download, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
+import { ClipboardList, Copy, Download, Loader2, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
 import { useTranscript, useRetryTranscript, useRegenerateTranscript } from "../hooks/useConversationTranscripts";
 import { copyTranscriptToClipboard, downloadTranscriptPdf } from "../lib/transcriptExport";
-import { formatTimestamp, speakerColor, LANGUAGE_NAMES, LANGUAGE_OPTIONS } from "../lib/transcriptDisplay";
+import { formatTimestamp, speakerColor, transcriptProgress, LANGUAGE_NAMES, LANGUAGE_OPTIONS } from "../lib/transcriptDisplay";
 import { saveHtmlAsNote, transcriptToHtml } from "../lib/transcriptNote";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
 import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
@@ -148,6 +148,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
   const transcript = data?.data ?? data;
+  const progress = transcriptProgress(transcript);
   const { session } = useAuth();
   const navigate = useNavigate();
 
@@ -189,7 +190,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="2xl" className="flex max-h-[85vh] flex-col overflow-hidden">
+      <DialogContent size="2xl" scrollable className="md:max-h-[85dvh]">
         <DialogHeader>
           <DialogTitle>Transcripción</DialogTitle>
           <DialogDescription>
@@ -210,16 +211,15 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
 
         {isError && <ErrorState title="No se pudo cargar la transcripción" onRetry={refetch} />}
 
-        {transcript?.status === "CAPTURING" && (
-          <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
-            Capturando el audio de cada participante — la transcripción comenzará cuando la llamada termine.
-          </p>
-        )}
-
-        {transcript && ["PENDING", "PROCESSING"].includes(transcript.status) && (
-          <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">
-            Transcribiendo la llamada…
-          </p>
+        {progress && (
+          <div className="space-y-2 py-6">
+            <ProgressBar value={progress.percent} />
+            <p className="flex items-center justify-center gap-1.5 text-center text-sm text-[hsl(var(--muted-foreground))]">
+              <Loader2 className="h-3.5 w-3.5 shrink-0 animate-spin" aria-hidden />
+              {progress.label}
+            </p>
+            <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">Puedes cerrar esta ventana; la transcripción sigue en segundo plano.</p>
+          </div>
         )}
 
         {transcript?.status === "FAILED" && (

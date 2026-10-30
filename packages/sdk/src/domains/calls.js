@@ -103,6 +103,8 @@ export function createCallsDomain(request, withAuthHeaders) {
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}`, "DELETE", undefined, token),
     analyzeTranscript: (transcriptId, token) =>
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/analyze`, "POST", {}, token),
+    getTranscriptAnalysis: (transcriptId, token) =>
+      json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/analysis`, "GET", undefined, token),
     listTranscriptDocuments: (transcriptId, token) =>
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/documents`, "GET", undefined, token),
     createTranscriptDocument: (transcriptId, kind, token) =>

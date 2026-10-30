@@ -99,7 +99,9 @@ def claim_next_job(conn):
                 started_at = COALESCE(started_at, now()),
                 attempts = attempts + 1,
                 lease_expires_at = now() + make_interval(mins => %(lease_minutes)s),
-                worker_instance_id = %(worker_id)s
+                worker_instance_id = %(worker_id)s,
+                progress_stage = 'DOWNLOADING',
+                progress_percent = 0
             WHERE id = (
                 SELECT id FROM call_transcript
                 WHERE status = 'PENDING'
@@ -116,6 +118,37 @@ def claim_next_job(conn):
         row = cur.fetchone()
         conn.commit()
         return row
+
+
+PROGRESS_MIN_INTERVAL_S = 4
+
+
+def make_progress_reporter(conn, transcript_id):
+    """Devuelve report(stage, percent) que escribe el avance en la fila para
+    que la app muestre una barra de progreso. Limitado a una escritura cada
+    PROGRESS_MIN_INTERVAL_S (salvo cambio de etapa); un fallo al escribir el
+    progreso nunca interrumpe la transcripcion."""
+    last = {"at": 0.0, "stage": None, "percent": None}
+
+    def report(stage, percent):
+        percent = max(0, min(100, int(percent)))
+        now = time.monotonic()
+        if stage == last["stage"] and (percent == last["percent"] or now - last["at"] < PROGRESS_MIN_INTERVAL_S):
+            return
+        try:
+            with conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE call_transcript SET progress_stage = %s, progress_percent = %s "
+                    "WHERE id = %s AND status = 'PROCESSING'",
+                    (stage, percent, transcript_id),
+                )
+            conn.commit()
+            last.update(at=now, stage=stage, percent=percent)
+        except Exception as error:  # noqa: BLE001
+            conn.rollback()
+            print(f"{LOG_PREFIX} No se pudo escribir el progreso de {transcript_id}: {error}", file=sys.stderr)
+
+    return report
 
 
 def start_heartbeat(conn_str, transcript_id, stop_event):
@@ -282,24 +315,28 @@ AUDIO_FILTER_ARGS = ["-af", AUDIO_FILTER] if AUDIO_FILTER.strip() else []
 WHISPER_INITIAL_PROMPT = os.environ.get("WHISPER_INITIAL_PROMPT", "").strip() or None
 
 
-def transcribe(audio_path: Path, language=None):
+def transcribe(audio_path: Path, language=None, on_progress=None):
     """language: codigo ISO pedido por la transcripcion; None -> WHISPER_LANGUAGE
     del entorno o autodeteccion (que solo escucha los primeros segundos y suele
-    confundir clips cortos en espanol con ingles)."""
+    confundir clips cortos en espanol con ingles). on_progress(fraccion 0-1)
+    se llama a medida que faster-whisper entrega segmentos (es un generador
+    perezoso: el trabajo real ocurre al iterarlo)."""
     model = get_model()
     segments_iter, info = model.transcribe(
         str(audio_path), language=language or WHISPER_LANGUAGE, vad_filter=True, condition_on_previous_text=True,
         initial_prompt=WHISPER_INITIAL_PROMPT,
     )
-    segments = [
-        {"start_ms": round(seg.start * 1000), "end_ms": round(seg.end * 1000), "text": seg.text.strip()}
-        for seg in segments_iter
-    ]
-    duration_ms = round((getattr(info, "duration", 0) or 0) * 1000)
+    total_s = getattr(info, "duration", 0) or 0
+    segments = []
+    for seg in segments_iter:
+        segments.append({"start_ms": round(seg.start * 1000), "end_ms": round(seg.end * 1000), "text": seg.text.strip()})
+        if on_progress and total_s > 0:
+            on_progress(min(1.0, seg.end / total_s))
+    duration_ms = round(total_s * 1000)
     return segments, duration_ms, getattr(info, "language", None)
 
 
-def transcribe_tracks(tracks, language=None):
+def transcribe_tracks(tracks, language=None, on_progress=None):
     """V2 (PER_TRACK, spec §2.2): transcribe cada pista por separado y fusiona
     los segmentos en la linea de tiempo de la llamada, atribuyendo cada uno a
     la identidad ya conocida de esa pista — sin diarizacion acustica.
@@ -311,8 +348,10 @@ def transcribe_tracks(tracks, language=None):
     all_segments = []
     max_duration_ms = 0
     detected_language = None
-    for track in tracks:
-        segments, duration_ms, detected = transcribe(track["path"], language)
+    count = len(tracks)
+    for index, track in enumerate(tracks):
+        track_progress = (lambda frac, i=index: on_progress((i + frac) / count)) if on_progress else None
+        segments, duration_ms, detected = transcribe(track["path"], language, track_progress)
         offset_ms = track.get("offset_ms") or 0
         max_duration_ms = max(max_duration_ms, offset_ms + duration_ms)
         detected_language = detected_language or detected
@@ -354,7 +393,8 @@ def write_result(conn, transcript_id, segments, duration_ms, language):
             )
         cur.execute(
             "UPDATE call_transcript SET status = 'READY', duration_ms = %s, completed_at = now(), "
-            "model = %s, language = %s, lease_expires_at = NULL WHERE id = %s",
+            "model = %s, language = %s, lease_expires_at = NULL, progress_stage = NULL, progress_percent = NULL "
+            "WHERE id = %s",
             (duration_ms, f"faster-whisper-{WHISPER_MODEL}-{WHISPER_COMPUTE_TYPE}", language, transcript_id),
         )
     conn.commit()
@@ -366,8 +406,8 @@ def mark_transient_failure(conn, transcript_id, attempts, reason):
         return
     with conn.cursor() as cur:
         cur.execute(
-            "UPDATE call_transcript SET status = 'PENDING', lease_expires_at = NULL, failure_reason = %s "
-            "WHERE id = %s",
+            "UPDATE call_transcript SET status = 'PENDING', lease_expires_at = NULL, failure_reason = %s, "
+            "progress_stage = NULL, progress_percent = NULL WHERE id = %s",
             (str(reason)[:500], transcript_id),
         )
     conn.commit()
@@ -377,7 +417,7 @@ def mark_permanent_failure(conn, transcript_id, reason):
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE call_transcript SET status = 'FAILED', lease_expires_at = NULL, failure_reason = %s, "
-            "completed_at = now() WHERE id = %s",
+            "completed_at = now(), progress_stage = NULL, progress_percent = NULL WHERE id = %s",
             (str(reason)[:500], transcript_id),
         )
     conn.commit()
@@ -390,12 +430,17 @@ def process_job(conn, job):
     try:
         with tempfile.TemporaryDirectory(prefix=f"transcript-{transcript_id}-") as tmp:
             workdir = Path(tmp)
+            report = make_progress_reporter(conn, transcript_id)
+            on_progress = lambda frac: report("TRANSCRIBING", frac * 100)  # noqa: E731
             if job["source_kind"] == "PER_TRACK":
                 tracks = download_track_audio(conn, transcript_id, workdir)
-                segments, duration_ms, language = transcribe_tracks(tracks, job.get("requested_language"))
+                report("TRANSCRIBING", 0)
+                segments, duration_ms, language = transcribe_tracks(tracks, job.get("requested_language"), on_progress)
             else:
                 audio_path = download_recording_audio(conn, job["recording_id"], workdir)
-                segments, duration_ms, language = transcribe(audio_path, job.get("requested_language"))
+                report("TRANSCRIBING", 0)
+                segments, duration_ms, language = transcribe(audio_path, job.get("requested_language"), on_progress)
+            report("SAVING", 100)
             write_result(conn, transcript_id, segments, duration_ms, language)
             print(f"{LOG_PREFIX} Transcripción {transcript_id} lista — {len(segments)} segmentos, {duration_ms}ms.")
     except TransientError as error:

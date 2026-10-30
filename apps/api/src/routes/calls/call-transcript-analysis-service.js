@@ -125,8 +125,8 @@ export function createCallTranscriptAnalysisService({
   }
 
   // SECURITY: neither this function nor commitProposals below checks
-  // participant/requester access on its own (no assertMember/
-  // wasParticipantOrRequester call) — that check is enforced exclusively by
+  // transcript access on its own (no assertMember call) — that check is
+  // enforced exclusively by
   // the caller. Today the only sanctioned caller is
   // apps/api/src/routes/calls/index.js's /analyze and /commit-proposals
   // routes, which both call transcriptService.getTranscript(...) first and
@@ -225,6 +225,16 @@ export function createCallTranscriptAnalysisService({
     return { analysis: saved, proofToken };
   }
 
+  // The stored analysis (null when none was generated yet), with a fresh
+  // proofToken so another member can confirm its proposals without re-running
+  // the AI. Same caller-side access check as analyzeTranscript.
+  async function getAnalysis({ transcriptId, profileId }) {
+    const analysis = await prisma.callTranscriptAnalysis.findUnique({ where: { transcriptId } });
+    if (!analysis) return { analysis: null, proofToken: null };
+    const proofToken = signAiProof({ transcriptId, companyId: analysis.companyId, actorId: profileId }, env);
+    return { analysis, proofToken };
+  }
+
   async function getDefaultStatusId(projectId) {
     // Same fallback chain as projects-recurring-service.js's defaultStatus
     // resolution: prefer the project's own isDefault status, fall back to
@@ -268,11 +278,6 @@ export function createCallTranscriptAnalysisService({
   // - No shared Groq-JSON-client extraction with ai-import-extraction.js's
   //   near-identical callGroqText — pre-existing duplication pattern in this
   //   codebase, not a regression introduced here.
-  // - The persisted analysis is not currently read back anywhere (no GET
-  //   route/query includes the `analysis` relation) — reopening a transcript
-  //   re-runs Groq instead of showing the stored draft, which is the
-  //   opposite of what spec §7.1 says persistence is for. A real gap, not by
-  //   design — deferred here for scope, not forgotten.
   async function commitProposals({ transcriptId, profileId, proofToken, acceptedActionItems, acceptedEvents, acceptedModuleProposals }) {
     const transcript = await prisma.callTranscript.findUnique({ where: { id: transcriptId } });
     if (!transcript) throw new CallTranscriptAnalysisError("Transcripción no encontrada.", 404);
@@ -381,5 +386,5 @@ export function createCallTranscriptAnalysisService({
     };
   }
 
-  return { analyzeTranscript, commitProposals };
+  return { analyzeTranscript, getAnalysis, commitProposals };
 }

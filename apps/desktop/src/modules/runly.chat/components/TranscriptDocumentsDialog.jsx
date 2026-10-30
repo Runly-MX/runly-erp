@@ -33,6 +33,9 @@ function DocumentCard({ spec, document, busy, onGenerate, onDownload, onSaveNote
   const ready = document?.status === "READY";
   const total = document?.progressTotal ?? 0;
   const percent = total > 0 ? Math.round((document.progressDone / total) * 100) : null;
+  const generatedAt = document?.updatedAt
+    ? new Date(document.updatedAt).toLocaleString("es-MX", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+    : null;
   return (
     <div className="rounded-xl border border-[hsl(var(--border))] p-4">
       <div className="flex items-start gap-3">
@@ -42,28 +45,31 @@ function DocumentCard({ spec, document, busy, onGenerate, onDownload, onSaveNote
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold">{spec.title}</p>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">{spec.description}</p>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          {ready && (
-            <Button size="sm" variant="outline" onClick={() => onSaveNote(document, spec.title)} title="Guardar una copia como nota: las grabaciones y transcripciones caducan">
-              <NotebookPen className="h-3.5 w-3.5" />
-              Guardar como nota
-            </Button>
+          {ready && generatedAt && (
+            <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">Generado el {generatedAt}</p>
           )}
+        </div>
+      </div>
+      {!processing && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 sm:pl-12">
           {ready && (
             <Button size="sm" onClick={() => onDownload(document)}>
               <Download className="h-3.5 w-3.5" />
               Descargar PDF
             </Button>
           )}
-          {!processing && (
-            <Button size="sm" variant={ready ? "outline" : "default"} disabled={busy} onClick={() => onGenerate(spec.kind)}>
-              {ready ? <RefreshCw className="h-3.5 w-3.5" /> : null}
-              {ready ? "Generar de nuevo" : document?.status === "FAILED" ? "Reintentar" : "Generar"}
+          {ready && (
+            <Button size="sm" variant="outline" onClick={() => onSaveNote(document, spec.title)} title="Guardar una copia como nota: las grabaciones y transcripciones caducan">
+              <NotebookPen className="h-3.5 w-3.5" />
+              Guardar como nota
             </Button>
           )}
+          <Button size="sm" variant={ready ? "outline" : "default"} disabled={busy} onClick={() => onGenerate(spec.kind)}>
+            {ready ? <RefreshCw className="h-3.5 w-3.5" /> : null}
+            {ready ? "Generar de nuevo" : document?.status === "FAILED" ? "Reintentar" : "Generar"}
+          </Button>
         </div>
-      </div>
+      )}
       {processing && (
         <div className="mt-3 space-y-1.5">
           <ProgressBar value={percent} />
@@ -119,14 +125,14 @@ export function TranscriptDocumentsDialog({ transcriptId, open, onOpenChange, ca
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent size="lg" scrollable>
         <DialogHeader icon={ClipboardList}>
           <DialogTitle>Minuta y resumen</DialogTitle>
           <DialogDescription>
             MirAI procesa la transcripción completa por partes, también reuniones de más de una hora. Puede tardar unos minutos.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-3 py-1">
+        <div className="min-h-0 flex-1 space-y-3 overflow-y-auto py-1">
           {isLoading && <Skeleton className="h-24 w-full" />}
           {isError && <ErrorState title="No se pudieron cargar los documentos" onRetry={refetch} />}
           {!isLoading && !isError && KINDS.map((spec) => (
@@ -141,7 +147,7 @@ export function TranscriptDocumentsDialog({ transcriptId, open, onOpenChange, ca
             />
           ))}
         </div>
-        <DialogFooter>
+        <DialogFooter className="mt-4 shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button>
         </DialogFooter>
       </DialogContent>
