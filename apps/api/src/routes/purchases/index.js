@@ -15,16 +15,19 @@ import { createPurchaseRelationsService } from '../../services/purchase-relation
 import { createPurchaseInventoryBridge } from '../../services/purchase-inventory-bridge.js'
 import { createPurchaseSuppliersService } from '../../services/purchase-suppliers-service.js'
 import { createPurchaseApprovalChatService } from '../../services/purchase-approval-chat-service.js'
+import { createPurchasePaymentsService } from '../../services/purchase-payments-service.js'
 import { createPurchasesSettingsRouter } from './settings-routes.js'
 import { createPurchasesDocumentsRouter } from './documents-routes.js'
 import { createPurchasesProcurementRouter } from './procurement-routes.js'
 import { createPurchasesRelationsRouter } from './relations-routes.js'
+import { createPurchasesPaymentsRouter } from './payments-routes.js'
 
 export function createPurchasesServices({ prisma, broadcaster, inventoryService, supabaseAdmin }) {
   const workflow = createPurchasesService({ prisma, broadcaster })
   const caseBundle = createPurchaseCaseBundle({ prisma })
   const hydrator = createRelationHydrator({ prisma })
-  const deps = { prisma, broadcaster, workflowService: workflow, caseBundle, hydrator }
+  const payments = createPurchasePaymentsService({ prisma, broadcaster, workflowService: workflow, caseBundle })
+  const deps = { prisma, broadcaster, workflowService: workflow, caseBundle, hydrator, payments }
   let inventory = inventoryService ?? null
   return {
     workflow,
@@ -32,6 +35,7 @@ export function createPurchasesServices({ prisma, broadcaster, inventoryService,
     hydrator,
     listing: createPurchaseListing({ prisma }),
     documents: createPurchaseDocumentsService(deps),
+    payments,
     procurement: createPurchaseProcurementService(deps),
     receipts: createPurchaseReceiptsService(deps),
     relations: createPurchaseRelationsService(deps),
@@ -51,6 +55,7 @@ export function createPurchasesRouter({ prisma, requirePermission, requireAnyPer
   const deps = { requirePermission, requireAnyPermission, services }
   router.route('/', createPurchasesSettingsRouter(deps))
   router.route('/', createPurchasesRelationsRouter(deps))
+  router.route('/', createPurchasesPaymentsRouter(deps))
   router.route('/', createPurchasesProcurementRouter(deps))
   router.route('/', createPurchasesDocumentsRouter(deps))
   return router

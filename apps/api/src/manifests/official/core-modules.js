@@ -1489,6 +1489,7 @@ const PURCHASES_PERMISSIONS = [
   { key: 'purchases.invoice.create', name: 'Crear facturas de proveedor' },
   { key: 'purchases.invoice.update', name: 'Editar facturas de proveedor' },
   { key: 'purchases.payment.manage', name: 'Registrar pagos a proveedores' },
+  { key: 'purchases.payment.reverse', name: 'Reversar pagos a proveedores' },
   { key: 'purchases.supplier.read', name: 'Ver proveedores' },
   { key: 'purchases.supplier.manage', name: 'Gestionar perfiles de proveedor' },
   { key: 'purchases.relation.read', name: 'Ver relaciones de compra' },

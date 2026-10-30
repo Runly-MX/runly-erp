@@ -4582,6 +4582,8 @@ model PurchaseInvoice {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  payments PurchasePayment[]
+
   @@unique([companyId, supplierId, number])
   @@index([companyId, status, issueDate(sort: Desc)])
   @@index([companyId, dueDate])
@@ -4589,6 +4591,39 @@ model PurchaseInvoice {
   @@index([supplierId])
   @@unique([companyId, sequence])
   @@map("purchase_invoice")
+}
+
+// One immutable movement per payment of a supplier invoice. `amount` is signed:
+// PAYMENT and OPENING (a legacy accumulated amount without detail) are
+// positive, REVERSAL is negative and points at the movement it reverses.
+// paid = SUM(amount); purchase_invoice.paid_amount is kept as a cache.
+// Rows are never updated or deleted (trigger purchase_payment_immutable),
+// except by the company-deletion purge.
+model PurchasePayment {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  companyId      String    @map("company_id") @db.Uuid
+  invoiceId      String    @map("invoice_id") @db.Uuid
+  kind           String    @default("PAYMENT") @db.VarChar(20)
+  amount         Decimal   @db.Decimal(14, 2)
+  currency       String    @db.VarChar(3)
+  paidAt         DateTime? @map("paid_at") @db.Date
+  recordedAt     DateTime  @default(now()) @map("recorded_at") @db.Timestamptz(3)
+  method         String?   @db.VarChar(40)
+  reference      String?   @db.VarChar(120)
+  origin         String    @default("MANUAL") @db.VarChar(20)
+  reversesId     String?   @unique @map("reverses_id") @db.Uuid
+  reason         String?   @db.VarChar(500)
+  idempotencyKey String?   @map("idempotency_key") @db.VarChar(100)
+  createdById    String?   @map("created_by_id") @db.Uuid
+  metadata       Json?
+
+  invoice    PurchaseInvoice  @relation(fields: [invoiceId], references: [id], onDelete: Restrict)
+  reverses   PurchasePayment? @relation("PurchasePaymentReversal", fields: [reversesId], references: [id], onDelete: Restrict)
+  reversedBy PurchasePayment? @relation("PurchasePaymentReversal")
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, invoiceId, recordedAt])
+  @@map("purchase_payment")
 }
 
 model PurchaseLine {

@@ -30,7 +30,7 @@ export function purchaseEventPayload(doc) {
   }
 }
 
-export function createPurchaseDocumentsService({ prisma, broadcaster, workflowService, caseBundle, hydrator }) {
+export function createPurchaseDocumentsService({ prisma, broadcaster, workflowService, caseBundle, hydrator, payments }) {
   const def = kind => {
     if (!EVENT[kind]) throw new PurchasesServiceError('Tipo de documento no válido.')
     return KINDS[kind]
@@ -249,6 +249,12 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
   }
 
   async function transition(kind, companyId, actorId, id, action, payload = {}) {
+    // `pay` keeps its contract (returns the invoice) but records an individual
+    // payment movement through the payments ledger.
+    if (kind === 'invoices' && action === 'pay' && payments) {
+      await workflowService.assertCapability(companyId, def(kind).capability, actorId)
+      return (await payments.record(companyId, actorId, id, payload)).invoice
+    }
     const meta = def(kind)
     const workflow = await workflowService.assertCapability(companyId, meta.capability, actorId)
     const doc = await findDoc(kind, companyId, id)

@@ -2653,6 +2653,13 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         deleteRelation: (id, token, options) =>
           send("DELETE", `/purchases/relations/${seg(id)}${toQueryString(options ?? {})}`, undefined, token),
         relationImpact: (id, token) => get(`/purchases/relations/${seg(id)}/impact`, token),
+        // Individual invoice payments; data: { amount, paidAt, method, reference, idempotencyKey, expectedUpdatedAt }.
+        listPayments: (invoiceId, token) => get(`/purchases/invoices/${seg(invoiceId)}/payments`, token),
+        invoiceBalance: (invoiceId, token) => get(`/purchases/invoices/${seg(invoiceId)}/balance`, token),
+        recordPayment: (invoiceId, data, token) => send("POST", `/purchases/invoices/${seg(invoiceId)}/payments`, data, token),
+        getPayment: (id, token) => get(`/purchases/payments/${seg(id)}`, token),
+        // data: { reason, effectiveAt, idempotencyKey, expectedUpdatedAt }.
+        reversePayment: (id, data, token) => send("POST", `/purchases/payments/${seg(id)}/reverse`, data, token),
         propagationPreview: (params, token) => {
           const query = { ...(params ?? {}) };
           if (Array.isArray(query.orderIds)) query.orderIds = query.orderIds.join(",");

@@ -23,6 +23,7 @@ import { RelatedDocumentsPanel, collectRelated } from '../components/detail/Rela
 import { QuotesCompare } from '../components/detail/QuotesCompare.jsx'
 import { ReceiveOrderDialog } from '../components/detail/ReceiveOrderDialog.jsx'
 import { PaymentDialog } from '../components/detail/PaymentDialog.jsx'
+import { PaymentsPanel } from '../components/detail/PaymentsPanel.jsx'
 import { CreateInventoryFromLineDialog } from '../components/detail/CreateInventoryFromLineDialog.jsx'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
 
@@ -81,6 +82,7 @@ export default function PurchaseDocumentDetail() {
   const canManageItems = canManageRelations && caps.has('inventoryRelations')
   const quotesOn = (caps.has('quotes') || (doc.quotes?.length ?? 0) > 0) && ['requests', 'cases'].includes(kind) && can('purchases.quote.read')
   const filesOn = ['orders', 'invoices', 'receipts'].includes(kind) || (kind === 'requests')
+  const paymentsOn = kind === 'invoices' && can('purchases.invoice.read') && (caps.has('payments') || Number(doc.paidAmount) > 0)
   const related = collectRelated(doc)
   const policyMin = (doc.policyCheck?.requirements ?? []).find((r) => r.stage === 'QUOTES')?.min
 
@@ -89,6 +91,8 @@ export default function PurchaseDocumentDetail() {
     kind === 'cases' && { value: 'related', label: 'Documentos', count: related.reduce((n, g) => n + g.rows.length, 0) },
     quotesOn && { value: 'quotes', label: 'Cotizaciones', count: doc.quotes?.length },
     inventoryOn && { value: 'inventory', label: 'Inventario', count: inventoryCount },
+    // Payments history stays visible (read-only) when the capability is off but money was paid.
+    paymentsOn && { value: 'payments', label: 'Pagos' },
     kind !== 'cases' && { value: 'related', label: 'Relacionados', count: related.reduce((n, g) => n + g.rows.length, 0) },
     filesOn && { value: 'files', label: 'Archivos', count: filesCount.data },
     { value: 'activity', label: 'Actividad' },
@@ -127,6 +131,9 @@ export default function PurchaseDocumentDetail() {
           <LinesPanel kind={kind} doc={doc} onCreateItems={setLineForItems}
             canCreateItems={canManageItems && kind !== 'receipts' && can('inventory.item.create') && doc.status !== 'DRAFT' && doc.status !== 'CANCELLED'} />
         </TabsContent>
+        {paymentsOn ? (
+          <TabsContent value="payments"><PaymentsPanel invoice={doc} onRecord={readOnly ? null : () => setDialog('pay')} /></TabsContent>
+        ) : null}
         <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent>
         {quotesOn ? (
           <TabsContent value="quotes">

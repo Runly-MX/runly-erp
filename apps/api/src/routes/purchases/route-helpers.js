@@ -29,9 +29,12 @@ export async function body(c) {
 }
 
 export function createHandler(tag = '[purchases]') {
+  // successStatus may be a function, read after the callback ran (e.g. 200
+  // instead of 201 when an idempotent retry returns the existing record).
   return async function handle(c, callback, successStatus = 200) {
     try {
-      return c.json(await callback(), successStatus)
+      const payload = await callback()
+      return c.json(payload, typeof successStatus === 'function' ? successStatus() : successStatus)
     } catch (error) {
       if (error instanceof PurchasesServiceError) {
         const payload = { error: error.message, code: error.code }

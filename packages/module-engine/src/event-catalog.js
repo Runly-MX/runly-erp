@@ -35,6 +35,18 @@ const PURCHASE_FIELDS = [
   field('currency', 'Moneda', 'text', 'Moneda del documento.', 'MXN'),
   field('supplierId', 'Proveedor', 'id', 'Proveedor del documento; vacío en una solicitud.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e39'),
 ]
+// Keep in sync with paymentEventPayload() in apps/api/src/services/purchase-payments-service.js.
+const PAYMENT_FIELDS = [
+  ID('el movimiento de pago'),
+  field('invoiceId', 'Factura', 'id', 'Factura de proveedor a la que pertenece el movimiento.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e40'),
+  field('caseId', 'Expediente de compra', 'id', 'Expediente de la factura.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e33'),
+  field('kind', 'Tipo de movimiento', 'text', 'PAYMENT (pago), OPENING (pagado histórico sin desglose) o REVERSAL (reverso).', 'PAYMENT'),
+  field('amount', 'Importe', 'number', 'Importe del movimiento; negativo en un reverso.', '2500.00'),
+  field('currency', 'Moneda', 'text', 'Moneda del movimiento.', 'MXN'),
+  field('invoiceStatus', 'Estado de la factura', 'text', 'Estado de la factura después del movimiento.', 'PARTIALLY_PAID'),
+  field('paidAmount', 'Total pagado', 'number', 'Total pagado de la factura después del movimiento.', '2500.00'),
+  field('balance', 'Saldo', 'number', 'Saldo pendiente de la factura después del movimiento.', '10000.00'),
+]
 const INVENTORY_ITEM_FIELDS = [
   ID('el artículo'),
   field('name', 'Nombre', 'text', 'Nombre del artículo.', 'Laptop Dell 14'),
@@ -122,6 +134,8 @@ export const EVENT_CATALOG = Object.freeze({
   'purchases.order.issued': { module: 'Compras', label: 'Se emitió una orden de compra', description: 'Cuando la orden se envía al proveedor.', fields: PURCHASE_FIELDS },
   'purchases.order.cancelled': { module: 'Compras', label: 'Se canceló una orden de compra', description: 'Cuando se cancela una orden.', fields: PURCHASE_FIELDS },
   'purchases.invoice.paid': { module: 'Compras', label: 'Se pagó una factura de compra', description: 'Cuando una factura de proveedor queda pagada.', fields: PURCHASE_FIELDS },
+  'purchases.invoice.payment.recorded': { module: 'Compras', label: 'Se registró un pago de una factura de compra', description: 'Cuando se registra un abono o el pago completo de una factura de proveedor (no se repite al reintentar).', fields: PAYMENT_FIELDS },
+  'purchases.invoice.payment.reversed': { module: 'Compras', label: 'Se reversó un pago de una factura de compra', description: 'Cuando se reversa un pago registrado; el pago original se conserva.', fields: PAYMENT_FIELDS },
   'lms.enrollment.completed': { module: 'Capacitación', label: 'Una persona completó un curso', description: 'Cuando alguien termina todas las lecciones de un curso.', fields: [ID('la inscripción'), field('courseId', 'Curso', 'id', 'Curso completado.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e36'), field('learnerId', 'Persona', 'id', 'Persona que completó el curso.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e37')] },
   // No account or person names: a company automation can read every movement it receives.
   'ledger.transaction.created': { module: 'Libro de cuentas', label: 'Se registró un movimiento en el libro de cuentas', description: 'Cuando se captura un depósito o un retiro.', fields: TRANSACTION_FIELDS },

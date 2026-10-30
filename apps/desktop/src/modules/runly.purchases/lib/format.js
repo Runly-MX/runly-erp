@@ -28,10 +28,11 @@ export const monthLabel = (key) => {
 }
 
 // Dates arrive as 'YYYY-MM-DD' or ISO timestamps; date-only values are shown
-// as calendar dates (no timezone shift).
+// as calendar dates (no timezone shift), timestamps as their local day.
 export function formatDate(value) {
   if (!value) return 'Sin fecha'
-  const text = String(value)
+  const raw = value instanceof Date ? value.toJSON() : String(value)
+  const text = raw.length > 10 && raw.includes('T') && !Number.isNaN(new Date(raw).getTime()) ? toLocalIso(new Date(raw)) : raw
   const [y, m, d] = text.slice(0, 10).split('-')
   if (!y || !m || !d) return text
   return `${d} ${MONTHS[Number(m) - 1]} ${y}`

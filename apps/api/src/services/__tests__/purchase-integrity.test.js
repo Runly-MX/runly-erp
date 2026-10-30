@@ -39,6 +39,9 @@ function fakePrisma(preset, tables = {}, capabilities = {}) {
     get(target, key) {
       if (key in target) return target[key]
       if (key === '$transaction') return callback => callback(prisma)
+      // Raw probes/locks answer one neutral row: no payments ledger table
+      // (accumulated compatibility mode), row locks granted.
+      if (key === '$queryRaw') return async () => [{}]
       if (typeof key === 'string' && !key.startsWith('$')) return empty
       return undefined
     },

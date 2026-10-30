@@ -1869,6 +1869,12 @@ export const PERMISSION_CATALOG = {
     groupKey: "purchases",
     order: 43,
   },
+  "purchases.payment.reverse": {
+    displayNameEs: "Reversar pagos",
+    descriptionEs: "Permite reversar un pago registrado indicando el motivo; el pago original se conserva.",
+    groupKey: "purchases",
+    order: 44,
+  },
   "purchases.relation.read": {
     displayNameEs: "Ver relaciones de compra",
     descriptionEs: "Permite consultar vínculos con inventarios y documentos.",

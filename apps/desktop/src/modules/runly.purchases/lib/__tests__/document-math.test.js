@@ -31,3 +31,17 @@ test('pendingQuantity never goes negative', () => {
   assert.equal(pendingQuantity({ quantity: 5, receivedQuantity: 2 }), 3)
   assert.equal(pendingQuantity({ quantity: 1, receivedQuantity: 4 }), 0)
 })
+
+test('formatDate keeps calendar dates and shows timestamps as their local day', async () => {
+  const { formatDate } = await import('../format.js')
+  assert.match(formatDate('2026-10-29'), /^29 oct 2026$/)
+  // A late-evening timestamp in Mexico City (03:30 UTC next day) stays on its local day.
+  const previous = process.env.RUNLY_TIME_ZONE
+  process.env.RUNLY_TIME_ZONE = 'America/Mexico_City'
+  try {
+    assert.match(formatDate('2026-10-30T03:30:00.000Z'), /^29 oct 2026$/)
+  } finally {
+    if (previous === undefined) delete process.env.RUNLY_TIME_ZONE
+    else process.env.RUNLY_TIME_ZONE = previous
+  }
+})

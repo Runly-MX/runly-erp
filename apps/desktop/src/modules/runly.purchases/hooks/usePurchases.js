@@ -199,6 +199,38 @@ export function useRelationMutations() {
   return { bulk, create, remove }
 }
 
+// { summary: { total, paid, balance, unrecordedLegacy, capabilityEnabled, ... }, payments: [...] }
+export function useInvoicePayments(invoiceId, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['purchases', 'invoices', 'payments', invoiceId],
+    queryFn: () => runly.purchases.listPayments(invoiceId, token).then(one),
+    enabled: Boolean(token && invoiceId && enabled),
+  })
+}
+
+// Record / reverse refresh the invoice, its payments and every purchases list.
+export function usePaymentMutations(invoiceId) {
+  const token = useToken()
+  const invalidate = useInvalidateAll()
+  const record = useMutation({
+    mutationFn: (data) => runly.purchases.recordPayment(invoiceId, data, token).then(one),
+    onSuccess: invalidate,
+  })
+  const reverse = useMutation({
+    mutationFn: ({ paymentId, ...data }) => runly.purchases.reversePayment(paymentId, data, token).then(one),
+    onSuccess: invalidate,
+  })
+  return { record, reverse }
+}
+
+// One key per attempt: a retry of the same attempt (network error, double
+// click) reuses it so the API never records the movement twice.
+export function newOperationKey(prefix) {
+  const random = globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`
+  return `${prefix}-${random}`
+}
+
 // What unlinking a relation would do: { relation, protected, reason, dependents, dependentsModes }.
 export function useRelationImpact(relationId, enabled = true) {
   const token = useToken()

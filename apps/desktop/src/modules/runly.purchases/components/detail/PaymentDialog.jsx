@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Banknote } from 'lucide-react'
 import { Controller, useForm, useWatch } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -7,14 +7,17 @@ import { toast } from 'sonner'
 import {
   Button, CurrencyField, DateField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SelectField, TextField,
 } from '@runly/ui'
-import { errorText, useTransition } from '../../hooks/usePurchases.js'
+import { errorText, newOperationKey, usePaymentMutations } from '../../hooks/usePurchases.js'
 import { PAYMENT_METHODS } from '../../lib/purchases-constants.js'
 import { formatMoney, toNumber, today } from '../../lib/format.js'
 
-// Records a payment against an invoice (transition `pay`). Compras keeps the
-// status and reference only; accounting stays in Finanzas.
+// Records one payment movement of an invoice (POST /purchases/invoices/:id/payments).
+// Compras keeps the administrative record only; accounting stays in Finanzas.
+// The operation key is fixed per opening of the dialog: retrying after a
+// network error or a double click never records the payment twice.
 export function PaymentDialog({ invoice, open, onOpenChange }) {
-  const transition = useTransition('invoices', invoice?.id)
+  const { record } = usePaymentMutations(invoice?.id)
+  const operationKey = useRef(null)
   const balance = Math.max(0, toNumber(invoice?.total) - toNumber(invoice?.paidAmount))
   const schema = z.object({
     amount: z.number().positive('Captura el monto pagado').max(balance + 0.001, `No puede exceder el saldo de ${formatMoney(balance, invoice?.currency)}`),
@@ -24,16 +27,32 @@ export function PaymentDialog({ invoice, open, onOpenChange }) {
   })
   const { control, handleSubmit, reset, formState: { errors } } = useForm({ resolver: zodResolver(schema), defaultValues: { amount: balance, paidAt: today(), method: 'TRANSFER', reference: '' } })
   const amount = useWatch({ control, name: 'amount' })
-  useEffect(() => { if (open) reset({ amount: balance, paidAt: today(), method: 'TRANSFER', reference: '' }) }, [open, balance, reset])
+  useEffect(() => {
+    if (!open) return
+    operationKey.current = newOperationKey('pay')
+    reset({ amount: balance, paidAt: today(), method: 'TRANSFER', reference: '' })
+  // The balance changes after a conflict refetch; the form keeps what the user typed.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, reset])
 
   const submit = handleSubmit(async (values) => {
     try {
-      // A double submit or a payment registered elsewhere answers 409 STALE_DOCUMENT.
-      await transition.mutateAsync({ action: 'pay', ...values, reference: values.reference?.trim() || undefined, expectedUpdatedAt: invoice.updatedAt })
-      toast.success(values.amount >= balance ? 'Factura pagada' : 'Pago parcial registrado')
+      const result = await record.mutateAsync({
+        amount: Number(values.amount).toFixed(2), paidAt: values.paidAt, method: values.method,
+        reference: values.reference?.trim() || undefined, idempotencyKey: operationKey.current, expectedUpdatedAt: invoice.updatedAt,
+      })
+      toast.success(result?.invoice?.status === 'PAID' ? 'Factura pagada' : 'Pago parcial registrado')
       onOpenChange(false)
     } catch (error) {
-      toast.error(errorText(error, 'No se pudo registrar el pago'))
+      // STALE_DOCUMENT: someone else paid or changed the invoice; the refreshed
+      // balance shows up and the user decides. Network errors keep the same key.
+      const stale = error?.details?.code === 'STALE_DOCUMENT'
+      // No HTTP status: the response was lost (network); the payment may be recorded, retrying is safe.
+      const network = !error?.status
+      toast.error(stale ? 'La factura cambió mientras registrabas el pago. Revisa el saldo actualizado e inténtalo de nuevo.'
+        : network ? 'No se pudo confirmar el pago por un problema de conexión. Puedes reintentar sin riesgo de duplicarlo.'
+          : errorText(error, 'No se pudo registrar el pago.'))
+      if (stale) operationKey.current = newOperationKey('pay')
     }
   })
 
@@ -63,7 +82,7 @@ export function PaymentDialog({ invoice, open, onOpenChange }) {
         </form>
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button type="submit" form="purchase-payment" disabled={transition.isPending}>{transition.isPending ? 'Guardando...' : 'Registrar pago'}</Button>
+          <Button type="submit" form="purchase-payment" disabled={record.isPending}>{record.isPending ? 'Guardando...' : 'Registrar pago'}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

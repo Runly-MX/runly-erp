@@ -26,12 +26,18 @@ Spec: `docs/superpowers/specs/2026-10-29-purchases-phase2-operational-flow.md`.
 
 Verified: 2026-10-29 (purchases `node --test` 96/96; ESLint clean; desktop `vite build` OK; `.e2e/purchases-phase2-e2e.mjs` 34/34 twice; `.e2e/purchases-integrity-e2e.mjs` 25/25; `.e2e/purchases-phase2-ui.mjs` 15/15 twice in Chromium desktop + 390 px).
 
-## Phase 3: individual payments
+## Phase 3: individual payments (done; backfill pending approval)
 
-- [ ] Migration `purchase_payment` + backfill of `paid_amount > 0` (spec E.1).
-- [ ] `POST/GET /purchases/invoices/:id/payments`, `POST /purchases/payments/:id/reverse`; `transition('pay')` as alias.
-- [ ] Idempotency key; `paid_amount` recomputed in the same transaction.
-- [ ] Events `purchases.invoice.payment.recorded` / `.reversed`.
+Spec: `docs/superpowers/specs/2026-10-29-purchases-phase3-payments.md`.
+
+- [x] Migration `20261214120000_purchase_payments` (additive, immutable rows, rollback script); compatibility mode without it.
+- [ ] Backfill of `paid_amount > 0` on a real instance: dry run + approval required (`scripts/purchases/payments-reconciliation.mjs`). Tested only on disposable databases.
+- [x] `GET/POST /purchases/invoices/:id/payments`, `GET .../balance`, `GET /purchases/payments/:id`, `POST /purchases/payments/:id/reverse`; `transition('pay')` as alias.
+- [x] Idempotency key; invoice row lock; `paid_amount` cache updated in the same transaction; exact cents.
+- [x] Events `purchases.invoice.payment.recorded` / `.reversed`; permission `purchases.payment.reverse`.
+- [x] Invoice "Pagos" tab with history, register and reverse.
+
+Verified: 2026-10-29 (unit + module-engine + docs + manifests 267/268, 1 skipped; integration on disposable postgres:18 11/11 three times; disposable Supabase stack run, see spec G).
 
 ## Phase 4: corrections after registration
 
