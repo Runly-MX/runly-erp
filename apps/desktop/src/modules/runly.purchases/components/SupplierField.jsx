@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { ComboboxField } from '@runly/ui'
 import { Building2 } from 'lucide-react'
 import { useSuppliers } from '../hooks/usePurchases.js'
@@ -6,7 +6,9 @@ import { useSuppliers } from '../hooks/usePurchases.js'
 // Supplier = a contact from the directory (runly.contacts). Remote search over
 // GET /purchases/suppliers; the chosen supplier stays in the options so its
 // label survives new searches.
-export function SupplierField({ value, selected, onChange, label = 'Proveedor', placeholder = 'Buscar proveedor...', error, hint, required, clearable = true, className, triggerClassName }) {
+export function SupplierField({ id, value, selected, onChange, label = 'Proveedor', placeholder = 'Buscar proveedor...', error, hint, required, clearable = true, className, triggerClassName }) {
+  // The id binds the visible label to the trigger (its accessible name).
+  const autoId = useId()
   const [search, setSearch] = useState('')
   const query = useSuppliers({ search: search || undefined, pageSize: 20 })
   const known = useRef(new Map())
@@ -28,6 +30,7 @@ export function SupplierField({ value, selected, onChange, label = 'Proveedor', 
 
   return (
     <ComboboxField
+      id={id ?? autoId}
       label={label}
       required={required}
       error={error}

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { AttachmentsPanel, EmptyState, ErrorState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, DetailSkeleton, useIsMobile } from '@runly/ui'
@@ -72,7 +72,7 @@ function HeaderLine({ kind, doc }) {
 // a disabled capability with history keeps its tab, read-only.
 export default function PurchaseDocumentDetail() {
   const navigate = useNavigate()
-  const { section, id } = usePurchaseRoute()
+  const { section, id, searchParams } = usePurchaseRoute()
   const kind = DETAIL_KINDS.includes(section) ? section : 'orders'
   const meta = KINDS[kind]
   const { session } = useAuth()
@@ -92,6 +92,15 @@ export default function PurchaseDocumentDetail() {
 
   const actions = useMemo(() => getDocumentActions(kind, doc, { has: caps.has, can }), [kind, doc, caps.has, can])
   const step = useMemo(() => nextStep(kind, doc, actions, { today: today() }), [kind, doc, actions])
+  // ?accion=corregir (from the editor of a registered document) opens the
+  // audited correction once, only when the user really has that action.
+  const askedAction = useRef(false)
+  const wantsCorrection = searchParams.get('accion') === 'corregir'
+  useEffect(() => {
+    if (askedAction.current || !wantsCorrection || !doc) return
+    askedAction.current = true
+    if (actions.some((a) => a.key === 'correct')) setDialog('correct')
+  }, [wantsCorrection, doc, actions])
   const shell = (node) => <div className="min-h-dvh p-4 md:p-6">{node}</div>
   if (query.isLoading || caps.isLoading) return shell(<DetailSkeleton kpis={4} mainCards={2} asideCards={1} />)
   if (query.isError) {

@@ -5,12 +5,12 @@ import { CURRENCY_OPTIONS, PRIORITY_OPTIONS } from '../../lib/purchases-constant
 
 const dateCtl = (control, name, label, props = {}) => (
   <Controller control={control} name={name} render={({ field, fieldState }) => (
-    <DateField label={label} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} error={fieldState.error?.message} {...props} />
+    <DateField id={`doc-${name}`} label={label} value={field.value ?? ''} onChange={(e) => field.onChange(e.target.value)} error={fieldState.error?.message} {...props} />
   )} />
 )
 const currencyCtl = (control) => (
   <Controller control={control} name="currency" render={({ field }) => (
-    <SelectField label="Moneda" options={CURRENCY_OPTIONS} value={field.value} onValueChange={field.onChange} />
+    <SelectField id="document-currency" label="Moneda" options={CURRENCY_OPTIONS} value={field.value} onValueChange={field.onChange} />
   )} />
 )
 const supplierCtl = (control, supplier, onSupplier) => (
@@ -21,7 +21,7 @@ const supplierCtl = (control, supplier, onSupplier) => (
 )
 const text = (control, name, label, props = {}) => (
   <Controller control={control} name={name} render={({ field, fieldState }) => (
-    <TextField label={label} error={fieldState.error?.message} {...props} {...field} value={field.value ?? ''} />
+    <TextField id={`doc-${name}`} label={label} error={fieldState.error?.message} {...props} {...field} value={field.value ?? ''} />
   )} />
 )
 
@@ -34,8 +34,9 @@ const folioCtl = (control, label, folio) => text(control, 'number', label, {
     : 'Escribe tu folio o déjalo vacío para usar el formato de tu empresa.',
 })
 
-// Document header per kind. Each field uses the input that fits its data.
-export function HeaderFields({ kind, control, supplier, onSupplier, folio }) {
+// Who and what: supplier, folio, document date and currency (requests: what
+// is needed, folio and priority). Each field uses the input that fits its data.
+export function MainFields({ kind, control, supplier, onSupplier, folio }) {
   if (kind === 'requests') {
     return (
       <div className="grid gap-4 md:grid-cols-2">
@@ -49,39 +50,58 @@ export function HeaderFields({ kind, control, supplier, onSupplier, folio }) {
             </div>
           )} />
         </div>
-        {dateCtl(control, 'neededBy', 'Se necesita para')}
         {currencyCtl(control)}
-        <div className="md:col-span-2">
-          <Controller control={control} name="justification" render={({ field }) => (
-            <TextareaField label="Justificación" rows={3} placeholder="Para qué se usará y qué pasa si no se compra." {...field} value={field.value ?? ''} maxLength={2000} />
-          )} />
-        </div>
       </div>
     )
   }
-
   if (kind === 'invoices') {
     return (
       <div className="grid gap-4 md:grid-cols-2">
         <div className="md:col-span-2">{supplierCtl(control, supplier, onSupplier)}</div>
         {text(control, 'number', 'Folio de la factura', { required: true, placeholder: 'A-10293' })}
-        {text(control, 'fiscalUuid', 'UUID fiscal (CFDI)', { placeholder: '36 caracteres', hint: 'Opcional' })}
         {dateCtl(control, 'issueDate', 'Fecha de emisión', { required: true })}
-        {dateCtl(control, 'dueDate', 'Vence el', { hint: 'Para saber qué está por pagar' })}
         {currencyCtl(control)}
       </div>
     )
   }
-
   return (
     <div className="grid gap-4 md:grid-cols-2">
       <div className="md:col-span-2">{supplierCtl(control, supplier, onSupplier)}</div>
       {folioCtl(control, 'Folio de la orden', folio)}
       {dateCtl(control, 'issueDate', 'Fecha de la orden', { required: true, hint: 'Puede ser anterior a hoy para registrar órdenes pasadas.' })}
-      {dateCtl(control, 'expectedDate', 'Entrega esperada')}
-      {text(control, 'supplierReference', 'Referencia del proveedor', { placeholder: 'Cotización o pedido del proveedor' })}
-      {text(control, 'paymentTerms', 'Condiciones de pago', { placeholder: 'Crédito 30 días' })}
       {currencyCtl(control)}
+    </div>
+  )
+}
+
+// When and on what terms: delivery, payment terms and references (orders),
+// due date and fiscal UUID (invoices), needed-by date and reason (requests).
+export function TermsFields({ kind, control }) {
+  if (kind === 'requests') {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {dateCtl(control, 'neededBy', 'Se necesita para')}
+        <div className="md:col-span-2">
+          <Controller control={control} name="justification" render={({ field }) => (
+            <TextareaField id="doc-justification" label="Justificación" rows={3} placeholder="Para qué se usará y qué pasa si no se compra." {...field} value={field.value ?? ''} maxLength={2000} />
+          )} />
+        </div>
+      </div>
+    )
+  }
+  if (kind === 'invoices') {
+    return (
+      <div className="grid gap-4 md:grid-cols-2">
+        {dateCtl(control, 'dueDate', 'Vence el', { hint: 'Sin fecha, la factura queda "sin fecha de vencimiento" en Inicio y en los listados.' })}
+        {text(control, 'fiscalUuid', 'UUID fiscal (CFDI)', { placeholder: '36 caracteres', hint: 'Opcional' })}
+      </div>
+    )
+  }
+  return (
+    <div className="grid gap-4 md:grid-cols-2">
+      {dateCtl(control, 'expectedDate', 'Entrega esperada')}
+      {text(control, 'paymentTerms', 'Condiciones de pago', { placeholder: 'Crédito 30 días' })}
+      <div className="md:col-span-2">{text(control, 'supplierReference', 'Referencia del proveedor', { placeholder: 'Cotización o pedido del proveedor' })}</div>
     </div>
   )
 }
