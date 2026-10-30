@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
-import { Button, DataTable, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput, Skeleton, ViewModeSwitch } from '@runly/ui'
-import { useCapabilities, useDocumentList, usePurchasesCan } from '../hooks/usePurchases.js'
+import { Button, DataTable, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput, SegmentedControl, Skeleton, ViewModeSwitch, useIsMobile } from '@runly/ui'
+import { useCapabilities, useDocumentList, usePurchasesCan, useViewCounts } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
 import { LIST_SECTIONS } from '../lib/list-config.js'
 import { KINDS, ROOT } from '../lib/purchases-constants.js'
@@ -43,8 +43,15 @@ export default function PurchaseDocumentList() {
   const [search, setSearch] = useState('')
   const [supplierId, setSupplierId] = useState(null)
   const [page, setPage] = useState(1)
-  const [view, setView] = useState(readView)
-  useEffect(() => { try { localStorage.setItem(VIEW_KEY, view) } catch { /* per-viewer convenience only */ } }, [view])
+  const [storedView, setView] = useState(readView)
+  // Below 768 px the list is always cards (whole card is the link).
+  // Below 1280 px (sidebar + content) wide lists use compact columns, or
+  // cards when the config says the table cannot fit (cardsBelow).
+  const phone = useIsMobile(768)
+  const compact = useIsMobile(1280)
+  const narrow = config.cardsBelow ? compact : phone
+  const view = narrow ? 'cards' : storedView
+  useEffect(() => { try { localStorage.setItem(VIEW_KEY, storedView) } catch { /* per-viewer convenience only */ } }, [storedView])
   const debouncedSearch = useDebounced(search)
   useEffect(() => { setStatus(initialStatus); setSearch(''); setSupplierId(null); setPage(1) }, [section, initialStatus])
   useEffect(() => { setPage(1) }, [status, debouncedSearch, supplierId])
@@ -71,13 +78,17 @@ export default function PurchaseDocumentList() {
     ...(supplierId ? { supplierId } : {}),
   }
   const list = useDocumentList(config.kind, params, { enabled: (enabled || readOnly) && !caps.isLoading })
+  const filterParams = { ...(debouncedSearch ? { search: debouncedSearch } : {}), ...(supplierId ? { supplierId } : {}) }
+  const counts = useViewCounts(config.kind, config.views ? config.chips : [], filterParams, { enabled: Boolean(config.views) && (enabled || readOnly) && !caps.isLoading })
   const rows = list.data?.data ?? []
   const total = list.data?.total ?? list.data?.pagination?.total ?? rows.length
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
 
+  // The invoice summary needs permission to read invoices (the API sends null otherwise).
+  const columnNames = ((compact && config.compactColumns) || config.columns).filter((name) => name !== 'billing' || can(KINDS.invoices.read))
   const columns = useMemo(
-    () => buildColumns(config.columns, { kind: config.kind, href: (id) => `${ROOT}/${config.kind}/${id}` }),
-    [config, navigate],
+    () => buildColumns(columnNames, { kind: config.kind, href: (id) => `${ROOT}/${config.kind}/${id}` }),
+    [config, columnNames.join()],
   )
 
   const [caseOpen, setCaseOpen] = useState(false)
@@ -109,20 +120,24 @@ export default function PurchaseDocumentList() {
             {config.supplierFilter ? (
               <SupplierField label={null} value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="Todos los proveedores" className="w-60" />
             ) : null}
-            <FilterBar filters={statusFilters} value={filterValue} onChange={onFilterChange} />
+            {config.views ? null : <FilterBar filters={statusFilters} value={filterValue} onChange={onFilterChange} />}
           </div>
-          <ViewModeSwitch modes={['table', 'cards']} value={view} onChange={setView} />
-          <MobileFiltersSheet activeCount={activeFilters} onClear={clearFilters}>
+          {narrow ? null : <ViewModeSwitch modes={['table', 'cards']} value={storedView} onChange={setView} />}
+          <MobileFiltersSheet activeCount={config.views ? (supplierId ? 1 : 0) : activeFilters} onClear={config.views ? () => setSupplierId(null) : clearFilters}>
             <div className="space-y-4">
               {config.supplierFilter ? (
                 <SupplierField label="Proveedor" value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="Todos los proveedores" />
               ) : null}
-              <FilterBar filters={statusFilters} value={filterValue} onChange={onFilterChange} />
+              {config.views ? null : <FilterBar filters={statusFilters} value={filterValue} onChange={onFilterChange} />}
             </div>
           </MobileFiltersSheet>
         </div>
+        {config.views ? (
+          <SegmentedControl ariaLabel="Vista" value={status} onChange={setStatus} className="w-full sm:w-auto"
+            options={config.chips.map((v) => ({ value: v.value, label: counts[v.value] == null ? v.label : `${v.label} · ${counts[v.value]}` }))} />
+        ) : null}
         <p className="text-xs text-[hsl(var(--muted-foreground))]">
-          {list.isLoading ? 'Cargando...' : `${total} ${total === 1 ? 'documento' : 'documentos'}`}
+          {list.isLoading ? 'Cargando...' : `${total} ${total === 1 ? 'documento' : 'documentos'} · más recientes primero`}
         </p>
       </div>
 

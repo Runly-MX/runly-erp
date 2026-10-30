@@ -2,6 +2,7 @@
 // Envelope: { data, total, page, pageSize, pagination }.
 import { toLocalIso } from '@runly/core'
 import { KINDS, MODULE_KEY, cleanText, dateKey, num, pagination, plain, statusFilter, supplierNames } from './purchases-shared.js'
+import { billingSummary, receiptSummary } from './purchase-order-progress.js'
 
 const SEARCH_FIELDS = {
   cases: ['number', 'title'],
@@ -76,7 +77,49 @@ export function createPurchaseListing({ prisma }) {
     return out
   }
 
-  async function list(kind, companyId, query = {}) {
+  // Receipt reversals arrived with a later migration: probe the table once a minute.
+  let reversalProbe = null
+  async function reversalsAvailable() {
+    if (reversalProbe && reversalProbe.expires > Date.now()) return reversalProbe.value
+    let row = null
+    try { [row] = await prisma.$queryRaw`SELECT to_regclass('public.purchase_receipt_reversal')::text AS name` } catch { row = null }
+    reversalProbe = { value: Boolean(row?.name), expires: Date.now() + 60_000 }
+    return reversalProbe.value
+  }
+
+  // orderId -> { receipt, billing } for one page of orders, in a fixed number
+  // of queries whatever the page size. `billing` is null when the caller
+  // cannot read invoices.
+  async function orderProgress(companyId, rows, canRead) {
+    const out = new Map()
+    if (!rows.length) return out
+    const ids = rows.map(row => row.id)
+    const readInvoices = canRead('purchase_invoice')
+    const [lines, reversals, billed] = await Promise.all([
+      prisma.purchaseLine.findMany({ where: { companyId, ownerType: 'PURCHASE_ORDER', ownerId: { in: ids } }, select: { ownerId: true, quantity: true, receivedQuantity: true, itemKind: true, unit: true } }),
+      reversalsAvailable().then(ok => (ok ? prisma.purchaseReceiptReversal.groupBy({ by: ['orderId'], where: { companyId, orderId: { in: ids } }, _count: { _all: true } }) : [])),
+      readInvoices
+        ? prisma.entityRelation.findMany({ where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_invoice', relationType: 'BILLED_FROM', targetType: 'purchase_order', targetId: { in: ids } }, select: { sourceId: true, targetId: true } })
+        : [],
+    ])
+    const invoices = billed.length
+      ? await prisma.purchaseInvoice.findMany({ where: { companyId, id: { in: [...new Set(billed.map(row => row.sourceId))] } }, select: { id: true, number: true, status: true, total: true, paidAmount: true, currency: true, dueDate: true }, orderBy: [{ issueDate: 'asc' }, { createdAt: 'asc' }] })
+      : []
+    const invoiceById = new Map(invoices.map(invoice => [invoice.id, invoice]))
+    const today = toLocalIso()
+    for (const row of rows) {
+      const own = lines.filter(line => line.ownerId === row.id)
+      const reversalCount = reversals.find(entry => entry.orderId === row.id)?._count._all ?? 0
+      const mine = billed.filter(rel => rel.targetId === row.id).map(rel => invoiceById.get(rel.sourceId)).filter(Boolean)
+        .sort((a, b) => invoices.indexOf(a) - invoices.indexOf(b))
+      out.set(row.id, { receipt: receiptSummary(row, own, reversalCount), billing: readInvoices ? billingSummary(mine, today) : null })
+    }
+    return out
+  }
+
+  // access.canRead(entityType): read permissions of the caller (defaults to all).
+  async function list(kind, companyId, query = {}, access = {}) {
+    const canRead = access.canRead ?? (() => true)
     const def = KINDS[kind]
     const { page, pageSize, skip, take } = pagination(query)
     const search = cleanText(query.search, 120)
@@ -112,9 +155,10 @@ export function createPurchaseListing({ prisma }) {
     }
     const names = await supplierNames(prisma, companyId, kind === 'receipts' ? [...orders.values()].map(order => order.supplierId) : rows.map(row => row.supplierId))
     const ids = rows.map(row => row.id)
-    const [items, invoiceOrders] = await Promise.all([
+    const [items, invoiceOrders, progress] = await Promise.all([
       itemsByDocument(kind, companyId, ids),
       kind === 'invoices' ? orderNumbersOfInvoices(companyId, ids) : new Map(),
+      kind === 'orders' ? orderProgress(companyId, rows, canRead) : new Map(),
     ])
     const data = rows.map(row => {
       const out = { ...plain(row), items: items.get(row.id) ?? { count: 0, preview: [] }, path: `${def.path}/${row.id}` }
@@ -128,6 +172,7 @@ export function createPurchaseListing({ prisma }) {
       } else if (WITH_SUPPLIER.has(kind)) {
         out.supplierName = names.get(row.supplierId) ?? null
       }
+      if (kind === 'orders') Object.assign(out, progress.get(row.id))
       if (kind === 'invoices') out.orderNumber = invoiceOrders.get(row.id) ?? null
       if (kind === 'invoices') out.balance = Math.max(0, Math.round((num(row.total) - num(row.paidAmount)) * 100) / 100)
       return out

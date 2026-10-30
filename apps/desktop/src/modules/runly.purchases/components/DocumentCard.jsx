@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom'
 import { PurchaseStatusBadge } from './PurchaseStatusBadge.jsx'
 import { MoneyText } from './MoneyText.jsx'
 import { ItemChips } from './ItemChips.jsx'
+import { BillingSummary, ReceptionSummary } from './OrderProgress.jsx'
 import { daysUntil, formatDate, toNumber } from '../lib/format.js'
 
 const OPEN_INVOICE = new Set(['PENDING', 'PARTIALLY_PAID'])
@@ -42,6 +43,12 @@ export function DocumentCard({ kind, row: r, to }) {
       </div>
 
       {isInvoice && r.orderNumber ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Orden <span className="font-medium text-[hsl(var(--foreground))]">{r.orderNumber}</span></p> : null}
+      {kind === 'orders' && r.receipt ? (
+        <div className="grid grid-cols-2 gap-3">
+          <ReceptionSummary receipt={r.receipt} />
+          <BillingSummary billing={r.billing} />
+        </div>
+      ) : null}
       {showItems ? <ItemChips items={r.items} /> : null}
 
       <div className="mt-auto flex items-end justify-between gap-3 border-t border-[hsl(var(--border))] pt-3">

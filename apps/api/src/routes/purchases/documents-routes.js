@@ -18,16 +18,16 @@ export const ACTION_PERMISSION = {
 
 // A list response plus `capabilityEnabled`, so the client can show history
 // read-only instead of hiding it when the company turns a capability off.
-export async function listWithCapability({ workflow, listing }, companyId, kind, gate, query) {
+export async function listWithCapability({ workflow, listing }, companyId, kind, gate, query, access = {}) {
   const current = await workflow.ensureWorkflow(companyId)
-  return { ...(await listing.list(kind, companyId, query)), capabilityEnabled: hasCapability(current.capabilities, gate) }
+  return { ...(await listing.list(kind, companyId, query, access)), capabilityEnabled: hasCapability(current.capabilities, gate) }
 }
 
 export function createPurchasesDocumentsRouter({ requirePermission, services }) {
   const router = new Hono()
   const handle = createHandler('[purchases:documents]')
   const { workflow, listing, documents, receipts } = services
-  const readableList = (c, kind, gate) => listWithCapability({ workflow, listing }, companyOf(c), kind, gate, c.req.query())
+  const readableList = (c, kind, gate) => listWithCapability({ workflow, listing }, companyOf(c), kind, gate, c.req.query(), { canRead: canReadOf(c) })
 
   for (const kind of ['orders', 'invoices']) {
     const perms = PERMS[kind]

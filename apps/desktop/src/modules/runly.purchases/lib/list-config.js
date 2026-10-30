@@ -2,22 +2,48 @@ import { STATUS } from './purchases-constants.js'
 
 const chips = (kind, keys) => [{ value: 'ALL', label: 'Todos' }, ...keys.map((key) => ({ value: key, label: STATUS[kind][key].label }))]
 
+// Saved views shown as a segmented control with counts (orders, invoices):
+// each is a status set the API filters on; the default leaves cancelled out.
+const view = (value, label, params) => ({ value, label, params })
+
 // One list screen, many sections. `kind` is the API collection; `columns`
 // names the column builders in components/DocumentColumns.jsx.
 export const LIST_SECTIONS = {
   orders: {
     kind: 'orders', title: 'Órdenes de compra', capability: 'purchaseOrders',
     description: 'Compromisos con tus proveedores, de la emisión a la recepción.',
-    chips: [...chips('orders', ['DRAFT', 'PENDING_APPROVAL', 'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED']),
-      { value: 'TO_RECEIVE', label: 'Por recibir', params: { status: 'ISSUED,PARTIALLY_RECEIVED' } }],
-    columns: ['folio', 'issueDate', 'expectedDate', 'items', 'status', 'total'],
+    views: true,
+    chips: [
+      view('OPEN', 'Abiertas', { status: 'DRAFT,PENDING_APPROVAL,APPROVED,ISSUED,PARTIALLY_RECEIVED,RECEIVED' }),
+      view('TO_RECEIVE', 'Por recibir', { status: 'ISSUED,PARTIALLY_RECEIVED' }),
+      view('DRAFT', 'Borradores', { status: 'DRAFT' }),
+      view('CLOSED', 'Cerradas', { status: 'CLOSED' }),
+      view('CANCELLED', 'Canceladas', { status: 'CANCELLED' }),
+      view('ALL', 'Todas', {}),
+    ],
+    defaultStatus: 'OPEN',
+    columns: ['orderFolio', 'supplier', 'issueDate', 'reception', 'billing', 'status', 'total'],
+    // Reception and billing need room: below 1280 px (sidebar + content) the
+    // orders list shows cards, which carry the same summaries.
+    cardsBelow: true,
     supplierFilter: true, emptyTitle: 'Aún no hay órdenes', emptyDescription: 'Crea una orden para formalizar una compra con tu proveedor.',
   },
   invoices: {
     kind: 'invoices', title: 'Facturas de proveedor', capability: 'invoices',
     description: 'Comprobantes recibidos, su saldo y las órdenes que cubren.',
-    chips: [...chips('invoices', ['DRAFT', 'PENDING_APPROVAL', 'PENDING', 'PARTIALLY_PAID', 'PAID', 'CANCELLED']), { value: 'OVERDUE', label: 'Vencidas', params: { overdue: 'true' } }],
-    columns: ['folio', 'order', 'dueDate', 'items', 'status', 'total', 'balance'],
+    views: true,
+    chips: [
+      view('ACTIVE', 'Vigentes', { status: 'DRAFT,PENDING_APPROVAL,PENDING,PARTIALLY_PAID,PAID' }),
+      view('OPEN', 'Por pagar', { status: 'PENDING,PARTIALLY_PAID' }),
+      view('OVERDUE', 'Vencidas', { overdue: 'true' }),
+      view('CAPTURE', 'En captura', { status: 'DRAFT,PENDING_APPROVAL' }),
+      view('PAID', 'Pagadas', { status: 'PAID' }),
+      view('CANCELLED', 'Canceladas', { status: 'CANCELLED' }),
+      view('ALL', 'Todas', {}),
+    ],
+    defaultStatus: 'ACTIVE',
+    columns: ['invoiceFolio', 'supplier', 'order', 'dueDate', 'status', 'total', 'balance'],
+    compactColumns: ['invoiceFolioCompact', 'dueDate', 'status', 'total', 'balance'],
     supplierFilter: true, emptyTitle: 'Aún no hay facturas', emptyDescription: 'Registra la factura de un proveedor para darle seguimiento.',
   },
   requests: {

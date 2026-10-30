@@ -3,6 +3,7 @@ import { cn } from '@runly/ui'
 import { PurchaseStatusBadge } from './PurchaseStatusBadge.jsx'
 import { MoneyText } from './MoneyText.jsx'
 import { ItemChips } from './ItemChips.jsx'
+import { BillingSummary, ReceptionSummary } from './OrderProgress.jsx'
 import { PRIORITY_OPTIONS } from '../lib/purchases-constants.js'
 import { daysUntil, formatDate, toNumber } from '../lib/format.js'
 
@@ -25,9 +26,9 @@ function DueDate({ value, status }) {
   const open = OPEN_INVOICE.has(status)
   return (
     <span className="block">
-      <span className="block tabular-nums">{formatDate(value)}</span>
+      <span className="block whitespace-nowrap tabular-nums">{formatDate(value)}</span>
       {open && days != null ? (
-        <span className={cn('block text-xs', days < 0 ? 'text-rose-600 dark:text-rose-400' : days <= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-[hsl(var(--muted-foreground))]')}>
+        <span className={cn('block whitespace-nowrap text-xs', days < 0 ? 'text-rose-600 dark:text-rose-400' : days <= 7 ? 'text-amber-600 dark:text-amber-400' : 'text-[hsl(var(--muted-foreground))]')}>
           {days < 0 ? `Vencida hace ${-days} d` : days === 0 ? 'Vence hoy' : `En ${days} d`}
         </span>
       ) : null}
@@ -37,15 +38,26 @@ function DueDate({ value, status }) {
 
 const right = (node) => <div className="text-right">{node}</div>
 
-// Column builders keyed by name (see lib/list-config.js).
+const orderSub = (r) => (r.status === 'PENDING_APPROVAL' ? 'Espera aprobación' : r.expectedDate ? `Entrega ${formatDate(r.expectedDate)}` : 'Sin fecha de entrega')
+
+// Column builders keyed by name (see lib/list-config.js). The server pages
+// and sorts (newest first), so no column offers a sort that would only
+// reorder the visible page.
 export function buildColumns(names, { kind, href }) {
   const defs = {
+    orderFolio: { id: 'orderFolio', header: 'Orden', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={orderSub(r)} to={href(r.id)} /> },
+    // Compact form (narrow screens): supplier and order go under the folio.
+    invoiceFolioCompact: { id: 'invoiceFolio', header: 'Factura', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.supplierName || 'Sin proveedor', r.orderNumber ? `Orden ${r.orderNumber}` : 'Sin orden'].join(' · ')} to={href(r.id)} /> },
+    invoiceFolio: { id: 'invoiceFolio', header: 'Factura', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.issueDate ? `Emitida ${formatDate(r.issueDate)}` : 'Sin fecha de emisión'} to={href(r.id)} /> },
+    supplier: { id: 'supplier', header: 'Proveedor', cell: ({ row: { original: r } }) => <span className={cn('block max-w-[14rem] truncate', !r.supplierName && 'text-[hsl(var(--muted-foreground))]')} title={r.supplierName ?? undefined}>{r.supplierName || 'Sin proveedor'}</span> },
+    reception: { id: 'reception', header: 'Recepción', cell: ({ row: { original: r } }) => <ReceptionSummary receipt={r.receipt} className="max-w-[12rem]" /> },
+    billing: { id: 'billing', header: 'Factura', cell: ({ row: { original: r } }) => <BillingSummary billing={r.billing} className="max-w-[13rem]" /> },
     folio: { id: 'folio', header: 'Folio', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.supplierName || 'Sin proveedor'} to={href(r.id)} /> },
     request: { id: 'request', header: 'Solicitud', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={r.title} to={href(r.id)} /> },
     caseTitle: { id: 'caseTitle', header: 'Expediente', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.title, r.supplierName].filter(Boolean).join(', ')} to={href(r.id)} /> },
     items: { id: 'items', header: 'Activos', cell: ({ row: { original: r } }) => <ItemChips items={r.items} className="max-w-[16rem]" /> },
-    order: { id: 'order', header: 'Orden', cell: ({ row: { original: r } }) => <span className="tabular-nums">{r.orderNumber ?? r.order?.number ?? 'Sin orden'}</span> },
-    issueDate: { accessorKey: 'issueDate', header: 'Fecha', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },
+    order: { id: 'order', header: 'Orden', cell: ({ row: { original: r } }) => <span className="whitespace-nowrap tabular-nums">{r.orderNumber ?? r.order?.number ?? 'Sin orden'}</span> },
+    issueDate: { accessorKey: 'issueDate', header: 'Fecha', cell: ({ getValue }) => <span className="whitespace-nowrap tabular-nums">{formatDate(getValue())}</span> },
     createdAt: { accessorKey: 'createdAt', header: 'Abierto', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },
     receivedAt: { accessorKey: 'receivedAt', header: 'Recibida', cell: ({ getValue }) => <span className="tabular-nums">{formatDate(getValue())}</span> },
     expectedDate: { accessorKey: 'expectedDate', header: 'Entrega', cell: ({ getValue }) => <span className="tabular-nums">{getValue() ? formatDate(getValue()) : 'Sin fecha'}</span> },
@@ -67,5 +79,5 @@ export function buildColumns(names, { kind, href }) {
       },
     },
   }
-  return names.map((name) => defs[name]).filter(Boolean)
+  return names.map((name) => defs[name]).filter(Boolean).map((def) => ({ ...def, enableSorting: false }))
 }

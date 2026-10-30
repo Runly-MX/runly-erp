@@ -13,8 +13,11 @@ function fakePrisma() {
         : [{ id: 'i1' }]),
     },
     entityRelation: {
-      findMany: async ({ where }) => (where.targetId ? [{ sourceId: 'o1' }] : [{ sourceId: 'o1', targetId: 'i1' }, { sourceId: 'o1', targetId: 'i2' }]),
+      findMany: async ({ where }) => (where.sourceType === 'purchase_invoice' ? [] : where.targetId ? [{ sourceId: 'o1' }] : [{ sourceId: 'o1', targetId: 'i1' }, { sourceId: 'o1', targetId: 'i2' }]),
     },
+    purchaseLine: { findMany: async () => [] },
+    purchaseInvoice: { findMany: async () => [] },
+    $queryRaw: async () => [{ name: null }],
   }
 }
 

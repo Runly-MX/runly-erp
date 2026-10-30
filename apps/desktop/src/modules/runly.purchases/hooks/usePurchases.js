@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { keepPreviousData, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
@@ -113,6 +113,24 @@ export function useDocumentList(kind, params = {}, { enabled = true } = {}) {
     enabled: Boolean(token && kind && enabled),
     placeholderData: keepPreviousData,
   })
+}
+
+// { [view]: total } for a list's saved views under the same search/supplier,
+// one pageSize=1 request each (parallel); undefined while loading.
+export function useViewCounts(kind, views = [], baseParams = {}, { enabled = true } = {}) {
+  const token = useToken()
+  const results = useQueries({
+    queries: views.map((view) => {
+      const params = { ...baseParams, ...view.params, page: 1, pageSize: 1 }
+      return {
+        queryKey: ['purchases', kind, 'list', params],
+        queryFn: () => runly.purchases.list(kind, params, token),
+        enabled: Boolean(token && kind && enabled),
+        staleTime: 15 * 1000,
+      }
+    }),
+  })
+  return Object.fromEntries(views.map((view, index) => [view.value, results[index]?.data?.total ?? results[index]?.data?.pagination?.total]))
 }
 
 export function useDocument(kind, id) {
