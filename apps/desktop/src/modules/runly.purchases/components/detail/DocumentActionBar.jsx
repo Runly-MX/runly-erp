@@ -11,11 +11,13 @@ const DONE = {
   cancel: 'Cancelado', reopen: 'Reabierto', convert: 'Orden creada desde la solicitud',
 }
 
-// Renders the actions from lib/document-actions.js: the first primary as a
-// solid button, one more visible, the rest in a menu (page header).
-export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false }) {
+// Runs the actions from lib/document-actions.js. One runner per screen, shared
+// by the header bar and the "Siguiente paso" panel, so both trigger exactly
+// the same request (with the version on screen) and share one confirm dialog.
+//   { trigger(action), busy, confirmDialog }
+export function useActionRunner(kind, doc, onDialog) {
   const navigate = useNavigate()
-  const transition = useTransition(kind, doc.id)
+  const transition = useTransition(kind, doc?.id)
   const decide = useDecideApproval()
   const [pending, setPending] = useState(null)
   const busy = transition.isPending || decide.isPending
@@ -41,6 +43,7 @@ export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false 
   }
 
   const trigger = (action) => {
+    if (!action) return undefined
     if (action.type === 'edit') return navigate(`${ROOT}/${kind}/${doc.id}/edit`)
     if (action.type === 'navigate') return navigate(`${ROOT}/${action.to}`)
     if (action.type === 'dialog') return onDialog(action.dialog)
@@ -48,25 +51,32 @@ export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false 
     return run(action)
   }
 
+  const confirmDialog = (
+    <TransitionConfirmDialog action={pending} open={Boolean(pending)} onOpenChange={(o) => { if (!o) setPending(null) }}
+      loading={busy} onConfirm={(payload) => run(pending, payload)} />
+  )
+  return { trigger, busy, confirmDialog }
+}
+
+// Page-header actions: the first primary as a solid button, one more visible,
+// the rest in a menu. Phones: one full-width action and the rest in the menu.
+export function DocumentActionBar({ actions, runner, phone = false }) {
   if (!actions.length) return null
-  // Phones: one full-width action and the rest in the menu (44px targets).
   const visible = actions.filter((a) => a.tone !== 'danger').slice(0, phone ? 1 : 2)
   const rest = actions.filter((a) => !visible.includes(a))
 
   return (
     <>
       {visible.map((action, index) => (
-        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={busy}
-          className={phone ? 'h-11 flex-1' : undefined} onClick={() => trigger(action)}>
+        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={runner.busy}
+          className={phone ? 'h-11 flex-1' : undefined} onClick={() => runner.trigger(action)}>
           {action.label}
         </Button>
       ))}
       {rest.length ? (
         <ActionMenu label="Más acciones" triggerVariant={phone ? 'outline' : 'ghost'} triggerClassName={phone ? 'h-11 w-11 shrink-0' : undefined}
-          items={rest.map((a) => ({ label: a.label, onClick: () => trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
+          items={rest.map((a) => ({ label: a.label, onClick: () => runner.trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
       ) : null}
-      <TransitionConfirmDialog action={pending} open={Boolean(pending)} onOpenChange={(o) => { if (!o) setPending(null) }}
-        loading={busy} onConfirm={(payload) => run(pending, payload)} />
     </>
   )
 }

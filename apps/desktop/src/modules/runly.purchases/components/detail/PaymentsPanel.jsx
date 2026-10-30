@@ -56,7 +56,8 @@ function ReverseDialog({ invoice, payment, onOpenChange }) {
 
 // Invoice payments: totals, the chronological ledger and the reverse action.
 // The ledger is read-only history when the payments capability is off.
-export function PaymentsPanel({ invoice, onRecord }) {
+// showTotals: false when the page already shows total / paid / balance.
+export function PaymentsPanel({ invoice, onRecord, showTotals = true }) {
   const can = usePurchasesCan()
   const query = useInvoicePayments(invoice.id)
   const [toReverse, setToReverse] = useState(null)
@@ -70,11 +71,13 @@ export function PaymentsPanel({ invoice, onRecord }) {
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-3">
-        <Fact label="Total de la factura"><MoneyText value={summary.total} currency={summary.currency} /></Fact>
-        <Fact label="Pagado"><MoneyText value={summary.paid} currency={summary.currency} tone="emerald" /></Fact>
-        <Fact label="Saldo pendiente"><MoneyText value={summary.balance} currency={summary.currency} /></Fact>
-      </div>
+      {showTotals ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <Fact label="Total de la factura"><MoneyText value={summary.total} currency={summary.currency} /></Fact>
+          <Fact label="Pagado"><MoneyText value={summary.paid} currency={summary.currency} tone="emerald" /></Fact>
+          <Fact label="Saldo pendiente"><MoneyText value={summary.balance} currency={summary.currency} /></Fact>
+        </div>
+      ) : null}
       {summary.unrecordedLegacy > 0 ? (
         <p className="flex items-start gap-2 rounded-xl border border-dashed border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
           <History className="mt-0.5 h-4 w-4 shrink-0" />

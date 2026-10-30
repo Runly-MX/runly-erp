@@ -60,19 +60,26 @@ export function attentionQueues({ has, can, data, today }) {
         when: waitingText(row.createdAt, today),
       }
     })
-    queues.push({ key: 'approvals', label: 'Aprobar', count: count(metrics.pendingApprovals, rows), rows, seeAll: 'approvals' })
+    queues.push({ key: 'approvals', label: 'Aprobar', count: count(metrics.pendingApprovals, rows), rows, seeAll: 'approvals',
+      hint: 'Solicitudes, órdenes y facturas que esperan una decisión de aprobación.' })
   }
   if (has('receipts') && can('purchases.receipt.create')) {
     const rows = (attention.awaitingReceipt ?? []).map((row) => docRow('orders', row, deliveryText(row.expectedDate, today)))
-    queues.push({ key: 'receipts', label: 'Por recibir', count: count(metrics.pendingReceipts, rows), rows, seeAll: 'orders?estado=TO_RECEIVE' })
+    queues.push({ key: 'receipts', label: 'Por recibir', count: count(metrics.pendingReceipts, rows), rows, seeAll: 'orders?estado=TO_RECEIVE',
+      hint: 'Órdenes emitidas o con recepción parcial, la entrega más próxima primero.' })
   }
   if (has('invoices') && can('purchases.invoice.read')) {
     const rows = (attention.overdueInvoices ?? []).map((row) => ({ ...docRow('invoices', row, dueText(row.dueDate, today)), amount: balanceOf(row) }))
-    queues.push({ key: 'overdue', label: 'Vencidas', count: count(metrics.overdueInvoices, rows), rows, seeAll: 'invoices?estado=OVERDUE' })
+    queues.push({ key: 'overdue', label: 'Vencidas', count: count(metrics.overdueInvoices, rows), rows, seeAll: 'invoices?estado=OVERDUE',
+      hint: 'Facturas con saldo cuya fecha de vencimiento ya pasó; el importe es el saldo.' })
   }
   if (has('payments') && can('purchases.payment.manage')) {
     const rows = (attention.payable ?? []).map((row) => ({ ...docRow('invoices', row, dueText(row.dueDate, today)), amount: balanceOf(row) }))
-    queues.push({ key: 'payable', label: 'Por vencer', count: count(metrics.payableInvoices, rows), rows, seeAll: 'payments' })
+    // "Por vencer": invoices PENDING or PARTIALLY_PAID whose due date is today
+    // or later, or that have no due date (API attention.payable). Overdue ones
+    // are only in "Vencidas"; the amount shown is the balance.
+    queues.push({ key: 'payable', label: 'Por vencer', count: count(metrics.payableInvoices, rows), rows, seeAll: 'payments',
+      hint: 'Facturas con saldo que vencen hoy o después, o sin fecha de vencimiento; las vencidas están en "Vencidas".' })
   }
   return queues
 }

@@ -52,11 +52,11 @@ const AT = {
   lg: { columns: 'hidden lg:block', compact: 'lg:hidden', reader: 'sr-only lg:hidden' },
 }
 
-export function StageTrack({ stages = [], onOpenRef }) {
+export function StageTrack({ stages = [], onOpenRef, caseStatus = null }) {
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState(() => new Set())
   if (!stages.length) return null
-  const summary = stageSummary(stages, labelOf)
+  const summary = stageSummary(stages, labelOf, { caseStatus })
   const at = AT[columnsBreakpoint(stages.length)]
   const toggleRefs = (key) => setExpanded((prev) => { const next = new Set(prev); if (next.has(key)) next.delete(key); else next.add(key); return next })
 

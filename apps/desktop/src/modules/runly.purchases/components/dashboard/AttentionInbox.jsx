@@ -55,6 +55,7 @@ export function AttentionInbox({ queues }) {
           </div>
           {queues.map((q) => (
             <TabsContent key={q.key} value={q.key} className="mt-3">
+              <p className="mb-2 px-3 text-xs text-[hsl(var(--muted-foreground))]">{q.hint}</p>
               {!q.rows.length ? (
                 <EmptyState variant="compact" icon={CheckCircle2} title="Todo al día" description="No hay documentos en esta cola." />
               ) : (

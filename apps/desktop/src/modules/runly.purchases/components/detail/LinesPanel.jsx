@@ -32,20 +32,38 @@ export function LinesPanel({ kind, doc, canCreateItems, onCreateItems }) {
     {
       id: 'concept', header: 'Concepto',
       cell: ({ row: { original: l, index } }) => (
-        <div className="flex min-w-[14rem] gap-3">
+        <div className={`flex gap-3 ${showReceived ? 'min-w-[10rem]' : 'min-w-[14rem]'}`}>
           <span className="w-5 shrink-0 pt-0.5 text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{index + 1}</span>
           <div className="min-w-0">
             <p className="font-medium">{l.description || (l.itemKind === 'SERVICE' ? 'Servicio sin concepto' : 'Sin concepto')}</p>
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">{l.itemKind === 'SERVICE' ? 'Servicio' : 'Bien'}{l.unit ? `, por ${l.unit}` : ''}</p>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{l.itemKind === 'SERVICE' ? (showReceived ? 'Servicio · no se recibe' : 'Servicio') : 'Bien'}{l.unit ? `, por ${l.unit}` : ''}</p>
           </div>
         </div>
       ),
     },
-    { id: 'qty', header: () => right('Cantidad'), cell: ({ row: { original: l } }) => right(<span className="tabular-nums">{formatQty(l.quantity)}</span>) },
-    ...(showReceived ? [{ id: 'received', header: 'Recibido', cell: ({ row: { original: l } }) => <ReceivedBar line={l} /> }] : []),
-    ...(priced ? [{ id: 'price', header: () => right('Precio'), cell: ({ row: { original: l } }) => right(<MoneyText value={l.unitAmount} currency={doc.currency} />) },
-    { id: 'tax', header: () => right('Impuesto'), cell: ({ row: { original: l } }) => right(<span className="tabular-nums text-[hsl(var(--muted-foreground))]">{l.taxRate != null ? `${Math.round(toNumber(l.taxRate) * 100)}%` : formatMoney(l.taxAmount, doc.currency)}</span>) },
-    { id: 'total', header: () => right('Importe'), cell: ({ row: { original: l } }) => right(<MoneyText value={l.total} currency={doc.currency} className="font-medium" />) }] : []),
+    { id: 'qty', header: () => right(showReceived ? 'Pedido' : 'Cantidad'), cell: ({ row: { original: l } }) => right(<span className="tabular-nums">{formatQty(l.quantity)}</span>) },
+    // Orders: what arrived and what is still missing, per line and in its own unit.
+    ...(showReceived ? [
+      { id: 'received', header: 'Recibido', cell: ({ row: { original: l } }) => (l.itemKind === 'SERVICE' ? <span className="text-[hsl(var(--muted-foreground))]">No aplica</span> : <ReceivedBar line={l} />) },
+      {
+        id: 'pending', header: () => right('Pendiente'),
+        cell: ({ row: { original: l } }) => right(l.itemKind === 'SERVICE' ? <span className="text-[hsl(var(--muted-foreground))]">No aplica</span>
+          : <span className={`tabular-nums ${toNumber(l.pendingQuantity) > 0 ? 'font-semibold text-amber-800 dark:text-amber-300' : 'text-[hsl(var(--muted-foreground))]'}`}>{formatQty(l.pendingQuantity ?? Math.max(0, toNumber(l.quantity) - toNumber(l.receivedQuantity)))}</span>),
+      },
+    ] : []),
+    // Orders need room for Pedido / Recibido / Pendiente: the unit price goes
+    // under the amount and taxes stay in the totals below.
+    ...(priced && !showReceived ? [{ id: 'price', header: () => right('Precio'), cell: ({ row: { original: l } }) => right(<MoneyText value={l.unitAmount} currency={doc.currency} />) },
+    { id: 'tax', header: () => right('Impuesto'), cell: ({ row: { original: l } }) => right(<span className="tabular-nums text-[hsl(var(--muted-foreground))]">{l.taxRate != null ? `${Math.round(toNumber(l.taxRate) * 100)}%` : formatMoney(l.taxAmount, doc.currency)}</span>) }] : []),
+    ...(priced ? [{
+      id: 'total', header: () => right('Importe'),
+      cell: ({ row: { original: l } }) => right(
+        <span className="block">
+          <MoneyText value={l.total} currency={doc.currency} className="font-medium" />
+          {showReceived ? <span className="block whitespace-nowrap text-xs text-[hsl(var(--muted-foreground))]">{formatMoney(l.unitAmount, doc.currency)} c/u</span> : null}
+        </span>,
+      ),
+    }] : []),
     ...(canCreateItems ? [{
       id: 'inventory', header: '',
       cell: ({ row: { original: l } }) => (l.itemKind !== 'SERVICE' && l.id ? (

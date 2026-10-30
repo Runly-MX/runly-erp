@@ -19,9 +19,16 @@ test('complete only when the last stage (close) is done; skipped ones are counte
   assert.deepEqual(stageSummary(map('done', 'done')), { text: 'Proceso completo · 2 de 2 etapas completadas', tone: 'done' })
 })
 
-test('done and skipped without a closed last stage means stopped, not complete', () => {
-  assert.deepEqual(stageSummary(map('done', 'skipped', 'skipped')), { text: 'Proceso detenido · 1 de 3 etapas completadas, 2 no aplican', tone: 'skipped' })
-  assert.equal(stageSummary(map('skipped', 'skipped')).text, 'Proceso detenido · 0 de 2 etapas completadas, 2 no aplican')
+test('without a stage in progress the summary never claims the process stopped', () => {
+  // Services-only order: Recepción (last stage here) does not apply, nothing is pending.
+  assert.deepEqual(stageSummary(map('done', 'skipped')), { text: 'Sin etapa en curso · 1 de 2 etapas completadas, 1 no aplica', tone: 'done' })
+  assert.equal(stageSummary(map('skipped', 'skipped')).text, 'Sin etapa en curso · 0 de 2 etapas completadas, 2 no aplican')
+})
+
+test('case status decides cancelled and closed', () => {
+  assert.deepEqual(stageSummary(map('done', 'skipped', 'skipped'), undefined, { caseStatus: 'CANCELLED' }), { text: 'Proceso cancelado · 1 de 3 etapas completadas', tone: 'skipped' })
+  assert.equal(stageSummary(map('done', 'skipped', 'skipped'), undefined, { caseStatus: 'CLOSED' }).tone, 'done')
+  assert.equal(stageSummary(map('done', 'current'), undefined, { caseStatus: 'CANCELLED' }).text.startsWith('Proceso cancelado'), true)
 })
 
 test('columns appear later as the flow grows', () => {
