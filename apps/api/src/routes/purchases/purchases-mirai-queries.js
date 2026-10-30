@@ -7,6 +7,7 @@
 // for the model to add up from a partial list.
 import { toLocalIso } from "@runly/core";
 import { KINDS, num, supplierNames } from "../../services/purchases-shared.js";
+import { hasCapability } from "../../services/purchases-service.js";
 import { createPublicLookup } from "../../services/ai/public-lookup.js";
 
 const LIST_MAX = 30;
@@ -117,14 +118,13 @@ export function createPurchasesMiraiQueries({ prisma, workflow, procurement, lis
       const kind = SEARCHABLE_KINDS.includes(args?.kind) ? args.kind : "orders";
       const supplier = await resolveSupplier(actx.companyId, args?.supplierName);
       if (supplier.error) return { error: supplier.error };
-      try {
-        await workflow.assertCapability(actx.companyId, gateFor(kind));
-      } catch (err) {
-        return { error: err.message ?? "Esta funcion esta deshabilitada en el flujo de compras." };
-      }
+      // History stays searchable when the capability is off; the answer says so.
+      const { capabilities } = await workflow.getCapabilities(actx.companyId);
+      const capabilityEnabled = hasCapability(capabilities, gateFor(kind));
       const result = await listing.list(kind, actx.companyId, { search: args?.search, status: args?.status, supplierId: supplier.supplierId, pageSize: LIST_MAX });
       return {
         total: result.total,
+        ...(capabilityEnabled ? {} : { nota: "Esta funcion esta desactivada en el flujo de compras: son documentos historicos de solo lectura." }),
         documentos: result.data.slice(0, LIST_MAX).map((row) => ({
           documentId: row.id,
           numero: row.number,

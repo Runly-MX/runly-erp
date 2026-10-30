@@ -63,14 +63,16 @@ export default function InventoryPurchaseSection({ data: item }) {
   if (summary.isError) {
     return <ErrorState title="No se pudieron cargar las compras" description={summary.error?.message} onRetry={() => summary.refetch()} />
   }
-  if (capabilities.inventoryRelations === false) {
+  // Links turned off in Compras: existing purchases stay visible as read-only history.
+  const linksOff = capabilities.inventoryRelations === false
+  if (linksOff && !stages.length) {
     return <EmptyState variant="compact" icon={ShoppingCart} title="La relación con inventario está desactivada en Compras." />
   }
 
-  const canOrder = capabilities.purchaseOrders !== false && hasPermission(userProfile, 'purchases.order.create')
-  const canInvoice = capabilities.invoices !== false && hasPermission(userProfile, 'purchases.invoice.create')
+  const canOrder = !linksOff && capabilities.purchaseOrders !== false && hasPermission(userProfile, 'purchases.order.create')
+  const canInvoice = !linksOff && capabilities.invoices !== false && hasPermission(userProfile, 'purchases.invoice.create')
   const linkTypes = [capabilities.purchaseOrders !== false && 'order', capabilities.invoices !== false && 'invoice'].filter(Boolean)
-  const canLink = canManage && linkTypes.length > 0
+  const canLink = !linksOff && canManage && linkTypes.length > 0
   const create = (kind) => navigate(`${PURCHASES_BASE_PATH}/${kind}/new?inventoryId=${encodeURIComponent(itemId)}`)
   // One order and one invoice per item: once linked, offer "Cambiar" instead of adding another.
   const hasOrder = hasStageDocs(stages, 'purchase_order')
@@ -109,8 +111,8 @@ export default function InventoryPurchaseSection({ data: item }) {
             {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
             {allocated > 0 ? ` · ${formatMoney(allocated, model?.currency)} asignado` : ''}
           </p>
-          <InventoryPurchaseTimeline stages={stages} onOpen={(href) => navigate(href)} onUnlink={setUnlinkDoc} canUnlink={canManage} />
-          {actions}
+          <InventoryPurchaseTimeline stages={stages} onOpen={(href) => navigate(href)} onUnlink={setUnlinkDoc} canUnlink={canManage && !linksOff} />
+          {linksOff ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Solo lectura: la relación con inventario está desactivada en Compras.</p> : actions}
         </>
       ) : (
         <EmptyState

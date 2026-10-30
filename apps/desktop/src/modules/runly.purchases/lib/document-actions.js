@@ -12,11 +12,19 @@ const reject = (noun) => ({
   key: 'reject', type: 'transition', action: 'reject', label: 'Rechazar', tone: 'danger',
   confirm: { title: `Rechazar ${noun}`, description: 'Explica el motivo para que quien la preparó pueda corregirla.', comment: true, confirmLabel: 'Rechazar' },
 })
+// Cancelling an order never deletes its inventory links: they stay as history
+// and the items become free for another order.
+const cancelOrder = {
+  ...cancel('la orden'),
+  confirm: { ...cancel('la orden').confirm, description: 'La orden queda cancelada y deja de contar en el proceso. Los activos ligados conservan la referencia como historial y quedan libres para otra orden. Esta acción no se puede deshacer.' },
+}
 const approve = { key: 'approve', type: 'transition', action: 'approve', label: 'Aprobar', tone: 'primary' }
 const edit = { key: 'edit', type: 'edit', label: 'Editar borrador', tone: 'secondary' }
 
 export function getDocumentActions(kind, doc, { has, can }) {
   if (!doc) return []
+  // Capability off in the workflow: history is read-only (the API refuses writes too).
+  if (doc.capabilityEnabled === false) return []
   const s = doc.status
   const out = []
   const decide = has('approvals') && can('purchases.approval.decide')
@@ -33,10 +41,15 @@ export function getDocumentActions(kind, doc, { has, can }) {
       out.push({ key: 'invoice', type: 'navigate', to: `invoices/new?orderId=${doc.id}`, label: 'Registrar factura', tone: 'secondary' })
     }
     if (['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED'].includes(s) && update) {
-      out.push({ key: 'close', type: 'transition', action: 'close', label: 'Cerrar orden', tone: 'secondary',
-        confirm: { title: 'Cerrar la orden', description: 'Una orden cerrada ya no espera más entregas ni facturas.', confirmLabel: 'Cerrar orden' } })
+      // Goods still waiting and receipts in use: closing is an explicit, reasoned "close short".
+      const pending = has('receipts') ? doc.receipt?.pendingLines?.length ?? 0 : 0
+      out.push(pending
+        ? { key: 'close', type: 'transition', action: 'close', label: 'Cerrar con faltantes', tone: 'secondary',
+          confirm: { title: 'Cerrar la orden con faltantes', description: `Hay ${pending} concepto(s) de bienes sin recibir. La orden dejará de esperar entregas y el faltante queda registrado.`, comment: true, commentRequired: true, payload: { closeShort: true }, confirmLabel: 'Cerrar con faltantes' } }
+        : { key: 'close', type: 'transition', action: 'close', label: 'Cerrar orden', tone: 'secondary',
+          confirm: { title: 'Cerrar la orden', description: 'Una orden cerrada ya no espera más entregas ni facturas.', confirmLabel: 'Cerrar orden' } })
     }
-    if (['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ISSUED'].includes(s) && update) out.push(cancel('la orden'))
+    if (['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ISSUED'].includes(s) && update) out.push(cancelOrder)
   }
 
   if (kind === 'invoices') {

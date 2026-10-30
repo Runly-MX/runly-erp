@@ -3,7 +3,8 @@ import { ClipboardCheck } from 'lucide-react'
 import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextareaField } from '@runly/ui'
 
 // Confirmation before a transition; with `comment` it also asks why
-// (reject, cancel), and passes { comment } to onConfirm.
+// (reject, cancel, close short), and passes { ...confirm.payload, comment }
+// to onConfirm. `commentRequired` makes the reason mandatory.
 export function TransitionConfirmDialog({ action, open, onOpenChange, onConfirm, loading }) {
   const [comment, setComment] = useState('')
   useEffect(() => { if (open) setComment('') }, [open])
@@ -18,6 +19,7 @@ export function TransitionConfirmDialog({ action, open, onOpenChange, onConfirm,
   }
 
   const danger = action.tone === 'danger'
+  const required = action.action === 'reject' || Boolean(confirm.commentRequired)
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="md">
@@ -26,13 +28,13 @@ export function TransitionConfirmDialog({ action, open, onOpenChange, onConfirm,
           <DialogDescription>{confirm.description}</DialogDescription>
         </DialogHeader>
         <div className="mt-4 min-h-0 flex-1 overflow-y-auto px-0.5">
-          <TextareaField label="Motivo" required={action.action === 'reject'} rows={3} maxLength={1000} value={comment}
+          <TextareaField label="Motivo" required={required} rows={3} maxLength={1000} value={comment}
             onChange={(e) => setComment(e.target.value)} placeholder="Queda en el historial del documento." />
         </div>
         <DialogFooter className="shrink-0">
           <Button variant="outline" onClick={() => onOpenChange(false)}>Volver</Button>
-          <Button variant={danger ? 'destructive' : 'default'} disabled={loading || (action.action === 'reject' && !comment.trim())}
-            onClick={() => onConfirm({ comment: comment.trim() || undefined })}>
+          <Button variant={danger ? 'destructive' : 'default'} disabled={loading || (required && !comment.trim())}
+            onClick={() => onConfirm({ ...(confirm.payload ?? {}), comment: comment.trim() || undefined })}>
             {loading ? 'Guardando...' : confirm.confirmLabel ?? action.label}
           </Button>
         </DialogFooter>

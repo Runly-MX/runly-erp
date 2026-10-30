@@ -38,7 +38,10 @@ export function useCapabilities() {
   const capabilities = query.data?.capabilities ?? {}
   const stages = useMemo(() => (query.data?.stages ?? []).filter((s) => s.mode !== 'DISABLED'), [query.data?.stages])
   const has = useCallback((key) => (key ? Boolean(capabilities[key]) : true), [capabilities])
-  return { ...query, capabilities, stages, has }
+  // { cases, requests, orders, receipts, invoices, payments }: the company has
+  // such documents, so a section turned off stays readable (history).
+  const history = query.data?.history ?? {}
+  return { ...query, capabilities, stages, has, history }
 }
 
 export function usePurchasesDashboard() {

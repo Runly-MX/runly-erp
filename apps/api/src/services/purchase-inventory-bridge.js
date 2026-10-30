@@ -60,11 +60,12 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
     const caseDocs = docs.filter(doc => doc.type === 'purchase_case')
     if (caseDocs.length) timeline.push({ stage: 'CASE', label: 'Expediente', docs: caseDocs })
     for (const stage of TIMELINE_STAGES) {
-      if (!enabled.has(stage)) continue
       const stageDocs = stage === 'PAYMENT'
         ? docs.filter(doc => doc.type === 'purchase_invoice' && ['PARTIALLY_PAID', 'PAID'].includes(doc.status))
         : docs.filter(doc => TYPE_STAGE[doc.type] === stage)
-      timeline.push({ stage, label: STAGE_LABELS[stage], docs: stageDocs })
+      // A stage turned off in the workflow still shows the documents it already has (history).
+      if (!enabled.has(stage) && !stageDocs.length) continue
+      timeline.push({ stage, label: STAGE_LABELS[stage], docs: stageDocs, enabled: enabled.has(stage) })
     }
     const allocations = await prisma.purchaseAllocation.aggregate({
       where: { companyId, targetModule: 'runly.inventory', targetType: 'inventory_item', targetId: itemId },

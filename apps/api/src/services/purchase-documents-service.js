@@ -1,10 +1,11 @@
 // runly.purchases — purchase orders and supplier invoices: detail, create,
 // draft edit (lines replaced as a set) and status transitions.
 import { publishDomainEvent } from './domain-events/events.js'
-import { buildStageMap, policyBlockers, resolveTransition } from './purchase-policies.js'
+import { buildStageMap, orderReceiptState, policyBlockers, resolveTransition } from './purchase-policies.js'
+import { autoCloseCase } from './purchase-case-closure.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
-import { assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
+import { assertItemsFreeInTx, assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertFresh, assertLineCategories, assertSupplier,
   broadcast, cleanText, createApproval, createCase, currency, dateKey, guardedUpdate, invalidTransition, markCaseInProgress, allocateNumber,
@@ -87,6 +88,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     }
     if (kind === 'orders') {
       data.expectedDate = dateKey(doc.expectedDate)
+      data.receipt = orderReceiptState(doc, lines)
       const receipts = await prisma.purchaseReceipt.findMany({ where: { companyId, orderId: doc.id }, include: { lines: true }, orderBy: { createdAt: 'desc' } })
       data.receipts = receipts.map(receipt => ({ ...plain(receipt), receivedAt: dateKey(receipt.receivedAt), lines: receipt.lines.map(plain) }))
       const billed = related('purchase_invoice')
@@ -127,8 +129,9 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const ids = [...new Set((orderIds ?? []).filter(Boolean))]
     if (!ids.length) return []
     if (ids.length > 1) throw new PurchasesServiceError('Una factura solo puede relacionarse con una orden de compra.', 422, 'VALIDATION')
-    const rows = await client.purchaseOrder.findMany({ where: { companyId, id: { in: ids } }, select: { id: true, caseId: true } })
+    const rows = await client.purchaseOrder.findMany({ where: { companyId, id: { in: ids } }, select: { id: true, caseId: true, status: true } })
     if (rows.length !== ids.length) throw notFound('Una o más órdenes no existen o pertenecen a otra empresa.')
+    if (rows.some(row => row.status === 'CANCELLED')) throw new PurchasesServiceError('La orden está cancelada: no se puede facturar contra ella.', 409, 'DOCUMENT_CANCELLED')
     return rows
   }
 
@@ -184,6 +187,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       })
       await replaceLines(tx, companyId, meta.ownerType, doc.id, lines)
       await relate(tx, { companyId, actorId, sourceType: 'purchase_case', sourceId: purchaseCase.id, targetType: meta.entityType, targetId: doc.id, relationType: 'CONTAINS', origin: 'AUTOMATIC' })
+      if (inventoryIds.length) await assertItemsFreeInTx(tx, companyId, kind === 'orders' ? 'PURCHASED_IN' : 'INVOICED_ITEM', inventoryIds, doc.id, (message, status, code) => new PurchasesServiceError(message, status, code))
       for (const targetId of inventoryIds) {
         await relate(tx, { companyId, actorId, sourceType: meta.entityType, sourceId: doc.id, targetModule: 'runly.inventory', targetType: 'inventory_item', targetId, relationType: kind === 'orders' ? 'PURCHASED_IN' : 'INVOICED_ITEM' })
       }
@@ -226,6 +230,24 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     return plain(updated)
   }
 
+  // Closing an order that still waits for goods is an explicit "close short"
+  // with a reason, and only matters when receipts can be registered at all.
+  // Returns the pending lines that were closed short, or null.
+  async function receiptGate(workflow, doc, payload) {
+    if (workflow.capabilities?.receipts !== true) return null
+    const lines = await prisma.purchaseLine.findMany({ where: { companyId: doc.companyId, ownerType: 'PURCHASE_ORDER', ownerId: doc.id } })
+    const { pendingLines } = orderReceiptState(doc, lines)
+    if (!pendingLines.length) return null
+    if (payload.closeShort !== true) {
+      throw new PurchasesServiceError(
+        `La orden tiene ${pendingLines.length} concepto(s) de bienes pendientes de recibir. Registra la recepción o ciérrala con faltantes indicando el motivo.`,
+        409, 'RECEIPT_PENDING',
+      )
+    }
+    if (!cleanText(payload.comment)) throw new PurchasesServiceError('Indica el motivo para cerrar la orden con faltantes.', 400, 'VALIDATION')
+    return pendingLines
+  }
+
   async function transition(kind, companyId, actorId, id, action, payload = {}) {
     const meta = def(kind)
     const workflow = await workflowService.assertCapability(companyId, meta.capability, actorId)
@@ -237,6 +259,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const check = policyCheckFor(workflow, bundle, kind, doc)
     const data = {}
     let approvalReason = null
+    let closedShort = null
     const decision = action === 'approve' ? 'APPROVED' : action === 'reject' ? 'REJECTED' : null
 
     if (action === 'submit') {
@@ -250,6 +273,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       if (blockers.length) throw policyBlocked(blockers)
       Object.assign(data, { status: 'ISSUED', issuedAt: new Date() })
     } else if (action === 'close') {
+      if (kind === 'orders') closedShort = await receiptGate(workflow, doc, payload)
       Object.assign(data, { status: 'CLOSED', closedAt: new Date() })
     } else if (action === 'cancel') {
       data.status = 'CANCELLED'
@@ -271,6 +295,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       })
     }
 
+    let caseStatus = null
     const updated = await prisma.$transaction(async tx => {
       // The payment amount and the target status were computed from `doc`;
       // the guard makes them valid only if nobody changed it in between.
@@ -281,14 +306,20 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       await markCaseInProgress(tx, companyId, doc.caseId)
       // The reason typed in the confirm dialog (cancel, reject) is part of the evidence.
       const comment = cleanText(payload.comment, 1000)
-      const metadata = { ...(action === 'pay' ? { amount: num(result.paidAmount) - num(doc.paidAmount) } : {}), ...(comment ? { comment } : {}) }
+      const metadata = {
+        ...(action === 'pay' ? { amount: num(result.paidAmount) - num(doc.paidAmount) } : {}),
+        ...(comment ? { comment } : {}),
+        ...(closedShort ? { closedShort: closedShort.map(line => ({ lineId: line.id, pending: line.pending })) } : {}),
+      }
       await writeAudit(tx, {
         companyId, actorId, entityType: meta.entityType, entityId: id, action: `${EVENT[kind]}.${action}`,
         before: { status: doc.status }, after: { status: result.status }, metadata: Object.keys(metadata).length ? metadata : undefined,
       })
+      caseStatus = await autoCloseCase(tx, { workflow, caseBundle, companyId, caseId: doc.caseId, actorId, trigger: { entityType: meta.entityType, entityId: id, action } })
       return result
     })
     await broadcast(broadcaster, companyId, `${EVENT[kind]}.${action}`, { id, caseId: doc.caseId, status: updated.status })
+    if (caseStatus) await broadcast(broadcaster, companyId, 'purchase.case.auto_closed', { id: doc.caseId, status: caseStatus })
     if (updated.status !== doc.status) {
       const event = kind === 'orders' && ['APPROVED', 'ISSUED', 'CANCELLED'].includes(updated.status) ? `purchases.order.${updated.status.toLowerCase()}`
         : kind === 'invoices' && updated.status === 'PAID' ? 'purchases.invoice.paid' : null

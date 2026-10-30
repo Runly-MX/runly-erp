@@ -11,8 +11,10 @@ export function createPurchasesAdapter({ prisma }) {
   async function availableOperations(a) {
     const current = await workflow(a.companyId), keys = new Set(['purchases_pending']);
     if (!current) return keys;
+    // Reads cover history, so they do not depend on the capabilities; writes do.
     keys.add('purchases_search_documents');
-    if (hasCapability(current.capabilities, ['invoices', 'purchaseOrders'])) { keys.add('purchases_spend_summary'); keys.add('purchases.documents.import'); }
+    keys.add('purchases_spend_summary');
+    if (hasCapability(current.capabilities, ['invoices', 'purchaseOrders'])) keys.add('purchases.documents.import');
     if (hasCapability(current.capabilities, 'requests')) keys.add('purchases.request.create');
     if (hasCapability(current.capabilities, 'approvals')) { keys.add('purchases_list_approvals'); keys.add('purchases.approval.decide'); }
     return keys;

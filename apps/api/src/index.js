@@ -68,7 +68,7 @@ import { createInventoryGuestItems } from "./services/inventory-guest-items.js";
 import { createInventoryGuestImport } from "./services/inventory-guest-import.js";
 import { createInventoryScope } from "./services/inventory-scope.js";
 import { createPurchasesRouter } from "./routes/purchases/index.js";
-import { isPurchasesNavVisible } from "./services/purchases-service.js";
+import { isPurchasesNavVisible, purchaseHistoryFlags } from "./services/purchases-service.js";
 import { createModulesRouter } from "./routes/modules.js";
 import { createModuleRuntimeRoutes } from "./routes/module-runtime-routes.js";
 import { createModulePublicLinksRoutes } from "./routes/module-public-links-routes.js";
@@ -1963,10 +1963,12 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
     }).catch(() => null);
     if (purchasesWorkflow?.capabilities) {
       const capabilities = purchasesWorkflow.capabilities;
+      // Sections whose capability is off stay listed while they hold documents (read-only history).
+      const history = await purchaseHistoryFlags(prisma, tenant.companyId);
       visibleModules = visibleModules.map((moduleRow) => {
         if (moduleRow.key !== "runly.purchases") return moduleRow;
         const navigation = (moduleRow.manifest?.navigation ?? []).filter((item) =>
-          isPurchasesNavVisible(item.path, capabilities),
+          isPurchasesNavVisible(item.path, capabilities, history),
         );
         return { ...moduleRow, manifest: { ...moduleRow.manifest, navigation } };
       });

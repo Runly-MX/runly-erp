@@ -4,6 +4,7 @@
 // Items that already carry another order are left alone and counted as skipped.
 // Receives the transaction client explicitly.
 import { MODULE_KEY, writeAudit } from './purchases-shared.js'
+import { liveDocumentIds } from './inventory-purchase-uniqueness.js'
 
 export async function orderOfInvoice(client, companyId, invoiceId) {
   const relation = await client.entityRelation.findFirst({
@@ -31,7 +32,9 @@ export async function linkItemsToInvoiceOrder(tx, { companyId, actorId, invoiceI
     where: { companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_order', targetType: 'inventory_item', relationType: 'PURCHASED_IN', targetId: { in: ids } },
     select: { targetId: true, sourceId: true },
   })
-  const withOrder = new Map(existing.map(row => [row.targetId, row.sourceId]))
+  // Only live orders count: an item whose order was cancelled can take the invoice's order.
+  const live = await liveDocumentIds(tx, companyId, 'PURCHASED_IN', existing.map(row => row.sourceId))
+  const withOrder = new Map(existing.filter(row => live.has(row.sourceId)).map(row => [row.targetId, row.sourceId]))
   const pending = ids.filter(id => !withOrder.has(id))
   const skipped = ids.filter(id => withOrder.has(id) && withOrder.get(id) !== targetOrderId).length
   if (pending.length) {

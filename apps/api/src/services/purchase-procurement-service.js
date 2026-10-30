@@ -4,6 +4,7 @@ import { publishDomainEvent } from './domain-events/events.js'
 import { purchaseEventPayload } from './purchase-documents-service.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { hasCapability } from './purchases-service.js'
+import { caseClosureCheck } from './purchase-case-closure.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, OWNER_TYPE_TO_KIND, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories,
   assertSupplier, broadcast, cleanText, createApproval, createCase, currency, dateKey, invalidTransition, allocateNumber, normalizeLine,
@@ -53,6 +54,7 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       invoices: bundle.invoices.map(row => withSupplier('invoices', row)),
       policyCheck: strip(policyCheckFor(workflow, bundle, 'cases', null)),
       capabilityEnabled: hasCapability(workflow.capabilities, CASE_GATE),
+      closure: caseClosureCheck(workflow, bundle),
     }
   }
 
@@ -79,8 +81,14 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
     const rule = resolveTransition('cases', action, row.status)
     if (!rule) throw invalidTransition()
     if (action === 'close') {
-      const check = policyCheckFor(workflow, await caseBundle.loadBundle(companyId, id), 'cases', null)
+      const bundle = await caseBundle.loadBundle(companyId, id)
+      const check = policyCheckFor(workflow, bundle, 'cases', null)
       if (check.blocked) throw policyBlocked(check.blockers)
+      // No premature close: every document must be final first.
+      const { openDocuments } = caseClosureCheck(workflow, bundle)
+      if (openDocuments.length) {
+        throw new PurchasesServiceError('El expediente tiene documentos abiertos.', 409, 'CASE_HAS_OPEN_DOCUMENTS', { reasons: openDocuments.map(doc => doc.reason) })
+      }
     }
     const data = { status: rule.to, closedAt: action === 'close' ? new Date() : action === 'reopen' ? null : row.closedAt }
     return plain(await audited(companyId, actorId, 'purchase_case', id, `purchase.case.${action}`, tx => tx.purchaseCase.update({ where: { id }, data })))

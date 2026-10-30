@@ -15,7 +15,7 @@ function fakeWorkflow({ throwFor = null } = {}) {
       }
     },
     async getCapabilities() {
-      return { capabilities: { invoices: true } };
+      return { capabilities: { invoices: true, orders: true, purchaseOrders: true, requests: throwFor !== "requests" } };
     },
   };
 }
@@ -63,12 +63,15 @@ test("purchases_pending maps the assistant context counts and lists", async () =
   assert.deepEqual(out.facturasVencidas, [{ number: "FAC-1" }]);
 });
 
-test("purchases_search_documents: capability-disabled gate returns an error, not a throw", async () => {
+test("purchases_search_documents: a disabled capability still answers history, marked read-only", async () => {
   const [, search] = createPurchasesMiraiQueries({
     prisma: contactPrisma([]), workflow: fakeWorkflow({ throwFor: "requests" }), procurement: fakeProcurement(), listing: fakeListing(), assistantContext: fakeAssistantContext(),
   });
   const out = await search.run({ kind: "requests" }, actx);
-  assert.ok(out.error);
+  assert.equal(out.error, undefined);
+  assert.match(out.nota, /solo lectura/);
+  const enabled = await search.run({ kind: "orders" }, actx);
+  assert.equal(enabled.nota, undefined);
 });
 
 test("purchases_search_documents: ambiguous supplier name lists the matches", async () => {

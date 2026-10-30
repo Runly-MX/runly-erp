@@ -164,6 +164,56 @@ function num(value) {
   return Number.isFinite(number) ? number : 0
 }
 
+// ── Goods reception ─────────────────────────────────────────────────────────
+// Only GOODS lines are received; a services-only order never waits for a
+// receipt. An order is receivable once issued.
+const RECEIVABLE = ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED']
+
+export const RECEIPT_STATE_LABELS = {
+  NOT_APPLICABLE: 'Sin bienes por recibir (solo servicios)',
+  NOT_ISSUED: 'Se recibe cuando la orden esté emitida',
+  PENDING: 'Pendiente de recibir',
+  PARTIAL: 'Recepción parcial',
+  COMPLETE: 'Recibida completa',
+  CLOSED_SHORT: 'Cerrada con faltantes',
+  CANCELLED: 'Orden cancelada: no se recibe',
+}
+
+// orderReceiptState(order, lines) -> { state, label, pendingLines }.
+// `lines` are the order's purchase lines ({ id, itemKind, quantity, receivedQuantity }).
+export function orderReceiptState(order, lines = []) {
+  const result = (state, pendingLines = []) => ({ state, label: RECEIPT_STATE_LABELS[state], pendingLines })
+  if (order?.status === 'CANCELLED') return result('CANCELLED')
+  const goods = lines.filter(line => (line.itemKind ?? 'GOODS') === 'GOODS')
+  if (!goods.length) return result('NOT_APPLICABLE')
+  const pending = goods
+    .filter(line => num(line.receivedQuantity) + 1e-9 < num(line.quantity))
+    .map(line => ({ id: line.id, description: line.description ?? null, pending: Math.round((num(line.quantity) - num(line.receivedQuantity)) * 10000) / 10000 }))
+  if (!RECEIVABLE.includes(order?.status)) return result('NOT_ISSUED', pending)
+  if (!pending.length || order.status === 'RECEIVED') return result('COMPLETE')
+  if (order.status === 'CLOSED') return result('CLOSED_SHORT', pending)
+  return result(goods.some(line => num(line.receivedQuantity) > 0) ? 'PARTIAL' : 'PENDING', pending)
+}
+
+// Reception across the case: `applicable` when some issued order carries
+// goods; `complete` when none of them still waits (a short close counts as
+// resolved because it was an explicit, audited decision).
+export function caseReceiptStatus(bundle = {}) {
+  const lines = bundle.lines ?? []
+  const states = (bundle.orders ?? []).map(order => ({
+    order,
+    ...orderReceiptState(order, lines.filter(line => line.ownerType === 'PURCHASE_ORDER' && line.ownerId === order.id)),
+  }))
+  const waiting = states.filter(entry => entry.state === 'PENDING' || entry.state === 'PARTIAL')
+  return {
+    applicable: states.some(entry => ['PENDING', 'PARTIAL', 'COMPLETE', 'CLOSED_SHORT'].includes(entry.state)),
+    complete: waiting.length === 0,
+    // Live orders exist and none carries goods: reception does not apply.
+    servicesOnly: states.some(entry => entry.state !== 'CANCELLED') && states.every(entry => ['NOT_APPLICABLE', 'CANCELLED'].includes(entry.state)),
+    waiting: waiting.map(entry => ({ id: entry.order.id, number: entry.order.number ?? null, state: entry.state })),
+  }
+}
+
 // Derives the policy context from a case bundle
 // ({ case, requests, quotes, approvals, orders, receipts, invoices, lines, relatedItems }).
 export function contextFromBundle(bundle = {}, overrides = {}) {
@@ -171,8 +221,7 @@ export function contextFromBundle(bundle = {}, overrides = {}) {
   const invoices = (bundle.invoices ?? []).filter(invoice => ACTIVE(invoice.status))
   const lines = bundle.lines ?? []
   const goodsLines = lines.filter(line => (line.itemKind ?? 'GOODS') === 'GOODS')
-  const activeOrderIds = new Set(orders.map(order => order.id))
-  const orderGoods = goodsLines.filter(line => line.ownerType === 'PURCHASE_ORDER' && activeOrderIds.has(line.ownerId))
+  const receipt = caseReceiptStatus(bundle)
   const totals = [...orders, ...invoices].map(doc => num(doc.total))
   const approvals = bundle.approvals ?? []
   return {
@@ -181,11 +230,11 @@ export function contextFromBundle(bundle = {}, overrides = {}) {
     quotesCount: (bundle.quotes ?? []).filter(quote => ACTIVE(quote.status)).length,
     approved: approvals.some(approval => approval.status === 'APPROVED')
       || orders.some(order => ['APPROVED', 'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED'].includes(order.status)),
-    receivedAll: orders.length > 0 && orders.every(order => {
-      if (['RECEIVED', 'CLOSED'].includes(order.status)) return true
-      const own = orderGoods.filter(line => line.ownerId === order.id)
-      return own.length > 0 && own.every(line => num(line.receivedQuantity) + 1e-9 >= num(line.quantity))
-    }),
+    // No issued order with goods still waiting. Services-only and not-yet-
+    // issued orders never block (a receipt is impossible for them).
+    receivedAll: receipt.complete,
+    receiptApplicable: receipt.applicable,
+    servicesOnly: receipt.servicesOnly,
     hasRequest: (bundle.requests ?? []).some(request => ['APPROVED', 'ORDERED'].includes(request.status)),
     hasOrder: orders.some(order => order.status !== 'DRAFT'),
     hasInvoice: invoices.some(invoice => invoice.status !== 'DRAFT'),
@@ -221,7 +270,7 @@ function stageDone(type, bundle, context) {
       return approvals.some(approval => approval.status === 'APPROVED') && !approvals.some(approval => approval.status === 'PENDING')
     }
     case 'PURCHASE_ORDER': return active(bundle.orders).some(order => ['ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED'].includes(order.status))
-    case 'RECEIPT': return active(bundle.orders).length > 0 && active(bundle.orders).every(order => ['RECEIVED', 'CLOSED'].includes(order.status))
+    case 'RECEIPT': return context.receiptApplicable && context.receivedAll
     case 'INVOICE': return context.hasInvoice && !active(bundle.invoices).some(invoice => ['DRAFT', 'PENDING_APPROVAL'].includes(invoice.status))
     case 'PAYMENT': return context.paid
     case 'RELATE': return Number(bundle.relatedItems ?? 0) > 0
@@ -252,7 +301,9 @@ export function buildStageMap(workflow = {}, bundle = {}) {
   const raw = stages.map(stage => {
     const refs = stageDocs(stage.type, bundle)
     const done = stageDone(stage.type, bundle, context)
-    return { type: stage.type, label: STAGE_LABELS[stage.type], mode: stage.mode, refs, done, blocked: !done && stageBlocked(stage.type, bundle) }
+    // Reception does not apply to services-only purchases: never "current".
+    const notApplicable = stage.type === 'RECEIPT' && context.servicesOnly
+    return { type: stage.type, label: STAGE_LABELS[stage.type], mode: stage.mode, refs, done, notApplicable, blocked: !done && stageBlocked(stage.type, bundle) }
   })
   const lastDoneIndex = raw.reduce((last, stage, index) => (stage.done ? index : last), -1)
   let currentAssigned = false
@@ -260,6 +311,7 @@ export function buildStageMap(workflow = {}, bundle = {}) {
     let state
     if (stage.done) state = 'done'
     else if (caseStatus === 'CANCELLED' || (caseStatus === 'CLOSED' && stage.type !== 'CLOSE')) state = 'skipped'
+    else if (stage.notApplicable) state = 'skipped'
     else if (stage.blocked) state = 'blocked'
     else if (!required.has(stage.type) && stage.type !== 'CLOSE' && !stage.refs.length && (stage.mode !== 'REQUIRED') && index < lastDoneIndex) state = 'skipped'
     else if (!currentAssigned) { state = 'current'; currentAssigned = true }

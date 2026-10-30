@@ -203,3 +203,17 @@ test('no se puede ver ni quitar una relación de otra empresa', async () => {
   assert.equal((await app.request('/purchases/relations/r-order?dependents=remove', { method: 'DELETE' })).status, 404)
   assert.deepEqual(calls.deleted, [])
 })
+
+test('vínculos migrados, automáticos y manuales se quitan con motivo y quedan auditados', async () => {
+  for (const origin of ['MIGRATED', 'AUTOMATIC', 'MANUAL']) {
+    const { prisma, calls } = relationPrisma([{ ...orderItem, relationType: origin === 'MIGRATED' ? 'ACQUIRED_IN' : 'PURCHASED_IN', origin }])
+    const app = appWith(prisma)
+    const impact = (await (await app.request('/purchases/relations/r-order/impact')).json()).data
+    assert.equal(impact.protected, false, origin)
+    assert.equal(impact.relation.origin, origin)
+    const response = await app.request('/purchases/relations/r-order?reason=Correcci%C3%B3n', { method: 'DELETE' })
+    assert.equal(response.status, 200, origin)
+    assert.equal(calls.audits.at(-1).before.origin, origin)
+    assert.equal(calls.audits.at(-1).metadata.reason, 'Corrección')
+  }
+})

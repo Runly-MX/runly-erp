@@ -61,14 +61,44 @@ export const PURCHASES_NAV_CAPABILITY = {
   '/purchases/payments': 'payments',
 }
 
+// Sidebar entry -> kind whose existing documents keep the entry visible
+// (read-only) after its capability is turned off.
+export const PURCHASES_NAV_HISTORY = {
+  '/purchases/cases': 'cases',
+  '/purchases/requests': 'requests',
+  '/purchases/orders': 'orders',
+  '/purchases/receipts': 'receipts',
+  '/purchases/invoices': 'invoices',
+  '/purchases/payments': 'payments',
+}
+
 export function hasCapability(capabilities = {}, gate) {
   if (!gate) return true
   const keys = Array.isArray(gate) ? gate : [gate]
   return keys.some(key => capabilities?.[key] === true)
 }
 
-export function isPurchasesNavVisible(path, capabilities) {
-  return hasCapability(capabilities, PURCHASES_NAV_CAPABILITY[path])
+export function isPurchasesNavVisible(path, capabilities, history = {}) {
+  return hasCapability(capabilities, PURCHASES_NAV_CAPABILITY[path]) || Boolean(history?.[PURCHASES_NAV_HISTORY[path]])
+}
+
+// { cases, requests, orders, receipts, invoices, payments }: true when the
+// company has at least one such document. One indexed probe per kind, in
+// parallel, cached briefly per company (the sidebar asks often).
+const HISTORY_TTL_MS = 60 * 1000
+const historyCache = new Map()
+
+export async function purchaseHistoryFlags(prisma, companyId) {
+  const cached = historyCache.get(companyId)
+  if (cached && cached.expires > Date.now()) return cached.value
+  const probe = (model, where = {}) => prisma[model].findFirst({ where: { companyId, ...where }, select: { id: true } }).then(Boolean).catch(() => false)
+  const [cases, requests, orders, receipts, invoices, payments] = await Promise.all([
+    probe('purchaseCase'), probe('purchaseRequest'), probe('purchaseOrder'), probe('purchaseReceipt'), probe('purchaseInvoice'),
+    probe('purchaseInvoice', { paidAmount: { gt: 0 } }),
+  ])
+  const value = { cases, requests, orders, receipts, invoices, payments }
+  historyCache.set(companyId, { value, expires: Date.now() + HISTORY_TTL_MS })
+  return value
 }
 
 function sanitizeCapabilities(input, fallback) {
@@ -143,9 +173,12 @@ export function createPurchasesService({ prisma, broadcaster }) {
     return previewNumber(prisma, { companyId, kind, date })
   }
 
+  // `history` lets the client keep disabled sections reachable, read-only,
+  // when they hold documents.
   async function getCapabilities(companyId, actorId) {
     const workflow = await ensureWorkflow(companyId, actorId)
-    return { capabilities: workflow.capabilities, stages: workflow.stages, preset: workflow.preset, policies: workflow.policies ?? [] }
+    const history = await purchaseHistoryFlags(prisma, companyId)
+    return { capabilities: workflow.capabilities, stages: workflow.stages, preset: workflow.preset, policies: workflow.policies ?? [], history }
   }
 
   // Throws 409 CAPABILITY_DISABLED unless the gate (key or any-of array) is on.

@@ -93,8 +93,9 @@ export function hasPermission(userProfile, key) {
   return Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes(key))
 }
 
-// True when the timeline already holds a document of `docType` (e.g. 'purchase_order').
-// An item has one order and one invoice, so the card offers "Cambiar" instead of adding.
+// True when the timeline already holds a live document of `docType` (e.g. 'purchase_order').
+// An item has one live order and one live invoice, so the card offers "Cambiar"
+// instead of adding. A cancelled one is history and frees the slot.
 export function hasStageDocs(stages, docType) {
-  return (stages ?? []).some((stage) => (stage?.docs ?? []).some((doc) => doc?.type === docType))
+  return (stages ?? []).some((stage) => (stage?.docs ?? []).some((doc) => doc?.type === docType && doc?.status !== 'CANCELLED'))
 }

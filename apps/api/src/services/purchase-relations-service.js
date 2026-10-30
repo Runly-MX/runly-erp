@@ -1,10 +1,10 @@
 // runly.purchases relations: single/bulk create, delete, invoice propagation
 // preview/inheritance and the "Relacionar existente" document search.
 import {
-  KINDS, MODULE_KEY, PurchasesServiceError, broadcast, dateKey, notFound, num, pagination, plain, supplierNames, writeAudit, cleanText,
+  ENTITY_TYPE_TO_KIND, KINDS, MODULE_KEY, PurchasesServiceError, broadcast, dateKey, notFound, num, pagination, plain, supplierNames, writeAudit, cleanText,
 } from './purchases-shared.js'
 import { PURCHASE_ENTITY_TYPES } from './purchase-relation-hydration.js'
-import { assertItemsFreeOfKind, isUniqueItemRelation, itemsWithOtherDocument } from './inventory-purchase-uniqueness.js'
+import { assertItemsFreeInTx, assertItemsFreeOfKind, isUniqueItemRelation, itemsWithOtherDocument, liveDocumentIds, lockItemLinks } from './inventory-purchase-uniqueness.js'
 import { invoiceItemIds, linkItemsToInvoiceOrder } from './purchase-relation-cascade.js'
 
 const ITEM_RELATION_TYPE = {
@@ -74,6 +74,31 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     if (!row) throw notFound('La entidad no existe o pertenece a otra empresa.')
   }
 
+  // A cancelled order or invoice keeps its history but takes no new links.
+  async function assertLiveDocument(companyId, type, id) {
+    const kind = ENTITY_TYPE_TO_KIND[type]
+    if (!['orders', 'invoices'].includes(kind)) return
+    const row = await prisma[KINDS[kind].model].findFirst({ where: { id, companyId }, select: { status: true } })
+    if (row?.status === 'CANCELLED') throw conflict(`${kind === 'orders' ? 'La orden' : 'La factura'} está cancelada: no admite nuevas relaciones.`, 409, 'DOCUMENT_CANCELLED')
+  }
+
+  // "Cambiar": removes the item's links of this kind to other LIVE documents.
+  // Links to cancelled documents stay as history; copies derived from a
+  // removed link are detached (kept, no longer marked as derived).
+  async function replaceLiveLinks(tx, { companyId, actorId, relationType, itemId, keepSourceId }) {
+    await lockItemLinks(tx, companyId, relationType, [itemId])
+    const others = await tx.entityRelation.findMany({
+      where: { companyId, sourceModule: MODULE_KEY, targetModule: 'runly.inventory', targetType: 'inventory_item', targetId: itemId, relationType, sourceId: { not: keepSourceId } },
+    })
+    const live = await liveDocumentIds(tx, companyId, relationType, others.map(row => row.sourceId))
+    const removed = others.filter(row => live.has(row.sourceId))
+    if (!removed.length) return
+    const ids = removed.map(row => row.id)
+    await tx.entityRelation.updateMany({ where: { companyId, sourceRelationId: { in: ids } }, data: { sourceRelationId: null } })
+    await tx.entityRelation.deleteMany({ where: { companyId, id: { in: ids } } })
+    await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: itemId, action: 'purchase.relation.replaced', before: removed, metadata: { relationType, removed: ids.length } })
+  }
+
   async function assertInventoryCapability(companyId, ...types) {
     if (types.includes('inventory_item')) await workflowService.assertCapability(companyId, 'inventoryRelations')
   }
@@ -107,17 +132,14 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
       if (other) throw conflict('La factura ya está relacionada con otra orden de compra.', 409, 'INVOICE_HAS_ORDER')
     }
     const singleLink = isUniqueItemRelation(data.relationType) && targetType === 'inventory_item'
+    if (singleLink || data.relationType === 'BILLED_FROM') await assertLiveDocument(companyId, data.relationType === 'BILLED_FROM' ? targetType : sourceType, data.relationType === 'BILLED_FROM' ? data.targetId : data.sourceId)
     // `replace: true` ("Cambiar" in the item card) swaps the item's current document atomically.
     const replace = singleLink && input.replace === true
     if (singleLink && !replace) await assertItemsFreeOfKind(prisma, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
     let cascade = null
     const relation = await prisma.$transaction(async tx => {
-      if (replace) {
-        const removed = await tx.entityRelation.deleteMany({
-          where: { companyId, sourceModule: MODULE_KEY, targetModule: 'runly.inventory', targetType, targetId: data.targetId, relationType: data.relationType, sourceId: { not: data.sourceId } },
-        })
-        if (removed.count) await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: data.targetId, action: 'purchase.relation.replaced', metadata: { relationType: data.relationType, removed: removed.count } })
-      }
+      if (replace) await replaceLiveLinks(tx, { companyId, actorId, relationType: data.relationType, itemId: data.targetId, keepSourceId: data.sourceId })
+      else if (singleLink) await assertItemsFreeInTx(tx, companyId, data.relationType, [data.targetId], data.sourceId, conflict)
       const value = await tx.entityRelation.create({ data })
       await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: value.id, action: 'purchase.relation.created', after: value })
       if (data.relationType === 'INVOICED_ITEM' && targetType === 'inventory_item') {
@@ -144,9 +166,11 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     const items = await prisma.invItem.findMany({ where: { companyId, id: { in: targetIds }, enabled: true }, select: { id: true } })
     if (items.length !== targetIds.length) throw notFound('Uno o más inventarios no existen o pertenecen a otra empresa.')
     const relationType = defaultRelationType(sourceType, targetType)
+    if (isUniqueItemRelation(relationType)) await assertLiveDocument(companyId, sourceType, sourceId)
     await assertItemsFreeOfKind(prisma, companyId, relationType, targetIds, sourceId, conflict)
     let cascade = null
     const result = await prisma.$transaction(async tx => {
+      await assertItemsFreeInTx(tx, companyId, relationType, targetIds, sourceId, conflict)
       const created = await tx.entityRelation.createMany({
         data: targetIds.map(targetId => ({
           companyId, sourceModule: MODULE_KEY, sourceType, sourceId, targetModule: 'runly.inventory', targetType, targetId,

@@ -29,7 +29,7 @@ export function UnlinkRelationDialog({ relation, onOpenChange, onDone }) {
   return (
     <ConfirmDialog open={open} onOpenChange={onOpenChange} title="Quitar relación"
       description={blocked ? data.reason : 'Los documentos y activos siguen existiendo; solo deja de estar ligado a este documento.'}
-      detail={relation?.label} confirmLabel="Quitar relación" loading={remove.isPending}
+      detail={relation?.label} confirmLabel="Quitar relación" loading={remove.isPending} onConfirm={confirm}
       confirmDisabled={impact.isLoading || impact.isError || blocked}>
       {impact.isError ? <p className="text-sm text-[hsl(var(--destructive))]">No se pudo revisar el impacto de quitar esta relación.</p> : null}
       {dependents.length ? (

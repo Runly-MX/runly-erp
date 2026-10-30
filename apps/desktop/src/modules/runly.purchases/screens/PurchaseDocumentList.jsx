@@ -10,6 +10,7 @@ import { buildColumns } from '../components/DocumentColumns.jsx'
 import { DocumentCard } from '../components/DocumentCard.jsx'
 import { SupplierField } from '../components/SupplierField.jsx'
 import { CaseCreateDialog } from '../components/CaseCreateDialog.jsx'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
 
 const PAGE_SIZE = 25
 const VIEW_KEY = 'runly.purchases.documents.view'
@@ -58,13 +59,15 @@ export default function PurchaseDocumentList() {
   const clearFilters = () => { setStatus(defaultStatus); setSupplierId(null) }
 
   const enabled = !config.capability || caps.has(config.capability) || (section === 'cases' && ['requests', 'quotes', 'approvals'].some(caps.has))
+  // A section turned off stays readable while it holds documents (history).
+  const readOnly = !enabled && Boolean(caps.history?.[section])
   const params = {
     page, pageSize: PAGE_SIZE,
     ...(config.chips.find((c) => c.value === status)?.params ?? (status !== 'ALL' ? { status } : {})),
     ...(debouncedSearch ? { search: debouncedSearch } : {}),
     ...(supplierId ? { supplierId } : {}),
   }
-  const list = useDocumentList(config.kind, params, { enabled: enabled && !caps.isLoading })
+  const list = useDocumentList(config.kind, params, { enabled: (enabled || readOnly) && !caps.isLoading })
   const rows = list.data?.data ?? []
   const total = list.data?.total ?? list.data?.pagination?.total ?? rows.length
   const pageCount = Math.max(1, Math.ceil(total / PAGE_SIZE))
@@ -75,10 +78,10 @@ export default function PurchaseDocumentList() {
   )
 
   const [caseOpen, setCaseOpen] = useState(false)
-  const canCreate = kindMeta?.newLabel && can(kindMeta.create) && section !== 'payments'
+  const canCreate = enabled && kindMeta?.newLabel && can(kindMeta.create) && section !== 'payments'
   const onCreate = () => (section === 'cases' ? setCaseOpen(true) : navigate(`${ROOT}/${config.kind}/new`))
 
-  if (!caps.isLoading && !enabled) {
+  if (!caps.isLoading && !enabled && !readOnly) {
     return (
       <div className="min-h-dvh p-4 md:p-6">
         <EmptyState icon={kindMeta?.icon} title="Esta sección no está activa"
@@ -92,6 +95,8 @@ export default function PurchaseDocumentList() {
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
       <PageHeader eyebrow="Compras" title={config.title} description={config.description}
         actions={canCreate ? <Button onClick={onCreate}><Plus className="h-4 w-4" />{kindMeta.newLabel}</Button> : null} />
+
+      {readOnly ? <ReadOnlyNotice subject={`La sección ${config.title}`} /> : null}
 
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">

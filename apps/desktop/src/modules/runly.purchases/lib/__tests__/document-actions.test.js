@@ -32,3 +32,16 @@ test('resolver maps every purchases path to its screen', () => {
   assert.equal(r('/purchases/receipts/abc'), '/purchases/:id')
   assert.equal(r('/purchases/suppliers/abc'), '/purchases/suppliers/:id')
 })
+
+test('a document whose capability is off offers no action (read-only history)', () => {
+  assert.deepEqual(getDocumentActions('orders', { id: 'o1', status: 'DRAFT', capabilityEnabled: false }, { has: all, can: all }), [])
+})
+
+test('closing an order with goods still pending is a reasoned close short', () => {
+  const doc = { id: 'o1', status: 'PARTIALLY_RECEIVED', receipt: { pendingLines: [{ id: 'l1', pending: 1 }] } }
+  const close = getDocumentActions('orders', doc, { has: caps(['receipts']), can: all }).find((a) => a.key === 'close')
+  assert.equal(close.label, 'Cerrar con faltantes')
+  assert.deepEqual([close.confirm.commentRequired, close.confirm.payload], [true, { closeShort: true }])
+  const plain = getDocumentActions('orders', doc, { has: caps([]), can: all }).find((a) => a.key === 'close')
+  assert.equal(plain.label, 'Cerrar orden')
+})

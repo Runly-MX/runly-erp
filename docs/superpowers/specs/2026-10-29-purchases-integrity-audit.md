@@ -466,4 +466,5 @@ data + relations + purchase-like custom fields; user with
 | Archive / restore / logical delete | no | | phase 4 (E.3, E.4) |
 | Custom field duplication | diagnosed in code | | needs census on the real instance (A.6, E.6) |
 | Multi-order invoices, line allocation | no | | phase 5 (E.7) |
-| Findings A.3 #7, #8, #10-#15, #17 | no | | backlog |
+| Findings A.3 #7, #8, #12, #17 and UI history (G) | yes (2026-10-29) | unit + E2E + UI | see `2026-10-29-purchases-phase2-operational-flow.md` |
+| Findings A.3 #10, #11, #13-#15 | no | | backlog |

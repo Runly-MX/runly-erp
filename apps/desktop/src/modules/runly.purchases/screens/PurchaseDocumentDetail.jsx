@@ -24,6 +24,7 @@ import { QuotesCompare } from '../components/detail/QuotesCompare.jsx'
 import { ReceiveOrderDialog } from '../components/detail/ReceiveOrderDialog.jsx'
 import { PaymentDialog } from '../components/detail/PaymentDialog.jsx'
 import { CreateInventoryFromLineDialog } from '../components/detail/CreateInventoryFromLineDialog.jsx'
+import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
 
 const DETAIL_KINDS = ['orders', 'invoices', 'requests', 'receipts', 'cases']
 const label = (options, value) => options.find((o) => o.value === value)?.label
@@ -71,12 +72,16 @@ export default function PurchaseDocumentDetail() {
   }
   if (!doc) return shell(<EmptyState icon={FileX} title={`${meta.short} no encontrada`} />)
 
-  const inventoryOn = caps.has('inventoryRelations') && ['orders', 'invoices', 'receipts'].includes(kind)
-  const canManageRelations = can('purchases.relation.manage') && doc.status !== 'CANCELLED'
-  const quotesOn = caps.has('quotes') && ['requests', 'cases'].includes(kind) && can('purchases.quote.read')
+  // Capability off: the document is history, shown read-only (the API refuses writes).
+  const readOnly = doc.capabilityEnabled === false
+  const inventoryCount = (doc.relations ?? []).filter(isInventoryRelation).length
+  // Tabs of a disabled capability stay visible while they hold data, without actions.
+  const inventoryOn = (caps.has('inventoryRelations') || inventoryCount > 0) && ['orders', 'invoices', 'receipts'].includes(kind)
+  const canManageRelations = can('purchases.relation.manage') && doc.status !== 'CANCELLED' && !readOnly
+  const canManageItems = canManageRelations && caps.has('inventoryRelations')
+  const quotesOn = (caps.has('quotes') || (doc.quotes?.length ?? 0) > 0) && ['requests', 'cases'].includes(kind) && can('purchases.quote.read')
   const filesOn = ['orders', 'invoices', 'receipts'].includes(kind) || (kind === 'requests')
   const related = collectRelated(doc)
-  const inventoryCount = (doc.relations ?? []).filter(isInventoryRelation).length
   const policyMin = (doc.policyCheck?.requirements ?? []).find((r) => r.stage === 'QUOTES')?.min
 
   const tabs = [
@@ -100,6 +105,8 @@ export default function PurchaseDocumentDetail() {
       <DocumentHero kind={kind} doc={doc} facts={factsFor(kind, doc).filter((f) => f.value)}
         onOpenRef={(ref) => { const path = docPath(ref.type, ref.id); if (path) navigate(path) }} />
 
+      {readOnly ? <ReadOnlyNotice subject={`La sección ${meta.plural}`} /> : null}
+
       <PolicyAlerts policyCheck={doc.policyCheck} />
 
       {doc.notes || doc.justification || doc.description ? (
@@ -118,22 +125,22 @@ export default function PurchaseDocumentDetail() {
         </div>
         <TabsContent value="lines">
           <LinesPanel kind={kind} doc={doc} onCreateItems={setLineForItems}
-            canCreateItems={inventoryOn && kind !== 'receipts' && can('inventory.item.create') && doc.status !== 'DRAFT' && doc.status !== 'CANCELLED'} />
+            canCreateItems={canManageItems && kind !== 'receipts' && can('inventory.item.create') && doc.status !== 'DRAFT' && doc.status !== 'CANCELLED'} />
         </TabsContent>
         <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent>
         {quotesOn ? (
           <TabsContent value="quotes">
             <QuotesCompare quotes={doc.quotes ?? []} caseId={kind === 'cases' ? doc.id : doc.caseId} requestId={kind === 'requests' ? doc.id : null}
-              currency={doc.currency} minRequired={policyMin} canManage={can('purchases.quote.manage') && !['CLOSED', 'CANCELLED'].includes(doc.status)} />
+              currency={doc.currency} minRequired={policyMin} canManage={caps.has('quotes') && !readOnly && can('purchases.quote.manage') && !['CLOSED', 'CANCELLED'].includes(doc.status)} />
           </TabsContent>
         ) : null}
         {inventoryOn ? (
-          <TabsContent value="inventory"><InventoryRelationsPanel entityType={meta.entityType} doc={doc} canManage={canManageRelations} /></TabsContent>
+          <TabsContent value="inventory"><InventoryRelationsPanel entityType={meta.entityType} doc={doc} canManage={canManageItems} /></TabsContent>
         ) : null}
         {filesOn ? (
           <TabsContent value="files">
             <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId} recordId={doc.id}
-              config={attachmentsConfig(meta.entityType)} context="detail" onChange={() => queryClient.invalidateQueries({ queryKey: ['purchases', 'files-count', meta.entityType, doc.id] })} readOnly={!can(meta.update)} showHeading={false} showViewToggle />
+              config={attachmentsConfig(meta.entityType)} context="detail" onChange={() => queryClient.invalidateQueries({ queryKey: ['purchases', 'files-count', meta.entityType, doc.id] })} readOnly={readOnly || !can(meta.update)} showHeading={false} showViewToggle />
           </TabsContent>
         ) : null}
         <TabsContent value="activity">

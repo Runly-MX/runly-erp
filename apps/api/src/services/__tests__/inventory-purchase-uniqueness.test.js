@@ -3,12 +3,18 @@ import assert from 'node:assert/strict'
 import { assertItemsFreeOfKind, duplicateLinkMessage, findDuplicateLinks } from '../inventory-purchase-uniqueness.js'
 
 const fail = (message, status, code) => Object.assign(new Error(message), { status, code })
-const clientWith = rows => ({
-  entityRelation: {
-    findMany: async ({ where }) => rows.filter(r => where.targetId.in.includes(r.targetId) && r.relationType === where.relationType
-      && (!where.sourceId?.not || r.sourceId !== where.sourceId.not)),
-  },
-})
+// `cancelled`: document ids whose status is CANCELLED.
+const clientWith = (rows, cancelled = []) => {
+  const docs = { findMany: async ({ where }) => where.id.in.filter(id => !cancelled.includes(id)).map(id => ({ id })) }
+  return {
+    entityRelation: {
+      findMany: async ({ where }) => rows.filter(r => where.targetId.in.includes(r.targetId) && r.relationType === where.relationType
+        && (!where.sourceId?.not || r.sourceId !== where.sourceId.not)),
+    },
+    purchaseOrder: docs,
+    purchaseInvoice: docs,
+  }
+}
 
 test('rechaza una segunda orden con 409 y mensaje claro', async () => {
   const client = clientWith([{ relationType: 'PURCHASED_IN', targetId: 'i1', sourceId: 'o1' }])
@@ -21,6 +27,16 @@ test('el mismo documento y otros equipos no chocan; una orden puede cubrir mucho
   await assertItemsFreeOfKind(client, 'c', 'PURCHASED_IN', ['i1'], 'o1', fail)
   await assertItemsFreeOfKind(client, 'c', 'PURCHASED_IN', ['i2', 'i3'], 'o1', fail)
   await assertItemsFreeOfKind(client, 'c', 'INVOICED_ITEM', ['i1'], 'f1', fail)
+})
+
+test('una orden cancelada conserva la relación como historial pero libera el equipo', async () => {
+  const client = clientWith([{ relationType: 'PURCHASED_IN', targetId: 'i1', sourceId: 'o-cancelada' }], ['o-cancelada'])
+  await assertItemsFreeOfKind(client, 'c', 'PURCHASED_IN', ['i1'], 'o-nueva', fail)
+  const both = clientWith([
+    { relationType: 'PURCHASED_IN', targetId: 'i1', sourceId: 'o-cancelada' },
+    { relationType: 'PURCHASED_IN', targetId: 'i1', sourceId: 'o-vigente' },
+  ], ['o-cancelada'])
+  await assert.rejects(assertItemsFreeOfKind(both, 'c', 'PURCHASED_IN', ['i1'], 'o-nueva', fail), err => err.code === 'ITEM_LINK_EXISTS')
 })
 
 test('mensaje plural y diagnóstico de duplicados', () => {
