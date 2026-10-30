@@ -29,7 +29,7 @@ export function LineItemsEditor({ control, getValues, errors, currency = 'MXN', 
         {fields.map((field, index) => {
           const err = lineErrors?.[index] ?? {}
           return (
-            <li key={field.id} className="group relative rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 transition-colors focus-within:border-[hsl(var(--primary))]/50">
+            <li key={field.id} className="group relative rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 transition-colors focus-within:border-(--brand-primary)/50">
                       <div className="flex flex-col gap-3 md:flex-row md:items-end">
                 <span className="hidden h-10 w-7 shrink-0 items-center justify-center text-sm font-semibold tabular-nums text-[hsl(var(--muted-foreground))] md:flex">{index + 1}</span>
                 <div className="min-w-0 flex-1">
@@ -83,7 +83,7 @@ export function LineItemsEditor({ control, getValues, errors, currency = 'MXN', 
       {rootError ? <p role="alert" className="text-sm text-rose-600">{rootError}</p> : null}
       {!disabled ? (
         <Button type="button" variant="outline" onClick={() => append(emptyLine())}
-          className={cn('w-full border-dashed hover:border-[hsl(var(--primary))]/50 hover:text-[hsl(var(--primary))]')}>
+          className={cn('w-full border-dashed hover:border-(--brand-primary)/50 hover:text-(--brand-primary-computed)')}>
           <Plus className="h-4 w-4" />Agregar concepto
         </Button>
       ) : null}

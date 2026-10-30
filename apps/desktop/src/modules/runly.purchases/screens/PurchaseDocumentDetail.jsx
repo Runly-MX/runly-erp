@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { AuditTrail, AttachmentsPanel, EmptyState, ErrorState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, DetailSkeleton } from '@runly/ui'
+import { AuditTrail, AttachmentsPanel, EmptyState, ErrorState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, DetailSkeleton, useIsMobile } from '@runly/ui'
 import { FileX } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider.jsx'
@@ -58,6 +58,7 @@ export default function PurchaseDocumentDetail() {
   const filesCount = useFilesCount(meta.entityType, id, ['orders', 'invoices', 'receipts', 'requests'].includes(kind))
   const [dialog, setDialog] = useState(null)
   const [lineForItems, setLineForItems] = useState(null)
+  const phone = useIsMobile(640)
   const doc = query.data
 
   useMiraiRecordContext({
@@ -108,7 +109,10 @@ export default function PurchaseDocumentDetail() {
       <PageHeader
         compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${doc.number ?? 'sin folio'}`}
         onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`}
-        actions={actions.length ? <DocumentActionBar kind={kind} doc={doc} actions={actions} onDialog={setDialog} /> : null}
+        // Phones keep the full header (title on its own line, actions below):
+        // the collapsed single row has no room for folio and actions at 390px.
+        collapsed={phone ? false : undefined} sticky={phone ? false : undefined}
+        actions={actions.length ? <DocumentActionBar kind={kind} doc={doc} actions={actions} onDialog={setDialog} phone={phone} /> : null}
       />
 
       <DocumentHero kind={kind} doc={doc} facts={factsFor(kind, doc).filter((f) => f.value)}
@@ -127,7 +131,7 @@ export default function PurchaseDocumentDetail() {
           <TabsList>
             {tabs.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
-                {t.label}{t.count ? <span className="rounded-full bg-[hsl(var(--primary))]/15 px-1.5 text-[11px] tabular-nums text-[hsl(var(--primary))]">{t.count}</span> : null}
+                {t.label}{t.count ? <span className="rounded-full border border-current/35 px-1.5 text-[11px] font-semibold tabular-nums">{t.count}</span> : null}
               </TabsTrigger>
             ))}
           </TabsList>

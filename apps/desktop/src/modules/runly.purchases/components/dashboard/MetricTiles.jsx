@@ -9,7 +9,7 @@ function Tile({ icon: Icon, tone, label, value, hint, onClick, children }) {
   return (
     <Tag type={onClick ? 'button' : undefined} onClick={onClick}
       className={cn('relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left',
-        onClick && 'transition-colors hover:border-[hsl(var(--primary))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40')}
+        onClick && 'transition-colors hover:border-(--brand-primary)/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)/40')}
       >
       <div className="flex items-center gap-2.5">
         <span className="flex h-8 w-8 items-center justify-center rounded-lg" style={{ backgroundColor: `color-mix(in oklab, ${tone} 14%, transparent)`, color: tone }}><Icon className="h-4 w-4" /></span>

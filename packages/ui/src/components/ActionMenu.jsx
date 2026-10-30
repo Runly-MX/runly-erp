@@ -9,14 +9,16 @@ import {
 import { Button } from './Button.jsx'
 import { cn } from '../lib/utils.js'
 
-export function ActionMenu({ items = [], label = 'Acciones' }) {
+// triggerClassName / triggerVariant: optional styling of the trigger button,
+// e.g. a 44px outlined trigger next to a full-width action on phones.
+export function ActionMenu({ items = [], label = 'Acciones', triggerClassName, triggerVariant = 'ghost' }) {
   const normalItems = items.filter((i) => i.variant !== 'destructive')
   const destructiveItems = items.filter((i) => i.variant === 'destructive')
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={label}>
+        <Button variant={triggerVariant} size="icon-sm" aria-label={label} className={triggerClassName}>
           <MoreHorizontal className="h-4 w-4" />
         </Button>
       </DropdownMenuTrigger>

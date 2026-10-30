@@ -13,7 +13,7 @@ const DONE = {
 
 // Renders the actions from lib/document-actions.js: the first primary as a
 // solid button, one more visible, the rest in a menu (page header).
-export function DocumentActionBar({ kind, doc, actions, onDialog }) {
+export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false }) {
   const navigate = useNavigate()
   const transition = useTransition(kind, doc.id)
   const [pending, setPending] = useState(null)
@@ -40,18 +40,21 @@ export function DocumentActionBar({ kind, doc, actions, onDialog }) {
   }
 
   if (!actions.length) return null
-  const visible = actions.filter((a) => a.tone !== 'danger').slice(0, 2)
+  // Phones: one full-width action and the rest in the menu (44px targets).
+  const visible = actions.filter((a) => a.tone !== 'danger').slice(0, phone ? 1 : 2)
   const rest = actions.filter((a) => !visible.includes(a))
 
   return (
     <>
       {visible.map((action, index) => (
-        <Button key={action.key} size="sm" variant={index === 0 ? 'default' : 'outline'} disabled={transition.isPending} onClick={() => trigger(action)}>
+        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={transition.isPending}
+          className={phone ? 'h-11 flex-1' : undefined} onClick={() => trigger(action)}>
           {action.label}
         </Button>
       ))}
       {rest.length ? (
-        <ActionMenu label="Más acciones" items={rest.map((a) => ({ label: a.label, onClick: () => trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
+        <ActionMenu label="Más acciones" triggerVariant={phone ? 'outline' : 'ghost'} triggerClassName={phone ? 'h-11 w-11 shrink-0' : undefined}
+          items={rest.map((a) => ({ label: a.label, onClick: () => trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
       ) : null}
       <TransitionConfirmDialog action={pending} open={Boolean(pending)} onOpenChange={(o) => { if (!o) setPending(null) }}
         loading={transition.isPending} onConfirm={(payload) => run(pending, payload)} />

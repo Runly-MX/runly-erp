@@ -9,8 +9,8 @@ export const INVENTORY_BASE = '/app/m/runly.inventory/inventory'
 // Visual identity (spec section 9). Tones are hex so they work inside inline
 // gradients and recharts fills in both themes.
 export const TONES = {
-  teal: 'hsl(var(--primary))',
-  deep: 'hsl(var(--primary))',
+  teal: 'var(--brand-primary)',
+  deep: 'var(--brand-primary)',
   petrol: '#0369a1',
   emerald: '#10b981',
   amber: '#d97706',
@@ -23,7 +23,7 @@ export const TONES = {
 // tone -> pill classes (light + dark)
 export const TONE_PILL = {
   slate: 'bg-slate-500/10 text-slate-700 ring-slate-500/25 dark:text-slate-300',
-  teal: 'bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))] ring-[hsl(var(--primary))]/30 dark:text-[hsl(var(--primary))]',
+  teal: 'bg-(--brand-primary)/10 text-(--brand-primary-computed) ring-(--brand-primary)/30 dark:text-(--brand-primary-computed)',
   sky: 'bg-sky-500/10 text-sky-700 ring-sky-500/30 dark:text-sky-300',
   violet: 'bg-violet-500/10 text-violet-700 ring-violet-500/30 dark:text-violet-300',
   amber: 'bg-amber-500/12 text-amber-800 ring-amber-500/35 dark:text-amber-300',

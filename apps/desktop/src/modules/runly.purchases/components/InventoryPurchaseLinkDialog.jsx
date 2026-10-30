@@ -96,7 +96,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
           />
         </div>
         {type === 'invoice' && selected?.order ? (
-          <p className="shrink-0 rounded-lg bg-[hsl(var(--primary))]/10 px-3 py-2 text-xs text-[hsl(var(--primary))]">
+          <p className="shrink-0 rounded-lg bg-(--brand-primary)/10 px-3 py-2 text-xs text-(--brand-primary-computed)">
             Esta factura pertenece a la orden {selected.order.number}; también se relacionará con el activo.
           </p>
         ) : null}
@@ -122,12 +122,12 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
                       disabled={linked}
                       onClick={() => setSelected(doc)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]',
-                        active ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))]/5' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--primary))]/40',
+                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)',
+                        active ? 'border-(--brand-primary) bg-(--brand-primary)/5' : 'border-[hsl(var(--border))] hover:border-(--brand-primary)/40',
                         linked && 'cursor-not-allowed opacity-60',
                       )}
                     >
-                      <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border', active ? 'border-[hsl(var(--primary))] bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))]' : 'border-[hsl(var(--border))]')}>
+                      <span className={cn('grid h-5 w-5 shrink-0 place-items-center rounded-full border', active ? 'border-(--brand-primary) bg-(--brand-primary) text-(--brand-primary-foreground)' : 'border-[hsl(var(--border))]')}>
                         {active ? <Check className="h-3 w-3" /> : null}
                       </span>
                       <span className="min-w-0 flex-1">

@@ -3,7 +3,7 @@ import { cn } from '@runly/ui'
 // Same grammar as the inventory dashboard (Panel with a tinted icon badge and
 // a soft corner glow), copied rather than imported: modules never import each
 // other. Tones default to the Compras teal.
-export function Panel({ title, subtitle, icon: Icon, tone = 'hsl(var(--primary))', action = null, className, children }) {
+export function Panel({ title, subtitle, icon: Icon, tone = 'var(--brand-primary)', action = null, className, children }) {
   return (
     <section
       className={cn('relative min-w-0 overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5', className)}

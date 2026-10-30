@@ -30,7 +30,8 @@ export function SpendTrendPanel({ monthly = [], showOrdered = true }) {
             <XAxis dataKey="label" tick={AXIS} axisLine={false} tickLine={false} interval="preserveStartEnd" />
             <YAxis tick={AXIS} axisLine={false} tickLine={false} width={56} tickFormatter={(v) => formatMoneyCompact(v)} />
             <Tooltip content={<ChartTooltip formatter={(v) => formatMoney(v)} />} />
-            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} />
+            {/* Series color on the dot only: sky text on white fails AA (4.1:1). */}
+            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12 }} formatter={(value) => <span style={{ color: 'hsl(var(--foreground))' }}>{value}</span>} />
             {showOrdered ? <Area type="monotone" dataKey="ordered" name="Ordenado" stroke={TONES.teal} strokeWidth={2.5} fill="url(#pur-ordered)" dot={false} activeDot={{ r: 5 }} /> : null}
             <Area type="monotone" dataKey="invoiced" name="Facturado" stroke={TONES.sky} strokeWidth={2.5} fill="url(#pur-invoiced)" dot={false} activeDot={{ r: 5 }} />
           </AreaChart>

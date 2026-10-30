@@ -43,7 +43,7 @@ export function RelatedDocumentsPanel({ doc, canManage = false }) {
         const Icon = KINDS[group.kind]?.icon ?? Link2
         return (
           <section key={group.kind}>
-            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4 text-[hsl(var(--primary))]" />{KINDS[group.kind]?.plural ?? group.kind}</h3>
+            <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold"><Icon className="h-4 w-4 text-(--brand-primary-computed)" />{KINDS[group.kind]?.plural ?? group.kind}</h3>
             <ul className="divide-y divide-[hsl(var(--border))] rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
               {group.rows.map((row) => {
                 const path = toAppPath(row.path) ?? docPath(group.kind, row.id)

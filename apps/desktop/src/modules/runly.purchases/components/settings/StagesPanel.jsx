@@ -27,7 +27,7 @@ export function StagesPanel({ capabilities, modes, onCapability, onMode, disable
             const Icon = stageMeta(type).icon
             return (
               <li key={type} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                <span className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-[hsl(var(--primary))]" />{stageMeta(type).label}</span>
+                <span className="flex items-center gap-2 text-sm font-medium"><Icon className="h-4 w-4 text-(--brand-primary-computed)" />{stageMeta(type).label}</span>
                 <SegmentedControl ariaLabel={`Modo de ${stageMeta(type).label}`} disabled={disabled || type === 'CLOSE'} className="w-full sm:w-auto"
                   options={type === 'CLOSE' ? MODE_OPTIONS.slice(0, 1) : MODE_OPTIONS}
                   value={modes[type] ?? (type === 'CLOSE' ? 'REQUIRED' : type === 'RELATE' ? 'DISABLED' : 'OPTIONAL')} onChange={(v) => onMode(type, v)} />

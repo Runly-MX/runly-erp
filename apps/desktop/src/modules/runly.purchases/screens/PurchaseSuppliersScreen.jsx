@@ -15,9 +15,9 @@ function SupplierCard({ s, maxSpend, onOpen }) {
   const share = maxSpend ? toNumber(s.spend) / maxSpend : 0
   return (
     <button type="button" onClick={onOpen}
-      className="flex min-w-0 flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left shadow-sm transition-colors hover:border-[hsl(var(--primary))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40">
+      className="flex min-w-0 flex-col rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left shadow-sm transition-colors hover:border-(--brand-primary)/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)/40">
       <div className="flex items-center gap-3">
-        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(hsl(var(--primary)) ${share * 360}deg, hsl(var(--muted)) 0deg)` }}>
+        <span className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full" style={{ background: `conic-gradient(var(--brand-primary) ${share * 360}deg, hsl(var(--muted)) 0deg)` }}>
           {s.avatarUrl
             ? <img src={s.avatarUrl} alt="" className="h-9 w-9 rounded-full object-cover ring-2 ring-[hsl(var(--card))]" />
             : <span className="flex h-9 w-9 items-center justify-center rounded-full bg-[hsl(var(--card))] text-xs font-semibold">{initials(s.name)}</span>}
@@ -63,10 +63,10 @@ export default function PurchaseSuppliersScreen() {
 
   const columns = useMemo(() => [
     { id: 'name', header: 'Proveedor', cell: ({ row: { original: s } }) => (
-      <button type="button" onClick={() => open(s.id)} className="flex items-center gap-2.5 text-left font-semibold hover:text-[hsl(var(--primary))] hover:underline dark:hover:text-[hsl(var(--primary))]">
+      <button type="button" onClick={() => open(s.id)} className="flex items-center gap-2.5 text-left font-semibold hover:text-(--brand-primary-computed) hover:underline dark:hover:text-(--brand-primary-computed)">
         {s.avatarUrl
           ? <img src={s.avatarUrl} alt="" className="h-7 w-7 shrink-0 rounded-full object-cover" />
-          : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[hsl(var(--primary))]/15 text-[10px] font-semibold text-[hsl(var(--primary))]">{initials(s.name)}</span>}
+          : <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-(--brand-primary)/15 text-[10px] font-semibold text-(--brand-primary-computed)">{initials(s.name)}</span>}
         {s.name}
       </button>
     ) },

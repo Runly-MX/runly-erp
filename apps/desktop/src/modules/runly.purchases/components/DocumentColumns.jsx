@@ -13,7 +13,7 @@ const OPEN_INVOICE = new Set(['PENDING', 'PARTIALLY_PAID', 'PENDING_APPROVAL'])
 function Folio({ number, sub, to }) {
   return (
     <Link to={to} className="group block max-w-[18rem] text-left focus-visible:outline-none">
-      <span className="block truncate font-semibold tabular-nums text-[hsl(var(--foreground))] group-hover:text-[hsl(var(--primary))] group-hover:underline group-focus-visible:underline dark:group-hover:text-[hsl(var(--primary))]">{number || 'Sin folio'}</span>
+      <span className="block truncate font-semibold tabular-nums text-[hsl(var(--foreground))] group-hover:text-(--brand-primary-computed) group-hover:underline group-focus-visible:underline dark:group-hover:text-(--brand-primary-computed)">{number || 'Sin folio'}</span>
       <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{sub}</span>
     </Link>
   )

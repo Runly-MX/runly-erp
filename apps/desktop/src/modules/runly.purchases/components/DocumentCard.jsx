@@ -32,7 +32,7 @@ export function DocumentCard({ kind, row: r, to }) {
 
   return (
     <Link to={to}
-      className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left transition-colors hover:border-[hsl(var(--primary))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--primary))]/40">
+      className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left transition-colors hover:border-(--brand-primary)/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)/40">
       <div className="flex items-start justify-between gap-2">
         <span className="min-w-0">
           <span className="block truncate font-semibold tabular-nums">{r.number || 'Sin folio'}</span>

@@ -40,7 +40,7 @@ export default function PurchaseSupplierDetail() {
           <div className="flex min-w-0 items-center gap-4">
             {s.avatarUrl
               ? <img src={s.avatarUrl} alt="" className="h-16 w-16 shrink-0 rounded-2xl object-cover ring-1 ring-[hsl(var(--border))]" />
-              : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-[hsl(var(--primary))]/10 text-xl font-semibold text-[hsl(var(--primary))]">{initials(s.name)}</span>}
+              : <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-(--brand-primary)/10 text-xl font-semibold text-(--brand-primary-computed)">{initials(s.name)}</span>}
             <div className="min-w-0">
               <h1 className="truncate text-2xl font-semibold tracking-tight">{s.name}</h1>
               <p className="truncate text-sm text-[hsl(var(--muted-foreground))]">{[profile.supplierCode, s.taxId, s.email, s.phone].filter(Boolean).join(', ') || 'Sin datos de contacto'}</p>
@@ -87,7 +87,7 @@ export default function PurchaseSupplierDetail() {
                 return (
                   <li key={`${kind}:${d.id}`}>
                     <button type="button" onClick={() => navigate(`${ROOT}/${kind}/${d.id}`)} className="flex w-full items-center gap-3 py-2.5 text-left hover:bg-[hsl(var(--muted))]/40">
-                      <Icon className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" />
+                      <Icon className="h-4 w-4 shrink-0 text-(--brand-primary-computed)" />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-semibold tabular-nums">{d.number}</span>
                         <span className="block text-xs text-[hsl(var(--muted-foreground))]">{formatDate(d.date ?? d.issueDate)}</span>

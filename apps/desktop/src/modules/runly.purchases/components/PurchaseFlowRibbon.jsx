@@ -15,12 +15,12 @@ function nodeClasses(state, dark) {
   switch (state) {
     case 'done': return 'bg-emerald-500 text-white border-emerald-500 shadow-[0_0_0_4px_rgba(16,185,129,0.18)]'
     case 'current': return dark
-      ? 'bg-white text-[hsl(var(--primary))] border-white shadow-[0_0_0_5px_rgba(255,255,255,0.22)]'
-      : 'bg-[hsl(var(--primary))] text-[hsl(var(--primary-foreground))] border-[hsl(var(--primary))] shadow-[0_0_0_5px_hsl(var(--primary)/0.18)]'
+      ? 'bg-white text-(--brand-primary) border-white shadow-[0_0_0_5px_rgba(255,255,255,0.22)]'
+      : 'bg-(--brand-primary) text-(--brand-primary-foreground) border-(--brand-primary) shadow-[0_0_0_5px_color-mix(in_srgb,var(--brand-primary)_18%,transparent)]'
     case 'blocked': return 'bg-rose-600 text-white border-rose-600 shadow-[0_0_0_4px_rgba(225,29,72,0.18)]'
     case 'skipped': return dark ? 'border-dashed border-white/40 text-white/50 bg-transparent' : 'border-dashed border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]/70 bg-transparent'
     case 'pending': return dark ? 'bg-white/5 border-white/35 text-white/80' : 'bg-[hsl(var(--card))] border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]'
-    default: return dark ? 'bg-white/12 border-white/25 text-white backdrop-blur-md' : 'bg-[hsl(var(--primary))]/10 border-[hsl(var(--primary))]/25 text-[hsl(var(--primary))]'
+    default: return dark ? 'bg-white/12 border-white/25 text-white backdrop-blur-md' : 'bg-(--brand-primary)/10 border-(--brand-primary)/25 text-(--brand-primary-computed)'
   }
 }
 
@@ -43,7 +43,7 @@ function Refs({ refs, dark, onOpenRef }) {
       {refs.slice(0, 2).map((ref) => (
         <button key={ref.id} type="button" onClick={() => onOpenRef?.(ref)}
           className={cn('rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-2',
-            dark ? 'bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/60' : 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--primary))]/15 focus-visible:ring-[hsl(var(--primary))]/40')}>
+            dark ? 'bg-white/10 text-white hover:bg-white/20 focus-visible:ring-white/60' : 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-(--brand-primary)/15 focus-visible:ring-(--brand-primary)/40')}>
           {ref.number ?? 'Ver'}
         </button>
       ))}
@@ -89,7 +89,7 @@ export function PurchaseFlowRibbon({ stages = [], surface = 'light', orientation
               <Tag type={onSelect ? 'button' : undefined} onClick={onSelect ? () => onSelect(stage) : undefined}
                 aria-label={onSelect ? `${label}${hasCount ? `: ${stage.count}` : ''}` : undefined}
                 className={cn('relative z-10 flex h-9 w-9 items-center justify-center rounded-full border-2 transition-transform',
-                  nodeClasses(stage.state, dark), onSelect && 'hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-[hsl(var(--primary))]')}>
+                  nodeClasses(stage.state, dark), onSelect && 'hover:scale-110 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-(--brand-primary)')}>
                 <StageIcon stage={stage} />
               </Tag>
               {hasCount ? (

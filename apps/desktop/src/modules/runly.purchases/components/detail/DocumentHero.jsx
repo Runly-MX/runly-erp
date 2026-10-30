@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom'
-import { PurchaseFlowRibbon } from '../PurchaseFlowRibbon.jsx'
+import { StageTrack } from './StageTrack.jsx'
 import { PurchaseStatusBadge } from '../PurchaseStatusBadge.jsx'
 import { KINDS, ROOT, docPath } from '../../lib/purchases-constants.js'
 import { formatDate, formatMoney, toNumber } from '../../lib/format.js'
@@ -36,11 +36,11 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
             <PurchaseStatusBadge kind={kind} status={doc.status} />
             {supplier?.name ? (
               supplier.id
-                ? <Link to={`${ROOT}/suppliers/${supplier.id}`} className={`${CHIP} hover:bg-[hsl(var(--primary))]/15`}>{supplier.name}</Link>
+                ? <Link to={`${ROOT}/suppliers/${supplier.id}`} className={`${CHIP} hover:bg-(--brand-primary)/15`}>{supplier.name}</Link>
                 : <span className={CHIP}>{supplier.name}</span>
             ) : null}
             {doc.caseId && kind !== 'cases' ? (
-              <Link to={docPath('purchase_case', doc.caseId)} className={`${CHIP} hover:bg-[hsl(var(--primary))]/15`}>Expediente {doc.caseNumber ?? doc.case?.number ?? ''}</Link>
+              <Link to={docPath('purchase_case', doc.caseId)} className={`${CHIP} hover:bg-(--brand-primary)/15`}>Expediente {doc.caseNumber ?? doc.case?.number ?? ''}</Link>
             ) : null}
             {doc.sequence ? <span className={`${CHIP} tabular-nums text-[hsl(var(--muted-foreground))]`} title="Consecutivo interno automático">N.º {doc.sequence}</span> : null}
           </div>
@@ -63,8 +63,8 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
       ) : null}
 
       {stages.length ? (
-        <div className="border-t border-[hsl(var(--border))] bg-[hsl(var(--muted))]/30 px-3 py-4 md:px-5">
-          <PurchaseFlowRibbon stages={stages} onOpenRef={onOpenRef} />
+        <div className="border-t border-[hsl(var(--border))] px-4 py-3.5 md:px-5">
+          <StageTrack stages={stages} onOpenRef={onOpenRef} />
         </div>
       ) : null}
     </section>

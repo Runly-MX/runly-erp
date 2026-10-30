@@ -27,7 +27,7 @@ export function LinkedInventoryCard({ ids = [], onChange, known, onKnown, disabl
     <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
       <header className="flex items-start justify-between gap-3">
         <div className="flex items-center gap-3">
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[hsl(var(--primary))]/10 text-[hsl(var(--primary))]"><Boxes className="h-4 w-4" /></span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-(--brand-primary)/10 text-(--brand-primary-computed)"><Boxes className="h-4 w-4" /></span>
           <div>
             <h3 className="text-sm font-semibold">Activos de Inventario</h3>
             <p className="text-xs text-[hsl(var(--muted-foreground))]">{ids.length ? `${ids.length} relacionados con este documento` : 'Relaciona los equipos que cubre esta compra'}</p>
