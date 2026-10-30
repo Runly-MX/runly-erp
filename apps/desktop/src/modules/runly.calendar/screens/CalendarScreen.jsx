@@ -25,8 +25,6 @@ import CalendarShareModal from "../components/CalendarShareModal";
 import { useDeleteCalendar, useCalendarEvent } from "../hooks/useCalendarData";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 
-const PHONE_WEEK_KEY = "runly.calendar.phoneWeekDefault";
-
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(
     () => typeof window !== "undefined" && window.innerWidth < breakpoint,
@@ -123,15 +121,10 @@ export default function CalendarScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Phones open on the week grid instead of the 30-day month, once: a later
-  // explicit pick of "Mes" is kept (the view itself persists in the store).
+  // Phones always open on the week grid (the 30-day month is too dense there);
+  // switching views during the visit still works. Desktop keeps the persisted view.
   useEffect(() => {
-    if (!isNarrow) return;
-    try {
-      if (localStorage.getItem(PHONE_WEEK_KEY)) return;
-      localStorage.setItem(PHONE_WEEK_KEY, "1");
-    } catch { /* storage unavailable: still default to the week */ }
-    if (activeView === "month") setActiveView("week");
+    if (isNarrow && activeView !== "week") setActiveView("week");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isNarrow]);
 
