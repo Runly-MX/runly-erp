@@ -14,6 +14,7 @@ import CalendarLeftSidebar from "../components/CalendarLeftSidebar";
 import CalendarRightSidebar from "../components/CalendarRightSidebar";
 import MonthView from "../components/MonthView";
 import WeekView from "../components/WeekView";
+import WeekGridView from "../components/WeekGridView";
 import DayView from "../components/DayView";
 import AgendaView from "../components/AgendaView";
 import DayAgendaSheet from "../components/DayAgendaSheet";
@@ -23,6 +24,8 @@ import CalendarFormModal from "../components/CalendarFormModal";
 import CalendarShareModal from "../components/CalendarShareModal";
 import { useDeleteCalendar, useCalendarEvent } from "../hooks/useCalendarData";
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
+
+const PHONE_WEEK_KEY = "runly.calendar.phoneWeekDefault";
 
 function useNarrow(breakpoint = 640) {
   const [narrow, setNarrow] = useState(
@@ -40,6 +43,7 @@ function useNarrow(breakpoint = 640) {
 export default function CalendarScreen() {
   const {
     activeView,
+    setActiveView,
     selectedDate,
     setSelectedDate,
     leftSidebarOpen,
@@ -119,6 +123,18 @@ export default function CalendarScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Phones open on the week grid instead of the 30-day month, once: a later
+  // explicit pick of "Mes" is kept (the view itself persists in the store).
+  useEffect(() => {
+    if (!isNarrow) return;
+    try {
+      if (localStorage.getItem(PHONE_WEEK_KEY)) return;
+      localStorage.setItem(PHONE_WEEK_KEY, "1");
+    } catch { /* storage unavailable: still default to the week */ }
+    if (activeView === "month") setActiveView("week");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isNarrow]);
+
   const [detailEvent, setDetailEvent] = useState(null);
   useMiraiRecordContext({
     recordType: "event",
@@ -179,7 +195,7 @@ export default function CalendarScreen() {
 
         <button
           onClick={toggleRightSidebar}
-          className="p-2 mr-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
+          className="hidden sm:block p-2 mr-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
           title={
             rightSidebarOpen ? "Ocultar panel derecho" : "Mostrar panel derecho"
           }
@@ -232,7 +248,20 @@ export default function CalendarScreen() {
               }}
             />
           )}
-          {activeView === "week" && <WeekView onEventClick={setDetailEvent} />}
+          {activeView === "week" && isNarrow && (
+            <WeekGridView
+              onEventClick={setDetailEvent}
+              onDayClick={(dateStr) => {
+                setSelectedDate(dateStr);
+                setAgendaDate(dateStr);
+              }}
+              onNewEvent={(dateStr) => {
+                setSelectedDate(dateStr);
+                setFormState({ _isNew: true, defaultDate: dateStr });
+              }}
+            />
+          )}
+          {activeView === "week" && !isNarrow && <WeekView onEventClick={setDetailEvent} />}
           {activeView === "day" && <DayView onEventClick={setDetailEvent} />}
           {activeView === "agenda" && (
             <AgendaView onEventClick={setDetailEvent} />

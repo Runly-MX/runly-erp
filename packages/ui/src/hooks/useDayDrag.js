@@ -1,38 +1,40 @@
-// Drag a task chip onto a day cell ([data-week-day]). Touch: hold ~350 ms to lift it
-// (a short vibration confirms), so a normal swipe still scrolls. Mouse: drag past 4 px.
-// Returns the pointer handler for chips, the live drag (for the ghost and the drop
-// highlight) and wasDrag() so the click that ends a drag does not also open the task.
+// Drag an item (a task, an event) onto a drop cell marked with `targetAttr` (its value is
+// the drop key, read as a number when numeric). Touch: hold ~350 ms to lift it (a short
+// vibration confirms), so a normal swipe still scrolls. Mouse: drag past 4 px.
+// Returns the pointer handler for draggable chips, the live drag (for a ghost and the
+// drop highlight) and wasDrag() so the click that ends a drag does not also open the item.
 import { useCallback, useEffect, useRef, useState } from "react";
 
 const HOLD_MS = 350;
 const TOUCH_SLOP = 8;
 
-function dayUnder(x, y) {
-  const value = document.elementFromPoint(x, y)?.closest?.("[data-week-day]")?.getAttribute("data-week-day");
-  return value == null ? null : Number(value);
+function targetUnder(x, y, attr) {
+  const value = document.elementFromPoint(x, y)?.closest?.(`[${attr}]`)?.getAttribute(attr);
+  if (value == null) return null;
+  return /^-?\d+$/.test(value) ? Number(value) : value;
 }
 
-export function useTaskDrag({ onDrop, disabled = false }) {
-  const [drag, setDrag] = useState(null); // { task, fromDay, x, y, overDay }
+export function useDayDrag({ onDrop, disabled = false, targetAttr = "data-drop-day" }) {
+  const [drag, setDrag] = useState(null); // { item, from, x, y, over }
   const lastDragAt = useRef(0);
   const cleanupRef = useRef(null);
 
   useEffect(() => () => cleanupRef.current?.(), []);
 
-  const onPointerDown = useCallback((event, task, fromDay) => {
+  const onPointerDown = useCallback((event, item, from) => {
     if (disabled || (event.pointerType === "mouse" && event.button !== 0)) return;
     const touch = event.pointerType !== "mouse";
     const start = { x: event.clientX, y: event.clientY };
     let armed = false;
     let timer = null;
 
-    const show = (x, y) => setDrag({ task, fromDay, x, y, overDay: dayUnder(x, y) });
+    const show = (x, y) => setDrag({ item, from, x, y, over: targetUnder(x, y, targetAttr) });
     const arm = (x, y) => {
       armed = true;
       navigator.vibrate?.(12);
       show(x, y);
     };
-    // Once lifted, the finger moves the chip instead of scrolling the page.
+    // Once lifted, the finger moves the item instead of scrolling the page.
     const blockScroll = (e) => { if (armed && e.cancelable) e.preventDefault(); };
     const move = (e) => {
       if (armed) { show(e.clientX, e.clientY); return; }
@@ -45,8 +47,8 @@ export function useTaskDrag({ onDrop, disabled = false }) {
       cleanup();
       if (!wasArmed) return;
       lastDragAt.current = Date.now();
-      const target = dayUnder(e.clientX, e.clientY);
-      if (target != null && e.type === "pointerup") onDrop(task, fromDay, target);
+      const target = targetUnder(e.clientX, e.clientY, targetAttr);
+      if (target != null && e.type === "pointerup") onDrop(item, from, target);
     };
     function cleanup() {
       clearTimeout(timer);
@@ -65,7 +67,7 @@ export function useTaskDrag({ onDrop, disabled = false }) {
     window.addEventListener("pointerup", up);
     window.addEventListener("pointercancel", up);
     window.addEventListener("touchmove", blockScroll, { passive: false });
-  }, [disabled, onDrop]);
+  }, [disabled, onDrop, targetAttr]);
 
   const wasDrag = useCallback(() => Date.now() - lastDragAt.current < 400, []);
 

@@ -350,6 +350,7 @@ export {
 export { useCoarsePointer, useHasHover } from "./hooks/usePointerCapabilities.js";
 export { useIsolatedScroll } from "./hooks/useIsolatedScroll.js";
 export { useLongPress, createLongPressController } from "./hooks/useLongPress.js";
+export { useDayDrag } from "./hooks/useDayDrag.js";
 export { useSwipeToReply, createSwipeController } from "./hooks/useSwipeToReply.js";
 
 // runly.activity

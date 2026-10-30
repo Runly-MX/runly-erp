@@ -11,6 +11,22 @@ const VIEWS = [
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
 
+const SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
+
+// Phone title: fits next to the arrows, Hoy, the view select and +.
+function formatShortTitle(view, dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  if (view === 'day') return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
+  if (view === 'week') {
+    const start = new Date(d); start.setDate(d.getDate() - d.getDay())
+    const end = new Date(start); end.setDate(start.getDate() + 6)
+    return start.getMonth() === end.getMonth()
+      ? `${start.getDate()}–${end.getDate()} ${SHORT[end.getMonth()]}`
+      : `${start.getDate()} ${SHORT[start.getMonth()]}–${end.getDate()} ${SHORT[end.getMonth()]}`
+  }
+  return `${SHORT[d.getMonth()]} ${d.getFullYear()}`
+}
+
 function formatTitle(view, dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
   if (view === 'day') {
@@ -50,13 +66,13 @@ export default function CalendarToolbar({ onNewEvent }) {
 
       {/* Title — truncates on narrow */}
       <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize truncate min-w-0 flex-1 sm:flex-none sm:min-w-40">
-        {formatTitle(activeView, selectedDate)}
+        <span className="sm:hidden">{formatShortTitle(activeView, selectedDate)}</span>
+        <span className="hidden sm:inline">{formatTitle(activeView, selectedDate)}</span>
       </h2>
 
-      {/* "Hoy" — hidden on narrow to save space */}
       <button
         onClick={navigateToday}
-        className="hidden sm:block text-xs px-2.5 py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
+        className="text-xs px-2.5 py-1.5 sm:py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
       >
         Hoy
       </button>

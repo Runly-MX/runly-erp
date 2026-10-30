@@ -6,7 +6,7 @@ import { useCallback, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { CalendarOff, ChevronLeft, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
-import { EmptyState, LoadingState, useIsMobile } from "@runly/ui";
+import { EmptyState, LoadingState, useDayDrag, useIsMobile } from "@runly/ui";
 import { toLocalIso } from "../../../../lib/localDate.js";
 import { useGantt, useRescheduleTask, useStatuses, useUpdateTask } from "../../hooks/useProjectsData";
 import { dayNumber, dayText, taskSpan } from "../../lib/ganttLayout";
@@ -15,7 +15,6 @@ import TaskFormModal from "../TaskFormModal.jsx";
 import WeekDayCell from "./WeekDayCell";
 import WeekDaySheet from "./WeekDaySheet";
 import WeekWidget, { WIDGET_MODES } from "./WeekWidget";
-import { useTaskDrag } from "./useTaskDrag";
 
 const WIDGET_KEY = "runly.projects.weekWidget";
 const readWidgetMode = () => {
@@ -87,7 +86,7 @@ export default function WeekView({ projectId, onTaskClick }) {
     }).catch(() => {});
   }, [applyDates]);
 
-  const { drag, onPointerDown: onChipPointerDown, wasDrag } = useTaskDrag({ onDrop: moveTask });
+  const { drag, onPointerDown: onChipPointerDown, wasDrag } = useDayDrag({ onDrop: moveTask, targetAttr: "data-week-day" });
 
   function openTask(task) {
     if (wasDrag()) return;
@@ -156,8 +155,8 @@ export default function WeekView({ projectId, onTaskClick }) {
               today={today}
               tasks={tasksOnDay(tasks, day)}
               maxVisible={isMobile ? 3 : 7}
-              dropTarget={drag?.overDay === day}
-              draggingId={drag?.task.id}
+              dropTarget={drag?.over === day}
+              draggingId={drag?.item.id}
               onOpenDay={(d) => setSheet({ day: d })}
               onOpenTask={openTask}
               onChipPointerDown={onChipPointerDown}
@@ -172,7 +171,7 @@ export default function WeekView({ projectId, onTaskClick }) {
             tasks={tasks}
             pending={pending}
             progress={progress}
-            draggingId={drag?.task.id}
+            draggingId={drag?.item.id}
             onChipPointerDown={onChipPointerDown}
             onOpenTask={openTask}
             onPickDay={(day) => goToWeek(weekStart(day))}
@@ -185,9 +184,9 @@ export default function WeekView({ projectId, onTaskClick }) {
         <div
           aria-hidden="true"
           className="pointer-events-none fixed z-50 max-w-[14rem] -translate-x-1/2 -translate-y-[140%] truncate rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2.5 py-1.5 text-xs font-medium shadow-xl"
-          style={{ left: Math.min(Math.max(drag.x, 96), window.innerWidth - 96), top: drag.y, borderLeft: `3px solid ${drag.task.status?.color ?? "#6366f1"}` }}
+          style={{ left: Math.min(Math.max(drag.x, 96), window.innerWidth - 96), top: drag.y, borderLeft: `3px solid ${drag.item.status?.color ?? "#6366f1"}` }}
         >
-          {drag.task.title}
+          {drag.item.title}
         </div>
       )}
 
