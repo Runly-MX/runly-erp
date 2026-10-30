@@ -223,7 +223,14 @@ export function createPurchasesService({ prisma, broadcaster }) {
     return keys
   }
 
-  async function dashboard(companyId, actorId) {
+  // access: { canRead(entityType), can(permissionKey) } of the caller. Rows
+  // and figures of document kinds the caller cannot read come back empty or
+  // null (the route only requires purchases.read).
+  async function dashboard(companyId, actorId, access = {}) {
+    const canRead = access.canRead ?? (() => true)
+    const can = access.can ?? (() => true)
+    const reads = { orders: canRead('purchase_order'), invoices: canRead('purchase_invoice'), requests: canRead('purchase_request'), receipts: canRead('purchase_receipt') }
+    const decides = can('purchases.approval.decide')
     const workflow = await ensureWorkflow(companyId, actorId)
     const capabilities = workflow.capabilities ?? {}
     const today = new Date(toLocalIso() + 'T00:00:00.000Z')
@@ -232,8 +239,10 @@ export function createPurchasesService({ prisma, broadcaster }) {
     const openOrders = { in: ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'ISSUED', 'PARTIALLY_RECEIVED'] }
     const payable = { in: ['PENDING', 'PARTIALLY_PAID'] }
     const counted = { notIn: ['CANCELLED', 'DRAFT'] }
+    const notOverdue = { OR: [{ dueDate: null }, { dueDate: { gte: today } }] }
     const [openCases, ordersOpen, orderedAgg, invoicedAgg, payableRows, overdueInvoices, pendingApprovals, pendingReceipts,
-      monthOrders, monthInvoices, approvals, overdueList, awaitingReceipt, recentOrders, recentInvoices, recentRequests, recentReceipts] = await Promise.all([
+      monthOrders, monthInvoices, approvals, overdueList, awaitingReceipt, recentOrders, recentInvoices, recentRequests, recentReceipts,
+      payableInvoices, payableList] = await Promise.all([
       prisma.purchaseCase.count({ where: { companyId, status: { in: ['OPEN', 'IN_PROGRESS'] } } }),
       prisma.purchaseOrder.count({ where: { companyId, status: openOrders } }),
       prisma.purchaseOrder.aggregate({ where: { companyId, status: counted }, _sum: { total: true } }),
@@ -251,6 +260,9 @@ export function createPurchasesService({ prisma, broadcaster }) {
       prisma.purchaseInvoice.findMany({ where: { companyId }, orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.purchaseRequest.findMany({ where: { companyId }, orderBy: { createdAt: 'desc' }, take: 8 }),
       prisma.purchaseReceipt.findMany({ where: { companyId }, orderBy: { createdAt: 'desc' }, take: 8 }),
+      // Still payable and not overdue yet: soonest due first, undated last.
+      prisma.purchaseInvoice.count({ where: { companyId, status: payable, ...notOverdue } }),
+      prisma.purchaseInvoice.findMany({ where: { companyId, status: payable, ...notOverdue }, orderBy: [{ dueDate: { sort: 'asc', nulls: 'last' } }, { issueDate: 'asc' }], take: 5 }),
     ])
 
     const monthly = months.map(month => ({ month, ordered: 0, invoiced: 0 }))
@@ -270,7 +282,7 @@ export function createPurchasesService({ prisma, broadcaster }) {
       : []
     const receiptOrderMap = new Map(receiptOrders.map(row => [row.id, row]))
     const names = await supplierNames(prisma, companyId, [
-      ...overdueList, ...awaitingReceipt, ...recentOrders, ...recentInvoices, ...receiptOrders, ...ownerRows.values(),
+      ...overdueList, ...payableList, ...awaitingReceipt, ...recentOrders, ...recentInvoices, ...receiptOrders, ...ownerRows.values(),
     ].map(row => row.supplierId))
     const docRow = (kind, row) => ({ ...plain(row), kind, supplierName: names.get(row.supplierId) ?? null, path: `${KINDS[kind].path}/${row.id}` })
 
@@ -282,25 +294,26 @@ export function createPurchasesService({ prisma, broadcaster }) {
         const order = receiptOrderMap.get(row.orderId)
         return { kind: 'receipts', id: row.id, number: row.number, supplierName: names.get(order?.supplierId) ?? null, total: order ? num(order.total) : null, currency: order?.currency ?? null, status: row.status, date: row.createdAt }
       }),
-    ].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8)
+    ].filter(row => reads[row.kind]).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 8)
       .map(row => ({ ...row, path: `${KINDS[row.kind].path}/${row.id}` }))
 
     return {
       metrics: {
         openCases,
-        ordersOpen,
-        orderedAmount: num(orderedAgg._sum.total),
-        invoicedAmount: num(invoicedAgg._sum.total),
-        payableAmount: Math.round(payableRows.reduce((sum, row) => sum + num(row.total) - num(row.paidAmount), 0) * 100) / 100,
-        overdueInvoices,
-        pendingApprovals,
-        pendingReceipts,
+        ordersOpen: reads.orders ? ordersOpen : null,
+        orderedAmount: reads.orders ? num(orderedAgg._sum.total) : null,
+        invoicedAmount: reads.invoices ? num(invoicedAgg._sum.total) : null,
+        payableAmount: reads.invoices ? Math.round(payableRows.reduce((sum, row) => sum + num(row.total) - num(row.paidAmount), 0) * 100) / 100 : null,
+        overdueInvoices: reads.invoices ? overdueInvoices : null,
+        payableInvoices: reads.invoices ? payableInvoices : null,
+        pendingApprovals: decides ? pendingApprovals : null,
+        pendingReceipts: reads.orders ? pendingReceipts : null,
       },
-      monthly,
-      topSuppliers,
+      monthly: monthly.map(entry => ({ month: entry.month, ordered: reads.orders ? entry.ordered : null, invoiced: reads.invoices ? entry.invoiced : null })),
+      topSuppliers: (capabilities.invoices !== false ? reads.invoices : reads.orders) ? topSuppliers : [],
       pipeline,
       attention: {
-        approvals: approvals.map(approval => {
+        approvals: (decides ? approvals : []).map(approval => {
           const owner = ownerRows.get(approval.ownerId)
           return {
             ...plain(approval),
@@ -310,8 +323,9 @@ export function createPurchasesService({ prisma, broadcaster }) {
             supplierName: names.get(owner?.supplierId) ?? null,
           }
         }),
-        overdueInvoices: overdueList.map(row => docRow('invoices', row)),
-        awaitingReceipt: awaitingReceipt.map(row => docRow('orders', row)),
+        overdueInvoices: reads.invoices ? overdueList.map(row => docRow('invoices', row)) : [],
+        payable: reads.invoices ? payableList.map(row => docRow('invoices', row)) : [],
+        awaitingReceipt: reads.orders ? awaitingReceipt.map(row => docRow('orders', row)) : [],
       },
       recent,
     }

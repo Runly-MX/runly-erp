@@ -30,20 +30,23 @@ function useDebounced(value, delay = 300) {
 // cases, payments), driven by lib/list-config.js.
 export default function PurchaseDocumentList() {
   const navigate = useNavigate()
-  const { section } = usePurchaseRoute()
+  const { section, searchParams } = usePurchaseRoute()
   const config = LIST_SECTIONS[section] ?? LIST_SECTIONS.orders
+  // ?estado=<chip> opens the list on that view (links from Inicio).
+  const urlStatus = searchParams.get('estado')
+  const initialStatus = config.chips.some((c) => c.value === urlStatus) ? urlStatus : (config.defaultStatus ?? 'ALL')
   const kindMeta = KINDS[config.kind]
   const caps = useCapabilities()
   const can = usePurchasesCan()
 
-  const [status, setStatus] = useState(config.defaultStatus ?? 'ALL')
+  const [status, setStatus] = useState(initialStatus)
   const [search, setSearch] = useState('')
   const [supplierId, setSupplierId] = useState(null)
   const [page, setPage] = useState(1)
   const [view, setView] = useState(readView)
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view) } catch { /* per-viewer convenience only */ } }, [view])
   const debouncedSearch = useDebounced(search)
-  useEffect(() => { setStatus(config.defaultStatus ?? 'ALL'); setSearch(''); setSupplierId(null); setPage(1) }, [section, config.defaultStatus])
+  useEffect(() => { setStatus(initialStatus); setSearch(''); setSupplierId(null); setPage(1) }, [section, initialStatus])
   useEffect(() => { setPage(1) }, [status, debouncedSearch, supplierId])
 
   // Status lives in a FilterBar chip (desktop) or the mobile filters sheet,
@@ -92,7 +95,7 @@ export default function PurchaseDocumentList() {
   }
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader eyebrow="Compras" title={config.title} description={config.description}
         actions={canCreate ? <Button onClick={onCreate}><Plus className="h-4 w-4" />{kindMeta.newLabel}</Button> : null} />
 

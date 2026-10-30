@@ -4,16 +4,13 @@ summary: Adquisiciones de bienes y servicios con un proceso que cada empresa aju
 ---
 Runly Compras registra cómo adquiere tu empresa lo que necesita: qué se pidió, a quién, cuánto costó, qué llegó y qué falta por pagar. El proceso se adapta a tu tamaño: puedes trabajar solo con facturas o usar el flujo completo con solicitudes, cotizaciones y aprobaciones.
 
-- **Resumen**: el tablero de compras — lo pedido contra lo facturado, lo que falta por pagar, aprobaciones pendientes y lo que requiere atención.
-- **Expedientes**: agrupan todos los documentos de una misma compra (solicitud, cotizaciones, orden, recepción, factura).
-- **Solicitudes**: alguien pide que se compre algo; al aprobarse se convierte en orden.
-- **Aprobaciones**: bandeja de lo que espera tu autorización.
-- **Órdenes**: órdenes de compra a proveedores, con sus conceptos y totales.
-- **Recepciones**: registro de lo que llegó, total o parcial, contra una orden.
-- **Facturas**: facturas de proveedor y su estado de pago.
-- **Pagos**: facturas por pagar, pagadas parcialmente o vencidas.
-- **Proveedores**: tus contactos que venden, con su historial de documentos y gasto.
-- **Configuración**: qué etapas usa tu empresa y cuándo son obligatorias.
+El menú se organiza en tres grupos:
+
+- **Trabajo**: **Inicio** (lo que requiere atención según tu rol, cifras del periodo y el avance por etapa) y **Aprobaciones** (lo que espera tu autorización, con su contador).
+- **Documentos**, en el orden del proceso: **Solicitudes**, **Órdenes de compra**, **Recepciones**, **Facturas**, **Por pagar** (facturas con saldo, pagadas parcialmente o vencidas) y **Expedientes** (todos los documentos de una misma compra).
+- **Directorio y configuración**: **Proveedores** (tus contactos que venden, con su historial y gasto) y **Configuración** (qué etapas usa tu empresa y cuándo son obligatorias).
+
+El botón **Nueva compra**, arriba del menú, ofrece solo lo que tu flujo permite y tú puedes crear.
 
 ### Cómo se adapta el proceso
 

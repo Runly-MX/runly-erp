@@ -33,6 +33,7 @@ export function ModuleSidebar({
   onInstall,
   contained = false,
   sidebarSlot = null,
+  sidebarSlotPlacement = "bottom",
   editionName = "Jaguar",
   navBadges = {},
 }) {
@@ -98,6 +99,242 @@ export function ModuleSidebar({
       else next.add(uid);
       return next;
     });
+  }
+
+  function renderItem(item) {
+    const hasChildren = item.children?.length > 0;
+
+    if (!hasChildren) {
+      // Flat nav item (unchanged behavior)
+      const isActive = item.fullPath === activeFullPath;
+      return (
+        <a
+          key={item.uid}
+          href={item.fullPath}
+          onClick={(e) => {
+            if (e.ctrlKey || e.metaKey || e.button === 1) return;
+            e.preventDefault();
+            onNavigate(item.fullPath);
+          }}
+          title={collapsed ? item.label : undefined}
+          className={cn(
+            "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
+            "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
+            "hover:bg-[hsl(var(--muted))]",
+            "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
+            isActive
+              ? "text-[hsl(var(--foreground))] font-medium"
+              : "text-[hsl(var(--muted-foreground))]",
+          )}
+          style={
+            isActive
+              ? {
+                  borderLeft: `2px solid ${module.color}`,
+                  backgroundColor: `${module.color}14`,
+                }
+              : { borderLeft: "2px solid transparent" }
+          }
+        >
+          <NavIcon
+            name={item.icon}
+            size={15}
+            className="shrink-0"
+            style={{ color: isActive ? module.color : undefined }}
+          />
+          <span
+            className={cn(
+              "truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-300 ease-in-out",
+              collapsed ? "max-w-0 opacity-0" : "max-w-full opacity-100",
+            )}
+          >
+            {item.label}
+          </span>
+          {navBadges[item.fullPath] > 0 && !collapsed && (
+            <Badge
+              variant="destructive"
+              className="ml-auto shrink-0 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
+            >
+              {navBadges[item.fullPath]}
+            </Badge>
+          )}
+        </a>
+      );
+    }
+
+    // Group header with children
+    const isOpen = openGroups.has(item.uid);
+    const isGroupActive = item.children.some(
+      (child) =>
+        child.fullPath === activeFullPath ||
+        currentPath.startsWith(child.fullPath + "/"),
+    );
+
+    const headerButton = (
+        <button
+          onClick={collapsed ? undefined : () => toggleGroup(item.uid)}
+          title={collapsed ? item.label : undefined}
+          className={cn(
+            "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
+            "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
+            "hover:bg-[hsl(var(--muted))]",
+            "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
+            isGroupActive && (!isOpen || collapsed)
+              ? "text-[hsl(var(--foreground))] font-medium"
+              : "text-[hsl(var(--muted-foreground))]",
+          )}
+          style={
+            isGroupActive && (!isOpen || collapsed)
+              ? {
+                  borderLeft: `2px solid ${module.color}`,
+                  backgroundColor: `${module.color}14`,
+                }
+              : { borderLeft: "2px solid transparent" }
+          }
+        >
+          <NavIcon
+            name={item.icon}
+            size={15}
+            className="shrink-0"
+            style={{
+              color: isGroupActive && (!isOpen || collapsed) ? module.color : undefined,
+            }}
+          />
+          <span
+            className={cn(
+              "flex-1 truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-300 ease-in-out text-left",
+              collapsed ? "max-w-0 opacity-0" : "max-w-full opacity-100",
+            )}
+          >
+            {item.label}
+          </span>
+          {/* Chevron — only visible when sidebar is expanded */}
+          <ChevronDown
+            size={14}
+            className={cn(
+              "shrink-0 transition-[opacity,transform] duration-200 ease-in-out text-[hsl(var(--muted-foreground))]",
+              collapsed ? "opacity-0 w-0" : "opacity-100",
+              isOpen ? "rotate-180" : "rotate-0",
+            )}
+          />
+        </button>
+    );
+
+    return (
+      <div key={item.uid}>
+        {/* Group header button */}
+        {collapsed ? (
+          <Popover>
+            <PopoverTrigger asChild>{headerButton}</PopoverTrigger>
+            <PopoverContent side="right" align="start" sideOffset={10} className="w-56 p-1.5">
+              <div className="px-2 pb-1 pt-0.5 text-xs font-semibold text-[hsl(var(--muted-foreground))]">{item.label}</div>
+              <div className="space-y-0.5">
+                {item.children.map((child) => {
+                  const isChildActive =
+                    child.fullPath === activeFullPath ||
+                    currentPath.startsWith(child.fullPath + "/");
+                  return (
+                    <a
+                      key={child.fullPath}
+                      href={child.fullPath}
+                      onClick={(e) => {
+                        if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                        e.preventDefault();
+                        onNavigate(child.fullPath);
+                      }}
+                      className={cn(
+                        "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-sm cursor-pointer outline-none",
+                        "transition-colors duration-150 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
+                        "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
+                        isChildActive ? "font-medium text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]",
+                      )}
+                      style={isChildActive ? { backgroundColor: `${module.color}12` } : {}}
+                    >
+                      <span className="truncate">{child.label}</span>
+                      {navBadges[child.fullPath] > 0 && (
+                        <Badge variant="destructive" className="ml-auto h-4 min-w-4 shrink-0 justify-center rounded-full px-1 text-[10px] leading-none">
+                          {navBadges[child.fullPath]}
+                        </Badge>
+                      )}
+                    </a>
+                  );
+                })}
+              </div>
+            </PopoverContent>
+          </Popover>
+        ) : (
+          headerButton
+        )}
+
+        {/* Child items — tree-line style */}
+        {isOpen && !collapsed && (
+          <div className="mt-0.5 pl-2.5">
+            <div className="border-l border-[hsl(var(--border))] space-y-0.5 pl-2">
+              {item.children.map((child) => {
+                const isChildActive =
+                  child.fullPath === activeFullPath ||
+                  currentPath.startsWith(child.fullPath + "/");
+                return (
+                  <a
+                    key={child.fullPath}
+                    href={child.fullPath}
+                    onClick={(e) => {
+                      if (e.ctrlKey || e.metaKey || e.button === 1) return;
+                      e.preventDefault();
+                      onNavigate(child.fullPath);
+                    }}
+                    className={cn(
+                      "w-full flex items-center gap-2 h-8 rounded-lg text-sm px-2",
+                      "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
+                      "hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
+                      "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
+                      isChildActive
+                        ? "text-[hsl(var(--foreground))] font-medium"
+                        : "text-[hsl(var(--muted-foreground))]",
+                    )}
+                    style={
+                      isChildActive
+                        ? { backgroundColor: `${module.color}12` }
+                        : {}
+                    }
+                  >
+                    <span
+                      className={cn(
+                        "h-1.5 w-1.5 rounded-full shrink-0 transition-colors duration-150",
+                        isChildActive ? "opacity-100" : "opacity-40",
+                      )}
+                      style={{
+                        backgroundColor: isChildActive
+                          ? module.color
+                          : "hsl(var(--muted-foreground))",
+                      }}
+                    />
+                    <span className="truncate">{child.label}</span>
+                    {navBadges[child.fullPath] > 0 && (
+                      <Badge
+                        variant="destructive"
+                        className="ml-auto shrink-0 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
+                      >
+                        {navBadges[child.fullPath]}
+                      </Badge>
+                    )}
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Contiguous items sharing item.section form one titled block. Modules
+  // without sections keep a single untitled block (unchanged look).
+  const sections = [];
+  for (const item of navItems) {
+    const label = typeof item.section === "string" ? item.section : "";
+    const last = sections[sections.length - 1];
+    if (last && last.label === label) last.items.push(item);
+    else sections.push({ key: `${label}:${sections.length}`, label, items: [item] });
   }
 
   return (
@@ -209,232 +446,33 @@ export function ModuleSidebar({
       </div>
 
       {/* Navigation items */}
-      <nav className="flex-1 overflow-y-auto px-2 py-3 space-y-0.5">
-        {navItems.map((item) => {
-          const hasChildren = item.children?.length > 0;
+      {sidebarSlot && sidebarSlotPlacement === "top" && !collapsed && (
+        <div className="shrink-0 border-b border-[hsl(var(--border))] px-2 py-2.5">
+          {sidebarSlot}
+        </div>
+      )}
 
-          if (!hasChildren) {
-            // Flat nav item (unchanged behavior)
-            const isActive = item.fullPath === activeFullPath;
-            return (
-              <a
-                key={item.uid}
-                href={item.fullPath}
-                onClick={(e) => {
-                  if (e.ctrlKey || e.metaKey || e.button === 1) return;
-                  e.preventDefault();
-                  onNavigate(item.fullPath);
-                }}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
-                  "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
-                  "hover:bg-[hsl(var(--muted))]",
-                  isActive
-                    ? "text-[hsl(var(--foreground))] font-medium"
-                    : "text-[hsl(var(--muted-foreground))]",
-                )}
-                style={
-                  isActive
-                    ? {
-                        borderLeft: `2px solid ${module.color}`,
-                        backgroundColor: `${module.color}14`,
-                      }
-                    : { borderLeft: "2px solid transparent" }
-                }
-              >
-                <NavIcon
-                  name={item.icon}
-                  size={15}
-                  className="shrink-0"
-                  style={{ color: isActive ? module.color : undefined }}
-                />
-                <span
-                  className={cn(
-                    "truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-300 ease-in-out",
-                    collapsed ? "max-w-0 opacity-0" : "max-w-full opacity-100",
-                  )}
-                >
-                  {item.label}
-                </span>
-                {navBadges[item.fullPath] > 0 && !collapsed && (
-                  <Badge
-                    variant="destructive"
-                    className="ml-auto shrink-0 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
-                  >
-                    {navBadges[item.fullPath]}
-                  </Badge>
-                )}
-              </a>
-            );
-          }
-
-          // Group header with children
-          const isOpen = openGroups.has(item.uid);
-          const isGroupActive = item.children.some(
-            (child) =>
-              child.fullPath === activeFullPath ||
-              currentPath.startsWith(child.fullPath + "/"),
-          );
-
-          const headerButton = (
-              <button
-                onClick={collapsed ? undefined : () => toggleGroup(item.uid)}
-                title={collapsed ? item.label : undefined}
-                className={cn(
-                  "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
-                  "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
-                  "hover:bg-[hsl(var(--muted))]",
-                  isGroupActive && (!isOpen || collapsed)
-                    ? "text-[hsl(var(--foreground))] font-medium"
-                    : "text-[hsl(var(--muted-foreground))]",
-                )}
-                style={
-                  isGroupActive && (!isOpen || collapsed)
-                    ? {
-                        borderLeft: `2px solid ${module.color}`,
-                        backgroundColor: `${module.color}14`,
-                      }
-                    : { borderLeft: "2px solid transparent" }
-                }
-              >
-                <NavIcon
-                  name={item.icon}
-                  size={15}
-                  className="shrink-0"
-                  style={{
-                    color: isGroupActive && (!isOpen || collapsed) ? module.color : undefined,
-                  }}
-                />
-                <span
-                  className={cn(
-                    "flex-1 truncate whitespace-nowrap overflow-hidden transition-[opacity,max-width] duration-300 ease-in-out text-left",
-                    collapsed ? "max-w-0 opacity-0" : "max-w-full opacity-100",
-                  )}
-                >
-                  {item.label}
-                </span>
-                {/* Chevron — only visible when sidebar is expanded */}
-                <ChevronDown
-                  size={14}
-                  className={cn(
-                    "shrink-0 transition-[opacity,transform] duration-200 ease-in-out text-[hsl(var(--muted-foreground))]",
-                    collapsed ? "opacity-0 w-0" : "opacity-100",
-                    isOpen ? "rotate-180" : "rotate-0",
-                  )}
-                />
-              </button>
-          );
-
-          return (
-            <div key={item.uid}>
-              {/* Group header button */}
-              {collapsed ? (
-                <Popover>
-                  <PopoverTrigger asChild>{headerButton}</PopoverTrigger>
-                  <PopoverContent side="right" align="start" sideOffset={10} className="w-56 p-1.5">
-                    <div className="px-2 pb-1 pt-0.5 text-xs font-semibold text-[hsl(var(--muted-foreground))]">{item.label}</div>
-                    <div className="space-y-0.5">
-                      {item.children.map((child) => {
-                        const isChildActive =
-                          child.fullPath === activeFullPath ||
-                          currentPath.startsWith(child.fullPath + "/");
-                        return (
-                          <a
-                            key={child.fullPath}
-                            href={child.fullPath}
-                            onClick={(e) => {
-                              if (e.ctrlKey || e.metaKey || e.button === 1) return;
-                              e.preventDefault();
-                              onNavigate(child.fullPath);
-                            }}
-                            className={cn(
-                              "flex h-8 w-full items-center gap-2 rounded-lg px-2 text-sm cursor-pointer outline-none",
-                              "transition-colors duration-150 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
-                              isChildActive ? "font-medium text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]",
-                            )}
-                            style={isChildActive ? { backgroundColor: `${module.color}12` } : {}}
-                          >
-                            <span className="truncate">{child.label}</span>
-                            {navBadges[child.fullPath] > 0 && (
-                              <Badge variant="destructive" className="ml-auto h-4 min-w-4 shrink-0 justify-center rounded-full px-1 text-[10px] leading-none">
-                                {navBadges[child.fullPath]}
-                              </Badge>
-                            )}
-                          </a>
-                        );
-                      })}
-                    </div>
-                  </PopoverContent>
-                </Popover>
-              ) : (
-                headerButton
-              )}
-
-              {/* Child items — tree-line style */}
-              {isOpen && !collapsed && (
-                <div className="mt-0.5 pl-2.5">
-                  <div className="border-l border-[hsl(var(--border))] space-y-0.5 pl-2">
-                    {item.children.map((child) => {
-                      const isChildActive =
-                        child.fullPath === activeFullPath ||
-                        currentPath.startsWith(child.fullPath + "/");
-                      return (
-                        <a
-                          key={child.fullPath}
-                          href={child.fullPath}
-                          onClick={(e) => {
-                            if (e.ctrlKey || e.metaKey || e.button === 1) return;
-                            e.preventDefault();
-                            onNavigate(child.fullPath);
-                          }}
-                          className={cn(
-                            "w-full flex items-center gap-2 h-8 rounded-lg text-sm px-2",
-                            "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",
-                            "hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]",
-                            isChildActive
-                              ? "text-[hsl(var(--foreground))] font-medium"
-                              : "text-[hsl(var(--muted-foreground))]",
-                          )}
-                          style={
-                            isChildActive
-                              ? { backgroundColor: `${module.color}12` }
-                              : {}
-                          }
-                        >
-                          <span
-                            className={cn(
-                              "h-1.5 w-1.5 rounded-full shrink-0 transition-colors duration-150",
-                              isChildActive ? "opacity-100" : "opacity-40",
-                            )}
-                            style={{
-                              backgroundColor: isChildActive
-                                ? module.color
-                                : "hsl(var(--muted-foreground))",
-                            }}
-                          />
-                          <span className="truncate">{child.label}</span>
-                          {navBadges[child.fullPath] > 0 && (
-                            <Badge
-                              variant="destructive"
-                              className="ml-auto shrink-0 h-4 min-w-4 justify-center rounded-full px-1 text-[10px] leading-none"
-                            >
-                              {navBadges[child.fullPath]}
-                            </Badge>
-                          )}
-                        </a>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
+      {/* Navigation items, optionally split into titled sections (item.section) */}
+      <nav className="flex-1 overflow-y-auto px-2 py-3">
+        {sections.map((segment, index) => (
+          <div
+            key={segment.key}
+            role={segment.label ? "group" : undefined}
+            aria-label={segment.label || undefined}
+            className={cn("space-y-0.5", index > 0 && (segment.label && !collapsed ? "mt-4" : "mt-2 border-t border-[hsl(var(--border))] pt-2"))}
+          >
+            {segment.label && !collapsed ? (
+              <p className="px-2.5 pb-1 text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+                {segment.label}
+              </p>
+            ) : null}
+            {segment.items.map(renderItem)}
+          </div>
+        ))}
       </nav>
 
       {/* Module-specific sidebar slot (e.g. Notes folder list) — hidden when collapsed */}
-      {sidebarSlot && !collapsed && (
+      {sidebarSlot && sidebarSlotPlacement !== "top" && !collapsed && (
         <div className="shrink-0 border-t border-[hsl(var(--border))]">
           {sidebarSlot}
         </div>

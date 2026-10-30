@@ -78,7 +78,7 @@ export default function PurchaseSuppliersScreen() {
   ], []) // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader eyebrow="Compras" title="Proveedores" description="Tus proveedores vienen del directorio de contactos; aquí ves cuánto les compras y en qué condiciones."
         actions={<Button variant="outline" onClick={() => navigate('/app/m/runly.contacts/contacts/new')}><UserPlus className="h-4 w-4" />Nuevo contacto</Button>} />
 

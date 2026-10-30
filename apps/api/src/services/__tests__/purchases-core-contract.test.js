@@ -31,8 +31,10 @@ test('cada entrada de navegación tiene control de permiso', () => {
 
 test('la navegación sigue las capacidades (spec §8) y los permisos están en el catálogo', () => {
   const paths = purchasesMap.navigation.map(item => item.path)
-  assert.deepEqual(paths, ['/purchases', '/purchases/cases', '/purchases/requests', '/purchases/approvals', '/purchases/orders',
-    '/purchases/receipts', '/purchases/invoices', '/purchases/payments', '/purchases/suppliers', '/purchases/settings'])
+  assert.deepEqual(paths, ['/purchases', '/purchases/approvals', '/purchases/requests', '/purchases/orders',
+    '/purchases/receipts', '/purchases/invoices', '/purchases/payments', '/purchases/cases', '/purchases/suppliers', '/purchases/settings'])
+  // Sections (direction A): work, documents in flow order, directory and settings.
+  assert.deepEqual([...new Set(purchasesMap.navigation.map(item => item.section))], ['Trabajo', 'Documentos', 'Directorio y configuración'])
   for (const path of Object.keys(PURCHASES_NAV_CAPABILITY)) assert.ok(paths.includes(path), path)
   const simple = PURCHASE_PRESETS.SIMPLE.capabilities
   assert.deepEqual(paths.filter(path => isPurchasesNavVisible(path, simple)), ['/purchases', '/purchases/invoices', '/purchases/suppliers', '/purchases/settings'])

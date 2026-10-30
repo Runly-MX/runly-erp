@@ -16,8 +16,8 @@ export function Panel({ title, subtitle, icon: Icon, tone = 'var(--brand-primary
             </span>
           ) : null}
           <div className="min-w-0">
-            <h3 className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{title}</h3>
-            {subtitle ? <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{subtitle}</p> : null}
+            <h2 className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{title}</h2>
+            {subtitle ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{subtitle}</p> : null}
           </div>
         </div>
         {action}

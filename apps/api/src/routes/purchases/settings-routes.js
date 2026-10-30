@@ -1,6 +1,6 @@
 // runly.purchases: settings, capabilities, dashboard and suppliers.
 import { Hono } from 'hono'
-import { actorId, body, companyOf, createHandler } from './route-helpers.js'
+import { actorId, body, canReadOf, companyOf, createHandler, hasPermission } from './route-helpers.js'
 import { PurchasesServiceError } from '../../services/purchases-shared.js'
 
 export function createPurchasesSettingsRouter({ requirePermission, requireAnyPermission, services }) {
@@ -39,7 +39,7 @@ export function createPurchasesSettingsRouter({ requirePermission, requireAnyPer
     handle(c, async () => ({ data: await workflow.suggestNumber(companyOf(c), c.req.param('kind'), c.req.query('date')) })))
 
   router.get('/purchases/dashboard', requirePermission('purchases.read'), c =>
-    handle(c, async () => ({ data: await workflow.dashboard(companyOf(c), actorId(c)) })))
+    handle(c, async () => ({ data: await workflow.dashboard(companyOf(c), actorId(c), { canRead: canReadOf(c), can: key => hasPermission(c, key) }) })))
 
   router.get('/purchases/suppliers', requirePermission('purchases.supplier.read'), c =>
     handle(c, () => suppliers.list(companyOf(c), c.req.query())))

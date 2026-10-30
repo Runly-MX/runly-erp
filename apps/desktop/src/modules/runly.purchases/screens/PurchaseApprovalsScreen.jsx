@@ -39,7 +39,7 @@ export default function PurchaseApprovalsScreen() {
   }
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader eyebrow="Compras" title="Aprobaciones" description="Documentos que esperan la decisión de un responsable, según tu política de compras." />
       <SegmentedControl ariaLabel="Estado" options={FILTERS} value={status} onChange={setStatus} className="w-full sm:w-auto" />
 

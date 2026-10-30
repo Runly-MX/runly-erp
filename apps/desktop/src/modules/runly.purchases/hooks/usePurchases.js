@@ -27,12 +27,12 @@ export function usePurchasesCan() {
 
 // { capabilities, stages, preset, policies } plus helpers. While loading,
 // `has` answers false so nothing capability-gated flashes in.
-export function useCapabilities() {
+export function useCapabilities({ enabled = true } = {}) {
   const token = useToken()
   const query = useQuery({
     queryKey: ['purchases', 'capabilities'],
     queryFn: () => runly.purchases.getCapabilities(token).then(one),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && enabled,
     staleTime: 60 * 1000,
   })
   const capabilities = query.data?.capabilities ?? {}
@@ -42,6 +42,23 @@ export function useCapabilities() {
   // such documents, so a section turned off stays readable (history).
   const history = query.data?.history ?? {}
   return { ...query, capabilities, stages, has, history }
+}
+
+// Pending approvals for the sidebar badge: only for approvers, only while the
+// approvals capability is on (the inbox answers 4xx otherwise).
+export function usePendingApprovalsCount({ enabled = true } = {}) {
+  const token = useToken()
+  const can = usePurchasesCan()
+  const allowed = enabled && can('purchases.approval.decide')
+  const caps = useCapabilities({ enabled: allowed })
+  const query = useQuery({
+    queryKey: ['purchases', 'approvals', 'pending-count'],
+    queryFn: () => runly.purchases.listApprovals({ status: 'PENDING', pageSize: 1 }, token),
+    enabled: Boolean(token) && allowed && caps.has('approvals'),
+    staleTime: 30 * 1000,
+    retry: false,
+  })
+  return allowed && caps.has('approvals') ? Number(query.data?.total ?? 0) : 0
 }
 
 export function usePurchasesDashboard() {

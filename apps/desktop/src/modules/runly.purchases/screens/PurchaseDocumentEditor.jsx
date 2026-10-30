@@ -154,7 +154,7 @@ export default function PurchaseDocumentEditor() {
   const busy = save.isPending || transition.isPending
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader eyebrow={meta.singular} title={title} onBack={() => navigate(backTo)}
         description={kind === 'invoices' ? 'Captura la factura tal como la emitió tu proveedor.' : kind === 'requests' ? 'Describe lo que se necesita; se convertirá en orden al aprobarse.' : 'La orden se guarda como borrador hasta que la envíes.'} />
 

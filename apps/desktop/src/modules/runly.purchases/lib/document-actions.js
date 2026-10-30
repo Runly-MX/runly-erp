@@ -20,6 +20,12 @@ const cancelOrder = {
 }
 const approve = { key: 'approve', type: 'transition', action: 'approve', label: 'Aprobar', tone: 'primary' }
 const edit = { key: 'edit', type: 'edit', label: 'Editar borrador', tone: 'secondary' }
+// Approve / reject. The document transition also requires the edit permission
+// (API); an approver without it decides through the approval itself
+// (POST /purchases/approvals/:id/decide, approval.decide only).
+const decisions = (noun, update) => (update
+  ? [approve, reject(noun)]
+  : [{ ...approve, via: 'approval' }, { ...reject(noun), via: 'approval' }])
 
 export function getDocumentActions(kind, doc, { has, can }) {
   if (!doc) return []
@@ -32,7 +38,7 @@ export function getDocumentActions(kind, doc, { has, can }) {
   if (kind === 'orders') {
     const update = can('purchases.order.update')
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Enviar', tone: 'primary' }, edit)
-    if (s === 'PENDING_APPROVAL' && decide) out.push(approve, reject('la orden'))
+    if (s === 'PENDING_APPROVAL' && decide) out.push(...decisions('la orden', update))
     if (s === 'APPROVED' && update) out.push({ key: 'issue', type: 'transition', action: 'issue', label: 'Emitir al proveedor', tone: 'primary' })
     if (['ISSUED', 'PARTIALLY_RECEIVED'].includes(s) && has('receipts') && can('purchases.receipt.create')) {
       out.push({ key: 'receive', type: 'dialog', dialog: 'receive', label: 'Registrar recepción', tone: 'primary' })
@@ -55,7 +61,7 @@ export function getDocumentActions(kind, doc, { has, can }) {
   if (kind === 'invoices') {
     const update = can('purchases.invoice.update')
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Registrar', tone: 'primary' }, edit)
-    if (s === 'PENDING_APPROVAL' && decide) out.push(approve, reject('la factura'))
+    if (s === 'PENDING_APPROVAL' && decide) out.push(...decisions('la factura', update))
     if (['PENDING', 'PARTIALLY_PAID'].includes(s) && has('payments') && can('purchases.payment.manage')) {
       out.push({ key: 'pay', type: 'dialog', dialog: 'pay', label: 'Registrar pago', tone: 'primary' })
     }
@@ -75,7 +81,7 @@ export function getDocumentActions(kind, doc, { has, can }) {
   if (kind === 'requests') {
     const update = can('purchases.request.update')
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Enviar solicitud', tone: 'primary' }, edit)
-    if (s === 'SUBMITTED' && (decide || (!has('approvals') && update))) out.push(approve, reject('la solicitud'))
+    if (s === 'SUBMITTED' && (decide || (!has('approvals') && update))) out.push(...decisions('la solicitud', update))
     if (s === 'APPROVED' && has('purchaseOrders') && can('purchases.order.create')) {
       out.push({ key: 'convert', type: 'transition', action: 'convert', label: 'Crear orden de compra', tone: 'primary', opensResult: 'orders' })
     }

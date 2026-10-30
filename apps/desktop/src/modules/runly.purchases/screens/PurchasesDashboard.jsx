@@ -1,24 +1,26 @@
+import { useMemo } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Button, ErrorState } from '@runly/ui'
-import { ClipboardList, FileQuestion, ReceiptText } from 'lucide-react'
+import { ErrorState, PageHeader, Skeleton } from '@runly/ui'
 import { useCapabilities, usePurchasesCan, usePurchasesDashboard } from '../hooks/usePurchases.js'
-import { KINDS, ROOT } from '../lib/purchases-constants.js'
-import { PipelineHero, STAGE_ROUTE } from '../components/dashboard/PipelineHero.jsx'
-import { MetricTiles } from '../components/dashboard/MetricTiles.jsx'
-import { AttentionPanel } from '../components/dashboard/AttentionPanel.jsx'
-import { ChartsSkeleton, RecentPanel, SpendTrendPanel, SupplierRankingPanel } from '../components/dashboard/DashboardCharts.jsx'
+import { PRESETS, ROOT } from '../lib/purchases-constants.js'
+import { attentionQueues } from '../lib/attention-queues.js'
+import { today } from '../lib/format.js'
+import { NewPurchaseButton } from '../components/NewPurchaseButton.jsx'
+import { AttentionInbox } from '../components/dashboard/AttentionInbox.jsx'
+import { PeriodSummary, StageCounts } from '../components/dashboard/WorkSummary.jsx'
+import { RecentPanel, SpendTrendPanel, SupplierRankingPanel } from '../components/dashboard/DashboardCharts.jsx'
 
-// Module landing page: the process as a track (hero), headline figures,
-// then one chart per question (trend, who we buy from, what is waiting).
+// Inicio (direction A, "mesa de trabajo"): what needs the user's role now,
+// then where the process stands and what moved lately; charts last.
 export default function PurchasesDashboard() {
   const navigate = useNavigate()
   const dashboard = usePurchasesDashboard()
   const caps = useCapabilities()
   const can = usePurchasesCan()
-  const go = (section) => navigate(`${ROOT}/${section}`)
-  const open = (kind, id) => navigate(`${ROOT}/${kind}/${id}`)
-  const isLoading = dashboard.isLoading || caps.isLoading
   const data = dashboard.data
+  const isLoading = dashboard.isLoading || caps.isLoading
+  const queues = useMemo(() => (data ? attentionQueues({ has: caps.has, can, data, today: today() }) : []), [data, caps.has, can])
+  const presetName = PRESETS.find((p) => p.key === caps.data?.preset)?.name
 
   if (dashboard.isError) {
     return (
@@ -28,35 +30,35 @@ export default function PurchasesDashboard() {
     )
   }
 
-  const createActions = [
-    caps.has('requests') && can(KINDS.requests.create) && { kind: 'requests', icon: FileQuestion },
-    caps.has('purchaseOrders') && can(KINDS.orders.create) && { kind: 'orders', icon: ClipboardList },
-    caps.has('invoices') && can(KINDS.invoices.create) && { kind: 'invoices', icon: ReceiptText },
-  ].filter(Boolean)
-
-  const actions = createActions.map(({ kind, icon: Icon }, index) => (
-    <Button key={kind} variant={index === createActions.length - 1 ? 'default' : 'outline'} onClick={() => navigate(`${ROOT}/${kind}/new`)}>
-      <Icon className="h-4 w-4" />{KINDS[kind].newLabel}
-    </Button>
-  ))
+  const showOrdered = caps.has('purchaseOrders') && can('purchases.order.read')
+  const showTrend = showOrdered || (caps.has('invoices') && can('purchases.invoice.read'))
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
-      <PipelineHero data={data} stages={caps.stages} preset={caps.data?.preset} ordersEnabled={caps.has('purchaseOrders')}
-        isLoading={isLoading} actions={actions.length ? actions : null}
-        onStage={(stage) => { const route = STAGE_ROUTE[stage.type]; if (route) go(route) }} />
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
+      <PageHeader eyebrow={presetName ? `Compras · flujo ${presetName.toLowerCase()}` : 'Compras'} title="Inicio"
+        description="Lo que espera a tu rol, cómo va el proceso y lo último que se movió."
+        actions={<NewPurchaseButton />} />
 
-      <MetricTiles data={data} isLoading={isLoading} has={caps.has} go={go} />
-
-      {isLoading || !data ? <ChartsSkeleton /> : (
+      {isLoading || !data ? (
+        <div className="grid gap-4 xl:grid-cols-3">
+          <Skeleton className="h-80 rounded-2xl xl:col-span-2" />
+          <Skeleton className="h-80 rounded-2xl" />
+        </div>
+      ) : (
         <>
-          <div className="grid gap-4 xl:grid-cols-3">
-            <div className="xl:col-span-2"><SpendTrendPanel monthly={data.monthly} showOrdered={caps.has('purchaseOrders')} /></div>
-            <AttentionPanel attention={data.attention} has={caps.has} onOpen={open} onSeeAll={go} />
+          <div className="grid items-start gap-4 xl:grid-cols-3">
+            <div className="min-w-0 xl:col-span-2"><AttentionInbox queues={queues} /></div>
+            <div className="grid min-w-0 items-start gap-4 md:grid-cols-2 xl:grid-cols-1">
+              <PeriodSummary metrics={data.metrics} has={caps.has} />
+              <StageCounts pipeline={data.pipeline} can={can} />
+            </div>
+          </div>
+          <div className="grid items-start gap-4 lg:grid-cols-2">
+            <RecentPanel rows={data.recent} onOpen={(kind, id) => navigate(`${ROOT}/${kind}/${id}`)} />
+            {showTrend ? <SpendTrendPanel monthly={data.monthly} showOrdered={showOrdered} /> : null}
           </div>
           <div className="grid gap-4 lg:grid-cols-2">
-            <SupplierRankingPanel rows={data.topSuppliers} onSelect={(row) => go(`suppliers/${row.id}`)} />
-            <RecentPanel rows={data.recent} onOpen={open} />
+            <SupplierRankingPanel rows={data.topSuppliers} onSelect={(row) => navigate(`${ROOT}/suppliers/${row.id}`)} />
           </div>
         </>
       )}

@@ -1516,16 +1516,18 @@ export const purchasesMap = createModuleManifest({
   summary: 'Proceso de compras adaptable para cada empresa',
   dependencies: [{ key: 'runly.core' }, { key: 'runly.contacts' }],
   navigation: [
-    { label: 'Resumen', path: '/purchases', icon: 'LayoutDashboard', layout: 'main', permissionKey: 'purchases.read' },
-    { label: 'Expedientes', path: '/purchases/cases', icon: 'FolderKanban', layout: 'main', permissionKey: 'purchases.case.read' },
-    { label: 'Solicitudes', path: '/purchases/requests', icon: 'FilePlus2', layout: 'main', permissionKey: 'purchases.request.read' },
-    { label: 'Aprobaciones', path: '/purchases/approvals', icon: 'BadgeCheck', layout: 'main', permissionKey: 'purchases.approval.decide' },
-    { label: 'Órdenes', path: '/purchases/orders', icon: 'ClipboardList', layout: 'main', permissionKey: 'purchases.order.read' },
-    { label: 'Recepciones', path: '/purchases/receipts', icon: 'PackageCheck', layout: 'main', permissionKey: 'purchases.receipt.read' },
-    { label: 'Facturas', path: '/purchases/invoices', icon: 'ReceiptText', layout: 'main', permissionKey: 'purchases.invoice.read' },
-    { label: 'Pagos', path: '/purchases/payments', icon: 'Wallet', layout: 'main', permissionKey: 'purchases.payment.manage' },
-    { label: 'Proveedores', path: '/purchases/suppliers', icon: 'Building2', layout: 'main', permissionKey: 'purchases.supplier.read' },
-    { label: 'Configuración', path: '/purchases/settings', icon: 'Settings2', layout: 'main', permissionKey: 'purchases.settings.read' },
+    // Grouped by what the user does (section); documents follow the flow order.
+    // Paths are unchanged so links and bookmarks keep working.
+    { label: 'Inicio', path: '/purchases', icon: 'LayoutDashboard', layout: 'main', permissionKey: 'purchases.read', section: 'Trabajo' },
+    { label: 'Aprobaciones', path: '/purchases/approvals', icon: 'BadgeCheck', layout: 'main', permissionKey: 'purchases.approval.decide', section: 'Trabajo' },
+    { label: 'Solicitudes', path: '/purchases/requests', icon: 'FilePlus2', layout: 'main', permissionKey: 'purchases.request.read', section: 'Documentos' },
+    { label: 'Órdenes de compra', path: '/purchases/orders', icon: 'ClipboardList', layout: 'main', permissionKey: 'purchases.order.read', section: 'Documentos' },
+    { label: 'Recepciones', path: '/purchases/receipts', icon: 'PackageCheck', layout: 'main', permissionKey: 'purchases.receipt.read', section: 'Documentos' },
+    { label: 'Facturas', path: '/purchases/invoices', icon: 'ReceiptText', layout: 'main', permissionKey: 'purchases.invoice.read', section: 'Documentos' },
+    { label: 'Por pagar', path: '/purchases/payments', icon: 'Wallet', layout: 'main', permissionKey: 'purchases.payment.manage', section: 'Documentos' },
+    { label: 'Expedientes', path: '/purchases/cases', icon: 'FolderKanban', layout: 'main', permissionKey: 'purchases.case.read', section: 'Documentos' },
+    { label: 'Proveedores', path: '/purchases/suppliers', icon: 'Building2', layout: 'main', permissionKey: 'purchases.supplier.read', section: 'Directorio y configuración' },
+    { label: 'Configuración', path: '/purchases/settings', icon: 'Settings2', layout: 'main', permissionKey: 'purchases.settings.read', section: 'Directorio y configuración' },
   ],
   permissions: PURCHASES_PERMISSIONS,
   acl: {

@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { ActionMenu, Button } from '@runly/ui'
-import { errorText, policyReasons, useTransition } from '../../hooks/usePurchases.js'
+import { errorText, policyReasons, useDecideApproval, useTransition } from '../../hooks/usePurchases.js'
 import { ROOT } from '../../lib/purchases-constants.js'
 import { TransitionConfirmDialog } from './TransitionConfirmDialog.jsx'
 
@@ -16,9 +16,18 @@ const DONE = {
 export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false }) {
   const navigate = useNavigate()
   const transition = useTransition(kind, doc.id)
+  const decide = useDecideApproval()
   const [pending, setPending] = useState(null)
+  const busy = transition.isPending || decide.isPending
 
   const run = async (action, payload = {}) => {
+    if (action.via === 'approval') {
+      const approval = (doc.approvals ?? []).find((a) => a.status === 'PENDING')
+      if (!approval) { toast.error('Este documento ya no tiene una aprobación pendiente.'); setPending(null); return }
+      // useDecideApproval toasts the outcome itself.
+      await decide.mutateAsync({ id: approval.id, decision: action.action === 'approve' ? 'APPROVED' : 'REJECTED', comment: payload.comment }).then(() => setPending(null), () => {})
+      return
+    }
     try {
       // The version on screen: a document changed by someone else answers 409 STALE_DOCUMENT.
       const result = await transition.mutateAsync({ action: action.action, expectedUpdatedAt: doc.updatedAt, ...payload })
@@ -47,7 +56,7 @@ export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false 
   return (
     <>
       {visible.map((action, index) => (
-        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={transition.isPending}
+        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={busy}
           className={phone ? 'h-11 flex-1' : undefined} onClick={() => trigger(action)}>
           {action.label}
         </Button>
@@ -57,7 +66,7 @@ export function DocumentActionBar({ kind, doc, actions, onDialog, phone = false 
           items={rest.map((a) => ({ label: a.label, onClick: () => trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
       ) : null}
       <TransitionConfirmDialog action={pending} open={Boolean(pending)} onOpenChange={(o) => { if (!o) setPending(null) }}
-        loading={transition.isPending} onConfirm={(payload) => run(pending, payload)} />
+        loading={busy} onConfirm={(payload) => run(pending, payload)} />
     </>
   )
 }

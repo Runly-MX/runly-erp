@@ -105,7 +105,7 @@ export default function PurchaseDocumentDetail() {
   ].filter(Boolean)
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader
         compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${doc.number ?? 'sin folio'}`}
         onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`}
@@ -131,7 +131,7 @@ export default function PurchaseDocumentDetail() {
           <TabsList>
             {tabs.map((t) => (
               <TabsTrigger key={t.value} value={t.value} className="gap-1.5">
-                {t.label}{t.count ? <span className="rounded-full border border-current/35 px-1.5 text-[11px] font-semibold tabular-nums">{t.count}</span> : null}
+                {t.label}{t.count ? ' ' : null}{t.count ? <span className="rounded-full border border-current/35 px-1.5 text-[11px] font-semibold tabular-nums">{t.count}</span> : null}
               </TabsTrigger>
             ))}
           </TabsList>

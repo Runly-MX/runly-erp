@@ -32,7 +32,7 @@ export default function PurchaseSupplierDetail() {
   const recent = data.recent ?? []
 
   return (
-    <div className="min-h-dvh space-y-5 p-4 md:p-6">
+    <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader compact eyebrow="Compras" title="Proveedores" onBack={() => navigate(`${ROOT}/suppliers`)} backLabel="Volver a proveedores" />
 
       <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">

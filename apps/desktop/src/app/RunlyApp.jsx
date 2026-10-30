@@ -218,6 +218,10 @@ export function RunlyApp() {
     const Slot = MODULE_SIDEBAR_SLOTS[activeModule.key] ?? MODULE_SIDEBAR_SLOTS[getLegacyModuleKey(activeModule.key)]
     return Slot ? <Slot /> : null
   }, [activeModule?.key])
+  // A slot component may set `placement = 'top'` (above the nav items).
+  const sidebarSlotPlacement = activeModule
+    ? (MODULE_SIDEBAR_SLOTS[activeModule.key] ?? MODULE_SIDEBAR_SLOTS[getLegacyModuleKey(activeModule.key)])?.placement ?? 'bottom'
+    : 'bottom'
 
   const navBadges = useModuleNavBadges(activeModule?.key)
   // Shell-added "Desactivados" entry for modules with deactivated-record support.
@@ -291,6 +295,7 @@ export function RunlyApp() {
                 onCollapse={toggleCollapsed}
                 mobileOpen={mobileOpen}
                 sidebarSlot={sidebarSlot}
+                sidebarSlotPlacement={sidebarSlotPlacement}
                 navBadges={navBadges}
                 onMobileClose={() => setMobileOpen(false)}
                 canInstall={canInstall}
@@ -370,6 +375,7 @@ export function RunlyApp() {
               contained={true}
               mobileOpen={true}
               sidebarSlot={sidebarSlot}
+              sidebarSlotPlacement={sidebarSlotPlacement}
               onMobileClose={() => setSidebarOverlayOpen(false)}
               canInstall={canInstall}
               onInstall={install}

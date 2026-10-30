@@ -1,9 +1,9 @@
 ---
 viewKey: /purchases/payments
-title: Pagos
+title: Por pagar
 summary: Facturas por pagar, pagadas parcialmente o vencidas.
 ---
-Pagos concentra las facturas con saldo.
+Por pagar concentra las facturas con saldo (en el menú, dentro de Documentos).
 
 - Ves cada factura con su vencimiento, monto pagado y saldo; las vencidas se marcan en rojo.
 - Registra un pago con monto, fecha, referencia y método. Un pago menor al saldo deja la factura en "Pago parcial".

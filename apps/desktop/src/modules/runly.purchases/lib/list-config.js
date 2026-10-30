@@ -8,7 +8,8 @@ export const LIST_SECTIONS = {
   orders: {
     kind: 'orders', title: 'Órdenes de compra', capability: 'purchaseOrders',
     description: 'Compromisos con tus proveedores, de la emisión a la recepción.',
-    chips: chips('orders', ['DRAFT', 'PENDING_APPROVAL', 'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED']),
+    chips: [...chips('orders', ['DRAFT', 'PENDING_APPROVAL', 'ISSUED', 'PARTIALLY_RECEIVED', 'RECEIVED', 'CLOSED', 'CANCELLED']),
+      { value: 'TO_RECEIVE', label: 'Por recibir', params: { status: 'ISSUED,PARTIALLY_RECEIVED' } }],
     columns: ['folio', 'issueDate', 'expectedDate', 'items', 'status', 'total'],
     supplierFilter: true, emptyTitle: 'Aún no hay órdenes', emptyDescription: 'Crea una orden para formalizar una compra con tu proveedor.',
   },
@@ -41,7 +42,7 @@ export const LIST_SECTIONS = {
     supplierFilter: true, emptyTitle: 'Aún no hay expedientes', emptyDescription: 'Los expedientes se crean solos al registrar documentos, o puedes abrir uno.',
   },
   payments: {
-    kind: 'invoices', title: 'Pagos', capability: 'payments',
+    kind: 'invoices', title: 'Por pagar', capability: 'payments',
     description: 'Facturas por pagar, pagos parciales y lo ya liquidado.',
     chips: [
       { value: 'OPEN', label: 'Por pagar', params: { status: 'PENDING,PARTIALLY_PAID' } },

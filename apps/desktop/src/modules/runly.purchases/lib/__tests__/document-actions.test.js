@@ -56,3 +56,11 @@ test('correct data needs the API plan and the correct permission; receipt revers
   assert.ok(!getDocumentActions('receipts', { ...receipt, reversal: { available: true, fullyReversed: true } }, { has: all, can: all }).some((a) => a.key === 'reverseReceipt'))
   assert.ok(!getDocumentActions('receipts', receipt, { has: all, can: (k) => k !== 'purchases.receipt.reverse' }).some((a) => a.key === 'reverseReceipt'))
 })
+
+test('an approver without edit permission decides through the approval, an editor through the transition', () => {
+  const doc = { id: 'o2', status: 'PENDING_APPROVAL' }
+  const approverOnly = getDocumentActions('orders', doc, { has: caps(['approvals']), can: (k) => k === 'purchases.approval.decide' })
+  assert.deepEqual(approverOnly.map((a) => [a.key, a.via]), [['approve', 'approval'], ['reject', 'approval']])
+  const editor = getDocumentActions('invoices', doc, { has: caps(['approvals']), can: all }).filter((a) => ['approve', 'reject'].includes(a.key))
+  assert.ok(editor.length === 2 && editor.every((a) => !a.via))
+})
