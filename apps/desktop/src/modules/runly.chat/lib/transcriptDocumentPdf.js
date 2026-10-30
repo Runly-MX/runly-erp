@@ -2,6 +2,8 @@
 // transcripción larga (CallTranscriptDocument.content). Texto real
 // (seleccionable), mismo enfoque que transcriptExport.js.
 
+import { pdfSafeText } from "./pdfText.js";
+
 const NAVY = [24, 44, 68];
 const TEAL = [15, 124, 134];
 const GRAY = [95, 105, 120];
@@ -35,7 +37,7 @@ function createWriter(pdf) {
     pdf.setFontSize(size);
     pdf.setTextColor(...color);
     const lh = lineHeight ?? size * 1.4;
-    for (const line of pdf.splitTextToSize(String(text), width)) {
+    for (const line of pdf.splitTextToSize(pdfSafeText(text), width)) {
       w.ensure(lh);
       pdf.text(line, x, w.y + size);
       w.y += lh;
@@ -70,7 +72,7 @@ function createWriter(pdf) {
     const drawRow = (cells, { header = false, zebra = false } = {}) => {
       pdf.setFont("helvetica", header ? "bold" : "normal");
       pdf.setFontSize(header ? 9 : 9.5);
-      const wrapped = cells.map((cell, i) => pdf.splitTextToSize(String(cell ?? ""), widths[i] - pad * 2));
+      const wrapped = cells.map((cell, i) => pdf.splitTextToSize(pdfSafeText(cell), widths[i] - pad * 2));
       const lines = Math.max(...wrapped.map((l) => l.length), 1);
       const height = lines * 13 + pad * 2 - 2;
       w.ensure(height);
@@ -106,7 +108,7 @@ function header(w, { label, title, subtitle, meta }) {
   pdf.setFont("helvetica", "normal");
   pdf.setFontSize(10.5);
   pdf.setTextColor(205, 215, 226);
-  pdf.text(pdf.splitTextToSize(subtitle, W - MARGIN * 2)[0] ?? "", MARGIN, 94);
+  pdf.text(pdf.splitTextToSize(pdfSafeText(subtitle), W - MARGIN * 2)[0] ?? "", MARGIN, 94);
   w.y = 138;
   if (meta.length) w.text(meta.join("   ·   "), { size: 9.5, color: GRAY, gap: 6 });
 }

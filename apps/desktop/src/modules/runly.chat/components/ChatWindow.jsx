@@ -6,10 +6,12 @@ import { MessageSquare } from "lucide-react";
 import { runly } from "../../../lib/runly";
 import { ChatTemplatePopover } from "./ChatTemplatePopover";
 import { useConversationFiles } from "../hooks/useConversationFiles";
-import { BackButton, ErrorState } from "@runly/ui";
+import { ErrorState } from "@runly/ui";
+import { ChatSubviewBar } from "./ChatSubviewBar";
 import { ChatFilesGallery } from "./ChatFilesGallery";
 import { ChatRecordingsGallery } from "./ChatRecordingsGallery";
 import { DropZoneOverlay } from "./DropZoneOverlay";
+import { markChatViewUnmounted, recallChatView, rememberChatView } from "../lib/chatViewMemory";
 import { ChatMessageList } from "./ChatMessageList";
 import { MirAIIntro } from "./MirAIIntro";
 import { MirAIPanel } from "./MirAIPanel";
@@ -40,17 +42,6 @@ import { StatusLookupContext, useStatusLookup } from "../../../hooks/useStatusDn
 import { LiveMeetingBanner } from "../calls/LiveMeetingBanner";
 import { useDockedProfile } from "../hooks/useDockedProfile";
 import { useOverlayInsets } from "../hooks/useOverlayInsets";
-
-// Same pattern as ConversationProfilePanel's backHeader — an explicit,
-// always-visible way out of a view that replaces the message list in place.
-function ExchangeViewBackHeader({ title, onBack }) {
-  return (
-    <div className="flex items-center gap-1 px-3 py-0.5 md:gap-2 md:py-1.5 border-b border-[hsl(var(--border))] shrink-0">
-      <BackButton onClick={onBack} label="Volver a mensajes" className="-ml-1.5" />
-      <p className="text-sm font-semibold">{title}</p>
-    </div>
-  );
-}
 
 // Views that replace the message list keep clear of the floating header and
 // composer (see useOverlayInsets).
@@ -150,8 +141,14 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const pinnedMessages = isChannelOrGroupType ? (pinnedData?.data ?? []) : [];
   const canPinMessages = isChannelOrGroupType && roleHasPermission(ownMemberForComposer, CHAT_PERMISSIONS.MESSAGES_PIN);
 
-  const [filesView, setFilesView] = useState(initialFilesView);
-  const [recordingsView, setRecordingsView] = useState(false);
+  // Restores the open view after a remount caused by rotating the phone (see
+  // lib/chatViewMemory.js). Read once, on mount.
+  const [recalledView] = useState(() => (embedded || isExternal ? null : recallChatView(conversationId)));
+  const restoredIdRef = useRef(recalledView?.conversationId ?? null);
+  const [filesView, setFilesView] = useState(recalledView?.filesView ?? initialFilesView);
+  const [recordingsView, setRecordingsView] = useState(recalledView?.recordingsView ?? false);
+  // Files/recordings replace the message list (and hide the composer).
+  const exchangeOpen = filesView || recordingsView;
   const [hiddenMessageIds, setHiddenMessageIds] = useState(() =>
     conversationId ? loadHidden(conversationId) : new Set(),
   );
@@ -167,8 +164,8 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   const [filesSelectedIds, setFilesSelectedIds] = useState(new Set());
   const [searchMode, setSearchMode] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [membersView, setMembersView] = useState(false);
-  const [profileInitialTab, setProfileInitialTab] = useState(null);
+  const [membersView, setMembersView] = useState(recalledView?.membersView ?? false);
+  const [profileInitialTab, setProfileInitialTab] = useState(recalledView?.profileTab ?? null);
   const [showPinned, setShowPinned] = useState(false);
   const [miraiPanelOpen, setMiraiPanelOpen] = useState(false);
   const [miraiFocus, setMiraiFocus] = useState(null);
@@ -207,8 +204,17 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     unreadSnapshotRef.current = { id: conversationId, count: conversation?.unread_count ?? 0 };
   }
 
+  useEffect(() => {
+    if (!conversationId || embedded || isExternal) return;
+    rememberChatView({ conversationId, filesView, recordingsView, membersView, profileTab: profileInitialTab });
+  }, [conversationId, embedded, isExternal, filesView, recordingsView, membersView, profileInitialTab]);
+  useEffect(() => () => markChatViewUnmounted(conversationId), [conversationId]);
+
   // Reset local state when conversation changes
   useEffect(() => {
+    // A remount that restored the open view: initial state is already right.
+    if (restoredIdRef.current === conversationId) return;
+    restoredIdRef.current = null;
     setFilesView(initialFilesView);
     setRecordingsView(false);
     setHiddenMessageIds(conversationId ? loadHidden(conversationId) : new Set());
@@ -231,6 +237,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
   // Declared after the reset above so it wins: on very wide screens every
   // conversation opens with its profile docked alongside.
   useEffect(() => {
+    if (restoredIdRef.current === conversationId) return;
     if (!initialFilesView) setMembersView(profileDocks);
   }, [conversationId, profileDocks, initialFilesView]);
 
@@ -321,6 +328,17 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     setRecordingsView(false);
   }, []);
 
+  // "messages" | "files" | "recordings" — the header toggles and the subview
+  // tabs (ChatSubviewBar) all switch through here.
+  const openExchangeView = useCallback((view) => {
+    setFilesView(view === "files");
+    setRecordingsView(view === "recordings");
+    if (view !== "messages") {
+      setMembersView(false);
+      setProfileInitialTab(null);
+    }
+  }, []);
+
   // Same entry as NewMeetingDialog's "Presencial", but on this conversation:
   // audio-only, no ringing, records and transcribes into this chat.
   const startInPerson = useCallback(
@@ -405,7 +423,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       if (selectionMode) { exitSelectionMode(); return; }
       if (searchMode) { setSearchMode(false); setSearchQuery(""); return; }
       if (membersView) { closeProfile(); return; }
-      if (filesView) { setFilesView(false); setRecordingsView(false); return; }
+      if (exchangeOpen) { closeExchangeView(); return; }
       if (!conversation || e.defaultPrevented || !onClose) return;
       // A Radix overlay / the message action menu owns Escape while open.
       if (document.querySelector(
@@ -418,7 +436,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
     }
     document.addEventListener("keydown", onKeyDown);
     return () => document.removeEventListener("keydown", onKeyDown);
-  }, [selectionMode, searchMode, membersView, filesView, exitSelectionMode, closeProfile, onClose, conversation]);
+  }, [selectionMode, searchMode, membersView, exchangeOpen, closeExchangeView, exitSelectionMode, closeProfile, onClose, conversation]);
 
   const toggleSelectMessage = useCallback((msgId) => {
     setSelectedMsgIds((prev) => {
@@ -631,9 +649,9 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         variant={variant}
         externalStatus={conversation?.status ?? null}
         onCloseExternal={isExternal ? handleCloseExternal : undefined}
-        filesView={filesView}
-        onToggleFilesView={() => { setFilesView((v) => !v); setRecordingsView(false); setMembersView(false); setProfileInitialTab(null); }}
-        onToggleRecordingsView={() => { setRecordingsView((v) => !v); setFilesView(false); setMembersView(false); }}
+        filesView={exchangeOpen}
+        onToggleFilesView={() => openExchangeView(exchangeOpen ? "messages" : "files")}
+        onToggleRecordingsView={() => openExchangeView(recordingsView ? "messages" : "recordings")}
         searchMode={searchMode}
         searchQuery={searchQuery}
         onSearchToggle={() => { setSearchMode((v) => !v); setSearchQuery(""); setSearchCurrentIdx(0); }}
@@ -675,6 +693,13 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           : undefined}
       />
 
+      {exchangeOpen && (
+        <ChatSubviewBar
+          value={recordingsView ? "recordings" : "files"}
+          onChange={openExchangeView}
+          showRecordings={!isExternal}
+        />
+      )}
       <TtsNowPlayingBar speech={speech} />
       {!isExternal && callsEnabled && !embedded && conversationId && (
         <LiveMeetingBanner conversationId={conversationId} />
@@ -684,12 +709,10 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
       <div className="flex-1 min-w-0 min-h-0 flex flex-col">
           {recordingsView ? (
             <div className="flex-1 min-h-0 flex flex-col" style={RESERVE_INSETS}>
-              <ExchangeViewBackHeader title="Grabaciones" onBack={closeExchangeView} />
               <ChatRecordingsGallery conversationId={conversationId} />
             </div>
           ) : filesView ? (
             <div className="flex-1 min-h-0 flex flex-col" style={RESERVE_INSETS}>
-              <ExchangeViewBackHeader title="Archivos" onBack={closeExchangeView} />
               {filesHistory.isError && <ErrorState title="No se pudieron cargar los archivos" onRetry={filesHistory.refetch} />}
               <ChatFilesGallery
                 messages={filesHistory.data ?? []}
@@ -791,7 +814,7 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
           sidebar (see below), composer included, so you can keep chatting
           while looking at the profile. */}
       <div ref={overlay.bottomRef} className="chat-float-band absolute inset-x-0 bottom-0 z-20">
-      {!filesView && isExternal && conversation?.status !== "closed" && (
+      {!exchangeOpen && isExternal && conversation?.status !== "closed" && (
         <div className="shrink-0">
           <div className="flex items-center gap-2 px-3 pt-2">
             <ChatTemplatePopover
@@ -820,16 +843,16 @@ export function ChatWindow({ conversation, onClose, initialFilesView = false, in
         </div>
       )}
 
-      {!filesView && isExternal && conversation?.status === "closed" && (
+      {!exchangeOpen && isExternal && conversation?.status === "closed" && (
         <div className="shrink-0 border-t border-[hsl(var(--border))] px-4 py-3 text-center text-xs text-[hsl(var(--muted-foreground))]">
           Esta conversacion fue cerrada.
         </div>
       )}
 
-      {!filesView && !isExternal && dmStatus?.dnd && (
+      {!exchangeOpen && !isExternal && dmStatus?.dnd && (
         <p role="status" className="flex items-center gap-1.5 px-4 pb-1 text-xs text-[hsl(var(--muted-foreground))]"><Moon className="h-3 w-3 shrink-0" aria-hidden />{dmPeer?.displayName ?? "Esta persona"} tiene No molestar: recibirá tu mensaje cuando termine, sin aviso en el teléfono ni por correo.</p>
       )}
-      {!filesView && !isExternal && (
+      {!exchangeOpen && !isExternal && (
         <MessageComposer
           ref={composerRef}
           onSend={handleSend}

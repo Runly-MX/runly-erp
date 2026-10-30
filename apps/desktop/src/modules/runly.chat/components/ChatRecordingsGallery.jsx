@@ -483,10 +483,10 @@ export function ChatRecordingsGallery({ conversationId }) {
   if (!recordings.length) {
     return (
       <EmptyState
-        className="flex-1 min-h-0"
+        className="flex-1 min-h-0 rounded-none border-0"
         icon={Video}
         title="Aún no hay grabaciones"
-        description="Las grabaciones de las llamadas de esta conversación aparecerán aquí."
+        description="Graba una llamada o reunión de esta conversación y aparecerá aquí, con su transcripción."
       />
     );
   }

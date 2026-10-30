@@ -81,9 +81,9 @@ export function ChatHeader({
     if (searchMode) setTimeout(() => searchInputRef.current?.focus(), 50);
   }, [searchMode]);
 
-  // Every mode is the same floating glass bar: ChatWindow overlays it on the
-  // message list, so messages scroll underneath it.
-  const barCls = "chat-glass chat-float-bar relative z-10 mx-2 mt-2 flex h-14 items-center rounded-2xl px-3 shrink-0";
+  // Every mode is the same edge-to-edge glass bar: ChatWindow overlays it on
+  // the message list, so messages scroll underneath it.
+  const barCls = "chat-glass chat-float-bar chat-float-bar-edge relative z-10 flex h-14 items-center px-3 shrink-0";
   const headerBtnCls = "shrink-0 h-8 w-8 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors touch-manipulation";
 
   // ── Selection mode ──────────────────────────────────────────────────────────

@@ -4,6 +4,8 @@
 // así que un PDF con texto real (seleccionable/buscable) tiene más sentido
 // que rasterizar el diálogo.
 
+import { pdfSafeText } from "./pdfText.js";
+
 function formatTimestamp(ms) {
   const totalSeconds = Math.floor((ms ?? 0) / 1000);
   const m = Math.floor(totalSeconds / 60);
@@ -46,7 +48,7 @@ export async function downloadTranscriptPdf(transcript, { callTitle } = {}) {
 
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(14);
-  pdf.text(callTitle || "Transcripción de llamada", marginX, cursorY);
+  pdf.text(pdf.splitTextToSize(pdfSafeText(callTitle || "Transcripción de llamada"), contentWidth)[0] ?? "", marginX, cursorY);
   cursorY += 18;
 
   pdf.setFont("helvetica", "normal");
@@ -59,7 +61,7 @@ export async function downloadTranscriptPdf(transcript, { callTitle } = {}) {
   pdf.setFontSize(10.5);
   const lineHeight = 15;
   for (const rawLine of text.split("\n")) {
-    const wrapped = pdf.splitTextToSize(rawLine, contentWidth);
+    const wrapped = pdf.splitTextToSize(pdfSafeText(rawLine), contentWidth);
     for (const line of wrapped) {
       if (cursorY + lineHeight > pageHeight - marginBottom) {
         pdf.addPage();

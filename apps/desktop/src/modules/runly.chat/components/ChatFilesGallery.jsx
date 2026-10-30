@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { EmptyState, Skeleton } from "@runly/ui";
 import {
   FileText, FileType2, FileSpreadsheet, FileVideo, FileAudio,
-  FileArchive, FileCode, File as FileIconBase, FileImage, Loader2, Link2, Download, Play,
+  FileArchive, FileCode, File as FileIconBase, FileImage, Loader2, Link2, Download, Play, FolderOpen,
 } from "lucide-react";
 import { isAudioAttachment, isVideoMime, isMediaMime, formatFileSize, formatMessageTime, downloadViaBlob } from "../lib/chatUtils";
 import { useFileRefSignedUrl } from "../hooks/useFileRefSignedUrl";
@@ -271,9 +271,10 @@ export function ChatFilesGallery({
   if (!allAttachments.length) {
     return (
       <EmptyState
-        className={scrollable ? "flex-1 min-h-0" : "py-8"}
+        className={scrollable ? "flex-1 min-h-0 rounded-none border-0" : "py-8"}
+        icon={FolderOpen}
         title="Sin archivos"
-        description="Aun no se han compartido archivos en esta conversacion."
+        description="Las fotos, videos, audios y documentos que se compartan en esta conversación aparecerán aquí."
       />
     );
   }
@@ -284,18 +285,18 @@ export function ChatFilesGallery({
       {media.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+            <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
               Fotos y videos
             </p>
             {selectionMode ? (
               <div className="flex items-center gap-2">
-                <span className="text-[10px] text-[hsl(var(--muted-foreground))]">
+                <span className="text-xs text-[hsl(var(--muted-foreground))]">
                   {selectedIds.size} seleccionados
                 </span>
                 <button
                   type="button"
                   onClick={onCancelSelection}
-                  className="text-[10px] font-medium text-[var(--brand-primary)] hover:underline"
+                  className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
                 >
                   Cancelar
                 </button>
@@ -304,7 +305,7 @@ export function ChatFilesGallery({
               <button
                 type="button"
                 onClick={onEnterSelection}
-                className="text-[10px] font-medium text-[var(--brand-primary)] hover:underline"
+                className="text-xs font-medium text-[var(--brand-primary)] hover:underline"
               >
                 Seleccionar
               </button>
@@ -348,7 +349,7 @@ export function ChatFilesGallery({
 
       {shownAudios.length > 0 && (
         <section aria-label="Audios">
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">Audios</p>
+          <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">Audios</p>
           <div className="space-y-3">
             {shownAudios.map((att) => (
               <div key={att.id}>
@@ -361,7 +362,7 @@ export function ChatFilesGallery({
       )}
       {otherFiles.length > 0 && (
         <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))] mb-2">
             Archivos
           </p>
           <div className="space-y-1">

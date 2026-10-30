@@ -222,6 +222,15 @@
     inset 0 1px 0 0 hsl(0 0% 100% / 0.07),
     0 10px 28px -16px color-mix(in srgb, var(--brand-primary) 45%, hsl(0 0% 0% / 0.5));
 }
+/* Edge-to-edge variant (the conversation header and its sub-view tabs): same
+   glass and accent tint, spanning the column with only a bottom hairline. */
+.chat-glass-theme .chat-float-bar.chat-float-bar-edge {
+  border-width: 0 0 1px 0;
+  border-radius: 0;
+  box-shadow:
+    inset 0 -1px 0 0 hsl(0 0% 100% / 0.03),
+    0 8px 20px -18px color-mix(in srgb, var(--brand-primary) 45%, hsl(0 0% 0% / 0.5));
+}
 /* Behind the composer: the list fades out instead of ending in a hard band. */
 .chat-glass-theme .chat-float-band {
   background: linear-gradient(to top, hsl(var(--surface-2) / 0.92) 0%, hsl(var(--surface-2) / 0.7) 45%, transparent 100%);
