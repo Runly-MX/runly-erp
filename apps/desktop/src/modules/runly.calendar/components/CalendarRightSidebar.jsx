@@ -36,7 +36,7 @@ const MONTHS = [
   "Diciembre",
 ];
 
-export default function CalendarRightSidebar({ onNewEvent }) {
+export default function CalendarRightSidebar({ onNewEvent, onEventClick }) {
   const {
     selectedDate,
     activeCalendarIds,
@@ -114,9 +114,11 @@ export default function CalendarRightSidebar({ onNewEvent }) {
             const color = ev.color || ev.calendar?.color || "#6B46C1";
             const reminderMinutes = getPrimaryReminderMinutes(ev);
             return (
-              <div
+              <button
+                type="button"
                 key={ev.id}
-                className="rounded-lg p-2 text-xs"
+                onClick={() => onEventClick?.(ev)}
+                className="block w-full cursor-pointer rounded-lg p-2 text-left text-xs transition-opacity hover:opacity-80"
                 style={{
                   backgroundColor: color + "20",
                   borderLeft: `3px solid ${color}`,
@@ -142,7 +144,7 @@ export default function CalendarRightSidebar({ onNewEvent }) {
                     {formatReminderLead(reminderMinutes)}
                   </div>
                 )}
-              </div>
+              </button>
             );
           })
         )}

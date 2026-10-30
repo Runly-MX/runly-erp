@@ -14,7 +14,7 @@ const PRIORITY_OPTIONS = [
   { value: 'URGENT', label: 'Urgente' },
 ]
 
-export default function TaskFormModal({ open, onOpenChange, projectId, defaultStatusId }) {
+export default function TaskFormModal({ open, onOpenChange, projectId, defaultStatusId, defaultDueDate = null }) {
   const { data: statusesData } = useStatuses(projectId)
   const statuses = statusesData?.data ?? statusesData ?? []
   const { data: usersData } = useWorkspaceUsers(projectId)
@@ -35,7 +35,7 @@ export default function TaskFormModal({ open, onOpenChange, projectId, defaultSt
       setStatusId(defaultStatusId ?? statuses.find((s) => s.isDefault)?.id ?? statuses[0]?.id ?? '')
       setPriority('NONE')
       setAssigneeId('__none__')
-      setDueDate(null)
+      setDueDate(defaultDueDate)
     }
   }, [open])
 

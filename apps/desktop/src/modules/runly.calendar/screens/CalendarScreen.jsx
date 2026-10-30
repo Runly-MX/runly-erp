@@ -253,7 +253,7 @@ export default function CalendarScreen() {
                 isNarrow ? "absolute right-0 top-0 bottom-0 z-50 shadow-xl" : ""
               }
             >
-              <CalendarRightSidebar onNewEvent={openNewEvent} />
+              <CalendarRightSidebar onNewEvent={openNewEvent} onEventClick={setDetailEvent} />
             </div>
           </>
         )}

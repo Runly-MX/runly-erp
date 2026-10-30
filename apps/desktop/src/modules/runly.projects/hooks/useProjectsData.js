@@ -283,6 +283,7 @@ export function useCreateTask(projectId) {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'gantt'] })
     },
   })
 }
@@ -324,6 +325,7 @@ export function useUpdateTask(projectId) {
     onSettled: (_, __, { taskId }) => {
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks'] })
       qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId] })
+      qc.invalidateQueries({ queryKey: ['projects', projectId, 'gantt'] })
     },
   })
 }

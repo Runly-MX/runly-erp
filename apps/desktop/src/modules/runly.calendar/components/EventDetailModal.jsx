@@ -27,6 +27,16 @@ import {
   getPrimaryReminderMinutes,
 } from "../lib/reminder-utils";
 import { MeetingJoinButton } from "../../runly.chat/calls/MeetingJoinButton";
+import ProjectTaskCard from "./ProjectTaskCard";
+
+// All-day events are stored as UTC midnight with an inclusive endAt: read them in UTC,
+// or a Mexico viewer sees the day before.
+function formatAllDayRange(event) {
+  const fmt = (value, opts) => new Date(value).toLocaleDateString("es-MX", { timeZone: "UTC", ...opts });
+  const full = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
+  if (!event.endAt || fmt(event.endAt, {}) === fmt(event.startAt, {})) return fmt(event.startAt, full);
+  return `${fmt(event.startAt, { weekday: "short", day: "numeric", month: "short" })} – ${fmt(event.endAt, full)}`;
+}
 
 const STATUS_LABELS = {
   PENDING: "Pendiente",
@@ -147,6 +157,10 @@ export default function EventDetailModal({
               />
             )}
 
+            {event.sourceModule === "runly.projects" && event.sourceEntityId && (
+              <ProjectTaskCard taskId={event.sourceEntityId} onNavigate={onClose} />
+            )}
+
             {event.description && (
               <MarkdownViewer
                 value={event.description}
@@ -162,12 +176,7 @@ export default function EventDetailModal({
                 />
                 <div className="text-sm text-[hsl(var(--foreground))]">
                   {event.allDay ? (
-                    new Date(event.startAt).toLocaleDateString("es-MX", {
-                      weekday: "long",
-                      day: "numeric",
-                      month: "long",
-                      year: "numeric",
-                    })
+                    formatAllDayRange(event)
                   ) : (
                     <>
                       <div>

@@ -5,6 +5,7 @@ import {
   LayoutGrid,
   List,
   Calendar,
+  CalendarDays,
   Users,
   Menu,
   X,
@@ -29,6 +30,7 @@ import { UserAvatarContext } from "../lib/UserAvatarContext.js";
 import KanbanView from "../components/KanbanView.jsx";
 import ListView from "../components/ListView.jsx";
 import GanttView from "../components/GanttView.jsx";
+import WeekView from "../components/week/WeekView.jsx";
 import WorkloadView from "../components/WorkloadView.jsx";
 import OverviewView from "../components/OverviewView.jsx";
 import { RunningTimerChip } from "../components/RunningTimerChip.jsx";
@@ -43,12 +45,23 @@ import { CreateChannelModal } from "../../runly.chat/components/CreateChannelMod
 import { useMiraiRecordContext } from "../../runly.chat/lib/miraiPageContext";
 
 const VIEWS = [
+  { key: "week", label: "Semana", Icon: CalendarDays },
   { key: "kanban", label: "Kanban", Icon: LayoutGrid },
   { key: "list", label: "Lista", Icon: List },
   { key: "timeline", label: "Gantt", Icon: Calendar },
   { key: "workload", label: "Carga", Icon: Users },
   { key: "overview", label: "Resumen", Icon: BarChart3 },
 ];
+
+const VIEW_KEY = "runly.projects.view";
+// The last view the viewer picked; phones start on the week grid, desktops on Kanban.
+function initialView() {
+  try {
+    const saved = localStorage.getItem(VIEW_KEY);
+    if (VIEWS.some((v) => v.key === saved)) return saved;
+  } catch { /* storage unavailable */ }
+  return window.matchMedia?.("(max-width: 767px)").matches ? "week" : "kanban";
+}
 
 const LIFECYCLE_BADGE = {
   ACTIVE: { label: "Activo", variant: "success" },
@@ -71,7 +84,11 @@ export default function ProjectsScreen() {
     if (id) localStorage.setItem("runly.projects.selectedId", id);
     else localStorage.removeItem("runly.projects.selectedId");
   }
-  const [activeView, setActiveView] = useState("kanban");
+  const [activeView, setActiveViewState] = useState(initialView);
+  function setActiveView(view) {
+    setActiveViewState(view);
+    try { localStorage.setItem(VIEW_KEY, view); } catch { /* storage unavailable */ }
+  }
   const [taskPanelId, setTaskPanelId] = useState(null);
   const [projectFormOpen, setProjectFormOpen] = useState(false);
   const [editingProject, setEditingProject] = useState(null);
@@ -298,7 +315,7 @@ export default function ProjectsScreen() {
           ) : (
             <>
               {/* Project header */}
-              <div className="flex items-center gap-2 px-4 py-3 border-b border-border shrink-0">
+              <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border shrink-0">
                 {/* Mobile hamburger */}
                 <button
                   className="lg:hidden text-muted-foreground hover:text-foreground transition-colors shrink-0"
@@ -434,14 +451,16 @@ export default function ProjectsScreen() {
                 </DropdownMenu>
 
                 {/* View switcher */}
-                <div className="flex gap-0.5 border border-border rounded-md p-0.5">
+                <div role="group" aria-label="Vista" className="order-last flex w-full gap-0.5 border border-border rounded-md p-0.5 sm:order-0 sm:w-auto">
                   {VIEWS.map(({ key, label, Icon }) => (
                     <button
                       key={key}
                       onClick={() => setActiveView(key)}
                       title={label}
+                      aria-label={label}
+                      aria-pressed={activeView === key}
                       className={[
-                        "flex items-center gap-1 px-2 py-1 rounded text-xs transition-colors",
+                        "flex flex-1 items-center justify-center gap-1 px-2 py-1 rounded text-xs transition-colors min-h-9 sm:flex-none sm:min-h-0",
                         activeView === key
                           ? "bg-background text-foreground shadow-sm ring-1 ring-border/60 font-medium"
                           : "text-muted-foreground hover:text-foreground",
@@ -456,6 +475,9 @@ export default function ProjectsScreen() {
 
               {/* Active view */}
               <div className="flex-1 min-h-0 overflow-hidden">
+                {activeView === "week" && (
+                  <WeekView projectId={effectiveId} onTaskClick={openTask} />
+                )}
                 {activeView === "kanban" && (
                   <KanbanView
                     projectId={effectiveId}
