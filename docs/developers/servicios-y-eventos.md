@@ -246,6 +246,9 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `purchases.order.updated` | `{ id, caseId, status, number, total, currency, supplierId }` (al editar una orden en borrador) |
 | `purchases.order.cancelled` | `{ id, caseId, status, number, total, currency, supplierId }` |
 | `purchases.invoice.paid` | `{ id, caseId, status, number, total, currency, supplierId }` (al quedar pagada por completo) |
+| `purchases.order.corrected` | `{ id, caseId, status, number, total, currency, supplierId }` (corrección administrativa de una orden registrada; el detalle queda en su historial de revisiones) |
+| `purchases.invoice.corrected` | `{ id, caseId, status, number, total, currency, supplierId }` (corrección administrativa de una factura registrada) |
+| `purchases.receipt.reversed` | `{ id, receiptId, orderId, caseId, orderStatus, number }` (reverso total o parcial de una recepción; la original se conserva) |
 | `purchases.invoice.payment.recorded` | `{ id, invoiceId, caseId, kind, amount, currency, invoiceStatus, paidAmount, balance }` (cada abono o pago; un reintento con la misma clave de operación no lo repite) |
 | `purchases.invoice.payment.reversed` | `{ id, invoiceId, caseId, kind, amount, currency, invoiceStatus, paidAmount, balance }` (`kind` es `REVERSAL` y `amount` es negativo; el pago original se conserva) |
 | `ledger.transaction.created` | `{ id, accountId, deposito, retiro, fecha, categoryId }` (un movimiento registrado a mano o desde la app; las importaciones masivas no lo publican; sin nombres de cuenta ni de personas) |

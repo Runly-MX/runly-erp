@@ -1869,6 +1869,24 @@ export const PERMISSION_CATALOG = {
     groupKey: "purchases",
     order: 43,
   },
+  "purchases.order.correct": {
+    displayNameEs: "Corregir órdenes registradas",
+    descriptionEs: "Permite corregir datos administrativos de una orden ya registrada (folio, referencia del proveedor, notas, fechas) con motivo e historial.",
+    groupKey: "purchases",
+    order: 34,
+  },
+  "purchases.invoice.correct": {
+    displayNameEs: "Corregir facturas registradas",
+    descriptionEs: "Permite corregir datos administrativos de una factura ya registrada (folio del proveedor, notas, vencimiento) con motivo e historial.",
+    groupKey: "purchases",
+    order: 37,
+  },
+  "purchases.receipt.reverse": {
+    displayNameEs: "Reversar recepciones",
+    descriptionEs: "Permite reversar total o parcialmente una recepción registrada indicando el motivo; la recepción original se conserva.",
+    groupKey: "purchases",
+    order: 42,
+  },
   "purchases.payment.reverse": {
     displayNameEs: "Reversar pagos",
     descriptionEs: "Permite reversar un pago registrado indicando el motivo; el pago original se conserva.",

@@ -16,18 +16,22 @@ import { createPurchaseInventoryBridge } from '../../services/purchase-inventory
 import { createPurchaseSuppliersService } from '../../services/purchase-suppliers-service.js'
 import { createPurchaseApprovalChatService } from '../../services/purchase-approval-chat-service.js'
 import { createPurchasePaymentsService } from '../../services/purchase-payments-service.js'
+import { createPurchaseCorrectionsService } from '../../services/purchase-corrections-service.js'
+import { createPurchaseReceiptReversalsService } from '../../services/purchase-receipt-reversals-service.js'
 import { createPurchasesSettingsRouter } from './settings-routes.js'
 import { createPurchasesDocumentsRouter } from './documents-routes.js'
 import { createPurchasesProcurementRouter } from './procurement-routes.js'
 import { createPurchasesRelationsRouter } from './relations-routes.js'
 import { createPurchasesPaymentsRouter } from './payments-routes.js'
+import { createPurchasesCorrectionsRouter } from './corrections-routes.js'
 
 export function createPurchasesServices({ prisma, broadcaster, inventoryService, supabaseAdmin }) {
   const workflow = createPurchasesService({ prisma, broadcaster })
   const caseBundle = createPurchaseCaseBundle({ prisma })
   const hydrator = createRelationHydrator({ prisma })
   const payments = createPurchasePaymentsService({ prisma, broadcaster, workflowService: workflow, caseBundle })
-  const deps = { prisma, broadcaster, workflowService: workflow, caseBundle, hydrator, payments }
+  const receiptReversals = createPurchaseReceiptReversalsService({ prisma, broadcaster, workflowService: workflow })
+  const deps = { prisma, broadcaster, workflowService: workflow, caseBundle, hydrator, payments, receiptReversals }
   let inventory = inventoryService ?? null
   return {
     workflow,
@@ -36,6 +40,8 @@ export function createPurchasesServices({ prisma, broadcaster, inventoryService,
     listing: createPurchaseListing({ prisma }),
     documents: createPurchaseDocumentsService(deps),
     payments,
+    receiptReversals,
+    corrections: createPurchaseCorrectionsService(deps),
     procurement: createPurchaseProcurementService(deps),
     receipts: createPurchaseReceiptsService(deps),
     relations: createPurchaseRelationsService(deps),
@@ -56,6 +62,7 @@ export function createPurchasesRouter({ prisma, requirePermission, requireAnyPer
   router.route('/', createPurchasesSettingsRouter(deps))
   router.route('/', createPurchasesRelationsRouter(deps))
   router.route('/', createPurchasesPaymentsRouter(deps))
+  router.route('/', createPurchasesCorrectionsRouter(deps))
   router.route('/', createPurchasesProcurementRouter(deps))
   router.route('/', createPurchasesDocumentsRouter(deps))
   return router

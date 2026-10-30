@@ -45,3 +45,14 @@ test('closing an order with goods still pending is a reasoned close short', () =
   const plain = getDocumentActions('orders', doc, { has: caps([]), can: all }).find((a) => a.key === 'close')
   assert.equal(plain.label, 'Cerrar orden')
 })
+
+test('correct data needs the API plan and the correct permission; receipt reversal needs its permission', () => {
+  const order = { id: 'o1', status: 'CLOSED', correction: { fields: [{ field: 'number' }] } }
+  assert.ok(getDocumentActions('orders', order, { has: all, can: all }).some((a) => a.key === 'correct'))
+  assert.ok(!getDocumentActions('orders', order, { has: all, can: (k) => k !== 'purchases.order.correct' }).some((a) => a.key === 'correct'))
+  assert.ok(!getDocumentActions('orders', { ...order, correction: { fields: [] } }, { has: all, can: all }).some((a) => a.key === 'correct'))
+  const receipt = { id: 'r1', status: 'COMPLETED', reversal: { available: true, fullyReversed: false } }
+  assert.ok(getDocumentActions('receipts', receipt, { has: all, can: all }).some((a) => a.key === 'reverseReceipt'))
+  assert.ok(!getDocumentActions('receipts', { ...receipt, reversal: { available: true, fullyReversed: true } }, { has: all, can: all }).some((a) => a.key === 'reverseReceipt'))
+  assert.ok(!getDocumentActions('receipts', receipt, { has: all, can: (k) => k !== 'purchases.receipt.reverse' }).some((a) => a.key === 'reverseReceipt'))
+})

@@ -39,11 +39,16 @@ Spec: `docs/superpowers/specs/2026-10-29-purchases-phase3-payments.md`.
 
 Verified: 2026-10-29 (unit + module-engine + docs + manifests 267/268, 1 skipped; integration on disposable postgres:18 11/11 three times; disposable Supabase stack run, see spec G).
 
-## Phase 4: corrections after registration
+## Phase 4: corrections after registration (done)
 
-- [ ] `version` column + `purchase_document_revision` (spec E.2).
-- [ ] Non-financial header corrections with reason and `purchases.<doc>.correct`.
-- [ ] Receipt reversal (negative receipt).
+Spec: `docs/superpowers/specs/2026-10-29-purchases-phase4-corrections.md`; UX handoff for phases 1-4: `docs/superpowers/specs/2026-10-29-purchases-ux-handoff.md`.
+
+- [x] Versions (`purchase_document_version`, a new table instead of a column so unmigrated databases keep working) bumped by every write; `expectedVersion` next to `expectedUpdatedAt`.
+- [x] `purchase_document_revision` + corrections of administrative fields with reason, `purchases.order.correct` / `purchases.invoice.correct`; matrix in the spec.
+- [x] Receipt reversals (`purchase_receipt_reversal[_line]`, partial or total, blockers for linked assets / closed order / closed case), `purchases.receipt.reverse`.
+- [x] UI: "Corregir datos" + "Correcciones" tab; "Reversar recepción" + "Reversos" tab.
+
+Verified: 2026-10-29 (unit + suites 273/274, 1 skipped; integration on disposable postgres:18 9/9 twice with phase 3 11/11; disposable Supabase stack 30/30; dev API without the migration degrades as designed).
 
 ## Phase 5: archive, restore, logical delete (spec B, E.3-E.4)
 

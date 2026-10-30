@@ -1,7 +1,7 @@
 // runly.purchases — goods receipts with partial reception.
 import { buildStageMap } from './purchase-policies.js'
 import {
-  MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, broadcast, cleanText, dateKey, invalidTransition, allocateNumber, notFound, num, plain, writeAudit,
+  MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, broadcast, bumpVersion, cleanText, dateKey, invalidTransition, allocateNumber, notFound, num, plain, writeAudit,
 } from './purchases-shared.js'
 
 const EPSILON = 1e-6
@@ -38,7 +38,7 @@ export function planReceipt(orderLines, requested) {
   return { lines: updates, orderStatus: complete ? 'RECEIVED' : 'PARTIALLY_RECEIVED' }
 }
 
-export function createPurchaseReceiptsService({ prisma, broadcaster, workflowService, caseBundle, hydrator }) {
+export function createPurchaseReceiptsService({ prisma, broadcaster, workflowService, caseBundle, hydrator, receiptReversals }) {
   // Readable even with the receipts capability off: it is historical evidence.
   async function get(companyId, id, canRead) {
     const workflow = await workflowService.ensureWorkflow(companyId)
@@ -75,6 +75,8 @@ export function createPurchaseReceiptsService({ prisma, broadcaster, workflowSer
       stageMap: buildStageMap(workflow, bundle),
       policyCheck: { action: null, blocked: false, reasons: [], requirements: [] },
       capabilityEnabled: workflow.capabilities?.receipts === true,
+      // Quantities already reversed, the reversals and what blocks a new one.
+      reversal: receiptReversals ? await receiptReversals.describe(companyId, receipt) : null,
     }
   }
 
@@ -103,6 +105,7 @@ export function createPurchaseReceiptsService({ prisma, broadcaster, workflowSer
         await tx.purchaseLine.update({ where: { id: line.lineId }, data: { receivedQuantity: line.receivedQuantity } })
       }
       await tx.purchaseOrder.update({ where: { id: order.id }, data: { status: plan.orderStatus } })
+      await bumpVersion(tx, { companyId, documentType: 'purchase_order', documentId: order.id })
       await tx.entityRelation.createMany({
         data: [{ companyId, sourceModule: MODULE_KEY, sourceType: 'purchase_order', sourceId: order.id, targetModule: MODULE_KEY, targetType: 'purchase_receipt', targetId: created.id, relationType: 'RECEIVED_BY', origin: 'AUTOMATIC', createdById: actorId || null }],
         skipDuplicates: true,

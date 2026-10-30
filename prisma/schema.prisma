@@ -4483,7 +4483,8 @@ model PurchaseReceipt {
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
-  lines PurchaseReceiptLine[]
+  lines     PurchaseReceiptLine[]
+  reversals PurchaseReceiptReversal[]
 
   @@unique([companyId, number])
   @@index([companyId, receivedAt(sort: Desc)])
@@ -4501,7 +4502,8 @@ model PurchaseReceiptLine {
   quantity    Decimal  @db.Decimal(14, 4)
   createdAt   DateTime @default(now()) @map("created_at")
 
-  receipt PurchaseReceipt @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  receipt   PurchaseReceipt               @relation(fields: [receiptId], references: [id], onDelete: Cascade)
+  reversals PurchaseReceiptReversalLine[]
 
   @@index([receiptId])
   @@index([orderLineId])
@@ -4624,6 +4626,82 @@ model PurchasePayment {
   @@unique([companyId, idempotencyKey])
   @@index([companyId, invoiceId, recordedAt])
   @@map("purchase_payment")
+}
+
+// Version counter of a purchase order or invoice, kept outside the document
+// table so the code also runs on databases without this migration. Every
+// write to the document (edit, transition, receipt, payment, correction)
+// increments it in the same transaction. A missing row means version 1.
+model PurchaseDocumentVersion {
+  documentType String   @map("document_type") @db.VarChar(40)
+  documentId   String   @map("document_id") @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  version      Int      @default(1)
+  updatedAt    DateTime @default(now()) @map("updated_at") @db.Timestamptz(3)
+
+  @@id([documentType, documentId])
+  @@index([companyId])
+  @@map("purchase_document_version")
+}
+
+// One administrative correction of a registered order or invoice: the fields
+// changed (before/after), the reason, who and when, and the version move.
+// Rows are never updated or deleted (trigger purchase_document_revision_immutable).
+model PurchaseDocumentRevision {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  documentType String   @map("document_type") @db.VarChar(40)
+  documentId   String   @map("document_id") @db.Uuid
+  versionFrom  Int      @map("version_from")
+  versionTo    Int      @map("version_to")
+  changes      Json
+  reason       String   @db.VarChar(500)
+  actorId      String?  @map("actor_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@unique([documentType, documentId, versionTo])
+  @@index([companyId, documentType, documentId, createdAt])
+  @@map("purchase_document_revision")
+}
+
+// Compensation of a registered goods receipt: the original receipt and its
+// lines are never edited; the reversed quantities are subtracted from the
+// order lines' received quantity in the same transaction. Immutable rows.
+model PurchaseReceiptReversal {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  receiptId      String   @map("receipt_id") @db.Uuid
+  orderId        String   @map("order_id") @db.Uuid
+  reason         String   @db.VarChar(500)
+  reversedAt     DateTime @map("reversed_at") @db.Date
+  idempotencyKey String?  @map("idempotency_key") @db.VarChar(100)
+  createdById    String?  @map("created_by_id") @db.Uuid
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  receipt PurchaseReceipt              @relation(fields: [receiptId], references: [id], onDelete: Restrict)
+  lines   PurchaseReceiptReversalLine[]
+
+  @@unique([companyId, idempotencyKey])
+  @@index([companyId, receiptId])
+  @@index([orderId])
+  @@map("purchase_receipt_reversal")
+}
+
+model PurchaseReceiptReversalLine {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  companyId      String   @map("company_id") @db.Uuid
+  reversalId     String   @map("reversal_id") @db.Uuid
+  receiptLineId  String   @map("receipt_line_id") @db.Uuid
+  orderLineId    String   @map("order_line_id") @db.Uuid
+  quantity       Decimal  @db.Decimal(14, 4)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  reversal    PurchaseReceiptReversal @relation(fields: [reversalId], references: [id], onDelete: Restrict)
+  receiptLine PurchaseReceiptLine     @relation(fields: [receiptLineId], references: [id], onDelete: Restrict)
+
+  @@index([reversalId])
+  @@index([receiptLineId])
+  @@map("purchase_receipt_reversal_line")
 }
 
 model PurchaseLine {

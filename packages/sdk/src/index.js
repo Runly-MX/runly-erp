@@ -2660,6 +2660,12 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         getPayment: (id, token) => get(`/purchases/payments/${seg(id)}`, token),
         // data: { reason, effectiveAt, idempotencyKey, expectedUpdatedAt }.
         reversePayment: (id, data, token) => send("POST", `/purchases/payments/${seg(id)}/reverse`, data, token),
+        // kind: orders | invoices; data: { changes, reason, expectedVersion }.
+        correctDocument: (kind, id, data, token) => send("POST", `/purchases/${seg(kind)}/${seg(id)}/corrections`, data, token),
+        listRevisions: (kind, id, token) => get(`/purchases/${seg(kind)}/${seg(id)}/revisions`, token),
+        receiptReversalPreview: (id, token) => get(`/purchases/receipts/${seg(id)}/reversal-preview`, token),
+        // data: { reason, lines?: [{ receiptLineId, quantity }], reversedAt, idempotencyKey }.
+        reverseReceipt: (id, data, token) => send("POST", `/purchases/receipts/${seg(id)}/reverse`, data, token),
         propagationPreview: (params, token) => {
           const query = { ...(params ?? {}) };
           if (Array.isArray(query.orderIds)) query.orderIds = query.orderIds.join(",");

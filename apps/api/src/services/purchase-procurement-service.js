@@ -6,7 +6,7 @@ import { policyCheckFor } from './purchase-case-bundle.js'
 import { hasCapability } from './purchases-service.js'
 import { caseClosureCheck } from './purchase-case-closure.js'
 import {
-  DECISION_STATUS, KINDS, MODULE_KEY, OWNER_TYPE_TO_KIND, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories,
+  DECISION_STATUS, KINDS, VERSIONED_MODELS, bumpVersion, MODULE_KEY, OWNER_TYPE_TO_KIND, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories,
   assertSupplier, broadcast, cleanText, createApproval, createCase, currency, dateKey, invalidTransition, allocateNumber, normalizeLine,
   notFound, num, pagination, plain, policyBlocked, relate, replaceLines, resolveApprovals, statusFilter, supplierNames, totalsFromLines, writeAudit,
 } from './purchases-shared.js'
@@ -373,7 +373,8 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       if (count !== 1) throw invalidTransition('La aprobación ya fue resuelta.')
       const updated = await tx.purchaseApproval.findFirst({ where: { id, companyId } })
       if (kind && statusMap) {
-        await tx[KINDS[kind].model].updateMany({ where: { id: approval.ownerId, companyId, status: statusMap.waiting }, data: { status: statusMap[decision] } })
+        const moved = await tx[KINDS[kind].model].updateMany({ where: { id: approval.ownerId, companyId, status: statusMap.waiting }, data: { status: statusMap[decision] } })
+        if (moved.count && VERSIONED_MODELS[KINDS[kind].model]) await bumpVersion(tx, { companyId, documentType: VERSIONED_MODELS[KINDS[kind].model], documentId: approval.ownerId })
       }
       await writeAudit(tx, { companyId, actorId, entityType: 'purchase_approval', entityId: id, action: 'purchase.approval.decided', before: { status: approval.status }, after: { status: decision }, metadata: { ownerType: approval.ownerType, ownerId: approval.ownerId } })
       return updated

@@ -24,6 +24,9 @@ import { QuotesCompare } from '../components/detail/QuotesCompare.jsx'
 import { ReceiveOrderDialog } from '../components/detail/ReceiveOrderDialog.jsx'
 import { PaymentDialog } from '../components/detail/PaymentDialog.jsx'
 import { PaymentsPanel } from '../components/detail/PaymentsPanel.jsx'
+import { CorrectionDialog } from '../components/detail/CorrectionDialog.jsx'
+import { RevisionsPanel } from '../components/detail/RevisionsPanel.jsx'
+import { ReceiptReversalDialog, ReceiptReversalsPanel } from '../components/detail/ReceiptReversalDialog.jsx'
 import { CreateInventoryFromLineDialog } from '../components/detail/CreateInventoryFromLineDialog.jsx'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
 
@@ -93,6 +96,8 @@ export default function PurchaseDocumentDetail() {
     inventoryOn && { value: 'inventory', label: 'Inventario', count: inventoryCount },
     // Payments history stays visible (read-only) when the capability is off but money was paid.
     paymentsOn && { value: 'payments', label: 'Pagos' },
+    ['orders', 'invoices'].includes(kind) && { value: 'revisions', label: 'Correcciones' },
+    kind === 'receipts' && doc.reversal?.available && { value: 'reversals', label: 'Reversos', count: doc.reversal.reversals?.length },
     kind !== 'cases' && { value: 'related', label: 'Relacionados', count: related.reduce((n, g) => n + g.rows.length, 0) },
     filesOn && { value: 'files', label: 'Archivos', count: filesCount.data },
     { value: 'activity', label: 'Actividad' },
@@ -134,6 +139,8 @@ export default function PurchaseDocumentDetail() {
         {paymentsOn ? (
           <TabsContent value="payments"><PaymentsPanel invoice={doc} onRecord={readOnly ? null : () => setDialog('pay')} /></TabsContent>
         ) : null}
+        {['orders', 'invoices'].includes(kind) ? <TabsContent value="revisions"><RevisionsPanel kind={kind} docId={doc.id} /></TabsContent> : null}
+        {kind === 'receipts' ? <TabsContent value="reversals"><ReceiptReversalsPanel receipt={doc} /></TabsContent> : null}
         <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent>
         {quotesOn ? (
           <TabsContent value="quotes">
@@ -160,6 +167,8 @@ export default function PurchaseDocumentDetail() {
 
       {kind === 'orders' ? <ReceiveOrderDialog order={doc} open={dialog === 'receive'} onOpenChange={(o) => setDialog(o ? 'receive' : null)} /> : null}
       {kind === 'invoices' ? <PaymentDialog invoice={doc} open={dialog === 'pay'} onOpenChange={(o) => setDialog(o ? 'pay' : null)} /> : null}
+      {['orders', 'invoices'].includes(kind) ? <CorrectionDialog kind={kind} doc={doc} open={dialog === 'correct'} onOpenChange={(o) => setDialog(o ? 'correct' : null)} /> : null}
+      {kind === 'receipts' ? <ReceiptReversalDialog receipt={doc} open={dialog === 'reverseReceipt'} onOpenChange={(o) => setDialog(o ? 'reverseReceipt' : null)} /> : null}
       <CreateInventoryFromLineDialog line={lineForItems} open={Boolean(lineForItems)} onOpenChange={(o) => { if (!o) setLineForItems(null) }} />
     </div>
   )

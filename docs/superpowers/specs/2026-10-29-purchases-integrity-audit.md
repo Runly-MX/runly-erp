@@ -411,6 +411,8 @@ behaviour of MirAI/MCP reads with capabilities off (unchanged, still gated).
 
 ## G. UX handoff (for the visual redesign)
 
+Superseded by `2026-10-29-purchases-ux-handoff.md` (phases 1-4). Kept below as written for phase 1.
+
 Business rules live in the API; the client only reflects them. Keep these
 contracts and states when redesigning.
 

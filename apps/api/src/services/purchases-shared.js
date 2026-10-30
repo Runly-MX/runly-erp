@@ -30,11 +30,55 @@ export function assertFresh(doc, expectedUpdatedAt) {
   if (new Date(doc.updatedAt).getTime() !== expected) throw staleDocument()
 }
 
+// ── Document versions ───────────────────────────────────────────────────────
+// Orders and invoices carry an integer version in purchase_document_version
+// (a separate table, so databases without migration 20261215120000 keep
+// working: there the version is null and only expectedUpdatedAt applies).
+// Every write bumps it in the write's transaction; a missing row is version 1.
+export const VERSIONED_MODELS = { purchaseOrder: 'purchase_order', purchaseInvoice: 'purchase_invoice' }
+
+let versionsProbe = null
+export async function versionsAvailable(client) {
+  if (versionsProbe && versionsProbe.expires > Date.now()) return versionsProbe.value
+  let row = null
+  try { [row] = await client.$queryRaw`SELECT to_regclass('public.purchase_document_version')::text AS name` } catch { row = null }
+  versionsProbe = { value: Boolean(row?.name), expires: Date.now() + 60_000 }
+  return versionsProbe.value
+}
+
+// Tests that apply the migration mid-run forget the cached answer.
+export function resetVersionsProbe() { versionsProbe = null }
+
+export async function currentVersion(client, documentType, documentId) {
+  if (!(await versionsAvailable(client))) return null
+  const [row] = await client.$queryRaw`SELECT version FROM purchase_document_version WHERE document_type = ${documentType} AND document_id = ${documentId}::uuid`
+  return row ? Number(row.version) : 1
+}
+
+// Inside the transaction that changed the document. Returns the new version.
+export async function bumpVersion(tx, { companyId, documentType, documentId }) {
+  if (!(await versionsAvailable(tx))) return null
+  const [row] = await tx.$queryRaw`INSERT INTO purchase_document_version (document_type, document_id, company_id, version, updated_at)
+    VALUES (${documentType}, ${documentId}::uuid, ${companyId}::uuid, 2, now())
+    ON CONFLICT (document_type, document_id) DO UPDATE SET version = purchase_document_version.version + 1, updated_at = now()
+    RETURNING version`
+  return Number(row.version)
+}
+
+// expectedVersion (preferred) and/or expectedUpdatedAt (older clients).
+export function assertExpected(doc, input = {}, version = null) {
+  assertFresh(doc, input.expectedUpdatedAt)
+  if (input.expectedVersion == null || input.expectedVersion === '' || version == null) return
+  const expected = Number(input.expectedVersion)
+  if (!Number.isInteger(expected) || expected < 1) throw new PurchasesServiceError('La versión del documento no es válida.', 400, 'VALIDATION')
+  if (expected !== version) throw staleDocument()
+}
+
 // Writes `data` only if the row still has the status and version that were
 // read, so two concurrent writers can never both win (lost update). Throws
-// STALE_DOCUMENT otherwise and returns the fresh row. updated_at is a
-// microsecond TIMESTAMPTZ read back truncated to milliseconds, so the version
-// matches the millisecond it falls in rather than an exact value.
+// STALE_DOCUMENT otherwise and returns the fresh row (with `version` for
+// orders and invoices). updated_at is a microsecond TIMESTAMPTZ read back
+// truncated to milliseconds, so the guard matches the millisecond it falls in.
 export async function guardedUpdate(tx, model, doc, data) {
   const from = new Date(doc.updatedAt)
   const { count } = await tx[model].updateMany({
@@ -42,7 +86,10 @@ export async function guardedUpdate(tx, model, doc, data) {
     data,
   })
   if (count !== 1) throw staleDocument()
-  return tx[model].findFirst({ where: { id: doc.id, companyId: doc.companyId } })
+  const fresh = await tx[model].findFirst({ where: { id: doc.id, companyId: doc.companyId } })
+  if (!VERSIONED_MODELS[model]) return fresh
+  const version = await bumpVersion(tx, { companyId: doc.companyId, documentType: VERSIONED_MODELS[model], documentId: doc.id })
+  return version == null ? fresh : { ...fresh, version }
 }
 
 export const policyBlocked = blockers =>

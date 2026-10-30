@@ -62,6 +62,16 @@ export function getDocumentActions(kind, doc, { has, can }) {
     if (['DRAFT', 'PENDING_APPROVAL', 'PENDING'].includes(s) && update) out.push(cancel('la factura'))
   }
 
+  // Audited correction of administrative fields of a registered order/invoice
+  // (the API decides which fields; none when the document is a draft).
+  if (['orders', 'invoices'].includes(kind) && doc.correction?.fields?.length && can(kind === 'orders' ? 'purchases.order.correct' : 'purchases.invoice.correct')) {
+    out.push({ key: 'correct', type: 'dialog', dialog: 'correct', label: 'Corregir datos', tone: 'secondary' })
+  }
+
+  if (kind === 'receipts' && has('receipts') && can('purchases.receipt.reverse') && doc.reversal?.available && !doc.reversal.fullyReversed) {
+    out.push({ key: 'reverseReceipt', type: 'dialog', dialog: 'reverseReceipt', label: 'Reversar recepción', tone: 'secondary' })
+  }
+
   if (kind === 'requests') {
     const update = can('purchases.request.update')
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Enviar solicitud', tone: 'primary' }, edit)

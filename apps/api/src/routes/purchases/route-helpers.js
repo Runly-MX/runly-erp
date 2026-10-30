@@ -39,6 +39,8 @@ export function createHandler(tag = '[purchases]') {
       if (error instanceof PurchasesServiceError) {
         const payload = { error: error.message, code: error.code }
         if (error.reasons) payload.reasons = error.reasons
+        if (error.field) payload.field = error.field
+        if (error.dependencies) payload.dependencies = error.dependencies
         return c.json(payload, error.status)
       }
       if (error?.name === 'InventoryServiceError' && error.status) {

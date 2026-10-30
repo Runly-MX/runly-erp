@@ -224,6 +224,34 @@ export function usePaymentMutations(invoiceId) {
   return { record, reverse }
 }
 
+// { available, version, revisions: [{ versionFrom, versionTo, changes, reason, actorName, createdAt }] }
+export function useRevisions(kind, id, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['purchases', kind, 'revisions', id],
+    queryFn: () => runly.purchases.listRevisions(kind, id, token).then(one),
+    enabled: Boolean(token && kind && id && enabled),
+  })
+}
+
+export function useCorrectDocument(kind, id) {
+  const token = useToken()
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (data) => runly.purchases.correctDocument(kind, id, data, token).then(one),
+    onSuccess: invalidate,
+  })
+}
+
+export function useReverseReceipt(receiptId) {
+  const token = useToken()
+  const invalidate = useInvalidateAll()
+  return useMutation({
+    mutationFn: (data) => runly.purchases.reverseReceipt(receiptId, data, token).then(one),
+    onSuccess: invalidate,
+  })
+}
+
 // One key per attempt: a retry of the same attempt (network error, double
 // click) reuses it so the API never records the movement twice.
 export function newOperationKey(prefix) {

@@ -16,7 +16,7 @@ import { purchaseEventPayload } from './purchase-documents-service.js'
 import { centsToDecimal, centsToNumber, toCents } from './purchase-money.js'
 import { PAYABLE_STATUSES, REVERSIBLE_STATUSES, cacheFieldsFrom, statusForPaid } from './purchase-payments-ledger.js'
 import {
-  PurchasesServiceError, asDate, assertFresh, broadcast, cleanText, dateKey, guardedUpdate, invalidTransition, notFound, plain, policyBlocked, writeAudit,
+  PurchasesServiceError, asDate, assertExpected, broadcast, currentVersion, cleanText, dateKey, guardedUpdate, invalidTransition, notFound, plain, policyBlocked, writeAudit,
 } from './purchases-shared.js'
 
 const isUniqueViolation = error => error?.code === 'P2002' || error?.code === '23505' || /unique/i.test(error?.message ?? '')
@@ -28,7 +28,8 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
   let ledgerProbe = null
   async function ledgerAvailable() {
     if (ledgerProbe && ledgerProbe.expires > Date.now()) return ledgerProbe.value
-    const [row] = await prisma.$queryRaw`SELECT to_regclass('public.purchase_payment')::text AS name`.catch(() => [{}])
+    let row = null
+    try { [row] = await prisma.$queryRaw`SELECT to_regclass('public.purchase_payment')::text AS name` } catch { row = null }
     ledgerProbe = { value: Boolean(row?.name), expires: Date.now() + 60_000 }
     return ledgerProbe.value
   }
@@ -127,7 +128,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
     const names = await userNames(movements.map(m => m.createdById))
     const workflow = await workflowService.ensureWorkflow(companyId)
     return {
-      summary: { ...summaryOf(invoice, movements, ledger), capabilityEnabled: workflow.capabilities?.payments === true },
+      summary: { ...summaryOf(invoice, movements, ledger), capabilityEnabled: workflow.capabilities?.payments === true, version: await currentVersion(prisma, 'purchase_invoice', invoiceId) },
       payments: movements.map(m => serialize(m, { reversals, names })),
     }
   }
@@ -186,7 +187,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
     try {
       result = await prisma.$transaction(async tx => {
         const invoice = await lockInvoice(tx, companyId, invoiceId)
-        assertFresh(invoice, input.expectedUpdatedAt)
+        assertExpected(invoice, input, await currentVersion(tx, 'purchase_invoice', invoice.id))
         if (!PAYABLE_STATUSES.includes(invoice.status)) throw invalidTransition('La factura cambió de estado mientras se registraba el pago. Recarga e inténtalo de nuevo.')
         const total = toCents(invoice.total)
         const paid = toCents(invoice.paidAmount)
@@ -254,7 +255,7 @@ export function createPurchasePaymentsService({ prisma, broadcaster, workflowSer
     try {
       result = await prisma.$transaction(async tx => {
         const invoice = await lockInvoice(tx, companyId, original.invoiceId)
-        assertFresh(invoice, input.expectedUpdatedAt)
+        assertExpected(invoice, input, await currentVersion(tx, 'purchase_invoice', invoice.id))
         if (!REVERSIBLE_STATUSES.includes(invoice.status)) throw invalidTransition(invoice.status === 'CANCELLED' ? 'La factura está cancelada.' : 'La factura no tiene pagos que reversar.')
         const already = await tx.purchasePayment.findFirst({ where: { companyId, reversesId: original.id } })
         if (already) throw new PurchasesServiceError('Este pago ya fue reversado.', 409, 'PAYMENT_ALREADY_REVERSED')

@@ -3,12 +3,13 @@
 import { publishDomainEvent } from './domain-events/events.js'
 import { buildStageMap, orderReceiptState, policyBlockers, resolveTransition } from './purchase-policies.js'
 import { autoCloseCase } from './purchase-case-closure.js'
+import { correctionPlan } from './purchase-corrections-rules.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
 import { assertItemsFreeInTx, assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
 import {
-  DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertFresh, assertLineCategories, assertSupplier,
-  broadcast, cleanText, createApproval, createCase, currency, dateKey, guardedUpdate, invalidTransition, markCaseInProgress, allocateNumber,
+  DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertExpected, assertLineCategories, assertSupplier,
+  broadcast, cleanText, createApproval, createCase, currency, currentVersion, dateKey, guardedUpdate, invalidTransition, markCaseInProgress, allocateNumber,
   normalizeLine, notFound, num, plain, policyBlocked, relate, replaceLines, resolveApprovals, totalsFromLines, writeAudit,
 } from './purchases-shared.js'
 import { hasCapability } from './purchases-service.js'
@@ -85,7 +86,11 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       // Reading never depends on the capability (historical evidence stays
       // visible); false means the document is read-only in this workflow.
       capabilityEnabled: hasCapability(workflow.capabilities, meta.capability),
+      // Optimistic lock for edits, transitions, payments and corrections (null before the migration).
+      version: await currentVersion(prisma, meta.entityType, doc.id),
     }
+    // Fields an administrative correction may change in this status (rules stay in the API).
+    data.correction = correctionPlan(kind, doc, kind === 'orders' ? { hasPayments: await orderHasPayments(companyId, doc.id) } : {})
     if (kind === 'orders') {
       data.expectedDate = dateKey(doc.expectedDate)
       data.receipt = orderReceiptState(doc, lines)
@@ -101,6 +106,14 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       data.orders = related('purchase_order')
     }
     return data
+  }
+
+  async function orderHasPayments(companyId, orderId) {
+    const billed = await prisma.entityRelation.findMany({
+      where: { companyId, sourceType: 'purchase_invoice', targetType: 'purchase_order', targetId: orderId, relationType: 'BILLED_FROM' }, select: { sourceId: true },
+    })
+    if (!billed.length) return false
+    return (await prisma.purchaseInvoice.count({ where: { companyId, id: { in: billed.map(row => row.sourceId) }, paidAmount: { gt: 0 } } })) > 0
   }
 
   function stripContext(check) {
@@ -205,7 +218,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     await workflowService.assertCapability(companyId, meta.capability, actorId)
     const before = await findDoc(kind, companyId, id)
     if (before.status !== 'DRAFT') throw invalidTransition('Solo se pueden editar documentos en borrador.')
-    assertFresh(before, input.expectedUpdatedAt)
+    assertExpected(before, input, await currentVersion(prisma, meta.entityType, id))
     if ('supplierId' in input) await assertSupplier(prisma, companyId, input.supplierId)
     const lines = Array.isArray(input.lines) ? input.lines.map(normalizeLine).filter(Boolean) : null
     if (lines) await assertLineCategories(prisma, companyId, lines)
@@ -260,7 +273,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const doc = await findDoc(kind, companyId, id)
     const rule = resolveTransition(kind, action, doc.status)
     if (!rule) throw invalidTransition()
-    assertFresh(doc, payload.expectedUpdatedAt)
+    assertExpected(doc, payload, await currentVersion(prisma, meta.entityType, id))
     const bundle = await caseBundle.loadBundle(companyId, doc.caseId)
     const check = policyCheckFor(workflow, bundle, kind, doc)
     const data = {}
