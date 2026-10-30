@@ -120,7 +120,7 @@ export default function PurchaseDocumentDetail() {
           <LinesPanel kind={kind} doc={doc} onCreateItems={setLineForItems}
             canCreateItems={inventoryOn && kind !== 'receipts' && can('inventory.item.create') && doc.status !== 'DRAFT' && doc.status !== 'CANCELLED'} />
         </TabsContent>
-        <TabsContent value="related"><RelatedDocumentsPanel doc={doc} /></TabsContent>
+        <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent>
         {quotesOn ? (
           <TabsContent value="quotes">
             <QuotesCompare quotes={doc.quotes ?? []} caseId={kind === 'cases' ? doc.id : doc.caseId} requestId={kind === 'requests' ? doc.id : null}

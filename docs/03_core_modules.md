@@ -180,7 +180,9 @@ Core module (`core: true`, `uninstallable: false`, color `#0f766e`). Owns the ac
 Depends on: `runly.core`, `runly.contacts`. Consumes (optional): `runly.files`, `runly.inventory`. Works without Inventario, Flotilla or Finanzas installed.
 
 Process model:
-- **Capabilities** (what is used): `requests`, `quotes`, `approvals`, `purchaseOrders`, `receipts`, `invoices`, `payments`, `inventoryRelations`. Navigation, routes, tabs, buttons and endpoints all honour them; the backend enforces them (`CAPABILITY_DISABLED` 409).
+- **Capabilities** (what is used): `requests`, `quotes`, `approvals`, `purchaseOrders`, `receipts`, `invoices`, `payments`, `inventoryRelations`. Navigation, routes, tabs, buttons and endpoints all honour them; the backend enforces them on every write (`CAPABILITY_DISABLED` 409). Reads (lists and details) stay available when a capability is off so historical documents keep their evidence; responses carry `capabilityEnabled: false` and the client shows them read-only (2026-10-29, see `docs/superpowers/specs/2026-10-29-purchases-integrity-audit.md`).
+- **Concurrency**: order/invoice edits and transitions are guarded writes (status + `updatedAt` version); clients may send `expectedUpdatedAt` and a conflicting write answers `STALE_DOCUMENT` 409. Receipts lock the order row; approval decisions only apply to a still-pending approval.
+- **Relations**: `GET /purchases/relations/:id/impact` previews an unlink; structural links (`CONTAINS`, `RECEIVED_BY`) answer `RELATION_PROTECTED` 409, and links with derived copies (`sourceRelationId`) need `DELETE ...?dependents=keep|remove` or answer `RELATION_HAS_DEPENDENTS` 409.
 - **Workflow** (how stages are ordered): `REQUEST → QUOTES → APPROVAL → PURCHASE_ORDER → RECEIPT → INVOICE → PAYMENT → CLOSE`, each stage `REQUIRED | OPTIONAL | CONDITIONAL | DISABLED`. Presets: Simple, Básico, Compras + Inventario, Completo, Personalizado. Stored per company.
 - **Policies** (when a conditional stage becomes mandatory): pure `evaluatePolicies()` in `purchase-policies.js`; unsatisfied requirements block `issue` / `pay` / `close` with `POLICY_BLOCKED` 409.
 

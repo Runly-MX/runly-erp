@@ -2649,7 +2649,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         listRelations: (params, token) => get(`/purchases/relations${toQueryString(params)}`, token),
         createRelation: (data, token) => send("POST", "/purchases/relations", data, token),
         bulkRelate: (data, token) => send("POST", "/purchases/relations/bulk", data, token),
-        deleteRelation: (id, token) => send("DELETE", `/purchases/relations/${seg(id)}`, undefined, token),
+        // options: { dependents: 'keep' | 'remove', reason } (see relationImpact).
+        deleteRelation: (id, token, options) =>
+          send("DELETE", `/purchases/relations/${seg(id)}${toQueryString(options ?? {})}`, undefined, token),
+        relationImpact: (id, token) => get(`/purchases/relations/${seg(id)}/impact`, token),
         propagationPreview: (params, token) => {
           const query = { ...(params ?? {}) };
           if (Array.isArray(query.orderIds)) query.orderIds = query.orderIds.join(",");

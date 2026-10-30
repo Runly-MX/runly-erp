@@ -1,7 +1,7 @@
 // runly.purchases: cases (expedientes), requests, quotes and the approvals inbox.
 import { Hono } from 'hono'
 import { actorId, assertPermission, body, canReadOf, companyOf, createHandler } from './route-helpers.js'
-import { ACTION_PERMISSION } from './documents-routes.js'
+import { ACTION_PERMISSION, listWithCapability } from './documents-routes.js'
 
 const CASE_GATE = ['requests', 'quotes', 'approvals']
 
@@ -10,13 +10,13 @@ export function createPurchasesProcurementRouter({ requirePermission, services }
   const handle = createHandler('[purchases:procurement]')
   const { workflow, listing, procurement } = services
   const id = c => c.req.param('id')
+  // Lists and details stay readable with the capability off (history); the
+  // services assert the capability on every write.
+  const readableList = (c, kind, gate) => listWithCapability({ workflow, listing }, companyOf(c), kind, gate, c.req.query())
 
   // ── Cases ──
   router.get('/purchases/cases', requirePermission('purchases.case.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), CASE_GATE)
-      return listing.list('cases', companyOf(c), c.req.query())
-    }))
+    handle(c, () => readableList(c, 'cases', CASE_GATE)))
   router.post('/purchases/cases', requirePermission('purchases.case.manage'), c =>
     handle(c, async () => ({ data: await procurement.createCase(companyOf(c), actorId(c), await body(c)) }), 201))
   // Every document lives in a case, so the case detail stays readable in any
@@ -31,17 +31,11 @@ export function createPurchasesProcurementRouter({ requirePermission, services }
 
   // ── Requests ──
   router.get('/purchases/requests', requirePermission('purchases.request.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), 'requests')
-      return listing.list('requests', companyOf(c), c.req.query())
-    }))
+    handle(c, () => readableList(c, 'requests', 'requests')))
   router.post('/purchases/requests', requirePermission('purchases.request.create'), c =>
     handle(c, async () => ({ data: await procurement.createRequest(companyOf(c), actorId(c), await body(c)) }), 201))
   router.get('/purchases/requests/:id', requirePermission('purchases.request.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), 'requests')
-      return { data: await procurement.getRequest(companyOf(c), id(c), canReadOf(c)) }
-    }))
+    handle(c, async () => ({ data: await procurement.getRequest(companyOf(c), id(c), canReadOf(c)) })))
   router.patch('/purchases/requests/:id', requirePermission('purchases.request.update'), c =>
     handle(c, async () => ({ data: await procurement.updateRequest(companyOf(c), actorId(c), id(c), await body(c)) })))
   router.post('/purchases/requests/:id/transition', requirePermission('purchases.request.update'), c =>
@@ -54,17 +48,11 @@ export function createPurchasesProcurementRouter({ requirePermission, services }
 
   // ── Quotes ──
   router.get('/purchases/quotes', requirePermission('purchases.quote.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), 'quotes')
-      return listing.list('quotes', companyOf(c), c.req.query())
-    }))
+    handle(c, () => readableList(c, 'quotes', 'quotes')))
   router.post('/purchases/quotes', requirePermission('purchases.quote.manage'), c =>
     handle(c, async () => ({ data: await procurement.createQuote(companyOf(c), actorId(c), await body(c)) }), 201))
   router.get('/purchases/quotes/:id', requirePermission('purchases.quote.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), 'quotes')
-      return { data: await procurement.getQuote(companyOf(c), id(c), canReadOf(c)) }
-    }))
+    handle(c, async () => ({ data: await procurement.getQuote(companyOf(c), id(c), canReadOf(c)) })))
   router.post('/purchases/quotes/:id/transition', requirePermission('purchases.quote.manage'), c =>
     handle(c, async () => {
       const { action } = await body(c)

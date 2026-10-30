@@ -28,7 +28,8 @@ export function PaymentDialog({ invoice, open, onOpenChange }) {
 
   const submit = handleSubmit(async (values) => {
     try {
-      await transition.mutateAsync({ action: 'pay', ...values, reference: values.reference?.trim() || undefined })
+      // A double submit or a payment registered elsewhere answers 409 STALE_DOCUMENT.
+      await transition.mutateAsync({ action: 'pay', ...values, reference: values.reference?.trim() || undefined, expectedUpdatedAt: invoice.updatedAt })
       toast.success(values.amount >= balance ? 'Factura pagada' : 'Pago parcial registrado')
       onOpenChange(false)
     } catch (error) {

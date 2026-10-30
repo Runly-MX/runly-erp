@@ -20,7 +20,8 @@ export function DocumentActionBar({ kind, doc, actions, onDialog }) {
 
   const run = async (action, payload = {}) => {
     try {
-      const result = await transition.mutateAsync({ action: action.action, ...payload })
+      // The version on screen: a document changed by someone else answers 409 STALE_DOCUMENT.
+      const result = await transition.mutateAsync({ action: action.action, expectedUpdatedAt: doc.updatedAt, ...payload })
       toast.success(DONE[action.action] ?? 'Listo')
       setPending(null)
       if (action.opensResult && result?.id) navigate(`${ROOT}/${action.opensResult}/${result.id}`)

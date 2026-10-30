@@ -6,10 +6,11 @@ import { policyCheckFor } from './purchase-case-bundle.js'
 import { inheritFromOrders } from './purchase-relations-service.js'
 import { assertItemsFreeOfKind } from './inventory-purchase-uniqueness.js'
 import {
-  DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories, assertSupplier,
-  broadcast, cleanText, createApproval, createCase, currency, dateKey, invalidTransition, markCaseInProgress, allocateNumber,
+  DECISION_STATUS, KINDS, MODULE_KEY, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertFresh, assertLineCategories, assertSupplier,
+  broadcast, cleanText, createApproval, createCase, currency, dateKey, guardedUpdate, invalidTransition, markCaseInProgress, allocateNumber,
   normalizeLine, notFound, num, plain, policyBlocked, relate, replaceLines, resolveApprovals, totalsFromLines, writeAudit,
 } from './purchases-shared.js'
+import { hasCapability } from './purchases-service.js'
 
 const EVENT = { orders: 'purchase.order', invoices: 'purchase.invoice' }
 
@@ -80,6 +81,9 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       approvals: approvals.map(plain),
       quotes: bundle.quotes.map(plain),
       policyCheck: stripContext(policyCheckFor(workflow, bundle, kind, doc)),
+      // Reading never depends on the capability (historical evidence stays
+      // visible); false means the document is read-only in this workflow.
+      capabilityEnabled: hasCapability(workflow.capabilities, meta.capability),
     }
     if (kind === 'orders') {
       data.expectedDate = dateKey(doc.expectedDate)
@@ -197,6 +201,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     await workflowService.assertCapability(companyId, meta.capability, actorId)
     const before = await findDoc(kind, companyId, id)
     if (before.status !== 'DRAFT') throw invalidTransition('Solo se pueden editar documentos en borrador.')
+    assertFresh(before, input.expectedUpdatedAt)
     if ('supplierId' in input) await assertSupplier(prisma, companyId, input.supplierId)
     const lines = Array.isArray(input.lines) ? input.lines.map(normalizeLine).filter(Boolean) : null
     if (lines) await assertLineCategories(prisma, companyId, lines)
@@ -210,7 +215,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       Object.assign(data, { subtotal, tax, total: asMoney(input.total ?? subtotal + tax) })
     }
     const updated = await prisma.$transaction(async tx => {
-      const doc = await tx[meta.model].update({ where: { id }, data })
+      const doc = await guardedUpdate(tx, meta.model, before, data)
       if (lines) await replaceLines(tx, companyId, meta.ownerType, id, lines)
       if (kind === 'invoices' && Array.isArray(input.orderIds)) await linkOrders(tx, { companyId, actorId, invoiceId: id, orders, inheritItems: input.inheritItems === true })
       await writeAudit(tx, { companyId, actorId, entityType: meta.entityType, entityId: id, action: `${EVENT[kind]}.updated`, before, after: doc })
@@ -227,6 +232,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const doc = await findDoc(kind, companyId, id)
     const rule = resolveTransition(kind, action, doc.status)
     if (!rule) throw invalidTransition()
+    assertFresh(doc, payload.expectedUpdatedAt)
     const bundle = await caseBundle.loadBundle(companyId, doc.caseId)
     const check = policyCheckFor(workflow, bundle, kind, doc)
     const data = {}
@@ -266,14 +272,19 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     }
 
     const updated = await prisma.$transaction(async tx => {
-      const result = await tx[meta.model].update({ where: { id }, data })
+      // The payment amount and the target status were computed from `doc`;
+      // the guard makes them valid only if nobody changed it in between.
+      const result = await guardedUpdate(tx, meta.model, doc, data)
       if (approvalReason) await createApproval(tx, { companyId, caseId: doc.caseId, ownerType: meta.ownerType, ownerId: id, reason: approvalReason, actorId })
       if (decision) await resolveApprovals(tx, { companyId, ownerType: meta.ownerType, ownerId: id, decision, actorId, comment: payload.comment })
       if (action === 'cancel') await resolveApprovals(tx, { companyId, ownerType: meta.ownerType, ownerId: id, decision: 'REJECTED', actorId, comment: 'Documento cancelado' })
       await markCaseInProgress(tx, companyId, doc.caseId)
+      // The reason typed in the confirm dialog (cancel, reject) is part of the evidence.
+      const comment = cleanText(payload.comment, 1000)
+      const metadata = { ...(action === 'pay' ? { amount: num(result.paidAmount) - num(doc.paidAmount) } : {}), ...(comment ? { comment } : {}) }
       await writeAudit(tx, {
         companyId, actorId, entityType: meta.entityType, entityId: id, action: `${EVENT[kind]}.${action}`,
-        before: { status: doc.status }, after: { status: result.status }, metadata: action === 'pay' ? { amount: num(result.paidAmount) - num(doc.paidAmount) } : undefined,
+        before: { status: doc.status }, after: { status: result.status }, metadata: Object.keys(metadata).length ? metadata : undefined,
       })
       return result
     })

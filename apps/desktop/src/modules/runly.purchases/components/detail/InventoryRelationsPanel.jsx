@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, PackagePlus, Unlink } from 'lucide-react'
-import { Button, ConfirmDialog, DataTable, EmptyState } from '@runly/ui'
+import { Button, DataTable, EmptyState } from '@runly/ui'
 import { useRelationMutations } from '../../hooks/usePurchases.js'
 import { INVENTORY_BASE, ORIGIN_LABELS, toAppPath } from '../../lib/purchases-constants.js'
 import { InventoryItemPicker } from '../editor/InventoryItemPicker.jsx'
 import { AssignInvoiceDialog } from './AssignInvoiceDialog.jsx'
+import { UnlinkRelationDialog } from './UnlinkRelationDialog.jsx'
 
 const ITEM_STATUS = { available: 'Disponible', assigned: 'Asignado', maintenance: 'En mantenimiento' }
 const dash = <span className="text-[hsl(var(--muted-foreground))]">Sin dato</span>
@@ -16,7 +17,7 @@ export const isInventoryRelation = (r) => r?.other?.type === 'inventory_item' ||
 // Inventory items linked to this document, both ways: pick more from
 // Inventario or unlink. Items open in the inventory detail.
 export function InventoryRelationsPanel({ entityType, doc, canManage }) {
-  const { bulk, remove } = useRelationMutations()
+  const { bulk } = useRelationMutations()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [unlink, setUnlink] = useState(null)
   const [assign, setAssign] = useState([])
@@ -76,10 +77,7 @@ export function InventoryRelationsPanel({ entityType, doc, canManage }) {
       )}
       <AssignInvoiceDialog open={assign.length > 0} onOpenChange={(o) => { if (!o) setAssign([]) }} order={doc} invoices={invoices} itemIds={assign} />
       <InventoryItemPicker open={pickerOpen} onOpenChange={setPickerOpen} onConfirm={addItems} />
-      <ConfirmDialog open={Boolean(unlink)} onOpenChange={(o) => { if (!o) setUnlink(null) }}
-        title="Quitar relación" description="El activo sigue en Inventario; solo deja de estar ligado a este documento."
-        detail={unlink?.other?.label} confirmLabel="Quitar relación" loading={remove.isPending}
-        onConfirm={() => remove.mutate(unlink.id, { onSuccess: () => setUnlink(null) })} />
+      <UnlinkRelationDialog relation={unlink ? { id: unlink.id, label: unlink.other?.label } : null} onOpenChange={(o) => { if (!o) setUnlink(null) }} />
     </div>
   )
 }

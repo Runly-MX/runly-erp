@@ -29,10 +29,15 @@ export function createPurchasesRelationsRouter({ requirePermission, services }) 
   router.post('/purchases/relations', requirePermission('purchases.relation.manage'), c =>
     handle(c, async () => ({ data: await relations.createRelation(companyOf(c), actorId(c), await body(c)) }), 201))
 
+  router.get('/purchases/relations/:id/impact', requirePermission('purchases.relation.read'), c =>
+    handle(c, async () => ({ data: await relations.relationImpact(companyOf(c), c.req.param('id')) })))
+
+  // ?dependents=keep|remove&reason=... (required choice when the impact lists dependents).
   router.delete('/purchases/relations/:id', requirePermission('purchases.relation.manage'), c =>
     handle(c, async () => {
-      await relations.deleteRelation(companyOf(c), actorId(c), c.req.param('id'))
-      return { success: true }
+      const { dependents, reason } = c.req.query()
+      const data = await relations.deleteRelation(companyOf(c), actorId(c), c.req.param('id'), { dependents, reason })
+      return { success: true, data }
     }))
 
   router.get('/purchases/inventory/candidates', requirePermission('purchases.relation.read'), c =>

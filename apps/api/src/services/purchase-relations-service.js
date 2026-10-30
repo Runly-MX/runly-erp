@@ -23,6 +23,17 @@ export function defaultRelationType(sourceType, targetType) {
   return 'RELATED'
 }
 
+// Structural links the services create and read back (case membership,
+// order -> receipt). Removing one would orphan a document, so they cannot be
+// unlinked by hand.
+export const PROTECTED_RELATIONS = {
+  CONTAINS: 'Un documento siempre pertenece a su expediente; esta relación no se puede quitar.',
+  RECEIVED_BY: 'Una recepción siempre pertenece a su orden; esta relación no se puede quitar.',
+}
+
+const pick = ({ id, sourceModule, sourceType, sourceId, targetModule, targetType, targetId, relationType, origin, createdAt }) =>
+  ({ id, sourceModule, sourceType, sourceId, targetModule, targetType, targetId, relationType, origin, createdAt })
+
 const conflict = (message, status, code) => new PurchasesServiceError(message, status, code)
 const moduleForType = type => (type === 'inventory_item' ? 'runly.inventory' : MODULE_KEY)
 
@@ -151,15 +162,72 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     return { created: result.count, skipped: targetIds.length - result.count, ...(cascade?.orderId ? { cascade } : {}) }
   }
 
-  async function deleteRelation(companyId, actorId, id) {
+  async function findRelation(companyId, id) {
     const relation = await prisma.entityRelation.findFirst({ where: { id, companyId } })
-    if (!relation) throw notFound('La relación no existe.')
-    if (relation.sourceModule !== MODULE_KEY && relation.targetModule !== MODULE_KEY) throw notFound('La relación no existe.')
+    if (!relation || (relation.sourceModule !== MODULE_KEY && relation.targetModule !== MODULE_KEY)) throw notFound('La relación no existe.')
+    return relation
+  }
+
+  // Relations copied from this one (e.g. invoice items inherited from an
+  // order item link), with a label for inventory targets.
+  async function dependentsOf(companyId, id) {
+    const rows = await prisma.entityRelation.findMany({
+      where: { companyId, sourceRelationId: id },
+      select: { id: true, sourceType: true, sourceId: true, targetType: true, targetId: true, relationType: true, origin: true },
+    })
+    const itemIds = rows.filter(row => row.targetType === 'inventory_item').map(row => row.targetId)
+    const items = itemIds.length
+      ? await prisma.invItem.findMany({ where: { companyId, id: { in: itemIds } }, select: { id: true, name: true, assetTag: true } })
+      : []
+    const labels = new Map(items.map(item => [item.id, item.assetTag || item.name]))
+    return rows.map(row => ({ ...row, label: labels.get(row.targetId) ?? null }))
+  }
+
+  // What unlinking would do, without doing it: GET /purchases/relations/:id/impact.
+  async function relationImpact(companyId, id) {
+    const relation = await findRelation(companyId, id)
+    const dependents = await dependentsOf(companyId, id)
+    const reason = PROTECTED_RELATIONS[relation.relationType] ?? null
+    return {
+      relation: pick(relation),
+      protected: Boolean(reason),
+      reason,
+      dependents,
+      // Choices the DELETE accepts when there are dependents.
+      dependentsModes: dependents.length ? ['keep', 'remove'] : [],
+    }
+  }
+
+  // options.dependents: 'keep' detaches the copies (they stay, marked as no
+  // longer derived) or 'remove' deletes them too. With dependents and no
+  // choice the call is refused, so nothing dependent disappears silently.
+  async function deleteRelation(companyId, actorId, id, options = {}) {
+    const relation = await findRelation(companyId, id)
+    if (PROTECTED_RELATIONS[relation.relationType]) {
+      throw new PurchasesServiceError(PROTECTED_RELATIONS[relation.relationType], 409, 'RELATION_PROTECTED')
+    }
+    const dependents = await dependentsOf(companyId, id)
+    const mode = options.dependents ?? null
+    if (dependents.length && !['keep', 'remove'].includes(mode)) {
+      throw new PurchasesServiceError(
+        `Esta relación tiene ${dependents.length} relación(es) derivada(s). Indica si se conservan o se quitan también.`,
+        409, 'RELATION_HAS_DEPENDENTS', { dependents: dependents.length },
+      )
+    }
+    const dependentIds = dependents.map(row => row.id)
+    const reason = cleanText(options.reason, 500)
     await prisma.$transaction(async tx => {
-      await tx.entityRelation.delete({ where: { id } })
-      await writeAudit(tx, { companyId, actorId, entityType: 'entity_relation', entityId: id, action: 'purchase.relation.deleted', before: relation })
+      if (dependentIds.length && mode === 'remove') await tx.entityRelation.deleteMany({ where: { companyId, id: { in: dependentIds } } })
+      if (dependentIds.length && mode === 'keep') await tx.entityRelation.updateMany({ where: { companyId, id: { in: dependentIds } }, data: { sourceRelationId: null } })
+      const { count } = await tx.entityRelation.deleteMany({ where: { id, companyId } })
+      if (count !== 1) throw notFound('La relación no existe.')
+      await writeAudit(tx, {
+        companyId, actorId, entityType: 'entity_relation', entityId: id, action: 'purchase.relation.deleted', before: relation,
+        metadata: { reason, ...(dependentIds.length ? { dependents: mode, dependentIds } : {}) },
+      })
     })
     await broadcast(broadcaster, companyId, 'purchase.relation.deleted', { relationId: id, sourceType: relation.sourceType, sourceId: relation.sourceId, targetType: relation.targetType, targetId: relation.targetId })
+    return { deleted: 1, dependents: dependentIds.length ? { mode, count: dependentIds.length } : null }
   }
 
   // Items linked to the orders but not yet to the invoice.
@@ -278,5 +346,5 @@ export function createPurchaseRelationsService({ prisma, broadcaster, workflowSe
     return { data, total, page, pageSize }
   }
 
-  return { createRelation, bulkRelate, deleteRelation, propagationPreview, searchDocuments, assertEndpoint }
+  return { createRelation, bulkRelate, deleteRelation, relationImpact, propagationPreview, searchDocuments, assertEndpoint }
 }

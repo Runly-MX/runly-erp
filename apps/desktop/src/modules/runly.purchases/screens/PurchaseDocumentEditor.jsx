@@ -78,10 +78,14 @@ export default function PurchaseDocumentEditor() {
 
   // Load the draft being edited, or prefill an invoice from its order, once.
   const loaded = useRef(false)
+  // Version the form was loaded from; the API answers 409 STALE_DOCUMENT if
+  // someone else saved the draft in between (a refetch must not move it).
+  const loadedVersion = useRef(null)
   useEffect(() => {
     if (loaded.current) return
     if (isEdit && existing.data) {
       reset(defaultsFor(kind, { doc: existing.data }))
+      loadedVersion.current = existing.data.updatedAt ?? null
       setSupplier(existing.data.supplier ?? null)
       loaded.current = true
     } else if (orderId && sourceOrder.data) {
@@ -101,7 +105,9 @@ export default function PurchaseDocumentEditor() {
   const submit = (andSubmit) => handleSubmit(async (values) => {
     let saved
     try {
-      saved = await save.mutateAsync({ id: isEdit ? id : null, data: toPayload(kind, values, { isEdit }) })
+      const data = toPayload(kind, values, { isEdit })
+      if (isEdit && loadedVersion.current) data.expectedUpdatedAt = loadedVersion.current
+      saved = await save.mutateAsync({ id: isEdit ? id : null, data })
     } catch (error) {
       toast.error(policyMessage(error, 'No se pudo guardar'))
       return

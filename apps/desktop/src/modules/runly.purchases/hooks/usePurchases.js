@@ -186,11 +186,25 @@ export function useRelationMutations() {
     onError,
   })
   const remove = useMutation({
-    mutationFn: (id) => runly.purchases.deleteRelation(id, token),
+    // `id` or { id, dependents: 'keep' | 'remove', reason } (see useRelationImpact).
+    mutationFn: (input) => (typeof input === 'object'
+      ? runly.purchases.deleteRelation(input.id, token, { dependents: input.dependents, reason: input.reason })
+      : runly.purchases.deleteRelation(input, token)),
     onSuccess: () => { invalidate(); toast.success('Relación eliminada') },
     onError,
   })
   return { bulk, create, remove }
+}
+
+// What unlinking a relation would do: { relation, protected, reason, dependents, dependentsModes }.
+export function useRelationImpact(relationId, enabled = true) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['purchases', 'relation-impact', relationId],
+    queryFn: () => runly.purchases.relationImpact(relationId, token).then(one),
+    enabled: Boolean(token && relationId && enabled),
+    staleTime: 0,
+  })
 }
 
 export function usePropagationPreview(params, enabled) {

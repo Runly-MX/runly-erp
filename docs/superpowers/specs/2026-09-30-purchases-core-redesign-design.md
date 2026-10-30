@@ -136,7 +136,10 @@ section.
 
 Envelope: lists `{ data, total, page, pageSize }`; single `{ data }`; errors
 `{ error, code }` (codes: `CAPABILITY_DISABLED` 409, `POLICY_BLOCKED` 409 with
-`reasons`, `INVALID_TRANSITION` 409, `NOT_FOUND` 404, `VALIDATION` 400).
+`reasons`, `INVALID_TRANSITION` 409, `NOT_FOUND` 404, `VALIDATION` 400; since
+2026-10-29 also `STALE_DOCUMENT`, `RELATION_PROTECTED`, `RELATION_HAS_DEPENDENTS`,
+all 409). `CAPABILITY_DISABLED` applies to writes only: reads return
+`capabilityEnabled`.
 
 Settings: `GET /purchases/settings`, `PUT /purchases/settings`,
 `GET /purchases/capabilities` (`{ capabilities, stages, preset, policies }`).
@@ -178,7 +181,9 @@ Relations:
   `{ id, relationType, origin, createdAt, other: { module, type, id, label, sublabel, status, total, currency, path } }`.
 - `POST /purchases/relations` (single), `POST /purchases/relations/bulk
   { sourceType, sourceId, targetType: 'inventory_item', targetIds[] }`,
-  `DELETE /purchases/relations/:id`.
+  `DELETE /purchases/relations/:id?dependents=keep|remove&reason=...`,
+  `GET /purchases/relations/:id/impact` (added 2026-10-29; see
+  `2026-10-29-purchases-integrity-audit.md` §D).
 - `GET /purchases/relations/propagation?invoiceId&orderIds=a,b` → items linked
   to the orders but not the invoice; `POST /purchases/invoices` and
   `PATCH` accept `inheritItems: true`.

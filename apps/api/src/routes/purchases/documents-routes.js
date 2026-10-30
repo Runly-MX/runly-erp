@@ -2,6 +2,7 @@
 import { Hono } from 'hono'
 import { actorId, assertPermission, body, canReadOf, companyOf, createHandler } from './route-helpers.js'
 import { KINDS } from '../../services/purchases-shared.js'
+import { hasCapability } from '../../services/purchases-service.js'
 
 const PERMS = {
   orders: { read: 'purchases.order.read', create: 'purchases.order.create', update: 'purchases.order.update' },
@@ -15,30 +16,34 @@ export const ACTION_PERMISSION = {
   pay: 'purchases.payment.manage',
 }
 
+// A list response plus `capabilityEnabled`, so the client can show history
+// read-only instead of hiding it when the company turns a capability off.
+export async function listWithCapability({ workflow, listing }, companyId, kind, gate, query) {
+  const current = await workflow.ensureWorkflow(companyId)
+  return { ...(await listing.list(kind, companyId, query)), capabilityEnabled: hasCapability(current.capabilities, gate) }
+}
+
 export function createPurchasesDocumentsRouter({ requirePermission, services }) {
   const router = new Hono()
   const handle = createHandler('[purchases:documents]')
   const { workflow, listing, documents, receipts } = services
+  const readableList = (c, kind, gate) => listWithCapability({ workflow, listing }, companyOf(c), kind, gate, c.req.query())
 
   for (const kind of ['orders', 'invoices']) {
     const perms = PERMS[kind]
     const gate = KINDS[kind].capability
     const base = `/purchases/${kind}`
 
+    // Reads stay open when the capability is off (historical documents keep
+    // their evidence); every write asserts the capability in the service.
     router.get(base, requirePermission(perms.read), c =>
-      handle(c, async () => {
-        await workflow.assertCapability(companyOf(c), gate)
-        return listing.list(kind, companyOf(c), c.req.query())
-      }))
+      handle(c, () => readableList(c, kind, gate)))
 
     router.post(base, requirePermission(perms.create), c =>
       handle(c, async () => ({ data: await documents.create(kind, companyOf(c), actorId(c), await body(c)) }), 201))
 
     router.get(`${base}/:id`, requirePermission(perms.read), c =>
-      handle(c, async () => {
-        await workflow.assertCapability(companyOf(c), gate)
-        return { data: await documents.get(kind, companyOf(c), c.req.param('id'), canReadOf(c)) }
-      }))
+      handle(c, async () => ({ data: await documents.get(kind, companyOf(c), c.req.param('id'), canReadOf(c)) })))
 
     router.patch(`${base}/:id`, requirePermission(perms.update), c =>
       handle(c, async () => ({ data: await documents.update(kind, companyOf(c), actorId(c), c.req.param('id'), await body(c)) })))
@@ -52,10 +57,7 @@ export function createPurchasesDocumentsRouter({ requirePermission, services }) 
   }
 
   router.get('/purchases/receipts', requirePermission('purchases.receipt.read'), c =>
-    handle(c, async () => {
-      await workflow.assertCapability(companyOf(c), 'receipts')
-      return listing.list('receipts', companyOf(c), c.req.query())
-    }))
+    handle(c, () => readableList(c, 'receipts', 'receipts')))
 
   router.post('/purchases/receipts', requirePermission('purchases.receipt.create'), c =>
     handle(c, async () => ({ data: await receipts.create(companyOf(c), actorId(c), await body(c)) }), 201))

@@ -117,15 +117,20 @@ function workflowPrisma(preset, extra = {}) {
 
 const post = (app, path, payload) => app.request(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })
 
-test('rutas de capacidades deshabilitadas responden 409 CAPABILITY_DISABLED', async () => {
-  const app = appWith(workflowPrisma('SIMPLE'))
-  for (const path of ['/purchases/orders', '/purchases/requests', '/purchases/receipts', '/purchases/approvals', '/purchases/cases']) {
+test('capacidades deshabilitadas: el historial se lee, las escrituras y la bandeja responden 409', async () => {
+  const none = { findMany: async () => [], count: async () => 0 }
+  const app = appWith(workflowPrisma('SIMPLE', { purchaseOrder: none, purchaseRequest: none, purchaseReceipt: none, purchaseCase: none, contact: none }))
+  for (const path of ['/purchases/orders', '/purchases/requests', '/purchases/receipts', '/purchases/cases']) {
     const response = await app.request(path)
-    assert.equal(response.status, 409, path)
-    assert.equal((await response.json()).code, 'CAPABILITY_DISABLED', path)
+    assert.equal(response.status, 200, path)
+    assert.equal((await response.json()).capabilityEnabled, false, path)
   }
+  const inbox = await app.request('/purchases/approvals')
+  assert.equal(inbox.status, 409)
+  assert.equal((await inbox.json()).code, 'CAPABILITY_DISABLED')
   const created = await post(app, '/purchases/orders', { lines: [] })
   assert.equal(created.status, 409)
+  assert.equal((await created.json()).code, 'CAPABILITY_DISABLED')
 })
 
 test('transición inválida responde 409 INVALID_TRANSITION y aprobar exige permiso', async () => {

@@ -18,6 +18,33 @@ export const notFound = (message = 'El documento no existe o pertenece a otra em
   new PurchasesServiceError(message, 404, 'NOT_FOUND')
 export const invalidTransition = (message = 'La acción no está permitida en el estado actual.') =>
   new PurchasesServiceError(message, 409, 'INVALID_TRANSITION')
+export const staleDocument = () =>
+  new PurchasesServiceError('El documento cambió mientras trabajabas en él. Recarga e inténtalo de nuevo.', 409, 'STALE_DOCUMENT')
+
+// Optimistic concurrency: a client may send the `updatedAt` it last saw; a
+// different value means someone else changed the document in between.
+export function assertFresh(doc, expectedUpdatedAt) {
+  if (expectedUpdatedAt == null || expectedUpdatedAt === '') return
+  const expected = new Date(expectedUpdatedAt).getTime()
+  if (Number.isNaN(expected)) throw new PurchasesServiceError('La versión del documento no es válida.', 400, 'VALIDATION')
+  if (new Date(doc.updatedAt).getTime() !== expected) throw staleDocument()
+}
+
+// Writes `data` only if the row still has the status and version that were
+// read, so two concurrent writers can never both win (lost update). Throws
+// STALE_DOCUMENT otherwise and returns the fresh row. updated_at is a
+// microsecond TIMESTAMPTZ read back truncated to milliseconds, so the version
+// matches the millisecond it falls in rather than an exact value.
+export async function guardedUpdate(tx, model, doc, data) {
+  const from = new Date(doc.updatedAt)
+  const { count } = await tx[model].updateMany({
+    where: { id: doc.id, companyId: doc.companyId, status: doc.status, updatedAt: { gte: from, lt: new Date(from.getTime() + 1) } },
+    data,
+  })
+  if (count !== 1) throw staleDocument()
+  return tx[model].findFirst({ where: { id: doc.id, companyId: doc.companyId } })
+}
+
 export const policyBlocked = blockers =>
   new PurchasesServiceError(
     'Faltan etapas requeridas por la política de compras.',

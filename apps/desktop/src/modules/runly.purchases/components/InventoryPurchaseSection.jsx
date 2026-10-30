@@ -1,14 +1,14 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Link2, Plus, Replace, ShoppingCart } from 'lucide-react'
-import { Button, ConfirmDialog, EmptyState, ErrorState, Skeleton } from '@runly/ui'
-import { toast } from 'sonner'
+import { Button, EmptyState, ErrorState, Skeleton } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
 import { PURCHASES_BASE_PATH, STAGE_ORDER, formatMoney, hasPermission, hasStageDocs } from './InventoryPurchaseMeta.js'
 import { InventoryPurchaseTimeline } from './InventoryPurchaseTimeline.jsx'
 import { InventoryPurchaseLinkDialog } from './InventoryPurchaseLinkDialog.jsx'
+import { UnlinkRelationDialog } from './detail/UnlinkRelationDialog.jsx'
 
 // Unwraps `{ data }` when the SDK returns the envelope.
 function unwrapSummary(response) {
@@ -40,17 +40,6 @@ export default function InventoryPurchaseSection({ data: item }) {
     client.invalidateQueries({ queryKey: summaryKey })
     client.invalidateQueries({ queryKey: ['inventory'] })
   }
-
-  const unlink = useMutation({
-    mutationFn: (doc) => runly.purchases.deleteRelation(doc.relationId, token),
-    onSuccess: () => {
-      refresh()
-      client.invalidateQueries({ queryKey: ['purchases', 'relations'] })
-      setUnlinkDoc(null)
-      toast.success('Relación eliminada')
-    },
-    onError: (error) => toast.error(error?.message ?? 'No se pudo eliminar la relación'),
-  })
 
   const model = unwrapSummary(summary.data)
   const capabilities = model?.capabilities ?? {}
@@ -148,14 +137,11 @@ export default function InventoryPurchaseSection({ data: item }) {
           onLinked={refresh}
         />
       ) : null}
-      <ConfirmDialog
-        open={Boolean(unlinkDoc)}
+      {/* Shows the impact first: derived links need a keep/remove choice. */}
+      <UnlinkRelationDialog
+        relation={unlinkDoc?.relationId ? { id: unlinkDoc.relationId, label: unlinkDoc.number ?? 'Documento' } : null}
         onOpenChange={(open) => { if (!open) setUnlinkDoc(null) }}
-        title="Quitar relación"
-        description={`${unlinkDoc?.number ?? 'El documento'} seguirá existiendo en Compras; solo se quitará su vínculo con este activo.`}
-        confirmLabel="Quitar relación"
-        loading={unlink.isPending}
-        onConfirm={() => unlinkDoc && unlink.mutate(unlinkDoc)}
+        onDone={refresh}
       />
     </div>
   )

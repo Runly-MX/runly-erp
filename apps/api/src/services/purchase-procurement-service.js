@@ -3,6 +3,7 @@ import { buildStageMap, resolveTransition } from './purchase-policies.js'
 import { publishDomainEvent } from './domain-events/events.js'
 import { purchaseEventPayload } from './purchase-documents-service.js'
 import { policyCheckFor } from './purchase-case-bundle.js'
+import { hasCapability } from './purchases-service.js'
 import {
   DECISION_STATUS, KINDS, MODULE_KEY, OWNER_TYPE_TO_KIND, PurchasesServiceError, SUPPLIER_SELECT, asDate, asMoney, assertLineCategories,
   assertSupplier, broadcast, cleanText, createApproval, createCase, currency, dateKey, invalidTransition, allocateNumber, normalizeLine,
@@ -51,6 +52,7 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       receipts: bundle.receipts.map(row => ({ ...plain(row), receivedAt: dateKey(row.receivedAt), path: `/purchases/receipts/${row.id}` })),
       invoices: bundle.invoices.map(row => withSupplier('invoices', row)),
       policyCheck: strip(policyCheckFor(workflow, bundle, 'cases', null)),
+      capabilityEnabled: hasCapability(workflow.capabilities, CASE_GATE),
     }
   }
 
@@ -106,6 +108,7 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       quotes: bundle.quotes.map(quote => ({ ...plain(quote), issueDate: dateKey(quote.issueDate), validUntil: dateKey(quote.validUntil), supplierName: names.get(quote.supplierId) ?? null })),
       orders: bundle.orders.map(order => ({ ...plain(order), supplierName: names.get(order.supplierId) ?? null, path: `/purchases/orders/${order.id}` })),
       policyCheck: strip(policyCheckFor(workflow, bundle, 'requests', row)),
+      capabilityEnabled: hasCapability(workflow.capabilities, 'requests'),
     }
   }
 
@@ -250,6 +253,7 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       stageMap: buildStageMap(workflow, bundle), approvals: [],
       quotes: bundle.quotes.map(quote => ({ ...plain(quote), supplierName: names.get(quote.supplierId) ?? null })),
       policyCheck: strip(policyCheckFor(workflow, bundle, 'quotes', null)),
+      capabilityEnabled: hasCapability(workflow.capabilities, 'quotes'),
     }
   }
 
@@ -352,10 +356,14 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
     const kind = OWNER_TYPE_TO_KIND[approval.ownerType]
     const statusMap = DECISION_STATUS[approval.ownerType]
     const result = await prisma.$transaction(async tx => {
-      const updated = await tx.purchaseApproval.update({
-        where: { id },
+      // Only a still-pending approval can be decided: two people deciding at
+      // the same time must not both win.
+      const { count } = await tx.purchaseApproval.updateMany({
+        where: { id, companyId, status: 'PENDING' },
         data: { status: decision, decidedById: actorId || null, decidedAt: new Date(), comment: cleanText(input.comment, 1000) },
       })
+      if (count !== 1) throw invalidTransition('La aprobación ya fue resuelta.')
+      const updated = await tx.purchaseApproval.findFirst({ where: { id, companyId } })
       if (kind && statusMap) {
         await tx[KINDS[kind].model].updateMany({ where: { id: approval.ownerId, companyId, status: statusMap.waiting }, data: { status: statusMap[decision] } })
       }

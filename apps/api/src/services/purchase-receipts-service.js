@@ -39,8 +39,8 @@ export function planReceipt(orderLines, requested) {
 }
 
 export function createPurchaseReceiptsService({ prisma, broadcaster, workflowService, caseBundle, hydrator }) {
+  // Readable even with the receipts capability off: it is historical evidence.
   async function get(companyId, id, canRead) {
-    await workflowService.assertCapability(companyId, 'receipts')
     const workflow = await workflowService.ensureWorkflow(companyId)
     const receipt = await prisma.purchaseReceipt.findFirst({ where: { id, companyId }, include: { lines: true } })
     if (!receipt) throw notFound('La recepción no existe o pertenece a otra empresa.')
@@ -74,6 +74,7 @@ export function createPurchaseReceiptsService({ prisma, broadcaster, workflowSer
       approvals: [],
       stageMap: buildStageMap(workflow, bundle),
       policyCheck: { action: null, blocked: false, reasons: [], requirements: [] },
+      capabilityEnabled: workflow.capabilities?.receipts === true,
     }
   }
 
@@ -84,7 +85,10 @@ export function createPurchaseReceiptsService({ prisma, broadcaster, workflowSer
     if (!order) throw notFound('La orden no existe o pertenece a otra empresa.')
     if (!['ISSUED', 'PARTIALLY_RECEIVED'].includes(order.status)) throw invalidTransition('Solo se pueden recibir órdenes emitidas.')
     const receipt = await prisma.$transaction(async tx => {
-      // Re-read inside the transaction so concurrent receipts cannot over-receive.
+      // Lock the order row first: concurrent receipts of the same order queue
+      // here, so each one reads the received quantities the previous one wrote.
+      const [locked] = await tx.$queryRaw`SELECT status FROM purchase_order WHERE id = ${order.id}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`
+      if (!locked || !['ISSUED', 'PARTIALLY_RECEIVED'].includes(locked.status)) throw invalidTransition('Solo se pueden recibir órdenes emitidas.')
       const orderLines = await tx.purchaseLine.findMany({ where: { companyId, ownerType: 'PURCHASE_ORDER', ownerId: order.id } })
       const plan = planReceipt(orderLines, input.lines)
       const { sequence, number } = await allocateNumber(tx, { companyId, kind: 'receipts', number: input.number, date: input.receivedAt })
