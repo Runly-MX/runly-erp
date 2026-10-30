@@ -116,7 +116,7 @@ export default function WeekGridWidget({ mode, onModeChange, weekStart, today, b
       aria-label={`Widget: ${WIDGET_MODES[index].label}`}
       onPointerDown={onPointerDown}
       onPointerUp={onPointerUp}
-      className="flex min-h-0 min-w-0 flex-col gap-1 overflow-hidden rounded-md border border-dashed border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] p-1.5"
+      className="flex min-h-0 min-w-0 flex-col gap-1 overflow-hidden rounded-md border border-violet-500/25 bg-linear-to-br from-violet-600/15 via-[hsl(var(--card))] to-sky-500/10 p-1.5 shadow-lg shadow-black/10"
     >
       <div className="flex shrink-0 items-center justify-between gap-1">
         <span className="truncate text-[11px] font-medium uppercase text-[hsl(var(--muted-foreground))]">{WIDGET_MODES[index].label}</span>

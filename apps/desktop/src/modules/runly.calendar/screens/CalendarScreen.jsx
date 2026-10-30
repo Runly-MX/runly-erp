@@ -175,7 +175,7 @@ export default function CalendarScreen() {
       <div className="flex items-center gap-1 border-b border-[hsl(var(--border))] shrink-0">
         <button
           onClick={toggleLeftSidebar}
-          className="p-2 ml-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
+          className="hidden sm:block p-2 ml-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
           title={
             leftSidebarOpen
               ? "Ocultar sidebar izquierdo"
@@ -190,7 +190,7 @@ export default function CalendarScreen() {
         </button>
 
         <div className="flex-1 min-w-0">
-          <CalendarToolbar onNewEvent={openNewEvent} />
+          <CalendarToolbar onNewEvent={openNewEvent} onToggleSidebar={toggleLeftSidebar} />
         </div>
 
         <button
@@ -292,6 +292,7 @@ export default function CalendarScreen() {
         <DayAgendaSheet
           dateStr={agendaDate}
           onClose={() => setAgendaDate(null)}
+          onChangeDate={(dateStr) => { setAgendaDate(dateStr); setSelectedDate(dateStr); }}
           onEventClick={(ev) => { setAgendaDate(null); setDetailEvent(ev); }}
           onNewEvent={(dateStr) => {
             setAgendaDate(null);

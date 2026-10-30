@@ -45,14 +45,15 @@ function EventChip({ event, dateStr, dragging, onPointerDown, onOpen }) {
       onContextMenu={(e) => e.preventDefault()}
       title={event.title}
       className={cx(
-        "flex min-w-0 cursor-pointer select-none items-center gap-1 rounded-sm px-1.5 py-1 text-[11px] leading-tight [-webkit-touch-callout:none]",
-        event.allDay ? "font-medium text-white" : "bg-[hsl(var(--muted))]/60",
+        "flex min-w-0 cursor-pointer select-none items-center gap-1 rounded-sm px-1.5 py-1 text-[11px] leading-tight transition-transform [-webkit-touch-callout:none] active:scale-[0.97]",
+        event.allDay ? "font-semibold text-white shadow-sm" : "border-l-[3px] font-medium text-[hsl(var(--foreground))]",
         dragging && "opacity-30",
       )}
-      style={event.allDay ? { backgroundColor: color } : undefined}
+      style={event.allDay
+        ? { backgroundImage: `linear-gradient(135deg, ${color}, color-mix(in srgb, ${color} 75%, #000))` }
+        : { backgroundColor: `color-mix(in srgb, ${color} 18%, transparent)`, borderLeftColor: color }}
     >
-      {!event.allDay && <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ backgroundColor: color }} />}
-      {!event.allDay && <span className="shrink-0 tabular-nums text-[hsl(var(--muted-foreground))]">{timeOf(event.startAt)}</span>}
+      {!event.allDay && <span className="shrink-0 tabular-nums font-semibold" style={{ color }}>{timeOf(event.startAt)}</span>}
       <span className="truncate">{event.title}</span>
     </div>
   );
@@ -176,7 +177,7 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
         onPointerUp={onGridPointerUp}
         onClickCapture={(e) => { if (Date.now() - swipedAt.current < 300) { e.preventDefault(); e.stopPropagation(); } }}
         className={cx(
-          "grid touch-pan-y grid-cols-2 grid-rows-[repeat(3,9rem)_12.5rem] gap-1.5 pb-20",
+          "grid min-h-full touch-pan-y grid-cols-2 grid-rows-[repeat(3,minmax(7.75rem,1fr))_minmax(12.5rem,1.2fr)] gap-1.5",
           direction > 0 && "animate-in fade-in slide-in-from-right-8 duration-200",
           direction < 0 && "animate-in fade-in slide-in-from-left-8 duration-200",
         )}
@@ -187,6 +188,7 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
           const visible = list.slice(0, 3);
           const isToday = dateStr === today;
           const isPast = dateStr < today;
+          const isWeekend = i === 0 || i === 6;
           const dropTarget = drag?.over === dateStr;
           return (
             <div
@@ -198,14 +200,20 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
               onClick={() => onDayClick(dateStr)}
               onKeyDown={(e) => { if (e.key === "Enter") onDayClick(dateStr); }}
               className={cx(
-                "flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 overflow-hidden rounded-md border p-1.5 transition-colors",
-                dropTarget ? "border-violet-500 bg-violet-500/10 ring-2 ring-violet-500/40" : "border-[hsl(var(--border))] bg-[hsl(var(--card))]",
-                isPast && !dropTarget && "bg-[hsl(var(--muted))]/20",
+                "relative flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 overflow-hidden rounded-md border p-1.5 transition-[transform,background-color,border-color] duration-200 active:scale-[0.985]",
+                dropTarget
+                  ? "border-violet-400 bg-violet-500/15 ring-2 ring-violet-400/50"
+                  : isToday
+                    ? "border-violet-500/60 bg-linear-to-br from-violet-600/25 via-violet-600/5 to-[hsl(var(--card))] shadow-lg shadow-violet-900/20"
+                    : isWeekend
+                      ? "border-[hsl(var(--border))] bg-linear-to-br from-sky-500/[0.07] to-[hsl(var(--card))]"
+                      : "border-[hsl(var(--border))] bg-[hsl(var(--card))]",
               )}
             >
               <div className="flex shrink-0 items-center gap-1.5">
-                <span className={cx("text-[11px] font-medium uppercase", isToday ? "text-violet-600" : "text-[hsl(var(--muted-foreground))]")}>{WEEKDAYS[i]}</span>
-                <span className={cx("flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-sm font-semibold", isToday ? "bg-violet-600 text-white" : isPast ? "text-[hsl(var(--muted-foreground))]" : "")}>{Number(dateStr.slice(8))}</span>
+                <span className={cx("text-[11px] font-semibold uppercase tracking-wide", isToday ? "text-violet-400" : isWeekend ? "text-sky-400/90" : isPast ? "text-[hsl(var(--muted-foreground))]/70" : "text-[hsl(var(--muted-foreground))]")}>{WEEKDAYS[i]}</span>
+                <span className={cx("flex h-6 min-w-6 items-center justify-center rounded-full px-1 text-sm font-bold tabular-nums", isToday ? "bg-linear-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-500/40" : isPast ? "text-[hsl(var(--muted-foreground))]/70" : "text-[hsl(var(--foreground))]")}>{Number(dateStr.slice(8))}</span>
+                {list.length > 0 && <span className="rounded-full bg-[hsl(var(--muted))] px-1.5 text-[10px] font-semibold tabular-nums text-[hsl(var(--muted-foreground))]">{list.length}</span>}
                 <button
                   type="button"
                   aria-label={`Nuevo evento el ${WEEKDAYS[i]} ${Number(dateStr.slice(8))}`}
@@ -219,8 +227,11 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
                 {visible.map((ev) => (
                   <EventChip key={`${ev.id}-${ev.startAt}`} event={ev} dateStr={dateStr} dragging={drag?.item.id === ev.id} onPointerDown={onPointerDown} onOpen={openEvent} />
                 ))}
-                {list.length > visible.length && <span className="px-1 text-[11px] text-[hsl(var(--muted-foreground))]">+{list.length - visible.length} más</span>}
+                {list.length > visible.length && <span className="px-1 text-[11px] font-medium text-violet-400">+{list.length - visible.length} más</span>}
               </div>
+              {list.length === 0 && !isPast && (
+                <span aria-hidden className="mt-auto self-center pb-1 text-[10px] font-medium uppercase tracking-widest text-[hsl(var(--muted-foreground))]/40">Libre</span>
+              )}
             </div>
           );
         })}

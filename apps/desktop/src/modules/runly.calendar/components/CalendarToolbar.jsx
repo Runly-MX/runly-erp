@@ -1,5 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, Plus } from 'lucide-react'
-import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@runly/ui'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, PanelLeftOpen, Plus } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
 
 const VIEWS = [
@@ -10,21 +9,23 @@ const VIEWS = [
 ]
 
 const MONTHS = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre']
-
 const SHORT = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic']
 
-// Phone title: fits next to the arrows, Hoy, the view select and +.
-function formatShortTitle(view, dateStr) {
+// Phone title: two lines (range + month/year) so it never truncates.
+function phoneTitle(view, dateStr) {
   const d = new Date(dateStr + 'T12:00:00')
-  if (view === 'day') return d.toLocaleDateString('es-MX', { weekday: 'short', day: 'numeric', month: 'short' })
-  if (view === 'week') {
+  if (view === 'day') {
+    return { main: d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric' }), sub: `${MONTHS[d.getMonth()]} ${d.getFullYear()}` }
+  }
+  if (view === 'week' || view === 'agenda') {
     const start = new Date(d); start.setDate(d.getDate() - d.getDay())
     const end = new Date(start); end.setDate(start.getDate() + 6)
-    return start.getMonth() === end.getMonth()
-      ? `${start.getDate()}–${end.getDate()} ${SHORT[end.getMonth()]}`
-      : `${start.getDate()} ${SHORT[start.getMonth()]}–${end.getDate()} ${SHORT[end.getMonth()]}`
+    const main = start.getMonth() === end.getMonth()
+      ? `${start.getDate()} – ${end.getDate()}`
+      : `${start.getDate()} ${SHORT[start.getMonth()]} – ${end.getDate()} ${SHORT[end.getMonth()]}`
+    return { main, sub: `${MONTHS[end.getMonth()]} ${end.getFullYear()}` }
   }
-  return `${SHORT[d.getMonth()]} ${d.getFullYear()}`
+  return { main: MONTHS[d.getMonth()], sub: String(d.getFullYear()) }
 }
 
 function formatTitle(view, dateStr) {
@@ -43,80 +44,116 @@ function formatTitle(view, dateStr) {
   return `${MONTHS[d.getMonth()]} ${d.getFullYear()}`
 }
 
-export default function CalendarToolbar({ onNewEvent }) {
+const phoneIconButton = 'flex h-10 shrink-0 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors active:bg-[hsl(var(--muted))]'
+
+export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
   const { activeView, selectedDate, setActiveView, navigatePrev, navigateNext, navigateToday } = useCalendarStore()
+  const vertical = activeView === 'month'
+  const title = phoneTitle(activeView, selectedDate)
 
   return (
-    <div className="flex items-center gap-1.5 px-3 py-2 bg-[hsl(var(--surface-1))]">
-      {/* Navigation arrows */}
-      <div className="flex items-center gap-0.5 shrink-0">
-        <button
-          onClick={navigatePrev}
-          className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-        >
-          {activeView === 'month' ? <ChevronUp size={16} /> : <ChevronLeft size={16} />}
-        </button>
-        <button
-          onClick={navigateNext}
-          className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
-        >
-          {activeView === 'month' ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
-        </button>
-      </div>
-
-      {/* Title — truncates on narrow */}
-      <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize truncate min-w-0 flex-1 sm:flex-none sm:min-w-40">
-        <span className="sm:hidden">{formatShortTitle(activeView, selectedDate)}</span>
-        <span className="hidden sm:inline">{formatTitle(activeView, selectedDate)}</span>
-      </h2>
-
-      <button
-        onClick={navigateToday}
-        className="text-xs px-2.5 py-1.5 sm:py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
-      >
-        Hoy
-      </button>
-
-      <div className="hidden sm:block flex-1" />
-
-      {/* View switcher — pill buttons on desktop */}
-      <div className="hidden sm:flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden shrink-0">
-        {VIEWS.map((v) => (
-          <button
-            key={v.key}
-            onClick={() => setActiveView(v.key)}
-            className={[
-              'px-3 py-1 text-xs font-medium transition-colors',
-              activeView === v.key
-                ? 'bg-violet-600 text-white'
-                : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
-            ].join(' ')}
-          >
-            {v.label}
+    <div className="bg-[hsl(var(--surface-1))]">
+      {/* Phone: navigation + actions, then a full-width view switcher. */}
+      <div className="sm:hidden space-y-2 px-2 py-2">
+        <div className="flex items-center gap-0.5">
+          <button type="button" onClick={onToggleSidebar} aria-label="Mis calendarios" className={`${phoneIconButton} w-10`}>
+            <PanelLeftOpen size={18} aria-hidden />
           </button>
-        ))}
+          <button type="button" onClick={navigatePrev} aria-label="Anterior" className={`${phoneIconButton} w-9`}>
+            {vertical ? <ChevronUp size={18} aria-hidden /> : <ChevronLeft size={18} aria-hidden />}
+          </button>
+          <div className="min-w-0 flex-1 px-1 text-center leading-tight">
+            <h2 className="truncate text-base font-semibold capitalize text-[hsl(var(--foreground))]">{title.main}</h2>
+            <p className="truncate text-[11px] font-medium uppercase tracking-wide text-violet-400">{title.sub}</p>
+          </div>
+          <button type="button" onClick={navigateNext} aria-label="Siguiente" className={`${phoneIconButton} w-9`}>
+            {vertical ? <ChevronDown size={18} aria-hidden /> : <ChevronRight size={18} aria-hidden />}
+          </button>
+          <button type="button" onClick={navigateToday} className="ml-1 h-10 shrink-0 rounded-md border border-[hsl(var(--border))] px-3 text-xs font-semibold text-[hsl(var(--foreground))] transition-colors active:bg-[hsl(var(--muted))]">
+            Hoy
+          </button>
+          <button type="button" onClick={onNewEvent} aria-label="Nuevo evento" className="ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-500/30 transition-transform active:scale-95">
+            <Plus size={19} aria-hidden />
+          </button>
+        </div>
+        <div role="tablist" aria-label="Vista" className="grid grid-cols-4 gap-1 rounded-md bg-[hsl(var(--muted))]/60 p-1">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              type="button"
+              role="tab"
+              aria-selected={activeView === v.key}
+              onClick={() => setActiveView(v.key)}
+              className={[
+                'h-9 rounded-sm text-xs font-semibold transition-colors',
+                activeView === v.key
+                  ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
+                  : 'text-[hsl(var(--muted-foreground))] active:bg-[hsl(var(--background))]/60',
+              ].join(' ')}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {/* View switcher — compact select on narrow */}
-      <Select value={activeView} onValueChange={setActiveView}>
-        <SelectTrigger className="sm:hidden text-xs w-auto px-2 py-1 rounded-md h-auto">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {VIEWS.map((v) => (
-            <SelectItem key={v.key} value={v.key}>{v.label}</SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+      {/* Tablet / desktop: single row. */}
+      <div className="hidden sm:flex items-center gap-1.5 px-3 py-2">
+        <div className="flex items-center gap-0.5 shrink-0">
+          <button
+            onClick={navigatePrev}
+            aria-label="Anterior"
+            className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+          >
+            {vertical ? <ChevronUp size={16} /> : <ChevronLeft size={16} />}
+          </button>
+          <button
+            onClick={navigateNext}
+            aria-label="Siguiente"
+            className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
+          >
+            {vertical ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+        </div>
 
-      {/* New event — icon only on narrow, icon+label on desktop */}
-      <button
-        onClick={onNewEvent}
-        className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium shrink-0"
-      >
-        <Plus size={14} />
-        <span className="hidden sm:inline">Nuevo</span>
-      </button>
+        <h2 className="text-sm font-semibold text-[hsl(var(--foreground))] capitalize truncate min-w-40">
+          {formatTitle(activeView, selectedDate)}
+        </h2>
+
+        <button
+          onClick={navigateToday}
+          className="text-xs px-2.5 py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
+        >
+          Hoy
+        </button>
+
+        <div className="flex-1" />
+
+        <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden shrink-0">
+          {VIEWS.map((v) => (
+            <button
+              key={v.key}
+              onClick={() => setActiveView(v.key)}
+              className={[
+                'px-3 py-1 text-xs font-medium transition-colors',
+                activeView === v.key
+                  ? 'bg-violet-600 text-white'
+                  : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]',
+              ].join(' ')}
+            >
+              {v.label}
+            </button>
+          ))}
+        </div>
+
+        <button
+          onClick={onNewEvent}
+          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium shrink-0"
+        >
+          <Plus size={14} />
+          <span>Nuevo</span>
+        </button>
+      </div>
     </div>
   )
 }
