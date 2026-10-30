@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Link2, Plus, Replace, ShoppingCart } from 'lucide-react'
-import { Button, EmptyState, ErrorState, Skeleton } from '@runly/ui'
+import { ChevronDown, History, Link2, Plus, Replace, ShoppingCart } from 'lucide-react'
+import { Button, EmptyState, ErrorState, Skeleton, cn } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
-import { PURCHASES_BASE_PATH, STAGE_ORDER, formatMoney, hasPermission, hasStageDocs } from './InventoryPurchaseMeta.js'
-import { InventoryPurchaseTimeline } from './InventoryPurchaseTimeline.jsx'
+import { PURCHASES_BASE_PATH, STAGE_ORDER, formatDay, formatMoney, hasPermission, hasStageDocs } from './InventoryPurchaseMeta.js'
+import { InventoryPurchaseDocCard } from './InventoryPurchaseTimeline.jsx'
+import { legacyPurchaseData, possibleDuplicates, splitPurchaseDocs } from './inventory-purchase-tiers.js'
 import { InventoryPurchaseLinkDialog } from './InventoryPurchaseLinkDialog.jsx'
 import { UnlinkRelationDialog } from './detail/UnlinkRelationDialog.jsx'
 
@@ -16,8 +17,32 @@ function unwrapSummary(response) {
   return response ?? null
 }
 
+const TYPE_LABEL = { purchase_case: 'Expediente', purchase_request: 'Solicitud', purchase_order: 'Orden de compra', purchase_receipt: 'Recepción', purchase_invoice: 'Factura' }
+const CONCEPT_LABEL = { order: 'orden de compra', invoice: 'factura', supplier: 'proveedor', date: 'fecha de compra', price: 'precio de compra' }
+
+// Collapsible tier (2 and 3): closed by default, always reachable.
+function Tier({ id, title, count, hint, children }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <section className="rounded-xl border border-[hsl(var(--border))]" aria-labelledby={`${id}-title`}>
+      <button type="button" onClick={() => setOpen((v) => !v)} aria-expanded={open}
+        className="flex min-h-11 w-full items-center gap-2 rounded-xl px-3 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
+        <History className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden />
+        <span id={`${id}-title`} className="flex-1 text-sm font-semibold">{title} <span className="font-normal text-[hsl(var(--muted-foreground))]">· {count}</span></span>
+        <ChevronDown className={cn('h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))] transition-transform motion-reduce:transition-none', open && 'rotate-180')} aria-hidden />
+      </button>
+      {open ? <div className="space-y-3 border-t border-[hsl(var(--border))] px-3 py-3">{hint ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p> : null}{children}</div> : null}
+    </section>
+  )
+}
+
+const legacyValue = (row, currency) => (row.kind === 'date' ? formatDay(row.value) : row.kind === 'money' ? formatMoney(row.value, currency) : row.value)
+
 // RunlyDetail "component" section of the inventory item detail: the item's
-// purchase story from runly.purchases (GET /purchases/inventory/:id/summary).
+// purchases from runly.purchases (GET /purchases/inventory/:id/summary) in
+// three tiers: current documents, historical relations (cancelled
+// documents), and inherited data with custom fields that may duplicate
+// purchase data. Nothing is dropped: tiers 2 and 3 are collapsed, not hidden.
 export default function InventoryPurchaseSection({ data: item }) {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
@@ -49,6 +74,9 @@ export default function InventoryPurchaseSection({ data: item }) {
     return rows.map((stage, index) => ({ stage, index })).sort((a, b) => rank(a.stage.stage) - rank(b.stage.stage) || a.index - b.index).map((row) => row.stage)
   }, [model])
   const linkedIds = useMemo(() => new Set(stages.flatMap((stage) => stage.docs.map((doc) => doc.id))), [stages])
+  const { current, historical } = useMemo(() => splitPurchaseDocs(model?.timeline ?? []), [model])
+  const legacy = useMemo(() => legacyPurchaseData(item ?? {}), [item])
+  const duplicates = useMemo(() => possibleDuplicates(item?.customValues ?? [], current, legacy), [item, current, legacy])
 
   if (!canRead || !itemId) return null
   if (summary.isLoading) {
@@ -65,7 +93,7 @@ export default function InventoryPurchaseSection({ data: item }) {
   }
   // Links turned off in Compras: existing purchases stay visible as read-only history.
   const linksOff = capabilities.inventoryRelations === false
-  if (linksOff && !stages.length) {
+  if (linksOff && !stages.length && !legacy.length && !duplicates.length) {
     return <EmptyState variant="compact" icon={ShoppingCart} title="La relación con inventario está desactivada en Compras." />
   }
 
@@ -79,7 +107,7 @@ export default function InventoryPurchaseSection({ data: item }) {
   const hasInvoice = hasStageDocs(stages, 'purchase_invoice')
   const replaceTypes = [hasOrder && 'order', hasInvoice && 'invoice'].filter(Boolean)
   const openLink = (type) => { setLinkType(type); setLinkOpen(true) }
-  const documentCount = linkedIds.size
+  const documentCount = current.length
   const allocated = Number(model?.allocatedAmount ?? 0)
 
   const actions = (canOrder || canInvoice || canLink) ? (
@@ -103,29 +131,88 @@ export default function InventoryPurchaseSection({ data: item }) {
     </div>
   ) : null
 
+  const unlinkable = canManage && !linksOff
   return (
-    <div className="space-y-3">
-      {stages.length ? (
-        <>
-          <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}
-            {allocated > 0 ? ` · ${formatMoney(allocated, model?.currency)} asignado` : ''}
-          </p>
-          <InventoryPurchaseTimeline stages={stages} onOpen={(href) => navigate(href)} onUnlink={setUnlinkDoc} canUnlink={canManage && !linksOff} />
+    <div className="space-y-4" data-purchases-section="">
+      {current.length ? (
+        <section aria-labelledby="inv-purchases-current" className="space-y-2">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <h3 id="inv-purchases-current" className="text-sm font-semibold">Documentos vigentes</h3>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+              {documentCount} {documentCount === 1 ? 'documento' : 'documentos'}{allocated > 0 ? ` · ${formatMoney(allocated, model?.currency)} asignado` : ''}
+            </p>
+          </div>
+          <ul className="space-y-2" aria-label="Documentos de compra vigentes">
+            {current.map((doc) => (
+              <li key={`${doc.type}-${doc.id}`}>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{TYPE_LABEL[doc.type] ?? 'Documento'}</p>
+                <InventoryPurchaseDocCard doc={doc} onOpen={(href) => navigate(href)} onUnlink={unlinkable && doc.relationId ? setUnlinkDoc : null} />
+              </li>
+            ))}
+          </ul>
           {linksOff ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Solo lectura: la relación con inventario está desactivada en Compras.</p> : actions}
-        </>
+        </section>
       ) : (
         <EmptyState
           icon={ShoppingCart}
           className="gap-3 px-4 py-8"
-          title="Sin compras relacionadas"
+          title="Sin compras vigentes"
           description={(canOrder || canInvoice || canLink)
             ? 'Registra la orden o factura con la que se adquirió este activo, o relaciona un documento que ya exista en Compras.'
-            : 'Este activo todavía no tiene órdenes ni facturas de Compras.'}
+            : 'Este activo no tiene órdenes ni facturas vigentes en Compras.'}
         >
-          {actions ? <div className="w-full pt-1">{actions}</div> : null}
+          {actions && !linksOff ? <div className="w-full pt-1">{actions}</div> : null}
         </EmptyState>
       )}
+
+      {historical.length ? (
+        <Tier id="inv-purchases-history" title="Relaciones históricas" count={historical.length}
+          hint="Documentos cancelados: la relación se conserva como historial y el activo quedó libre para otra compra.">
+          <ul className="space-y-2" aria-label="Relaciones históricas">
+            {historical.map((doc) => (
+              <li key={`${doc.type}-${doc.id}`}>
+                <p className="mb-1 text-[11px] font-medium uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{TYPE_LABEL[doc.type] ?? 'Documento'} cancelada</p>
+                <InventoryPurchaseDocCard doc={doc} onOpen={(href) => navigate(href)} onUnlink={unlinkable && doc.relationId ? setUnlinkDoc : null} />
+              </li>
+            ))}
+          </ul>
+        </Tier>
+      ) : null}
+
+      {legacy.length || duplicates.length ? (
+        <Tier id="inv-purchases-legacy" title="Datos heredados y posibles duplicados" count={legacy.length + duplicates.length}
+          hint="Información anterior a Compras y campos personalizados que parecen repetir datos de compra. No se modifican, ocultan ni migran: unificarlos requiere un censo y aprobación.">
+          {legacy.length ? (
+            <div>
+              <h4 className="mb-1.5 text-xs font-semibold">Datos de compra heredados</h4>
+              <dl className="grid grid-cols-1 gap-2 sm:grid-cols-2" aria-label="Datos de compra heredados">
+                {legacy.map((row) => (
+                  <div key={row.key} className="min-w-0">
+                    <dt className="text-xs text-[hsl(var(--muted-foreground))]">{row.label}</dt>
+                    <dd className="truncate text-sm font-medium">{legacyValue(row, model?.currency)}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          ) : null}
+          {duplicates.length ? (
+            <div>
+              <h4 className="mb-1.5 text-xs font-semibold">Campos personalizados con datos de compra</h4>
+              <ul className="space-y-1.5" aria-label="Posibles duplicados">
+                {duplicates.map((d) => (
+                  <li key={d.id} className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5 text-sm">
+                    <span className="min-w-0"><span className="text-[hsl(var(--muted-foreground))]">{d.label}:</span> <span className="font-medium">{String(d.value)}</span></span>
+                    <span className={cn('text-xs', d.matches ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-800 dark:text-amber-300')}>
+                      {d.matches ? `Coincide con ${CONCEPT_LABEL[d.concept]} de Compras` : `No coincide con ${CONCEPT_LABEL[d.concept]} de Compras`}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-1.5 text-xs text-[hsl(var(--muted-foreground))]">Siguen visibles en «Campos personalizados».</p>
+            </div>
+          ) : null}
+        </Tier>
+      ) : null}
 
       {canLink ? (
         <InventoryPurchaseLinkDialog

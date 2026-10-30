@@ -15,7 +15,8 @@ test('detail: purchase order and invoice live in Identificación; one acquisitio
   assert.ok(!fieldsOf(INVENTORY_ITEM_DETAIL, 'Ubicación').includes('acquisitionOrigin'))
   const legacy = sections.find((s) => s.id === 'legacy-purchase')
   assert.equal(legacy.defaultCollapsed, true)
-  assert.deepEqual(legacy.visibleWhen, { field: 'hasLegacyPurchaseData', truthy: true })
+  // Users who see the Compras section get the inherited data there (tier 3).
+  assert.deepEqual(legacy.visibleWhen, { field: 'showLegacyPurchaseSection', truthy: true })
 })
 
 test('detail: the area lives in Identificación, only when the company has areas, filtering by area id', () => {

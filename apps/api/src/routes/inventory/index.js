@@ -186,7 +186,10 @@ export function createInventoryRouter({
       // Purchase order / invoice shown as fields; only for users who can read Compras.
       const canReadPurchases = hasPerm(c, "purchases.relation.read");
       const links = canReadPurchases ? purchaseLinkFields(await loadPurchaseLinks(prisma, companyId, id)) : {};
-      return c.json({ data: { ...item, ...links, canReadPurchases, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
+      // Inherited purchase data shows in the Compras section (tier 3) for users
+      // who see it; the standalone inventory section is for everyone else.
+      const showLegacyPurchaseSection = Boolean(item.hasLegacyPurchaseData && !canReadPurchases);
+      return c.json({ data: { ...item, ...links, canReadPurchases, showLegacyPurchaseSection, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el item." }, 500);

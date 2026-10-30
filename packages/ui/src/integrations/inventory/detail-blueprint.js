@@ -91,8 +91,9 @@ export const INVENTORY_ITEM_DETAIL = {
         component: 'runly.purchases:InventoryPurchaseSection',
       },
       {
-        // Read-only pre-Compras purchase data; hidden when the item has none
-        // (the API computes hasLegacyPurchaseData).
+        // Read-only pre-Compras purchase data; hidden when the item has none or
+        // when the user sees it in the Compras section (the API computes
+        // showLegacyPurchaseSection).
         id: 'legacy-purchase',
         label: 'Datos de compra heredados',
         icon: 'History',
@@ -100,7 +101,7 @@ export const INVENTORY_ITEM_DETAIL = {
         columns: 2,
         collapsible: true,
         defaultCollapsed: true,
-        visibleWhen: { field: 'hasLegacyPurchaseData', truthy: true },
+        visibleWhen: { field: 'showLegacyPurchaseSection', truthy: true },
         fields: [
           { field: 'purchaseDate', label: 'Fecha de compra', type: 'date', icon: 'CalendarDays' },
           { field: 'purchasePrice', label: 'Precio de compra', type: 'currency', icon: 'Tag' },

@@ -1,44 +1,10 @@
-import { ChevronRight, CircleDot, Unlink } from 'lucide-react'
+import { ChevronRight, Unlink } from 'lucide-react'
 import { Button, cn } from '@runly/ui'
-import { ORIGIN_LABELS, STAGE_META, documentHref, formatDay, formatMoney, statusMeta } from './InventoryPurchaseMeta.js'
+import { ORIGIN_LABELS, documentHref, formatDay, formatMoney, statusMeta } from './InventoryPurchaseMeta.js'
 
-// Vertical "Compra" timeline: one node per stage that has documents, each
-// document as a compact card that opens its purchases detail.
-export function InventoryPurchaseTimeline({ stages, onOpen, onUnlink, canUnlink }) {
-  return (
-    <ol className="relative space-y-4">
-      {stages.map((stage, index) => {
-        const meta = STAGE_META[stage.stage] ?? { icon: CircleDot }
-        const Icon = meta.icon
-        const last = index === stages.length - 1
-        return (
-          <li key={stage.stage} className="relative pl-10">
-            {!last ? <span aria-hidden className="absolute left-[15px] top-8 bottom-[-16px] w-px bg-[hsl(var(--border))]" /> : null}
-            <span className="absolute left-0 top-0 grid h-8 w-8 place-items-center rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
-              <Icon className="h-4 w-4" />
-            </span>
-            <div className="flex h-8 items-center justify-between gap-2">
-              <p className="text-sm font-semibold text-[hsl(var(--foreground))]">{stage.label || meta.label || stage.stage}</p>
-              {stage.docs.length > 1 ? <span className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{stage.docs.length}</span> : null}
-            </div>
-            <div className="mt-2 space-y-2">
-              {stage.docs.map((doc) => (
-                <InventoryPurchaseDocCard
-                  key={`${doc.type}-${doc.id}-${doc.relationId ?? ''}`}
-                  doc={doc}
-                  onOpen={onOpen}
-                  onUnlink={canUnlink && doc.relationId ? onUnlink : null}
-                />
-              ))}
-            </div>
-          </li>
-        )
-      })}
-    </ol>
-  )
-}
-
-function InventoryPurchaseDocCard({ doc, onOpen, onUnlink }) {
+// One purchase document related to an inventory item: opens its detail; the
+// side button unlinks it (with the impact preview of UnlinkRelationDialog).
+export function InventoryPurchaseDocCard({ doc, onOpen, onUnlink }) {
   const status = statusMeta(doc.status)
   const href = documentHref(doc)
   const origin = ORIGIN_LABELS[doc.origin] ?? null
@@ -68,7 +34,7 @@ function InventoryPurchaseDocCard({ doc, onOpen, onUnlink }) {
           type="button"
           size="icon"
           variant="ghost"
-          className="h-auto w-9 shrink-0 rounded-none border-l border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-rose-600"
+          className="h-auto w-11 shrink-0 rounded-none border-l border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] hover:text-rose-600"
           aria-label={`Quitar relación con ${doc.number || 'el documento'}`}
           title="Quitar relación"
           onClick={() => onUnlink(doc)}
