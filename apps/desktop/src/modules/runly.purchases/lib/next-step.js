@@ -6,7 +6,8 @@
 //   tone: action | urgent | blocked | waiting | done | info
 //   cta / secondary: action keys from getDocumentActions (or null)
 //   items: short lines (pending goods, blocking reasons); links: [{ label, kind, id }]
-import { formatDate, formatMoney, formatQty } from './format.js'
+import { formatDate, formatMoney } from './format.js'
+import { withUnit } from './units.js'
 
 const days = (from, to) => {
   if (!from || !to) return null
@@ -15,7 +16,7 @@ const days = (from, to) => {
   return Number.isNaN(a) || Number.isNaN(b) ? null : Math.round((b - a) / 86400000)
 }
 const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
-const step = (tone, title, detail = null, extra = {}) => ({ tone, title, detail, cta: null, secondary: null, items: [], links: [], ...extra })
+const step = (tone, title, detail = null, extra = {}) => ({ tone, title, detail, cta: null, secondary: null, blockedCta: null, items: [], links: [], ...extra })
 
 function approvalStep(doc, offered, noun, today) {
   const pending = (doc.approvals ?? []).find((a) => a.status === 'PENDING')
@@ -31,6 +32,18 @@ function blockedByPolicy(doc, action) {
   return check?.blocked && check.action === action ? check.reasons ?? [] : null
 }
 
+// Where each blocking requirement is resolved (policyCheck.blocking from the API).
+function resolveLinks(doc) {
+  const links = []
+  const add = (link) => { if (link.id && !links.some((l) => l.id === link.id)) links.push(link) }
+  const order = (doc.orders ?? [])[0]
+  for (const blocker of doc.policyCheck?.blocking ?? []) {
+    if (blocker.stage === 'RECEIPT' && order) add({ label: `Recibir en ${order.label ?? order.number ?? 'la orden'}`, kind: 'orders', id: order.id })
+    else if (['REQUEST', 'QUOTES', 'APPROVAL'].includes(blocker.stage) && doc.caseId) add({ label: `Expediente ${doc.case?.number ?? ''}`.trim(), kind: 'cases', id: doc.caseId })
+  }
+  return links
+}
+
 function orderStep(doc, offered, today) {
   const s = doc.status
   if (s === 'DRAFT') {
@@ -41,7 +54,7 @@ function orderStep(doc, offered, today) {
   if (s === 'PENDING_APPROVAL') return approvalStep(doc, offered, 'la orden', today)
   if (s === 'APPROVED') {
     const reasons = blockedByPolicy(doc, 'issue')
-    if (reasons?.length) return step('blocked', 'Antes de emitir falta cumplir la política', null, { items: reasons })
+    if (reasons?.length) return step('blocked', 'Antes de emitir falta cumplir la política', null, { items: reasons, links: resolveLinks(doc), blockedCta: offered('issue') ? 'issue' : null })
     return offered('issue')
       ? step('action', 'Emitir al proveedor', 'Con la orden emitida se puede recibir la mercancía y registrar la factura.', { cta: 'issue' })
       : step('waiting', 'Lista para emitir', 'La emite quien tiene permiso para editar órdenes.')
@@ -57,7 +70,7 @@ function orderStep(doc, offered, today) {
     const byId = new Map((doc.lines ?? []).map((line) => [line.id, line]))
     const items = (receipt.pendingLines ?? []).map((p) => {
       const unit = byId.get(p.id)?.unit
-      return `${formatQty(p.pending)}${unit ? ` ${unit}` : ''} de ${p.description ?? 'sin concepto'}`
+      return `${withUnit(p.pending, unit)} de ${p.description ?? 'sin concepto'}`
     })
     const title = items.length === 1 ? `Recibir ${items[0]}` : `Recibir ${plural(items.length, 'partida pendiente', 'partidas pendientes')}`
     const closeHint = offered('close') ? 'Si ya no llegarán, usa "Cerrar con faltantes" e indica el motivo.' : null
@@ -92,17 +105,46 @@ function invoiceStep(doc, offered, today) {
   if (s === 'PAID') return step('done', 'Pagada por completo', doc.paidAt ? `Último pago el ${formatDate(doc.paidAt)}.` : null)
   // Pending or partially paid.
   const reasons = blockedByPolicy(doc, 'pay')
-  if (reasons?.length) return step('blocked', 'Antes de pagar falta cumplir la política', null, { items: reasons })
+  if (reasons?.length) {
+    return step('blocked', 'Antes de pagar falta cumplir la política', 'El pago se habilita cuando se cumpla el requisito.', { items: reasons, links: resolveLinks(doc), blockedCta: offered('pay') ? 'pay' : null })
+  }
   const balance = formatMoney(doc.balance ?? Math.max(0, Number(doc.total) - Number(doc.paidAmount ?? 0)), doc.currency)
   const due = days(today, doc.dueDate)
-  const title = due == null ? `Pagar ${balance}` : due < 0 ? `Pagar ${balance} · vencida hace ${plural(-due, 'día', 'días')}` : due === 0 ? `Pagar ${balance} hoy` : `Pagar ${balance} antes del ${formatDate(doc.dueDate)}`
+  const title = due == null ? `Pagar ${balance} (sin fecha de vencimiento)` : due < 0 ? `Pagar ${balance} · vencida hace ${plural(-due, 'día', 'días')}` : due === 0 ? `Pagar ${balance} hoy` : `Pagar ${balance} antes del ${formatDate(doc.dueDate)}`
   const detail = 'Puedes registrar un abono parcial. Los pagos no se editan: si uno está mal, se reversa con motivo.'
   if (offered('pay')) return step(due != null && due < 0 ? 'urgent' : 'action', title, detail, { cta: 'pay' })
   return step('waiting', title, 'Lo registra quien gestiona pagos; los pagos deben estar activos en tu flujo.')
 }
 
+// Cases: the API's closure check (purchase-case-closure.js) decides; manual
+// close only where the workflow uses cases, otherwise they close by themselves.
+const CLOSURE_KIND = { requests: 'requests', orders: 'orders', invoices: 'invoices', approvals: null }
+function caseStep(doc, offered) {
+  const closure = doc.closure ?? {}
+  const reopen = offered('reopen') ? 'reopen' : null
+  if (doc.status === 'CANCELLED') return step('info', 'Expediente cancelado', 'Sus documentos se conservan como historial.', { secondary: reopen })
+  if (doc.status === 'CLOSED') return step('done', 'Expediente cerrado', doc.closedAt ? `Se cerró el ${formatDate(doc.closedAt)}.` : null, { secondary: reopen })
+  const open = closure.openDocuments ?? []
+  const links = open.filter((d) => CLOSURE_KIND[d.kind] && d.id).map((d) => ({ label: d.number ?? 'Documento', kind: CLOSURE_KIND[d.kind], id: d.id }))
+  if (closure.automatic) {
+    return step('info', 'Se cierra solo', open.length
+      ? `En tu flujo el expediente se cierra cuando sus documentos quedan finales. Falta: ${open.map((d) => d.reason).join('; ')}.`
+      : 'En tu flujo el expediente se cierra cuando sus documentos quedan finales.', { links })
+  }
+  if (open.length) return step('waiting', `Para cerrar ${open.length === 1 ? 'falta 1 documento' : `faltan ${open.length} documentos`}`, null, { items: open.map((d) => d.reason), links, blockedCta: offered('close') ? 'close' : null })
+  if (closure.blockers?.length) return step('blocked', 'Antes de cerrar falta cumplir la política', null, { items: closure.blockers, links: resolveLinks(doc), blockedCta: offered('close') ? 'close' : null })
+  if (!closure.ready) return step('info', 'Sin documentos todavía', 'Las solicitudes, órdenes y facturas de esta compra aparecerán aquí.')
+  return offered('close')
+    ? step('action', 'Cerrar el expediente', 'Todos sus documentos están finales y la política se cumple.', { cta: 'close' })
+    : step('waiting', 'Listo para cerrar', 'Lo cierra quien gestiona expedientes.')
+}
+
 export function nextStep(kind, doc, actions = [], { today } = {}) {
-  if (!doc || !['orders', 'invoices'].includes(kind)) return null
+  if (!doc || !['orders', 'invoices', 'cases'].includes(kind)) return null
+  if (kind === 'cases') {
+    const keys = new Set(actions.map((action) => action.key))
+    return caseStep(doc, (key) => keys.has(key))
+  }
   const noun = kind === 'orders' ? 'Orden' : 'Factura'
   if (doc.status === 'CANCELLED') {
     return step('info', `${noun} cancelada`, kind === 'orders' ? 'No espera entregas ni facturas; sus vínculos con activos quedan como historial.' : 'No cuenta en saldos ni pagos.')

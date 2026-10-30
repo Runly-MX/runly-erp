@@ -59,6 +59,16 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     }))
   }
 
+  // Receipt reversals arrived with a later migration: probe once a minute.
+  let reversalProbe = null
+  async function reversalsAvailable() {
+    if (reversalProbe && reversalProbe.expires > Date.now()) return reversalProbe.value
+    let row = null
+    try { [row] = await prisma.$queryRaw`SELECT to_regclass('public.purchase_receipt_reversal')::text AS name` } catch { row = null }
+    reversalProbe = { value: Boolean(row?.name), expires: Date.now() + 60_000 }
+    return reversalProbe.value
+  }
+
   async function get(kind, companyId, id, canRead) {
     const meta = def(kind)
     const doc = await findDoc(kind, companyId, id)
@@ -96,6 +106,11 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
       data.receipt = orderReceiptState(doc, lines)
       const receipts = await prisma.purchaseReceipt.findMany({ where: { companyId, orderId: doc.id }, include: { lines: true }, orderBy: { createdAt: 'desc' } })
       data.receipts = receipts.map(receipt => ({ ...plain(receipt), receivedAt: dateKey(receipt.receivedAt), lines: receipt.lines.map(plain) }))
+      // Read-only: reversals of this order's receipts, for its history.
+      const reversals = await reversalsAvailable()
+        ? await prisma.purchaseReceiptReversal.findMany({ where: { companyId, orderId: doc.id }, include: { lines: true }, orderBy: { createdAt: 'asc' } })
+        : []
+      data.receiptReversals = reversals.map(reversal => ({ ...plain(reversal), reversedAt: dateKey(reversal.reversedAt), lines: reversal.lines.map(plain) }))
       const billed = related('purchase_invoice')
       const inCase = bundle.invoices.filter(invoice => !billed.some(entry => entry.id === invoice.id)).map(invoice => ({ ...plain(invoice), path: `/purchases/invoices/${invoice.id}` }))
       data.invoices = [...billed, ...inCase]
@@ -116,9 +131,12 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     return (await prisma.purchaseInvoice.count({ where: { companyId, id: { in: billed.map(row => row.sourceId) }, paidAmount: { gt: 0 } } })) > 0
   }
 
+  // The client gets the evaluation, not its internals. `blocking` (read-only,
+  // additive) names the stage of each requirement that blocks the gated
+  // action, so the UI can point at the step that resolves it.
   function stripContext(check) {
-    const { context: _context, blockers: _blockers, ...rest } = check
-    return rest
+    const { context: _context, blockers, ...rest } = check
+    return { ...rest, blocking: (blockers ?? []).map(blocker => ({ stage: blocker.stage, reason: blocker.reason, ...(blocker.min ? { min: blocker.min } : {}) })) }
   }
 
   function headerData(kind, input, existing = null) {

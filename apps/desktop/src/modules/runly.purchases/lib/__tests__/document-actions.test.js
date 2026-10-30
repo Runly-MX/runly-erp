@@ -64,3 +64,20 @@ test('an approver without edit permission decides through the approval, an edito
   const editor = getDocumentActions('invoices', doc, { has: caps(['approvals']), can: all }).filter((a) => ['approve', 'reject'].includes(a.key))
   assert.ok(editor.length === 2 && editor.every((a) => !a.via))
 })
+
+test('pay blocked by the API policy evaluation is offered disabled, never hidden; missing permission still hides it', () => {
+  const doc = { id: 'f9', status: 'PENDING', policyCheck: { action: 'pay', blocked: true, reasons: ['Las compras de bienes requieren recepción'] } }
+  const pay = getDocumentActions('invoices', doc, { has: caps(['payments']), can: all }).find((a) => a.key === 'pay')
+  assert.equal(pay.disabled, true); assert.match(pay.disabledReason, /requieren recepción/)
+  const unblocked = getDocumentActions('invoices', { ...doc, policyCheck: { action: 'pay', blocked: false, reasons: [] } }, { has: caps(['payments']), can: all }).find((a) => a.key === 'pay')
+  assert.ok(unblocked && !unblocked.disabled)
+  assert.ok(!getDocumentActions('invoices', doc, { has: caps(['payments']), can: (k) => k !== 'purchases.payment.manage' }).some((a) => a.key === 'pay'))
+})
+
+test('case close follows the API closure check: disabled with reasons until ready', () => {
+  const open = { id: 'c1', status: 'IN_PROGRESS', closure: { ready: false, openDocuments: [{ reason: 'Orden OC-1 sigue abierta' }], blockers: [] } }
+  const close = getDocumentActions('cases', open, { has: all, can: all }).find((a) => a.key === 'close')
+  assert.equal(close.disabled, true); assert.match(close.disabledReason, /OC-1 sigue abierta/)
+  const ready = getDocumentActions('cases', { ...open, closure: { ready: true, openDocuments: [], blockers: [] } }, { has: all, can: all }).find((a) => a.key === 'close')
+  assert.ok(!ready.disabled)
+})

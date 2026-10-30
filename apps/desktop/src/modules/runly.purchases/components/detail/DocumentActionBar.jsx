@@ -43,7 +43,7 @@ export function useActionRunner(kind, doc, onDialog) {
   }
 
   const trigger = (action) => {
-    if (!action) return undefined
+    if (!action || action.disabled) return undefined
     if (action.type === 'edit') return navigate(`${ROOT}/${kind}/${doc.id}/edit`)
     if (action.type === 'navigate') return navigate(`${ROOT}/${action.to}`)
     if (action.type === 'dialog') return onDialog(action.dialog)
@@ -68,14 +68,14 @@ export function DocumentActionBar({ actions, runner, phone = false }) {
   return (
     <>
       {visible.map((action, index) => (
-        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={runner.busy}
-          className={phone ? 'h-11 flex-1' : undefined} onClick={() => runner.trigger(action)}>
+        <Button key={action.key} size={phone ? 'default' : 'sm'} variant={index === 0 ? 'default' : 'outline'} disabled={runner.busy || action.disabled}
+          title={action.disabledReason} className={phone ? 'h-11 flex-1' : undefined} onClick={() => runner.trigger(action)}>
           {action.label}
         </Button>
       ))}
       {rest.length ? (
         <ActionMenu label="Más acciones" triggerVariant={phone ? 'outline' : 'ghost'} triggerClassName={phone ? 'h-11 w-11 shrink-0' : undefined}
-          items={rest.map((a) => ({ label: a.label, onClick: () => runner.trigger(a), variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
+          items={rest.map((a) => ({ label: a.label, onClick: () => runner.trigger(a), disabled: a.disabled, variant: a.tone === 'danger' ? 'destructive' : undefined }))} />
       ) : null}
     </>
   )

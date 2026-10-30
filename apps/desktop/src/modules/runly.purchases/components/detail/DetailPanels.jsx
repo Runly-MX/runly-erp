@@ -4,8 +4,11 @@ import { AuditTrail, EmptyState } from '@runly/ui'
 import { PurchaseStatusBadge } from '../PurchaseStatusBadge.jsx'
 import { MoneyText } from '../MoneyText.jsx'
 import { RevisionsPanel } from './RevisionsPanel.jsx'
+import { Timeline } from './Timeline.jsx'
+import { receiptMovements } from '../../lib/case-timeline.js'
 import { ROOT } from '../../lib/purchases-constants.js'
-import { formatDate, formatQty, toNumber } from '../../lib/format.js'
+import { formatDate, toNumber } from '../../lib/format.js'
+import { ofTotal, withUnit } from '../../lib/units.js'
 
 // Side-column card: title + body, same surface as the hero.
 export function AsideCard({ title, children, footer }) {
@@ -17,8 +20,6 @@ export function AsideCard({ title, children, footer }) {
     </section>
   )
 }
-
-const qtyUnit = (value, unit) => `${formatQty(value)}${unit ? ` ${unit}` : ''}`
 
 // Receipts registered against the order, newest first; each opens the receipt
 // (where reversals live). Quantities per line with their own unit.
@@ -37,7 +38,7 @@ export function ReceiptsPanel({ order }) {
               <span className="block text-sm font-semibold tabular-nums">{receipt.number ?? 'Recepción'}</span>
               <span className="block text-xs text-[hsl(var(--muted-foreground))]">{receipt.receivedAt ? `Recibida el ${formatDate(receipt.receivedAt)}` : 'Sin fecha'}</span>
               <span className="mt-1 block text-sm">
-                {(receipt.lines ?? []).map((l) => { const line = lines.get(l.orderLineId); return `${line?.description ?? 'Partida'}: ${qtyUnit(l.quantity, line?.unit)}` }).join(' · ') || 'Sin partidas'}
+                {(receipt.lines ?? []).map((l) => { const line = lines.get(l.orderLineId); return `${line?.description ?? 'Partida'}: ${withUnit(l.quantity, line?.unit)}` }).join(' · ') || 'Sin partidas'}
               </span>
             </span>
             <PurchaseStatusBadge kind="receipts" status={receipt.status} />
@@ -60,7 +61,7 @@ export function OrderProgressCard({ order }) {
       <p className="mt-1 text-sm font-medium">{order.receipt?.label ?? 'Sin datos de recepción'}</p>
       {goods.length ? (
         <ul className="mt-1 space-y-0.5 text-sm text-[hsl(var(--muted-foreground))]">
-          {goods.map((line) => <li key={line.id}>{line.description ?? 'Partida'}: {formatQty(line.receivedQuantity)} de {qtyUnit(line.quantity, line.unit)}</li>)}
+          {goods.map((line) => <li key={line.id}>{line.description ?? 'Partida'}: {ofTotal(line.receivedQuantity, line.quantity, line.unit)}</li>)}
         </ul>
       ) : null}
       <p className="mt-1 text-xs text-[hsl(var(--muted-foreground))]">{(order.receipts ?? []).length === 1 ? '1 recepción' : `${(order.receipts ?? []).length} recepciones`}{goods.length > 1 ? ' · avance por partida; unidades distintas no se suman' : ''}</p>
@@ -102,10 +103,19 @@ export function CorrectionRulesCard({ plan }) {
   )
 }
 
-// Corrections (orders and invoices) and the audit trail, one tab.
+// One history tab: receipt movements (orders), corrections (orders and
+// invoices) and the audit trail (payments and reversals are audited on the
+// invoice, so they appear under Actividad too).
 export function HistoryPanel({ kind, doc, auditProps }) {
+  const movements = kind === 'orders' ? receiptMovements(doc) : []
   return (
     <div className="space-y-6">
+      {movements.length ? (
+        <section aria-labelledby="history-receipts">
+          <h2 id="history-receipts" className="mb-3 text-sm font-semibold">Recepciones y reversos</h2>
+          <Timeline events={movements} label="Recepciones y reversos de la orden" />
+        </section>
+      ) : null}
       {['orders', 'invoices'].includes(kind) ? (
         <section aria-labelledby="history-corrections">
           <h2 id="history-corrections" className="mb-2 text-sm font-semibold">Correcciones</h2>

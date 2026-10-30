@@ -32,10 +32,29 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
   }
 
   // ── Cases ────────────────────────────────────────────────────────────────
-  async function getCase(companyId, id, canRead) {
+  // Payments arrived with a later migration: probe the ledger table once a minute.
+  let paymentsProbe = null
+  async function paymentsAvailable() {
+    if (paymentsProbe && paymentsProbe.expires > Date.now()) return paymentsProbe.value
+    let row = null
+    try { [row] = await prisma.$queryRaw`SELECT to_regclass('public.purchase_payment')::text AS name` } catch { row = null }
+    paymentsProbe = { value: Boolean(row?.name), expires: Date.now() + 60_000 }
+    return paymentsProbe.value
+  }
+
+  // Every document kind of the case is returned only to callers who can read
+  // it (stage map and closure still use the whole bundle: they expose states,
+  // not documents). `payments` (read-only) feeds the case timeline.
+  async function getCase(companyId, id, canRead = () => true) {
     const workflow = await workflowService.ensureWorkflow(companyId)
     const bundle = await caseBundle.loadBundle(companyId, id)
     if (!bundle.case) throw notFound('El expediente no existe o pertenece a otra empresa.')
+    const readable = type => canRead(type)
+    const ownerReadable = { PURCHASE_REQUEST: readable('purchase_request'), PURCHASE_ORDER: readable('purchase_order'), PURCHASE_INVOICE: readable('purchase_invoice') }
+    const payments = readable('purchase_invoice') && bundle.invoices.length && await paymentsAvailable()
+      ? await prisma.purchasePayment.findMany({ where: { companyId, invoiceId: { in: bundle.invoices.map(row => row.id) } }, orderBy: { recordedAt: 'asc' },
+        select: { id: true, invoiceId: true, kind: true, amount: true, currency: true, paidAt: true, recordedAt: true, reversesId: true, reason: true, origin: true } })
+      : []
     const names = await supplierNames(prisma, companyId, [bundle.case.supplierId, ...bundle.orders.map(row => row.supplierId), ...bundle.invoices.map(row => row.supplierId), ...bundle.quotes.map(row => row.supplierId)])
     const withSupplier = (kind, row) => ({ ...plain(row), supplierName: names.get(row.supplierId) ?? null, path: `${KINDS[kind].path}/${row.id}` })
     const supplier = bundle.case.supplierId ? await prisma.contact.findFirst({ where: { id: bundle.case.supplierId, companyId }, select: SUPPLIER_SELECT }) : null
@@ -46,12 +65,13 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
       lines: [],
       relations: await hydrator.relationsFor(companyId, MODULE_KEY, 'purchase_case', id, canRead),
       stageMap: buildStageMap(workflow, bundle),
-      approvals: bundle.approvals.map(plain),
-      requests: bundle.requests.map(row => ({ ...plain(row), path: `/purchases/requests/${row.id}` })),
-      quotes: bundle.quotes.map(row => withSupplier('quotes', row)),
-      orders: bundle.orders.map(row => withSupplier('orders', row)),
-      receipts: bundle.receipts.map(row => ({ ...plain(row), receivedAt: dateKey(row.receivedAt), path: `/purchases/receipts/${row.id}` })),
-      invoices: bundle.invoices.map(row => withSupplier('invoices', row)),
+      approvals: bundle.approvals.filter(row => ownerReadable[row.ownerType] !== false).map(plain),
+      requests: readable('purchase_request') ? bundle.requests.map(row => ({ ...plain(row), path: `/purchases/requests/${row.id}` })) : [],
+      quotes: readable('purchase_quote') ? bundle.quotes.map(row => withSupplier('quotes', row)) : [],
+      orders: readable('purchase_order') ? bundle.orders.map(row => withSupplier('orders', row)) : [],
+      receipts: readable('purchase_receipt') ? bundle.receipts.map(row => ({ ...plain(row), receivedAt: dateKey(row.receivedAt), path: `/purchases/receipts/${row.id}` })) : [],
+      invoices: readable('purchase_invoice') ? bundle.invoices.map(row => withSupplier('invoices', row)) : [],
+      payments: payments.map(row => ({ ...plain(row), paidAt: dateKey(row.paidAt) })),
       policyCheck: strip(policyCheckFor(workflow, bundle, 'cases', null)),
       capabilityEnabled: hasCapability(workflow.capabilities, CASE_GATE),
       closure: caseClosureCheck(workflow, bundle),
@@ -59,8 +79,8 @@ export function createPurchaseProcurementService({ prisma, broadcaster, workflow
   }
 
   function strip(check) {
-    const { context: _context, blockers: _blockers, ...rest } = check
-    return rest
+    const { context: _context, blockers, ...rest } = check
+    return { ...rest, blocking: (blockers ?? []).map(blocker => ({ stage: blocker.stage, reason: blocker.reason, ...(blocker.min ? { min: blocker.min } : {}) })) }
   }
 
   async function createCaseDoc(companyId, actorId, input = {}) {

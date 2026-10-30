@@ -1,5 +1,6 @@
 import { cn } from '@runly/ui'
-import { formatMoney, formatQty } from '../lib/format.js'
+import { formatMoney } from '../lib/format.js'
+import { ofTotal } from '../lib/units.js'
 
 // Reading of the list API's per-order summaries (purchase-order-progress.js).
 // Text always carries the meaning; the bar only repeats it.
@@ -9,7 +10,7 @@ const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
 export function receptionText(receipt) {
   if (!receipt) return { main: 'Sin datos', tone: 'muted' }
   const lines = `${receipt.completeLines} de ${plural(receipt.goodsLines, 'partida', 'partidas')} de bienes`
-  const qty = receipt.quantity ? `${formatQty(receipt.quantity.received)} de ${formatQty(receipt.quantity.ordered)}${receipt.quantity.unit ? ` ${receipt.quantity.unit}` : ''}` : null
+  const qty = receipt.quantity ? ofTotal(receipt.quantity.received, receipt.quantity.ordered, receipt.quantity.unit) : null
   switch (receipt.state) {
     case 'NOT_APPLICABLE': return { main: 'Solo servicios', sub: 'Sin recepción', tone: 'muted' }
     case 'NOT_ISSUED': return { main: 'Aún no aplica', sub: 'Se recibe al emitir la orden', tone: 'muted' }

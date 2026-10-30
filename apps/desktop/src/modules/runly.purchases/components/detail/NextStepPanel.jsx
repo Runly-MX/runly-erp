@@ -21,6 +21,8 @@ export function NextStepPanel({ step, actions, runner }) {
   const find = (key) => actions.find((a) => a.key === key)
   const cta = step.cta ? find(step.cta) : null
   const secondary = step.secondary ? find(step.secondary) : null
+  // Same action as the header, shown disabled while the policy blocks it.
+  const blockedCta = step.blockedCta ? find(step.blockedCta) : null
 
   return (
     <section aria-labelledby="next-step-heading" className={cn('rounded-2xl bg-[hsl(var(--card))] p-4', tone.box)} data-next-step={step.tone}>
@@ -43,6 +45,11 @@ export function NextStepPanel({ step, actions, runner }) {
             </Link>
           ))}
         </p>
+      ) : null}
+      {blockedCta ? (
+        <div className="mt-3">
+          <Button className="min-h-11" disabled aria-describedby="next-step-heading">{blockedCta.label}</Button>
+        </div>
       ) : null}
       {cta || secondary ? (
         <div className="mt-3 flex flex-wrap gap-2">

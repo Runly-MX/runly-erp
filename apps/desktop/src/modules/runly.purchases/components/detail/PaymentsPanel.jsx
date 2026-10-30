@@ -67,6 +67,8 @@ export function PaymentsPanel({ invoice, onRecord, showTotals = true }) {
   const writable = summary.capabilityEnabled && summary.ledgerAvailable
   const canReverse = writable && can('purchases.payment.reverse') && ['PARTIALLY_PAID', 'PAID'].includes(summary.status)
   const canRecord = summary.capabilityEnabled && can('purchases.payment.manage') && ['PENDING', 'PARTIALLY_PAID'].includes(summary.status)
+  // The API's evaluation of `pay`: offered, disabled, with the reason.
+  const policyBlock = invoice.policyCheck?.action === 'pay' && invoice.policyCheck.blocked ? invoice.policyCheck.reasons ?? [] : null
   const rows = [...payments].reverse()
 
   return (
@@ -85,7 +87,12 @@ export function PaymentsPanel({ invoice, onRecord, showTotals = true }) {
         </p>
       ) : null}
       {!summary.capabilityEnabled ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Solo lectura: los pagos están desactivados en el flujo de compras.</p> : null}
-      {canRecord && onRecord ? <div className="flex justify-end"><Button onClick={onRecord}><Banknote className="h-4 w-4" />Registrar pago</Button></div> : null}
+      {canRecord && onRecord ? (
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {policyBlock ? <p className="text-sm text-rose-700 dark:text-rose-300">Pendiente por política: {policyBlock.join('; ')}</p> : null}
+          <Button onClick={onRecord} disabled={Boolean(policyBlock)}><Banknote className="h-4 w-4" />Registrar pago</Button>
+        </div>
+      ) : null}
       {!rows.length ? (
         <EmptyState icon={Banknote} title="Sin pagos registrados" description="Cada abono o pago de esta factura aparece aquí, con quién y cuándo lo registró." />
       ) : (

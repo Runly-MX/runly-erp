@@ -63,7 +63,14 @@ export function getDocumentActions(kind, doc, { has, can }) {
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Registrar', tone: 'primary' }, edit)
     if (s === 'PENDING_APPROVAL' && decide) out.push(...decisions('la factura', update))
     if (['PENDING', 'PARTIALLY_PAID'].includes(s) && has('payments') && can('purchases.payment.manage')) {
-      out.push({ key: 'pay', type: 'dialog', dialog: 'pay', label: 'Registrar pago', tone: 'primary' })
+      // Permission yes, policy no: offered but disabled, with the API's own
+      // evaluation of `pay` (policyCheck.action === 'pay'), never a guess.
+      const check = doc.policyCheck
+      const blocked = check?.action === 'pay' && check.blocked
+      out.push({
+        key: 'pay', type: 'dialog', dialog: 'pay', label: 'Registrar pago', tone: 'primary',
+        ...(blocked ? { disabled: true, disabledReason: `Pendiente por política: ${(check.reasons ?? []).join('; ')}` } : {}),
+      })
     }
     if (['DRAFT', 'PENDING_APPROVAL', 'PENDING'].includes(s) && update) out.push(cancel('la factura'))
   }
@@ -90,7 +97,13 @@ export function getDocumentActions(kind, doc, { has, can }) {
 
   if (kind === 'cases' && can('purchases.case.manage')) {
     if (['OPEN', 'IN_PROGRESS'].includes(s)) {
+      // The API's closure check (doc.closure) decides: offered, disabled with
+      // the reasons while documents are open or the policy is unmet.
+      const closure = doc.closure
+      const notReady = closure && !closure.ready
+      const why = [...(closure?.openDocuments ?? []).map((d) => d.reason), ...(closure?.blockers ?? [])]
       out.push({ key: 'close', type: 'transition', action: 'close', label: 'Cerrar expediente', tone: 'primary',
+        ...(notReady ? { disabled: true, disabledReason: why.length ? `Aún no se puede cerrar: ${why.join('; ')}` : 'El expediente todavía no tiene documentos.' } : {}),
         confirm: { title: 'Cerrar el expediente', description: 'Se valida que las etapas obligatorias estén completas.', confirmLabel: 'Cerrar expediente' } })
       out.push(cancel('el expediente'))
     }

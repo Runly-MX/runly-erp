@@ -83,7 +83,10 @@ export function isPurchasesNavVisible(path, capabilities, history = {}) {
 }
 
 // { cases, requests, orders, receipts, invoices, payments }: true when the
-// company has at least one such document. One indexed probe per kind, in
+// company has at least one such document. `cases` means the case workflow
+// was really used (requests, quotes or approvals): every document opens a
+// case automatically, so "a case exists" would put Expedientes in the
+// sidebar of SIMPLE and BASIC companies. One indexed probe per kind, in
 // parallel, cached briefly per company (the sidebar asks often).
 const HISTORY_TTL_MS = 60 * 1000
 const historyCache = new Map()
@@ -92,10 +95,11 @@ export async function purchaseHistoryFlags(prisma, companyId) {
   const cached = historyCache.get(companyId)
   if (cached && cached.expires > Date.now()) return cached.value
   const probe = (model, where = {}) => prisma[model].findFirst({ where: { companyId, ...where }, select: { id: true } }).then(Boolean).catch(() => false)
-  const [cases, requests, orders, receipts, invoices, payments] = await Promise.all([
-    probe('purchaseCase'), probe('purchaseRequest'), probe('purchaseOrder'), probe('purchaseReceipt'), probe('purchaseInvoice'),
+  const [quotes, approvals, requests, orders, receipts, invoices, payments] = await Promise.all([
+    probe('purchaseQuote'), probe('purchaseApproval'), probe('purchaseRequest'), probe('purchaseOrder'), probe('purchaseReceipt'), probe('purchaseInvoice'),
     probe('purchaseInvoice', { paidAmount: { gt: 0 } }),
   ])
+  const cases = requests || quotes || approvals
   const value = { cases, requests, orders, receipts, invoices, payments }
   historyCache.set(companyId, { value, expires: Date.now() + HISTORY_TTL_MS })
   return value

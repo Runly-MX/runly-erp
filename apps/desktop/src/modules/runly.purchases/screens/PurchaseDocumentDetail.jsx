@@ -31,23 +31,26 @@ import { CorrectionDialog } from '../components/detail/CorrectionDialog.jsx'
 import { ReceiptReversalDialog, ReceiptReversalsPanel } from '../components/detail/ReceiptReversalDialog.jsx'
 import { CreateInventoryFromLineDialog } from '../components/detail/CreateInventoryFromLineDialog.jsx'
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
+import { Timeline } from '../components/detail/Timeline.jsx'
+import { caseTimeline } from '../lib/case-timeline.js'
 
 const DETAIL_KINDS = ['orders', 'invoices', 'requests', 'receipts', 'cases']
-const WORKBENCH = new Set(['orders', 'invoices'])
+const WORKBENCH = new Set(['orders', 'invoices', 'cases'])
 const label = (options, value) => options.find((o) => o.value === value)?.label
 const shortUuid = (value) => (value && value.length > 12 ? `${value.slice(0, 4)}…${value.slice(-4)}` : value)
 
 function factsFor(kind, d) {
   if (kind === 'requests') return [dateFact('Se necesita', d.neededBy), { label: 'Prioridad', value: label(PRIORITY_OPTIONS, d.priority) }, { label: 'Solicitante', value: d.requesterName ?? d.requester?.name }, dateFact('Creada', d.createdAt)]
-  if (kind === 'receipts') return [dateFact('Recibida', d.receivedAt), { label: 'Orden', value: d.orderNumber ?? d.order?.number }, { label: 'Recibió', value: d.receivedByName }]
-  return [dateFact('Abierto', d.createdAt), dateFact('Cerrado', d.closedAt)]
+  return [dateFact('Recibida', d.receivedAt), { label: 'Orden', value: d.orderNumber ?? d.order?.number }, { label: 'Recibió', value: d.receivedByName }]
 }
 
 // Orders and invoices: who and the dates that matter, in one line under the folio.
 function HeaderLine({ kind, doc }) {
   const supplier = doc.supplier ?? (doc.supplierName ? { name: doc.supplierName, id: doc.supplierId } : null)
   const order = kind === 'invoices' ? (doc.orders ?? [])[0] : null
-  const parts = kind === 'orders'
+  const parts = kind === 'cases'
+    ? [doc.title, doc.createdAt && `abierto ${formatDate(doc.createdAt)}`, doc.closedAt && doc.status === 'CLOSED' && `cerrado ${formatDate(doc.closedAt)}`]
+    : kind === 'orders'
     ? [doc.issueDate && `Fecha ${formatDate(doc.issueDate)}`, doc.issuedAt && `emitida ${formatDate(doc.issuedAt)}`, doc.expectedDate && `entrega esperada ${formatDate(doc.expectedDate)}`, doc.paymentTerms, doc.supplierReference && `ref. ${doc.supplierReference}`]
     : [doc.issueDate && `Emitida ${formatDate(doc.issueDate)}`, doc.dueDate ? `vence ${formatDate(doc.dueDate)}` : 'sin vencimiento', label(PAYMENT_METHODS, doc.paymentMethod)]
   return (
@@ -118,6 +121,7 @@ export default function PurchaseDocumentDetail() {
   const tabs = [
     paymentsOn && { value: 'payments', label: 'Pagos' },
     kind !== 'cases' && { value: 'lines', label: kind === 'orders' ? 'Partidas' : 'Conceptos', count: doc.lines?.length },
+    kind === 'cases' && { value: 'timeline', label: 'Línea de tiempo' },
     kind === 'cases' && { value: 'related', label: 'Documentos', count: relatedCount },
     receiptsOn && { value: 'receipts', label: 'Recepciones', count: doc.receipts?.length },
     quotesOn && { value: 'quotes', label: 'Cotizaciones', count: doc.quotes?.length },
@@ -147,7 +151,8 @@ export default function PurchaseDocumentDetail() {
       {paymentsOn ? <TabsContent value="payments"><PaymentsPanel invoice={doc} showTotals={false} onRecord={readOnly ? null : () => setDialog('pay')} /></TabsContent> : null}
       {receiptsOn ? <TabsContent value="receipts"><ReceiptsPanel order={doc} /></TabsContent> : null}
       {kind === 'receipts' ? <TabsContent value="reversals"><ReceiptReversalsPanel receipt={doc} /></TabsContent> : null}
-      {!workbench ? <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent> : null}
+      {!workbench || kind === 'cases' ? <TabsContent value="related"><RelatedDocumentsPanel doc={doc} canManage={canManageRelations} /></TabsContent> : null}
+      {kind === 'cases' ? <TabsContent value="timeline"><Timeline events={caseTimeline(doc)} label="Línea de tiempo del expediente" /></TabsContent> : null}
       {quotesOn ? (
         <TabsContent value="quotes">
           <QuotesCompare quotes={doc.quotes ?? []} caseId={kind === 'cases' ? doc.id : doc.caseId} requestId={kind === 'requests' ? doc.id : null}
@@ -199,10 +204,12 @@ export default function PurchaseDocumentDetail() {
           </div>
           <div className="space-y-4 xl:col-start-2 xl:row-start-2">
             {kind === 'orders' ? <OrderProgressCard order={doc} /> : null}
-            <AsideCard title="Documentos relacionados" footer={kind === 'invoices' ? 'Una factura factura una sola orden; una orden puede tener varias facturas.' : null}>
-              <RelatedDocumentsPanel doc={doc} canManage={canManageRelations} />
-            </AsideCard>
-            <CorrectionRulesCard plan={doc.correction} />
+            {kind !== 'cases' ? (
+              <AsideCard title="Documentos relacionados" footer={kind === 'invoices' ? 'Una factura factura una sola orden; una orden puede tener varias facturas.' : null}>
+                <RelatedDocumentsPanel doc={doc} canManage={canManageRelations} />
+              </AsideCard>
+            ) : null}
+            {kind !== 'cases' ? <CorrectionRulesCard plan={doc.correction} /> : null}
           </div>
         </div>
       ) : (

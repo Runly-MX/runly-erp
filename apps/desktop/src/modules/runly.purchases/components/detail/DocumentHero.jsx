@@ -34,6 +34,12 @@ function derivedChips(kind, doc) {
     const live = (doc.invoices ?? []).filter((i) => i.status !== 'CANCELLED').length
     chips.push(live ? [live === 1 ? '1 factura' : `${live} facturas`, 'neutral'] : ['Sin factura', 'neutral'])
   }
+  if (kind === 'cases') {
+    if (doc.status === 'CLOSED') chips.push([doc.closedAt ? `Cerrado el ${formatDate(doc.closedAt)}` : 'Cerrado', 'done'])
+    if (doc.status === 'CANCELLED') chips.push(['Cancelado: solo historial', 'danger'])
+    if (doc.closure?.automatic && !['CLOSED', 'CANCELLED'].includes(doc.status)) chips.push(['Se cierra solo', 'neutral'])
+  }
+  if (kind === 'invoices' && OPEN_INVOICE.has(doc.status) && !doc.dueDate) chips.push(['Sin fecha de vencimiento', 'neutral'])
   if (kind === 'invoices' && OPEN_INVOICE.has(doc.status) && doc.dueDate) {
     const days = daysUntil(doc.dueDate)
     if (days < 0) chips.push([`Vencida hace ${-days} ${-days === 1 ? 'día' : 'días'}`, 'danger'])
@@ -41,6 +47,22 @@ function derivedChips(kind, doc) {
     else chips.push([`Vence en ${days} ${days === 1 ? 'día' : 'días'}`, days <= 7 ? 'warning' : 'neutral'])
   }
   return chips
+}
+
+// Case amounts from the documents the user can read, in the case currency;
+// documents in another currency are never added in.
+function caseAmounts(doc) {
+  const currency = doc.currency ?? 'MXN'
+  const live = (rows) => (rows ?? []).filter((r) => r.status !== 'CANCELLED')
+  const same = (rows) => rows.every((r) => (r.currency ?? currency) === currency)
+  const orders = live(doc.orders), invoices = live(doc.invoices)
+  const sum = (rows, key) => rows.reduce((n, r) => n + toNumber(r[key]), 0)
+  return [
+    doc.estimatedTotal != null && { label: 'Estimado', value: doc.estimatedTotal },
+    orders.length && same(orders) && { label: 'Ordenado', value: sum(orders, 'total') },
+    invoices.length && same(invoices) && { label: 'Facturado', value: sum(invoices, 'total') },
+    invoices.length && same(invoices) && { label: 'Pagado', value: sum(invoices, 'paidAmount'), tone: 'text-emerald-700 dark:text-emerald-300' },
+  ].filter(Boolean)
 }
 
 function Money({ label, value, currency, tone, hint }) {
@@ -64,7 +86,7 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
   const balance = amount != null ? Math.max(0, toNumber(amount) - paid) : 0
   const stages = (doc.stageMap ?? []).filter((s) => s.mode !== 'DISABLED')
   const supplier = doc.supplier ?? (doc.supplierName ? { name: doc.supplierName, id: doc.supplierId } : null)
-  const workbench = kind === 'orders' || kind === 'invoices'
+  const workbench = kind === 'orders' || kind === 'invoices' || kind === 'cases'
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]" aria-label={`Resumen de ${meta.singular.toLowerCase()}`}>
@@ -85,7 +107,13 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
           </p>
         </div>
         {doc.title ? <p className="text-base font-medium">{doc.title}</p> : null}
-        {kind === 'invoices' && amount != null ? (
+        {kind === 'cases' ? (
+          caseAmounts(doc).length ? (
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+              {caseAmounts(doc).map((m) => <Money key={m.label} label={m.label} value={m.value} currency={doc.currency} tone={m.tone} />)}
+            </div>
+          ) : <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin montos todavía.</p>
+        ) : kind === 'invoices' && amount != null ? (
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <Money label="Total" value={amount} currency={doc.currency} />
             <Money label="Pagado" value={paid} currency={doc.currency} tone="text-emerald-700 dark:text-emerald-300" hint={doc.paidAt ? `Último pago el ${formatDate(doc.paidAt)}` : null} />
