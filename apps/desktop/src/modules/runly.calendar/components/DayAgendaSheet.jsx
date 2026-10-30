@@ -3,32 +3,7 @@ import { Button, EmptyState, Sheet, SheetContent, SheetDescription, SheetHeader,
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useYearEvents } from "../hooks/useCalendarData";
 import { hasReminder } from "../lib/reminder-utils";
-
-function localKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-}
-
-// All-day events are stored as UTC midnight.
-function utcKey(d) {
-  const dt = new Date(d);
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
-}
-
-function eventsOnDay(events, dateStr) {
-  const allDay = [];
-  const timed = [];
-  for (const ev of events) {
-    if (ev.allDay) {
-      const sk = utcKey(ev.startAt);
-      const ek = ev.endAt ? utcKey(ev.endAt) : sk;
-      if (sk <= dateStr && dateStr <= ek) allDay.push(ev);
-    } else if (localKey(new Date(ev.startAt)) === dateStr) {
-      timed.push(ev);
-    }
-  }
-  timed.sort((a, b) => new Date(a.startAt) - new Date(b.startAt));
-  return { allDay, timed };
-}
+import { eventsOnDay } from "../lib/day-events";
 
 function time(value) {
   return new Date(value).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false });

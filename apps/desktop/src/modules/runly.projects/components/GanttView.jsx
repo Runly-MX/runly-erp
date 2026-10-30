@@ -3,7 +3,7 @@
 // with the tasks that have no dates yet (drop one on a day to schedule it). Works with
 // mouse, touch and keyboard (Alt+arrows on a focused bar). Spec
 // docs/superpowers/specs/2026-10-26-projects-depth-design.md, section 1.
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ConfirmDialog, EmptyState, LoadingState } from "@runly/ui";
 import { CalendarOff, CornerDownRight, Link2, TriangleAlert, ZoomIn, ZoomOut } from "lucide-react";
 import { toast } from "sonner";
@@ -40,9 +40,17 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
   const [zoom, setZoom] = useState("day");
   const [drag, setDrag] = useState(null); // { id, mode, startX, delta }
   const [link, setLink] = useState(null); // { fromId, x, y }
+  const [pickFrom, setPickFrom] = useState(null); // click-to-link: the blocker waiting for a target bar
   const [askRemove, setAskRemove] = useState(null);
   const timelineRef = useRef(null);
   const dayWidth = ZOOMS[zoom].dayWidth;
+
+  useEffect(() => {
+    if (!pickFrom) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setPickFrom(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [pickFrom]);
 
   const tasks = data?.tasks ?? [];
   const dependencies = data?.dependencies ?? [];
@@ -81,9 +89,15 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
     });
   }
 
+  function finishPick(task) {
+    if (task.id !== pickFrom) links.add.mutate({ blockedId: task.id, blockerId: pickFrom });
+    setPickFrom(null);
+  }
+
   function startDrag(event, task, mode) {
     if (!canEdit || (event.pointerType === "mouse" && event.button !== 0)) return;
     event.stopPropagation();
+    if (pickFrom) { event.preventDefault(); finishPick(task); return; }
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const origin0 = event.clientX;
     let moved = false;
@@ -125,13 +139,20 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
     event.stopPropagation();
     const rect = timelineRef.current.getBoundingClientRect();
     const point = (e) => ({ x: e.clientX - rect.left, y: e.clientY - rect.top - HEADER_HEIGHT });
+    const origin0 = { x: event.clientX, y: event.clientY };
+    let moved = false;
     setLink({ fromId: task.id, ...point(event) });
-    const move = (e) => setLink({ fromId: task.id, ...point(e) });
+    const move = (e) => {
+      if (Math.hypot(e.clientX - origin0.x, e.clientY - origin0.y) > 4) moved = true;
+      setLink({ fromId: task.id, ...point(e) });
+    };
     const finish = (e) => {
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);
       setLink(null);
+      // A plain click (no drag) arms click-to-link: the next bar clicked waits for this one.
+      if (e.type === "pointerup" && !moved) { setPickFrom((current) => (current === task.id ? null : task.id)); return; }
       const target = document.elementFromPoint(e.clientX, e.clientY)?.closest?.("[data-gantt-task]")?.getAttribute("data-gantt-task");
       if (e.type === "pointerup" && target && target !== task.id) links.add.mutate({ blockedId: target, blockerId: task.id });
     };
@@ -166,8 +187,18 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
         </div>
         <button type="button" aria-label="Alejar" disabled={zoomIndex === ZOOM_ORDER.length - 1} onClick={() => setZoom(ZOOM_ORDER[zoomIndex + 1])} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md hover:bg-[hsl(var(--muted))] disabled:opacity-30 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10"><ZoomOut size={16} aria-hidden /></button>
         <button type="button" aria-label="Acercar" disabled={zoomIndex === 0} onClick={() => setZoom(ZOOM_ORDER[zoomIndex - 1])} className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-md hover:bg-[hsl(var(--muted))] disabled:opacity-30 [@media(pointer:coarse)]:h-10 [@media(pointer:coarse)]:w-10"><ZoomIn size={16} aria-hidden /></button>
-        <p className="ml-auto hidden text-xs text-[hsl(var(--muted-foreground))] md:block">Arrastra una barra para moverla o su borde para cambiar la duración · arrastra desde el punto del extremo para enlazar tareas</p>
+        <p className="ml-auto hidden text-xs text-[hsl(var(--muted-foreground))] md:block">Arrastra una barra para moverla o su borde para cambiar la duración · usa el icono de enlace al final de la barra para crear una dependencia</p>
       </div>
+
+      {pickFrom && (
+        <div role="status" className="flex shrink-0 items-center gap-2 border-b border-[hsl(var(--border))] bg-(--brand-primary)/10 px-3 py-2 text-sm">
+          <Link2 size={14} className="shrink-0" aria-hidden />
+          <span className="min-w-0 flex-1 truncate">
+            Elige la tarea que empezará cuando termine «{tasks.find((t) => t.id === pickFrom)?.title ?? "esta tarea"}»
+          </span>
+          <button type="button" onClick={() => setPickFrom(null)} className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-xs hover:bg-[hsl(var(--muted))]">Cancelar</button>
+        </div>
+      )}
 
       {undated.length > 0 && (
         <div className="shrink-0 border-b border-[hsl(var(--border))] px-3 py-2">
@@ -197,7 +228,7 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
             <div className="sticky left-0 z-20 shrink-0 border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]" style={{ width: LIST_WIDTH }}>
               <div className="sticky top-0 z-30 flex items-end border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 pb-2 text-xs font-medium text-[hsl(var(--muted-foreground))]" style={{ height: HEADER_HEIGHT }}>Tarea</div>
               {dated.map((task) => (
-                <button key={task.id} type="button" onClick={() => onTaskClick?.(task.id)} style={{ height: ROW_HEIGHT }}
+                <button key={task.id} type="button" onClick={() => (pickFrom ? finishPick(task) : onTaskClick?.(task.id))} style={{ height: ROW_HEIGHT }}
                   className={cx("flex w-full cursor-pointer items-center gap-1 border-b border-[hsl(var(--border))] px-3 text-left text-sm hover:bg-[hsl(var(--muted))]/50", task.parentTaskId && "pl-6")}>
                   {task.parentTaskId && <CornerDownRight size={11} className="shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden />}
                   <span className={cx("truncate", task.status?.isDone && "text-[hsl(var(--muted-foreground))] line-through")}>{task.title}</span>
@@ -260,7 +291,7 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
                         onPointerDown={(e) => startDrag(e, task, "move")}
                         onKeyDown={(e) => onBarKey(e, task)}
                         aria-label={`${task.title}, del ${dayText(span.start)} al ${dayText(span.end)}${blockedEarly ? ", empieza antes de que termine la tarea que la bloquea" : ""}. Alt y flechas para mover`}
-                        className={cx("flex h-full w-full touch-none select-none items-center gap-1 overflow-hidden rounded-md border px-2 text-left text-xs font-medium text-white shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--brand-primary)", canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", task.status?.isDone && "opacity-60", dragging && "shadow-lg ring-2 ring-white/70")}
+                        className={cx("flex h-full w-full touch-none select-none items-center gap-1 overflow-hidden rounded-md border px-2 text-left text-xs font-medium text-white shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--brand-primary)", pickFrom ? "cursor-copy" : canEdit ? "cursor-grab active:cursor-grabbing" : "cursor-pointer", task.status?.isDone && "opacity-60", (dragging || pickFrom === task.id) && "shadow-lg ring-2 ring-white/70")}
                         style={{ backgroundColor: color, borderColor: color }}
                       >
                         {blockedEarly && <TriangleAlert size={12} className="shrink-0" aria-hidden />}
@@ -272,8 +303,8 @@ export default function GanttView({ projectId, onTaskClick, canEdit = true }) {
                           <span onPointerDown={(e) => startDrag(e, task, "end")} className="absolute -right-1 top-0 h-full w-3 cursor-ew-resize touch-none [@media(pointer:coarse)]:w-5" aria-hidden="true" />
                           <span
                             onPointerDown={(e) => startLink(e, task)}
-                            title="Arrastra hasta otra tarea para enlazarla: esa empezará cuando esta termine"
-                            className="absolute -right-5 top-1/2 flex h-4 w-4 -translate-y-1/2 cursor-crosshair touch-none items-center justify-center rounded-full border border-[hsl(var(--muted-foreground))] bg-[hsl(var(--card))] opacity-0 transition-opacity group-hover/bar:opacity-100 group-focus-within/bar:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:-right-7 [@media(pointer:coarse)]:h-6 [@media(pointer:coarse)]:w-6"
+                            title="Crear dependencia: haz clic aquí y luego en la tarea que debe esperar a esta, o arrástralo hasta ella"
+                            className={cx("absolute -right-5 top-1/2 flex h-4 w-4 -translate-y-1/2 cursor-pointer touch-none items-center justify-center rounded-full border border-[hsl(var(--muted-foreground))] bg-[hsl(var(--card))] transition-opacity group-hover/bar:opacity-100 group-focus-within/bar:opacity-100 [@media(hover:none)]:opacity-100 [@media(pointer:coarse)]:-right-7 [@media(pointer:coarse)]:h-6 [@media(pointer:coarse)]:w-6", pickFrom === task.id ? "opacity-100 border-(--brand-primary) text-(--brand-primary)" : "opacity-0")}
                           >
                             <Link2 size={10} aria-hidden />
                           </span>

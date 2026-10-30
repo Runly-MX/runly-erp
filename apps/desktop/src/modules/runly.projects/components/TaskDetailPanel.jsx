@@ -199,8 +199,9 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const { data: activityData } = useTaskActivity(taskId);
   const { data: depsData } = useTaskDependencies(projectId, taskId);
   const { data: fieldValuesData } = useTaskFieldValues(projectId, taskId);
-  const [depsExpanded, setDepsExpanded] = useState(false);
-  const { data: allTasksData } = useAllTasksForPicker(projectId, depsExpanded);
+  const [depPickerOpen, setDepPickerOpen] = useState(false);
+  const [depDirection, setDepDirection] = useState("blockedBy");
+  const { data: allTasksData } = useAllTasksForPicker(projectId, depPickerOpen);
   const members = useMemo(() => membersData?.data ?? membersData ?? [], [membersData]);
   // Comment events also live in Activity (audit trail); this feed already
   // shows the comments themselves, so skip them here.
@@ -210,10 +211,14 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   );
   const deps = useMemo(() => depsData ?? { blockedBy: [], blocking: [] }, [depsData]);
   const fieldValues = useMemo(() => fieldValuesData ?? [], [fieldValuesData]);
-  const allTasks = useMemo(
-    () => (allTasksData?.data ?? allTasksData ?? []).filter((t) => t.id !== taskId),
-    [allTasksData, taskId],
-  );
+  // Picker options: every other task not already linked either way.
+  const allTasks = useMemo(() => {
+    const linked = new Set([
+      ...deps.blockedBy.map((dep) => dep.blockerId ?? dep.blocker?.id),
+      ...deps.blocking.map((dep) => dep.blockedId ?? dep.blocked?.id),
+    ]);
+    return (allTasksData?.data ?? allTasksData ?? []).filter((t) => t.id !== taskId && !linked.has(t.id));
+  }, [allTasksData, taskId, deps]);
 
   const attachmentsConfig = useMemo(() => ({
     label: "Archivos",
@@ -265,7 +270,6 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
   const [editingCommentId, setEditingCommentId] = useState(null);
   const [editingBody, setEditingBody] = useState("");
   const [deleteCommentId, setDeleteCommentId] = useState(null);
-  const [depPickerOpen, setDepPickerOpen] = useState(false);
   const [depPickerValue, setDepPickerValue] = useState("");
   const [localFieldValues, setLocalFieldValues] = useState({});
 
@@ -593,34 +597,52 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                 {/* Dependencias */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                      Dependencias
+                    </span>
                     <button
                       type="button"
-                      onClick={() => setDepsExpanded(true)}
-                      className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2 block w-full text-left"
-                    >
-                      Dependencias
-                    </button>
-                    <button
                       onClick={() => {
                         setDepPickerOpen((o) => !o);
                         setDepPickerValue("");
                       }}
                       className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
                     >
-                      <Plus size={11} />
-                      Agregar bloqueo
+                      {depPickerOpen ? <X size={11} /> : <Plus size={11} />}
+                      {depPickerOpen ? "Cancelar" : "Agregar dependencia"}
                     </button>
                   </div>
 
                   {depPickerOpen && (
-                    <div className="mb-3">
+                    <div className="mb-3 space-y-2 rounded-md border border-border p-2">
+                      <div role="group" aria-label="Tipo de dependencia" className="grid grid-cols-2 gap-1 rounded-md bg-muted p-0.5">
+                        {[
+                          { key: "blockedBy", label: "Esta tarea espera a..." },
+                          { key: "blocks", label: "Esta tarea bloquea a..." },
+                        ].map((option) => (
+                          <button
+                            key={option.key}
+                            type="button"
+                            aria-pressed={depDirection === option.key}
+                            onClick={() => setDepDirection(option.key)}
+                            className={`rounded-sm px-2 py-1 text-xs transition-colors ${depDirection === option.key ? "bg-background font-medium text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </div>
+                      <p className="text-[11px] text-muted-foreground">
+                        {depDirection === "blockedBy"
+                          ? "Elige la tarea que debe terminar antes de empezar esta."
+                          : "Elige la tarea que no puede empezar hasta que esta termine."}
+                      </p>
                       <ComboboxField
                         label=""
                         value={depPickerValue}
                         onValueChange={(v) => {
                           if (!v) return;
                           addDependency.mutate(
-                            { blockerId: v },
+                            depDirection === "blocks" ? { blocksId: v } : { blockerId: v },
                             {
                               onSuccess: () => {
                                 setDepPickerOpen(false);
@@ -633,8 +655,8 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                           value: t.id,
                           label: `T-${t.taskNumber ?? "?"} ${t.title}`,
                         }))}
-                        placeholder="Buscar tarea bloqueante..."
-                        emptyMessage="Sin tareas disponibles"
+                        placeholder="Buscar tarea..."
+                        emptyMessage={allTasksData ? "Sin tareas disponibles" : "Cargando tareas..."}
                       />
                     </div>
                   )}

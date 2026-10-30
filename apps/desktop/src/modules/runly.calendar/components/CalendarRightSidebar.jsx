@@ -1,6 +1,8 @@
 import { BellRing, Calendar, Plus } from "lucide-react";
 import { useCalendarStore } from "../stores/useCalendarStore";
-import { useCalendarEvents } from "../hooks/useCalendarData";
+import { toLocalIso } from "../../../lib/localDate.js";
+import { useYearEvents } from "../hooks/useCalendarData";
+import { eventsOnDay } from "../lib/day-events";
 import {
   filterEventsForHour,
   formatHourRangeLabel,
@@ -42,20 +44,14 @@ export default function CalendarRightSidebar({ onNewEvent }) {
     clearSelectedSlot,
   } = useCalendarStore();
   const d = selectedDate ? new Date(selectedDate + "T12:00:00") : new Date();
+  const dateStr = toLocalIso(d);
 
-  const dayStart = new Date(d);
-  dayStart.setHours(0, 0, 0, 0);
-  const dayEnd = new Date(d);
-  dayEnd.setHours(23, 59, 59, 999);
-
-  const { data: events = [] } = useCalendarEvents({
-    start: dayStart.toISOString(),
-    end: dayEnd.toISOString(),
-    calendarIds: activeCalendarIds,
-  });
-  const sortedEvents = events.toSorted(
-    (left, right) => new Date(left.startAt) - new Date(right.startAt),
-  );
+  // Same source and day rule as the Day view and the phone agenda: the year's
+  // events filtered on the client, so multi-day all-day spans (project tasks)
+  // show on every day they cover, not only when they start inside the day.
+  const { data: yearEvents = [] } = useYearEvents(d.getFullYear(), activeCalendarIds);
+  const { allDay, timed } = eventsOnDay(yearEvents, dateStr);
+  const sortedEvents = [...allDay, ...timed];
   const visibleEvents =
     selectedSlotHour === null
       ? sortedEvents

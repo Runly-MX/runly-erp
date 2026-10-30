@@ -1,6 +1,7 @@
 import { toLocalIso } from '../../../lib/localDate.js';
 import { useCalendarStore } from '../stores/useCalendarStore'
 import { useYearEvents } from '../hooks/useCalendarData'
+import { eventsOnDay } from '../lib/day-events'
 import {
   filterEventsForHour,
   splitVisibleEvents,
@@ -11,14 +12,6 @@ const HOURS = Array.from({ length: 24 }, (_, i) => i)
 const MAX_VISIBLE_SLOT_EVENTS = 2
 const MAX_VISIBLE_ALL_DAY_EVENTS = 2
 
-function dateKey(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function dateKeyUTC(d) {
-  const dt = new Date(d)
-  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`
-}
 
 export default function DayView({ onEventClick }) {
   const {
@@ -53,12 +46,7 @@ export default function DayView({ onEventClick }) {
     ...(needsNextYear ? nextYearEvents : []),
   ]
 
-  const allDayEvents = events.filter(
-    (event) => event.allDay && dateKeyUTC(event.startAt) === dateStr,
-  )
-  const timedEvents = events.filter(
-    (event) => !event.allDay && dateKey(new Date(event.startAt)) === dateStr,
-  )
+  const { allDay: allDayEvents, timed: timedEvents } = eventsOnDay(events, dateStr)
   const allDaySlot = splitVisibleEvents(allDayEvents, MAX_VISIBLE_ALL_DAY_EVENTS)
 
   return (

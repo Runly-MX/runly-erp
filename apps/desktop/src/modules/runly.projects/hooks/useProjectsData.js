@@ -664,9 +664,12 @@ export function useAddDependency(projectId, taskId) {
   const token = useToken()
   const qc = useQueryClient()
   return useMutation({
-    mutationFn: (data) => runly.projects.addTaskDependency(projectId, taskId, data, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
-    onError: () => toast.error('No se pudo agregar la dependencia'),
+    // { blockerId }: this task waits for blockerId. { blocksId }: blocksId waits for this task.
+    mutationFn: ({ blockerId, blocksId }) => blocksId
+      ? runly.projects.addTaskDependency(projectId, blocksId, { blockerId: taskId }, token)
+      : runly.projects.addTaskDependency(projectId, taskId, { blockerId }, token),
+    onSuccess: () => refreshSchedule(qc, projectId),
+    onError: (error) => toast.error('No se pudo agregar la dependencia', { description: error?.message }),
   })
 }
 
@@ -675,7 +678,7 @@ export function useRemoveDependency(projectId, taskId) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (depId) => runly.projects.removeTaskDependency(projectId, taskId, depId, token),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['projects', projectId, 'tasks', taskId, 'dependencies'] }),
+    onSuccess: () => refreshSchedule(qc, projectId),
     onError: () => toast.error('No se pudo eliminar la dependencia'),
   })
 }
