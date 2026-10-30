@@ -728,7 +728,7 @@ export function RunlyForm({
             return (
               <div
                 key={field.name}
-                className={cn(isFullWidth && "col-span-full", pin && "relative")}
+                className={cn("min-w-0", isFullWidth && "col-span-full", pin && "relative")}
               >
                 {pin ? <FieldPinButton {...pin} label={field.label} /> : null}
                 {renderFieldControl(field)}

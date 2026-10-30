@@ -10,12 +10,12 @@ const MOBILE_ORDER = "order-(--mobile-order) xl:order-none";
 
 export function FormColumns({ main, asideTop = null, aside = [] }) {
   const hasAside = Boolean(asideTop) || aside.length > 0;
-  if (!hasAside) return <div className="space-y-3">{main.map((item) => <div key={item.id}>{item.node}</div>)}</div>;
+  if (!hasAside) return <div className="space-y-3">{main.map((item) => <div key={item.id} className="min-w-0">{item.node}</div>)}</div>;
 
   const mainOrder = new Map(main.map((item, index) => [item.id, (index + 1) * 10]));
   const asideOrder = (item) => (item.mobileAfter && mainOrder.has(item.mobileAfter) ? mainOrder.get(item.mobileAfter) + 5 : 1);
   return (
-    <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
+    <div className="grid grid-cols-[minmax(0,1fr)] gap-3 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <div className="contents xl:block xl:space-y-3">
         {main.map((item) => (
           <div key={item.id} className={MOBILE_ORDER} style={{ "--mobile-order": mainOrder.get(item.id) }}>{item.node}</div>

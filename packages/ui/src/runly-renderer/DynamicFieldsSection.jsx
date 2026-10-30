@@ -226,7 +226,7 @@ export function DynamicFieldsSection({
   const renderControl = (def, removable) => {
     const key = `${prefix}.${def.fieldKey}`;
     return (
-      <div key={def.id} className={def.fieldType === "textarea" ? "relative col-span-full" : "relative"}>
+      <div key={def.id} className={def.fieldType === "textarea" ? "relative min-w-0 col-span-full" : "relative min-w-0"}>
         <DynamicFieldControl definition={def} value={formValues[key]} onChange={(val) => onFieldChange(key, val)} suggestions={suggestions} />
         {removable ? (
           <button
