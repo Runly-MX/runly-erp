@@ -33,7 +33,7 @@ function fakePrisma({ members = [ALICE, BOB] } = {}) {
         return { count: 1 }
       },
     },
-    automationRun: { updateMany: async ({ where, data }) => { const run = runs.get(where.id); if (!run || (where.status && run.status !== where.status)) return { count: 0 }; Object.assign(run, data); return { count: 1 } } },
+    automationRun: { updateMany: async ({ where, data }) => { const run = runs.get(where.id); if (!run || (where.status && !(where.status.in ?? [where.status]).includes(run.status))) return { count: 0 }; Object.assign(run, data); return { count: 1 } } },
     auditLog: { create: async ({ data }) => { audit.push(data) } },
     $transaction: async (fn) => fn(db),
   }
