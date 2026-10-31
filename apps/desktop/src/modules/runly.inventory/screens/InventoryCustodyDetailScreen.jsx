@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import {
   Alert, AlertDescription, AlertTitle, Badge, Button, Card, ConfirmDialog, DataTable, ErrorState, PageHeader, TextareaField,
+  NotFoundState,
 } from '@runly/ui'
 import { AlertTriangle, Ban, CheckCheck, Download, Eye, FileCheck2, PenOff } from 'lucide-react'
 import { toast } from 'sonner'
@@ -37,13 +38,14 @@ export default function InventoryCustodyDetailScreen() {
   const [reason, setReason] = useState('')
 
   if (isLoading) return <CustodyDetailSkeleton />
-  if (isError || !custody) {
+  if (isError) {
     return (
       <div className="p-4 md:p-6">
-        <ErrorState title="Resguardo no encontrado" description="Puede que se haya eliminado o que no tengas acceso." onRetry={refetch} />
+        <ErrorState title="No se pudo cargar el resguardo" onRetry={refetch} />
       </div>
     )
   }
+  if (!custody) return <NotFoundState title="Este resguardo no existe" description="Puede que se haya eliminado o que no tengas acceso." back={{ label: "Ver resguardos", onClick: () => navigate(LIST_PATH) }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
 
   const open = isCustodyEditable(custody)
 

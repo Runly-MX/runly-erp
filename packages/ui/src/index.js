@@ -218,6 +218,7 @@ export { PageHeader } from "./components/PageHeader.jsx";
 export { UnsavedChangesBar } from "./components/UnsavedChangesBar.jsx";
 export { EmptyState } from "./components/EmptyState.jsx";
 export { ErrorState } from "./components/ErrorState.jsx";
+export { NotFoundState } from "./components/NotFoundState.jsx";
 export { StatCard } from "./components/StatCard.jsx";
 export { StatStrip } from "./components/StatStrip.jsx";
 export { CopyOnDoubleClick } from "./components/CopyOnDoubleClick.jsx";

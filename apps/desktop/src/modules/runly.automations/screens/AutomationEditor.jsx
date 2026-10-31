@@ -5,8 +5,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useIsMobile, useViewMode } from "@runly/ui";
-import { ArrowLeft, Check, Copy, Download, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2 } from "lucide-react";
+import { ActionMenu, Button, ConfirmDialog, ErrorState, NotFoundState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useIsMobile, useViewMode } from "@runly/ui";
+import { ArrowLeft, Check, Copy, Download, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2, Workflow } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -215,7 +215,13 @@ function AutomationEditorScreen() {
   if (isNew && !draft) return <div className="p-6"><ErrorState title="Nada que editar" description="Empieza una automatización desde la lista." onRetry={() => navigate(LIST_PATH)} /></div>;
   if (!item) {
     if (query.isError) return <div className="p-6"><ErrorState title="No se pudo cargar" description={query.error.message} onRetry={() => query.refetch()} /></div>;
-    if (query.isSuccess) return <div className="p-6"><ErrorState title="Automatización no encontrada" description="Puede haberse eliminado." onRetry={() => navigate(LIST_PATH)} /></div>;
+    if (query.isSuccess) {
+      return (
+        <NotFoundState icon={Workflow} title="Esta automatización no existe" detail={slug}
+          description="Puede que se haya eliminado, que la hayan renombrado o que pertenezca a otra empresa."
+          back={{ label: "Ver automatizaciones", onClick: () => navigate(LIST_PATH) }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
+      );
+    }
     return <div className="p-6"><Skeleton className="h-[30rem] rounded-lg" /></div>;
   }
 

@@ -13,6 +13,7 @@ import {
   SectionIndex,
   Skeleton,
   useScrollCollapse,
+  NotFoundState,
 } from "@runly/ui";
 import { contactFormSchema } from "@runly/validators";
 import { AlertTriangle, AtSign, Eye, Paperclip, Plug, Building2, Landmark, MapPin, StickyNote, Users } from "lucide-react";
@@ -213,9 +214,7 @@ export default function ContactFormScreen() {
   }
   if (isEdit && !contact) {
     return (
-      <div className="p-4 md:p-6">
-        <ErrorState title="Contacto no encontrado" />
-      </div>
+      <NotFoundState title="Este contacto no existe" description="Puede que se haya eliminado o que pertenezca a otra empresa." back={{ label: "Ver contactos", onClick: () => navigate(LIST_PATH) }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
     );
   }
 

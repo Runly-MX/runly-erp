@@ -625,6 +625,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `TemplateFieldReference` | Collapsible table of the tags a document kind accepts, built from `kind.schema`; props `kind` |
 | `EmptyState` | Empty list placeholder with icon and message |
 | `ErrorState` | Error display with retry option |
+| `NotFoundState` | Full-area "no encontrado" (404) for a missing record, screen or module: brand-colored, never destructive. Props `title`, `description`, `detail` (monospace key), `back`/`home` (`{ label, onClick }` or element), `icon`, `code` |
 | `StatCard` | KPI metric card with label, value, trend |
 | `StatStrip` | Responsive key-figures strip — a 6-up grid on desktop, a horizontal snap-scroll carousel on mobile. Consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.kpis`. Items: `[{ key, label, value (node), icon (lucide name), href }]`. |
 | `DetailHero` | Redesigned entity-detail header: a representative image (or a branded fallback panel tinted by an accent colour) + title + subtitle + status pill + meta chips + an actions slot. Presentational only; consumed by `RunlyDetail` when the DETAIL blueprint declares `schema.hero`. |

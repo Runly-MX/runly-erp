@@ -2,9 +2,9 @@ import { useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   RunlyDetail,
-  ErrorState,
   ConfirmDialog,
   RecordHeader,
+  NotFoundState,
 } from "@runly/ui";
 import { ArrowLeft, Pencil, Trash2 } from "lucide-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,9 +84,7 @@ export default function UserDetailScreen() {
 
   if (!userQuery.isLoading && !user) {
     return (
-      <div className="p-4 md:p-6">
-        <ErrorState title="Usuario no encontrado" />
-      </div>
+      <NotFoundState title="Este usuario no existe" description="Puede que se haya eliminado o que ya no sea parte de la empresa." back={{ label: "Ver usuarios", onClick: () => navigate("/app/m/runly.identity/identity/users") }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
     );
   }
 

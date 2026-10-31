@@ -2,8 +2,8 @@ import { hasBuiltInModule, isPathAllowedByNavigation, resolveScreen } from './mo
 import { lazy, Suspense, useEffect, useMemo } from "react";
 import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { findModuleByKey, resolveModuleAliasPath } from '@runly/core';
-import { Badge, Skeleton } from "@runly/ui";
-import { Layers } from "lucide-react";
+import { Badge, NotFoundState, Skeleton } from "@runly/ui";
+import { Compass, Layers } from "lucide-react";
 import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { isModuleAvailable } from "../lib/runtimeModules";
@@ -653,26 +653,14 @@ export function ModuleOutlet() {
       );
     }
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60dvh] gap-4 text-center px-6">
-        <p className="text-lg font-semibold text-[hsl(var(--foreground))]">
-          Módulo no encontrado
-        </p>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">
-          El módulo{" "}
-          <code className="font-mono text-xs bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded">
-            {moduleKey}
-          </code>{" "}
-          no existe o no está registrado.
-        </p>
-        <button
-          type="button"
-          onClick={() => navigate("/app/home")}
-          className="text-sm hover:underline cursor-pointer"
-          style={{ color: "var(--brand-primary)" }}
-        >
-          Volver al inicio
-        </button>
-      </div>
+      <NotFoundState
+        icon={Compass}
+        title="Esta página no existe"
+        description="La dirección no corresponde a ningún módulo instalado. Puede que el enlace esté incompleto o que el módulo se haya desinstalado."
+        detail={moduleKey}
+        back={{ label: "Volver", onClick: () => navigate(-1) }}
+        home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }}
+      />
     );
   }
 

@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   AuditTrail,
   AttachmentsPanel,
-  Button,
   ConfirmDialog,
   ErrorState,
   PageHeader,
@@ -13,8 +12,8 @@ import {
   TabsContent,
   TabsList,
   TabsTrigger,
+  NotFoundState,
 } from "@runly/ui";
-import { ArrowLeft } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
@@ -133,13 +132,7 @@ export default function ContactDetailScreen() {
     return (
       <div className="min-h-dvh space-y-6 p-4 md:p-6">
         {header}
-        <ErrorState
-          title="Contacto no encontrado"
-          description="Es posible que se haya eliminado o pertenezca a otra empresa."
-        />
-        <Button variant="outline" onClick={() => navigate(LIST_PATH)}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Volver a contactos
-        </Button>
+        <NotFoundState title="Este contacto no existe" description="Puede que se haya eliminado o que pertenezca a otra empresa." back={{ label: "Ver contactos", onClick: () => navigate(LIST_PATH) }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
       </div>
     );
   }

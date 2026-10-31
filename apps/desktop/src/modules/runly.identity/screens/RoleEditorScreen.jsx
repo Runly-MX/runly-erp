@@ -15,6 +15,7 @@ import {
   SheetHeader,
   SheetTitle,
   TextField,
+  NotFoundState,
 } from "@runly/ui";
 import { ArrowLeft, Pencil, Power, PowerOff, Trash2 } from "lucide-react";
 import { toast } from "sonner";
@@ -121,9 +122,7 @@ export default function RoleEditorScreen() {
   }
   if (!role) {
     return (
-      <div className="p-4 md:p-6">
-        <ErrorState title="Rol no encontrado" />
-      </div>
+      <NotFoundState title="Este rol no existe" description="Puede que se haya eliminado." back={{ label: "Ver roles", onClick: () => navigate("/app/m/runly.identity/identity/roles") }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
     );
   }
 

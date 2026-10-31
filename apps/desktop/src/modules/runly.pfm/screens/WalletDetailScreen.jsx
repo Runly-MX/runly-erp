@@ -12,6 +12,7 @@ import {
   SearchInput,
   resolveLucideIcon,
   ConfirmDialog,
+  NotFoundState,
 } from "@runly/ui";
 import { Plus, SlidersHorizontal, Wallet } from "lucide-react";
 import {
@@ -89,13 +90,14 @@ export default function WalletDetailScreen() {
       </div>
     );
   }
-  if (isError || !wallet) {
+  if (isError) {
     return (
       <div className="p-6">
-        <ErrorState title="Cartera no encontrada" onRetry={refetch} />
+        <ErrorState title="No se pudo cargar la cartera" onRetry={refetch} />
       </div>
     );
   }
+  if (!wallet) return <NotFoundState title="Esta cartera no existe" description="Puede que se haya eliminado." back={{ label: "Ver carteras", onClick: () => navigate("/app/m/runly.pfm/wallets") }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />;
 
   const monthOptions = [0, -1, -2, -3, -4, -5].map((d) => {
     const key = shiftMonth(currentMonthKey(), d);

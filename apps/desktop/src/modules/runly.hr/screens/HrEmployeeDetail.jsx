@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { RunlyDetail, ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton } from '@runly/ui'
+import { RunlyDetail, ConfirmDialog, RecordHeader, DetailSkeleton, NotFoundState } from '@runly/ui'
 import { ArrowLeft, ShieldBan } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -72,9 +72,7 @@ export default function HrEmployeeDetail({ employeeId }) {
 
   if (!employee) {
     return (
-      <div className="p-4 md:p-6">
-        <ErrorState title="Colaborador no encontrado" />
-      </div>
+      <NotFoundState title="Este colaborador no existe" description="Puede que se haya eliminado o que pertenezca a otra empresa." back={{ label: "Ver colaboradores", onClick: () => navigate("/app/m/runly.hr/hr/employees") }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
     )
   }
 

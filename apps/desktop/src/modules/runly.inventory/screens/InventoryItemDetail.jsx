@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ErrorState, ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent, isNewTabClick, openInNewTab } from '@runly/ui'
+import { ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent, isNewTabClick, openInNewTab, NotFoundState } from '@runly/ui'
 import { InventoryItemPresentation } from '@runly/ui/integrations'
 import { ArrowLeft, FolderInput, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
@@ -58,9 +58,7 @@ export default function InventoryItemDetail() {
 
   if (!item) {
     return (
-      <div className="p-4 md:p-6">
-        <ErrorState title="Item no encontrado" />
-      </div>
+      <NotFoundState title="Este activo no existe" description="Puede que se haya eliminado o que pertenezca a otra empresa." back={{ label: "Ver inventario", onClick: () => navigate('/app/m/runly.inventory/inventory') }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
     )
   }
 
