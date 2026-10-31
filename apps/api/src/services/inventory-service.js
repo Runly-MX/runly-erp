@@ -387,11 +387,11 @@ export function createInventoryService({ prisma, activityBridge }) {
 
   // afterWrite(tx, item): extra writes that must commit together with the item
   // (connection sections from the item form, spec 2026-10-03-rme3-module-platform-v2 D3).
-  async function writeWith(afterWrite, op) {
-    if (!afterWrite) return op(prisma);
+  async function writeWith(afterWrite, op, forceTransaction = false) {
+    if (!afterWrite && !forceTransaction) return op(prisma);
     return prisma.$transaction(async (tx) => {
       const result = await op(tx);
-      await afterWrite(tx, result);
+      if (afterWrite) await afterWrite(tx, result);
       return result;
     }, { timeout: 30_000 });
   }
@@ -562,6 +562,22 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (existing.adminStatus === 'deregistered') {
       throw new InventoryServiceError('El activo está dado de baja; revierte la baja para editarlo.', 409);
     }
+    const expectedAt = data.expectedUpdatedAt == null ? null : new Date(data.expectedUpdatedAt);
+    if (expectedAt && Number.isNaN(expectedAt.getTime())) throw new InventoryServiceError('La versión del activo no es válida.', 400);
+    const stale = () => new InventoryServiceError('El activo cambió en otra sesión. Recarga sus datos antes de guardar.', 409, 'STALE_ITEM');
+    if (expectedAt && expectedAt.getTime() !== new Date(existing.updatedAt).getTime()) throw stale();
+    // Optional precondition for callers editing a snapshot. Keep old clients
+    // compatible; guarded writes and their readback share one transaction.
+    async function updateRecord(db, args) {
+      if (!expectedAt) return db.invItem.update(args);
+      const { count } = await db.invItem.updateMany({
+        where: { id, companyId, enabled: true, assetTag: existing.assetTag,
+          updatedAt: { gte: expectedAt, lt: new Date(expectedAt.getTime() + 1) } },
+        data: args.data,
+      });
+      if (count !== 1) throw stale();
+      return db.invItem.findFirst({ where: { id, companyId }, include: args.include });
+    }
     await assertRefInCompany('invCategory', data.categoryId, companyId, 'El tipo');
     await assertRefInCompany('invBrand', data.brandId, companyId, 'La marca');
     await assertRefInCompany('invLocation', data.locationId, companyId, 'La ubicacion');
@@ -660,7 +676,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     const hasCustomValues = Array.isArray(customValues) && customValues.length > 0;
     if (hasCustomValues || removedIds.length > 0) {
       const result = await prisma.$transaction(async (tx) => {
-        await tx.invItem.update({ where: { id }, data: updateData });
+        await updateRecord(tx, { where: { id }, data: updateData });
         if (removedIds.length > 0) {
           await tx.invCustomFieldValue.deleteMany({ where: { itemId: id, fieldId: { in: removedIds } } });
         }
@@ -703,7 +719,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       return economicProjection.one(companyId, result);
     }
 
-    const updated = await writeWith(afterWrite, (db) => db.invItem.update({
+    const updated = await writeWith(afterWrite, (db) => updateRecord(db, {
       where: { id },
       data: updateData,
       include: {
@@ -714,7 +730,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         area: { select: { id: true, name: true } },
         customValues: { include: { field: { select: { id: true, label: true } } } },
       },
-    }));
+    }), Boolean(expectedAt));
     await bridge.logAndPublish({
       auditEntry: {
         actorId: actorProfileId ?? null,

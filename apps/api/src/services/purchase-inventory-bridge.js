@@ -130,6 +130,7 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
     if (key != null && (typeof key !== 'string' || key.length < 8 || key.length > 128)) throw new PurchasesServiceError('La clave de reintento no es válida.')
     const fingerprint = createHash('sha256').update(JSON.stringify({ lineId, items: items.map(entry => ({
       name: cleanText(entry.name, 255), serialNumber: cleanText(entry.serialNumber, 255),
+      ...(cleanText(entry.assetTag, 100) ? { assetTag: cleanText(entry.assetTag, 100) } : {}),
       categoryId: entry.categoryId || null, locationId: entry.locationId || null, modelId: entry.modelId || null,
     })) })).digest('hex')
     const afterCommit = []
@@ -181,6 +182,7 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
         const item = await inventoryService.createItemInTransaction(tx, {
           name: cleanText(entry.name, 255) || line.description.slice(0, 255),
           serialNumber: cleanText(entry.serialNumber, 255) ?? undefined,
+          assetTag: entry.assetTag ?? undefined,
           categoryId: entry.categoryId || line.inventoryCategoryId || undefined,
           locationId: entry.locationId || undefined,
           modelId: entry.modelId || undefined,

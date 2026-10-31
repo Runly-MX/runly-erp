@@ -2,11 +2,12 @@ import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Boxes, PackagePlus, Unlink } from 'lucide-react'
 import { Button, DataTable, EmptyState } from '@runly/ui'
-import { useRelationMutations } from '../../hooks/usePurchases.js'
+import { usePurchasesCan, useRelationMutations } from '../../hooks/usePurchases.js'
 import { INVENTORY_BASE, ORIGIN_LABELS, toAppPath } from '../../lib/purchases-constants.js'
 import { InventoryItemPicker } from '../editor/InventoryItemPicker.jsx'
 import { AssignInvoiceDialog } from './AssignInvoiceDialog.jsx'
 import { UnlinkRelationDialog } from './UnlinkRelationDialog.jsx'
+import { InventoryAssetTagEditor } from './InventoryAssetTagEditor.jsx'
 
 const ITEM_STATUS = { available: 'Disponible', assigned: 'Asignado', maintenance: 'En mantenimiento' }
 const dash = <span className="text-[hsl(var(--muted-foreground))]">Sin dato</span>
@@ -18,6 +19,8 @@ export const isInventoryRelation = (r) => r?.other?.type === 'inventory_item' ||
 // Inventario or unlink. Items open in the inventory detail.
 export function InventoryRelationsPanel({ entityType, doc, canManage }) {
   const { bulk } = useRelationMutations()
+  const can = usePurchasesCan()
+  const canEditTag = can('inventory.item.read') && can('inventory.item.update')
   const [pickerOpen, setPickerOpen] = useState(false)
   const [unlink, setUnlink] = useState(null)
   const [assign, setAssign] = useState([])
@@ -30,11 +33,12 @@ export function InventoryRelationsPanel({ entityType, doc, canManage }) {
       id: 'asset', header: 'Activo',
       cell: ({ row: { original: r } }) => (
         <Link to={toAppPath(r.other.path, 'runly.inventory') ?? `${INVENTORY_BASE}/${r.other.id}`} className="group block max-w-[20rem]">
-          <span className="block truncate font-semibold tabular-nums group-hover:underline">{r.other.assetTag || r.other.label || 'Activo'}</span>
-          <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{r.other.assetTag ? r.other.label : r.other.categoryName}</span>
+          <span className="block truncate font-semibold group-hover:underline">{r.other.label || 'Activo'}</span>
+          <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">Folio Runly: {r.other.folio || 'Sin folio'}</span>
         </Link>
       ),
     },
+    { id: 'assetTag', header: 'Número de activo', cell: ({ row: { original: r } }) => r.other.assetTag || 'Sin número de activo' },
     { id: 'serial', header: 'Número de serie', cell: ({ row: { original: r } }) => (r.other.serialNumber ? <span className="tabular-nums">{r.other.serialNumber}</span> : dash) },
     { id: 'type', header: 'Tipo', cell: ({ row: { original: r } }) => r.other.categoryName ?? dash },
     { id: 'status', header: 'Estado', cell: ({ row: { original: r } }) => ITEM_STATUS[r.other.status] ?? r.other.status ?? dash },
@@ -42,15 +46,16 @@ export function InventoryRelationsPanel({ entityType, doc, canManage }) {
       id: 'origin', header: 'Origen',
       cell: ({ row: { original: r } }) => <span className={`rounded-full px-2 py-0.5 text-[11px] font-medium ${ORIGIN_TONE[r.origin] ?? ORIGIN_TONE.MANUAL}`}>{ORIGIN_LABELS[r.origin] ?? r.origin}</span>,
     },
-    ...(canManage ? [{
+    ...((canManage || canEditTag) ? [{
       id: 'actions', header: () => <span className="sr-only">Acciones</span>,
       cell: ({ row: { original: r } }) => (
         <div className="text-right">
-          <Button variant="ghost" size="icon-sm" aria-label={`Quitar relación con ${r.other.label}`} title="Quitar relación" onClick={() => setUnlink(r)}><Unlink className="h-4 w-4" /></Button>
+          {canEditTag ? <InventoryAssetTagEditor item={r.other} /> : null}
+          {canManage ? <Button variant="ghost" size="icon-sm" aria-label={`Quitar relación con ${r.other.label}`} title="Quitar relación" onClick={() => setUnlink(r)}><Unlink className="h-4 w-4" /></Button> : null}
         </div>
       ),
     }] : []),
-  ], [canManage])
+  ], [canManage, canEditTag])
 
   const addItems = (items) => {
     const known = new Set(relations.map((r) => r.other.id))

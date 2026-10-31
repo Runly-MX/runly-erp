@@ -24,7 +24,7 @@ import { listInventoryMedia } from '../../services/inventory-media.js';
 import { createInventorySearch } from '../../services/inventory-search-service.js';
 import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, loadPurchaseNumbersForItems, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
-import { createInventoryScope } from '../../services/inventory-scope.js';
+import { createInventoryScope, canWriteArea } from '../../services/inventory-scope.js';
 import { createScopeGuards } from './scope-guard.js';
 import { createInventoryAreaRouter } from './area-routes.js';
 import { createInventoryAreaService } from '../../services/inventory-area-service.js';
@@ -181,7 +181,8 @@ export function createInventoryRouter({
     try {
       const companyId = c.get("companyId");
       const { id } = c.req.param();
-      const item = await inventoryService.getItem(id, companyId, await scopeOf(c));
+      const scope = await scopeOf(c);
+      const item = await inventoryService.getItem(id, companyId, scope);
       await attachUserAvatarUrls([item.assignedTo], { prisma, supabaseAdmin });
       // Purchase order / invoice shown as fields; only for users who can read Compras.
       const canReadPurchases = hasPerm(c, "purchases.relation.read");
@@ -189,7 +190,7 @@ export function createInventoryRouter({
       // Inherited purchase data shows in the Compras section (tier 3) for users
       // who see it; the standalone inventory section is for everyone else.
       const showLegacyPurchaseSection = Boolean(item.hasLegacyPurchaseData && !canReadPurchases);
-      return c.json({ data: { ...item, ...links, canReadPurchases, showLegacyPurchaseSection, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
+      return c.json({ data: { ...item, ...links, canUpdate: hasPerm(c, "inventory.item.update") && canWriteArea(scope, item.areaId) && item.adminStatus !== 'deregistered', canReadPurchases, showLegacyPurchaseSection, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el item." }, 500);

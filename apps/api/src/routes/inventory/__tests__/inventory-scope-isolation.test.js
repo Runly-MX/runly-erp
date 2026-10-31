@@ -106,7 +106,8 @@ function build({ featureOn = true, includeOwn = true } = {}) {
     c.set('userId', user.id);
     c.set('authUserId', `auth-${user.id}`);
     c.set('userContext', { profile: { id: user.id }, isAdmin: Boolean(user.isAdmin), permissionSet: new Set(user.perms) });
-    return next();
+    // Production permission middleware awaits next without returning its value.
+    await next();
   };
   const router = createInventoryRouter({
     prisma, requirePermission, inventoryService, InventoryServiceError,
@@ -124,6 +125,13 @@ const ids = async (response) => (await response.json()).data.map((row) => row.id
 describe('limited user (viewer of area A) cannot reach items outside the scope', () => {
   let t;
   beforeEach(() => { t = build(); });
+
+  it('finalizes scope denials even when permission middleware discards the callback response', async () => {
+    const response = await t.request('viewer', 'PUT', `/inventory/items/${IA}`, { assetTag: 'DENIED' });
+    assert.equal(response.status, 404);
+    assert.deepEqual(await response.json(), { error: 'Item no encontrado.' });
+    assert.deepEqual(t.calls, []);
+  });
 
   it('lists only the items of the area', async () => {
     const res = await t.request('viewer', 'GET', '/inventory/items');

@@ -18,7 +18,7 @@ const schema = z.object({
   count: z.coerce.number().int().min(1, 'Al menos 1').max(MAX_UNITS, `Máximo ${MAX_UNITS} por vez`),
   categoryId: z.string().nullable().optional(),
   locationId: z.string().nullable().optional(),
-  units: z.array(z.object({ name: z.string().trim().min(1, 'Nombre requerido').max(255), serialNumber: z.string().max(120).optional() })),
+  units: z.array(z.object({ name: z.string().trim().min(1, 'Nombre requerido').max(255), serialNumber: z.string().max(120).optional(), assetTag: z.string().max(100).optional() })),
 })
 
 function useCatalog(key, fn) {
@@ -54,7 +54,7 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
     if (!open || !line) return
     reset({
       count: initialCount, categoryId: line.inventoryCategoryId ?? null, locationId: null,
-      units: Array.from({ length: initialCount }, () => ({ name: line.description, serialNumber: '' })),
+      units: Array.from({ length: initialCount }, () => ({ name: line.description, serialNumber: '', assetTag: '' })),
     })
   }, [open, line, initialCount, reset])
 
@@ -62,12 +62,12 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
     const n = Math.min(MAX_UNITS, Math.max(0, Math.floor(toNumber(count))))
     if (!open || n === fields.length || !line) return
     const current = form.getValues('units')
-    replace(Array.from({ length: n }, (_, i) => current[i] ?? { name: line.description, serialNumber: '' }))
+    replace(Array.from({ length: n }, (_, i) => current[i] ?? { name: line.description, serialNumber: '', assetTag: '' }))
   }, [count]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const submit = handleSubmit(async (values) => {
     try {
-      const items = values.units.map((u) => ({ name: u.name.trim(), serialNumber: u.serialNumber?.trim() || null, categoryId: values.categoryId || null, locationId: values.locationId || null }))
+      const items = values.units.map((u) => ({ name: u.name.trim(), serialNumber: u.serialNumber?.trim() || null, assetTag: u.assetTag?.trim() || null, categoryId: values.categoryId || null, locationId: values.locationId || null }))
       const payload = JSON.stringify({ lineId: line.id, items })
       if (operation.current?.payload !== payload) {
         operation.current = { payload, key: Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('') }
@@ -106,13 +106,16 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
           </div>
           <ol className="space-y-2">
             {fields.map((f, index) => (
-              <li key={f.id} className="grid gap-3 rounded-xl bg-[hsl(var(--muted))]/35 p-3 sm:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,14rem)] sm:items-end">
+              <li key={f.id} className="grid gap-3 rounded-xl bg-[hsl(var(--muted))]/35 p-3 sm:grid-cols-[1.5rem_minmax(0,1fr)_minmax(0,1fr)_minmax(0,1fr)] sm:items-end">
                 <span className="hidden pb-2.5 text-xs tabular-nums text-[hsl(var(--muted-foreground))] sm:block">{index + 1}</span>
                 <Controller control={control} name={`units.${index}.name`} render={({ field }) => (
                   <TextField label="Nombre" error={errors.units?.[index]?.name?.message} {...field} value={field.value ?? ''} />
                 )} />
                 <Controller control={control} name={`units.${index}.serialNumber`} render={({ field }) => (
                   <TextField label="Número de serie" placeholder="Opcional" {...field} value={field.value ?? ''} />
+                )} />
+                <Controller control={control} name={`units.${index}.assetTag`} render={({ field }) => (
+                  <TextField label="Número de activo" placeholder="Opcional" maxLength={100} error={errors.units?.[index]?.assetTag?.message} {...field} value={field.value ?? ''} />
                 )} />
               </li>
             ))}

@@ -105,7 +105,7 @@ describe('purchase/inventory atomic identity on disposable PostgreSQL', { skip: 
   it('01 one order creates two individually identifiable physical goods', async () => {
     const { doc, line } = await order()
     firstOrder = doc; firstLine = line
-    const res = await create(line, [{ name: 'Rack', modelId: model.id, categoryId: type.id }, { name: 'Rack', modelId: model.id, categoryId: type.id }], 'first-pair')
+    const res = await create(line, [{ name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'PVR-TI-001' }, { name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'PVR-TI-002' }], 'first-pair')
     assert.equal(res.status, 201, JSON.stringify(res.body))
     firstItems = res.body.data
     assert.equal(new Set(firstItems.map(i => i.id)).size, 2)
@@ -121,7 +121,7 @@ describe('purchase/inventory atomic identity on disposable PostgreSQL', { skip: 
     assert.equal(new Set(rows.map(i => i.folio)).size, 2)
     for (const row of rows) {
       assert.match(row.folio, /^GAB-RACK-\d+$/)
-      assert.notEqual(row.id, row.folio); assert.equal(row.assetTag, null)
+      assert.notEqual(row.id, row.folio); assert.match(row.assetTag, /^PVR-TI-00[12]$/)
       assert.equal(row.modelId, model.id); assert.equal(row.assignedToId, null)
     }
   })
@@ -129,6 +129,11 @@ describe('purchase/inventory atomic identity on disposable PostgreSQL', { skip: 
     const rows = await inventoryRows()
     assert.equal(rows.length, 2)
     for (const row of rows) assert.equal(row.serialNumber, null)
+    const { line } = await order(1)
+    const response = await create(line, [{ name: 'Mueble sin identificadores externos' }], 'no-identifiers')
+    assert.equal(response.status, 201)
+    const blank = await prisma.invItem.findUnique({ where: { id: response.body.data[0].id } })
+    assert.equal(blank.assetTag, null); assert.equal(blank.serialNumber, null)
   })
   it('04 reuses an existing good, preserving one live order and invoice per item', async () => {
     const inv = createInventoryService({ prisma })
@@ -166,9 +171,10 @@ describe('purchase/inventory atomic identity on disposable PostgreSQL', { skip: 
   })
   it('06 replay after success or failure does not duplicate items or relations; changed payload is rejected', async () => {
     const before = await snapshot()
-    const replay = await create(firstLine, [{ name: 'Rack', modelId: model.id, categoryId: type.id }, { name: 'Rack', modelId: model.id, categoryId: type.id }], 'first-pair')
+    const replay = await create(firstLine, [{ name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'PVR-TI-001' }, { name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'PVR-TI-002' }], 'first-pair')
     assert.equal(replay.status, 201); assert.deepEqual(replay.body.data, firstItems)
     assert.deepEqual(await snapshot(), before)
+    assert.equal((await create(firstLine, [{ name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'CAMBIO-001' }, { name: 'Rack', modelId: model.id, categoryId: type.id, assetTag: 'PVR-TI-002' }], 'first-pair')).body.code, 'IDEMPOTENCY_KEY_REUSED')
     const { line } = await order(4)
     assert.equal((await create(line, [{ name: 'Uno' }], 'retry-failed', { db: failing('purchaseAllocation', 'createMany') })).status, 500)
     const success = await create(line, [{ name: 'Uno' }], 'retry-failed')
@@ -268,5 +274,28 @@ describe('purchase/inventory atomic identity on disposable PostgreSQL', { skip: 
     const after = await snapshot()
     assert.equal((await create(line, [{ name: 'Dos', serialNumber: 'SERIE-UNICA' }], 'serial-duplicate')).status, 409)
     assert.deepEqual(await snapshot(), after)
+  })
+  it('asset number conflict in the second unit rolls back the whole batch and identifies the field', async () => {
+    const { line } = await order(2)
+    const before = await snapshot()
+    const res = await create(line, [{ name: 'Uno', assetTag: 'TAG-ROLLBACK' }, { name: 'Dos', assetTag: 'rack-01' }], 'tag-duplicate-batch')
+    assert.equal(res.status, 409); assert.equal(res.body.code, 'ASSET_TAG_EXISTS'); assert.equal(res.body.field, 'assetTag')
+    assert.deepEqual(await snapshot(), before)
+  })
+  it('optional inventory precondition prevents stale and concurrent tag overwrites on the same InvItem', async () => {
+    const inv = createInventoryService({ prisma })
+    const item = await inv.getItem(firstItems[0].id, A)
+    const base = await prisma.purchaseAllocation.findMany({ orderBy: { id: 'asc' } })
+    const operations = await Promise.allSettled(['TAG-SESSION-A', 'TAG-SESSION-B'].map(assetTag => inv.updateItem(item.id, { assetTag, expectedUpdatedAt: item.updatedAt }, A, { actorAuthId: authUserId })))
+    assert.equal(operations.filter(r => r.status === 'fulfilled').length, 1)
+    assert.equal(operations.find(r => r.status === 'rejected').reason.code, 'STALE_ITEM')
+    const current = await inv.getItem(item.id, A)
+    await assert.rejects(inv.updateItem(item.id, { assetTag: 'STALE-TAG', expectedUpdatedAt: item.updatedAt }, A), error => error.code === 'STALE_ITEM')
+    assert.equal(current.folio, item.folio); assert.equal(current.serialNumber, item.serialNumber)
+    const detail = (await call('GET', `/purchases/orders/${firstOrder.id}`)).body.data
+    const other = detail.relations.find(r => r.other.id === item.id).other
+    assert.equal(other.assetTag, current.assetTag); assert.equal(other.folio, current.folio)
+    assert.deepEqual(await prisma.purchaseAllocation.findMany({ orderBy: { id: 'asc' } }), base)
+    assert.equal(await prisma.auditLog.count({ where: { entityId: item.id, action: 'inventory.item.updated' } }) > 0, true)
   })
 })

@@ -44,7 +44,8 @@ export function createHandler(tag = '[purchases]') {
         return c.json(payload, error.status)
       }
       if (error?.name === 'InventoryServiceError' && error.status) {
-        return c.json({ error: error.message, code: error.status === 404 ? 'NOT_FOUND' : 'VALIDATION' }, error.status)
+        const field = error.code === 'ASSET_TAG_EXISTS' ? 'assetTag' : error.code === 'SERIAL_EXISTS' ? 'serialNumber' : undefined
+        return c.json({ error: error.message, code: error.code ?? (error.status === 404 ? 'NOT_FOUND' : 'VALIDATION'), ...(field ? { field } : {}) }, error.status)
       }
       if (error?.code === 'P2002') {
         return c.json({ error: 'Ya existe un documento con ese número.', code: 'VALIDATION' }, 400)

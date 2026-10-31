@@ -36,7 +36,12 @@ export function createScopeGuards({ prisma, inventoryScope }) {
   // Drop-in for `requirePermission`: permission check first, then the item guard.
   const withScopeGuard = (requirePermission) => (...args) => {
     const permission = requirePermission(...args);
-    return (c, next) => permission(c, () => itemGuard(c, next));
+    return (c, next) => permission(c, async () => {
+      const response = await itemGuard(c, next);
+      // The permission middleware may await next() without returning its value.
+      // Finalize returned scope denials instead of losing them as an HTTP 500.
+      if (response instanceof Response) c.res = response;
+    });
   };
 
   // Item ids the caller may see (or write); the rest are filtered out.

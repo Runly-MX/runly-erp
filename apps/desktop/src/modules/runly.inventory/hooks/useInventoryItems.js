@@ -66,6 +66,8 @@ export function useUpdateInventoryItem() {
     ...loadingMutation('Guardando activo...'),
     onSuccess: (data, vars, ctx) => {
       toast.dismiss(ctx?.toastId)
+      if (vars?.id && data) qc.setQueryData(['inventory', 'items', vars.id], previous => ({ ...previous, ...data, data: { ...previous?.data, ...data.data } }))
+      if (vars && 'assetTag' in vars) qc.invalidateQueries({ queryKey: ['purchases'] })
       qc.invalidateQueries({ queryKey: ['inventory', 'items'] })
       if (vars?.id) {
         qc.invalidateQueries({ queryKey: ['inventory', 'items', vars.id] })
