@@ -104,7 +104,7 @@ export function createModuleServices({ prisma, filesService = null, broadcaster 
     // Handlers that enforce their own permission (a document kind) get the caller grants, never the user object.
     const { user, ...handlerCtx } = ctx
     const access = { isAdmin: Boolean(user?.isAdmin), permissionKeys: user?.permissionSet ? [...user.permissionSet] : [] }
-    const result = await service.handler({ ...handlerCtx, ...access, moduleKey }, parsed.value)
+    const result = await service.handler({ ...handlerCtx, ...access, moduleKey, idempotencyKey }, parsed.value)
     if (service.mutates) {
       await prisma.auditLog.create({
         data: {

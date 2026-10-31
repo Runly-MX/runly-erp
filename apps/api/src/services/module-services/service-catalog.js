@@ -9,6 +9,7 @@
 //
 // Deviation from the plan: inventory is asset-based (one row per asset, no
 // stock), so `items.adjustStock` is not offered.
+import { createHash } from 'node:crypto'
 import { SERVICE_CONTRACTS } from '@runly/module-engine/contracts'
 import { createInventoryService } from '../inventory-service.js'
 import { createContactsService } from '../contacts-service.js'
@@ -174,7 +175,11 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
       const { user } = member
       return { id: user.id, name: user.displayName || `${user.firstName} ${user.lastName}`.trim(), email: user.email }
     },
-    'runly.notifications:notifications.send': async ({ companyId, actorId, moduleKey }, args) => {
+    'runly.notifications:notifications.send': async ({ companyId, actorId, moduleKey, idempotencyKey }, args) => {
+      // The gateway already makes a repeated call (same idempotencyKey) a no-op, so the
+      // notification only collapses with the very same call or the very same message:
+      // two different notices to one person seconds apart (a loop, two automations) both arrive.
+      const dedupeKey = `module.${moduleKey}:${createHash('sha1').update(idempotencyKey ?? JSON.stringify([args.title, args.body ?? '', args.link ?? '', args.sourceEntityId ?? ''])).digest('hex')}`
       const result = await notifications.publish({
         companyId,
         actorId,
@@ -188,6 +193,7 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
           recipients: { userIds: args.userIds },
           sourceType: moduleKey,
           ...(args.sourceEntityId ? { sourceId: args.sourceEntityId } : {}),
+          dedupeKey,
         },
       })
       return { sent: result?.created ?? 0 }
