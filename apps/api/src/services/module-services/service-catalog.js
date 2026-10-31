@@ -23,6 +23,7 @@ import { createCommunicationHandlers } from './communication-services.js'
 import { createChatHandlers } from './chat-services.js'
 import { createWorkHandlers } from './work-services.js'
 import { createDocumentsHandlers } from './documents-services.js'
+import { createCallsHandlers } from './calls-services.js'
 
 export class ModuleServiceError extends Error {
   constructor(message, status = 400, code = 'module_service_error') {
@@ -205,6 +206,7 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
   Object.assign(handlers, createWorkHandlers({ prisma, ServiceError: ModuleServiceError, broadcaster }))
   Object.assign(handlers, createChatHandlers({ prisma, ServiceError: ModuleServiceError, broadcaster }))
   Object.assign(handlers, createCommunicationHandlers({ prisma, ServiceError: ModuleServiceError, filesService, searchHandlers: handlers }))
+  Object.assign(handlers, createCallsHandlers({ prisma, ServiceError: ModuleServiceError, filesService }))
 
   return Object.fromEntries(Object.entries(handlers).map(([key, handler]) => [key, { ...SERVICE_CONTRACTS[key], handler }]))
 }

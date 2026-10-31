@@ -147,5 +147,23 @@ export function createCallTranscriptDocumentService({ prisma, env = process.env,
     return null;
   }
 
-  return { listDocuments, startDocument, getAnalysisDigest, loadTranscript };
+  // Same document, but the caller waits for it (automations run in the background
+  // and need the result in their next block). A ready one is reused.
+  async function generateNow({ transcriptId, kind, profileId }) {
+    if (!KINDS.includes(kind)) throw new CallTranscriptDocumentError("Tipo de documento no válido.", 422);
+    if (!env.GROQ_API_KEY && !isLocalEnabled(env)) throw new CallTranscriptDocumentError("Análisis con IA no configurado (falta GROQ_API_KEY).", 503);
+    const transcript = await loadTranscript(transcriptId);
+    const existing = await prisma.callTranscriptDocument.findUnique({ where: { transcriptId_kind: { transcriptId, kind } } });
+    if (existing?.status === "READY" && existing.content) return toPublic(existing);
+    const data = { status: "PROCESSING", content: null, failureReason: null, model: null, progressDone: 0, progressTotal: 0, generatedByUserId: profileId, updatedAt: new Date() };
+    const row = existing
+      ? await prisma.callTranscriptDocument.update({ where: { id: existing.id }, data })
+      : await prisma.callTranscriptDocument.create({ data: { ...data, transcriptId, kind, companyId: transcript.companyId } });
+    await run({ docId: row.id, transcript, kind });
+    const done = await prisma.callTranscriptDocument.findUnique({ where: { id: row.id } });
+    if (done?.status !== "READY") throw new CallTranscriptDocumentError(done?.failureReason ?? "No se pudo generar el documento.", 502);
+    return toPublic(done);
+  }
+
+  return { listDocuments, startDocument, generateNow, getAnalysisDigest, loadTranscript };
 }

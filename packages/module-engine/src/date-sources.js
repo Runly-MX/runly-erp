@@ -29,7 +29,7 @@ export const DATE_SOURCES = Object.freeze({
     module: 'Proyectos', label: 'Vencimiento de una tarea de proyecto', date: 'el vencimiento de una tarea de proyecto', description: 'Tareas sin completar, según su fecha de vencimiento.',
     link: '/app/m/runly.projects?open=task:{{id}}&project={{projectId}}',
     fields: [ID('la tarea'), field('projectId', 'Proyecto', 'id', 'Proyecto de la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e34'), field('title', 'Título', 'text', 'Título de la tarea.', 'Revisar contrato'),
-      field('assigneeId', 'Responsable', 'id', 'Persona responsable, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'), field('priority', 'Prioridad', 'text', 'Prioridad de la tarea.', 'HIGH'),
+      field('assigneeId', 'Responsable', 'person', 'Persona responsable, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'), field('priority', 'Prioridad', 'text', 'Prioridad de la tarea.', 'HIGH'),
       DAY('dueDate', 'Vence', 'Fecha de vencimiento.')],
   },
   'fleet.insurance.expiry': {
@@ -44,7 +44,7 @@ export const DATE_SOURCES = Object.freeze({
     fields: [ID('el colaborador'), field('firstName', 'Nombre', 'text', 'Nombre(s).', 'Ana'), field('lastName', 'Apellidos', 'text', 'Apellidos.', 'Pérez'),
       field('jobTitle', 'Puesto', 'text', 'Puesto.', 'Analista de compras'), field('department', 'Departamento', 'text', 'Departamento.', 'Finanzas'),
       DAY('hireDate', 'Fecha de ingreso', 'Fecha en que ingresó.'), field('years', 'Años', 'number', 'Años que cumple en la empresa.', '3'),
-      field('userProfileId', 'Su usuario', 'id', 'Usuario de Runly del colaborador, si tiene (para avisarle).', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e41')],
+      field('userProfileId', 'Su usuario', 'person', 'Usuario de Runly del colaborador, si tiene (para avisarle).', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e41')],
   },
 })
 

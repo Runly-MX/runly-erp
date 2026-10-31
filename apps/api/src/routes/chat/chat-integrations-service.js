@@ -168,6 +168,27 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     return { ...posted, channel: target.title };
   }
 
+  // Automatic answer of an automation in a direct, group or external (website) conversation.
+  // The visitor of an external chat sees it at once, like an operator's message.
+  async function replyFromService({ companyId, conversationId, source, text }) {
+    const [target] = await prisma.$queryRaw`
+      SELECT id, type FROM chat_conversations
+      WHERE id = ${conversationId}::uuid AND company_id = ${companyId}::uuid AND deleted_at IS NULL
+        AND status NOT IN ('archived', 'closed') AND type IN ('direct', 'group', 'external_support')`;
+    if (!target) throw new ChatServiceError("La conversación no existe, está cerrada o no admite respuestas automáticas.", 404);
+    if (limited(`reply:${companyId}:${target.id}`)) throw new ChatServiceError("Demasiadas respuestas automáticas en esta conversación: espera un minuto.", 429);
+    const body = clip(text, 4000);
+    if (!body) throw new ChatServiceError("Escribe el texto de la respuesta.", 400);
+    const integration = { kind: source.kind, name: clip(source.name, MAX_NAME) || "Respuesta automática", icon: null };
+    const posted = await postMessage({ conversationId: target.id, body, integration });
+    if (target.type === "external_support") {
+      broadcaster?.broadcastToChannel?.(`chat:conv:${target.id}`, "new_operator_message", {
+        conversationId: target.id, messageId: posted.id, body, senderType: "system", senderName: integration.name, senderAvatarUrl: null, createdAt: new Date().toISOString(),
+      });
+    }
+    return posted;
+  }
+
   // An approval request as a card with Aprobar / Rechazar in a company channel.
   async function postApproval({ companyId, channel, approvalId, message }) {
     return postFromService({ companyId, channel, source: { kind: "automation", name: "Aprobaciones" }, input: { title: "Aprobación pendiente", text: message, approvalId } });
@@ -237,5 +258,5 @@ export function createChatIntegrationsService({ prisma, broadcaster = null, now 
     return { id: integrationId };
   }
 
-  return { postFromToken, postFromService, postApproval, resolveChannel, list, create, rotate, update, remove };
+  return { postFromToken, postFromService, replyFromService, postApproval, resolveChannel, list, create, rotate, update, remove };
 }

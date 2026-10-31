@@ -37,5 +37,15 @@ export function createChatHandlers({ prisma, ServiceError, broadcaster = null })
         throw error
       }
     },
+    // Automatic answer in a direct, group or external conversation (spec 2026-10-31-automations-calls-chat-autoreply §B).
+    'runly.chat:conversations.reply': async ({ companyId, moduleKey }, args) => {
+      try {
+        const name = args.label || (moduleKey === 'system.automations' ? 'Respuesta automática' : await sourceName(moduleKey))
+        return await chat.replyFromService({ companyId, conversationId: args.conversationId, source: { kind: 'automation', name }, text: args.text })
+      } catch (error) {
+        if (error instanceof ChatServiceError) throw new ServiceError(error.message, error.status, 'chat_reply_failed')
+        throw error
+      }
+    },
   }
 }

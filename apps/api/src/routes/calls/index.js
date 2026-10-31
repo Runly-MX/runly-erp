@@ -15,6 +15,7 @@ import { createCallRecordingService, CallRecordingError } from "./call-recording
 import { createCallTranscriptService, CallTranscriptError } from "./call-transcript-service.js";
 import { createCallTranscriptAnalysisService, CallTranscriptAnalysisError } from "./call-transcript-analysis-service.js";
 import { createCallTranscriptDocumentService, CallTranscriptDocumentError } from "./call-transcript-document-service.js";
+import { publishCallEvent } from "./call-automation-events.js";
 import { createTasksService } from "../projects/tasks-service.js";
 import { createCalendarEventService } from "../calendar/calendar-event-service.js";
 import { callTranscriptCommitProposalsSchema } from "@runly/validators";
@@ -84,6 +85,7 @@ export function createCallsRouter({
     onRecordingReady: async (rec) => {
       const msg = buildRecordingReadyMessage({ recordingId: rec.id, durationMs: rec.durationMs });
       await calls.postSystemMessage(rec.conversationId, msg);
+      await publishCallEvent(prisma, "calls.recording.ready", { id: rec.id, callId: rec.callId, durationMs: rec.durationMs });
     },
   });
   async function logAudit({ companyId, actorId, entityType, entityId, action, before = null, after = null }) {
@@ -94,6 +96,7 @@ export function createCallsRouter({
     onTranscriptReady: async (t) => {
       const msg = buildTranscriptReadyMessage({ transcriptId: t.id, durationMs: t.durationMs });
       await calls.postSystemMessage(t.conversationId, msg);
+      await publishCallEvent(prisma, "calls.transcript.ready", { id: t.id, callId: t.callId, durationMs: t.durationMs, language: t.language ?? t.requestedLanguage });
     },
   });
   const documentService = createCallTranscriptDocumentService({ prisma });

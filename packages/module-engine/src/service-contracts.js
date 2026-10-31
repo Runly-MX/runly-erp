@@ -105,6 +105,25 @@ export const SERVICE_CONTRACTS = Object.freeze({
   },
   // Name and email of a member of the company (to name an assignee, a requester...).
   'runly.identity:people.read': { label: 'Ver el nombre y correo de una persona', permission: null, mutates: false, system: true, args: { id: ID }, returns: ['id', 'name', 'email'] },
+  // Calls of the chat (spec 2026-10-31-automations-calls-chat-autoreply §A). From a
+  // request the caller must be a member of the call's conversation.
+  'runly.calls:transcripts.request': { label: 'Transcribir la grabación de una llamada', permission: null, mutates: true, system: true, args: { callId: ID }, returns: ['id', 'status', 'callId'] },
+  'runly.calls:participants.search': {
+    label: 'Ver los participantes de una llamada', permission: null, mutates: false, system: true,
+    args: { callId: ID, scope: { type: 'enum', values: ['all', 'internal', 'external'] }, limit: LIMIT },
+    returns: ['items', 'total'], itemReturns: ['id', 'name', 'email', 'internal', 'userId'],
+  },
+  'runly.calls:minutes.generate': {
+    label: 'Generar la minuta de una llamada', permission: null, mutates: true, system: true,
+    args: { transcriptId: ID, mode: { type: 'enum', values: ['auto', 'ai', 'plain'] }, sourceEntityId: SOURCE },
+    returns: ['id', 'name', 'text', 'mode'],
+  },
+  // Answer in a direct, group or external conversation as a labelled automatic message.
+  'runly.chat:conversations.reply': {
+    label: 'Contestar en una conversación', permission: null, mutates: true, system: true,
+    args: { conversationId: ID, text: req({ type: 'text', max: 4000 }), label: s(80) },
+    returns: ['id', 'conversationId'],
+  },
   'runly.notifications:notifications.send': {
     label: 'Enviar notificaciones', permission: null, mutates: true, system: true,
     args: { userIds: req({ type: 'uuid[]', max: 100 }), title: req(s(200)), body: { type: 'text', max: 1000 }, link: s(500), priority: { type: 'enum', values: ['low', 'medium', 'high', 'critical'] }, sourceEntityId: SOURCE },

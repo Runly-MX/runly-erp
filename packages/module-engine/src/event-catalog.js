@@ -81,7 +81,7 @@ const PROJECT_TASK_FIELDS = [
   field('projectId', 'Proyecto', 'id', 'Proyecto al que pertenece la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e34'),
   field('title', 'Título', 'text', 'Título de la tarea.', 'Revisar contrato'),
   field('statusId', 'Estado', 'id', 'Estado (columna) de la tarea.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3c'),
-  field('assigneeId', 'Responsable', 'id', 'Persona responsable, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'),
+  field('assigneeId', 'Responsable', 'person', 'Persona responsable, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'),
   field('priority', 'Prioridad', 'text', 'Prioridad de la tarea.', 'HIGH'),
   field('startDate', 'Inicio', 'date', 'Fecha de inicio, si tiene.', '2026-11-03'),
   field('dueDate', 'Vence', 'date', 'Fecha de vencimiento, si tiene.', '2026-11-10'),
@@ -110,6 +110,23 @@ const TRANSACTION_FIELDS = [
   field('retiro', 'Retiro', 'number', 'Monto retirado; vacío si fue un depósito.', '320.50'),
   field('fecha', 'Fecha', 'date', 'Fecha del movimiento.', '2026-11-03'),
   field('categoryId', 'Categoría', 'id', 'Categoría del movimiento, si tiene.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3e'),
+]
+
+// A video or voice call of the chat (recordings and transcripts). Spec
+// docs/superpowers/specs/2026-10-31-automations-calls-chat-autoreply-design.md §A.
+const CALL_FIELDS = (what) => [
+  ID(what),
+  field('callId', 'Llamada', 'id', 'Llamada a la que pertenece; úsala para ver sus participantes o transcribirla.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e50'),
+  field('conversationId', 'Conversación', 'id', 'Conversación del chat donde ocurrió la llamada.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e51'),
+  field('title', 'Título', 'text', 'Nombre de la conversación o de la reunión.', 'Revisión semanal'),
+  field('startedAt', 'Inicio', 'date', 'Cuándo empezó la llamada.', '2026-11-03T15:00:00Z'),
+  field('durationMs', 'Duración (ms)', 'number', 'Duración de la grabación o de la transcripción.', '1800000'),
+  field('participants', 'Participantes', 'number', 'Cuántas personas estuvieron (de la empresa y externas).', '4'),
+]
+// Local hour and weekday of the instance's time zone, for "out of office hours" conditions.
+const WHEN_FIELDS = [
+  field('localHour', 'Hora local', 'number', 'Hora del mensaje en la zona horaria de la instancia (0 a 23).', '21'),
+  field('localWeekday', 'Día de la semana', 'number', '0 = domingo, 1 = lunes ... 6 = sábado.', '6'),
 ]
 
 // key -> { module, label, description, link?, fields }. `link` is the screen of the
@@ -155,6 +172,27 @@ export const EVENT_CATALOG = Object.freeze({
   'ledger.transaction.created': { module: 'Libro de cuentas', label: 'Se registró un movimiento en el libro de cuentas', description: 'Cuando se captura un depósito o un retiro.', link: '/app/m/runly.ledger/accounts/{{accountId}}', fields: TRANSACTION_FIELDS },
   'ledger.transaction.updated': { module: 'Libro de cuentas', label: 'Se editó un movimiento del libro de cuentas', description: 'Cuando se cambia un depósito, retiro u otro dato de un movimiento.', link: '/app/m/runly.ledger/accounts/{{accountId}}', fields: TRANSACTION_FIELDS },
   'ledger.transaction.deleted': { module: 'Libro de cuentas', label: 'Se eliminó un movimiento del libro de cuentas', description: 'Cuando un movimiento se manda a la papelera del libro.', fields: TRANSACTION_FIELDS },
+  'calls.recording.ready': { module: 'Chat', label: 'Se terminó la grabación de una llamada', description: 'Cuando la grabación de una llamada o videollamada queda guardada. Úsalo para pedir su transcripción.', link: '/app/m/runly.chat/chat/inbox/{{conversationId}}', fields: CALL_FIELDS('la grabación') },
+  'calls.transcript.ready': { module: 'Chat', label: 'Quedó lista la transcripción de una llamada', description: 'Cuando termina de transcribirse una llamada. Úsalo para generar la minuta y enviarla a los participantes.', link: '/app/m/runly.chat/chat/inbox/{{conversationId}}', fields: [...CALL_FIELDS('la transcripción'), field('language', 'Idioma', 'text', 'Idioma detectado (es, en...).', 'es')] },
+  'chat.external.message.received': { module: 'Chat', label: 'Un visitante escribió en un chat externo', description: 'Cuando alguien escribe desde el chat del sitio web. Úsalo para contestar en automático (siempre, la primera vez o fuera de horario).', link: '/app/m/runly.chat/chat/external', fields: [
+    field('conversationId', 'Conversación', 'id', 'Conversación externa; úsala para contestar.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e52'),
+    field('messageId', 'Mensaje', 'id', 'Mensaje recibido.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e53'),
+    field('guestName', 'Nombre del visitante', 'text', 'Nombre que dio el visitante, si lo dio.', 'Laura'),
+    field('guestEmail', 'Correo del visitante', 'text', 'Correo que dio el visitante, si lo dio.', 'laura@ejemplo.com'),
+    field('text', 'Mensaje', 'text', 'Texto del mensaje (hasta 500 caracteres).', '¿Tienen envíos a Monterrey?'),
+    field('first', 'Primer mensaje', 'boolean', 'Sí cuando es el primer mensaje del visitante en esa conversación.', 'true'),
+    field('assignedUserId', 'Persona asignada', 'person', 'Quién atiende la conversación, si hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e3d'),
+    ...WHEN_FIELDS,
+  ] },
+  // No message text: direct conversations are private and run logs are read by automation admins.
+  'chat.direct.message.received': { module: 'Chat', label: 'Alguien le escribió a una persona por mensaje directo', description: 'Cuando una persona de la empresa escribe a otra en una conversación directa. Úsalo para respuestas automáticas, por ejemplo de vacaciones. No incluye el texto del mensaje.', link: '/app/m/runly.chat/chat/inbox/{{conversationId}}', fields: [
+    field('conversationId', 'Conversación', 'id', 'Conversación directa; úsala para contestar.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e54'),
+    field('messageId', 'Mensaje', 'id', 'Mensaje recibido.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e55'),
+    field('senderId', 'Quién escribió', 'person', 'Persona que envió el mensaje.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e56'),
+    field('senderName', 'Nombre de quien escribió', 'text', 'Nombre de quien envió el mensaje.', 'Ana Pérez'),
+    field('recipientId', 'A quién le escribieron', 'person', 'Persona que recibió el mensaje.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e57'),
+    ...WHEN_FIELDS,
+  ] },
   // Published by the run log when any automation finishes (chaining). Spec §2.
   'automations.run.finished': { module: 'Automatizaciones', label: 'Terminó de ejecutarse una automatización', description: 'Cuando otra automatización termina, con éxito o con error. Úsalo para encadenar: avisar si una falla o seguir con otro proceso.', fields: [
     field('automationKey', 'Automatización', 'text', 'Clave de la automatización que terminó.', 'avisar_compra'),
