@@ -49,10 +49,27 @@ export function StepResult({ step, entry }) {
           {entry.args && <div><p className="mb-1 text-xs font-semibold">Datos enviados</p><CodeSnippet value={json(entry.args)} label="Copiar los datos enviados" /></div>}
           {entry.request && <div><p className="mb-1 text-xs font-semibold">Llamada</p><CodeSnippet value={json(entry.request)} label="Copiar la llamada" /></div>}
           {entry.output && Object.keys(entry.output).length > 0 && <div><p className="mb-1 text-xs font-semibold">Resultado</p><CodeSnippet value={json(entry.output)} label="Copiar el resultado" /></div>}
+          {typeof entry.iterations === "number" && (
+            <div className="space-y-1">
+              <p className="text-xs">
+                Encontró {entry.found ?? entry.iterations}, cumplieron las condiciones {entry.iterations} y salieron bien {entry.done ?? 0}
+                {entry.iterations - (entry.done ?? 0) > 0 ? `; fallaron ${entry.iterations - (entry.done ?? 0)}` : ""}.
+              </p>
+              {entry.errors?.length > 0 && (
+                <ul className="space-y-1">
+                  {entry.errors.map((item) => (
+                    <li key={item.item} className="rounded-md bg-red-500/5 px-2 py-1 text-xs text-red-700 dark:text-red-300">
+                      <span className="font-mono">{String(item.item).slice(0, 8)}</span>: {item.error}
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
+          )}
           {entry.note && <p className="text-xs text-[hsl(var(--muted-foreground))]">{entry.note}</p>}
           {entry.runAt && <p className="text-xs text-[hsl(var(--muted-foreground))]">Continúa el {time(entry.runAt)}.</p>}
           {entry.path && <p className="text-xs text-[hsl(var(--muted-foreground))]">La condición {entry.path === "yes" ? "se cumplió: el flujo siguió por «Sí»" : "no se cumplió: el flujo siguió por «No»"}.</p>}
-          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && !entry.path && !entry.note && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? (entry.byCondition ? "No se ejecutó: el flujo siguió por el otro camino de la condición." : "No se ejecutó porque un paso anterior falló.") : "Sin más detalle."}</p>}
+          {!entry.error && !entry.args && !entry.request && !entry.output && !entry.runAt && !entry.path && !entry.note && typeof entry.iterations !== "number" && <p className="text-xs text-[hsl(var(--muted-foreground))]">{state === "skipped" ? (entry.byCondition ? "No se ejecutó: el flujo siguió por el otro camino de la condición." : "No se ejecutó porque un paso anterior falló.") : "Sin más detalle."}</p>}
         </div>
       </details>
     </li>
