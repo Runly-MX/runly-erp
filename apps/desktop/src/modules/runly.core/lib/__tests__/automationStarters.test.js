@@ -20,5 +20,5 @@ test("every ready example is a valid company automation once it has a name", () 
 });
 
 test("starters begin with a valid trigger of each kind", () => {
-  assert.deepEqual(STARTERS.map((starter) => starter.draft().trigger.type), ["event", "schedule", "webhook"]);
+  assert.deepEqual(STARTERS.map((starter) => starter.draft().trigger.type), ["event", "schedule", "webhook", "date"]);
 });

@@ -86,7 +86,7 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
     operation: "create",
     label: "Crear automatizacion",
     permission: "automations.manage",
-    description: "Crea una automatizacion de la empresa (queda EN PAUSA hasta que el usuario la active). Consulta antes automations_catalog. trigger: { type: 'event', event } | { type: 'schedule', every: 'hour'|'day'|'week'|'month', at: 'HH:MM', weekday?, day? } | { type: 'webhook', fields: [{key,label}] } | { type: 'date', source (de fechas del catalogo), offsetDays: -60..60 (-3 = 3 dias antes, 0 = el mismo dia), at: 'HH:MM', when? } (corre una vez por registro cuya fecha toca). steps: lista de bloques; cada uno es { service, args } donde args = { nombre: { from: 'value', value } | { from: 'template', template: 'Texto {{campo}}' } | { from: 'field', field } }, o { type: 'delay', amount, unit: 'minutes'|'hours'|'days' }, o { type: 'branch', when: { field, op, value }, yes: N, no: M } (los siguientes N bloques son el camino Si, los M siguientes el No, y debe haber un bloque despues), o { type: 'loop', service (de busquedas del catalogo), args, when? (sobre camposResultado), do: [1-3 bloques { service, args }] } (repite las acciones con cada resultado, hasta 50; dentro se usa {{elemento_<campo>}}; despues {{pasoN_count}}). Las consultas (consulta: true) leen un registro por id y sus campos quedan como {{pasoN_<campo>}}. Para avisar a la persona de un dato (por ejemplo assigneeId) usa userIds: { from: 'field', field: 'assigneeId' }. Para el enlace de una notificacion usa una ruta /app/... (template), nunca un id suelto. Si falla un servicio se reintenta sola; retry: false lo evita. Maximo 12 bloques. Los bloques posteriores pueden usar {{paso1_id}} etc.",
+    description: "Crea una automatizacion de la empresa (queda EN PAUSA hasta que el usuario la active). Consulta antes automations_catalog. trigger: { type: 'event', event } | { type: 'schedule', every: 'hour'|'day'|'week'|'month', at: 'HH:MM', weekday?, day? } | { type: 'webhook', fields: [{key,label}] } | { type: 'date', source (de fechas del catalogo), offsetDays: -60..60 (-3 = 3 dias antes, 0 = el mismo dia), at: 'HH:MM', when? } (corre una vez por registro cuya fecha toca). steps: lista de bloques; cada uno es { service, args } donde args = { nombre: { from: 'value', value } | { from: 'template', template: 'Texto {{campo}}' } | { from: 'field', field } }, o { type: 'delay', amount, unit: 'minutes'|'hours'|'days' }, o { type: 'branch', when: { field, op, value }, yes: N, no: M } (los siguientes N bloques son el camino Si, los M siguientes el No, y debe haber un bloque despues), o { type: 'loop', service (de busquedas del catalogo), args, when? (sobre camposResultado), do: [1-3 bloques { service, args }] } (repite las acciones con cada resultado, hasta 50; dentro se usa {{elemento_<campo>}}; despues {{pasoN_count}}). Las consultas (consulta: true) leen un registro por id y sus campos quedan como {{pasoN_<campo>}}. Para avisar a la persona de un dato (por ejemplo assigneeId) usa userIds: { from: 'field', field: 'assigneeId' }. Para el enlace de una notificacion usa una ruta /app/... (template), nunca un id suelto. Si falla un servicio se reintenta sola; retry: false lo evita. active: { from?, until? } (AAAA-MM-DD) limita los dias en que corre (vacaciones); once: { field, hours } evita repetir para el mismo valor de un campo (una respuesta por conversationId cada 24 h). Para minutas de llamadas: calls.transcript.ready -> runly.calls:minutes.generate (mode auto usa MirAI si esta, si no una minuta sin IA) -> loop runly.calls:participants.search -> email.send con to elemento_email, body paso1_text y fileId paso1_id. Para contestar chats: runly.chat:conversations.reply con conversationId. Maximo 12 bloques. Los bloques posteriores pueden usar {{paso1_id}} etc.",
     parameters: {
       type: "object",
       properties: {
@@ -94,6 +94,8 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
         trigger: { type: "object" },
         steps: { type: "array", items: { type: "object" } },
         retry: { type: "boolean", description: "false para no reintentar sola cuando falla un servicio." },
+        active: { type: "object", description: "{ from?, until? } en AAAA-MM-DD." },
+        once: { type: "object", description: "{ field, hours } para no repetir." },
       },
       required: ["label", "trigger", "steps"],
     },
@@ -104,7 +106,7 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
       const taken = new Set((await service.list(actx.companyId)).map((row) => row.key));
       let key = base;
       for (let n = 2; taken.has(key); n += 1) key = `${base}_${n}`;
-      const candidate = { key, label, enabled: false, trigger: args.trigger, steps: args.steps, ...(args.retry === false ? { retry: false } : {}) };
+      const candidate = { key, label, enabled: false, trigger: args.trigger, steps: args.steps, ...(args.retry === false ? { retry: false } : {}), ...(args.active ? { active: args.active } : {}), ...(args.once ? { once: args.once } : {}) };
       const problems = validateSystemAutomation(candidate);
       if (problems.length) return { error: `La automatizacion no es valida: ${problems.slice(0, 4).map((p) => `${p.path}: ${p.message}`).join(" | ")}` };
       return {

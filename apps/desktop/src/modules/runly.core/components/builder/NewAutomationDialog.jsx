@@ -2,10 +2,10 @@
 // open it in the editor. Nothing is saved until the person saves in the editor.
 import { useState } from "react";
 import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, TextField, WizardSteps } from "@runly/ui";
-import { ArrowLeft, ArrowRight, CalendarClock, Radio, Sparkles, Webhook } from "lucide-react";
+import { ArrowLeft, ArrowRight, CalendarClock, CalendarDays, Radio, Sparkles, Webhook } from "lucide-react";
 import { EXAMPLES, STARTERS, keyFromName } from "../../lib/automationStarters";
 
-const ICONS = { event: Radio, schedule: CalendarClock, webhook: Webhook };
+const ICONS = { event: Radio, schedule: CalendarClock, webhook: Webhook, date: CalendarDays };
 const STEPS = [{ key: "start", label: "Cómo empieza" }, { key: "name", label: "Nombre" }];
 
 function Choice({ icon: Icon, title, text, active, onClick }) {
