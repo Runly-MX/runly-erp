@@ -26,7 +26,7 @@ const ARG_HINTS = {
   attendeeIds: "Las personas invitadas al evento.",
   title: "El título corto que verá la persona.",
   body: "El texto del mensaje.",
-  link: "Ruta dentro de Runly a la que lleva, por ejemplo /app/home.",
+  link: "La pantalla que se abre al tocar el aviso.",
   priority: "Qué tan urgente se muestra el aviso.",
   startAt: "Fecha y hora de inicio, por ejemplo 2026-11-03T09:00.",
   endAt: "Fecha y hora de fin.",
@@ -166,11 +166,51 @@ function dataChoices({ spec, triggerType, fieldOptions }) {
 const choiceOf = (source) => (source?.from === "recordId" ? "@recordId" : source?.from === "actor" ? "@actor" : source?.field ?? "");
 const sourceOfChoice = (choice) => (choice === "@recordId" ? { from: "recordId" } : choice === "@actor" ? { from: "actor" } : { from: "field", field: choice });
 
+// Where a notification leads: a screen, never a loose value (a name or a bare id
+// is not a route). The record of the trigger is offered as its real screen
+// (`recordLink`, from the event catalog) and links returned by earlier blocks as-is.
+const isRoute = (text) => /^(\/|https?:\/\/)/i.test(text);
+function LinkControl({ label, source, recordLink, fieldOptions, readOnly, onSource }) {
+  const stepLinks = fieldOptions.filter((option) => /(^|_)link$/.test(option.value));
+  const mode = !source ? "none"
+    : recordLink && source.from === "template" && source.template === recordLink ? "record"
+    : source.from === "field" && stepLinks.some((option) => option.value === source.field) ? `field:${source.field}`
+    : source.from === "value" || source.from === "template" ? "custom"
+    : "invalid";
+  const options = [
+    { value: "none", label: "Sin enlace" },
+    ...(recordLink ? [{ value: "record", label: "Abrir el registro que activó la automatización" }] : []),
+    ...stepLinks.map((option) => ({ value: `field:${option.value}`, label: `Abrir lo que creó ${/^Del paso (\d+)/.exec(option.group ?? "") ? `el paso ${/^Del paso (\d+)/.exec(option.group)[1]}` : "un paso anterior"}` })),
+    { value: "custom", label: "Otra pantalla de Runly" },
+  ];
+  const choose = (next) => {
+    if (next === "none") onSource(null);
+    else if (next === "record") onSource({ from: "template", template: recordLink });
+    else if (next.startsWith("field:")) onSource({ from: "field", field: next.slice(6) });
+    else onSource({ from: "value", value: "/app/home" });
+  };
+  const text = source?.from === "template" ? source.template ?? "" : fromLiteral(source?.value);
+  return (
+    <div className="min-w-0 space-y-2">
+      <SelectField aria-label={label} options={options} value={mode === "invalid" ? "" : mode} disabled={readOnly} placeholder="Elige a dónde lleva" onValueChange={choose} />
+      {mode === "invalid" && <p className="text-xs text-amber-700 dark:text-amber-300">Este enlace usa un dato que no es una pantalla. Elige de nuevo a dónde lleva.</p>}
+      {mode === "custom" && (
+        <>
+          <TextField aria-label={`${label}: ruta`} value={text} disabled={readOnly} placeholder="/app/m/runly.inventory/inventory"
+            onChange={(e) => onSource(e.target.value.includes("{{") ? { from: "template", template: e.target.value } : { from: "value", value: e.target.value })} />
+          {text && !isRoute(text) && <p className="text-xs text-amber-700 dark:text-amber-300">Debe empezar con /app/ (una pantalla de Runly) o con https://.</p>}
+        </>
+      )}
+    </div>
+  );
+}
+
 // One control per argument, chosen by what it needs (a list of choices, people, text
 // that can mix in data, or a typed value). Taking its value from data is a small
 // secondary action, never a menu of "origins" the person has to understand first.
-function ArgControl({ name, spec, source, triggerType, fieldOptions, readOnly, onSource }) {
+function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions, readOnly, onSource }) {
   const label = argLabel(name);
+  if (name === "link") return <LinkControl label={label} source={source} recordLink={recordLink} fieldOptions={fieldOptions} readOnly={readOnly} onSource={onSource} />;
   const kind = kindOf(name, spec);
   const clear = () => onSource(null);
   if (kind === "choice") {
@@ -220,7 +260,7 @@ function ArgControl({ name, spec, source, triggerType, fieldOptions, readOnly, o
   );
 }
 
-export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions, readOnly, onChange }) {
+export function AutomationArgsEditor({ contract, args, triggerType, recordLink = null, fieldOptions, readOnly, onChange }) {
   if (!contract) return null;
   const names = Object.keys(contract.args).filter((name) => !AUTOMATIC_ARGS.includes(name));
   const setSource = (name, source) => {
@@ -242,7 +282,7 @@ export function AutomationArgsEditor({ contract, args, triggerType, fieldOptions
               </p>
               {ARG_HINTS[name] && <p className="text-xs text-[hsl(var(--muted-foreground))]">{ARG_HINTS[name]}</p>}
             </div>
-            <ArgControl name={name} spec={spec} source={args[name]} triggerType={triggerType} fieldOptions={fieldOptions} readOnly={readOnly} onSource={(source) => setSource(name, source)} />
+            <ArgControl name={name} spec={spec} source={args[name]} triggerType={triggerType} recordLink={recordLink} fieldOptions={fieldOptions} readOnly={readOnly} onSource={(source) => setSource(name, source)} />
           </div>
         );
       })}

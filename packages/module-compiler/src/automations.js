@@ -123,7 +123,7 @@ export const INTERNAL_EVENTS = Object.freeze(['automations.webhook.received'])
 
 export function automationEvents() {
   return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({
-    key, label, module: EVENT_CATALOG[key]?.module ?? '', description: EVENT_CATALOG[key]?.description ?? '',
+    key, label, module: EVENT_CATALOG[key]?.module ?? '', description: EVENT_CATALOG[key]?.description ?? '', link: EVENT_CATALOG[key]?.link ?? null,
     payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])], fields: (EVENT_CATALOG[key]?.fields ?? []).map((item) => ({ ...item })),
   }))
 }

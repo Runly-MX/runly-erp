@@ -359,28 +359,27 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const options = (slot) => slotOptions(steps, slot.index, slot.lane);
   const endOptions = options(endSlot);
   const currentNode = current ? nodes.find((node) => node.id === current.id) : null;
-  const inspector = current && currentNode ? (
-    <>
-      <InspectorHeader
-        icon={currentNode.Icon} tone={currentNode.tone} kindLabel={currentNode.kind}
-        node={current} stepCount={steps.length} readOnly={readOnly}
-        title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel, fieldLabel).title}
-        subtitle={current.kind === "step" ? `Bloque ${current.index + 1} de ${steps.length}` : null}
-        expanded={expanded} onToggleExpand={docked ? toggleExpanded : undefined}
-        canMove={(delta) => current.kind === "step" && moveStep(steps, current.index, current.index + delta) !== null}
-        onMove={(delta) => move(current.index, current.index + delta)}
-        onRemove={() => remove(current.index)}
-        onClose={() => setSelectedId(null)}
-      />
-      <div className="mt-5">
-        <InspectorBody
-          node={current} automation={automation} steps={steps} entities={entities} events={events} allowedTriggers={allowedTriggers}
-          fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch}
-          onStep={(index, next) => onPatch({ steps: steps.map((step, i) => (i === index ? next : step)) })}
-        />
-      </div>
-    </>
+  const inspectorHeader = current && currentNode ? (
+    <InspectorHeader
+      icon={currentNode.Icon} tone={currentNode.tone} kindLabel={currentNode.kind}
+      node={current} stepCount={steps.length} readOnly={readOnly}
+      title={current.kind === "trigger" ? currentNode.title : current.kind === "conditions" ? "Solo si..." : describeStep(steps[current.index], ownerLabel, fieldLabel).title}
+      subtitle={current.kind === "step" ? `Bloque ${current.index + 1} de ${steps.length}` : null}
+      expanded={expanded} onToggleExpand={docked ? toggleExpanded : undefined}
+      canMove={(delta) => current.kind === "step" && moveStep(steps, current.index, current.index + delta) !== null}
+      onMove={(delta) => move(current.index, current.index + delta)}
+      onRemove={() => remove(current.index)}
+      onClose={() => setSelectedId(null)}
+    />
   ) : null;
+  const inspectorBody = current && currentNode ? (
+    <InspectorBody
+      node={current} automation={automation} steps={steps} entities={entities} events={events} allowedTriggers={allowedTriggers}
+      fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch}
+      onStep={(index, next) => onPatch({ steps: steps.map((step, i) => (i === index ? next : step)) })}
+    />
+  ) : null;
+  const inspector = inspectorHeader ? <>{inspectorHeader}<div className="mt-5">{inspectorBody}</div></> : null;
 
   if (inspector) lastInspector.current = inspector;
   const markerPoint = reorder
@@ -509,12 +508,14 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
         </div>
       ) : (
         <Sheet open={Boolean(selected)} onOpenChange={(open) => { if (!open) setSelectedId(null); }}>
-          <SheetContent side="right" className="flex w-full flex-col gap-0 overflow-y-auto p-5 sm:max-w-lg">
-            <SheetHeader className="sr-only">
-              <SheetTitle>Editar bloque</SheetTitle>
-              <SheetDescription>Cambia la configuración del bloque seleccionado.</SheetDescription>
+          {/* Header (title, move, remove, close) stays put; only the block settings scroll. Tall and steady on phones. */}
+          <SheetContent side="right" className="flex w-full flex-col gap-0 px-0! pb-0! max-md:h-[85dvh] sm:max-w-lg [&>button.absolute]:hidden">
+            <SheetHeader className="shrink-0 gap-0 border-b border-[hsl(var(--border))] px-5 pb-3 max-md:px-4">
+              <SheetTitle className="sr-only">Editar bloque</SheetTitle>
+              <SheetDescription className="sr-only">Cambia la configuración del bloque seleccionado.</SheetDescription>
+              {inspectorHeader}
             </SheetHeader>
-            {inspector}
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-5 max-md:p-4">{inspectorBody}</div>
           </SheetContent>
         </Sheet>
       )}

@@ -1,11 +1,12 @@
 // Execution console of one automation: its latest runs and, for the selected one,
 // what reached it and what every block did (sent data, result, time, and the full
 // error when it failed). The selected run also paints a status badge on each block
-// of the canvas (onSelectRun). Refreshes every few seconds while open.
+// of the canvas (onSelectRun). Refreshes every few seconds while open. On phones it
+// opens as a tall bottom sheet: the list of runs, then one run's detail.
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, EmptyState } from "@runly/ui";
-import { Check, ChevronDown, ChevronUp, Minus, Terminal, X } from "lucide-react";
+import { Badge, EmptyState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Minus, Terminal, X } from "lucide-react";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
 import { describeStep, describeTrigger } from "../../lib/flowModel";
@@ -60,6 +61,8 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
   const token = session?.access_token;
   const [selectedId, setSelectedId] = useState(null);
   const [onlyErrors, setOnlyErrors] = useState(false);
+  const isMobile = useIsMobile();
+  const [showDetail, setShowDetail] = useState(false); // phones: the run detail replaces the list
   const query = useQuery({
     queryKey: ["automation-console", moduleKey, automation.key],
     queryFn: async () => (await runly.modules.automationRuns(moduleKey, { automation: automation.key, limit: 30 }, token))?.data ?? [],
@@ -73,70 +76,97 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
   useEffect(() => { onSelectRun?.(open ? selected : null); }, [open, selected?.id, selected?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const triggerText = describeTrigger(automation.trigger, {});
+  const errorsToggle = (
+    <button type="button" aria-pressed={onlyErrors} onClick={() => setOnlyErrors((value) => !value)}
+      className={`cursor-pointer rounded-md border px-2.5 py-1 text-xs [@media(pointer:coarse)]:min-h-10 ${onlyErrors ? "border-transparent bg-(--brand-primary)/15 font-medium" : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"}`}>
+      Solo con errores
+    </button>
+  );
+  const runList = runs.length === 0 ? (
+    <div className="p-3"><EmptyState icon={Terminal} title="Sin ejecuciones" description={onlyErrors ? "No hay ejecuciones con errores." : "Aquí verás cada vez que corre esta automatización."} /></div>
+  ) : (
+    <ul>
+      {runs.map((run) => (
+        <li key={run.id}>
+          <button type="button" onClick={() => { setSelectedId(run.id); setShowDetail(true); }} aria-current={!isMobile && selected?.id === run.id ? "true" : undefined}
+            className={`flex w-full cursor-pointer flex-col gap-1 px-3 py-2 text-left transition-colors [@media(pointer:coarse)]:min-h-12 ${!isMobile && selected?.id === run.id ? "bg-(--brand-primary)/15" : "hover:bg-[hsl(var(--muted))]/60"}`}>
+            <span className="flex items-center gap-2"><Badge variant={RUN_STATUS[run.status]?.variant ?? "outline"}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge><span className="text-xs text-[hsl(var(--muted-foreground))]">{TRIGGER_LABEL[run.triggerKind] ?? run.triggerKind}</span></span>
+            <span className="text-xs text-[hsl(var(--muted-foreground))]">{time(run.createdAt)} · {run.durationMs} ms</span>
+          </button>
+        </li>
+      ))}
+    </ul>
+  );
+  const runDetail = !selected ? (
+    <p className="text-sm text-[hsl(var(--muted-foreground))]">Elige una ejecución para ver el detalle de cada bloque.</p>
+  ) : (
+    <>
+      <div className="flex flex-wrap items-center gap-2">
+        <Badge variant={RUN_STATUS[selected.status]?.variant ?? "outline"}>{RUN_STATUS[selected.status]?.label ?? selected.status}</Badge>
+        <span className="text-sm font-medium">{TRIGGER_LABEL[selected.triggerKind] ?? selected.triggerKind}</span>
+        <span className="text-xs text-[hsl(var(--muted-foreground))]">{time(selected.createdAt)} · {selected.durationMs} ms</span>
+      </div>
+      {selected.error && <div className="rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-700 dark:text-red-300"><span className="font-semibold">Resumen del error: </span>{selected.error}</div>}
+      <details className="rounded-md border border-[hsl(var(--border))]">
+        <summary className="flex cursor-pointer list-none items-center justify-between p-2.5 text-sm font-medium [@media(pointer:coarse)]:min-h-11">
+          <span>{triggerText.title}: datos que llegaron</span><ChevronDown className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+        </summary>
+        <div className="border-t border-[hsl(var(--border))] p-2.5">
+          {selected.input ? <CodeSnippet value={json(selected.input)} label="Copiar los datos que llegaron" /> : <p className="text-xs text-[hsl(var(--muted-foreground))]">Esta ejecución no guardó los datos de entrada.</p>}
+        </div>
+      </details>
+      <ol className="space-y-2">
+        {(selected.steps ?? []).map((entry) => <StepResult key={entry.index} entry={entry} step={automation.steps?.[entry.index]} />)}
+        {(selected.steps ?? []).length === 0 && <li className="text-xs text-[hsl(var(--muted-foreground))]">Todavía no hay bloques ejecutados.</li>}
+      </ol>
+    </>
+  );
+  const detailOnPhone = isMobile && showDetail && Boolean(selected);
+
   return (
     <section aria-label="Consola de ejecución" className="overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
-      <button type="button" onClick={onToggle} aria-expanded={open} className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[hsl(var(--muted))]/50 [@media(pointer:coarse)]:min-h-11">
+      <button type="button" onClick={() => { setShowDetail(false); onToggle(); }} aria-expanded={open} className="flex w-full cursor-pointer items-center gap-2.5 px-3 py-2.5 text-left hover:bg-[hsl(var(--muted))]/50 [@media(pointer:coarse)]:min-h-11">
         <Terminal className="h-4 w-4 shrink-0" aria-hidden="true" />
         <span className="text-sm font-semibold">Consola</span>
         {latest && <Badge variant={RUN_STATUS[latest.status]?.variant ?? "outline"}>{RUN_STATUS[latest.status]?.label ?? latest.status}</Badge>}
         <span className="min-w-0 flex-1 truncate text-xs text-[hsl(var(--muted-foreground))]">{latest ? `Última ejecución ${time(latest.createdAt)}` : "Aún no se ha ejecutado"}</span>
-        {open ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronUp className="h-4 w-4" aria-hidden="true" />}
+        {open && !isMobile ? <ChevronDown className="h-4 w-4" aria-hidden="true" /> : <ChevronUp className="h-4 w-4" aria-hidden="true" />}
       </button>
-      <div className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!open}>
-       <div className="min-h-0 overflow-hidden">
-        <div className="grid h-[min(24rem,45dvh)] min-h-[12rem] grid-rows-[minmax(0,2fr)_minmax(0,3fr)] border-t border-[hsl(var(--border))] md:grid-cols-[18rem_minmax(0,1fr)] md:grid-rows-[minmax(0,1fr)]">
-          <div className="min-h-0 overflow-y-auto border-b border-[hsl(var(--border))] md:border-b-0 md:border-r">
-            <div className="flex items-center gap-2 p-2">
-              <button type="button" aria-pressed={onlyErrors} onClick={() => setOnlyErrors((value) => !value)}
-                className={`cursor-pointer rounded-md border px-2.5 py-1 text-xs [@media(pointer:coarse)]:min-h-10 ${onlyErrors ? "border-transparent bg-(--brand-primary)/15 font-medium" : "border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"}`}>
-                Solo con errores
-              </button>
-            </div>
-            {runs.length === 0 ? (
-              <div className="p-3"><EmptyState icon={Terminal} title="Sin ejecuciones" description={onlyErrors ? "No hay ejecuciones con errores." : "Aquí verás cada vez que corre esta automatización."} /></div>
-            ) : (
-              <ul>
-                {runs.map((run) => (
-                  <li key={run.id}>
-                    <button type="button" onClick={() => setSelectedId(run.id)} aria-current={selected?.id === run.id ? "true" : undefined}
-                      className={`flex w-full cursor-pointer flex-col gap-1 px-3 py-2 text-left transition-colors [@media(pointer:coarse)]:min-h-12 ${selected?.id === run.id ? "bg-(--brand-primary)/15" : "hover:bg-[hsl(var(--muted))]/60"}`}>
-                      <span className="flex items-center gap-2"><Badge variant={RUN_STATUS[run.status]?.variant ?? "outline"}>{RUN_STATUS[run.status]?.label ?? run.status}</Badge><span className="text-xs text-[hsl(var(--muted-foreground))]">{TRIGGER_LABEL[run.triggerKind] ?? run.triggerKind}</span></span>
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">{time(run.createdAt)} · {run.durationMs} ms</span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-          <div className="min-h-0 space-y-3 overflow-y-auto p-3">
-            {!selected ? (
-              <p className="text-sm text-[hsl(var(--muted-foreground))]">Elige una ejecución para ver el detalle de cada bloque.</p>
-            ) : (
-              <>
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={RUN_STATUS[selected.status]?.variant ?? "outline"}>{RUN_STATUS[selected.status]?.label ?? selected.status}</Badge>
-                  <span className="text-sm font-medium">{TRIGGER_LABEL[selected.triggerKind] ?? selected.triggerKind}</span>
-                  <span className="text-xs text-[hsl(var(--muted-foreground))]">{time(selected.createdAt)} · {selected.durationMs} ms</span>
+      {isMobile ? (
+        <Sheet open={open} onOpenChange={(next) => { if (!next) { setShowDetail(false); onToggle(); } }}>
+          <SheetContent side="bottom" className="h-[85dvh] gap-0 px-0! pb-0!">
+            <SheetHeader className="border-b border-[hsl(var(--border))] px-4 pb-3">
+              <div className="flex min-h-11 items-center gap-2">
+                {detailOnPhone && (
+                  <button type="button" onClick={() => setShowDetail(false)} aria-label="Volver a las ejecuciones" className="-ml-2 flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]">
+                    <ArrowLeft className="h-4 w-4" />
+                  </button>
+                )}
+                <div className="min-w-0 flex-1">
+                  <SheetTitle>{detailOnPhone ? "Detalle de la ejecución" : "Consola"}</SheetTitle>
+                  <SheetDescription className="truncate text-xs">{detailOnPhone ? time(selected.createdAt) : "Cada vez que corre esta automatización."}</SheetDescription>
                 </div>
-                {selected.error && <div className="rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-700 dark:text-red-300"><span className="font-semibold">Resumen del error: </span>{selected.error}</div>}
-                <details className="rounded-md border border-[hsl(var(--border))]">
-                  <summary className="flex cursor-pointer list-none items-center justify-between p-2.5 text-sm font-medium [@media(pointer:coarse)]:min-h-11">
-                    <span>{triggerText.title}: datos que llegaron</span><ChevronDown className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
-                  </summary>
-                  <div className="border-t border-[hsl(var(--border))] p-2.5">
-                    {selected.input ? <CodeSnippet value={json(selected.input)} label="Copiar los datos que llegaron" /> : <p className="text-xs text-[hsl(var(--muted-foreground))]">Esta ejecución no guardó los datos de entrada.</p>}
-                  </div>
-                </details>
-                <ol className="space-y-2">
-                  {(selected.steps ?? []).map((entry) => <StepResult key={entry.index} entry={entry} step={automation.steps?.[entry.index]} />)}
-                  {(selected.steps ?? []).length === 0 && <li className="text-xs text-[hsl(var(--muted-foreground))]">Todavía no hay bloques ejecutados.</li>}
-                </ol>
-              </>
-            )}
+                {!detailOnPhone && errorsToggle}
+              </div>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              {detailOnPhone ? <div className="space-y-3 p-4">{runDetail}</div> : runList}
+            </div>
+          </SheetContent>
+        </Sheet>
+      ) : (
+        <div className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out motion-reduce:transition-none ${open ? "grid-rows-[1fr] opacity-100" : "grid-rows-[0fr] opacity-0"}`} inert={!open}>
+         <div className="min-h-0 overflow-hidden">
+          <div className="grid h-[min(24rem,45dvh)] min-h-[12rem] grid-cols-[18rem_minmax(0,1fr)] border-t border-[hsl(var(--border))]">
+            <div className="min-h-0 overflow-y-auto border-r border-[hsl(var(--border))]">
+              <div className="flex items-center gap-2 p-2">{errorsToggle}</div>
+              {runList}
+            </div>
+            <div className="min-h-0 space-y-3 overflow-y-auto p-3">{runDetail}</div>
           </div>
+         </div>
         </div>
-       </div>
-      </div>
+      )}
     </section>
   );
 }

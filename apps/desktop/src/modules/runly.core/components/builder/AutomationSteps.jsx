@@ -51,7 +51,7 @@ export function DelayEditor({ step, readOnly, onChange }) {
 // Body of one step: the editor that matches its kind. `withServiceSelect` is the
 // canvas inspector: the action picker on top and the content in titled sections
 // (the form list draws its own header and shows the content plain).
-export function StepEditor({ step, steps, index, triggerType, fieldOptions, readOnly, onChange, withServiceSelect = false, label = "Acción" }) {
+export function StepEditor({ step, steps, index, triggerType, recordLink = null, fieldOptions, readOnly, onChange, withServiceSelect = false, label = "Acción" }) {
   const afterDelay = steps.slice(0, index).some(isPauseStep);
   const argsTrigger = triggerType === "schedule" ? "event" : triggerType;
   // The trigger's data plus what the blocks before this one return.
@@ -86,7 +86,7 @@ export function StepEditor({ step, steps, index, triggerType, fieldOptions, read
         </InspectorSection>
       )}
       {SERVICE_CONTRACTS[step.service] && section("Datos que se envían", "Para cada dato, elige de dónde sale su valor.",
-        <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger}
+        <AutomationArgsEditor contract={SERVICE_CONTRACTS[step.service]} args={step.args ?? {}} triggerType={argsTrigger} recordLink={recordLink}
           fieldOptions={available} readOnly={readOnly} onChange={(args) => onChange({ ...step, args })} />)}
       {withServiceSelect && outputs.length > 0 && (
         <InspectorSection title="Lo que devuelve" description="Los bloques que van después pueden usar estos datos.">

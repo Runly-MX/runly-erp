@@ -172,7 +172,8 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
           eventType: `module.${moduleKey}`,
           title: args.title,
           ...(args.body ? { body: args.body } : {}),
-          ...(args.link ? { link: args.link } : {}),
+          // Only a screen is a link: a bare id or a name would open /app/<value>.
+          ...(/^(\/|https?:\/\/)/i.test(args.link ?? '') ? { link: args.link } : {}),
           ...(args.priority ? { priority: args.priority } : {}),
           recipients: { userIds: args.userIds },
           sourceType: moduleKey,

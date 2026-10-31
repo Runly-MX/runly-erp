@@ -77,6 +77,7 @@ export function InspectorBody({ node, automation, steps, entities, events, allow
   return (
     <StepEditor
       step={steps[node.index]} steps={steps} index={node.index} triggerType={trigger.type} fieldOptions={fieldOptions}
+      recordLink={trigger.type === "event" ? events?.find((event) => event.key === trigger.event)?.link ?? null : null}
       readOnly={readOnly} withServiceSelect onChange={(next) => onStep(node.index, next)}
     />
   );

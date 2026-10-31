@@ -5,7 +5,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useViewMode } from "@runly/ui";
+import { ActionMenu, Button, ConfirmDialog, ErrorState, Skeleton, Switch, Tooltip, TooltipContent, TooltipTrigger, cn, useIsMobile, useViewMode } from "@runly/ui";
 import { ArrowLeft, Check, Copy, Download, FlaskConical, Fullscreen, Loader2, Maximize2, Minimize2, Plug, Redo2, Save, Terminal, Trash2, Undo2 } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
@@ -87,6 +87,7 @@ function AutomationEditorScreen() {
   const [connectionsOpen, setConnectionsOpen] = useState(false);
   const [confirm, setConfirm] = useState(null); // "leave" | "delete"
   const viewMode = useViewMode();
+  const isPhone = useIsMobile(640);
   const stepBackView = viewMode.stepBack;
   const keys = useRef({});
   useEffect(() => {
@@ -239,13 +240,15 @@ function AutomationEditorScreen() {
           </label>
           <BarButton label="Deshacer (Ctrl+Z)" disabled={!history.current.past.length} onClick={undo}><Undo2 className="h-4 w-4" /></BarButton>
           <BarButton label="Rehacer (Ctrl+Y)" disabled={!history.current.future.length} onClick={redo} className="max-sm:hidden"><Redo2 className="h-4 w-4" /></BarButton>
-          <BarButton label="Conexiones" onClick={() => setConnectionsOpen(true)}><Plug className="h-4 w-4" /></BarButton>
-          {!isNew && <BarButton label={consoleOpen ? "Ocultar la consola" : "Consola de ejecución"} active={consoleOpen} onClick={() => setConsoleOpen((open) => !open)}><Terminal className="h-4 w-4" /></BarButton>}
+          <BarButton label="Conexiones" onClick={() => setConnectionsOpen(true)} className="max-sm:hidden"><Plug className="h-4 w-4" /></BarButton>
+          {!isNew && <BarButton label={consoleOpen ? "Ocultar la consola" : "Consola de ejecución"} active={consoleOpen} onClick={() => setConsoleOpen((open) => !open)} className="max-sm:hidden"><Terminal className="h-4 w-4" /></BarButton>}
           <Button variant="outline" onClick={() => setTestOpen(true)} className="h-9 gap-1.5 [@media(pointer:coarse)]:h-11"><FlaskConical className="h-4 w-4" /> <span className="max-sm:sr-only">Probar</span></Button>
           <BarButton label={VIEW_LABELS[viewMode.mode]} onClick={viewMode.cycle} className="max-sm:hidden">
             {viewMode.mode === "normal" ? <Maximize2 className="h-4 w-4" /> : viewMode.mode === "clean" ? <Fullscreen className="h-4 w-4" /> : <Minimize2 className="h-4 w-4" />}
           </BarButton>
           <ActionMenu label="Más opciones" items={[
+            // Phones: the bar keeps only what is used all the time.
+            ...(isPhone ? [{ label: "Conexiones", icon: Plug, onClick: () => setConnectionsOpen(true) }] : []),
             ...(isNew ? [] : [{ label: "Duplicar", icon: Copy, onClick: copy }]),
             { label: "Exportar a archivo", icon: Download, onClick: () => downloadFile(item) },
             ...(isNew ? [] : [{ label: "Eliminar automatización", icon: Trash2, variant: "destructive", onClick: () => setConfirm("delete") }]),
