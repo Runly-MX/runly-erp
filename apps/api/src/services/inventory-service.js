@@ -531,6 +531,25 @@ export function createInventoryService({ prisma, activityBridge }) {
     return economicProjection.one(companyId, created);
   }
 
+  // Same creation rules, with all reads, folio allocation, writes and outbox
+  // inside the caller's transaction. Activity is published only after commit.
+  async function createItemInTransaction(tx, data, companyId, creatorId, afterCommit, options = {}) {
+    const pending = [];
+    const client = new Proxy(tx, { get(target, prop) {
+      if (prop === '$transaction') return fn => fn(tx);
+      return target[prop];
+    } });
+    const service = createInventoryService({ prisma: client, activityBridge: {
+      logAndPublish: async entry => { pending.push(entry); },
+    } });
+    const item = await service.createItem(data, companyId, creatorId, options);
+    for (const { auditEntry, hint } of pending) {
+      const audit = await tx.auditLog.create({ data: { ...auditEntry, companyId } });
+      afterCommit.push(async () => bridge.publishFromAudit?.({ auditEntry: audit, hint, companyId }));
+    }
+    return item;
+  }
+
   // actorAuthId: the editor's auth user id (audit trail actor).
   async function updateItem(id, data, companyId, { afterWrite = null, actorAuthId = null, scope = null } = {}) {
     assertCompany(companyId);
@@ -960,6 +979,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     listItems,
     getItem,
     createItem,
+    createItemInTransaction,
     updateItem,
     deleteItem,
     // Files

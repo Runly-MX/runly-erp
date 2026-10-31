@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { isDocumentary } from './purchase-economic-mode.js'
 // Inventory <-> Compras bridge: the "Compra" timeline of an item, the item
 // picker candidates and creating inventory items from a purchase line through
@@ -125,42 +126,71 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
     if (!doc) throw notFound()
     if (isDocumentary(doc)) throw new PurchasesServiceError('Relaciona inventarios existentes con la referencia documental.', 409, 'DOCUMENTARY_OPERATION_BLOCKED')
     if (doc.status === 'CANCELLED') throw new PurchasesServiceError('El documento está cancelado.', 409, 'INVALID_TRANSITION')
-    const existing = await prisma.purchaseAllocation.count({ where: { companyId, purchaseLineId: line.id, targetType: 'inventory_item' } })
-    const capacity = Math.ceil(num(line.quantity)) - existing
-    if (items.length > capacity) {
-      throw new PurchasesServiceError(`El concepto solo admite ${Math.max(0, capacity)} inventario(s) más.`)
-    }
-    // Validate every referenced catalog id against the company before creating anything.
-    const categoryIds = items.map(entry => entry.categoryId || line.inventoryCategoryId).filter(Boolean)
-    const locationIds = items.map(entry => entry.locationId).filter(Boolean)
-    const modelIds = items.map(entry => entry.modelId).filter(Boolean)
-    const checks = [
-      ['invCategory', categoryIds, 'El tipo de inventario'],
-      ['invLocation', locationIds, 'La ubicación'],
-      ['invModel', modelIds, 'El modelo'],
-    ]
-    for (const [model, ids, label] of checks) {
-      const unique = [...new Set(ids)]
-      if (!unique.length) continue
-      const count = await prisma[model].count({ where: { companyId, id: { in: unique } } })
-      if (count !== unique.length) throw notFound(`${label} no pertenece a esta empresa.`)
-    }
-
+    const key = input.idempotencyKey
+    if (key != null && (typeof key !== 'string' || key.length < 8 || key.length > 128)) throw new PurchasesServiceError('La clave de reintento no es válida.')
+    const fingerprint = createHash('sha256').update(JSON.stringify({ lineId, items: items.map(entry => ({
+      name: cleanText(entry.name, 255), serialNumber: cleanText(entry.serialNumber, 255),
+      categoryId: entry.categoryId || null, locationId: entry.locationId || null, modelId: entry.modelId || null,
+    })) })).digest('hex')
+    const afterCommit = []
     const inventoryService = getInventoryService()
-    const created = []
-    for (const entry of items) {
-      const item = await inventoryService.createItem({
-        name: cleanText(entry.name, 255) || line.description.slice(0, 255),
-        serialNumber: cleanText(entry.serialNumber, 255) ?? undefined,
-        categoryId: entry.categoryId || line.inventoryCategoryId || undefined,
-        locationId: entry.locationId || undefined,
-        modelId: entry.modelId || undefined,
-        acquisitionOrigin: 'PURCHASE',
-      }, companyId, actor.authUserId)
-      created.push(item)
-    }
-    const unitAmount = num(line.unitAmount)
-    await prisma.$transaction(async tx => {
+    const lineOwnerType = line.ownerType
+    const outcome = await prisma.$transaction(async tx => {
+      // Serializes capacity and operation keys for this company; other document
+      // writers lock the owner first too. Re-read after locking, never trust preflight.
+      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${'purchase-inventory:' + companyId}, 0))::text`
+      await tx.$queryRawUnsafe(`SELECT id FROM ${sourceType} WHERE id = $1::uuid AND company_id = $2::uuid FOR UPDATE`, doc.id, companyId)
+      const current = await tx[ownerModel].findFirst({ where: { id: doc.id, companyId } })
+      if (!current) throw notFound()
+      if (isDocumentary(current)) throw new PurchasesServiceError('Relaciona inventarios existentes con la referencia documental.', 409, 'DOCUMENTARY_OPERATION_BLOCKED')
+      if (current.status === 'CANCELLED') throw new PurchasesServiceError('El documento está cancelado.', 409, 'INVALID_TRANSITION')
+      await tx.$queryRaw`SELECT id FROM purchase_line WHERE id = ${lineId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`
+      const freshLine = await tx.purchaseLine.findFirst({ where: { id: lineId, companyId, ownerId: doc.id, ownerType: lineOwnerType } })
+      if (!freshLine) throw notFound('El concepto ya no existe en este documento.')
+      if (freshLine.itemKind === 'SERVICE') throw new PurchasesServiceError('Los conceptos de servicio no generan inventario.')
+      if (key) {
+        const previous = await tx.auditLog.findFirst({ where: { companyId, moduleKey: MODULE_KEY, action: 'purchase.inventory.created_from_line', metadata: { path: ['idempotencyKey'], equals: key } } })
+        if (previous) {
+          if (previous.metadata.fingerprint !== fingerprint) throw new PurchasesServiceError('Esta operación ya se guardó con otros datos.', 409, 'IDEMPOTENCY_KEY_REUSED')
+          return { result: previous.after, replayed: true }
+        }
+      }
+      const line = freshLine
+      const existing = await tx.purchaseAllocation.count({ where: { companyId, purchaseLineId: line.id, targetType: 'inventory_item' } })
+      const capacity = Math.ceil(num(line.quantity)) - existing
+      if (items.length > capacity) {
+        throw new PurchasesServiceError(`El concepto solo admite ${Math.max(0, capacity)} inventario(s) más.`)
+      }
+      // Validate every referenced catalog id against the company before creating anything.
+      const categoryIds = items.map(entry => entry.categoryId || line.inventoryCategoryId).filter(Boolean)
+      const locationIds = items.map(entry => entry.locationId).filter(Boolean)
+      const modelIds = items.map(entry => entry.modelId).filter(Boolean)
+      const checks = [
+        ['invCategory', categoryIds, 'El tipo de inventario'],
+        ['invLocation', locationIds, 'La ubicación'],
+        ['invModel', modelIds, 'El modelo'],
+      ]
+      for (const [model, ids, label] of checks) {
+        const unique = [...new Set(ids)]
+        if (!unique.length) continue
+        const count = await tx[model].count({ where: { companyId, id: { in: unique } } })
+        if (count !== unique.length) throw notFound(`${label} no pertenece a esta empresa.`)
+      }
+      const created = []
+      for (const entry of items) {
+        const item = await inventoryService.createItemInTransaction(tx, {
+          name: cleanText(entry.name, 255) || line.description.slice(0, 255),
+          serialNumber: cleanText(entry.serialNumber, 255) ?? undefined,
+          categoryId: entry.categoryId || line.inventoryCategoryId || undefined,
+          locationId: entry.locationId || undefined,
+          modelId: entry.modelId || undefined,
+          acquisitionOrigin: 'PURCHASE',
+        }, companyId, actor.authUserId, afterCommit)
+        created.push(item)
+      }
+
+      const unitAmount = num(line.unitAmount)
+      const result = created.map(item => ({ id: item.id, assetTag: item.assetTag, name: item.name, status: item.status }))
       await tx.entityRelation.createMany({
         data: created.map(item => ({
           companyId, sourceModule: MODULE_KEY, sourceType, sourceId: doc.id,
@@ -179,11 +209,16 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
       })
       await writeAudit(tx, {
         companyId, actorId: actor.profileId, entityType: sourceType, entityId: doc.id, action: 'purchase.inventory.created_from_line',
-        metadata: { purchaseLineId: line.id, itemIds: created.map(item => item.id) },
+        after: result,
+        metadata: { purchaseLineId: line.id, itemIds: created.map(item => item.id), ...(key ? { idempotencyKey: key, fingerprint } : {}) },
       })
-    })
-    await broadcast(broadcaster, companyId, 'purchase.inventory.created', { sourceType, sourceId: doc.id, lineId: line.id, itemIds: created.map(item => item.id) })
-    return created.map(item => ({ id: item.id, assetTag: item.assetTag, name: item.name, status: item.status }))
+
+      return { result, replayed: false }
+    }, { timeout: 30_000 })
+    if (outcome.replayed) return outcome.result
+    for (const publish of afterCommit) await publish().catch(() => {})
+    await broadcast(broadcaster, companyId, 'purchase.inventory.created', { sourceType, sourceId: doc.id, lineId: line.id, itemIds: outcome.result.map(item => item.id) })
+    return outcome.result
   }
 
   return { inventoryAvailable, inventorySummary, inventoryCandidates, createInventoryFromLine }

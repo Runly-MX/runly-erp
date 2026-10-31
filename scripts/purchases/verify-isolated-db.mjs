@@ -21,7 +21,7 @@ try {
   for (let i = 0; i < 60; i++) {
     try { await pool.query('SELECT 1'); break } catch { await new Promise(r => setTimeout(r, 500)) }
   }
-  for (const suite of ['purchase-documentary', 'purchase-payments', 'purchase-corrections']) {
+  for (const suite of ['purchase-inventory-bridge', 'purchase-documentary', 'purchase-payments', 'purchase-corrections']) {
     const [container] = JSON.parse(await command('docker', ['inspect', name]))
     assert.equal(container.Config.Labels['runly.disposable'], name)
     assert.equal(container.Mounts.some(m => m.Type === 'volume'), false)

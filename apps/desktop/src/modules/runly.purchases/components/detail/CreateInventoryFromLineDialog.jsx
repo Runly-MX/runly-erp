@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { PackagePlus } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { Controller, useFieldArray, useForm, useWatch } from 'react-hook-form'
@@ -37,6 +37,7 @@ function useCatalog(key, fn) {
 // document with origin AUTOMATIC and gets the line's unit amount allocated.
 export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
   const create = useCreateInventoryFromLine()
+  const operation = useRef(null)
   const categories = useCatalog('categories', (t) => runly.inventory.listCategories(t))
   const locations = useCatalog('locations', (t) => runly.inventory.listLocations(t))
   const toOptions = (res) => (res?.data ?? res ?? []).map((c) => ({ value: c.id, label: c.name }))
@@ -46,6 +47,8 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
   const { control, handleSubmit, reset, formState: { errors } } = form
   const { fields, replace } = useFieldArray({ control, name: 'units' })
   const count = useWatch({ control, name: 'count' })
+
+  useEffect(() => { operation.current = null }, [open, line?.id])
 
   useEffect(() => {
     if (!open || !line) return
@@ -64,9 +67,15 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
 
   const submit = handleSubmit(async (values) => {
     try {
+      const items = values.units.map((u) => ({ name: u.name.trim(), serialNumber: u.serialNumber?.trim() || null, categoryId: values.categoryId || null, locationId: values.locationId || null }))
+      const payload = JSON.stringify({ lineId: line.id, items })
+      if (operation.current?.payload !== payload) {
+        operation.current = { payload, key: Array.from(crypto.getRandomValues(new Uint8Array(16)), byte => byte.toString(16).padStart(2, '0')).join('') }
+      }
       await create.mutateAsync({
         lineId: line.id,
-        items: values.units.map((u) => ({ name: u.name.trim(), serialNumber: u.serialNumber?.trim() || null, categoryId: values.categoryId || null, locationId: values.locationId || null })),
+        items,
+        idempotencyKey: operation.current.key,
       })
       toast.success(values.units.length === 1 ? 'Activo creado en Inventario' : `${values.units.length} activos creados en Inventario`)
       onOpenChange(false)
@@ -80,7 +89,7 @@ export function CreateInventoryFromLineDialog({ line, open, onOpenChange }) {
       <DialogContent scrollable size="xl">
         <DialogHeader className="shrink-0" icon={PackagePlus}>
           <DialogTitle>Crear activos desde el concepto</DialogTitle>
-          <DialogDescription>{line?.description ? `${line.description}. ` : ''}Cada activo queda relacionado con este documento y con su costo unitario.</DialogDescription>
+          <DialogDescription>{line?.description ? `${line.description}. ` : ''}Crea bienes registrados en Inventarios, relacionados con este documento y su costo unitario. Esta alta no registra la recepción física.</DialogDescription>
         </DialogHeader>
         <form id="inventory-from-line" onSubmit={submit} className="mt-4 min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-0.5">
           <div className="grid gap-4 sm:grid-cols-3">

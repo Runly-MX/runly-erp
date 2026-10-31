@@ -330,7 +330,7 @@ export function useCreateInventoryFromLine() {
   const token = useToken()
   const client = useQueryClient()
   return useMutation({
-    mutationFn: ({ lineId, items }) => runly.purchases.createInventoryFromLine(lineId, { items }, token).then(one),
+    mutationFn: ({ lineId, items, idempotencyKey }) => runly.purchases.createInventoryFromLine(lineId, { items, idempotencyKey }, token).then(one),
     onSuccess: () => {
       client.invalidateQueries({ queryKey: ['purchases'] })
       client.invalidateQueries({ queryKey: ['inventory'] })
