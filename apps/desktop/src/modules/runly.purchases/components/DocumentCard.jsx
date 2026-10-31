@@ -36,7 +36,7 @@ export function DocumentCard({ kind, row: r, to }) {
       className="flex min-w-0 flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 text-left transition-colors hover:border-(--brand-primary)/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)/40">
       <div className="flex items-start justify-between gap-2">
         <span className="min-w-0">
-          <span className="block truncate font-semibold tabular-nums">{r.number || 'Sin folio'}</span>
+          <span className="block truncate font-semibold tabular-nums">{r.reference ?? r.number ?? 'Sin folio'}</span>
           <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{sub || 'Sin proveedor'}</span>
         </span>
         <PurchaseStatusBadge kind={kind} status={r.status} />
@@ -56,7 +56,7 @@ export function DocumentCard({ kind, row: r, to }) {
           {dates.slice(0, 2).map(([label, value]) => <Meta key={label} label={label}>{value ? formatDate(value) : 'Sin fecha'}</Meta>)}
         </dl>
         <div className="shrink-0 text-right">
-          <MoneyText value={estimated ? r.estimatedTotal : r.total} currency={r.currency} className="text-base font-semibold" />
+          {(estimated ? r.estimatedTotal : r.total) != null ? <MoneyText value={estimated ? r.estimatedTotal : r.total} currency={r.currency} className="text-base font-semibold" /> : <span className="text-xs text-[hsl(var(--muted-foreground))]">{r.economicMode === 'DOCUMENTARY' ? 'Referencia sin importes' : ''}</span>}
           {isInvoice && balance > 0 ? (
             <p className={days != null && days < 0 ? 'text-xs text-rose-700 dark:text-rose-300' : 'text-xs text-amber-700 dark:text-amber-300'}>
               Saldo <MoneyText value={balance} currency={r.currency} />{days != null && days < 0 ? `, vencida hace ${-days} d` : ''}

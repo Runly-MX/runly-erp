@@ -60,6 +60,8 @@ export function billingText(billing) {
   if (!billing) return null
   const extra = billing.cancelled ? ` · ${plural(billing.cancelled, 'cancelada', 'canceladas')}` : ''
   if (!billing.count) return { main: 'Sin factura', sub: billing.cancelled ? plural(billing.cancelled, 'cancelada', 'canceladas') : null, tone: 'muted' }
+  // References without amounts: how many, never a balance.
+  if (billing.state === 'DOCUMENTARY') return { main: plural(billing.count, 'factura relacionada', 'facturas relacionadas'), sub: extra.slice(3) || null, tone: 'muted' }
   const balance = billing.amounts.filter((a) => a.balance > 0).map((a) => formatMoney(a.balance, a.currency)).join(' + ')
   const numbers = billing.invoices.map((i) => i.number ?? 'Sin folio').join(', ') + (billing.count > billing.invoices.length ? ` y ${billing.count - billing.invoices.length} más` : '')
   const tone = billing.state === 'PAID' ? 'done' : billing.state === 'OVERDUE' ? 'danger' : billing.state === 'CAPTURE' ? 'muted' : 'warning'

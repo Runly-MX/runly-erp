@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import { Button, DataTable, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput, SegmentedControl, Skeleton, ViewModeSwitch, useIsMobile } from '@runly/ui'
 import { useCapabilities, useDocumentList, usePurchasesCan, useViewCounts } from '../hooks/usePurchases.js'
 import { usePurchaseRoute } from '../hooks/usePurchaseRoute.js'
-import { LIST_SECTIONS } from '../lib/list-config.js'
+import { DOCUMENTARY_SECTIONS, LIST_SECTIONS } from '../lib/list-config.js'
 import { KINDS, ROOT } from '../lib/purchases-constants.js'
 import { buildColumns } from '../components/DocumentColumns.jsx'
 import { DocumentCard } from '../components/DocumentCard.jsx'
@@ -31,12 +31,13 @@ function useDebounced(value, delay = 300) {
 export default function PurchaseDocumentList() {
   const navigate = useNavigate()
   const { section, searchParams } = usePurchaseRoute()
-  const config = LIST_SECTIONS[section] ?? LIST_SECTIONS.orders
+  const caps = useCapabilities()
+  const baseConfig = LIST_SECTIONS[section] ?? LIST_SECTIONS.orders
+  const config = caps.documentary && DOCUMENTARY_SECTIONS[section] ? { ...baseConfig, ...DOCUMENTARY_SECTIONS[section] } : baseConfig
   // ?estado=<chip> opens the list on that view (links from Inicio).
   const urlStatus = searchParams.get('estado')
   const initialStatus = config.chips.some((c) => c.value === urlStatus) ? urlStatus : (config.defaultStatus ?? 'ALL')
   const kindMeta = KINDS[config.kind]
-  const caps = useCapabilities()
   const can = usePurchasesCan()
 
   const [status, setStatus] = useState(initialStatus)
@@ -115,7 +116,7 @@ export default function PurchaseDocumentList() {
       <div className="flex flex-col gap-2">
         <div className="flex flex-wrap items-center gap-2">
           <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')}
-            placeholder={WITH_ITEMS.has(config.kind) ? 'Buscar por folio, proveedor, número de activo o serie' : 'Buscar por folio, título o referencia'} className="min-w-48 flex-1" />
+            placeholder={caps.documentary && WITH_ITEMS.has(config.kind) ? 'Buscar por referencia, folio, proveedor o activo' : WITH_ITEMS.has(config.kind) ? 'Buscar por folio, proveedor, número de activo o serie' : 'Buscar por folio, título o referencia'} className="min-w-48 flex-1" />
           <div className="hidden items-center gap-2 md:flex">
             {config.supplierFilter ? (
               <SupplierField label={null} value={supplierId} onChange={(id) => setSupplierId(id)} placeholder="Todos los proveedores" className="w-60" />

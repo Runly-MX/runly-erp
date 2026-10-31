@@ -38,6 +38,11 @@ function DueDate({ value, status }) {
 
 const right = (node) => <div className="text-right">{node}</div>
 
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
+// Control documental columns: the reference people use, the internal folio
+// under it; dates and supplier only when known; related documents and items.
+const docFolioSub = (r) => (r.economicMode === 'DOCUMENTARY' ? `Folio interno ${r.number}` : `Folio ${r.number} · con importes`)
+
 const orderSub = (r) => (r.status === 'PENDING_APPROVAL' ? 'Espera aprobación' : r.expectedDate ? `Entrega ${formatDate(r.expectedDate)}` : 'Sin fecha de entrega')
 
 // Column builders keyed by name (see lib/list-config.js). The server pages
@@ -45,6 +50,18 @@ const orderSub = (r) => (r.status === 'PENDING_APPROVAL' ? 'Espera aprobación' 
 // reorder the visible page.
 export function buildColumns(names, { kind, href }) {
   const defs = {
+    reference: { id: 'reference', header: 'Referencia', cell: ({ row: { original: r } }) => <Folio number={r.reference ?? r.number} sub={docFolioSub(r)} to={href(r.id)} /> },
+    docDate: { id: 'docDate', header: 'Fecha', cell: ({ row: { original: r } }) => (r.issueDate ? <span className="whitespace-nowrap tabular-nums">{formatDate(r.issueDate)}</span> : <span className="text-[hsl(var(--muted-foreground))]">Sin fecha</span>) },
+    related: {
+      id: 'related', header: 'Relacionados',
+      cell: ({ row: { original: r } }) => {
+        const text = kind === 'orders'
+          ? (r.billing?.count ? plural(r.billing.count, 'factura', 'facturas') : r.billing === null ? '' : 'Sin factura')
+          : (r.orderNumber ? 'Con orden de compra' : 'Sin orden')
+        return <span className={cn('whitespace-nowrap text-sm', /^Sin/.test(text) && 'text-[hsl(var(--muted-foreground))]')}>{text}</span>
+      },
+    },
+    itemsCount: { id: 'itemsCount', header: 'Inventarios', cell: ({ row: { original: r } }) => <span className={cn('whitespace-nowrap text-sm', !r.items?.count && 'text-[hsl(var(--muted-foreground))]')}>{r.items?.count ? plural(r.items.count, 'activo', 'activos') : 'Sin activos'}</span> },
     orderFolio: { id: 'orderFolio', header: 'Orden', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={orderSub(r)} to={href(r.id)} /> },
     // Compact form (narrow screens): supplier and order go under the folio.
     invoiceFolioCompact: { id: 'invoiceFolio', header: 'Factura', cell: ({ row: { original: r } }) => <Folio number={r.number} sub={[r.supplierName || 'Sin proveedor', r.orderNumber ? `Orden ${r.orderNumber}` : 'Sin orden'].join(' · ')} to={href(r.id)} /> },
@@ -74,6 +91,7 @@ export function buildColumns(names, { kind, href }) {
     balance: {
       id: 'balance', header: () => right('Saldo'),
       cell: ({ row: { original: r } }) => {
+        if (r.total == null) return right(<MoneyText value={null} />)
         const balance = r.status === 'CANCELLED' ? 0 : Math.max(0, toNumber(r.total) - toNumber(r.paidAmount))
         return right(<MoneyText value={balance} currency={r.currency} tone={balance > 0 ? 'amber' : undefined} className="font-medium" />)
       },

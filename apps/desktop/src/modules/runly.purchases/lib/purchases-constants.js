@@ -37,10 +37,13 @@ export const STATUS = {
     DRAFT: S('Borrador', 'slate'), PENDING_APPROVAL: S('Por aprobar', 'amber'), APPROVED: S('Aprobada', 'sky'),
     ISSUED: S('Emitida', 'teal'), PARTIALLY_RECEIVED: S('Recibida parcial', 'violet'), RECEIVED: S('Recibida', 'emerald'),
     CLOSED: S('Cerrada', 'emerald'), CANCELLED: S('Cancelada', 'rose'),
+    // Control documental: a reference, never a debt or a delivery state.
+    REGISTERED: S('Referencia registrada', 'slate'),
   },
   invoices: {
     DRAFT: S('Borrador', 'slate'), PENDING_APPROVAL: S('Por aprobar', 'amber'), PENDING: S('Por pagar', 'amber'),
     PARTIALLY_PAID: S('Pago parcial', 'violet'), PAID: S('Pagada', 'emerald'), CANCELLED: S('Cancelada', 'rose'),
+    REGISTERED: S('Referencia registrada', 'slate'),
   },
   requests: {
     DRAFT: S('Borrador', 'slate'), SUBMITTED: S('Enviada', 'sky'), APPROVED: S('Aprobada', 'emerald'),

@@ -6,10 +6,11 @@ import { KINDS, ROOT } from '../lib/purchases-constants.js'
 
 // What "a new purchase" can start with in this company, most common first:
 // only the documents whose capability is on and the user may create.
-export function purchaseStarters(has, can) {
+// Control documental registers references: the labels say so.
+export function purchaseStarters(has, can, documentary = false) {
   return [
     has('invoices') && can(KINDS.invoices.create) && { kind: 'invoices', label: KINDS.invoices.newLabel, icon: ReceiptText },
-    has('purchaseOrders') && can(KINDS.orders.create) && { kind: 'orders', label: KINDS.orders.newLabel, icon: ClipboardList },
+    has('purchaseOrders') && can(KINDS.orders.create) && { kind: 'orders', label: documentary ? 'Registrar orden' : KINDS.orders.newLabel, icon: ClipboardList },
     has('requests') && can(KINDS.requests.create) && { kind: 'requests', label: KINDS.requests.newLabel, icon: FileQuestion },
   ].filter(Boolean)
 }
@@ -20,7 +21,7 @@ export function NewPurchaseButton({ className, block = false }) {
   const navigate = useNavigate()
   const caps = useCapabilities()
   const can = usePurchasesCan()
-  const starters = caps.isLoading ? [] : purchaseStarters(caps.has, can)
+  const starters = caps.isLoading ? [] : purchaseStarters(caps.has, can, caps.documentary)
   if (!starters.length) return null
   const go = (kind) => navigate(`${ROOT}/${kind}/new`)
 

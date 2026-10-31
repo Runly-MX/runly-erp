@@ -6,6 +6,38 @@ const chips = (kind, keys) => [{ value: 'ALL', label: 'Todos' }, ...keys.map((ke
 // each is a status set the API filters on; the default leaves cancelled out.
 const view = (value, label, params) => ({ value, label, params })
 
+// Control documental (company mode DOCUMENTARY): references instead of
+// financial states. Historic financial documents still appear (Todas) with
+// their own status; nothing is presented as "Por pagar".
+export const DOCUMENTARY_SECTIONS = {
+  orders: {
+    title: 'Órdenes de compra', description: 'Referencias de órdenes, sus facturas y los activos que amparan.',
+    chips: [
+      view('LIVE', 'Vigentes', { status: 'REGISTERED,DRAFT,PENDING_APPROVAL,APPROVED,ISSUED,PARTIALLY_RECEIVED,RECEIVED,CLOSED' }),
+      view('REGISTERED', 'Referencias', { status: 'REGISTERED' }),
+      view('CANCELLED', 'Canceladas', { status: 'CANCELLED' }),
+      view('ALL', 'Todas', {}),
+    ],
+    defaultStatus: 'LIVE', cardsBelow: false,
+    columns: ['reference', 'supplier', 'docDate', 'related', 'itemsCount', 'status'],
+    compactColumns: ['reference', 'docDate', 'related', 'itemsCount'],
+    emptyTitle: 'Aún no hay órdenes', emptyDescription: 'Registra una orden con solo su referencia; lo demás puede esperar.',
+  },
+  invoices: {
+    title: 'Facturas', description: 'Referencias de facturas, su orden si existe y los activos que amparan.',
+    chips: [
+      view('LIVE', 'Vigentes', { status: 'REGISTERED,DRAFT,PENDING_APPROVAL,PENDING,PARTIALLY_PAID,PAID' }),
+      view('REGISTERED', 'Referencias', { status: 'REGISTERED' }),
+      view('CANCELLED', 'Canceladas', { status: 'CANCELLED' }),
+      view('ALL', 'Todas', {}),
+    ],
+    defaultStatus: 'LIVE',
+    columns: ['reference', 'supplier', 'docDate', 'related', 'itemsCount', 'status'],
+    compactColumns: ['reference', 'docDate', 'related', 'itemsCount'],
+    emptyTitle: 'Aún no hay facturas', emptyDescription: 'Registra una factura con solo su referencia; no necesita orden.',
+  },
+}
+
 // One list screen, many sections. `kind` is the API collection; `columns`
 // names the column builders in components/DocumentColumns.jsx.
 export const LIST_SECTIONS = {

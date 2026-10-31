@@ -85,11 +85,12 @@ export function RecentPanel({ rows = [], onOpen }) {
                   className="flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left transition-colors hover:bg-[hsl(var(--muted))]/40">
                   <span className="w-20 shrink-0 text-xs text-[hsl(var(--muted-foreground))]">{KIND_LABEL[kind]}</span>
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold tabular-nums">{row.number}</span>
+                    <span className="block truncate text-sm font-semibold tabular-nums">{row.reference ?? row.number}</span>
                     <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{row.supplierName || 'Sin proveedor'}, {formatDate(row.date)}</span>
                   </span>
                   <span className="hidden text-right sm:block">
-                    <span className="block text-sm font-medium tabular-nums">{formatMoney(row.total, row.currency)}</span>
+                    {/* Documentary references have no amount: nothing, never $0.00. */}
+                    {row.total != null ? <span className="block text-sm font-medium tabular-nums">{formatMoney(row.total, row.currency)}</span> : null}
                   </span>
                   <PurchaseStatusBadge kind={kind} status={row.status} label={statusMeta(kind, row.status).label} />
                 </button>

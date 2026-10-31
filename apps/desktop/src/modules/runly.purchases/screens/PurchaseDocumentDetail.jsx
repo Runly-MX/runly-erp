@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { AttachmentsPanel, EmptyState, ErrorState, PageHeader, Tabs, TabsContent, TabsList, TabsTrigger, DetailSkeleton, useIsMobile } from '@runly/ui'
-import { FileX } from 'lucide-react'
+import { FileX, Lock } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -33,6 +33,8 @@ import { CreateInventoryFromLineDialog } from '../components/detail/CreateInvent
 import { ReadOnlyNotice } from '../components/ReadOnlyNotice.jsx'
 import { Timeline } from '../components/detail/Timeline.jsx'
 import { caseTimeline } from '../lib/case-timeline.js'
+import { documentLabel, isDocumentaryDoc } from '../lib/documentary.js'
+import { RelateDocumentDialog } from '../components/detail/RelateDocumentDialog.jsx'
 
 const DETAIL_KINDS = ['orders', 'invoices', 'requests', 'receipts', 'cases']
 const WORKBENCH = new Set(['orders', 'invoices', 'cases'])
@@ -48,7 +50,9 @@ function factsFor(kind, d) {
 function HeaderLine({ kind, doc }) {
   const supplier = doc.supplier ?? (doc.supplierName ? { name: doc.supplierName, id: doc.supplierId } : null)
   const order = kind === 'invoices' ? (doc.orders ?? [])[0] : null
-  const parts = kind === 'cases'
+  const parts = isDocumentaryDoc(doc)
+    ? [doc.issueDate ? `Fecha ${formatDate(doc.issueDate)}` : 'fecha sin capturar', doc.expectedDate && `entrega esperada ${formatDate(doc.expectedDate)}`, `registrada ${formatDate(doc.createdAt)}`]
+    : kind === 'cases'
     ? [doc.title, doc.createdAt && `abierto ${formatDate(doc.createdAt)}`, doc.closedAt && doc.status === 'CLOSED' && `cerrado ${formatDate(doc.closedAt)}`]
     : kind === 'orders'
     ? [doc.issueDate && `Fecha ${formatDate(doc.issueDate)}`, doc.issuedAt && `emitida ${formatDate(doc.issuedAt)}`, doc.expectedDate && `entrega esperada ${formatDate(doc.expectedDate)}`, doc.paymentTerms, doc.supplierReference && `ref. ${doc.supplierReference}`]
@@ -119,6 +123,9 @@ export default function PurchaseDocumentDetail() {
   const canManageItems = canManageRelations && caps.has('inventoryRelations')
   const quotesOn = (caps.has('quotes') || (doc.quotes?.length ?? 0) > 0) && ['requests', 'cases'].includes(kind) && can('purchases.quote.read')
   const filesOn = ['orders', 'invoices', 'receipts', 'requests'].includes(kind)
+  // Without files permission the tab explains it, instead of a red failure.
+  const canSeeFiles = can('files.assets.read')
+  const documentary = isDocumentaryDoc(doc)
   // Payments history stays visible (read-only) when the capability is off but money was paid.
   const paymentsOn = kind === 'invoices' && can('purchases.invoice.read') && (caps.has('payments') || Number(doc.paidAmount) > 0)
   const receiptsOn = kind === 'orders' && can('purchases.receipt.read') && (caps.has('receipts') || (doc.receipts?.length ?? 0) > 0)
@@ -171,8 +178,9 @@ export default function PurchaseDocumentDetail() {
       {inventoryOn ? <TabsContent value="inventory"><InventoryRelationsPanel entityType={meta.entityType} doc={doc} canManage={canManageItems} /></TabsContent> : null}
       {filesOn ? (
         <TabsContent value="files">
-          <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId} recordId={doc.id}
-            config={attachmentsConfig(meta.entityType)} context="detail" onChange={() => queryClient.invalidateQueries({ queryKey: ['purchases', 'files-count', meta.entityType, doc.id] })} readOnly={readOnly || !can(meta.update)} showHeading={false} showViewToggle />
+          {documentary ? <p className="mb-3 text-xs text-[hsl(var(--muted-foreground))]">Los archivos se guardan tal como se suben; el documento original puede contener importes.</p> : null}
+          {!canSeeFiles ? <EmptyState variant="compact" icon={Lock} title="Sin acceso a archivos" description="Tu rol no permite ver ni adjuntar archivos de compras. El resto del documento sí está disponible." /> : <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId} recordId={doc.id}
+            config={attachmentsConfig(meta.entityType)} context="detail" onChange={() => queryClient.invalidateQueries({ queryKey: ['purchases', 'files-count', meta.entityType, doc.id] })} readOnly={readOnly || !can(meta.update)} showHeading={false} showViewToggle />}
         </TabsContent>
       ) : null}
       <TabsContent value="history"><HistoryPanel kind={kind} doc={doc} auditProps={auditProps} /></TabsContent>
@@ -186,7 +194,7 @@ export default function PurchaseDocumentDetail() {
   return (
     <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader
-        compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${doc.number ?? 'sin folio'}`}
+        compact eyebrow={`Compras · ${meta.plural}`} title={`${meta.short} ${documentary ? documentLabel(doc) : doc.number ?? 'sin folio'}`}
         description={workbench ? <HeaderLine kind={kind} doc={doc} /> : undefined}
         onBack={() => navigate(`${ROOT}/${kind}`)} backLabel={`Volver a ${meta.plural.toLowerCase()}`}
         // Phones keep the full header (title on its own line, actions below):
@@ -212,13 +220,13 @@ export default function PurchaseDocumentDetail() {
             {tabsBlock}
           </div>
           <div className="space-y-4 xl:col-start-2 xl:row-start-2">
-            {kind === 'orders' ? <OrderProgressCard order={doc} /> : null}
+            {kind === 'orders' && !documentary ? <OrderProgressCard order={doc} /> : null}
             {kind !== 'cases' ? (
               <AsideCard title="Documentos relacionados" footer={kind === 'invoices' ? 'Una factura factura una sola orden; una orden puede tener varias facturas.' : null}>
                 <RelatedDocumentsPanel doc={doc} canManage={canManageRelations} />
               </AsideCard>
             ) : null}
-            {kind !== 'cases' ? <CorrectionRulesCard plan={doc.correction} /> : null}
+            {kind !== 'cases' ? <CorrectionRulesCard plan={doc.correction} documentary={documentary} /> : null}
           </div>
         </div>
       ) : (
@@ -234,6 +242,7 @@ export default function PurchaseDocumentDetail() {
       {runner.confirmDialog}
       {kind === 'orders' ? <ReceiveOrderDialog order={doc} open={dialog === 'receive'} onOpenChange={(o) => setDialog(o ? 'receive' : null)} /> : null}
       {kind === 'invoices' ? <PaymentDialog invoice={doc} open={dialog === 'pay'} onOpenChange={(o) => setDialog(o ? 'pay' : null)} /> : null}
+      {documentary ? <RelateDocumentDialog kind={kind} doc={doc} open={dialog === 'relate'} onOpenChange={(o) => setDialog(o ? 'relate' : null)} /> : null}
       {['orders', 'invoices'].includes(kind) ? <CorrectionDialog kind={kind} doc={doc} open={dialog === 'correct'} onOpenChange={(o) => setDialog(o ? 'correct' : null)} /> : null}
       {kind === 'receipts' ? <ReceiptReversalDialog receipt={doc} open={dialog === 'reverseReceipt'} onOpenChange={(o) => setDialog(o ? 'reverseReceipt' : null)} /> : null}
       <CreateInventoryFromLineDialog line={lineForItems} open={Boolean(lineForItems)} onOpenChange={(o) => { if (!o) setLineForItems(null) }} />

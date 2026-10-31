@@ -35,6 +35,26 @@ export function getDocumentActions(kind, doc, { has, can }) {
   const out = []
   const decide = has('approvals') && can('purchases.approval.decide')
 
+  // Control documental: the API lists what the document allows
+  // (allowedActions); permissions decide who may do it. No financial,
+  // receipt or approval transition exists for a reference.
+  if (['orders', 'invoices'].includes(kind) && doc.economicMode === 'DOCUMENTARY') {
+    const allowed = new Set(doc.allowedActions ?? [])
+    const noun = kind === 'orders' ? 'la orden' : 'la factura'
+    if (allowed.has('correct') && doc.correction?.fields?.length && can(kind === 'orders' ? 'purchases.order.correct' : 'purchases.invoice.correct')) {
+      out.push({ key: 'correct', type: 'dialog', dialog: 'correct', label: s === 'CANCELLED' ? 'Corregir observaciones' : 'Completar o corregir', tone: 'primary' })
+    }
+    // One order per invoice: an invoice that has one is not offered another.
+    const canRelate = kind === 'orders' || !(doc.orders ?? []).length
+    if (allowed.has('relate') && canRelate && can('purchases.relation.manage')) {
+      out.push({ key: 'relate', type: 'dialog', dialog: 'relate', label: kind === 'orders' ? 'Relacionar factura' : 'Relacionar orden', tone: 'secondary' })
+    }
+    if (allowed.has('cancel') && can(kind === 'orders' ? 'purchases.order.update' : 'purchases.invoice.update')) {
+      out.push({ ...cancel(noun), confirm: { ...cancel(noun).confirm, description: 'La referencia queda cancelada como historial, con sus relaciones y archivos.', commentRequired: true } })
+    }
+    return out
+  }
+
   if (kind === 'orders') {
     const update = can('purchases.order.update')
     if (s === 'DRAFT' && update) out.push({ key: 'submit', type: 'transition', action: 'submit', label: 'Enviar', tone: 'primary' }, edit)

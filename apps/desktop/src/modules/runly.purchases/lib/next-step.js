@@ -8,6 +8,7 @@
 //   items: short lines (pending goods, blocking reasons); links: [{ label, kind, id }]
 import { formatDate, formatMoney } from './format.js'
 import { withUnit } from './units.js'
+import { isDocumentaryDoc, missingDocumentaryData } from './documentary.js'
 
 const days = (from, to) => {
   if (!from || !to) return null
@@ -139,8 +140,26 @@ function caseStep(doc, offered) {
     : step('waiting', 'Listo para cerrar', 'Lo cierra quien gestiona expedientes.')
 }
 
+// Control documental: no amounts, payments or receipts; only what is still
+// unknown (supplier, document date) and the documents it can be related to.
+function documentaryStep(kind, doc, offered) {
+  const noun = kind === 'orders' ? 'orden' : 'factura'
+  const other = kind === 'orders' ? 'factura' : 'orden de compra'
+  if (doc.status === 'CANCELLED') return step('info', 'Referencia cancelada', 'Se conserva como historial con sus relaciones y archivos.')
+  const missing = missingDocumentaryData(doc)
+  if (missing.length && offered('correct')) {
+    return step('action', 'Completar la referencia', `Sin capturar: ${missing.map((m) => m.label).join(' y ')}. Son opcionales; complétalos cuando tengas el documento.`, { cta: 'correct', secondary: offered('relate') ? 'relate' : null })
+  }
+  return step('info', 'Referencia registrada', `Puedes adjuntar el documento original y relacionar esta ${noun} con Inventarios o con su ${other}. Nada de eso es obligatorio.`, { secondary: offered('relate') ? 'relate' : null })
+}
+
 export function nextStep(kind, doc, actions = [], { today } = {}) {
   if (!doc || !['orders', 'invoices', 'cases'].includes(kind)) return null
+  if (isDocumentaryDoc(doc)) {
+    if (doc.capabilityEnabled === false) return step('info', 'Solo lectura', 'Este tipo de documento está desactivado en tu flujo; se conserva como historial.')
+    const keys = new Set(actions.map((action) => action.key))
+    return documentaryStep(kind, doc, (key) => keys.has(key))
+  }
   if (kind === 'cases') {
     const keys = new Set(actions.map((action) => action.key))
     return caseStep(doc, (key) => keys.has(key))

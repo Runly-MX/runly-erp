@@ -41,7 +41,9 @@ export function useCapabilities({ enabled = true } = {}) {
   // { cases, requests, orders, receipts, invoices, payments }: the company has
   // such documents, so a section turned off stays readable (history).
   const history = query.data?.history ?? {}
-  return { ...query, capabilities, stages, has, history }
+  // Company economic mode (FINANCIAL unless Control documental is active).
+  const documentary = query.data?.economicMode === 'DOCUMENTARY'
+  return { ...query, capabilities, stages, has, history, documentary }
 }
 
 // Pending approvals for the sidebar badge: only for approvers, only while the

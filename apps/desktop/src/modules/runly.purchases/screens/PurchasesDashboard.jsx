@@ -9,6 +9,7 @@ import { NewPurchaseButton } from '../components/NewPurchaseButton.jsx'
 import { AttentionInbox } from '../components/dashboard/AttentionInbox.jsx'
 import { PeriodSummary, StageCounts } from '../components/dashboard/WorkSummary.jsx'
 import { RecentPanel, SpendTrendPanel, SupplierRankingPanel } from '../components/dashboard/DashboardCharts.jsx'
+import { DocumentaryHome } from '../components/dashboard/DocumentaryHome.jsx'
 
 // Inicio (direction A, "mesa de trabajo"): what needs the user's role now,
 // then where the process stands and what moved lately; charts last.
@@ -35,11 +36,13 @@ export default function PurchasesDashboard() {
 
   return (
     <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
-      <PageHeader eyebrow={presetName ? `Compras · flujo ${presetName.toLowerCase()}` : 'Compras'} title="Inicio"
-        description="Lo que espera a tu rol, cómo va el proceso y lo último que se movió."
+      <PageHeader eyebrow={caps.documentary ? 'Compras · Control documental' : presetName ? `Compras · flujo ${presetName.toLowerCase()}` : 'Compras'} title="Inicio"
+        description={caps.documentary ? 'Órdenes y facturas registradas como referencias, y los inventarios que amparan.' : 'Lo que espera a tu rol, cómo va el proceso y lo último que se movió.'}
         actions={<NewPurchaseButton />} />
 
-      {isLoading || !data ? (
+      {!isLoading && data && caps.documentary ? (
+        <DocumentaryHome data={data} has={caps.has} onOpen={(kind, id) => navigate(`${ROOT}/${kind}/${id}`)} />
+      ) : isLoading || !data ? (
         <div className="grid gap-4 xl:grid-cols-3">
           <Skeleton className="h-80 rounded-2xl xl:col-span-2" />
           <Skeleton className="h-80 rounded-2xl" />

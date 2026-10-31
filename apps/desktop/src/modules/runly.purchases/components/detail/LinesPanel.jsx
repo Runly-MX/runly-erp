@@ -25,8 +25,10 @@ function ReceivedBar({ line }) {
 export function LinesPanel({ kind, doc, canCreateItems, onCreateItems }) {
   const lines = useMemo(() => doc.lines ?? [], [doc.lines])
   const totals = computeTotals(lines.map((l) => ({ ...l, taxRate: l.taxRate ?? 0 })))
-  const priced = kind !== 'receipts'
-  const showReceived = kind === 'orders' && lines.some((l) => l.receivedQuantity != null)
+  // Control documental: lines without prices, taxes, totals or receipts.
+  const documentary = doc.economicMode === 'DOCUMENTARY'
+  const priced = kind !== 'receipts' && !documentary
+  const showReceived = kind === 'orders' && !documentary && lines.some((l) => l.receivedQuantity != null)
 
   const columns = useMemo(() => [
     {
@@ -41,7 +43,7 @@ export function LinesPanel({ kind, doc, canCreateItems, onCreateItems }) {
         </div>
       ),
     },
-    { id: 'qty', header: () => right(showReceived ? 'Pedido' : 'Cantidad'), cell: ({ row: { original: l } }) => right(<span className="tabular-nums">{formatQty(l.quantity)}</span>) },
+    { id: 'qty', header: () => right(showReceived ? 'Pedido' : 'Cantidad'), cell: ({ row: { original: l } }) => right(l.quantity == null ? <span className="text-[hsl(var(--muted-foreground))]">Sin cantidad</span> : <span className="tabular-nums">{formatQty(l.quantity)}</span>) },
     // Orders: what arrived and what is still missing, per line and in its own unit.
     ...(showReceived ? [
       { id: 'received', header: 'Recibido', cell: ({ row: { original: l } }) => (l.itemKind === 'SERVICE' ? <span className="text-[hsl(var(--muted-foreground))]">No aplica</span> : <ReceivedBar line={l} />) },

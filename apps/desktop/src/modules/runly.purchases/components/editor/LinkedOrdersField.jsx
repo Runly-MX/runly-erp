@@ -17,12 +17,12 @@ export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, o
   const options = useMemo(() => {
     const list = rows.map((row) => ({
       value: row.id,
-      label: row.number,
+      label: row.reference ?? row.number,
       description: [row.supplierName, row.total != null ? formatMoney(row.total, row.currency) : null].filter(Boolean).join(', '),
       icon: ClipboardList,
     }))
     value.forEach((id) => {
-      if (!list.some((o) => o.value === id)) list.push({ value: id, label: cache.current.get(id)?.number ?? cache.current.get(id)?.label ?? 'Orden', icon: ClipboardList })
+      if (!list.some((o) => o.value === id)) list.push({ value: id, label: cache.current.get(id)?.reference ?? cache.current.get(id)?.number ?? cache.current.get(id)?.label ?? 'Orden', icon: ClipboardList })
     })
     return list
   }, [rows, value])
@@ -42,7 +42,7 @@ export function LinkedOrdersField({ value = [], onChange, known = {}, inherit, o
         filter={false}
         loading={query.isFetching && !rows.length}
         disabled={disabled}
-        placeholder="Buscar orden por folio"
+        placeholder="Buscar orden por referencia o folio"
         searchPlaceholder="OC-000123"
         emptyText="Sin órdenes"
         hint={supplierId ? 'Una factura se relaciona con una sola orden. Se muestran las del proveedor elegido.' : 'Una factura se relaciona con una sola orden. Elige el proveedor para acotar la búsqueda.'}

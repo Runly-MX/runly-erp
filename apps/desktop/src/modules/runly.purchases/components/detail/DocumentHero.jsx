@@ -4,6 +4,7 @@ import { StageTrack } from './StageTrack.jsx'
 import { PurchaseStatusBadge } from '../PurchaseStatusBadge.jsx'
 import { KINDS, ROOT, docPath } from '../../lib/purchases-constants.js'
 import { daysUntil, formatDate, formatMoney, toNumber } from '../../lib/format.js'
+import { isDocumentaryDoc, missingDocumentaryData } from '../../lib/documentary.js'
 
 const CHIP = 'inline-flex items-center rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 text-xs font-medium text-[hsl(var(--foreground))]'
 const TONE_CHIP = {
@@ -28,6 +29,11 @@ function Fact({ label, children }) {
 // order, the due date of an open invoice.
 function derivedChips(kind, doc) {
   const chips = []
+  if (isDocumentaryDoc(doc)) {
+    chips.push(['Control documental', 'neutral'])
+    for (const m of missingDocumentaryData(doc)) chips.push([`Sin ${m.label}`, 'neutral'])
+    return chips
+  }
   if (kind === 'orders' && !['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'CANCELLED'].includes(doc.status)) {
     const receipt = RECEIPT_CHIP[doc.receipt?.state]
     if (receipt) chips.push(receipt)
@@ -87,6 +93,8 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
   const stages = (doc.stageMap ?? []).filter((s) => s.mode !== 'DISABLED')
   const supplier = doc.supplier ?? (doc.supplierName ? { name: doc.supplierName, id: doc.supplierId } : null)
   const workbench = kind === 'orders' || kind === 'invoices' || kind === 'cases'
+  // Control documental: no amounts at all (unknown is not zero).
+  const documentary = isDocumentaryDoc(doc)
 
   return (
     <section className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]" aria-label={`Resumen de ${meta.singular.toLowerCase()}`}>
@@ -103,11 +111,13 @@ export function DocumentHero({ kind, doc, facts = [], onOpenRef }) {
             ) : null}
           </div>
           <p className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">
-            {[doc.version != null ? `Versión ${doc.version}` : null, doc.sequence ? `N.º ${doc.sequence}` : null].filter(Boolean).join(' · ')}
+            {[doc.version != null ? `Versión ${doc.version}` : null, documentary && doc.number ? `Folio interno ${doc.number}` : null, doc.sequence ? `N.º ${doc.sequence}` : null].filter(Boolean).join(' · ')}
           </p>
         </div>
         {doc.title ? <p className="text-base font-medium">{doc.title}</p> : null}
-        {kind === 'cases' ? (
+        {documentary ? (
+          doc.description ? <p className="text-sm">{doc.description}</p> : <p className="text-sm text-[hsl(var(--muted-foreground))]">Referencia sin importes: se registra el documento, no su monto ni sus pagos.</p>
+        ) : kind === 'cases' ? (
           caseAmounts(doc).length ? (
             <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
               {caseAmounts(doc).map((m) => <Money key={m.label} label={m.label} value={m.value} currency={doc.currency} tone={m.tone} />)}

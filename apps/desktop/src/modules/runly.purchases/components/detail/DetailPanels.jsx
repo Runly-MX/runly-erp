@@ -6,6 +6,7 @@ import { MoneyText } from '../MoneyText.jsx'
 import { RevisionsPanel } from './RevisionsPanel.jsx'
 import { Timeline } from './Timeline.jsx'
 import { receiptMovements } from '../../lib/case-timeline.js'
+import { DOCUMENTARY_FIELD_META } from '../../lib/documentary.js'
 import { ROOT } from '../../lib/purchases-constants.js'
 import { formatDate, toNumber } from '../../lib/format.js'
 import { ofTotal, withUnit } from '../../lib/units.js'
@@ -89,11 +90,13 @@ export function OrderProgressCard({ order }) {
 }
 
 // What an audited correction may change now (plan computed by the API).
-export function CorrectionRulesCard({ plan }) {
+export function CorrectionRulesCard({ plan, documentary = false }) {
   if (!plan || plan.draft || (!plan.fields?.length && !plan.locked?.length)) return null
+  const label = (f) => f.label ?? DOCUMENTARY_FIELD_META[f.field]?.label ?? f.field
   return (
-    <AsideCard title="Qué se puede corregir" footer="Importes, proveedor, moneda y partidas no se corrigen: se cancela y se registra el documento correcto.">
-      {plan.fields.length ? <p className="text-sm">{plan.fields.map((f) => f.label).join(', ')}.</p> : <p className="text-sm text-[hsl(var(--muted-foreground))]">Nada en este estado.</p>}
+    <AsideCard title={documentary ? 'Qué se puede completar o corregir' : 'Qué se puede corregir'}
+      footer={documentary ? 'Cada cambio pide un motivo y queda en el historial. Las partidas capturadas al registrar no se editan después.' : 'Importes, proveedor, moneda y partidas no se corrigen: se cancela y se registra el documento correcto.'}>
+      {plan.fields.length ? <p className="text-sm">{plan.fields.map(label).join(', ')}.</p> : <p className="text-sm text-[hsl(var(--muted-foreground))]">Nada en este estado.</p>}
       {plan.locked.length ? (
         <ul className="mt-2 space-y-1 text-xs text-[hsl(var(--muted-foreground))]">
           {plan.locked.map((f) => <li key={f.field}>{f.label}: {f.reason}</li>)}

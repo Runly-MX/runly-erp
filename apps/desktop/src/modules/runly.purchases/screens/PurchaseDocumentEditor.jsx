@@ -19,6 +19,8 @@ import { LineItemsEditor } from '../components/editor/LineItemsEditor.jsx'
 import { TotalsCard } from '../components/editor/TotalsCard.jsx'
 import { LinkedInventoryCard } from '../components/editor/LinkedInventoryCard.jsx'
 import { LinkedOrdersField } from '../components/editor/LinkedOrdersField.jsx'
+import { DocumentaryEditor } from '../components/editor/DocumentaryEditor.jsx'
+import { DOCUMENTARY_FIELD_META, isDocumentaryDoc } from '../lib/documentary.js'
 
 const EDITABLE = ['orders', 'invoices', 'requests']
 
@@ -203,15 +205,25 @@ export default function PurchaseDocumentEditor() {
     // Registered documents are not edited freely: administrative data goes
     // through the audited correction (the API decides which fields).
     const correctable = existing.data.correction?.fields?.length && can(kind === 'orders' ? 'purchases.order.correct' : 'purchases.invoice.correct')
+    const documentaryDoc = isDocumentaryDoc(existing.data)
+    const fieldNames = (existing.data.correction?.fields ?? []).map((f) => (f.label ?? DOCUMENTARY_FIELD_META[f.field]?.label ?? f.field).toLowerCase()).join(', ')
     return shell(
-      <EmptyState icon={Lock} title="Este documento ya está registrado"
+      <EmptyState icon={Lock} title={documentaryDoc ? 'Esta referencia ya está registrada' : 'Este documento ya está registrado'}
         description={correctable
-          ? `Solo los borradores se editan. Puedes corregir con motivo: ${existing.data.correction.fields.map((f) => f.label.toLowerCase()).join(', ')}. Importes, partidas, proveedor y moneda no se corrigen: se cancela y se registra de nuevo.`
+          ? (documentaryDoc
+            ? `Se completa o corrige con motivo y queda en el historial: ${fieldNames}.`
+            : `Solo los borradores se editan. Puedes corregir con motivo: ${fieldNames}. Importes, partidas, proveedor y moneda no se corrigen: se cancela y se registra de nuevo.`)
           : 'Solo los borradores se editan. Usa las acciones del detalle para avanzar o cancelar.'}
         action={correctable
           ? { label: 'Corregir datos', onClick: () => navigate(`${backTo}?accion=corregir`) }
           : { label: 'Ver detalle', onClick: () => navigate(backTo) }} />,
     )
+  }
+
+  // Control documental: new orders and invoices are references (only the
+  // reference is required). Financial companies keep the editor below.
+  if (!isEdit && caps.documentary && kind !== 'requests') {
+    return <DocumentaryEditor kind={kind} meta={meta} can={can} caps={caps} inventoryIds={urlInventoryIds} sourceOrder={sourceOrder.data ?? null} />
   }
 
   const title = isEdit ? `Editar ${existing.data?.number ?? meta.short.toLowerCase()}` : meta.newLabel ?? `Nueva ${meta.short.toLowerCase()}`
@@ -286,9 +298,11 @@ export default function PurchaseDocumentEditor() {
           ) : null}
 
           <Section id="section-files" title="Archivos" description={kind === 'invoices' ? 'PDF y XML de la factura, comprobantes y evidencias.' : 'Cotizaciones, fichas técnicas, fotos o cualquier respaldo.'}>
-            <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId}
-              recordId={isEdit ? id : null} config={{ ...attachmentsConfig(meta.entityType), placement: 'embedded' }}
-              context="form" showHeading={false} onControllerReady={(controller) => { attachments.current = controller }} />
+            {can('files.assets.read') ? (
+              <AttachmentsPanel apiBaseUrl={getApiUrl()} token={session?.access_token} companyId={activeCompanyId}
+                recordId={isEdit ? id : null} config={{ ...attachmentsConfig(meta.entityType), placement: 'embedded' }}
+                context="form" showHeading={false} onControllerReady={(controller) => { attachments.current = controller }} />
+            ) : <EmptyState variant="compact" icon={Lock} title="Sin acceso a archivos" description="Tu rol no permite adjuntar archivos; el documento se guarda sin ellos." />}
           </Section>
 
           <Section id="section-notes" title="Notas internas">

@@ -12,6 +12,7 @@ import { StagesPanel } from '../components/settings/StagesPanel.jsx'
 import { PoliciesEditor } from '../components/settings/PoliciesEditor.jsx'
 import { NumberingPanel } from '../components/settings/NumberingPanel.jsx'
 import { ApprovalChatPanel } from '../components/settings/ApprovalChatPanel.jsx'
+import { EconomicModePanel } from '../components/settings/EconomicModePanel.jsx'
 
 // Process configuration: template (preset), capabilities, stage modes and
 // policies, with the resulting track previewed live at the top.
@@ -25,6 +26,9 @@ export default function PurchaseSettingsScreen() {
   const [preset, capabilities, modes] = useWatch({ control, name: ['preset', 'capabilities', 'modes'] })
   const workflow = settings.data?.workflow
   const presets = settings.data?.presets ?? {}
+  const economicMode = settings.data?.economicMode ?? workflow?.economicMode ?? 'FINANCIAL'
+  const documentary = economicMode === 'DOCUMENTARY'
+  const changeMode = (mode) => update.mutate(mode === 'DOCUMENTARY' ? { profile: 'DOCUMENTARY' } : { economicMode: 'FINANCIAL', preset: 'BASIC' })
 
   useEffect(() => { if (workflow) reset(toFormValues(workflow)) }, [workflow, reset])
 
@@ -54,21 +58,31 @@ export default function PurchaseSettingsScreen() {
 
       <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5 md:p-6">
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Así se verá tu proceso</p>
-        <h2 className="mt-1 text-xl font-semibold tracking-tight">Flujo {presetName?.toLowerCase()}, {stages.length} {stages.length === 1 ? 'etapa' : 'etapas'}</h2>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">{documentary ? 'Control documental' : `Flujo ${presetName?.toLowerCase()}`}, {stages.length} {stages.length === 1 ? 'etapa' : 'etapas'}{documentary ? ' opcionales' : ''}</h2>
         <div className="mt-4 rounded-xl bg-[hsl(var(--muted))]/30 px-3 py-4">
           <PurchaseFlowRibbon stages={stages} />
         </div>
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-base font-semibold">Plantilla</h2>
-        <PresetCards presets={presets} value={preset} customStages={stages} onChange={choosePreset} disabled={!canManage} />
-      </section>
+      <EconomicModePanel mode={economicMode} available={settings.data?.documentaryAvailable !== false} canManage={canManage} saving={update.isPending} onChange={changeMode} />
 
-      <StagesPanel capabilities={capabilities ?? {}} modes={modes ?? {}} onCapability={setCapability} onMode={setMode} disabled={!canManage} />
-      <PoliciesEditor control={control} errors={errors} enabledStages={stages.map((s) => s.type)} disabled={!canManage} />
+      {documentary ? (
+        // The documentary profile fixes its stages (orders, invoices, relations; all optional) and has no policies.
+        <p className="rounded-2xl border border-dashed border-[hsl(var(--border))] px-4 py-3 text-sm text-[hsl(var(--muted-foreground))]">
+          En Control documental el proceso es fijo: órdenes, facturas y relaciones con Inventarios, todas opcionales y sin políticas. Para elegir otra plantilla, vuelve al modo financiero.
+        </p>
+      ) : (
+        <>
+          <section className="space-y-3">
+            <h2 className="text-base font-semibold">Plantilla</h2>
+            <PresetCards presets={presets} value={preset} customStages={stages} onChange={choosePreset} disabled={!canManage} />
+          </section>
+          <StagesPanel capabilities={capabilities ?? {}} modes={modes ?? {}} onCapability={setCapability} onMode={setMode} disabled={!canManage} />
+          <PoliciesEditor control={control} errors={errors} enabledStages={stages.map((s) => s.type)} disabled={!canManage} />
+        </>
+      )}
       <NumberingPanel control={control} capabilities={capabilities} disabled={!canManage} />
-      {capabilities?.approvals ? <ApprovalChatPanel disabled={!canManage} /> : null}
+      {!documentary && capabilities?.approvals ? <ApprovalChatPanel disabled={!canManage} /> : null}
 
       {canManage && isDirty ? (
         <UnsavedChangesBar onSave={save} onDiscard={() => reset(toFormValues(workflow))} saving={update.isPending} saveLabel="Guardar cambios" />
