@@ -144,7 +144,9 @@ export function createAutomationHttpService({ prisma, transport = defaultTranspo
       },
     });
     if (response.status < 200 || response.status >= 300) {
-      throw new AutomationHttpError(`${host} respondió ${response.status}${response.text ? `: ${response.text.slice(0, 200)}` : ""}`, 502);
+      // 502 (worth retrying) when the other side is down or busy; 422 when it refused the data.
+      const transient = response.status >= 500 || response.status === 429 || response.status === 408 || !response.status;
+      throw new AutomationHttpError(`${host} respondió ${response.status}${response.text ? `: ${response.text.slice(0, 200)}` : ""}`, transient ? 502 : 422);
     }
     return { status: response.status };
   }

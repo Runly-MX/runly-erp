@@ -12,6 +12,7 @@ import { createRealtimeBroadcasterFromEnv } from "./realtime-broadcaster.js";
 import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { createAutomationWebhooksService, WEBHOOK_EVENT } from "./automation-webhooks-service.js";
+import { MAX_RETRIES, planRetry } from "./automation-retry.js";
 
 export const SYSTEM_MODULE_KEY = "system.automations";
 export const MAX_SYSTEM_AUTOMATIONS = 50;
@@ -28,7 +29,8 @@ export class SystemAutomationError extends Error {
 export function createSystemAutomationsService({ prisma, moduleServices = null, notifications = null, now = () => new Date() }) {
   const runs = createAutomationRunsService({ prisma });
   const jobs = createAutomationJobsService({ prisma, now });
-  const approvals = createAutomationApprovalsService({ prisma, notifications: notifications ?? createNotificationService({ prisma }), chat: createChatIntegrationsService({ prisma, broadcaster: createRealtimeBroadcasterFromEnv({ prisma }) }), now });
+  const notifier = notifications ?? createNotificationService({ prisma });
+  const approvals = createAutomationApprovalsService({ prisma, notifications: notifier, chat: createChatIntegrationsService({ prisma, broadcaster: createRealtimeBroadcasterFromEnv({ prisma }) }), now });
   const http = createAutomationHttpService({ prisma });
   const webhooks = createAutomationWebhooksService({ prisma, now });
 
@@ -44,6 +46,46 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
       enqueue: (job) => jobs.enqueue({ companyId, moduleKey: SYSTEM_MODULE_KEY, job }),
       approve: (request) => approvals.create({ companyId, moduleKey: SYSTEM_MODULE_KEY, request }),
       http: (request) => http.send({ companyId, moduleKey: SYSTEM_MODULE_KEY, request }),
+    };
+  }
+
+  // Tells who made the automation that it failed: at most one notice per automation per hour.
+  async function notifyFailure(companyId, row, failedStep) {
+    if (!row.createdById) return;
+    await notifier.publish({
+      companyId,
+      input: {
+        eventType: "automations.run.failed",
+        title: `Falló la automatización «${row.label}»`,
+        body: String(failedStep?.error ?? "Un bloque no se pudo completar.").slice(0, 300),
+        link: `/app/m/runly.automations/${row.key}`,
+        priority: "high",
+        recipients: { userIds: [row.createdById] },
+        sourceType: SYSTEM_MODULE_KEY,
+        dedupeKey: `automation-failed:${row.key}:${Math.floor(now().getTime() / 3_600_000)}`,
+      },
+    }).catch((error) => console.error("[system-automations] aviso de fallo:", error?.message ?? error));
+  }
+
+  // Retry hook of one run (spec 2026-10-31 §A): resume later from the failed step when
+  // the error can heal by itself, otherwise park the continuation for a person.
+  function retryFor(companyId, row, attempt = 0) {
+    return async ({ result, runId, base, recordId, actorId }) => {
+      const plan = planRetry({ result, attempt, enabled: row.definition.retry !== false, now: now() });
+      const fromStep = result.stoppedAt;
+      const failedStep = result.steps.find((step) => step.index === fromStep);
+      const retrying = plan.status === "retrying";
+      await jobs.enqueue({
+        companyId, moduleKey: SYSTEM_MODULE_KEY,
+        job: {
+          automationKey: row.key, fromStep, runId, runAt: retrying ? plan.at : now(),
+          payload: { data: result.scope, recordId, actorId, base, retry: { attempt: plan.attempt, max: MAX_RETRIES, fromStep } },
+          dedupe: retrying && base ? `${base}:r${fromStep}:${plan.attempt}` : null,
+          ...(retrying ? {} : { status: "failed", error: failedStep?.error }),
+        },
+      });
+      if (!retrying) await notifyFailure(companyId, row, failedStep);
+      return plan;
     };
   }
 
@@ -137,14 +179,19 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     if (!due.length) return { ran: 0 };
     const host = hostFor(companyId);
     if (!host.services) throw new SystemAutomationError("Los servicios no están disponibles en esta instancia.", 500);
-    const failures = [];
-    for (const row of due) {
+    // A failed automation retries on its own (retry hook), so the event is never
+    // delivered again because of it. If it is (another subscriber failed), the
+    // automations that already ran for this event are not repeated.
+    const done = eventId && prisma.automationRun?.findMany
+      ? new Set((await prisma.automationRun.findMany({ where: { companyId, moduleKey: SYSTEM_MODULE_KEY, triggerRef: String(eventId), automationKey: { in: due.map((row) => row.key) } }, select: { automationKey: true } })).map((run) => run.automationKey))
+      : new Set();
+    let ran = 0;
+    for (const row of due.filter((item) => !done.has(item.key))) {
       const automation = toRuntime(row);
-      const result = await execute({ moduleKey: SYSTEM_MODULE_KEY, automation, base: `${automation.key}:${eventId}`, data: payload, trigger: webhook ? "webhook" : "event", ref: eventId, ...host });
-      if (!result.ok) failures.push(`${automation.key}: ${result.error}`);
+      await execute({ moduleKey: SYSTEM_MODULE_KEY, automation, base: `${automation.key}:${eventId}`, data: payload, trigger: webhook ? "webhook" : "event", ref: eventId, retry: retryFor(companyId, row), ...host });
+      ran += 1;
     }
-    if (failures.length) throw new Error(failures.join(" | "));
-    return { ran: due.length };
+    return { ran };
   }
 
   // Continuation after a wait or an approval (worker).
@@ -154,12 +201,12 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     if (!row.enabled) return { skipped: true };
     if (!(await moduleOn(job.companyId))) throw new Error("El módulo Automatizaciones está desactivado para esta empresa.");
     const automation = toRuntime(row);
-    const { data, recordId = null, actorId = null, base = null } = job.payload ?? {};
-    const result = await execute({
-      moduleKey: SYSTEM_MODULE_KEY, automation, base, data, recordId, actorId, from: job.fromStep, runId: job.runId ?? null, trigger: "delayed", ref: recordId, ...hostFor(job.companyId),
+    const { data, recordId = null, actorId = null, base = null, retry = null } = job.payload ?? {};
+    // A failure here goes to the retry hook (next attempt or parked), not to the job queue.
+    return execute({
+      moduleKey: SYSTEM_MODULE_KEY, automation, base, data, recordId, actorId, from: job.fromStep, runId: job.runId ?? null, trigger: "delayed", ref: recordId,
+      retry: retryFor(job.companyId, row, retry?.attempt ?? 0), ...hostFor(job.companyId),
     });
-    if (!result.ok) throw new Error(result.error);
-    return result;
   }
 
   // The schedule trigger of one automation, or null (used by the worker).
@@ -179,11 +226,26 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
     if (!row || !row.enabled || row.definition.trigger?.type !== "schedule" || !(await moduleOn(companyId))) return { skipped: true };
     const automation = toRuntime(row);
-    const result = await execute({
-      moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:all:${occurrence}`, data: { firedAt: occurrence }, recordId: null, actorId: null, trigger: "schedule", ref: occurrence, ...hostFor(companyId),
+    return execute({
+      moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:all:${occurrence}`, data: { firedAt: occurrence }, recordId: null, actorId: null, trigger: "schedule", ref: occurrence,
+      retry: retryFor(companyId, row), ...hostFor(companyId),
     });
-    if (!result.ok) throw new Error(result.error);
-    return result;
+  }
+
+  // A person resumes a failed run from the block that failed.
+  async function retryRun({ companyId, key, runId }) {
+    const run = await prisma.automationRun.findFirst({ where: { id: runId, companyId, moduleKey: SYSTEM_MODULE_KEY, automationKey: key } });
+    if (!run) throw new SystemAutomationError("Ejecución no encontrada.", 404);
+    if (run.status !== "failed") throw new SystemAutomationError("Solo se puede reintentar una ejecución que falló.", 409);
+    const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } }, select: { enabled: true } });
+    if (!row?.enabled) throw new SystemAutomationError("Activa la automatización para reintentar.", 409);
+    try {
+      await jobs.requeue({ companyId, moduleKey: SYSTEM_MODULE_KEY, runId });
+    } catch (error) {
+      throw new SystemAutomationError(error.message, error.status ?? 409);
+    }
+    await prisma.automationRun.update({ where: { id: run.id }, data: { status: "retrying" } });
+    return { id: run.id, status: "retrying" };
   }
 
   // A new secret URL: the old one stops working at once.
@@ -196,5 +258,5 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
 
   const webhookEvents = ({ companyId, key }) => webhooks.recentEvents({ companyId, key });
 
-  return { list, catalog, create, save, remove, runEvent, resume, scheduleOf, listSchedules, runSchedule, hostFor, regenerateWebhookToken, webhookEvents, webhooks };
+  return { list, catalog, create, save, remove, runEvent, resume, retryRun, scheduleOf, listSchedules, runSchedule, hostFor, regenerateWebhookToken, webhookEvents, webhooks };
 }

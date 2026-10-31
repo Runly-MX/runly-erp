@@ -1,7 +1,7 @@
 // Inspector of the canvas editor: edits the selected block with the same editors
 // the form view uses, organised in titled sections. Docked (and resizable) beside
 // the canvas on wide screens, a side/bottom sheet elsewhere.
-import { Button } from "@runly/ui";
+import { Button, SwitchField } from "@runly/ui";
 import { ArrowDown, ArrowUp, Maximize2, Minimize2, Trash2, X } from "lucide-react";
 import { AutomationConditions } from "../AutomationConditions";
 import { InspectorSection } from "../InspectorSection";
@@ -57,14 +57,36 @@ export function InspectorHeader({ icon: Icon, tone = "neutral", kindLabel, title
   );
 }
 
-export function InspectorBody({ node, automation, steps, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, onStep }) {
+export function InspectorBody({ node, automation, steps, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, onStep, retries = false }) {
   if (!node) return null;
   const trigger = automation.trigger;
   if (node.kind === "trigger") {
+    const tolerant = automation.onError === "continue";
     return (
-      <InspectorSection title="Cuándo empieza" description="Lo que pone en marcha esta automatización.">
-        <TriggerEditor automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers} readOnly={readOnly} onPatch={onPatch} compact />
-      </InspectorSection>
+      <div className="space-y-4">
+        <InspectorSection title="Cuándo empieza" description="Lo que pone en marcha esta automatización.">
+          <TriggerEditor automation={automation} entities={entities} events={events} allowedTriggers={allowedTriggers} readOnly={readOnly} onPatch={onPatch} compact />
+        </InspectorSection>
+        <InspectorSection title="Si algo falla" description="Qué hace cuando un bloque no se puede completar.">
+          <div className="space-y-3">
+            {steps.length > 1 && (
+              <SwitchField label="Seguir con los bloques siguientes" checked={tolerant} disabled={readOnly}
+                onChange={(checked) => onPatch({ onError: checked ? "continue" : undefined })} />
+            )}
+            {retries && (
+              <>
+                <SwitchField label="Reintentar sola" checked={automation.retry !== false && !tolerant} disabled={readOnly || tolerant}
+                  onChange={(checked) => onPatch({ retry: checked ? undefined : false })} />
+                <p className="text-xs text-[hsl(var(--muted-foreground))]">
+                  {tolerant
+                    ? "Como sigue con los bloques siguientes, no se reintenta."
+                    : "Si otro módulo o sistema no responde, vuelve a intentar desde el bloque que falló hasta 5 veces (a 1, 5, 15 y 60 minutos). Si el error es de permisos o de datos, se detiene y te avisa; desde la consola puedes reintentarla cuando lo corrijas."}
+                </p>
+              </>
+            )}
+          </div>
+        </InspectorSection>
+      </div>
     );
   }
   if (node.kind === "conditions") {

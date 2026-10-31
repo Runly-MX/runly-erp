@@ -24,7 +24,7 @@ const EDITOR_PATH = "/app/m/runly.automations";
 const FILTERS = [{ value: "all", label: "Todas" }, { value: "active", label: "Activas" }, { value: "paused", label: "Pausadas" }];
 const RUN_STATUS = {
   success: { label: "Correcta", variant: "success" }, partial: { label: "Parcial", variant: "warning" }, failed: { label: "Falló", variant: "destructive" },
-  running: { label: "En curso", variant: "secondary" }, waiting: { label: "En espera", variant: "warning" }, cancelled: { label: "Cancelada", variant: "outline" }, rejected: { label: "Rechazada", variant: "destructive" },
+  running: { label: "En curso", variant: "secondary" }, waiting: { label: "En espera", variant: "warning" }, cancelled: { label: "Cancelada", variant: "outline" }, rejected: { label: "Rechazada", variant: "destructive" }, retrying: { label: "Reintentando", variant: "warning" },
 };
 const TRIGGER_LABEL = { event: "Evento", schedule: "Horario", webhook: "Webhook" };
 

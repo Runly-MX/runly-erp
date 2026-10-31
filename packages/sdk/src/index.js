@@ -549,6 +549,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/automations/${encodeURIComponent(key)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(input) }),
       deleteSystemAutomation: (key, token) =>
         request(`/automations/${encodeURIComponent(key)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
+      retrySystemAutomationRun: (key, runId, token) =>
+        request(`/automations/${encodeURIComponent(key)}/runs/${encodeURIComponent(runId)}/retry`, { method: "POST", headers: withAuthHeaders(token), body: "{}" }),
       // Automations: people for approver pickers, HTTP destinations, approvals inbox.
       builderPeople: (token) => request("/module-builder/people", { headers: withAuthHeaders(token) }),
       automationHttpHosts: (token) => request("/module-builder/automation-http-hosts", { headers: withAuthHeaders(token) }),

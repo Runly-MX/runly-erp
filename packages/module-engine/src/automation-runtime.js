@@ -74,6 +74,8 @@ export async function runSteps({ automation, services, base, data, recordId = nu
   const steps = []
   let failed = false
   let waiting = false
+  // Index of the failed step that stopped the flow (null when it ran to the end or onError is 'continue').
+  let stoppedAt = null
   // Results of earlier service steps (paso<N>_<key>) join the data the next steps can use.
   let scope = data
   // Blocks of the path a condition did not take. A condition splits the flow in two
@@ -137,13 +139,15 @@ export async function runSteps({ automation, services, base, data, recordId = nu
       for (const [key, value] of Object.entries(output)) scope['paso' + (index + 1) + '_' + key] = value
       steps.push({ index, service: step.service, ok: true, ms: Date.now() - startedAt, args: clip(args), output: clip(output, 1000) })
     } catch (error) {
+      if (!failed && automation.onError !== 'continue') stoppedAt = index
       failed = true
       console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
-      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, ...(sent ? { args: clip(sent) } : {}), code: error?.code ?? null, error: String(error?.message ?? error) })
+      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, ...(sent ? { args: clip(sent) } : {}), code: error?.code ?? null, status: Number(error?.status) || null, error: String(error?.message ?? error) })
     }
   }
   const failures = steps.filter((step) => !step.ok && !step.skipped)
-  return { key: automation.key, ok: !failures.length, waiting, steps, code: failures[0]?.code ?? null, error: failures.map((step) => step.error).join(' | ') || null }
+  // `scope` is what the step at `stoppedAt` read, so a retry can resume right there.
+  return { key: automation.key, ok: !failures.length, waiting, steps, stoppedAt, scope, code: failures[0]?.code ?? null, error: failures.map((step) => step.error).join(' | ') || null }
 }
 
 // One run-log row per execution; logging never breaks the save or the event.
@@ -156,16 +160,23 @@ export function runEntry(moduleKey, result, { trigger, ref, startedAt, runId = n
   }
 }
 
-// Logs one execution. Automations with waits or approvals open their run row first
-// so the continuation can find and finish it.
-export async function execute({ moduleKey, automation, services, base, data, recordId, actorId, from = 0, enqueue, approve, http, log, runId = null, trigger, ref }) {
+// Logs one execution. Automations with waits or approvals (or a retry hook) open
+// their run row first so the continuation can find and finish it. `retry` (optional)
+// gets a run that stopped at a failed step; when it answers { status: 'retrying' }
+// the run is logged as such and a later continuation finishes it.
+export async function execute({ moduleKey, automation, services, base, data, recordId, actorId, from = 0, enqueue, approve, http, log, runId = null, trigger, ref, retry = null }) {
   const startedAt = Date.now()
   let id = runId
-  if (!id && automation.steps.some((step) => step.type === 'delay' || step.type === 'approval')) {
+  if (!id && (retry || automation.steps.some((step) => step.type === 'delay' || step.type === 'approval'))) {
     const row = await safe(log, { moduleKey, automationKey: automation.key, triggerKind: trigger, triggerRef: ref ?? null, status: 'running', steps: [], error: null, durationMs: 0, input: clip(data, 4000) })
     id = row?.id ?? null
   }
   const result = await runSteps({ automation, services, base, data, recordId, actorId, from, enqueue, approve, http, runId: id })
-  await safe(log, runEntry(moduleKey, result, { trigger, ref, startedAt, runId: id, input: from ? undefined : clip(data, 4000) }))
-  return result
+  let entry = runEntry(moduleKey, result, { trigger, ref, startedAt, runId: id, input: from ? undefined : clip(data, 4000) })
+  if (retry && !result.ok && result.stoppedAt !== null) {
+    const plan = await safe(retry, { result, runId: id, base, recordId, actorId })
+    if (plan?.status === 'retrying') entry = { ...entry, status: 'retrying' }
+  }
+  const row = await safe(log, entry)
+  return { ...result, runId: id ?? row?.id ?? null }
 }

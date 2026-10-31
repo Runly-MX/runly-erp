@@ -4,9 +4,10 @@
 // of the canvas (onSelectRun). Refreshes every few seconds while open. On phones it
 // opens as a tall bottom sheet: the list of runs, then one run's detail.
 import { useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Badge, EmptyState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
-import { ArrowLeft, Check, ChevronDown, ChevronUp, Minus, Terminal, X } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Badge, Button, EmptyState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
+import { ArrowLeft, Check, ChevronDown, ChevronUp, Minus, RotateCcw, Terminal, X } from "lucide-react";
+import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
 import { describeStep, describeTrigger } from "../../lib/flowModel";
@@ -16,7 +17,9 @@ import { CodeSnippet } from "./CodeSnippet";
 const RUN_STATUS = {
   success: { label: "Correcta", variant: "success" }, partial: { label: "Parcial", variant: "warning" }, failed: { label: "Falló", variant: "destructive" },
   running: { label: "En curso", variant: "secondary" }, waiting: { label: "En espera", variant: "warning" }, cancelled: { label: "Cancelada", variant: "outline" }, rejected: { label: "Rechazada", variant: "destructive" },
+  retrying: { label: "Reintentando", variant: "warning" },
 };
+const clock = (value) => new Date(value).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" });
 const TRIGGER_LABEL = { record: "Registro", event: "Evento", schedule: "Horario", delayed: "Tras una espera", webhook: "Webhook", test: "Prueba" };
 const time = (value) => new Date(value).toLocaleString("es-MX", { dateStyle: "medium", timeStyle: "medium" });
 const json = (value) => JSON.stringify(value, null, 2);
@@ -69,9 +72,16 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
     enabled: Boolean(token),
     refetchInterval: open ? 4000 : 20000,
   });
-  const runs = useMemo(() => (query.data ?? []).filter((run) => !onlyErrors || ["failed", "partial", "rejected"].includes(run.status)), [query.data, onlyErrors]);
+  const runs = useMemo(() => (query.data ?? []).filter((run) => !onlyErrors || ["failed", "partial", "rejected", "retrying"].includes(run.status)), [query.data, onlyErrors]);
   const selected = runs.find((run) => run.id === selectedId) ?? runs[0] ?? null;
   const latest = (query.data ?? [])[0];
+  const queryClient = useQueryClient();
+  // Company automations resume a failed run from the block that failed (spec 2026-10-31 §A).
+  const resume = useMutation({
+    mutationFn: (run) => runly.modules.retrySystemAutomationRun(automation.key, run.id, token),
+    onSuccess: () => { toast.success("Reintentando desde el bloque que falló"); queryClient.invalidateQueries({ queryKey: ["automation-console", moduleKey, automation.key] }); },
+    onError: (error) => toast.error("No se pudo reintentar", { description: error.message }),
+  });
 
   useEffect(() => { onSelectRun?.(open ? selected : null); }, [open, selected?.id, selected?.status]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -107,6 +117,16 @@ export function AutomationConsole({ moduleKey, automation, open, onToggle, onSel
         <span className="text-xs text-[hsl(var(--muted-foreground))]">{time(selected.createdAt)} · {selected.durationMs} ms</span>
       </div>
       {selected.error && <div className="rounded-md border border-red-500/30 bg-red-500/5 p-2.5 text-xs text-red-700 dark:text-red-300"><span className="font-semibold">Resumen del error: </span>{selected.error}</div>}
+      {selected.status === "retrying" && selected.retry?.at && (
+        <p className="rounded-md border border-amber-500/30 bg-amber-500/5 p-2.5 text-xs text-amber-800 dark:text-amber-300">
+          Reintento {selected.retry.attempt} de {selected.retry.max} a las {clock(selected.retry.at)}, desde el bloque que falló.
+        </p>
+      )}
+      {selected.status === "failed" && selected.retry?.canResume && moduleKey === "system.automations" && (
+        <Button variant="outline" size="sm" className="gap-1.5 [@media(pointer:coarse)]:h-11" disabled={resume.isPending} onClick={() => resume.mutate(selected)}>
+          <RotateCcw className="h-4 w-4" /> Reintentar desde el bloque {selected.retry.fromStep + 1}
+        </Button>
+      )}
       <details className="rounded-md border border-[hsl(var(--border))]">
         <summary className="flex cursor-pointer list-none items-center justify-between p-2.5 text-sm font-medium [@media(pointer:coarse)]:min-h-11">
           <span>{triggerText.title}: datos que llegaron</span><ChevronDown className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />

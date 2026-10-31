@@ -265,7 +265,7 @@ function AutomationEditorScreen() {
 
       <AutomationCanvasEditor
         automation={item} entities={NO_ENTITIES} events={events} allowedTriggers={ALLOWED_TRIGGERS}
-        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="m-2 min-h-0 flex-1 sm:m-3" runOverlay={consoleOpen ? overlayRun : null} refitKey={consoleOpen}
+        fieldOptions={fieldOptions} readOnly={false} onPatch={patch} className="m-2 min-h-0 flex-1 sm:m-3" runOverlay={consoleOpen ? overlayRun : null} refitKey={consoleOpen} retries
       />
       {!isNew && <div className="mx-2 mb-2 shrink-0 sm:mx-3 sm:mb-3"><AutomationConsole moduleKey={SYSTEM_MODULE_KEY} automation={item} open={consoleOpen} onToggle={() => setConsoleOpen((open) => !open)} onSelectRun={setOverlayRun} /></div>}
 

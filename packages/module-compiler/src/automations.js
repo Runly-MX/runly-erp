@@ -323,6 +323,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
     validateCondition(trigger.when, { base, fieldNames, trigger, errors })
 
     if (automation.onError !== undefined && !ON_ERROR.includes(automation.onError)) errors.push(diagnostic(`${base}.onError`, 'AUTOMATIONS_INVALID', `onError must be one of ${ON_ERROR.join(', ')}.`))
+    if (automation.retry !== undefined && typeof automation.retry !== 'boolean') errors.push(diagnostic(`${base}.retry`, 'AUTOMATIONS_INVALID', 'retry must be boolean.'))
     if (automation.action !== undefined && automation.steps !== undefined) {
       errors.push(diagnostic(`${base}.steps`, 'AUTOMATION_STEPS_INVALID', 'Use either action or steps, not both.'))
       return
@@ -439,6 +440,8 @@ export function normalizeAutomations(list) {
       label: automation.label.trim(),
       enabled: automation.enabled !== false,
       ...(automation.onError === 'continue' ? { onError: 'continue' } : {}),
+      // Automatic retries of a failed service are on unless turned off (company automations).
+      ...(automation.retry === false ? { retry: false } : {}),
       trigger: normalizeTrigger(automation.trigger, condition),
       steps: stepsOf(automation).map(normalizeStep),
       ...(normalizeUi(automation.ui, stepsOf(automation).length) ? { ui: normalizeUi(automation.ui, stepsOf(automation).length) } : {}),

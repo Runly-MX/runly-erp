@@ -70,7 +70,7 @@ function runStatuses(run) {
   return map;
 }
 
-export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className, runOverlay = null, refitKey = null }) {
+export function AutomationCanvasEditor({ automation, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, className, runOverlay = null, refitKey = null, retries = false }) {
   const steps = stepsOf(automation);
   const trigger = automation.trigger;
   const ui = automation.ui;
@@ -375,7 +375,7 @@ export function AutomationCanvasEditor({ automation, entities, events, allowedTr
   const inspectorBody = current && currentNode ? (
     <InspectorBody
       node={current} automation={automation} steps={steps} entities={entities} events={events} allowedTriggers={allowedTriggers}
-      fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch}
+      fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch} retries={retries}
       onStep={(index, next) => onPatch({ steps: steps.map((step, i) => (i === index ? next : step)) })}
     />
   ) : null;

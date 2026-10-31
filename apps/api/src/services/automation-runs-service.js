@@ -9,7 +9,7 @@ export const AUTOMATION_RUN_RETENTION_DAYS = 90
 // How many automations can start one another through "terminó una automatización".
 export const MAX_CHAIN_DEPTH = 3;
 const FINAL = ["success", "partial", "failed", "rejected"];
-const STATUSES = ["success", "partial", "failed", "running", "waiting", "cancelled", "rejected"];
+const STATUSES = ["success", "partial", "failed", "running", "waiting", "cancelled", "rejected", "retrying"];
 const TRIGGER_KINDS = ["event", "delayed", "schedule", "webhook", "test"];
 const MAX_STEPS_JSON = 20;
 
@@ -120,10 +120,25 @@ export function createAutomationRunsService({ prisma }) {
     };
   }
 
+  // Retry state of each run from its queued (or parked) continuation: when the next
+  // automatic attempt runs, or whether a person can resume it.
+  async function withRetries(companyId, rows) {
+    const ids = rows.filter((row) => row.status === "retrying" || row.status === "failed").map((row) => row.id);
+    if (!ids.length || !prisma.automationJob?.findMany) return rows.map(view);
+    const jobs = await prisma.automationJob.findMany({ where: { companyId, runId: { in: ids }, status: { in: ["pending", "failed"] } }, orderBy: { createdAt: "desc" }, select: { runId: true, status: true, runAt: true, payload: true } });
+    const byRun = new Map();
+    for (const job of jobs) if (job.payload?.retry && !byRun.has(job.runId)) byRun.set(job.runId, job);
+    return rows.map((row) => {
+      const job = byRun.get(row.id);
+      if (!job) return view(row);
+      return { ...view(row), retry: job.status === "pending" ? { attempt: job.payload.retry.attempt, max: job.payload.retry.max, at: job.runAt } : { canResume: row.status === "failed", fromStep: job.payload.retry.fromStep } };
+    });
+  }
+
   async function list({ limit = 50, ...query }) {
     const take = Math.min(Math.max(Number(limit) || 50, 1), 200);
     const rows = await prisma.automationRun.findMany({ where: filters(query), orderBy: { createdAt: "desc" }, take });
-    return rows.map(view);
+    return withRetries(query.companyId, rows);
   }
 
   // Keyset pagination (newest first): `cursor` is "<createdAt ISO>|<id>" of the last row seen.
@@ -141,7 +156,7 @@ export function createAutomationRunsService({ prisma }) {
     const more = rows.length > take;
     const items = rows.slice(0, take);
     const last = items[items.length - 1];
-    return { items: items.map(view), total, nextCursor: more && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
+    return { items: await withRetries(query.companyId, items), total, nextCursor: more && last ? `${last.createdAt.toISOString()}|${last.id}` : null };
   }
 
   // Up to `max` rows for a file (CSV or Excel), newest first.

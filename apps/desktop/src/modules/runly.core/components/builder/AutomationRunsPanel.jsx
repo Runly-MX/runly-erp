@@ -20,6 +20,7 @@ const STATUS = {
   waiting: { label: "En espera", variant: "warning" },
   cancelled: { label: "Cancelada", variant: "outline" },
   rejected: { label: "Rechazada", variant: "destructive" },
+  retrying: { label: "Reintentando", variant: "warning" },
 };
 const FILTERS = [
   { value: "all", label: "Todas" },

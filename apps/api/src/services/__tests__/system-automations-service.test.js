@@ -22,8 +22,17 @@ function fakePrisma() {
       deleteMany: async ({ where }) => { for (let i = grants.length - 1; i >= 0; i -= 1) if (grants[i].companyId === where.companyId && !where.serviceKey.notIn.includes(grants[i].serviceKey)) grants.splice(i, 1) },
       createMany: async ({ data }) => { for (const item of data) if (!grants.some((g) => g.companyId === item.companyId && g.serviceKey === item.serviceKey)) grants.push(item) },
     },
-    automationRun: { create: async ({ data }) => { runs.push(data); return { id: `r${runs.length}`, ...data } }, findMany: async () => [] },
+    automationRun: {
+      create: async ({ data }) => { const row = { id: `r${runs.length + 1}`, durationMs: 0, ...data }; runs.push(row); return row },
+      findFirst: async ({ where }) => runs.find((run) => run.id === where.id) ?? null,
+      update: async ({ where, data }) => Object.assign(runs.find((run) => run.id === where.id), data),
+      findMany: async ({ where }) => runs.filter((run) => run.triggerRef === where.triggerRef && where.automationKey.in.includes(run.automationKey)),
+    },
+    jobs: [],
+    notices: [],
   }
+  db.automationJob = { create: async ({ data }) => { db.jobs.push(data); return data } }
+  db.notifier = { publish: async ({ input }) => { db.notices.push(input) } }
   return db
 }
 
@@ -78,10 +87,36 @@ test('runEvent runs only enabled automations of the company whose event and cond
   assert.equal(prisma.runs.at(-1).moduleKey, SYSTEM_MODULE_KEY)
   assert.equal(prisma.runs.at(-1).status, 'success')
 
-  // A failing step is reported to the dispatcher so it retries the event.
-  const failing = { forSystem: () => ({ call: async () => { throw new Error('sin permiso') } }) }
-  const broken = createSystemAutomationsService({ prisma, moduleServices: failing, now: () => NOW })
-  await assert.rejects(broken.runEvent({ companyId: 'c1', event: 'purchases.order.approved', payload: { id: 'o1', status: 'APPROVED' }, eventId: 'e4' }), /avisar: sin permiso/)
+  // The same event delivered again does not repeat what already ran.
+  assert.deepEqual(await svc.runEvent({ companyId: 'c1', event: 'purchases.order.approved', payload: { id: 'o1', status: 'APPROVED' }, eventId: 'e3' }), { ran: 0 })
+})
+
+test('a failed automation retries on its own from the failed step, or is parked when the error is permanent', async () => {
+  const prisma = fakePrisma()
+  let error = Object.assign(new Error('servicio caído'), { status: 503 })
+  const moduleServices = { forSystem: () => ({ call: async () => { throw error } }) }
+  const svc = createSystemAutomationsService({ prisma, moduleServices, notifications: prisma.notifier, now: () => NOW })
+  await svc.create({ companyId: 'c1', actorId: 'p1', input: input() })
+  const event = (eventId) => ({ companyId: 'c1', event: 'purchases.order.approved', payload: { id: 'o1', status: 'APPROVED' }, eventId })
+
+  // Never thrown at the dispatcher: the other subscribers are not delivered again.
+  assert.deepEqual(await svc.runEvent(event('e1')), { ran: 1 })
+  assert.equal(prisma.runs.at(-1).status, 'retrying')
+  const retry = prisma.jobs.at(-1)
+  assert.equal(retry.status, undefined) // pending
+  assert.equal(retry.fromStep, 0)
+  assert.equal(retry.runId, prisma.runs.at(-1).id)
+  assert.deepEqual(retry.payload.retry, { attempt: 1, max: 5, fromStep: 0 })
+  assert.equal(retry.runAt.getTime(), NOW.getTime() + 60_000)
+  assert.equal(prisma.notices.length, 0)
+
+  error = Object.assign(new Error('sin permiso'), { status: 403 })
+  await svc.runEvent(event('e2'))
+  assert.equal(prisma.runs.at(-1).status, 'failed')
+  assert.equal(prisma.jobs.at(-1).status, 'failed') // parked for a manual retry
+  assert.equal(prisma.notices.length, 1)
+  assert.equal(prisma.notices[0].recipients.userIds[0], 'p1')
+  assert.equal(prisma.notices[0].link, '/app/m/runly.automations/avisar')
 })
 
 test('schedule helpers only expose enabled schedule automations', async () => {

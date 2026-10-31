@@ -20,7 +20,8 @@ export class AutomationJobError extends Error {
 
 export function createAutomationJobsService({ prisma, now = () => new Date() }) {
   // Queues the continuation of a run. The dedupe key makes a retried request or
-  // event a no-op instead of a second continuation.
+  // event a no-op instead of a second continuation. `status: "failed"` parks it: it
+  // only runs if a person resumes it (requeue).
   async function enqueue({ companyId, moduleKey, job }) {
     if (!companyId || !moduleKey || !job?.automationKey) throw new AutomationJobError("Trabajo de automatización inválido.");
     const runAt = new Date(job.runAt);
@@ -34,6 +35,7 @@ export function createAutomationJobsService({ prisma, now = () => new Date() }) 
           companyId, moduleKey, automationKey: String(job.automationKey).slice(0, 80),
           runId: job.runId ?? null, fromStep: Number(job.fromStep) || 0, payload, runAt,
           dedupeKey: job.dedupe ? String(job.dedupe).slice(0, 300) : null,
+          ...(job.status === "failed" ? { status: "failed", lastError: job.error ? String(job.error).slice(0, 1000) : null } : {}),
         },
       });
     } catch (error) {
@@ -91,11 +93,18 @@ export function createAutomationJobsService({ prisma, now = () => new Date() }) 
     return job;
   }
 
+  // A person resumes a failed run: its parked continuation runs again right away.
+  async function requeue({ companyId, moduleKey, runId }) {
+    const job = await prisma.automationJob.findFirst({ where: { companyId, moduleKey, runId, status: "failed" }, orderBy: { createdAt: "desc" } });
+    if (!job?.payload?.retry) throw new AutomationJobError("Esta ejecución no se puede reintentar.", 409);
+    return prisma.automationJob.update({ where: { id: job.id }, data: { status: "pending", attempts: 0, runAt: now(), lastError: null, payload: { ...job.payload, retry: { ...job.payload.retry, attempt: 0, manual: true } } } });
+  }
+
   async function purgeFinished(days = 90) {
     const cutoff = new Date(now().getTime() - days * 86_400_000);
     const result = await prisma.automationJob.deleteMany({ where: { status: { in: ["done", "failed", "cancelled"] }, updatedAt: { lt: cutoff } } });
     return result.count;
   }
 
-  return { enqueue, claimDue, complete, fail, listPending, cancel, purgeFinished };
+  return { enqueue, claimDue, complete, fail, listPending, cancel, requeue, purgeFinished };
 }

@@ -86,6 +86,15 @@ export function createAutomationsRouter({ prisma, requirePermission, moduleServi
     }
   });
 
+  // Resumes a failed run from the block that failed (its parked continuation).
+  app.post("/automations/:key/runs/:runId/retry", guard, async (c) => {
+    try {
+      return c.json({ data: await service.retryRun({ companyId: c.get("companyId"), key: c.req.param("key"), runId: c.req.param("runId") }) });
+    } catch (error) {
+      return fail(c, error);
+    }
+  });
+
   app.delete("/automations/:key", guard, async (c) => {
     try {
       return c.json({ data: await service.remove({ companyId: c.get("companyId"), actorId: actor(c), key: c.req.param("key") }) });
