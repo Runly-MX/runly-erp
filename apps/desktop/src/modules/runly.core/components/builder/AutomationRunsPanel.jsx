@@ -7,7 +7,7 @@
 import { useState } from "react";
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionMenu, Badge, Button, ConfirmDialog, DateField, EmptyState, ErrorState, SelectField } from "@runly/ui";
-import { ChevronDown, FileSpreadsheet, FileText, FilterX, History, Loader2 } from "lucide-react";
+import { ChevronDown, FileSpreadsheet, FileText, FilterX, History, Loader2, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
@@ -25,6 +25,7 @@ const STATUS = {
 const FILTERS = [
   { value: "all", label: "Todas" },
   { value: "waiting", label: "En espera" },
+  { value: "retrying", label: "Reintentando" },
   { value: "rejected", label: "Rechazadas" },
   { value: "failed", label: "Con fallas" },
   { value: "partial", label: "Parciales" },
@@ -47,6 +48,7 @@ function stepsSummary(steps) {
     if (step.type === "delay") return `${step.index + 1}: espera`;
     if (step.type === "approval") return `${step.index + 1}: aprobación`;
     if (step.type === "branch") return `${step.index + 1}: condición ${step.path === "yes" ? "Sí" : "No"}`;
+    if (step.type === "loop") return `${step.index + 1}: para cada uno ${step.done ?? 0}/${step.iterations ?? 0}`;
     if (step.type === "http") return `${step.index + 1}: ${step.ok ? "llamada ok" : "llamada falló"}`;
     return `${step.index + 1}: ${step.skipped ? "omitido" : step.ok ? "ok" : "falló"}`;
   }).join(" · ");
@@ -126,6 +128,12 @@ export function AutomationRunsPanel({ moduleKey, published, automations, automat
     },
     onError: (error) => toast.error("No se pudo cancelar", { description: error.message }),
   });
+  // Company automations: resume a failed run from the block that failed (spec 2026-10-31 §A).
+  const resume = useMutation({
+    mutationFn: (run) => runly.modules.retrySystemAutomationRun(run.automationKey, run.id, token),
+    onSuccess: () => { toast.success("Reintentando desde el bloque que falló"); queryClient.invalidateQueries({ queryKey: ["automation-runs", moduleKey] }); },
+    onError: (error) => toast.error("No se pudo reintentar", { description: error.message }),
+  });
   const labels = new Map((automations ?? []).map((item) => [item.key, item.label]));
   const jobByRun = new Map((jobsQuery.data ?? []).filter((job) => job.runId).map((job) => [job.runId, job]));
 
@@ -182,9 +190,14 @@ export function AutomationRunsPanel({ moduleKey, published, automations, automat
                   )}
                   {job && job.status !== "awaiting_approval" && (
                     <div className="flex flex-wrap items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]">
-                      <span>Continúa el {dateText(job.runAt)}</span>
-                      <Button variant="outline" size="sm" onClick={() => setCancelJob(job)}>Cancelar espera</Button>
+                      <span>{run.status === "retrying" && run.retry?.attempt ? `Reintento ${run.retry.attempt} de ${run.retry.max} el ${dateText(job.runAt)}, desde el bloque que falló` : `Continúa el ${dateText(job.runAt)}`}</span>
+                      <Button variant="outline" size="sm" onClick={() => setCancelJob(job)}>{run.status === "retrying" ? "Cancelar reintento" : "Cancelar espera"}</Button>
                     </div>
+                  )}
+                  {run.status === "failed" && run.retry?.canResume && moduleKey === "system.automations" && (
+                    <Button variant="outline" size="sm" className="gap-1.5" disabled={resume.isPending} onClick={() => resume.mutate(run)}>
+                      <RotateCcw className="h-4 w-4" /> Reintentar desde el bloque {run.retry.fromStep + 1}
+                    </Button>
                   )}
                   {run.error && <p className="text-xs text-red-600 dark:text-red-400">{run.error}</p>}
                   {Array.isArray(run.steps) && run.steps.length > 1 && (

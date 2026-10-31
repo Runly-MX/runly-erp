@@ -86,7 +86,7 @@ export function createAutomationRunsService({ prisma }) {
 
   async function markCancelled({ companyId, moduleKey, runId }) {
     if (!runId) return;
-    await prisma.automationRun.updateMany({ where: { id: runId, companyId, moduleKey, status: "waiting" }, data: { status: "cancelled" } });
+    await prisma.automationRun.updateMany({ where: { id: runId, companyId, moduleKey, status: { in: ["waiting", "retrying"] } }, data: { status: "cancelled" } });
   }
 
   const view = (row) => ({
