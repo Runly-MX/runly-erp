@@ -8,13 +8,11 @@
 // (container query), so the inputs never collapse. Data available to the block
 // is offered as chips under text values.
 import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Badge, ComboboxField, SelectField, TextField } from "@runly/ui";
+import { Badge, SelectField, TextField } from "@runly/ui";
 import { X } from "lucide-react";
 import { AUTOMATIC_ARGS } from "@runly/module-compiler/browser";
-import { useAuth } from "../../../../auth/AuthProvider";
-import { runly } from "../../../../lib/runly";
 import { PeoplePicker } from "./PeoplePicker";
+import { ConversationPicker } from "./ConversationPicker";
 import { ARG_LABELS, argLabel } from "../../lib/argLabels";
 import { pickerOptions } from "../../lib/flowModel";
 import { acceptedKinds, suggestionsFor } from "../../lib/argSuggestions";
@@ -174,31 +172,12 @@ function dataChoices({ name, spec, triggerType, fieldOptions }) {
   ];
 }
 
-// The chat channel a message goes to: one of the company's channels, saved by id so a
-// rename does not break the automation. A name typed before still shows as it is.
-function ChannelControl({ label, source, readOnly, onSource }) {
-  const { session } = useAuth();
-  const token = session?.access_token;
-  const { data, isLoading, isError, refetch } = useQuery({
-    queryKey: ["chat-conversations"],
-    queryFn: () => runly.chat.listConversations({}, token),
-    enabled: Boolean(token),
-    staleTime: 30_000,
-  });
-  const channels = (data?.data ?? []).filter((conversation) => conversation.type === "channel");
-  const current = source?.from === "value" ? String(source.value ?? "") : "";
-  const options = channels.map((channel) => ({ value: channel.id, label: `# ${channel.title ?? "Canal"}` }));
-  const known = !current || options.some((option) => option.value === current || option.label === `# ${current}`);
-  const value = options.find((option) => option.label === `# ${current}`)?.value ?? current;
-  return (
-    <div className="min-w-0 space-y-1">
-      <ComboboxField aria-label={label} options={known ? options : [{ value: current, label: current, group: "Actual" }, ...options]} value={value} disabled={readOnly}
-        placeholder="Elige un canal" searchPlaceholder="Buscar canal..." loading={isLoading} loadError={isError ? "No se pudieron cargar los canales." : null} onRetry={refetch}
-        emptyText="No perteneces a ningún canal" onValueChange={(next) => onSource(next ? { from: "value", value: next } : null)} />
-      {source && source.from !== "value" && <p className="text-xs text-amber-700 dark:text-amber-300">Este canal sale de un dato. Elige uno de la lista para fijarlo.</p>}
-    </div>
-  );
-}
+// Arguments that name a chat conversation: a list of them (saved by id, so a rename
+// does not break the automation), still open to an id or name typed by hand.
+const CONVERSATION_ARGS = {
+  channel: { types: ["channel"], placeholder: "Elige un canal" },
+  conversationId: { types: ["direct", "group", "external_support"], placeholder: "Elige una conversación" },
+};
 const choiceOf = (source) => (source?.from === "recordId" ? "@recordId" : source?.from === "actor" ? "@actor" : source?.field ?? "");
 const sourceOfChoice = (choice) => (choice === "@recordId" ? { from: "recordId" } : choice === "@actor" ? { from: "actor" } : { from: "field", field: choice });
 
@@ -246,9 +225,7 @@ function LinkControl({ label, source, recordLink, fieldOptions, readOnly, onSour
 // secondary action, never a menu of "origins" the person has to understand first.
 function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions, readOnly, onSource }) {
   const label = argLabel(name);
-  if (name === "link") return <LinkControl label={label} source={source} recordLink={recordLink} fieldOptions={fieldOptions} readOnly={readOnly} onSource={onSource} />;
-  if (name === "channel") return <ChannelControl label={label} source={source} readOnly={readOnly} onSource={onSource} />;
-  const kind = kindOf(name, spec);
+  if (name === "link") return <LinkControl label={label} source={source} recordLink={recordLink} fieldOptions={fieldOptions} readOnly={readOnly} onSource={onSource} />;  const kind = kindOf(name, spec);
   const clear = () => onSource(null);
   if (kind === "choice") {
     const options = spec.type === "boolean"
@@ -296,6 +273,21 @@ function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions,
     );
   }
   const canUseData = !readOnly && choices.length > 0 && kind !== "text";
+  if (CONVERSATION_ARGS[name]) {
+    const { types, placeholder } = CONVERSATION_ARGS[name];
+    const fromEvent = fieldOptions.filter((option) => /conversation|channel/i.test(option.value));
+    return (
+      <div className="min-w-0 space-y-1">
+        <ConversationPicker label={label} types={types} placeholder={placeholder} value={source?.value} readOnly={readOnly}
+          onChange={(value) => (value ? onSource({ from: "value", value }) : clear())} />
+        {!readOnly && fromEvent.length > 0 && (
+          <button type="button" onClick={() => onSource({ from: "field", field: fromEvent[0].value })} className="cursor-pointer text-xs text-(--brand-primary) hover:underline [@media(pointer:coarse)]:min-h-9">
+            Usar la conversación del disparador
+          </button>
+        )}
+      </div>
+    );
+  }
   if (kind === "text") {
     const text = source?.from === "template" ? source.template ?? "" : fromLiteral(source?.value);
     const set = (next) => (next === "" ? clear() : onSource(next.includes("{{") ? { from: "template", template: next } : { from: "value", value: next }));

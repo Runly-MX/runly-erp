@@ -5,6 +5,7 @@ import { Plus, Trash2 } from "lucide-react";
 import { MAX_CONDITIONS, conditionsOf } from "@runly/module-compiler/browser";
 import { pickerOptions } from "../../lib/flowModel";
 import { PeoplePicker } from "./PeoplePicker";
+import { ConversationPicker } from "./ConversationPicker";
 
 const OP_OPTIONS = [
   { value: "equals", label: "Es igual a" },
@@ -55,6 +56,9 @@ export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange
             // A person field (who wrote, who receives, the assignee) picks the person, never an id.
             <PeoplePicker label="Persona" max={1} value={condition.value ? [String(condition.value)] : []} readOnly={readOnly}
               onChange={(ids) => update(index, { ...condition, value: ids.at(-1) ?? "" })} />
+          ) : condition.field === "conversationId" && ["equals", "not_equals"].includes(condition.op) ? (
+            <ConversationPicker label="Conversación" showLabel types={["channel", "group", "direct", "external_support"]} value={condition.value || undefined} readOnly={readOnly}
+              onChange={(id) => update(index, { ...condition, value: id ?? "" })} />
           ) : VALUE_OPS.includes(condition.op) ? (
             <TextField label="Valor" value={String(condition.value ?? "")} disabled={readOnly}
               type={NUMBER_OPS.includes(condition.op) ? "number" : "text"}

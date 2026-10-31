@@ -2,6 +2,7 @@
 // service call: "Llamar a una URL" (HTTP) and "Pedir aprobación" (spec
 // 2026-10-25-automation-studio-v2-stage-c-reach-design.md, C2/C3).
 import { PeoplePicker } from "./PeoplePicker";
+import { ConversationPicker } from "./ConversationPicker";
 import { useQuery } from "@tanstack/react-query";
 import { Badge, Button, SelectField, TextField } from "@runly/ui";
 import { Plus, Trash2, X } from "lucide-react";
@@ -89,9 +90,9 @@ export function ApprovalStepEditor({ step, readOnly, onChange }) {
         onChange={(e) => onChange({ ...step, message: e.target.value })} />
       <PeoplePicker label="Quién puede aprobar" value={step.approvers ?? []} max={MAX_APPROVERS} readOnly={readOnly} emptyText="Elige al menos una persona."
         onChange={(approvers) => onChange({ ...step, approvers })} />
-      <TextField label="Publicar también en un canal (opcional)" value={step.channel ?? ""} disabled={readOnly} maxLength={120} placeholder="Nombre del canal, ej. aprobaciones"
+      <ConversationPicker label="Publicar también en un canal (opcional)" showLabel value={step.channel} readOnly={readOnly} placeholder="Sin canal"
         hint="La solicitud aparece con botones Aprobar y Rechazar. Solo quienes aprueban pueden usarlos; el canal debe ser de la empresa."
-        onChange={(e) => onChange({ ...step, channel: e.target.value })} />
+        onChange={(channel) => onChange({ ...step, channel: channel ?? "" })} />
       <p className="text-xs text-[hsl(var(--muted-foreground))]">
         Cualquiera de ellas puede aprobar o rechazar, una sola vez. Recibe una notificación y la ve en Inicio («Aprobaciones»). Si nadie responde en 7 días, la ejecución se cancela. Los pasos que siguen corren en segundo plano.
       </p>
