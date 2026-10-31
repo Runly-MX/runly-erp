@@ -7,11 +7,11 @@ import { formatDate, formatMoney, formatMoneyCompact, monthLabel } from '../../l
 import { PurchaseStatusBadge } from '../PurchaseStatusBadge.jsx'
 
 // Ordered vs invoiced over 12 months. With orders disabled only invoices show.
-export function SpendTrendPanel({ monthly = [], showOrdered = true }) {
+export function SpendTrendPanel({ monthly = [], showOrdered = true, className }) {
   const rows = monthly.map((d) => ({ ...d, label: monthLabel(d.month) }))
   const sum = (key) => rows.reduce((acc, r) => acc + Number(r[key] || 0), 0)
   return (
-    <Panel title="Compras de los últimos 12 meses" icon={CalendarRange}
+    <Panel title="Compras de los últimos 12 meses" icon={CalendarRange} className={className}
       subtitle={showOrdered ? `Ordenado ${formatMoneyCompact(sum('ordered'))}, facturado ${formatMoneyCompact(sum('invoiced'))}` : `Facturado ${formatMoneyCompact(sum('invoiced'))}`}>
       <div className="h-64 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
@@ -42,10 +42,10 @@ export function SpendTrendPanel({ monthly = [], showOrdered = true }) {
 }
 
 // Ranking of suppliers by amount.
-export function SupplierRankingPanel({ rows = [], onSelect }) {
+export function SupplierRankingPanel({ rows = [], onSelect, className }) {
   const data = rows.map((r) => ({ id: r.id, name: r.name, total: Number(r.total || 0), documents: r.documents }))
   return (
-    <Panel title="Proveedores con más compra" subtitle="Top 6 por monto en 12 meses" icon={Building2} tone={TONES.petrol}>
+    <Panel title="Proveedores con más compra" subtitle="Top 6 por monto en 12 meses" icon={Building2} tone={TONES.petrol} className={className}>
       {!data.length ? <EmptyState variant="compact" icon={Building2} title="Aún no hay compras con proveedor" /> : (
         <div className="w-full min-w-0" style={{ height: Math.max(170, data.length * 38) }}>
           <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
@@ -72,7 +72,9 @@ export function SupplierRankingPanel({ rows = [], onSelect }) {
 
 const KIND_LABEL = { orders: 'Orden', invoices: 'Factura', requests: 'Solicitud', receipts: 'Recepción', cases: 'Expediente', quotes: 'Cotización' }
 
-export function RecentPanel({ rows = [], onOpen }) {
+// showAmounts=false (Control documental board): no amounts at all, not even
+// those of historic financial documents (their detail still shows them).
+export function RecentPanel({ rows = [], onOpen, showAmounts = true }) {
   return (
     <Panel title="Movimiento reciente" subtitle="Últimos documentos registrados" icon={History} tone={TONES.slate}>
       {!rows.length ? <EmptyState variant="compact" icon={History} title="Todavía no hay documentos" /> : (
@@ -90,7 +92,7 @@ export function RecentPanel({ rows = [], onOpen }) {
                   </span>
                   <span className="hidden text-right sm:block">
                     {/* Documentary references have no amount: nothing, never $0.00. */}
-                    {row.total != null ? <span className="block text-sm font-medium tabular-nums">{formatMoney(row.total, row.currency)}</span> : null}
+                    {showAmounts && row.total != null ? <span className="block text-sm font-medium tabular-nums">{formatMoney(row.total, row.currency)}</span> : null}
                   </span>
                   <PurchaseStatusBadge kind={kind} status={row.status} label={statusMeta(kind, row.status).label} />
                 </button>
