@@ -1,7 +1,8 @@
 // Option label of a purchase document in the inventory item form pickers:
 // "number · supplier".
 export function documentOptionLabel(doc) {
-  const number = doc?.number ?? 'Sin folio'
+  // Documentary references are known by their reference, not the internal folio.
+  const number = doc?.reference ?? doc?.number ?? 'Sin folio'
   const supplier = doc?.supplierName
   return supplier ? `${number} · ${supplier}` : number
 }

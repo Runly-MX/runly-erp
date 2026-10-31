@@ -3,7 +3,7 @@ import { ConfirmDialog, CreatableComboboxField } from '@runly/ui'
 import { toast } from 'sonner'
 import { ClipboardList, ReceiptText } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
-import { useRelationMutations, useSearchDocuments } from '../../runly.purchases/hooks/usePurchases.js'
+import { useCapabilities, useRelationMutations, useSearchDocuments } from '../../runly.purchases/hooks/usePurchases.js'
 import { hasPermission } from '../../runly.purchases/components/InventoryPurchaseMeta.js'
 import { InventoryPurchaseQuickCreateDialog } from './InventoryPurchaseQuickCreateDialog.jsx'
 import { documentOptionLabel, planPurchaseLinkRule, purchaseDocCache } from '../lib/purchase-links.js'
@@ -28,6 +28,8 @@ export function InventoryPurchaseLinkField({ field, value, onChange, error, init
   const [relate, setRelate] = useState(null)
   const known = useRef(purchaseDocCache[meta.kind])
   const { create: createRelation } = useRelationMutations()
+  // Compras in Control documental: quick create registers a reference.
+  const documentary = useCapabilities({ enabled: canEdit }).documentary
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 300)
@@ -95,7 +97,7 @@ export function InventoryPurchaseLinkField({ field, value, onChange, error, init
         loadError={query.isError ? 'No se pudieron cargar los documentos' : null}
         onRetry={() => query.refetch()}
         onCreate={canCreate ? (term) => setDialog({ number: term }) : undefined}
-        createLabel={meta.createLabel}
+        createLabel={documentary ? (meta.kind === 'order' ? 'Registrar orden' : 'Registrar factura') : meta.createLabel}
         placeholder={meta.placeholder}
         searchPlaceholder={meta.kind === 'invoice' && values?.purchaseOrderId ? 'Facturas de la orden; escribe para buscar otras' : 'Folio, proveedor u otro documento'}
         emptyText="Sin resultados"
@@ -107,6 +109,7 @@ export function InventoryPurchaseLinkField({ field, value, onChange, error, init
           onOpenChange={(open) => { if (!open) setDialog(null) }}
           kind={meta.kind}
           initialNumber={dialog?.number ?? ''}
+          documentary={documentary}
           onCreated={(doc) => {
             known.current.set(doc.id, meta.kind === 'invoice' ? { order: null, ...doc } : doc)
             select(doc.id)

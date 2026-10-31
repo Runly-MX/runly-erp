@@ -36,7 +36,7 @@ function Tier({ id, title, count, hint, children }) {
   )
 }
 
-const legacyValue = (row, currency) => (row.kind === 'date' ? formatDay(row.value) : row.kind === 'money' ? formatMoney(row.value, currency) : row.value)
+const legacyValue = (row, currency) => (row.kind === 'date' ? formatDay(row.value) : row.kind === 'money' ? (row.value == null ? 'Sin importe' : formatMoney(row.value, currency)) : row.value)
 
 // RunlyDetail "component" section of the inventory item detail: the item's
 // purchases from runly.purchases (GET /purchases/inventory/:id/summary) in
@@ -114,8 +114,8 @@ export default function InventoryPurchaseSection({ data: item }) {
     <div className="space-y-2">
       {((canOrder && !hasOrder) || (canInvoice && !hasInvoice)) ? (
         <div className={canOrder && !hasOrder && canInvoice && !hasInvoice ? 'grid grid-cols-1 gap-2 sm:grid-cols-2' : 'grid grid-cols-1 gap-2'}>
-          {canOrder && !hasOrder ? <Button type="button" size="sm" variant="outline" onClick={() => create('orders')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear orden</Button> : null}
-          {canInvoice && !hasInvoice ? <Button type="button" size="sm" variant="outline" onClick={() => create('invoices')}><Plus className="mr-1.5 h-3.5 w-3.5" />Crear factura</Button> : null}
+          {canOrder && !hasOrder ? <Button type="button" size="sm" variant="outline" onClick={() => create('orders')}><Plus className="mr-1.5 h-3.5 w-3.5" />{model?.economicMode === 'DOCUMENTARY' ? 'Registrar orden' : 'Crear orden'}</Button> : null}
+          {canInvoice && !hasInvoice ? <Button type="button" size="sm" variant="outline" onClick={() => create('invoices')}><Plus className="mr-1.5 h-3.5 w-3.5" />{model?.economicMode === 'DOCUMENTARY' ? 'Registrar factura' : 'Crear factura'}</Button> : null}
         </div>
       ) : null}
       {canLink && linkTypes.some((type) => !replaceTypes.includes(type)) ? (
@@ -132,8 +132,19 @@ export default function InventoryPurchaseSection({ data: item }) {
   ) : null
 
   const unlinkable = canManage && !linksOff
+  // Control documental: the API already returns no prices or totals here and
+  // empties economic custom fields (stored data is kept); say so once.
+  const documentary = model?.economicMode === 'DOCUMENTARY'
+  const suppressed = (item?.customValues ?? []).some((cv) => cv.economicValueSuppressed)
   return (
     <div className="space-y-4" data-purchases-section="">
+      {documentary ? (
+        <p className="rounded-xl border border-dashed border-[hsl(var(--border))] px-3 py-2 text-xs text-[hsl(var(--muted-foreground))]">
+          Control documental: se muestran referencias, proveedores, fechas, archivos y relaciones, sin precios ni importes.
+          {suppressed ? ' Algunos campos numéricos o de importes del activo no se muestran (podrían no ser dinero); sus datos se conservan.' : ''}
+          {' '}Los archivos originales se guardan sin cambios y pueden contener importes.
+        </p>
+      ) : null}
       {current.length ? (
         <section aria-labelledby="inv-purchases-current" className="space-y-2">
           <div className="flex flex-wrap items-baseline justify-between gap-2">

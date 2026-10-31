@@ -62,7 +62,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
       client.invalidateQueries({ queryKey: ['purchases', 'relations'] })
       onLinked?.()
       const cascade = result?.data?.cascade ?? result?.cascade
-      toast.success(`${TYPES[type].label} ${doc.number ?? ''} relacionada`.replace(/\s+/g, ' ').trim(), {
+      toast.success(`${TYPES[type].label} ${doc.reference ?? doc.number ?? ''} relacionada`.replace(/\s+/g, ' ').trim(), {
         description: cascade?.linked ? `También se relacionó su orden${doc.order?.number ? ` ${doc.order.number}` : ''}.` : undefined,
       })
       onOpenChange(false)
@@ -91,7 +91,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
             value={search}
             onChange={(event) => setSearch(event.target.value)}
             onClear={() => setSearch('')}
-            placeholder="Buscar por folio o proveedor"
+            placeholder="Buscar por referencia, folio o proveedor"
             aria-label="Buscar documentos"
           />
         </div>
@@ -132,7 +132,7 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex flex-wrap items-center gap-1.5">
-                          <span className="font-mono text-[13px] font-semibold">{doc.number || 'Sin folio'}</span>
+                          <span className="font-mono text-[13px] font-semibold">{doc.reference ?? doc.number ?? 'Sin folio'}</span>
                           <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-medium ring-1 ring-inset', status.className)}>{status.label}</span>
                           {linked ? <span className="text-[10px] font-medium text-[hsl(var(--muted-foreground))]">Ya relacionado</span> : null}
                         </span>
@@ -140,7 +140,8 @@ export function InventoryPurchaseLinkDialog({ open, onOpenChange, inventoryId, t
                           {[doc.supplierName, formatDay(doc.date ?? doc.issueDate ?? doc.createdAt)].filter(Boolean).join(' · ') || 'Sin proveedor'}
                         </span>
                       </span>
-                      <span className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(doc.total, doc.currency)}</span>
+                      {/* Documentary references have no amount: nothing is shown, never $0.00. */}
+                      {doc.total != null ? <span className="shrink-0 text-sm font-semibold tabular-nums">{formatMoney(doc.total, doc.currency)}</span> : null}
                     </button>
                   </li>
                 )
