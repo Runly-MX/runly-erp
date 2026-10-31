@@ -383,7 +383,7 @@ export function fieldOptionsFor(trigger, entities = [], events = []) {
     return (event?.payload ?? []).map((key) => ({ value: key, label: friendlyLabel(key) }));
   }
   const entity = entities.find((item) => keyOf(item) === trigger.entity);
-  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? friendlyLabel(keyOf(field)) }));
+  return (entity?.fields ?? []).map((field) => ({ value: keyOf(field), label: field.label ?? friendlyLabel(keyOf(field)), type: field.type }));
 }
 
 const OUTPUT_LABELS = {

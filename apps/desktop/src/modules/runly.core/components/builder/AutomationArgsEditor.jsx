@@ -9,7 +9,7 @@
 // is offered as chips under text values.
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Badge, SelectField, TextField } from "@runly/ui";
+import { Badge, ComboboxField, SelectField, TextField } from "@runly/ui";
 import { X } from "lucide-react";
 import { AUTOMATIC_ARGS } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../../auth/AuthProvider";
@@ -17,12 +17,13 @@ import { runly } from "../../../../lib/runly";
 import { PeoplePicker } from "./PeoplePicker";
 import { ARG_LABELS, argLabel } from "../../lib/argLabels";
 import { pickerOptions } from "../../lib/flowModel";
+import { acceptedKinds, suggestionsFor } from "../../lib/argSuggestions";
 
 
 // What an argument is for, in one line (only where the name is not obvious).
 const ARG_HINTS = {
   userIds: "Las personas de la empresa que reciben el aviso.",
-  channel: "El nombre exacto del canal de chat (o su id). El mensaje aparece como una integración.",
+  channel: "El canal de chat donde se publica. El mensaje aparece como una integración.",
   attendeeIds: "Las personas invitadas al evento.",
   title: "El título corto que verá la persona.",
   body: "El texto del mensaje.",
@@ -131,7 +132,7 @@ export function ValueInput({ name, spec, source, fieldOptions, readOnly, onSourc
       <div className="min-w-0 space-y-2">
         <TextField aria-label={label} value={source.template ?? ""} disabled={readOnly} placeholder="Ej. Visita {{folio}} de {{cliente}}"
           onChange={(e) => onSource({ from: "template", template: e.target.value })} />
-        {!readOnly && <DataChips fieldOptions={fieldOptions} onInsert={(key) => onSource({ from: "template", template: `${source.template ?? ""}{{${key}}}` })} />}
+        {!readOnly && <DataChips fieldOptions={suggestionsFor(name, spec, fieldOptions)} onInsert={(key) => onSource({ from: "template", template: `${source.template ?? ""}{{${key}}}` })} />}
       </div>
     );
   }
@@ -161,15 +162,42 @@ function kindOf(name, spec) {
   return ["string", "text", "date", "datetime"].includes(spec.type) ? "text" : "typed";
 }
 
-// "Usar un dato": the data the block can read, plus the record that started the
-// automation (and who saved it) for the arguments that take an id.
-function dataChoices({ spec, triggerType, fieldOptions }) {
-  const takesId = spec.type === "uuid" || spec.type === "string";
+// "Usar un dato": the data that fits the argument (all of it when nothing fits), plus
+// the record that started the automation (and who saved it) for the arguments that take an id.
+function dataChoices({ name, spec, triggerType, fieldOptions }) {
+  const takesId = spec.type === "uuid" || acceptedKinds(name, spec).includes("id");
+  const fitting = suggestionsFor(name, spec, fieldOptions);
   return [
     ...(takesId ? [{ value: "@recordId", label: triggerType === "event" ? "El registro que activó la automatización" : "Este registro" }] : []),
     ...(takesId && triggerType === "record" ? [{ value: "@actor", label: "La persona que guarda" }] : []),
-    ...selectOptions(fieldOptions),
+    ...selectOptions(fitting.length ? fitting : fieldOptions),
   ];
+}
+
+// The chat channel a message goes to: one of the company's channels, saved by id so a
+// rename does not break the automation. A name typed before still shows as it is.
+function ChannelControl({ label, source, readOnly, onSource }) {
+  const { session } = useAuth();
+  const token = session?.access_token;
+  const { data, isLoading, isError, refetch } = useQuery({
+    queryKey: ["chat-conversations"],
+    queryFn: () => runly.chat.listConversations({}, token),
+    enabled: Boolean(token),
+    staleTime: 30_000,
+  });
+  const channels = (data?.data ?? []).filter((conversation) => conversation.type === "channel");
+  const current = source?.from === "value" ? String(source.value ?? "") : "";
+  const options = channels.map((channel) => ({ value: channel.id, label: `# ${channel.title ?? "Canal"}` }));
+  const known = !current || options.some((option) => option.value === current || option.label === `# ${current}`);
+  const value = options.find((option) => option.label === `# ${current}`)?.value ?? current;
+  return (
+    <div className="min-w-0 space-y-1">
+      <ComboboxField aria-label={label} options={known ? options : [{ value: current, label: current, group: "Actual" }, ...options]} value={value} disabled={readOnly}
+        placeholder="Elige un canal" searchPlaceholder="Buscar canal..." loading={isLoading} loadError={isError ? "No se pudieron cargar los canales." : null} onRetry={refetch}
+        emptyText="No perteneces a ningún canal" onValueChange={(next) => onSource(next ? { from: "value", value: next } : null)} />
+      {source && source.from !== "value" && <p className="text-xs text-amber-700 dark:text-amber-300">Este canal sale de un dato. Elige uno de la lista para fijarlo.</p>}
+    </div>
+  );
 }
 const choiceOf = (source) => (source?.from === "recordId" ? "@recordId" : source?.from === "actor" ? "@actor" : source?.field ?? "");
 const sourceOfChoice = (choice) => (choice === "@recordId" ? { from: "recordId" } : choice === "@actor" ? { from: "actor" } : { from: "field", field: choice });
@@ -219,6 +247,7 @@ function LinkControl({ label, source, recordLink, fieldOptions, readOnly, onSour
 function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions, readOnly, onSource }) {
   const label = argLabel(name);
   if (name === "link") return <LinkControl label={label} source={source} recordLink={recordLink} fieldOptions={fieldOptions} readOnly={readOnly} onSource={onSource} />;
+  if (name === "channel") return <ChannelControl label={label} source={source} readOnly={readOnly} onSource={onSource} />;
   const kind = kindOf(name, spec);
   const clear = () => onSource(null);
   if (kind === "choice") {
@@ -256,7 +285,7 @@ function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions,
     );
   }
   const fromData = ["field", "recordId", "actor"].includes(source?.from);
-  const choices = dataChoices({ spec, triggerType, fieldOptions });
+  const choices = dataChoices({ name, spec, triggerType, fieldOptions });
   if (fromData) {
     return (
       <div className="min-w-0 space-y-1">
@@ -274,7 +303,7 @@ function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions,
       <div className="min-w-0 space-y-2">
         <TextField aria-label={label} value={text} disabled={readOnly} onChange={(e) => set(e.target.value)}
           placeholder={spec.type === "datetime" ? "2026-10-06T10:00:00" : spec.type === "date" ? "AAAA-MM-DD" : "Escribe el texto"} />
-        {!readOnly && <DataChips fieldOptions={fieldOptions} onInsert={(key) => set(`${text}{{${key}}}`)} />}
+        {!readOnly && <DataChips fieldOptions={suggestionsFor(name, spec, fieldOptions)} onInsert={(key) => set(`${text}{{${key}}}`)} />}
       </div>
     );
   }
