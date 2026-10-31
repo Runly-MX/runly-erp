@@ -16,7 +16,7 @@ export async function publishCallEvent(prisma, event, { id, callId, durationMs =
       companyId: row.company_id,
       event,
       payload: {
-        id, callId, conversationId: row.conversation_id, title: row.title ?? null,
+        id, callId, conversationId: row.conversation_id, title: row.title || "Llamada sin título",
         startedAt: row.started_at ? new Date(row.started_at).toISOString() : null,
         durationMs: durationMs ?? null, participants: row.participants ?? 0,
         ...(event === "calls.transcript.ready" ? { language: language ?? null } : {}),
