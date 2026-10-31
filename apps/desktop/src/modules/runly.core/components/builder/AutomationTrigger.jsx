@@ -1,8 +1,8 @@
 // Module Builder — trigger of an automation: what starts it (a record saved, a
 // system event or a schedule) and its parameters. Shared by the form view and
 // the visual editor.
-import { SelectField } from "@runly/ui";
-import { stepsOf } from "@runly/module-compiler/browser";
+import { SelectField, TextField } from "@runly/ui";
+import { automationDateSources, stepsOf } from "@runly/module-compiler/browser";
 import { WebhookTriggerPanel } from "./WebhookTriggerPanel";
 import { keyOf } from "../../lib/flowModel";
 
@@ -13,7 +13,10 @@ const TRIGGER_TYPES = [
   { value: "event", label: "Cuando pasa algo en Runly" },
   { value: "schedule", label: "En un horario" },
   { value: "webhook", label: "Cuando otro sistema me envía datos" },
+  { value: "date", label: "En una fecha de un registro (vencimientos, aniversarios...)" },
 ];
+const DATE_SOURCES = automationDateSources();
+const WHEN_OPTIONS = [{ value: "before", label: "Días antes" }, { value: "same", label: "El mismo día" }, { value: "after", label: "Días después" }];
 const ON_OPTIONS = [
   { value: "create", label: "Al crear" },
   { value: "update", label: "Al actualizar" },
@@ -74,6 +77,34 @@ function ScheduleFields({ trigger, entities, readOnly, onTrigger }) {
   );
 }
 
+// "3 días antes de que venza una factura": which date, how many days before or after, and at what time.
+function DateFields({ trigger, readOnly, onTrigger }) {
+  const [hour = "08", minute = "00"] = String(trigger.at ?? "08:00").split(":");
+  const offset = Number(trigger.offsetDays) || 0;
+  const relation = offset < 0 ? "before" : offset > 0 ? "after" : "same";
+  const days = Math.abs(offset);
+  const set = (patch) => onTrigger({ ...trigger, ...patch });
+  const setOffset = (nextRelation, nextDays) => set({ offsetDays: nextRelation === "same" ? 0 : (nextRelation === "before" ? -1 : 1) * Math.min(60, Math.max(1, nextDays || 1)) });
+  return (
+    <>
+      <SelectField label="Qué fecha" options={DATE_SOURCES.map((source) => ({ value: source.key, label: source.label, group: source.module, description: source.description }))}
+        value={trigger.source ?? ""} disabled={readOnly} placeholder="Elige la fecha"
+        onValueChange={(source) => onTrigger({ type: "date", source, offsetDays: trigger.offsetDays ?? 0, at: trigger.at ?? "08:00" })} />
+      <div className="grid grid-cols-2 gap-3">
+        <SelectField label="Cuándo" options={WHEN_OPTIONS} value={relation} disabled={readOnly} onValueChange={(value) => setOffset(value, days)} />
+        {relation !== "same" && (
+          <TextField label="Días" type="number" min={1} max={60} value={String(days || 1)} disabled={readOnly} onChange={(e) => setOffset(relation, Math.floor(Number(e.target.value)))} />
+        )}
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <SelectField label="Hora" options={HOUR_OPTIONS} value={hour} disabled={readOnly} onValueChange={(value) => set({ at: `${value}:${minute}` })} />
+        <SelectField label="Minuto" options={MINUTE_OPTIONS} value={MINUTE_OPTIONS.some((item) => item.value === minute) ? minute : "00"} disabled={readOnly} onValueChange={(value) => set({ at: `${hour}:${value}` })} />
+      </div>
+      <p className="text-xs text-[hsl(var(--muted-foreground))] sm:col-span-2">Cada día a esa hora busca los registros cuya fecha toca y corre una vez por cada uno (hasta 200 al día).</p>
+    </>
+  );
+}
+
 // What the chosen event brings: each value with where it comes from, so the
 // "Solo si" and the blocks that follow are not a guess.
 function EventDataPanel({ event }) {
@@ -108,6 +139,7 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
     if (type === "record") onPatch({ trigger: { type, entity: keyOf(entities[0] ?? {}), on: "create" }, steps: emptySteps });
     else if (type === "event") onPatch({ trigger: { type, event: events[0]?.key }, steps: emptySteps });
     else if (type === "webhook") onPatch({ trigger: { type, fields: [] }, steps: emptySteps });
+    else if (type === "date") onPatch({ trigger: { type, source: DATE_SOURCES[0]?.key, offsetDays: -3, at: "08:00" }, steps: emptySteps });
     else onPatch({ trigger: { type, every: "day", at: "08:00" }, steps: emptySteps });
   };
   return (
@@ -129,6 +161,12 @@ export function TriggerEditor({ automation, entities, events, allowedTriggers, r
             // Conditions of the previous event may point to fields the new one does not carry.
             onValueChange={(event) => onPatch({ trigger: { type: "event", event }, steps: resetSteps(steps) })} />
           <EventDataPanel event={events.find((event) => event.key === trigger.event)} />
+        </>
+      )}
+      {trigger.type === "date" && (
+        <>
+          <DateFields trigger={trigger} readOnly={readOnly} onTrigger={(next) => onPatch({ trigger: next, steps: next.source !== trigger.source ? resetSteps(steps) : steps })} />
+          <EventDataPanel event={DATE_SOURCES.find((source) => source.key === trigger.source)} />
         </>
       )}
       {trigger.type === "webhook" && <WebhookTriggerPanel automation={automation} readOnly={readOnly} onPatch={onPatch} />}

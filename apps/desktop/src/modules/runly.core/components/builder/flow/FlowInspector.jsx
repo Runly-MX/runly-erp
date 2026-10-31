@@ -7,6 +7,7 @@ import { AutomationConditions } from "../AutomationConditions";
 import { InspectorSection } from "../InspectorSection";
 import { StepEditor } from "../AutomationSteps";
 import { TriggerEditor } from "../AutomationTrigger";
+import { dateSourceOf } from "../../../lib/flowModel";
 
 const COARSE = "[@media(pointer:coarse)]:h-11 [@media(pointer:coarse)]:w-11";
 
@@ -99,7 +100,7 @@ export function InspectorBody({ node, automation, steps, entities, events, allow
   return (
     <StepEditor
       step={steps[node.index]} steps={steps} index={node.index} triggerType={trigger.type} fieldOptions={fieldOptions}
-      recordLink={trigger.type === "event" ? events?.find((event) => event.key === trigger.event)?.link ?? null : null}
+      recordLink={trigger.type === "event" ? events?.find((event) => event.key === trigger.event)?.link ?? null : dateSourceOf(trigger)?.link ?? null}
       readOnly={readOnly} withServiceSelect onChange={(next) => onStep(node.index, next)}
     />
   );

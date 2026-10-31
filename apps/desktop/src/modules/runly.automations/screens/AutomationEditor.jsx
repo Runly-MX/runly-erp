@@ -23,7 +23,7 @@ import { downloadFile, duplicateDraft } from "../lib/automationFile";
 
 const LIST_PATH = "/app/m/runly.automations";
 const SYSTEM_MODULE_KEY = "system.automations";
-const ALLOWED_TRIGGERS = ["event", "schedule", "webhook"];
+const ALLOWED_TRIGGERS = ["event", "schedule", "webhook", "date"];
 const NO_ENTITIES = [];
 
 // What the API stores, without the view-only fields.

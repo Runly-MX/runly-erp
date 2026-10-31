@@ -2,7 +2,7 @@
 // system_automation): triggered by a system domain event or a schedule, run by
 // the same step engine as Builder automations. Spec
 // docs/superpowers/specs/2026-10-25-system-automations-design.md.
-import { automationEvents, automationServices, normalizeAutomations, serviceStepsOf, toRuntimeSteps, validateSystemAutomation } from "@runly/module-compiler";
+import { automationDateSources, automationEvents, automationServices, normalizeAutomations, serviceStepsOf, toRuntimeSteps, validateSystemAutomation } from "@runly/module-compiler";
 import { execute, matches } from "@runly/module-engine/contracts";
 import { createAutomationRunsService } from "./automation-runs-service.js";
 import { createAutomationJobsService } from "./automation-jobs-service.js";
@@ -13,6 +13,9 @@ import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { createAutomationWebhooksService, WEBHOOK_EVENT } from "./automation-webhooks-service.js";
 import { MAX_RETRIES, planRetry } from "./automation-retry.js";
+import { createAutomationDateSources, dayText, targetDay } from "./automation-date-sources.js";
+
+const DEFAULT_TIME_ZONE = "America/Mexico_City";
 
 export const SYSTEM_MODULE_KEY = "system.automations";
 export const MAX_SYSTEM_AUTOMATIONS = 50;
@@ -33,6 +36,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   const approvals = createAutomationApprovalsService({ prisma, notifications: notifier, chat: createChatIntegrationsService({ prisma, broadcaster: createRealtimeBroadcasterFromEnv({ prisma }) }), now });
   const http = createAutomationHttpService({ prisma });
   const webhooks = createAutomationWebhooksService({ prisma, now });
+  const dateSources = createAutomationDateSources({ prisma });
 
   const toView = (row) => ({ id: row.id, key: row.key, label: row.label, enabled: row.enabled, ...row.definition, ...(row.webhookToken ? { webhookToken: row.webhookToken } : {}), updatedAt: row.updatedAt });
   // The stored definition in the shape the step engine runs.
@@ -103,7 +107,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   // What the editor offers: events with their payload fields and the services
   // that can run without a person.
   function catalog() {
-    return { events: automationEvents(), services: automationServices({ trigger: "event" }), searches: automationServices({ trigger: "event", search: true }) };
+    return { events: automationEvents(), services: automationServices({ trigger: "event" }), searches: automationServices({ trigger: "event", search: true }), dates: automationDateSources() };
   }
 
   // Saving is the administrator's consent: the services in use are granted to
@@ -209,27 +213,48 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     });
   }
 
+  // A date trigger looks for its records once a day, at its time.
+  const scheduleFor = (key, trigger) => {
+    if (trigger?.type === "schedule") return { key, ...trigger };
+    if (trigger?.type === "date") return { key, every: "day", at: trigger.at };
+    return null;
+  };
+
   // The schedule trigger of one automation, or null (used by the worker).
   async function scheduleOf({ companyId, key }) {
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
-    const trigger = row?.enabled ? row.definition.trigger : null;
-    return trigger?.type === "schedule" ? { key, ...trigger } : null;
+    return row?.enabled ? scheduleFor(key, row.definition.trigger) : null;
   }
 
   // Every enabled schedule of every company: [{ companyId, schedule }].
   async function listSchedules() {
     const rows = await prisma.systemAutomation.findMany({ where: { enabled: true } });
-    return rows.filter((row) => row.definition.trigger?.type === "schedule").map((row) => ({ companyId: row.companyId, schedule: { key: row.key, ...row.definition.trigger } }));
+    return rows.map((row) => ({ companyId: row.companyId, schedule: scheduleFor(row.key, row.definition.trigger) })).filter((item) => item.schedule);
   }
 
-  async function runSchedule({ companyId, key, occurrence }) {
+  async function runSchedule({ companyId, key, occurrence, timeZone = DEFAULT_TIME_ZONE }) {
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
-    if (!row || !row.enabled || row.definition.trigger?.type !== "schedule" || !(await moduleOn(companyId))) return { skipped: true };
+    const type = row?.definition.trigger?.type;
+    if (!row || !row.enabled || (type !== "schedule" && type !== "date") || !(await moduleOn(companyId))) return { skipped: true };
     const automation = toRuntime(row);
-    return execute({
-      moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:all:${occurrence}`, data: { firedAt: occurrence }, recordId: null, actorId: null, trigger: "schedule", ref: occurrence,
-      retry: retryFor(companyId, row), ...hostFor(companyId),
-    });
+    if (type === "schedule") {
+      return execute({
+        moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:all:${occurrence}`, data: { firedAt: occurrence }, recordId: null, actorId: null, trigger: "schedule", ref: occurrence,
+        retry: retryFor(companyId, row), ...hostFor(companyId),
+      });
+    }
+    // One run per record whose date is due today (idempotent per record and day).
+    const { source, offsetDays, when } = row.definition.trigger;
+    const day = targetDay(occurrence, offsetDays, timeZone);
+    const records = (await dateSources.records(source, { companyId, day })).filter((record) => matches(when, record));
+    const host = hostFor(companyId);
+    for (const record of records) {
+      await execute({
+        moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:${record.id}:${dayText(day)}`, data: record, recordId: record.id, actorId: null, trigger: "schedule", ref: record.id,
+        retry: retryFor(companyId, row), ...host,
+      });
+    }
+    return { ran: records.length };
   }
 
   // A person resumes a failed run from the block that failed.

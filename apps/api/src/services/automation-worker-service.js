@@ -158,7 +158,7 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
       if (!claimed.count || !schedule || (!isSystem && !(await moduleState(row.moduleKey, row.companyId)))) { summary.skipped += 1; continue; }
       try {
         if (isSystem) {
-          await systemAutomations.runSchedule({ companyId: row.companyId, key: row.automationKey, occurrence: occurrence.toISOString() });
+          await systemAutomations.runSchedule({ companyId: row.companyId, key: row.automationKey, occurrence: occurrence.toISOString(), timeZone: zone });
           summary.fired += 1;
           await prisma.automationSchedule.updateMany({ where: { companyId: row.companyId, moduleKey: row.moduleKey, automationKey: row.automationKey }, data: { lastError: null } });
           continue;

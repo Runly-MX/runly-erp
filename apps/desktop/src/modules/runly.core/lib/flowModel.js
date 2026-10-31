@@ -3,7 +3,7 @@
 // (docs/developers/automatizaciones.md), and the texts shown on each node.
 // No React in here so it can be unit tested.
 import { argLabel } from "./argLabels.js";
-import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, branchLanes, conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, laneOwner, stepOutputKeys } from "@runly/module-compiler/browser";
+import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationDateSources, branchLanes, conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, laneOwner, stepOutputKeys } from "@runly/module-compiler/browser";
 
 export const STEP_KINDS = Object.freeze({
   action: { label: "Hacer algo en un módulo", hint: "Crear un contacto, enviar una notificación, agendar un evento..." },
@@ -252,7 +252,18 @@ const ON_TEXT = { create: "se crea", update: "se actualiza", save: "se guarda" }
 const OP_TEXT = { equals: "es", not_equals: "no es", contains: "contiene", not_contains: "no contiene", gt: "es mayor que", gte: "es mayor o igual a", lt: "es menor que", lte: "es menor o igual a", changed: "cambió", filled: "tiene valor", empty: "está vacío" };
 
 // Title and detail of the trigger node.
+const DATE_SOURCES = automationDateSources();
+export const dateSourceOf = (trigger) => (trigger?.type === "date" ? DATE_SOURCES.find((source) => source.key === trigger.source) ?? null : null);
+
 export function describeTrigger(trigger, { entities = [], events = [] } = {}) {
+  if (trigger.type === "date") {
+    const source = dateSourceOf(trigger);
+    const days = Math.abs(Number(trigger.offsetDays) || 0);
+    // "3 días antes del vencimiento de una factura de compra"
+    const of = (phrase) => (phrase.startsWith("el ") ? `del ${phrase.slice(3)}` : `de ${phrase}`);
+    const when = !days ? "El día" : `${days} ${days === 1 ? "día" : "días"} ${trigger.offsetDays < 0 ? "antes" : "después"}`;
+    return { title: source ? `${when} ${of(source.date)}` : "Elige una fecha", detail: `Cada día a las ${trigger.at ?? "08:00"}, una vez por registro` };
+  }
   if (trigger.type === "webhook") {
     const count = trigger.fields?.length ?? 0;
     return { title: "Recibe datos de otro sistema", detail: count ? `${count} ${count === 1 ? "campo" : "campos"} esperados` : "Aún sin campos: envía un mensaje de prueba" };
@@ -292,7 +303,7 @@ export function stepKindLabel(step) {
 }
 
 export function triggerKindLabel(trigger) {
-  return { record: "Disparador · registro", event: "Disparador · evento", schedule: "Disparador · horario", webhook: "Disparador · webhook" }[trigger.type] ?? "Disparador";
+  return { record: "Disparador · registro", event: "Disparador · evento", schedule: "Disparador · horario", webhook: "Disparador · webhook", date: "Disparador · fecha" }[trigger.type] ?? "Disparador";
 }
 
 // Spanish wording for the diagnostics the API returns when an automation does not
@@ -362,6 +373,7 @@ export function pickerOptions(fieldOptions = []) {
 // or the fields a webhook announces.
 export function fieldOptionsFor(trigger, entities = [], events = []) {
   if (trigger.type === "webhook") return (trigger.fields ?? []).map((field) => ({ value: field.key, label: field.label || friendlyLabel(field.key) }));
+  if (trigger.type === "date") return (dateSourceOf(trigger)?.fields ?? []).map((item) => ({ value: item.key, label: item.label, description: item.description, example: item.example, type: item.type }));
   if (trigger.type === "event") {
     const event = events.find((item) => item.key === trigger.event);
     // The catalog describes each field; an older API only sends the bare keys.

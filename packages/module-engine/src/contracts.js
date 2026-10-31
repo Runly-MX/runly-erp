@@ -7,6 +7,7 @@ export const RME3_ENGINE_VERSION = '0.1.0'
 export { SERVICE_CONTRACTS, SERVICE_KEYS, IDEMPOTENCY_ARG, validateServiceArgs } from './service-contracts.js'
 export { createServiceSimulator, SimulatedServiceError } from './service-simulator.js'
 export { EVENT_CATALOG } from './event-catalog.js'
+export { DATE_SOURCES, MAX_DATE_OFFSET_DAYS, MAX_DATE_RECORDS } from './date-sources.js'
 // Derived from the catalog (labels and payload keys); see event-catalog.js for the data each event carries.
 export const DOMAIN_EVENTS = Object.freeze(Object.fromEntries(Object.entries(EVENT_CATALOG).map(([key, entry]) => [key, entry.label])))
 export const DOMAIN_EVENT_PAYLOADS = Object.freeze(Object.fromEntries(Object.entries(EVENT_CATALOG).map(([key, entry]) => [key, Object.freeze(entry.fields.map((item) => item.key))])))

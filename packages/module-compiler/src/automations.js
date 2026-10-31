@@ -3,7 +3,7 @@
 // mapping. Spec docs/superpowers/specs/2026-10-04-builder-automations-design.md.
 // Validated against the shared service contract; the manifest's `consumes` and
 // `events.subscribes` are derived from them (never written by hand).
-import { DOMAIN_EVENTS, DOMAIN_EVENT_PAYLOADS, EVENT_CATALOG, SERVICE_CONTRACTS, validateServiceArgs } from '@runly/module-engine/contracts'
+import { DATE_SOURCES, DOMAIN_EVENTS, DOMAIN_EVENT_PAYLOADS, EVENT_CATALOG, MAX_DATE_OFFSET_DAYS, SERVICE_CONTRACTS, validateServiceArgs } from '@runly/module-engine/contracts'
 
 export const MAX_AUTOMATIONS = 20
 export const AUTOMATION_ARG_SOURCES = Object.freeze(['value', 'field', 'template', 'recordId', 'actor'])
@@ -141,6 +141,11 @@ export function automationEvents() {
     key, label, module: EVENT_CATALOG[key]?.module ?? '', description: EVENT_CATALOG[key]?.description ?? '', link: EVENT_CATALOG[key]?.link ?? null,
     payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])], fields: (EVENT_CATALOG[key]?.fields ?? []).map((item) => ({ ...item })),
   }))
+}
+
+// Dates of records a company automation can be triggered by (same shape as automationEvents).
+export function automationDateSources() {
+  return Object.entries(DATE_SOURCES).map(([key, source]) => ({ key, label: source.label, module: source.module, date: source.date, description: source.description, link: source.link, fields: source.fields.map((item) => ({ ...item })) }))
 }
 
 // { 'runly.calendar': ['events.create'], ... } from the automations' services.
@@ -316,6 +321,13 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
       } else if (trigger.when !== undefined) {
         errors.push(diagnostic(`${base}.trigger.when`, 'AUTOMATION_CONDITION_INVALID', 'Conditions on a schedule need an entity.'))
       }
+    } else if (trigger.type === 'date' && allowWebhook) {
+      // Company automations only (same flag as webhooks): a date of a record, N days before or after.
+      const source = Object.hasOwn(DATE_SOURCES, trigger.source ?? '') ? DATE_SOURCES[trigger.source] : null
+      if (!source) errors.push(diagnostic(`${base}.trigger.source`, 'AUTOMATION_TRIGGER_INVALID', `Unknown date "${trigger.source}".`))
+      else fieldNames = new Set(source.fields.map((item) => item.key))
+      if (!Number.isInteger(trigger.offsetDays) || Math.abs(trigger.offsetDays) > MAX_DATE_OFFSET_DAYS) errors.push(diagnostic(`${base}.trigger.offsetDays`, 'AUTOMATION_TRIGGER_INVALID', `offsetDays must be a whole number from -${MAX_DATE_OFFSET_DAYS} to ${MAX_DATE_OFFSET_DAYS}.`))
+      if (!TIME.test(trigger.at ?? '')) errors.push(diagnostic(`${base}.trigger.at`, 'AUTOMATION_TRIGGER_INVALID', 'at must be a time like "08:00".'))
     } else if (trigger.type === 'webhook' && allowWebhook) {
       const fields = trigger.fields === undefined ? [] : trigger.fields
       if (!Array.isArray(fields) || fields.length > MAX_WEBHOOK_FIELDS) {
@@ -478,6 +490,7 @@ function normalizeTrigger(trigger, condition) {
       ...condition,
     }
   }
+  if (trigger.type === 'date') return { type: 'date', source: trigger.source, offsetDays: trigger.offsetDays, at: trigger.at, ...condition }
   return { type: 'event', event: trigger.event, ...condition }
 }
 
@@ -531,8 +544,8 @@ function serviceRuntime(step) {
 export function validateSystemAutomation(automation) {
   const errors = []
   const type = automation?.trigger?.type
-  if (type !== 'event' && type !== 'schedule' && type !== 'webhook') {
-    errors.push(diagnostic('automations[0].trigger.type', 'AUTOMATION_TRIGGER_INVALID', 'Automations of the company react to a system event, a webhook or run on a schedule.'))
+  if (type !== 'event' && type !== 'schedule' && type !== 'webhook' && type !== 'date') {
+    errors.push(diagnostic('automations[0].trigger.type', 'AUTOMATION_TRIGGER_INVALID', 'Automations of the company react to a system event, a webhook, a date of a record or run on a schedule.'))
     return errors
   }
   validateDefinitionAutomations({ entities: [], automations: [automation] }, errors, { allowWebhook: true })

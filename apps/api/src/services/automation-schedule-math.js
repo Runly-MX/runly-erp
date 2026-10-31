@@ -26,12 +26,12 @@ export function zonedToUtc({ year, month, day, hour, minute }, timeZone) {
   return first - (zoneOffsetMs(first, timeZone) - zoneOffsetMs(guess, timeZone));
 }
 
-function localDate(instant, timeZone) {
+export function localDate(instant, timeZone) {
   const shifted = new Date(instant + zoneOffsetMs(instant, timeZone));
   return { year: shifted.getUTCFullYear(), month: shifted.getUTCMonth() + 1, day: shifted.getUTCDate() };
 }
 
-const addDays = ({ year, month, day }, amount) => {
+export const addDays = ({ year, month, day }, amount) => {
   const date = new Date(Date.UTC(year, month - 1, day + amount));
   return { year: date.getUTCFullYear(), month: date.getUTCMonth() + 1, day: date.getUTCDate() };
 };
