@@ -4,6 +4,7 @@ import { Button, SelectField, TextField } from "@runly/ui";
 import { Plus, Trash2 } from "lucide-react";
 import { MAX_CONDITIONS, conditionsOf } from "@runly/module-compiler/browser";
 import { pickerOptions } from "../../lib/flowModel";
+import { PeoplePicker } from "./PeoplePicker";
 
 const OP_OPTIONS = [
   { value: "equals", label: "Es igual a" },
@@ -50,7 +51,11 @@ export function AutomationConditions({ trigger, fieldOptions, readOnly, onChange
             onValueChange={(field) => update(index, { ...condition, field })} />
           <SelectField label="Condición" options={ops} value={condition.op} disabled={readOnly}
             onValueChange={(op) => update(index, { field: condition.field, op, ...valueFor(op, condition.value) })} />
-          {VALUE_OPS.includes(condition.op) ? (
+          {chosen(condition)?.type === "person" && ["equals", "not_equals"].includes(condition.op) ? (
+            // A person field (who wrote, who receives, the assignee) picks the person, never an id.
+            <PeoplePicker label="Persona" max={1} value={condition.value ? [String(condition.value)] : []} readOnly={readOnly}
+              onChange={(ids) => update(index, { ...condition, value: ids.at(-1) ?? "" })} />
+          ) : VALUE_OPS.includes(condition.op) ? (
             <TextField label="Valor" value={String(condition.value ?? "")} disabled={readOnly}
               type={NUMBER_OPS.includes(condition.op) ? "number" : "text"}
               placeholder={chosen(condition)?.example ? `Ej. ${chosen(condition).example}` : undefined}

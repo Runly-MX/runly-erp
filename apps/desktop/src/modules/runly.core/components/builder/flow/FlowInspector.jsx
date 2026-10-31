@@ -1,7 +1,7 @@
 // Inspector of the canvas editor: edits the selected block with the same editors
 // the form view uses, organised in titled sections. Docked (and resizable) beside
 // the canvas on wide screens, a side/bottom sheet elsewhere.
-import { Button, SwitchField } from "@runly/ui";
+import { Button, DateField, SelectField, SwitchField } from "@runly/ui";
 import { ArrowDown, ArrowUp, Maximize2, Minimize2, Trash2, X } from "lucide-react";
 import { AutomationConditions } from "../AutomationConditions";
 import { InspectorSection } from "../InspectorSection";
@@ -58,6 +58,38 @@ export function InspectorHeader({ icon: Icon, tone = "neutral", kindLabel, title
   );
 }
 
+const ONCE_HOURS = [[1, "1 hora"], [4, "4 horas"], [12, "12 horas"], [24, "1 día"], [48, "2 días"], [168, "1 semana"], [720, "30 días"]].map(([value, label]) => ({ value: String(value), label }));
+
+// Company automations: the days it may run (a vacation answer, a campaign) and
+// "no repetir" for the same conversation, record or person within some hours.
+function ScheduleWindow({ automation, fieldOptions, readOnly, onPatch }) {
+  const active = automation.active ?? {};
+  const once = automation.once ?? null;
+  const setActive = (patch) => {
+    const next = { ...active, ...patch };
+    for (const key of Object.keys(next)) if (!next[key]) delete next[key];
+    onPatch({ active: Object.keys(next).length ? next : undefined });
+  };
+  return (
+    <InspectorSection title="Cuándo está activa" description="Opcional: solo corre en esos días y no se repite para lo mismo.">
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <DateField label="Desde" value={active.from ?? ""} disabled={readOnly} onChange={(e) => setActive({ from: e.target.value })} />
+          <DateField label="Hasta" value={active.until ?? ""} disabled={readOnly} onChange={(e) => setActive({ until: e.target.value })} />
+        </div>
+        {active.from && active.until && active.from > active.until && <p className="text-xs text-red-700 dark:text-red-300">«Desde» no puede ser después de «Hasta».</p>}
+        <SelectField label="No repetir para el mismo" value={once?.field ?? "__always"} disabled={readOnly}
+          options={[{ value: "__always", label: "Correr siempre" }, ...fieldOptions.map((option) => ({ value: option.value, label: option.label }))]}
+          onValueChange={(field) => onPatch({ once: field === "__always" ? undefined : { field, hours: once?.hours ?? 24 } })} />
+        {once && (
+          <SelectField label="Durante" options={ONCE_HOURS} value={String(once.hours)} disabled={readOnly}
+            onValueChange={(hours) => onPatch({ once: { ...once, hours: Number(hours) } })} />
+        )}
+      </div>
+    </InspectorSection>
+  );
+}
+
 export function InspectorBody({ node, automation, steps, entities, events, allowedTriggers, fieldOptions, readOnly, onPatch, onStep, retries = false }) {
   if (!node) return null;
   const trigger = automation.trigger;
@@ -87,6 +119,7 @@ export function InspectorBody({ node, automation, steps, entities, events, allow
             )}
           </div>
         </InspectorSection>
+        {retries && <ScheduleWindow automation={automation} fieldOptions={fieldOptions} readOnly={readOnly} onPatch={onPatch} />}
       </div>
     );
   }

@@ -325,6 +325,8 @@ export function describeAutomationDiagnostic(diagnostic) {
     case "AUTOMATION_DELAY_INVALID": return `Revisa la espera${place}: de 1 minuto a 30 días y entre dos acciones.`;
     case "AUTOMATION_SERVICE_NEEDS_USER": return `La acción${place} necesita a una persona y no puede correr en segundo plano.`;
     case "AUTOMATION_SERVICE_READONLY": return `La acción${place} no se puede usar ahí: una lista solo sirve en «Para cada uno».`;
+    case "AUTOMATION_ACTIVE_INVALID": return "Revisa «Cuándo está activa»: «Desde» no puede ser después de «Hasta».";
+    case "AUTOMATION_ONCE_INVALID": return "Revisa «No repetir»: el tiempo va de 1 hora a 30 días.";
     case "AUTOMATION_LOOP_INVALID": return `Revisa «Para cada uno»${place}: elige qué buscar y de 1 a 3 acciones; no puede ir dentro de una condición.`;
     case "AUTOMATION_CONDITION_INVALID": return "Revisa las condiciones del flujo.";
     case "AUTOMATION_TRIGGER_INVALID": return "Revisa el disparador (horario, campos o tipo).";

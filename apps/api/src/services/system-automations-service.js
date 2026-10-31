@@ -14,6 +14,7 @@ import { createNotificationService } from "./notification-service.js";
 import { createAutomationWebhooksService, WEBHOOK_EVENT } from "./automation-webhooks-service.js";
 import { MAX_RETRIES, planRetry } from "./automation-retry.js";
 import { createAutomationDateSources, dayText, targetDay } from "./automation-date-sources.js";
+import { localDate } from "./automation-schedule-math.js";
 
 const DEFAULT_TIME_ZONE = "America/Mexico_City";
 
@@ -168,9 +169,34 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     return !off;
   }
 
-  // Domain event: every enabled automation of the company listening to it. Same
-  // contract as a module's event handler: idempotent per event, and a failure is
-  // rethrown after the loop so the dispatcher retries.
+  let zone = { value: DEFAULT_TIME_ZONE, at: 0 };
+  async function instanceZone() {
+    if (Date.now() - zone.at < 60_000 || !prisma.instanceConfig?.findUnique) return zone.value;
+    const row = await prisma.instanceConfig.findUnique({ where: { key: "instance_time_zone" }, select: { value: true } }).catch(() => null);
+    zone = { value: row?.value || DEFAULT_TIME_ZONE, at: Date.now() };
+    return zone.value;
+  }
+
+  // "Activa del ... al ..." (spec 2026-10-31-automations-calls-chat-autoreply §C), in the instance time zone.
+  async function inWindow(row, timeZone = null) {
+    const active = row.definition.active;
+    if (!active) return true;
+    const today = dayText(localDate(now().getTime(), timeZone ?? await instanceZone()));
+    return (!active.from || today >= active.from) && (!active.until || today <= active.until);
+  }
+
+  // "No repetir": already ran for this value of the field within the last N hours.
+  async function ranRecently(companyId, row, data) {
+    const once = row.definition.once;
+    const value = data?.[once?.field];
+    if (!once || value === undefined || value === null || !prisma.automationRun?.count) return false;
+    const since = new Date(now().getTime() - once.hours * 3_600_000);
+    return (await prisma.automationRun.count({ where: { companyId, moduleKey: SYSTEM_MODULE_KEY, automationKey: row.key, createdAt: { gte: since }, input: { path: [once.field], equals: value } } })) > 0;
+  }
+
+  // Domain event: every enabled automation of the company listening to it,
+  // inside its active days and not already run for the same value (`once`).
+  // Idempotent per event; a failed automation retries on its own.
   async function runEvent({ companyId, event, payload: received, eventId }) {
     if (!(await moduleOn(companyId))) return { skipped: true };
     const rows = await prisma.systemAutomation.findMany({ where: { companyId, enabled: true } });
@@ -191,6 +217,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
       : new Set();
     let ran = 0;
     for (const row of due.filter((item) => !done.has(item.key))) {
+      if (!(await inWindow(row)) || (await ranRecently(companyId, row, payload))) continue;
       const automation = toRuntime(row);
       await execute({ moduleKey: SYSTEM_MODULE_KEY, automation, base: `${automation.key}:${eventId}`, data: payload, trigger: webhook ? "webhook" : "event", ref: eventId, retry: retryFor(companyId, row), ...host });
       ran += 1;
@@ -235,7 +262,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   async function runSchedule({ companyId, key, occurrence, timeZone = DEFAULT_TIME_ZONE }) {
     const row = await prisma.systemAutomation.findUnique({ where: { companyId_key: { companyId, key } } });
     const type = row?.definition.trigger?.type;
-    if (!row || !row.enabled || (type !== "schedule" && type !== "date") || !(await moduleOn(companyId))) return { skipped: true };
+    if (!row || !row.enabled || (type !== "schedule" && type !== "date") || !(await moduleOn(companyId)) || !(await inWindow(row, timeZone))) return { skipped: true };
     const automation = toRuntime(row);
     if (type === "schedule") {
       return execute({
@@ -249,6 +276,7 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
     const records = (await dateSources.records(source, { companyId, day })).filter((record) => matches(when, record));
     const host = hostFor(companyId);
     for (const record of records) {
+      if (await ranRecently(companyId, row, record)) continue;
       await execute({
         moduleKey: SYSTEM_MODULE_KEY, automation, base: `${key}:${record.id}:${dayText(day)}`, data: record, recordId: record.id, actorId: null, trigger: "schedule", ref: record.id,
         retry: retryFor(companyId, row), ...host,

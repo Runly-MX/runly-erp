@@ -225,7 +225,7 @@ function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions,
   }
   if (kind === "people") {
     // The person can also come from the data: the task's assignee, who requested...
-    const people = selectOptions(fieldOptions.filter((option) => option.type === "id" || /(^|_)id$|Id$/.test(option.value)));
+    const people = selectOptions(fieldOptions.filter((option) => option.type === "id" || option.type === "person" || /(^|_)id$|Id$/.test(option.value)));
     if (source?.from === "field") {
       return (
         <div className="min-w-0 space-y-1">

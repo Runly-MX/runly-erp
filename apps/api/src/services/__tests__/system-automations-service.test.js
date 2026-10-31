@@ -146,3 +146,21 @@ test('nothing runs while the Automatizaciones module is off for the company', as
   off = false
   assert.deepEqual(await svc.runEvent(event), { ran: 1 })
 })
+
+test('active days and once-per-value limit when an automation runs', async () => {
+  const prisma = fakePrisma()
+  prisma.automationRun.count = async ({ where }) => prisma.runs.filter((run) => run.automationKey === where.automationKey && run.input?.[where.input.path[0]] === where.input.equals).length
+  const calls = []
+  const moduleServices = { forSystem: () => ({ call: async () => { calls.push(1) } }) }
+  const svc = createSystemAutomationsService({ prisma, moduleServices, now: () => NOW })
+  const event = (eventId, id = 'o1') => svc.runEvent({ companyId: 'c1', event: 'purchases.order.approved', payload: { id, status: 'APPROVED' }, eventId })
+  await svc.create({ companyId: 'c1', input: input({ active: { from: '2026-11-01' } }) })
+  assert.deepEqual(await event('e1'), { ran: 0 }) // NOW is 26 Oct: not active yet
+  await svc.save({ companyId: 'c1', key: 'avisar', input: input({ active: { from: '2026-10-20', until: '2026-10-30' }, once: { field: 'id', hours: 24 } }) })
+  assert.deepEqual(await event('e2'), { ran: 1 })
+  assert.deepEqual(await event('e3'), { ran: 0 }) // same order within 24 h
+  assert.deepEqual(await event('e4', 'o2'), { ran: 1 })
+  assert.equal(calls.length, 2)
+  await assert.rejects(svc.save({ companyId: 'c1', key: 'avisar', input: input({ active: { from: '2026-11-02', until: '2026-11-01' } }) }), (error) => error.diagnostics.some((d) => d.code === 'AUTOMATION_ACTIVE_INVALID'))
+  await assert.rejects(svc.save({ companyId: 'c1', key: 'avisar', input: input({ once: { field: 'nada', hours: 24 } }) }), (error) => error.diagnostics.some((d) => d.code === 'AUTOMATION_FIELD_NOT_FOUND'))
+})

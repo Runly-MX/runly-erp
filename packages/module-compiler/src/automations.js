@@ -204,6 +204,29 @@ function validateCondition(when, { base, fieldNames, trigger, errors, path = `${
   })
 }
 
+// Company automations only (spec 2026-10-31-automations-calls-chat-autoreply §C):
+// `active` limits the days it runs, `once` runs it at most once per value of a trigger
+// field every N hours (one answer per conversation a day...).
+export const MAX_ONCE_HOURS = 720
+const DAY = /^\d{4}-\d{2}-\d{2}$/
+function validateWindow(automation, { base, fieldNames, errors, allowed }) {
+  const { active, once } = automation
+  if ((active !== undefined || once !== undefined) && !allowed) {
+    errors.push(diagnostic(`${base}.active`, 'AUTOMATIONS_INVALID', 'active and once are only available in company automations.'))
+    return
+  }
+  if (active !== undefined) {
+    const valid = active && typeof active === 'object' && !Array.isArray(active)
+      && (active.from === undefined || DAY.test(active.from)) && (active.until === undefined || DAY.test(active.until))
+      && (active.from || active.until) && !(active.from && active.until && active.from > active.until)
+    if (!valid) errors.push(diagnostic(`${base}.active`, 'AUTOMATION_ACTIVE_INVALID', 'active is { from?, until? } with dates YYYY-MM-DD, from not after until.'))
+  }
+  if (once !== undefined) {
+    if (!once || typeof once !== 'object' || !fieldNames.has(once.field)) errors.push(diagnostic(`${base}.once.field`, 'AUTOMATION_FIELD_NOT_FOUND', `Field "${once?.field}" is not available for this trigger.`))
+    if (!Number.isInteger(once?.hours) || once.hours < 1 || once.hours > MAX_ONCE_HOURS) errors.push(diagnostic(`${base}.once.hours`, 'AUTOMATION_ONCE_INVALID', `once.hours must be 1 to ${MAX_ONCE_HOURS}.`))
+  }
+}
+
 // One argument source ({ from: value | field | template | recordId | actor }).
 function validateSource(source, { path, fieldNames, trigger, errors, literal }) {
   if (!source || !AUTOMATION_ARG_SOURCES.includes(source.from)) { errors.push(diagnostic(path, 'AUTOMATION_ARG_INVALID', `Source must be one of ${AUTOMATION_ARG_SOURCES.join(', ')}.`)); return }
@@ -348,6 +371,7 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
       errors.push(diagnostic(`${base}.trigger.type`, 'AUTOMATION_TRIGGER_INVALID', 'Trigger type must be record, event or schedule.'))
     }
     validateCondition(trigger.when, { base, fieldNames, trigger, errors })
+    validateWindow(automation, { base, fieldNames, errors, allowed: allowWebhook })
 
     if (automation.onError !== undefined && !ON_ERROR.includes(automation.onError)) errors.push(diagnostic(`${base}.onError`, 'AUTOMATIONS_INVALID', `onError must be one of ${ON_ERROR.join(', ')}.`))
     if (automation.retry !== undefined && typeof automation.retry !== 'boolean') errors.push(diagnostic(`${base}.retry`, 'AUTOMATIONS_INVALID', 'retry must be boolean.'))
@@ -505,6 +529,8 @@ export function normalizeAutomations(list) {
       ...(automation.onError === 'continue' ? { onError: 'continue' } : {}),
       // Automatic retries of a failed service are on unless turned off (company automations).
       ...(automation.retry === false ? { retry: false } : {}),
+      ...(automation.active ? { active: { ...(automation.active.from ? { from: automation.active.from } : {}), ...(automation.active.until ? { until: automation.active.until } : {}) } } : {}),
+      ...(automation.once ? { once: { field: automation.once.field, hours: automation.once.hours } } : {}),
       trigger: normalizeTrigger(automation.trigger, condition),
       steps: stepsOf(automation).map(normalizeStep),
       ...(normalizeUi(automation.ui, stepsOf(automation).length) ? { ui: normalizeUi(automation.ui, stepsOf(automation).length) } : {}),
