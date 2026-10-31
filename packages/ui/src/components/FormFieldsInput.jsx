@@ -28,7 +28,7 @@ export const TextField = forwardRef(function TextField(
     required,
     validate,
     onBlur,
-    id,
+    id: providedId,
     icon: iconProp,
     className,
     autoComplete,
@@ -36,6 +36,8 @@ export const TextField = forwardRef(function TextField(
   },
   ref,
 ) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
   const resolvedAutoComplete = useOverlayAutoComplete(autoComplete);

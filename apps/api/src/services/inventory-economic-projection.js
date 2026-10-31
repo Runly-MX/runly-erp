@@ -2,10 +2,12 @@
 // are never rewritten. Original attachments are returned unchanged.
 import { createPurchaseEconomicMode } from './purchase-economic-mode.js'
 
-const ECONOMIC_NAME = /precio|importe|monto|costo|coste|valor.*(compra|adquisici[oó]n)|subtotal|impuesto|saldo|pagado|amount|price|cost|tax/i
+const ECONOMIC_NAME = /\b(precios?|importes?|montos?|costos?|costes?|subtotal|impuestos?|saldo|pagado|amount|price|cost|tax)\b|\bvalor\b.*\b(compra|adquisicion)\b/i
+const economicIdentifier = value => String(value ?? '').replace(/([a-z])([A-Z])/g, '$1 $2')
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[_\W]+/g, ' ')
 export const isEconomicInventoryField = field => Boolean(field && (
-  ['number', 'currency', 'money'].includes(field.fieldType) || field.options?.economic === true ||
-  ECONOMIC_NAME.test(`${field.fieldKey ?? ''} ${field.label ?? ''}`)
+  ['currency', 'money'].includes(field.fieldType) || field.options?.economic === true ||
+  [field.fieldKey, field.label].some(value => ECONOMIC_NAME.test(economicIdentifier(value)))
 ))
 
 export function projectInventoryEconomics(item, mode) {
@@ -13,7 +15,7 @@ export function projectInventoryEconomics(item, mode) {
   return {
     ...item, purchasePrice: null,
     customValues: item.customValues?.map(cv => isEconomicInventoryField(cv.field) ? { ...cv, value: null, economicValueSuppressed: true } : cv),
-    purchaseEconomicContext: { economicMode: mode, economicCaptureEnabled: false, structuredEconomicsVisible: false, historicalDataPreserved: true, numericCustomFieldsSuppressed: true, originalFilesUnchanged: true },
+    purchaseEconomicContext: { economicMode: mode, economicCaptureEnabled: false, structuredEconomicsVisible: false, historicalDataPreserved: true, numericCustomFieldsSuppressed: false, originalFilesUnchanged: true },
   }
 }
 

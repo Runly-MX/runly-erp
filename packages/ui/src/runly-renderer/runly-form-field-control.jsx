@@ -16,6 +16,7 @@ export function renderFormFieldControl(field, ctx) {
   const { componentRegistry, formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate } = ctx;
   const value = formValues[field.name];
   const sharedProps = {
+    id: `${ctx.fieldIdPrefix}-${field.name}`,
     label: field.label,
     required: field.required,
     hint: field.hint ?? undefined,

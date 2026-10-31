@@ -1,5 +1,5 @@
 import { useRuntimeFetch } from '../lib/module-runtime/RuntimeAdapters.jsx';
-import { useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useContext, useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { QueryClientContext } from "@tanstack/react-query";
 import * as LucideIcons from "lucide-react";
 import { renderFormFieldControl } from "./runly-form-field-control.jsx";
@@ -124,6 +124,7 @@ export function RunlyForm({
   onSubmitError = null,
 }) {
   const runtimeFetch = useRuntimeFetch();
+  const fieldIdPrefix = useId();
   const schema = blueprint?.schema ?? {};
   const apiPath =
     typeof schema.apiPath === "string" ? schema.apiPath.trim() : "";
@@ -536,7 +537,7 @@ export function RunlyForm({
   };
 
   const renderFieldControl = (field) =>
-    renderFormFieldControl(field, { componentRegistry, formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate });
+    renderFormFieldControl(field, { fieldIdPrefix, componentRegistry, formValues, fieldErrors, handleChange, apiBaseUrl, token, companyId, relationState, relationInlineErrors, initialData, allowInlineCreate, inlineCreateDepth, quickCreatingField, inlineCreateState, loadRelationOptions, handleRelationSearch, handleQuickCreate, openInlineCreate });
 
   const mainSections = shownSections.filter(
     (section) =>

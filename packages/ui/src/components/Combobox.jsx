@@ -80,7 +80,7 @@ function usePresence(open) {
 export const Combobox = forwardRef(function Combobox(
   {
     label,
-    id,
+    id: providedId,
     required,
     error,
     hint,
@@ -119,6 +119,8 @@ export const Combobox = forwardRef(function Combobox(
   },
   ref,
 ) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   const emit = onChange ?? onValueChange;
   const options = rawOptions.map(normalizeOption);
   const {
@@ -359,7 +361,7 @@ export const Combobox = forwardRef(function Combobox(
       <span
         className={cn(
           "flex-1 min-w-0 truncate",
-          selected ? "text-foreground" : "text-muted-foreground",
+          selected ? "text-foreground" : "text-muted-foreground dark:text-slate-300",
           missing && missingLabel && !loading && "italic",
         )}
       >

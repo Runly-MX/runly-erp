@@ -237,11 +237,12 @@ ganador. Las cancelaciones requieren motivo y preservan relaciones.
   Los enlaces del detalle incluyen reference además del número interno. Las
   columnas del listado añaden purchaseOrderReference y purchaseInvoiceReference
   sin reemplazar los campos históricos purchaseOrderNumber/purchaseInvoiceNumber.
-- Los campos personalizados de tipo number/currency/money, marcados con
+- Los campos personalizados de tipo currency/money, marcados con
   `options.economic: true` o con clave/etiqueta de precio, importe, monto, costo,
   impuesto o saldo se suprimen en la vista operativa y catálogo de exportación.
-  Los numéricos se ocultan conservadoramente aunque no sean dinero; se declara
-  `numericCustomFieldsSuppressed`. Un campo textual ambiguo debe identificarse
+  Los numéricos ordinarios (capacidad, potencia y cantidades) permanecen visibles;
+  `numericCustomFieldsSuppressed` es false. Los identificadores económicos se
+  reconocen por palabras completas, incluidos snake_case y camelCase. Un campo textual ambiguo debe identificarse
   con options.economic; no es posible inferir el significado de cualquier texto.
   Las sugerencias de valores tampoco devuelven los importes suprimidos.
 - CSV/XLSX de Inventarios excluyen columnas económicas; pedirlas expresamente
@@ -358,8 +359,8 @@ estos contratos, sin otra decisión de arquitectura:
    estable por intento. Mostrar duplicateCandidates sin fusionar. No exigir
    factura para vincular OC, ni OC para factura. Mantener vista previa al quitar
    relaciones y preservar cancelados como historia.
-6. Aplicar purchaseEconomicContext en Inventarios y sus exportaciones. Los campos
-   numéricos suprimidos pueden incluir datos no monetarios: indicarlo; clasificar
+6. Aplicar purchaseEconomicContext en Inventarios y sus exportaciones. Conservar
+   los campos numéricos técnicos y suprimir solo los económicos; clasificar
    campos textuales heredados de significado económico antes de mostrarlos.
 7. Usar los adjuntos existentes dentro del módulo. La presencia de una referencia
    no asegura un archivo ni validación fiscal. El archivo original puede contener

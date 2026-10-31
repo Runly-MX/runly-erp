@@ -299,13 +299,19 @@ describe('documentary acceptance on disposable PostgreSQL', { skip: !url }, () =
   it('24 inventory operational reads/export suppress legacy economics without deleting them', async () => {
     const field = await prisma.invCustomField.create({ data: { companyId: A, fieldKey: 'legacy_amount', label: 'Importe SINABE', fieldType: 'number' } })
     await prisma.invCustomFieldValue.create({ data: { itemId: item1.id, fieldId: field.id, value: '98765' } })
+    const technical = await prisma.invCustomField.create({ data: { companyId: A, fieldKey: 'capacidad', label: 'Capacidad', fieldType: 'number' } })
+    await prisma.invCustomFieldValue.create({ data: { itemId: item1.id, fieldId: technical.id, value: '42' } })
     const inv = createInventoryService({ prisma })
     const doc = await inv.getItem(item1.id, A)
-    assert.equal(doc.purchasePrice, null); assert.equal(doc.customValues[0].value, null)
+    assert.equal(doc.purchasePrice, null); assert.equal(doc.customValues.find(cv => cv.fieldId === field.id).value, null)
+    assert.equal(doc.customValues.find(cv => cv.fieldId === technical.id).value, '42')
     assert.equal(doc.purchaseEconomicContext.historicalDataPreserved, true)
     assert.equal((await inv.listItems({ companyId: A })).data.find(i => i.id === item1.id).purchasePrice, null)
     const exporter = createInventoryExportService({ prisma })
     assert.equal((await exporter.columnCatalog(A)).columns.some(c => c.key === 'purchasePrice'), false)
+    const columns = (await exporter.columnCatalog(A)).columns
+    assert.equal(JSON.stringify(columns).includes('Capacidad'), true)
+    assert.equal(JSON.stringify(columns).includes('Importe SINABE'), false)
     await assert.rejects(exporter.exportItems(A, { columns: ['name', 'purchasePrice'], ids: [item1.id] }), /económicas/)
     const file = await exporter.exportItems(A, { format: 'csv', columns: ['name', 'assetTag'], ids: [item1.id] })
     let content = ''; for await (const chunk of file.stream) content += chunk
