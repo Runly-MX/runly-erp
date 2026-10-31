@@ -243,6 +243,7 @@ try {
         if (wait === 'tab') await ready(page); else if (wait) await page.getByText(wait).first().waitFor({ timeout: 60000 }); else await page.getByRole('radiogroup', { name: 'Vista' }).waitFor({ timeout: 60000 })
         await settle(page)
         const raw = await page.evaluate(contrastScan)
+        if (name === 'editor') check(`${tag} enabled date placeholder contrast >= 4.5`, raw.datePlaceholders.length > 0 && raw.datePlaceholders.every(p => p.contrast >= 4.5), JSON.stringify(raw.datePlaceholders), 'date-contrast')
         const failures = raw.failures
         check(`${tag} ${name}: no sideways scroll, contrast AA (${raw.scanned} runs)`, (await page.evaluate(overflowX)) <= 1 && !failures.length, failures.slice(0, 3).join(' | '), 'visual')
         await page.screenshot({ path: join(SHOTS, `${name}-${tag}.png`), fullPage: true })

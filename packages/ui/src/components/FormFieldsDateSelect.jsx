@@ -75,7 +75,7 @@ export const DateField = forwardRef(function DateField(
       <span
         className={cn(
           "flex-1 truncate",
-          !displayValue && "text-muted-foreground/70",
+          !displayValue && "text-muted-foreground dark:text-slate-300",
         )}
       >
         {displayValue || placeholder}
@@ -205,7 +205,7 @@ export const DateTimeField = forwardRef(function DateTimeField(
       <span
         className={cn(
           "flex-1 truncate",
-          !displayValue && "text-muted-foreground/70",
+          !displayValue && "text-muted-foreground dark:text-slate-300",
         )}
       >
         {displayValue || placeholder}

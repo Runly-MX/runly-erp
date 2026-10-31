@@ -44,7 +44,7 @@ export function DatePickerField({
             )
       }
     >
-      <span className={cn(!displayValue && "text-muted-foreground/70")}>
+      <span className={cn(!displayValue && "text-muted-foreground dark:text-slate-300")}>
         {displayValue || placeholder}
       </span>
       <CalendarDays

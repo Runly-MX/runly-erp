@@ -172,7 +172,7 @@ export function contrastScan(rootSelector = null) {
   const probe = document.head.appendChild(Object.assign(document.createElement('style'), { textContent: '*{pointer-events:auto!important}' }))
   const scrolled = [...document.querySelectorAll('*')].filter((n) => n.scrollTop).map((n) => [n, n.scrollTop])
   const walker = document.createTreeWalker((rootSelector && document.querySelector(rootSelector)) || document.querySelector('main') || document.body, NodeFilter.SHOW_TEXT)
-  const seen = new Set(), failures = []
+  const seen = new Set(), failures = [], datePlaceholders = []
   let scanned = 0
   while (walker.nextNode()) {
     const el = walker.currentNode.parentElement
@@ -192,6 +192,7 @@ export function contrastScan(rootSelector = null) {
     const size = parseFloat(s.fontSize), bold = Number(s.fontWeight) >= 700
     const need = size >= 24 || (bold && size >= 18.66) ? 3 : 4.5
     const value = ratio(over(fg, bg), bg)
+    if (text === 'Seleccionar fecha' && el.closest('button:not(:disabled)')) datePlaceholders.push({ text, contrast: Number(value.toFixed(2)) })
     scanned++
     if (value < need) failures.push(`${value.toFixed(2)}<${need} "${text.slice(0, 40)}" <${el.tagName.toLowerCase()} ${String(el.className).slice(0, 70)}>`)
   }
@@ -199,7 +200,7 @@ export function contrastScan(rootSelector = null) {
   window.scrollTo(0, 0)
   for (const node of document.querySelectorAll('*')) if (node.scrollTop) node.scrollTop = 0
   for (const [node, top] of scrolled) node.scrollTop = top
-  return { scanned, failures }
+  return { scanned, failures, datePlaceholders }
 }
 
 export const overflowX = () => document.scrollingElement.scrollWidth - window.innerWidth
