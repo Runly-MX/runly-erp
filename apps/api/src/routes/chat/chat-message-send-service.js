@@ -15,6 +15,7 @@
 // pinMessage/listPinnedMessages/listThreadReplies.
 import { parseMentionIds, stripMentionTokens } from "../../lib/mention-utils.js";
 import { ChatServiceError } from "./chat-service-error.js";
+import { publishChatEvent } from "./chat-automation-events.js";
 
 // Chat-message email is NOT sent per message — only as a "you're missing
 // messages" nudge, the way Meet / Teams do it. These windows are product
@@ -487,6 +488,25 @@ export function createChatMessageSendService({
           }
         } catch (err) {
           console.error("[chat.notification]", err?.message ?? err);
+        }
+      });
+    }
+
+    // A direct message can get an automatic answer (a vacation reply): the event carries
+    // who wrote to whom, never the text (spec 2026-10-31-automations-calls-chat-autoreply §B).
+    if (conversationType === "direct") {
+      setImmediate(async () => {
+        try {
+          const [conversation] = await prisma.$queryRaw`SELECT company_id FROM chat_conversations WHERE id = ${conversationId} LIMIT 1`;
+          if (!conversation?.company_id) return;
+          const others = await prisma.$queryRaw`SELECT user_id FROM chat_conversation_members WHERE conversation_id = ${conversationId} AND left_at IS NULL AND user_id IS NOT NULL AND user_id <> ${profileId}`;
+          if (others?.length !== 1) return;
+          await publishChatEvent(prisma, {
+            companyId: String(conversation.company_id), event: "chat.direct.message.received", at: msg.created_at,
+            payload: { conversationId: String(conversationId), messageId: String(msg.id), senderId: String(profileId), senderName: fullMsg?.sender?.displayName ?? null, recipientId: String(others[0].user_id) },
+          });
+        } catch (err) {
+          console.warn("[chat.automation-event]", err?.message ?? err);
         }
       });
     }

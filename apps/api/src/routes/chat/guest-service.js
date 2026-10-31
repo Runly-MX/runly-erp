@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { Prisma } from "@prisma/client";
 import { stripMentionTokens } from "../../lib/mention-utils.js";
 import { signHs256Jwt } from "../../services/jwt-verification.js";
+import { publishChatEvent } from "./chat-automation-events.js";
 
 // How long a minted Realtime auth token for a guest session stays valid.
 // Matches chat_guest_sessions' own idle-expiry window (bumped by the same
@@ -424,6 +425,22 @@ export function createGuestChatService({ prisma, supabaseAdmin, notificationServ
     if (companyId) {
       broadcaster?.broadcastToChannel(`chat:company:${companyId}`, "external_message", {
         conversationId, messageId: msg.id,
+      });
+    }
+
+    // Automations can answer the visitor (spec 2026-10-31-automations-calls-chat-autoreply §B).
+    if (companyId) {
+      setImmediate(async () => {
+        const [{ count } = {}] = await prisma.$queryRaw`SELECT count(*)::int AS count FROM chat_messages WHERE conversation_id = ${conversationId} AND sender_type = 'guest'`.catch(() => []);
+        await publishChatEvent(prisma, {
+          companyId: String(companyId),
+          event: "chat.external.message.received",
+          at: msg.created_at,
+          payload: {
+            conversationId: String(conversationId), messageId: String(msg.id), guestName: session.name ?? null, guestEmail: session.email ?? null,
+            text: String(stripMentionTokens(body ?? "")).slice(0, 500), first: count === 1, assignedUserId: assignedUserId ? String(assignedUserId) : null,
+          },
+        });
       });
     }
 
