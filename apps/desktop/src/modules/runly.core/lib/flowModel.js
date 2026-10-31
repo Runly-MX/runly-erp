@@ -3,7 +3,7 @@
 // (docs/developers/automatizaciones.md), and the texts shown on each node.
 // No React in here so it can be unit tested.
 import { argLabel } from "./argLabels.js";
-import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, branchLanes, conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, laneOwner, stepOutputKeys } from "@runly/module-compiler/browser";
+import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, branchLanes, conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, laneOwner, stepOutputKeys } from "@runly/module-compiler/browser";
 
 export const STEP_KINDS = Object.freeze({
   action: { label: "Hacer algo en un módulo", hint: "Crear un contacto, enviar una notificación, agendar un evento..." },
@@ -11,9 +11,11 @@ export const STEP_KINDS = Object.freeze({
   approval: { label: "Pedir aprobación", hint: "Detenerse hasta que una persona apruebe o rechace" },
   http: { label: "Llamar a una URL", hint: "Enviar los datos a otro sistema (webhook)" },
   branch: { label: "Condición Sí / No", hint: "Divide el flujo: un camino si se cumple y otro si no" },
+  loop: { label: "Para cada uno", hint: "Busca registros y repite acciones con cada uno" },
 });
 
 export const newStep = (kind) => {
+  if (kind === "loop") return { type: "loop", service: "", args: {}, do: [{ service: "", args: {} }] };
   if (kind === "delay") return { type: "delay", amount: 1, unit: "days" };
   if (kind === "approval") return { type: "approval", approvers: [], message: "" };
   if (kind === "http") return { type: "http", method: "POST", url: "", body: {} };
@@ -50,6 +52,7 @@ export function insertStep(steps, index, kind, lane = null) {
     next[lane.branch] = { ...next[lane.branch], [lane.which]: next[lane.branch][lane.which] + 1 };
     return next;
   };
+  if (kind === "loop" && lane) return refuse("«Para cada uno» no puede ir dentro de una condición.");
   if (kind === "branch") {
     if (lane) return refuse("Una condición no puede ir dentro del camino de otra.");
     if (steps.filter(isBranchStep).length >= MAX_BRANCHES) return refuse(`Máximo ${MAX_BRANCHES} condiciones por automatización.`);
@@ -202,6 +205,14 @@ export function describeStep(step, ownerOf = () => "", fieldLabel = (name) => na
     try { host = new URL(step.url).hostname; } catch { /* empty url */ }
     return { title: `${step.method ?? "POST"} a una URL`, detail: host || "Falta la dirección" };
   }
+  if (isLoopStep(step)) {
+    const search = SERVICE_CONTRACTS[step.service];
+    const actions = (step.do ?? []).map((action) => SERVICE_CONTRACTS[action.service]?.label).filter(Boolean);
+    return {
+      title: search ? `Para cada resultado: ${search.label.replace(/^Buscar /, "").toLowerCase()}` : "Para cada uno",
+      detail: actions.length ? actions.join(" · ") : "Falta elegir qué hacer con cada uno",
+    };
+  }
   const contract = SERVICE_CONTRACTS[step.service];
   if (!contract) return { title: "Elige una acción", detail: "Qué debe hacer este paso" };
   const first = Object.values(step.args ?? {}).find((source) => source?.from === "template")?.template;
@@ -218,6 +229,13 @@ export function stepIssues(step) {
   if (isDelayStep(step)) return Number.isInteger(step.amount) && step.amount >= 1 ? [] : ["Indica cuánto esperar"];
   if (isApprovalStep(step)) return [...(step.approvers?.length ? [] : ["Elige quién aprueba"]), ...(step.message?.trim() ? [] : ["Escribe el mensaje"])];
   if (isHttpStep(step)) return /^https:\/\/[^\s/]+/i.test(step.url ?? "") ? [] : ["Escribe una dirección https"];
+  if (isLoopStep(step)) {
+    if (!SERVICE_CONTRACTS[step.service]) return ["Elige qué buscar"];
+    const actions = step.do ?? [];
+    if (!actions.length) return ["Agrega una acción"];
+    const pending = actions.filter((action) => stepIssues(action).length).length;
+    return pending ? [`Completa ${pending === 1 ? "una acción" : `${pending} acciones`}`] : [];
+  }
   const contract = SERVICE_CONTRACTS[step.service];
   if (!contract) return ["Elige la acción"];
   const missing = Object.entries(contract.args)
@@ -268,6 +286,8 @@ export function stepKindLabel(step) {
   if (isDelayStep(step)) return "Espera";
   if (isApprovalStep(step)) return "Aprobación";
   if (isHttpStep(step)) return "Llamada HTTP";
+  if (isLoopStep(step)) return "Para cada uno";
+  if (SERVICE_CONTRACTS[step?.service] && !SERVICE_CONTRACTS[step.service].mutates) return "Consulta";
   return "Acción";
 }
 
@@ -293,7 +313,8 @@ export function describeAutomationDiagnostic(diagnostic) {
     case "AUTOMATION_APPROVAL_INVALID": return `Revisa la aprobación${place}: elige de 1 a 5 personas y escribe el mensaje; va entre dos acciones.`;
     case "AUTOMATION_DELAY_INVALID": return `Revisa la espera${place}: de 1 minuto a 30 días y entre dos acciones.`;
     case "AUTOMATION_SERVICE_NEEDS_USER": return `La acción${place} necesita a una persona y no puede correr en segundo plano.`;
-    case "AUTOMATION_SERVICE_READONLY": return `La acción${place} solo consulta datos; elige una que cree o cambie algo.`;
+    case "AUTOMATION_SERVICE_READONLY": return `La acción${place} no se puede usar ahí: una lista solo sirve en «Para cada uno».`;
+    case "AUTOMATION_LOOP_INVALID": return `Revisa «Para cada uno»${place}: elige qué buscar y de 1 a 3 acciones; no puede ir dentro de una condición.`;
     case "AUTOMATION_CONDITION_INVALID": return "Revisa las condiciones del flujo.";
     case "AUTOMATION_TRIGGER_INVALID": return "Revisa el disparador (horario, campos o tipo).";
     case "AUTOMATION_EVENT_UNKNOWN": return "Elige el evento que dispara la automatización.";
@@ -371,16 +392,23 @@ export function withStepOutputs(triggerOptions, steps, index, ownerOf = () => ""
     const contract = SERVICE_CONTRACTS[step?.service];
     if (!contract) return;
     const owner = ownerOf(step.service);
-    const group = `Del paso ${stepIndex + 1} · ${contract.label}${owner ? ` (${owner})` : ""}`;
-    for (const value of stepOutputKeys(stepIndex, contract)) options.push({ value, label: OUTPUT_LABELS[outputKey(value)] ?? friendlyLabel(outputKey(value)), group });
+    const group = `Del paso ${stepIndex + 1} · ${isLoopStep(step) ? "Para cada uno" : contract.label}${owner ? ` (${owner})` : ""}`;
+    for (const output of outputsOf(step, stepIndex)) options.push({ ...output, label: output.label === output.value ? friendlyLabel(outputKey(output.value)) : output.label, group });
   });
   return options;
 }
 
+// Fields of the current item inside a "Para cada uno" (elemento_<key>), first in the pickers.
+export function loopItemOptions(step) {
+  const contract = SERVICE_CONTRACTS[step?.service];
+  return (contract?.itemReturns ?? []).map((key) => ({ value: `elemento_${key}`, label: OUTPUT_LABELS[key] ?? friendlyLabel(key), group: "Del elemento", type: key === "id" || key.endsWith("Id") ? "id" : undefined }));
+}
+
 // What the block at `index` offers to the blocks after it.
 export function outputsOf(step, index) {
+  if (isLoopStep(step)) return [{ value: `paso${index + 1}_count`, label: "Elementos procesados" }];
   const contract = SERVICE_CONTRACTS[step?.service];
-  return contract ? stepOutputKeys(index, contract).map((value) => ({ value, label: OUTPUT_LABELS[outputKey(value)] ?? value })) : [];
+  return contract ? stepOutputKeys(index, contract).map((value) => ({ value, label: OUTPUT_LABELS[outputKey(value)] ?? value, type: outputKey(value) === "id" || outputKey(value).endsWith("Id") ? "id" : undefined })) : [];
 }
 
 // ---- canvas layout stored with the automation (cosmetic) ---------------------

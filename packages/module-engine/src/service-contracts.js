@@ -10,6 +10,7 @@
 // calling module created (others answer 404). system true: also callable from
 // api/events.js handlers (services.forSystem), where there is no user.
 // Every mutating service also accepts IDEMPOTENCY_ARG (handled by the gateway).
+// itemReturns: fields of each element of `items` (search services; automation loops).
 
 const s = (max = 200, extra = {}) => ({ type: 'string', max, ...extra })
 const req = (spec) => ({ ...spec, required: true })
@@ -44,14 +45,14 @@ const EVENT_FIELDS = {
 
 export const SERVICE_CONTRACTS = Object.freeze({
   'runly.inventory:items.read': { label: 'Leer artículos de inventario', permission: 'inventory.item.read', mutates: false, system: true, args: { id: ID }, returns: ITEM },
-  'runly.inventory:items.search': { label: 'Buscar artículos de inventario', permission: 'inventory.item.read', mutates: false, system: true, args: { search: SEARCH, limit: LIMIT }, returns: ['items', 'total'] },
+  'runly.inventory:items.search': { label: 'Buscar artículos de inventario', permission: 'inventory.item.read', mutates: false, system: true, args: { search: SEARCH, limit: LIMIT }, returns: ['items', 'total'], itemReturns: ITEM },
   'runly.inventory:items.update': {
     label: 'Actualizar artículos de inventario', permission: 'inventory.item.update', mutates: true, system: true,
     args: { id: ID, name: s(200), description: { type: 'text', max: 5000 }, status: { type: 'enum', values: ['available', 'maintenance'] }, locationId: { type: 'uuid' }, notes: { type: 'text', max: 5000 } },
     returns: ITEM,
   },
   'runly.contacts:contacts.read': { label: 'Leer contactos', permission: 'contacts.contacts.read', mutates: false, system: true, args: { id: ID }, returns: CONTACT },
-  'runly.contacts:contacts.search': { label: 'Buscar contactos', permission: 'contacts.contacts.read', mutates: false, system: true, args: { search: SEARCH, limit: LIMIT }, returns: ['items', 'total'] },
+  'runly.contacts:contacts.search': { label: 'Buscar contactos', permission: 'contacts.contacts.read', mutates: false, system: true, args: { search: SEARCH, limit: LIMIT }, returns: ['items', 'total'], itemReturns: CONTACT },
   'runly.contacts:contacts.create': {
     label: 'Crear contactos', permission: 'contacts.contacts.create', mutates: true, system: true,
     args: { name: req(s(200)), type: { type: 'enum', values: CONTACT_TYPES }, email: { type: 'email' }, phone: s(40) },
@@ -102,6 +103,8 @@ export const SERVICE_CONTRACTS = Object.freeze({
     label: 'Descargar archivos guardados por este módulo', permission: 'files.assets.read', mutates: false, scope: 'own',
     args: { id: ID }, returns: ['id', 'url', 'expiresIn'],
   },
+  // Name and email of a member of the company (to name an assignee, a requester...).
+  'runly.identity:people.read': { label: 'Ver el nombre y correo de una persona', permission: null, mutates: false, system: true, args: { id: ID }, returns: ['id', 'name', 'email'] },
   'runly.notifications:notifications.send': {
     label: 'Enviar notificaciones', permission: null, mutates: true, system: true,
     args: { userIds: req({ type: 'uuid[]', max: 100 }), title: req(s(200)), body: { type: 'text', max: 1000 }, link: s(500), priority: { type: 'enum', values: ['low', 'medium', 'high', 'critical'] }, sourceEntityId: SOURCE },
@@ -115,7 +118,7 @@ export const SERVICE_CONTRACTS = Object.freeze({
   'runly.hr:employees.search': {
     label: 'Buscar colaboradores (solo nombre y área)', permission: 'hr.employee.read', mutates: false, system: true,
     args: { search: SEARCH, status: s(40), limit: LIMIT },
-    returns: ['items', 'total'],
+    returns: ['items', 'total'], itemReturns: ['id', 'name', 'department', 'status'],
   },
   'runly.notifications:email.send': {
     label: 'Enviar correos', permission: null, mutates: true, system: true,
@@ -160,7 +163,7 @@ export const SERVICE_CONTRACTS = Object.freeze({
   'runly.fleet:vehicles.search': {
     label: 'Buscar vehículos de la flota', permission: 'fleet.vehicles.read', mutates: false, system: true,
     args: { search: SEARCH, status: { type: 'enum', values: VEHICLE_STATUSES }, limit: LIMIT },
-    returns: ['items', 'total'],
+    returns: ['items', 'total'], itemReturns: ['id', 'plate', 'brand', 'model', 'year', 'status', 'driverName'],
   },
   'runly.fleet:drivers.search': {
     label: 'Buscar choferes de la flota', permission: 'fleet.drivers.read', mutates: false,

@@ -164,6 +164,16 @@ export function createServiceCatalog({ prisma, filesService = null, broadcaster 
       const { signedUrl, expiresIn } = await requireFiles().getSignedUrl({ authUserId: actorAuthId, activeContext, id })
       return { id, url: signedUrl, expiresIn: expiresIn ?? null }
     },
+    // Only active, human members of the company (MirAI is never a person here).
+    'runly.identity:people.read': async ({ companyId }, { id }) => {
+      const member = await prisma.membership.findFirst({
+        where: { companyId, userId: id, enabled: true, user: { isBot: false } },
+        select: { user: { select: { id: true, displayName: true, firstName: true, lastName: true, email: true } } },
+      })
+      if (!member) throw new ModuleServiceError('La persona no es miembro activo de la empresa.', 404, 'not_found')
+      const { user } = member
+      return { id: user.id, name: user.displayName || `${user.firstName} ${user.lastName}`.trim(), email: user.email }
+    },
     'runly.notifications:notifications.send': async ({ companyId, actorId, moduleKey }, args) => {
       const result = await notifications.publish({
         companyId,

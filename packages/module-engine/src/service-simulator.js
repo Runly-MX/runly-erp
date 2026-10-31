@@ -53,12 +53,15 @@ export function createServiceSimulator({ moduleKey, companyId = '00000000-0000-7
     const { method, collection } = splitKey(serviceKey)
     if (contract.action) diagnostics.add(`${serviceKey}: las reglas de negocio del módulo (${contract.action}) no se simulan.`)
     const visible = () => rowsOf(collection).filter((r) => r.enabled !== false && (contract.scope !== 'own' || r.sourceModule === moduleKey))
-    if (method === 'read') return project(contract, visible().find((r) => r.id === args.id))
+    // Sandbox runs read and search made-up data: a stand-in record answers when there is none.
+    const standIn = (keys, id) => Object.fromEntries(keys.map((key) => [key, key === 'id' ? id : `(${key} simulado)`]))
+    if (method === 'read') return project(contract, visible().find((r) => r.id === args.id) ?? (lenient ? standIn(contract.returns, args.id) : null))
     if (method === 'list' || method === 'search') {
       const term = String(args.search ?? '').toLowerCase()
       const rows = visible().filter((r) => !term || Object.values(r).some((v) => String(v ?? '').toLowerCase().includes(term)))
         .filter((r) => !args.sourceEntityId || r.sourceEntityId === args.sourceEntityId)
       if (method === 'list') return rows.map((r) => (contract.returns.includes('id') ? project(contract, r) : r))
+      if (!rows.length && lenient && contract.itemReturns) return { items: [standIn(contract.itemReturns, nextId())], total: 1 }
       const limited = rows.slice(0, args.limit ?? 20)
       return { items: limited, total: rows.length }
     }

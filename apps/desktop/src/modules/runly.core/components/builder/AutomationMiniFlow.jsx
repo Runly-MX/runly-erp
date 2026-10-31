@@ -1,11 +1,11 @@
 // A tiny preview of an automation's flow for the list: the trigger followed by its
 // blocks as icons on a thread that turns dashed after a wait or an approval.
-import { CalendarClock, Clock, GitBranch, Globe, MousePointerClick, Radio, ShieldCheck, Webhook, Zap } from "lucide-react";
-import { isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
+import { CalendarClock, Clock, GitBranch, Globe, MousePointerClick, Radio, Repeat, ShieldCheck, Webhook, Zap } from "lucide-react";
+import { isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
 
 const TRIGGER = { record: MousePointerClick, event: Radio, schedule: CalendarClock, webhook: Webhook };
 const MAX_SHOWN = 8;
-const iconOf = (step) => (isBranchStep(step) ? GitBranch : isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : Zap);
+const iconOf = (step) => (isBranchStep(step) ? GitBranch : isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : isLoopStep(step) ? Repeat : Zap);
 
 export function AutomationMiniFlow({ automation }) {
   const steps = stepsOf(automation);

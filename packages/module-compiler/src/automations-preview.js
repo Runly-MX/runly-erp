@@ -38,6 +38,15 @@ function previewStep(step, rawStep, index, automation, context) {
     }
     return { index, kind: 'http', summary: `${step.method} ${step.url}`, method: step.method, url: step.url, body }
   }
+  if (step.type === 'loop') {
+    // One sample item stands for every result of the search.
+    const sample = Object.fromEntries((SERVICE_CONTRACTS[step.service]?.itemReturns ?? []).map((key) => [`elemento_${key}`, sampleOutput(key)]))
+    const inner = { ...context, data: { ...context.data, ...sample } }
+    return {
+      index, kind: 'loop', summary: `Para cada resultado de «${SERVICE_CONTRACTS[step.service]?.label ?? step.service}» (hasta ${step.max})`,
+      actions: step.do.map((action, at) => previewStep(action, rawStep.do[at], index, automation, inner)),
+    }
+  }
   const contract = SERVICE_CONTRACTS[step.service]
   const args = buildArgs({ ...automation, steps: [step] }, { ...context, step: 0, idempotencyKey: null })
   const checked = contract ? validateServiceArgs(step.service, { ...args, idempotencyKey: 'preview' }) : { errors: { service: 'servicio desconocido' } }
@@ -76,6 +85,7 @@ export function previewAutomation(automation, { data = {}, previous = null } = {
         const contract = SERVICE_CONTRACTS[step.service]
         for (const name of stepOutputKeys(index, contract)) context.data = { ...context.data, [name]: sampleOutput(name.replace(/^paso\d+_/, '')) }
       }
+      if (preview.kind === 'loop') context.data = { ...context.data, [`paso${index + 1}_count`]: 1 }
       return [preview]
     }) : [],
   }

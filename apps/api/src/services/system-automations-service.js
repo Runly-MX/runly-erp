@@ -2,7 +2,7 @@
 // system_automation): triggered by a system domain event or a schedule, run by
 // the same step engine as Builder automations. Spec
 // docs/superpowers/specs/2026-10-25-system-automations-design.md.
-import { automationEvents, automationServices, normalizeAutomations, toRuntimeSteps, validateSystemAutomation } from "@runly/module-compiler";
+import { automationEvents, automationServices, normalizeAutomations, serviceStepsOf, toRuntimeSteps, validateSystemAutomation } from "@runly/module-compiler";
 import { execute, matches } from "@runly/module-engine/contracts";
 import { createAutomationRunsService } from "./automation-runs-service.js";
 import { createAutomationJobsService } from "./automation-jobs-service.js";
@@ -103,14 +103,14 @@ export function createSystemAutomationsService({ prisma, moduleServices = null, 
   // What the editor offers: events with their payload fields and the services
   // that can run without a person.
   function catalog() {
-    return { events: automationEvents(), services: automationServices({ trigger: "event" }) };
+    return { events: automationEvents(), services: automationServices({ trigger: "event" }), searches: automationServices({ trigger: "event", search: true }) };
   }
 
   // Saving is the administrator's consent: the services in use are granted to
   // the pseudo module for this company, the ones no longer used are removed.
   async function syncGrants(companyId, actorId) {
     const rows = await prisma.systemAutomation.findMany({ where: { companyId }, select: { definition: true } });
-    const used = new Set(rows.flatMap((row) => (row.definition.steps ?? []).map((step) => step.service).filter(Boolean)));
+    const used = new Set(rows.flatMap((row) => serviceStepsOf(row.definition).map((step) => step.service).filter(Boolean)));
     await prisma.moduleServiceGrant.deleteMany({ where: { moduleKey: SYSTEM_MODULE_KEY, companyId, serviceKey: { notIn: [...used] } } });
     if (used.size) {
       await prisma.moduleServiceGrant.createMany({

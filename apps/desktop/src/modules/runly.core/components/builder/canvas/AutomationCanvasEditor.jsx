@@ -10,9 +10,9 @@
 // default follows the canvas width) and free positions saved with the automation.
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Popover, PopoverContent, PopoverTrigger, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, useIsMobile } from "@runly/ui";
-import { ArrowDownUp, ArrowRightLeft, CalendarClock, Clock, Filter, GitBranch, Globe, LayoutDashboard, Maximize, Minus, MousePointerClick, Plus, Radio, ShieldCheck, Webhook, Wand2, Zap } from "lucide-react";
+import { ArrowDownUp, ArrowRightLeft, CalendarClock, Clock, Filter, GitBranch, Globe, LayoutDashboard, Maximize, Minus, MousePointerClick, Plus, Radio, Repeat, ShieldCheck, Webhook, Wand2, Zap } from "lucide-react";
 import { toast } from "sonner";
-import { conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
+import { conditionsOf, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, stepsOf } from "@runly/module-compiler/browser";
 import {
   describeCondition, describeStep, describeTrigger, flowPlan, insertStep, moveStep, positionsFromUi, removeStep, slotOptions, stepIssues, stepKindLabel, triggerKindLabel,
   uiAfterInsert, uiAfterMove, uiAfterRemove, uiArranged, uiFit, uiWithLayout, uiWithPosition,
@@ -33,7 +33,7 @@ const WIDE_INSPECTOR = 680;
 const MOVE_THRESHOLD = 5;
 const TRIGGER_ICON = { record: MousePointerClick, event: Radio, schedule: CalendarClock, webhook: Webhook };
 const cx = (...parts) => parts.filter(Boolean).join(" ");
-const stepIcon = (step) => (isBranchStep(step) ? GitBranch : isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : Zap);
+const stepIcon = (step) => (isBranchStep(step) ? GitBranch : isDelayStep(step) ? Clock : isApprovalStep(step) ? ShieldCheck : isHttpStep(step) ? Globe : isLoopStep(step) ? Repeat : Zap);
 // An insertion slot is a position plus the path of a condition it belongs to.
 const slotKey = (slot) => (slot ? `${slot.index}:${slot.lane ? `${slot.lane.branch}${slot.lane.which}` : ""}` : "");
 

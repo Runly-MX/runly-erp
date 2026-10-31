@@ -4,9 +4,9 @@
 // items set touch-action: none so the page does not scroll under the finger.
 import { useRef, useState } from "react";
 import { Button } from "@runly/ui";
-import { Blocks, Clock, Globe, ShieldCheck, X, Zap } from "lucide-react";
+import { Blocks, Clock, GitBranch, Globe, Repeat, ShieldCheck, X, Zap } from "lucide-react";
 
-const ICONS = { action: Zap, delay: Clock, approval: ShieldCheck, http: Globe };
+const ICONS = { action: Zap, delay: Clock, approval: ShieldCheck, http: Globe, branch: GitBranch, loop: Repeat };
 const DRAG_THRESHOLD = 6;
 
 export function CanvasPalette({ open, onToggle, options, onAdd, onDragOver, onDrop }) {

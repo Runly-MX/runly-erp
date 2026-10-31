@@ -224,7 +224,28 @@ function ArgControl({ name, spec, source, triggerType, recordLink, fieldOptions,
     );
   }
   if (kind === "people") {
-    return <PeopleValueInput label={label} value={source?.value} readOnly={readOnly} onChange={(value) => (value.length ? onSource({ from: "value", value }) : clear())} />;
+    // The person can also come from the data: the task's assignee, who requested...
+    const people = selectOptions(fieldOptions.filter((option) => option.type === "id" || /(^|_)id$|Id$/.test(option.value)));
+    if (source?.from === "field") {
+      return (
+        <div className="min-w-0 space-y-1">
+          <SelectField aria-label={label} options={people} value={source.field ?? ""} disabled={readOnly} placeholder="Elige el dato con la persona"
+            onValueChange={(field) => onSource({ from: "field", field })} />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Si el dato no es una persona de la empresa, se ignora.</p>
+          {!readOnly && <button type="button" onClick={clear} className="cursor-pointer text-xs text-(--brand-primary) hover:underline [@media(pointer:coarse)]:min-h-9">Mejor elegir personas</button>}
+        </div>
+      );
+    }
+    return (
+      <div className="min-w-0 space-y-1">
+        <PeopleValueInput label={label} value={source?.value} readOnly={readOnly} onChange={(value) => (value.length ? onSource({ from: "value", value }) : clear())} />
+        {!readOnly && people.length > 0 && (
+          <button type="button" onClick={() => onSource({ from: "field", field: people[0].value })} className="cursor-pointer text-xs text-(--brand-primary) hover:underline [@media(pointer:coarse)]:min-h-9">
+            Usar la persona de un dato (por ejemplo, el responsable)
+          </button>
+        )}
+      </div>
+    );
   }
   const fromData = ["field", "recordId", "actor"].includes(source?.from);
   const choices = dataChoices({ spec, triggerType, fieldOptions });

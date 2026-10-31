@@ -5,17 +5,18 @@
 // run without a person.
 import { Button, SelectField, SwitchField, TextField } from "@runly/ui";
 import { ArrowDown, ArrowUp, Clock, GitBranch, Globe, Plus, ShieldCheck, Trash2 } from "lucide-react";
-import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, branchLanes, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isPauseStep, laneOwner } from "@runly/module-compiler/browser";
+import { MAX_BRANCHES, MAX_DELAYS, MAX_STEPS, SERVICE_CONTRACTS, automationServices, branchLanes, isApprovalStep, isBranchStep, isDelayStep, isHttpStep, isLoopStep, isPauseStep, laneOwner } from "@runly/module-compiler/browser";
 import { AutomationConditions } from "./AutomationConditions";
 import { AutomationArgsEditor } from "./AutomationArgsEditor";
 import { ApprovalStepEditor, HttpStepEditor } from "./AutomationStepEditors";
+import { LoopStepEditor } from "./LoopStepEditor";
 import { insertStep, moveStep, outputsOf, removeStep, withStepOutputs } from "../../lib/flowModel";
 import { InspectorSection } from "./InspectorSection";
 
 const OWNER_LABELS = {
   "runly.calendar": "Calendario", "runly.files": "Archivos", "runly.notifications": "Notificaciones", "runly.contacts": "Contactos",
   "runly.inventory": "Inventario", "runly.projects": "Proyectos", "runly.ledger": "Libro de cuentas", "runly.fleet": "Flota", "runly.pfm": "Finanzas personales",
-  "runly.purchases": "Compras", "runly.hr": "Recursos Humanos", "runly.documents": "Documentos",
+  "runly.purchases": "Compras", "runly.hr": "Recursos Humanos", "runly.documents": "Documentos", "runly.identity": "Personas", "runly.chat": "Chat",
 };
 export const ownerLabel = (serviceKey) => OWNER_LABELS[serviceKey.split(":")[0]] ?? serviceKey.split(":")[0];
 export const serviceLabel = (key, label) => `${OWNER_LABELS[key.split(":")[0]] ?? key.split(":")[0]} · ${label}`;
@@ -74,13 +75,16 @@ export function StepEditor({ step, steps, index, triggerType, recordLink = null,
     return section("Llamada a otro sistema", "Envía los datos por HTTPS a un servidor permitido.",
       <HttpStepEditor step={step} triggerType={triggerType === "schedule" || afterDelay ? "event" : triggerType} fieldOptions={available} readOnly={readOnly} onChange={onChange} />);
   }
+  if (isLoopStep(step)) {
+    return <LoopStepEditor step={step} triggerType={argsTrigger} afterDelay={afterDelay} recordLink={recordLink} fieldOptions={available} readOnly={readOnly} serviceLabel={serviceLabel} onChange={onChange} />;
+  }
   const services = automationServices({ trigger: triggerType, afterDelay });
   const outputs = outputsOf(step, index);
   return (
     <div className="space-y-4">
       {withServiceSelect && (
         <InspectorSection title="Acción" description="Qué hace este bloque en otro módulo.">
-          <SelectField label={label} options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
+          <SelectField label={label} options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label), group: service.read ? "Consultar un registro" : "Crear o cambiar algo" }))}
             value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
             onValueChange={(service) => onChange({ service, args: {} })} />
         </InspectorSection>
@@ -149,7 +153,7 @@ export function AutomationSteps({ steps, triggerType, onError, fieldOptions, rea
                   : http ? <StepTitle icon={Globe}>Llamar a una URL</StepTitle>
                   : (
                   <SelectField label={hasMany ? `Paso ${index + 1}` : "Acción"}
-                    options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label) }))}
+                    options={services.map((service) => ({ value: service.key, label: serviceLabel(service.key, service.label), group: service.read ? "Consultar un registro" : "Crear o cambiar algo" }))}
                     value={step.service ?? ""} disabled={readOnly} placeholder="Elige una acción"
                     onValueChange={(service) => setStep(index, { service, args: {} })} />
                 )}

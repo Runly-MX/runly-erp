@@ -83,8 +83,22 @@ export const isDelayStep = (step) => step?.type === 'delay'
 export const isHttpStep = (step) => step?.type === 'http'
 export const isApprovalStep = (step) => step?.type === 'approval'
 export const isBranchStep = (step) => step?.type === 'branch'
+// "Para cada uno": a search service, an optional filter and 1-3 actions per item.
+export const isLoopStep = (step) => step?.type === 'loop'
 // Steps that call a module service (everything else is built into the runtime).
-export const isServiceStep = (step) => !isDelayStep(step) && !isHttpStep(step) && !isApprovalStep(step) && !isBranchStep(step)
+export const isServiceStep = (step) => !isDelayStep(step) && !isHttpStep(step) && !isApprovalStep(step) && !isBranchStep(step) && !isLoopStep(step)
+export const MAX_LOOP_ACTIONS = 3
+export const MAX_LOOP_ITEMS = 50
+// A read of one record by id (its results feed the next blocks); everything else that
+// does not write is a list and only a loop can use it.
+export const isRecordRead = (contract) => Boolean(contract) && !contract.mutates && Object.hasOwn(contract.args ?? {}, 'id') && !(contract.returns ?? []).includes('items')
+export const isSearchService = (contract) => Boolean(contract) && !contract.mutates && Array.isArray(contract.itemReturns)
+// Every service an automation calls, including the search and actions of its loops.
+export function serviceStepsOf(automation) {
+  return stepsOf(automation).flatMap((step) => (isLoopStep(step) ? [{ service: step.service }, ...(Array.isArray(step.do) ? step.do : [])] : isServiceStep(step) ? [step] : []))
+}
+// Names the actions of a loop can read for the current item: elemento_<key>.
+export const loopItemKeys = (contract) => (contract?.itemReturns ?? []).map((key) => `elemento_${key}`)
 // Steps that end the current pass and continue later, in the background.
 export const isPauseStep = (step) => isDelayStep(step) || isApprovalStep(step)
 // A branch splits the flow in two lanes kept flat in the steps list: the `yes` steps
@@ -111,11 +125,12 @@ export function conditionsOf(when) {
   return Array.isArray(when) ? when : [when]
 }
 
-// Services an automation can call (writes only); event triggers need system ones.
-export function automationServices({ trigger = 'record', afterDelay = false } = {}) {
+// Services an automation can call: writes and reads of one record (`read: true`);
+// event triggers need system ones. `search: true` lists the ones a loop can go over.
+export function automationServices({ trigger = 'record', afterDelay = false, search = false } = {}) {
   return Object.entries(SERVICE_CONTRACTS)
-    .filter(([, contract]) => contract.mutates && ((trigger === 'record' && !afterDelay) || contract.system))
-    .map(([key, contract]) => ({ key, label: contract.label, args: contract.args, system: Boolean(contract.system) }))
+    .filter(([, contract]) => (search ? isSearchService(contract) : contract.mutates || isRecordRead(contract)) && ((trigger === 'record' && !afterDelay) || contract.system))
+    .map(([key, contract]) => ({ key, label: contract.label, args: contract.args, system: Boolean(contract.system), ...(contract.mutates ? {} : { read: true }) }))
 }
 
 // Events a person can pick as a trigger (internal ones stay out).
@@ -132,7 +147,7 @@ export function automationEvents() {
 export function automationConsumes(definition) {
   const consumes = {}
   for (const automation of definition.automations ?? []) {
-    for (const step of stepsOf(automation).filter(isServiceStep)) {
+    for (const step of serviceStepsOf(automation)) {
       const [owner, name] = String(step?.service ?? '').split(':')
       if (!Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '')) throw new Error('AUTOMATION_SERVICE_UNKNOWN')
       consumes[owner] ??= []
@@ -143,7 +158,7 @@ export function automationConsumes(definition) {
 }
 
 export function automationServiceKeys(definition) {
-  return [...new Set((definition.automations ?? []).flatMap((automation) => stepsOf(automation).filter(isServiceStep).map((step) => step?.service)).filter(Boolean))]
+  return [...new Set((definition.automations ?? []).flatMap((automation) => serviceStepsOf(automation).map((step) => step?.service)).filter(Boolean))]
 }
 
 // Schedule triggers the worker has to fire (manifest `schedules`).
@@ -373,6 +388,8 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
           errors.push(diagnostic(stepBase, 'AUTOMATION_BRANCH_INVALID', 'A condition needs a block after its paths, where both join again.'))
         } else if (steps.slice(stepIndex + 1, stepIndex + 1 + yes + no).some(isBranchStep)) {
           errors.push(diagnostic(stepBase, 'AUTOMATION_BRANCH_INVALID', 'A condition cannot be placed inside the path of another one.'))
+        } else if (steps.slice(stepIndex + 1, stepIndex + 1 + yes + no).some(isLoopStep)) {
+          errors.push(diagnostic(stepBase, 'AUTOMATION_LOOP_INVALID', 'A "for each" block cannot be placed inside the path of a condition.'))
         }
         if (step.when === undefined || (Array.isArray(step.when) && !step.when.length)) {
           errors.push(diagnostic(`${stepBase}.when`, 'AUTOMATION_CONDITION_INVALID', 'A condition needs something to check.'))
@@ -384,12 +401,41 @@ export function validateDefinitionAutomations(definition, errors, { allowWebhook
         validateHttpStep(step, { base: stepBase, fieldNames: available, trigger: afterDelay ? { type: 'event' } : trigger, errors })
         return
       }
-      const contract = Object.hasOwn(SERVICE_CONTRACTS, step?.service ?? '') ? SERVICE_CONTRACTS[step.service] : null
-      if (!contract) { errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_UNKNOWN', `Unknown service "${step?.service}".`)); return }
-      if (!contract.mutates) errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_READONLY', 'Automations can only call services that create or change records.'))
-      if ((trigger.type !== 'record' || afterDelay) && !contract.system) {
-        errors.push(diagnostic(`${stepBase}.service`, 'AUTOMATION_SERVICE_NEEDS_USER', `"${contract.label}" needs a person and cannot run ${afterDelay ? 'after a wait' : trigger.type === 'schedule' ? 'on a schedule' : 'from a system event'}.`))
+      // A service the step may call: writes and reads of one record, and only the ones
+      // that run without a person when nobody saved anything (events, schedules, after a wait).
+      const serviceOf = (key, path, allow) => {
+        const contract = Object.hasOwn(SERVICE_CONTRACTS, key ?? '') ? SERVICE_CONTRACTS[key] : null
+        if (!contract) { errors.push(diagnostic(`${path}.service`, 'AUTOMATION_SERVICE_UNKNOWN', `Unknown service "${key}".`)); return null }
+        if (!allow(contract)) errors.push(diagnostic(`${path}.service`, 'AUTOMATION_SERVICE_READONLY', 'Automations can only call services that create or change records, or read one record.'))
+        if ((trigger.type !== 'record' || afterDelay) && !contract.system) {
+          errors.push(diagnostic(`${path}.service`, 'AUTOMATION_SERVICE_NEEDS_USER', `"${contract.label}" needs a person and cannot run ${afterDelay ? 'after a wait' : trigger.type === 'schedule' ? 'on a schedule' : 'from a system event'}.`))
+        }
+        return contract
       }
+      if (isLoopStep(step)) {
+        if (laneOwner(steps, stepIndex) >= 0) errors.push(diagnostic(stepBase, 'AUTOMATION_LOOP_INVALID', 'A "for each" block cannot be placed inside the path of a condition.'))
+        const search = serviceOf(step.service, stepBase, isSearchService)
+        if (!search) return
+        validateArgs(step, { base: stepBase, fieldNames: available, trigger, contract: search, errors })
+        const itemFields = new Set(search.itemReturns)
+        validateCondition(step.when, { base: stepBase, fieldNames: itemFields, trigger: { type: 'event' }, errors, path: `${stepBase}.when` })
+        const actions = step.do
+        if (!Array.isArray(actions) || !actions.length || actions.length > MAX_LOOP_ACTIONS) {
+          errors.push(diagnostic(`${stepBase}.do`, 'AUTOMATION_LOOP_INVALID', `A "for each" block does 1 to ${MAX_LOOP_ACTIONS} actions with each item.`))
+          return
+        }
+        const inside = new Set([...available, ...loopItemKeys(search)])
+        actions.forEach((action, actionIndex) => {
+          const actionBase = `${stepBase}.do[${actionIndex}]`
+          if (!action || !isServiceStep(action)) { errors.push(diagnostic(actionBase, 'AUTOMATION_LOOP_INVALID', 'Only actions of a module can be repeated for each item.')); return }
+          const contract = serviceOf(action.service, actionBase, (item) => item.mutates || isRecordRead(item))
+          if (contract) validateArgs(action, { base: actionBase, fieldNames: inside, trigger, contract, errors })
+        })
+        available.add(`paso${stepIndex + 1}_count`)
+        return
+      }
+      const contract = serviceOf(step?.service, stepBase, (item) => item.mutates || isRecordRead(item))
+      if (!contract) return
       validateArgs(step, { base: stepBase, fieldNames: available, trigger, contract, errors })
       for (const name of stepOutputKeys(stepIndex, contract)) available.add(name)
     })
@@ -406,6 +452,10 @@ function normalizeStep(step) {
   if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
   if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message.trim(), ...(step.channel?.trim() ? { channel: step.channel.trim() } : {}) }
   if (isBranchStep(step)) return { type: 'branch', when: normalizeWhen(step.when), yes: step.yes, no: step.no }
+  if (isLoopStep(step)) {
+    const when = conditionsOf(step.when)
+    return { type: 'loop', service: step.service, args: step.args ?? {}, ...(when.length ? { when: normalizeWhen(when) } : {}), do: step.do.map((action) => ({ service: action.service, args: action.args ?? {} })) }
+  }
   return { service: step.service, args: step.args ?? {} }
 }
 
@@ -457,17 +507,22 @@ export function toRuntimeSteps(automation) {
     if (isHttpStep(step)) return { type: 'http', method: step.method, url: step.url, body: step.body ?? {} }
     if (isApprovalStep(step)) return { type: 'approval', approvers: step.approvers, message: step.message, ...(step.channel?.trim() ? { channel: step.channel.trim() } : {}) }
     if (isBranchStep(step)) return { type: 'branch', when: step.when, yes: step.yes, no: step.no }
-    const args = SERVICE_CONTRACTS[step.service]?.args ?? {}
-    return {
-      service: step.service,
-      args: step.args ?? {},
-      outputs: (SERVICE_CONTRACTS[step.service]?.returns ?? []).filter((key) => typeof key === 'string' && key !== 'items' && key !== 'total'),
-      runtime: {
-        arrayArgs: Object.entries(args).filter(([, spec]) => spec.type.endsWith('[]')).map(([name]) => name),
-        acceptsSource: Boolean(args.sourceEntityId),
-      },
-    }
+    if (isLoopStep(step)) return { ...serviceRuntime(step), type: 'loop', outputs: [], ...(step.when ? { when: step.when } : {}), max: MAX_LOOP_ITEMS, do: step.do.map(serviceRuntime) }
+    return serviceRuntime(step)
   })
+}
+
+function serviceRuntime(step) {
+  const args = SERVICE_CONTRACTS[step.service]?.args ?? {}
+  return {
+    service: step.service,
+    args: step.args ?? {},
+    outputs: (SERVICE_CONTRACTS[step.service]?.returns ?? []).filter((key) => typeof key === 'string' && key !== 'items' && key !== 'total'),
+    runtime: {
+      arrayArgs: Object.entries(args).filter(([, spec]) => spec.type.endsWith('[]')).map(([name]) => name),
+      acceptsSource: Boolean(args.sourceEntityId),
+    },
+  }
 }
 
 // Automations of a company (not tied to a module): triggered by a system event or a

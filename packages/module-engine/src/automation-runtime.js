@@ -127,6 +127,39 @@ export async function runSteps({ automation, services, base, data, recordId = nu
         steps.push({ index, type: 'http', ok: true, ms: Date.now() - startedAt, request: clip({ method: step.method, url: step.url, body }, 1000) })
         continue
       }
+      if (step.type === 'loop') {
+        // "Para cada uno": search, keep the items that match, run the actions with each
+        // one (its fields as elemento_<key>). One item failing does not stop the others.
+        const found = await services.call(step.service, buildArgs(automation, { step: index, data: scope, recordId, actorId }))
+        const items = (Array.isArray(found?.items) ? found.items : []).filter((item) => matches(step.when, item)).slice(0, step.max ?? 50)
+        const errors = []
+        let done = 0
+        for (let at = 0; at < items.length; at += 1) {
+          const item = items[at]
+          const itemScope = { ...scope }
+          for (const [key, value] of Object.entries(item ?? {})) if (value === null || ['string', 'number', 'boolean'].includes(typeof value)) itemScope['elemento_' + key] = value
+          try {
+            for (let act = 0; act < step.do.length; act += 1) {
+              const key = base ? base + ':' + index + ':' + (item?.id ?? at) + ':' + act : null
+              await services.call(step.do[act].service, buildArgs({ steps: [step.do[act]] }, { data: itemScope, recordId, actorId, idempotencyKey: key }))
+            }
+            done += 1
+          } catch (error) {
+            errors.push({ item: item?.id ?? at, status: Number(error?.status) || null, code: error?.code ?? null, error: String(error?.message ?? error) })
+          }
+        }
+        const detail = { iterations: items.length, done, found: typeof found?.total === 'number' ? found.total : items.length, errors: errors.slice(0, 3) }
+        scope = { ...scope, ['paso' + (index + 1) + '_count']: done }
+        if (errors.length) {
+          const failure = new Error(errors.length + ' de ' + items.length + ' elementos fallaron: ' + errors[0].error)
+          failure.status = errors[0].status
+          failure.code = errors[0].code
+          failure.detail = detail
+          throw failure
+        }
+        steps.push({ index, type: 'loop', service: step.service, ok: true, ms: Date.now() - startedAt, ...detail })
+        continue
+      }
       const args = buildArgs(automation, { step: index, data: scope, recordId, actorId, idempotencyKey: base ? (index ? base + ':' + index : base) : null })
       sent = args
       const result = await services.call(step.service, args)
@@ -142,7 +175,7 @@ export async function runSteps({ automation, services, base, data, recordId = nu
       if (!failed && automation.onError !== 'continue') stoppedAt = index
       failed = true
       console.error('[automatizaciones] ' + automation.key + ' paso ' + (index + 1) + ':', error?.message ?? error)
-      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, ...(sent ? { args: clip(sent) } : {}), code: error?.code ?? null, status: Number(error?.status) || null, error: String(error?.message ?? error) })
+      steps.push({ index, service: step.service ?? null, type: step.type ?? null, ok: false, ms: Date.now() - startedAt, ...(sent ? { args: clip(sent) } : {}), ...(error?.detail ?? {}), code: error?.code ?? null, status: Number(error?.status) || null, error: String(error?.message ?? error) })
     }
   }
   const failures = steps.filter((step) => !step.ok && !step.skipped)
