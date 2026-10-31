@@ -4,17 +4,25 @@ summary: Flujos que se ponen en marcha solos; reciben un aviso, esperan, deciden
 ---
 Automatizaciones es un módulo propio, con su menú y sus permisos, que junta en un solo lugar los flujos de tu empresa (los módulos creados con el Constructor tienen además sus propias automatizaciones dentro del módulo). Cada flujo empieza con un disparador y sigue con bloques que se ejecutan en orden.
 
-- **Disparadores**: un evento de otro módulo (por ejemplo, "se aprobó una orden"), un horario (cada hora, día, semana o mes) o un webhook, que es una dirección secreta a la que otro sistema puede enviar datos.
-- **Bloques**: crear o actualizar contactos, notificar a personas, enviar correos, generar un reporte en CSV o Excel y guardarlo en Archivos, agendar eventos, pedir una aprobación, esperar minutos, horas o días, o llamar a otro sistema por HTTPS.
+- **Disparadores**: un evento de otro módulo (por ejemplo, "se aprobó una orden"), un horario (cada hora, día, semana o mes), un webhook (una dirección secreta a la que otro sistema puede enviar datos) o **una fecha de un registro**: unos días antes o después de que venza una factura, una tarea o una póliza, de la entrega esperada de una orden o del aniversario de ingreso de un colaborador.
+- **Bloques**: crear o actualizar contactos, notificar a personas, enviar correos, generar un reporte en CSV o Excel y guardarlo en Archivos, agendar eventos, consultar un registro (por ejemplo, el nombre y correo del responsable), pedir una aprobación, esperar minutos, horas o días, o llamar a otro sistema por HTTPS.
+- **Para cada uno**: busca registros (artículos, contactos, colaboradores o vehículos), se queda con los que cumplen una condición y repite hasta 3 acciones con cada uno.
 - **Condiciones Sí / No**: una condición divide el flujo en dos caminos que se juntan después.
-- **Datos entre bloques**: lo que devuelve un bloque (por ejemplo, el identificador de un reporte) lo pueden usar los bloques que siguen.
+- **Datos entre bloques**: lo que devuelve un bloque (por ejemplo, el identificador de un reporte) lo pueden usar los bloques que siguen. A quién avisar también puede salir de los datos, como el responsable de una tarea.
+- **Notificaciones con enlace**: «Abrir el registro que activó la automatización» lleva a la pantalla de ese registro.
 
 ### Cómo se usa
 
 1. Entra a Automatizaciones y elige **Nueva automatización**; parte de una plantilla o de cero.
 2. En el lienzo, arrastra bloques desde la paleta o usa el "+" de cada flecha. Haz clic en un bloque para configurarlo.
 3. Usa **Probar** para ver qué haría con datos de ejemplo, y **Guardar** cuando esté lista.
-4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo.
+4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo. En el teléfono la consola y cada bloque se abren en una hoja a casi toda la pantalla.
+
+### Si algo falla
+
+- Si otro módulo o sistema no responde, la automatización **se reintenta sola** desde el bloque que falló, hasta 5 veces (a 1, 5, 15 y 60 minutos). En la consola aparece *Reintentando* con la hora del siguiente intento.
+- Si el error es de permisos o de datos, se detiene, quien la creó recibe un aviso y en la consola aparece **Reintentar desde el bloque N** para cuando lo corrijas.
+- Puedes apagar los reintentos con «Reintentar sola» en el disparador (sección *Si algo falla*).
 
 ### Conexiones (a quién hablas y de quién recibes)
 
@@ -45,5 +53,6 @@ MirAI propone y tú confirmas. Las automatizaciones que crea MirAI **quedan en p
 
 - Hasta 50 automatizaciones por empresa y 12 bloques en cada una (las esperas y las condiciones cuentan).
 - Hasta 2 esperas, 1 aprobación y 3 condiciones Sí / No por automatización.
+- *Para cada uno* procesa hasta 50 resultados; una fecha de un registro corre hasta 200 veces al día.
 - Las llamadas HTTP solo van a servidores que un administrador permitió, por HTTPS y sin redirecciones.
 - Los reportes incluyen hasta 1000 filas y los correos aceptan un archivo adjunto de hasta 10 MB.

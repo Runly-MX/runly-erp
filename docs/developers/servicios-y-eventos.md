@@ -78,13 +78,15 @@ Los servicios marcados como **propios** solo actúan sobre lo que tu módulo cre
 
 ### Catálogo
 
+Las búsquedas que devuelven `{ items, total }` declaran en su contrato `itemReturns`: los campos de cada elemento, que son los que un bloque *Para cada uno* de una automatización ofrece como `{{elemento_<campo>}}`.
+
 | Servicio | Qué hace | Permiso del usuario |
 |---|---|---|
 | `runly.inventory` `items.read({ id })` | Un artículo: `id, name, assetTag, status` | `inventory.item.read` |
-| `runly.inventory` `items.search({ search, limit })` | `{ items, total }` | `inventory.item.read` |
+| `runly.inventory` `items.search({ search, limit })` | `{ items, total }`; cada elemento: `id, name, assetTag, status, enabled` | `inventory.item.read` |
 | `runly.inventory` `items.update({ id, name, description, status, locationId, notes })` | Actualiza el artículo; `status` solo `available` o `maintenance` | `inventory.item.update` |
 | `runly.contacts` `contacts.read({ id })` | Un contacto: `id, name, type, email, phone` | `contacts.contacts.read` |
-| `runly.contacts` `contacts.search({ search, limit })` | `{ items, total }` | `contacts.contacts.read` |
+| `runly.contacts` `contacts.search({ search, limit })` | `{ items, total }`; cada elemento: `id, name, type, email, phone` | `contacts.contacts.read` |
 | `runly.contacts` `contacts.create({ name, type, email, phone })` | Crea y devuelve el contacto | `contacts.contacts.create` |
 | `runly.contacts` `contacts.update({ id, name, type, email, phone })` | Actualiza y devuelve el contacto | `contacts.contacts.update` |
 | `runly.projects` `tasks.read({ id })` | Una tarea | `projects.task.read` |
@@ -97,6 +99,7 @@ Los servicios marcados como **propios** solo actúan sobre lo que tu módulo cre
 | `runly.calendar` `events.cancel({ id })` | Cancela un evento **propio** (el usuario debe ser dueño o administrador del calendario) | `calendar.events.update` |
 | `runly.files` `files.save({ name, mimeType, contentBase64, shareWithCompany, sourceEntityId })` | Guarda el archivo en **Archivos** del usuario (privado salvo `shareWithCompany: true`). Máximo 10 MB; imagen, PDF, texto u oficina | `files.assets.create` |
 | `runly.files` `files.signedUrl({ id })` | Enlace temporal de descarga de un archivo **propio** | `files.assets.read` |
+| `runly.identity` `people.read({ id })` | Nombre y correo de un miembro activo de la empresa: `id, name, email` (404 si no lo es) | Ninguno: basta ser miembro de la empresa |
 | `runly.notifications` `notifications.send({ userIds, title, body, link, priority, sourceEntityId })` | Notifica a usuarios de la empresa (los demás se ignoran); `priority`: `low, medium, high, critical`; `link` debe ser una ruta de Runly (`/app/...`) o una URL `https`, cualquier otro valor (un id o un nombre) se descarta | Ninguno: basta ser miembro de la empresa |
 | `runly.notifications` `email.send({ userIds, to, subject, body, fileId, sourceEntityId })` | Envía un correo con el SMTP de la empresa (o el de la plataforma) a personas de la empresa (`userIds`, hasta 20) y/o a una dirección externa (`to`); `fileId` adjunta un archivo de la empresa (máx. 10 MB). Solo para automatizaciones y eventos (`system`). Devuelve `sent`, `failed` | Ninguno |
 | `runly.chat` `messages.post({ channel, text, title, link, buttons, approvalId, sourceEntityId })` | Publica un mensaje en un **canal** de chat de la empresa (por su nombre exacto o su id). El mensaje aparece como una *integración* con el nombre del módulo (o de la automatización) que lo envía, nunca como una persona, y no dispara automatizaciones. Hasta 4000 caracteres; `link` solo `https`/`http` o una ruta de Runly; máx. 30 mensajes por minuto por canal. `buttons` (texto JSON, hasta 3 `{ "label", "url" }` con `https`/`http` o una ruta de Runly) agrega botones de enlace; `approvalId` (una aprobación de automatizaciones pendiente) agrega los botones **Aprobar** y **Rechazar**, que solo pueden usar quienes aprueban. Solo para automatizaciones y eventos (`system`). Devuelve `id, conversationId, channel` | Ninguno |

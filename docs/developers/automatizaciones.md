@@ -132,6 +132,22 @@ Una **condición** parte el flujo en dos caminos: si se cumplen todas sus compro
 
 En el archivo, una condición es un paso `{ "type": "branch", "when": <condición o lista>, "yes": N, "no": M }`: los siguientes `N` pasos de la lista son el camino «Sí», los siguientes `M` el camino «No», y el flujo sigue después de ellos. Así los números de bloque (`paso<N>_...`), el historial y las esperas no cambian.
 
+## Consultar un registro
+
+Además de las acciones que crean o cambian algo, un bloque puede **consultar un registro** por su identificador: un artículo (`runly.inventory:items.read`), un contacto (`runly.contacts:contacts.read`), una tarea (`runly.projects:tasks.read`, solo al guardar un registro) o una persona de la empresa (`runly.identity:people.read`, que devuelve `id`, `name` y `email`). Sus resultados se usan después como los de cualquier bloque: por ejemplo, con el `assigneeId` de una tarea, *Ver el nombre y correo de una persona* da `{{paso1_name}}` para el mensaje. En el selector de acciones aparecen en el grupo «Consultar un registro». Las búsquedas que devuelven listas solo se usan en *Para cada uno*.
+
+Los destinatarios (`userIds` de notificaciones y correos, invitados de un evento) también pueden salir **de un dato** que sea un identificador de persona, como el responsable de la tarea: «Usar la persona de un dato». Si el valor no es un miembro de la empresa, se ignora.
+
+## Para cada uno
+
+Un bloque **Para cada uno** busca registros (artículos de inventario, contactos, colaboradores o vehículos), se queda con los que cumplen sus condiciones y hace **de 1 a 3 acciones con cada uno**, hasta 50. Dentro de esas acciones, los datos del resultado actual se escriben `{{elemento_<campo>}}` (`{{elemento_name}}`, `{{elemento_id}}`...) y aparecen primero en los selectores; también se puede usar todo lo anterior al bloque. Después del bloque, `{{paso<N>_count}}` dice cuántos se procesaron bien.
+
+- Si una acción falla con un resultado, sigue con los demás; el bloque queda *con error* y la consola muestra cuántos fallaron y los primeros errores.
+- Cada acción por resultado tiene su propia protección contra duplicados (`<base>:<bloque>:<id del resultado>:<acción>`): un reintento no repite lo que ya salió bien.
+- No puede ir dentro del camino de una condición, y sus acciones no pueden ser esperas, aprobaciones, condiciones ni otro *Para cada uno*.
+
+En el archivo: `{ "type": "loop", "service": "runly.inventory:items.search", "args": { ... }, "when": <condición sobre los campos del resultado>, "do": [ { "service": ..., "args": ... } ] }`. Los campos de cada resultado son los `itemReturns` del servicio de búsqueda (ver Servicios). *Probar* usa un resultado de ejemplo.
+
 ## Duplicar, exportar e importar
 
 En el módulo **Automatizaciones** cada tarjeta (y el menú «Más opciones» del editor) ofrece:
@@ -209,7 +225,9 @@ Cada vez que corre una automatización (al guardar un registro o por un evento) 
 
 No hace falta crear un módulo para automatizar: en el módulo **Automatizaciones** (`runly.automations`, un módulo propio de Runly con su menú, sus permisos y su ayuda) quien tenga el permiso `automations.manage` crea automatizaciones que pertenecen a la empresa activa. Usan las mismas tarjetas, condiciones, pasos, esperas, aprobaciones, llamadas HTTP, *Probar* e *Historial* que las del Constructor, con estas diferencias:
 
-- El disparador es **un evento del sistema** (los de la tabla de arriba), **un horario** sin registros o **un mensaje de otro sistema** (webhook). No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
+- El disparador es **un evento del sistema** (los de la tabla de arriba), **un horario** sin registros, **un mensaje de otro sistema** (webhook) o **una fecha de un registro**. No existe «cuando se guarda un registro» porque no hay una entidad de por medio.
+- **Fecha de un registro**: `{ "type": "date", "source", "offsetDays", "at", "when" }`. Cada día a la hora `at` (zona horaria de la instancia) busca los registros cuya fecha es hoy menos `offsetDays` (`-3` = tres días antes, `0` = el mismo día, `2` = dos días después; de -60 a 60) y corre **una vez por registro** (hasta 200 al día; no se repite para el mismo registro y día). Fechas disponibles (`source`): `purchases.invoice.due` (facturas de compra sin pagar), `purchases.order.expected` (órdenes aprobadas o emitidas sin recibir por completo), `projects.task.due` (tareas sin completar), `fleet.insurance.expiry` (pólizas activas) y `hr.employee.anniversary` (aniversario de ingreso de colaboradores activos). Cada una trae sus datos y su enlace «Abrir el registro», como un evento.
+- **Reintentos**: si un bloque falla porque otro módulo o sistema no respondió (error 5xx, 429 o de red), la ejecución queda *Reintentando* y vuelve **desde ese bloque**, con los mismos datos, a 1, 5, 15 y 60 minutos (hasta 5 veces). Un error de permisos o de datos (4xx) no se reintenta: la ejecución queda *Falló*, quien creó la automatización recibe un aviso (uno por hora como máximo) y en la consola aparece **Reintentar desde el bloque N** para cuando se corrija (`POST /automations/:key/runs/:runId/retry`). Con `"retry": false` (interruptor «Reintentar sola») no hay reintentos automáticos; con `onError: "continue"` tampoco, porque el flujo no se detiene. Una automatización que falla ya no hace que el evento se entregue otra vez a las demás, y si el evento llega de nuevo por otro motivo, las que ya corrieron no se repiten.
 - Los pasos solo ofrecen las acciones que no necesitan a una persona detrás, porque todo corre en segundo plano.
 - La pantalla es una **lista** (cada automatización con un esquema de su flujo, su estado y su última ejecución) y cada una se abre en un **editor a pantalla completa** con barra superior (nombre, activa, conexiones, probar, historial, guardar). Si tiene errores, se muestran arriba con el bloque que hay que corregir. Guardar autoriza los servicios que usa para esa empresa (y quita los que ya no se usan). Hasta 50 por empresa.
 - El Historial y las esperas pendientes se consultan con la clave `system.automations`: `GET /modules/system.automations/automation-runs` y `.../automation-jobs`.
