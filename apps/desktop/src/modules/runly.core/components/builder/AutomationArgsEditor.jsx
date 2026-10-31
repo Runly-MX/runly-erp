@@ -37,6 +37,12 @@ const ARG_HINTS = {
   to: "Opcional: una dirección fuera de la empresa. Puedes combinarla con los destinatarios.",
   fileId: "Opcional: un archivo de Archivos. Para adjuntar un reporte, elige el dato «Identificador» del paso que lo generó.",
   search: "Opcional: solo incluye los registros que coinciden con este texto.",
+  callId: "La llamada; con un evento de llamadas usa el dato «Llamada».",
+  transcriptId: "La transcripción lista; con «Quedó lista la transcripción» usa el dato «Identificador».",
+  mode: "Con MirAI la minuta resume acuerdos y compromisos; sin IA trae la transcripción completa y las frases que parecen acuerdos.",
+  scope: "Todos, solo las personas de la empresa o solo los invitados externos.",
+  conversationId: "La conversación donde se contesta; con un evento de chat usa el dato «Conversación».",
+  label: "Nombre con el que aparece la respuesta, por ejemplo «Ana (respuesta automática)».",
 };
 
 // Friendly names for the fixed choices of some arguments.
@@ -44,6 +50,8 @@ const ENUM_LABELS = {
   source: { contacts: "Contactos", items: "Inventario", vehicles: "Vehículos de la flota" },
   format: { csv: "CSV (texto)", xlsx: "Excel (.xlsx)" },
   priority: { low: "Baja", medium: "Media", high: "Alta", critical: "Crítica" },
+  scope: { all: "Todos", internal: "Solo de la empresa", external: "Solo externos" },
+  mode: { auto: "Con MirAI si está disponible, si no sin IA", ai: "Con MirAI", plain: "Sin IA" },
 };
 const PEOPLE_ARGS = new Set(["userIds", "attendeeIds"]);
 

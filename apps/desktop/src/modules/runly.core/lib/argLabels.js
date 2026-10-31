@@ -16,6 +16,7 @@ export const ARG_LABELS = {
   merchant: "Comercio", note: "Nota", movementId: "Movimiento (id)",
   subject: "Asunto", to: "Correo externo", fileId: "Archivo adjunto (id)", source: "Qué incluye el reporte", format: "Formato", search: "Filtrar por texto",
   channel: "Canal (nombre o id)", text: "Mensaje",
+  callId: "Llamada (id)", transcriptId: "Transcripción (id)", mode: "Cómo se escribe", scope: "Quiénes", conversationId: "Conversación (id)", label: "Se muestra como", limit: "Máximo de resultados",
   kind: "Tipo de documento", templateId: "Plantilla (id)", sourceId: "Registro de origen (id)", values: "Valores (JSON)", output: "Salida (native o pdf)",
 };
 

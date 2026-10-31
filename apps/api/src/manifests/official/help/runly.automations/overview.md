@@ -18,6 +18,13 @@ Automatizaciones es un módulo propio, con su menú y sus permisos, que junta en
 3. Usa **Probar** para ver qué haría con datos de ejemplo, y **Guardar** cuando esté lista.
 4. En **Consola** ves cada ejecución: qué datos llegaron, qué envió cada bloque, qué devolvió y, si falló, el error completo. En el teléfono la consola y cada bloque se abren en una hoja a casi toda la pantalla.
 
+### Llamadas, chats y vacaciones
+
+- **Minuta de videollamadas**: «Transcribir cada llamada grabada» pide la transcripción al terminar la grabación, y «Minuta de videollamada a los participantes» escribe la minuta cuando la transcripción está lista y la manda por correo, con el PDF, a cada participante con correo, de la empresa o externo. Si quieres que solo la reciba tu equipo, en «Para cada uno» elige *solo de la empresa*.
+- **Sin MirAI** la minuta se escribe igual, sin IA: fecha, duración, participantes, las frases que parecen acuerdos o pendientes y la transcripción completa por persona. La transcripción no depende de MirAI.
+- **Chat del sitio web**: «Contestar en automático en el chat del sitio web» da la bienvenida al primer mensaje de cada visitante. Con las condiciones *Hora local* y *Día de la semana* puedes contestar solo fuera de horario.
+- **Vacaciones**: «Respuesta automática de vacaciones» contesta a quien te escriba por mensaje directo, una vez al día por conversación. En **Cuándo está activa** eliges desde y hasta qué día, y en la condición, a la persona que se va de vacaciones. El mensaje que recibió nunca se guarda en la automatización.
+
 ### Si algo falla
 
 - Si otro módulo o sistema no responde, la automatización **se reintenta sola** desde el bloque que falló, hasta 5 veces (a 1, 5, 15 y 60 minutos). En la consola aparece *Reintentando* con la hora del siguiente intento.
