@@ -37,9 +37,9 @@ function QueueRow({ row }) {
 
 // The work waiting on the user's role (permissions + document states), one
 // tab per queue. Five oldest/most urgent rows each; "Ver todo" opens the list.
-export function AttentionInbox({ queues }) {
+export function AttentionInbox({ queues, className }) {
   return (
-    <Panel title="Requieren atención" subtitle="Según tus permisos y el estado de cada documento; no hay asignación por persona." icon={BellRing} tone="#d97706">
+    <Panel title="Requieren atención" subtitle="Según tus permisos y el estado de cada documento; no hay asignación por persona." icon={BellRing} tone="#d97706" className={className}>
       {!queues.length ? (
         <EmptyState icon={CheckCircle2} title="Nada que atender con tus permisos" description="Aquí aparecen aprobaciones, entregas y facturas cuando tu rol puede actuar sobre ellas." />
       ) : (

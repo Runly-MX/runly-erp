@@ -13,7 +13,7 @@ export function SpendTrendPanel({ monthly = [], showOrdered = true, className })
   return (
     <Panel title="Compras de los últimos 12 meses" icon={CalendarRange} className={className}
       subtitle={showOrdered ? `Ordenado ${formatMoneyCompact(sum('ordered'))}, facturado ${formatMoneyCompact(sum('invoiced'))}` : `Facturado ${formatMoneyCompact(sum('invoiced'))}`}>
-      <div className="h-64 w-full min-w-0">
+      <div className="h-56 w-full min-w-0">
         <ResponsiveContainer width="100%" height="100%" minWidth={0} initialDimension={{ width: 1, height: 1 }}>
           <AreaChart data={rows} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
             <defs>
@@ -57,7 +57,7 @@ export function SupplierRankingPanel({ rows = [], onSelect, className }) {
                 </linearGradient>
               </defs>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={130} tick={{ ...AXIS, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} />
+              <YAxis type="category" dataKey="name" width={110} tick={{ ...AXIS, fill: 'hsl(var(--foreground))' }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTooltip formatter={(v, p) => `${formatMoney(v)} en ${p.payload.documents ?? 0} documentos`} />} cursor={{ fill: 'hsl(var(--muted) / 0.4)' }} />
               <Bar dataKey="total" name="Monto" fill="url(#pur-suppliers)" radius={[4, 8, 8, 4]} className="cursor-pointer"
                 label={{ position: 'right', fill: 'hsl(var(--muted-foreground))', fontSize: 11, formatter: (v) => formatMoneyCompact(v) }}
@@ -72,29 +72,32 @@ export function SupplierRankingPanel({ rows = [], onSelect, className }) {
 
 const KIND_LABEL = { orders: 'Orden', invoices: 'Factura', requests: 'Solicitud', receipts: 'Recepción', cases: 'Expediente', quotes: 'Cotización' }
 
+const RECENT_LIMIT = 5
+
+// The last few documents, two lines each so it fits a third of the board.
 // showAmounts=false (Control documental board): no amounts at all, not even
 // those of historic financial documents (their detail still shows them).
-export function RecentPanel({ rows = [], onOpen, showAmounts = true }) {
+export function RecentPanel({ rows = [], onOpen, showAmounts = true, className }) {
+  const shown = rows.slice(0, RECENT_LIMIT)
   return (
-    <Panel title="Movimiento reciente" subtitle="Últimos documentos registrados" icon={History} tone={TONES.slate}>
-      {!rows.length ? <EmptyState variant="compact" icon={History} title="Todavía no hay documentos" /> : (
-        <ul className="divide-y divide-[hsl(var(--border))]">
-          {rows.map((row) => {
+    <Panel title="Movimiento reciente" subtitle={`Los ${RECENT_LIMIT} documentos más recientes`} icon={History} tone={TONES.slate} className={className}>
+      {!shown.length ? <EmptyState variant="compact" icon={History} title="Todavía no hay documentos" /> : (
+        <ul className="-mx-2 divide-y divide-[hsl(var(--border))]">
+          {shown.map((row) => {
             const kind = kindOf(row.kind) ?? 'orders'
             return (
               <li key={`${row.kind}:${row.id}`}>
                 <button type="button" onClick={() => onOpen(kind, row.id)}
-                  className="flex w-full items-center gap-3 rounded-lg px-1 py-2.5 text-left transition-colors hover:bg-[hsl(var(--muted))]/40">
-                  <span className="w-20 shrink-0 text-xs text-[hsl(var(--muted-foreground))]">{KIND_LABEL[kind]}</span>
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold tabular-nums">{row.reference ?? row.number}</span>
-                    <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{row.supplierName || 'Sin proveedor'}, {formatDate(row.date)}</span>
+                  className="block w-full rounded-lg px-2 py-2 text-left transition-colors hover:bg-[hsl(var(--muted))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--brand-primary)/50">
+                  <span className="flex items-center justify-between gap-2">
+                    <span className="min-w-0 truncate text-sm font-semibold tabular-nums">{row.reference ?? row.number}</span>
+                    <PurchaseStatusBadge kind={kind} status={row.status} label={statusMeta(kind, row.status).label} />
                   </span>
-                  <span className="hidden text-right sm:block">
+                  <span className="mt-0.5 flex items-center justify-between gap-2 text-xs text-[hsl(var(--muted-foreground))]">
+                    <span className="min-w-0 truncate">{KIND_LABEL[kind]} · {row.supplierName || 'Sin proveedor'} · {formatDate(row.date)}</span>
                     {/* Documentary references have no amount: nothing, never $0.00. */}
-                    {showAmounts && row.total != null ? <span className="block text-sm font-medium tabular-nums">{formatMoney(row.total, row.currency)}</span> : null}
+                    {showAmounts && row.total != null ? <span className="shrink-0 font-medium tabular-nums text-[hsl(var(--foreground))]">{formatMoney(row.total, row.currency)}</span> : null}
                   </span>
-                  <PurchaseStatusBadge kind={kind} status={row.status} label={statusMeta(kind, row.status).label} />
                 </button>
               </li>
             )
