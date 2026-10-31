@@ -268,8 +268,8 @@ export default function PurchaseDocumentEditor() {
             <MainFields kind={kind} control={control} supplier={supplier} onSupplier={setSupplier} folio={folio} />
           </Section>
 
-          <Section id="section-lines" title="Partidas" description="Bienes y servicios, con su cantidad, unidad, precio e impuesto. Los totales se calculan solos.">
-            <LineItemsEditor control={control} getValues={getValues} errors={errors} currency={currency} />
+          <Section id="section-lines" title="Partidas" description="Bienes y servicios con su cantidad, precio e impuesto. Abre una partida para editarla; los totales se calculan solos.">
+            <LineItemsEditor control={control} getValues={getValues} setValue={setValue} errors={errors} currency={currency} />
           </Section>
 
           <Section id="section-terms" title={kind === 'requests' ? 'Fechas y justificación' : 'Condiciones y fechas'}>

@@ -117,7 +117,7 @@ export function DocumentaryEditor({ kind, meta, can, caps, inventoryIds = [], so
           </Section>
 
           <Section id="section-lines" title="Partidas (opcional)" description="Qué ampara el documento y cuántos, si lo sabes. Sin precios ni impuestos.">
-            <LineItemsEditor control={control} getValues={getValues} errors={errors} documentary newLine={emptyDocumentaryLine} />
+            <LineItemsEditor control={control} getValues={getValues} setValue={setValue} errors={errors} documentary newLine={emptyDocumentaryLine} />
           </Section>
 
           {showOrder || showInventory ? (
