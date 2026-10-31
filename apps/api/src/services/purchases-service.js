@@ -317,10 +317,12 @@ export function createPurchasesService({ prisma, broadcaster }) {
       .map(row => ({ ...row, dateKind: 'REGISTERED_AT', path: `${KINDS[row.kind].path}/${row.id}` }))
     const projectedRecent = new Map((await economics.projectMany(companyId, recent.filter(row => ['orders', 'invoices'].includes(row.kind)))).map(row => [row.id, row]))
 
+    const documentary = workflow.economicMode === 'DOCUMENTARY' ? await documentarySummary(companyId, reads, can) : null
     return {
       economicMode: workflow.economicMode,
       economicCaptureEnabled: workflow.economicCaptureEnabled,
       economicAggregatesInclude: 'FINANCIAL_ONLY',
+      documentary,
       metrics: {
         openCases,
         ordersOpen: reads.orders ? ordersOpen : null,
@@ -352,6 +354,37 @@ export function createPurchasesService({ prisma, broadcaster }) {
       },
       recent: recent.map(row => projectedRecent.get(row.id) ?? row),
     }
+  }
+
+  // Read-only counts for Inicio in Control documental (documents with a NULL
+  // total): registered references per kind, distinct inventory items linked to
+  // them and references still missing supplier or document date. Each part
+  // only for callers who can read it; nothing economic is computed.
+  async function documentarySummary(companyId, reads, can) {
+    const live = { companyId, total: null, status: { not: 'CANCELLED' } }
+    const missing = { OR: [{ supplierId: null }, { issueDate: null }] }
+    const pick = { id: true, number: true, supplierId: true, issueDate: true, createdAt: true }
+    const [orders, invoices, ordersMissing, invoicesMissing, orderRows, invoiceRows] = await Promise.all([
+      reads.orders ? prisma.purchaseOrder.count({ where: live }) : null,
+      reads.invoices ? prisma.purchaseInvoice.count({ where: live }) : null,
+      reads.orders ? prisma.purchaseOrder.count({ where: { ...live, ...missing } }) : 0,
+      reads.invoices ? prisma.purchaseInvoice.count({ where: { ...live, ...missing } }) : 0,
+      reads.orders ? prisma.purchaseOrder.findMany({ where: { ...live, ...missing }, select: pick, orderBy: { createdAt: 'desc' }, take: 6 }) : [],
+      reads.invoices ? prisma.purchaseInvoice.findMany({ where: { ...live, ...missing }, select: pick, orderBy: { createdAt: 'desc' }, take: 6 }) : [],
+    ])
+    let linkedItems = null
+    if (can('purchases.relation.read')) {
+      const [row] = await prisma.$queryRaw`SELECT COUNT(DISTINCT er.target_id)::int AS n FROM entity_relation er
+        WHERE er.company_id = ${companyId}::uuid AND er.source_module = 'runly.purchases' AND er.target_type = 'inventory_item'
+          AND ((er.source_type = 'purchase_order' AND er.source_id IN (SELECT id FROM purchase_order WHERE company_id = ${companyId}::uuid AND total IS NULL AND status <> 'CANCELLED'))
+            OR (er.source_type = 'purchase_invoice' AND er.source_id IN (SELECT id FROM purchase_invoice WHERE company_id = ${companyId}::uuid AND total IS NULL AND status <> 'CANCELLED')))`
+      linkedItems = row?.n ?? 0
+    }
+    const references = await economics.references(companyId, [...orderRows, ...invoiceRows].map(row => row.id))
+    const toComplete = [...orderRows.map(row => ({ ...row, kind: 'orders' })), ...invoiceRows.map(row => ({ ...row, kind: 'invoices' }))]
+      .sort((a, b) => b.createdAt - a.createdAt).slice(0, 6)
+      .map(row => ({ kind: row.kind, id: row.id, number: row.number, reference: references.get(row.id) ?? null, missingSupplier: !row.supplierId, missingIssueDate: !row.issueDate, createdAt: row.createdAt }))
+    return { orders, invoices, linkedItems, toCompleteCount: ordersMissing + invoicesMissing, toComplete }
   }
 
   async function approvalOwners(companyId, approvals) {
