@@ -6,16 +6,18 @@
 // PAUSED: the person reviews them in the canvas and turns them on. The secret
 // webhook URL is never put in a tool result or a proposal. publicLookup: not
 // applicable (private company configuration).
-import { automationEvents, automationServices, validateSystemAutomation } from "@runly/module-compiler";
+import { automationDateSources, automationEvents, automationServices, validateSystemAutomation } from "@runly/module-compiler";
+import { SERVICE_CONTRACTS } from "@runly/module-engine/contracts";
 import { createSystemAutomationsService, SYSTEM_MODULE_KEY } from "../../services/system-automations-service.js";
 import { createAutomationRunsService } from "../../services/automation-runs-service.js";
 
 const LINK = (key) => `/app/m/runly.automations/${key}`;
-const STATUS_ES = { success: "correcta", failed: "con error", partial: "parcial", waiting: "en espera", cancelled: "cancelada", rejected: "rechazada" };
+const STATUS_ES = { success: "correcta", failed: "con error", partial: "parcial", waiting: "en espera", cancelled: "cancelada", rejected: "rechazada", retrying: "reintentando" };
+const argList = (args) => Object.entries(args).map(([name, spec]) => `${name}${spec.required ? "*" : ""}:${spec.type}`);
 
 const slug = (text) => String(text ?? "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "_").replace(/^_+|_+$/g, "").slice(0, 40);
 const brief = (row) => ({
-  key: row.key, nombre: row.label, activa: row.enabled, disparador: row.trigger?.type, evento: row.trigger?.event ?? undefined,
+  key: row.key, nombre: row.label, activa: row.enabled, disparador: row.trigger?.type, evento: row.trigger?.event ?? undefined, fecha: row.trigger?.source ?? undefined,
   bloques: (row.steps ?? []).length, ultimaEjecucion: row.lastRun ? { estado: STATUS_ES[row.lastRun.status] ?? row.lastRun.status, fecha: row.lastRun.createdAt } : null,
 });
 
@@ -54,7 +56,8 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
           total: rows.length,
           ejecuciones: rows.map((run) => ({
             fecha: run.createdAt, estado: STATUS_ES[run.status] ?? run.status, error: run.error ?? undefined, duracionMs: run.durationMs ?? undefined,
-            bloques: (run.steps ?? []).map((step) => ({ n: step.index + 1, accion: step.service ?? step.type, resultado: step.skipped ? "omitido" : step.ok ? "correcto" : "fallo", error: step.error ?? undefined })),
+            reintento: run.retry?.at ? { intento: run.retry.attempt, de: run.retry.max, a: run.retry.at } : run.retry?.canResume ? "se puede reintentar desde la consola" : undefined,
+            bloques: (run.steps ?? []).map((step) => ({ n: step.index + 1, accion: step.service ?? step.type, resultado: step.skipped ? "omitido" : step.ok ? "correcto" : "fallo", error: step.error ?? undefined, ...(typeof step.iterations === "number" ? { elementos: step.iterations, bien: step.done } : {}) })),
           })),
         };
       },
@@ -63,13 +66,15 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
       name: "automations_catalog",
       permission: "automations.read",
       definition: {
-        description: "Eventos que pueden iniciar una automatizacion (con los campos que traen) y acciones disponibles (con sus argumentos). Consultalo antes de proponer crear una.",
+        description: "Eventos y fechas de registros que pueden iniciar una automatizacion (con los campos que traen), acciones y consultas disponibles (con sus argumentos) y busquedas para bloques Para cada uno (con los campos de cada resultado). Consultalo antes de proponer crear una.",
         parameters: { type: "object", properties: {} },
       },
       async run() {
         return {
           eventos: automationEvents().map((event) => ({ key: event.key, nombre: event.label, campos: event.payload })),
-          acciones: automationServices({ trigger: "event" }).map((item) => ({ service: item.key, nombre: item.label, args: Object.entries(item.args).map(([name, spec]) => `${name}${spec.required ? "*" : ""}:${spec.type}`) })),
+          fechas: automationDateSources().map((source) => ({ source: source.key, nombre: source.label, campos: source.fields.map((item) => item.key) })),
+          acciones: automationServices({ trigger: "event" }).map((item) => ({ service: item.key, nombre: item.label, ...(item.read ? { consulta: true } : {}), args: argList(item.args), devuelve: SERVICE_CONTRACTS[item.key]?.returns })),
+          busquedas: automationServices({ trigger: "event", search: true }).map((item) => ({ service: item.key, nombre: item.label, args: argList(item.args), camposResultado: SERVICE_CONTRACTS[item.key]?.itemReturns })),
         };
       },
     },
@@ -81,13 +86,14 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
     operation: "create",
     label: "Crear automatizacion",
     permission: "automations.manage",
-    description: "Crea una automatizacion de la empresa (queda EN PAUSA hasta que el usuario la active). Consulta antes automations_catalog. trigger: { type: 'event', event } | { type: 'schedule', every: 'hour'|'day'|'week'|'month', at: 'HH:MM', weekday?, day? } | { type: 'webhook', fields: [{key,label}] }. steps: lista de bloques; cada uno es { service, args } donde args = { nombre: { from: 'value', value } | { from: 'template', template: 'Texto {{campo}}' } | { from: 'field', field } }, o { type: 'delay', amount, unit: 'minutes'|'hours'|'days' }, o { type: 'branch', when: { field, op, value }, yes: N, no: M } (los siguientes N bloques son el camino Si, los M siguientes el No, y debe haber un bloque despues). Maximo 12 bloques. Los bloques posteriores pueden usar {{paso1_id}} etc.",
+    description: "Crea una automatizacion de la empresa (queda EN PAUSA hasta que el usuario la active). Consulta antes automations_catalog. trigger: { type: 'event', event } | { type: 'schedule', every: 'hour'|'day'|'week'|'month', at: 'HH:MM', weekday?, day? } | { type: 'webhook', fields: [{key,label}] } | { type: 'date', source (de fechas del catalogo), offsetDays: -60..60 (-3 = 3 dias antes, 0 = el mismo dia), at: 'HH:MM', when? } (corre una vez por registro cuya fecha toca). steps: lista de bloques; cada uno es { service, args } donde args = { nombre: { from: 'value', value } | { from: 'template', template: 'Texto {{campo}}' } | { from: 'field', field } }, o { type: 'delay', amount, unit: 'minutes'|'hours'|'days' }, o { type: 'branch', when: { field, op, value }, yes: N, no: M } (los siguientes N bloques son el camino Si, los M siguientes el No, y debe haber un bloque despues), o { type: 'loop', service (de busquedas del catalogo), args, when? (sobre camposResultado), do: [1-3 bloques { service, args }] } (repite las acciones con cada resultado, hasta 50; dentro se usa {{elemento_<campo>}}; despues {{pasoN_count}}). Las consultas (consulta: true) leen un registro por id y sus campos quedan como {{pasoN_<campo>}}. Para avisar a la persona de un dato (por ejemplo assigneeId) usa userIds: { from: 'field', field: 'assigneeId' }. Para el enlace de una notificacion usa una ruta /app/... (template), nunca un id suelto. Si falla un servicio se reintenta sola; retry: false lo evita. Maximo 12 bloques. Los bloques posteriores pueden usar {{paso1_id}} etc.",
     parameters: {
       type: "object",
       properties: {
         label: { type: "string", description: "Nombre de la automatizacion." },
         trigger: { type: "object" },
         steps: { type: "array", items: { type: "object" } },
+        retry: { type: "boolean", description: "false para no reintentar sola cuando falla un servicio." },
       },
       required: ["label", "trigger", "steps"],
     },
@@ -98,7 +104,7 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
       const taken = new Set((await service.list(actx.companyId)).map((row) => row.key));
       let key = base;
       for (let n = 2; taken.has(key); n += 1) key = `${base}_${n}`;
-      const candidate = { key, label, enabled: false, trigger: args.trigger, steps: args.steps };
+      const candidate = { key, label, enabled: false, trigger: args.trigger, steps: args.steps, ...(args.retry === false ? { retry: false } : {}) };
       const problems = validateSystemAutomation(candidate);
       if (problems.length) return { error: `La automatizacion no es valida: ${problems.slice(0, 4).map((p) => `${p.path}: ${p.message}`).join(" | ")}` };
       return {
@@ -107,8 +113,8 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
           title: "Crear automatizacion (en pausa)",
           fields: [
             { label: "Nombre", value: label },
-            { label: "Disparador", value: args.trigger.event ?? args.trigger.type },
-            { label: "Bloques", value: args.steps.map((step) => step.service ?? step.type).join(" -> ").slice(0, 300) },
+            { label: "Disparador", value: args.trigger.event ?? args.trigger.source ?? args.trigger.type },
+            { label: "Bloques", value: args.steps.map((step) => (step.type === "loop" ? `para cada uno (${step.service})` : step.service ?? step.type)).join(" -> ").slice(0, 300) },
           ],
         },
       };
@@ -168,7 +174,7 @@ export function createAutomationsMiraiCapabilities({ prisma }) {
   return {
     moduleKey: "runly.automations",
     label: "Automatizaciones",
-    summary: "Flujos de la empresa: lista con su estado y errores, historial de ejecuciones por bloque, catalogo de eventos y acciones; crear (queda en pausa), activar/pausar y eliminar con confirmacion.",
+    summary: "Flujos de la empresa: lista con su estado y errores, historial de ejecuciones por bloque (con reintentos), catalogo de eventos, fechas de registros, acciones, consultas y busquedas para Para cada uno; crear (queda en pausa), activar/pausar y eliminar con confirmacion.",
     tools,
     actions: [create, setEnabled, remove],
     publicLookup: [],

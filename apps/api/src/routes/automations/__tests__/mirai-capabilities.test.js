@@ -60,4 +60,8 @@ test('catalog lists events and background-safe actions', async () => {
   const catalog = await cap.tools.find((tool) => tool.name === 'automations_catalog').run({}, actx)
   assert.ok(catalog.eventos.length > 0)
   assert.ok(catalog.acciones.some((item) => item.service === 'runly.notifications:email.send'))
+  // What the 2026-10-31 blocks need: dates, record reads and searches for loops.
+  assert.ok(catalog.fechas.some((item) => item.source === 'purchases.invoice.due' && item.campos.includes('dueDate')))
+  assert.ok(catalog.acciones.some((item) => item.service === 'runly.identity:people.read' && item.consulta))
+  assert.ok(catalog.busquedas.some((item) => item.service === 'runly.inventory:items.search' && item.camposResultado.includes('name')))
 })
