@@ -1,4 +1,5 @@
 import { createPosRefundQuoteService } from './pos-refund-quote-service.js';
+import {createPosAllocationsService} from './pos-allocations-service.js';
 import { amount, decimal, fail, json, money, sum } from './pos-contracts.js';
 
 export function createPosRefundService({ commands, store }) {
@@ -44,6 +45,8 @@ export function createPosRefundService({ commands, store }) {
       await tx.posOrderLine.update({ where: { id: line.id }, data: { returnedQuantity: { increment: fields.quantity } } });
     }
     await tx.posRefundPayment.createMany({ data: payments.map((p) => ({ ...p, refundId: created.id })) });
+    const attributionBefore=await tx.posPaymentAllocation.findMany({where:{companyId:ctx.companyId,orderId}});
+    await createPosAllocationsService({commands,store}).reduceAfterRefund(tx,value);
     if (cashOut.gt(0)) await tx.posCashMovement.create({ data: { companyId: ctx.companyId, sessionId: session.id,
       kind: 'REFUND_OUT', amount: amount(cashOut), reason: `Devolución ${created.id}`, createdById: ctx.actorId,
     } });
@@ -54,7 +57,8 @@ export function createPosRefundService({ commands, store }) {
     const document = await tx.posRefund.findUnique({ where: { id: created.id }, include: { lines: true, payments: true } });
     const receipt = await store.receipt(tx, value, 'REFUND', { refund: document });
     const after = { refund: json({ ...document, status: 'COMPLETED' }), order: await store.dto(tx, ctx.companyId, orderId), receiptId: receipt.id };
-    await commands.audit(tx, { ...ctx, entityType: 'PosRefund', entityId: created.id, action: 'pos.refund.create', before: value, after });
+    await commands.audit(tx, { ...ctx, entityType: 'PosRefund', entityId: created.id, action: 'pos.refund.create', before: value, after,
+      metadata:{attributionBefore,attributionAfter:await tx.posPaymentAllocation.findMany({where:{companyId:ctx.companyId,orderId}})} });
     return after;
   }
   return { refund };

@@ -1224,6 +1224,8 @@ export const runlyPosManifest = createModuleManifest({
       "pos_product_config",
       "pos_receipt",
       "pos_print_job",
+        "pos_kitchen_dispatch",
+        "pos_payment_allocation",
       "pos_command",
       "pos_refund",
       "pos_refund_line",

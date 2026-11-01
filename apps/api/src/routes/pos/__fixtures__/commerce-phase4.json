@@ -1,0 +1,20 @@
+{
+  "description": "IDs sintéticos de contrato; sustituir por IDs devueltos por la base. Nunca insertar estas identidades como datos reales.",
+  "commands": {
+    "createTable": {"outletId":"00000000-0000-4000-8000-000000000001","name":"Mesa 2","capacity":4},
+    "createOrder": {"outletId":"00000000-0000-4000-8000-000000000001","tableId":"00000000-0000-4000-8000-000000000002","experience":"RESTAURANT","fulfillmentType":"DINE_IN","guestCount":2},
+    "addLine": {"expectedVersion":1,"productId":"00000000-0000-4000-8000-000000000003","quantity":"1","note":"Sin sal","guestSeatId":"00000000-0000-4000-8000-000000000004","modifiers":[{"optionId":"00000000-0000-4000-8000-000000000005"}]},
+    "dispatch": {"expectedVersion":2,"lineIds":["00000000-0000-4000-8000-000000000006"]},
+    "kitchenLine": {"expectedVersion":1,"status":"IN_PREPARATION"},
+    "requestBill": {"expectedVersion":4},
+    "payment": {"expectedVersion":5,"paymentMethodId":"00000000-0000-4000-8000-000000000007","sessionId":"00000000-0000-4000-8000-000000000008","amount":"50.00","tenderedAmount":"100.00","allocations":[{"orderLineId":"00000000-0000-4000-8000-000000000006","amount":"50.00"}]},
+    "allocatePayment": {"expectedVersion":6,"paymentId":"00000000-0000-4000-8000-000000000009","allocations":[{"orderLineId":"00000000-0000-4000-8000-000000000006","amount":"50.00"}]},
+    "voidPreparation": {"expectedVersion":3,"reason":"Cambio antes del primer pago"},
+    "kitchenPrint": {"transport":"BROWSER"}
+  },
+  "ticketFields": {
+    "dispatchedAt":"2026-11-01T18:00:00.000Z","orderLabel":"Mesa 2","tableName":"Mesa 2","waiterName":"Mesero de ejemplo",
+    "dispatchSequence":2,"lateAfterMinutes":15,"isLate":false,"historicalDispatchUnknown":false
+  },
+  "undo": {"expectedVersion":2,"status":"PENDING","reason":"Toque accidental"}
+}

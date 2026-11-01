@@ -13,7 +13,7 @@ export function createPosReceiptService({prisma}) {
     return {value,order};
   }
   function dto(job) {
-    return json({jobId:job.id,receiptId:job.receiptId,outletId:job.outletId,transport:job.transport,status:job.status,copy:job.copy,
+    return json({jobId:job.id,receiptId:job.receiptId,...(job.ticketId?{ticketId:job.ticketId}:{}),outletId:job.outletId,transport:job.transport,status:job.status,copy:job.copy,
       payload:job.payload,errorCode:job.errorCode,createdAt:job.createdAt,finishedAt:job.finishedAt,physicalConfirmationSupported:false});
   }
   async function get(companyId,id) {
@@ -41,14 +41,21 @@ export function createPosReceiptService({prisma}) {
     }});
   }
   async function result(ctx,id,input,key,permissions={},receiptId) {
+    if(!ctx.companyId)fail('FORBIDDEN','Empresa requerida.',403);
     // Check ownership before even a persisted command replay can be returned.
     const own=await prisma.posPrintJob.findFirst({where:{id,companyId:ctx.companyId,...(receiptId?{receiptId}:{})}});
     if(!own)fail('NOT_FOUND','Intento no encontrado.',404);
+    const allowed=own.ticketId?['pos.stations.read','pos.cocina.read','pos.cocina.operate','pos.stations.manage']:['pos.orders.read','pos.caja.read','pos.caja.operate','pos.comandas.read'];
+    if(!permissions.isAdmin&&!permissions.permissionSet?.has('pos.admin.update')&&!allowed.some(k=>permissions.permissionSet?.has(k)))fail('FORBIDDEN','No tienes acceso a este documento.',403);
     if(own.createdById!==ctx.actorId&&!permissions.isAdmin&&!permissions.permissionSet?.has('pos.admin.update'))fail('FORBIDDEN','Sólo el creador del intento o un administrador autorizado puede registrar el resultado.',403);
     return commands.run({...ctx,operation:'receipt.print.result',key,input:{jobId:id,...input},serialize:json,execute:async(tx)=>{
       await tx.$queryRaw`SELECT id FROM pos_print_job WHERE id=${id}::uuid AND company_id=${ctx.companyId}::uuid FOR UPDATE`;
       const job=await tx.posPrintJob.findFirst({where:{id,companyId:ctx.companyId}});
-      await receipt(tx,ctx.companyId,job.receiptId);
+      if(job.receiptId)await receipt(tx,ctx.companyId,job.receiptId);
+      else{
+        const ticket=await tx.posKitchenTicket.findFirst({where:{id:job.ticketId,companyId:ctx.companyId,order:{companyId:ctx.companyId,outletId:job.outletId}}});
+        if(!ticket)fail('NOT_FOUND','Comanda no encontrada.',404);
+      }
       if(job.status!=='QUEUED')fail('INVALID_TRANSITION','El intento ya tiene un resultado definitivo.');
       const updated=await tx.posPrintJob.update({where:{id},data:{status:input.status,errorCode:input.status==='FAILED'?(input.errorCode??'UNKNOWN'):null,finishedAt:new Date()}});
       await commands.audit(tx,{...ctx,entityType:'PosPrintJob',entityId:id,action:'pos.receipt.print.result',before:job,after:updated});

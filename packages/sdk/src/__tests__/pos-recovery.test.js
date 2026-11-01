@@ -3,6 +3,29 @@ import assert from 'node:assert/strict';
 import { createRunlyClient } from '../index.js';
 import { createPosRecoveryDomain } from '../domains/pos-recovery.js';
 
+test('C6 SDK uses real scoped routes, online-only commands and caller-owned attempts',async()=>{
+  const calls=[],options={idempotencyKey:'restaurant-contract-attempt-001'};
+  const domain=createPosRecoveryDomain({request:async(...args)=>{calls.push(args);return{};},withAuthHeaders:(_t,h={})=>h,toQueryString:q=>'?'+new URLSearchParams(q)});
+  await domain.tables({outletId:'outlet'},'token');await domain.modifiers('product','token');await domain.stations({outletId:'outlet'},'token');
+  await domain.seatTotals('order','token');await domain.kitchenTickets({outletId:'outlet',stationId:'station'},'token');
+  const writes=[()=>domain.createTable({outletId:'outlet',name:'Mesa'},'token',options),
+    ()=>domain.updateTable('table',{expectedVersion:1,status:'AVAILABLE'},'token',options),
+    ()=>domain.updateRestaurantOrder('order',{expectedVersion:1,guestCount:3},'token',options),
+    ()=>domain.dispatchKitchen('order',{expectedVersion:1,lineIds:['line']},'token',options),
+    ()=>domain.updateKitchenLine('ticket','line',{expectedVersion:1,status:'IN_PREPARATION'},'token',options),
+    ()=>domain.voidPreparation('order','line',{expectedVersion:1,reason:'Error'},'token',options),
+    ()=>domain.allocatePayment('order',{expectedVersion:1,paymentId:'payment',allocations:[]},'token',options),
+    ()=>domain.kitchenPrintJob('ticket',{transport:'BROWSER'},'token',options),
+    ()=>domain.seatReservation('reservation',{},'token',options)];
+  for(const write of writes)await write();
+  assert.equal(calls[0][0],'/pos/v2/tables?outletId=outlet');
+  assert.equal(calls[8][0],'/pos/v2/orders/order/kitchen-dispatches');
+  assert.equal(calls[9][0],'/pos/v2/kitchen/tickets/ticket/lines/line');
+  assert.ok(calls.every(([,o])=>o.onlineOnly));
+  assert.ok(calls.slice(5).every(([,o])=>o.headers['Idempotency-Key']===options.idempotencyKey));
+  await assert.rejects(domain.dispatchKitchen('order',{},'token'),{code:'IDEMPOTENCY_REQUIRED'});
+});
+
 test('commerce SDK carries stable keys, active company, expectedVersion and decimal amounts', async () => {
   const seen = [];
   const client = createRunlyClient({ baseUrl: 'https://example.test', getActiveCompanyId: () => 'company-a',

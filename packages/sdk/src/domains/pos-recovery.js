@@ -11,6 +11,22 @@ export function createPosRecoveryDomain({ request, withAuthHeaders, toQueryStrin
       body: JSON.stringify(data), onlineOnly: true });
   };
   return {
+    tables:(query,token)=>get(`/tables${toQueryString(query)}`,token),
+    createTable:(data,token,options)=>write('/tables',data,token,options),
+    updateTable:(id,data,token,options)=>write(`/tables/${path(id)}`,data,token,options,'PATCH'),
+    updateRestaurantOrder:(id,data,token,options)=>write(`/orders/${path(id)}/restaurant`,data,token,options,'PATCH'),
+    requestBill:(id,data,token,options)=>write(`/orders/${path(id)}/request-bill`,data,token,options),
+    modifiers:(id,token)=>get(`/sellables/${path(id)}/modifiers`,token),
+    dispatchKitchen:(id,data,token,options)=>write(`/orders/${path(id)}/kitchen-dispatches`,data,token,options),
+    kitchenTickets:(query,token)=>get(`/kitchen/tickets${toQueryString(query)}`,token),
+    getKitchenTicket:(id,token)=>get(`/kitchen/tickets/${path(id)}`,token),
+    stations:(query,token)=>get(`/stations${toQueryString(query)}`,token),
+    updateKitchenLine:(ticketId,lineId,data,token,options)=>write(`/kitchen/tickets/${path(ticketId)}/lines/${path(lineId)}`,data,token,options,'PATCH'),
+    voidPreparation:(id,lineId,data,token,options)=>write(`/orders/${path(id)}/lines/${path(lineId)}/void-preparation`,data,token,options),
+    seatTotals:(id,token)=>get(`/orders/${path(id)}/seat-totals`,token),
+    allocatePayment:(id,data,token,options)=>write(`/orders/${path(id)}/payment-allocations`,data,token,options),
+    kitchenPrintJob:(id,data,token,options)=>write(`/kitchen/tickets/${path(id)}/print-jobs`,data,token,options),
+    seatReservation:(id,data,token,options)=>write(`/reservations/${path(id)}/seat`,data,token,options),
     sellables:(query,token)=>get(`/sellables${toQueryString(query)}`,token),
     categories:(query,token)=>get(`/categories${toQueryString(query)}`,token),
     variants:(id,query,token)=>get(`/sellables/${path(id)}/variants${toQueryString(query)}`,token),

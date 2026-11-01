@@ -13,6 +13,13 @@ export function createPosRecoveryOrders({ commands, store }) {
     const session = data.sessionId ? await store.session(tx, companyId, data.sessionId, outlet.id, data.terminalId) : null;
     await createPosScopeService({ prisma: tx }).order(companyId, data);
     if (data.terminalId) await store.row(tx, 'posTerminal', companyId, data.terminalId, { outletId: outlet.id, enabled: true });
+    if(data.tableId){
+      if(data.experience!=='RESTAURANT'||data.fulfillmentType!=='DINE_IN')fail('VALIDATION_ERROR','Sólo una cuenta de mesa usa tableId.',400);
+      await tx.$queryRaw`SELECT id FROM pos_table WHERE id=${data.tableId}::uuid AND company_id=${companyId}::uuid FOR UPDATE`;
+      const table=await store.row(tx,'posTable',companyId,data.tableId,{outletId:outlet.id,enabled:true});
+      if(table.status==='RESERVED'&&!ctx.reservationId)fail('TABLE_OCCUPIED','La mesa está reservada; atiende su reserva para abrir la cuenta.');
+      if(!['AVAILABLE','RESERVED'].includes(table.status)||await tx.posOrder.count({where:{companyId,tableId:table.id,status:{notIn:['PAID','CANCELLED','REFUNDED']}}}))fail('TABLE_OCCUPIED','La mesa ya tiene una cuenta o no está disponible.');
+    }
     const settings = await store.settings(tx, companyId);
     if(session){store.knownCurrency(session);if(session.currency!==settings.currency)fail('CURRENCY_MISMATCH','La sesión abierta y la configuración comercial usan monedas distintas.');}
     await commands.lock(tx, `order-number:${companyId}`);
@@ -23,11 +30,12 @@ export function createPosRecoveryOrders({ commands, store }) {
       taxSnapshot: json({ rate: settings.defaultTaxRate, included: settings.pricesIncludeTax }), stockStatus: 'NOT_APPLIED',
       fulfillmentType: data.fulfillmentType, salesChannel: 'IN_STORE', guestCount: data.experience === 'RETAIL' ? 0 : (data.guestCount ?? 1),
       notes: data.notes, createdById: actorId, waiterId: data.experience==='RETAIL'?null:actorId,
+      customerName:ctx.reservationCustomer?.name??null,customerPhone:ctx.reservationCustomer?.phone??null,
     } });
     if (data.experience === 'RESTAURANT' && data.fulfillmentType === 'DINE_IN') {
       await tx.posGuestSeat.createMany({ data: Array.from({ length: data.guestCount ?? 1 }, (_, i) => ({ orderId: value.id, label: `Comensal ${i + 1}`, position: i + 1 })) });
     }
-    if (data.tableId) await tx.posTable.update({ where: { id: data.tableId }, data: { status: 'OCCUPIED', waiterId: actorId } });
+    if (data.tableId) await tx.posTable.update({ where: { id: data.tableId }, data: { status: 'OCCUPIED', waiterId: actorId,version:{increment:1} } });
     const after = await store.dto(tx, companyId, value.id);
     await commands.audit(tx, { ...ctx, entityType: 'PosOrder', entityId: value.id, action: 'pos.order.create', after });
     return after;
@@ -36,7 +44,7 @@ export function createPosRecoveryOrders({ commands, store }) {
   async function addLine(tx, ctx, data, { orderId }) {
     const value = await store.editOrder(tx, ctx.companyId, orderId, data.expectedVersion);
     if(value.experience==='RETAIL'&&data.guestSeatId)fail('VALIDATION_ERROR','Tienda no utiliza asientos.',400);
-    store.editable(value); store.knownCurrency(value);
+    store.editable(value,{allowSent:true}); store.knownCurrency(value);
     const product = await store.row(tx, 'catalogProduct', ctx.companyId, data.productId, { enabled: true });
     if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'El producto usa otra moneda.');
     if (product.productType === 'VARIABLE' && !data.variantId) fail('VARIANT_REQUIRED', 'Selecciona una variante.');
@@ -57,7 +65,7 @@ export function createPosRecoveryOrders({ commands, store }) {
       orderId, productId: product.id, variantId: variant?.id ?? null, productName: product.name,
       sku: variant?.sku ?? product.sku, variantLabel:commercial.variantLabel, guestSeatId: data.guestSeatId, quantity: data.quantity,
       baseUnitPrice, unitPrice, priceVersion: commercial.priceVersion, taxIncluded: commercial.tax.included,
-      taxRate, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount, note: data.note,
+      taxRate, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount, note: data.note, preparationTracked:true,
     } });
     if (selection.snapshots.length) await tx.posOrderLineModifier.createMany({ data: selection.snapshots.map((s) => ({ ...s, lineId: line.id, companyId: ctx.companyId })) });
     await store.recalculate(tx, value);
@@ -69,9 +77,10 @@ export function createPosRecoveryOrders({ commands, store }) {
   async function changeLine(tx, ctx, data, { orderId, lineId }, mode) {
     const value = await store.editOrder(tx, ctx.companyId, orderId, data.expectedVersion);
     if(value.experience==='RETAIL'&&data.guestSeatId)fail('VALIDATION_ERROR','Tienda no utiliza asientos.',400);
-    store.editable(value); store.knownCurrency(value);
+    store.editable(value,{allowSent:true}); store.knownCurrency(value);
     const before = await tx.posOrderLine.findFirst({ where: { id: lineId, orderId, voided: false } });
     if (!before) fail('NOT_FOUND', 'Línea no encontrada.', 404);
+    if(before.dispatchedAt||before.kitchenStatus!=='PENDING'||(!before.preparationTracked&&['SENT','PARTIALLY_SERVED','SERVED'].includes(value.status))||await tx.posKitchenTicketLine.count({where:{orderLineId:lineId}}))fail('PREPARATION_ALREADY_DISPATCHED','La partida enviada requiere anulación; agrega otra línea para extras.');
     await createPosScopeService({ prisma: tx }).guest(ctx.companyId, orderId, data.guestSeatId);
     if (data.quantity && before.productId) {
       const product = await store.row(tx, 'catalogProduct', ctx.companyId, before.productId);
@@ -100,8 +109,9 @@ export function createPosRecoveryOrders({ commands, store }) {
       fail('REFUND_REQUIRED', 'Tiene pagos aplicados: devuelve el anticipo antes de cancelar.');
     }
     await store.advanceOrder(tx, value, { status: 'CANCELLED', cancelledAt: new Date() });
-    await tx.posKitchenTicketLine.updateMany({ where: { ticket: { orderId, companyId: ctx.companyId }, status: { not: 'DELIVERED' } }, data: { status: 'CANCELLED' } });
-    await tx.posKitchenTicket.updateMany({ where: { orderId, companyId: ctx.companyId, status: { not: 'DELIVERED' } }, data: { status: 'CANCELLED' } });
+    await tx.posKitchenTicketLine.updateMany({ where: { ticket: { orderId, companyId: ctx.companyId }, status: { not: 'DELIVERED' } }, data: { status: 'CANCELLED',version:{increment:1},previousStatus:null } });
+    await tx.posKitchenTicket.updateMany({ where: { orderId, companyId: ctx.companyId, status: { not: 'DELIVERED' } }, data: { status: 'CANCELLED',version:{increment:1} } });
+    await tx.posOrderLine.updateMany({where:{orderId,kitchenStatus:{not:'DELIVERED'}},data:{kitchenStatus:'CANCELLED'}});
     await store.releaseTable(tx, value, 'AVAILABLE');
     const after = await store.dto(tx, ctx.companyId, orderId);
     await commands.audit(tx, { ...ctx, entityType: 'PosOrder', entityId: orderId, action: 'pos.order.cancel', before: value, after, metadata: { reason: data.reason } });

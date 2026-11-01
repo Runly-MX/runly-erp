@@ -1,11 +1,13 @@
 import { amount, decimal, fail, json, money, sum } from './pos-contracts.js';
+import {createPosAllocationsService} from './pos-allocations-service.js';
 
 export function createPosPaymentService({ commands, store }) {
+  const allocations=createPosAllocationsService({commands,store});
   async function payment(tx, ctx, data, { orderId }) {
     const initial = await store.row(tx, 'posOrder', ctx.companyId, orderId);
     if(initial.experience==='RETAIL'&&!data.sessionId)fail('VALIDATION_ERROR','Tienda requiere una sesión de caja explícita; no utiliza un turno de mesero.',400);
     const container = data.sessionId
-      ? await store.session(tx, ctx.companyId, data.sessionId, initial.outletId, initial.terminalId)
+      ? await store.session(tx, ctx.companyId, data.sessionId, initial.outletId, initial.experience==='RESTAURANT'?undefined:initial.terminalId)
       : await store.shift(tx, ctx.companyId, ctx.actorId, initial.outletId);
     const value = await store.order(tx, ctx.companyId, orderId, data.expectedVersion);
     store.knownCurrency(value);
@@ -14,7 +16,7 @@ export function createPosPaymentService({ commands, store }) {
       if (container.currency !== value.currency) fail('CURRENCY_MISMATCH', 'La caja y la orden usan monedas diferentes.');
     }
     if (['PAID','CANCELLED','REFUNDED'].includes(value.status)) fail('INVALID_TRANSITION', 'La orden no admite pagos.');
-    if (data.allocations.length) fail('CONTRACT_NOT_AVAILABLE', 'La atribución por cuenta corresponde a fase 4.');
+    await allocations.validate(tx,value,data.allocations,data.amount);
     const method = await store.row(tx, 'posPaymentMethod', ctx.companyId, data.paymentMethodId, { enabled: true });
     if (!['CASH','CARD','TRANSFER'].includes(method.kind)) fail('VALIDATION_ERROR', 'Método de pago no admitido.', 400);
     if (method.requiresReference && !data.reference) fail('VALIDATION_ERROR', 'El método requiere referencia.', 400);
@@ -38,6 +40,7 @@ export function createPosPaymentService({ commands, store }) {
       sessionId: data.sessionId ?? null, waiterShiftId: data.sessionId ? null : container.id,
       status: 'CAPTURED', createdById: ctx.actorId,
     } });
+    if(data.allocations.length)await allocations.save(tx,value,created.id,data.allocations);
     if (!data.sessionId && cash) await tx.posWaiterShift.update({ where: { id: container.id }, data: { expectedCashAmount: { increment: amount(applied) } } });
     await store.advanceOrder(tx, value, { paidAmount: amount(paidAmount),
       ...(fullyPaid ? { status: 'PAID', paidAt: new Date(), stockStatus: 'APPLIED' } : {}),

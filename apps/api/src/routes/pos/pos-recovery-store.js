@@ -5,6 +5,7 @@ import { amount, commerceDto, decimal, fail, json, lineTotals, money, sum } from
 export function createPosRecoveryStore({ commands, prisma }) {
   const ledger = createCatalogCommerceStock({ prisma });
   async function row(tx, model, companyId, id, extra = {}) {
+    if(!companyId)fail('FORBIDDEN','Empresa requerida.',403);
     const value = await tx[model].findFirst({ where: { id, companyId, ...extra } });
     if (!value) fail('NOT_FOUND', 'Recurso no encontrado en esta empresa.', 404);
     return value;
@@ -23,6 +24,7 @@ export function createPosRecoveryStore({ commands, prisma }) {
 
   async function editOrder(tx, companyId, id, expectedVersion) {
     const initial=await row(tx,'posOrder',companyId,id);
+    await row(tx,'posOutlet',companyId,initial.outletId,{enabled:true});
     // Same lock order as payments/close: container before order.
     if(initial.experience==='RETAIL'){
       if(!initial.sessionId||!initial.terminalId)fail('CONFIGURATION_REQUIRED','La orden histórica no tiene contexto de caja verificable.');
@@ -33,10 +35,10 @@ export function createPosRecoveryStore({ commands, prisma }) {
     return order(tx,companyId,id,expectedVersion);
   }
 
-  function editable(value) {
+  function editable(value,{allowSent=false}={}) {
     if (['PAID', 'CANCELLED', 'REFUNDED'].includes(value.status)) fail('INVALID_TRANSITION', 'La orden no admite esta operación.');
     if (decimal(value.paidAmount).minus(value.refundedAmount).gt(0)) fail('REFUND_REQUIRED', 'Devuelve los pagos antes de editar el consumo.');
-    if (['SENT', 'PARTIALLY_SERVED', 'SERVED'].includes(value.status)) fail('INVALID_TRANSITION', 'El consumo enviado requiere anulación de preparación.');
+    if (!allowSent&&['SENT', 'PARTIALLY_SERVED', 'SERVED'].includes(value.status)) fail('INVALID_TRANSITION', 'El consumo enviado requiere anulación de preparación.');
   }
 
   async function settings(tx, companyId) {
@@ -81,7 +83,8 @@ export function createPosRecoveryStore({ commands, prisma }) {
     const remaining = ['PAID','CANCELLED','REFUNDED'].includes(value.status) ? decimal(0) : decimal(value.totalAmount).minus(net);
     const table = value.tableId ? await tx.posTable.findFirst({ where: { id: value.tableId, companyId } }) : null;
     const waiter = value.waiterId ? await tx.userProfile.findUnique({ where: { id: value.waiterId }, select: { displayName: true } }) : null;
-    return commerceDto({ ...value, lines, guests, payments, refunds, table, waiterName: waiter?.displayName ?? null,
+    const dispatches=await tx.posKitchenDispatch.findMany({where:{companyId,orderId:id},orderBy:{sequence:'asc'}});
+    return commerceDto({ ...value, lines, guests, payments, refunds, table, dispatches, waiterName: waiter?.displayName ?? null,
       receipts:receipts.map(({id,receiptNumber,kind,createdAt})=>({id,receiptNumber,kind,createdAt})),
       historicalCurrencyUnknown: !value.currency,
       refundedAmount: amount(value.refundedAmount), netPaidAmount: amount(net), remainingAmount: amount(remaining),
@@ -125,7 +128,7 @@ export function createPosRecoveryStore({ commands, prisma }) {
     await tx.$queryRaw`SELECT id FROM pos_table WHERE id = ${value.tableId}::uuid AND company_id = ${value.companyId}::uuid FOR UPDATE`;
     const other = await tx.posOrder.count({ where: { companyId: value.companyId, tableId: value.tableId,
       id: { not: value.id }, status: { notIn: ['PAID','CANCELLED','REFUNDED'] } } });
-    if (!other) await tx.posTable.updateMany({ where: { id: value.tableId, companyId: value.companyId }, data: { status } });
+    if (!other) await tx.posTable.updateMany({ where: { id: value.tableId, companyId: value.companyId }, data: { status,waiterId:null,version:{increment:1} } });
   }
 
   async function assertAvailable(tx, companyId, productId, variantId, outletId) {

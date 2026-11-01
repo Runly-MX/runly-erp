@@ -4,8 +4,10 @@ import {
   writeAudit,
 } from "./service-helpers.js";
 import { createPosScopeService } from './pos-scope-service.js';
+import {createPosCommandService} from './pos-command-service.js';
 
 export function createPosReservationService({ prisma }) {
+  const commands=createPosCommandService({prisma});
   async function listReservations({ companyId, outletId, date, status }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const where = { companyId: scopedCompanyId };
@@ -47,6 +49,11 @@ export function createPosReservationService({ prisma }) {
     }
 
     const reservation = await prisma.$transaction(async (tx) => {
+      if(data.tableId){
+        await tx.$queryRaw`SELECT id FROM pos_table WHERE id=${data.tableId}::uuid AND company_id=${scopedCompanyId}::uuid FOR UPDATE`;
+        const table=await createPosScopeService({prisma:tx}).table(scopedCompanyId,data.outletId,data.tableId);
+        if(table.status!=='AVAILABLE')throw new PosServiceError('La mesa ya no está disponible para reservar.',409);
+      }
       const reservation = await tx.posReservation.create({
         data: {
           companyId: scopedCompanyId,
@@ -67,19 +74,12 @@ export function createPosReservationService({ prisma }) {
       if (data.tableId) {
         await tx.posTable.update({
           where: { id: data.tableId },
-          data: { status: "RESERVED" },
+          data: { status: "RESERVED",version:{increment:1} },
         });
       }
 
+      await commands.audit(tx,{companyId:scopedCompanyId,actorId,entityType:'PosReservation',entityId:reservation.id,action:'pos.reservation.create',after:reservation});
       return reservation;
-    });
-
-    await writeAudit(prisma, {
-      actorId,
-      entityType: "PosReservation",
-      entityId: reservation.id,
-      action: "pos.reservation.create",
-      after: reservation,
     });
 
     return reservation;
@@ -87,6 +87,7 @@ export function createPosReservationService({ prisma }) {
 
   async function updateReservation({ companyId, actorId, id, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    if(data.status==='SEATED')throw new PosServiceError('Atiende la reserva mediante el comando C6 para crear una cuenta consistente.',409);
     const existing = await prisma.posReservation.findFirst({
       where: { id, companyId: scopedCompanyId },
     });
@@ -108,6 +109,9 @@ export function createPosReservationService({ prisma }) {
     }
 
     const reservation = await prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`SELECT id FROM pos_reservation WHERE id=${id}::uuid AND company_id=${scopedCompanyId}::uuid FOR UPDATE`;
+      const fresh=await tx.posReservation.findFirst({where:{id,companyId:scopedCompanyId}});
+      if(!fresh||['SEATED','CANCELLED'].includes(fresh.status))throw new PosServiceError('La reserva cambió y ya no se puede editar.',409);
       const updated = await tx.posReservation.update({
         where: { id },
         data: updateData,
@@ -129,21 +133,13 @@ export function createPosReservationService({ prisma }) {
         if (activeOrders === 0) {
           await tx.posTable.update({
             where: { id: existing.tableId },
-            data: { status: "AVAILABLE" },
+            data: { status: "AVAILABLE",version:{increment:1} },
           });
         }
       }
 
+      await commands.audit(tx,{companyId:scopedCompanyId,actorId,entityType:'PosReservation',entityId:id,action:'pos.reservation.update',before:fresh,after:updated});
       return updated;
-    });
-
-    await writeAudit(prisma, {
-      actorId,
-      entityType: "PosReservation",
-      entityId: id,
-      action: "pos.reservation.update",
-      before: existing,
-      after: reservation,
     });
 
     return reservation;

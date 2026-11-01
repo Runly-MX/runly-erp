@@ -1,4 +1,5 @@
 import { PosServiceError, requireCompanyId, writeAudit } from "./service-helpers.js";
+import {createPosScopeService} from './pos-scope-service.js';
 
 function cleanData(data = {}) {
   return Object.fromEntries(
@@ -48,6 +49,7 @@ export function createPosKitchenService({ prisma }) {
 
   async function createStation({ companyId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    await createPosScopeService({prisma}).outlet(scopedCompanyId,data.outletId);
     const station = await prisma.posKitchenStation.create({
       data: {
         companyId: scopedCompanyId,
@@ -70,6 +72,7 @@ export function createPosKitchenService({ prisma }) {
       where: { id: stationId, companyId: scopedCompanyId },
     });
     if (!before) throw new PosServiceError("Estacion POS no encontrada.", 404);
+    if(data.outletId&&data.outletId!==before.outletId)throw new PosServiceError('La estación conserva su sucursal; crea otra para una sucursal diferente.',409);
     const updated = await prisma.posKitchenStation.update({
       where: { id: stationId },
       data: cleanData(data),

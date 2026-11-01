@@ -3259,6 +3259,8 @@ model PosOrder {
 }
 
 model PosOrderLine {
+  dispatchedAt DateTime? @map("dispatched_at")
+  preparationTracked Boolean @default(false) @map("preparation_tracked")
   variantLabel String? @map("variant_label")
   baseUnitPrice Decimal? @db.Decimal(12, 2) @map("base_unit_price")
   taxIncluded Boolean? @map("tax_included")
@@ -3389,9 +3391,11 @@ model PosFloorZone {
 }
 
 model PosTable {
+  outletId  String?        @db.Uuid @map("outlet_id")
+  version   Int            @default(1)
   id        String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String         @db.Uuid @map("company_id")
-  floorId   String         @db.Uuid @map("floor_id")
+  floorId   String?        @db.Uuid @map("floor_id")
   zoneId    String?        @db.Uuid @map("zone_id")
   name      String
   capacity  Int            @default(2)
@@ -3401,7 +3405,7 @@ model PosTable {
   createdAt DateTime       @default(now()) @map("created_at")
   updatedAt DateTime       @updatedAt @map("updated_at")
 
-  floor        PosFloor       @relation(fields: [floorId], references: [id], onDelete: Cascade)
+  floor        PosFloor?      @relation(fields: [floorId], references: [id], onDelete: Cascade)
   zone         PosFloorZone?  @relation(fields: [zoneId], references: [id], onDelete: SetNull)
   orders       PosOrder[]
   reservations PosReservation[]
@@ -3481,6 +3485,8 @@ model PosKitchenStation {
 }
 
 model PosKitchenTicket {
+  dispatchId  String?          @db.Uuid @map("dispatch_id")
+  version     Int              @default(1)
   id          String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId   String           @db.Uuid @map("company_id")
   orderId     String           @db.Uuid @map("order_id")
@@ -3500,6 +3506,11 @@ model PosKitchenTicket {
 }
 
 model PosKitchenTicketLine {
+  version     Int              @default(1)
+  snapshot    Json?
+  previousStatus PosKitchenStatus? @map("previous_status")
+  transitionAt DateTime?       @map("transition_at")
+  transitionById String?       @db.Uuid @map("transition_by_id")
   id          String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   ticketId    String           @db.Uuid @map("ticket_id")
   orderLineId String           @db.Uuid @map("order_line_id")
@@ -3601,7 +3612,8 @@ model PosReceipt {
 model PosPrintJob {
   id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId String @map("company_id") @db.Uuid
-  receiptId String @map("receipt_id") @db.Uuid
+  receiptId String? @map("receipt_id") @db.Uuid
+  ticketId String? @map("ticket_id") @db.Uuid
   outletId String @map("outlet_id") @db.Uuid
   createdById String @map("created_by_id") @db.Uuid
   transport String
@@ -3614,6 +3626,30 @@ model PosPrintJob {
   finishedAt DateTime? @map("finished_at")
   @@index([companyId,receiptId,createdAt])
   @@map("pos_print_job")
+}
+
+model PosKitchenDispatch {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  orderId String @db.Uuid @map("order_id")
+  sequence Int
+  snapshot Json
+  dispatchedAt DateTime @default(now()) @map("dispatched_at")
+  @@unique([orderId,sequence])
+  @@index([companyId,orderId])
+  @@map("pos_kitchen_dispatch")
+}
+
+model PosPaymentAllocation {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  orderId String @db.Uuid @map("order_id")
+  paymentId String @db.Uuid @map("payment_id")
+  orderLineId String @db.Uuid @map("order_line_id")
+  amount Decimal @db.Decimal(12,2)
+  @@unique([paymentId,orderLineId])
+  @@index([companyId,orderId])
+  @@map("pos_payment_allocation")
 }
 
 model SyncCursor {

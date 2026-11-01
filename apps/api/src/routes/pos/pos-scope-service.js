@@ -28,7 +28,7 @@ export function createPosScopeService({ prisma }) {
   }
 
   async function table(companyId, outletId, tableId) {
-    return find('posTable', companyId, tableId, { floor: { companyId, outletId } });
+    return find('posTable', companyId, tableId, { OR:[{outletId},{floor:{companyId,outletId}}] });
   }
 
   async function zone(companyId, floorId, zoneId) {

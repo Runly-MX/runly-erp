@@ -92,6 +92,29 @@ try {
   assert.equal(sql("SELECT has_table_privilege('anon','pos_print_job','SELECT') OR has_table_privilege('authenticated','pos_print_job','INSERT')").trim(),'f');
   console.log('PASS phase 3 migration: print attempts have RLS and no public client grants; no receipt history rewritten.');
 
+  sql(`WITH o AS (INSERT INTO pos_outlet(company_id,name,updated_at) VALUES(uuidv7(),'Legacy restaurant',now()) RETURNING *),
+    f AS (INSERT INTO pos_floor(company_id,outlet_id,name,updated_at) SELECT company_id,id,'Legacy floor',now() FROM o RETURNING *)
+    INSERT INTO pos_table(company_id,floor_id,name,updated_at) SELECT company_id,id,'Legacy table',now() FROM f`);
+  const tableBefore=sql("SELECT id::text||floor_id::text||name FROM pos_table WHERE name='Legacy table'");
+  sql(`INSERT INTO pos_reservation(company_id,outlet_id,table_id,guest_name,scheduled_at,created_by_id,updated_at)
+    SELECT t.company_id,f.outlet_id,t.id,'Legacy guest',now(),uuidv7(),now() FROM pos_table t JOIN pos_floor f ON f.id=t.floor_id WHERE t.name='Legacy table';
+    INSERT INTO pos_floor_element(floor_id,table_id,kind,x,y,width,height,updated_at)
+    SELECT floor_id,id,'TABLE_ROUND',12,24,100,100,now() FROM pos_table WHERE name='Legacy table'`);
+  const reservationBefore=sql('SELECT row_to_json(r)::text FROM pos_reservation r');
+  const layoutBefore=sql('SELECT row_to_json(e)::text FROM pos_floor_element e');
+  apply(resolve(root,'prisma/migrations/20261101233000_commerce_restaurant/migration.sql'));
+  assert.equal(sql("SELECT id::text||floor_id::text||name FROM pos_table WHERE name='Legacy table'"),tableBefore);
+  assert.equal(sql('SELECT count(*) FROM pos_table t JOIN pos_floor f ON f.id=t.floor_id WHERE t.outlet_id=f.outlet_id').trim(),'1');
+  assert.equal(sql('SELECT count(*) FROM pos_kitchen_dispatch').trim(),'0');
+  assert.equal(sql('SELECT count(*) FROM pos_payment_allocation').trim(),'0');
+  assert.equal(sql('SELECT row_to_json(r)::text FROM pos_reservation r'),reservationBefore);
+  assert.equal(sql('SELECT row_to_json(e)::text FROM pos_floor_element e'),layoutBefore);
+  assert.equal(sql("SELECT count(*) FROM pg_class WHERE relname IN ('pos_kitchen_dispatch','pos_payment_allocation') AND relrowsecurity").trim(),'2');
+  assert.equal(sql("SELECT has_table_privilege('anon','pos_kitchen_dispatch','SELECT') OR has_table_privilege('authenticated','pos_payment_allocation','INSERT')").trim(),'f');
+  assert.equal(sql("SELECT count(*) FROM pg_class WHERE relname IN ('pos_table','pos_kitchen_station','pos_kitchen_ticket','pos_kitchen_ticket_line') AND relrowsecurity").trim(),'4');
+  assert.equal(sql("SELECT has_table_privilege('anon','pos_kitchen_ticket','UPDATE') OR has_table_privilege('authenticated','pos_table','SELECT')").trim(),'f');
+  console.log('PASS phase 4 migration: tables, reservations and planner geometry preserved; outlet derived from its floor; no fabricated dispatches/allocations; new and legacy preparation tables have RLS and no public-client grants.');
+
   const files = ['apps/api/src/routes/pos/__tests__','apps/api/src/routes/catalog/__tests__']
     .flatMap((folder) => readdirSync(resolve(root,folder)).filter((f)=>f.endsWith('.test.js')).map((f)=>`${folder}/${f}`));
   files.push('apps/api/src/manifests/official/__tests__/runly-pos-contract.test.js',

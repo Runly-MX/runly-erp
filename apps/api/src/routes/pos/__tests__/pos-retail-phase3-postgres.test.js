@@ -178,7 +178,7 @@ describe('Retail phase 3: real API, SDK, receipts and print attempts',{skip:!url
     assert.equal(await db.posPrintJob.count({where:{companyId:f.company.id}}),0);
     assert.equal(await db.posCommand.count({where:{companyId:f.company.id,key:attempt}}),0);
     const job=await createPosReceiptService({prisma:db}).create(ctx,paid.receiptId,{transport:'BROWSER'},attempt);
-    const resultKey=key();await assert.rejects(service.result(ctx,job.jobId,{status:'FAILED'},resultKey),/print-audit-failure/);
+    const resultKey=key();await assert.rejects(service.result(ctx,job.jobId,{status:'FAILED'},resultKey,{permissionSet:new Set(['pos.caja.operate'])}),/print-audit-failure/);
     assert.equal((await db.posPrintJob.findUnique({where:{id:job.jobId}})).status,'QUEUED');
     assert.equal(await db.posPayment.count({where:{orderId:o.id}}),1);
     const oldCopy=await db.posReceipt.create({data:{companyId:f.company.id,orderId:o.id,receiptNumber:3,kind:'REPRINT',printedCount:1,payload:paid.order}});
