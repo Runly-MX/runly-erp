@@ -20,6 +20,17 @@
 }
 
 /*
+ * atlas-web-builder <= 0.2.4: the image-bg HeroBlock forces white text but its
+ * secondary CTA keeps the theme fg color, so it is invisible on the dark background.
+ * The image-bg section is the only hero variant with position: relative. Fixed
+ * upstream (HeroBlock renderCtaGroup(onDark)); drop this once runly ships that release.
+ */
+[data-atlas-theme] section[style*='position: relative'] a[style*='--atlas-color-fg'] {
+  color: #fff !important;
+  border-color: rgba(255, 255, 255, 0.6) !important;
+}
+
+/*
  * Interaction states for rendered website pages (public site and template preview).
  * Blocks style themselves with inline styles, which cannot express :hover, so the
  * states live here, scoped to .runly-site. Buttons are the anchors that carry their
