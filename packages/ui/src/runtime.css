@@ -201,6 +201,25 @@ html {
   .app-shell-root .safe-bottom {
     padding-bottom: var(--content-safe-bottom, 0px);
   }
+  /* iOS 26 home-screen apps with viewport-fit=cover + black-translucent get a
+     viewport short by the status bar height (WebKit bug 301108): 100dvh,
+     innerHeight and fixed bottom:0 all stop above the screen edge. --vp-gap is
+     that shortfall (0 where the bug is absent, since 100lvh caps it); the shell
+     grows by it and bottom-pinned overlays shift down by it. */
+  :root {
+    --vp-gap: 0px;
+  }
+  @media (display-mode: standalone) {
+    :root {
+      --vp-gap: calc(min(100lvh, calc(100dvh + var(--sat))) - 100dvh);
+    }
+    html {
+      min-height: min(100lvh, calc(100% + var(--sat)));
+    }
+    html .app-shell-root {
+      height: calc(100dvh + var(--vp-gap));
+    }
+  }
   @media (min-width: 1024px) {
     .app-shell-root[data-shell-footer="true"] {
       --shell-footer-height: 3rem;

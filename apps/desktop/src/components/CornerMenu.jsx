@@ -222,6 +222,7 @@ export function CornerMenu() {
           )}
           style={{
             zIndex: Z_CORNER,
+            bottom: "calc(-1 * var(--vp-gap, 0px))",
             paddingRight: "var(--sar)",
             paddingBottom: "var(--sab)",
           }}

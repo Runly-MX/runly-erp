@@ -172,7 +172,7 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
   return (
     // The grid fills the space left by the toolbar and runs to the real bottom edge
     // (the home indicator floats over it); it only scrolls on very short screens.
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[calc(0.375rem+var(--content-safe-bottom,0px))]">
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
       <div
         key={start}
         onPointerDown={onGridPointerDown}
