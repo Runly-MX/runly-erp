@@ -1,6 +1,8 @@
 import { Hono } from 'hono'
 import { createSyncService, SyncServiceError } from '../services/sync-service.js'
 import { createSyncPushService } from '../services/sync-push-service.js'
+import { createCatalogSyncWriteService } from './catalog/catalog-sync-write-service.js'
+import { id as catalogId } from './catalog/commerce-contracts.js'
 
 // resolveTenantContext: the same X-Runly-Company-Id-validating resolver
 // requirePermission/requireAnyPermission use, injected rather than imported
@@ -11,10 +13,11 @@ import { createSyncPushService } from '../services/sync-push-service.js'
 // know exactly which company it's syncing — unlike a bootstrap endpoint,
 // there's no safe "ambiguous" default for a multi-company user's offline data.
 // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
-export function createSyncRouter({ prisma, getUserContext, resolveTenantContext }) {
+export function createSyncRouter({ prisma, getUserContext, resolveTenantContext, catalogWriteService }) {
   const app = new Hono()
   const service = createSyncService({ prisma })
   const pushService = createSyncPushService({ prisma })
+  const catalogWrites = catalogWriteService ?? createCatalogSyncWriteService({prisma})
 
   function handleError(c, err, scope) {
     if (err instanceof SyncServiceError) {
@@ -31,7 +34,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
     }
     const resolved = await resolveTenantContext(c, context)
     if (!resolved.ok) return { error: resolved.response }
-    return { companyId: resolved.tenant.companyId, tenant: resolved.tenant }
+    return { companyId: resolved.tenant.companyId, tenant: resolved.tenant, actorId:context.profile.id }
   }
 
   // GET /sync/pull?modules=runly.contacts,runly.hr&cursor=ISO-timestamp
@@ -70,7 +73,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
   app.post('/sync/push', async (c) => {
     try {
       const authUserId = c.get('authUserId')
-      const { companyId, error, tenant } = await resolveCompanyId(c)
+      const { companyId, error, tenant, actorId } = await resolveCompanyId(c)
       if (error) return error
       const body = await c.req.json()
       const mutations = Array.isArray(body?.mutations) ? body.mutations : []
@@ -86,6 +89,22 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
           if (!allowed || forbiddenFields) {
             results[index] = { idempotencyKey: mutation.idempotencyKey, status: 'PERMISSION_DENIED', record: null }
             continue
+          }
+          if(mutation.entityType==='product'){
+            // Preserve pre-existing replay records; new writes use atomic commands.
+            const legacy=catalogId.safeParse(mutation.idempotencyKey).success
+              ? await prisma.syncMutationLog.findUnique({where:{idempotencyKey:mutation.idempotencyKey}}) : null
+            if(!legacy){
+              try{
+                const record=await catalogWrites.apply({companyId,actorId},mutation)
+                results[index]={idempotencyKey:mutation.idempotencyKey,status:'OK',record}
+              }catch(err){
+                const conflict=err.code==='CATALOG_VERSION_CONFLICT'
+                const record=conflict?await prisma.catalogProduct.findFirst({where:{id:mutation.recordId,companyId}}):null
+                results[index]={idempotencyKey:mutation.idempotencyKey,status:conflict?'CONFLICT':'ERROR',code:err.code??'VALIDATION_ERROR',record}
+              }
+              continue
+            }
           }
         }
         accepted.push(mutation); positions.push(index)

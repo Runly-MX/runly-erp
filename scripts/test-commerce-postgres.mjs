@@ -80,11 +80,14 @@ try {
   assert.equal(sql("SELECT count(*) FROM catalog_stock_balance WHERE outlet_id IS NOT NULL").trim(),'0');
   console.log('PASS phase 2 migration: historical stock stays unallocated, repeat initialization preserves units and movement history.');
 
+  apply(resolve(root,'prisma/migrations/20261101210000_catalog_write_integrity/migration.sql'));
+
   const files = ['apps/api/src/routes/pos/__tests__','apps/api/src/routes/catalog/__tests__']
     .flatMap((folder) => readdirSync(resolve(root,folder)).filter((f)=>f.endsWith('.test.js')).map((f)=>`${folder}/${f}`));
   files.push('apps/api/src/manifests/official/__tests__/runly-pos-contract.test.js',
     'apps/api/src/routes/__tests__/commerce-sync-guard.test.js','apps/api/src/services/__tests__/sync-push-service.test.js',
     'packages/sdk/src/__tests__/pos-recovery.test.js',
+    'packages/sdk/src/__tests__/catalog-integrity.test.js',
     'apps/desktop/src/modules/runly.pos/lib/plannerObjects.test.js','apps/desktop/src/modules/runly.pos/lib/floorObjects.test.js');
   const result=spawnSync(process.execPath,['--test','--test-reporter=spec',...files],{cwd:root,env,stdio:'inherit'});
   if(result.status!==0)throw new Error('Falló la suite Commerce.');

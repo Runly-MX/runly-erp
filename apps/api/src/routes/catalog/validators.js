@@ -10,7 +10,10 @@ export const createCategorySchema = z.object({
   position:       z.number().int().min(0).default(0),
 })
 
-export const updateCategorySchema = createCategorySchema.partial()
+export const updateCategorySchema = z.object({
+  ...createCategorySchema.shape,
+  position: z.number().int().min(0),
+}).partial().strict()
 
 export const createProductSchema = z.object({
   name:             z.string().min(1).max(200),
@@ -53,6 +56,7 @@ export const updateProductSchema = z.object({
   meta_title:       z.string().max(160).optional().nullable(),
   meta_description: z.string().max(320).optional().nullable(),
   published:        z.boolean(),
+  expectedVersion:  z.number().int().positive().optional(),
 }).partial().strict()
 
 export const createOptionSchema = z.object({
@@ -77,7 +81,17 @@ export const createVariantSchema = z.object({
   cover_asset_id: z.string().uuid().optional().nullable(),
 })
 
-export const updateVariantSchema = createVariantSchema.omit({ stock: true }).partial().strict()
+// PATCH must never inherit creation defaults: Zod 4 evaluates defaults even
+// inside optional properties. An absent field must stay absent.
+export const updateVariantSchema = z.object({
+  option_values: z.record(z.string(), z.string()),
+  sku: z.string().max(100).nullable(),
+  barcode: z.string().max(100).nullable(),
+  price: z.number().min(0).nullable(),
+  compare_price: z.number().min(0).nullable(),
+  cover_asset_id: z.string().uuid().nullable(),
+  expectedVersion: z.number().int().positive(),
+}).partial().strict()
 
 export const createStockMovementSchema = z.object({
   variant_id:     z.string().uuid().optional().nullable(),

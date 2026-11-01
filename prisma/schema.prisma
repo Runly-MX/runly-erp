@@ -2911,6 +2911,7 @@ model CatalogCategory {
 }
 
 model CatalogProduct {
+  revision Int @default(1)
   posEnabled Boolean @default(true) @map("pos_enabled")
   commercialTaxRate Decimal? @db.Decimal(8, 4) @map("commercial_tax_rate")
   commercialTaxIncluded Boolean? @map("commercial_tax_included")
@@ -2983,6 +2984,7 @@ model CatalogProductOptionValue {
 }
 
 model CatalogProductVariant {
+  revision Int @default(1)
   priceInherited Boolean @default(false) @map("price_inherited")
   priceVersion Int @default(1) @map("price_version")
   id            String   @id @default(uuid(7)) @db.Uuid

@@ -47,26 +47,24 @@ export default function VariantGrid({ product, productId, token, canUpdate, disa
 
   const save = useMutation({
     mutationFn: async ({ variant, row }) => {
-      // PATCH /variants parses with a partial schema that still applies the
-      // create defaults (option_values {} and price 0) to omitted fields, so
-      // every write restates the current combination and price policy.
-      const data = { option_values: variant.option_values ?? {}, price: row.inherit ? null : Number(row.price) || 0 }
+      const data = {}
+      if (row.inherit !== Boolean(variant.price_inherited) || (!row.inherit && Number(row.price) !== Number(variant.price))) data.price = row.inherit ? null : Number(row.price)
       if ((row.sku.trim() || null) !== (variant.sku ?? null)) data.sku = row.sku.trim() || null
       if ((row.barcode.trim() || null) !== (variant.barcode ?? null)) data.barcode = row.barcode.trim() || null
-      return runly.catalog.updateVariant(productId, variant.id, data, token)
+      return runly.catalog.updateVariant(productId, variant.id, data, token, {expectedVersion:variant.revision})
     },
     onSuccess: (_, { variant }) => {
       setEdits((prev) => { const next = { ...prev }; delete next[variant.id]; return next })
       setWarnings((prev) => { const next = { ...prev }; delete next[variant.id]; return next })
       refresh(); toast.success('Variante guardada')
     },
-    onError: (err) => toast.error(classifyCommerceError(err).message),
+    onError: (err) => { if(err.code==='CATALOG_VERSION_CONFLICT')refresh(); toast.error(classifyCommerceError(err).message) },
   })
 
   const bulk = useMutation({
     mutationFn: async ({ action, ids }) => {
       const call = action === 'inherit'
-        ? (id) => runly.catalog.updateVariant(productId, id, { price: null, option_values: variants.find((v) => v.id === id)?.option_values ?? {} }, token)
+        ? (id) => runly.catalog.updateVariant(productId, id, { price: null }, token, {expectedVersion:variants.find((v)=>v.id===id)?.revision})
         : (id) => runly.catalog.deleteVariant(productId, id, token)
       const results = await Promise.allSettled(ids.map(call))
       const failed = results.filter((r) => r.status === 'rejected').length

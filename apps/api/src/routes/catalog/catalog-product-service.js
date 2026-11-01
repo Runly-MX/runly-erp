@@ -368,16 +368,17 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     if(rows.length!==ids.length)throw new CatalogRefError('La imagen no pertenece a la empresa actual.');
   }
 
-  async function createProduct({ companyId, data }) {
+  async function createProduct({ companyId, data, id = null }) {
     await assertAssets(companyId,data);
     await assertRowInCompany('catalog_category', data.category_id, companyId, 'La categoria')
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_product
-        (company_id, category_id, product_type, name, slug, description,
+        (id, company_id, category_id, product_type, name, slug, description,
          sku, barcode, price, compare_price, currency, weight,
          stock, track_stock, attributes, cover_asset_id, images,
          meta_title, meta_description, published)
       VALUES (
+        COALESCE(${id}::uuid, uuidv7()),
         ${companyId}::uuid,
         ${data.category_id ?? null}::uuid,
         ${data.product_type ?? 'SIMPLE'},

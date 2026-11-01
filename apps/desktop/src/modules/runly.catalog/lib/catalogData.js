@@ -16,13 +16,11 @@ export function useCatalogAccess() {
   }
 }
 
-// Enabled outlets. GET /pos/outlets needs a POS operation permission; a
-// catalog-only user gets `forbidden` and the screens explain it instead of
-// guessing an outlet.
+// Company-scoped read projection, authorized by catalog.products.read.
 export function useCatalogOutlets(token) {
   const query = useQuery({
     queryKey: ['catalog-outlets', token],
-    queryFn: () => runly.pos.listOutlets(token),
+    queryFn: () => runly.catalogCommerce.outlets(token),
     enabled: Boolean(token),
     staleTime: 60_000,
     retry: (count, error) => ![401, 403].includes(error?.status) && count < 2,
@@ -41,7 +39,7 @@ export function useCatalogOutlets(token) {
 export function usePosDefaults(token) {
   const query = useQuery({
     queryKey: ['catalog-pos-defaults', token],
-    queryFn: () => runly.pos.getSettings(token),
+    queryFn: () => runly.catalogCommerce.defaults(token),
     enabled: Boolean(token),
     staleTime: 5 * 60_000,
     retry: false,

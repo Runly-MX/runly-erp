@@ -22,6 +22,14 @@ export function createCommerceCatalogRoutes({prisma,requirePermission,requireAny
   const pos=()=>any(['pos.terminal.use','pos.caja.read','pos.caja.operate','pos.comandas.read','pos.comandas.create']);
   const ctx=(c)=>({companyId:getCompanyId(c),actorId:getActorId(c)}),pid=(c)=>parse(id,c.req.param('id'));
   const handle=(fn)=>async(c)=>{try{return await fn(c);}catch(e){return c.json({error:{code:e instanceof CommerceError?e.code:'INTERNAL_ERROR',message:e instanceof CommerceError?e.message:'No se pudo completar la operación.'},requestId:c.get('requestId')??`catalog-${Date.now().toString(36)}`},e instanceof CommerceError?e.status:500);}};
+  // Catalog grants only these scoped read projections, never POS administration.
+  app.get('/catalog/outlets',permission('catalog.products.read'),handle(async(c)=>c.json({data:await prisma.posOutlet.findMany({where:{companyId:getCompanyId(c),enabled:true},select:{id:true,name:true,mode:true},orderBy:[{name:'asc'},{id:'asc'}]})})));
+  app.get('/catalog/commercial-defaults',permission('catalog.products.read'),handle(async(c)=>{
+    const row=await prisma.posSettings.findUnique({where:{companyId:getCompanyId(c)},select:{currency:true,defaultTaxRate:true,pricesIncludeTax:true}});
+    return c.json({data:row?{...row,defaultTaxRate:row.defaultTaxRate.toFixed(4)}:null});
+  }));
+  app.get('/catalog/sellables',permission('catalog.products.read'),handle(async(c)=>c.json(await sellables.list(getCompanyId(c),parse(sellablesQuery,c.req.query())))));
+  app.get('/catalog/sellables/:id/variants',permission('catalog.products.read'),handle(async(c)=>c.json({data:await sellables.variants(getCompanyId(c),pid(c),parse(outletQuery,c.req.query()).outletId)})));
   app.get('/pos/v2/sellables',pos(),handle(async(c)=>c.json(await sellables.list(getCompanyId(c),parse(sellablesQuery,c.req.query())))));
   app.get('/pos/v2/categories',pos(),handle(async(c)=>c.json({data:await sellables.categories(getCompanyId(c),parse(outletQuery,c.req.query()).outletId)})));
   app.get('/pos/v2/sellables/:id/variants',pos(),handle(async(c)=>c.json({data:await sellables.variants(getCompanyId(c),pid(c),parse(outletQuery,c.req.query()).outletId)})));

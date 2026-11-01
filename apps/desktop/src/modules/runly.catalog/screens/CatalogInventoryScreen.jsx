@@ -46,7 +46,7 @@ export default function CatalogInventoryScreen() {
 
   const query = useQuery({
     queryKey: ['catalog-outlet-stock', validOutlet, token, debounced, categoryId, page],
-    queryFn: () => runly.commerce.sellables({ outletId: validOutlet, search: debounced || undefined, categoryId: categoryId === ALL ? undefined : categoryId, page, pageSize: PAGE_SIZE }, token),
+    queryFn: () => runly.catalogCommerce.sellables({ outletId: validOutlet, search: debounced || undefined, categoryId: categoryId === ALL ? undefined : categoryId, page, pageSize: PAGE_SIZE }, token),
     enabled: Boolean(token && validOutlet),
     placeholderData: keepPreviousData,
     staleTime: 10_000,
@@ -165,7 +165,7 @@ function StockCells({ item, onAction, label }) {
 function SellableRow({ item, token, outletId, expanded, onToggle, onOpen, onAction }) {
   const variantsQuery = useQuery({
     queryKey: ['catalog-outlet-stock', item.productId, 'variants', outletId, token],
-    queryFn: () => runly.commerce.variants(item.productId, { outletId }, token),
+    queryFn: () => runly.catalogCommerce.variants(item.productId, { outletId }, token),
     enabled: Boolean(expanded && item.requiresVariant),
     staleTime: 10_000,
   })

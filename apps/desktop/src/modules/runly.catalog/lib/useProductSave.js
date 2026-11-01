@@ -13,20 +13,18 @@ export const FIELD_LABELS = {
   meta_description: 'Descripción para buscadores', product_type: 'Tipo', cover_asset_id: 'Imagen', images: 'Imágenes',
 }
 
-// Legacy PATCH /catalog/products/:id has no version. Before writing, the
-// fields this form changed are compared with a fresh read: if someone else
-// changed one of them since the form loaded, the user decides.
+// Field conflict UX plus an atomic server revision check closes the read/write gap.
 export function useProductSave({ productId, token }) {
   const queryClient = useQueryClient()
   const [conflict, setConflict] = useState(null)
   const mutation = useMutation({
     mutationFn: async ({ data, base, force = false }) => {
+      const fresh = (await runly.catalog.getProduct(productId, token)).data
       if (!force && base) {
-        const fresh = (await runly.catalog.getProduct(productId, token)).data
         const fields = detectFieldConflicts(base, fresh, data, Object.keys(data))
         if (fields.length) throw Object.assign(new Error('conflict'), { conflictFields: fields, pending: { data, base } })
       }
-      return (await runly.catalog.updateProduct(productId, data, token)).data
+      return (await runly.catalog.updateProduct(productId, data, token, {expectedVersion:fresh.revision})).data
     },
     onSuccess: (row, variables) => {
       setConflict(null)
@@ -37,6 +35,9 @@ export function useProductSave({ productId, token }) {
       toast.success(variables.successMessage ?? 'Cambios guardados')
     },
     onError: (error, variables) => {
+      if (error.code === 'CATALOG_VERSION_CONFLICT') {
+        setConflict({fields:Object.keys(variables.data),pending:variables}); return
+      }
       if (error.conflictFields) {
         setConflict({ fields: error.conflictFields, pending: { ...error.pending, onSaved: variables.onSaved, successMessage: variables.successMessage } })
         return

@@ -6,6 +6,7 @@ test('catalog price writes through sync require explicit CRUD permission for bot
   for (const moduleKey of ['runly.catalog','atlas.catalog']) {
     let writes=0;
     const app=createSyncRouter({
+      catalogWriteService:{apply:async(_ctx,mutation)=>{writes++;return{id:'product',companyId:'company',...mutation.payload}}},
       prisma:{userProfile:{findUnique:async()=>({id:'actor'})},syncMutationLog:{findUnique:async()=>null,create:async()=>({})},
         catalogProduct:{findUnique:async()=>({id:'product',companyId:'company'}),update:async({data})=>{writes++;return{id:'product',companyId:'company',...data}}}},
       getUserContext:async()=>({profile:{id:'actor'}}),

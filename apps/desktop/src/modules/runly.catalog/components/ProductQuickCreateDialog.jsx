@@ -45,8 +45,7 @@ export default function ProductQuickCreateDialog({ open, onOpenChange, token, ca
   const [failure, setFailure] = useState(null)
   const [saving, setSaving] = useState(false)
   const created = useRef(null)
-  const lostCreate = useRef(false)
-  const trackers = useRef({ pos: createAttemptTracker('cat-pos'), tax: createAttemptTracker('cat-tax'), stock: createAttemptTracker('cat-open') })
+  const trackers = useRef({ create: createAttemptTracker('cat-create'), pos: createAttemptTracker('cat-pos'), tax: createAttemptTracker('cat-tax'), stock: createAttemptTracker('cat-open') })
 
   const set = (patch) => setForm((f) => ({ ...f, ...patch }))
   const isVariable = form.type === 'VARIABLE'
@@ -55,7 +54,7 @@ export default function ProductQuickCreateDialog({ open, onOpenChange, token, ca
   function reset() {
     setForm(initialForm(defaults.currency ?? 'MXN'))
     setErrors({}); setFailure(null)
-    created.current = null; lostCreate.current = false
+    created.current = null
     Object.values(trackers.current).forEach((t) => t.reset())
   }
 
@@ -89,13 +88,9 @@ export default function ProductQuickCreateDialog({ open, onOpenChange, token, ca
     for (let attempt = 0; attempt < 4; attempt++) {
       const slug = attempt === 0 ? base : `${base}-${attempt + 1}`
       try {
-        return (await runly.catalog.createProduct({ ...body, slug }, token)).data
+        return (await runly.catalog.createProduct({ ...body, slug }, token, {idempotencyKey:trackers.current.create.keyFor({...body,slug})})).data
       } catch (error) {
-        if (error?.status === 409 && lostCreate.current && attempt === 0) {
-          throw Object.assign(new Error('El producto probablemente ya se creó en el intento anterior. Búscalo en el listado antes de crearlo otra vez.'), { status: 409 })
-        }
         if (error?.status !== 409) {
-          if (classifyCommerceError(error).kind === 'lost') lostCreate.current = true
           throw error
         }
       }

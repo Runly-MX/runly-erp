@@ -1,11 +1,11 @@
 // apps/desktop/src/modules/runly.catalog/components/product/VariantCreateDialog.jsx
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, CurrencyField, SelectField, TextField } from '@runly/ui'
 import { Layers, Wand2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../../lib/runly.js'
-import { classifyCommerceError } from '../../lib/commerceCommand.js'
+import { createAttemptTracker, classifyCommerceError } from '../../lib/commerceCommand.js'
 import { combinationExists, missingCombinations, variantLabel } from '../../lib/catalogRules.js'
 import FormDialog from '../FormDialog.jsx'
 import ToggleRow from '../ToggleRow.jsx'
@@ -15,6 +15,12 @@ import ToggleRow from '../ToggleRow.jsx'
 // retry after a lost response never adds a duplicate variant.
 export default function VariantCreateDialog({ mode, onClose, product, productId, token, missing, onDone }) {
   const queryClient = useQueryClient()
+  const attempts=useRef(new Map())
+  const create=(data)=>{
+    const signature=JSON.stringify(data.option_values);
+    if(!attempts.current.has(signature))attempts.current.set(signature,createAttemptTracker('cat-variant'));
+    return runly.catalog.createVariant(productId,data,token,{idempotencyKey:attempts.current.get(signature).keyFor(data)})
+  }
   const options = product.options ?? []
   const [values, setValues] = useState(() => Object.fromEntries(options.map((o) => [o.name, ''])))
   const [sku, setSku] = useState('')
@@ -40,9 +46,9 @@ export default function VariantCreateDialog({ mode, onClose, product, productId,
     setBusy(true); setError('')
     try {
       if (combinationExists(values, await freshVariants(), options.map((o) => o.name))) { setError('Esa combinación ya existe.'); return }
-      await runly.catalog.createVariant(productId, {
+      await create({
         option_values: values, sku: sku.trim() || null, barcode: barcode.trim() || null, price: ownPrice ? Number(price) || 0 : null,
-      }, token)
+      })
       toast.success(`Variante ${variantLabel(values)} creada`)
       onDone(); onClose()
     } catch (err) {
@@ -59,7 +65,7 @@ export default function VariantCreateDialog({ mode, onClose, product, productId,
       const pending = missingCombinations(options, await freshVariants())
       setProgress({ done: 0, total: pending.length })
       for (const combo of pending) {
-        await runly.catalog.createVariant(productId, { option_values: combo, price: null }, token)
+        await create({ option_values: combo, price: null })
         created += 1
         setProgress({ done: created, total: pending.length })
       }

@@ -6,6 +6,10 @@ export function createCatalogCommerceDomain({request,withAuthHeaders,toQueryStri
     return request(path,{method,headers:withAuthHeaders(token,{'Idempotency-Key':options.idempotencyKey}),body:JSON.stringify(data),onlineOnly:true});
   };
   return {
+    outlets:(token)=>get('/catalog/outlets',token),
+    defaults:(token)=>get('/catalog/commercial-defaults',token),
+    sellables:(query,token)=>get(`/catalog/sellables${toQueryString(query)}`,token),
+    variants:(id,query,token)=>get(`/catalog/sellables/${encodeURIComponent(id)}/variants${toQueryString(query)}`,token),
     stockBalances:(id,query,token)=>get(`${product(id)}/stock-balances${toQueryString(query)}`,token),
     stockMovements:(id,query,token)=>get(`${product(id)}/stock-movements${toQueryString(query)}`,token),
     allocateStock:(id,data,token,options)=>write(`${product(id)}/stock-allocations`,data,token,options),

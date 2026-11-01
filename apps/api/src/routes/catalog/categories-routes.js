@@ -63,7 +63,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
     try {
       const companyId = c.get('companyId')
       const parsed = createCategorySchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const row = await productSvc.createCategory({ companyId, data: parsed.data })
       const { actorName } = getActivityContext(c)
       await publishActivityFromContext(prisma, c, {
@@ -87,7 +87,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
     try {
       const companyId = c.get('companyId')
       const parsed = updateCategorySchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const row = await productSvc.updateCategory({ companyId, id: c.req.param('id'), data: parsed.data })
       if (!row) return c.json({ error: 'Not found' }, 404)
       const { actorName } = getActivityContext(c)
@@ -134,7 +134,7 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
     try {
       const companyId = c.get('companyId')
       const parsed = reorderCategoriesSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       await productSvc.reorderCategories({ companyId, items: parsed.data.items })
       return c.json({ ok: true })
     } catch (err) {

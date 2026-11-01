@@ -40,6 +40,20 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     return s ? `?${s}` : "";
   }
 
+  function catalogCreate(url, data, token, options = {}) {
+    if (!/^[\x21-\x7e]{16,128}$/.test(options.idempotencyKey ?? '')) return Promise.reject(Object.assign(new Error('Idempotency-Key requerida.'), {code:'IDEMPOTENCY_REQUIRED',status:428}));
+    return request(url,{method:'POST',headers:withAuthHeaders(token,{'Idempotency-Key':options.idempotencyKey}),body:JSON.stringify(data),onlineOnly:true});
+  }
+  async function catalogPatch(url, data, token, options = {}, parentUrl = url, variantId) {
+    let expectedVersion = data.expectedVersion ?? options.expectedVersion;
+    if (expectedVersion == null && Object.keys(data).length) {
+      const fresh=(await request(parentUrl,{headers:withAuthHeaders(token),onlineOnly:true})).data;
+      expectedVersion=(variantId?fresh.variants?.find((v)=>v.id===variantId):fresh)?.revision;
+    }
+    if (Object.keys(data).length && (!Number.isInteger(expectedVersion) || expectedVersion < 1)) throw Object.assign(new Error('El servidor debe proporcionar una revisión antes de guardar.'),{code:'PRECONDITION_REQUIRED',status:428});
+    return request(url,{method:'PATCH',headers:withAuthHeaders(token),body:JSON.stringify({...data,...(expectedVersion==null?{}:{expectedVersion})}),onlineOnly:true});
+  }
+
   function assertCurrentCompany(headers) {
     const requestedCompany = new Headers(headers).get('X-Runly-Company-Id');
     if (requestedCompany && typeof getActiveCompanyId === 'function' && requestedCompany !== getActiveCompanyId()) {
@@ -1498,18 +1512,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/catalog/products/${encodeURIComponent(id)}`, {
           headers: withAuthHeaders(token),
         }),
-      createProduct: (data, token) =>
-        request("/catalog/products", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      updateProduct: (id, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(id)}`, {
-          method: "PATCH",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
+      createProduct: (data, token, options) => catalogCreate('/catalog/products',data,token,options),
+      updateProduct: (id, data, token, options) => catalogPatch(`/catalog/products/${encodeURIComponent(id)}`,data,token,options),
       deleteProduct: (id, token) =>
         request(`/catalog/products/${encodeURIComponent(id)}`, {
           method: "DELETE",
@@ -1555,21 +1559,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/catalog/products/${encodeURIComponent(productId)}/variants`, {
           headers: withAuthHeaders(token),
         }),
-      createVariant: (productId, data, token) =>
-        request(`/catalog/products/${encodeURIComponent(productId)}/variants`, {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: JSON.stringify(data),
-        }),
-      updateVariant: (productId, variantId, data, token) =>
-        request(
-          `/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,
-          {
-            method: "PATCH",
-            headers: withAuthHeaders(token),
-            body: JSON.stringify(data),
-          },
-        ),
+      createVariant: (productId, data, token, options) => catalogCreate(`/catalog/products/${encodeURIComponent(productId)}/variants`,data,token,options),
+      updateVariant: (productId, variantId, data, token, options) => catalogPatch(`/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,data,token,options,`/catalog/products/${encodeURIComponent(productId)}`,variantId),
       deleteVariant: (productId, variantId, token) =>
         request(
           `/catalog/products/${encodeURIComponent(productId)}/variants/${encodeURIComponent(variantId)}`,
