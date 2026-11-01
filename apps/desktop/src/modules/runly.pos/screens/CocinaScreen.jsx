@@ -1,3 +1,2 @@
-// F1 placeholder: Cocina post mounts the stations board.
-// F4 replaces this with the KDS.
-export { default } from "./PosStationsScreen.jsx";
+// Cocina post: the restaurant KDS on the C6 preparation contracts.
+export { default } from "../restaurant/RestaurantKitchenScreen.jsx";

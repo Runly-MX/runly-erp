@@ -3,8 +3,10 @@
 // POS command errors on top of the shared commerce classification (attempt
 // keys, lost responses, forbidden, stock, validation).
 import { classifyCommerceError } from '../../../runly.catalog/lib/commerceCommand.js'
+import { RESTAURANT_ERRORS } from '../../restaurant/lib/restaurantRules.js'
 
 const POS_MESSAGES = {
+  ...RESTAURANT_ERRORS,
   ORDER_VERSION_CONFLICT: { kind: 'conflict', message: 'La venta cambió en otro dispositivo. Ya se recargó: revisa el total y vuelve a intentarlo.' },
   REFUND_REQUIRED: { kind: 'validation', message: 'Esta venta tiene pagos aplicados. Devuelve primero lo cobrado desde Órdenes.' },
   INVALID_TRANSITION: { kind: 'validation', message: null },

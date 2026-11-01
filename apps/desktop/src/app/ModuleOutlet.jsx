@@ -352,7 +352,7 @@ const SCREEN_MAP = {
     () => import("../modules/runly.pos/retail/LegacyTerminalEntry.jsx"),
   ),
   "runly.pos:/pos/tables": lazy(
-    () => import("../modules/runly.pos/screens/PosTablesScreen.jsx"),
+    () => import("../modules/runly.pos/restaurant/RestaurantTablesScreen.jsx"),
   ),
   "runly.pos:/pos/floor-planner": lazy(
     () => import("../modules/runly.pos/screens/PosFloorPlannerScreen.jsx"),
@@ -382,7 +382,7 @@ const SCREEN_MAP = {
     () => import("../modules/runly.pos/screens/ComanderoScreen.jsx"),
   ),
   "runly.pos:/pos/comandero/mesa/:tableId": lazy(
-    () => import("../modules/runly.pos/screens/ComandaScreen.jsx"),
+    () => import("../modules/runly.pos/restaurant/RestaurantOrderScreen.jsx"),
   ),
   "runly.pos:/pos/cocina": lazy(
     () => import("../modules/runly.pos/screens/CocinaScreen.jsx"),

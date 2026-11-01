@@ -1,9 +1,10 @@
 // apps/desktop/src/modules/runly.pos/retail/RetailCajaScreen.jsx
 import { useEffect, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription, AlertTitle, Button, EmptyState, ErrorState, PeekSheet, Skeleton } from '@runly/ui'
+import { Alert, AlertDescription, AlertTitle, Button, EmptyState, ErrorState, PeekSheet, SegmentedControl, Skeleton } from '@runly/ui'
 import { Lock, Settings2, Utensils, WifiOff } from 'lucide-react'
+import RestaurantAccounts from '../restaurant/components/RestaurantAccounts.jsx'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
@@ -56,6 +57,7 @@ function RetailCajaView() {
   const session = context?.currentSession ?? null
   const sale = useRetailOrder({ token, userId:userProfile?.id, companyId: activeCompanyId, outletId: outlet?.id, terminalId: terminal?.id, sessionId: session?.id })
   const unresolved=usePendingOperations({userId:userProfile?.id,companyId:activeCompanyId,sessionId:session?.id,terminalId:terminal?.id})
+  const [params, setParams] = useSearchParams()
   const [dialog, setDialog] = useState(null)
   const [completed, setCompleted] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
@@ -65,6 +67,11 @@ function RetailCajaView() {
   const currency = context?.currency ?? 'MXN'
   const saleInProgress = Boolean(sale.pending||unresolved.length||(sale.order && (sale.order.lines ?? []).some((l) => !l.voided)))
   const canAdmin = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('pos.admin.read'))
+  // Mostrador (retail register) and Mesas (restaurant accounts) share the same
+  // register, session and ledger; a restaurant-only outlet only has Mesas.
+  const mixed = Boolean(caps.retail && caps.restaurant)
+  const tablesView = Boolean(caps.restaurant) && (!caps.retail || params.get('vista') === 'mesas')
+  const setView = (value) => setParams((prev) => { const next = new URLSearchParams(prev); if (value === 'mesas') next.set('vista', 'mesas'); else { next.delete('vista'); next.delete('cuenta') } return next }, { replace: true })
 
   // After a lost payment response the dialog may be closed: ask the server
   // for the real state; a PAID order shows its confirmed payment and change.
@@ -141,13 +148,13 @@ function RetailCajaView() {
         />
       </div>
     )
-  } else if (!caps.retail) {
+  } else if (!caps.retail && !caps.restaurant) {
     body = (
       <div className="p-6">
         <EmptyState
           icon={Utensils}
-          title={`${outlet?.name ?? 'Esta sucursal'} funciona como restaurante`}
-          description="La caja de restaurante (cuentas de mesa) llega en la siguiente fase. Elige una sucursal de tienda o mixta para vender en mostrador."
+          title={`${outlet?.name ?? 'Esta sucursal'} no tiene una modalidad de venta`}
+          description="Un administrador debe definir si la sucursal es de tienda, restaurante o mixta."
           action={{ label: 'Cambiar de caja', onClick: ctx.changeCaja }}
         />
       </div>
@@ -176,6 +183,13 @@ function RetailCajaView() {
           onOpened={() => { toast.success('Caja abierta'); refreshContext() }}
         />
       </div>
+    )
+  } else if (tablesView) {
+    body = (
+      <RestaurantAccounts
+        token={token} companyId={activeCompanyId} outlet={outlet} session={session} methods={methods} currency={currency}
+        canCharge={Boolean(caps.charge)} initialOrderId={params.get('cuenta')} onSettled={refreshContext}
+      />
     )
   } else {
     const cartContent = completed ? (
@@ -250,6 +264,12 @@ function RetailCajaView() {
           onClose={() => setDialog({ kind: 'close' })}
           onChangeCaja={() => { setCompleted(null); ctx.changeCaja() }}
         />
+      )}
+      {ready && mixed && (
+        <div className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
+          <SegmentedControl size="lg" ariaLabel="Mostrador o mesas" className="w-full sm:w-72" value={tablesView ? 'mesas' : 'mostrador'} onChange={(v) => setView(v === 'mesas' ? 'mesas' : 'mostrador')}
+            options={[{ value: 'mostrador', label: 'Mostrador' }, { value: 'mesas', label: 'Mesas' }]} />
+        </div>
       )}
       {unresolved.some((r)=>r.prefix!=='order'||!session)&&!dialog&&(
         <Alert className="m-3"><AlertTitle>Operación pendiente de confirmar</AlertTitle><AlertDescription>Recupera su resultado antes de cerrar o cambiar de caja.</AlertDescription>

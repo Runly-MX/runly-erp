@@ -547,7 +547,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Textarea` | Multi-line text input |
 | `Checkbox` | Checkbox control |
 | `TagsComboboxField` | Multi-value creatable tag input with suggestion dropdown (unlike `TagsField`, which is free-entry only); props `value` (string[]), `onChange`, `suggestions`, `onSearchChange`. Case-insensitive dedupe |
-| `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange` |
+| `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange`, `size` (`"lg"` = 44px touch targets for POS screens) |
 | `StatusPill` | Operational state as icon + text on a soft fill that keeps WCAG AA in light and dark (use it instead of the solid `Badge` success/warning/destructive for small state labels); props `tone` (`success`, `warning`, `danger`, `brand`, `neutral`), `icon` (lucide component), `size` (`md` / `sm`), `title` |
 | `SortableList` | Drag-and-drop reordering with pointer, touch and keyboard (Spanish screen reader announcements); props `items`, `onReorder(nextItems)`, `renderItem(item, { dragHandleProps, isDragging, index })`, `getId`, `labelOf`, `disabled`, `layout` (`vertical` default, `grid` for tiles inside a caller-provided grid) |
 | `ChoiceCardGroup` | Single choice as selectable cards (radiogroup, flat-fill selection, rounded-md) for options that need a small visual; props `options` (`{ value, label, description?, icon?, preview?, disabled? }`), `value`, `onChange`, `columns` (2/3/4), `size` (`sm`/`md`) |

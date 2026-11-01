@@ -2,7 +2,8 @@ import { cn } from "../lib/utils.js";
 
 // Flat single-choice control for short, fixed option sets
 // (e.g. contact type). Keyboard: native buttons in a radiogroup.
-export function SegmentedControl({ options = [], value, onChange, disabled = false, className, ariaLabel }) {
+// size "lg" gives 44px touch targets (POS screens on tablets and phones).
+export function SegmentedControl({ options = [], value, onChange, disabled = false, className, ariaLabel, size = "md" }) {
   return (
     <div
       role="radiogroup"
@@ -23,7 +24,8 @@ export function SegmentedControl({ options = [], value, onChange, disabled = fal
             disabled={disabled}
             onClick={() => onChange?.(option.value)}
             className={cn(
-              "flex-1 min-w-[88px] whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium transition-colors",
+              "flex-1 min-w-[88px] whitespace-nowrap rounded-sm px-3 text-sm font-medium transition-colors",
+              size === "lg" ? "min-h-11 py-2.5" : "py-1.5",
               "focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]",
               active
                 ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)]"

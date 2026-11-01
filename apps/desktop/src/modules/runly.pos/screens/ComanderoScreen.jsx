@@ -1,6 +1,6 @@
-import PosTablesScreen from "./PosTablesScreen.jsx";
+import RestaurantTablesScreen from "../restaurant/RestaurantTablesScreen.jsx";
 
-// Comandero post: the shared floor in comandero mode — table taps open the mobile comanda editor.
+// Comandero post: the tables of the outlet; tapping one opens its account.
 export default function ComanderoScreen() {
-  return <PosTablesScreen comanderoMode />;
+  return <RestaurantTablesScreen comanderoMode />;
 }

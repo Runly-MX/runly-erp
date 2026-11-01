@@ -14,11 +14,13 @@ const KIND_ICON = { CASH: Banknote, CARD: CreditCard, TRANSFER: Landmark }
 // preview and the confirmed figure is payment.changeAmount. While
 // processing the dialog cannot be dismissed; a lost response retries with
 // the same key and the server replays the confirmed payment.
-export default function ChargeDialog({ order, sessionId, token, methods, onPaid, onPartial, onClose, onConflict }) {
+// Restaurant splits pass allocations (+ the amount they add up to): the amount
+// is then locked and the server attributes the payment to those lines.
+export default function ChargeDialog({ order, sessionId, token, methods, onPaid, onPartial, onClose, onConflict, allocations, fixedAmount, title }) {
   const usable = methods.filter((m) => ['CASH', 'CARD', 'TRANSFER'].includes(m.kind))
   const [methodId, setMethodId] = useState(() => (usable.find((m) => m.kind === 'CASH') ?? usable[0])?.id ?? null)
-  const [amount, setAmount] = useState(Number(order.remainingAmount))
-  const [tendered, setTendered] = useState(Number(order.remainingAmount))
+  const [amount, setAmount] = useState(Number(fixedAmount ?? order.remainingAmount))
+  const [tendered, setTendered] = useState(Number(fixedAmount ?? order.remainingAmount))
   const [reference, setReference] = useState('')
   const [errors, setErrors] = useState({})
   const method = usable.find((m) => m.id === methodId)
@@ -58,6 +60,7 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
       paymentMethodId: method.id,
       sessionId,
       amount: applied,
+      ...(allocations?.length ? { allocations } : {}),
       ...(cash ? { tenderedAmount: toMoneyString(tendered) } : {}),
       ...(reference.trim() ? { reference: reference.trim() } : {}),
     })
@@ -72,7 +75,7 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
         <form onSubmit={(e) => { e.preventDefault(); if (!processing) submit() }} className="flex min-h-0 flex-1 flex-col" noValidate>
           <div className="shrink-0 border-b border-[hsl(var(--border))] px-6 pb-1 pt-5 pr-12">
             <DialogHeader icon={Banknote}>
-              <DialogTitle>Cobrar venta{order.orderNumber ? ` #${order.orderNumber}` : ''}</DialogTitle>
+              <DialogTitle>{title ?? `Cobrar venta${order.orderNumber ? ` #${order.orderNumber}` : ''}`}</DialogTitle>
               <DialogDescription>Por cobrar <strong className="text-[hsl(var(--foreground))]">{money(order.remainingAmount)} {currency}</strong></DialogDescription>
             </DialogHeader>
           </div>
@@ -115,7 +118,7 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
               {errors.method && <p role="alert" className="text-sm font-semibold text-red-800 dark:text-red-300">{errors.method}</p>}
             </div>
 
-            <CurrencyField label="Importe a aplicar" value={amount} onChange={setAmount} currency={currency} min={0} error={errors.amount} disabled={processing}
+            <CurrencyField label="Importe a aplicar" value={amount} onChange={setAmount} currency={currency} min={0} error={errors.amount} disabled={processing || Boolean(fixedAmount)}
               hint={Number(amount) < Number(order.remainingAmount) ? 'Pago parcial: quedará saldo pendiente.' : 'Lo que se abona a la venta.'} className="h-14 text-xl font-bold" />
 
             {cash ? (
