@@ -6,6 +6,7 @@ import {
   bookingsRunlyBlocks,
   restaurantRunlyBlocks,
 } from './runlyBlocks/index.js'
+import { RunlySiteFrame } from './RunlySiteFrame.jsx'
 
 const ALL_BLOCKS = [
   ...baseBlocks,
@@ -49,7 +50,9 @@ export function WebsitePageRenderer({ page, theme }) {
 
   return (
     <AtlasWebBuilderProvider blocks={ALL_BLOCKS} theme={resolvedTheme}>
-      <AtlasWebRenderer page={parsedPage} mode="public" />
+      <RunlySiteFrame>
+        <AtlasWebRenderer page={parsedPage} mode="public" />
+      </RunlySiteFrame>
     </AtlasWebBuilderProvider>
   )
 }

@@ -18,6 +18,7 @@ import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { allTemplates } from '../../../website/runlyTemplates/index.js'
+import { RunlySiteFrame } from '../../../website/RunlySiteFrame.jsx'
 import {
   universalRunlyBlocks,
   ecommerceRunlyBlocks,
@@ -54,7 +55,20 @@ function routeToSlug(routePath) {
   return clean || 'inicio'
 }
 
-function TemplatePagePreview({ page }) {
+function buildTemplateTheme(themeTokens) {
+  if (!themeTokens) return defaultTheme
+  return defineTheme({
+    ...defaultTheme,
+    id: 'atlas-site',
+    name: 'Site Theme',
+    tokens: {
+      ...defaultTheme.tokens,
+      color: { ...defaultTheme.tokens?.color, ...themeTokens.color },
+    },
+  })
+}
+
+function TemplatePagePreview({ page, theme }) {
   const parsedPage = useMemo(() => {
     try {
       return parsePage(serializePage(page))
@@ -72,8 +86,10 @@ function TemplatePagePreview({ page }) {
   }
 
   return (
-    <AtlasWebBuilderProvider blocks={ALL_BLOCKS} theme={defaultTheme}>
-      <AtlasWebRenderer page={parsedPage} mode="public" />
+    <AtlasWebBuilderProvider blocks={ALL_BLOCKS} theme={theme}>
+      <RunlySiteFrame>
+        <AtlasWebRenderer page={parsedPage} mode="public" />
+      </RunlySiteFrame>
     </AtlasWebBuilderProvider>
   )
 }
@@ -90,6 +106,8 @@ export default function TemplatePreviewScreen() {
     () => allTemplates.find((t) => t.id === templateId) ?? null,
     [templateId],
   )
+
+  const previewTheme = useMemo(() => buildTemplateTheme(template?.themeTokens), [template])
 
   const [selectedPageIds, setSelectedPageIds] = useState([])
   const [previewPageId, setPreviewPageId] = useState(null)
@@ -144,14 +162,9 @@ export default function TemplatePreviewScreen() {
         }
       }
       if (template.themeTokens) {
-        const mergedTokens = {
-          ...defaultTheme.tokens,
-          color: { ...defaultTheme.tokens?.color, ...template.themeTokens.color },
-        }
-        const builtTheme = defineTheme({ ...defaultTheme, id: 'atlas-site', name: 'Site Theme', tokens: mergedTokens })
         await apiFetch('/website/theme', token, {
           method: 'POST',
-          body: JSON.stringify({ site_id: site.id, tokens: builtTheme.tokens }),
+          body: JSON.stringify({ site_id: site.id, tokens: previewTheme.tokens }),
         })
       }
 
@@ -318,7 +331,7 @@ export default function TemplatePreviewScreen() {
           onClickCapture={handlePreviewClick}
           onSubmitCapture={(e) => e.preventDefault()}
         >
-          {previewEntry && <TemplatePagePreview key={previewEntry.id} page={previewEntry.page} />}
+          {previewEntry && <TemplatePagePreview key={previewEntry.id} page={previewEntry.page} theme={previewTheme} />}
         </div>
       </div>
 

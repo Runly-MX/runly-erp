@@ -306,7 +306,7 @@ export const restauranteSitePages = [
             imageSrc: '',
             background: { kind: 'color', token: 'bg' },
             align: 'center',
-            paddingY: '14',
+            paddingY: '16',
             minHeight: '50vh',
             titleSize: '2xl',
             contentMaxWidth: '60ch',

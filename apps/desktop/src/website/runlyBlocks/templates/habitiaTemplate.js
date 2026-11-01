@@ -250,7 +250,7 @@ export const habtiaSitePages = [
             ctaLabel: 'Ver colección', ctaHref: '/coleccion', ctaVariant: 'solid',
             ctaSecondLabel: '', ctaSecondHref: '', imageSrc: '',
             background: { kind: 'color', token: 'bg' },
-            align: 'center', paddingY: '14', minHeight: '55vh', titleSize: '2xl', contentMaxWidth: '60ch',
+            align: 'center', paddingY: '16', minHeight: '55vh', titleSize: '2xl', contentMaxWidth: '60ch',
           },
           children: {},
         },

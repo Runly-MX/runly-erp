@@ -1,0 +1,58 @@
+/*
+ * Runly blocks read --runly-* variables while the builder theme only emits --atlas-*
+ * (on the element marked data-atlas-theme). Bridge them on that same element so every
+ * block follows the site theme in the editor, the preview and the public site,
+ * instead of falling back to hardcoded defaults.
+ */
+[data-atlas-theme] {
+  --runly-color-primary: var(--atlas-color-primary);
+  --runly-color-primaryFg: var(--atlas-color-primaryFg);
+  --runly-color-fg: var(--atlas-color-fg);
+  --runly-color-bg: var(--atlas-color-bg);
+  --runly-color-muted: var(--atlas-color-muted);
+  --runly-color-accent: var(--atlas-color-accent);
+  --runly-font-sans: var(--atlas-font-sans);
+  --runly-font-serif: var(--atlas-font-serif);
+}
+
+.runly-site {
+  font-family: var(--atlas-font-sans);
+}
+
+/*
+ * Interaction states for rendered website pages (public site and template preview).
+ * Blocks style themselves with inline styles, which cannot express :hover, so the
+ * states live here, scoped to .runly-site. Buttons are the anchors that carry their
+ * own padding; plain text links (navbar, footer) have none.
+ */
+.runly-site a {
+  transition: opacity 150ms ease, filter 150ms ease, transform 150ms ease,
+    box-shadow 150ms ease, background-color 150ms ease;
+}
+
+.runly-site a:not([style*='padding']):hover {
+  opacity: 0.7;
+}
+
+.runly-site a[style*='padding']:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+}
+
+.runly-site a[style*='padding'][style*='background: transparent']:hover {
+  background-color: rgba(127, 127, 127, 0.14) !important;
+}
+
+.runly-site a:focus-visible {
+  outline: 2px solid var(--atlas-color-primary, #0f62fe);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .runly-site a,
+  .runly-site a:hover {
+    transition: none;
+    transform: none;
+  }
+}
