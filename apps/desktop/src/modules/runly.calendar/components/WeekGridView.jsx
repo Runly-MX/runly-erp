@@ -170,14 +170,16 @@ export default function WeekGridView({ onEventClick, onDayClick, onNewEvent }) {
   }
 
   return (
-    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5">
+    // The grid fills the space left by the toolbar and runs to the real bottom edge
+    // (the home indicator floats over it); it only scrolls on very short screens.
+    <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain p-1.5 pb-[calc(0.375rem+var(--content-safe-bottom,0px))]">
       <div
         key={start}
         onPointerDown={onGridPointerDown}
         onPointerUp={onGridPointerUp}
         onClickCapture={(e) => { if (Date.now() - swipedAt.current < 300) { e.preventDefault(); e.stopPropagation(); } }}
         className={cx(
-          "grid min-h-full touch-pan-y grid-cols-2 grid-rows-[repeat(3,minmax(7.75rem,1fr))_minmax(12.5rem,1.2fr)] gap-1.5",
+          "grid min-h-full touch-pan-y grid-cols-2 grid-rows-[repeat(3,minmax(5rem,1fr))_minmax(10.5rem,1.15fr)] gap-1.5",
           direction > 0 && "animate-in fade-in slide-in-from-right-8 duration-200",
           direction < 0 && "animate-in fade-in slide-in-from-left-8 duration-200",
         )}

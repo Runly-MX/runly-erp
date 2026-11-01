@@ -2,7 +2,7 @@ import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, PanelLeftOpen, Plus 
 import { useCalendarStore } from '../stores/useCalendarStore'
 
 const VIEWS = [
-  { key: 'day',    label: 'Dia' },
+  { key: 'day',    label: 'Día' },
   { key: 'week',   label: 'Semana' },
   { key: 'month',  label: 'Mes' },
   { key: 'agenda', label: 'Agenda' },
@@ -54,7 +54,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
   return (
     <div className="bg-[hsl(var(--surface-1))]">
       {/* Phone: navigation + actions, then a full-width view switcher. */}
-      <div className="sm:hidden space-y-2 px-2 py-2">
+      <div className="sm:hidden space-y-1.5 px-2 py-1.5">
         <div className="flex items-center gap-0.5">
           <button type="button" onClick={onToggleSidebar} aria-label="Mis calendarios" className={`${phoneIconButton} w-10`}>
             <PanelLeftOpen size={18} aria-hidden />
@@ -76,7 +76,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
             <Plus size={19} aria-hidden />
           </button>
         </div>
-        <div role="tablist" aria-label="Vista" className="grid grid-cols-4 gap-1 rounded-md bg-[hsl(var(--muted))]/60 p-1">
+        <div role="tablist" aria-label="Vista" className="grid grid-cols-4 gap-1 rounded-md bg-[hsl(var(--muted))]/60 p-0.5">
           {VIEWS.map((v) => (
             <button
               key={v.key}
@@ -85,7 +85,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
               aria-selected={activeView === v.key}
               onClick={() => setActiveView(v.key)}
               className={[
-                'h-9 rounded-sm text-xs font-semibold transition-colors',
+                'h-8 rounded-sm text-xs font-semibold transition-colors',
                 activeView === v.key
                   ? 'bg-violet-600 text-white shadow-sm shadow-violet-600/30'
                   : 'text-[hsl(var(--muted-foreground))] active:bg-[hsl(var(--background))]/60',

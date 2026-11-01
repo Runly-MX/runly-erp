@@ -29,9 +29,9 @@ function MonthPanel({ weekStart, today, busyDays, onPickDate }) {
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center justify-between">
-        <button type="button" aria-label="Mes anterior" onClick={() => shift(-1)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]"><ChevronLeft size={14} aria-hidden /></button>
+        <button type="button" aria-label="Mes anterior" onClick={() => shift(-1)} className="flex h-6 w-7 items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]"><ChevronLeft size={14} aria-hidden /></button>
         <span className="truncate text-xs font-semibold">{MONTHS[view.month]} {view.year}</span>
-        <button type="button" aria-label="Mes siguiente" onClick={() => shift(1)} className="flex h-7 w-7 items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]"><ChevronRight size={14} aria-hidden /></button>
+        <button type="button" aria-label="Mes siguiente" onClick={() => shift(1)} className="flex h-6 w-7 items-center justify-center rounded-md hover:bg-[hsl(var(--muted))]"><ChevronRight size={14} aria-hidden /></button>
       </div>
       <div className="grid grid-cols-7 content-start text-center text-[10px] leading-none">
         {["D", "L", "M", "M", "J", "V", "S"].map((letter, i) => <span key={i} className="py-0.5 text-[hsl(var(--muted-foreground))]">{letter}</span>)}
@@ -41,7 +41,7 @@ function MonthPanel({ weekStart, today, busyDays, onPickDate }) {
             type="button"
             onClick={() => onPickDate(dateStr)}
             aria-label={`Ir a la semana del ${Number(dateStr.slice(8))} de ${MONTHS[Number(dateStr.slice(5, 7)) - 1]}`}
-            className={cx("relative flex h-[19px] items-center justify-center tabular-nums", weekStartOf(dateStr) === weekStart && "bg-violet-500/15", !dateStr.startsWith(monthKey) && "text-[hsl(var(--muted-foreground))]/50")}
+            className={cx("relative flex h-[17px] items-center justify-center tabular-nums", weekStartOf(dateStr) === weekStart && "bg-violet-500/15", !dateStr.startsWith(monthKey) && "text-[hsl(var(--muted-foreground))]/50")}
           >
             <span className={cx("flex h-4 w-4 items-center justify-center rounded-full", dateStr === today && "bg-violet-600 font-semibold text-white")}>{Number(dateStr.slice(8))}</span>
             {busyDays.has(dateStr) && dateStr !== today && <span aria-hidden className="absolute bottom-0 h-[3px] w-[3px] rounded-full bg-violet-500" />}

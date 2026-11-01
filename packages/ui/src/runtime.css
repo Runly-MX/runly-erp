@@ -194,10 +194,12 @@ html {
   .app-shell-root {
     --shell-footer-height: 0px;
   }
-  /* The shell reserves the system bar once for all in-flow content. Portaled
-     overlays still own their safe-area clearance. */
+  /* The shell reserves the opaque Android navigation bar once for all in-flow
+     content; whatever inset is left (the iOS home indicator) is cleared only by
+     bottom controls, so screens reach the real bottom edge. Portaled overlays
+     still own their safe-area clearance. */
   .app-shell-root .safe-bottom {
-    padding-bottom: 0;
+    padding-bottom: var(--content-safe-bottom, 0px);
   }
   @media (min-width: 1024px) {
     .app-shell-root[data-shell-footer="true"] {
