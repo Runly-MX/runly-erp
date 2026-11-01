@@ -2678,6 +2678,11 @@ model CallTranscript {
   // Written by runly-transcriber while PROCESSING: DOWNLOADING | TRANSCRIBING | SAVING, and 0-100.
   progressStage     String?                  @map("progress_stage") @db.VarChar(16)
   progressPercent   Int?                     @map("progress_percent") @db.SmallInt
+  // Engine chosen for this transcript when it was requested ("LOCAL" faster-whisper
+  // in runly-transcriber, "GROQ" hosted Whisper with local fallback) and the
+  // vocabulary hint (participants, event title, company glossary) sent to Whisper.
+  requestedEngine   String                   @default("LOCAL") @map("requested_engine") @db.VarChar(8)
+  vocabularyPrompt  String?                  @map("vocabulary_prompt")
   createdAt         DateTime                 @default(now()) @map("created_at")
 
   call        Call            @relation(fields: [callId], references: [id], onDelete: Cascade)
@@ -2740,6 +2745,9 @@ model CallTranscriptSegment {
   speakerUserId  String?  @db.Uuid @map("speaker_user_id")
   speakerGuestId String?  @db.Uuid @map("speaker_guest_id")
   confidence     Float?
+  // Text as the engine produced it; set the first time a correction (AI or
+  // manual) changes `text`, null while the segment is untouched.
+  originalText   String?  @map("original_text")
   createdAt      DateTime @default(now()) @map("created_at")
 
   transcript   CallTranscript @relation(fields: [transcriptId], references: [id], onDelete: Cascade)
@@ -2748,6 +2756,32 @@ model CallTranscriptSegment {
 
   @@index([transcriptId, startMs])
   @@map("call_transcript_segment")
+}
+
+model CallTranscriptionSettings {
+  id                String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId         String    @unique @db.Uuid @map("company_id")
+  engine            String    @default("LOCAL") @db.VarChar(8) // LOCAL | GROQ
+  externalConsentAt DateTime? @map("external_consent_at")
+  externalConsentBy String?   @db.Uuid @map("external_consent_by")
+  updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at")
+
+  @@map("call_transcription_settings")
+}
+
+model CallTranscriptionTerm {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  term      String   @db.VarChar(80)
+  heardAs   String   @default("") @db.VarChar(80) @map("heard_as") // "" = vocabulary hint only
+  source    String   @default("MANUAL") @db.VarChar(8) // MANUAL | LEARNED | AI
+  hits      Int      @default(1)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at")
+
+  @@unique([companyId, term, heardAs])
+  @@index([companyId, hits])
+  @@map("call_transcription_term")
 }
 
 // MirAI Etapa 5 (docs/TRANSCRIPTION_SPEC.md §7.1) — persisted analysis draft.

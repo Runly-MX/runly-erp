@@ -18,6 +18,6 @@ WORKDIR /app
 COPY apps/transcriber/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-COPY apps/transcriber/main.py .
+COPY apps/transcriber/main.py apps/transcriber/groq_engine.py ./
 
 CMD ["python", "main.py"]

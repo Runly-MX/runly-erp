@@ -21,17 +21,21 @@ Responsabilidad de este proceso, y solo esta:
 """
 
 import os
+import re
 import subprocess
 import sys
 import tempfile
 import threading
 import time
 import traceback
+import wave
 from pathlib import Path
 
 import boto3
 import psycopg
 from faster_whisper import WhisperModel
+
+import groq_engine
 
 LOG_PREFIX = "[runly-transcriber]"
 
@@ -111,7 +115,7 @@ def claim_next_job(conn):
                 FOR UPDATE SKIP LOCKED
             )
             RETURNING id, call_id, conversation_id, company_id, recording_id, source_kind, attempts,
-                      requested_language
+                      requested_language, requested_engine, vocabulary_prompt
             """,
             {"lease_minutes": LEASE_MINUTES, "worker_id": WORKER_INSTANCE_ID},
         )
@@ -315,7 +319,54 @@ AUDIO_FILTER_ARGS = ["-af", AUDIO_FILTER] if AUDIO_FILTER.strip() else []
 WHISPER_INITIAL_PROMPT = os.environ.get("WHISPER_INITIAL_PROMPT", "").strip() or None
 
 
-def transcribe(audio_path: Path, language=None, on_progress=None):
+# Whisper only honours roughly the last 224 tokens of a prompt; keep the whole
+# hint inside that so the vocabulary is never the part that gets cut.
+PROMPT_MAX_CHARS = 700
+PROMPT_TAIL_CHARS = 120
+
+
+def build_prompt(vocabulary_prompt, tail=""):
+    """Instance-level hint + the per-meeting vocabulary + the end of the
+    previous chunk (continuity across chunk boundaries)."""
+    parts = [part for part in (WHISPER_INITIAL_PROMPT, vocabulary_prompt, tail) if part]
+    return " ".join(parts)[-PROMPT_MAX_CHARS:] or None
+
+
+def local_label():
+    return f"faster-whisper-{WHISPER_MODEL}-{WHISPER_COMPUTE_TYPE}"
+
+
+def wav_duration_s(path: Path):
+    with wave.open(str(path)) as wav:
+        return wav.getnframes() / float(wav.getframerate())
+
+
+_NORMALIZE_RE = re.compile(r"[\W_]+", re.UNICODE)
+# "esto es, esto es, esto es, esto es": the same 1-6 words repeated 4+ times.
+_INLINE_LOOP_RE = re.compile(r"(\b\w+(?:\s+\w+){0,5})(?:[\s,.;:]+\1\b){3,}", re.IGNORECASE | re.UNICODE)
+
+
+def collapse_repeats(segments, max_run=2):
+    """Whisper loops on weak audio ("esto es / esto es / esto es ..."). Collapse
+    a phrase repeated inside one segment and cap identical consecutive segments
+    at max_run; legitimate short repeats ("Si. Si.") survive."""
+    result = []
+    last = None
+    run = 0
+    for seg in segments:
+        text = _INLINE_LOOP_RE.sub(r"\1", seg["text"])
+        key = _NORMALIZE_RE.sub(" ", text.lower()).strip()
+        if key and key == last:
+            run += 1
+        else:
+            run = 1
+            last = key
+        if run <= max_run:
+            result.append({**seg, "text": text})
+    return result
+
+
+def transcribe_local(audio_path: Path, language, prompt, on_progress=None):
     """language: codigo ISO pedido por la transcripcion; None -> WHISPER_LANGUAGE
     del entorno o autodeteccion (que solo escucha los primeros segundos y suele
     confundir clips cortos en espanol con ingles). on_progress(fraccion 0-1)
@@ -324,7 +375,7 @@ def transcribe(audio_path: Path, language=None, on_progress=None):
     model = get_model()
     segments_iter, info = model.transcribe(
         str(audio_path), language=language or WHISPER_LANGUAGE, vad_filter=True, condition_on_previous_text=True,
-        initial_prompt=WHISPER_INITIAL_PROMPT,
+        initial_prompt=prompt,
     )
     total_s = getattr(info, "duration", 0) or 0
     segments = []
@@ -336,7 +387,58 @@ def transcribe(audio_path: Path, language=None, on_progress=None):
     return segments, duration_ms, getattr(info, "language", None)
 
 
-def transcribe_tracks(tracks, language=None, on_progress=None):
+def transcribe_groq(audio_path: Path, language, vocabulary_prompt, on_progress, used):
+    """Hosted Whisper, chunk by chunk. A chunk the hosted service cannot serve
+    (rate limit, outage) is transcribed locally instead, so the transcript is
+    always completed; `used` records which engines contributed."""
+    effective_language = language or WHISPER_LANGUAGE
+    segments = []
+    tail = ""
+    with tempfile.TemporaryDirectory(prefix="groq-chunks-") as tmp:
+        chunks = groq_engine.split_audio(audio_path, Path(tmp))
+        for index, (chunk_path, offset_s) in enumerate(chunks):
+            prompt = build_prompt(vocabulary_prompt, tail)
+            try:
+                chunk_segments = groq_engine.transcribe_chunk(chunk_path, effective_language, prompt)
+                used.add(groq_engine.model_label())
+                chunk_ms = [
+                    {"start_ms": round(c["start"] * 1000), "end_ms": round(c["end"] * 1000), "text": c["text"]}
+                    for c in chunk_segments
+                ]
+            except groq_engine.GroqUnavailable as error:
+                print(f"{LOG_PREFIX} Motor externo no disponible para el fragmento {index + 1}/{len(chunks)}; "
+                      f"se usa el modelo local: {error}", file=sys.stderr)
+                chunk_ms, _, _ = transcribe_local(chunk_path, language, prompt)
+                used.add(local_label())
+            for seg in chunk_ms:
+                segments.append({
+                    **seg,
+                    "start_ms": seg["start_ms"] + offset_s * 1000,
+                    "end_ms": seg["end_ms"] + offset_s * 1000,
+                })
+            if chunk_ms:
+                tail = " ".join(seg["text"] for seg in chunk_ms)[-PROMPT_TAIL_CHARS:]
+            if on_progress:
+                on_progress((index + 1) / len(chunks))
+    return segments, round(wav_duration_s(audio_path) * 1000), effective_language
+
+
+def transcribe(audio_path: Path, language=None, on_progress=None, engine="LOCAL", vocabulary_prompt=None, used=None):
+    """Engine GROQ only when the instance has a Groq key; otherwise (and for
+    every failure) the local model, so behaviour without a key is unchanged."""
+    used = used if used is not None else set()
+    if engine == "GROQ" and groq_engine.is_available():
+        try:
+            segments, duration_ms, detected = transcribe_groq(audio_path, language, vocabulary_prompt, on_progress, used)
+            return collapse_repeats(segments), duration_ms, detected
+        except groq_engine.GroqUnavailable as error:
+            print(f"{LOG_PREFIX} Motor externo no disponible; se usa el modelo local: {error}", file=sys.stderr)
+    segments, duration_ms, detected = transcribe_local(audio_path, language, build_prompt(vocabulary_prompt), on_progress)
+    used.add(local_label())
+    return collapse_repeats(segments), duration_ms, detected
+
+
+def transcribe_tracks(tracks, language=None, on_progress=None, engine="LOCAL", vocabulary_prompt=None, used=None):
     """V2 (PER_TRACK, spec §2.2): transcribe cada pista por separado y fusiona
     los segmentos en la linea de tiempo de la llamada, atribuyendo cada uno a
     la identidad ya conocida de esa pista — sin diarizacion acustica.
@@ -351,7 +453,9 @@ def transcribe_tracks(tracks, language=None, on_progress=None):
     count = len(tracks)
     for index, track in enumerate(tracks):
         track_progress = (lambda frac, i=index: on_progress((i + frac) / count)) if on_progress else None
-        segments, duration_ms, detected = transcribe(track["path"], language, track_progress)
+        segments, duration_ms, detected = transcribe(
+            track["path"], language, track_progress, engine, vocabulary_prompt, used,
+        )
         offset_ms = track.get("offset_ms") or 0
         max_duration_ms = max(max_duration_ms, offset_ms + duration_ms)
         detected_language = detected_language or detected
@@ -367,7 +471,7 @@ def transcribe_tracks(tracks, language=None, on_progress=None):
     return all_segments, max_duration_ms, detected_language
 
 
-def write_result(conn, transcript_id, segments, duration_ms, language):
+def write_result(conn, transcript_id, segments, duration_ms, language, model_label=None):
     """Escritura idempotente y transaccional — spec §5.6: si este trabajo fue
     reclamado dos veces por error (lease vencido de forma espuria), el
     segundo intento en completarse deja el resultado correcto sin duplicar
@@ -395,7 +499,7 @@ def write_result(conn, transcript_id, segments, duration_ms, language):
             "UPDATE call_transcript SET status = 'READY', duration_ms = %s, completed_at = now(), "
             "model = %s, language = %s, lease_expires_at = NULL, progress_stage = NULL, progress_percent = NULL "
             "WHERE id = %s",
-            (duration_ms, f"faster-whisper-{WHISPER_MODEL}-{WHISPER_COMPUTE_TYPE}", language, transcript_id),
+            (duration_ms, model_label or local_label(), language, transcript_id),
         )
     conn.commit()
 
@@ -432,16 +536,23 @@ def process_job(conn, job):
             workdir = Path(tmp)
             report = make_progress_reporter(conn, transcript_id)
             on_progress = lambda frac: report("TRANSCRIBING", frac * 100)  # noqa: E731
+            engine = job.get("requested_engine") or "LOCAL"
+            vocabulary = job.get("vocabulary_prompt")
+            used = set()
             if job["source_kind"] == "PER_TRACK":
                 tracks = download_track_audio(conn, transcript_id, workdir)
                 report("TRANSCRIBING", 0)
-                segments, duration_ms, language = transcribe_tracks(tracks, job.get("requested_language"), on_progress)
+                segments, duration_ms, language = transcribe_tracks(
+                    tracks, job.get("requested_language"), on_progress, engine, vocabulary, used,
+                )
             else:
                 audio_path = download_recording_audio(conn, job["recording_id"], workdir)
                 report("TRANSCRIBING", 0)
-                segments, duration_ms, language = transcribe(audio_path, job.get("requested_language"), on_progress)
+                segments, duration_ms, language = transcribe(
+                    audio_path, job.get("requested_language"), on_progress, engine, vocabulary, used,
+                )
             report("SAVING", 100)
-            write_result(conn, transcript_id, segments, duration_ms, language)
+            write_result(conn, transcript_id, segments, duration_ms, language, "+".join(sorted(used)) or None)
             print(f"{LOG_PREFIX} Transcripción {transcript_id} lista — {len(segments)} segmentos, {duration_ms}ms.")
     except TransientError as error:
         print(f"{LOG_PREFIX} Error transitorio en {transcript_id} (se reintentará): {error}", file=sys.stderr)
@@ -467,6 +578,7 @@ def main():
         sys.exit(1)
 
     print(f"{LOG_PREFIX} Iniciado. Modelo={WHISPER_MODEL} hilos={WHISPER_CPU_THREADS} "
+          f"motor_externo={'si' if groq_engine.is_available() else 'no'} "
           f"sondeo={POLL_INTERVAL_S}s lease={LEASE_MINUTES}min worker_id={WORKER_INSTANCE_ID}")
 
     while True:
