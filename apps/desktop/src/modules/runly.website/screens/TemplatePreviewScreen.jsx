@@ -1,5 +1,5 @@
 import { companyFetch } from '../../../lib/companyFetch.js'
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
@@ -92,9 +92,14 @@ export default function TemplatePreviewScreen() {
   )
 
   const [selectedPageIds, setSelectedPageIds] = useState([])
+  const [previewPageId, setPreviewPageId] = useState(null)
+  const previewScrollRef = useRef(null)
 
   useEffect(() => {
-    if (template) setSelectedPageIds(template.pages.map((p) => p.id))
+    if (template) {
+      setSelectedPageIds(template.pages.map((p) => p.id))
+      setPreviewPageId(template.pages[0]?.id ?? null)
+    }
   }, [template])
 
   const siteQuery = useQuery({
@@ -181,7 +186,26 @@ export default function TemplatePreviewScreen() {
     )
   }
 
-  const homePage = template.pages[0]?.page ?? null
+  const previewEntry = template.pages.find((p) => p.id === previewPageId) ?? template.pages[0] ?? null
+
+  // The preview is a sandbox: template links must never reach the app router or
+  // the browser. Internal routes switch the previewed template page; anything else is inert.
+  function handlePreviewClick(event) {
+    const anchor = event.target.closest?.('a[href]')
+    if (!anchor) return
+    event.preventDefault()
+    event.stopPropagation()
+    const href = anchor.getAttribute('href') || ''
+    if (!href.startsWith('/')) return
+    const path = href.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
+    const target = template.pages.find((p) => p.routePath === path)
+    if (target) showPreviewPage(target.id)
+  }
+
+  function showPreviewPage(pageId) {
+    setPreviewPageId(pageId)
+    previewScrollRef.current?.scrollTo({ top: 0 })
+  }
 
   function togglePage(pageId) {
     setSelectedPageIds((prev) =>
@@ -267,12 +291,35 @@ export default function TemplatePreviewScreen() {
         </div>
       </div>
 
-      {/* Right panel: full-width preview, scrollable */}
-      <div className="flex-1 overflow-y-auto bg-white relative">
-        <div className="absolute top-3 right-4 z-10 bg-black/50 backdrop-blur-sm text-white text-[11px] px-3 py-1 rounded-full pointer-events-none">
-          Vista previa — pagina de inicio
+      {/* Right panel: page switcher + sandboxed preview */}
+      <div className="flex-1 min-w-0 flex flex-col h-full">
+        <div className="flex items-center gap-1 px-3 py-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] overflow-x-auto shrink-0">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mr-2 shrink-0">
+            Vista previa
+          </span>
+          {template.pages.map((p) => (
+            <button
+              key={p.id}
+              type="button"
+              onClick={() => showPreviewPage(p.id)}
+              className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors cursor-pointer ${
+                previewEntry?.id === p.id
+                  ? 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] font-medium'
+                  : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
         </div>
-        {homePage && <TemplatePagePreview page={homePage} />}
+        <div
+          ref={previewScrollRef}
+          className="flex-1 overflow-y-auto bg-white"
+          onClickCapture={handlePreviewClick}
+          onSubmitCapture={(e) => e.preventDefault()}
+        >
+          {previewEntry && <TemplatePagePreview key={previewEntry.id} page={previewEntry.page} />}
+        </div>
       </div>
 
     </div>
