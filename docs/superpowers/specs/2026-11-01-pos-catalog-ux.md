@@ -46,7 +46,7 @@ La superficie de Operación no lleva PageHeader de gestión. Usa una **barra de 
 
 - **18 px en negrita no es texto grande en WCAG**: texto grande es ≥ 24 px regular o ≥ 18.66 px (14 pt) en negrita. Por eso ningún botón táctil depende de la excepción de texto grande; todos cumplen 4.5:1.
 - Estados: insignias con fondo suave y texto oscuro del mismo tono (éxito `#065F46` sobre `#D1FAE5`, aviso `#92400E` sobre `#FEF3C7`, error `#B91C1C` sobre `#FEE2E2`; en oscuro, tonos claros sobre fondo translúcido), siempre con icono y texto. Botón destructivo `#DC2626` + blanco (4.8:1).
-- Deshabilitado: fondo `muted`, texto `muted-foreground` (≈ 6:1), sin opacidad, cursor no permitido y motivo visible junto al control.
+- Deshabilitado: fondo `muted`, texto `muted-foreground` (≥ 4.9:1 en claro y oscuro), sin opacidad, cursor no permitido y motivo visible junto al control.
 - Foco: anillo de 2 px en el acento del módulo con separación de 2 px (≥ 3:1 sobre fondo y tarjeta).
 - Errores: borde de 2 px + icono + mensaje bajo el campo, `aria-invalid` y `role="alert"`. Confirmaciones: `role="alertdialog"` con descripción.
 - Bordes de campo: `hsl(214 14% 58%)` (≥ 3:1 sobre tarjeta clara).
@@ -554,6 +554,7 @@ Revisados contra `packages/ui/src/runtime.css` y `apps/desktop/src/lib/brandThem
 | V3 | `--brand-primary-on-dark` sube la luminosidad a 55 % sin bajar saturación: POS resulta `hsl(180 100% 55%)` (cian muy intenso). | Acentos de texto en oscuro muy brillantes. | Usarlo sólo para iconos o indicadores, no para texto largo. Ajuste del cálculo queda para el sistema. |
 | V4 | `Button` mide 36 px en escritorio (`h-9`). | Por debajo de 44 px en terminales táctiles con puntero fino detectado como escritorio. | `size="touch"` / `"touch-lg"` de §4.2. |
 | V5 | `Badge` sólido de `@runly/ui` en claro: blanco sobre `#10b981` (2.5:1), `#f59e0b` (2.1:1) y `#ef4444` (3.8:1). | Estados ilegibles a 12 px. | `StatusPill` usa la variante suave de §2.4; corregir `Badge` es decisión del sistema. |
+| V6 | Borde de campo en oscuro: `--input` `222 28% 24%` sobre tarjeta `222 47% 8%` queda por debajo de 3:1 (en claro, el `214 14% 78%` real tampoco llega y ya se usa `214 14% 58%`). `--muted-foreground` oscuro real (55 %) sí cumple: 4.9:1 sobre `muted`. | Campos difíciles de distinguir en oscuro. | Prototipos usan `--input` `222 20% 40%` en oscuro; el resto de tokens oscuros se mantienen reales. Ajuste del token es decisión del sistema. |
 
 Resolución en los prototipos (revisión 2026-11-01, ronda final): V1 y V2 se corrigen con los papeles de color de §2.4 (POS rellena con `#007A7A`; Catálogo conserva `#F97316` con texto oscuro). V3 se sustituye por `#4FBFBF` como acento de POS en oscuro. La fase visual debe trasladar estos valores a `brandTheme.js` (por ejemplo, `--brand-primary-fill` y `--brand-primary-text` derivados) o, si el sistema no se toca, a tokens locales del módulo; no se agregan colores sueltos en pantallas.
 
