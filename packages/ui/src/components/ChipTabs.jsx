@@ -7,12 +7,12 @@ import { cn } from '../lib/utils.js'
 // Controlled: pass `value` / `onChange`. Pair with <ChipTabPanel> for content.
 
 const TONES = {
-  brand: { solid: 'bg-(--brand-primary)', shadow: 'shadow-black/15', banner: 'border-(--brand-primary)/25 bg-(--brand-soft)', icon: 'bg-(--brand-primary) text-(--brand-primary-foreground)', focus: 'focus-visible:ring-(--brand-primary)' },
-  teal: { solid: 'bg-teal-600', shadow: 'shadow-teal-600/30', banner: 'border-teal-600/25 bg-teal-600/10', icon: 'bg-teal-600 text-white', focus: 'focus-visible:ring-teal-600' },
-  blue: { solid: 'bg-blue-600', shadow: 'shadow-blue-600/30', banner: 'border-blue-600/25 bg-blue-600/10', icon: 'bg-blue-600 text-white', focus: 'focus-visible:ring-blue-600' },
-  violet: { solid: 'bg-violet-600', shadow: 'shadow-violet-600/30', banner: 'border-violet-600/25 bg-violet-600/10', icon: 'bg-violet-600 text-white', focus: 'focus-visible:ring-violet-600' },
-  amber: { solid: 'bg-amber-600', shadow: 'shadow-amber-600/30', banner: 'border-amber-600/25 bg-amber-600/10', icon: 'bg-amber-600 text-white', focus: 'focus-visible:ring-amber-600' },
-  rose: { solid: 'bg-rose-600', shadow: 'shadow-rose-600/30', banner: 'border-rose-600/25 bg-rose-600/10', icon: 'bg-rose-600 text-white', focus: 'focus-visible:ring-rose-600' },
+  brand: { text: 'text-(--brand-primary-foreground)', solid: 'bg-(--brand-primary)', shadow: 'shadow-black/15', banner: 'border-(--brand-primary)/25 bg-(--brand-soft)', icon: 'bg-(--brand-primary) text-(--brand-primary-foreground)', focus: 'focus-visible:ring-(--brand-primary)' },
+  teal: { text: 'text-white', solid: 'bg-teal-600', shadow: 'shadow-teal-600/30', banner: 'border-teal-600/25 bg-teal-600/10', icon: 'bg-teal-600 text-white', focus: 'focus-visible:ring-teal-600' },
+  blue: { text: 'text-white', solid: 'bg-blue-600', shadow: 'shadow-blue-600/30', banner: 'border-blue-600/25 bg-blue-600/10', icon: 'bg-blue-600 text-white', focus: 'focus-visible:ring-blue-600' },
+  violet: { text: 'text-white', solid: 'bg-violet-600', shadow: 'shadow-violet-600/30', banner: 'border-violet-600/25 bg-violet-600/10', icon: 'bg-violet-600 text-white', focus: 'focus-visible:ring-violet-600' },
+  amber: { text: 'text-white', solid: 'bg-amber-600', shadow: 'shadow-amber-600/30', banner: 'border-amber-600/25 bg-amber-600/10', icon: 'bg-amber-600 text-white', focus: 'focus-visible:ring-amber-600' },
+  rose: { text: 'text-white', solid: 'bg-rose-600', shadow: 'shadow-rose-600/30', banner: 'border-rose-600/25 bg-rose-600/10', icon: 'bg-rose-600 text-white', focus: 'focus-visible:ring-rose-600' },
 }
 
 const PanelContext = createContext({ baseId: '' })
@@ -182,14 +182,14 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
                     iconCollapse && (selected ? 'max-sm:px-3' : 'max-sm:min-w-11 max-sm:justify-center max-sm:px-2.5'),
                     palette.focus,
                     selected
-                      ? cn('text-white', !indicator && cn(palette.solid, 'shadow-md', palette.shadow))
+                      ? cn(palette.text, !indicator && cn(palette.solid, 'shadow-md', palette.shadow))
                       : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--background))]/70 hover:text-[hsl(var(--foreground))] active:scale-[0.98]',
                   )}
                 >
                   {Icon ? <Icon className="h-4 w-4 shrink-0" aria-hidden="true" /> : null}
                   <span className={cn(compactGrid && 'max-sm:block max-sm:max-w-full max-sm:truncate', iconCollapse && !selected && 'max-sm:sr-only')}>{tab.label}</span>
                   {tab.badge != null && tab.badge !== '' ? (
-                    <span className={cn('rounded-full px-1.5 text-[11px] font-semibold tabular-nums', selected ? 'bg-white/25 text-white' : 'bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))]')}>
+                    <span className={cn('rounded-full px-1.5 text-[11px] font-semibold tabular-nums', selected ? cn('bg-white/25', palette.text) : 'bg-[hsl(var(--background))] text-[hsl(var(--muted-foreground))]')}>
                       {tab.badge}
                     </span>
                   ) : null}

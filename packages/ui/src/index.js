@@ -237,6 +237,7 @@ export { ProgressMeter } from "./components/ProgressMeter.jsx";
 export { RingProgress } from "./components/RingProgress.jsx";
 export { SectionCard } from "./components/SectionCard.jsx";
 export { SegmentedControl } from "./components/SegmentedControl.jsx";
+export { StatusPill } from "./components/StatusPill.jsx";
 export { NumberStepper } from "./components/NumberStepper.jsx";
 export { PeekSheet } from "./components/PeekSheet.jsx";
 export { ChoiceCardGroup } from "./components/ChoiceCardGroup.jsx";

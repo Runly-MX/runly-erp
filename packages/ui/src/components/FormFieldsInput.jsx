@@ -337,7 +337,7 @@ export const CurrencyField = forwardRef(function CurrencyField(
     error,
     hint,
     required,
-    id,
+    id: providedId,
     icon,
     value,
     onChange,
@@ -354,6 +354,8 @@ export const CurrencyField = forwardRef(function CurrencyField(
   },
   ref,
 ) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   function toCents(decimalValue) {
     if (decimalValue == null || decimalValue === "") return 0;
     return Math.round(Math.abs(Number(decimalValue)) * 100);

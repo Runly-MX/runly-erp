@@ -542,6 +542,12 @@ Necesidades funcionales que C0–C8 no cubren. La UI no las implementa hasta que
 | D28 | Encontrar una orden en el historial | C2 `GET /pos/v2/orders` (hoy filtra sólo `outletId`, `status`, `page`, `pageSize`) | Filtros `search` (folio), `from`/`to` (fecha), `terminalId`; en la proyección de lista, `receiptNumber`/folio y `lineCount`. Hasta entonces la búsqueda por folio se muestra deshabilitada con «próximamente». |
 | D29 | Devolución sin cálculo de dinero en el cliente | C4 `POST .../refunds` exige `payments[].amount` calculado por el cliente | Vista previa sin efectos (`POST /pos/v2/orders/:id/refunds/preview`) que, dadas líneas y cantidades, devuelva importe por línea, impuesto, total y reparto propuesto por pago con su máximo devolvible. Sin ella, `RefundSheet` sólo puede integrarse como devolución de anticipo o total. |
 | D30 | Ver qué cajas tienen sesión abierta al elegir terminal | C0 `GET /pos/v2/context` (sólo trae `currentSession` de la terminal elegida) | Opcional: `openSessionId` u `hasOpenSession` por terminal. Mientras tanto, el estado de sesión se muestra después de elegir la caja, con la respuesta real. |
+| D31 | Elegir sucursal en pantallas de Catálogo con permisos sólo de Catálogo | `GET /pos/outlets` exige permiso operativo POS | Resuelto en frontend: la ficha toma las sucursales de `GET /catalog/products/:id/pos-availability` (permiso de Catálogo). Pendiente para la vista «Existencias por sucursal» y el filtro POS del listado: un listado de sucursales con `catalog.products.read`. Hoy un usuario sólo de Catálogo ve el motivo y usa la ficha. |
+| D32 | Vista transversal de existencias por sucursal para administración | C1 `GET /pos/v2/sellables` exige permiso POS y no filtra por `stockState` ni por saldo «Sin asignar» | Resuelto en frontend con `sellables` (es el contrato que trae existencia local, «Sin asignar» y motivo). Pendiente: filtro `stockState`/`hasUnallocated` y total agregado de unidades sin asignar; la UI no los calcula en el cliente. |
+| D33 | Conflicto concurrente al editar producto o variante | `PATCH /catalog/products/:id` y variantes no aceptan versión ni `updatedAt` esperado | Resuelto en frontend con comprobación por campo antes de escribir (relee y compara sólo los campos editados; diálogo «Recargar / Guardar los míos»). Queda una ventana mínima entre lectura y escritura; el cierre real es `expectedVersion` en esos PATCH. |
+| D34 | Habilitar o bloquear una variante concreta en POS | C1 admin sólo escribe disponibilidad del producto; `disabledVariantIds` es de sólo lectura | La UI muestra «Bloqueada en POS» por configuración anterior. Pendiente decidir si v1 necesita escritura por variante. |
+| D35 | Alta y edición de producto/variante con clave de intento | `POST /catalog/products` y `POST .../variants` no son idempotentes | Resuelto en frontend: el producto se crea una sola vez y los pasos C1/C5 posteriores llevan clave propia; tras una respuesta perdida, un 409 de dirección web se explica como «probablemente ya se creó»; las combinaciones faltantes se recalculan desde una lectura nueva antes de cada alta. Cierre real: `Idempotency-Key` en esas altas. |
+| D36 | **Bloqueo, severidad alta.** Editar una variante sin reenviar todo borra su combinación y su herencia de precio | `PATCH /catalog/products/:id/variants/:variantId`: `updateVariantSchema = createVariantSchema.omit({stock}).partial()` conserva en Zod 4 los `default()` de alta, así que `{sku:"X"}` se valida como `{sku:"X", option_values:{}, price:0}` | Comprobado: `updateVariantSchema.parse({sku:'X'})` devuelve `{"option_values":{},"sku":"X","price":0}`, y la prueba de navegador lo reprodujo (las variantes quedaron «Sin opciones» con precio fijo 0). El frontend nuevo reenvía siempre `option_values` y la política de precio actual en cada PATCH. Cualquier otro cliente (sync, MCP, integraciones) sigue expuesto: Codex debe quitar los defaults del esquema parcial. No se modificó el backend en esta entrega. |
 
 ### 13.1 Hallazgos del sistema visual vigente
 
@@ -579,12 +585,12 @@ Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (imple
 | Turnos de meseros | C8 | 4 | Propuesto | No | No | No | No |
 | KDS | C6 | 4 | En revisión | No | No | No | No |
 | Administración agrupada | C0, C1, C6, D11 | 5 | En revisión | No | No | No | No |
-| Catálogo: listado | actual + D03 | 2, 5 | En revisión | No | No | No | No |
-| Catálogo: alta rápida | actual, C1 | 2, 5 | En revisión | No | No | No | No |
-| Catálogo: ficha por pestañas | actual, C1 | 2, 5 | En revisión | No | No | No | No |
-| `VariantGrid` | actual | 5 | En revisión | No | No | No | No |
-| `OutletAvailabilityPanel` + `CommercialTaxField` | C1 admin, D10 | 2, 5 | En revisión | No | No | No | No |
-| `StockBalancesPanel` + asignación + movimientos | C5, D17 | 2, 5 | En revisión | No | No | No | No |
+| Catálogo: listado | actual + D03 | 2, 5 | Aprobado | Sí | Sí | Sí | No |
+| Catálogo: alta rápida | actual, C1, C5 | 2, 5 | Aprobado | Sí | Sí | Sí | No |
+| Catálogo: ficha por pestañas | actual, C1 | 2, 5 | Aprobado | Sí | Sí | Sí | No |
+| `VariantGrid` | actual | 5 | Aprobado | Sí | Sí | Sí | No |
+| `OutletAvailabilityPanel` + `CommercialTaxField` | C1 admin, D10 | 2, 5 | Aprobado | Sí | Sí | Sí | No |
+| `StockBalancesPanel` + asignación + movimientos | C5, D17 | 2, 5 | Aprobado | Sí | Sí | Sí | No |
 | Componentes `@runly/ui` nuevos (§4.2) | ninguno | 3 | En revisión | No | n/a | No | No |
 
 ### 14.1 Contratos: implementados frente a pendientes
@@ -598,8 +604,8 @@ Fuente: [cierre técnico de fase 1](../plans/2026-11-01-commerce-phase1-results.
 | C3 pagos | Implementado | Cobro, venta completada | `allocations` por línea (rechazadas hasta C6) |
 | C4 cancelación y devolución | Implementado | Cancelar orden, Devolución, detalle de orden | Vista previa de importes (D29); regreso a existencias bloqueado por `STOCK_RECOVERY_NOT_READY` |
 | C8 sesiones, movimientos, turnos | Implementado | Apertura, cierre (conteo, resumen, confirmación) | Preferencia empresarial de conteo ciego (D22) |
-| C1 vendibles, búsqueda, escaneo, disponibilidad | Pendiente (fase 2) | Venta, escaneo ambiguo, variantes en POS, Catálogo | Todo el DTO; D27 define los campos del escaneo |
-| C5 existencias por sucursal | Pendiente (fase 2) | Existencias por sucursal, asignación | Saldos, asignación y movimientos con origen (D17) |
+| C1 vendibles, búsqueda, escaneo, disponibilidad | Implementado (fase 2, `da2b497d9`) | Venta, escaneo ambiguo, variantes en POS, Catálogo | Todo el DTO; D27 define los campos del escaneo |
+| C5 existencias por sucursal | Implementado (fase 2, `da2b497d9`) | Existencias por sucursal, asignación | Saldos, asignación y movimientos con origen (D17) |
 | C6 mesas, cocina, cuentas atribuidas | Pendiente (fase 4) | Mesero, comandero, caja restaurante, cocina | D26 define los campos de comanda; D12, D20, D23 |
 | C7 recibos e impresión | Pendiente (fase 3) | Venta completada, reimpresión, corte | Estado de impresión; hoy sólo existe el documento con `printedCount = 0` |
 
@@ -620,6 +626,8 @@ Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex ha
 ## 16. Verificación de esta entrega
 
 Documento de diseño; no se modificó código ni se ejecutaron pruebas. Lecturas: especificación maestra y plan del 2026-11-01, manifiestos `runly.catalog`/`runly.pos` en `apps/api/src/manifests/official/core-modules.js`, pantallas y componentes en `apps/desktop/src/modules/runly.pos/` y `runly.catalog/`, inventario de `packages/ui/src/components/` (incluidos `Button`, `Badge`, `Dialog`, `PeekSheet`), `runly.inventory/components/scan/ScanSearchField.jsx`, `docs/ai-context/rme3-runtime-capabilities.md` y `docs/mobile/RUNLY_NATIVE_HOST.md` (impresión Bluetooth).
+
+Implementación 2026-11-01 (Catálogo, fase visual sobre C1/C5 de `da2b497d9`): listado, alta rápida, ficha General · Venta · Variantes · Existencias · Web, `VariantGrid`, disponibilidad POS por sucursal, impuesto comercial, existencias por sucursal con «Sin asignar», asignación, ajustes y movimientos. Verificado en un stack desechable (todas las migraciones, API y web del árbol, datos sintéticos): 84/84 comprobaciones en `.e2e/catalog-commerce-ui.mjs`, incluidos contraste AA y ausencia de scroll horizontal a 390, 768, 1024 y 1440 px en claro y oscuro. Sin prueba en dispositivo táctil real. Discrepancias nuevas D31–D36.
 
 Revisión 2026-11-01, ronda final: nueve tableros nuevos (§17.1), corrección de contraste (§2.4, §13.1 V1–V5), D26–D27 detallados y D28–D30 agregados (§13), estado de contratos (§14.1). Sin cambios en servicios, migraciones, SDK ni pantallas React.
 

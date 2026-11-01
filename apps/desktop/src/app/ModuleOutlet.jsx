@@ -7,7 +7,7 @@ import { Compass, Layers } from "lucide-react";
 import { BlueprintCrudScreen } from "../shell/BlueprintCrudScreen.jsx";
 import { useRuntimeModules } from "./useRuntimeModules";
 import { isModuleAvailable } from "../lib/runtimeModules";
-import { applyBrandTheme } from "../lib/brandTheme.js";
+import { AA_FOREGROUND_MODULES, applyBrandTheme } from "../lib/brandTheme.js";
 import { moduleRootRedirect } from "./moduleRootRedirect.js";
 import { useBrandingStore } from "../stores/branding.js";
 import { TRASH_SUBPATH } from "../shell/trash/useTrashProviders.js";
@@ -580,7 +580,7 @@ export function ModuleOutlet() {
     document.documentElement.style.setProperty("--module-accent", color);
 
     if (module?.color?.startsWith("#")) {
-      applyBrandTheme(module.color);
+      applyBrandTheme(module.color, { strictContrast: AA_FOREGROUND_MODULES.has(module.key) });
     }
 
     return () => {

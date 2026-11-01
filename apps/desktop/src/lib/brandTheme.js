@@ -80,19 +80,57 @@ function relativeLuminance({ r, g, b }) {
 //   Either path: dark text is only kept when white would fail WCAG AA. Light
 //   violets/pinks (e.g. #8b5cf6, L 66%) crossed the HSL threshold and got
 //   #111827 at 3.9:1 while white reaches 4.6:1.
-function pickForeground({ r, g, b }) {
+//
+//   strict (opt-in per module): when white fails AA and dark text passes,
+//   dark wins. An orange like #F97316 (L 53%) takes white at 2.8:1 while
+//   #111827 reaches 6.3:1. Modules join AA_FOREGROUND_MODULES once their
+//   screens pass a contrast review, so the rest keep their current look.
+const DARK_TEXT = { r: 17, g: 24, b: 39 };
+
+export const AA_FOREGROUND_MODULES = new Set(["runly.catalog"]);
+
+function contrastRatio(a, b) {
+  const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+function pickForeground({ r, g, b }, { strict = false } = {}) {
   const { s, l } = rgbToHsl({ r, g, b });
   const L = relativeLuminance({ r, g, b });
   const whitePassesAA = 1.05 / (L + 0.05) >= 4.5;
+  if (strict && !whitePassesAA && contrastRatio({ r, g, b }, DARK_TEXT) >= 4.5) return "#111827";
   if (s >= 30) {
     return l < 65 || whitePassesAA ? "#ffffff" : "#111827";
   }
   return L <= 0.179 || whitePassesAA ? "#ffffff" : "#111827";
 }
 
+function hslToRgb({ h, s, l }) {
+  const sn = s / 100;
+  const ln = l / 100;
+  const k = (n) => (n + h / 30) % 12;
+  const a = sn * Math.min(ln, 1 - ln);
+  const f = (n) => ln - a * Math.max(-1, Math.min(k(n) - 3, Math.min(9 - k(n), 1)));
+  return { r: Math.round(f(0) * 255), g: Math.round(f(8) * 255), b: Math.round(f(4) * 255) };
+}
+
+// Accent for text and icons on light surfaces: the module color darkened
+// until it reaches 5.5:1 on white, so it still clears 4.5:1 on the tinted
+// (--brand-soft) and muted surfaces it sits on (official colors such as #F97316 or
+// #008C8C stay for fills and indicators). Dark surfaces keep
+// --brand-primary-on-dark.
+function textOnLight(hsl) {
+  const white = { r: 255, g: 255, b: 255 };
+  let candidate = { ...hsl };
+  while (candidate.l > 0 && contrastRatio(hslToRgb(candidate), white) < 5.5) {
+    candidate = adjustLightness(candidate, -1);
+  }
+  return hslToCss(candidate);
+}
+
 // The same derived tokens applyBrandTheme writes on :root, as a plain object -
 // for scopes (the chat's per-user accent) that restyle a subtree only.
-export function deriveBrandVars(primaryColor) {
+export function deriveBrandVars(primaryColor, { strictContrast = false } = {}) {
   const rgb = hexToRgb(primaryColor);
   if (!rgb) return null;
   const hsl = rgbToHsl(rgb);
@@ -101,13 +139,14 @@ export function deriveBrandVars(primaryColor) {
     "--brand-primary": `#${((rgb.r << 16) | (rgb.g << 8) | rgb.b).toString(16).padStart(6, "0")}`,
     "--brand-primary-on-dark": hslToCss(darkHsl),
     "--brand-primary-hover": hslToCss(adjustLightness(hsl, -8)),
-    "--brand-primary-foreground": pickForeground(rgb),
+    "--brand-primary-foreground": pickForeground(rgb, { strict: strictContrast }),
+    "--brand-primary-text": textOnLight(hsl),
     "--ring": `${hsl.h} ${hsl.s}% ${hsl.l}%`,
     "--glass-tint": `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.10)`,
   };
 }
 
-export function applyBrandTheme(primaryColor) {
+export function applyBrandTheme(primaryColor, { strictContrast = false } = {}) {
   const root = document.documentElement;
   const rgb = hexToRgb(primaryColor || "#0A7BFF") || hexToRgb("#0A7BFF");
   const hsl = rgbToHsl(rgb);
@@ -124,7 +163,8 @@ export function applyBrandTheme(primaryColor) {
   );
   root.style.setProperty("--brand-primary-on-dark", hslToCss(darkHsl));
   root.style.setProperty("--brand-primary-hover", hslToCss(hover));
-  root.style.setProperty("--brand-primary-foreground", pickForeground(rgb));
+  root.style.setProperty("--brand-primary-foreground", pickForeground(rgb, { strict: strictContrast }));
+  root.style.setProperty("--brand-primary-text", textOnLight(hsl));
   root.style.setProperty("--ring", `${hsl.h} ${hsl.s}% ${hsl.l}%`);
   root.style.setProperty(
     "--glass-tint",

@@ -9,7 +9,7 @@
 // allowNegative  default true; forced to false when min >= 0. Blocks typing
 //             and pasting "-".
 // allowDecimal   default true; when false, decimals are rounded on blur.
-import { useEffect, useRef, useState, forwardRef } from "react";
+import { useEffect, useId, useRef, useState, forwardRef } from "react";
 import { Hash } from "lucide-react";
 import { autoFieldIcon } from "../lib/field-icon-inference.js";
 import { cn } from "../lib/utils.js";
@@ -58,7 +58,7 @@ export const NumberField = forwardRef(function NumberField(
     onChange,
     onKeyDown,
     onPaste,
-    id,
+    id: providedId,
     icon: iconProp,
     prefix,
     suffix,
@@ -71,6 +71,8 @@ export const NumberField = forwardRef(function NumberField(
   },
   ref,
 ) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   const icon = prefix ? iconProp : autoFieldIcon(iconProp, { label, name: props.name, id }, Hash);
   const allowNegative = resolveAllowNegative(allowNegativeProp, min);
   const [localError, setLocalError] = useState("");
