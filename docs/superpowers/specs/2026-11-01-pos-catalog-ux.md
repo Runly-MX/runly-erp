@@ -34,7 +34,7 @@ La superficie de Operación no lleva PageHeader de gestión. Usa una **barra de 
 
 ### 2.2 Tokens y lenguaje visual
 
-- Color: sólo tokens vigentes (`--brand-primary`, `--brand-primary-foreground`, `hsl(var(--background|foreground|muted|muted-foreground|border|ring))`) y variantes de `Badge` (`success`, `warning`, `destructive`, `secondary`, `outline`). No se agregan colores fijos. El acento naranja se reserva para **la acción principal de cada pantalla** (Cobrar, Enviar a cocina, Guardar producto), nunca para decoración.
+- Color: sólo tokens vigentes (`--brand-primary`, `--brand-primary-hover`, `--brand-primary-foreground`, `hsl(var(--background|foreground|card|muted|muted-foreground|border|input|ring))`) y variantes de `Badge` (`success`, `warning`, `destructive`, `secondary`, `outline`). No se agregan colores fijos ni se impone un color de marca: dentro de un módulo, `ModuleOutlet` aplica `applyBrandTheme(module.color)` y `--brand-primary` pasa a ser el color del módulo — **POS `#008C8C` (verde azulado)**, **Catálogo `#F97316`** — con hover, foreground y `--ring` derivados por `apps/desktop/src/lib/brandTheme.js`. La estructura (fondos, texto, bordes) es la neutra Midnight/Navy de `packages/ui/src/runtime.css`. `--brand-primary` se reserva para **la acción principal de cada pantalla** (Cobrar, Enviar a cocina, Guardar producto) y el estado activo, nunca para decoración. Ver hallazgos de contraste en §13.1.
 - Estado operativo con color + icono + texto, nunca color solo: Disponible / Agotado / No disponible en esta sucursal; Libre / Ocupada / Por cobrar / Reservada; Pendiente / En preparación / Lista / Entregada.
 - Cifras: `font-variant-numeric: tabular-nums` (`tabular-nums` de Tailwind) en precios, totales, cantidades y temporizadores. Moneda siempre visible junto al total (`$1,250.00 MXN`).
 - Forma: botones `rounded-xl` como `Button` actual; campos y controles `rounded-md` como máximo; filas seleccionadas con relleno plano, sin anillo, brillo ni píldora.
@@ -240,20 +240,20 @@ Horizontal ≥ 1024 px (tableta horizontal, terminal, escritorio):
 +---------------------------------------------+------------------------+
 | [ Buscar o escanear ......................] |  Venta actual      (3) |
 | [Todos][Bebidas][Panadería][Abarrotes] ...  |  Café americano  M     |
-|                                             |   [-] 2 [+]   $90.00   |
+|                                             |   [-] 2 [+]   $82.00   |
 |  +--------+ +--------+ +--------+ +------+  |  Pan dulce             |
 |  | img    | | img    | | img    | | img  |  |   [-] 1 [+]   $18.00   |
 |  | Café   | | Té     | | Pan    | | ...  |  |                        |
-|  | $45.00 | | $38.00 | | $18.00 | |      |  |  Subtotal     $108.00  |
-|  +--------+ +--------+ +--------+ +------+  |  IVA incluido  $14.90  |
-|  ...                                        |  Total   $108.00 MXN   |
+|  | $41.00 | | $38.00 | | $18.00 | |      |  |  IVA incluido  $13.79  |
+|  +--------+ +--------+ +--------+ +------+  |                        |
+|  ...                                        |  Total   $100.00 MXN   |
 |                     [ Cargar más ]          |  [ Suspender ][Vaciar] |
-|                                             |  [   COBRAR $108.00  ] |
+|                                             |  [   COBRAR $100.00  ] |
 +---------------------------------------------+------------------------+
 ```
 
 - Catálogo ~62 %, carrito ~38 % (mín. 360 px). Carrito fijo; sólo su lista se desplaza; total y Cobrar siempre visibles.
-- Vertical 768 × 1024: catálogo arriba, carrito como `PeekSheet` inferior con la franja «3 artículos · $108.00 MXN · Cobrar».
+- Vertical 768 × 1024: catálogo arriba, carrito como `PeekSheet` inferior con la franja «3 artículos · $100.00 MXN · Cobrar».
 - Teléfono 390 × 844: mismo patrón con `PeekSheet`; la cuadrícula pasa a 2 columnas; la barra de operación se compacta (sucursal/terminal en el menú). Uso secundario: la prioridad son tabletas horizontales y terminales.
 
 ### 6.2 Búsqueda, categorías y escaneo
@@ -293,24 +293,24 @@ Toque en producto VARIABLE → sheet con grupos de opción como `SegmentedContro
 +-----------------------------------------------+
 | (icono) Cobrar venta #A-1042           [ X ]  |
 +-----------------------------------------------+
-| Por cobrar               $108.00 MXN          |
+| Por cobrar               $100.00 MXN          |
 |                                               |
 | Método   [ Efectivo ] [ Tarjeta ] [ Transf. ] |
 |                                               |
-| Importe a aplicar        [  108.00  ]         |
+| Importe a aplicar        [  100.00  ]         |
 | Efectivo recibido        [  200.00  ]         |
-|  [$108][$150][$200][$500]   (exacto + billetes)|
+|  [$100][$200][$500]         (exacto + billetes)|
 |  +---+---+---+                                |
-|  | 7 | 8 | 9 |   Cambio estimado   $92.00     |
+|  | 7 | 8 | 9 |   Cambio estimado  $100.00     |
 |  | 4 | 5 | 6 |                                |
 |  | 1 | 2 | 3 |                                |
 |  | . | 0 | ⌫ |                                |
 +-----------------------------------------------+
-| [ Cancelar ]        [ CONFIRMAR PAGO $108.00 ]|
+| [ Cancelar ]        [ CONFIRMAR PAGO $100.00 ]|
 +-----------------------------------------------+
 ```
 
-- «Importe a aplicar» se precarga con `remainingAmount` y sólo se reduce para pagos parciales. «Efectivo recibido» sólo existe en métodos CASH. Son dos controles distintos (H02, C3).
+- «Importe a aplicar» se precarga con `remainingAmount` y sólo se reduce para pagos parciales. «Efectivo recibido» sólo existe en métodos CASH. Son dos controles distintos (H02, C3). Ejemplo de referencia: por cobrar $100.00, efectivo recibido $200.00 → pago aplicado $100.00 (`amount`), cambio $100.00 (`changeAmount`); la caja aumenta $100.00.
 - «Cambio estimado» es una vista previa de formato; la cifra definitiva es `changeAmount` de la respuesta y es la que se muestra en la confirmación.
 - Tarjeta/Transferencia: sin recibido ni cambio; campo «Referencia» obligatorio si el método lo exige. Texto fijo: «Registra un pago ya realizado en la terminal bancaria».
 - Botones de billetes: exacto + denominaciones configurables por empresa (preferencia local en v1).
@@ -323,7 +323,7 @@ Toque en producto VARIABLE → sheet con grupos de opción como `SegmentedContro
 
 ### 6.7 Confirmación y ticket (`SaleCompleteView`)
 
-Reemplaza el panel del carrito (no un toast): marca de éxito, total, método, **Cambio: $92.00** en tamaño grande si aplica, folio. Acciones: «Imprimir ticket», «Ver ticket», «Nueva venta» (acción principal, también con Enter). `PrintStatus` muestra el estado del job C7 con texto honesto: «Enviado a la impresora» (SUBMITTED), «No se pudo imprimir» (FAILED, con «Reintentar» y «Ver ticket»), nunca «Impreso» sin confirmación de hardware. Reimprimir desde Órdenes marca «Copia». Con impresión automática configurada, el job se crea al entrar a la vista y el estado se muestra igual.
+Reemplaza el panel del carrito (no un toast): marca de éxito, total, método, pago aplicado y recibido, **Cambio: $100.00** en tamaño grande si aplica (ejemplo de §6.6), folio. Acciones: «Imprimir ticket», «Ver ticket», «Nueva venta» (acción principal, también con Enter). `PrintStatus` muestra el estado del job C7 con texto honesto: «Enviado a la impresora» (SUBMITTED), «No se pudo imprimir» (FAILED, con «Reintentar» y «Ver ticket»), nunca «Impreso» sin confirmación de hardware. Reimprimir desde Órdenes marca «Copia». Con impresión automática configurada, el job se crea al entrar a la vista y el estado se muestra igual.
 
 `ReceiptPreview` renderiza el documento del recibo (D07) y permite imprimir con el diálogo del navegador o Bluetooth si el host tiene `bluetooth-print`.
 
@@ -522,35 +522,48 @@ Necesidades funcionales que C0–C8 no cubren. La UI no las implementa hasta que
 | D23 | «Pedir cuenta» (mesa por cobrar) | C6 | Estado de mesa o marca de orden para «cuenta solicitada», o confirmar que no aplica en v1. |
 | D24 | Pre-cuenta impresa antes de cobrar | C7 | Documento no fiscal de orden OPEN con el mismo mecanismo de print jobs, o fuera de v1. |
 | D25 | Códigos de error `REFUND_REQUIRED` y `PREPARATION_STATION_REQUIRED` | Convenciones | Añadirlos a la lista estable de códigos 409 de §5 de la especificación maestra. |
+| D26 | Tarjeta de comanda legible en cocina: tiempo desde el envío, mesa o folio para llevar, mesero y marca de envío adicional | C6 `GET /pos/v2/kitchen/tickets` | Agregar al ticket `dispatchedAt`, `orderLabel` (mesa o «Para llevar #n»), `waiterName` y `dispatchSequence` (>1 = «Extra»). El DTO actual sólo enumera líneas, nombres, notas, modificadores y versión. |
+| D27 | Elegir entre coincidencias ambiguas y explicar por qué un escaneo no se agregó | C1 `GET /pos/v2/scan` | Agregar `sku`, `categoryName` y `unavailableReason` a cada `match`; hoy sólo trae `available` sin motivo. |
+
+### 13.1 Hallazgos del sistema visual vigente
+
+Revisados contra `packages/ui/src/runtime.css` y `apps/desktop/src/lib/brandTheme.js`. No reabren decisiones; se registran para que la fase visual no los herede sin saberlo.
+
+| ID | Hallazgo | Efecto | Propuesta |
+|---|---|---|---|
+| V1 | Catálogo (`#F97316`) recibe `--brand-primary-foreground` blanco porque `pickForeground` prefiere blanco en colores saturados con L < 65 %. Contraste blanco sobre `#F97316` ≈ 2.8:1. | Botón principal de Catálogo no cumple AA ni siquiera para texto grande. | Decisión del sistema (`brandTheme.js`), fuera de esta recuperación: usar texto oscuro cuando el blanco no alcance 3:1. Mientras tanto, los prototipos muestran el comportamiento real. |
+| V2 | POS (`#008C8C`) con texto blanco ≈ 4.1:1. | Cumple como texto grande (≥ 18.66 px negrita), no a 14 px. | Las acciones principales táctiles usan `size="touch-lg"` (18 px, 700), que cumple; evitar `--brand-primary` como fondo de texto pequeño en Operación. |
+| V3 | `--brand-primary-on-dark` sube la luminosidad a 55 % sin bajar saturación: POS resulta `hsl(180 100% 55%)` (cian muy intenso). | Acentos de texto en oscuro muy brillantes. | Usarlo sólo para iconos o indicadores, no para texto largo. Ajuste del cálculo queda para el sistema. |
+| V4 | `Button` mide 36 px en escritorio (`h-9`). | Por debajo de 44 px en terminales táctiles con puntero fino detectado como escritorio. | `size="touch"` / `"touch-lg"` de §4.2. |
 
 Límites de v1 aceptados por la UI sin pedir cambio: descuento sólo por línea (no por orden), disponibilidad por sucursal heredada a variantes, sin propinas calculadas, sin cola offline de pagos, sin procesamiento bancario.
 
 ## 14. Estado de integración por pantalla
 
-Escala: **Diseño** (propuesto / aprobado) · **Frontend** (implementado con fixtures) · **Integrado** (contrato real con evidencia) · **Navegador** (390 × 844, 768 × 1024, 1024 × 768, escritorio, claro y oscuro) · **Táctil** (dispositivo real). Hoy todas las pantallas están en «Diseño propuesto» y el resto en «No».
+Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (implementado con fixtures) · **Integrado** (contrato real con evidencia) · **Navegador** (390 × 844, 768 × 1024, 1024 × 768, escritorio, claro y oscuro) · **Táctil** (dispositivo real). La dirección general está aprobada; las pantallas con prototipo (§17) están «En revisión» y el resto en «Propuesto». Ninguna pasa de ahí.
 
 | Pantalla / componente | Contratos | Etapa | Diseño | Frontend | Integrado | Navegador | Táctil |
 |---|---|---|---|---|---|---|---|
-| `PosContextGate` + `PosOperationBar` | C0, C8 | 3 | Propuesto | No | No | No | No |
-| Tienda: catálogo, búsqueda, escaneo, variantes | C1 | 3 | Propuesto | No | No | No | No |
-| Tienda: carrito | C2 | 3 | Propuesto | No | No | No | No |
-| `ChargeSheet` + `SaleCompleteView` | C3, C7 | 3 | Propuesto | No | No | No | No |
+| `PosContextGate` + `PosOperationBar` | C0, C8 | 3 | En revisión | No | No | No | No |
+| Tienda: catálogo, búsqueda, escaneo, variantes | C1 | 3 | En revisión | No | No | No | No |
+| Tienda: carrito | C2 | 3 | En revisión | No | No | No | No |
+| `ChargeSheet` + `SaleCompleteView` | C3, C7 | 3 | En revisión | No | No | No | No |
 | Apertura, movimientos, cierre de caja | C8 | 3 | Propuesto | No | No | No | No |
 | `RefundSheet` | C4 | 3 | Propuesto | No | No | No | No |
 | Órdenes (historial, detalle, reimpresión) | C2, C4, C7 | 3, 5 | Propuesto | No | No | No | No |
-| Mesero: `TableBoard` | C0, C6 | 4 | Propuesto | No | No | No | No |
-| Mesero: `TicketComposer` + envío | C1, C2, C6 | 4 | Propuesto | No | No | No | No |
-| Caja restaurante + `SeatSplitSheet` | C2, C3, C6 | 4 | Propuesto | No | No | No | No |
+| Mesero: `TableBoard` | C0, C6 | 4 | En revisión | No | No | No | No |
+| Mesero: `TicketComposer` + envío | C1, C2, C6 | 4 | En revisión | No | No | No | No |
+| Caja restaurante + `SeatSplitSheet` | C2, C3, C6 | 4 | En revisión | No | No | No | No |
 | Turnos de meseros | C8 | 4 | Propuesto | No | No | No | No |
-| KDS | C6 | 4 | Propuesto | No | No | No | No |
-| Administración agrupada | C0, C1, C6, D11 | 5 | Propuesto | No | No | No | No |
-| Catálogo: listado | actual + D03 | 2, 5 | Propuesto | No | No | No | No |
-| Catálogo: alta rápida | actual, C1 | 2, 5 | Propuesto | No | No | No | No |
-| Catálogo: ficha por pestañas | actual, C1 | 2, 5 | Propuesto | No | No | No | No |
+| KDS | C6 | 4 | En revisión | No | No | No | No |
+| Administración agrupada | C0, C1, C6, D11 | 5 | En revisión | No | No | No | No |
+| Catálogo: listado | actual + D03 | 2, 5 | En revisión | No | No | No | No |
+| Catálogo: alta rápida | actual, C1 | 2, 5 | En revisión | No | No | No | No |
+| Catálogo: ficha por pestañas | actual, C1 | 2, 5 | En revisión | No | No | No | No |
 | `VariantGrid` | actual | 5 | Propuesto | No | No | No | No |
-| `OutletAvailabilityPanel` + `CommercialTaxField` | C1 admin, D10 | 2, 5 | Propuesto | No | No | No | No |
+| `OutletAvailabilityPanel` + `CommercialTaxField` | C1 admin, D10 | 2, 5 | En revisión | No | No | No | No |
 | `StockBalancesPanel` + asignación + movimientos | C5, D17 | 2, 5 | Propuesto | No | No | No | No |
-| Componentes `@runly/ui` nuevos (§4.2) | ninguno | 3 | Propuesto | No | n/a | No | No |
+| Componentes `@runly/ui` nuevos (§4.2) | ninguno | 3 | En revisión | No | n/a | No | No |
 
 Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex haya publicado el contrato con fixture, schema, SDK y pruebas (especificación maestra §8). «Táctil» exige prueba en tableta o teléfono real con el recorrido completo.
 
@@ -567,3 +580,45 @@ Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex ha
 ## 16. Verificación de esta entrega
 
 Documento de diseño; no se modificó código ni se ejecutaron pruebas. Lecturas: especificación maestra y plan del 2026-11-01, manifiestos `runly.catalog`/`runly.pos` en `apps/api/src/manifests/official/core-modules.js`, pantallas y componentes en `apps/desktop/src/modules/runly.pos/` y `runly.catalog/`, inventario de `packages/ui/src/components/` (incluidos `Button`, `Badge`, `Dialog`, `PeekSheet`), `runly.inventory/components/scan/ScanSearchField.jsx`, `docs/ai-context/rme3-runtime-capabilities.md` y `docs/mobile/RUNLY_NATIVE_HOST.md` (impresión Bluetooth).
+
+Revisión 2026-11-01 (validación visual): se corrigió el ejemplo de cobro a por cobrar $100.00 / efectivo recibido $200.00 / pago aplicado $100.00 / cambio $100.00, y la regla de color pasó de «naranja» a `--brand-primary` del módulo. Los prototipos se construyeron sin integraciones: datos de ejemplo en el propio prototipo, ningún endpoint ni pantalla de producción modificados.
+
+## 17. Prototipos para revisión y archivos de la fase visual
+
+### 17.1 Prototipos
+
+Lienzo privado de revisión «Runly Commerce — prototipos» (claude.ai, compartir desde su menú). Usa los tokens reales de `packages/ui/src/runtime.css` y los acentos derivados por `brandTheme.js` (POS `#008C8C`, Catálogo `#F97316`); cada tablero tiene control de tema claro/oscuro. No usa componentes React reales: reproduce su aspecto para validar jerarquía, tamaños y estados.
+
+| Página | Tablero | Tamaño | Demuestra |
+|---|---|---|---|
+| Catálogo | Listado · Escritorio | 1440 × 900 | Búsqueda por nombre/SKU/código, filtros, estado POS y web separados, «Sin asignar», moneda distinta, paginación real |
+| Catálogo | Listado · Móvil | 390 × 844 | Tarjetas, filtros en hoja, acción principal fija |
+| Catálogo | Ficha · Escritorio | 1440 × 1040 | Esenciales visibles, avanzados resumidos, venta POS por sucursal independiente de la web, barra de guardado |
+| Catálogo | Alta rápida · Tablet | 1024 × 768 | Cuatro campos y un interruptor, error de campo, pie fijo |
+| POS Tienda | Venta · Tablet horizontal | 1024 × 768 | Escáner con foco, categorías, tarjetas con disponibilidad, carrito, total y Cobrar siempre visibles; sin Suspender (D01) |
+| POS Tienda | Cobro · Tablet | 1024 × 768 | $100 por cobrar, $200 recibido, $100 aplicado, $100 de cambio; importe aplicado y recibido separados; teclado |
+| POS Tienda | Venta completada · Tablet | 1024 × 768 | Cambio en grande, ticket previsualizado, «Enviado a la impresora» sin afirmar impresión |
+| POS Tienda | Venta · Móvil | 390 × 844 | Selección de variante obligatoria, combinación agotada |
+| POS Tienda | Escritorio · Código ambiguo | 1440 × 900 | Barra lateral colapsada, atajos de teclado, escaneo ambiguo que no agrega nada |
+| POS Tienda | Estados de operación | 1440 × 900 | Sin conexión, procesando, respuesta perdida, sin existencias, venta modificada, impresora fallida, caja cerrada, escaneo no vendible |
+| POS Restaurante | Mesero · Mesas · Móvil | 390 × 844 | Cuadrícula sin plano, filtros, sucursal explícita, platillos listos, pedido para llevar |
+| POS Restaurante | Comandero · Pedido · Móvil | 390 × 844 | Asientos, «Por enviar» editable frente a «Enviado» de sólo lectura, envío incremental |
+| POS Restaurante | Mesas en lista · Tablet | 1024 × 768 | Vista de lista y panel de mesa sin Floor Planner |
+| POS Restaurante | Caja · Dividir cuenta · Tablet | 1024 × 768 | Mesas/Mostrador en HYBRID, cobro por asiento, asiento pagado, pago general sin asignar |
+| Cocina | Tablero táctil | 1280 × 800 | Columnas por estado, línea tocable, extras, notas y alergias resaltadas, tiempos, deshacer; control «sin conexión» |
+| Administración | Tienda · Escritorio | 1440 × 900 | Grupos simplificados sin restaurante, modo por sucursal, pendientes accionables hacia Catálogo |
+| Administración | Restaurante · Móvil | 390 × 844 | Grupo de restaurante, mesas simples, plano del salón opcional |
+
+No dibujados todavía: `PosContextGate`, apertura/cierre completo de caja, `RefundSheet`, Órdenes, existencias por sucursal y `VariantGrid`. Se prototipan en la siguiente revisión si se piden; el diseño escrito de §5–§10 rige mientras tanto.
+
+### 17.2 Archivos que se modificarán en la fase visual
+
+Ningún archivo de esta lista se toca hasta que el contrato de su etapa esté disponible (§15). Los archivos de backend, SDK, Prisma y migraciones son de Codex y no aparecen aquí.
+
+| Etapa | Nuevos | Modificados |
+|---|---|---|
+| Ahora (sin contratos, si se aprueba) | `packages/ui/src/components/MoneyText.jsx`, `NumericKeypad.jsx`, `StatusPill.jsx`, `ScanInput.jsx`, `packages/ui/src/hooks/useScanWedge.js` (o junto al componente, según convención del paquete) | `packages/ui/src/components/Button.jsx` (tamaños `touch`/`touch-lg`), `packages/ui/src/index.js`, `docs/ai-context/rme3-runtime-capabilities.md`, `apps/desktop/src/modules/runly.inventory/components/scan/ScanSearchField.jsx` (consume `ScanInput`) |
+| 2 (C1, C5) | `apps/desktop/src/modules/runly.catalog/components/ProductQuickCreateSheet.jsx`, `VariantGrid.jsx`, `OutletAvailabilityPanel.jsx`, `CommercialTaxField.jsx`, `StockBalancesPanel.jsx`, `StockAllocationSheet.jsx`, `screens/product-detail/*Tab.jsx` (una por pestaña) | `screens/CatalogProductsScreen.jsx`, `CatalogProductDetailScreen.jsx`, `CatalogInventoryScreen.jsx`, `CatalogCategoriesScreen.jsx`; retiro de `components/VariantMatrix.jsx`; `StockMovementModal.jsx` |
+| 3 (C0, C2–C5, C7, C8) | `apps/desktop/src/modules/runly.pos/components/PosOperationBar.jsx`, `PosContextGate.jsx`, `SellableGrid.jsx`, `SellableCard.jsx`, `VariantPickerSheet.jsx`, `CartPanel.jsx`, `CartLine.jsx`, `ChargeSheet.jsx`, `SaleCompleteView.jsx`, `ReceiptPreview.jsx`, `PrintStatus.jsx`, `RefundSheet.jsx`, `SessionOpenSheet.jsx`, `SessionCloseSheet.jsx`, `CashMovementSheet.jsx`, `screens/RetailScreen.jsx` | `screens/CajaScreen.jsx`, `PosTerminalScreen.jsx`, `PosHomeRedirect.jsx`, `PosOrdersScreen.jsx`, `PosSessionsScreen.jsx`, `components/LineEditSheet.jsx`; retiro de `PaymentDialog.jsx`, `SessionOpenDialog.jsx`, `SessionCloseDialog.jsx`, `CashMovementDialog.jsx` y del uso de `ProductGrid.jsx`/`OrderPanel.jsx` en Tienda; hooks `usePosCatalog.js`, `usePosOrder.js`, `usePosSession.js`, `usePosSettings.js` sólo para consumir los métodos SDK que publique Codex |
+| 4 (C6) | `components/TableBoard.jsx`, `TicketComposer.jsx`, `SeatSplitSheet.jsx`, `KitchenTicketCard.jsx`, `KitchenBoard.jsx`, `screens/RestaurantCashierScreen.jsx` | `screens/ComanderoScreen.jsx`, `ComandaScreen.jsx`, `CocinaScreen.jsx`, `PosTablesScreen.jsx`, `components/SeatChips.jsx`, `ModifierSheet.jsx`, `WaiterShiftsPanel.jsx`; retiro de `SplitBillDialog.jsx` y `KitchenStationBoard.jsx`; hooks `usePosFloor.js`, `usePosKitchen.js`, `usePosWaiterShifts.js`. `PosFloorPlannerScreen.jsx` y `lib/floorObjects.js`/`plannerObjects.js` sin cambios salvo su entrada desde Administración |
+| 5 | `screens/settings/*Group.jsx` (uno por grupo de §10), `components/ModeGate.jsx` si no se ubica en `@runly/ui` | `screens/PosSettingsScreen.jsx` (837 líneas, se divide), `PosAdminScreen.jsx`, `PosStationsScreen.jsx`, `components/OutletFlagsFields.jsx`, `PosModifiersTab.jsx`; navegación del manifiesto POS sólo si Codex expone la visibilidad por modo (coordinado, no editado por Claude) |
