@@ -23,7 +23,8 @@ async function apiFetch(path, token, options = {}) {
 }
 
 export default function WebsiteTemplateDetailScreen() {
-  const { id } = useParams()
+  const { '*': wildcard } = useParams()
+  const id = wildcard?.match(/^templates\/([^/]+)\/detail$/)?.[1] ?? null
   const navigate = useNavigate()
   const { session } = useAuth()
   const token = session?.access_token
