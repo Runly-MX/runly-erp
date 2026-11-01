@@ -117,6 +117,44 @@ describe("call-transcript-analysis-service.analyzeTranscript", () => {
     assert.equal(proof.companyId, "c1");
   });
 
+  it("applies only the AI corrections whose wrong side appears in the transcript, keeping the original text", async () => {
+    const transcript = { id: "t1", status: "READY", companyId: "c1" };
+    const segmentRows = [
+      { id: "s1", startMs: 0, text: "usamos el protocolo Baglet", originalText: null },
+      { id: "s2", startMs: 1, text: "todo bien", originalText: null },
+    ];
+    const updates = [];
+    const prisma = {
+      ...basePrisma({ transcript, segments: segmentRows }),
+      callTranscriptSegment: {
+        findMany: async () => segmentRows,
+        update: async (args) => { updates.push(args); },
+      },
+    };
+    const recorded = [];
+    const draft = {
+      summary: "s", decisions: [], actionItems: [], proposedEvents: [],
+      corrections: [{ wrong: "Baglet", right: "BACnet" }, { wrong: "inventado", right: "otra cosa" }],
+    };
+    const fetchImpl = mock.fn(async () => fakeGroqResponse(draft));
+    const vocabularyService = {
+      promptTerms: async () => ["RJ45"],
+      recordAiCorrections: async (args) => { recorded.push(args); },
+    };
+    const service = createCallTranscriptAnalysisService({
+      prisma, env: ENV, fetchImpl, tasksService: {}, calendarService: {}, vocabularyService,
+    });
+
+    const result = await service.analyzeTranscript({ transcriptId: "t1", profileId: "u1" });
+
+    assert.deepEqual(result.corrections, [{ wrong: "Baglet", right: "BACnet", count: 1 }]);
+    assert.equal(updates.length, 1);
+    assert.deepEqual(updates[0].data, { text: "usamos el protocolo BACnet", originalText: "usamos el protocolo Baglet" });
+    assert.equal(recorded[0].applied.length, 1);
+    const sentPrompt = JSON.parse(fetchImpl.mock.calls[0].arguments[1].body).messages[0].content;
+    assert.match(sentPrompt, /Vocabulario conocido de esta empresa: RJ45/);
+  });
+
   it("includes a module's proposals (runly.contacts) in the saved analysis when the module is available and Groq returned some", async () => {
     const transcript = { id: "t1", status: "READY", companyId: "c1" };
     const prisma = {

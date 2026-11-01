@@ -14,6 +14,7 @@ import { createCallMessagesService, CallMessageError } from "./call-messages-ser
 import { createCallRecordingService, CallRecordingError } from "./call-recording-service.js";
 import { createCallTranscriptService, CallTranscriptError } from "./call-transcript-service.js";
 import { createCallTranscriptAnalysisService, CallTranscriptAnalysisError } from "./call-transcript-analysis-service.js";
+import { createTranscriptVocabularyService, TranscriptVocabularyError } from "./call-transcript-vocabulary.js";
 import { createCallTranscriptDocumentService, CallTranscriptDocumentError } from "./call-transcript-document-service.js";
 import { publishCallEvent } from "./call-automation-events.js";
 import { createTasksService } from "../projects/tasks-service.js";
@@ -26,6 +27,18 @@ const callIdSchema = z.string().uuid();
 const conversationIdSchema = z.string().uuid();
 const recordingIdSchema = z.string().uuid();
 const transcriptIdSchema = z.string().uuid();
+const transcriptionSettingsSchema = z.object({
+  engine: z.enum(["LOCAL", "GROQ"]),
+  acknowledgeExternal: z.boolean().optional(),
+});
+const transcriptionTermSchema = z.object({
+  term: z.string().trim().min(1).max(80),
+  heardAs: z.string().trim().max(80).optional(),
+});
+const segmentEditSchema = z.object({
+  text: z.string().max(4000).optional(),
+  revert: z.boolean().optional(),
+});
 
 function handleError(c, error, fallback) {
   if (
@@ -37,6 +50,7 @@ function handleError(c, error, fallback) {
     || error instanceof CallTranscriptError
     || error instanceof CallTranscriptAnalysisError
     || error instanceof CallTranscriptDocumentError
+    || error instanceof TranscriptVocabularyError
   ) {
     return c.json(
       {
@@ -91,8 +105,9 @@ export function createCallsRouter({
   async function logAudit({ companyId, actorId, entityType, entityId, action, before = null, after = null }) {
     await prisma.auditLog.create({ data: { companyId, actorId, entityType, entityId, action, before, after } });
   }
+  const vocabularyService = createTranscriptVocabularyService({ prisma });
   const transcriptService = transcriptServiceOverride ?? createCallTranscriptService({
-    prisma, supabaseAdmin, logAudit, callService: calls,
+    prisma, supabaseAdmin, logAudit, callService: calls, vocabularyService,
     onTranscriptReady: async (t) => {
       const msg = buildTranscriptReadyMessage({ transcriptId: t.id, durationMs: t.durationMs });
       await calls.postSystemMessage(t.conversationId, msg);
@@ -103,6 +118,7 @@ export function createCallsRouter({
   const analysisService = createCallTranscriptAnalysisService({
     prisma,
     documentService,
+    vocabularyService,
     tasksService: createTasksService({ prisma }),
     calendarService: createCalendarEventService({ prisma }),
     logAudit,
@@ -392,6 +408,57 @@ export function createCallsRouter({
         const data = await transcriptService.stopTrackTranscription({ callId, profileId: c.get("userId") });
         return c.json({ data });
       } catch (error) { return handleError(c, error, "Error deteniendo la captura por pista."); }
+    },
+  );
+  // ---- transcription engine + company glossary (vocabulary the engine hears right) ----
+  function requireCompany(c) {
+    const companyId = c.get("companyId");
+    if (!companyId) throw new TranscriptVocabularyError("Empresa no seleccionada.", 400);
+    return companyId;
+  }
+  internal.get("/transcription/settings", requirePermission("chat.calls.transcript.request"), async (c) => {
+    try {
+      const companyId = requireCompany(c);
+      const [settings, terms] = await Promise.all([vocabularyService.getSettings(companyId), vocabularyService.listTerms(companyId)]);
+      return c.json({ data: { ...settings, terms } });
+    } catch (error) { return handleError(c, error, "Error obteniendo la configuración de transcripción."); }
+  });
+  internal.put("/transcription/settings", requirePermission("chat.calls.transcript.manage"), async (c) => {
+    try {
+      const body = transcriptionSettingsSchema.parse(await c.req.json());
+      const data = await vocabularyService.updateSettings({
+        companyId: requireCompany(c), profileId: c.get("userId"), engine: body.engine, acknowledgeExternal: body.acknowledgeExternal === true,
+      });
+      return c.json({ data });
+    } catch (error) { return handleError(c, error, "Error guardando la configuración de transcripción."); }
+  });
+  internal.post("/transcription/terms", requirePermission("chat.calls.transcript.request"), async (c) => {
+    try {
+      const body = transcriptionTermSchema.parse(await c.req.json());
+      const data = await vocabularyService.addTerm({ companyId: requireCompany(c), term: body.term, heardAs: body.heardAs ?? "" });
+      return c.json({ data }, 201);
+    } catch (error) { return handleError(c, error, "Error guardando el término."); }
+  });
+  internal.delete("/transcription/terms/:termId", requirePermission("chat.calls.transcript.manage"), async (c) => {
+    try {
+      const termId = z.string().uuid().parse(c.req.param("termId"));
+      await vocabularyService.removeTerm({ companyId: requireCompany(c), termId });
+      return c.json({ data: { id: termId } });
+    } catch (error) { return handleError(c, error, "Error eliminando el término."); }
+  });
+  internal.patch(
+    "/transcripts/:transcriptId/segments/:segmentId",
+    requirePermission("chat.calls.transcript.request"),
+    async (c) => {
+      try {
+        const transcriptId = transcriptIdSchema.parse(c.req.param("transcriptId"));
+        const segmentId = z.string().uuid().parse(c.req.param("segmentId"));
+        const body = segmentEditSchema.parse(await c.req.json());
+        const data = await transcriptService.updateSegmentText({
+          transcriptId, segmentId, text: body.text, revert: body.revert === true, profileId: c.get("userId"),
+        });
+        return c.json({ data });
+      } catch (error) { return handleError(c, error, "Error guardando el texto del segmento."); }
     },
   );
   internal.post(

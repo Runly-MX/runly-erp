@@ -8,6 +8,7 @@ import { signAiProof, verifyAiProof, AiProofTokenError } from "../../lib/ai-proo
 import { createAiRouter } from "../../services/ai/ai-router.js";
 import { isLocalEnabled } from "../../services/ai/ai-providers.js";
 import { resolveTokenBudget, digestMaxChars } from "./transcript-map-reduce.js";
+import { sanitizePairs, applyPairsToSegments } from "./call-transcript-corrections.js";
 import {
   resolveAvailableProposalModules,
   buildModulePromptAdditions,
@@ -56,17 +57,19 @@ function extractJsonObject(text) {
 // — appended as additional JSON keys to produce, never replacing the fixed
 // base shape below. Empty string when no additional module applies (the
 // original V1/Etapa-5 behavior, byte-for-byte).
-function buildSystemPrompt(referenceDateIso, moduleAdditions = "") {
+function buildSystemPrompt(referenceDateIso, moduleAdditions = "", glossary = []) {
+  const known = glossary.length ? ` Vocabulario conocido de esta empresa: ${glossary.join(", ")}.` : "";
   return [
     "Eres un asistente que analiza la transcripcion de una llamada o reunion de trabajo.",
     `Esta reunion ocurrio el ${referenceDateIso} (fecha y hora reales, con zona horaria). Usa esta fecha como referencia para resolver cualquier expresion relativa de tiempo mencionada en la transcripcion (ej. "manana", "la proxima semana", "el lunes que viene", "en quince dias") a una fecha absoluta ISO 8601 concreta.`,
     "Devuelve SOLO un objeto JSON (sin texto fuera del JSON) con esta forma exacta:",
-    '{"summary": string, "decisions": string[], "actionItems": [{"text": string}], "proposedEvents": [{"title": string, "startsAt": string ISO 8601, "endsAt": string ISO 8601 opcional, "description": string opcional}]}',
+    '{"summary": string, "decisions": string[], "actionItems": [{"text": string}], "proposedEvents": [{"title": string, "startsAt": string ISO 8601, "endsAt": string ISO 8601 opcional, "description": string opcional}], "corrections": [{"wrong": string, "right": string}]}',
     "summary: minuta breve en espanol, 3-6 oraciones, en tono neutral.",
     "decisions: acuerdos concretos ya tomados en la reunion, cada uno una oracion corta.",
     "actionItems: tareas pendientes que alguien debe hacer despues de la reunion, en infinitivo (ej. 'Enviar la propuesta al cliente'). No inventes tareas que no se mencionaron.",
     "proposedEvents: cualquier proxima reunion, entrega o cita mencionada con una referencia de tiempo (absoluta o relativa a la fecha de esta reunion) que puedas resolver con la fecha de referencia de arriba. Si de verdad no se menciono ninguna referencia de tiempo, devuelve un arreglo vacio. Nunca inventes una fecha sin ninguna referencia en la transcripcion.",
     "Si la transcripcion no tiene contenido suficiente para alguna de estas listas, devuelve un arreglo vacio en vez de inventar contenido.",
+    `corrections: errores evidentes del reconocimiento de voz que aparecen escritos tal cual en la transcripcion y que el contexto de la reunion permite corregir con seguridad: siglas, marcas, nombres propios y terminos tecnicos mal escuchados (ej. {"wrong": "Baglet", "right": "BACnet"}). "wrong" debe copiarse exactamente como aparece en la transcripcion, y ambos valores deben ser una palabra o frase corta, nunca una oracion. No corrijas estilo, gramatica ni palabras comunes, y si dudas no incluyas la correccion. Maximo 30; arreglo vacio si no hay.${known}`,
     moduleAdditions,
   ].join(" ").trim();
 }
@@ -79,15 +82,16 @@ export function createCallTranscriptAnalysisService({
   fetchImpl = null,
   logAudit = null,
   documentService = null,
+  vocabularyService = null,
 }) {
   const aiRouter = createAiRouter({ env, fetchImpl });
 
-  async function callGroq(transcriptText, referenceDateIso, moduleAdditions) {
+  async function callGroq(transcriptText, referenceDateIso, moduleAdditions, glossary = []) {
     if (!env.GROQ_API_KEY && !isLocalEnabled(env)) {
       throw new CallTranscriptAnalysisError("Analisis con IA no configurado (falta GROQ_API_KEY).", 503);
     }
     const messages = [
-      { role: "system", content: buildSystemPrompt(referenceDateIso, moduleAdditions) },
+      { role: "system", content: buildSystemPrompt(referenceDateIso, moduleAdditions, glossary) },
       { role: "user", content: transcriptText.slice(0, 60000) },
     ];
     let result;
@@ -121,6 +125,7 @@ export function createCallTranscriptAnalysisService({
           }))
           .filter((ev) => ev.title && ev.startsAt)
         : [],
+      corrections: Array.isArray(obj.corrections) ? obj.corrections : [],
     };
   }
 
@@ -177,7 +182,10 @@ export function createCallTranscriptAnalysisService({
     const availableModules = await resolveAvailableProposalModules({ prisma, companyId: transcript.companyId });
     const moduleAdditions = buildModulePromptAdditions(availableModules);
 
-    const { obj, model } = await callGroq(transcriptText, referenceDateIso, moduleAdditions);
+    const glossary = vocabularyService
+      ? await vocabularyService.promptTerms(transcript.companyId).catch(() => [])
+      : [];
+    const { obj, model } = await callGroq(transcriptText, referenceDateIso, moduleAdditions, glossary.slice(0, 40));
     const draft = normalizeDraft(obj);
     const moduleProposals = await extractModuleProposals({
       prisma, companyId: transcript.companyId, obj, availableModules,
@@ -211,6 +219,21 @@ export function createCallTranscriptAnalysisService({
 
     const proofToken = signAiProof({ transcriptId, companyId: transcript.companyId, actorId: profileId }, env);
 
+    // Speech-recognition fixes proposed by the AI: only pairs whose "wrong" side
+    // really appears in the transcript are applied, and each segment keeps its
+    // original text. Failure here never fails the analysis itself.
+    let appliedCorrections = [];
+    try {
+      const fixes = sanitizePairs(draft.corrections, segments.map((s) => s.text).join("\n"));
+      const result = await applyPairsToSegments(prisma, transcriptId, fixes);
+      appliedCorrections = result.applied;
+      if (vocabularyService && appliedCorrections.length) {
+        await vocabularyService.recordAiCorrections({ companyId: transcript.companyId, applied: appliedCorrections });
+      }
+    } catch (error) {
+      console.warn(`${LOG_PREFIX} No se pudieron aplicar las correcciones propuestas:`, error?.message ?? error);
+    }
+
     if (logAudit) {
       await logAudit({
         companyId: transcript.companyId,
@@ -218,11 +241,11 @@ export function createCallTranscriptAnalysisService({
         entityType: "CallTranscriptAnalysis",
         entityId: saved.id,
         action: "chat.call_transcript.analyze",
-        after: { transcriptId },
+        after: { transcriptId, corrections: appliedCorrections.length },
       }).catch((error) => console.warn(`${LOG_PREFIX} No se pudo escribir el audit log:`, error?.message ?? error));
     }
 
-    return { analysis: saved, proofToken };
+    return { analysis: saved, proofToken, corrections: appliedCorrections };
   }
 
   // The stored analysis (null when none was generated yet), with a fresh

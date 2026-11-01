@@ -87,10 +87,17 @@ export function createCallTranscriptService({
   EgressClientImpl = EgressClient,
   RoomServiceClientImpl = RoomServiceClient,
   callService = null, // needed for V2 only: getLiveCallOrThrow (a live call, not just any call row)
+  vocabularyService = null, // engine choice + company glossary; absent -> local engine, no vocabulary hint
 }) {
   // Default speech language for new transcripts ("auto" = let Whisper detect).
   function defaultLanguage() {
     return normalizeLanguage(env.CALL_TRANSCRIPT_LANGUAGE ?? "es");
+  }
+
+  // Engine + Whisper vocabulary hint stored on the row for runly-transcriber.
+  async function requestContext(companyId, call) {
+    if (!vocabularyService) return { requestedEngine: "LOCAL", vocabularyPrompt: null };
+    return vocabularyService.resolveRequestContext({ companyId, call });
   }
 
   function liveKit() {
@@ -195,6 +202,7 @@ export function createCallTranscriptService({
     const companyId = convRows[0]?.company_id;
     if (!companyId) throw new CallTranscriptError("Conversación no encontrada.", 404);
 
+    const context = await requestContext(companyId, call);
     const record = await prisma.callTranscript.create({
       data: {
         callId,
@@ -205,6 +213,7 @@ export function createCallTranscriptService({
         status: "PENDING",
         requestedByUserId,
         requestedLanguage: language === undefined ? defaultLanguage() : normalizeLanguage(language),
+        ...context,
       },
     });
 
@@ -348,6 +357,7 @@ export function createCallTranscriptService({
       throw new CallTranscriptError("No hay participantes con micrófono activo en esta llamada.", 422);
     }
 
+    const context = await requestContext(companyId, call);
     const record = await prisma.callTranscript.create({
       data: {
         callId,
@@ -358,6 +368,7 @@ export function createCallTranscriptService({
         status: "CAPTURING",
         requestedByUserId,
         requestedLanguage: defaultLanguage(),
+        ...context,
       },
     });
 
@@ -632,9 +643,15 @@ export function createCallTranscriptService({
     // PENDING window never sees the outgoing segments next to a status that
     // says they're stale.
     await prisma.callTranscriptSegment.deleteMany({ where: { transcriptId } });
+    let context = {};
+    if (vocabularyService) {
+      const sourceCall = await prisma.call.findUnique({ where: { id: transcript.callId } });
+      if (sourceCall) context = await requestContext(transcript.companyId, sourceCall);
+    }
     const updated = await prisma.callTranscript.update({
       where: { id: transcriptId },
       data: {
+        ...context,
         status: "PENDING",
         attempts: 0,
         failureReason: null,
@@ -705,6 +722,46 @@ export function createCallTranscriptService({
     };
   }
 
+  // A member fixes one segment by hand. The first edit keeps the engine's
+  // text in originalText; `revert` restores it. A small word-level replacement
+  // is remembered in the company glossary so the next transcripts hear it right.
+  async function updateSegmentText({ transcriptId, segmentId, text, revert = false, profileId }) {
+    const transcript = await prisma.callTranscript.findUnique({ where: { id: transcriptId } });
+    if (!transcript) throw new CallTranscriptError("Transcripción no encontrada.", 404);
+    await assertMember(transcript.conversationId, profileId);
+    if (transcript.status !== "READY") {
+      throw new CallTranscriptError("Solo se puede editar una transcripción lista.", 409);
+    }
+    const segment = await prisma.callTranscriptSegment.findFirst({ where: { id: segmentId, transcriptId } });
+    if (!segment) throw new CallTranscriptError("Segmento no encontrado.", 404);
+
+    if (revert) {
+      if (segment.originalText == null) return { id: segment.id, text: segment.text, originalText: null };
+      return prisma.callTranscriptSegment.update({
+        where: { id: segment.id },
+        data: { text: segment.originalText, originalText: null },
+        select: { id: true, text: true, originalText: true },
+      });
+    }
+
+    const next = String(text ?? "").replace(/\s+/g, " ").trim();
+    if (!next || next.length > 4000) throw new CallTranscriptError("El texto del segmento no es válido.", 400);
+    if (next === segment.text) return { id: segment.id, text: segment.text, originalText: segment.originalText };
+
+    const original = segment.originalText ?? segment.text;
+    const updated = await prisma.callTranscriptSegment.update({
+      where: { id: segment.id },
+      // Typing the original text back is a revert, not an edit.
+      data: next === original ? { text: next, originalText: null } : { text: next, originalText: original },
+      select: { id: true, text: true, originalText: true },
+    });
+    if (vocabularyService && next !== original) {
+      await vocabularyService.learnFromEdit({ companyId: transcript.companyId, before: segment.text, after: next })
+        .catch((error) => console.warn(`${LOG_PREFIX} No se pudo aprender de la edición:`, error?.message ?? error));
+    }
+    return updated;
+  }
+
   // Admin-style action: requires chat.calls.transcript.manage at the route
   // level (role gate) plus conversation membership here (IDOR gate), mirroring
   // how chat.calls.record gates recording deletion.
@@ -754,6 +811,10 @@ export function createCallTranscriptService({
     const days = await retentionDays();
     for (const row of rows) {
       try {
+        if (vocabularyService) {
+          await vocabularyService.applyRules({ transcriptId: row.id, companyId: row.companyId })
+            .catch((error) => console.warn(`${LOG_PREFIX} No se pudieron aplicar las correcciones del glosario:`, row.id, error?.message ?? error));
+        }
         if (onTranscriptReady) {
           await onTranscriptReady({ ...row });
         }
@@ -811,6 +872,7 @@ export function createCallTranscriptService({
     listTranscripts,
     getTranscript,
     deleteTranscript,
+    updateSegmentText,
     reconcileReadyTranscripts,
     reconcileActiveTranscriptTracks,
     cleanupExpiredTranscripts,
