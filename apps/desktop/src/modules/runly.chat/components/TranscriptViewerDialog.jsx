@@ -3,7 +3,7 @@ import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
   Button, Skeleton, ErrorState, ConfirmDialog, AssistantWordmark, SelectField, ProgressBar,
 } from "@runly/ui";
-import { ClipboardList, Copy, Download, Loader2, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
+import { BookText, ClipboardList, Copy, Download, Loader2, NotebookPen, RefreshCw, Sparkles } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider";
 import { toast } from "sonner";
@@ -13,6 +13,8 @@ import { formatTimestamp, speakerColor, transcriptProgress, LANGUAGE_NAMES, LANG
 import { saveHtmlAsNote, transcriptToHtml } from "../lib/transcriptNote";
 import { TranscriptAnalysisDialog } from "./TranscriptAnalysisDialog";
 import { TranscriptDocumentsDialog } from "./TranscriptDocumentsDialog";
+import { TranscriptSegmentText } from "./TranscriptSegmentText";
+import { TranscriptionSettingsDialog } from "./TranscriptionSettingsDialog";
 
 function initials(label) {
   const parts = label.trim().split(/\s+/).filter(Boolean);
@@ -53,7 +55,7 @@ function SpeakerAvatar({ label, color }) {
   );
 }
 
-function TurnBlock({ turn, color }) {
+function TurnBlock({ turn, color, transcriptId }) {
   const multi = turn.segments.length > 1;
   if (!turn.label) {
     const segment = turn.segments[0];
@@ -62,7 +64,7 @@ function TurnBlock({ turn, color }) {
         <span className="shrink-0 pt-0.5 font-mono text-xs text-[hsl(var(--muted-foreground))]">
           {formatTimestamp(segment.startMs)}
         </span>
-        <p className="min-w-0 leading-relaxed">{segment.text}</p>
+        <TranscriptSegmentText transcriptId={transcriptId} segment={segment} />
       </div>
     );
   }
@@ -79,7 +81,7 @@ function TurnBlock({ turn, color }) {
         <div className="mt-0.5 space-y-1">
           {turn.segments.map((segment, i) => (
             <div key={segment.id} className="group/line flex gap-2 text-sm leading-relaxed">
-              <p className="min-w-0 flex-1">{segment.text}</p>
+              <TranscriptSegmentText transcriptId={transcriptId} segment={segment} />
               {multi && i > 0 && (
                 <span className="shrink-0 pt-0.5 font-mono text-[11px] text-[hsl(var(--muted-foreground))] opacity-0 transition-opacity group-hover/line:opacity-100">
                   {formatTimestamp(segment.startMs)}
@@ -93,7 +95,7 @@ function TurnBlock({ turn, color }) {
   );
 }
 
-function TranscriptBody({ segments }) {
+function TranscriptBody({ segments, transcriptId }) {
   const { turns, colorIndex } = groupTurns(segments);
   const speakers = [...colorIndex.entries()];
   return (
@@ -116,6 +118,7 @@ function TranscriptBody({ segments }) {
           <TurnBlock
             key={turn.key}
             turn={turn}
+            transcriptId={transcriptId}
             color={turn.label ? speakerColor(colorIndex.get(turn.label)) : undefined}
           />
         ))}
@@ -147,6 +150,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
   const [regenLanguage, setRegenLanguage] = useState("es");
   const [analysisOpen, setAnalysisOpen] = useState(false);
   const [documentsOpen, setDocumentsOpen] = useState(false);
+  const [vocabularyOpen, setVocabularyOpen] = useState(false);
   const transcript = data?.data ?? data;
   const progress = transcriptProgress(transcript);
   const { session } = useAuth();
@@ -262,6 +266,10 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
                 <ClipboardList className="h-3.5 w-3.5" />
                 Minuta y resumen
               </Button>
+              <Button variant="outline" size="sm" onClick={() => setVocabularyOpen(true)} title="Siglas, marcas y términos de tu empresa para que se transcriban bien">
+                <BookText className="h-3.5 w-3.5" />
+                Vocabulario
+              </Button>
               <Button
                 variant="outline"
                 size="sm"
@@ -305,7 +313,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
               </Button>
             </div>
             {transcript.segments?.length
-              ? <TranscriptBody segments={transcript.segments} />
+              ? <TranscriptBody segments={transcript.segments} transcriptId={transcriptId} />
               : <p className="py-6 text-center text-sm text-[hsl(var(--muted-foreground))]">Sin contenido reconocible.</p>}
           </>
         )}
@@ -329,6 +337,7 @@ export function TranscriptViewerDialog({ transcriptId, open, onOpenChange, conve
         />
       </ConfirmDialog>
 
+      <TranscriptionSettingsDialog open={vocabularyOpen} onOpenChange={setVocabularyOpen} />
       <TranscriptAnalysisDialog transcriptId={transcriptId} open={analysisOpen} onOpenChange={setAnalysisOpen} />
       <TranscriptDocumentsDialog transcriptId={transcriptId} open={documentsOpen} onOpenChange={setDocumentsOpen} callTitle={callTitle} />
     </Dialog>

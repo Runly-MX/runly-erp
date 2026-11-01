@@ -1,4 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { useAuth } from "../../../auth/AuthProvider";
 import { runly } from "../../../lib/runly";
 
@@ -107,6 +108,14 @@ export function useAnalyzeTranscript(conversationId) {
     mutationFn: (transcriptId) => runly.calls.analyzeTranscript(transcriptId, session.access_token),
     onSuccess: (data, transcriptId) => {
       qc.setQueryData(["chat-transcript-analysis", transcriptId], data);
+      // The analysis also fixes misheard terms in the transcript itself.
+      const fixed = unwrap(data)?.corrections ?? [];
+      if (fixed.length) {
+        qc.invalidateQueries({ queryKey: ["chat-transcript", transcriptId] });
+        toast.success(fixed.length === 1
+          ? "Se corrigió 1 término mal reconocido en la transcripción."
+          : `Se corrigieron ${fixed.length} términos mal reconocidos en la transcripción.`);
+      }
     },
   });
 }

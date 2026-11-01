@@ -105,6 +105,14 @@ export function createCallsDomain(request, withAuthHeaders) {
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/analyze`, "POST", {}, token),
     getTranscriptAnalysis: (transcriptId, token) =>
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/analysis`, "GET", undefined, token),
+    // --- transcription engine + company glossary ---
+    getTranscriptionSettings: (token) => json("/calls/transcription/settings", "GET", undefined, token),
+    updateTranscriptionSettings: (body, token) => json("/calls/transcription/settings", "PUT", body, token),
+    addTranscriptionTerm: (body, token) => json("/calls/transcription/terms", "POST", body, token),
+    removeTranscriptionTerm: (termId, token) =>
+      json(`/calls/transcription/terms/${encodeURIComponent(termId)}`, "DELETE", undefined, token),
+    updateTranscriptSegment: (transcriptId, segmentId, body, token) =>
+      json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/segments/${encodeURIComponent(segmentId)}`, "PATCH", body, token),
     listTranscriptDocuments: (transcriptId, token) =>
       json(`/calls/transcripts/${encodeURIComponent(transcriptId)}/documents`, "GET", undefined, token),
     createTranscriptDocument: (transcriptId, kind, token) =>
