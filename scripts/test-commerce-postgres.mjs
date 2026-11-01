@@ -67,6 +67,19 @@ try {
   assert.equal(sql(`SELECT count(*) FROM pos_session WHERE status='OPEN'`,'commerce_preflight').trim(),'2');
   console.log('PASS migration: duplicate OPEN containers abort before DDL and preserve both historical rows.');
 
+  // Phase 2: migrate synthetic historical stock without inventing movements.
+  sql(`WITH p AS (INSERT INTO catalog_product(id,company_id,name,slug,price,stock,updated_at) VALUES(uuidv7(),uuidv7(),'Legacy','legacy',50,5,now()) RETURNING *)
+    INSERT INTO catalog_stock_movement(id,company_id,product_id,quantity_delta,updated_at) SELECT uuidv7(),company_id,id,2,now() FROM p`);
+  const phase2=resolve(root,'prisma/migrations/20261101180000_commerce_catalog_stock/migration.sql');
+  apply(phase2);
+  assert.equal(sql('SELECT sum(quantity) FROM catalog_stock_balance').trim(),'5');
+  assert.equal(sql('SELECT count(*) FROM catalog_stock_movement').trim(),'1');
+  sql('SELECT commerce_initialize_stock_balances()');
+  assert.equal(sql('SELECT sum(quantity) FROM catalog_stock_balance').trim(),'5');
+  assert.equal(sql('SELECT count(*) FROM catalog_stock_movement').trim(),'1');
+  assert.equal(sql("SELECT count(*) FROM catalog_stock_balance WHERE outlet_id IS NOT NULL").trim(),'0');
+  console.log('PASS phase 2 migration: historical stock stays unallocated, repeat initialization preserves units and movement history.');
+
   const files = ['apps/api/src/routes/pos/__tests__','apps/api/src/routes/catalog/__tests__']
     .flatMap((folder) => readdirSync(resolve(root,folder)).filter((f)=>f.endsWith('.test.js')).map((f)=>`${folder}/${f}`));
   files.push('apps/api/src/manifests/official/__tests__/runly-pos-contract.test.js',

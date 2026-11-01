@@ -8,7 +8,7 @@ import { createPosRecoverySessions } from './pos-recovery-sessions.js';
 
 export function createPosRecoveryService({ prisma }) {
   const commands = createPosCommandService({ prisma });
-  const store = createPosRecoveryStore({ commands });
+  const store = createPosRecoveryStore({ commands, prisma });
   const sessions = createPosRecoverySessions({ commands, store });
   const handlers = { ...createPosRecoveryOrders({ commands, store }), ...createPosPaymentService({ commands, store }),
     ...createPosRefundService({ commands, store }), ...sessions };
@@ -42,7 +42,7 @@ export function createPosRecoveryService({ prisma }) {
         openSession: allowed('pos.sessions.manage','pos.caja.operate'), closeSession: allowed('pos.sessions.manage','pos.caja.close'),
         refund: allowed('pos.refunds.create'), discount: allowed('pos.discounts.apply'),
         kitchenOperate: allowed('pos.stations.manage','pos.cocina.operate'), floorPlanner: allowed('pos.floor.manage','pos.admin.update'),
-      }, contractVersion: 'pos-recovery-v1', activation: { phase: 1, trackedStockSales: false, retailUiReady: false },
+      }, contractVersion: 'pos-recovery-v1', activation: { phase: 2, trackedStockSales: true, retailUiReady: false },
     });
   }
 

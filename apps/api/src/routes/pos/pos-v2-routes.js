@@ -1,5 +1,6 @@
+import { createPosRefundQuoteService } from './pos-refund-quote-service.js';
 import { Hono } from 'hono';
-import { CommerceError, contextQuerySchema, listOrdersSchema, parse, resourceIdSchema, shiftStatusSchema } from './pos-contracts.js';
+import { CommerceError, contextQuerySchema, listOrdersSchema, parse, resourceIdSchema, refundPreviewSchema, shiftStatusSchema } from './pos-contracts.js';
 import { createPosRecoveryService } from './pos-recovery-service.js';
 import { getActorId, getCompanyId } from './service-helpers.js';
 import { orderStatusSchema, salesChannelSchema } from './validators.js';
@@ -45,6 +46,7 @@ export function createPosV2Router({ prisma, requirePermission, requireAnyPermiss
   app.get('/pos/v2/orders', any(orderRead), read(async (c) => c.json(await service.listOrders(getCompanyId(c), parse(listOrdersSchema, c.req.query())))));
   app.get('/pos/v2/orders/:id', any(orderRead), read(async (c) => c.json({ data: await service.getOrder(getCompanyId(c), parse(resourceIdSchema, c.req.param('id'))) })));
   app.get('/pos/v2/sessions/:id/expected-cash', any(sessionRead), read(async (c) => c.json({ data: await service.expectedCash(getCompanyId(c), parse(resourceIdSchema, c.req.param('id'))) })));
+  app.post('/pos/v2/orders/:id/refunds/preview', requirePermission('pos.refunds.create'), read(async (c) => c.json({ data: await createPosRefundQuoteService({ prisma }).preview(getCompanyId(c), parse(resourceIdSchema,c.req.param('id')),parse(refundPreviewSchema,await c.req.json())) })));
   app.get('/pos/v2/payment-methods', any(POS_OPERATION_PERMISSIONS), read(async (c) => c.json({ data: (await service.context(getCompanyId(c), {}, permissions(c))).paymentMethods })));
   app.get('/pos/v2/waiter-shifts', any(['pos.caja.read','pos.caja.close']), read(async (c) => {
     const outletId = c.req.query('outletId');

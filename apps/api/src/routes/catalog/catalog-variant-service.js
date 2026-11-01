@@ -1,8 +1,25 @@
+import { fail } from '../pos/pos-contracts.js';
 // apps/api/src/routes/catalog/catalog-variant-service.js
 
 export function createCatalogVariantService({ prisma }) {
+  async function assertAsset(companyId, assetId) {
+    if (!assetId) return;
+    const rows=await prisma.$queryRaw`SELECT id FROM file_asset WHERE id=${assetId}::uuid AND entity_id=${companyId}::uuid AND enabled=true`;
+    if (!rows[0]) fail('NOT_FOUND','Imagen no encontrada en esta empresa.',404);
+  }
+  async function assertProduct(db, companyId, productId) {
+    const rows=await db.$queryRaw`SELECT id FROM catalog_product WHERE id=${productId}::uuid AND company_id=${companyId}::uuid`;
+    if(!rows[0])fail('NOT_FOUND','Producto no encontrado.',404);
+  }
+  async function assertChild(db,table,companyId,childId,productId) {
+    const rows=await db.$queryRawUnsafe(`SELECT id,product_id FROM ${table} WHERE id=$1::uuid AND company_id=$2::uuid`,childId,companyId);
+    if(!rows[0] || (productId && String(rows[0].product_id)!==String(productId)))fail('NOT_FOUND','Recurso no encontrado en este producto.',404);
+    return rows[0];
+  }
+
 
   async function listOptions({ companyId, productId }) {
+    await assertProduct(prisma,companyId,productId);
     const options = await prisma.$queryRaw`
       SELECT o.id, o.name, o.position
       FROM catalog_product_option o
@@ -23,6 +40,7 @@ export function createCatalogVariantService({ prisma }) {
   }
 
   async function createOption({ companyId, productId, data }) {
+    await assertProduct(prisma,companyId,productId);
     return prisma.$transaction(async (tx) => {
       const [option] = await tx.$queryRaw`
         INSERT INTO catalog_product_option (company_id, product_id, name, position)
@@ -42,7 +60,8 @@ export function createCatalogVariantService({ prisma }) {
     })
   }
 
-  async function updateOption({ companyId, optionId, data }) {
+  async function updateOption({ companyId, optionId, productId, data }) {
+    await assertChild(prisma,"catalog_product_option",companyId,optionId,productId);
     return prisma.$transaction(async (tx) => {
       if (data.name !== undefined || data.position !== undefined) {
         const map = { name: data.name, position: data.position }
@@ -67,7 +86,7 @@ export function createCatalogVariantService({ prisma }) {
         }
       }
       const [updated] = await tx.$queryRaw`
-        SELECT * FROM catalog_product_option WHERE id = ${optionId}::uuid LIMIT 1
+        SELECT * FROM catalog_product_option WHERE id = ${optionId}::uuid AND company_id=${companyId}::uuid LIMIT 1
       `
       if (!updated) return null
       const values = await tx.$queryRaw`
@@ -77,7 +96,8 @@ export function createCatalogVariantService({ prisma }) {
     })
   }
 
-  async function deleteOption({ companyId, optionId }) {
+  async function deleteOption({ companyId, optionId, productId }) {
+    await assertChild(prisma,"catalog_product_option",companyId,optionId,productId);
     await prisma.$queryRaw`
       DELETE FROM catalog_product_option
       WHERE id = ${optionId}::uuid AND company_id = ${companyId}::uuid
@@ -85,26 +105,32 @@ export function createCatalogVariantService({ prisma }) {
   }
 
   async function listVariants({ companyId, productId }) {
+    await assertProduct(prisma,companyId,productId);
     return prisma.$queryRaw`
-      SELECT * FROM catalog_product_variant
-      WHERE product_id = ${productId}::uuid AND company_id = ${companyId}::uuid AND enabled = true
-      ORDER BY created_at ASC
+      SELECT v.*, CASE WHEN v.price_inherited THEN p.price ELSE v.price END AS price
+      FROM catalog_product_variant v JOIN catalog_product p ON p.id=v.product_id AND p.company_id=v.company_id
+      WHERE v.product_id = ${productId}::uuid AND v.company_id = ${companyId}::uuid AND v.enabled = true
+      ORDER BY v.created_at ASC
     `
   }
 
-  async function getVariantById({ companyId, variantId }) {
+  async function getVariantById({ companyId, variantId, productId }) {
+    await assertChild(prisma,"catalog_product_variant",companyId,variantId,productId);
     const rows = await prisma.$queryRaw`
-      SELECT * FROM catalog_product_variant
-      WHERE id = ${variantId}::uuid AND company_id = ${companyId}::uuid
+      SELECT v.*, CASE WHEN v.price_inherited THEN p.price ELSE v.price END AS price
+      FROM catalog_product_variant v JOIN catalog_product p ON p.id=v.product_id AND p.company_id=v.company_id
+      WHERE v.id = ${variantId}::uuid AND v.company_id = ${companyId}::uuid
       LIMIT 1
     `
     return rows[0] ?? null
   }
 
   async function createVariant({ companyId, productId, data }) {
+    await assertProduct(prisma,companyId,productId);
+    await assertAsset(companyId,data.cover_asset_id);
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_product_variant
-        (company_id, product_id, option_values, sku, barcode, price, compare_price, stock, cover_asset_id)
+        (company_id, product_id, option_values, sku, barcode, price, compare_price, stock, cover_asset_id, price_inherited)
       VALUES (
         ${companyId}::uuid,
         ${productId}::uuid,
@@ -114,21 +140,26 @@ export function createCatalogVariantService({ prisma }) {
         ${data.price ?? 0},
         ${data.compare_price ?? null},
         ${data.stock ?? 0},
-        ${data.cover_asset_id ?? null}::uuid
+        ${data.cover_asset_id ?? null}::uuid,
+        ${data.price === null}
       )
       RETURNING *
     `
-    return rows[0]
+    return getVariantById({companyId,variantId:rows[0].id,productId})
   }
 
-  async function updateVariant({ companyId, variantId, data }) {
+  async function updateVariant({ companyId, variantId, productId, data }) {
+    await assertChild(prisma,"catalog_product_variant",companyId,variantId,productId);
+    await assertAsset(companyId,data.cover_asset_id);
+    if(data.stock!==undefined)fail('VALIDATION_ERROR','Usa un ajuste de existencias auditado.',400);
     const map = {
       option_values:  data.option_values !== undefined ? JSON.stringify(data.option_values) : undefined,
       sku:            data.sku,
       barcode:        data.barcode,
-      price:          data.price,
+      price:          data.price === null ? 0 : data.price,
+      price_inherited: data.price === undefined ? undefined : data.price === null,
       compare_price:  data.compare_price,
-      stock:          data.stock,
+
       cover_asset_id: data.cover_asset_id,
     }
     const entries = Object.entries(map).filter(([, v]) => v !== undefined)
@@ -139,10 +170,11 @@ export function createCatalogVariantService({ prisma }) {
                  WHERE id = $1::uuid AND company_id = $${values.length + 2}::uuid AND enabled = true
                  RETURNING *`
     const rows = await prisma.$queryRawUnsafe(sql, variantId, ...values, companyId)
-    return rows[0] ?? null
+    return rows[0] ? getVariantById({companyId,variantId,productId}) : null
   }
 
-  async function deleteVariant({ companyId, variantId }) {
+  async function deleteVariant({ companyId, variantId, productId }) {
+    await assertChild(prisma,"catalog_product_variant",companyId,variantId,productId);
     await prisma.$queryRaw`
       UPDATE catalog_product_variant SET enabled = false, updated_at = now()
       WHERE id = ${variantId}::uuid AND company_id = ${companyId}::uuid

@@ -21,7 +21,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
     try {
       const companyId = c.get('companyId')
       const parsed = createOptionSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const data = await variantSvc.createOption({ companyId, productId: c.req.param('id'), data: parsed.data })
       return c.json({ data }, 201)
     } catch (err) {
@@ -35,8 +35,8 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
     try {
       const companyId = c.get('companyId')
       const parsed = updateOptionSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
-      const data = await variantSvc.updateOption({ companyId, optionId: c.req.param('optionId'), data: parsed.data })
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
+      const data = await variantSvc.updateOption({ companyId, productId: c.req.param('id'), optionId: c.req.param('optionId'), data: parsed.data })
       if (!data) return c.json({ error: 'Not found' }, 404)
       return c.json({ data })
     } catch (err) {
@@ -49,7 +49,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
   app.delete('/catalog/products/:id/options/:optionId', requirePermission('catalog.products.update'), async (c) => {
     try {
       const companyId = c.get('companyId')
-      await variantSvc.deleteOption({ companyId, optionId: c.req.param('optionId') })
+      await variantSvc.deleteOption({ companyId, productId: c.req.param('id'), optionId: c.req.param('optionId') })
       return c.json({ ok: true })
     } catch (err) {
       if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
@@ -74,7 +74,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
     try {
       const companyId = c.get('companyId')
       const parsed = createVariantSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const data = await variantSvc.createVariant({ companyId, productId: c.req.param('id'), data: parsed.data })
       return c.json({ data }, 201)
     } catch (err) {
@@ -88,8 +88,8 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
     try {
       const companyId = c.get('companyId')
       const parsed = updateVariantSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
-      const data = await variantSvc.updateVariant({ companyId, variantId: c.req.param('variantId'), data: parsed.data })
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
+      const data = await variantSvc.updateVariant({ companyId, productId: c.req.param('id'), variantId: c.req.param('variantId'), data: parsed.data })
       if (!data) return c.json({ error: 'Not found' }, 404)
       return c.json({ data })
     } catch (err) {
@@ -102,7 +102,7 @@ export function createVariantsRouter({ variantSvc, requirePermission }) {
   app.delete('/catalog/products/:id/variants/:variantId', requirePermission('catalog.products.update'), async (c) => {
     try {
       const companyId = c.get('companyId')
-      await variantSvc.deleteVariant({ companyId, variantId: c.req.param('variantId') })
+      await variantSvc.deleteVariant({ companyId, productId: c.req.param('id'), variantId: c.req.param('variantId') })
       return c.json({ ok: true })
     } catch (err) {
       if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)

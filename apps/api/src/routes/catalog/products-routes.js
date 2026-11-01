@@ -1,6 +1,8 @@
 // apps/api/src/routes/catalog/products-routes.js
 import { Hono } from 'hono'
 import { createProductSchema, updateProductSchema } from './validators.js'
+import { id } from './commerce-contracts.js'
+import { parse, fail } from '../pos/pos-contracts.js'
 import {
   publishActivityFromContext,
   getActivityContext,
@@ -12,7 +14,9 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
   app.get('/catalog/products', requirePermission('catalog.products.read'), async (c) => {
     try {
       const companyId = c.get('companyId')
-      const { categoryId, type, published, stockStatus, search, page, pageSize, limit, offset } = c.req.query()
+      const { categoryId, type, published, stockStatus, search, page, pageSize, limit, offset, outletId, posAvailable } = c.req.query()
+      if(outletId)parse(id,outletId)
+      if(posAvailable!==undefined && !['true','false'].includes(posAvailable))fail('VALIDATION_ERROR','Disponibilidad inválida.',400)
       // RunlyTable (packages/ui) always sends page/pageSize; limit/offset are
       // kept as a fallback for direct API callers.
       const safePageSize = Math.min(Math.max(Number.parseInt(pageSize ?? limit, 10) || 50, 1), 500)
@@ -21,7 +25,9 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
         : (offset ? Number(offset) : 0)
       const result = await productSvc.listProducts({
         companyId,
-        categoryId:  categoryId  || undefined,
+        outletId: outletId || undefined,
+        posAvailable: posAvailable === undefined ? undefined : posAvailable === 'true',
+        categoryId:  categoryId || c.req.query('category_id') || undefined,
         type:        type        || undefined,
         published:   published   !== undefined ? published === 'true' : undefined,
         stockStatus: stockStatus || undefined,
@@ -73,7 +79,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
     try {
       const companyId = c.get('companyId')
       const parsed = createProductSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const row = await productSvc.createProduct({ companyId, data: parsed.data })
       const { actorName } = getActivityContext(c)
       await publishActivityFromContext(prisma, c, {
@@ -97,7 +103,7 @@ export function createProductsRouter({ productSvc, prisma, requirePermission }) 
     try {
       const companyId = c.get('companyId')
       const parsed = updateProductSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.errors[0]?.message }, 400)
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
       const row = await productSvc.updateProduct({ companyId, id: c.req.param('id'), data: parsed.data })
       if (!row) return c.json({ error: 'Not found' }, 404)
       const { actorName } = getActivityContext(c)

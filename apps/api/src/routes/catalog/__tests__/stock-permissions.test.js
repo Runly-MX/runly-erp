@@ -5,7 +5,7 @@
 // `catalog.products.update` for backward compatibility.
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { createStockRouter } from "../stock-routes.js";
+import { createCommerceCatalogRoutes as createStockRouter } from "../commerce-routes.js";
 
 function stubStockSvc() {
   return {

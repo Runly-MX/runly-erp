@@ -1,5 +1,6 @@
 import { createWebsiteDomain } from "./domains/website.js";
 import { createPosRecoveryDomain } from './domains/pos-recovery.js';
+import { createCatalogCommerceDomain } from './domains/catalog-commerce.js';
 import { createGrowthDomain } from "./domains/growth.js";
 import { createDocumentsDomain } from "./domains/documents.js";
 import { createChatDomain } from "./domains/chat.js";
@@ -130,6 +131,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
   }
 
   return {
+    catalogCommerce: createCatalogCommerceDomain({ request, withAuthHeaders, toQueryString }),
     commerce: createPosRecoveryDomain({ request, withAuthHeaders, toQueryString }),
     studio: createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     settings: createSettingsDomain({ request, withAuthHeaders }),

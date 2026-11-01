@@ -18,7 +18,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
               p.stock, p.track_stock, p.cover_asset_id, p.images,
               p.category_id, c.name AS category_name, c.slug AS category_slug
        FROM catalog_product p
-       LEFT JOIN catalog_category c ON c.id = p.category_id
+       LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
        WHERE p.company_id = $1::uuid
          AND p.enabled = true
          AND p.published = true
@@ -32,7 +32,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
     const [{ total }] = await prisma.$queryRawUnsafe(
       `SELECT COUNT(*)::int AS total
        FROM catalog_product p
-       LEFT JOIN catalog_category c ON c.id = p.category_id
+       LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
        WHERE p.company_id = $1::uuid
          AND p.enabled = true
          AND p.published = true
@@ -56,7 +56,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
              p.category_id, p.created_at,
              c.name AS category_name, c.slug AS category_slug
       FROM catalog_product p
-      LEFT JOIN catalog_category c ON c.id = p.category_id
+      LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
       WHERE p.company_id = ${companyId}::uuid
         AND (p.slug = ${slug} OR p.id::text = ${slug})
         AND p.enabled = true
@@ -68,7 +68,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
     const [product] = await images.resolveImageUrls(rows, { companyId })
     if (product.product_type === 'VARIABLE') {
       product.variants = await prisma.$queryRaw`
-        SELECT id, option_values, price, compare_price, stock, cover_asset_id, sku
+        SELECT id, option_values, CASE WHEN price_inherited THEN (SELECT p.price FROM catalog_product p WHERE p.id=product_id AND p.company_id=${companyId}::uuid) ELSE price END AS price, compare_price, stock, cover_asset_id, sku
         FROM catalog_product_variant
         WHERE product_id = ${product.id}::uuid
           AND company_id = ${companyId}::uuid
@@ -86,7 +86,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
              COUNT(p.id)::int AS product_count
       FROM catalog_category c
       LEFT JOIN catalog_product p
-        ON p.category_id = c.id AND p.enabled = true AND p.published = true
+        ON p.category_id = c.id AND p.company_id = c.company_id AND p.enabled = true AND p.published = true
       WHERE c.company_id = ${companyId}::uuid AND c.enabled = true
       GROUP BY c.id, c.name, c.slug, c.description, c.parent_id, c.cover_asset_id, c.position
       ORDER BY c.position ASC, c.name ASC

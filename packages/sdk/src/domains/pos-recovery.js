@@ -11,6 +11,11 @@ export function createPosRecoveryDomain({ request, withAuthHeaders, toQueryStrin
       body: JSON.stringify(data), onlineOnly: true });
   };
   return {
+    sellables:(query,token)=>get(`/sellables${toQueryString(query)}`,token),
+    categories:(query,token)=>get(`/categories${toQueryString(query)}`,token),
+    variants:(id,query,token)=>get(`/sellables/${path(id)}/variants${toQueryString(query)}`,token),
+    scan:(query,token)=>get(`/scan${toQueryString(query)}`,token),
+    refundPreview:(id,data,token)=>request(`/pos/v2/orders/${path(id)}/refunds/preview`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data),onlineOnly:true}),
     context: (query, token) => get(`/context${toQueryString(query)}`, token),
     getOrder: (id, token) => get(`/orders/${path(id)}`, token),
     listOrders: (query, token) => get(`/orders${toQueryString(query)}`, token),

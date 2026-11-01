@@ -1,6 +1,8 @@
+import { createCatalogCommerceStock } from '../catalog/catalog-commerce-stock.js';
 import { amount, commerceDto, decimal, fail, json, lineTotals, money, sum } from './pos-contracts.js';
 
-export function createPosRecoveryStore({ commands }) {
+export function createPosRecoveryStore({ commands, prisma }) {
+  const ledger = createCatalogCommerceStock({ prisma });
   async function row(tx, model, companyId, id, extra = {}) {
     const value = await tx[model].findFirst({ where: { id, companyId, ...extra } });
     if (!value) fail('NOT_FOUND', 'Recurso no encontrado en esta empresa.', 404);
@@ -112,10 +114,12 @@ export function createPosRecoveryStore({ commands }) {
     if (!other) await tx.posTable.updateMany({ where: { id: value.tableId, companyId: value.companyId }, data: { status } });
   }
 
-  async function assertAvailable(tx, companyId, productId, variantId) {
+  async function assertAvailable(tx, companyId, productId, variantId, outletId) {
     const parent = await tx.posProductConfig.findFirst({ where: { companyId, productId, variantId: null } });
     const variant = variantId ? await tx.posProductConfig.findFirst({ where: { companyId, productId, variantId } }) : null;
-    if (parent?.availableInPos === false || variant?.availableInPos === false) fail('PRODUCT_UNAVAILABLE', 'El producto no está disponible para venta.');
+    const product = await row(tx, 'catalogProduct', companyId, productId);
+    const policy = outletId ? await tx.catalogPosAvailability.findFirst({ where: { companyId, productId, outletId } }) : null;
+    if (!(policy?.enabled ?? (product.posEnabled && parent?.availableInPos !== false)) || variant?.availableInPos === false) fail('NOT_AVAILABLE_AT_OUTLET', 'El producto no esta disponible en esta sucursal.');
   }
 
   async function stockGate(tx, value) {
@@ -126,23 +130,18 @@ export function createPosRecoveryStore({ commands }) {
       if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'La moneda del producto cambió; revisa la orden.');
       if (line.variantId) await row(tx, 'catalogProductVariant', value.companyId, line.variantId, { productId: product.id, enabled: true });
       if (product.productType === 'VARIABLE' && !line.variantId) fail('VARIANT_REQUIRED', 'Selecciona una variante para vender.');
-      await assertAvailable(tx, value.companyId, product.id, line.variantId);
-      if (product.trackStock) fail('STOCK_RECOVERY_NOT_READY', 'Asigna y verifica existencias por sucursal en fase 2 antes de cobrar.');
+      await assertAvailable(tx, value.companyId, product.id, line.variantId, value.outletId);
+
     }
     if (!lines.length) fail('INVALID_TRANSITION', 'No se puede cobrar una orden sin consumo.');
+    await ledger.checkOrder(tx, value, lines);
   }
 
-  async function stockReversal(tx, value, line, qty, refundId) {
-    // A refund must never invent a historic sale movement. Phase 1 only adds
-    // source identity and the transaction seam; branch balances belong to phase 2.
-    const original = await tx.catalogStockMovement.findFirst({ where: {
-      companyId: value.companyId, sourceType: 'POS_SALE', sourceId: value.id, sourceLineId: line.id,
-    } });
-    if (!original) return; // historic/untracked sale: money refund, no invented stock
-    void qty; void refundId;
-    fail('STOCK_RECOVERY_NOT_READY', 'El reverso de existencias requiere el libro por sucursal de fase 2.');
+  async function stockReversal(tx, value, line, qty, refundId, actorId) {
+    return ledger.reverse(tx, value, line, qty, refundId, actorId);
   }
 
-  return { row, order, knownCurrency, editable, settings, session, shift, dto, recalculate, advanceOrder, receipt, releaseTable, assertAvailable, stockGate, stockReversal,
+
+  return { row, order, knownCurrency, editable, settings, session, shift, dto, recalculate, advanceOrder, receipt, releaseTable, assertAvailable, stockGate, stockReversal, stockSale: ledger.sale, lockStockLines: ledger.lockItems,
     amount, decimal, money, sum, lineTotals };
 }

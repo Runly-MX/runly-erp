@@ -2911,6 +2911,10 @@ model CatalogCategory {
 }
 
 model CatalogProduct {
+  posEnabled Boolean @default(true) @map("pos_enabled")
+  commercialTaxRate Decimal? @db.Decimal(8, 4) @map("commercial_tax_rate")
+  commercialTaxIncluded Boolean? @map("commercial_tax_included")
+  priceVersion Int @default(1) @map("price_version")
   id              String   @id @default(uuid(7)) @db.Uuid
   companyId       String   @db.Uuid @map("company_id")
   categoryId      String?  @db.Uuid @map("category_id")
@@ -2979,6 +2983,8 @@ model CatalogProductOptionValue {
 }
 
 model CatalogProductVariant {
+  priceInherited Boolean @default(false) @map("price_inherited")
+  priceVersion Int @default(1) @map("price_version")
   id            String   @id @default(uuid(7)) @db.Uuid
   companyId     String   @db.Uuid @map("company_id")
   productId     String   @db.Uuid @map("product_id")
@@ -3001,6 +3007,7 @@ model CatalogProductVariant {
 }
 
 model CatalogStockMovement {
+  balanceApplied Boolean @default(false) @map("balance_applied")
   outletId String? @db.Uuid @map("outlet_id")
   sourceType String? @map("source_type")
   sourceId String? @db.Uuid @map("source_id")
@@ -6353,4 +6360,28 @@ model PosRefundPayment {
   @@unique([refundId, paymentId])
   @@index([paymentId])
   @@map("pos_refund_payment")
+}
+
+model CatalogStockBalance {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  productId String @db.Uuid @map("product_id")
+  variantId String? @db.Uuid @map("variant_id")
+  outletId String? @db.Uuid @map("outlet_id")
+  scope String
+  quantity Int @default(0)
+  updatedAt DateTime @default(now()) @map("updated_at")
+  @@index([companyId, productId])
+  @@map("catalog_stock_balance")
+}
+
+model CatalogPosAvailability {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  productId String @db.Uuid @map("product_id")
+  outletId String @db.Uuid @map("outlet_id")
+  enabled Boolean?
+  updatedAt DateTime @default(now()) @map("updated_at")
+  @@unique([companyId, productId, outletId])
+  @@map("catalog_pos_availability")
 }

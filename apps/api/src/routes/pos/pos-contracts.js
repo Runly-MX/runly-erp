@@ -74,6 +74,8 @@ export const commandSchemas = {
 };
 
 export const resourceIdSchema = id;
+export const refundPreviewSchema = z.object({expectedVersion:version,amount:positiveCash.optional(),
+  lines:z.array(z.object({orderLineId:id,quantity,restock:z.boolean()}).strict()).max(100)}).strict();
 export const shiftStatusSchema = z.enum(['OPEN','CLOSED','CANCELLED']);
 export const contextQuerySchema = z.object({ outletId: id.optional(), terminalId: id.optional() }).strict();
 export const listOrdersSchema = z.object({ outletId: id.optional(), status: z.enum(['DRAFT','OPEN','SENT','PARTIALLY_SERVED','SERVED','PAID','CANCELLED','REFUNDED']).optional(),

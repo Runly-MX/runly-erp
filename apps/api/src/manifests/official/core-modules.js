@@ -1022,6 +1022,8 @@ export const runlyCatalogManifest = createModuleManifest({
       "CatalogProductOptionValue",
       "CatalogProductVariant",
       "CatalogStockMovement",
+      "CatalogStockBalance",
+      "CatalogPosAvailability",
     ],
     ownedTables: [
       "catalog_category",
@@ -1030,6 +1032,8 @@ export const runlyCatalogManifest = createModuleManifest({
       "catalog_product_option_value",
       "catalog_product_variant",
       "catalog_stock_movement",
+      "catalog_stock_balance",
+      "catalog_pos_availability",
     ],
     sharedEntities: ["Company"],
   },

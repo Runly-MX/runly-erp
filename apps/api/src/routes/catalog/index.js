@@ -1,3 +1,4 @@
+import { createCommerceCatalogRoutes } from './commerce-routes.js';
 // apps/api/src/routes/catalog/index.js
 import { Hono } from 'hono'
 import { createCatalogProductService } from './catalog-product-service.js'
@@ -10,6 +11,7 @@ import { createStockRouter }           from './stock-routes.js'
 
 export function createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }) {
   const app = new Hono()
+  app.route('', createCommerceCatalogRoutes({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }))
 
   const productSvc = createCatalogProductService({ prisma, supabaseAdmin })
   const variantSvc = createCatalogVariantService({ prisma })

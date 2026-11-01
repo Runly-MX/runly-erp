@@ -99,7 +99,7 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
     assert.deepEqual(a,b); assert.equal(a.order.status,'PAID'); assert.equal(a.order.refundStatus,'PARTIAL');
     const full = await f.run('refund',{...input,expectedVersion:a.order.version,lines:[{orderLineId:f.order.lines[0].id,quantity:'2',restock:true}],payments:[{paymentId:paid.payment.id,amount:'66.66'}]}, {orderId:f.order.id});
     assert.equal(full.order.status,'REFUNDED'); assert.equal(full.order.paidAmount,'99.99');
-    assert.equal(await db.catalogStockMovement.count({where:{companyId:f.company.id}}),0);
+    assert.equal(await db.catalogStockMovement.count({where:{companyId:f.company.id,sourceType:{in:['POS_SALE','POS_REFUND']}}}),0);
     assert.equal((await db.catalogProduct.findUnique({where:{id:f.product.id}})).stock,1);
     assert.equal((await svc.expectedCash(f.company.id,f.session.id)).expectedCashAmount,'0.00');
     await assert.rejects(f.run('refund',{...input,expectedVersion:full.order.version},{orderId:f.order.id}),code('INVALID_TRANSITION'));
@@ -138,7 +138,7 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
     const g=await fixture({currency:'USD'});
     await assert.rejects(g.run('addLine',{expectedVersion:g.order.version,productId:g.product.id,quantity:'1'},{orderId:g.order.id}),code('CURRENCY_MISMATCH'));
     const h=await fixture({tracked:true});
-    await assert.rejects(pay(h),code('STOCK_RECOVERY_NOT_READY'));
+    await assert.rejects(pay(h),code('INSUFFICIENT_STOCK'));
     assert.equal(await db.posPayment.count({where:{orderId:h.order.id}}),0);
     assert.equal((await db.catalogProduct.findUnique({where:{id:h.product.id}})).stock,1);
   });
@@ -213,15 +213,15 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
     await assert.rejects(f.run('refund',{...input,expectedVersion:current.version,payments:[{paymentId:paid.payment.id,amount:'75.00'}]},{orderId:f.order.id}),code('VALIDATION_ERROR'));
   });
 
-  it('old sales never invent stock; known sale origins remain gated until branch ledger exists', async () => {
+  it('old sales never invent stock; unreconciled sale origins cannot invent stock', async () => {
     const f=await fixture(); const paid=await pay(f);
     await db.catalogStockMovement.create({data:{companyId:f.company.id,productId:f.product.id,quantityDelta:-1,
       sourceType:'POS_SALE',sourceId:f.order.id,sourceLineId:f.order.lines[0].id,operationKey:'fixture-origin',outletId:f.outlet.id}});
     await assert.rejects(f.run('refund',{expectedVersion:paid.order.version,reason:'Reponer',sessionId:f.session.id,
-      lines:[{orderLineId:f.order.lines[0].id,quantity:'1',restock:true}],payments:[{paymentId:paid.payment.id,amount:'100.00'}]},{orderId:f.order.id}),code('STOCK_RECOVERY_NOT_READY'));
+      lines:[{orderLineId:f.order.lines[0].id,quantity:'1',restock:true}],payments:[{paymentId:paid.payment.id,amount:'100.00'}]},{orderId:f.order.id}),code('RECONCILIATION_REQUIRED'));
     assert.equal(await db.posRefund.count({where:{orderId:f.order.id}}),0);
     assert.equal(await db.posCashMovement.count({where:{sessionId:f.session.id,kind:'REFUND_OUT'}}),0);
-    assert.equal(await db.catalogStockMovement.count({where:{companyId:f.company.id}}),1);
+    assert.equal(await db.catalogStockMovement.count({where:{companyId:f.company.id,sourceType:'POS_SALE'}}),1);
   });
 
   it('real routes enforce operational permissions, stable errors and legacy safety gates', async () => {

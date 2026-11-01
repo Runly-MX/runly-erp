@@ -1,3 +1,4 @@
+import { createCatalogSellablesService } from '../catalog/catalog-sellables-service.js';
 import { fail, json } from './pos-contracts.js';
 import { createPosScopeService } from './pos-scope-service.js';
 import { createPosModifierService } from './pos-modifier-service.js';
@@ -37,21 +38,22 @@ export function createPosRecoveryOrders({ commands, store }) {
     if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'El producto usa otra moneda.');
     if (product.productType === 'VARIABLE' && !data.variantId) fail('VARIANT_REQUIRED', 'Selecciona una variante.');
     const variant = data.variantId ? await store.row(tx, 'catalogProductVariant', ctx.companyId, data.variantId, { productId: product.id, enabled: true }) : null;
-    await store.assertAvailable(tx, ctx.companyId, product.id, variant?.id);
+    await store.assertAvailable(tx, ctx.companyId, product.id, variant?.id, value.outletId);
     if (product.trackStock && !store.decimal(data.quantity).isInteger()) fail('VALIDATION_ERROR', 'El artículo controlado requiere unidades enteras.', 400);
     await createPosScopeService({ prisma: tx }).guest(ctx.companyId, orderId, data.guestSeatId);
     const optionIds = (data.modifiers ?? []).map((m) => m.optionId);
     if (new Set(optionIds).size !== optionIds.length) fail('VALIDATION_ERROR', 'No repitas modificadores.', 400);
     const selection = await createPosModifierService({ prisma: tx }).resolveSelection({ companyId: ctx.companyId, productId: product.id, optionIds });
-    const baseUnitPrice = store.amount(variant?.price ?? product.price);
+    const commercial = await createCatalogSellablesService({ prisma: tx }).snapshot(tx, value, product, variant);
+    const baseUnitPrice = commercial.price;
     const unitPrice = store.amount(store.decimal(baseUnitPrice).plus(store.sum(selection.snapshots, 'priceDelta')));
-    const taxRate = value.taxSnapshot?.rate;
+    const taxRate = commercial.tax.rate;
     if (taxRate === undefined) fail('CURRENCY_MISMATCH', 'La política fiscal histórica requiere conciliación.');
-    const totals = store.lineTotals({ quantity: data.quantity, unitPrice, taxRate, taxIncluded: value.taxSnapshot.included });
+    const totals = store.lineTotals({ quantity: data.quantity, unitPrice, taxRate, taxIncluded: commercial.tax.included });
     const line = await tx.posOrderLine.create({ data: {
       orderId, productId: product.id, variantId: variant?.id ?? null, productName: product.name,
       sku: variant?.sku ?? product.sku, guestSeatId: data.guestSeatId, quantity: data.quantity,
-      baseUnitPrice, unitPrice, priceVersion: 1, taxIncluded: value.taxSnapshot.included,
+      baseUnitPrice, unitPrice, priceVersion: commercial.priceVersion, taxIncluded: commercial.tax.included,
       taxRate, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount, note: data.note,
     } });
     if (selection.snapshots.length) await tx.posOrderLineModifier.createMany({ data: selection.snapshots.map((s) => ({ ...s, lineId: line.id, companyId: ctx.companyId })) });

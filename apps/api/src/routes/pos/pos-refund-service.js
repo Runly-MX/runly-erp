@@ -1,3 +1,4 @@
+import { createPosRefundQuoteService } from './pos-refund-quote-service.js';
 import { amount, decimal, fail, json, money, sum } from './pos-contracts.js';
 
 export function createPosRefundService({ commands, store }) {
@@ -16,19 +17,7 @@ export function createPosRefundService({ commands, store }) {
     }
     const closedSale = value.status === 'PAID';
     if (closedSale !== (data.lines.length > 0)) fail('VALIDATION_ERROR', closedSale ? 'Selecciona las líneas a devolver.' : 'La devolución de anticipo no admite líneas.', 400);
-    const lineDocuments = [];
-    for (const input of data.lines) {
-      const line = await tx.posOrderLine.findFirst({ where: { id: input.orderLineId, orderId, voided: false } });
-      if (!line) fail('NOT_FOUND', 'Línea no encontrada.', 404);
-      const qty = decimal(input.quantity);
-      const available = decimal(line.quantity).minus(line.returnedQuantity);
-      if (qty.gt(available)) fail('VALIDATION_ERROR', 'La cantidad excede lo pendiente de devolución.', 400);
-      const previous = await tx.posRefundLine.findMany({ where: { orderLineId: line.id } });
-      const lineAmount = qty.eq(available) ? decimal(line.totalAmount).minus(sum(previous, 'amount')) : money(decimal(line.totalAmount).times(qty).div(line.quantity));
-      const taxAmount = qty.eq(available) ? decimal(line.taxAmount).minus(sum(previous, 'taxAmount')) : money(decimal(line.taxAmount).times(qty).div(line.quantity));
-      lineDocuments.push({ line, quantity: input.quantity, amount: amount(lineAmount), taxAmount: amount(taxAmount),
-        subtotalAmount: amount(lineAmount.minus(taxAmount)), restock: input.restock, stockRestored: false });
-    }
+    const lineDocuments = await createPosRefundQuoteService({ prisma: tx }).lines(tx, value, data.lines);
     if (closedSale && !sum(lineDocuments, 'amount').eq(total)) fail('VALIDATION_ERROR', 'El importe devuelto no coincide con las líneas.', 400);
     const payments = [];
     let cashOut = decimal(0);
@@ -44,12 +33,13 @@ export function createPosRefundService({ commands, store }) {
       else if (!input.reference) fail('VALIDATION_ERROR', 'Registra la referencia de devolución externa.', 400);
       payments.push(input);
     }
+    await store.lockStockLines(tx, ctx.companyId, lineDocuments.map((d) => d.line));
     const created = await tx.posRefund.create({ data: { companyId: ctx.companyId, orderId, sessionId: session.id,
       amount: amount(total), currency: value.currency, reason: data.reason, createdById: ctx.actorId,
     } });
     for (const document of lineDocuments) {
       const { line, ...fields } = document;
-      if (fields.restock) await store.stockReversal(tx, value, line, fields.quantity, created.id);
+      if (fields.restock) fields.stockRestored = await store.stockReversal(tx, value, line, fields.quantity, created.id, ctx.actorId);
       await tx.posRefundLine.create({ data: { refundId: created.id, orderLineId: line.id, ...fields } });
       await tx.posOrderLine.update({ where: { id: line.id }, data: { returnedQuantity: { increment: fields.quantity } } });
     }

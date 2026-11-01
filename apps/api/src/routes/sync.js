@@ -82,7 +82,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
           const entity = { product: 'products', category: 'categories' }[mutation.entityType]
           const action = { CREATE: 'create', UPDATE: 'update' }[mutation.operation]
           const allowed = entity && action && (tenant.isAdmin || tenant.permissionSet?.has(`catalog.${entity}.${action}`))
-          const forbiddenFields = ['id','companyId','company_id'].some((key) => Object.hasOwn(mutation.payload ?? {}, key))
+          const forbiddenFields = ['id','companyId','company_id','stock'].some((key) => Object.hasOwn(mutation.payload ?? {}, key))
           if (!allowed || forbiddenFields) {
             results[index] = { idempotencyKey: mutation.idempotencyKey, status: 'PERMISSION_DENIED', record: null }
             continue

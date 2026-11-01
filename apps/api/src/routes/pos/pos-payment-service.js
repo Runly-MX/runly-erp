@@ -30,6 +30,7 @@ export function createPosPaymentService({ commands, store }) {
     await store.stockGate(tx, value);
     const paidAmount = decimal(value.paidAmount).plus(applied);
     const fullyPaid = paidAmount.minus(value.refundedAmount).eq(value.totalAmount);
+    if (fullyPaid) await store.stockSale(tx, value, ctx.actorId);
     const created = await tx.posPayment.create({ data: { companyId: ctx.companyId, orderId, paymentMethodId: method.id,
       amount: amount(applied), tenderedAmount: tendered ? amount(tendered) : null,
       changeAmount: tendered ? amount(tendered.minus(applied)) : null, reference: data.reference,

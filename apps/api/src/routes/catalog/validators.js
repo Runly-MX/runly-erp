@@ -53,7 +53,7 @@ export const updateProductSchema = z.object({
   meta_title:       z.string().max(160).optional().nullable(),
   meta_description: z.string().max(320).optional().nullable(),
   published:        z.boolean(),
-}).partial()
+}).partial().strict()
 
 export const createOptionSchema = z.object({
   name:     z.string().min(1).max(60),
@@ -68,16 +68,16 @@ export const updateOptionSchema = z.object({
 })
 
 export const createVariantSchema = z.object({
-  option_values:  z.record(z.string()).default({}),
+  option_values:  z.record(z.string(), z.string()).default({}),
   sku:            z.string().max(100).optional().nullable(),
   barcode:        z.string().max(100).optional().nullable(),
-  price:          z.number().min(0).default(0),
+  price:          z.number().min(0).nullable().default(0),
   compare_price:  z.number().min(0).optional().nullable(),
   stock:          z.number().int().min(0).default(0),
   cover_asset_id: z.string().uuid().optional().nullable(),
 })
 
-export const updateVariantSchema = createVariantSchema.partial()
+export const updateVariantSchema = createVariantSchema.omit({ stock: true }).partial().strict()
 
 export const createStockMovementSchema = z.object({
   variant_id:     z.string().uuid().optional().nullable(),

@@ -1,3 +1,4 @@
+import { fail } from '../pos/pos-contracts.js';
 // apps/api/src/routes/catalog/catalog-product-service.js
 
 import { publicUrlWithVariant, signedUrlsWithVariant } from '../../lib/image-variants.js'
@@ -103,7 +104,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
              c.position, c.enabled, c.created_at, c.updated_at,
              COUNT(p.id)::int AS product_count
       FROM catalog_category c
-      LEFT JOIN catalog_product p ON p.category_id = c.id AND p.enabled = true
+      LEFT JOIN catalog_product p ON p.category_id = c.id AND p.company_id=c.company_id AND p.enabled = true
       WHERE c.company_id = ${companyId}::uuid AND c.enabled = true
       GROUP BY c.id
       ORDER BY c.position ASC, c.name ASC
@@ -226,7 +227,15 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     )`
   }
 
-  async function listProducts({ companyId, categoryId, type, published, stockStatus, search, limit = 50, offset = 0 }) {
+  async function listProducts({ companyId, categoryId, type, published, stockStatus, search, outletId, posAvailable, limit = 50, offset = 0 }) {
+    if (posAvailable !== undefined && !outletId) fail('VALIDATION_ERROR','El filtro POS requiere sucursal.',400);
+    if (outletId) {
+      const outlets=await prisma.$queryRaw`SELECT id FROM pos_outlet WHERE id=${outletId}::uuid AND company_id=${companyId}::uuid AND enabled=true`;
+      if (!outlets[0]) fail('NOT_FOUND','Sucursal no encontrada.',404);
+    }
+    const availabilityClause=(o,a)=>`($${a}::boolean IS NULL OR ($${o}::uuid IS NOT NULL AND COALESCE((SELECT ca.enabled FROM catalog_pos_availability ca WHERE ca.company_id=p.company_id AND ca.product_id=p.id AND ca.outlet_id=$${o}::uuid),
+      p.pos_enabled AND COALESCE((SELECT cfg.available_in_pos FROM pos_product_config cfg WHERE cfg.company_id=p.company_id AND cfg.product_id=p.id AND cfg.variant_id IS NULL LIMIT 1),true))=$${a}::boolean))`;
+
     const safeLimit  = Math.min(Math.max(Number.parseInt(String(limit  ?? 50),  10) || 50,  1), 500)
     const safeOffset = Math.max(Number.parseInt(String(offset ?? 0),   10) || 0,  0)
     const likeSearch = search ? `%${String(search).trim()}%` : null
@@ -236,7 +245,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     const stockParam = ['out', 'low', 'ok'].includes(stockStatus) ? stockStatus : null
 
     const rows = await prisma.$queryRawUnsafe(
-      `SELECT p.id, p.name, p.slug, p.sku, p.product_type, p.price, p.compare_price, p.currency,
+      `SELECT p.id, p.name, p.slug, p.sku, p.barcode, p.category_id, p.pos_enabled, p.price_version, p.product_type, p.price, p.compare_price, p.currency,
               p.stock, p.track_stock, p.cover_asset_id, p.published,
               p.created_at, c.name AS category_name,
               CASE
@@ -246,17 +255,18 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
                 ELSE 'ok'
               END AS stock_status
        FROM catalog_product p
-       LEFT JOIN catalog_category c ON c.id = p.category_id
+       LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
        WHERE p.company_id = $1::uuid
          AND p.enabled = true
          AND ($2::uuid IS NULL OR p.category_id = $2::uuid)
          AND ($3::text IS NULL OR p.product_type = $3)
          AND ($4::boolean IS NULL OR p.published = $4)
-         AND ($5::text IS NULL OR p.name ILIKE $5)
+         AND ($5::text IS NULL OR p.name ILIKE $5 OR p.sku ILIKE $5 OR p.barcode ILIKE $5 OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (v.sku ILIKE $5 OR v.barcode ILIKE $5)))
          AND ${stockStatusClause(6)}
+         AND ${availabilityClause(9,10)}
        ORDER BY p.created_at DESC
        LIMIT $7 OFFSET $8`,
-      companyId, catId, prodType, pubFilter, likeSearch, stockParam, safeLimit, safeOffset,
+      companyId, catId, prodType, pubFilter, likeSearch, stockParam, safeLimit, safeOffset, outletId ?? null, posAvailable ?? null,
     )
 
     const [{ total }] = await prisma.$queryRawUnsafe(
@@ -267,12 +277,13 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
          AND ($2::uuid IS NULL OR p.category_id = $2::uuid)
          AND ($3::text IS NULL OR p.product_type = $3)
          AND ($4::boolean IS NULL OR p.published = $4)
-         AND ($5::text IS NULL OR p.name ILIKE $5)
-         AND ${stockStatusClause(6)}`,
-      companyId, catId, prodType, pubFilter, likeSearch, stockParam,
+         AND ($5::text IS NULL OR p.name ILIKE $5 OR p.sku ILIKE $5 OR p.barcode ILIKE $5 OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (v.sku ILIKE $5 OR v.barcode ILIKE $5)))
+         AND ${stockStatusClause(6)}
+         AND ${availabilityClause(7,8)}`,
+      companyId, catId, prodType, pubFilter, likeSearch, stockParam, outletId ?? null, posAvailable ?? null,
     )
 
-    const enriched = await resolveImageUrls(rows)
+    const enriched = await resolveImageUrls(rows, { companyId })
     return { data: enriched, total }
   }
 
@@ -302,7 +313,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     const rows = await prisma.$queryRaw`
       SELECT p.*, c.name AS category_name
       FROM catalog_product p
-      LEFT JOIN catalog_category c ON c.id = p.category_id
+      LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
       WHERE p.id = ${id}::uuid AND p.company_id = ${companyId}::uuid
       LIMIT 1
     `
@@ -313,7 +324,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
     const rows = await prisma.$queryRaw`
       SELECT p.*, c.name AS category_name
       FROM catalog_product p
-      LEFT JOIN catalog_category c ON c.id = p.category_id
+      LEFT JOIN catalog_category c ON c.id = p.category_id AND c.company_id = p.company_id
       WHERE p.id = ${id}::uuid AND p.company_id = ${companyId}::uuid
       LIMIT 1
     `
@@ -331,7 +342,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
         SELECT v.id, v.option_id, v.value, v.position
         FROM catalog_product_option_value v
         JOIN catalog_product_option o ON o.id = v.option_id
-        WHERE o.product_id = ${id}::uuid
+        WHERE o.product_id = ${id}::uuid AND o.company_id = ${companyId}::uuid
         ORDER BY v.position ASC
       `
       product.options = options.map(o => ({
@@ -339,16 +350,26 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
         values: vals.filter(v => String(v.option_id) === String(o.id)),
       }))
       product.variants = await prisma.$queryRaw`
-        SELECT * FROM catalog_product_variant
-        WHERE product_id = ${id}::uuid AND company_id = ${companyId}::uuid AND enabled = true
-        ORDER BY created_at ASC
+        SELECT v.*, CASE WHEN v.price_inherited THEN p.price ELSE v.price END AS price
+        FROM catalog_product_variant v JOIN catalog_product p ON p.id=v.product_id AND p.company_id=v.company_id
+        WHERE v.product_id = ${id}::uuid AND v.company_id = ${companyId}::uuid AND v.enabled = true
+        ORDER BY v.created_at ASC
       `
     }
 
     return product
   }
 
+  async function assertAssets(companyId,data) {
+    const ids=[...new Set([data.cover_asset_id,...(data.images??[])].filter(Boolean))];
+    if(!ids.length)return;
+    const placeholders=ids.map((_,i)=>`$${i+2}::uuid`).join(',');
+    const rows=await prisma.$queryRawUnsafe(`SELECT id FROM file_asset WHERE entity_id=$1::uuid AND enabled=true AND id IN (${placeholders})`,companyId,...ids);
+    if(rows.length!==ids.length)throw new CatalogRefError('La imagen no pertenece a la empresa actual.');
+  }
+
   async function createProduct({ companyId, data }) {
+    await assertAssets(companyId,data);
     await assertRowInCompany('catalog_category', data.category_id, companyId, 'La categoria')
     const rows = await prisma.$queryRaw`
       INSERT INTO catalog_product
@@ -384,6 +405,8 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
   }
 
   async function updateProduct({ companyId, id, data }) {
+    await assertAssets(companyId,data);
+    if(data.stock!==undefined)fail('VALIDATION_ERROR','Usa un ajuste de existencias auditado.',400);
     await assertRowInCompany('catalog_category', data.category_id, companyId, 'La categoria')
     const map = {
       category_id:      data.category_id,

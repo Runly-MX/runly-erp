@@ -36,3 +36,33 @@ test('commerce commands set onlineOnly including DELETE and preserve caller keys
   assert.ok(calls.every(([,options])=>options.onlineOnly===true));
   assert.equal(calls[1][1].method,'DELETE');
 });
+
+test('phase 2 SDK exposes scoped catalog reads, keyed stock commands and read-only refund preview', async () => {
+  const seen=[];
+  const client=createRunlyClient({baseUrl:'https://example.test',getActiveCompanyId:()=> 'company-a',fetch:async(url,options)=>{seen.push({url,options});return Response.json({data:{ok:true}});}});
+  await client.commerce.sellables({outletId:'outlet',page:2,search:'000123'},'token');
+  await client.commerce.categories({outletId:'outlet'},'token');
+  await client.commerce.variants('product',{outletId:'outlet'},'token');
+  await client.commerce.scan({outletId:'outlet',code:'000123'},'token');
+  await client.commerce.refundPreview('order',{expectedVersion:2,lines:[]},'token');
+  await client.catalogCommerce.stockBalances('product',{outletId:'outlet'},'token');
+  await client.catalogCommerce.stockMovements('product',{limit:50},'token');
+  const options={idempotencyKey:'catalog-attempt-0001'};
+  await client.catalogCommerce.allocateStock('product',{outletId:'outlet',quantity:2,reason:'Asignacion'},'token',options);
+  await client.catalogCommerce.adjustStock('product',{outletId:'outlet',quantityDelta:-1,reason:'Correccion'},'token',options);
+  await client.catalogCommerce.availability('product',{},'token');
+  await client.catalogCommerce.setAvailability('product',{enabled:false},'token',options);
+  await client.catalogCommerce.commercialTax('product','token');
+  await client.catalogCommerce.setCommercialTax('product',{rate:null,included:null},'token',options);
+  assert.match(seen[0].url,/sellables\?.*outletId=outlet/);
+  assert.match(seen[2].url,/sellables\/product\/variants/);
+  assert.match(seen[3].url,/code=000123/);
+  assert.match(seen[4].url,/orders\/order\/refunds\/preview$/);
+  assert.equal(seen[4].options.method,'POST');
+  assert.equal(seen[4].options.headers['Idempotency-Key'],undefined);
+  assert.ok(seen.every(({options})=>options.headers['X-Runly-Company-Id']==='company-a'));
+  for(const i of [7,8,10,12])assert.equal(seen[i].options.headers['Idempotency-Key'],options.idempotencyKey);
+  assert.equal(seen[10].options.method,'PUT');
+  await assert.rejects(client.catalogCommerce.adjustStock('product',{},'token'),{code:'IDEMPOTENCY_REQUIRED'});
+  assert.equal(seen.length,13);
+});
