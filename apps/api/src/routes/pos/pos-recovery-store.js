@@ -1,4 +1,5 @@
 import { createCatalogCommerceStock } from '../catalog/catalog-commerce-stock.js';
+import { createPosReceiptDocuments } from './pos-receipt-documents.js';
 import { amount, commerceDto, decimal, fail, json, lineTotals, money, sum } from './pos-contracts.js';
 
 export function createPosRecoveryStore({ commands, prisma }) {
@@ -18,6 +19,18 @@ export function createPosRecoveryStore({ commands, prisma }) {
 
   function knownCurrency(value) {
     if (!value.currency || !/^[A-Z]{3}$/.test(value.currency)) fail('CURRENCY_MISMATCH', 'La moneda histórica requiere conciliación explícita.');
+  }
+
+  async function editOrder(tx, companyId, id, expectedVersion) {
+    const initial=await row(tx,'posOrder',companyId,id);
+    // Same lock order as payments/close: container before order.
+    if(initial.experience==='RETAIL'){
+      if(!initial.sessionId||!initial.terminalId)fail('CONFIGURATION_REQUIRED','La orden histórica no tiene contexto de caja verificable.');
+      const container=await session(tx,companyId,initial.sessionId,initial.outletId,initial.terminalId);
+      knownCurrency(container);
+      if(container.currency!==initial.currency)fail('CURRENCY_MISMATCH','La orden y su sesión usan monedas distintas.');
+    }
+    return order(tx,companyId,id,expectedVersion);
   }
 
   function editable(value) {
@@ -69,6 +82,7 @@ export function createPosRecoveryStore({ commands, prisma }) {
     const table = value.tableId ? await tx.posTable.findFirst({ where: { id: value.tableId, companyId } }) : null;
     const waiter = value.waiterId ? await tx.userProfile.findUnique({ where: { id: value.waiterId }, select: { displayName: true } }) : null;
     return commerceDto({ ...value, lines, guests, payments, refunds, table, waiterName: waiter?.displayName ?? null,
+      receipts:receipts.map(({id,receiptNumber,kind,createdAt})=>({id,receiptNumber,kind,createdAt})),
       historicalCurrencyUnknown: !value.currency,
       refundedAmount: amount(value.refundedAmount), netPaidAmount: amount(net), remainingAmount: amount(remaining),
       refundStatus: decimal(value.refundedAmount).eq(0) ? 'NONE' : (decimal(value.refundedAmount).eq(value.paidAmount) ? 'FULL' : 'PARTIAL'),
@@ -102,7 +116,7 @@ export function createPosRecoveryStore({ commands, prisma }) {
     const last = await tx.posReceipt.findFirst({ where: { companyId: value.companyId }, orderBy: { receiptNumber: 'desc' } });
     return tx.posReceipt.create({ data: { companyId: value.companyId, orderId: value.id,
       receiptNumber: (last?.receiptNumber ?? 0) + 1, kind, printedCount: 0,
-      payload: json({ order: await dto(tx, value.companyId, value.id), ...extra }),
+      payload: await createPosReceiptDocuments().snapshot(tx,await dto(tx,value.companyId,value.id),kind,(last?.receiptNumber??0)+1,extra),
     } });
   }
 
@@ -142,6 +156,6 @@ export function createPosRecoveryStore({ commands, prisma }) {
   }
 
 
-  return { row, order, knownCurrency, editable, settings, session, shift, dto, recalculate, advanceOrder, receipt, releaseTable, assertAvailable, stockGate, stockReversal, stockSale: ledger.sale, lockStockLines: ledger.lockItems,
+  return { row, order, editOrder, knownCurrency, editable, settings, session, shift, dto, recalculate, advanceOrder, receipt, releaseTable, assertAvailable, stockGate, stockReversal, stockSale: ledger.sale, lockStockLines: ledger.lockItems,
     amount, decimal, money, sum, lineTotals };
 }

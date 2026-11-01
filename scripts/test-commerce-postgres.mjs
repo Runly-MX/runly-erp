@@ -82,6 +82,16 @@ try {
 
   apply(resolve(root,'prisma/migrations/20261101210000_catalog_write_integrity/migration.sql'));
 
+  sql(`INSERT INTO pos_receipt(company_id,order_id,receipt_number,kind,payload,printed_count)
+    SELECT company_id,id,7,'SALE','{"legacy":true}'::jsonb,3 FROM pos_order`);
+  const receiptBefore=sql('SELECT payload::text||printed_count::text FROM pos_receipt');
+  apply(resolve(root,'prisma/migrations/20261101230000_pos_receipt_print_jobs/migration.sql'));
+  assert.equal(sql('SELECT payload::text||printed_count::text FROM pos_receipt'),receiptBefore);
+  assert.equal(sql('SELECT count(*) FROM pos_print_job').trim(),'0');
+  assert.equal(sql("SELECT relrowsecurity FROM pg_class WHERE oid='pos_print_job'::regclass").trim(),'t');
+  assert.equal(sql("SELECT has_table_privilege('anon','pos_print_job','SELECT') OR has_table_privilege('authenticated','pos_print_job','INSERT')").trim(),'f');
+  console.log('PASS phase 3 migration: print attempts have RLS and no public client grants; no receipt history rewritten.');
+
   const files = ['apps/api/src/routes/pos/__tests__','apps/api/src/routes/catalog/__tests__']
     .flatMap((folder) => readdirSync(resolve(root,folder)).filter((f)=>f.endsWith('.test.js')).map((f)=>`${folder}/${f}`));
   files.push('apps/api/src/manifests/official/__tests__/runly-pos-contract.test.js',

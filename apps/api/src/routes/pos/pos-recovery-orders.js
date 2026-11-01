@@ -9,10 +9,12 @@ export function createPosRecoveryOrders({ commands, store }) {
     const outlet = await store.row(tx, 'posOutlet', companyId, data.outletId, { enabled: true });
     if (outlet.mode !== 'HYBRID' && outlet.mode !== data.experience) fail('INVALID_TRANSITION', 'La experiencia no corresponde al modo de la sucursal.');
     if (data.experience === 'RETAIL' && (data.fulfillmentType !== 'TAKEAWAY' || data.tableId)) fail('VALIDATION_ERROR', 'Tienda requiere TAKEAWAY sin mesa.', 400);
+    if(data.experience==='RETAIL' && (data.guestCount!==undefined || !data.terminalId || !data.sessionId))fail('VALIDATION_ERROR','Tienda requiere sucursal, terminal y sesión explícitas, sin comensales.',400);
     const session = data.sessionId ? await store.session(tx, companyId, data.sessionId, outlet.id, data.terminalId) : null;
     await createPosScopeService({ prisma: tx }).order(companyId, data);
     if (data.terminalId) await store.row(tx, 'posTerminal', companyId, data.terminalId, { outletId: outlet.id, enabled: true });
     const settings = await store.settings(tx, companyId);
+    if(session){store.knownCurrency(session);if(session.currency!==settings.currency)fail('CURRENCY_MISMATCH','La sesión abierta y la configuración comercial usan monedas distintas.');}
     await commands.lock(tx, `order-number:${companyId}`);
     const last = await tx.posOrder.findFirst({ where: { companyId }, orderBy: { orderNumber: 'desc' } });
     const value = await tx.posOrder.create({ data: { companyId, outletId: outlet.id,
@@ -20,7 +22,7 @@ export function createPosRecoveryOrders({ commands, store }) {
       orderNumber: (last?.orderNumber ?? 0) + 1, status: 'OPEN', currency: settings.currency, experience: data.experience,
       taxSnapshot: json({ rate: settings.defaultTaxRate, included: settings.pricesIncludeTax }), stockStatus: 'NOT_APPLIED',
       fulfillmentType: data.fulfillmentType, salesChannel: 'IN_STORE', guestCount: data.experience === 'RETAIL' ? 0 : (data.guestCount ?? 1),
-      notes: data.notes, createdById: actorId, waiterId: actorId,
+      notes: data.notes, createdById: actorId, waiterId: data.experience==='RETAIL'?null:actorId,
     } });
     if (data.experience === 'RESTAURANT' && data.fulfillmentType === 'DINE_IN') {
       await tx.posGuestSeat.createMany({ data: Array.from({ length: data.guestCount ?? 1 }, (_, i) => ({ orderId: value.id, label: `Comensal ${i + 1}`, position: i + 1 })) });
@@ -32,7 +34,8 @@ export function createPosRecoveryOrders({ commands, store }) {
   }
 
   async function addLine(tx, ctx, data, { orderId }) {
-    const value = await store.order(tx, ctx.companyId, orderId, data.expectedVersion);
+    const value = await store.editOrder(tx, ctx.companyId, orderId, data.expectedVersion);
+    if(value.experience==='RETAIL'&&data.guestSeatId)fail('VALIDATION_ERROR','Tienda no utiliza asientos.',400);
     store.editable(value); store.knownCurrency(value);
     const product = await store.row(tx, 'catalogProduct', ctx.companyId, data.productId, { enabled: true });
     if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'El producto usa otra moneda.');
@@ -52,7 +55,7 @@ export function createPosRecoveryOrders({ commands, store }) {
     const totals = store.lineTotals({ quantity: data.quantity, unitPrice, taxRate, taxIncluded: commercial.tax.included });
     const line = await tx.posOrderLine.create({ data: {
       orderId, productId: product.id, variantId: variant?.id ?? null, productName: product.name,
-      sku: variant?.sku ?? product.sku, guestSeatId: data.guestSeatId, quantity: data.quantity,
+      sku: variant?.sku ?? product.sku, variantLabel:commercial.variantLabel, guestSeatId: data.guestSeatId, quantity: data.quantity,
       baseUnitPrice, unitPrice, priceVersion: commercial.priceVersion, taxIncluded: commercial.tax.included,
       taxRate, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount, note: data.note,
     } });
@@ -64,7 +67,8 @@ export function createPosRecoveryOrders({ commands, store }) {
   }
 
   async function changeLine(tx, ctx, data, { orderId, lineId }, mode) {
-    const value = await store.order(tx, ctx.companyId, orderId, data.expectedVersion);
+    const value = await store.editOrder(tx, ctx.companyId, orderId, data.expectedVersion);
+    if(value.experience==='RETAIL'&&data.guestSeatId)fail('VALIDATION_ERROR','Tienda no utiliza asientos.',400);
     store.editable(value); store.knownCurrency(value);
     const before = await tx.posOrderLine.findFirst({ where: { id: lineId, orderId, voided: false } });
     if (!before) fail('NOT_FOUND', 'Línea no encontrada.', 404);

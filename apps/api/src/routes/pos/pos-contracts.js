@@ -78,7 +78,14 @@ export const refundPreviewSchema = z.object({expectedVersion:version,amount:posi
   lines:z.array(z.object({orderLineId:id,quantity,restock:z.boolean()}).strict()).max(100)}).strict();
 export const shiftStatusSchema = z.enum(['OPEN','CLOSED','CANCELLED']);
 export const contextQuerySchema = z.object({ outletId: id.optional(), terminalId: id.optional() }).strict();
+export const currentSessionQuerySchema = z.object({outletId:id,terminalId:id}).strict();
+export const printJobSchema = z.object({transport:z.enum(['BROWSER','BLUETOOTH']),reason:reason.optional()}).strict();
+export const printResultSchema = z.object({status:z.enum(['SUBMITTED','FAILED']),errorCode:z.string().regex(/^[A-Za-z0-9_.:-]{1,120}$/).optional()}).strict()
+  .refine((v)=>v.status==='FAILED'||v.errorCode===undefined,'Un envío confirmado al transporte no admite código de error.');
+const filterDate=z.union([z.string().date(),z.string().datetime({offset:true})]);
 export const listOrdersSchema = z.object({ outletId: id.optional(), status: z.enum(['DRAFT','OPEN','SENT','PARTIALLY_SERVED','SERVED','PAID','CANCELLED','REFUNDED']).optional(),
+  terminalId:id.optional(),experience:z.enum(['RETAIL','RESTAURANT']).optional(),search:z.string().trim().regex(/^#?\d{1,9}$/).optional(),
+  from:filterDate.optional(),to:filterDate.optional(),
   page: z.coerce.number().int().positive().default(1), pageSize: z.coerce.number().int().min(1).max(100).default(50) }).strict();
 
 export function parse(schema, body) {

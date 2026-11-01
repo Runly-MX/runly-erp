@@ -1,4 +1,4 @@
-// Phase-1 backend contracts. Callers own a stable attempt key; this domain never
+// Commerce backend contracts. Callers own a stable attempt key; this domain never
 // generates a new key on retry and never queues money in the offline transport.
 export function createPosRecoveryDomain({ request, withAuthHeaders, toQueryString }) {
   const path = (id) => encodeURIComponent(id);
@@ -17,6 +17,18 @@ export function createPosRecoveryDomain({ request, withAuthHeaders, toQueryStrin
     scan:(query,token)=>get(`/scan${toQueryString(query)}`,token),
     refundPreview:(id,data,token)=>request(`/pos/v2/orders/${path(id)}/refunds/preview`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data),onlineOnly:true}),
     context: (query, token) => get(`/context${toQueryString(query)}`, token),
+    currentSession:(query,token)=>get(`/sessions/current${toQueryString(query)}`,token),
+    getSession:(id,token)=>get(`/sessions/${path(id)}`,token),
+    getReceipt:(id,token)=>get(`/receipts/${path(id)}`,token),
+    createPrintJob:(id,data,token,options)=>write(`/receipts/${path(id)}/print-jobs`,data,token,options),
+    finishPrintJob:(jobId,data,token,options)=>write(`/print-jobs/${path(jobId)}/result`,data,token,options),
+    printDataBytes:(payload)=>{
+      if(payload?.encoding!=='base64'||payload?.charset!=='US-ASCII'||typeof payload.dataBase64!=='string'||!payload.dataBase64.length||payload.dataBase64.length>2796204)throw Object.assign(new Error('Datos de impresión inválidos.'),{code:'VALIDATION_ERROR',status:400});
+      let binary;
+      try{binary=globalThis.atob(payload.dataBase64);}catch{throw Object.assign(new Error('Datos de impresión inválidos.'),{code:'VALIDATION_ERROR',status:400});}
+      if(binary.length>2*1024*1024)throw Object.assign(new Error('Datos de impresión fuera de rango.'),{code:'VALIDATION_ERROR',status:400});
+      return Uint8Array.from(binary,(c)=>c.charCodeAt(0));
+    },
     getOrder: (id, token) => get(`/orders/${path(id)}`, token),
     listOrders: (query, token) => get(`/orders${toQueryString(query)}`, token),
     paymentMethods: (token) => get('/payment-methods', token),

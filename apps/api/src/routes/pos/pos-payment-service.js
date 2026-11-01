@@ -3,6 +3,7 @@ import { amount, decimal, fail, json, money, sum } from './pos-contracts.js';
 export function createPosPaymentService({ commands, store }) {
   async function payment(tx, ctx, data, { orderId }) {
     const initial = await store.row(tx, 'posOrder', ctx.companyId, orderId);
+    if(initial.experience==='RETAIL'&&!data.sessionId)fail('VALIDATION_ERROR','Tienda requiere una sesión de caja explícita; no utiliza un turno de mesero.',400);
     const container = data.sessionId
       ? await store.session(tx, ctx.companyId, data.sessionId, initial.outletId, initial.terminalId)
       : await store.shift(tx, ctx.companyId, ctx.actorId, initial.outletId);

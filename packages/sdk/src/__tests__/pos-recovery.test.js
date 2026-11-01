@@ -66,3 +66,23 @@ test('phase 2 SDK exposes scoped catalog reads, keyed stock commands and read-on
   await assert.rejects(client.catalogCommerce.adjustStock('product',{},'token'),{code:'IDEMPOTENCY_REQUIRED'});
   assert.equal(seen.length,13);
 });
+
+test('C7 SDK uses real receipt/session paths, online transport and stable print/result keys',async()=>{
+  const calls=[];
+  const domain=createPosRecoveryDomain({request:async(...args)=>{calls.push(args);return{data:{ok:true}};},withAuthHeaders:(_token,headers={})=>headers,toQueryString:(q)=>q?'?'+new URLSearchParams(q):''});
+  await domain.currentSession({outletId:'outlet',terminalId:'terminal'},'token');
+  await domain.getSession('session','token');await domain.getReceipt('receipt','token');
+  const options={idempotencyKey:'retail-print-attempt-0001'};
+  await domain.createPrintJob('receipt',{transport:'BROWSER'},'token',options);
+  await domain.createPrintJob('receipt',{transport:'BROWSER'},'token',options);
+  await domain.finishPrintJob('job',{status:'FAILED',errorCode:'PRINTER_ABSENT'},'token',options);
+  assert.match(calls[0][0],/sessions\/current\?outletId=outlet&terminalId=terminal/);
+  assert.equal(calls[1][0],'/pos/v2/sessions/session');assert.equal(calls[2][0],'/pos/v2/receipts/receipt');
+  assert.deepEqual(calls[3],calls[4]);assert.equal(calls[5][0],'/pos/v2/print-jobs/job/result');
+  assert.equal(calls[5][1].headers['Idempotency-Key'],options.idempotencyKey);
+  assert.ok(calls.every(([,o])=>o.onlineOnly));
+  assert.deepEqual([...domain.printDataBytes({encoding:'base64',charset:'US-ASCII',dataBase64:btoa('TOTAL 100\n')})],[...new TextEncoder().encode('TOTAL 100\n')]);
+  assert.throws(()=>domain.printDataBytes({}),{code:'VALIDATION_ERROR'});
+  assert.throws(()=>domain.printDataBytes({encoding:'base64',charset:'US-ASCII',dataBase64:'***'}),{code:'VALIDATION_ERROR'});
+  await assert.rejects(domain.createPrintJob('receipt',{},'token'),{code:'IDEMPOTENCY_REQUIRED'});
+});

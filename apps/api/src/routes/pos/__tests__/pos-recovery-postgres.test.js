@@ -39,7 +39,7 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
       currency: options.currency ?? 'MXN', trackStock: options.tracked ?? false, stock: 1 } });
     const run = (action, data, params = {}, attempt = key(), engine = svc) => engine.execute(action, ctx, data, params, attempt);
     const session = await run('openSession', { outletId: outlet.id, terminalId: terminal.id, openingCashAmount: '0.00' });
-    let order = await run('createOrder', { outletId: outlet.id, terminalId: terminal.id, sessionId: session.id, experience: 'RETAIL', fulfillmentType: 'TAKEAWAY' });
+    let order = await run('createOrder', { outletId: outlet.id, terminalId: terminal.id, sessionId: session.id, experience: options.experience??'RETAIL', fulfillmentType: 'TAKEAWAY' });
     if (options.currency === undefined) order = await run('addLine', { expectedVersion: order.version, productId: product.id, quantity: options.quantity ?? '1' }, { orderId: order.id });
     return { ctx, company, actor, outlet, terminal, cash, product, session, order, run };
   }
@@ -166,7 +166,7 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
     const cut=await db.posSession.findUnique({where:{id:f.session.id}});
     if(cut.status==='CLOSED') assert.equal(cut.expectedCashAmount.toString(),raced[0].status==='fulfilled'?'100':'0');
     else assert.equal(raced[0].status,'fulfilled');
-    const g=await fixture();
+    const g=await fixture({experience:'RESTAURANT'});
     const waiterPaid=await pay(g,'100.00',key(),svc,{sessionId:undefined});
     const shiftId=waiterPaid.payment.waiterShiftId, attempt=key();
     await Promise.all([g.run('closeShift',{sessionId:g.session.id,deliveredAmount:'100'},{shiftId},attempt,svc),g.run('closeShift',{sessionId:g.session.id,deliveredAmount:'100'},{shiftId},attempt,other)]);

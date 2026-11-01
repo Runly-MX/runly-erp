@@ -3225,6 +3225,7 @@ model PosOrder {
 }
 
 model PosOrderLine {
+  variantLabel String? @map("variant_label")
   baseUnitPrice Decimal? @db.Decimal(12, 2) @map("base_unit_price")
   taxIncluded Boolean? @map("tax_included")
   priceVersion Int? @map("price_version")
@@ -3561,6 +3562,24 @@ model PosReceipt {
 
   @@unique([companyId, receiptNumber])
   @@map("pos_receipt")
+}
+
+model PosPrintJob {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @map("company_id") @db.Uuid
+  receiptId String @map("receipt_id") @db.Uuid
+  outletId String @map("outlet_id") @db.Uuid
+  createdById String @map("created_by_id") @db.Uuid
+  transport String
+  status String @default("QUEUED")
+  copy Boolean @default(false)
+  reason String?
+  errorCode String? @map("error_code")
+  payload Json
+  createdAt DateTime @default(now()) @map("created_at")
+  finishedAt DateTime? @map("finished_at")
+  @@index([companyId,receiptId,createdAt])
+  @@map("pos_print_job")
 }
 
 model SyncCursor {

@@ -1,19 +1,22 @@
 import { createPosRefundQuoteService } from './pos-refund-quote-service.js';
+import {createPosReceiptService} from './pos-receipt-service.js';
+import {currentSessionQuerySchema,printJobSchema,printResultSchema} from './pos-contracts.js';
 import { Hono } from 'hono';
 import { CommerceError, contextQuerySchema, listOrdersSchema, parse, resourceIdSchema, refundPreviewSchema, shiftStatusSchema } from './pos-contracts.js';
 import { createPosRecoveryService } from './pos-recovery-service.js';
 import { getActorId, getCompanyId } from './service-helpers.js';
 import { orderStatusSchema, salesChannelSchema } from './validators.js';
 
-export const POS_OPERATION_PERMISSIONS = ['pos.terminal.use','pos.caja.read','pos.comandas.read','pos.cocina.read','pos.admin.read','pos.settings.manage'];
-const orderRead = ['pos.orders.read','pos.caja.read','pos.comandas.read'];
+export const POS_OPERATION_PERMISSIONS = ['pos.terminal.use','pos.caja.read','pos.caja.operate','pos.comandas.read','pos.cocina.read','pos.admin.read','pos.settings.manage'];
+const orderRead = ['pos.orders.read','pos.caja.read','pos.caja.operate','pos.comandas.read'];
 const orderCreate = ['pos.orders.create','pos.caja.operate','pos.comandas.create'];
 const orderEdit = ['pos.orders.update','pos.caja.operate','pos.comandas.create'];
-const sessionRead = ['pos.sessions.read','pos.caja.read'];
+const sessionRead = ['pos.sessions.read','pos.caja.read','pos.caja.operate'];
 
 export function createPosV2Router({ prisma, requirePermission, requireAnyPermission, broadcaster }) {
   const app = new Hono();
   const service = createPosRecoveryService({ prisma });
+  const receipts=createPosReceiptService({prisma});
   const any = requireAnyPermission ?? ((keys) => requirePermission(keys[0]));
 
   app.use('/pos/v2/*', async (c, next) => {
@@ -44,6 +47,13 @@ export function createPosV2Router({ prisma, requirePermission, requireAnyPermiss
     getCompanyId(c), parse(contextQuerySchema, c.req.query()), permissions(c),
   ) })));
   app.get('/pos/v2/orders', any(orderRead), read(async (c) => c.json(await service.listOrders(getCompanyId(c), parse(listOrdersSchema, c.req.query())))));
+  app.get('/pos/v2/sessions/current',any(sessionRead),read(async(c)=>c.json({data:await service.currentSession(getCompanyId(c),parse(currentSessionQuerySchema,c.req.query()))})));
+  app.get('/pos/v2/sessions/:id',any(sessionRead),read(async(c)=>c.json({data:await service.getSession(getCompanyId(c),parse(resourceIdSchema,c.req.param('id')))})));
+  app.get('/pos/v2/receipts/:id',any(orderRead),read(async(c)=>c.json({data:await receipts.get(getCompanyId(c),parse(resourceIdSchema,c.req.param('id')))})));
+  app.post('/pos/v2/receipts/:id/print-jobs',any(orderRead),read(async(c)=>c.json({data:await receipts.create({companyId:getCompanyId(c),actorId:getActorId(c)},parse(resourceIdSchema,c.req.param('id')),parse(printJobSchema,await c.req.json().catch(()=>null)),c.req.header('Idempotency-Key'))})));
+  const printResult=(nested)=>read(async(c)=>c.json({data:await receipts.result({companyId:getCompanyId(c),actorId:getActorId(c)},parse(resourceIdSchema,c.req.param('jobId')),parse(printResultSchema,await c.req.json().catch(()=>null)),c.req.header('Idempotency-Key'),permissions(c),nested?parse(resourceIdSchema,c.req.param('id')):undefined)}));
+  app.post('/pos/v2/receipts/:id/print-jobs/:jobId/result',any([...orderRead,'pos.admin.update']),printResult(true));
+  app.post('/pos/v2/print-jobs/:jobId/result',any([...orderRead,'pos.admin.update']),printResult(false));
   app.get('/pos/v2/orders/:id', any(orderRead), read(async (c) => c.json({ data: await service.getOrder(getCompanyId(c), parse(resourceIdSchema, c.req.param('id'))) })));
   app.get('/pos/v2/sessions/:id/expected-cash', any(sessionRead), read(async (c) => c.json({ data: await service.expectedCash(getCompanyId(c), parse(resourceIdSchema, c.req.param('id'))) })));
   app.post('/pos/v2/orders/:id/refunds/preview', requirePermission('pos.refunds.create'), read(async (c) => c.json({ data: await createPosRefundQuoteService({ prisma }).preview(getCompanyId(c), parse(resourceIdSchema,c.req.param('id')),parse(refundPreviewSchema,await c.req.json())) })));
