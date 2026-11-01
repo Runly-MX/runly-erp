@@ -493,7 +493,7 @@ esta comprobación.
 Transcribe llamadas ya grabadas (requiere que la grabacion de LiveKit Egress
 este activada y una grabacion en estado `READY` — ver la seccion de LiveKit
 arriba) usando faster-whisper en CPU, en un contenedor propio (`runly-transcriber`).
-No requiere GPU ni ningun servicio externo de pago.
+No requiere GPU ni ningun servicio externo de pago (el motor externo de abajo es opcional).
 
 ```bash
 TRANSCRIPTION_MODE=disabled
@@ -517,6 +517,29 @@ de la Etapa 1 mostro que dejar este valor en automatico puede inflar el uso de
 RAM y el tiempo de procesamiento cuando el numero de nucleos visibles dentro
 del contenedor no coincide con el limite real de CPU asignado
 (`TRANSCRIBER_CPU_LIMIT`, `docker-compose.yml`).
+
+### Motor externo opcional (Groq Whisper) y vocabulario
+
+No hay ningun modo nuevo ni variable obligatoria: el flujo por defecto sigue
+siendo el modelo local. Para ofrecer el motor externo basta con tener
+`GROQ_API_KEY` en `.env.local`/`.env.external` (el instalador ya genera esa
+linea vacia; es la misma llave de MirAI y del OCR de recibos). El contenedor
+`runly-transcriber` la recibe por el mismo `env_file`, asi que hay que
+recrear `api` y `runly-transcriber` despues de definirla (por ejemplo con el
+script de actualizacion o `docker compose up -d`). Las variables `GROQ_WHISPER_MODEL`,
+`TRANSCRIBER_GROQ_CHUNK_SECONDS`, `TRANSCRIBER_GROQ_BITRATE` y
+`TRANSCRIBER_GROQ_MAX_RATE_WAIT_S` son opcionales, estan comentadas en los
+`.env.*.example` y no se autogeneran.
+
+Con la llave presente, cada empresa decide en la app (permiso
+`chat.calls.transcript.manage`): el boton **Vocabulario** del visor de una transcripcion, seccion Motor.
+Elegir "Servicio externo" exige un consentimiento que queda registrado (quien y
+cuando), porque el audio de las reuniones sale a Groq. Si Groq no responde o
+llega al limite de la capa gratuita, cada fragmento se transcribe con el
+modelo local. En esa misma pantalla cada empresa mantiene su glosario de
+siglas, marcas y terminos (se envia como pista al motor, local o externo).
+La migracion `20261217120000_call_transcript_engine_vocabulary` es aditiva.
+Diseno: `docs/superpowers/specs/2026-11-01-transcription-engine-vocabulary-design.md`.
 
 ### Activar en una instalacion `local` ya existente
 

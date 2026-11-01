@@ -551,3 +551,15 @@ Puntos de diseño ya resueltos por el código existente, reutilizables directame
 6. **Consideraciones legales de grabar/transcribir sin consentimiento explícito**: igual que la grabación, se requiere un aviso persistente y no descartable; la validación de cumplimiento legal específico por país queda fuera de alcance, responsabilidad del cliente que despliega la instancia (mismo criterio ya aplicado al diseño de grabación).
 7. **Aprovisionamiento del rol de PostgreSQL de mínimo privilegio (§5.4) es trabajo nuevo para el instalador**: a diferencia de credenciales de aplicación (que ya se generan y escriben en `.env` de forma rutinaria), crear un rol de base de datos con `GRANT`s específicos es un tipo de paso que el instalador nunca ha ejecutado antes. Mitigación: diseñarlo como un script SQL idempotente, probado explícitamente en una instalación limpia y en una actualización de una instancia existente (Etapa 2/4 del plan), antes de considerarlo listo.
 8. **El mecanismo de arrendamiento (§5.6) es la primera vez que este código usa `FOR UPDATE SKIP LOCKED` y vencimiento de lease**: sin precedente directo en el repo para verificar contra un caso real de uso en producción. Mitigación: la Etapa 2 del plan incluye una prueba de concurrencia explícita (dos contenedores contra la misma fila) y una prueba explícita de "contenedor muere a mitad de un trabajo" antes de darlo por validado.
+
+---
+
+## Addendum 2026-11-01 — motor externo, vocabulario y correcciones
+
+Despues de la revision 4 se agrego, sin cambiar el contrato de las secciones
+anteriores: motor por empresa (`LOCAL` | `GROQ`) con consentimiento registrado,
+pista de vocabulario por transcripcion (participantes, titulo del evento y
+glosario de la empresa), correcciones propuestas por el analisis, edicion de
+lineas con texto original restaurable y aprendizaje del glosario a partir de
+las ediciones. Diseno, cuotas y verificacion en
+`docs/superpowers/specs/2026-11-01-transcription-engine-vocabulary-design.md`.

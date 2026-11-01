@@ -4,7 +4,7 @@
   "version": "2026.10.28.7",
   "files": {
     ".env.local.example": {
-      "sha256": "ef097c568385535ca646f29353f834a1646b773663def037f49020680eed47ab",
+      "sha256": "c3edaaddd89ac72130518591405cd7e7496698315e0bd6d081ecd73fc2dd8b13",
       "modes": [
         "local"
       ],
@@ -22,6 +22,7 @@
         "335f604bbb56d09843e4cd0a2a0e9fb4e8441f24",
         "45f0201c596dca12d1da463ba786e4a3b7576f34",
         "60c1c6ffdc4ac2d781bb06fd8e497e19979b1ca8",
+        "701ba2cefe3c01c3fbe96a9342be44e8dbca3504",
         "79073d2675e344f0a84e764ba27390f62ba0b2a4",
         "84fcde5e2bb015f62cb4ee154958a5d768ff4d6d",
         "8833234853f4a4c44f618a9bd345edcf5c0e0b91",
@@ -591,7 +592,7 @@
       ]
     },
     ".env.external.example": {
-      "sha256": "7dad5a484961c977f3b7a3d32e4fae6b11a1ad33bb16a8154aa31b9214b6c8a1",
+      "sha256": "539ffad88c020ebbde39a2d63378dd6d49f59ed9d96fe7f798eb9d2c6c6d9076",
       "modes": [
         "external"
       ],
@@ -599,6 +600,7 @@
         "006dc085c406915c10a8f1479e47fdb8eda3fd50",
         "00fa0759088954c6ce6a1924a9c472367bd05bfe",
         "0a6ab0d75f96f65387dddfccfa1e1da9369477c5",
+        "0bb0fbfa37a8c74530535519e575a2775f02650c",
         "14a6db7aa13dd497af660e47064e654e9f7a519b",
         "17eb0b5c66d4eb2045f0bc4b1e4c29b922fae0aa",
         "23a734452070feb38bb163e8d65980024e2a65ea",
