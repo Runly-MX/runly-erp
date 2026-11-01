@@ -27,7 +27,7 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
   const money = (v) => formatMoney(v, currency)
 
   const command = usePosCommand({
-    prefix: 'pos-pay',
+    prefix: 'pos-pay', scope:order.id, sessionId, terminalId:order.terminalId,
     run: (body, options) => runly.commerce.addPayment(order.id, body, token, options),
     onSuccess: (res) => {
       const result = res.data

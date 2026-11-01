@@ -42,7 +42,7 @@ export default function RefundDialog({ order, token, companyId, userId, methods,
   const session = sessionQuery.data?.data ?? null
 
   const command = usePosCommand({
-    prefix: 'pos-refund',
+    prefix: 'pos-refund', scope:order.id, terminalId:selection.terminalId,
     run: (body, options) => runly.commerce.refund(order.id, body, token, options),
     onSuccess: (res) => { setDone(res.data); setStep('done') },
   })
@@ -94,12 +94,13 @@ export default function RefundDialog({ order, token, companyId, userId, methods,
           {step === 'confirm' && <Button type="button" variant="outline" size="lg" onClick={() => setStep('select')} disabled={command.isPending}>Cambiar artículos</Button>}
           {step !== 'done' && <Button type="button" variant="outline" size="lg" onClick={onClose} disabled={command.isPending}>Cancelar</Button>}
           {step === 'done' && done?.receiptId && <Button type="button" variant="outline" size="lg" onClick={() => onReceipt(done.receiptId)}>Ver comprobante</Button>}
-          <Button type="submit" size="lg" loading={command.isPending} disabled={Boolean(blocked) && step !== 'done' || (step === 'confirm' && (!session || command.failure?.kind === 'lost'))}>
+          <Button type="submit" size="lg" loading={command.isPending} disabled={Boolean(blocked) && step !== 'done' || (command.failure?.kind === 'lost' && step!=='done') || (step === 'confirm' && !session)}>
             {step === 'select' ? 'Calcular devolución' : step === 'confirm' ? `Devolver ${money(preview?.totalAmount)}` : 'Terminar'}
           </Button>
         </>
       )}
     >
+      <CommandFailureAlert failure={command.failure} onRetry={command.retry} retrying={command.isPending} />
       {blocked && step !== 'done' && <p role="status" className="flex items-start gap-2 rounded-xl bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-400/10 dark:text-amber-200"><Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />{blocked}</p>}
       {step === 'select' && (
         advance ? (
@@ -132,7 +133,6 @@ export default function RefundDialog({ order, token, companyId, userId, methods,
       )}
       {step === 'confirm' && preview && (
         <>
-          <CommandFailureAlert failure={command.failure} onRetry={command.retry} retrying={command.isPending} />
           {!advance && (
             <ul className="space-y-1 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
               {preview.lines.map((pl) => {

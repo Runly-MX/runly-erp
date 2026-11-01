@@ -1,33 +1,29 @@
-// apps/desktop/src/modules/runly.pos/retail/hooks/usePosCommand.js
-import { useRef, useState } from 'react'
-import { useMutation } from '@tanstack/react-query'
-import { classifyPosError, createAttemptTracker } from '../lib/retailErrors.js'
+import {useEffect,useMemo,useRef,useState} from 'react'
+import {useMutation} from '@tanstack/react-query'
+import {useAuth} from '../../../../auth/AuthProvider.jsx'
+import {useActiveCompany} from '../../../../company/ActiveCompanyProvider'
+import {classifyPosError} from '../lib/retailErrors.js'
+import {createPendingCommand,pendingKey} from '../lib/pendingCommands.js'
 
-// useMutation for one POS command. `run(body, { idempotencyKey })` calls the
-// SDK. A lost response keeps the key so "Reintentar" replays the confirmed
-// result; any definitive answer closes the attempt.
-export function usePosCommand({ prefix, run, onSuccess, onError }) {
-  const trackerRef = useRef(null)
-  trackerRef.current ??= createAttemptTracker(prefix)
-  const [failure, setFailure] = useState(null)
-  const mutation = useMutation({
-    mutationFn: (body) => run(body, { idempotencyKey: trackerRef.current.keyFor(body) }),
-    onMutate: () => setFailure(null),
-    onSuccess: (result, body) => {
-      trackerRef.current.reset()
-      onSuccess?.(result, body)
+export function usePosCommand({prefix,scope,sessionId,terminalId,run,onSuccess,onError}){
+  const {userProfile}=useAuth(),{activeCompanyId}=useActiveCompany()
+  const store=useMemo(()=>createPendingCommand({key:pendingKey(userProfile?.id,activeCompanyId,`${prefix}:${scope}`),
+    metadata:{userId:userProfile?.id,companyId:activeCompanyId,prefix,scope,sessionId,terminalId}}),[userProfile?.id,activeCompanyId,prefix,scope,sessionId,terminalId])
+  const [failure,setFailure]=useState(null),flight=useRef(null)
+  useEffect(()=>{setFailure(store.read()?{kind:'lost',retrySameKey:true,message:'Hay un intento sin confirmar. Reintenta para recuperar el resultado original.'}:null)},[store])
+  const mutation=useMutation({
+    mutationFn:(body)=>{
+      if(!userProfile?.id||!activeCompanyId||!scope)throw Object.assign(new Error('Contexto requerido.'),{code:'FORBIDDEN',status:403})
+      return store.execute(body,run)
     },
-    onError: (error, body) => {
-      const info = classifyPosError(error)
-      if (!info.retrySameKey) trackerRef.current.reset()
-      setFailure(info)
-      onError?.(info, body)
-    },
+    onMutate:()=>setFailure(null),
+    onSuccess:(result,body)=>onSuccess?.(result,body),
+    onError:(error,body)=>{const info=classifyPosError(error);setFailure(info);onError?.(info,body)},
   })
-  return {
-    ...mutation,
-    failure,
-    clearFailure: () => setFailure(null),
-    retry: () => mutation.variables !== undefined && mutation.mutate(mutation.variables),
+  function mutate(body){
+    if(flight.current)return flight.current
+    flight.current=mutation.mutateAsync(body).catch(()=>null).finally(()=>{flight.current=null})
+    return flight.current
   }
+  return{...mutation,mutate,failure,clearFailure:()=>setFailure(null),retry:()=>{const record=store.read();if(record)return mutate(record.body)}}
 }

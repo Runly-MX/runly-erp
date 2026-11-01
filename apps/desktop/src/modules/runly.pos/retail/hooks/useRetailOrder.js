@@ -1,155 +1,74 @@
-// apps/desktop/src/modules/runly.pos/retail/hooks/useRetailOrder.js
-import { useCallback, useEffect, useRef, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { runly } from '../../../../lib/runly.js'
-import { classifyPosError, createAttemptTracker } from '../lib/retailErrors.js'
-import { OPEN_STATUSES, orderKey } from '../lib/retailRules.js'
+import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
+import {useQuery,useQueryClient} from '@tanstack/react-query'
+import {runly} from '../../../../lib/runly.js'
+import {classifyPosError} from '../lib/retailErrors.js'
+import {OPEN_STATUSES,orderKey} from '../lib/retailRules.js'
+import {createOrderWorkflow,pendingKey} from '../lib/pendingCommands.js'
 
-function readId(key) {
-  try { return localStorage.getItem(key) } catch { return null }
-}
-function writeId(key, id) {
-  try { if (id) localStorage.setItem(key, id); else localStorage.removeItem(key) } catch { /* tab only */ }
-}
-
-// The sale lives on the server: one RETAIL order per terminal, every change
-// is a versioned command with its own attempt key, and the cart shows the
-// last OrderDTO as is. A lost response keeps the key so "Reintentar"
-// replays the confirmed result instead of creating a second order or line.
-export function useRetailOrder({ token, companyId, outletId, terminalId, sessionId }) {
-  const queryClient = useQueryClient()
-  const storageKey = orderKey(companyId, terminalId)
-  const [orderId, setOrderId] = useState(() => readId(storageKey))
-  const [pending, setPending] = useState(null)
-  const [failure, setFailure] = useState(null)
-  const trackers = useRef({})
-  const lastAction = useRef(null)
-  const tracker = (name) => (trackers.current[name] ??= createAttemptTracker(`pos-${name}`))
-
-  useEffect(() => { setOrderId(readId(storageKey)) }, [storageKey])
-
-  const query = useQuery({
-    queryKey: ['pos-retail-order', orderId, token],
-    queryFn: () => runly.commerce.getOrder(orderId, token),
-    enabled: Boolean(token && orderId),
-    staleTime: 5_000,
-    retry: (count, error) => ![401, 403, 404].includes(error?.status) && count < 2,
-  })
-  const order = query.data?.data ?? null
-  const usable = order && OPEN_STATUSES.includes(order.status) && order.terminalId === terminalId && order.sessionId === sessionId ? order : null
-  // Retries run old closures: they must see the order created by the first
-  // half of an interrupted attempt, never recreate it.
-  const orderRef = useRef(usable)
-  orderRef.current = usable ?? (orderRef.current?.terminalId === terminalId && orderRef.current?.sessionId === sessionId ? orderRef.current : null)
-
-  // A stored order that no longer belongs to this open session (paid,
-  // cancelled, other session, deleted) is simply forgotten.
-  useEffect(() => {
-    if (!orderId) return
-    if (query.error?.status === 404 || (order && !usable)) {
-      writeId(storageKey, null)
-      setOrderId(null)
-    }
-  }, [orderId, order, usable, query.error, storageKey])
-
-  const setOrder = useCallback((dto) => {
-    orderRef.current = OPEN_STATUSES.includes(dto.status) ? dto : null
-    queryClient.setQueryData(['pos-retail-order', dto.id, token], { data: dto })
-    writeId(storageKey, dto.id)
-    setOrderId(dto.id)
-  }, [queryClient, token, storageKey])
-
-  async function run(name, label, call) {
-    setPending(label)
-    setFailure(null)
-    lastAction.current = { name, label, call }
-    try {
-      const result = await call()
-      return result
-    } catch (error) {
-      const info = classifyPosError(error)
-      if (!info.retrySameKey) Object.values(trackers.current).forEach((t) => t.reset())
-      if (info.kind === 'conflict' && orderId) await query.refetch()
-      setFailure({ ...info, label })
-      return null
-    } finally {
-      setPending(null)
-    }
+const lost={kind:'lost',retrySameKey:true,message:'Hay una operaci\u00f3n sin confirmar. Reintenta para recuperar exactamente el intento original.'}
+export function useRetailOrder({token,userId,companyId,outletId,terminalId,sessionId}){
+  const queryClient=useQueryClient(),storageKey=orderKey(companyId,terminalId)
+  const journalKey=pendingKey(userId,companyId,`order:${terminalId}`)
+  const [orderId,setOrderId]=useState(()=>localStorage.getItem(storageKey))
+  const [pending,setPending]=useState(null),[failure,setFailure]=useState(null)
+  const scopeRef=useRef(journalKey),flight=useRef(null)
+  useLayoutEffect(()=>{scopeRef.current=journalKey},[journalKey])
+  const setOrder=useCallback((dto)=>{
+    queryClient.cancelQueries({queryKey:['pos-retail-order',companyId,dto.id,token]},{revert:false})
+    queryClient.setQueryData(['pos-retail-order',companyId,dto.id,token],{data:dto})
+    localStorage.setItem(storageKey,dto.id)
+    if(scopeRef.current===journalKey)setOrderId(dto.id)
+  },[companyId,queryClient,token,storageKey,journalKey])
+  const workflow=useMemo(()=>createOrderWorkflow({key:journalKey,metadata:{userId,companyId,sessionId,terminalId,prefix:'order'},
+    onOrder:setOrder,send:(step)=>{
+      if(localStorage.getItem('runly-active-company')!==companyId)throw Object.assign(new Error('La empresa activa cambi\u00f3.'),{code:'company_changed',status:409})
+      const options={idempotencyKey:step.key}
+      if(step.action==='createOrder')return runly.commerce.createOrder(step.body,token,options)
+      if(step.action==='addLine')return runly.commerce.addLine(step.orderId,step.body,token,options)
+      return runly.commerce[step.action](step.orderId,step.lineId,step.body,token,options)
+    }}),[journalKey,userId,companyId,sessionId,terminalId,token,setOrder])
+  useEffect(()=>{
+    setOrderId(localStorage.getItem(storageKey))
+    setFailure(workflow.read()?lost:null)
+  },[storageKey,workflow])
+  const query=useQuery({queryKey:['pos-retail-order',companyId,orderId,token],queryFn:()=>runly.commerce.getOrder(orderId,token),
+    enabled:Boolean(token&&orderId&&terminalId&&sessionId),staleTime:0,retry:(n,e)=>![401,403,404].includes(e?.status)&&n<2})
+  const order=query.data?.data??null
+  const usable=order&&order.companyId===companyId&&order.outletId===outletId&&OPEN_STATUSES.includes(order.status)&&order.terminalId===terminalId&&order.sessionId===sessionId?order:null
+  const orderRef=useRef(usable)
+  useLayoutEffect(()=>{orderRef.current=usable??(orderRef.current?.companyId===companyId&&orderRef.current?.terminalId===terminalId&&orderRef.current?.sessionId===sessionId?orderRef.current:null)},[usable,companyId,terminalId,sessionId])
+  useEffect(()=>{
+    if(!orderId||!terminalId||!sessionId||workflow.read())return
+    if(query.error?.status===404||(order&&!usable)){localStorage.removeItem(storageKey);setOrderId(null)}
+  },[orderId,terminalId,sessionId,workflow,query.error,order,usable,storageKey])
+  async function run(label,intent,resume=false){
+    if(flight.current)return flight.current
+    if(!userId||!companyId||!outletId||!terminalId||(!sessionId&&!resume))return null
+    setPending(label);setFailure(null)
+    flight.current=(async()=>{
+      try{return await(resume?workflow.resume():workflow.start(intent()))}
+      catch(error){
+        if(scopeRef.current===journalKey){setFailure({...classifyPosError(error),label});if(error.code==='ORDER_VERSION_CONFLICT')await query.refetch()}
+        return null
+      }finally{if(scopeRef.current===journalKey)setPending(null);flight.current=null}
+    })()
+    return flight.current
   }
-
-  async function ensureOrder() {
-    if (orderRef.current) return orderRef.current
-    const body = { outletId, terminalId, sessionId, experience: 'RETAIL', fulfillmentType: 'TAKEAWAY' }
-    const created = (await runly.commerce.createOrder(body, token, { idempotencyKey: tracker('create').keyFor(body) })).data
-    tracker('create').reset()
-    setOrder(created)
-    return created
-  }
-
-  async function command(name, makeCall) {
-    const current = await ensureOrder()
-    const { body, send } = makeCall(current)
-    const dto = (await send(body, { idempotencyKey: tracker(name).keyFor({ id: current.id, ...body }) })).data
-    tracker(name).reset()
-    setOrder(dto)
-    return dto
-  }
-
-  const addItem = (item, label) => run('add', label ?? `Agregando ${item.name}`, async () => {
-    // Same product/variant already in the sale: one more unit on that line.
-    const current = orderRef.current
-    const existing = current?.lines?.find((l) => !l.voided && l.productId === item.productId && (l.variantId ?? null) === (item.variantId ?? null))
-    if (existing) {
-      return command('update', (o) => ({
-        body: { expectedVersion: o.version, quantity: String(Number(existing.quantity) + 1) },
-        send: (b, opt) => runly.commerce.updateLine(o.id, existing.id, b, token, opt),
-      }))
-    }
-    return command('add', (o) => ({
-      body: { expectedVersion: o.version, productId: item.productId, ...(item.variantId ? { variantId: item.variantId } : {}), quantity: '1' },
-      send: (b, opt) => runly.commerce.addLine(o.id, b, token, opt),
-    }))
-  })
-
-  const setQuantity = (line, quantity) => run('update', 'Actualizando cantidad', () => command('update', (o) => ({
-    body: { expectedVersion: o.version, quantity: String(quantity) },
-    send: (b, opt) => runly.commerce.updateLine(o.id, line.id, b, token, opt),
-  })))
-
-  const removeLine = (line) => run('delete', `Quitando ${line.productName}`, () => command('delete', (o) => ({
-    body: { expectedVersion: o.version },
-    send: (b, opt) => runly.commerce.deleteLine(o.id, line.id, b, token, opt),
-  })))
-
-  const discountLine = (line, amount, reason) => run('discount', 'Aplicando descuento', () => command('discount', (o) => ({
-    body: { expectedVersion: o.version, amount, reason },
-    send: (b, opt) => runly.commerce.discount(o.id, line.id, b, token, opt),
-  })))
-
-  // Emptying removes the lines one by one; the empty order stays on the
-  // server and is reused by the next sale (no cancel permission needed).
-  const clear = () => run('clear', 'Vaciando la venta', async () => {
-    let current = orderRef.current
-    for (const line of (current?.lines ?? []).filter((l) => !l.voided)) {
-      current = await command('delete', (o) => ({ body: { expectedVersion: o.version }, send: (b, opt) => runly.commerce.deleteLine(o.id, line.id, b, token, opt) }))
-    }
-    return current
-  })
-
-  return {
-    order: usable,
-    loading: Boolean(orderId) && query.isPending,
-    pending,
-    failure,
-    retry: () => lastAction.current && run(lastAction.current.name, lastAction.current.label, lastAction.current.call),
-    dismissFailure: () => setFailure(null),
-    reload: () => { Object.values(trackers.current).forEach((t) => t.reset()); setFailure(null); return query.refetch() },
-    addItem,
-    setQuantity,
-    removeLine,
-    discountLine,
-    clear,
-    setOrder,
-    finish: () => { orderRef.current = null; writeId(storageKey, null); setOrderId(null) },
+  const start=(label,steps)=>run(label,()=>({order:orderRef.current,steps:steps(orderRef.current)}))
+  function create(){return{action:'createOrder',input:{outletId,terminalId,sessionId,experience:'RETAIL',fulfillmentType:'TAKEAWAY'}}}
+  return{
+    order:usable,loading:Boolean(orderId)&&query.isPending,pending,failure,setOrder,
+    addItem:(item,label)=>start(label??`Agregando ${item.name}`,(o)=>{
+      const line=o?.lines?.find((l)=>!l.voided&&l.productId===item.productId&&(l.variantId??null)===(item.variantId??null))
+      if(line)return[{action:'updateLine',lineId:line.id,input:{quantity:String(Number(line.quantity)+1)}}]
+      return[...(!o?[create()]:[]),{action:'addLine',input:{productId:item.productId,...(item.variantId?{variantId:item.variantId}:{}),quantity:'1'}}]
+    }),
+    setQuantity:(line,quantity)=>start('Actualizando cantidad',()=>[{action:'updateLine',lineId:line.id,input:{quantity:String(quantity)}}]),
+    removeLine:(line)=>start('Quitando art\u00edculo',()=>[{action:'deleteLine',lineId:line.id,input:{}}]),
+    discountLine:(line,amount,reason)=>start('Aplicando descuento',()=>[{action:'discount',lineId:line.id,input:{amount,reason}}]),
+    clear:()=>start('Vaciando venta',(o)=>(o?.lines??[]).filter((l)=>!l.voided).map((l)=>({action:'deleteLine',lineId:l.id,input:{}}))),
+    retry:()=>run('Recuperando operaci\u00f3n',null,true),dismissFailure:()=>setFailure(null),
+    reload:async()=>{if(workflow.read())await run('Recuperando operaci\u00f3n',null,true);else setFailure(null);return query.refetch()},
+    finish:()=>{orderRef.current=null;localStorage.removeItem(storageKey);setOrderId(null)},
   }
 }

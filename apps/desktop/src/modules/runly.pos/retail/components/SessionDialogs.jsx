@@ -15,7 +15,7 @@ export function CashMovementDialog({ kind, session, token, currency, onDone, onC
   const [reason, setReason] = useState('')
   const [errors, setErrors] = useState({})
   const command = usePosCommand({
-    prefix: 'pos-cash',
+    prefix: 'pos-cash', scope:`${session.id}:${kind}`, sessionId:session.id, terminalId:session.terminalId,
     run: (body, options) => runly.commerce.cashMovement(session.id, body, token, options),
     onSuccess: () => onDone(kind),
   })
@@ -77,7 +77,7 @@ export function SessionCloseDialog({ session, token, currency, onClosed, onClose
     staleTime: 0,
   })
   const command = usePosCommand({
-    prefix: 'pos-close',
+    prefix: 'pos-close', scope:session.id, sessionId:session.id, terminalId:session.terminalId,
     run: (body, options) => runly.commerce.closeSession(session.id, body, token, options),
     onSuccess: (res) => { setClosed(res.data); setStep('done') },
   })
@@ -116,12 +116,12 @@ export function SessionCloseDialog({ session, token, currency, onClosed, onClose
         </>
       )}
     >
+      <CommandFailureAlert failure={command.failure} onRetry={command.retry} retrying={command.isPending} />
       {step === 'count' && (
         <CurrencyField label="Efectivo contado" value={counted} onChange={setCounted} currency={currency} min={0} autoFocus className="h-14 text-2xl font-bold" />
       )}
       {step === 'review' && (
         <>
-          <CommandFailureAlert failure={command.failure} onRetry={command.retry} retrying={command.isPending} />
           {expected.isPending ? <Skeleton className="h-48" /> : expected.isError ? (
             <ErrorState title="No se pudo calcular el esperado" description={classifyPosError(expected.error).message} onRetry={expected.refetch} />
           ) : (

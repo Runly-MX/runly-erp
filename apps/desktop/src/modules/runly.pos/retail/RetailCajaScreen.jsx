@@ -19,6 +19,8 @@ import SessionOpenPanel from './components/SessionOpenPanel.jsx'
 import { CashMovementDialog, SessionCloseDialog } from './components/SessionDialogs.jsx'
 import { useRetailContext } from './hooks/useRetailContext.js'
 import { useRetailOrder } from './hooks/useRetailOrder.js'
+import {usePendingOperations} from './hooks/usePendingOperations.js'
+import {readPending,writePending} from './lib/pendingCommands.js'
 import { classifyPosError } from './lib/retailErrors.js'
 import { formatMoney, itemCount } from './lib/retailRules.js'
 
@@ -39,7 +41,7 @@ function useWideLayout() {
 // POS Tienda: a modern register. Choose outlet + register once, open the
 // register, scan or tap, charge, hand the receipt, next customer. Retail
 // only: no tables, seats, kitchen or floor plans.
-export default function RetailCajaScreen() {
+function RetailCajaView() {
   const { session: auth, userProfile } = useAuth()
   const token = auth?.access_token
   const { activeCompanyId } = useActiveCompany()
@@ -52,14 +54,16 @@ export default function RetailCajaScreen() {
   const outlet = context?.outlets?.find((o) => o.id === context?.selectedOutletId)
   const terminal = context?.terminals?.find((t) => t.id === context?.selectedTerminalId)
   const session = context?.currentSession ?? null
-  const sale = useRetailOrder({ token, companyId: activeCompanyId, outletId: outlet?.id, terminalId: terminal?.id, sessionId: session?.id })
+  const sale = useRetailOrder({ token, userId:userProfile?.id, companyId: activeCompanyId, outletId: outlet?.id, terminalId: terminal?.id, sessionId: session?.id })
+  const unresolved=usePendingOperations({userId:userProfile?.id,companyId:activeCompanyId,sessionId:session?.id,terminalId:terminal?.id})
   const [dialog, setDialog] = useState(null)
   const [completed, setCompleted] = useState(null)
   const [cartOpen, setCartOpen] = useState(false)
+  const [recovering,setRecovering]=useState(false)
   const methods = context?.paymentMethods ?? []
   const caps = context?.capabilities ?? {}
   const currency = context?.currency ?? 'MXN'
-  const saleInProgress = Boolean(sale.order && (sale.order.lines ?? []).some((l) => !l.voided))
+  const saleInProgress = Boolean(sale.pending||unresolved.length||(sale.order && (sale.order.lines ?? []).some((l) => !l.voided)))
   const canAdmin = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('pos.admin.read'))
 
   // After a lost payment response the dialog may be closed: ask the server
@@ -86,6 +90,33 @@ export default function RetailCajaScreen() {
 
   function refreshContext() {
     queryClient.invalidateQueries({ queryKey: ['pos-retail-context', activeCompanyId] })
+  }
+
+  async function recover(record){
+    if(recovering)return
+    setRecovering(true)
+    const opt={idempotencyKey:record.key},b=record.body
+    try{
+      const calls={
+        'pos-open':()=>runly.commerce.openSession(b,token,opt),
+        'pos-close':()=>runly.commerce.closeSession(record.scope,b,token,opt),
+        'pos-cash':()=>runly.commerce.cashMovement(record.sessionId,b,token,opt),
+        'pos-pay':()=>runly.commerce.addPayment(record.scope,b,token,opt),
+        'pos-refund':()=>runly.commerce.refund(record.scope,b,token,opt),
+      }
+      if(!calls[record.prefix])return
+      const result=(await calls[record.prefix]()).data
+      if(readPending(record.storageKey)?.key===record.key)writePending(record.storageKey,null)
+      if(record.prefix==='pos-pay'&&result.order.status==='PAID'&&(!sale.order||sale.order.id===record.scope)){
+        sale.finish();setCompleted(result);setCartOpen(true)
+      }
+      refreshContext()
+      queryClient.invalidateQueries({queryKey:['pos-retail-order',activeCompanyId]})
+      toast.success('Operación recuperada sin repetirla')
+    }catch(error){
+      if(error.status>=400&&error.status<500&&![401,403,408].includes(error.status)&&error.code!=='company_changed'&&readPending(record.storageKey)?.key===record.key)writePending(record.storageKey,null)
+      toast.error(classifyPosError(error).message)
+    }finally{setRecovering(false)}
   }
 
   let body
@@ -141,7 +172,7 @@ export default function RetailCajaScreen() {
           terminalId={terminal.id}
           currency={currency}
           cajaName={terminal.name}
-          canOpen={caps.openSession}
+          canOpen={caps.openSession && !unresolved.length}
           onOpened={() => { toast.success('Caja abierta'); refreshContext() }}
         />
       </div>
@@ -171,7 +202,7 @@ export default function RetailCajaScreen() {
             token={token}
             outletId={outlet.id}
             currency={currency}
-            disabled={!online || Boolean(sale.pending) || Boolean(completed) || sale.loading || !caps.charge}
+            disabled={!online || Boolean(sale.pending) || Boolean(completed) || sale.loading || !caps.charge || Boolean(unresolved.length)}
             onAdd={(item) => sale.addItem(item)}
           />
         </div>
@@ -220,6 +251,11 @@ export default function RetailCajaScreen() {
           onChangeCaja={() => { setCompleted(null); ctx.changeCaja() }}
         />
       )}
+      {unresolved.some((r)=>r.prefix!=='order'||!session)&&!dialog&&(
+        <Alert className="m-3"><AlertTitle>Operación pendiente de confirmar</AlertTitle><AlertDescription>Recupera su resultado antes de cerrar o cambiar de caja.</AlertDescription>
+          {unresolved.filter((r)=>r.prefix!=='order'||!session).map((r)=><Button key={r.storageKey} variant="outline" loading={recovering||Boolean(sale.pending)} onClick={()=>r.prefix==='order'?sale.retry():recover(r)}>Recuperar operación pendiente</Button>)}
+        </Alert>
+      )}
       {body}
 
       {dialog?.kind === 'charge' && sale.order && (
@@ -245,4 +281,10 @@ export default function RetailCajaScreen() {
       )}
     </div>
   )
+}
+
+export default function RetailCajaScreen(){
+  const {activeCompanyId}=useActiveCompany()
+  const {userProfile}=useAuth()
+  return <RetailCajaView key={`${userProfile?.id}:${activeCompanyId}`} />
 }

@@ -13,7 +13,7 @@ export default function SessionOpenPanel({ token, outletId, terminalId, currency
   const [amount, setAmount] = useState(0)
   const [notes, setNotes] = useState('')
   const command = usePosCommand({
-    prefix: 'pos-open',
+    prefix: 'pos-open', scope:`${outletId}:${terminalId}`,
     run: (body, options) => runly.commerce.openSession(body, token, options),
     onSuccess: (res) => onOpened(res.data),
   })

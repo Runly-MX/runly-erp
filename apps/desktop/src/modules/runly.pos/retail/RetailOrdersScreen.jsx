@@ -1,5 +1,6 @@
 // apps/desktop/src/modules/runly.pos/retail/RetailOrdersScreen.jsx
 import { useEffect, useState } from 'react'
+import {useSearchParams} from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { Button, DateField, EmptyState, ErrorState, PageHeader, SearchInput, SelectField, Skeleton, StatusPill } from '@runly/ui'
 import { ChevronLeft, ChevronRight, Lock, ReceiptText } from 'lucide-react'
@@ -19,7 +20,7 @@ function when(value) {
 
 // Order history on C2 (filters by outlet, register, status, folio and dates,
 // as the contract defines). Detail, receipts, cancel and refund open from a row.
-export default function RetailOrdersScreen() {
+function RetailOrdersView() {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const { activeCompanyId } = useActiveCompany()
@@ -30,7 +31,9 @@ export default function RetailOrdersScreen() {
   const [from, setFrom] = useState('')
   const [to, setTo] = useState('')
   const [page, setPage] = useState(1)
-  const [openId, setOpenId] = useState(null)
+  const [params,setParams]=useSearchParams()
+  const requested=params.get('order')
+  const [openId, setOpenId] = useState(()=>/^[0-9a-f-]{36}$/i.test(requested??'')?requested:null)
   useEffect(() => { const t = setTimeout(() => { setSearch(text.trim()); setPage(1) }, 300); return () => clearTimeout(t) }, [text])
   const validSearch = /^#?\d{1,9}$/.test(search) ? search : ''
 
@@ -127,10 +130,16 @@ export default function RetailOrdersScreen() {
           userProfile={userProfile}
           capabilities={context.data?.data?.capabilities ?? {}}
           methods={context.data?.data?.paymentMethods ?? []}
-          onClose={() => setOpenId(null)}
+          onClose={() => {setOpenId(null);if(params.has('order')){const next=new URLSearchParams(params);next.delete('order');setParams(next,{replace:true})}}}
           onChanged={() => list.refetch()}
         />
       )}
     </div>
   )
+}
+
+export default function RetailOrdersScreen(){
+  const {activeCompanyId}=useActiveCompany()
+  const {userProfile}=useAuth()
+  return <RetailOrdersView key={`${userProfile?.id}:${activeCompanyId}`} />
 }

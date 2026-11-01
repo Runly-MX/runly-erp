@@ -203,4 +203,22 @@ describe('Retail phase 3: real API, SDK, receipts and print attempts',{skip:!url
     const paid=(await pay(f,await order(f))).data;
     await assert.rejects(db.posPrintJob.create({data:{companyId:f.company.id,outletId:g.outlet.id,receiptId:paid.receiptId,createdById:f.actor.id,transport:'BROWSER',payload:{}}}));
   });
+
+  it('legacy URLs cannot forge prices, change financial state or bypass company/session permissions',async()=>{
+    const f=await fixture(),o=await order(f),g=await fixture();
+    const request=(method,path,body,permissions=grants)=>f.app.request(path,{method,headers:{'Content-Type':'application/json','Idempotency-Key':key(),'X-Test-Permissions':permissions},body:JSON.stringify(body)});
+    assert.equal((await request('POST',`/pos/orders/${o.id}/lines`,{expectedVersion:o.version,productId:f.product.id,quantity:'1',unitPrice:'0.01'})).status,400);
+    assert.equal((await request('PATCH',`/pos/orders/${o.id}`,{status:'PAID'})).status,409);
+    assert.equal((await request('POST','/pos/orders',{outletId:f.outlet.id,terminalId:f.terminal.id,sessionId:f.session.id,experience:'RESTAURANT',fulfillmentType:'DINE_IN'})).status,409);
+    const payment={expectedVersion:o.version,paymentMethodId:f.cash.id,sessionId:g.session.id,amount:'100.00',tenderedAmount:'100.00'};
+    assert.equal((await request('POST',`/pos/orders/${o.id}/payments`,payment)).status,404);
+    assert.equal((await request('POST',`/pos/orders/${o.id}/payments`,{...payment,sessionId:f.session.id},'pos.caja.read')).status,403);
+    assert.equal((await request('POST',`/pos/orders/${o.id}/receipts/reprint`,{})).status,409);
+    await db.posTerminal.update({where:{id:f.terminal.id},data:{enabled:false}});
+    await assert.rejects(pay(f,o),{code:'NOT_FOUND'});
+    assert.equal((await request('POST',`/pos/orders/${o.id}/payments`,{...payment,sessionId:f.session.id})).status,404);
+    assert.equal(await db.posPayment.count({where:{orderId:o.id}}),0);
+    assert.equal((await db.posOrder.findUnique({where:{id:o.id}})).status,'OPEN');
+    assert.equal((await db.catalogProduct.findUnique({where:{id:f.product.id}})).stock,2);
+  });
 });

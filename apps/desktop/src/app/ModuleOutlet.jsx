@@ -349,7 +349,7 @@ const SCREEN_MAP = {
     () => import("../modules/runly.pos/screens/PosHomeRedirect.jsx"),
   ),
   "runly.pos:/pos/terminal": lazy(
-    () => import("../modules/runly.pos/screens/PosTerminalScreen.jsx"),
+    () => import("../modules/runly.pos/retail/LegacyTerminalEntry.jsx"),
   ),
   "runly.pos:/pos/tables": lazy(
     () => import("../modules/runly.pos/screens/PosTablesScreen.jsx"),

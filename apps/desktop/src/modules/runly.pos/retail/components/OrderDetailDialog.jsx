@@ -29,8 +29,8 @@ export default function OrderDetailDialog({ orderId, token, companyId, userProfi
   const can = (key) => Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes(key))
   const meta = order ? ORDER_STATUS_META[order.status] ?? { label: order.status, tone: 'neutral' } : null
   const netPaid = Number(order?.netPaidAmount ?? 0)
-  const canCancel = order && ['DRAFT', 'OPEN'].includes(order.status) && can('pos.orders.cancel')
-  const canRefund = order && capabilities.refund && netPaid > 0 && !['CANCELLED', 'REFUNDED'].includes(order.status) && !order.historicalCurrencyUnknown
+  const canCancel = order?.experience==='RETAIL' && ['DRAFT', 'OPEN'].includes(order.status) && can('pos.orders.cancel')
+  const canRefund = order?.experience==='RETAIL' && capabilities.refund && netPaid > 0 && !['CANCELLED', 'REFUNDED'].includes(order.status) && !order.historicalCurrencyUnknown
   const methodName = (id) => methods.find((m) => m.id === id)?.name ?? 'Pago'
   const changed = () => { query.refetch(); onChanged() }
 
@@ -127,7 +127,7 @@ function CancelDialog({ order, token, onClose, onDone, onRefundInstead }) {
   const [reason, setReason] = useState('')
   const [error, setError] = useState('')
   const command = usePosCommand({
-    prefix: 'pos-cancel',
+    prefix: 'pos-cancel', scope:order.id,
     run: (body, options) => runly.commerce.cancel(order.id, body, token, options),
     onSuccess: onDone,
   })

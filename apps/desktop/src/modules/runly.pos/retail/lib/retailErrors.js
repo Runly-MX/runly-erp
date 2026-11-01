@@ -18,6 +18,7 @@ const POS_MESSAGES = {
 
 export function classifyPosError(error) {
   const code = error?.code ?? null
+  if(['PENDING_OPERATION','company_changed','RECOVERY_STORAGE_UNAVAILABLE'].includes(code))return{kind:'lost',code,retrySameKey:true,message:error.message}
   const base = classifyCommerceError(error)
   if (base.kind === 'lost' || base.kind === 'forbidden') return base
   const pos = POS_MESSAGES[code]
