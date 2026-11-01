@@ -18,7 +18,7 @@ export default function WebsiteTemplatesScreen() {
         {allTemplates.map((tpl) => (
           <button
             key={tpl.id}
-            onClick={() => navigate(`/app/m/runly.website/templates/${tpl.id}/detail`)}
+            onClick={() => navigate(`/app/m/runly.website/templates/${tpl.id}/preview`)}
             className="text-left rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-md transition-all group"
           >
             <div
