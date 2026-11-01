@@ -87,7 +87,18 @@ function relativeLuminance({ r, g, b }) {
 //   screens pass a contrast review, so the rest keep their current look.
 const DARK_TEXT = { r: 17, g: 24, b: 39 };
 
-export const AA_FOREGROUND_MODULES = new Set(["runly.catalog"]);
+export const AA_FOREGROUND_MODULES = new Set(["runly.catalog", "runly.pos"]);
+
+// strict fill: a color where neither white nor dark text reaches AA (POS
+// #008C8C: 4.1:1 and 4.2:1) is darkened until white passes, as the approved
+// UX does with #007A7A. Returns the rgb to paint fills with.
+function strictFill(rgb) {
+  const white = { r: 255, g: 255, b: 255 };
+  if (contrastRatio(rgb, white) >= 4.5 || contrastRatio(rgb, DARK_TEXT) >= 4.5) return rgb;
+  let hsl = rgbToHsl(rgb);
+  while (hsl.l > 0 && contrastRatio(hslToRgb(hsl), white) < 4.5) hsl = adjustLightness(hsl, -1);
+  return hslToRgb(hsl);
+}
 
 function contrastRatio(a, b) {
   const [hi, lo] = [relativeLuminance(a), relativeLuminance(b)].sort((x, y) => y - x);
@@ -131,8 +142,9 @@ function textOnLight(hsl) {
 // The same derived tokens applyBrandTheme writes on :root, as a plain object -
 // for scopes (the chat's per-user accent) that restyle a subtree only.
 export function deriveBrandVars(primaryColor, { strictContrast = false } = {}) {
-  const rgb = hexToRgb(primaryColor);
-  if (!rgb) return null;
+  const official = hexToRgb(primaryColor);
+  if (!official) return null;
+  const rgb = strictContrast ? strictFill(official) : official;
   const hsl = rgbToHsl(rgb);
   const darkHsl = { ...hsl, l: Math.max(hsl.l, 55) };
   return {
@@ -148,7 +160,8 @@ export function deriveBrandVars(primaryColor, { strictContrast = false } = {}) {
 
 export function applyBrandTheme(primaryColor, { strictContrast = false } = {}) {
   const root = document.documentElement;
-  const rgb = hexToRgb(primaryColor || "#0A7BFF") || hexToRgb("#0A7BFF");
+  const official = hexToRgb(primaryColor || "#0A7BFF") || hexToRgb("#0A7BFF");
+  const rgb = strictContrast ? strictFill(official) : official;
   const hsl = rgbToHsl(rgb);
   const hover = adjustLightness(hsl, -8);
 

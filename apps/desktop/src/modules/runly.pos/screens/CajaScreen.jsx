@@ -1,7 +1,3 @@
-// F3: Caja post — the real terminal experience with caja-specific tools
-// (waiter shift reception, session history) enabled via the cajaTools prop.
-import PosTerminalScreen from "./PosTerminalScreen.jsx";
-
-export default function CajaScreen() {
-  return <PosTerminalScreen cajaTools />;
-}
+// Caja post: POS Tienda on the commerce contracts (C0-C8). The restaurant
+// cashier (tables, seats, kitchen) belongs to phase 4 and is not mounted here.
+export { default } from "../retail/RetailCajaScreen.jsx";

@@ -548,6 +548,9 @@ Necesidades funcionales que C0–C8 no cubren. La UI no las implementa hasta que
 | D34 | Habilitar o bloquear una variante concreta en POS | C1 admin sólo escribe disponibilidad del producto; `disabledVariantIds` es de sólo lectura | La UI muestra «Bloqueada en POS» por configuración anterior. Pendiente decidir si v1 necesita escritura por variante. |
 | D35 | Alta y edición de producto/variante con clave de intento | `POST /catalog/products` y `POST .../variants` no son idempotentes | Resuelto en frontend: el producto se crea una sola vez y los pasos C1/C5 posteriores llevan clave propia; tras una respuesta perdida, un 409 de dirección web se explica como «probablemente ya se creó»; las combinaciones faltantes se recalculan desde una lectura nueva antes de cada alta. Cierre real: `Idempotency-Key` en esas altas. |
 | D36 | **Bloqueo, severidad alta.** Editar una variante sin reenviar todo borra su combinación y su herencia de precio | `PATCH /catalog/products/:id/variants/:variantId`: `updateVariantSchema = createVariantSchema.omit({stock}).partial()` conserva en Zod 4 los `default()` de alta, así que `{sku:"X"}` se valida como `{sku:"X", option_values:{}, price:0}` | Comprobado: `updateVariantSchema.parse({sku:'X'})` devuelve `{"option_values":{},"sku":"X","price":0}`, y la prueba de navegador lo reprodujo (las variantes quedaron «Sin opciones» con precio fijo 0). El frontend nuevo reenvía siempre `option_values` y la política de precio actual en cada PATCH. Cualquier otro cliente (sync, MCP, integraciones) sigue expuesto: Codex debe quitar los defaults del esquema parcial. No se modificó el backend en esta entrega. |
+| D37 | Nombre del cajero en la barra de operación | C0 `context` y la sesión sólo traen `openedById` | La barra muestra el usuario que opera la pantalla (perfil autenticado), no quien abrió la sesión. Opcional: `openedByName` en la sesión. |
+| D38 | Sesión destino de una devolución hecha desde Órdenes | C4 exige `sessionId` abierto de la misma sucursal; no hay lectura de «sesión abierta de la sucursal» | Resuelto en frontend con la caja que el operador eligió en Caja (`currentSession` de su selección). Si eligió otra sucursal o la caja está cerrada, la devolución se bloquea con el motivo. Opcional: lectura de sesiones abiertas por sucursal (relacionado con D30). |
+| D39 | Impresora Bluetooth predeterminada por terminal | C7 no guarda dispositivo; el puente nativo exige elegir dirección emparejada | En el APK se elige la impresora emparejada en cada impresión. Preferencia por terminal pendiente (administración). Sin prueba en hardware real. |
 
 ### 13.1 Hallazgos del sistema visual vigente
 
@@ -572,13 +575,13 @@ Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (imple
 
 | Pantalla / componente | Contratos | Etapa | Diseño | Frontend | Integrado | Navegador | Táctil |
 |---|---|---|---|---|---|---|---|
-| `PosContextGate` + `PosOperationBar` | C0, C8 | 3 | En revisión | No | No | No | No |
-| Tienda: catálogo, búsqueda, escaneo, variantes | C1 | 3 | En revisión | No | No | No | No |
-| Tienda: carrito | C2 | 3 | En revisión | No | No | No | No |
-| `ChargeSheet` + `SaleCompleteView` | C3, C7 | 3 | En revisión | No | No | No | No |
-| Apertura, movimientos, cierre de caja | C8 | 3 | En revisión | No | No | No | No |
-| `RefundSheet` + cancelación | C4 | 3 | En revisión | No | No | No | No |
-| Órdenes (historial, detalle, reimpresión) | C2, C4, C7 | 3, 5 | En revisión | No | No | No | No |
+| `PosContextGate` + `PosOperationBar` | C0, C8 | 3 | Aprobado | Sí | Sí | Sí | No |
+| Tienda: catálogo, búsqueda, escaneo, variantes | C1 | 3 | Aprobado | Sí | Sí | Sí | No |
+| Tienda: carrito | C2 | 3 | Aprobado | Sí | Sí | Sí | No |
+| `ChargeSheet` + `SaleCompleteView` | C3, C7 | 3 | Aprobado | Sí | Sí | Sí | No |
+| Apertura, movimientos, cierre de caja | C8 | 3 | Aprobado | Sí | Sí | Sí | No |
+| `RefundSheet` + cancelación | C4, D29 | 3 | Aprobado | Sí | Sí | Sí | No |
+| Órdenes (historial, detalle, reimpresión) | C2, C4, C7 | 3, 5 | Aprobado | Sí (tienda) | Sí | Sí | No |
 | Mesero: `TableBoard` | C0, C6 | 4 | En revisión | No | No | No | No |
 | Mesero: `TicketComposer` + envío | C1, C2, C6 | 4 | En revisión | No | No | No | No |
 | Caja restaurante + `SeatSplitSheet` | C2, C3, C6 | 4 | En revisión | No | No | No | No |
@@ -607,7 +610,7 @@ Fuente: [cierre técnico de fase 1](../plans/2026-11-01-commerce-phase1-results.
 | C1 vendibles, búsqueda, escaneo, disponibilidad | Implementado (fase 2, `da2b497d9`) | Venta, escaneo ambiguo, variantes en POS, Catálogo | Todo el DTO; D27 define los campos del escaneo |
 | C5 existencias por sucursal | Implementado (fase 2, `da2b497d9`) | Existencias por sucursal, asignación | Saldos, asignación y movimientos con origen (D17) |
 | C6 mesas, cocina, cuentas atribuidas | Pendiente (fase 4) | Mesero, comandero, caja restaurante, cocina | D26 define los campos de comanda; D12, D20, D23 |
-| C7 recibos e impresión | Pendiente (fase 3) | Venta completada, reimpresión, corte | Estado de impresión; hoy sólo existe el documento con `printedCount = 0` |
+| C7 recibos e impresión | Implementado (fase 3, `f293f2e2c`) | Venta completada, reimpresión, corte | Estado de impresión; hoy sólo existe el documento con `printedCount = 0` |
 
 Ninguna pantalla de esta especificación se conecta a un contrato pendiente ni simula su respuesta.
 
@@ -626,6 +629,8 @@ Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex ha
 ## 16. Verificación de esta entrega
 
 Documento de diseño; no se modificó código ni se ejecutaron pruebas. Lecturas: especificación maestra y plan del 2026-11-01, manifiestos `runly.catalog`/`runly.pos` en `apps/api/src/manifests/official/core-modules.js`, pantallas y componentes en `apps/desktop/src/modules/runly.pos/` y `runly.catalog/`, inventario de `packages/ui/src/components/` (incluidos `Button`, `Badge`, `Dialog`, `PeekSheet`), `runly.inventory/components/scan/ScanSearchField.jsx`, `docs/ai-context/rme3-runtime-capabilities.md` y `docs/mobile/RUNLY_NATIVE_HOST.md` (impresión Bluetooth).
+
+Implementación 2026-11-01 (POS Tienda, fase 3 frontend sobre `ad7c30a69`): `PosContextGate`, apertura, venta con búsqueda/escaneo/variantes, carrito sobre la orden del servidor, cobro con aplicado/recibido/cambio separados, venta completada, comprobante C7 con estados honestos de impresión, movimientos y cierre ciego, Órdenes de tienda con detalle, cancelación y devolución con vista previa D29. Verificado en stack desechable: 83/83 comprobaciones en `.e2e/pos-retail-ui.mjs` (22 recorridos solicitados, contraste AA, objetivos táctiles ≥ 44 px y Cobrar visible en 1024 y 1440 px, sin scroll horizontal a 390, 768, 1024 y 1440 px en claro y oscuro). Sin dispositivo táctil, impresora ni banco reales. Discrepancias nuevas D37–D39.
 
 Implementación 2026-11-01 (Catálogo, fase visual sobre C1/C5 de `da2b497d9`): listado, alta rápida, ficha General · Venta · Variantes · Existencias · Web, `VariantGrid`, disponibilidad POS por sucursal, impuesto comercial, existencias por sucursal con «Sin asignar», asignación, ajustes y movimientos. Verificado en un stack desechable (todas las migraciones, API y web del árbol, datos sintéticos): 84/84 comprobaciones en `.e2e/catalog-commerce-ui.mjs`, incluidos contraste AA y ausencia de scroll horizontal a 390, 768, 1024 y 1440 px en claro y oscuro. Sin prueba en dispositivo táctil real. Discrepancias nuevas D31–D36.
 

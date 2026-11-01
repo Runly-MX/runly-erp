@@ -266,7 +266,7 @@ export const TextareaField = forwardRef(function TextareaField(
     required,
     validate,
     onBlur,
-    id,
+    id: providedId,
     maxLength,
     value,
     onChange,
@@ -277,6 +277,8 @@ export const TextareaField = forwardRef(function TextareaField(
   },
   ref,
 ) {
+  const generatedId = useId();
+  const id = providedId ?? generatedId;
   const [localError, setLocalError] = useState("");
   const error = externalError || localError;
   const resolvedAutoComplete = useOverlayAutoComplete(autoComplete);

@@ -1,0 +1,248 @@
+// apps/desktop/src/modules/runly.pos/retail/RetailCajaScreen.jsx
+import { useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQueryClient } from '@tanstack/react-query'
+import { Alert, AlertDescription, AlertTitle, Button, EmptyState, ErrorState, PeekSheet, Skeleton } from '@runly/ui'
+import { Lock, Settings2, Utensils, WifiOff } from 'lucide-react'
+import { toast } from 'sonner'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
+import { runly } from '../../../lib/runly.js'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
+import CartPanel from './components/CartPanel.jsx'
+import ChargeDialog from './components/ChargeDialog.jsx'
+import PosContextGate from './components/PosContextGate.jsx'
+import PosOperationBar, { useOnline } from './components/PosOperationBar.jsx'
+import ReceiptDialog from './components/ReceiptDialog.jsx'
+import SaleCompletePanel from './components/SaleCompletePanel.jsx'
+import SellablePanel from './components/SellablePanel.jsx'
+import SessionOpenPanel from './components/SessionOpenPanel.jsx'
+import { CashMovementDialog, SessionCloseDialog } from './components/SessionDialogs.jsx'
+import { useRetailContext } from './hooks/useRetailContext.js'
+import { useRetailOrder } from './hooks/useRetailOrder.js'
+import { classifyPosError } from './lib/retailErrors.js'
+import { formatMoney, itemCount } from './lib/retailRules.js'
+
+// Side cart from 1024 px (landscape tablet, terminal, desktop); below that
+// the cart is a bottom PeekSheet. Only one of them is mounted.
+function useWideLayout() {
+  const query = '(min-width: 1024px)'
+  const [wide, setWide] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches)
+  useEffect(() => {
+    const mq = window.matchMedia(query)
+    const onChange = (e) => setWide(e.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
+  return wide
+}
+
+// POS Tienda: a modern register. Choose outlet + register once, open the
+// register, scan or tap, charge, hand the receipt, next customer. Retail
+// only: no tables, seats, kitchen or floor plans.
+export default function RetailCajaScreen() {
+  const { session: auth, userProfile } = useAuth()
+  const token = auth?.access_token
+  const { activeCompanyId } = useActiveCompany()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const online = useOnline()
+  const wide = useWideLayout()
+  const ctx = useRetailContext({ token, companyId: activeCompanyId, userId: userProfile?.id })
+  const context = ctx.context
+  const outlet = context?.outlets?.find((o) => o.id === context?.selectedOutletId)
+  const terminal = context?.terminals?.find((t) => t.id === context?.selectedTerminalId)
+  const session = context?.currentSession ?? null
+  const sale = useRetailOrder({ token, companyId: activeCompanyId, outletId: outlet?.id, terminalId: terminal?.id, sessionId: session?.id })
+  const [dialog, setDialog] = useState(null)
+  const [completed, setCompleted] = useState(null)
+  const [cartOpen, setCartOpen] = useState(false)
+  const methods = context?.paymentMethods ?? []
+  const caps = context?.capabilities ?? {}
+  const currency = context?.currency ?? 'MXN'
+  const saleInProgress = Boolean(sale.order && (sale.order.lines ?? []).some((l) => !l.voided))
+  const canAdmin = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('pos.admin.read'))
+
+  // After a lost payment response the dialog may be closed: ask the server
+  // for the real state; a PAID order shows its confirmed payment and change.
+  async function settleAfterCharge() {
+    const id = sale.order?.id
+    setDialog(null)
+    if (!id) return
+    try {
+      const order = (await runly.commerce.getOrder(id, token)).data
+      if (order.status === 'PAID') {
+        const payment = [...(order.payments ?? [])].filter((p) => p.status === 'CAPTURED').pop()
+        sale.finish()
+        setCompleted({ order, payment, receiptId: order.receiptId })
+        setCartOpen(true)
+        refreshContext()
+        return
+      }
+      sale.setOrder(order)
+    } catch {
+      sale.reload()
+    }
+  }
+
+  function refreshContext() {
+    queryClient.invalidateQueries({ queryKey: ['pos-retail-context', activeCompanyId] })
+  }
+
+  let body
+  if (ctx.isPending && !context) {
+    body = <div className="space-y-3 p-6" aria-label="Cargando caja"><Skeleton className="h-14" /><Skeleton className="h-96" /></div>
+  } else if (ctx.error) {
+    const info = classifyPosError(ctx.error)
+    body = info.kind === 'forbidden'
+      ? <EmptyState icon={Lock} title="No tienes acceso a la caja" description="Pide a un administrador el permiso para operar la caja de punto de venta." />
+      : <ErrorState title="No se pudo cargar la caja" description={info.message} onRetry={ctx.refetch} />
+  } else if (!context || ['SELECT_OUTLET', 'SELECT_TERMINAL'].includes(context.operationState)) {
+    body = (
+      <div className="overflow-y-auto p-4 sm:p-6">
+        <PosContextGate
+          key={ctx.selection.outletId ?? 'outlet'}
+          context={context}
+          selection={{ outletId: context?.selectedOutletId ?? null, terminalId: null }}
+          notice={ctx.notice}
+          onOutlet={(id) => ctx.chooseOutlet(id)}
+          onTerminal={(id) => ctx.chooseTerminal(id)}
+          canConfigure={canAdmin}
+        />
+      </div>
+    )
+  } else if (!caps.retail) {
+    body = (
+      <div className="p-6">
+        <EmptyState
+          icon={Utensils}
+          title={`${outlet?.name ?? 'Esta sucursal'} funciona como restaurante`}
+          description="La caja de restaurante (cuentas de mesa) llega en la siguiente fase. Elige una sucursal de tienda o mixta para vender en mostrador."
+          action={{ label: 'Cambiar de caja', onClick: ctx.changeCaja }}
+        />
+      </div>
+    )
+  } else if (context.operationState === 'CONFIGURATION_REQUIRED' || context.operationState === 'RECONCILIATION_REQUIRED') {
+    body = (
+      <div className="p-6">
+        <EmptyState
+          icon={Settings2}
+          title={context.operationState === 'CONFIGURATION_REQUIRED' ? 'Falta configurar el punto de venta' : 'La caja necesita conciliación'}
+          description={context.operationState === 'CONFIGURATION_REQUIRED' ? 'Un administrador debe definir la moneda e impuestos del punto de venta.' : 'La sesión abierta usa otra moneda que la configuración actual. Un encargado debe cerrarla y conciliarla.'}
+          action={canAdmin ? { label: 'Ir a Administración', onClick: () => navigate('/app/m/runly.pos/pos/admin') } : undefined}
+        />
+      </div>
+    )
+  } else if (!session) {
+    body = (
+      <div className="overflow-y-auto p-4 sm:p-6">
+        <SessionOpenPanel
+          token={token}
+          outletId={outlet.id}
+          terminalId={terminal.id}
+          currency={currency}
+          cajaName={terminal.name}
+          canOpen={caps.openSession}
+          onOpened={() => { toast.success('Caja abierta'); refreshContext() }}
+        />
+      </div>
+    )
+  } else {
+    const cartContent = completed ? (
+      <SaleCompletePanel
+        result={completed}
+        methods={methods}
+        onReceipt={() => setDialog({ kind: 'receipt', receiptId: completed.receiptId })}
+        onNext={() => { setCompleted(null); setCartOpen(false) }}
+      />
+    ) : (
+      <CartPanel sale={sale} currency={currency} canDiscount={caps.discount} onCharge={() => setDialog({ kind: 'charge' })} />
+    )
+    body = (
+      <div className="flex min-h-0 flex-1">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col p-3 sm:p-4">
+          {!online && (
+            <Alert variant="destructive" className="mb-3">
+              <WifiOff className="h-4 w-4" aria-hidden="true" />
+              <AlertTitle>Sin conexión</AlertTitle>
+              <AlertDescription>No se pueden agregar productos ni cobrar hasta que vuelva la conexión. No hay ventas sin conexión.</AlertDescription>
+            </Alert>
+          )}
+          <SellablePanel
+            token={token}
+            outletId={outlet.id}
+            currency={currency}
+            disabled={!online || Boolean(sale.pending) || Boolean(completed) || sale.loading || !caps.charge}
+            onAdd={(item) => sale.addItem(item)}
+          />
+        </div>
+        {wide ? (
+        <aside className="flex w-[380px] shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[420px]" aria-label="Venta actual">
+          {cartContent}
+        </aside>
+        ) : (
+        <PeekSheet
+          expanded={cartOpen}
+          onExpandedChange={setCartOpen}
+          label="Venta actual"
+          peekHeight={64}
+          maxHeight="85dvh"
+          handle={(
+            <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-[hsl(var(--foreground))]">
+              <span>{completed ? 'Venta cobrada' : `${itemCount(sale.order)} artículo(s)`}</span>
+              <span className="text-lg font-extrabold tabular-nums">{completed ? formatMoney(completed.order.totalAmount, completed.order.currency) : formatMoney(sale.order?.remainingAmount ?? 0, sale.order?.currency ?? currency)}</span>
+            </span>
+          )}
+          bodyClassName="p-0"
+        >
+          <div className="h-[70dvh]">{cartContent}</div>
+        </PeekSheet>
+        )}
+      </div>
+    )
+  }
+
+  const ready = Boolean(outlet && terminal)
+  return (
+    <div className="flex h-full min-h-0 flex-col bg-[hsl(var(--background))]">
+      {ready && (
+        <PosOperationBar
+          outletName={outlet.name}
+          terminalName={terminal.name}
+          session={session}
+          cashier={userProfile?.displayName ?? userProfile?.firstName ?? null}
+          online={online}
+          capabilities={caps}
+          saleInProgress={saleInProgress}
+          onOrders={() => navigate('/app/m/runly.pos/pos/orders')}
+          onCashIn={() => setDialog({ kind: 'cash', type: 'IN' })}
+          onCashOut={() => setDialog({ kind: 'cash', type: 'OUT' })}
+          onClose={() => setDialog({ kind: 'close' })}
+          onChangeCaja={() => { setCompleted(null); ctx.changeCaja() }}
+        />
+      )}
+      {body}
+
+      {dialog?.kind === 'charge' && sale.order && (
+        <ChargeDialog
+          order={sale.order}
+          sessionId={session.id}
+          token={token}
+          methods={methods}
+          onPaid={(result) => { setDialog(null); sale.finish(); setCompleted(result); setCartOpen(true); refreshContext() }}
+          onPartial={(order) => sale.setOrder(order)}
+          onConflict={() => sale.reload()}
+          onClose={settleAfterCharge}
+        />
+      )}
+      {dialog?.kind === 'receipt' && <ReceiptDialog receiptId={dialog.receiptId} token={token} onClose={() => setDialog(null)} />}
+      {dialog?.kind === 'cash' && (
+        <CashMovementDialog kind={dialog.type} session={session} token={token} currency={currency} onClose={() => setDialog(null)}
+          onDone={(k) => { setDialog(null); toast.success(k === 'IN' ? 'Entrada registrada' : 'Salida registrada') }} />
+      )}
+      {dialog?.kind === 'close' && (
+        <SessionCloseDialog session={session} token={token} currency={currency} onClose={() => setDialog(null)}
+          onClosed={() => { setDialog(null); setCompleted(null); refreshContext() }} />
+      )}
+    </div>
+  )
+}

@@ -30,3 +30,11 @@ test('accent text derived for light surfaces reaches 4.5:1 on white', () => {
     assert.ok(ratio(deriveBrandVars(color)['--brand-primary-text'], '#ffffff') >= 4.5, color)
   }
 })
+
+test('strict POS teal gets a darker fill that carries white text at AA', () => {
+  const pos = deriveBrandVars('#008C8C', { strictContrast: true })
+  assert.notEqual(pos['--brand-primary'], '#008c8c')
+  assert.equal(pos['--brand-primary-foreground'], '#ffffff')
+  assert.ok(ratio(pos['--brand-primary'], '#ffffff') >= 4.5, pos['--brand-primary'])
+  assert.equal(deriveBrandVars('#008C8C')['--brand-primary'], '#008c8c', 'non opted-in keeps the official color')
+})
