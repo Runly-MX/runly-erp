@@ -11,6 +11,7 @@ import {
   SortableContext,
   sortableKeyboardCoordinates,
   useSortable,
+  rectSortingStrategy,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -50,8 +51,9 @@ function SortableItemWrapper({ id, item, index, disabled, renderItem }) {
 // Vertical drag-and-drop list (pointer and keyboard). `renderItem(item,
 // { dragHandleProps, isDragging, index })` spreads `dragHandleProps` on its grip
 // (null when `disabled`). `getId` names the item key when it is not `id`;
-// `labelOf(item)` feeds the Spanish screen reader announcements.
-export function SortableList({ items, onReorder, renderItem, getId = (item) => item.id, disabled = false, labelOf }) {
+// `labelOf(item)` feeds the Spanish screen reader announcements. `layout="grid"`
+// sorts tiles in any direction (the caller provides the grid container).
+export function SortableList({ items, onReorder, renderItem, getId = (item) => item.id, disabled = false, labelOf, layout = 'vertical' }) {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
@@ -83,7 +85,7 @@ export function SortableList({ items, onReorder, renderItem, getId = (item) => i
       sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}
       accessibility={{ announcements, screenReaderInstructions: SCREEN_READER }}
     >
-      <SortableContext items={ids} strategy={verticalListSortingStrategy} disabled={disabled}>
+      <SortableContext items={ids} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy} disabled={disabled}>
         {items.map((item, index) => (
           <SortableItemWrapper
             key={ids[index]}
