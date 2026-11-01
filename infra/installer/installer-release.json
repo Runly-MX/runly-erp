@@ -4,12 +4,13 @@
   "version": "2026.10.28.7",
   "files": {
     ".env.local.example": {
-      "sha256": "c3edaaddd89ac72130518591405cd7e7496698315e0bd6d081ecd73fc2dd8b13",
+      "sha256": "ac8b9f0a0e5fe5330c5837de3d0c9cc72a69fa08fcdaef4d2e8201c02457f257",
       "modes": [
         "local"
       ],
       "legacyGitBlobs": [
         "00d013b6722a70b79c8dfc2ad4bfb293656e6b30",
+        "01af8362139b12491512d22ad039c9410a5b8e33",
         "0640e1d5b0bd4f1b508e1b01092485d0e90a43f3",
         "077646628450052dac4f7f9805a1b19439f47348",
         "0c0df8eff2a6fa1752f7b40c717b6e3c8bea76bc",
@@ -367,11 +368,12 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "1ce6044d52deea7024e6b20cbf3e1a4642b83739a4f6dd407e4d1fcbf38ba92c",
+      "sha256": "d10f75a290de65d12be9389cd4f6ddb29b67e17bd40e162434979ca36bf64cda",
       "modes": [
         "local"
       ],
       "legacyGitBlobs": [
+        "01703e1da41bb6d2e0baac1de56a51fdbc804507",
         "08f856acde59314cc26442a797b8df4d3458536a",
         "0e20cab57707839c5f21b6b313a5792d4530d11c",
         "120cf101ee58cf717612811897ee0cf96877a531",
@@ -592,7 +594,7 @@
       ]
     },
     ".env.external.example": {
-      "sha256": "539ffad88c020ebbde39a2d63378dd6d49f59ed9d96fe7f798eb9d2c6c6d9076",
+      "sha256": "8e0045e799f970a190ad7f1f53ccd76c2945e89ea69331c4530c1498ba917e3b",
       "modes": [
         "external"
       ],
@@ -616,6 +618,7 @@
         "6ac5e5988c30b616c96dbfafd42444c201bbf7af",
         "7d066af75fd3bb99771d43a48444c21ec8a6f32a",
         "a8928a882573b4cfe2ebc83438740f2ce044aa58",
+        "c6e30a92ccb9c51e1c5d858025a3202eb104f9ee",
         "d2b6ec6aa6ce186641955aa5efc5b831765e895c",
         "dca328ebc50bfd11ea7a08258b64641eda675df5",
         "dfbd04822258f1e4cc6585e4207e9d6aec0a52dd",
@@ -628,7 +631,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "b789fc4ba002a62eed5dc09aa4a5daeb645c1b14fc81915f22e0c8e1e4e7f5ad",
+      "sha256": "dcaeff429ee0b9f92fedf229e41fb99aeaf68d7d0a052add4e4276327b551f19",
       "modes": [
         "external"
       ],
@@ -655,6 +658,7 @@
         "6e758b328d00a99100e404d74699665ca864d023",
         "6f4c64f6e9debf08b22cb0a9a611a1feee132d1b",
         "72fce45c5d2c2c11bd72f6213f5d47cc98fcac31",
+        "766c74ffebab2cf96f194770af95b9e7258e2f1b",
         "7751d6a87cd43a049f9a4d5c8c006a47188eeff1",
         "7bcbc7fbd62b8cfb28e91e6edbb7fe49e93d2fba",
         "879e18e934054188f9edb292834ea77b1704e09d",

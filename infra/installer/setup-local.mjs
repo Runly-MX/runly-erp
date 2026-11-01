@@ -855,6 +855,12 @@ async function writeLocalEnv(supabaseInput, identity) {
   // contenedor, no del limite real de deploy.resources.limits.cpus, lo que
   // infla RAM/tiempo de forma impredecible entre maquinas distintas.
   const whisperCpuThreads = fromLocalEnv("WHISPER_CPU_THREADS") || "2";
+  // Motor externo opcional (Groq Whisper): solo se usa con GROQ_API_KEY y si la
+  // empresa lo elige en la app; estos valores son los de fabrica del transcriptor.
+  const groqWhisperModel = fromLocalEnv("GROQ_WHISPER_MODEL") || "whisper-large-v3-turbo";
+  const groqChunkSeconds = fromLocalEnv("TRANSCRIBER_GROQ_CHUNK_SECONDS") || "600";
+  const groqBitrate = fromLocalEnv("TRANSCRIBER_GROQ_BITRATE") || "24k";
+  const groqMaxRateWait = fromLocalEnv("TRANSCRIBER_GROQ_MAX_RATE_WAIT_S") || "120";
   // Preservado entre re-ejecuciones exactamente igual que las credenciales de
   // LiveKit (apiKey/apiSecret) — generado solo la primera vez que se activa.
   let transcriberDbPassword = fromLocalEnv("TRANSCRIBER_DB_PASSWORD");
@@ -1043,6 +1049,11 @@ WHISPER_COMPUTE_TYPE=${whisperComputeType}
 WHISPER_CPU_THREADS=${whisperCpuThreads}
 TRANSCRIBER_DB_PASSWORD=${transcriberDbPassword}
 TRANSCRIBER_DATABASE_URL=${transcriberDatabaseUrl}
+# Motor externo opcional (Groq Whisper): requiere GROQ_API_KEY y que la empresa lo elija en la app.
+GROQ_WHISPER_MODEL=${groqWhisperModel}
+TRANSCRIBER_GROQ_CHUNK_SECONDS=${groqChunkSeconds}
+TRANSCRIBER_GROQ_BITRATE=${groqBitrate}
+TRANSCRIBER_GROQ_MAX_RATE_WAIT_S=${groqMaxRateWait}
 
 # ── MirAI text-to-speech (Piper, optional) ───────────────────────────────────
 # local: instala y ejecuta runly-tts en un contenedor propio en esta VPS.

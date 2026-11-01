@@ -357,6 +357,11 @@ const OPTIONAL_VAR_GROUPS = [
       { key: "WHISPER_CPU_THREADS",   placeholder: "2",        comment: "# Fijar explicitamente segun el limite real de CPU del contenedor" },
       { key: "TRANSCRIBER_DB_PASSWORD", placeholder: "", comment: "# Autogenerada — no editar a mano" },
       { key: "TRANSCRIBER_DATABASE_URL", placeholder: "", comment: "# Derivada automaticamente de DATABASE_URL" },
+      // Motor externo opcional (Groq Whisper): solo se usa si GROQ_API_KEY esta definida y la empresa lo elige en la app.
+      { key: "GROQ_WHISPER_MODEL",             placeholder: "whisper-large-v3-turbo", comment: "# Motor externo opcional (Groq Whisper) — requiere GROQ_API_KEY y que la empresa lo elija en la app" },
+      { key: "TRANSCRIBER_GROQ_CHUNK_SECONDS", placeholder: "600",  comment: null },
+      { key: "TRANSCRIBER_GROQ_BITRATE",       placeholder: "24k",  comment: null },
+      { key: "TRANSCRIBER_GROQ_MAX_RATE_WAIT_S", placeholder: "120", comment: null },
     ],
   },
   {

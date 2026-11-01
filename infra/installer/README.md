@@ -528,8 +528,10 @@ linea vacia; es la misma llave de MirAI y del OCR de recibos). El contenedor
 recrear `api` y `runly-transcriber` despues de definirla (por ejemplo con el
 script de actualizacion o `docker compose up -d`). Las variables `GROQ_WHISPER_MODEL`,
 `TRANSCRIBER_GROQ_CHUNK_SECONDS`, `TRANSCRIBER_GROQ_BITRATE` y
-`TRANSCRIBER_GROQ_MAX_RATE_WAIT_S` son opcionales, estan comentadas en los
-`.env.*.example` y no se autogeneran.
+`TRANSCRIBER_GROQ_MAX_RATE_WAIT_S` son opcionales y el instalador/actualizador
+las agrega con su valor por defecto si faltan (`setup-local.mjs` al regenerar
+`.env.local`, `setup-external.mjs` al completar `.env.external`); no hay que
+editarlas salvo para cambiar el modelo o el tamano de fragmento.
 
 Con la llave presente, cada empresa decide en la app (permiso
 `chat.calls.transcript.manage`): el boton **Vocabulario** del visor de una transcripcion, seccion Motor.
