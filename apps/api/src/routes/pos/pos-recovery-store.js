@@ -1,0 +1,148 @@
+import { amount, commerceDto, decimal, fail, json, lineTotals, money, sum } from './pos-contracts.js';
+
+export function createPosRecoveryStore({ commands }) {
+  async function row(tx, model, companyId, id, extra = {}) {
+    const value = await tx[model].findFirst({ where: { id, companyId, ...extra } });
+    if (!value) fail('NOT_FOUND', 'Recurso no encontrado en esta empresa.', 404);
+    return value;
+  }
+
+  async function order(tx, companyId, id, expectedVersion) {
+    await tx.$queryRaw`SELECT id FROM pos_order WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`;
+    const value = await row(tx, 'posOrder', companyId, id);
+    if (expectedVersion !== undefined && value.version !== expectedVersion) fail('ORDER_VERSION_CONFLICT', 'La orden cambió en otro dispositivo.');
+    return value;
+  }
+
+  function knownCurrency(value) {
+    if (!value.currency || !/^[A-Z]{3}$/.test(value.currency)) fail('CURRENCY_MISMATCH', 'La moneda histórica requiere conciliación explícita.');
+  }
+
+  function editable(value) {
+    if (['PAID', 'CANCELLED', 'REFUNDED'].includes(value.status)) fail('INVALID_TRANSITION', 'La orden no admite esta operación.');
+    if (decimal(value.paidAmount).minus(value.refundedAmount).gt(0)) fail('REFUND_REQUIRED', 'Devuelve los pagos antes de editar el consumo.');
+    if (['SENT', 'PARTIALLY_SERVED', 'SERVED'].includes(value.status)) fail('INVALID_TRANSITION', 'El consumo enviado requiere anulación de preparación.');
+  }
+
+  async function settings(tx, companyId) {
+    const value = await tx.posSettings.findUnique({ where: { companyId } });
+    if (!value) fail('CONFIGURATION_REQUIRED', 'Configura la moneda y los impuestos del POS.');
+    knownCurrency(value);
+    return value;
+  }
+
+  async function session(tx, companyId, id, outletId, terminalId) {
+    await tx.$queryRaw`SELECT id FROM pos_session WHERE id = ${id}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`;
+    const value = await row(tx, 'posSession', companyId, id, {
+      ...(outletId ? { outletId } : {}), ...(terminalId ? { terminalId } : {}),
+    });
+    if (value.status !== 'OPEN') fail('INVALID_TRANSITION', 'La sesión de caja está cerrada.');
+    const outlet = await row(tx, 'posOutlet', companyId, value.outletId, { enabled: true });
+    await row(tx, 'posTerminal', companyId, value.terminalId, { outletId: outlet.id, enabled: true });
+    return value;
+  }
+
+  async function shift(tx, companyId, actorId, outletId) {
+    // Also serializes creation of the first OPEN shift for this operator/outlet.
+    await commands.lock(tx, `shift:${companyId}:${outletId}:${actorId}`);
+    const outlet = await row(tx, 'posOutlet', companyId, outletId, { enabled: true });
+    if (!outlet.allowTableCharge) fail('INVALID_TRANSITION', 'El cobro en mesa no está habilitado.');
+    const current = await tx.posWaiterShift.findFirst({ where: { companyId, outletId, waiterId: actorId, status: 'OPEN' } });
+    if (!current) return tx.posWaiterShift.create({ data: { companyId, outletId, waiterId: actorId } });
+    await tx.$queryRaw`SELECT id FROM pos_waiter_shift WHERE id = ${current.id}::uuid FOR UPDATE`;
+    return row(tx, 'posWaiterShift', companyId, current.id, { status: 'OPEN' });
+  }
+
+  async function dto(tx, companyId, id) {
+    const value = await row(tx, 'posOrder', companyId, id);
+    const [lines, guests, payments, receipts, refunds] = await Promise.all([
+      tx.posOrderLine.findMany({ where: { orderId: id }, orderBy: { createdAt: 'asc' }, include: { modifiers: true } }),
+      tx.posGuestSeat.findMany({ where: { orderId: id }, orderBy: { position: 'asc' } }),
+      tx.posPayment.findMany({ where: { orderId: id, companyId }, orderBy: { paidAt: 'asc' } }),
+      tx.posReceipt.findMany({ where: { orderId: id, companyId }, orderBy: { createdAt: 'asc' } }),
+      tx.posRefund.findMany({ where: { orderId: id, companyId }, include: { lines: true, payments: true } }),
+    ]);
+    const net = decimal(value.paidAmount).minus(value.refundedAmount);
+    const remaining = ['PAID','CANCELLED','REFUNDED'].includes(value.status) ? decimal(0) : decimal(value.totalAmount).minus(net);
+    const table = value.tableId ? await tx.posTable.findFirst({ where: { id: value.tableId, companyId } }) : null;
+    const waiter = value.waiterId ? await tx.userProfile.findUnique({ where: { id: value.waiterId }, select: { displayName: true } }) : null;
+    return commerceDto({ ...value, lines, guests, payments, refunds, table, waiterName: waiter?.displayName ?? null,
+      historicalCurrencyUnknown: !value.currency,
+      refundedAmount: amount(value.refundedAmount), netPaidAmount: amount(net), remainingAmount: amount(remaining),
+      refundStatus: decimal(value.refundedAmount).eq(0) ? 'NONE' : (decimal(value.refundedAmount).eq(value.paidAmount) ? 'FULL' : 'PARTIAL'),
+      receiptId: receipts.find((r) => r.kind === 'SALE')?.id ?? null,
+    });
+  }
+
+  async function recalculate(tx, value) {
+    const lines = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false } });
+    const total = sum(lines, 'totalAmount');
+    const tax = sum(lines, 'taxAmount');
+    await advanceOrder(tx, value, {
+      subtotalAmount: amount(total.minus(tax)), taxAmount: amount(tax), totalAmount: amount(total),
+      discountAmount: amount(sum(lines, 'discountAmount')),
+    });
+  }
+
+  async function advanceOrder(tx, before, data) {
+    // Keep the existing payment CAS as a second defense beside the row lock;
+    // also compare version/status so edits cannot invalidate the quoted total.
+    const result = await tx.posOrder.updateMany({ where: { id: before.id, companyId: before.companyId,
+      version: before.version, paidAmount: before.paidAmount, status: before.status,
+    }, data: { ...data, version: { increment: 1 } } });
+    if (result.count !== 1) fail('ORDER_VERSION_CONFLICT', 'La orden cambió en otro dispositivo.');
+  }
+
+  async function receipt(tx, value, kind, extra = {}) {
+    // Shared across all orders; locked last, after containers/orders. No caller
+    // may hold this counter and then request an order or container lock.
+    await commands.lock(tx, `receipt:${value.companyId}`);
+    const last = await tx.posReceipt.findFirst({ where: { companyId: value.companyId }, orderBy: { receiptNumber: 'desc' } });
+    return tx.posReceipt.create({ data: { companyId: value.companyId, orderId: value.id,
+      receiptNumber: (last?.receiptNumber ?? 0) + 1, kind, printedCount: 0,
+      payload: json({ order: await dto(tx, value.companyId, value.id), ...extra }),
+    } });
+  }
+
+  async function releaseTable(tx, value, status) {
+    if (!value.tableId) return;
+    await tx.$queryRaw`SELECT id FROM pos_table WHERE id = ${value.tableId}::uuid AND company_id = ${value.companyId}::uuid FOR UPDATE`;
+    const other = await tx.posOrder.count({ where: { companyId: value.companyId, tableId: value.tableId,
+      id: { not: value.id }, status: { notIn: ['PAID','CANCELLED','REFUNDED'] } } });
+    if (!other) await tx.posTable.updateMany({ where: { id: value.tableId, companyId: value.companyId }, data: { status } });
+  }
+
+  async function assertAvailable(tx, companyId, productId, variantId) {
+    const parent = await tx.posProductConfig.findFirst({ where: { companyId, productId, variantId: null } });
+    const variant = variantId ? await tx.posProductConfig.findFirst({ where: { companyId, productId, variantId } }) : null;
+    if (parent?.availableInPos === false || variant?.availableInPos === false) fail('PRODUCT_UNAVAILABLE', 'El producto no está disponible para venta.');
+  }
+
+  async function stockGate(tx, value) {
+    const lines = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false } });
+    for (const line of lines) {
+      if (!line.productId) fail('STOCK_RECOVERY_NOT_READY', 'El artículo histórico requiere conciliación comercial.');
+      const product = await row(tx, 'catalogProduct', value.companyId, line.productId, { enabled: true });
+      if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'La moneda del producto cambió; revisa la orden.');
+      if (line.variantId) await row(tx, 'catalogProductVariant', value.companyId, line.variantId, { productId: product.id, enabled: true });
+      if (product.productType === 'VARIABLE' && !line.variantId) fail('VARIANT_REQUIRED', 'Selecciona una variante para vender.');
+      await assertAvailable(tx, value.companyId, product.id, line.variantId);
+      if (product.trackStock) fail('STOCK_RECOVERY_NOT_READY', 'Asigna y verifica existencias por sucursal en fase 2 antes de cobrar.');
+    }
+    if (!lines.length) fail('INVALID_TRANSITION', 'No se puede cobrar una orden sin consumo.');
+  }
+
+  async function stockReversal(tx, value, line, qty, refundId) {
+    // A refund must never invent a historic sale movement. Phase 1 only adds
+    // source identity and the transaction seam; branch balances belong to phase 2.
+    const original = await tx.catalogStockMovement.findFirst({ where: {
+      companyId: value.companyId, sourceType: 'POS_SALE', sourceId: value.id, sourceLineId: line.id,
+    } });
+    if (!original) return; // historic/untracked sale: money refund, no invented stock
+    void qty; void refundId;
+    fail('STOCK_RECOVERY_NOT_READY', 'El reverso de existencias requiere el libro por sucursal de fase 2.');
+  }
+
+  return { row, order, knownCurrency, editable, settings, session, shift, dto, recalculate, advanceOrder, receipt, releaseTable, assertAvailable, stockGate, stockReversal,
+    amount, decimal, money, sum, lineTotals };
+}

@@ -108,7 +108,7 @@ describe('sync-push-service', () => {
 
   it('returns OK without re-applying when idempotencyKey already in SyncMutationLog', async () => {
     const prisma = makePrisma({
-      syncMutationLog: { findUnique: async () => ({ id: 'log-1', idempotencyKey: IK, recordId: RECORD_ID }) },
+      syncMutationLog: { findUnique: async () => ({ id: 'log-1', idempotencyKey: IK, recordId: RECORD_ID, companyId: COMPANY_ID, moduleKey: 'atlas.contacts', entityType: 'contact', operation: 'UPDATE' }) },
       contact: { findUnique: async ({ where }) => ({ id: where.id, companyId: COMPANY_ID, name: 'Ana', updatedAt: now }) },
     })
     const svc = createSyncPushService({ prisma })
@@ -402,3 +402,16 @@ describe('atlas.catalog push', () => {
     assert.equal(result.results[0].status, 'ERROR')
   })
 })
+
+
+describe('commerce isolation - sync replay', () => {
+  it('never returns a foreign record when an idempotency key belongs to another company', async () => {
+    let read=false;
+    const svc=createSyncPushService({prisma:makePrisma({
+      syncMutationLog:{findUnique:async()=>({companyId:'other-company',moduleKey:'atlas.contacts',entityType:'contact',operation:'UPDATE',recordId:RECORD_ID})},
+      contact:{findUnique:async()=>{read=true;return {id:RECORD_ID,companyId:'other-company'}}},
+    })});
+    const result=await svc.push({authUserId:USER_ID,companyId:COMPANY_ID,mutations:[{idempotencyKey:IK,moduleKey:'atlas.contacts',entityType:'contact',operation:'UPDATE',recordId:RECORD_ID,payload:{}}]});
+    assert.equal(result.results[0].status,'PERMISSION_DENIED');assert.equal(result.results[0].record,null);assert.equal(read,false);
+  });
+});

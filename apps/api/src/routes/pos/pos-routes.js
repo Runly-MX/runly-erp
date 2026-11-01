@@ -1,33 +1,20 @@
 import { Hono } from "hono";
+import { createPosV2Router } from './pos-v2-routes.js';
 import { createPosSettingsService } from "./pos-settings-service.js";
 import { createPosSessionService } from "./pos-session-service.js";
-import { createPosOrderService } from "./pos-order-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 import { createPosFloorRoutes } from "./pos-floor-routes.js";
 import { createPosModifierService } from "./pos-modifier-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
-  addOrderLineSchema,
-  assignWaiterSchema,
-  cancelOrderSchema,
-  cashMovementSchema,
-  closeSessionSchema,
-  closeWaiterShiftSchema,
-  createGuestSchema,
   createModifierGroupSchema,
   createModifierOptionSchema,
-  createOrderSchema,
   createOutletSchema,
   createPaymentMethodSchema,
-  createPaymentSchema,
   createTerminalSchema,
-  openSessionSchema,
-  openWaiterShiftSchema,
   updateModifierGroupSchema,
   updateModifierOptionSchema,
-  updateOrderLineSchema,
-  updateOrderSchema,
   updateOutletSchema,
   updatePaymentMethodSchema,
   updateProductConfigSchema,
@@ -60,33 +47,17 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createPosRouter({ prisma, requirePermission, broadcaster = null }) {
+export function createPosRouter({ prisma, requirePermission, requireAnyPermission, broadcaster = null }) {
   const app = new Hono();
+  app.route('', createPosV2Router({ prisma, requirePermission, requireAnyPermission, broadcaster }));
   const settingsSvc = createPosSettingsService({ prisma });
   const sessionSvc = createPosSessionService({ prisma });
   const waiterShiftSvc = createPosWaiterShiftService({ prisma });
   const modifierSvc = createPosModifierService({ prisma });
-  const orderSvc = createPosOrderService({ prisma, waiterShifts: waiterShiftSvc, modifiers: modifierSvc });
   const kitchenSvc = createPosKitchenService({ prisma });
+  const sessionReader = requireAnyPermission ? requireAnyPermission(['pos.sessions.read','pos.caja.read']) : requirePermission('pos.sessions.read');
 
   app.route("", createPosFloorRoutes({ prisma, requirePermission }));
-
-  function broadcastPosEvent(c, orderId, action) {
-    const companyId = getCompanyId(c)
-    if (!broadcaster || !companyId) return
-    broadcaster.broadcastToCompany(companyId, 'pos.order.updated', {
-      orderId: orderId ?? null,
-      action,
-    }).catch(() => {})
-  }
-
-  app.get("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
-    try {
-      return c.json({ data: await settingsSvc.getSettings(context(c)) });
-    } catch (err) {
-      return handleError(c, err, "No se pudo consultar la configuracion POS.");
-    }
-  });
 
   app.patch("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
     try {
@@ -94,14 +65,6 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
       return c.json({ data: await settingsSvc.updateSettings({ ...context(c), data }) });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la configuracion POS.");
-    }
-  });
-
-  app.get("/pos/outlets", requirePermission("pos.settings.manage"), async (c) => {
-    try {
-      return c.json({ data: await settingsSvc.listOutlets(context(c)) });
-    } catch (err) {
-      return handleError(c, err, "No se pudieron consultar las sucursales POS.");
     }
   });
 
@@ -125,14 +88,6 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
-  app.get("/pos/terminals", requirePermission("pos.settings.manage"), async (c) => {
-    try {
-      return c.json({ data: await settingsSvc.listTerminals(context(c)) });
-    } catch (err) {
-      return handleError(c, err, "No se pudieron consultar las terminales POS.");
-    }
-  });
-
   app.post("/pos/terminals", requirePermission("pos.settings.manage"), async (c) => {
     try {
       const data = await parseBody(c, createTerminalSchema);
@@ -153,7 +108,7 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
-  app.get("/pos/sessions", requirePermission("pos.sessions.read"), async (c) => {
+  app.get("/pos/sessions", sessionReader, async (c) => {
     try {
       return c.json({
         data: await sessionSvc.listSessions({ ...context(c), status: c.req.query("status") }),
@@ -163,62 +118,11 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
-  app.post("/pos/sessions/open", requirePermission("pos.sessions.manage"), async (c) => {
-    try {
-      const data = await parseBody(c, openSessionSchema);
-      return c.json({ data: await sessionSvc.openSession({ ...context(c), data }) }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo abrir la sesion POS.");
-    }
-  });
-
-  app.get("/pos/sessions/current", requirePermission("pos.sessions.read"), async (c) => {
-    try {
-      return c.json({
-        data: await sessionSvc.getCurrentSession({ ...context(c), terminalId: c.req.query("terminalId") }),
-      });
-    } catch (err) {
-      return handleError(c, err, "No se pudo consultar la sesion actual.");
-    }
-  });
-
-  app.get("/pos/sessions/:id", requirePermission("pos.sessions.read"), async (c) => {
+  app.get("/pos/sessions/:id", sessionReader, async (c) => {
     try {
       return c.json({ data: await sessionSvc.getSessionById({ ...context(c), id: c.req.param("id") }) });
     } catch (err) {
       return handleError(c, err, "No se pudo consultar la sesion POS.");
-    }
-  });
-
-  app.get("/pos/sessions/:id/expected-cash", requirePermission("pos.sessions.read"), async (c) => {
-    try {
-      return c.json({
-        data: await sessionSvc.getExpectedCashAmount({ ...context(c), sessionId: c.req.param("id") }),
-      });
-    } catch (err) {
-      return handleError(c, err, "No se pudo calcular el efectivo esperado.");
-    }
-  });
-
-  app.post("/pos/sessions/:id/cash-movements", requirePermission("pos.cash.manage"), async (c) => {
-    try {
-      const data = await parseBody(c, cashMovementSchema);
-      return c.json({
-        data: await sessionSvc.addCashMovement({ ...context(c), sessionId: c.req.param("id"), data }),
-      }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo registrar el movimiento de efectivo.");
-    }
-  });
-
-  app.post("/pos/sessions/:id/close", requirePermission("pos.sessions.manage"), async (c) => {
-    try {
-      const data = await parseBody(c, closeSessionSchema);
-      return c.json({
-        data: await sessionSvc.closeSession({ ...context(c), sessionId: c.req.param("id"), data }),
-      });
-    } catch (err) {
-      return handleError(c, err, "No se pudo cerrar la sesion POS.");
     }
   });
 
@@ -251,208 +155,7 @@ export function createPosRouter({ prisma, requirePermission, broadcaster = null 
     }
   });
 
-  app.post("/pos/waiter-shifts/open", requirePermission("pos.comandas.charge"), async (c) => {
-    try {
-      const ctx = context(c);
-      const data = await parseBody(c, openWaiterShiftSchema);
-      return c.json({
-        data: await waiterShiftSvc.ensureOpenShift({
-          companyId: ctx.companyId,
-          outletId: data.outletId,
-          waiterId: ctx.actorId,
-        }),
-      }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo abrir el corte de mesero.");
-    }
-  });
-
-  app.post("/pos/waiter-shifts/:id/close", requirePermission("pos.caja.close"), async (c) => {
-    try {
-      const data = await parseBody(c, closeWaiterShiftSchema);
-      return c.json({
-        data: await waiterShiftSvc.closeShift({
-          ...context(c),
-          id: c.req.param("id"),
-          data,
-        }),
-      });
-    } catch (err) {
-      return handleError(c, err, "No se pudo cerrar el corte de mesero.");
-    }
-  });
-
-  app.get("/pos/orders", requirePermission("pos.orders.read"), async (c) => {
-    try {
-      return c.json({ data: await orderSvc.listOrders({ ...context(c), filters: c.req.query() }) });
-    } catch (err) {
-      return handleError(c, err, "No se pudieron consultar las ordenes POS.");
-    }
-  });
-
-  app.post("/pos/orders", requirePermission("pos.orders.create"), async (c) => {
-    try {
-      const data = await parseBody(c, createOrderSchema);
-      const result = await orderSvc.createOrder({ ...context(c), data })
-      broadcastPosEvent(c, result?.id, 'created')
-      return c.json({ data: result }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo crear la orden POS.");
-    }
-  });
-
-  app.get("/pos/orders/:id", requirePermission("pos.orders.read"), async (c) => {
-    try {
-      return c.json({ data: await orderSvc.getOrderById({ ...context(c), id: c.req.param("id") }) });
-    } catch (err) {
-      return handleError(c, err, "No se pudo consultar la orden POS.");
-    }
-  });
-
-  app.patch("/pos/orders/:id", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const data = await parseBody(c, updateOrderSchema);
-      const result = await orderSvc.updateOrder({ ...context(c), id: c.req.param("id"), data })
-      broadcastPosEvent(c, c.req.param("id"), 'updated')
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "No se pudo actualizar la orden POS.");
-    }
-  });
-
-  app.patch("/pos/orders/:id/waiter", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const data = await parseBody(c, assignWaiterSchema);
-      const order = await orderSvc.assignOrderWaiter({
-        ...context(c),
-        id: c.req.param("id"),
-        waiterId: data.waiterId ?? null,
-      });
-      broadcastPosEvent(c, order.id, "waiter.assign");
-      return c.json({ data: order });
-    } catch (err) {
-      return handleError(c, err, "No se pudo asignar el mesero a la orden.");
-    }
-  });
-
-  app.post("/pos/orders/:id/claim", requirePermission("pos.terminal.use"), async (c) => {
-    try {
-      const order = await orderSvc.claimOrder({ ...context(c), id: c.req.param("id") });
-      broadcastPosEvent(c, order.id, "order.claim");
-      return c.json({ data: order });
-    } catch (err) {
-      return handleError(c, err, "No se pudo reclamar la orden.");
-    }
-  });
-
-  app.get("/pos/orders/:id/seat-totals", requirePermission("pos.terminal.use"), async (c) => {
-    try {
-      const data = await orderSvc.getSeatTotals({ ...context(c), id: c.req.param("id") });
-      return c.json({ data });
-    } catch (err) {
-      return handleError(c, err, "No se pudieron calcular los totales por comensal.");
-    }
-  });
-
-  app.post("/pos/orders/:id/guests", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const data = await parseBody(c, createGuestSchema);
-      return c.json({ data: await orderSvc.addGuest({ ...context(c), orderId: c.req.param("id"), data }) }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo agregar el comensal.");
-    }
-  });
-
-  app.post("/pos/orders/:id/lines", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const data = await parseBody(c, addOrderLineSchema);
-      const result = await orderSvc.addOrderLine({ ...context(c), orderId: c.req.param("id"), data })
-      broadcastPosEvent(c, c.req.param("id"), 'line_added')
-      return c.json({ data: result }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo agregar la linea.");
-    }
-  });
-
-  app.patch("/pos/orders/:id/lines/:lineId", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const data = await parseBody(c, updateOrderLineSchema);
-      const result = await orderSvc.updateOrderLine({
-        ...context(c),
-        orderId: c.req.param("id"),
-        lineId: c.req.param("lineId"),
-        data,
-      })
-      broadcastPosEvent(c, c.req.param("id"), 'line_updated')
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "No se pudo actualizar la linea.");
-    }
-  });
-
-  app.delete("/pos/orders/:id/lines/:lineId", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const result = await orderSvc.deleteOrderLine({
-        ...context(c),
-        orderId: c.req.param("id"),
-        lineId: c.req.param("lineId"),
-      })
-      broadcastPosEvent(c, c.req.param("id"), 'line_deleted')
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "No se pudo eliminar la linea.");
-    }
-  });
-
-  app.post("/pos/orders/:id/send-to-kitchen", requirePermission("pos.orders.update"), async (c) => {
-    try {
-      const result = await kitchenSvc.sendOrderToKitchen({ ...context(c), orderId: c.req.param("id") })
-      broadcastPosEvent(c, c.req.param("id"), 'sent_to_kitchen')
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "No se pudo enviar la orden a cocina.");
-    }
-  });
-
-  app.post("/pos/orders/:id/payments", requirePermission("pos.payments.create"), async (c) => {
-    try {
-      const data = await parseBody(c, createPaymentSchema);
-      const result = await orderSvc.addPayment({ ...context(c), orderId: c.req.param("id"), data })
-      broadcastPosEvent(c, c.req.param("id"), 'payment_added')
-      return c.json({ data: result }, 201);
-    } catch (err) {
-      return handleError(c, err, "No se pudo registrar el pago.");
-    }
-  });
-
-  app.post("/pos/orders/:id/cancel", requirePermission("pos.orders.cancel"), async (c) => {
-    try {
-      const data = await parseBody(c, cancelOrderSchema);
-      const result = await orderSvc.cancelOrder({ ...context(c), orderId: c.req.param("id"), reason: data.reason })
-      broadcastPosEvent(c, c.req.param("id"), 'cancelled')
-      return c.json({ data: result });
-    } catch (err) {
-      return handleError(c, err, "No se pudo cancelar la orden.");
-    }
-  });
-
-  app.post("/pos/orders/:id/receipts/reprint", requirePermission("pos.orders.read"), async (c) => {
-    try {
-      return c.json({ data: await orderSvc.reprintReceipt({ ...context(c), orderId: c.req.param("id") }) });
-    } catch (err) {
-      return handleError(c, err, "No se pudo reimprimir el recibo.");
-    }
-  });
-
   // ── Payment Methods ────────────────────────────────────────────────────────
-  app.get("/pos/payment-methods", requirePermission("pos.terminal.use"), async (c) => {
-    try {
-      return c.json({ data: await settingsSvc.listPaymentMethods(context(c)) });
-    } catch (err) {
-      return handleError(c, err, "No se pudieron obtener los métodos de pago.");
-    }
-  });
-
   app.post("/pos/payment-methods", requirePermission("pos.settings.manage"), async (c) => {
     try {
       const data = await parseBody(c, createPaymentMethodSchema);

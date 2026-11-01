@@ -3001,6 +3001,12 @@ model CatalogProductVariant {
 }
 
 model CatalogStockMovement {
+  outletId String? @db.Uuid @map("outlet_id")
+  sourceType String? @map("source_type")
+  sourceId String? @db.Uuid @map("source_id")
+  sourceLineId String? @db.Uuid @map("source_line_id")
+  operationKey String? @map("operation_key")
+  reversalOfId String? @db.Uuid @map("reversal_of_id")
   id            String   @id @default(uuid(7)) @db.Uuid
   companyId     String   @db.Uuid @map("company_id")
   productId     String   @db.Uuid @map("product_id")
@@ -3084,6 +3090,7 @@ model PosTerminal {
 }
 
 model PosSession {
+  currency String?
   id                 String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId          String           @db.Uuid @map("company_id")
   outletId           String           @db.Uuid @map("outlet_id")
@@ -3152,6 +3159,13 @@ model PosPaymentMethod {
 }
 
 model PosOrder {
+  version Int @default(1)
+  currency String?
+  experience String?
+  taxSnapshot Json? @map("tax_snapshot")
+  refundedAmount Decimal @default(0) @db.Decimal(12, 2) @map("refunded_amount")
+  stockStatus String @default("LEGACY_UNKNOWN") @map("stock_status")
+  refunds PosRefund[]
   id                  String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId           String               @db.Uuid @map("company_id")
   outletId            String               @db.Uuid @map("outlet_id")
@@ -3202,6 +3216,12 @@ model PosOrder {
 }
 
 model PosOrderLine {
+  baseUnitPrice Decimal? @db.Decimal(12, 2) @map("base_unit_price")
+  taxIncluded Boolean? @map("tax_included")
+  priceVersion Int? @map("price_version")
+  returnedQuantity Decimal @default(0) @db.Decimal(12, 3) @map("returned_quantity")
+  voided Boolean @default(false)
+  refundLines PosRefundLine[]
   id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   orderId              String           @db.Uuid @map("order_id")
   guestSeatId          String?          @db.Uuid @map("guest_seat_id")
@@ -3247,6 +3267,9 @@ model PosGuestSeat {
 }
 
 model PosPayment {
+  tenderedAmount Decimal? @db.Decimal(12, 2) @map("tendered_amount")
+  changeAmount Decimal? @db.Decimal(12, 2) @map("change_amount")
+  refundPayments PosRefundPayment[]
   id              String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId       String           @db.Uuid @map("company_id")
   orderId         String           @db.Uuid @map("order_id")
@@ -6269,4 +6292,65 @@ model LmsCertificate {
   @@index([learnerId])
   @@index([enrollmentId])
   @@map("lms_certificate")
+}
+
+// Durable command responses: financial retries never expire silently.
+model PosCommand {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  actorId String @db.Uuid @map("actor_id")
+  operation String
+  key String
+  requestHash String @map("request_hash")
+  response Json
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([companyId, operation, key])
+  @@map("pos_command")
+}
+
+model PosRefund {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  orderId String @db.Uuid @map("order_id")
+  sessionId String @db.Uuid @map("session_id")
+  amount Decimal @db.Decimal(12, 2)
+  currency String
+  reason String
+  createdById String @db.Uuid @map("created_by_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  order PosOrder @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  lines PosRefundLine[]
+  payments PosRefundPayment[]
+  @@index([companyId, orderId])
+  @@map("pos_refund")
+}
+
+model PosRefundLine {
+  subtotalAmount Decimal @db.Decimal(12, 2) @map("subtotal_amount")
+  taxAmount Decimal @db.Decimal(12, 2) @map("tax_amount")
+  stockRestored Boolean @default(false) @map("stock_restored")
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  refundId String @db.Uuid @map("refund_id")
+  orderLineId String @db.Uuid @map("order_line_id")
+  quantity Decimal @db.Decimal(12, 3)
+  amount Decimal @db.Decimal(12, 2)
+  restock Boolean
+  refund PosRefund @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  orderLine PosOrderLine @relation(fields: [orderLineId], references: [id], onDelete: Restrict)
+  @@unique([refundId, orderLineId])
+  @@index([orderLineId])
+  @@map("pos_refund_line")
+}
+
+model PosRefundPayment {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  refundId String @db.Uuid @map("refund_id")
+  paymentId String @db.Uuid @map("payment_id")
+  amount Decimal @db.Decimal(12, 2)
+  reference String?
+  refund PosRefund @relation(fields: [refundId], references: [id], onDelete: Restrict)
+  payment PosPayment @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  @@unique([refundId, paymentId])
+  @@index([paymentId])
+  @@map("pos_refund_payment")
 }

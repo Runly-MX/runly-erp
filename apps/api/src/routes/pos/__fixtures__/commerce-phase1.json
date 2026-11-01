@@ -1,0 +1,47 @@
+{
+  "description": "Datos sintéticos de contrato. Los IDs se sustituyen por recursos autorizados de la instalación local; no son endpoints simulados.",
+  "contextQuery": {},
+  "openSession": {
+    "outletId": "01900000-0000-7000-8000-000000000001",
+    "terminalId": "01900000-0000-7000-8000-000000000002",
+    "openingCashAmount": "0.00"
+  },
+  "createOrder": {
+    "outletId": "01900000-0000-7000-8000-000000000001",
+    "terminalId": "01900000-0000-7000-8000-000000000002",
+    "sessionId": "01900000-0000-7000-8000-000000000003",
+    "experience": "RETAIL",
+    "fulfillmentType": "TAKEAWAY"
+  },
+  "addLine": {
+    "expectedVersion": 1,
+    "productId": "01900000-0000-7000-8000-000000000004",
+    "quantity": "1.000"
+  },
+  "payment": {
+    "expectedVersion": 2,
+    "paymentMethodId": "01900000-0000-7000-8000-000000000005",
+    "sessionId": "01900000-0000-7000-8000-000000000003",
+    "amount": "100.00",
+    "tenderedAmount": "200.00",
+    "allocations": []
+  },
+  "paymentExpectations": {
+    "amount": "100.00",
+    "tenderedAmount": "200.00",
+    "changeAmount": "100.00",
+    "remainingAmount": "0.00",
+    "status": "PAID",
+    "expectedCashAmount": "100.00",
+    "printedCount": 0
+  },
+  "refund": {
+    "expectedVersion": 3,
+    "reason": "Devolución de una unidad",
+    "sessionId": "01900000-0000-7000-8000-000000000003",
+    "lines": [{ "orderLineId": "01900000-0000-7000-8000-000000000006", "quantity": "1.000", "restock": false }],
+    "payments": [{ "paymentId": "01900000-0000-7000-8000-000000000007", "amount": "100.00" }]
+  },
+  "cancel": { "expectedVersion": 4, "reason": "Anticipo devuelto; cancelar pedido" },
+  "closeSession": { "countedCashAmount": "0.00" }
+}

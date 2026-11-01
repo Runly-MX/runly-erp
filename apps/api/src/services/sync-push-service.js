@@ -105,6 +105,13 @@ export function createSyncPushService({ prisma, registry }) {
       // 1. Idempotency check — if already applied, return OK
       const existingLog = await prisma.syncMutationLog.findUnique({ where: { idempotencyKey } })
       if (existingLog) {
+        const canonicalModule = (key) => String(key ?? '').replace(/^atlas\./, 'runly.')
+        if (existingLog.companyId !== companyId || canonicalModule(existingLog.moduleKey) !== canonicalModule(moduleKey)
+          || existingLog.entityType !== entityType || existingLog.operation !== operation
+          || (recordId && existingLog.recordId !== recordId)) {
+          results.push({ idempotencyKey, status: 'PERMISSION_DENIED', record: null })
+          continue
+        }
         const mod = moduleRegistry[moduleKey]
         let record = null
         if (mod) {
@@ -114,7 +121,8 @@ export function createSyncPushService({ prisma, registry }) {
             record = await handler.findById({ prisma, id: lookupId }).catch(() => null)
           }
         }
-        results.push({ idempotencyKey, status: 'OK', record })
+        if (record && record.companyId !== companyId) results.push({ idempotencyKey, status: 'PERMISSION_DENIED', record: null })
+        else results.push({ idempotencyKey, status: 'OK', record })
         continue
       }
 

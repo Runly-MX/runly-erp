@@ -1,4 +1,5 @@
 import { createWebsiteDomain } from "./domains/website.js";
+import { createPosRecoveryDomain } from './domains/pos-recovery.js';
 import { createGrowthDomain } from "./domains/growth.js";
 import { createDocumentsDomain } from "./domains/documents.js";
 import { createChatDomain } from "./domains/chat.js";
@@ -109,7 +110,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       try {
         details = text ? JSON.parse(text) : null;
         if (details?.error) {
-          message = details.error;
+          message = typeof details.error === 'string' ? details.error : (details.error.message ?? message);
         }
       } catch {}
 
@@ -117,6 +118,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       error.status = response.status;
       error.responseText = text;
       error.details = details;
+      error.code = details?.error?.code ?? details?.code;
+      error.requestId = details?.requestId;
       throw error;
     }
     assertCurrentCompany(options.headers);
@@ -127,6 +130,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
   }
 
   return {
+    commerce: createPosRecoveryDomain({ request, withAuthHeaders, toQueryString }),
     studio: createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     settings: createSettingsDomain({ request, withAuthHeaders }),
     builder: createBuilderDomain({ request, requestBlob, withAuthHeaders }),

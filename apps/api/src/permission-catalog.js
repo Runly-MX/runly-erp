@@ -1277,6 +1277,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "pos",
     order: 60,
   },
+  "pos.refunds.create": {
+    displayNameEs: "Registrar devoluciones POS",
+    descriptionEs: "Permite devolver pagos y consumo con motivo y auditoría.",
+    groupKey: "pos",
+    order: 71,
+  },
+  "pos.discounts.apply": {
+    displayNameEs: "Autorizar descuentos POS",
+    descriptionEs: "Permite aplicar descuentos auditados por línea.",
+    groupKey: "pos",
+    order: 72,
+  },
   "pos.payments.create": {
     displayNameEs: "Registrar pagos POS",
     descriptionEs: "Permite registrar pagos y cobros de ordenes POS.",

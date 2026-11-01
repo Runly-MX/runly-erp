@@ -31,7 +31,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
     }
     const resolved = await resolveTenantContext(c, context)
     if (!resolved.ok) return { error: resolved.response }
-    return { companyId: resolved.tenant.companyId }
+    return { companyId: resolved.tenant.companyId, tenant: resolved.tenant }
   }
 
   // GET /sync/pull?modules=runly.contacts,runly.hr&cursor=ISO-timestamp
@@ -70,12 +70,29 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext 
   app.post('/sync/push', async (c) => {
     try {
       const authUserId = c.get('authUserId')
-      const { companyId, error } = await resolveCompanyId(c)
+      const { companyId, error, tenant } = await resolveCompanyId(c)
       if (error) return error
       const body = await c.req.json()
       const mutations = Array.isArray(body?.mutations) ? body.mutations : []
-      const result = await pushService.push({ authUserId, companyId, mutations })
-      return c.json(result)
+      // Catalog prices must not be writable through an unprivileged offline
+      // route while the online POS enforces authoritative pricing.
+      const accepted = [], positions = [], results = []
+      for (const [index, mutation] of mutations.entries()) {
+        if (['runly.catalog', 'atlas.catalog'].includes(mutation.moduleKey)) {
+          const entity = { product: 'products', category: 'categories' }[mutation.entityType]
+          const action = { CREATE: 'create', UPDATE: 'update' }[mutation.operation]
+          const allowed = entity && action && (tenant.isAdmin || tenant.permissionSet?.has(`catalog.${entity}.${action}`))
+          const forbiddenFields = ['id','companyId','company_id'].some((key) => Object.hasOwn(mutation.payload ?? {}, key))
+          if (!allowed || forbiddenFields) {
+            results[index] = { idempotencyKey: mutation.idempotencyKey, status: 'PERMISSION_DENIED', record: null }
+            continue
+          }
+        }
+        accepted.push(mutation); positions.push(index)
+      }
+      const applied = await pushService.push({ authUserId, companyId, mutations: accepted })
+      applied.results.forEach((result, index) => { results[positions[index]] = result })
+      return c.json({ results })
     } catch (err) {
       return handleError(c, err, 'POST /sync/push')
     }
