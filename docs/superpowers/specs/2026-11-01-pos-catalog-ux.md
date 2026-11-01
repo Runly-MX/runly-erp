@@ -35,6 +35,21 @@ La superficie de Operación no lleva PageHeader de gestión. Usa una **barra de 
 ### 2.2 Tokens y lenguaje visual
 
 - Color: sólo tokens vigentes (`--brand-primary`, `--brand-primary-hover`, `--brand-primary-foreground`, `hsl(var(--background|foreground|card|muted|muted-foreground|border|input|ring))`) y variantes de `Badge` (`success`, `warning`, `destructive`, `secondary`, `outline`). No se agregan colores fijos ni se impone un color de marca: dentro de un módulo, `ModuleOutlet` aplica `applyBrandTheme(module.color)` y `--brand-primary` pasa a ser el color del módulo — **POS `#008C8C` (verde azulado)**, **Catálogo `#F97316`** — con hover, foreground y `--ring` derivados por `apps/desktop/src/lib/brandTheme.js`. La estructura (fondos, texto, bordes) es la neutra Midnight/Navy de `packages/ui/src/runtime.css`. `--brand-primary` se reserva para **la acción principal de cada pantalla** (Cobrar, Enviar a cocina, Guardar producto) y el estado activo, nunca para decoración. Ver hallazgos de contraste en §13.1.
+- Papeles de color por módulo (validados en los prototipos, §2.4): el color oficial del módulo se conserva como identidad, pero no carga texto que no soporta. Cada módulo usa tres papeles: **oficial** (indicadores, barras, puntos), **relleno de acción** (con su texto a ≥ 4.5:1) y **acento** (texto, iconos, borde seleccionado y pista de interruptores, ≥ 4.5:1 sobre fondo y tarjeta).
+
+### 2.4 Contraste verificado
+
+| Módulo | Oficial | Relleno de acción + texto | Acento claro | Acento oscuro |
+|---|---|---|---|---|
+| POS | `#008C8C` (sólo indicadores; blanco 4.1:1 no alcanza) | `#007A7A` + blanco, 5.2:1 | `#007373`, 5.7:1 | `#4FBFBF`, 8.9:1 |
+| Catálogo | `#F97316` (blanco 2.8:1 no alcanza) | `#F97316` + `#111827`, 6.2:1; hover `#EA580C`, 4.9:1 | `#C2410C`, 5.2:1 | `#FB923C`, 8.7:1 |
+
+- **18 px en negrita no es texto grande en WCAG**: texto grande es ≥ 24 px regular o ≥ 18.66 px (14 pt) en negrita. Por eso ningún botón táctil depende de la excepción de texto grande; todos cumplen 4.5:1.
+- Estados: insignias con fondo suave y texto oscuro del mismo tono (éxito `#065F46` sobre `#D1FAE5`, aviso `#92400E` sobre `#FEF3C7`, error `#B91C1C` sobre `#FEE2E2`; en oscuro, tonos claros sobre fondo translúcido), siempre con icono y texto. Botón destructivo `#DC2626` + blanco (4.8:1).
+- Deshabilitado: fondo `muted`, texto `muted-foreground` (≈ 6:1), sin opacidad, cursor no permitido y motivo visible junto al control.
+- Foco: anillo de 2 px en el acento del módulo con separación de 2 px (≥ 3:1 sobre fondo y tarjeta).
+- Errores: borde de 2 px + icono + mensaje bajo el campo, `aria-invalid` y `role="alert"`. Confirmaciones: `role="alertdialog"` con descripción.
+- Bordes de campo: `hsl(214 14% 58%)` (≥ 3:1 sobre tarjeta clara).
 - Estado operativo con color + icono + texto, nunca color solo: Disponible / Agotado / No disponible en esta sucursal; Libre / Ocupada / Por cobrar / Reservada; Pendiente / En preparación / Lista / Entregada.
 - Cifras: `font-variant-numeric: tabular-nums` (`tabular-nums` de Tailwind) en precios, totales, cantidades y temporizadores. Moneda siempre visible junto al total (`$1,250.00 MXN`).
 - Forma: botones `rounded-xl` como `Button` actual; campos y controles `rounded-md` como máximo; filas seleccionadas con relleno plano, sin anillo, brillo ni píldora.
@@ -522,8 +537,11 @@ Necesidades funcionales que C0–C8 no cubren. La UI no las implementa hasta que
 | D23 | «Pedir cuenta» (mesa por cobrar) | C6 | Estado de mesa o marca de orden para «cuenta solicitada», o confirmar que no aplica en v1. |
 | D24 | Pre-cuenta impresa antes de cobrar | C7 | Documento no fiscal de orden OPEN con el mismo mecanismo de print jobs, o fuera de v1. |
 | D25 | Códigos de error `REFUND_REQUIRED` y `PREPARATION_STATION_REQUIRED` | Convenciones | Añadirlos a la lista estable de códigos 409 de §5 de la especificación maestra. |
-| D26 | Tarjeta de comanda legible en cocina: tiempo desde el envío, mesa o folio para llevar, mesero y marca de envío adicional | C6 `GET /pos/v2/kitchen/tickets` | Agregar al ticket `dispatchedAt`, `orderLabel` (mesa o «Para llevar #n»), `waiterName` y `dispatchSequence` (>1 = «Extra»). El DTO actual sólo enumera líneas, nombres, notas, modificadores y versión. |
-| D27 | Elegir entre coincidencias ambiguas y explicar por qué un escaneo no se agregó | C1 `GET /pos/v2/scan` | Agregar `sku`, `categoryName` y `unavailableReason` a cada `match`; hoy sólo trae `available` sin motivo. |
+| D26 | Tarjeta de comanda legible en cocina: hora de envío, mesa o folio para llevar, mesero y marca de envío adicional | C6 `GET /pos/v2/kitchen/tickets` (fase 4; el endpoint no existe aún) | Campos por ticket: `dispatchedAt` (ISO 8601), `orderLabel` («Mesa 2» / «Para llevar #12»), `tableName` (nullable), `waiterName` (nullable; «Mostrador · Caja 1» si no hay mesero), `dispatchSequence` (entero, 1 = primer envío; > 1 se muestra «Extra · envío n») y, opcional, `lateAfterMinutes` (umbral configurable para «Retrasado»). Visualización: prototipo «Cocina · Tablero táctil». El tiempo transcurrido lo deriva la UI de `dispatchedAt`; el retraso se marca con icono y la palabra «Retrasado», no sólo con color. |
+| D27 | Elegir entre coincidencias ambiguas y explicar por qué un escaneo no se agregó | C1 `GET /pos/v2/scan` (fase 2; el endpoint no existe aún) | Campos por `match`: `sku`, `categoryName`, `variantLabel` (nullable), `available`, `unavailableReason` (código estable: `OUT_OF_STOCK_AT_OUTLET`, `NOT_AVAILABLE_AT_OUTLET`, `CURRENCY_MISMATCH`, `NO_ACTIVE_VARIANT`) y `unavailableMessage` en español. Visualización: prototipo «Venta · Escritorio · Código ambiguo»; la coincidencia no disponible queda visible, no seleccionable, con el motivo enlazado por `aria-describedby`. |
+| D28 | Encontrar una orden en el historial | C2 `GET /pos/v2/orders` (hoy filtra sólo `outletId`, `status`, `page`, `pageSize`) | Filtros `search` (folio), `from`/`to` (fecha), `terminalId`; en la proyección de lista, `receiptNumber`/folio y `lineCount`. Hasta entonces la búsqueda por folio se muestra deshabilitada con «próximamente». |
+| D29 | Devolución sin cálculo de dinero en el cliente | C4 `POST .../refunds` exige `payments[].amount` calculado por el cliente | Vista previa sin efectos (`POST /pos/v2/orders/:id/refunds/preview`) que, dadas líneas y cantidades, devuelva importe por línea, impuesto, total y reparto propuesto por pago con su máximo devolvible. Sin ella, `RefundSheet` sólo puede integrarse como devolución de anticipo o total. |
+| D30 | Ver qué cajas tienen sesión abierta al elegir terminal | C0 `GET /pos/v2/context` (sólo trae `currentSession` de la terminal elegida) | Opcional: `openSessionId` u `hasOpenSession` por terminal. Mientras tanto, el estado de sesión se muestra después de elegir la caja, con la respuesta real. |
 
 ### 13.1 Hallazgos del sistema visual vigente
 
@@ -535,12 +553,15 @@ Revisados contra `packages/ui/src/runtime.css` y `apps/desktop/src/lib/brandThem
 | V2 | POS (`#008C8C`) con texto blanco ≈ 4.1:1. | Cumple como texto grande (≥ 18.66 px negrita), no a 14 px. | Las acciones principales táctiles usan `size="touch-lg"` (18 px, 700), que cumple; evitar `--brand-primary` como fondo de texto pequeño en Operación. |
 | V3 | `--brand-primary-on-dark` sube la luminosidad a 55 % sin bajar saturación: POS resulta `hsl(180 100% 55%)` (cian muy intenso). | Acentos de texto en oscuro muy brillantes. | Usarlo sólo para iconos o indicadores, no para texto largo. Ajuste del cálculo queda para el sistema. |
 | V4 | `Button` mide 36 px en escritorio (`h-9`). | Por debajo de 44 px en terminales táctiles con puntero fino detectado como escritorio. | `size="touch"` / `"touch-lg"` de §4.2. |
+| V5 | `Badge` sólido de `@runly/ui` en claro: blanco sobre `#10b981` (2.5:1), `#f59e0b` (2.1:1) y `#ef4444` (3.8:1). | Estados ilegibles a 12 px. | `StatusPill` usa la variante suave de §2.4; corregir `Badge` es decisión del sistema. |
+
+Resolución en los prototipos (revisión 2026-11-01, ronda final): V1 y V2 se corrigen con los papeles de color de §2.4 (POS rellena con `#007A7A`; Catálogo conserva `#F97316` con texto oscuro). V3 se sustituye por `#4FBFBF` como acento de POS en oscuro. La fase visual debe trasladar estos valores a `brandTheme.js` (por ejemplo, `--brand-primary-fill` y `--brand-primary-text` derivados) o, si el sistema no se toca, a tokens locales del módulo; no se agregan colores sueltos en pantallas.
 
 Límites de v1 aceptados por la UI sin pedir cambio: descuento sólo por línea (no por orden), disponibilidad por sucursal heredada a variantes, sin propinas calculadas, sin cola offline de pagos, sin procesamiento bancario.
 
 ## 14. Estado de integración por pantalla
 
-Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (implementado con fixtures) · **Integrado** (contrato real con evidencia) · **Navegador** (390 × 844, 768 × 1024, 1024 × 768, escritorio, claro y oscuro) · **Táctil** (dispositivo real). La dirección general está aprobada; las pantallas con prototipo (§17) están «En revisión» y el resto en «Propuesto». Ninguna pasa de ahí.
+Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (implementado con fixtures) · **Integrado** (contrato real con evidencia) · **Navegador** (390 × 844, 768 × 1024, 1024 × 768, escritorio, claro y oscuro) · **Táctil** (dispositivo real). La dirección general está aprobada; las pantallas con prototipo (§17) están «En revisión» y el resto en «Propuesto». Ninguna pasa de ahí. Tras la ronda final todas las pantallas de esta tabla tienen prototipo salvo «Turnos de meseros» (diseño escrito en §7.2).
 
 | Pantalla / componente | Contratos | Etapa | Diseño | Frontend | Integrado | Navegador | Táctil |
 |---|---|---|---|---|---|---|---|
@@ -548,9 +569,9 @@ Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (imple
 | Tienda: catálogo, búsqueda, escaneo, variantes | C1 | 3 | En revisión | No | No | No | No |
 | Tienda: carrito | C2 | 3 | En revisión | No | No | No | No |
 | `ChargeSheet` + `SaleCompleteView` | C3, C7 | 3 | En revisión | No | No | No | No |
-| Apertura, movimientos, cierre de caja | C8 | 3 | Propuesto | No | No | No | No |
-| `RefundSheet` | C4 | 3 | Propuesto | No | No | No | No |
-| Órdenes (historial, detalle, reimpresión) | C2, C4, C7 | 3, 5 | Propuesto | No | No | No | No |
+| Apertura, movimientos, cierre de caja | C8 | 3 | En revisión | No | No | No | No |
+| `RefundSheet` + cancelación | C4 | 3 | En revisión | No | No | No | No |
+| Órdenes (historial, detalle, reimpresión) | C2, C4, C7 | 3, 5 | En revisión | No | No | No | No |
 | Mesero: `TableBoard` | C0, C6 | 4 | En revisión | No | No | No | No |
 | Mesero: `TicketComposer` + envío | C1, C2, C6 | 4 | En revisión | No | No | No | No |
 | Caja restaurante + `SeatSplitSheet` | C2, C3, C6 | 4 | En revisión | No | No | No | No |
@@ -560,10 +581,28 @@ Escala: **Diseño** (propuesto / en revisión / aprobado) · **Frontend** (imple
 | Catálogo: listado | actual + D03 | 2, 5 | En revisión | No | No | No | No |
 | Catálogo: alta rápida | actual, C1 | 2, 5 | En revisión | No | No | No | No |
 | Catálogo: ficha por pestañas | actual, C1 | 2, 5 | En revisión | No | No | No | No |
-| `VariantGrid` | actual | 5 | Propuesto | No | No | No | No |
+| `VariantGrid` | actual | 5 | En revisión | No | No | No | No |
 | `OutletAvailabilityPanel` + `CommercialTaxField` | C1 admin, D10 | 2, 5 | En revisión | No | No | No | No |
-| `StockBalancesPanel` + asignación + movimientos | C5, D17 | 2, 5 | Propuesto | No | No | No | No |
+| `StockBalancesPanel` + asignación + movimientos | C5, D17 | 2, 5 | En revisión | No | No | No | No |
 | Componentes `@runly/ui` nuevos (§4.2) | ninguno | 3 | En revisión | No | n/a | No | No |
+
+### 14.1 Contratos: implementados frente a pendientes
+
+Fuente: [cierre técnico de fase 1](../plans/2026-11-01-commerce-phase1-results.md) (`580b1331b`). «Implementado» significa endpoint real con schema, fixture, SDK (`runly.commerce`) y pruebas en PostgreSQL desechable; no significa migración aplicada ni pantalla conectada.
+
+| Contrato | Estado | Pantallas prototipadas que lo usan | Lo que los prototipos no asumen |
+|---|---|---|---|
+| C0 contexto | Implementado | Selección de sucursal y caja, barra de operación | Estado de sesión por terminal (D30), preferencia de experiencia (D18) |
+| C2 órdenes y líneas | Implementado | Carrito, Órdenes (lista y detalle), Cancelar | Búsqueda por folio/fecha/terminal y folio en la lista (D28), mesa/mesero en la lista (D05), suspender (D01) |
+| C3 pagos | Implementado | Cobro, venta completada | `allocations` por línea (rechazadas hasta C6) |
+| C4 cancelación y devolución | Implementado | Cancelar orden, Devolución, detalle de orden | Vista previa de importes (D29); regreso a existencias bloqueado por `STOCK_RECOVERY_NOT_READY` |
+| C8 sesiones, movimientos, turnos | Implementado | Apertura, cierre (conteo, resumen, confirmación) | Preferencia empresarial de conteo ciego (D22) |
+| C1 vendibles, búsqueda, escaneo, disponibilidad | Pendiente (fase 2) | Venta, escaneo ambiguo, variantes en POS, Catálogo | Todo el DTO; D27 define los campos del escaneo |
+| C5 existencias por sucursal | Pendiente (fase 2) | Existencias por sucursal, asignación | Saldos, asignación y movimientos con origen (D17) |
+| C6 mesas, cocina, cuentas atribuidas | Pendiente (fase 4) | Mesero, comandero, caja restaurante, cocina | D26 define los campos de comanda; D12, D20, D23 |
+| C7 recibos e impresión | Pendiente (fase 3) | Venta completada, reimpresión, corte | Estado de impresión; hoy sólo existe el documento con `printedCount = 0` |
+
+Ninguna pantalla de esta especificación se conecta a un contrato pendiente ni simula su respuesta.
 
 Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex haya publicado el contrato con fixture, schema, SDK y pruebas (especificación maestra §8). «Táctil» exige prueba en tableta o teléfono real con el recorrido completo.
 
@@ -580,6 +619,8 @@ Una pantalla no avanza de columna por compilar. «Integrado» exige que Codex ha
 ## 16. Verificación de esta entrega
 
 Documento de diseño; no se modificó código ni se ejecutaron pruebas. Lecturas: especificación maestra y plan del 2026-11-01, manifiestos `runly.catalog`/`runly.pos` en `apps/api/src/manifests/official/core-modules.js`, pantallas y componentes en `apps/desktop/src/modules/runly.pos/` y `runly.catalog/`, inventario de `packages/ui/src/components/` (incluidos `Button`, `Badge`, `Dialog`, `PeekSheet`), `runly.inventory/components/scan/ScanSearchField.jsx`, `docs/ai-context/rme3-runtime-capabilities.md` y `docs/mobile/RUNLY_NATIVE_HOST.md` (impresión Bluetooth).
+
+Revisión 2026-11-01, ronda final: nueve tableros nuevos (§17.1), corrección de contraste (§2.4, §13.1 V1–V5), D26–D27 detallados y D28–D30 agregados (§13), estado de contratos (§14.1). Sin cambios en servicios, migraciones, SDK ni pantallas React.
 
 Revisión 2026-11-01 (validación visual): se corrigió el ejemplo de cobro a por cobrar $100.00 / efectivo recibido $200.00 / pago aplicado $100.00 / cambio $100.00, y la regla de color pasó de «naranja» a `--brand-primary` del módulo. Los prototipos se construyeron sin integraciones: datos de ejemplo en el propio prototipo, ningún endpoint ni pantalla de producción modificados.
 
@@ -608,8 +649,17 @@ Lienzo privado de revisión «Runly Commerce — prototipos» (claude.ai, compar
 | Cocina | Tablero táctil | 1280 × 800 | Columnas por estado, línea tocable, extras, notas y alergias resaltadas, tiempos, deshacer; control «sin conexión» |
 | Administración | Tienda · Escritorio | 1440 × 900 | Grupos simplificados sin restaurante, modo por sucursal, pendientes accionables hacia Catálogo |
 | Administración | Restaurante · Móvil | 390 × 844 | Grupo de restaurante, mesas simples, plano del salón opcional |
+| Catálogo | Existencias por sucursal · Escritorio | 1440 × 900 | Saldos por sucursal, fila «Sin asignar», alerta accionable, hoja de asignación con error de cantidad (C5 pendiente) |
+| Catálogo | Variantes · Escritorio | 1440 × 900 | Tabla de combinaciones, precio heredado, código duplicado, selección y acciones masivas, disponibilidad heredada del producto |
+| POS Tienda | Selección de sucursal y caja · Tablet | 1024 × 768 | Pasos sucursal → caja, selección explícita, caja guardada no disponible, sin cajas asignadas (estados por propiedad `step`) |
+| POS Tienda | Apertura de caja · Tablet | 1024 × 768 | Fondo inicial con teclado, procesando, caja cerrada sin permiso |
+| POS Tienda | Cierre de caja · Tablet | 1024 × 768 | Conteo ciego, resumen del servidor, faltante con nota, confirmación, cerrada, bloqueo por venta en curso |
+| POS Tienda | Cancelar orden · Tablet | 1024 × 768 | Motivo obligatorio y error, `REFUND_REQUIRED` con anticipo |
+| POS Tienda | Devolución · Tablet | 1024 × 768 | Líneas y cantidades, regreso a existencias deshabilitado con motivo, pago destino, procesando, respuesta perdida, completada, sin caja abierta |
+| POS Tienda | Órdenes · Listado · Escritorio | 1440 × 900 | Filtros reales (sucursal, estado), búsqueda por folio deshabilitada (D28), estados, histórico de moneda desconocida |
+| POS Tienda | Órdenes · Detalle · Escritorio | 1440 × 900 | Artículos con devuelto, pagos con recibido y cambio, devolución registrada, comprobante «no impreso», sólo consulta por moneda |
 
-No dibujados todavía: `PosContextGate`, apertura/cierre completo de caja, `RefundSheet`, Órdenes, existencias por sucursal y `VariantGrid`. Se prototipan en la siguiente revisión si se piden; el diseño escrito de §5–§10 rige mientras tanto.
+Cambios en tableros existentes en la ronda final: todos usan los tokens de §2.4 (sin rediseño de composición); «Cocina · Tablero táctil» muestra hora de envío, mesero, «Extra · envío n» y «Retrasado» (D26); «Venta · Escritorio · Código ambiguo» muestra SKU, categoría, variante y el motivo de la coincidencia no disponible (D27). Las notas del lienzo marcan por página qué contratos están implementados y cuáles pendientes.
 
 ### 17.2 Archivos que se modificarán en la fase visual
 
