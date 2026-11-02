@@ -164,7 +164,7 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
 
       {suggestedColors !== PRESET_COLORS && suggestedColors.length > 0 && (
         <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-2">Colores extraidos del logo</p>
+          <p className="text-xs font-semibold text-muted-foreground mb-2">Colores extraídos del logo</p>
           <div className="flex gap-2 flex-wrap">
             {suggestedColors.map((color) => (
               <button key={color} type="button" onClick={() => setIdentity((i) => ({ ...i, primaryColor: color }))}
@@ -196,7 +196,7 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
         style={{ background: `linear-gradient(90deg, ${identity.primaryColor} 0%, ${identity.primaryColor}bb 40%, ${identity.bgColor} 100%)` }}/>
 
       <div>
-        <label className="block text-sm font-semibold text-foreground mb-2">Tipografia</label>
+        <label className="block text-sm font-semibold text-foreground mb-2">Tipografía</label>
         <div className="grid grid-cols-5 gap-2">
           {FONTS.map((f) => (
             <button key={f.value} type="button"
@@ -217,7 +217,7 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
         {onBack && (
           <button type="button" onClick={onBack}
             className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all">
-            Atras
+            Atrás
           </button>
         )}
         <button type="button" onClick={handleSubmit}
