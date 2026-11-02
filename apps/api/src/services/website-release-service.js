@@ -1,6 +1,8 @@
+import {createWebsiteAdminContractService} from './website-admin-contract-service.js'
 import { WebsiteServiceError,notFound } from '../routes/website/service-helpers.js'
 import { assertWebsiteAccess } from './website-authorization-service.js'
 import { createWebsiteDraftService,normalizeWebsiteDocument,websiteDocumentHash as hash } from './website-draft-service.js'
+import {createWebsiteFormScopeService} from './website-form-scope-service.js'
 import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { createFileAccess } from './files/access.js'
@@ -20,8 +22,9 @@ export function websiteReleasePath(path) {
   return path
 }
 export function createWebsiteReleaseService({prisma,storage,runtime,readFile,afterPrepare=async()=>{},beforeCommit=async()=>{},imports,isolation}) {
+  const contractDTO=createWebsiteAdminContractService({prisma,isolation})
   const drafts=createWebsiteDraftService({prisma}), files=createFileAccess({prisma})
-  const legacyCalls=new WeakSet(), previewCalls=new WeakSet()
+  const legacyCalls=new WeakSet(), previewCalls=new WeakSet(), readOnlyCalls=new WeakSet(), formScopes=createWebsiteFormScopeService({prisma})
   function authorize(a,permission='website.pages.publish') {
     assertWebsiteAccess(a.access,a.companyId,permission)
     if(!a.siteId)throw notFound('Recurso')
@@ -43,6 +46,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
   async function storeObject(a,bytes,mime,sharedRuntime=false) {
     if(!storage)throw failure('dependency_unavailable',503)
     const digest=releaseBytesHash(bytes), objectKey=sharedRuntime?`runtime/${digest}`:`company/${a.companyId}/site/${a.siteId}/objects/${digest}`
+    if(a.readOnly)return {hash:digest,objectKey,size:bytes.length,mime}
     await storage.put(objectKey,bytes,mime)
     const check=await storage.get(objectKey)
     if(check.length!==bytes.length||releaseBytesHash(check)!==digest)throw failure('integrity_failed',422)
@@ -75,7 +79,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     }
   }
   async function prepareAttempt(input) {
-    const a=authorize(input,previewCalls.has(input)?'website.pages.update':'website.pages.publish');if(!legacyCalls.has(input))assertWebsiteAccess(a.access,a.companyId,'website.site.read');key(a)
+    const a={...authorize(input,previewCalls.has(input)?'website.pages.update':'website.pages.publish'),readOnly:readOnlyCalls.has(input)};if(!legacyCalls.has(input))assertWebsiteAccess(a.access,a.companyId,'website.site.read');key(a)
     a.expectedDraftRevision=revision(a.expectedDraftRevision);a.expectedPublicationRevision=revision(a.expectedPublicationRevision)
     const parsed=changesSchema.safeParse(a.changes);if(!parsed.success)throw failure('validation_failed',422);a.changes=parsed.data
     if(a.changes.publishPageIds.some(id=>a.changes.unpublishPageIds.includes(id)))throw failure('scope_conflict',422)
@@ -85,8 +89,8 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     // Activation verifies the captured aggregate revision and manifest base.
     const captured=await prisma.$transaction(async tx=>{
       const current=await site(tx,a)
-      await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${a.companyId}:${a.actorId}:${a.idempotencyKey}`}::text,1))::text`
-      return drafts.receipt(tx,a,`release.prepare:${a.siteId}`,{...a,access:undefined,actorId:undefined,idempotencyKey:undefined},async()=>{
+      if(!a.readOnly)await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`${a.companyId}:${a.actorId}:${a.idempotencyKey}`}::text,1))::text`
+      const capture=async()=>{
         if(current.draftRevision!==Number(a.expectedDraftRevision))throw failure('draft_changed')
         if(current.publicationRevision!==Number(a.expectedPublicationRevision)||current.activeReleaseId!==(a.baseReleaseId??null))throw failure('publication_conflict')
         const base=current.activeReleaseId?await release(tx,a,current.activeReleaseId):null
@@ -99,14 +103,17 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         const menus=await tx.websiteMenu.findMany({where:{companyId:a.companyId,siteId:a.siteId,enabled:true}})
         const items=await tx.websiteMenuItem.findMany({where:{companyId:a.companyId,menuId:{in:menus.map(m=>m.id)},enabled:true},orderBy:{sortOrder:'asc'}})
         if(pages.length>1000||items.length>5000||Buffer.byteLength(JSON.stringify({pages,posts,theme,menus,items}))>16*1024*1024)throw failure('snapshot_too_large',422)
-        const pending=await tx.websiteRelease.create({data:{companyId:a.companyId,siteId:a.siteId,baseReleaseId:current.activeReleaseId,draftRevision:current.draftRevision,publicationRevision:current.publicationRevision,actorId:a.actorId}})
+        const pending=a.readOnly?{id:current.activeReleaseId??'00000000-0000-0000-0000-000000000000'}:await tx.websiteRelease.create({data:{companyId:a.companyId,siteId:a.siteId,baseReleaseId:current.activeReleaseId,draftRevision:current.draftRevision,publicationRevision:current.publicationRevision,actorId:a.actorId}})
         // Capture is persisted in the receipt so a crash cannot select new drafts.
         return {releaseId:pending.id,current,base:base?.manifest??null,pages,posts,theme,menus,items,identity}
-      })
+      };
+      return a.readOnly?capture():drafts.receipt(tx,a,`release.prepare:${a.siteId}`,{...a,readOnly:undefined,access:undefined,actorId:undefined,idempotencyKey:undefined},capture)
     },{isolationLevel:'RepeatableRead'})
-    const existing=await release(prisma,a,captured.releaseId)
+    const existing=a.readOnly?{id:captured.releaseId,state:'preparing'}:await release(prisma,a,captured.releaseId)
     if(existing.state!=='preparing')return existing
     try {
+      const issues=[];let location={}
+      const issue=e=>({severity:'blocking',code:e.code??'dependency_unavailable',...location,resource:e.publicationResource??(location.blockType==='BookingFormBlock'?{kind:'calendar',id:null}:null),remediation:[{action:e.code==='form_scope_unresolved'||e.code==='ambiguous_site_identifier'?'resolve_owner':e.code==='dynamic_binding_unavailable'?'wait':'replace_resource'},{action:'exclude_page'}]})
       const selected=new Set(a.changes.publishPageIds), removed=new Set(a.changes.unpublishPageIds??[])
       if([...removed].some(id=>!captured.pages.some(p=>p.id===id)&&!captured.base?.routes.some(r=>r.sourceId===id)))throw notFound('Recurso')
       let routes=structuredClone(captured.base?.routes)??captured.pages.filter(p=>p.status==='published'&&p.visibility==='public'&&!selected.has(p.id)).map(p=>({path:p.routePath,sourceKind:'page',sourceId:p.id,document:p.publishedBuilderData,seo:p.seo??{},title:p.title,slug:p.slug,visibility:p.visibility}))
@@ -154,14 +161,13 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
           if(!valid)throw failure('asset_type_mismatch',422)
           const ref=await storeObject(a,bytes,file.mimeType);assets[ref.hash]=ref
           // IDs remain stable, URLs are explicit immutable bindings.
-          dynamic.push({kind:'file',fileId,hash:ref.hash});return value.startsWith('file:')?`/public/website/releases/${existing.id}/assets/${ref.hash}`:value
+          dynamic.push({kind:'file',fileId,hash:ref.hash,contentRevision:file.contentRevision});return value.startsWith('file:')?`/public/website/releases/${existing.id}/assets/${ref.hash}`:value
         }
         if(field==='formId'&&value) {
-          const form=await prisma.websiteForm.findFirst({where:{id:value,companyId:a.companyId,siteId:a.siteId,enabled:true}})
-          if(!form)throw failure('form_scope_unresolved',422)
-          // S2 deliberately did not introduce canonical FormScope. Publishing a
-          // binding known to disagree with the live capture owner would be false readiness.
-          throw failure('form_scope_unresolved',422)
+          const status=await formScopes.publishability({companyId:a.companyId,siteId:a.siteId,formId:value})
+          if(status.state!=='publishable')throw Object.assign(failure(status.reason?.code??'form_scope_unresolved',422),{publicationResource:{kind:'form',id:status.state==='not_found'?null:value}})
+          const state=await formScopes.inspect({companyId:a.companyId,formId:value})
+          dynamic.push({kind:'form',formId:value,ownerKind:'website',websiteSiteId:a.siteId,analyticsPropertyId:state.scope.analyticsPropertyId});return value
         }
         if(field==='productId'&&value) {
           const selector=/^[0-9a-f-]{36}$/i.test(value)?{id:value}:{slug:value}
@@ -174,21 +180,37 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         return value
       }
       for(const r of routes) {
-        if(r.visibility!=='public')throw failure('page_not_public',422)
-        websiteReleasePath(r.path);if(paths.has(r.path))throw failure('route_conflict',422);paths.add(r.path)
-        r.document=normalizeWebsiteDocument(r.document,{strict:true})
-        if(Object.values(r.document.blocks).some(b=>!known.has(b.type)))throw failure('unknown_block_type',422)
-        for(const block of Object.values(r.document.blocks))for(const [name,value]of Object.entries(block.props??{})) {
-          const definition=definitions.get(block.type),field=definition.fields[name]
-          if(!field)throw failure('unknown_block_property',422)
-          if(value==null||JSON.stringify(value)===JSON.stringify(definition.defaultProps?.[name]))continue
-          if((['text','textarea','link','image','color'].includes(field.type)&&typeof value!=='string')||
-            (field.type==='number'&&(typeof value!=='number'||!Number.isFinite(value)))||
-            (field.type==='toggle'&&typeof value!=='boolean')||
-            (field.type==='select'&&!field.options?.includes(value)))throw failure('invalid_block_property',422)
-        }
-        r.document=await visit(r.document);r.seo=await visit(r.seo);r.documentHash=hash(r.document)
+        location={pageId:r.sourceId,blockId:null,blockType:null}
+        try {
+          if(r.visibility!=='public')throw failure('page_not_public',422)
+          websiteReleasePath(r.path);if(paths.has(r.path))throw failure('route_conflict',422);paths.add(r.path)
+          r.document=normalizeWebsiteDocument(r.document,{strict:true})
+          for(const block of Object.values(r.document.blocks)) {
+            location={pageId:r.sourceId,blockId:block.id,blockType:block.type}
+            try {
+              const definition=definitions.get(block.type)
+              if(!definition)throw failure('unknown_block_type',422)
+              // BookingFormBlock has no executable public booking contract, even with an empty ID.
+              if(block.type==='ContactFormBlock'&&!block.props?.formId)throw failure('form_not_found',422)
+              if(block.type==='BookingFormBlock')throw failure('dynamic_binding_unavailable',422)
+              for(const [name,value]of Object.entries(block.props??{})) {
+                const field=definition.fields[name]
+                if(!field)throw failure('unknown_block_property',422)
+                if(value==null||JSON.stringify(value)===JSON.stringify(definition.defaultProps?.[name]))continue
+                if((['text','textarea','link','image','color'].includes(field.type)&&typeof value!=='string')||
+                  (field.type==='number'&&(typeof value!=='number'||!Number.isFinite(value)))||
+                  (field.type==='toggle'&&typeof value!=='boolean')||
+                  (field.type==='select'&&!field.options?.includes(value)))throw failure('invalid_block_property',422)
+              }
+              block.props=await visit(block.props)
+            }catch(e){if(!a.readOnly)throw e;issues.push(issue(e))}
+          }
+          location={pageId:r.sourceId,blockId:null,blockType:null}
+          const {blocks,...metadata}=r.document;r.document={...await visit(metadata),blocks}
+          r.seo=await visit(r.seo);r.documentHash=hash(r.document)
+        }catch(e){if(!a.readOnly)throw e;issues.push(issue(e))}
       }
+      location={pageId:null,blockId:null,blockType:null}
       const include=a.changes.includeThemeAndMenus!==false
       if(!captured.base&&!include)throw failure('theme_snapshot_required',422)
       const menus=include?captured.menus.map(m=>({id:m.id,name:m.name,location:m.location,items:captured.items.filter(i=>i.menuId===m.id).map(i=>({id:i.id,label:i.label,url:i.url,pageId:i.pageId,parentId:i.parentId,target:i.target,sortOrder:i.sortOrder}))})):captured.base.menus
@@ -214,9 +236,11 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         identity:await visit({name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{},analyticsMode:identity.analyticsMode??'off',turnstileSiteKey:identity.turnstileSiteKey??null}),
         theme:include?await visit(captured.theme?{tokens:captured.theme.tokens,typography:captured.theme.typography,layout:captured.theme.layout,customCss:captured.theme.customCss}:null):captured.base.theme,
         menus,runtime:{rendererVersion:runtimeFiles['entry.js'].rendererVersion??'0.2.0',blockRegistryVersion:'runly-s3',assets:runtimeAssets}}
+      if(a.readOnly)return {canPublish:issues.length===0,issues,expectedDraftRevision:captured.current.draftRevision,expectedPublicationRevision:captured.current.publicationRevision,baseReleaseId:captured.current.activeReleaseId}
       await afterPrepare(manifest)
       return await prisma.websiteRelease.update({where:{id:existing.id,state:'preparing'},data:{state:'ready',manifest,manifestHash:hash(manifest)}})
     } catch(e) {
+      if(a.readOnly)return {canPublish:false,issues:[{severity:'blocking',code:e.code??'dependency_unavailable',pageId:null,blockId:null,blockType:null,resource:null,remediation:[{action:'wait'}]}]}
       if(e.code==='P2025') {
         const ready=await release(prisma,a,captured.releaseId)
         if(ready.state==='ready') {verify(ready);return ready}
@@ -224,6 +248,37 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
       await prisma.websiteRelease.updateMany({where:{id:existing.id,state:'preparing'},data:{state:'failed',failureCode:e.code??'preparation_failed'}})
       throw e instanceof WebsiteServiceError?e:failure('preparation_failed',503)
     }
+  }
+  async function preflight(input) {
+    assertWebsiteAccess(input.access,input.companyId,'website.pages.publish')
+    assertWebsiteAccess(input.access,input.companyId,'website.site.read')
+    const current=await site(prisma,input)
+    if(input.kind==='dist'){
+      assertWebsiteAccess(input.access,input.companyId,'website.dist.upload')
+      const issues=[]
+      try{
+        if(input.expectedDraftRevision!==undefined&&revision(input.expectedDraftRevision)!==current.draftRevision)throw failure('draft_changed')
+        if(input.expectedPublicationRevision!==undefined&&revision(input.expectedPublicationRevision)!==current.publicationRevision||input.baseReleaseId!==undefined&&input.baseReleaseId!==current.activeReleaseId)throw failure('publication_conflict')
+        const imported=await imports.get({...input,importId:input.importId})
+        if(imported.phase!=='ready')throw failure('import_not_ready')
+        const hosts=await prisma.websiteDomain.findMany({where:{companyId:input.companyId,siteId:input.siteId,state:'assigned',ready:true}})
+        if(!hosts.length||!isolation)throw failure('isolation_required')
+        for(const host of hosts)isolation.publicHost(host.hostname)
+        for(const file of imported.manifest.files){
+          const bytes=await storage.get(file.objectKey)
+          if(bytes.length!==file.size||releaseBytesHash(bytes)!==file.hash)throw failure('integrity_failed',503)
+          if(file.mime!=='text/html'){
+            const bound=await prisma.websitePublicAssetBinding.findFirst({where:{companyId:input.companyId,siteId:input.siteId,path:file.path}})
+            if(bound&&bound.hash!==file.hash)throw failure('asset_path_conflict',422)
+          }
+        }
+      }catch(e){issues.push({severity:'blocking',code:e.code??'dependency_unavailable',pageId:null,blockId:null,blockType:null,resource:{kind:'asset',id:null},remediation:[{action:'wait'}]})}
+      return {canPublish:issues.length===0,issues,expectedDraftRevision:current.draftRevision,expectedPublicationRevision:current.publicationRevision,baseReleaseId:current.activeReleaseId}
+    }
+    if(input.kind&&input.kind!=='builder')throw failure('validation_failed',422)
+    const request={...input,kind:'builder',idempotencyKey:'read-only-preflight',expectedDraftRevision:input.expectedDraftRevision??current.draftRevision,expectedPublicationRevision:input.expectedPublicationRevision??current.publicationRevision,baseReleaseId:input.baseReleaseId===undefined?current.activeReleaseId:input.baseReleaseId}
+    readOnlyCalls.add(request)
+    return prepare(request)
   }
   async function change(input,action='activate') {
     const a=authorize(input);key(a)
@@ -250,6 +305,11 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         let target=null
         if(action!=='unpublish') {
           target=await release(tx,a,a.releaseId);verify(target)
+          for(const ref of target.manifest.dynamic??[])if(ref.kind==='form'){
+            await tx.$queryRaw`SELECT id FROM website_form WHERE id=${ref.formId}::uuid AND company_id=${a.companyId}::uuid FOR SHARE`
+            const status=await formScopes.publishability({companyId:a.companyId,siteId:a.siteId,formId:ref.formId,db:tx})
+            if(status.state!=='publishable')throw failure(status.reason?.code??'form_scope_unresolved',422)
+          }
           if(current.sourceType!==target.manifest.kind)assertWebsiteAccess(a.access,a.companyId,'website.site.update')
           if(target.manifest.kind==='dist')for(const file of target.manifest.files.filter(f=>f.mime!=='text/html')){
             const prior=await tx.websitePublicAssetBinding.findUnique({where:{siteId_path:{siteId:a.siteId,path:file.path}}})
@@ -318,8 +378,8 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     if(!Number.isInteger(limit)||limit<1||limit>100)throw failure('validation_failed',422)
     if(a.cursor)await release(prisma,a,a.cursor)
     const rows=await prisma.websiteRelease.findMany({where:{companyId:a.companyId,siteId:a.siteId},orderBy:[{createdAt:'desc'},{id:'desc'}],take:limit+1,...(a.cursor&&{cursor:{id:a.cursor},skip:1})})
-    const data=rows.slice(0,limit);return {data,meta:{nextCursor:rows.length>limit?data.at(-1).id:null}}
+    const data=rows.slice(0,limit).map(contractDTO.releaseDTO);return {data,meta:{nextCursor:rows.length>limit?data.at(-1).id:null}}
   }
-  async function get(input) {const a=authorize(input,'website.pages.read');await site(prisma,a);return release(prisma,a,a.releaseId)}
-  return {prepare,preparePreview,publishLegacy,activate:a=>change(a),rollback:a=>change(a,'rollback'),unpublish:a=>change(a,'unpublish'),list,get}
+  async function get(input) {const a=authorize(input,'website.pages.read');await site(prisma,a);return contractDTO.releaseDTO(await release(prisma,a,a.releaseId))}
+  return {prepare,preflight,preparePreview,publishLegacy,activate:a=>change(a),rollback:a=>change(a,'rollback'),unpublish:a=>change(a,'unpublish'),list,get}
 }

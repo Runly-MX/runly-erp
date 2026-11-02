@@ -1,0 +1,75 @@
+# Website: contratos del cierre funcional de backend
+
+Base: `c7865f6001d9fb90a51e0f8f6432bcddfa45238d`. Rama local `website-backend-closure`. Este documento complementa contratos v1, cierre S4 y diseño §15; no modifica los documentos de diseño. Trabajo autorizado de backend; Website sigue NO APTO E2E hasta la integración final con React.
+
+## Consumo administrativo
+
+Se conservan las rutas actuales, sus respuestas y las firmas SDK anteriores. No se crea `/website/v1`. Todas las operaciones privadas usan empresa y actor del contexto autenticado; los IDs de otra empresa producen 404 opaco. Respuestas administrativas `Cache-Control: no-store`.
+
+| Contrato | Ruta / SDK | Resultado y permiso |
+|---|---|---|
+| C-1/C-2 | GET `/website/sites/:siteId/state` / `website.getSiteState(siteId,token)` | `{data: SiteState}`; `website.site.read`. |
+| C-3 | POST `/website/sites/:siteId/releases/preflight` / `website.preflightRelease(siteId,data,token)` | `{data: Preflight}`; `website.pages.publish` + `website.site.read`, y `website.dist.upload` para dist. **Sin Idempotency-Key**, recibo, release, audit de escritura, pinning ni cambios de Storage. |
+| C-4 | GET `/website/sites/:siteId/forms` / `website.listSiteForms(siteId,token)` | `{data: FormDTO[]}`; site.read y forms.read, con equivalencias S1. Solo propietario Website de ese sitio o históricos sin mapa identificados como bloqueados. |
+| Resolución histórica Website | POST `/website/sites/:siteId/forms/:formId/scope` / `website.resolveFormScope(siteId,formId,data,token)` | `{expectedLegacySiteId,resolveAmbiguous?:boolean}`; forms.update. Crea mapa y espejo analítico por comando explícito; conserva form.siteId. Resolver una colisión requiere además growth.forms.update. No se permite cambiar un propietario ya fijado. |
+| Resolución histórica Growth | POST `/growth/forms/:formId/scope` | `{propertyId,expectedLegacySiteId,resolveAmbiguous?:boolean}`; growth.forms.update y, si hay colisión, website.forms.update. Mismo servicio, sin atribuir el formulario a Website. |
+| C-5 | GET `/website/sites/:siteId/publication/integrity` / `website.getPublicationIntegrity(siteId,token)` | `{data:{releaseId,integrityMode,integrityWarnings}}`; site.read. No crea un release para representar un histórico. |
+| C-5 en historial | GET de listado/detalle de releases existentes | Campos aditivos `integrityMode` e `integrityWarnings`, además del manifest actual. Permiso pages.read conservado. |
+
+`SiteState`: `{id,companyId,draftRevision,publicationRevision,activeReleaseId,lifecycle,hasUnpublishedChanges,pages,capabilities,effectivePermissions}`. El frontend combina este recurso con los DTO/listados existentes de sitio y dominios; no debe inferir un dominio listo desde el nombre del sitio.
+
+`capabilities` usa claves del diseño: `site.edit`, `pages.create/update/delete/publish`, `release.rollback`, `site.unpublish/archive`, `domains.reserve/custom`, `forms.manage/publish`, `submissions.read/export/delete`, `import.zip`, `preview.site`, `catalog.link`; se añade `calendar.publish`. Cada valor es `{allowed:true}` o `{allowed:false,reason:{code,requiredPermission?}}`. Razones: permission_denied, feature_unavailable, lifecycle_state, namespace_unavailable, isolation_required, dynamic_binding_unavailable. Se devuelven permisos efectivos conocidos de Website, incluyendo equivalencias históricas explícitas. Esto orienta UI; cada comando vuelve a autorizar desde backend.
+
+Custom domains, exportación y borrado de respuestas siguen no disponibles; Calendar sigue bloqueado. Import y preview requieren configuración de aislamiento del servidor. `forms.publish` indica disponibilidad de la integración y permiso para iniciar publicación; **no** afirma que todos los formularios/borradores del sitio sean publicables. Para ello se consultan C-4 y preflight de la selección concreta.
+
+`pages[]`: `{id,revision,hasUnpublishedChanges,publicState:'unpublished'|'published'|'changed',publicReleaseId,documentHash}`. Se compara documento normalizado y metadatos/SEO con el snapshot activo, no timestamps ni igualdad de contadores. El agregado builder incluye identidad, tema, menús, blog, páginas eliminadas del borrador y revisiones de archivos fijados. Rollback/unpublish no cambian borradores. Guardar el mismo documento no implica cambios públicos por incrementar revision. En una publicación dist no hay borrador editable del ZIP persistido: su contenido se gestiona por import/candidato; el indicador del sitio dist no anuncia una edición de archivos que el sistema no almacena. Los borradores builder siguen conservados y sus estados por página están disponibles para volver a esa fuente.
+
+Sin pages.read se devuelve el indicador agregado del sitio, pero pages queda vacío; no se revelan IDs/hashes de borradores. usedBy de formularios también se omite mediante una lista vacía sin permiso pages.read, conservando la publicabilidad del formulario autorizado.
+
+Para bindings de imagen de sellos antiguos sin contentRevision, C-2 compara el checksum SHA-256 o verifica los bytes privados acotados del archivo; no marca un cambio solo por faltar esa metadata ni reescribe el release. Si no puede verificar la dependencia, responde 503 dependency_unavailable en vez de inventar igualdad/diferencia.
+
+## Preflight
+
+Entrada builder: `{kind:'builder',changes:{publishPageIds,publishPostIds?,unpublishPageIds?,includeThemeAndMenus?},expectedDraftRevision?,expectedPublicationRevision?,baseReleaseId?}`. Entrada dist: `{kind:'dist',importId,expectedDraftRevision?,expectedPublicationRevision?,baseReleaseId?}`. Las revisiones omitidas se capturan del estado actual; las suministradas detectan conflictos. La preparación y activación siguen exigiendo sus contratos S3 completos.
+
+Salida: `{canPublish,issues,expectedDraftRevision?,expectedPublicationRevision?,baseReleaseId?}`. Cada issue contiene `{severity:'blocking',code,pageId,blockId,blockType,resource,remediation}`; los identificadores no aplicables son null. Un recurso ajeno/no encontrado no devuelve su nombre ni su ID resuelto. `resource` es `{kind,id}` o null. Códigos reutilizan el publisher; se identifican formularios y Calendar por bloque, y problemas globales sin inventar una página responsable. Se acumulan problemas por bloque; dentro de un bloque se informa la primera causa detectada. Los errores globales pueden impedir completar el diagnóstico.
+
+`remediation[].action`: `replace_resource`, `exclude_page`, `resolve_owner`, `wait`. Son recomendaciones declarativas, **nunca comandos ejecutados automáticamente**. Un análisis local puede complementar el diagnóstico, pero no reemplaza la validación backend. Una respuesta positiva es temporal: preparar y activar vuelven a comprobar autorización/revisiones e integridad; activar también comprueba que los formularios sigan habilitados y con propietario válido.
+
+Se conserva la composición S3: omitir una página de publishPageIds mantiene su snapshot previo en el nuevo release; unpublishPageIds la retira expresamente. Todos los snapshots incluidos se validan. Esto no permite conservar bloques no publicables por omisión silenciosa ni componer parcialmente un ZIP.
+
+## FormScope, definiciones y respuestas
+
+Migración aditiva `20261102180000_website_form_scope`: WebsiteFormScope, revisión de definición y contexto nullable de respuestas nuevas. CHECK/FKs compuestas, RLS y revocación de anon/authenticated; el mapa tipado es inmutable. **No hay backfill automático de propietarios.** Históricos conservan IDs, form.siteId, datos y fechas de respuestas. Lecturas no crean espejos ni scopes. Los comandos de creación de formularios nuevos crean su mapa/espejo en transacción; el propietario lo determina el adaptador Website o Growth, nunca un campo arbitrario del body.
+
+Propietario Website: `ownerKind:'website'`, ownerWebsiteSiteId, analyticsPropertyId del espejo (los espejos nuevos reciben un ID diferente; un espejo histórico existente se conserva). Propietario Growth: `ownerKind:'growth_property'`, ownerPropertyId y analyticsPropertyId iguales; no requiere WebsiteSite para external_sdk. Un formulario Growth vinculado a un sitio no cambia de dueño ni aparece como administrable por Website. Su SDK añade `growth.resolveFormScope(formId,data,token)`.
+
+`FormDTO` conserva campos actuales y añade `definitionRevision`, propietario tipado cuando está resuelto y `publishability:{state,reason?,usedBy:[{pageId,blockId}]}` en el listado contextual Website. Estados: publishable, owner_unresolved, owner_ambiguous, disabled; not_found para referencias inexistentes/ajenas en diagnósticos. **Extensión respecto al diseño:** dependency_unavailable distingue dependencias sin configurar de un propietario sin resolver; reason.code es dependency_unavailable y reason.dependency identifica turnstile o assignee. Un CAPTCHA obligatorio sin claves o un responsable histórico que no sea miembro activo de la empresa bloquean publicación; no se notifica a usuarios ajenos. El get/list legacy conserva compatibilidad, con diagnóstico de publicabilidad; el listado contextual es la fuente de usedBy. Las colisiones requieren resolución explícita con permisos de ambos propietarios; nunca se elige el primer registro.
+
+La definición cambia al editar metadata/habilitación o campos. FormScope no publica páginas; un formulario resuelto solo se ofrece públicamente cuando está referenciado por un release activo válido, o por una página legacy realmente publicada. Propiedad/empresa/sitio habilitados se validan en vivo. Para Growth externo se exige propiedad activa y origen configurado. Orígenes cruzados se rechazan.
+
+API pública conservada: GET `/public/storefront/v1/forms/:formId` y POST `.../submissions`. `X-Runly-Company` más **uno** de `X-Runly-Website-Site` o `X-Runly-Property`; `X-Runly-Page` opcional para atribución explícita. X-Runly-Site legacy solo resuelve sin ambigüedad; selectores contradictorios dan 400 scope_conflict. El config público añade websiteSiteId/propertyId y conserva siteId como identidad analítica legacy. Nunca aprovisiona desde GET.
+
+Los SDK públicos aceptan websiteSiteId/propertyId explícitos tanto para formularios como para analítica. Los beacons de eventos, que no admiten headers propios, usan los mismos selectores tipados como query websiteSiteId/propertyId; se valida su exclusión y consistencia. Las claves e identificadores de visitante/sesión legacy no se migran ni se borran por este contrato.
+
+Definición pública: allowlist existente más definitionRevision; sin notifyEmail, responsable ni secretos. POST conserva values, honeypot, turnstileToken y contexto opcional; añade expectedDefinitionRevision. Su uso es recomendado tras GET y está incorporado por los clientes actualizados cuando conocen la revisión. Legacy sin revisión sigue aceptado; una revisión suministrada desactualizada da 409 form_definition_changed y no guarda datos. El SDK npm conserva sus códigos anteriores y añade `serverCode` para el código específico del backend.
+
+Se conserva la transacción de captura, validación de campos, antispam, idempotencia formId/key y creación de leads/notificación existente; no se añaden automatizaciones. Tras verificar antispam se bloquean brevemente sitio/formulario/propiedad y se revalidan publicación, habilitación y revisión antes de escribir. Retirar/deshabilitar o cambiar la definición durante la verificación impide una aceptación posterior con la política anterior.
+
+El lector compartido y el endpoint legacy limitan el body medido por streaming a 64 KiB. Para Website, la política/secretos de Turnstile se leen del sitio canónico, sin depender de un espejo desactualizado ni exponer el secreto al cliente. La CSP builder permite exclusivamente el script/frame de challenges.cloudflare.com cuando existe esa integración configurada; ZIP y previews conservan su aislamiento. [Directivas oficiales de Turnstile](https://developers.cloudflare.com/turnstile/reference/content-security-policy/). Las pruebas locales interceptan el widget y el verificador: no certifican claves ni servicios de un proveedor desplegado.
+
+Las respuestas nuevas registran definitionRevision y ownerScopeId; Website añade websiteSiteId, releaseId y pageId cuando el contexto es inequívoco o explícito. En una ruta blog de S3 se usa blogPostId en vez de atribuir ese ID a WebsitePage; el header X-Runly-Page identifica la fuente de la ruta y el servidor discrimina su tipo. usedBy añade `{pageId:null,blogPostId,blockId}` para referencias en borradores blog. Si varias páginas usan el mismo formulario y un cliente legacy no indica página, no se inventa una atribución. Las respuestas históricas conservan null en campos nuevos. La consulta administrativa usa owner/permisos existentes, audit y allowlist sin claves idempotentes ni identificadores internos de visitante/sesión. Deshabilitar un formulario bloquea captura pero conserva consulta autorizada de sus respuestas. Exportación y borrado continúan bloqueados por retención.
+
+## Integridad y rutas
+
+`integrityMode:'sealed'` solo para un release ready con manifest verificado. `unknown` indica preparación/fallo o integridad no acreditada; no se etiqueta como sellado por omisión. Sitio histórico no gestionado: `{releaseId:null,integrityMode:'legacy-reference',integrityWarnings:[{code:'historical_references_unverified'}]}`. No se inventan versiones ni se reescriben releases.
+
+Nginx principal e instalador aíslan el SPA administrativo por origen. `?edit=1` no activa el editor en el runtime público; el fallback público y `/app/` quedan denegados. El guardia API rechaza rutas administrativas también en hosts desconocidos. El código React antiguo permanece para compatibilidad administrativa, bajo autenticación/autorización de sus operaciones; su migración a la ruta administrativa definitiva corresponde al worktree de frontend. No se generan redirecciones públicas con tokens ni se comparte una sesión ERP con el origen de contenido.
+
+Los hosts administrativos proceden de RUNLY_APP_URL y RUNLY_API_URL (con ATLAS_API_URL como alias histórico de API), además del loopback local. Un hostname API adicional debe estar configurado expresamente: no se lo trata como administrativo por carecer de WebsiteDomain. El gate del SPA admite solo el origen web configurado; permitir el host API no habilita el editor en ese host. Esta exigencia se verifica localmente; no se alteró ninguna configuración de una instalación compartida.
+
+## Límites que siguen vigentes
+
+BookingFormBlock es un marcador sin contrato público de disponibilidad/reserva. Calendar permanece no disponible, incluso con calendarId vacío; no se consulta ni expone un calendario privado para improvisar la integración. Requiere un contrato autorizado de reservas/disponibilidad antes de habilitarlo. No se creó un módulo ni una automatización.
+
+El paquete builder sigue 0.2.4; sus callbacks dirty/readOnly siguen pendientes del paquete. S4 conserva límites ZIP, almacenamiento privado, dominios independientes y restricciones de preview dinámico. Faltan infraestructura pública y validación integral React/backend; este contrato no declara Website APTO E2E.

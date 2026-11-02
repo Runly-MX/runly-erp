@@ -1,10 +1,10 @@
+import {createWebsiteFormScopeService} from './website-form-scope-service.js';
 import { createHash } from "node:crypto";
 
 import {
   publicFormSubmissionSchema,
   storefrontEventBatchSchema,
 } from "../routes/storefront/storefront-capture-validators.js";
-import { createGrowthPropertyService } from "../routes/growth/growth-property-service.js";
 import { createSmtpService } from "./smtp-service.js";
 import { buildFormSubmissionEmail } from "./email-templates.js";
 
@@ -68,9 +68,12 @@ export function createStorefrontCaptureService({
   verifyTurnstile = async () => false,
   notificationService = null,
   now = () => new Date(),
-  growthPropertyService = createGrowthPropertyService({ prisma, now }),
   smtpService = createSmtpService({ prisma }),
 }) {
+  const formScopes=createWebsiteFormScopeService({prisma});
+  async function formContext(input) {
+    try{return await formScopes.publicContext(input)}catch(e){const status=[400,403,409].includes(e.status)?e.status:404;throw new StorefrontCaptureError(status===404?'form_not_found':e.code,'Formulario no disponible.',status)}
+  }
   function hashOpaqueId(siteId, value) {
     return createHash("sha256")
       .update(`${siteId}:${String(value)}`)
@@ -146,7 +149,7 @@ export function createStorefrontCaptureService({
     }
   }
 
-  async function resolveSite({ companySlug, siteId, origin }) {
+  async function resolveSite({ companySlug, siteId, websiteSiteId,propertyId,origin }) {
     const normalizedCompanySlug = String(companySlug ?? "").trim();
     if (!normalizedCompanySlug) {
       throw new StorefrontCaptureError(
@@ -168,10 +171,18 @@ export function createStorefrontCaptureService({
       );
     }
 
-    const site = await growthPropertyService.resolveProperty({
-      companyId: company.id,
-      propertyId: siteId,
-    });
+    if(websiteSiteId&&propertyId||siteId&&(websiteSiteId&&siteId!==websiteSiteId||propertyId&&siteId!==propertyId))throw new StorefrontCaptureError('scope_conflict','Selectores incompatibles.',400);
+    let site;
+    if(websiteSiteId)site=await prisma.growthProperty.findFirst({where:{companyId:company.id,websiteSiteId,enabled:true}});
+    else if(propertyId)site=await prisma.growthProperty.findFirst({where:{companyId:company.id,id:propertyId,enabled:true}});
+    else if(siteId){
+      const [ws,gp]=await Promise.all([prisma.websiteSite.findFirst({where:{id:siteId,companyId:company.id,enabled:true}}),prisma.growthProperty.findFirst({where:{id:siteId,companyId:company.id,enabled:true}})]);
+      if(ws&&gp)throw new StorefrontCaptureError('ambiguous_site_identifier','La referencia requiere revision.',409);
+      site=gp??(ws?await prisma.growthProperty.findFirst({where:{companyId:company.id,websiteSiteId:ws.id,enabled:true}}):null);
+    }else{
+      const ws=await prisma.websiteSite.findFirst({where:{companyId:company.id,defaultForCompany:true,enabled:true}});
+      site=ws?await prisma.growthProperty.findFirst({where:{companyId:company.id,websiteSiteId:ws.id,enabled:true}}):null;
+    }
     if (!site) {
       throw new StorefrontCaptureError(
         "site_not_found",
@@ -180,6 +191,7 @@ export function createStorefrontCaptureService({
       );
     }
 
+    if(site.websiteSiteId){const owner=await prisma.websiteSite.findFirst({where:{id:site.websiteSiteId,companyId:company.id,enabled:true}});if(!owner)throw new StorefrontCaptureError('site_not_found','Sitio no encontrado.',404);site={...site,analyticsMode:owner.analyticsMode,turnstileSiteKey:owner.turnstileSiteKey,turnstileSecretKey:owner.turnstileSecretKey};}
     assertAllowedOrigin(site, origin);
     return { company, site };
   }
@@ -190,6 +202,7 @@ export function createStorefrontCaptureService({
     const { site } = await resolveSite({ ...input, origin: undefined });
     return {
       siteId: site.id,
+      websiteSiteId:site.websiteSiteId??null,propertyId:site.id,
       analyticsMode: site.analyticsMode,
       respectDoNotTrack: true,
       turnstileSiteKey: site.turnstileSiteKey ?? null,
@@ -202,7 +215,7 @@ export function createStorefrontCaptureService({
 
   async function captureEvents({
     companySlug,
-    siteId,
+    siteId,websiteSiteId,propertyId,
     origin,
     dnt,
     authenticatedProfileId = null,
@@ -220,7 +233,7 @@ export function createStorefrontCaptureService({
 
     const { company, site } = await resolveSite({
       companySlug,
-      siteId,
+      siteId,websiteSiteId,propertyId,
       origin,
     });
     assertAnalyticsPolicy(site, {
@@ -372,34 +385,8 @@ export function createStorefrontCaptureService({
     });
   }
 
-  async function getPublicForm({ companySlug, siteId, formId, origin }) {
-    const { company, site } = await resolveSite({
-      companySlug,
-      siteId,
-      origin,
-    });
-    const form = await prisma.websiteForm.findFirst({
-      where: {
-        id: formId,
-        companyId: company.id,
-        siteId: site.id,
-        enabled: true,
-      },
-      include: {
-        fields: {
-          where: { enabled: true },
-          orderBy: { sortOrder: "asc" },
-        },
-      },
-    });
-    if (!form) {
-      throw new StorefrontCaptureError(
-        "form_not_found",
-        "Formulario no encontrado.",
-        404,
-      );
-    }
-    return form;
+  async function getPublicForm(input) {
+    return (await formContext(input)).form;
   }
 
   function validateFormValues(form, values) {
@@ -516,6 +503,7 @@ export function createStorefrontCaptureService({
   async function submitForm({
     companySlug,
     siteId,
+    websiteSiteId, propertyId, pageId,
     formId,
     origin,
     idempotencyKey,
@@ -540,17 +528,9 @@ export function createStorefrontCaptureService({
       );
     }
 
-    const { company, site } = await resolveSite({
-      companySlug,
-      siteId,
-      origin,
-    });
-    const form = await getPublicForm({
-      companySlug,
-      siteId: site.id,
-      formId,
-      origin,
-    });
+    const context=await formContext({companySlug,siteId,websiteSiteId,propertyId,pageId,formId,origin});
+    const {company,site,form}=context;
+    if(parsed.data.expectedDefinitionRevision!==undefined&&parsed.data.expectedDefinitionRevision!==form.definitionRevision)throw new StorefrontCaptureError('form_definition_changed','El formulario cambió. Recarga su definición.',409);
 
     const existing = await prisma.websiteFormSubmission.findUnique({
       where: {
@@ -605,6 +585,9 @@ export function createStorefrontCaptureService({
 
     try {
       const transactionResult = await prisma.$transaction(async (tx) => {
+        const locked=await formContext({companySlug,siteId,websiteSiteId,propertyId,pageId,formId,origin,db:tx,lock:true});
+        if(locked.form.definitionRevision!==form.definitionRevision)throw new StorefrontCaptureError('form_definition_changed','El formulario cambió. Recarga su definición.',409);
+
         const visitor = visitorKeyHash
           ? await tx.growthVisitor.findUnique?.({
               where: {
@@ -632,6 +615,8 @@ export function createStorefrontCaptureService({
           data: {
             companyId: company.id,
             formId: form.id,
+            definitionRevision: form.definitionRevision,
+            ownerScopeId:locked.scope.id,websiteSiteId:locked.binding?.websiteSiteId??null,pageId:locked.binding?.pageId??null,blogPostId:locked.binding?.blogPostId??null,releaseId:locked.binding?.releaseId??null,
             data: cleanValues,
             idempotencyKey: normalizedIdempotencyKey,
             visitorId: visitor?.id ?? null,

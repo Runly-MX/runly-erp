@@ -1407,6 +1407,7 @@ model WebsitePage {
   @@unique([companyId, id])
   @@unique([companyId, siteId, routePath])
   @@index([companyId, status])
+  @@unique([companyId,siteId,id],map:"website_page_company_site_scope_idx")
   @@map("website_page")
 }
 
@@ -1546,10 +1547,32 @@ model WebsiteBlogPost {
 
   @@unique([companyId, siteId, slug])
   @@index([companyId, siteId, status, enabled])
+  @@unique([companyId,siteId,id],map:"website_blog_company_site_scope_idx")
   @@map("website_blog_post")
 }
 
+model WebsiteFormScope {
+  id String @id @default(uuid(7)) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  formId String @db.Uuid @map("form_id")
+  ownerKind String @map("owner_kind")
+  ownerWebsiteSiteId String? @db.Uuid @map("owner_website_site_id")
+  ownerPropertyId String? @db.Uuid @map("owner_property_id")
+  analyticsPropertyId String @db.Uuid @map("analytics_property_id")
+  legacySiteId String @db.Uuid @map("legacy_site_id")
+  classification String
+  policyVersion String @map("policy_version")
+  createdAt DateTime @default(now()) @map("created_at")
+  @@unique([companyId,formId])
+  @@unique([companyId,formId,id])
+  @@index([companyId,ownerWebsiteSiteId],map:"website_form_scope_site_idx")
+  @@index([companyId,ownerPropertyId],map:"website_form_scope_property_idx")
+  @@index([companyId,analyticsPropertyId],map:"website_form_scope_analytics_idx")
+  @@map("website_form_scope")
+}
+
 model WebsiteForm {
+  definitionRevision Int @default(0) @map("definition_revision")
   id             String   @id @default(uuid(7)) @db.Uuid
   companyId      String   @db.Uuid @map("company_id")
   siteId         String   @db.Uuid @map("site_id")
@@ -1601,6 +1624,12 @@ model WebsiteFormField {
 }
 
 model WebsiteFormSubmission {
+  blogPostId String? @db.Uuid @map("blog_post_id")
+  ownerScopeId String? @db.Uuid @map("owner_scope_id")
+  websiteSiteId String? @db.Uuid @map("website_site_id")
+  pageId String? @db.Uuid @map("page_id")
+  releaseId String? @db.Uuid @map("release_id")
+  definitionRevision Int? @map("definition_revision")
   id             String   @id @default(uuid(7)) @db.Uuid
   companyId      String   @db.Uuid @map("company_id")
   formId         String   @db.Uuid @map("form_id")
@@ -1617,6 +1646,10 @@ model WebsiteFormSubmission {
   @@index([formId, submittedAt])
   @@index([companyId, submittedAt])
   @@index([leadId])
+  @@index([companyId,formId,ownerScopeId],map:"website_submission_scope_idx")
+  @@index([companyId,websiteSiteId,pageId],map:"website_submission_site_page_idx")
+  @@index([companyId,websiteSiteId,blogPostId],map:"website_submission_site_blog_idx")
+  @@index([companyId,websiteSiteId,releaseId],map:"website_submission_release_idx")
   @@map("website_form_submission")
   @@index([companyId, formId], map: "website_submission_owner_idx")
 }
@@ -1792,6 +1825,7 @@ model GrowthProperty {
   @@unique([companyId, websiteSiteId])
   @@index([companyId, enabled])
   @@index([companyId, domain])
+  @@unique([companyId,id],map:"growth_property_company_id_scope_unique")
   @@map("growth_property")
 }
 

@@ -2,7 +2,7 @@ import { createWebsitePublicationContext } from '../../services/website-publicat
 import { createWebsiteReleaseRoutes } from './releases-routes.js'
 import { createWebsiteImportRoutes } from './import-routes.js'
 import { createWebsitePreviewRoutes } from './preview-routes.js'
-import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
+import { websiteAccessFromRequest, websiteErrorHandler,requireWebsitePermission } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { createWebsiteService } from './website-service.js'
@@ -19,6 +19,7 @@ import { WebsiteServiceError } from './service-helpers.js'
 
 export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, publicationContext }) {
   const app = new Hono()
+  app.use('*',async(c,next)=>{c.header('Cache-Control','no-store');return next()})
   app.onError(websiteErrorHandler)
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const websiteSvc = createWebsiteService({ prisma, publicationContext: publication })
@@ -26,6 +27,16 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   app.route('/website',createWebsiteImportRoutes({...publication,requirePermission}))
   app.route('/website',createWebsitePreviewRoutes({...publication,requirePermission}))
   const formsService = createFormsService({ prisma })
+  app.get('/website/sites/:siteId/forms',requirePermission('website.site.read'),async c=>{
+    const args={access:websiteAccessFromRequest(c),companyId:c.get('companyId'),siteId:c.req.param('siteId')};
+    const forms=await formsService.listForms(args);
+    return c.json({data:await Promise.all(forms.map(async f=>({...f,publishability:await publication.contracts.form({...args,formId:f.id})})))});
+  })
+  app.post('/website/sites/:siteId/forms/:formId/scope',requireWebsitePermission(requirePermission,'website.forms.update'),async c=>{
+    const body=await c.req.json().catch(()=>null);
+    if(!body||Object.keys(body).some(k=>!['expectedLegacySiteId','resolveAmbiguous'].includes(k))||typeof body.resolveAmbiguous!=='boolean'&&body.resolveAmbiguous!==undefined)return c.json({code:'validation_failed',error:'Datos inválidos.'},422);
+    return c.json({data:await formsService.resolveFormScope({...body,access:websiteAccessFromRequest(c),companyId:c.get('companyId'),siteId:c.req.param('siteId'),formId:c.req.param('formId')})});
+  })
 
   app.route('/website', createPagesRouter({ websiteSvc, requirePermission }))
   app.route('/website', createThemesRouter({ websiteSvc, requirePermission }))

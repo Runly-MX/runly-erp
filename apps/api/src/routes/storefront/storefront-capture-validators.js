@@ -83,6 +83,7 @@ export const storefrontEventBatchSchema = z.object({
 });
 
 export const publicFormSubmissionSchema = z.object({
+  expectedDefinitionRevision: z.number().int().nonnegative().optional(),
   values: z.record(z.string(), z.unknown()),
   visitorId: opaqueIdSchema.optional(),
   sessionId: opaqueIdSchema.optional(),

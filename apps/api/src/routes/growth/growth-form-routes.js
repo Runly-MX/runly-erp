@@ -27,8 +27,14 @@ function handleError(c, error) {
 
 export function createGrowthFormRoutes({ formsService, growthPropertyService, requirePermission }) {
   const app = new Hono();
+  app.use('*',async(c,next)=>{c.header('Cache-Control','no-store');return next()});
   app.onError(websiteErrorHandler);
 
+  app.post('/growth/forms/:id/scope',requirePermission('growth.forms.update'),async c=>{
+    const body=await c.req.json().catch(()=>null);
+    if(!body||Object.keys(body).some(k=>!['propertyId','expectedLegacySiteId','resolveAmbiguous'].includes(k))||typeof body.resolveAmbiguous!=='boolean'&&body.resolveAmbiguous!==undefined)return c.json({code:'validation_failed',error:'Datos inválidos.'},422);
+    return c.json({data:await formsService.resolveFormScope({...body,siteId:body.propertyId,access:websiteAccessFromRequest(c),companyId:companyId(c),formId:c.req.param('id')})});
+  });
   app.get("/growth/forms", requirePermission("growth.forms.read"), async (c) => {
     const propertyId = c.req.query("propertyId");
     if (!propertyId) return c.json({ data: [] });

@@ -31,6 +31,7 @@ function buildPrisma({ formOverrides = {}, ...overrides } = {}) {
   };
 
   const form = {
+    definitionRevision:0,
     id: FORM_ID,
     companyId: COMPANY_ID,
     siteId: SITE_ID,
@@ -111,7 +112,7 @@ function buildPrisma({ formOverrides = {}, ...overrides } = {}) {
     _state: state,
     company: {
       findFirst: async ({ where }) =>
-        where.slug === "acme" ? { id: COMPANY_ID, slug: "acme" } : null,
+        (where.slug === "acme"||where.id===COMPANY_ID) ? { id: COMPANY_ID, slug: "acme" } : null,
     },
     websiteSite: {
       findFirst: async ({ where }) =>
@@ -252,11 +253,14 @@ function buildPrisma({ formOverrides = {}, ...overrides } = {}) {
         return { count };
       },
     },
+    $queryRaw:async()=>[],
+    membership:{findFirst:async()=>({id:"active-company-membership"})},
+    websiteFormScope:{findFirst:async()=>({ownerKind:'growth_property',ownerPropertyId:SITE_ID,analyticsPropertyId:SITE_ID})},
     websiteForm: {
       findFirst: async ({ where }) =>
         where.id === FORM_ID &&
         where.companyId === COMPANY_ID &&
-        where.siteId === SITE_ID
+        (where.siteId===undefined||where.siteId === SITE_ID)
           ? form
           : null,
     },
@@ -338,6 +342,7 @@ function createService(prisma, options = {}) {
 }
 
 const requestScope = {
+  propertyId:SITE_ID,
   companySlug: "acme",
   siteId: SITE_ID,
   origin: "https://shop.example.com",
@@ -409,7 +414,7 @@ describe("createStorefrontCaptureService", () => {
     assert.equal(scope.site.id, SITE_ID);
 
     await assert.rejects(
-      () => service.resolveSite({ ...requestScope, siteId: "other-site" }),
+      () => service.resolveSite({ ...requestScope, siteId: "other-site",propertyId:"other-site" }),
       (error) =>
         error instanceof StorefrontCaptureError &&
         error.code === "site_not_found" &&
@@ -471,6 +476,7 @@ describe("createStorefrontCaptureService", () => {
     );
     assert.equal(prisma._state.events.length, 0);
 
+    prisma.websiteSite.findFirst = async () => ({id:SITE_ID,companyId:COMPANY_ID,enabled:true,analyticsMode:'consent_required'});
     prisma.growthProperty.findFirst = async () => ({
       id: SITE_ID,
       companyId: COMPANY_ID,
@@ -663,6 +669,7 @@ describe("createStorefrontCaptureService", () => {
     const service = createService(prisma);
 
     const result = await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-replay",
@@ -692,6 +699,7 @@ describe("createStorefrontCaptureService", () => {
     const service = createService(prisma);
 
     const result = await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-new",
@@ -730,6 +738,7 @@ describe("createStorefrontCaptureService", () => {
     const service = createService(prisma);
 
     const result = await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-atomic",
@@ -787,6 +796,7 @@ describe("createStorefrontCaptureService", () => {
     });
 
     await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-notification",
@@ -812,6 +822,7 @@ describe("createStorefrontCaptureService", () => {
     );
 
     await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-notify-1",
@@ -833,6 +844,7 @@ describe("createStorefrontCaptureService", () => {
     );
 
     const result = await service.submitForm({
+          propertyId:SITE_ID,
       ...requestScope,
       formId: FORM_ID,
       idempotencyKey: "submission-notify-2",

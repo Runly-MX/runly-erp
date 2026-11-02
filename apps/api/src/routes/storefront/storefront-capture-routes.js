@@ -50,7 +50,14 @@ export function createTurnstileVerifier({
 }
 
 function requestScope(c, { allowQuery = false } = {}) {
+  if(allowQuery&&getSiteIdHeader(c)&&c.req.query('siteId')&&getSiteIdHeader(c)!==c.req.query('siteId'))throw new StorefrontCaptureError('scope_conflict','Selectores incompatibles.',400);
+  if(allowQuery&&getCompanySlugHeader(c)&&c.req.query('company')&&getCompanySlugHeader(c)!==c.req.query('company'))throw new StorefrontCaptureError('scope_conflict','Selectores incompatibles.',400);
+  for(const [header,key]of [['X-Runly-Website-Site','websiteSiteId'],['X-Runly-Property','propertyId']])if(allowQuery&&c.req.header(header)&&c.req.query(key)&&c.req.header(header)!==c.req.query(key))throw new StorefrontCaptureError('scope_conflict','Selectores incompatibles.',400);
+  const websiteSiteId=c.req.header('X-Runly-Website-Site')||(allowQuery?c.req.query('websiteSiteId'):undefined), propertyId=c.req.header('X-Runly-Property')||(allowQuery?c.req.query('propertyId'):undefined);
+  const legacy=getSiteIdHeader(c)||(allowQuery?c.req.query('siteId'):undefined);
+  if(websiteSiteId&&propertyId||legacy&&(websiteSiteId&&legacy!==websiteSiteId||propertyId&&legacy!==propertyId))throw new StorefrontCaptureError('scope_conflict','Selectores incompatibles.',400);
   return {
+    websiteSiteId,propertyId,pageId:c.req.header('X-Runly-Page'),
     companySlug:
       getCompanySlugHeader(c) ||
       (allowQuery ? c.req.query("company") : undefined),
@@ -77,7 +84,7 @@ function limiterKey(c, kind) {
   return `${kind}:${company}:${site}:${clientAddress(c)}`;
 }
 
-async function readJsonBody(c, maxBodyBytes) {
+export async function readJsonBody(c, maxBodyBytes=DEFAULT_BODY_LIMIT) {
   const declaredLength = Number(c.req.header("Content-Length") ?? 0);
   if (declaredLength > maxBodyBytes) {
     throw new StorefrontCaptureError(
@@ -87,14 +94,12 @@ async function readJsonBody(c, maxBodyBytes) {
     );
   }
 
-  const text = await c.req.text();
-  if (Buffer.byteLength(text, "utf8") > maxBodyBytes) {
-    throw new StorefrontCaptureError(
-      "payload_too_large",
-      "El cuerpo excede 64 KB.",
-      413,
-    );
-  }
+  const chunks=[];let size=0;
+  const reader=c.req.raw.body?.getReader();
+  if(reader)try{
+    for(;;){const {done,value}=await reader.read();if(done)break;size+=value.byteLength;if(size>maxBodyBytes){await reader.cancel();throw new StorefrontCaptureError('payload_too_large','El cuerpo excede 64 KB.',413)}chunks.push(value)}
+  }finally{reader.releaseLock()}
+  const text=Buffer.concat(chunks).toString('utf8');
 
   try {
     return text ? JSON.parse(text) : {};
@@ -110,6 +115,7 @@ async function readJsonBody(c, maxBodyBytes) {
 function publicFormData(form) {
   return {
     id: form.id,
+    definitionRevision: form.definitionRevision,
     name: form.name,
     description: form.description ?? null,
     submitLabel: form.submitLabel,

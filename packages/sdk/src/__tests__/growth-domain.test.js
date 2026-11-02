@@ -23,6 +23,7 @@ describe("atlas SDK - growth domain", () => {
       toQueryString: () => "",
     });
     assert.deepEqual(Object.keys(domain).sort(), [
+      "resolveFormScope",
       "addLeadNote",
       "convertLead",
       "createForm",
@@ -53,7 +54,7 @@ describe("atlas SDK - growth domain", () => {
       "updateLeadComment",
       "updateProperty",
       "verifyProperty",
-    ]);
+    ].sort());
   });
 
   it("sends the expected request shape for every method", async () => {
