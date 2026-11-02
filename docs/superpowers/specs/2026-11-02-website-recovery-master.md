@@ -1,6 +1,8 @@
-# Runly Website Recovery — expediente técnico de Fase 0
+# Runly Website Recovery — expediente técnico de Fases 0 y 1
 
-Fecha: 2026-11-02. **Veredicto: NO APTO como recuperación funcional/E2E.** Auditoría local de código y pruebas con dobles terminada; ejecución integrada, navegador, datos históricos y DNS/TLS de laboratorio pendientes. **Fase 1 no iniciada.**
+Fecha: 2026-11-02. **Fase 1 documental e investigación terminadas para revisión; NO APTO como recuperación funcional/E2E.** No se inició Fase 2 ni se implementaron correcciones. Base de esta fase: `2d4efd6a9c5aebafe96124bf4ddb821810d061aa`; código auditado `5a716b43ac940a62172b96b67a369940e10fb26a`.
+
+Los apartados 0–11 conservan el expediente de Fase 0 (incluidas decisiones entonces pendientes). El avance y aclaraciones de Fase 1 están en §12–16. La especificación de objetivo vigente es [Contratos v1](2026-11-02-website-recovery-contracts-v1.md); sus rutas/modelos son **propuestos, no implementados**. El plan actualizado reemplaza el calendario preliminar por una secuencia cerrable de implementación, siempre posterior a revisión.
 
 ## 0. Baseline, insumos y límites
 
@@ -236,3 +238,51 @@ Conservar tablas/IDs/URLs/aliases, bloques y paquete builder. Evolucionar por co
 **Codex después de autorización:** contratos y plan de cambios, reparación de authority/tenant, identidad forms/Growth, publish/ZIP/release/cache, pruebas aisladas y compatibilidad; actualización del paquete vía npm registry después de validar la versión. **Claude después del gate:** capturar y auditar UX de wizard/admin/editor/forms; diseñar estados reales, fallos parciales, guardado vs publicación y selector de sitios, reemplazar IDs manuales de forms/productos donde el contrato lo permita. Debe usar @runly/ui y recibir DTO/errores/permiso/estado soportados; no implementar React todavía.
 
 **Cierre:** expediente estático y pruebas aisladas entregados. Hay código aprovechable y funciones con unidades correctas; Website completo **no está validado ni recuperado**. Pendientes concretos: stack desechable DB/Storage + navegador, corpus histórico, builds auténticos por framework, TLS/DNS de laboratorio y política de origen/sesión. No se hizo SSH, push, deploy, DNS, certificados, migraciones ni cambio funcional. Plan revisado en `docs/superpowers/plans/2026-11-02-website-recovery.md`.
+
+## 12. Fase 1: arquitectura recomendada y contratos preparados
+
+El encargo posterior autorizó contratos, arquitectura y pruebas de investigación no destructivas; no cambió la autorización de implementación. Se mantiene main y el repositorio externo sin modificación. [Contratos v1](2026-11-02-website-recovery-contracts-v1.md) concreta W1–W10, modelos/constraints, estados, DTO, operaciones, permisos, errores, idempotencia, migración y límites para Claude.
+
+Decisiones recomendadas:
+
+- Conservar Website oficial, builder, tablas/IDs/URLs y aliases; evolución aditiva, sin reescritura general. Pertenencia de tenant y recurso se valida tanto en API como en servicios/MCP.
+- Un borrador revisionado por página/sitio y un release inmutable con snapshot de rutas/documentos/tema/menús/runtime/medios; Catálogo y Forms continúan vivos con política de exposición actualizada. Un puntero por sitio se cambia por CAS en transacción breve con evento/recibo idempotente.
+- Preparar y validar objetos privados antes de activar; bucket privado nuevo, sin convertir el bucket público compartido histórico. Sin upsert del contenido activo. Gateway consulta estado/puntero vigente por petición; no sirve una copia antigua ante fallo.
+- Sitios/URLs estables con hostname exacto y default legacy explícito. Namespace compartido de plataforma requiere **registro global entre instalaciones**: unique local no garantiza unicidad bajo `*.sites.runly.mx`. Ese servicio no está demostrado en el checkout y no puede prometerse como operativo.
+- ZIP de estáticos compilados, límites/descompresión por streaming con dependencia existente, preview aislado y sin credenciales ERP. Assets inmutables por path/hash para no mezclar versiones; cambios de bytes en mismo path exigen nuevo nombre. SSR/procesos Node fuera de alcance.
+- Origen público sin ERP; para ZIP arbitrario se recomienda dominio registrable separado. Namespace de marca para ZIP queda sujeto al gate de cookies/CSRF/CORS/almacenamiento y aprobación del riesgo. No se hizo DNS/TLS real.
+- Formularios con propietario tipado y mapa aditivo Website/Growth, sin renumerar formularios/respuestas. Publicación web `published` y POS siguen independientes.
+
+Los contratos administrativos propuestos cubren setup atómico de borrador, multisitio, páginas/tema/menús, previews, imports/releases/activation/rollback/unpublish, formularios/respuestas y dominios. Incluyen SiteDTO/PageDTO, revisiones, capabilities por servidor, errores 409 recuperables y grants nuevos sujetos a revisión. Los endpoints legacy tendrán adaptadores seguros; ninguna compatibilidad conserva un bypass de autoridad.
+
+## 13. Aclaración de compatibilidad Website/Growth
+
+La investigación dirigida encontró una distinción necesaria para reparar WR-16: `apps/api/src/routes/growth/growth-form-routes.js:47` crea formularios pasando propertyId como siteId; Website usa WebsiteSite.id en el mismo campo. El fixture adicional reproduce esa creación con IDs distintos. Por eso **no** se propone reemplazar todas las referencias históricas por websiteSiteId ni consultar cualquiera de ambas con un OR.
+
+Se propone WebsiteFormScope con owner Website o Growth, analyticsPropertyId separado y legacySiteId conservado. External SDK sin WebsiteSite mantiene formularios. El backfill clasifica ambiguos/huérfanos/cross-tenant y bloquea cutover de esos contextos hasta revisión, sin borrar respuestas ni reasignar su ownership. IDs de visitantes/sesiones/leads e idempotencia permanecen. Config/GET dejan de crear espejos; los comandos/backfill los provisionan explícitamente. Detalle en contratos §8 y §11.
+
+## 14. Builder candidato y regresión 76/77 investigados
+
+**Artefacto npm real 0.2.4:** descargado con `npm pack --ignore-scripts` a docs/private ignorado, integridad SHA-512 coincidente con registry; no instalado en el ERP. `phase1-builder-candidate.mjs` dio **10/10**: mismas 79 exportaciones y tipos, dependencias/peers sin cambios frente a 0.2.0, CSS/ESM presentes y transformación ESM por esbuild instalado, 18 bloques base, 27 documentos de las seis plantillas multipágina actuales y registro de bloques Runly, serialize/parse en ambos sentidos y render público SSR determinista con React 19.3.1.
+
+El tarball corresponde a `598795cd135620baa546cac1459a983ad633e065`. El checkout externo `424de9f169690399947142b749efa0aadfd9d51f` contiene dos fixes hero posteriores. **0.2.4 es candidata exacta de laboratorio**, no aprobación de adopción productiva; navegador/DnD/CSS/hidratación/sanitización DOM, lock nuevo y corpus histórico siguen pendientes. Si se necesitan los dos fixes locales, primero preparar/publicar una nueva versión en una acción autorizada separada. No se inventó un número disponible ni se actualizó manifest/lock.
+
+**WR-17 causal, no descartado:** `phase1-resolver-research.mjs` ejecuta el test original sin modificarlo y reproduce falta de company.findUnique y 500 frente a 200. Solo la sustitución en memoria de la firma/respuesta de ese stub hace pasar **las mismas aserciones originales**; no cambia router/servicio. Casos adicionales: empresa deshabilitada sin sitio, tenant predicates/proyección pública, error DB real conserva 500 y creación Growth con propertyId histórico. **6/6** pruebas dirigidas correctas. Corrección propuesta para implementación: actualizar fixture en su archivo original y mantener negativos; no añadir fallback findFirst a producción. La suite original sigue pendiente de esa reparación, no se declara 77/77 real.
+
+Total Fase 1: **16/16 investigaciones**, sin DB, Storage real, servicios o mutaciones de datos. No son pruebas del publisher nuevo ni certificación E2E. Scripts reproducibles y comandos en el plan.
+
+## 15. Secuencia, responsables y decisiones de aprobación
+
+El plan de implementación define pasos S1–S7 con dependencia y cierre: autoridad/fixtures → mapeo Forms/defaults/contratos → releases/gateway/migración segura → import/preview y versión builder → diseño definitivo de Claude → frontend e integración → matriz local final/piloto propuesto. Preparar infraestructura pública, dominios propios y publicar paquetes son acciones diferidas. No se abre una cadena de fases artificiales ni se pide implementar otra UI provisional.
+
+Codex: backend/contratos/persistencia/mapping/gateway/public runtime glue/SDK de dominio y pruebas; Claude: auditoría con capturas y diseño/React de setup/admin/editor/forms/versions/domains después de estabilizar contratos y autorizar su trabajo. Ownership por rutas actuales y archivos propuestos está en el plan; no se lanzó otro agente ni se solicitó implementación a Claude.
+
+Revisión requerida antes del bloque funcional: aceptar contratos W1–W10, política de origen/namespace para ZIP, grants de nuevos permisos, límites iniciales y retención, tratamiento de dominios/refs ambiguos y política de originales públicos históricos. Recomendar 0.2.4 como candidata no autoriza instalarla ni publicar fixes. Cualquier cambio a Commerce queda para aprobación aparte; ninguno se identificó como imprescindible para el contrato de lectura recuperado.
+
+## 16. Cierre de Fase 1
+
+Entregado: especificación [Contratos v1](2026-11-02-website-recovery-contracts-v1.md), maestro y plan actualizados, dos scripts de investigación. Las limitaciones de Fase 0 se mantienen; se resolvieron documentalmente las decisiones de identidad, publicación, compatibilidad y autoridad, con dependencias operativas explícitas en lugar de promesas de capacidades inexistentes.
+
+Verificación de Fase 1: 16/16 investigaciones y sintaxis de los dos scripts correctas; whitespace correcto. `pnpm check:privacy` revisó 6565 archivos y mantiene 67 alertas preexistentes ajenas a este cambio. Los **5 archivos de esta fase** pasaron el mismo `inspectFile` individualmente con **0 hallazgos**. No se corrigieron archivos ajenos para alterar el baseline global. Tarball privado ignorado y checkout externo sin cambios.
+
+El estado correcto es **Fase 1 documental terminada para revisión; correcciones propuestas, ninguna implementada; Website NO APTO E2E**. Detener trabajo después de este expediente. Sin SSH, push, deploy, DNS/TLS, cambios de datos, migraciones, nuevas dependencias o Fase 2.
