@@ -4,7 +4,8 @@ import {createRoot} from 'react-dom/client'
 import {WebsitePageRenderer} from './WebsitePageRenderer.jsx'
 import {setApiUrl} from '../lib/runtimeConfig.js'
 async function start() {
-  const response=await fetch(`/public/website/resolve?path=${encodeURIComponent(location.pathname)}`,{credentials:'omit',cache:'no-store'})
+  const preview=document.documentElement.dataset.preview==='true'
+  const response=await fetch(`/public/website/resolve?path=${encodeURIComponent(location.pathname)}`,{credentials:preview?'same-origin':'omit',cache:'no-store'})
   if(!response.ok)throw new Error('Sitio no disponible')
   const snapshot=await response.json()
   if((snapshot.releaseId??'legacy')!==document.documentElement.dataset.release) {location.reload();return}

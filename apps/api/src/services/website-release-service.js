@@ -19,9 +19,9 @@ export function websiteReleasePath(path) {
   if(typeof path!=='string'||Buffer.byteLength(path)>512||!path.startsWith('/')||/[\\%?#\x00-\x20]/.test(path)||path.includes('//')||path.split('/').length>33||path.split('/').some(p=>p==='.'||p==='..')||/^\/(?:app|api|public|auth|p|mcp|__runly|\.well-known)(?:\/|$)/i.test(path)) throw failure('route_conflict',422)
   return path
 }
-export function createWebsiteReleaseService({prisma,storage,runtime,readFile,afterPrepare=async()=>{},beforeCommit=async()=>{}}) {
+export function createWebsiteReleaseService({prisma,storage,runtime,readFile,afterPrepare=async()=>{},beforeCommit=async()=>{},imports,isolation}) {
   const drafts=createWebsiteDraftService({prisma}), files=createFileAccess({prisma})
-  const legacyCalls=new WeakSet()
+  const legacyCalls=new WeakSet(), previewCalls=new WeakSet()
   function authorize(a,permission='website.pages.publish') {
     assertWebsiteAccess(a.access,a.companyId,permission)
     if(!a.siteId)throw notFound('Recurso')
@@ -48,13 +48,34 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     if(check.length!==bytes.length||releaseBytesHash(check)!==digest)throw failure('integrity_failed',422)
     return {hash:digest,objectKey,size:bytes.length,mime}
   }
+  async function preparePreview(input) {
+    const request={...input};previewCalls.add(request);return prepare(request)
+  }
+  async function prepareDist(input) {
+    const a=authorize(input,previewCalls.has(input)?'website.pages.update':'website.pages.publish');assertWebsiteAccess(a.access,a.companyId,'website.site.read');assertWebsiteAccess(a.access,a.companyId,'website.dist.upload');key(a)
+    a.expectedDraftRevision=revision(a.expectedDraftRevision);a.expectedPublicationRevision=revision(a.expectedPublicationRevision)
+    if(!imports)throw failure('dependency_unavailable',503)
+    const imported=await imports.get({...a,importId:a.importId});if(imported.phase!=='ready')throw failure('import_not_ready')
+    const manifest={schemaVersion:1,kind:'dist',integrityMode:'sealed',previewOnly:previewCalls.has(input),companyId:a.companyId,siteId:a.siteId,importId:imported.id,routingMode:imported.manifest.routingMode,files:imported.manifest.files,routes:[],assets:Object.fromEntries(imported.manifest.files.map(f=>[f.hash,f])),runtime:{assets:{}},identity:{},theme:null,menus:[],dynamic:[]}
+    for(const ref of Object.values(manifest.assets)){const bytes=await storage.get(ref.objectKey);if(bytes.length!==ref.size||releaseBytesHash(bytes)!==ref.hash)throw failure('integrity_failed',422)}
+    return prisma.$transaction(async tx=>{
+      await drafts.lockSite(tx,a.companyId,a.siteId)
+      const current=await site(tx,a)
+      return drafts.receipt(tx,a,`release.dist:${a.siteId}`,{importId:imported.id,expectedDraftRevision:a.expectedDraftRevision,expectedPublicationRevision:a.expectedPublicationRevision,baseReleaseId:a.baseReleaseId??null,previewOnly:manifest.previewOnly},async()=>{
+        if(current.draftRevision!==a.expectedDraftRevision)throw failure('draft_changed')
+        if(current.publicationRevision!==a.expectedPublicationRevision||current.activeReleaseId!==(a.baseReleaseId??null))throw failure('publication_conflict')
+        return tx.websiteRelease.create({data:{companyId:a.companyId,siteId:a.siteId,actorId:a.actorId,baseReleaseId:current.activeReleaseId,draftRevision:current.draftRevision,publicationRevision:current.publicationRevision,state:'ready',manifest,manifestHash:hash(manifest)}})
+      })
+    })
+  }
   async function prepare(input) {
+    if(input?.kind==='dist')return prepareDist(input)
     for(let attempt=0;attempt<3;attempt++) {
       try{return await prepareAttempt(input)}catch(e){if(!['P2002','P2034'].includes(e.code)||attempt===2)throw e}
     }
   }
   async function prepareAttempt(input) {
-    const a=authorize(input);if(!legacyCalls.has(input))assertWebsiteAccess(a.access,a.companyId,'website.site.read');key(a)
+    const a=authorize(input,previewCalls.has(input)?'website.pages.update':'website.pages.publish');if(!legacyCalls.has(input))assertWebsiteAccess(a.access,a.companyId,'website.site.read');key(a)
     a.expectedDraftRevision=revision(a.expectedDraftRevision);a.expectedPublicationRevision=revision(a.expectedPublicationRevision)
     const parsed=changesSchema.safeParse(a.changes);if(!parsed.success)throw failure('validation_failed',422);a.changes=parsed.data
     if(a.changes.publishPageIds.some(id=>a.changes.unpublishPageIds.includes(id)))throw failure('scope_conflict',422)
@@ -102,7 +123,9 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         routes.push({path:`/blog/${p.slug}`,sourceKind:'blog',sourceId:p.id,document:chosen?p.draftBuilderData:p.publishedBuilderData,seo:chosen?(p.draftSeo??p.seo??{}):(p.seo??{}),title:p.title,slug:p.slug,visibility:'public'})
       }
       if((a.changes.publishPostIds??[]).some(id=>!captured.posts.some(p=>p.id===id)))throw notFound('Recurso')
-      const paths=new Set(), assets={...(captured.base?.assets??{})}, dynamic=[]
+      // A source switch must not relabel executable ZIP assets as trusted builder
+      // resources. Historical ZIP aliases retain their isolated-origin gate.
+      const paths=new Set(), assets={...(captured.base?.kind==='builder'?captured.base.assets:{})}, dynamic=[]
       async function visit(value,field='') {
         if(Array.isArray(value))return Promise.all(value.map(v=>visit(v,field)))
         if(value&&typeof value==='object') {
@@ -187,10 +210,10 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
       const identity=captured.identity
       const publicSettings=new Set(['logoFileId','faviconFileId','businessName','address','contactEmail','contactPhone','whatsapp','socialLinks','brandColor'])
       if(Object.keys(identity.settings??{}).some(k=>!publicSettings.has(k)))throw failure('settings_not_publishable',422)
-      const manifest={schemaVersion:1,kind:'builder',integrityMode:'sealed',companyId:a.companyId,siteId:a.siteId,routes,assets,dynamic,
+      const manifest={schemaVersion:1,kind:'builder',previewOnly:previewCalls.has(input),integrityMode:'sealed',companyId:a.companyId,siteId:a.siteId,routes,assets,dynamic,
         identity:await visit({name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{},analyticsMode:identity.analyticsMode??'off',turnstileSiteKey:identity.turnstileSiteKey??null}),
         theme:include?await visit(captured.theme?{tokens:captured.theme.tokens,typography:captured.theme.typography,layout:captured.theme.layout,customCss:captured.theme.customCss}:null):captured.base.theme,
-        menus,runtime:{rendererVersion:'0.2.0',blockRegistryVersion:'runly-s3',assets:runtimeAssets}}
+        menus,runtime:{rendererVersion:runtimeFiles['entry.js'].rendererVersion??'0.2.0',blockRegistryVersion:'runly-s3',assets:runtimeAssets}}
       await afterPrepare(manifest)
       return await prisma.websiteRelease.update({where:{id:existing.id,state:'preparing'},data:{state:'ready',manifest,manifestHash:hash(manifest)}})
     } catch(e) {
@@ -211,6 +234,8 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     }
     if(action!=='unpublish') {
       const candidate=await release(prisma,a,a.releaseId);verify(candidate)
+      if(candidate.manifest.previewOnly)throw failure('preview_not_publishable')
+      if(candidate.manifest.kind==='dist'){assertWebsiteAccess(a.access,a.companyId,'website.dist.upload');const domains=await prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId,state:'assigned',ready:true}});if(!domains.length||!isolation)throw failure('isolation_required');for(const domain of domains)isolation.publicHost(domain.hostname)}
       for(const ref of [...Object.values(candidate.manifest.assets),...Object.values(candidate.manifest.runtime.assets)]) {
         const bytes=await storage.get(ref.objectKey);if(releaseBytesHash(bytes)!==ref.hash)throw failure('integrity_failed',422)
       }
@@ -224,8 +249,13 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         if(current.publicationRevision!==Number(a.expectedPublicationRevision))throw failure('publication_conflict')
         let target=null
         if(action!=='unpublish') {
-          if(current.sourceType!=='builder')assertWebsiteAccess(a.access,a.companyId,'website.site.update')
           target=await release(tx,a,a.releaseId);verify(target)
+          if(current.sourceType!==target.manifest.kind)assertWebsiteAccess(a.access,a.companyId,'website.site.update')
+          if(target.manifest.kind==='dist')for(const file of target.manifest.files.filter(f=>f.mime!=='text/html')){
+            const prior=await tx.websitePublicAssetBinding.findUnique({where:{siteId_path:{siteId:a.siteId,path:file.path}}})
+            if(prior&&prior.hash!==file.hash)throw failure('asset_path_conflict',422)
+            if(!prior)await tx.websitePublicAssetBinding.create({data:{companyId:a.companyId,siteId:a.siteId,path:file.path,hash:file.hash,releaseId:target.id}})
+          }
           if(action==='activate'&&(current.draftRevision!==Number(a.expectedDraftRevision)||target.draftRevision!==current.draftRevision))throw failure('draft_changed')
           if(action==='activate'&&(target.baseReleaseId!==current.activeReleaseId||target.publicationRevision!==current.publicationRevision))throw failure('publication_conflict')
           if(a.manifestHash&&target.manifestHash!==a.manifestHash)throw failure('integrity_failed',422)
@@ -234,7 +264,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         }
         // No storage/network calls after this point. The transaction commits pointer,
         // event, outbox, audit and idempotent receipt together.
-        const updated=await tx.websiteSite.update({where:{id:a.siteId,companyId:a.companyId,publicationRevision:current.publicationRevision},data:{activeReleaseId:target?.id??null,lastPublishedReleaseId:target?.id??current.lastPublishedReleaseId,publicationRevision:{increment:1},lifecycle:target?'published':'unpublished',status:target?'published':'draft',releaseManaged:true,...(target&&{sourceType:'builder'})}})
+        const updated=await tx.websiteSite.update({where:{id:a.siteId,companyId:a.companyId,publicationRevision:current.publicationRevision},data:{activeReleaseId:target?.id??null,lastPublishedReleaseId:target?.id??current.lastPublishedReleaseId,publicationRevision:{increment:1},lifecycle:target?'published':'unpublished',status:target?'published':'draft',releaseManaged:true,...(target&&{sourceType:target.manifest.kind}),...(target?.manifest.kind==='dist'&&{distUploadedAt:target.createdAt,distFileCount:target.manifest.files.length,distHasPrerender:target.manifest.files.some(f=>f.mime==='text/html'&&f.path!=='index.html')})}})
         // Keep historical status projections consistent without erasing their
         // published payloads or touching the editable document/revision.
         for(const model of ['websitePage','websiteBlogPost'])await tx[model].updateMany({where:{companyId:a.companyId,siteId:a.siteId,status:'published'},data:{status:'draft'}})
@@ -291,5 +321,5 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     const data=rows.slice(0,limit);return {data,meta:{nextCursor:rows.length>limit?data.at(-1).id:null}}
   }
   async function get(input) {const a=authorize(input,'website.pages.read');await site(prisma,a);return release(prisma,a,a.releaseId)}
-  return {prepare,publishLegacy,activate:a=>change(a),rollback:a=>change(a,'rollback'),unpublish:a=>change(a,'unpublish'),list,get}
+  return {prepare,preparePreview,publishLegacy,activate:a=>change(a),rollback:a=>change(a,'rollback'),unpublish:a=>change(a,'unpublish'),list,get}
 }

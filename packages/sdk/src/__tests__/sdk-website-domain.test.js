@@ -21,11 +21,11 @@ describe("atlas SDK - website domain extraction", () => {
     });
 
     assert.deepEqual(Object.keys(domain).sort(), [
-      "activateRelease", "createPage", "createSite",
+      "activateRelease", "createImport", "createPage", "createPreview", "createSite",
       "deleteDist",
-      "getDraft",
+      "getDraft", "getImport",
       "getRelease", "getSite",
-      "listDomains", "listPages", "listReleases", "listSites", "prepareRelease", "reserveHostname", "rollbackRelease", "saveDraft", "saveSiteDraft",
+      "listDomains", "listPages", "listReleases", "listSites", "prepareRelease", "reserveHostname", "revokePreview", "rollbackRelease", "saveDraft", "saveSiteDraft",
       "unpublishSite", "updateSite",
       "uploadDist",
     ]);

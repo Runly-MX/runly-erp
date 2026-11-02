@@ -12,7 +12,7 @@ export function strictWebsiteHostname(authority) {
   if(host.split('.').some(label=>!label||label.length>63||!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)))throw fail('invalid_hostname',400)
   return host
 }
-export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminHosts=[],trustedAuthority}) {
+export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminHosts=[],trustedAuthority,isolation}) {
   const admin=new Set(adminHosts.filter(Boolean).map(strictWebsiteHostname))
   async function authority(c) {
     // Forwarded headers are ignored unless a server-owned peer verifier supplied
@@ -32,13 +32,14 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(!site.releaseManaged)return {site,company,hostname,release:null}
     const release=await prisma.websiteRelease.findFirst({where:{id:site.activeReleaseId,companyId:site.companyId,siteId:site.id,state:'ready'}})
     if(!release||hash(release.manifest)!==release.manifestHash)throw fail('integrity_failed',503)
+    if(release.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(hostname)}
     return {site,company,hostname,release}
   }
   async function resolve(c) {try{return await resolveUnsafe(c)}catch(e){if(e instanceof WebsiteServiceError)throw e;throw fail('dependency_unavailable',503)}}
   function response(snapshot,path) {
     const m=snapshot.release.manifest,r=m.routes.find(r=>r.path===path)
     return {initialized:true,integrityMode:'sealed',releaseId:snapshot.release.id,publicationRevision:snapshot.site.publicationRevision,
-      site:{id:snapshot.site.id,name:m.identity.name,domain:snapshot.hostname,sourceType:'builder',company:snapshot.company.slug,analyticsMode:m.identity.analyticsMode??'off',turnstileSiteKey:m.identity.turnstileSiteKey??null},
+      site:{id:snapshot.site.id,name:m.identity.name,domain:snapshot.hostname,sourceType:m.kind,company:snapshot.company.slug,analyticsMode:m.identity.analyticsMode??'off',turnstileSiteKey:m.identity.turnstileSiteKey??null},
       page:r?{id:r.sourceId,title:r.title,slug:r.slug,routePath:r.path,status:'published',publishedBuilderData:r.document,seo:r.seo}:null,theme:m.theme,menus:m.menus,
       runtime:{...m.runtime,assets:Object.fromEntries(Object.entries(m.runtime.assets).map(([k,v])=>[k,{hash:v.hash,mime:v.mime,size:v.size}]))},dynamic:m.dynamic,assets:Object.fromEntries(Object.entries(m.assets).map(([k,v])=>[k,{hash:v.hash,mime:v.mime,size:v.size}]))}
   }
@@ -49,11 +50,12 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(!event)throw notFound('Recurso')
     const previous=await prisma.websiteRelease.findFirst({where:{id:releaseId,companyId:current.site.companyId,siteId:current.site.id,state:'ready'}})
     if(!previous||hash(previous.manifest)!==previous.manifestHash)throw notFound('Recurso')
+    if(previous.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(current.hostname)}
     const ref=previous.manifest.assets[digest]??Object.values(previous.manifest.runtime.assets).find(a=>a.hash===digest)
     if(!ref)throw notFound('Recurso')
     let bytes;try{bytes=await storage.get(ref.objectKey)}catch{throw fail('dependency_unavailable',503)}
     if(bytes.length!==ref.size||releaseBytesHash(bytes)!==digest)throw fail('integrity_failed',503)
-    return {bytes,mime:ref.mime}
+    return {bytes,mime:ref.mime,kind:previous.manifest.kind}
   }
   async function reserve(a) {
     assertWebsiteAccess(a.access,a.companyId,'website.domains.manage');assertWebsiteAccess(a.access,a.companyId,'website.site.update')

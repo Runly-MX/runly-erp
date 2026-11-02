@@ -1,5 +1,7 @@
 import { createWebsitePublicationContext } from '../../services/website-publication-context.js'
 import { createWebsiteReleaseRoutes } from './releases-routes.js'
+import { createWebsiteImportRoutes } from './import-routes.js'
+import { createWebsitePreviewRoutes } from './preview-routes.js'
 import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
@@ -21,6 +23,8 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const websiteSvc = createWebsiteService({ prisma, publicationContext: publication })
   app.route('/website',createWebsiteReleaseRoutes({...publication,requirePermission}))
+  app.route('/website',createWebsiteImportRoutes({...publication,requirePermission}))
+  app.route('/website',createWebsitePreviewRoutes({...publication,requirePermission}))
   const formsService = createFormsService({ prisma })
 
   app.route('/website', createPagesRouter({ websiteSvc, requirePermission }))

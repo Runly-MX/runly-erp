@@ -139,7 +139,7 @@ test('rejected or failed save does not alter document, revision, audit or site c
 test('Data API grants are revoked and RLS denies even an accidental SELECT grant', async () => {
   const f = await fixture()
   const tables = await db.$queryRaw`SELECT relname,relrowsecurity FROM pg_class WHERE relname LIKE 'website_%' AND relkind='r'`
-  assert.equal(tables.length,17)
+  assert.equal(tables.length,20)
   assert.ok(tables.every(t => t.relrowsecurity))
   for (const role of ['anon','authenticated']) {
     const grants = await db.$queryRaw`SELECT has_table_privilege(${role},'website_form_submission','SELECT') allowed`

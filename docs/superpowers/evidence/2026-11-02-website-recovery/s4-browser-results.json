@@ -1,0 +1,62 @@
+{
+  "environment": "disposable-loopback-postgresql",
+  "tool": "Playwright",
+  "chromiumVersion": "153.0.8010.12",
+  "builderBaseline": "0.2.0",
+  "builderCandidate": "0.2.4",
+  "publicDns": false,
+  "publicTls": false,
+  "productionData": false,
+  "cases": [
+    {
+      "case": "static",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "react",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "vue",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "angular",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "astro",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "next",
+      "status": "passed",
+      "privateCookie": true,
+      "missingAsset404": true
+    },
+    {
+      "case": "isolation",
+      "status": "passed",
+      "cookie": "",
+      "adminStorage": null,
+      "csrf": "blocked",
+      "serviceWorker": "blocked",
+      "adminRouteStatus": 422,
+      "csrfHits": 0
+    },
+    {
+      "case": "builder-0.2.4-and-reversal",
+      "status": "passed"
+    }
+  ]
+}

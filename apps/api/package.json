@@ -53,6 +53,7 @@
     "sharp": "^0.35.5",
     "stripe": "^22.2.0",
     "tailwindcss": "4.2.4",
+    "tldts": "7.4.19",
     "web-push": "^3.6.7",
     "y-protocols": "^1.0.7",
     "yauzl": "^3.4.0",

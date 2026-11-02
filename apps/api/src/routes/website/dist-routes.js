@@ -1,5 +1,7 @@
 import { Hono } from 'hono'
-import { createDistUploadService } from '../../services/dist-upload-service.js'
+import {websiteDocumentHash} from '../../services/website-draft-service.js'
+import {releaseBytesHash} from '../../services/website-release-storage.js'
+import {readWebsiteZipRequest} from './import-routes.js'
 import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
 import { websiteErrorHandler, websiteAccessFromRequest, assertWebsiteAccess } from '../../services/website-authorization-service.js'
 import { revisionedSiteSchema } from './validators.js'
@@ -9,7 +11,7 @@ const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc, publicationContext }) {
   const app = new Hono()
   app.onError(websiteErrorHandler)
-  const uploadService = createDistUploadService({ prisma, supabaseAdmin })
+
 
   // Authority boundary only. The unsafe public ZIP publisher is not replaced
   // in this block; no new executable upload is permitted before isolation.
@@ -26,15 +28,12 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, web
       try {
         const { siteId } = c.req.param()
         const companyId = c.get('companyId')
-        const site = await prisma.$queryRaw`
-          SELECT ws.id, c.slug as company_slug
-          FROM website_site ws
-          JOIN company c ON c.id = ws.company_id
-          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${companyId}::uuid AND ws.enabled = true
-          LIMIT 1
-        `
-        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
-        const builds = await uploadService.listBuilds({ companySlug: site[0].company_slug })
+        const access=websiteAccessFromRequest(c)
+        assertWebsiteAccess(access,companyId,'website.dist.upload')
+        const site=await prisma.websiteSite.findFirst({where:{id:siteId,companyId,enabled:true}})
+        if(!site)return c.json({error:'Recurso no encontrado.'},404)
+        const rows=await prisma.websiteImport.findMany({where:{siteId,companyId},orderBy:{createdAt:'desc'},take:20})
+        const builds=rows.map(row=>({id:row.id,name:'site.zip',size:row.manifest?.observed?.compressed??null,uploadedAt:row.createdAt,phase:row.phase,downloadUrl:`/website/sites/${siteId}/imports/${row.id}/archive`}))
         return c.json({ data: builds })
       } catch (err) {
         return websiteErrorHandler(err, c)
@@ -144,7 +143,21 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, web
     requirePermission('website.dist.upload'),
     requirePermission('website.site.update'),
     requirePermission('website.pages.publish'),
-    holdUnsafeMutation('isolation_required', 'La publicación ZIP requiere almacenamiento privado y aislamiento acreditado.')
+    async c=>{
+      const companyId=c.get('companyId'),siteId=c.req.param('siteId'),access=websiteAccessFromRequest(c)
+      const site=await prisma.websiteSite.findFirst({where:{id:siteId,companyId,enabled:true}})
+      if(!site)return c.json({error:'Recurso no encontrado.'},404)
+      const domains=await prisma.websiteDomain.findMany({where:{companyId,siteId,state:'assigned',ready:true}})
+      if(!domains.length)return c.json({error:'El origen aislado no está habilitado.',code:'isolation_required'},409)
+      for(const domain of domains)publicationContext.isolation.publicHost(domain.hostname)
+      const body=await readWebsiteZipRequest(c);if(!body)return c.json({error:'Archivo excesivo.',code:'archive_too_large'},413)
+      const idempotencyKey=c.req.header('Idempotency-Key')??`legacy-zip-${websiteDocumentHash({archive:releaseBytesHash(body.bytes),routingMode:body.routingMode,rootDirectory:body.rootDirectory??null})}`
+      const imported=await publicationContext.imports.create({...body,companyId,siteId,access,idempotencyKey})
+      const prior=await prisma.websiteDraftCommand.findFirst({where:{companyId,actorId:access.actorId,operation:`release.dist:${siteId}`,keyHash:websiteDocumentHash(idempotencyKey)}})
+      const candidate=prior?.result??await publicationContext.releases.prepare({companyId,siteId,access,idempotencyKey,kind:'dist',importId:imported.id,baseReleaseId:site.activeReleaseId,expectedDraftRevision:site.draftRevision,expectedPublicationRevision:site.publicationRevision})
+      const publication=await publicationContext.releases.activate({companyId,siteId,access,idempotencyKey,releaseId:candidate.id,manifestHash:candidate.manifestHash,expectedDraftRevision:candidate.draftRevision,expectedPublicationRevision:candidate.publicationRevision})
+      return c.json({fileCount:imported.manifest.files.length,hasPrerender:imported.manifest.files.some(f=>f.path!=='index.html'&&f.mime==='text/html'),uploadedAt:imported.createdAt,releaseId:candidate.id,publication:publication.current})
+    }
   )
 
   app.delete(

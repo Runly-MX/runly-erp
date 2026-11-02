@@ -60,10 +60,19 @@ try {
   if(!releaseRolledBack||psql("SELECT count(*) FROM information_schema.columns WHERE table_name='website_site' AND column_name='active_release_id'").trim()!=='0'||psql("SELECT pg_get_functiondef('website_touch_draft_site'::regproc)")!==oldTrigger)throw new Error('S3 migration failed to roll back')
   console.log('S3 migration failure injection: DDL, mapping and replaced triggers rolled back')
   psql(releaseMigration)
+  const importMigration=readFileSync(join(root,'prisma/migrations/20261102140000_website_import_preview/migration.sql'),'utf8')
+  let importRolledBack=false
+  try{psql(importMigration.replace('COMMIT;','SELECT 1/0; COMMIT;'))}catch{importRolledBack=true}
+  if(!importRolledBack||psql("SELECT to_regclass('website_import') IS NULL").trim()!=='t')throw new Error('S4 migration failed to roll back')
+  console.log('S4 migration failure injection: imports, bindings and preview schema rolled back')
+  psql(importMigration)
   execFileSync(process.execPath, [join(root,'node_modules/prisma/build/index.js'),'generate','--schema',join(root,'prisma/schema.prisma')], { cwd: temp, stdio: ['ignore','pipe','pipe'] })
   console.log('Prisma client generated from current schema; application config not loaded')
-  const result = spawnSync(process.execPath, ['--test', 'apps/api/src/routes/website/__tests__/website-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-releases-postgres.test.js'], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name }, stdio: 'inherit' })
+  const result = spawnSync(process.execPath, ['--test', 'apps/api/src/routes/website/__tests__/website-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-releases-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-imports-postgres.test.js'], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name }, stdio: 'inherit' })
   process.exitCode = result.status ?? 1
+  if(result.status===0&&process.argv.includes('--browser')){
+    const browser=spawnSync(process.execPath,['scripts/website-s4-browser-lab.mjs'],{cwd:root,env:{...process.env,RUNLY_WEBSITE_TEST_DATABASE_URL:url,RUNLY_WEBSITE_TEST_DISPOSABLE:name},stdio:'inherit'});process.exitCode=browser.status??1
+  }
 } finally {
   if (started) {
     const label = docker(['inspect', '--format', '{{index .Config.Labels "runly.test"}}', name]).trim()

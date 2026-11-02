@@ -1,5 +1,9 @@
 export function createWebsiteDomain({ request, withAuthHeaders }) {
   return {
+    createImport:(siteId,file,options,key,token)=>{const body=new FormData();body.append('file',file);body.append('routingMode',options?.routingMode??'mpa');if(options?.rootDirectory)body.append('rootDirectory',options.rootDirectory);return request(`/website/sites/${encodeURIComponent(siteId)}/imports`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body})},
+    getImport:(siteId,importId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/imports/${encodeURIComponent(importId)}`,{headers:withAuthHeaders(token)}),
+    createPreview:(siteId,data,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/previews`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),
+    revokePreview:(siteId,previewId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/previews/${encodeURIComponent(previewId)}`,{method:'DELETE',headers:withAuthHeaders(token)}),
     listReleases: (siteId,token,options={})=>request(`/website/sites/${encodeURIComponent(siteId)}/releases?${new URLSearchParams(Object.entries(options).filter(([key,value])=>['cursor','limit'].includes(key)&&value!==undefined))}`,{headers:withAuthHeaders(token)}),
     getRelease: (siteId,releaseId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/releases/${encodeURIComponent(releaseId)}`,{headers:withAuthHeaders(token)}),
     listDomains: (siteId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains`,{headers:withAuthHeaders(token)}),
