@@ -1,7 +1,9 @@
+import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js';
 import { zValidator } from "@hono/zod-validator";
 import { Hono } from "hono";
 
 import { FormsServiceError } from "../../services/forms-service.js";
+import { WebsiteServiceError } from '../website/service-helpers.js';
 import { GrowthPropertyServiceError } from "./growth-property-service.js";
 import {
   createFormFieldSchema,
@@ -16,7 +18,7 @@ function companyId(c) {
 }
 
 function handleError(c, error) {
-  if (error instanceof FormsServiceError || error instanceof GrowthPropertyServiceError) {
+  if (error instanceof WebsiteServiceError || error instanceof FormsServiceError || error instanceof GrowthPropertyServiceError) {
     return c.json({ error: error.message, code: error.code }, error.status);
   }
   console.error("[runly.growth.forms]", error);
@@ -25,12 +27,13 @@ function handleError(c, error) {
 
 export function createGrowthFormRoutes({ formsService, growthPropertyService, requirePermission }) {
   const app = new Hono();
+  app.onError(websiteErrorHandler);
 
   app.get("/growth/forms", requirePermission("growth.forms.read"), async (c) => {
     const propertyId = c.req.query("propertyId");
     if (!propertyId) return c.json({ data: [] });
     try {
-      const data = await formsService.listForms({ companyId: companyId(c), siteId: propertyId });
+      const data = await formsService.listForms({ access: websiteAccessFromRequest(c), companyId: companyId(c), siteId: propertyId });
       return c.json({ data });
     } catch (error) {
       return handleError(c, error);
@@ -38,7 +41,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
   });
 
   app.get("/growth/forms/assignees", requirePermission("growth.forms.read"), async (c) => {
-    const data = await formsService.listFormAssignees({ companyId: companyId(c) });
+    const data = await formsService.listFormAssignees({ access: websiteAccessFromRequest(c), companyId: companyId(c) });
     return c.json({ data });
   });
 
@@ -50,7 +53,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
       const { propertyId, ...data } = c.req.valid("json");
       try {
         await growthPropertyService.assertProperty({ companyId: companyId(c), propertyId });
-        const form = await formsService.createForm({ companyId: companyId(c), siteId: propertyId, data });
+        const form = await formsService.createForm({ access: websiteAccessFromRequest(c), companyId: companyId(c), siteId: propertyId, data });
         return c.json(form, 201);
       } catch (error) {
         return handleError(c, error);
@@ -60,7 +63,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
 
   app.get("/growth/forms/:id", requirePermission("growth.forms.read"), async (c) => {
     try {
-      const form = await formsService.getForm({ companyId: companyId(c), formId: c.req.param("id") });
+      const form = await formsService.getForm({ access: websiteAccessFromRequest(c), companyId: companyId(c), formId: c.req.param("id") });
       return c.json(form);
     } catch (error) {
       return handleError(c, error);
@@ -73,8 +76,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
     zValidator("json", updateFormSchema),
     async (c) => {
       try {
-        const form = await formsService.updateForm({
-          companyId: companyId(c),
+        const form = await formsService.updateForm({ access: websiteAccessFromRequest(c), companyId: companyId(c),
           formId: c.req.param("id"),
           data: c.req.valid("json"),
         });
@@ -87,7 +89,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
 
   app.delete("/growth/forms/:id", requirePermission("growth.forms.delete"), async (c) => {
     try {
-      await formsService.softDeleteForm({ companyId: companyId(c), formId: c.req.param("id") });
+      await formsService.softDeleteForm({ access: websiteAccessFromRequest(c), companyId: companyId(c), formId: c.req.param("id") });
       return c.json({ success: true });
     } catch (error) {
       return handleError(c, error);
@@ -100,8 +102,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
     zValidator("json", createFormFieldSchema),
     async (c) => {
       try {
-        const field = await formsService.createFormField({
-          companyId: companyId(c),
+        const field = await formsService.createFormField({ access: websiteAccessFromRequest(c), companyId: companyId(c),
           formId: c.req.param("id"),
           data: c.req.valid("json"),
         });
@@ -118,7 +119,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
     zValidator("json", reorderFieldsSchema),
     async (c) => {
       const { items } = c.req.valid("json");
-      await formsService.reorderFormFields({ companyId: companyId(c), items });
+      await formsService.reorderFormFields({ access: websiteAccessFromRequest(c), companyId: companyId(c), formId: c.req.param("id"), items });
       return c.json({ success: true });
     },
   );
@@ -129,8 +130,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
     zValidator("json", updateFormFieldSchema),
     async (c) => {
       try {
-        const field = await formsService.updateFormField({
-          companyId: companyId(c),
+        const field = await formsService.updateFormField({ access: websiteAccessFromRequest(c), companyId: companyId(c),
           fieldId: c.req.param("fieldId"),
           data: c.req.valid("json"),
         });
@@ -143,7 +143,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
 
   app.delete("/growth/form-fields/:fieldId", requirePermission("growth.forms.update"), async (c) => {
     try {
-      await formsService.softDeleteFormField({ companyId: companyId(c), fieldId: c.req.param("fieldId") });
+      await formsService.softDeleteFormField({ access: websiteAccessFromRequest(c), companyId: companyId(c), fieldId: c.req.param("fieldId") });
       return c.json({ success: true });
     } catch (error) {
       return handleError(c, error);
@@ -153,8 +153,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
   app.get("/growth/forms/:id/submissions", requirePermission("growth.forms.read"), async (c) => {
     const { page, pageSize } = c.req.query();
     try {
-      const result = await formsService.listSubmissions({
-        companyId: companyId(c),
+      const result = await formsService.listSubmissions({ access: websiteAccessFromRequest(c), companyId: companyId(c),
         formId: c.req.param("id"),
         page: parseInt(page ?? "1", 10),
         pageSize: parseInt(pageSize ?? "20", 10),
@@ -167,7 +166,7 @@ export function createGrowthFormRoutes({ formsService, growthPropertyService, re
 
   app.delete("/growth/forms/:id/submissions/:subId", requirePermission("growth.forms.delete"), async (c) => {
     try {
-      await formsService.deleteSubmission({ companyId: companyId(c), submissionId: c.req.param("subId") });
+      await formsService.deleteSubmission({ access: websiteAccessFromRequest(c), companyId: companyId(c), formId: c.req.param("id"), submissionId: c.req.param("subId") });
       return c.json({ success: true });
     } catch (error) {
       return handleError(c, error);

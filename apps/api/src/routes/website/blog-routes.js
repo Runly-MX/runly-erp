@@ -1,7 +1,8 @@
+import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import {
-  createBlogCategorySchema,
+  createBlogCategorySchema, updateBlogCategorySchema,
   createBlogPostSchema,
   updateBlogPostSchema,
   saveBlogDraftSchema,
@@ -10,6 +11,7 @@ import { WebsiteServiceError } from './service-helpers.js'
 
 export function createBlogRouter({ websiteSvc, requirePermission }) {
   const app = new Hono()
+  app.onError(websiteErrorHandler)
 
   // ─── Categories ────────────────────────────────────────────────────────────
 
@@ -17,7 +19,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const siteId    = c.req.query('siteId')
     if (!siteId) return c.json({ data: [] })
-    const cats = await websiteSvc.listBlogCategories({ companyId, siteId })
+    const cats = await websiteSvc.listBlogCategories({ access: websiteAccessFromRequest(c), companyId, siteId })
     return c.json({ data: cats })
   })
 
@@ -29,7 +31,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
       const companyId = c.get('companyId')
       const data      = c.req.valid('json')
       try {
-        const cat = await websiteSvc.createBlogCategory({ companyId, siteId: data.siteId, data })
+        const cat = await websiteSvc.createBlogCategory({ access: websiteAccessFromRequest(c), companyId, siteId: data.siteId, data })
         return c.json(cat, 201)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -38,11 +40,11 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     },
   )
 
-  app.patch('/blog/categories/:id', requirePermission('website.pages.update'), async (c) => {
+  app.patch('/blog/categories/:id', requirePermission('website.pages.update'), zValidator('json', updateBlogCategorySchema), async (c) => {
     const companyId = c.get('companyId')
-    const data      = await c.req.json().catch(() => ({}))
+    const data      = c.req.valid('json')
     try {
-      const cat = await websiteSvc.updateBlogCategory({ companyId, categoryId: c.req.param('id'), data })
+      const cat = await websiteSvc.updateBlogCategory({ access: websiteAccessFromRequest(c), companyId, categoryId: c.req.param('id'), data })
       return c.json(cat)
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -53,7 +55,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
   app.delete('/blog/categories/:id', requirePermission('website.pages.delete'), async (c) => {
     const companyId = c.get('companyId')
     try {
-      await websiteSvc.softDeleteBlogCategory({ companyId, categoryId: c.req.param('id') })
+      await websiteSvc.softDeleteBlogCategory({ access: websiteAccessFromRequest(c), companyId, categoryId: c.req.param('id') })
       return c.json({ success: true })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -67,8 +69,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const { siteId, status, categoryId, page, pageSize } = c.req.query()
     if (!siteId) return c.json({ data: [], total: 0 })
-    const result = await websiteSvc.listBlogPosts({
-      companyId, siteId, status, categoryId,
+    const result = await websiteSvc.listBlogPosts({ access: websiteAccessFromRequest(c), companyId, siteId, status, categoryId,
       page:     parseInt(page     ?? '1',  10),
       pageSize: parseInt(pageSize ?? '20', 10),
     })
@@ -84,7 +85,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const data      = c.req.valid('json')
       try {
-        const post = await websiteSvc.createBlogPost({ companyId, siteId: data.siteId, data, actorId })
+        const post = await websiteSvc.createBlogPost({ access: websiteAccessFromRequest(c), companyId, siteId: data.siteId, data, actorId })
         return c.json(post, 201)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -96,7 +97,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
   app.get('/blog/posts/:id', requirePermission('website.pages.read'), async (c) => {
     const companyId = c.get('companyId')
     try {
-      const post = await websiteSvc.getBlogPost({ companyId, postId: c.req.param('id') })
+      const post = await websiteSvc.getBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id') })
       return c.json(post)
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -113,7 +114,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const data      = c.req.valid('json')
       try {
-        const post = await websiteSvc.updateBlogPost({ companyId, postId: c.req.param('id'), data, actorId })
+        const post = await websiteSvc.updateBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), data, actorId })
         return c.json(post)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -130,7 +131,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
       const companyId = c.get('companyId')
       const { builderData, seo } = c.req.valid('json')
       try {
-        const post = await websiteSvc.saveBlogDraft({ companyId, postId: c.req.param('id'), builderData, seo })
+        const post = await websiteSvc.saveBlogDraft({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), builderData, seo })
         return c.json(post)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -143,7 +144,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
     try {
-      const post = await websiteSvc.publishBlogPost({ companyId, postId: c.req.param('id'), actorId })
+      const post = await websiteSvc.publishBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), actorId })
       return c.json(post)
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -154,7 +155,7 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
   app.delete('/blog/posts/:id', requirePermission('website.pages.delete'), async (c) => {
     const companyId = c.get('companyId')
     try {
-      await websiteSvc.softDeleteBlogPost({ companyId, postId: c.req.param('id') })
+      await websiteSvc.softDeleteBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id') })
       return c.json({ success: true })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

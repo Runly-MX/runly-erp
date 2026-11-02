@@ -1,3 +1,4 @@
+import { createWebsiteAccess, assertWebsiteAccess } from '../../services/website-authorization-service.js';
 import { z } from 'zod';
 import { createWebsiteService } from '../../routes/website/website-service.js';
 import { BLOCK_CATALOG, blocksForSite, documentToSections, sectionsToDocument } from '../../routes/website/page-document.js';
@@ -30,8 +31,15 @@ function compactField(field) {
 
 export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
   const svc = createWebsiteService({ prisma });
+  const access = a => createWebsiteAccess({ companyId: a.companyId, actorId: a.actorProfileId, can: a.can });
+  async function currentSite(a) {
+    const row = await prisma.websiteSite.findFirst({ where: { companyId: a.companyId, enabled: true }, orderBy: { createdAt: 'asc' } });
+    if (!row) return null;
+    const { stripeSecretKey, turnstileSecretKey, ...safe } = row;
+    return safe;
+  }
   async function site(a) {
-    const row = await svc.getSite({ companyId: a.companyId });
+    const row = await currentSite(a);
     insist(row, 'not_found', 'La empresa aún no tiene sitio. Créalo con website.site.setup.', 404);
     return row;
   }
@@ -45,8 +53,8 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
   const queries = [
     { name: 'website_overview', permission: 'website.site.read', inputSchema: z.strictObject({}), definition: { description: 'Sitio de la empresa, tema, páginas (rutas y estado) y datos del negocio. Punto de partida para crear o editar el sitio.' },
       async run(_input, a) {
-        const [current, company] = await Promise.all([svc.getSite({ companyId: a.companyId }), prisma.company.findUnique({ where: { id: a.companyId }, select: { name: true } })]);
-        const [theme, pages] = current ? await Promise.all([svc.getActiveTheme({ companyId: a.companyId }), svc.listPages({ companyId: a.companyId, siteId: current.id, pageSize: 100 })]) : [null, { data: [] }];
+        const [current, company] = await Promise.all([currentSite(a), prisma.company.findUnique({ where: { id: a.companyId }, select: { name: true } })]);
+        const [theme, pages] = current ? await Promise.all([a.can('website.theme.read') ? svc.getActiveTheme({ access: access(a), companyId: a.companyId }) : null, a.can('website.pages.read') ? svc.listPages({ access: access(a), companyId: a.companyId, siteId: current.id, pageSize: 100 }) : { data: [] }]) : [null, { data: [] }];
         return { company: { name: company?.name ?? '' }, catalogAvailable: a.can('catalog.products.read'),
           site: current && { id: current.id, name: current.name, siteType: current.siteType, sourceType: current.sourceType, domain: current.domain, status: current.status },
           theme: theme && { colors: theme.tokens?.color ?? {}, typography: theme.typography ?? {} },
@@ -79,7 +87,7 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
       inputSchema: z.strictObject({ name: z.string().trim().min(1).max(255).optional(), siteType: z.enum(SITE_TYPES).optional(), useBuilder: z.literal(true).optional(),
         theme: z.strictObject({ colors: z.strictObject({ primary: hex, primaryFg: hex, bg: hex, fg: hex, muted: hex, accent: hex }).partial().optional(), headingFont: z.enum(FONTS).optional(), bodyFont: z.enum(FONTS).optional(), headingWeight: z.enum(['400', '500', '600', '700', '800']).optional(), baseFontSize: z.enum(['14px', '15px', '16px', '17px', '18px']).optional() }).optional() }),
       async prepare(input, a) {
-        const current = await svc.getSite({ companyId: a.companyId });
+        const current = await currentSite(a);
         insist(current || input.name, 'invalid_request', 'Indica name para crear el sitio.');
         const fields = [{ label: 'Sitio', value: `${input.name ?? current.name} (${input.siteType ?? current?.siteType ?? 'website'})`, ...(current ? { before: `${current.name} (${current.siteType})` } : {}) }];
         if (input.theme) fields.push({ label: 'Tema', value: JSON.stringify(input.theme) });
@@ -87,14 +95,14 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
         return { input, targetId: current?.id ?? null, preview: { title: current ? 'Actualizar sitio' : 'Crear sitio', fields } };
       },
       async execute(input, a) {
-        let current = await svc.getSite({ companyId: a.companyId });
+        let current = await currentSite(a);
         const data = { ...(input.name ? { name: input.name } : {}), ...(input.siteType ? { siteType: input.siteType } : {}) };
-        current = current ? (Object.keys(data).length ? await svc.updateSite({ companyId: a.companyId, siteId: current.id, data, actorId: a.actorProfileId }) : current) : await svc.createSite({ companyId: a.companyId, data, actorId: a.actorProfileId });
-        if (input.useBuilder && current.sourceType !== 'builder') await prisma.websiteSite.update({ where: { id: current.id }, data: { sourceType: 'builder' } });
+        current = current ? (Object.keys(data).length ? await svc.updateSite({ access: access(a), companyId: a.companyId, siteId: current.id, data, actorId: a.actorProfileId }) : current) : await svc.createSite({ access: access(a), companyId: a.companyId, data, actorId: a.actorProfileId });
+        if (input.useBuilder && current.sourceType !== 'builder') await prisma.websiteSite.update({ where: { id: current.id, companyId: a.companyId }, data: { sourceType: 'builder' } });
         if (input.theme) {
           const existing = await prisma.websiteTheme.findFirst({ where: { companyId: a.companyId, siteId: current.id, enabled: true }, select: { tokens: true, typography: true } });
           const { colors, ...typography } = input.theme;
-          await svc.upsertTheme({ companyId: a.companyId, siteId: current.id, tokens: colors ? { ...(existing?.tokens ?? {}), color: { ...(existing?.tokens?.color ?? {}), ...colors } } : undefined, typography: Object.keys(typography).length ? { ...(existing?.typography ?? {}), ...typography } : undefined });
+          await svc.upsertTheme({ access: access(a), companyId: a.companyId, siteId: current.id, tokens: colors ? { ...(existing?.tokens ?? {}), color: { ...(existing?.tokens?.color ?? {}), ...colors } } : undefined, typography: Object.keys(typography).length ? { ...(existing?.typography ?? {}), ...typography } : undefined });
         }
         return { siteId: current.id, name: current.name, link: '/app/m/runly.website' };
       } },
@@ -117,10 +125,10 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
       async execute(input, a) {
         const current = await site(a), saved = [];
         for (const item of input.pages) {
-          let row = item.pageId ? await page(a, item.pageId, current.id) : await svc.createPage({ companyId: a.companyId, siteId: current.id, data: { title: item.title, slug: item.slug, routePath: item.routePath }, actorId: a.actorProfileId });
-          if (item.pageId && row.title !== item.title) row = await svc.updatePage({ companyId: a.companyId, pageId: row.id, data: { title: item.title }, actorId: a.actorProfileId });
+          let row = item.pageId ? await page(a, item.pageId, current.id) : await svc.createPage({ access: access(a), companyId: a.companyId, siteId: current.id, data: { title: item.title, slug: item.slug, routePath: item.routePath }, actorId: a.actorProfileId });
+          if (item.pageId && row.title !== item.title) row = await svc.updatePage({ access: access(a), companyId: a.companyId, pageId: row.id, data: { title: item.title }, actorId: a.actorProfileId });
           const seo = item.seo ? { ...(row.seo ?? {}), ...item.seo } : undefined;
-          await svc.saveDraft({ companyId: a.companyId, pageId: row.id, builderData: JSON.stringify({ ...item.document, id: row.id }), seo, actorId: a.actorProfileId });
+          await svc.saveDraft({ access: access(a), companyId: a.companyId, pageId: row.id, builderData: JSON.stringify({ ...item.document, id: row.id }), seo, actorId: a.actorProfileId });
           saved.push({ id: row.id, title: item.title, routePath: row.routePath, status: row.status, link: editorLink(row.id) });
         }
         return { siteId: current.id, pages: saved };
@@ -139,17 +147,33 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
       async execute(input, a) {
         const current = await site(a), published = [];
         for (const id of input.pageIds) {
-          const row = await svc.publishPage({ companyId: a.companyId, pageId: id, actorId: a.actorProfileId });
+          const row = await svc.publishPage({ access: access(a), companyId: a.companyId, pageId: id, actorId: a.actorProfileId });
           published.push({ id: row.id, routePath: row.routePath, publishedAt: row.publishedAt });
         }
         return { siteId: current.id, published, domain: current.domain };
       } },
   ];
 
+  for (const definition of [...queries, ...actions]) {
+    for (const operation of ['run', 'prepare', 'execute']) {
+      if (!definition[operation]) continue;
+      const original = definition[operation];
+      definition[operation] = async (input, a) => {
+        const scope = access(a);
+        assertWebsiteAccess(scope, a.companyId, definition.permission);
+        if (definition.key === 'website.site.setup') {
+          if (input.theme) assertWebsiteAccess(scope, a.companyId, 'website.theme.update');
+          if (input.useBuilder) assertWebsiteAccess(scope, a.companyId, 'website.pages.publish');
+        }
+        return original(input, a);
+      };
+    }
+  }
   return { moduleKey: 'runly.website', label: 'Sitio web', queries, actions,
     // Drafts are private; publishing (or switching the public source) exposes content.
     async revision(definition, prepared, a) {
-      if (definition.key === 'website.site.setup') return svc.getSite({ companyId: a.companyId });
+      assertWebsiteAccess(access(a), a.companyId, definition.permission);
+      if (definition.key === 'website.site.setup') return currentSite(a);
       const ids = definition.key === 'website.pages.publish' ? prepared.input.pageIds : prepared.input.pages.map(item => item.pageId).filter(Boolean);
       const rows = await prisma.websitePage.findMany({ where: { id: { in: ids }, companyId: a.companyId }, select: { id: true, updatedAt: true, status: true }, orderBy: { id: 'asc' } });
       return rows;

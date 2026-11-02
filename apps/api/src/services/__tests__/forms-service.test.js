@@ -1,3 +1,4 @@
+import { createWebsiteAccess } from '../website-authorization-service.js';
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
@@ -7,9 +8,13 @@ const COMPANY_ID = "11111111-1111-7111-8111-111111111111";
 const SITE_ID = "22222222-2222-7222-8222-222222222222";
 const USER_ID = "33333333-3333-7333-8333-333333333333";
 
+const access = createWebsiteAccess({ companyId: COMPANY_ID, actorId: USER_ID, can: () => true });
+
 function createPrismaStub() {
   const forms = [];
   return {
+    websiteSite: { findFirst: async ({ where }) => where.id === SITE_ID && where.companyId === COMPANY_ID ? { id: SITE_ID, companyId: COMPANY_ID, enabled: true } : null },
+    growthProperty: { findFirst: async () => null },
     websiteForm: {
       findMany: async ({ where }) =>
         forms.filter((f) => f.companyId === where.companyId && f.siteId === where.siteId && f.enabled === where.enabled),
@@ -33,7 +38,7 @@ test("createForm rejects a defaultAssigneeUserId that isn't an active member", a
   await assert.rejects(
     () =>
       service.createForm({
-        companyId: COMPANY_ID,
+        access, companyId: COMPANY_ID,
         siteId: SITE_ID,
         data: { name: "Contacto", defaultAssigneeUserId: "44444444-4444-7444-8444-444444444444" },
       }),
@@ -48,13 +53,13 @@ test("createForm rejects a defaultAssigneeUserId that isn't an active member", a
 test("createForm + listForms happy path", async () => {
   const service = createFormsService({ prisma: createPrismaStub() });
   const created = await service.createForm({
-    companyId: COMPANY_ID,
+    access, companyId: COMPANY_ID,
     siteId: SITE_ID,
     data: { name: "Contacto", defaultAssigneeUserId: USER_ID },
   });
   assert.equal(created.name, "Contacto");
 
-  const list = await service.listForms({ companyId: COMPANY_ID, siteId: SITE_ID });
+  const list = await service.listForms({ access, companyId: COMPANY_ID, siteId: SITE_ID });
   assert.equal(list.length, 1);
   assert.equal(list[0].id, created.id);
 });
@@ -83,7 +88,7 @@ test("listFormAssignees lists only active company members", async () => {
     },
   });
 
-  const assignees = await service.listFormAssignees({ companyId: COMPANY_ID });
+  const assignees = await service.listFormAssignees({ access, companyId: COMPANY_ID });
   assert.deepEqual(assignees, [
     { id: USER_ID, displayName: "Ana Lopez", email: "ana@example.com" },
   ]);

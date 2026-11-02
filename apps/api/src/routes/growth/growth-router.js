@@ -26,7 +26,7 @@ export function createGrowthRouter({
   const propertyService = createGrowthPropertyService({ prisma });
   const analyticsService = createGrowthAnalyticsService({ prisma, growthPropertyService: propertyService });
   const commentsService = createCommentsService({ prisma });
-  const formsService = createFormsService({ prisma });
+  const formsService = createFormsService({ prisma, ownerDomain: "growth" });
   app.route("", createGrowthLeadRoutes({ service, requirePermission, enrichFileAssets }));
   app.route("", createGrowthCommentRoutes({ service: commentsService, requirePermission }));
   app.route(

@@ -1,3 +1,4 @@
+import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { createWebsiteService } from './website-service.js'
@@ -14,6 +15,7 @@ import { WebsiteServiceError } from './service-helpers.js'
 
 export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }) {
   const app = new Hono()
+  app.onError(websiteErrorHandler)
   const websiteSvc = createWebsiteService({ prisma })
   const formsService = createFormsService({ prisma })
 
@@ -27,7 +29,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
 
   app.get('/website/site', requirePermission('website.site.read'), async (c) => {
     const companyId = c.get('companyId')
-    const site = await websiteSvc.getSite({ companyId })
+    const site = await websiteSvc.getSite({ access: websiteAccessFromRequest(c), companyId })
     return c.json({ data: site })
   })
 
@@ -40,7 +42,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const data      = c.req.valid('json')
       try {
-        const site = await websiteSvc.createSite({ companyId, data, actorId })
+        const site = await websiteSvc.createSite({ access: websiteAccessFromRequest(c), companyId, data, actorId })
         return c.json(site, 201)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -59,7 +61,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
       const siteId    = c.req.param('id')
       const data      = c.req.valid('json')
       try {
-        const site = await websiteSvc.updateSite({ companyId, siteId, data, actorId })
+        const site = await websiteSvc.updateSite({ access: websiteAccessFromRequest(c), companyId, siteId, data, actorId })
         return c.json(site)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -76,7 +78,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const siteId    = c.req.param('id')
       try {
-        await websiteSvc.deleteSite({ companyId, siteId, actorId })
+        await websiteSvc.deleteSite({ access: websiteAccessFromRequest(c), companyId, siteId, actorId })
         return c.body(null, 204)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

@@ -1,3 +1,4 @@
+import { createWebsiteAccess } from '../../../services/website-authorization-service.js';
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
@@ -61,7 +62,7 @@ describe("website capture settings service", () => {
       },
     });
 
-    const site = await service.getSite({ companyId: COMPANY_ID });
+    const site = await service.getSite({ access: createWebsiteAccess({ companyId: COMPANY_ID, actorId: USER_ID, can: key => key === 'website.site.read' }), companyId: COMPANY_ID });
     assert.equal(site.stripeSecretKey, undefined);
     assert.equal(site.turnstileSecretKey, undefined);
     assert.equal(site.stripeSecretKeySet, true);

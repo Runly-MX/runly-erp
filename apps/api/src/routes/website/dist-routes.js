@@ -1,12 +1,22 @@
 import { Hono } from 'hono'
 import { createDistUploadService } from '../../services/dist-upload-service.js'
 import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
+import { websiteErrorHandler } from '../../services/website-authorization-service.js'
 
 const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 
 export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   const app = new Hono()
+  app.onError(websiteErrorHandler)
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
+
+  // Authority boundary only. The unsafe public ZIP publisher is not replaced
+  // in this block; no new executable upload is permitted before isolation.
+  const holdUnsafeMutation = (code, message) => async (c) => {
+    const site = await prisma.websiteSite.findFirst({ where: { id: c.req.param('siteId'), companyId: c.get('companyId'), enabled: true }, select: { id: true } })
+    if (!site) return c.json({ error: 'Recurso no encontrado.', code: 'resource_not_found' }, 404)
+    return c.json({ error: message, code }, 409)
+  }
 
   app.get(
     '/website/sites/:siteId/dist/builds',
@@ -26,7 +36,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         const builds = await uploadService.listBuilds({ companySlug: site[0].company_slug })
         return c.json({ data: builds })
       } catch (err) {
-        return c.json({ error: err.message }, 500)
+        return c.json({ error: 'No se pudo completar la operación.' }, 500)
       }
     }
   )
@@ -34,25 +44,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   app.delete(
     '/website/sites/:siteId/dist/builds/:buildName',
     requirePermission('website.dist.upload'),
-    async (c) => {
-      try {
-        const { siteId, buildName } = c.req.param()
-        const companyId = c.get('companyId')
-        const site = await prisma.$queryRaw`
-          SELECT ws.id, c.slug as company_slug
-          FROM website_site ws
-          JOIN company c ON c.id = ws.company_id
-          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${companyId}::uuid AND ws.enabled = true
-          LIMIT 1
-        `
-        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
-        if (!buildName.endsWith('.zip')) return c.json({ error: 'Nombre de build invalido' }, 422)
-        await uploadService.deleteBuildZip({ companySlug: site[0].company_slug, buildName })
-        return c.json({ data: { success: true } })
-      } catch (err) {
-        return c.json({ error: err.message }, err.status ?? 500)
-      }
-    }
+    holdUnsafeMutation('retention_required', 'Los archivos existentes se conservan; su eliminación requiere una política aprobada.')
   )
 
   app.get(
@@ -76,7 +68,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         if (!rows[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
         return c.json({ data: rows[0] })
       } catch (err) {
-        return c.json({ error: err.message }, 500)
+        return c.json({ error: 'No se pudo completar la operación.' }, 500)
       }
     }
   )
@@ -84,6 +76,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   app.patch(
     '/website/sites/:siteId',
     requirePermission('website.site.update'),
+    requirePermission('website.pages.publish'),
     async (c) => {
       try {
         const { siteId } = c.req.param()
@@ -91,7 +84,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         const actorId = c.get('userId') ?? null
         const body = await c.req.json().catch(() => ({}))
         const { sourceType } = body
-        if (!sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
+        if (Object.keys(body).some(key => key !== 'sourceType') || !sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
           return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
         }
         const before = await prisma.$queryRaw`
@@ -100,6 +93,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
           LIMIT 1
         `
         if (!before[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
+        if (sourceType === 'dist') return c.json({ error: 'La publicación ZIP requiere aislamiento acreditado.', code: 'isolation_required' }, 409)
         const updated = await prisma.$queryRaw`
           UPDATE website_site
           SET source_type = ${sourceType}
@@ -126,7 +120,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         }).catch(() => {})
         return c.json({ data: updated[0] })
       } catch (err) {
-        return c.json({ error: err.message }, 500)
+        return c.json({ error: 'No se pudo completar la operación.' }, 500)
       }
     }
   )
@@ -134,65 +128,17 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   app.post(
     '/website/sites/:siteId/dist/upload',
     requirePermission('website.dist.upload'),
-    async (c) => {
-      try {
-        const { siteId } = c.req.param()
-        const body = await c.req.parseBody()
-        const file = body.file
-
-        if (!file || typeof file.arrayBuffer !== 'function') {
-          return c.json({ error: 'Campo "file" requerido' }, 422)
-        }
-
-        const site = await prisma.$queryRaw`
-          SELECT ws.id, ws.company_id as "companyId", c.slug as company_slug
-          FROM website_site ws
-          JOIN company c ON c.id = ws.company_id
-          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${c.get("companyId")}::uuid AND ws.enabled = true
-          LIMIT 1
-        `
-        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
-
-        const buffer = await file.arrayBuffer()
-        const result = await uploadService.uploadDist({
-          siteId,
-          fileBuffer: buffer,
-          fileName: file.name,
-          companySlug: site[0].company_slug,
-        })
-
-        invalidatePrimaryCache()
-        invalidateCache(site[0].companyId)
-        return c.json({ data: result }, 201)
-      } catch (err) {
-        return c.json({ error: err.message }, err.status ?? 500)
-      }
-    }
+    requirePermission('website.site.update'),
+    requirePermission('website.pages.publish'),
+    holdUnsafeMutation('isolation_required', 'La publicación ZIP requiere almacenamiento privado y aislamiento acreditado.')
   )
 
   app.delete(
     '/website/sites/:siteId/dist',
     requirePermission('website.dist.upload'),
-    async (c) => {
-      try {
-        const { siteId } = c.req.param()
-        const site = await prisma.$queryRaw`
-          SELECT ws.id, ws.company_id as "companyId", c.slug as company_slug
-          FROM website_site ws
-          JOIN company c ON c.id = ws.company_id
-          WHERE ws.id = ${siteId}::uuid AND ws.company_id = ${c.get("companyId")}::uuid AND ws.enabled = true
-          LIMIT 1
-        `
-        if (!site[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
-
-        await uploadService.deleteDist({ siteId, companySlug: site[0].company_slug })
-        invalidatePrimaryCache()
-        invalidateCache(site[0].companyId)
-        return c.json({ data: { success: true } })
-      } catch (err) {
-        return c.json({ error: err.message }, err.status ?? 500)
-      }
-    }
+    requirePermission('website.site.update'),
+    requirePermission('website.pages.publish'),
+    holdUnsafeMutation('retention_required', 'Los archivos existentes se conservan; su eliminación requiere una política aprobada.')
   )
 
   return app

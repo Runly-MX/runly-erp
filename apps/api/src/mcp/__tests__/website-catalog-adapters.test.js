@@ -26,21 +26,21 @@ test('website.pages.draft: valida secciones, distingue nuevas/existentes y exige
     { routePath: '/menu', title: 'Menú', sections: [{ type: 'MenuGridBlock' }] },
   ] });
   await assert.rejects(draft.prepare(input, actor()), error => error.code === 'permission_denied');
-  const prepared = await draft.prepare(input, actor(['website.pages.create']));
+  const prepared = await draft.prepare(input, actor(['website.pages.update', 'website.pages.create']));
   assert.equal(prepared.input.pages[0].pageId, homeId);
   assert.equal(prepared.input.pages[1].pageId, null);
   assert.equal(prepared.input.pages[1].slug, 'menu');
   assert.equal(prepared.input.pages[0].document.blocks.b1.props.title, 'Tacos al pastor');
-  assert.deepEqual(prepared, await draft.prepare(input, actor(['website.pages.create'])), 'determinista para la huella de la propuesta');
+  assert.deepEqual(prepared, await draft.prepare(input, actor(['website.pages.update', 'website.pages.create'])), 'determinista para la huella de la propuesta');
   const bad = draft.inputSchema.parse({ pages: [{ routePath: '/x', title: 'X', sections: [{ type: 'HeroBlock', props: { ctaHref: 'javascript:alert(1)' } }] }] });
-  await assert.rejects(draft.prepare(bad, actor(['website.pages.create'])), error => error.code === 'invalid_page' && /ctaHref/.test(error.message));
+  await assert.rejects(draft.prepare(bad, actor(['website.pages.update', 'website.pages.create'])), error => error.code === 'invalid_page' && /ctaHref/.test(error.message));
   assert.equal(draft.inputSchema.safeParse({ pages: [{ routePath: 'menu', title: 'X', sections: [{ type: 'HeroBlock' }] }] }).success, false);
 });
 
 test('website.pages.publish: rechaza páginas sin borrador', async () => {
   const pages = [{ id: homeId, companyId, siteId, routePath: '/', title: 'Inicio', enabled: true, draftBuilderData: {} }];
   const publish = createWebsiteAdapter({ prisma: websitePrisma(pages) }).actions.find(action => action.key === 'website.pages.publish');
-  await assert.rejects(publish.prepare({ pageIds: [homeId] }, actor()), error => error.code === 'invalid_request');
+  await assert.rejects(publish.prepare({ pageIds: [homeId] }, actor(['website.pages.publish'])), error => error.code === 'invalid_request');
 });
 
 test('catálogo: las imágenes deben ser públicas de la empresa', async () => {

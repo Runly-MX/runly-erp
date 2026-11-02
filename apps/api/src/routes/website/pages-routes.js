@@ -1,3 +1,4 @@
+import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
 import { createPageSchema, updatePageSchema, saveDraftSchema } from './validators.js'
@@ -5,16 +6,16 @@ import { WebsiteServiceError } from './service-helpers.js'
 
 export function createPagesRouter({ websiteSvc, requirePermission }) {
   const app = new Hono()
+  app.onError(websiteErrorHandler)
 
   app.get('/pages', requirePermission('website.pages.read'), async (c) => {
     const companyId = c.get('companyId')
     const { siteId, page, pageSize, page_type, status } = c.req.query()
     const site = siteId
       ? { id: siteId }
-      : await websiteSvc.getSite({ companyId })
+      : await websiteSvc.getDefaultPageSite({ access: websiteAccessFromRequest(c), companyId })
     if (!site) return c.json({ data: [], total: 0 })
-    const result = await websiteSvc.listPages({
-      companyId,
+    const result = await websiteSvc.listPages({ access: websiteAccessFromRequest(c), companyId,
       siteId:   site.id,
       page:     parseInt(page     ?? '1',  10),
       pageSize: parseInt(pageSize ?? '30', 10),
@@ -30,7 +31,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const { siteId, routePath } = c.req.query()
     if (!siteId || !routePath) return c.json({ data: null })
     try {
-      const page = await websiteSvc.getPageByPath({ companyId, siteId, routePath })
+      const page = await websiteSvc.getPageByPath({ access: websiteAccessFromRequest(c), companyId, siteId, routePath })
       return c.json({ data: page })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -47,8 +48,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const data      = c.req.valid('json')
       try {
-        const page = await websiteSvc.createPage({
-          companyId,
+        const page = await websiteSvc.createPage({ access: websiteAccessFromRequest(c), companyId,
           siteId: data.siteId,
           data,
           actorId,
@@ -66,7 +66,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
   app.get('/pages/:id', requirePermission('website.pages.read'), async (c) => {
     const companyId = c.get('companyId')
     try {
-      const page = await websiteSvc.getPage({ companyId, pageId: c.req.param('id') })
+      const page = await websiteSvc.getPage({ access: websiteAccessFromRequest(c), companyId, pageId: c.req.param('id') })
       return c.json({ data: page })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
@@ -82,8 +82,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
       const companyId = c.get('companyId')
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       try {
-        const updated = await websiteSvc.updatePage({
-          companyId,
+        const updated = await websiteSvc.updatePage({ access: websiteAccessFromRequest(c), companyId,
           pageId: c.req.param('id'),
           data:   c.req.valid('json'),
           actorId,
@@ -105,8 +104,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const { builderData, seo } = c.req.valid('json')
       try {
-        const updated = await websiteSvc.saveDraft({
-          companyId,
+        const updated = await websiteSvc.saveDraft({ access: websiteAccessFromRequest(c), companyId,
           pageId: c.req.param('id'),
           builderData,
           seo,
@@ -127,8 +125,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     try {
       const body = await c.req.json()
       const builderData = body.draft_builder_data ?? body.builderData ?? {}
-      const updated = await websiteSvc.saveDraft({
-        companyId,
+      const updated = await websiteSvc.saveDraft({ access: websiteAccessFromRequest(c), companyId,
         pageId: c.req.param('id'),
         builderData,
         seo: body.seo,
@@ -146,8 +143,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
     try {
-      const published = await websiteSvc.publishPage({
-        companyId,
+      const published = await websiteSvc.publishPage({ access: websiteAccessFromRequest(c), companyId,
         pageId: c.req.param('id'),
         actorId,
       })
@@ -162,7 +158,7 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
     try {
-      await websiteSvc.softDeletePage({ companyId, pageId: c.req.param('id'), actorId })
+      await websiteSvc.softDeletePage({ access: websiteAccessFromRequest(c), companyId, pageId: c.req.param('id'), actorId })
       return c.json({ success: true })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

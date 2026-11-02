@@ -1,3 +1,5 @@
+import { secureWebsiteMethods } from '../../services/website-authorization-service.js'
+import { createWebsiteResourcePolicy, WEBSITE_METHOD_PERMISSIONS } from '../../services/website-resource-policy.js'
 import { WebsiteServiceError, notFound, conflict } from './service-helpers.js'
 import { encryptPassword } from '../../services/smtp-service.js'
 import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
@@ -29,6 +31,11 @@ export function createWebsiteService({ prisma }) {
     if (!site) return null
     // Never expose the encrypted secret key — return a boolean flag instead
     return publicSite(site)
+  }
+
+  async function getDefaultPageSite({ companyId }) {
+    const site = await prisma.websiteSite.findFirst({ where: { companyId, enabled: true }, orderBy: { createdAt: 'asc' }, select: { id: true } })
+    return site ? { id: site.id } : null
   }
 
   async function createSite({ companyId, data, actorId }) {
@@ -69,7 +76,7 @@ export function createWebsiteService({ prisma }) {
     if (!before) throw notFound('Sitio')
 
     const after = await prisma.websiteSite.update({
-      where: { id: siteId },
+      where: { id: siteId, companyId },
       data: {
         ...(data.name                !== undefined && { name:                 data.name }),
         ...(data.domain              !== undefined && { domain:               data.domain }),
@@ -112,45 +119,16 @@ export function createWebsiteService({ prisma }) {
     })
     if (!site) throw notFound('Sitio')
 
-    await prisma.auditLog.create({
-      data: {
-        actorId:    actorId ?? null,
-        moduleKey:  'runly.website',
-        entityType: 'website.site',
-        entityId:   siteId,
-        action:     'site.delete',
-        before:     JSON.stringify(site),
-        after:      null,
-      },
-    })
-
+    // Archive atomically; never cascade into versions, forms or responses.
     await prisma.$transaction(async (tx) => {
-      const menuIds = (await tx.websiteMenu.findMany({
-        where: { siteId }, select: { id: true },
-      })).map((m) => m.id)
-
-      const pageIds = (await tx.websitePage.findMany({
-        where: { siteId }, select: { id: true },
-      })).map((p) => p.id)
-
-      // WebsiteFormField and WebsiteFormSubmission cascade from WebsiteForm (onDelete: Cascade)
-      await tx.websiteForm.deleteMany({ where: { siteId } })
-
-      if (menuIds.length) {
-        await tx.websiteMenuItem.deleteMany({ where: { menuId: { in: menuIds } } })
-      }
-      await tx.websiteMenu.deleteMany({ where: { siteId } })
-      await tx.websitePublishedRender.deleteMany({ where: { siteId } })
-
-      if (pageIds.length) {
-        await tx.websitePageVersion.deleteMany({ where: { pageId: { in: pageIds } } })
-      }
-      await tx.websitePage.deleteMany({ where: { siteId } })
-      await tx.websiteBlogPost.deleteMany({ where: { siteId } })
-      await tx.websiteBlogCategory.deleteMany({ where: { siteId } })
-      await tx.websiteTheme.deleteMany({ where: { siteId } })
-      await tx.websiteSite.delete({ where: { id: siteId } })
+      await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { enabled: false, status: 'maintenance' } })
+      await tx.auditLog.create({ data: {
+        actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId,
+        action: 'site.archive', before: JSON.stringify(site), after: JSON.stringify({ enabled: false }),
+      } })
     })
+    invalidateCache(companyId)
+    invalidatePrimaryCache()
   }
 
   async function listPages({ companyId, siteId, page = 1, pageSize = 30, pageType = null, status = null }) {
@@ -195,38 +173,7 @@ export function createWebsiteService({ prisma }) {
       where: { companyId, siteId, routePath: data.routePath },
     })
 
-    if (existing) {
-      if (existing.enabled) throw conflict(`La ruta "${data.routePath}" ya esta en uso.`)
-
-      // Soft-deleted page with same route — reactivate and reset instead of inserting
-      const restored = await prisma.websitePage.update({
-        where: { id: existing.id },
-        data: {
-          title:            data.title,
-          slug:             data.slug,
-          status:           'draft',
-          pageType:         data.pageType ?? 'page',
-          visibility:       data.visibility ?? 'public',
-          draftBuilderData: {},
-          publishedBuilderData: null,
-          seo:              data.seo ?? {},
-          updatedById:      actorId ?? null,
-          enabled:          true,
-        },
-      })
-      await prisma.auditLog.create({
-        data: {
-          actorId: actorId ?? null,
-          moduleKey: 'runly.website',
-          entityType: 'website.page',
-          entityId: restored.id,
-          action: 'page.restore',
-          before: JSON.stringify(existing),
-          after: JSON.stringify(restored),
-        },
-      })
-      return restored
-    }
+    if (existing) throw conflict('La ruta ya existe o conserva un historial archivado.')
 
     const created = await prisma.websitePage.create({
       data: {
@@ -262,7 +209,7 @@ export function createWebsiteService({ prisma }) {
   async function updatePage({ companyId, pageId, data, actorId }) {
     const before = await getPage({ companyId, pageId })
     const after = await prisma.websitePage.update({
-      where: { id: pageId },
+      where: { id: pageId, companyId, siteId: before.siteId },
       data: {
         ...(data.title      !== undefined && { title:      data.title }),
         ...(data.slug       !== undefined && { slug:       data.slug }),
@@ -290,7 +237,7 @@ export function createWebsiteService({ prisma }) {
   async function saveDraft({ companyId, pageId, builderData, seo, actorId }) {
     const before = await getPage({ companyId, pageId })
     const after = await prisma.websitePage.update({
-      where: { id: pageId },
+      where: { id: pageId, companyId, siteId: before.siteId },
       data: {
         draftBuilderData: builderData,
         ...(seo !== undefined && { seo }),
@@ -333,7 +280,7 @@ export function createWebsiteService({ prisma }) {
     })
 
     const after = await prisma.websitePage.update({
-      where: { id: pageId },
+      where: { id: pageId, companyId, siteId: before.siteId },
       data: {
         publishedBuilderData: before.draftBuilderData,
         status: 'published',
@@ -378,7 +325,7 @@ export function createWebsiteService({ prisma }) {
   async function softDeletePage({ companyId, pageId, actorId }) {
     const before = await getPage({ companyId, pageId })
     await prisma.websitePage.update({
-      where: { id: pageId },
+      where: { id: pageId, companyId, siteId: before.siteId },
       data: { enabled: false },
     })
     await prisma.auditLog.create({
@@ -417,7 +364,7 @@ export function createWebsiteService({ prisma }) {
           '[]'::json
         ) AS items
       FROM website_menu m
-      LEFT JOIN website_menu_item mi ON mi.menu_id = m.id AND mi.enabled = true
+      LEFT JOIN website_menu_item mi ON mi.menu_id = m.id AND mi.company_id = m.company_id AND mi.enabled = true
       WHERE m.company_id = ${companyId} AND m.site_id = ${siteId} AND m.enabled = true
       GROUP BY m.id, m.name, m.location
     `
@@ -432,13 +379,13 @@ export function createWebsiteService({ prisma }) {
   async function updateMenu({ companyId, menuId, data }) {
     const menu = await prisma.websiteMenu.findFirst({ where: { id: menuId, companyId } })
     if (!menu) throw notFound('Menu')
-    return prisma.websiteMenu.update({ where: { id: menuId }, data })
+    return prisma.websiteMenu.update({ where: { id: menuId, companyId, siteId: menu.siteId }, data })
   }
 
   async function softDeleteMenu({ companyId, menuId }) {
     const menu = await prisma.websiteMenu.findFirst({ where: { id: menuId, companyId } })
     if (!menu) throw notFound('Menu')
-    return prisma.websiteMenu.update({ where: { id: menuId }, data: { enabled: false } })
+    return prisma.websiteMenu.update({ where: { id: menuId, companyId, siteId: menu.siteId }, data: { enabled: false } })
   }
 
   async function createMenuItem({ companyId, menuId, data }) {
@@ -462,19 +409,19 @@ export function createWebsiteService({ prisma }) {
   async function updateMenuItem({ companyId, itemId, data }) {
     const item = await prisma.websiteMenuItem.findFirst({ where: { id: itemId, companyId } })
     if (!item) throw notFound('Elemento de menu')
-    return prisma.websiteMenuItem.update({ where: { id: itemId }, data })
+    return prisma.websiteMenuItem.update({ where: { id: itemId, companyId, menuId: item.menuId }, data })
   }
 
   async function softDeleteMenuItem({ companyId, itemId }) {
     const item = await prisma.websiteMenuItem.findFirst({ where: { id: itemId, companyId } })
     if (!item) throw notFound('Elemento de menu')
-    return prisma.websiteMenuItem.update({ where: { id: itemId }, data: { enabled: false } })
+    return prisma.websiteMenuItem.update({ where: { id: itemId, companyId, menuId: item.menuId }, data: { enabled: false } })
   }
 
-  async function reorderMenuItems({ companyId, items }) {
+  async function reorderMenuItems({ companyId, menuId, items }) {
     return prisma.$transaction(
       items.map(({ id, sortOrder }) =>
-        prisma.websiteMenuItem.update({ where: { id, companyId }, data: { sortOrder } })
+        prisma.websiteMenuItem.update({ where: { id, companyId, menuId }, data: { sortOrder } })
       )
     )
   }
@@ -513,7 +460,7 @@ export function createWebsiteService({ prisma }) {
         data: { isDefault: false },
       })
     }
-    return prisma.websiteTheme.update({ where: { id: themeId }, data })
+    return prisma.websiteTheme.update({ where: { id: themeId, companyId, siteId: theme.siteId }, data })
   }
 
   async function getActiveTheme({ companyId }) {
@@ -530,7 +477,7 @@ export function createWebsiteService({ prisma }) {
     })
     if (existing) {
       return prisma.websiteTheme.update({
-        where: { id: existing.id },
+        where: { id: existing.id, companyId, siteId: siteId },
         data: {
           ...(tokens     !== undefined && { tokens }),
           ...(typography !== undefined && { typography }),
@@ -572,13 +519,13 @@ export function createWebsiteService({ prisma }) {
   async function updateBlogCategory({ companyId, categoryId, data }) {
     const cat = await prisma.websiteBlogCategory.findFirst({ where: { id: categoryId, companyId } })
     if (!cat) throw notFound('Categoria')
-    return prisma.websiteBlogCategory.update({ where: { id: categoryId }, data })
+    return prisma.websiteBlogCategory.update({ where: { id: categoryId, companyId, siteId: cat.siteId }, data })
   }
 
   async function softDeleteBlogCategory({ companyId, categoryId }) {
     const cat = await prisma.websiteBlogCategory.findFirst({ where: { id: categoryId, companyId } })
     if (!cat) throw notFound('Categoria')
-    return prisma.websiteBlogCategory.update({ where: { id: categoryId }, data: { enabled: false } })
+    return prisma.websiteBlogCategory.update({ where: { id: categoryId, companyId, siteId: cat.siteId }, data: { enabled: false } })
   }
 
   async function listBlogPosts({ companyId, siteId, status, categoryId, page = 1, pageSize = 20 }) {
@@ -596,19 +543,21 @@ export function createWebsiteService({ prisma }) {
         orderBy: { createdAt: 'desc' },
         skip,
         take: pageSize,
-        include: { category: { select: { id: true, name: true } } },
       }),
       prisma.websiteBlogPost.count({ where }),
     ])
+    for (const post of data) {
+      post.category = post.categoryId ? await prisma.websiteBlogCategory.findFirst({ where: { id: post.categoryId, companyId, siteId, enabled: true }, select: { id: true, name: true } }) : null
+    }
     return { data, total, page, pageSize }
   }
 
   async function getBlogPost({ companyId, postId }) {
     const post = await prisma.websiteBlogPost.findFirst({
       where: { id: postId, companyId, enabled: true },
-      include: { category: true },
     })
     if (!post) throw notFound('Entrada de blog')
+    post.category = post.categoryId ? await prisma.websiteBlogCategory.findFirst({ where: { id: post.categoryId, companyId, siteId: post.siteId, enabled: true } }) : null
     return post
   }
 
@@ -631,7 +580,7 @@ export function createWebsiteService({ prisma }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
     if (!post) throw notFound('Entrada de blog')
     return prisma.websiteBlogPost.update({
-      where: { id: postId },
+      where: { id: postId, companyId, siteId: post.siteId },
       data: { ...data, updatedById: actorId ?? null },
     })
   }
@@ -640,7 +589,7 @@ export function createWebsiteService({ prisma }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
     if (!post) throw notFound('Entrada de blog')
     return prisma.websiteBlogPost.update({
-      where: { id: postId },
+      where: { id: postId, companyId, siteId: post.siteId },
       data: { draftBuilderData: builderData, ...(seo && { seo }) },
     })
   }
@@ -649,7 +598,7 @@ export function createWebsiteService({ prisma }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
     if (!post) throw notFound('Entrada de blog')
     const updated = await prisma.websiteBlogPost.update({
-      where: { id: postId },
+      where: { id: postId, companyId, siteId: post.siteId },
       data: {
         status:              'published',
         publishedBuilderData: post.draftBuilderData,
@@ -657,7 +606,7 @@ export function createWebsiteService({ prisma }) {
         updatedById:         actorId ?? null,
       },
     })
-    const site = await prisma.websiteSite.findFirst({ where: { id: post.siteId } })
+    const site = await prisma.websiteSite.findFirst({ where: { id: post.siteId, companyId, enabled: true } })
     if (site) {
       await prisma.websitePublishedRender.upsert({
         where:  { siteId_path: { siteId: site.id, path: `/blog/${post.slug}` } },
@@ -671,11 +620,12 @@ export function createWebsiteService({ prisma }) {
   async function softDeleteBlogPost({ companyId, postId }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
     if (!post) throw notFound('Entrada de blog')
-    return prisma.websiteBlogPost.update({ where: { id: postId }, data: { enabled: false } })
+    return prisma.websiteBlogPost.update({ where: { id: postId, companyId, siteId: post.siteId }, data: { enabled: false } })
   }
 
-  return {
+  return secureWebsiteMethods({
     getSite,
+    getDefaultPageSite,
     createSite,
     updateSite,
     deleteSite,
@@ -712,5 +662,5 @@ export function createWebsiteService({ prisma }) {
     saveBlogDraft,
     publishBlogPost,
     softDeleteBlogPost,
-  }
+  }, WEBSITE_METHOD_PERMISSIONS, createWebsiteResourcePolicy({ prisma }).before)
 }

@@ -10,7 +10,8 @@ describe('public website capture config', () => {
         findUnique: async ({ where }) => ({ value: where.key === 'initialized' ? 'true' : '01900000-0000-7000-8000-000000000001' }),
       },
       company: {
-        findFirst: async () => ({
+        findUnique: async ({ where }) => ({
+          enabled: where.id === "01900000-0000-7000-8000-000000000001",
           id: '01900000-0000-7000-8000-000000000001',
           slug: 'acme',
         }),
