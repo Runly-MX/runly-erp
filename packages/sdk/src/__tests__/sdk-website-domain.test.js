@@ -21,8 +21,11 @@ describe("atlas SDK - website domain extraction", () => {
     });
 
     assert.deepEqual(Object.keys(domain).sort(), [
+      "createPage", "createSite",
       "deleteDist",
+      "getDraft",
       "getSite",
+      "listPages", "listSites", "saveDraft", "saveSiteDraft",
       "updateSite",
       "uploadDist",
     ]);
@@ -49,5 +52,19 @@ describe("atlas SDK - website domain extraction", () => {
     assert.equal(calls[3][1].method, "DELETE");
 
     fetchMock.mock.restore();
+  });
+
+  it('adds scoped CAS and idempotent operations without changing the old method signatures', async () => {
+    const calls=[];
+    const domain=createWebsiteDomain({request:async(path,options)=>{calls.push({path,options});return{}},withAuthHeaders:token=>({Authorization:`Bearer ${token}`})});
+    await domain.createSite({name:'Site'},'attempt-for-site-0001','token');
+    await domain.saveSiteDraft('site/one',{name:'Draft'},3,'token');
+    await domain.saveDraft('site/one','page/two',{document:{schemaVersion:1},expectedRevision:7},'token','attempt-for-draft-0001');
+    assert.equal(calls[0].options.headers['Idempotency-Key'],'attempt-for-site-0001');
+    assert.deepEqual(JSON.parse(calls[1].options.body),{identity:{name:'Draft'},expectedRevision:3});
+    assert.equal(calls[2].path,'/website/sites/site%2Fone/pages/page%2Ftwo/draft');
+    assert.equal(calls[2].options.method,'PUT');
+    assert.equal(calls[2].options.headers.Authorization,'Bearer token');
+    assert.equal(calls[2].options.headers['Idempotency-Key'],'attempt-for-draft-0001');
   });
 });

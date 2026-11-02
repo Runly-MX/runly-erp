@@ -1,5 +1,7 @@
 # Website Recovery — plan de implementación preparado en Fase 1
 
+**Actualización S2, 2026-11-02:** autorizado el bloque de identidades, multisitio y borradores revisionados, con base obligatoria `8ba6c6209760f462aaee238bd0bd88d6452e30ff`. Criterios 1–12 de esa orden cerrados en laboratorio: **APTO para el alcance S2 solicitado**, 29/29 PostgreSQL en 17 y 18 y 224/224 regresiones. [Implementación, migración, compatibilidad y handoff](../evidence/2026-11-02-website-recovery/identity-draft-block-results.md). Website continúa NO APTO E2E; S3 y diseño React no iniciados. No se declara implementado el FormScope persistido ni los demás contratos futuros mencionados en el S2 amplio del plan original; se mantienen visibles en el acta y no deben asumirse disponibles para publicación o diseño de Forms.
+
 **Actualización S1, 2026-11-02:** autorizado e implementado el primer bloque de autoridad de aplicación. Cierre **APTO solo S1**, con 221/221 pruebas locales (112 nuevas de seguridad y 109 regresiones); Website **NO APTO E2E**. [Acta reproducible, archivos y discrepancias](../evidence/2026-11-02-website-recovery/security-block-results.md). S2–S7 siguen pendientes y no se iniciarán dentro de este bloque. El texto de cierre de Fase 1 que sigue es histórico; la aprobación posterior autoriza únicamente S1, no el resto del plan ni infraestructura.
 
 Fecha: 2026-11-02. Código auditado `5a716b43ac940a62172b96b67a369940e10fb26a`; expediente Fase 0 y base Fase 1 `2d4efd6a9c5aebafe96124bf4ddb821810d061aa`, main, limpio al comenzar.

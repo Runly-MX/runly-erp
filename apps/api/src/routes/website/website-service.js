@@ -1,3 +1,4 @@
+import { createWebsiteDraftService } from '../../services/website-draft-service.js'
 import { secureWebsiteMethods } from '../../services/website-authorization-service.js'
 import { createWebsiteResourcePolicy, WEBSITE_METHOD_PERMISSIONS } from '../../services/website-resource-policy.js'
 import { WebsiteServiceError, notFound, conflict } from './service-helpers.js'
@@ -7,6 +8,7 @@ import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-ser
 export { WebsiteServiceError }
 
 export function createWebsiteService({ prisma }) {
+  const drafts = createWebsiteDraftService({ prisma })
   function publicSite(site) {
     if (!site) return null
     const { stripeSecretKey, turnstileSecretKey, ...rest } = site
@@ -23,9 +25,9 @@ export function createWebsiteService({ prisma }) {
   }
 
 
-  async function getSite({ companyId }) {
+  async function getSite({ companyId, siteId }) {
     const site = await prisma.websiteSite.findFirst({
-      where: { companyId, enabled: true },
+      where: { companyId, enabled: true, ...(siteId ? { id: siteId } : { defaultForCompany: true }) },
       orderBy: { createdAt: 'asc' },
     })
     if (!site) return null
@@ -34,39 +36,44 @@ export function createWebsiteService({ prisma }) {
   }
 
   async function getDefaultPageSite({ companyId }) {
-    const site = await prisma.websiteSite.findFirst({ where: { companyId, enabled: true }, orderBy: { createdAt: 'asc' }, select: { id: true } })
+    const site = await prisma.websiteSite.findFirst({ where: { companyId, enabled: true, defaultForCompany: true }, select: { id: true } })
     return site ? { id: site.id } : null
   }
 
-  async function createSite({ companyId, data, actorId }) {
-    const created = await prisma.websiteSite.create({
-      data: {
-        companyId,
-        name:          data.name,
-        domain:        data.domain ?? null,
-        defaultLocale: data.defaultLocale ?? 'es',
-        siteType:      data.siteType ?? 'website',
-        analyticsMode: data.analyticsMode ?? 'off',
-        turnstileSiteKey: data.turnstileSiteKey ?? null,
-        turnstileSecretKey: data.turnstileSecretKey
-          ? encryptedSecret(data.turnstileSecretKey)
-          : null,
-        status:        'draft',
-        enabled:       true,
-      },
+  async function createSite(args) {
+    const { companyId, data, actorId } = args
+    return drafts.createSite(args, async (prisma, defaultForCompany) => {
+      const created = await prisma.websiteSite.create({
+        data: {
+          companyId,
+          defaultForCompany,
+          draftIdentity: { name: data.name, siteType: data.siteType ?? 'website', settings: {}, seoDefaults: {} },
+          name:          data.name,
+          domain:        data.domain ?? null,
+          defaultLocale: data.defaultLocale ?? 'es',
+          siteType:      data.siteType ?? 'website',
+          analyticsMode: data.analyticsMode ?? 'off',
+          turnstileSiteKey: data.turnstileSiteKey ?? null,
+          turnstileSecretKey: data.turnstileSecretKey
+            ? encryptedSecret(data.turnstileSecretKey)
+            : null,
+          status:        'draft',
+          enabled:       true,
+        },
+      })
+      await prisma.auditLog.create({
+        data: {
+          actorId: actorId ?? null,
+          moduleKey: 'runly.website',
+          entityType: 'website.site',
+          entityId: created.id,
+          action: 'site.create',
+          before: null,
+          after: JSON.stringify(publicSite(created)),
+        },
+      })
+      return publicSite(created)
     })
-    await prisma.auditLog.create({
-      data: {
-        actorId: actorId ?? null,
-        moduleKey: 'runly.website',
-        entityType: 'website.site',
-        entityId: created.id,
-        action: 'site.create',
-        before: null,
-        after: JSON.stringify(publicSite(created)),
-      },
-    })
-    return publicSite(created)
   }
 
   async function updateSite({ companyId, siteId, data, actorId }) {
@@ -153,6 +160,7 @@ export function createWebsiteService({ prisma }) {
           publishedAt: true,
           createdAt: true,
           updatedAt: true,
+          revision: true, draftMetadata: true,
         },
       }),
       prisma.websitePage.count({ where }),
@@ -168,42 +176,52 @@ export function createWebsiteService({ prisma }) {
     return page
   }
 
-  async function createPage({ companyId, siteId, data, actorId }) {
-    const existing = await prisma.websitePage.findFirst({
-      where: { companyId, siteId, routePath: data.routePath },
-    })
+  async function createPage(args) {
+    const { companyId, siteId, data, actorId } = args
+    return prisma.$transaction(async (prisma) => {
+      await drafts.lockSite(prisma, companyId, siteId)
+      return drafts.receipt(prisma, args, `page.create:${siteId}`, data, async () => {
+        const existing = await prisma.websitePage.findFirst({
+          where: { companyId, siteId, routePath: data.routePath },
+        })
 
-    if (existing) throw conflict('La ruta ya existe o conserva un historial archivado.')
+        if (existing) throw conflict('La ruta ya existe o conserva un historial archivado.')
+        const reserved = await prisma.websitePage.findMany({ where: { companyId, siteId }, select: { draftMetadata: true } })
+        if (reserved.some(row => row.draftMetadata?.routePath === data.routePath)) throw conflict('La ruta está reservada por otro borrador.')
 
-    const created = await prisma.websitePage.create({
-      data: {
-        companyId,
-        siteId,
-        title: data.title,
-        slug: data.slug,
-        routePath: data.routePath,
-        status: 'draft',
-        pageType: data.pageType ?? 'page',
-        visibility: data.visibility ?? 'public',
-        draftBuilderData: {},
-        seo: data.seo ?? {},
-        createdById: actorId ?? null,
-        updatedById: actorId ?? null,
-        enabled: true,
-      },
+        const created = await prisma.websitePage.create({
+          data: {
+            companyId,
+            siteId,
+            draftMetadata: { title: data.title, slug: data.slug, routePath: data.routePath, visibility: data.visibility ?? 'public' },
+            draftSeo: data.seo ?? {},
+            title: data.title,
+            slug: data.slug,
+            routePath: data.routePath,
+            status: 'draft',
+            pageType: data.pageType ?? 'page',
+            visibility: data.visibility ?? 'public',
+            draftBuilderData: {},
+            seo: data.seo ?? {},
+            createdById: actorId ?? null,
+            updatedById: actorId ?? null,
+            enabled: true,
+          },
+        })
+        await prisma.auditLog.create({
+          data: {
+            actorId: actorId ?? null,
+            moduleKey: 'runly.website',
+            entityType: 'website.page',
+            entityId: created.id,
+            action: 'page.create',
+            before: null,
+            after: JSON.stringify(created),
+          },
+        })
+        return created
+      })
     })
-    await prisma.auditLog.create({
-      data: {
-        actorId: actorId ?? null,
-        moduleKey: 'runly.website',
-        entityType: 'website.page',
-        entityId: created.id,
-        action: 'page.create',
-        before: null,
-        after: JSON.stringify(created),
-      },
-    })
-    return created
   }
 
   async function updatePage({ companyId, pageId, data, actorId }) {
@@ -234,29 +252,7 @@ export function createWebsiteService({ prisma }) {
     return after
   }
 
-  async function saveDraft({ companyId, pageId, builderData, seo, actorId }) {
-    const before = await getPage({ companyId, pageId })
-    const after = await prisma.websitePage.update({
-      where: { id: pageId, companyId, siteId: before.siteId },
-      data: {
-        draftBuilderData: builderData,
-        ...(seo !== undefined && { seo }),
-        updatedById: actorId ?? null,
-      },
-    })
-    await prisma.auditLog.create({
-      data: {
-        actorId: actorId ?? null,
-        moduleKey: 'runly.website',
-        entityType: 'website.page',
-        entityId: pageId,
-        action: 'page.save_draft',
-        before: JSON.stringify({ draftBuilderData: before.draftBuilderData }),
-        after:  JSON.stringify({ draftBuilderData: after.draftBuilderData }),
-      },
-    })
-    return after
-  }
+  async function saveDraft(args) { return drafts.save(args) }
 
   async function publishPage({ companyId, pageId, actorId }) {
     const before = await getPage({ companyId, pageId })
@@ -463,9 +459,12 @@ export function createWebsiteService({ prisma }) {
     return prisma.websiteTheme.update({ where: { id: themeId, companyId, siteId: theme.siteId }, data })
   }
 
-  async function getActiveTheme({ companyId }) {
+  async function getActiveTheme({ companyId, siteId }) {
+    const parent = await getSite({ companyId, siteId })
+    if (!parent) return null
+    const themeId = parent.draftIdentity?.themeId ?? parent.themeId
     return prisma.websiteTheme.findFirst({
-      where: { companyId, enabled: true },
+      where: { companyId, siteId: parent.id, enabled: true, ...(themeId && { id: themeId }) },
       orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }],
     })
   }
@@ -585,14 +584,7 @@ export function createWebsiteService({ prisma }) {
     })
   }
 
-  async function saveBlogDraft({ companyId, postId, builderData, seo }) {
-    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
-    if (!post) throw notFound('Entrada de blog')
-    return prisma.websiteBlogPost.update({
-      where: { id: postId, companyId, siteId: post.siteId },
-      data: { draftBuilderData: builderData, ...(seo && { seo }) },
-    })
-  }
+  async function saveBlogDraft(args) { return drafts.save(args, 'post') }
 
   async function publishBlogPost({ companyId, postId, actorId }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
@@ -623,7 +615,14 @@ export function createWebsiteService({ prisma }) {
     return prisma.websiteBlogPost.update({ where: { id: postId, companyId, siteId: post.siteId }, data: { enabled: false } })
   }
 
+  async function listSites({ companyId }) {
+    const rows = await prisma.websiteSite.findMany({ where: { companyId, enabled: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
+    return rows.map(publicSite)
+  }
+  async function saveSiteDraft(args) { return publicSite(await drafts.saveSite(args)) }
+
   return secureWebsiteMethods({
+    listSites, saveSiteDraft,
     getSite,
     getDefaultPageSite,
     createSite,

@@ -20,8 +20,24 @@ export const updatePageSchema = z.object({
 }).strict()
 
 export const saveDraftSchema = z.object({
-  builderData: z.record(z.unknown()),
+  builderData: z.union([z.record(z.unknown()), z.string()]),
   seo:         z.record(z.unknown()).optional(),
+  expectedRevision: z.number().int().nonnegative().optional(),
+}).strict()
+
+export const siteDraftIdentitySchema = z.object({
+  name: z.string().min(1).max(255).optional(),
+  siteType: z.enum(['website', 'ecommerce', 'blog', 'landing']).optional(),
+  settings: z.record(z.unknown()).optional(), seoDefaults: z.record(z.unknown()).optional(),
+  themeId: z.string().uuid().nullable().optional(), homepagePageId: z.string().uuid().nullable().optional(),
+}).strict()
+export const pageDraftMetadataSchema = updatePageSchema.omit({ status: true, seo: true }).strict()
+export const revisionedDraftSchema = z.object({
+  document: z.record(z.unknown()), seo: z.record(z.unknown()).optional(),
+  metadata: pageDraftMetadataSchema.optional(), expectedRevision: z.number().int().nonnegative(),
+}).strict()
+export const revisionedSiteSchema = z.object({
+  identity: siteDraftIdentitySchema, expectedRevision: z.number().int().nonnegative(),
 }).strict()
 
 export const createSiteSchema = z.object({
@@ -134,8 +150,9 @@ export const updateBlogPostSchema = z.object({
 }).strict()
 
 export const saveBlogDraftSchema = z.object({
-  builderData: z.record(z.unknown()),
+  builderData: z.union([z.record(z.unknown()), z.string()]),
   seo:         z.record(z.unknown()).optional(),
+  expectedRevision: z.number().int().nonnegative().optional(),
 }).strict()
 
 import * as formValidators from '@runly/validators'

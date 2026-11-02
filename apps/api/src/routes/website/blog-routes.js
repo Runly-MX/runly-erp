@@ -129,9 +129,9 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     zValidator('json', saveBlogDraftSchema),
     async (c) => {
       const companyId = c.get('companyId')
-      const { builderData, seo } = c.req.valid('json')
+      const { builderData, seo, expectedRevision } = c.req.valid('json')
       try {
-        const post = await websiteSvc.saveBlogDraft({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), builderData, seo })
+        const post = await websiteSvc.saveBlogDraft({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), builderData, seo, expectedRevision, idempotencyKey: c.req.header('Idempotency-Key') })
         return c.json(post)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

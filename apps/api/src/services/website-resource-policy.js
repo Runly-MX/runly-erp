@@ -4,6 +4,7 @@ import { assertWebsiteAccess } from './website-authorization-service.js'
 import { createFileAccess } from './files/access.js'
 
 export const WEBSITE_METHOD_PERMISSIONS = Object.freeze({
+  listSites: 'website.site.read', saveSiteDraft: 'website.site.update',
   getSite: 'website.site.read', getDefaultPageSite: 'website.pages.read', createSite: 'website.site.update', updateSite: 'website.site.update', deleteSite: 'website.site.update',
   listPages: 'website.pages.read', getPage: 'website.pages.read', getPageByPath: 'website.pages.read',
   createPage: 'website.pages.create', updatePage: 'website.pages.update', saveDraft: 'website.pages.update',
@@ -66,6 +67,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
   async function before(name, args) {
     const { companyId } = args
     const requiredIds = {
+      saveSiteDraft: 'siteId',
       updateSite: 'siteId', deleteSite: 'siteId', getPage: 'pageId', updatePage: 'pageId', saveDraft: 'pageId', publishPage: 'pageId', softDeletePage: 'pageId',
       getTheme: 'themeId', updateTheme: 'themeId', updateMenu: 'menuId', softDeleteMenu: 'menuId', createMenuItem: 'menuId', reorderMenuItems: 'menuId',
       updateMenuItem: 'itemId', softDeleteMenuItem: 'itemId', updateBlogCategory: 'categoryId', softDeleteBlogCategory: 'categoryId',
@@ -84,7 +86,12 @@ export function createWebsiteResourcePolicy({ prisma }) {
 
     let page
     if (args.pageId) page = await resource('websitePage', companyId, args.pageId, args.siteId)
-    if (page && (args.data?.status !== undefined || (page.status === 'published' && (name === 'updatePage' || name === 'softDeletePage' || args.seo !== undefined)))) {
+    if (name === 'saveDraft' && args.metadata !== undefined) {
+      const parsed = schemas.pageDraftMetadataSchema.safeParse(args.metadata)
+      if (!parsed.success) throw new WebsiteServiceError('Datos inválidos.', 422, 'validation_failed')
+      args.metadata = parsed.data
+    }
+    if (page && (args.data?.status !== undefined || (page.status === 'published' && (name === 'updatePage' || name === 'softDeletePage')))) {
       assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
     }
     if (name === 'updateSite') {
@@ -94,12 +101,19 @@ export function createWebsiteResourcePolicy({ prisma }) {
       if (args.data.settings?.logoFileId) await fileReference(args, args.data.settings.logoFileId, args.siteId)
       await publicMutation(args, args.siteId)
     }
+    if (name === 'saveSiteDraft') {
+      parse(schemas.siteDraftIdentitySchema, args)
+      if (args.data.homepagePageId) await resource('websitePage', companyId, args.data.homepagePageId, args.siteId)
+      if (args.data.themeId) await resource('websiteTheme', companyId, args.data.themeId, args.siteId)
+      if (args.data.settings?.logoFileId) await fileReference(args, args.data.settings.logoFileId, args.siteId)
+    }
     if (name === 'deleteSite') assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
 
     const theme = args.themeId ? await resource('websiteTheme', companyId, args.themeId, args.siteId) : null
     if (['createTheme', 'upsertTheme', 'updateTheme'].includes(name)) await publicMutation(args, theme?.siteId ?? args.siteId)
     if (name === 'getActiveTheme') {
-      const active = await prisma.websiteTheme.findFirst({ where: { companyId, enabled: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] })
+      const parent = args.siteId ? { id: args.siteId } : await prisma.websiteSite.findFirst({ where: { companyId, enabled: true, defaultForCompany: true } })
+      const active = parent ? await prisma.websiteTheme.findFirst({ where: { companyId, siteId: parent.id, enabled: true }, orderBy: [{ isDefault: 'desc' }, { createdAt: 'desc' }] }) : null
       if (active) await site(companyId, active.siteId)
     }
 
@@ -134,7 +148,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
       const existing = await prisma.websitePublishedRender.findFirst({ where: { siteId: entry.siteId, path } })
       if (existing && existing.companyId !== companyId) throw notFound('Recurso')
     }
-    if ((post?.status === 'published' && ['updateBlogPost', 'softDeleteBlogPost'].includes(name)) || (post?.status === 'published' && args.seo !== undefined)) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
+    if (post?.status === 'published' && ['updateBlogPost', 'softDeleteBlogPost'].includes(name)) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
     if (['createBlogCategory', 'updateBlogCategory', 'softDeleteBlogCategory'].includes(name)) await publicMutation(args, category?.siteId ?? args.siteId)
   }
   return { before, site, resource }

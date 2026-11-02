@@ -32,14 +32,14 @@ function compactField(field) {
 export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
   const svc = createWebsiteService({ prisma });
   const access = a => createWebsiteAccess({ companyId: a.companyId, actorId: a.actorProfileId, can: a.can });
-  async function currentSite(a) {
-    const row = await prisma.websiteSite.findFirst({ where: { companyId: a.companyId, enabled: true }, orderBy: { createdAt: 'asc' } });
+  async function currentSite(a, siteId) {
+    const row = await prisma.websiteSite.findFirst({ where: { companyId: a.companyId, enabled: true, ...(siteId ? { id: siteId } : { defaultForCompany: true }) } });
     if (!row) return null;
     const { stripeSecretKey, turnstileSecretKey, ...safe } = row;
     return safe;
   }
-  async function site(a) {
-    const row = await currentSite(a);
+  async function site(a, siteId) {
+    const row = await currentSite(a, siteId);
     insist(row, 'not_found', 'La empresa aún no tiene sitio. Créalo con website.site.setup.', 404);
     return row;
   }
@@ -51,10 +51,10 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
   const publicUrl = file => supabaseAdmin?.storage?.from(file.bucket).getPublicUrl(file.objectKey)?.data?.publicUrl ?? null;
 
   const queries = [
-    { name: 'website_overview', permission: 'website.site.read', inputSchema: z.strictObject({}), definition: { description: 'Sitio de la empresa, tema, páginas (rutas y estado) y datos del negocio. Punto de partida para crear o editar el sitio.' },
-      async run(_input, a) {
-        const [current, company] = await Promise.all([currentSite(a), prisma.company.findUnique({ where: { id: a.companyId }, select: { name: true } })]);
-        const [theme, pages] = current ? await Promise.all([a.can('website.theme.read') ? svc.getActiveTheme({ access: access(a), companyId: a.companyId }) : null, a.can('website.pages.read') ? svc.listPages({ access: access(a), companyId: a.companyId, siteId: current.id, pageSize: 100 }) : { data: [] }]) : [null, { data: [] }];
+    { name: 'website_overview', permission: 'website.site.read', inputSchema: z.strictObject({ siteId: z.uuid().optional() }), definition: { description: 'Sitio de la empresa, tema, páginas (rutas y estado) y datos del negocio. Punto de partida para crear o editar el sitio.' },
+      async run(input, a) {
+        const [current, company] = await Promise.all([currentSite(a, input.siteId), prisma.company.findUnique({ where: { id: a.companyId }, select: { name: true } })]);
+        const [theme, pages] = current ? await Promise.all([a.can('website.theme.read') ? svc.getActiveTheme({ access: access(a), companyId: a.companyId, siteId: current.id }) : null, a.can('website.pages.read') ? svc.listPages({ access: access(a), companyId: a.companyId, siteId: current.id, pageSize: 100 }) : { data: [] }]) : [null, { data: [] }];
         return { company: { name: company?.name ?? '' }, catalogAvailable: a.can('catalog.products.read'),
           site: current && { id: current.id, name: current.name, siteType: current.siteType, sourceType: current.sourceType, domain: current.domain, status: current.status },
           theme: theme && { colors: theme.tokens?.color ?? {}, typography: theme.typography ?? {} },
@@ -69,10 +69,10 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
           blocks: blocks.map(block => ({ type: block.type, label: block.label, group: block.group, slots: block.slots, fields: Object.fromEntries(Object.entries(block.fields).map(([key, field]) => [key, compactField(field)])), ...(input.types?.length ? { defaultProps: block.defaultProps } : {}) })),
           guide: WEBSITE_DESIGN_GUIDE };
       } },
-    { name: 'website_page_detail', permission: 'website.pages.read', inputSchema: z.strictObject({ pageId: z.uuid() }), definition: { description: 'Página con su borrador en formato sections, para editarla y reenviarla completa con website.pages.draft.' },
+    { name: 'website_page_detail', permission: 'website.pages.read', inputSchema: z.strictObject({ pageId: z.uuid(), siteId: z.uuid().optional() }), definition: { description: 'Página con su borrador en formato sections, para editarla y reenviarla completa con website.pages.draft.' },
       async run(input, a) {
-        const row = await page(a, input.pageId, (await site(a)).id);
-        return { id: row.id, title: row.title, routePath: row.routePath, status: row.status, seo: row.seo, sections: documentToSections(row.draftBuilderData), link: editorLink(row.id) };
+        const row = await page(a, input.pageId, (await site(a, input.siteId)).id);
+        return { id: row.id, siteId: row.siteId, revision: row.revision, draftMetadata: row.draftMetadata, title: row.title, routePath: row.routePath, status: row.status, seo: row.draftSeo ?? row.seo, sections: documentToSections(row.draftBuilderData), link: editorLink(row.id) };
       } },
     { name: 'website_media', permission: 'website.pages.read', inputSchema: z.strictObject({ ...pageInput, search: z.string().max(120).optional() }), definition: { description: 'Imágenes públicas de la empresa con URL permanente, aptas para páginas y productos.' },
       async run(input, a) {
@@ -84,10 +84,10 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
 
   const actions = [
     { key: 'website.site.setup', permission: 'website.site.update', operation: 'update', label: 'Configurar sitio y tema',
-      inputSchema: z.strictObject({ name: z.string().trim().min(1).max(255).optional(), siteType: z.enum(SITE_TYPES).optional(), useBuilder: z.literal(true).optional(),
+      inputSchema: z.strictObject({ siteId: z.uuid().optional(), name: z.string().trim().min(1).max(255).optional(), siteType: z.enum(SITE_TYPES).optional(), useBuilder: z.literal(true).optional(),
         theme: z.strictObject({ colors: z.strictObject({ primary: hex, primaryFg: hex, bg: hex, fg: hex, muted: hex, accent: hex }).partial().optional(), headingFont: z.enum(FONTS).optional(), bodyFont: z.enum(FONTS).optional(), headingWeight: z.enum(['400', '500', '600', '700', '800']).optional(), baseFontSize: z.enum(['14px', '15px', '16px', '17px', '18px']).optional() }).optional() }),
       async prepare(input, a) {
-        const current = await currentSite(a);
+        const current = await currentSite(a, input.siteId);
         insist(current || input.name, 'invalid_request', 'Indica name para crear el sitio.');
         const fields = [{ label: 'Sitio', value: `${input.name ?? current.name} (${input.siteType ?? current?.siteType ?? 'website'})`, ...(current ? { before: `${current.name} (${current.siteType})` } : {}) }];
         if (input.theme) fields.push({ label: 'Tema', value: JSON.stringify(input.theme) });
@@ -95,7 +95,7 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
         return { input, targetId: current?.id ?? null, preview: { title: current ? 'Actualizar sitio' : 'Crear sitio', fields } };
       },
       async execute(input, a) {
-        let current = await currentSite(a);
+        let current = await currentSite(a, input.siteId);
         const data = { ...(input.name ? { name: input.name } : {}), ...(input.siteType ? { siteType: input.siteType } : {}) };
         current = current ? (Object.keys(data).length ? await svc.updateSite({ access: access(a), companyId: a.companyId, siteId: current.id, data, actorId: a.actorProfileId }) : current) : await svc.createSite({ access: access(a), companyId: a.companyId, data, actorId: a.actorProfileId });
         if (input.useBuilder && current.sourceType !== 'builder') await prisma.websiteSite.update({ where: { id: current.id, companyId: a.companyId }, data: { sourceType: 'builder' } });
@@ -107,9 +107,9 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
         return { siteId: current.id, name: current.name, link: '/app/m/runly.website' };
       } },
     { key: 'website.pages.draft', permission: 'website.pages.update', operation: 'update', label: 'Guardar borradores de páginas',
-      inputSchema: z.strictObject({ pages: z.array(z.strictObject({ pageId: z.uuid().optional(), routePath: routePath.optional(), title: z.string().trim().min(1).max(255), seo: z.strictObject({ title: z.string().max(160).optional(), description: z.string().max(320).optional() }).optional(), sections: z.array(section).min(1).max(60) })).min(1).max(12) }),
+      inputSchema: z.strictObject({ siteId: z.uuid().optional(), pages: z.array(z.strictObject({ pageId: z.uuid().optional(), expectedRevision: z.number().int().nonnegative().optional(), routePath: routePath.optional(), title: z.string().trim().min(1).max(255), seo: z.strictObject({ title: z.string().max(160).optional(), description: z.string().max(320).optional() }).optional(), sections: z.array(section).min(1).max(60) })).min(1).max(12) }),
       async prepare(input, a) {
-        const current = await site(a), resolved = [], fields = [];
+        const current = await site(a, input.siteId), resolved = [], fields = [];
         for (const [index, item] of input.pages.entries()) {
           insist(item.pageId || item.routePath, 'invalid_request', `pages[${index}]: indica pageId o routePath.`);
           const existing = item.pageId ? await page(a, item.pageId, current.id) : await prisma.websitePage.findFirst({ where: { companyId: a.companyId, siteId: current.id, routePath: item.routePath, enabled: true } });
@@ -117,35 +117,34 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
           const path = existing?.routePath ?? item.routePath, slug = path === '/' ? 'inicio' : path.slice(1).replace(/\//g, '-');
           insist(!resolved.some(other => other.routePath === path), 'invalid_request', `Ruta repetida en la propuesta: ${path}`);
           const document = sectionsToDocument({ id: existing?.id ?? slug, slug, title: item.title, sections: item.sections });
-          resolved.push({ pageId: existing?.id ?? null, routePath: path, slug, title: item.title, seo: item.seo ?? null, document });
+          resolved.push({ expectedRevision: item.expectedRevision ?? existing?.revision ?? 0, pageId: existing?.id ?? null, routePath: path, slug, title: item.title, seo: item.seo ?? null, document });
           fields.push({ label: `${path} ${existing ? '(existente)' : '(nueva)'}`, value: `${item.title}: ${Object.keys(document.blocks).length} bloques · ${item.sections.map(s => s.type).join(', ')}` });
         }
-        return { input: { pages: resolved }, targetId: current.id, preview: { title: 'Guardar borradores (no se publica nada)', fields } };
+        return { input: { siteId: current.id, pages: resolved }, targetId: current.id, preview: { title: 'Guardar borradores (no se publica nada)', fields } };
       },
       async execute(input, a) {
-        const current = await site(a), saved = [];
+        const current = await site(a, input.siteId), saved = [];
         for (const item of input.pages) {
           let row = item.pageId ? await page(a, item.pageId, current.id) : await svc.createPage({ access: access(a), companyId: a.companyId, siteId: current.id, data: { title: item.title, slug: item.slug, routePath: item.routePath }, actorId: a.actorProfileId });
-          if (item.pageId && row.title !== item.title) row = await svc.updatePage({ access: access(a), companyId: a.companyId, pageId: row.id, data: { title: item.title }, actorId: a.actorProfileId });
-          const seo = item.seo ? { ...(row.seo ?? {}), ...item.seo } : undefined;
-          await svc.saveDraft({ access: access(a), companyId: a.companyId, pageId: row.id, builderData: JSON.stringify({ ...item.document, id: row.id }), seo, actorId: a.actorProfileId });
-          saved.push({ id: row.id, title: item.title, routePath: row.routePath, status: row.status, link: editorLink(row.id) });
+          const seo = item.seo ? { ...(row.draftSeo ?? row.seo ?? {}), ...item.seo } : undefined;
+          const savedDraft = await svc.saveDraft({ access: access(a), companyId: a.companyId, pageId: row.id, builderData: { ...item.document, id: row.id }, seo, metadata: { title: item.title }, expectedRevision: item.pageId ? item.expectedRevision : row.revision, actorId: a.actorProfileId });
+          saved.push({ revision: savedDraft.revision, id: row.id, title: item.title, routePath: row.routePath, status: row.status, link: editorLink(row.id) });
         }
         return { siteId: current.id, pages: saved };
       } },
     { key: 'website.pages.publish', permission: 'website.pages.publish', operation: 'update', label: 'Publicar páginas',
-      inputSchema: z.strictObject({ pageIds: z.array(z.uuid()).min(1).max(30) }),
+      inputSchema: z.strictObject({ siteId: z.uuid().optional(), pageIds: z.array(z.uuid()).min(1).max(30) }),
       async prepare(input, a) {
-        const current = await site(a), pageIds = [...new Set(input.pageIds)].sort(), fields = [];
+        const current = await site(a, input.siteId), pageIds = [...new Set(input.pageIds)].sort(), fields = [];
         for (const id of pageIds) {
           const row = await page(a, id, current.id);
           insist(documentToSections(row.draftBuilderData).length, 'invalid_request', `La página ${row.routePath} no tiene contenido en borrador.`);
           fields.push({ label: row.routePath, value: `${row.title} — visible públicamente`, before: row.status });
         }
-        return { input: { pageIds }, targetId: current.id, preview: { title: 'Publicar páginas en el sitio público', fields } };
+        return { input: { siteId: current.id, pageIds }, targetId: current.id, preview: { title: 'Publicar páginas en el sitio público', fields } };
       },
       async execute(input, a) {
-        const current = await site(a), published = [];
+        const current = await site(a, input.siteId), published = [];
         for (const id of input.pageIds) {
           const row = await svc.publishPage({ access: access(a), companyId: a.companyId, pageId: id, actorId: a.actorProfileId });
           published.push({ id: row.id, routePath: row.routePath, publishedAt: row.publishedAt });
@@ -165,6 +164,7 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
           if (input.theme) assertWebsiteAccess(scope, a.companyId, 'website.theme.update');
           if (input.useBuilder) assertWebsiteAccess(scope, a.companyId, 'website.pages.publish');
         }
+        if (input.siteId) await site(a, input.siteId);
         return original(input, a);
       };
     }
@@ -173,9 +173,9 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
     // Drafts are private; publishing (or switching the public source) exposes content.
     async revision(definition, prepared, a) {
       assertWebsiteAccess(access(a), a.companyId, definition.permission);
-      if (definition.key === 'website.site.setup') return currentSite(a);
+      if (definition.key === 'website.site.setup') return currentSite(a, prepared.input.siteId);
       const ids = definition.key === 'website.pages.publish' ? prepared.input.pageIds : prepared.input.pages.map(item => item.pageId).filter(Boolean);
-      const rows = await prisma.websitePage.findMany({ where: { id: { in: ids }, companyId: a.companyId }, select: { id: true, updatedAt: true, status: true }, orderBy: { id: 'asc' } });
+      const rows = await prisma.websitePage.findMany({ where: { id: { in: ids }, companyId: a.companyId }, select: { id: true, siteId: true, revision: true, updatedAt: true, status: true }, orderBy: { id: 'asc' } });
       return rows;
     },
     sensitive: (definition, input) => definition.key === 'website.pages.publish' || input?.useBuilder === true,

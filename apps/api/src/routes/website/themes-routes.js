@@ -12,7 +12,7 @@ export function createThemesRouter({ websiteSvc, requirePermission }) {
   app.get('/theme', requirePermission('website.theme.read'), async (c) => {
     const companyId = c.get('companyId')
     try {
-      const theme = await websiteSvc.getActiveTheme({ access: websiteAccessFromRequest(c), companyId })
+      const theme = await websiteSvc.getActiveTheme({ access: websiteAccessFromRequest(c), companyId, siteId: c.req.query('siteId') })
       return c.json({ data: theme ?? null })
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

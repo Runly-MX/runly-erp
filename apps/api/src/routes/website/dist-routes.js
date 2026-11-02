@@ -1,11 +1,12 @@
 import { Hono } from 'hono'
 import { createDistUploadService } from '../../services/dist-upload-service.js'
 import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-serve-service.js'
-import { websiteErrorHandler } from '../../services/website-authorization-service.js'
+import { websiteErrorHandler, websiteAccessFromRequest, assertWebsiteAccess } from '../../services/website-authorization-service.js'
+import { revisionedSiteSchema } from './validators.js'
 
 const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 
-export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
+export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc }) {
   const app = new Hono()
   app.onError(websiteErrorHandler)
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
@@ -36,7 +37,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         const builds = await uploadService.listBuilds({ companySlug: site[0].company_slug })
         return c.json({ data: builds })
       } catch (err) {
-        return c.json({ error: 'No se pudo completar la operación.' }, 500)
+        return websiteErrorHandler(err, c)
       }
     }
   )
@@ -54,6 +55,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
       try {
         const { siteId } = c.req.param()
         const companyId = c.get('companyId')
+        if (websiteSvc) return c.json({ data: await websiteSvc.getSite({ access: websiteAccessFromRequest(c), companyId, siteId }) })
         const rows = await prisma.$queryRaw`
           SELECT id, name, source_type as "sourceType",
                  dist_uploaded_at as "distUploadedAt",
@@ -68,7 +70,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         if (!rows[0]) return c.json({ error: 'Sitio no encontrado' }, 404)
         return c.json({ data: rows[0] })
       } catch (err) {
-        return c.json({ error: 'No se pudo completar la operación.' }, 500)
+        return websiteErrorHandler(err, c)
       }
     }
   )
@@ -76,13 +78,19 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
   app.patch(
     '/website/sites/:siteId',
     requirePermission('website.site.update'),
-    requirePermission('website.pages.publish'),
     async (c) => {
       try {
         const { siteId } = c.req.param()
         const companyId = c.get('companyId')
         const actorId = c.get('userId') ?? null
         const body = await c.req.json().catch(() => ({}))
+        if (!Object.hasOwn(body, 'sourceType') && websiteSvc) {
+          const parsed = revisionedSiteSchema.safeParse(body)
+          if (!parsed.success) return c.json({ error: 'Datos inválidos.', code: 'validation_failed' }, 422)
+          const saved = await websiteSvc.saveSiteDraft({ access: websiteAccessFromRequest(c), companyId, siteId, data: parsed.data.identity, expectedRevision: parsed.data.expectedRevision, idempotencyKey: c.req.header('Idempotency-Key') })
+          return c.json({ data: saved })
+        }
+        assertWebsiteAccess(websiteAccessFromRequest(c), companyId, 'website.pages.publish')
         const { sourceType } = body
         if (Object.keys(body).some(key => key !== 'sourceType') || !sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
           return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
@@ -120,7 +128,7 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission }) {
         }).catch(() => {})
         return c.json({ data: updated[0] })
       } catch (err) {
-        return c.json({ error: 'No se pudo completar la operación.' }, 500)
+        return websiteErrorHandler(err, c)
       }
     }
   )

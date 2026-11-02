@@ -1,5 +1,7 @@
 # Runly Website Recovery — expediente técnico de Fases 0 y 1
 
+**Actualización S2, 2026-11-02:** completado localmente el alcance autorizado de identidades multisitio y borradores revisionados sobre `8ba6c6209760f462aaee238bd0bd88d6452e30ff`. **APTO para ese bloque; Website NO APTO E2E.** [Acta S2, modelos, contratos liberados y límites](../evidence/2026-11-02-website-recovery/identity-draft-block-results.md). Preflight S1 y migración real desechable; 29/29 pruebas PostgreSQL en 17.10 y en 18.6, 224/224 regresiones seleccionadas. S3 no iniciado. Las notas de estado anteriores se conservan como registro histórico.
+
 **Actualización S1, 2026-11-02:** arquitectura autorizada por el responsable y bloque local de autoridad implementado. **APTO para el alcance S1 de autorización de aplicación; Website sigue NO APTO E2E.** Evidencia, discrepancias y límites en [cierre de seguridad](../evidence/2026-11-02-website-recovery/security-block-results.md). Base de implementación `fef52f42b17f921d0626e67a15c5c6742c927ea3`, posterior al commit documental `da8e06afc`. Pruebas finales: 221/221, incluidas 112 nuevas de seguridad. S2 y los demás bloques no iniciados. Las secciones de Fases 0/1 siguientes conservan sus conclusiones históricas a sus respectivos commits.
 
 Fecha: 2026-11-02. **Fase 1 documental e investigación terminadas para revisión; NO APTO como recuperación funcional/E2E.** No se inició Fase 2 ni se implementaron correcciones. Base de esta fase: `2d4efd6a9c5aebafe96124bf4ddb821810d061aa`; código auditado `5a716b43ac940a62172b96b67a369940e10fb26a`.

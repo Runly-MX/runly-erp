@@ -1341,7 +1341,10 @@ model UserPreference {
 // ─── atlas.website ────────────────────────────────────────────────────────────
 
 model WebsiteSite {
-  id                     String    @id @default(uuid(7)) @db.Uuid
+  defaultForCompany Boolean @default(false) @map("default_for_company")
+  draftRevision Int @default(0) @map("draft_revision")
+  draftIdentity Json? @map("draft_identity")
+  id                     String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId              String    @db.Uuid @map("company_id")
   name                   String
   domain                 String?
@@ -1368,12 +1371,16 @@ model WebsiteSite {
   createdAt              DateTime  @default(now()) @map("created_at")
   updatedAt              DateTime  @updatedAt @map("updated_at")
 
+  @@unique([companyId, id])
   @@index([companyId, enabled])
   @@map("website_site")
 }
 
 model WebsitePage {
-  id                   String    @id @default(uuid(7)) @db.Uuid
+  revision Int @default(0)
+  draftSeo Json? @map("draft_seo")
+  draftMetadata Json? @map("draft_metadata")
+  id                   String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId            String    @db.Uuid @map("company_id")
   siteId               String    @db.Uuid @map("site_id")
   title                String
@@ -1392,6 +1399,7 @@ model WebsitePage {
   createdAt            DateTime  @default(now()) @map("created_at")
   updatedAt            DateTime  @updatedAt @map("updated_at")
 
+  @@unique([companyId, id])
   @@unique([companyId, siteId, routePath])
   @@index([companyId, status])
   @@map("website_page")
@@ -1410,6 +1418,7 @@ model WebsitePageVersion {
 
   @@index([pageId])
   @@map("website_page_version")
+  @@index([companyId, pageId], map: "website_version_owner_idx")
 }
 
 model WebsiteTheme {
@@ -1428,6 +1437,7 @@ model WebsiteTheme {
 
   @@index([companyId, siteId, enabled])
   @@map("website_theme")
+  @@unique([companyId, siteId, id])
 }
 
 model WebsiteMenu {
@@ -1442,6 +1452,7 @@ model WebsiteMenu {
 
   @@index([companyId, siteId, enabled])
   @@map("website_menu")
+  @@unique([companyId, id])
 }
 
 model WebsiteMenuItem {
@@ -1461,6 +1472,7 @@ model WebsiteMenuItem {
 
   @@index([menuId, enabled])
   @@map("website_menu_item")
+  @@index([companyId, menuId], map: "website_item_owner_idx")
 }
 
 model WebsitePublishedRender {
@@ -1500,9 +1512,12 @@ model WebsiteBlogCategory {
   @@unique([companyId, siteId, slug])
   @@index([companyId, siteId, enabled])
   @@map("website_blog_category")
+  @@unique([companyId, siteId, id])
 }
 
 model WebsiteBlogPost {
+  revision Int @default(0)
+  draftSeo Json? @map("draft_seo")
   id                   String    @id @default(uuid(7)) @db.Uuid
   companyId            String    @db.Uuid @map("company_id")
   siteId               String    @db.Uuid @map("site_id")
@@ -1552,6 +1567,7 @@ model WebsiteForm {
 
   @@index([companyId, siteId, enabled])
   @@map("website_form")
+  @@unique([companyId, id])
 }
 
 model WebsiteFormField {
@@ -1576,6 +1592,7 @@ model WebsiteFormField {
 
   @@index([formId, enabled])
   @@map("website_form_field")
+  @@index([companyId, formId], map: "website_field_owner_idx")
 }
 
 model WebsiteFormSubmission {
@@ -1596,6 +1613,7 @@ model WebsiteFormSubmission {
   @@index([companyId, submittedAt])
   @@index([leadId])
   @@map("website_form_submission")
+  @@index([companyId, formId], map: "website_submission_owner_idx")
 }
 
 // ─── atlas.ledger ─────────────────────────────────────────────────────────────
@@ -6475,4 +6493,17 @@ model CatalogPosAvailability {
   updatedAt DateTime @default(now()) @map("updated_at")
   @@unique([companyId, productId, outletId])
   @@map("catalog_pos_availability")
+}
+
+model WebsiteDraftCommand {
+  id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String @db.Uuid @map("company_id")
+  actorId String @db.Uuid @map("actor_id")
+  operation String
+  keyHash String @map("key_hash")
+  requestHash String @map("request_hash")
+  result Json
+  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+  @@unique([companyId, actorId, operation, keyHash])
+  @@map("website_draft_command")
 }

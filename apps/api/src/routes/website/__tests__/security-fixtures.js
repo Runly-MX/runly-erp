@@ -14,7 +14,7 @@ export const ALL = [
 ]
 
 export function memoryPrisma() {
-  const row = (n, companyId, siteId, extra = {}) => ({ id: id(n), companyId, siteId, enabled: true, ...extra })
+  const row = (n, companyId, siteId, extra = {}) => ({ id: id(n), companyId, siteId, enabled: true, revision: 0, draftRevision: 0, defaultForCompany: [11, 21].includes(n), ...extra })
   const tables = {
     websiteSite: [row(11, A, undefined, { name: 'Site A1', sourceType: 'builder' }), row(12, A, undefined, { name: 'Site A2', sourceType: 'builder' }), row(21, B, undefined, { name: 'Private B', sourceType: 'builder' })],
     websitePage: [row(101, A, A1, { title: 'A', slug: 'a', routePath: '/', status: 'draft', visibility: 'public', draftBuilderData: {} }), row(102, A, A2, { title: 'A2', routePath: '/' }), row(201, B, B1, { title: 'Private B', routePath: '/' })],
@@ -55,7 +55,8 @@ export function memoryPrisma() {
       update: async ({ where, data }) => {
         const found = tables[name].find(row => matches(row, where))
         if (!found) throw Object.assign(new Error('Missing synthetic row'), { code: 'P2025' })
-        Object.assign(found, structuredClone(data)); writes.push({ name, action: 'update', where, data }); return structuredClone(found)
+        const values = Object.fromEntries(Object.entries(data).map(([key,value]) => [key, value && typeof value === 'object' && 'increment' in value ? (found[key] ?? 0) + value.increment : structuredClone(value)]))
+        Object.assign(found, values); writes.push({ name, action: 'update', where, data }); return structuredClone(found)
       },
       updateMany: async ({ where, data }) => {
         const found = tables[name].filter(row => matches(row, where)); found.forEach(row => Object.assign(row, structuredClone(data)))
@@ -77,6 +78,8 @@ export function memoryPrisma() {
     catch (error) { for (const name of Object.keys(tables)) tables[name] = before[name]; writes.splice(count); throw error }
   }
   prisma.$queryRaw = async (strings, ...values) => {
+    if (strings.join('').includes('FROM website_page WHERE')) return prisma.websitePage.findMany({ where: { id: values[0], companyId: values[1] } })
+    if (strings.join('').includes('FROM website_blog_post WHERE')) return prisma.websiteBlogPost.findMany({ where: { id: values[0], companyId: values[1] } })
     if (strings.join('').includes('FROM website_menu m')) return prisma.websiteMenu.findMany({ where: { companyId: values[0], siteId: values[1], enabled: true } })
     if (strings.join('').includes('FROM website_site')) {
       const found = await prisma.websiteSite.findFirst({ where: { id: values[0], companyId: values[1], enabled: true } })
@@ -87,21 +90,21 @@ export function memoryPrisma() {
   return prisma
 }
 
-export function testPermission(permissions = ALL, companyId = A) {
+export function testPermission(permissions = ALL, companyId = A, actorId = USER) {
   return permission => async (c, next) => {
     if (c.req.header('Authorization') !== 'Bearer fixture') return c.json({ error: 'No autorizado.' }, 401)
     const permissionSet = new Set(permissions)
     c.set('companyId', companyId)
-    c.set('userId', USER)
+    c.set('userId', actorId)
     c.set('tenantContext', { companyId, isAdmin: false, permissionSet })
     c.set('userContext', { permissionSet })
     if (!permissionSet.has(permission)) return c.json({ error: 'Sin permiso.' }, 403)
     return next()
   }
 }
-export function websiteApp(prisma, permissions = ALL, companyId = A) {
+export function websiteApp(prisma, permissions = ALL, companyId = A, actorId = USER) {
   const app = new Hono()
-  app.route('/', createWebsiteRouter({ prisma, requirePermission: testPermission(permissions, companyId), supabaseAdmin: {} }))
+  app.route('/', createWebsiteRouter({ prisma, requirePermission: testPermission(permissions, companyId, actorId), supabaseAdmin: {} }))
   return app
 }
 export const request = (app, path, method = 'GET', body, auth = true) => app.request(`http://audit.test${path}`, {

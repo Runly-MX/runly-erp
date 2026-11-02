@@ -25,7 +25,18 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
   app.route('/website', createBlogRouter({ websiteSvc, requirePermission }))
   app.route('/website', createFormsRouter({ formsService, requirePermission }))
   app.route('/', createWebsiteSettingsRouter({ prisma, requirePermission, supabaseAdmin }))
-  app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission }))
+  app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc }))
+
+  app.get('/website/sites', requirePermission('website.site.read'), async c => {
+    c.header('Cache-Control', 'no-store')
+    return c.json({ data: await websiteSvc.listSites({ access: websiteAccessFromRequest(c), companyId: c.get('companyId') }) })
+  })
+  app.post('/website/sites', requirePermission('website.site.update'), zValidator('json', createSiteSchema), async c => {
+    const idempotencyKey = c.req.header('Idempotency-Key')
+    if (!idempotencyKey || idempotencyKey.length < 16 || idempotencyKey.length > 200) return c.json({ error: 'Idempotency-Key requerida.', code: 'validation_failed' }, 422)
+    const data = await websiteSvc.createSite({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), data: c.req.valid('json'), idempotencyKey })
+    return c.json({ data }, 201)
+  })
 
   app.get('/website/site', requirePermission('website.site.read'), async (c) => {
     const companyId = c.get('companyId')
@@ -42,7 +53,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
       const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
       const data      = c.req.valid('json')
       try {
-        const site = await websiteSvc.createSite({ access: websiteAccessFromRequest(c), companyId, data, actorId })
+        const site = await websiteSvc.createSite({ access: websiteAccessFromRequest(c), companyId, data, actorId, idempotencyKey: c.req.header('Idempotency-Key') })
         return c.json(site, 201)
       } catch (err) {
         if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)
