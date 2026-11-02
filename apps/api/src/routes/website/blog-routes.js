@@ -144,7 +144,8 @@ export function createBlogRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
     try {
-      const post = await websiteSvc.publishBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), actorId })
+      const text=await c.req.text(),body=text?JSON.parse(text):{}
+      const post = await websiteSvc.publishBlogPost({ access: websiteAccessFromRequest(c), companyId, postId: c.req.param('id'), actorId, builderData:body.builderData??body.draft_builder_data,seo:body.seo,expectedRevision:body.expectedRevision,idempotencyKey:c.req.header('Idempotency-Key') })
       return c.json(post)
     } catch (err) {
       if (err instanceof WebsiteServiceError) return c.json({ error: err.message }, err.status)

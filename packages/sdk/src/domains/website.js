@@ -1,5 +1,13 @@
 export function createWebsiteDomain({ request, withAuthHeaders }) {
   return {
+    listReleases: (siteId,token,options={})=>request(`/website/sites/${encodeURIComponent(siteId)}/releases?${new URLSearchParams(Object.entries(options).filter(([key,value])=>['cursor','limit'].includes(key)&&value!==undefined))}`,{headers:withAuthHeaders(token)}),
+    getRelease: (siteId,releaseId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/releases/${encodeURIComponent(releaseId)}`,{headers:withAuthHeaders(token)}),
+    listDomains: (siteId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains`,{headers:withAuthHeaders(token)}),
+    prepareRelease: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/releases`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    activateRelease: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/publication/activate`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    rollbackRelease: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/publication/rollback`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    unpublishSite: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/publication/unpublish`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    reserveHostname: (siteId,slug,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify({slug})}),
     listSites: token => request('/website/sites', { headers: withAuthHeaders(token) }),
     createSite: (data, idempotencyKey, token) => request('/website/sites', {
       method: 'POST', headers: { ...withAuthHeaders(token), 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(data),

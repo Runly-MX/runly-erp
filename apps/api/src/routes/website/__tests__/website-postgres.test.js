@@ -139,7 +139,7 @@ test('rejected or failed save does not alter document, revision, audit or site c
 test('Data API grants are revoked and RLS denies even an accidental SELECT grant', async () => {
   const f = await fixture()
   const tables = await db.$queryRaw`SELECT relname,relrowsecurity FROM pg_class WHERE relname LIKE 'website_%' AND relkind='r'`
-  assert.equal(tables.length,13)
+  assert.equal(tables.length,17)
   assert.ok(tables.every(t => t.relrowsecurity))
   for (const role of ['anon','authenticated']) {
     const grants = await db.$queryRaw`SELECT has_table_privilege(${role},'website_form_submission','SELECT') allowed`
@@ -186,6 +186,7 @@ test('saving draft leaves the public resolver response and published URL unchang
   const f=await fixture()
   await db.instanceConfig.upsert({where:{key:'initialized'},create:{key:'initialized',value:'true'},update:{value:'true'}})
   await db.websitePage.update({where:{id:f.page.id},data:{status:'published',publishedBuilderData:doc('public')}})
+  await db.websiteDomain.create({data:{hostname:f.site.domain,companyId:f.companyId,siteId:f.site.id,kind:'legacy',state:'assigned',ready:true}})
   const app=createPublicWebsiteRouter({prisma:db,supabaseAdmin:{}})
   const resolve=async()=>{const r=await app.request('/resolve?path=/',{headers:{'X-Runly-Company':f.company.slug,Host:f.site.domain}});assert.equal(r.status,200);return r.json()}
   const before=await resolve(), current=await svc.getPage({...f,pageId:f.page.id})

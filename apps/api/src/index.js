@@ -1,3 +1,5 @@
+import { createWebsitePublicationContext } from './services/website-publication-context.js';
+import { createWebsiteOriginGuard } from './services/website-origin-guard.js';
 import { createRealtimeAccessService } from './services/realtime-access-service.js';
 import { membershipAuthorizationRevision } from './services/membership-authorization-revision.js';
 import { createCollaborationInvitationsService } from './services/collaboration-invitations-service.js';
@@ -254,7 +256,10 @@ const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const companyModuleService = createCompanyModuleService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin });
 const notificationService = createNotificationService({ prisma, broadcaster });
-const distServeService = createDistServeService({ prisma, supabaseAdmin });
+const websitePublication = createWebsitePublicationContext({ prisma, supabaseAdmin });
+app.use('*', createWebsiteOriginGuard({ prisma, gateway: websitePublication.gateway,
+  adminHosts: process.env.RUNLY_APP_URL ? [new URL(process.env.RUNLY_APP_URL).hostname] : [] }));
+const distServeService = createDistServeService({ prisma, supabaseAdmin, publicationContext: websitePublication });
 const inventoryService = createInventoryService({ prisma });
 const inventoryNotifSvc = createInventoryNotificationService({ prisma, notificationService });
 const commentsService = createCommentsService({ prisma });

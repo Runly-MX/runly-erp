@@ -1,3 +1,5 @@
+import { createWebsitePublicationContext } from './website-publication-context.js'
+import { serveWebsiteRelease } from '../routes/website/public-release-routes.js'
 import { resolvePublicSupabaseUrl } from '../lib/supabase-public-url.js'
 
 const BUCKET = 'runly-website'
@@ -244,90 +246,24 @@ export function normalizeHost(input) {
   return h || null
 }
 
-export function createDistServeService({ prisma, supabaseAdmin }) {
-  async function getPrimaryCompany() {
-    if (_primaryCompanyCache && Date.now() - _primaryCompanyCachedAt < COMPANY_CACHE_TTL) {
-      return _primaryCompanyCache
-    }
-    let config = await prisma.instanceConfig.findUnique({ where: { key: 'primary_company_id' } })
-    if (!config) {
-      config = await prisma.instanceConfig.findUnique({ where: { key: 'company_id' } })
-    }
-    if (!config) return null
-
-    const rows = await prisma.$queryRaw`
-      SELECT ws.id, ws.source_type, ws.seo_defaults, ws.company_id,
-             ws.name as site_name, ws.domain,
-             ws.analytics_mode, ws.turnstile_site_key,
-             ws.stripe_publishable_key, ws.stripe_currency,
-             c.slug as company_slug
-      FROM website_site ws
-      JOIN company c ON c.id = ws.company_id
-      WHERE ws.company_id = ${config.value}::uuid
-        AND ws.enabled = true AND c.enabled = true
-      LIMIT 1
-    `
-    const site = rows[0] ?? null
-    _primaryCompanyCache = site
-    _primaryCompanyCachedAt = Date.now()
-    return site
-  }
-
-  async function loadDomainSiteMap() {
-    if (_siteByDomainCache && Date.now() - _siteByDomainCachedAt < COMPANY_CACHE_TTL) {
-      return _siteByDomainCache
-    }
-    const rows = await prisma.$queryRaw`
-      SELECT ws.id, ws.source_type, ws.seo_defaults, ws.company_id,
-             ws.name as site_name, ws.domain,
-             ws.analytics_mode, ws.turnstile_site_key,
-             ws.stripe_publishable_key, ws.stripe_currency,
-             c.slug as company_slug
-      FROM website_site ws
-      JOIN company c ON c.id = ws.company_id
-      WHERE ws.enabled = true AND c.enabled = true AND ws.domain IS NOT NULL AND ws.domain <> ''
-    `
-    const map = new Map()
-    for (const row of rows) {
-      const host = normalizeHost(row.domain)
-      // Skip anything that doesn't normalize to a distinct, real hostname —
-      // never let a malformed/empty domain row swallow unrelated requests.
-      if (host) map.set(host, row)
-    }
-    _siteByDomainCache = map
-    _siteByDomainCachedAt = Date.now()
-    return map
-  }
-
-  // Resolves which company's site should answer this request. Tries an
-  // exact hostname match against a registered website_site.domain first;
-  // any miss (dev/localhost, the ERP's own admin domain, a site that never
-  // set a custom domain, or simply the single-company case) falls back to
-  // the original primary_company_id lookup unchanged — so an instance with
-  // one company and no custom domain configured behaves exactly as before.
+export function createDistServeService({ prisma, supabaseAdmin, publicationContext }) {
+  const publication = publicationContext ?? createWebsitePublicationContext({prisma,supabaseAdmin})
   async function resolveSiteForRequest(c) {
-    const host = normalizeHost(c.req.header('x-forwarded-host') || c.req.header('host'))
-    if (host) {
-      const map = await loadDomainSiteMap()
-      const bySite = map.get(host)
-        if (bySite) {
-          const company = await prisma.company.findUnique({ where: { id: bySite.company_id }, select: { enabled: true } })
-          return company?.enabled ? bySite : null
-        }
-    }
-    const primary = await getPrimaryCompany()
-    if (!primary) return null
-    const company = await prisma.company.findUnique({ where: { id: primary.company_id }, select: { enabled: true } })
-    return company?.enabled ? primary : null
+    const snapshot=await publication.gateway.resolve(c), site=snapshot.site
+    return {id:site.id,company_id:site.companyId,company_slug:snapshot.company.slug,source_type:site.sourceType,
+      site_name:site.name,domain:snapshot.hostname,seo_defaults:site.seoDefaults,analytics_mode:site.analyticsMode,
+      turnstile_site_key:site.turnstileSiteKey,stripe_publishable_key:site.stripePublishableKey,stripe_currency:site.stripeCurrency}
   }
 
   async function serve(c, urlPath) {
     let site
     try {
+      const releaseResponse = await serveWebsiteRelease(c,publication.gateway,urlPath,publication.runtime)
+      if(releaseResponse)return releaseResponse
       site = await resolveSiteForRequest(c)
     } catch (err) {
       // DB connection timeout or transient failure — return 503 instead of crashing
-      console.error('[dist-serve] getPrimaryCompany failed:', err?.message ?? err)
+      if(err.status&&err.status!==503)return c.json({error:'Sitio no disponible'},err.status===422?404:err.status)
       return c.text('Servicio temporalmente no disponible. Intenta de nuevo en unos segundos.', 503)
     }
 
@@ -345,67 +281,7 @@ export function createDistServeService({ prisma, supabaseAdmin }) {
       return null // signal to caller: nginx will fall back to React SPA
     }
 
-    // source_type === 'dist'
-    if (isAssetPath(urlPath)) {
-      const objectKey = `dist/${site.company_slug}${urlPath}`
-      const publicUrl = `${resolvePublicSupabaseUrl(process.env)}/storage/v1/object/public/${BUCKET}/${objectKey}`
-      return c.redirect(publicUrl, 302)
-    }
-
-    // HTML route
-    const cacheKey = getCacheKey(site.company_id, urlPath)
-    const cached = getCached(cacheKey)
-    if (cached) {
-      return c.html(cached)
-    }
-
-    const candidates = resolveHtmlCandidates(site.company_slug, urlPath)
-    let html = null
-
-    try {
-      for (const objectKey of [...new Set(candidates)]) {
-        const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(objectKey)
-        if (!error && data) {
-          html = await data.text()
-          break
-        }
-      }
-    } catch (err) {
-      console.error('[dist-serve] storage download failed:', err?.message ?? err)
-      return c.text('Error al cargar los archivos del sitio. Intenta de nuevo.', 503)
-    }
-
-    if (!html) {
-      return c.json({ error: 'Pagina no encontrada' }, 404)
-    }
-
-    const storageBase = `${resolvePublicSupabaseUrl(process.env)}/storage/v1/object/public/${BUCKET}/dist/${site.company_slug}`
-    const proto = c.req.header('x-forwarded-proto') || 'http'
-    const hostHeader = c.req.header('x-forwarded-host') || c.req.header('host') || ''
-    const siteOrigin = hostHeader ? `${proto}://${hostHeader}` : ''
-    const injected   = injectSeoTags(html, site.seo_defaults)
-    const rewritten  = rewriteDistHtml(injected, storageBase, '', siteOrigin)
-    // RUNLY_APP_URL is the ERP instance's root URL (e.g. https://app.example.com).
-    // The storefront SDK uses it as baseUrl for /public/storefront/* requests.
-    // site.domain is the storefront's public domain — it is NOT the ERP API.
-    const erpApiUrl = (process.env.RUNLY_APP_URL ?? '').replace(/\/$/, '') || siteOrigin
-    const withConfig = injectRunlyConfig(rewritten, {
-      supabaseUrl:          resolvePublicSupabaseUrl(process.env),
-      supabaseAnonKey:      process.env.SUPABASE_ANON_KEY ?? '',
-      apiUrl:               erpApiUrl,
-      company:              site.company_slug ?? '',
-      siteName:             site.site_name    ?? '',
-      siteId:               site.id           ?? '',
-      analyticsMode:        site.analytics_mode ?? 'off',
-      turnstileSiteKey:     site.turnstile_site_key ?? '',
-      stripePublishableKey: site.stripe_publishable_key ?? '',
-      currency:             site.stripe_currency        ?? '',
-    })
-    const final = injectErpBadge(withConfig)
-    setCache(cacheKey, final)
-
-    c.header('Cache-Control', 'public, max-age=300')
-    return c.html(final)
+    return c.json({error:'Aislamiento ZIP pendiente.',code:'isolation_required'},409)
   }
 
   return { serve, invalidatePrimaryCache, resolveSiteForRequest }

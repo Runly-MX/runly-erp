@@ -32,6 +32,13 @@ COPY prisma/schema.prisma prisma/schema.prisma
 RUN DIRECT_URL=postgresql://postgres:postgres@localhost:5432/postgres pnpm prisma:generate && \
     pnpm prune --prod
 
+FROM deps AS website-runtime
+COPY packages packages
+COPY apps/desktop/src apps/desktop/src
+COPY apps/shared apps/shared
+COPY scripts/build-website-public-runtime.mjs scripts/build-website-public-runtime.mjs
+RUN node scripts/build-website-public-runtime.mjs apps/api/public/website-runtime
+
 FROM node:22-alpine
 LABEL io.runly.installer.contract="studio-realtime-1"
 WORKDIR /app
@@ -63,6 +70,7 @@ COPY infra/installer/supabase/volumes/db/studio-realtime-role.sql infra/installe
 COPY infra/installer/supabase/volumes/db/notes-private-storage-owner.sql infra/installer/supabase/volumes/db/notes-private-storage-owner.sql
 COPY modules modules
 COPY apps/api apps/api
+COPY --from=website-runtime /app/apps/api/public/website-runtime apps/api/public/website-runtime
 COPY apps/shared apps/shared
 COPY scripts/diagnose-studio-catalog.mjs scripts/diagnose-studio-catalog.mjs
 COPY apps/desktop/public/module-logos apps/desktop/public/module-logos

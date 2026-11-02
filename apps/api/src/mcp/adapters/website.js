@@ -1,3 +1,5 @@
+import { WebsiteServiceError } from '../../routes/website/service-helpers.js';
+import { createWebsitePublicationContext } from '../../services/website-publication-context.js';
 import { createWebsiteAccess, assertWebsiteAccess } from '../../services/website-authorization-service.js';
 import { z } from 'zod';
 import { createWebsiteService } from '../../routes/website/website-service.js';
@@ -14,6 +16,7 @@ const section = z.strictObject({ type: z.string().min(1).max(60), props: z.recor
 const editorLink = id => `/app/m/runly.website/pages/${id}/editor`;
 
 export const WEBSITE_DESIGN_GUIDE = [
+  'Publicaci\u00f3n S3: im\u00e1genes nuevas requieren file:<FileAssetId> propio y autorizado; URLs mutables se conservan en borrador pero bloquean el release. Forms y Calendar configurados tienen capability de publicaci\u00f3n false hasta resolver sus contratos de scope. No prometas su activaci\u00f3n.',
   'Flujo: website_overview -> website_block_catalog (con types para ver props y defaults) -> website.site.setup -> website.pages.draft -> revisar en el editor -> website.pages.publish.',
   'Cada página es una lista vertical de secciones. Repite el mismo NavbarBlock al inicio y el mismo FooterBlock al final de todas las páginas; sus enlaces apuntan a las rutas reales del sitio.',
   'La página de inicio usa la ruta "/". Abre con un HeroBlock claro (qué ofrece el negocio y una acción), luego 4 a 8 secciones que alternen fondos y terminen en una llamada a la acción.',
@@ -29,9 +32,10 @@ function compactField(field) {
   return field.options ? `${field.type}:${field.options.join('|')}` : field.type;
 }
 
-export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
-  const svc = createWebsiteService({ prisma });
-  const access = a => createWebsiteAccess({ companyId: a.companyId, actorId: a.actorProfileId, can: a.can });
+export function createWebsiteAdapter({ prisma, supabaseAdmin = null, publicationContext }) {
+  const publication = publicationContext ?? createWebsitePublicationContext({prisma,supabaseAdmin});
+  const svc = createWebsiteService({ prisma, supabaseAdmin, publicationContext:publication });
+  const access = a => createWebsiteAccess({ companyId: a.companyId, actorId: a.actorProfileId, isAdmin:a.isAdmin, can: a.can });
   async function currentSite(a, siteId) {
     const row = await prisma.websiteSite.findFirst({ where: { companyId: a.companyId, enabled: true, ...(siteId ? { id: siteId } : { defaultForCompany: true }) } });
     if (!row) return null;
@@ -51,6 +55,7 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
   const publicUrl = file => supabaseAdmin?.storage?.from(file.bucket).getPublicUrl(file.objectKey)?.data?.publicUrl ?? null;
 
   const queries = [
+    {name:'website_releases',permission:'website.pages.read',inputSchema:z.strictObject({siteId:z.uuid()}),definition:{description:'Historial de releases inmutables del sitio.'},run:(input,a)=>publication.releases.list({access:access(a),companyId:a.companyId,siteId:input.siteId})},
     { name: 'website_overview', permission: 'website.site.read', inputSchema: z.strictObject({ siteId: z.uuid().optional() }), definition: { description: 'Sitio de la empresa, tema, páginas (rutas y estado) y datos del negocio. Punto de partida para crear o editar el sitio.' },
       async run(input, a) {
         const [current, company] = await Promise.all([currentSite(a, input.siteId), prisma.company.findUnique({ where: { id: a.companyId }, select: { name: true } })]);
@@ -153,6 +158,12 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
       } },
   ];
 
+  for(const operation of ['rollback','unpublish']) actions.push({
+    key:`website.publication.${operation}`,permission:'website.pages.publish',operation:'update',label:operation==='rollback'?'Revertir publicaci\u00f3n':'Despublicar sitio',
+    inputSchema:z.strictObject({siteId:z.uuid(),releaseId:operation==='rollback'?z.uuid():z.uuid().optional(),expectedPublicationRevision:z.number().int().nonnegative(),idempotencyKey:z.string().min(16).max(200)}),
+    prepare:async(input,a)=>({input,targetId:input.siteId,preview:{title:operation==='rollback'?'Revertir al release indicado':'Retirar publicaci\u00f3n',fields:[{label:'Sitio',value:input.siteId},{label:'Release',value:input.releaseId??'Sin publicaci\u00f3n'}]}}),
+    execute:(input,a)=>publication.releases[operation]({...input,access:access(a),companyId:a.companyId}),
+  });
   for (const definition of [...queries, ...actions]) {
     for (const operation of ['run', 'prepare', 'execute']) {
       if (!definition[operation]) continue;
@@ -173,12 +184,13 @@ export function createWebsiteAdapter({ prisma, supabaseAdmin = null }) {
     // Drafts are private; publishing (or switching the public source) exposes content.
     async revision(definition, prepared, a) {
       assertWebsiteAccess(access(a), a.companyId, definition.permission);
+      if (definition.key.startsWith('website.publication.')) { const row=await site(a,prepared.input.siteId);return {siteId:row.id,activeReleaseId:row.activeReleaseId,publicationRevision:row.publicationRevision} }
       if (definition.key === 'website.site.setup') return currentSite(a, prepared.input.siteId);
       const ids = definition.key === 'website.pages.publish' ? prepared.input.pageIds : prepared.input.pages.map(item => item.pageId).filter(Boolean);
       const rows = await prisma.websitePage.findMany({ where: { id: { in: ids }, companyId: a.companyId }, select: { id: true, siteId: true, revision: true, updatedAt: true, status: true }, orderBy: { id: 'asc' } });
       return rows;
     },
-    sensitive: (definition, input) => definition.key === 'website.pages.publish' || input?.useBuilder === true,
+    sensitive: (definition, input) => definition.key.startsWith('website.publication.') || definition.key === 'website.pages.publish' || input?.useBuilder === true,
     effects: ['Crear/editar el sitio, su tema y borradores de páginas (no visibles al público). Publicar hace visibles las páginas en el sitio público de la empresa.'],
   };
 }

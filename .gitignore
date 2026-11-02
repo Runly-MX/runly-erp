@@ -129,3 +129,7 @@ infra/installer/.runly-installer/
 .artifacts/notifications/
 .artifacts/rc/
 .artifacts/rehearsal/
+
+# Content-addressed public runtime generated during the API build.
+.artifacts/website-public-runtime/
+apps/api/public/website-runtime/

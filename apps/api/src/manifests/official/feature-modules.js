@@ -325,6 +325,7 @@ export const runlyWebsiteManifest = createModuleManifest({
     { key: "website.menus.read", name: "Ver menus" },
     { key: "website.menus.update", name: "Editar menus" },
     { key: "website.dist.upload", name: "Subir build del sitio" },
+    { key: "website.domains.manage", name: "Gestionar nombres de sitios" },
     { key: "website.forms.read", name: "Ver formularios" },
     { key: "website.forms.create", name: "Crear formularios" },
     { key: "website.forms.update", name: "Editar formularios" },
@@ -336,6 +337,7 @@ export const runlyWebsiteManifest = createModuleManifest({
     module: "website.access",
     actions: {
       "website.site.read": "website.site.read",
+      "website.domains.manage": "website.domains.manage",
       "website.site.update": "website.site.update",
       "website.pages.read": "website.pages.read",
       "website.pages.create": "website.pages.create",

@@ -149,9 +149,11 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     const companyId = c.get('companyId')
     const actorId   = c.get('userId') ?? c.get('user')?.id ?? null
     try {
+      const body = await c.req.text()
+      const payload = body ? JSON.parse(body) : {}
       const published = await websiteSvc.publishPage({ access: websiteAccessFromRequest(c), companyId,
         pageId: c.req.param('id'),
-        actorId,
+        actorId, builderData: payload.builderData ?? payload.draft_builder_data, seo: payload.seo, expectedRevision: payload.expectedRevision, idempotencyKey: c.req.header('Idempotency-Key'),
       })
       return c.json(published)
     } catch (err) {

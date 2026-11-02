@@ -1,3 +1,4 @@
+import { createWebsitePublicationContext } from '../../../services/website-publication-context.js'
 // Deterministic, in-memory database. No application bootstrap, env or sockets.
 import { Hono } from 'hono'
 import { createWebsiteRouter } from '../index.js'
@@ -14,7 +15,7 @@ export const ALL = [
 ]
 
 export function memoryPrisma() {
-  const row = (n, companyId, siteId, extra = {}) => ({ id: id(n), companyId, siteId, enabled: true, revision: 0, draftRevision: 0, defaultForCompany: [11, 21].includes(n), ...extra })
+  const row = (n, companyId, siteId, extra = {}) => ({ id: id(n), companyId, siteId, enabled: true, revision: 0, draftRevision: 0, publicationRevision: 0, activeReleaseId: null, releaseManaged: false, lifecycle:'draft', defaultForCompany: [11, 21].includes(n), ...extra })
   const tables = {
     websiteSite: [row(11, A, undefined, { name: 'Site A1', sourceType: 'builder' }), row(12, A, undefined, { name: 'Site A2', sourceType: 'builder' }), row(21, B, undefined, { name: 'Private B', sourceType: 'builder' })],
     websitePage: [row(101, A, A1, { title: 'A', slug: 'a', routePath: '/', status: 'draft', visibility: 'public', draftBuilderData: {} }), row(102, A, A2, { title: 'A2', routePath: '/' }), row(201, B, B1, { title: 'Private B', routePath: '/' })],
@@ -29,6 +30,7 @@ export function memoryPrisma() {
     growthProperty: [row(31, A, undefined, { kind: 'external_sdk', websiteSiteId: null })],
     fileAsset: [row(301, A, undefined, { entityId: A, uploadedById: USER, accessScope: 'COMPANY', visibility: 'PUBLIC' }), row(302, B, undefined, { entityId: B, uploadedById: id(92), accessScope: 'PRIVATE' }), row(303, A, undefined, { entityId: A, uploadedById: id(92), accessScope: 'PRIVATE' })],
     fileAssetShare: [],
+    websiteDraftCommand: [], websiteRelease: [], websitePublicationEvent: [], websitePublicationOutbox: [], websiteDomain: [],
     websitePageVersion: [], websitePublishedRender: [], auditLog: [], membership: [],
   }
   const writes = []
@@ -51,7 +53,7 @@ export function memoryPrisma() {
       findUnique: async ({ where } = {}) => structuredClone(tables[name].find(row => matches(row, where)) ?? null),
       findMany: async ({ where } = {}) => structuredClone(tables[name].filter(row => matches(row, where))),
       count: async ({ where } = {}) => tables[name].filter(row => matches(row, where)).length,
-      create: async ({ data }) => { const created = { id: id(nextId++), enabled: true, ...structuredClone(data) }; tables[name].push(created); writes.push({ name, action: 'create', data }); return structuredClone(created) },
+      create: async ({ data }) => { const created = { id: id(nextId++), enabled: true, state: 'preparing', ...structuredClone(data) }; tables[name].push(created); writes.push({ name, action: 'create', data }); return structuredClone(created) },
       update: async ({ where, data }) => {
         const found = tables[name].find(row => matches(row, where))
         if (!found) throw Object.assign(new Error('Missing synthetic row'), { code: 'P2025' })
@@ -78,6 +80,7 @@ export function memoryPrisma() {
     catch (error) { for (const name of Object.keys(tables)) tables[name] = before[name]; writes.splice(count); throw error }
   }
   prisma.$queryRaw = async (strings, ...values) => {
+    if(strings.join('').includes('pg_advisory_xact_lock'))return []
     if (strings.join('').includes('FROM website_page WHERE')) return prisma.websitePage.findMany({ where: { id: values[0], companyId: values[1] } })
     if (strings.join('').includes('FROM website_blog_post WHERE')) return prisma.websiteBlogPost.findMany({ where: { id: values[0], companyId: values[1] } })
     if (strings.join('').includes('FROM website_menu m')) return prisma.websiteMenu.findMany({ where: { companyId: values[0], siteId: values[1], enabled: true } })
@@ -104,7 +107,9 @@ export function testPermission(permissions = ALL, companyId = A, actorId = USER)
 }
 export function websiteApp(prisma, permissions = ALL, companyId = A, actorId = USER) {
   const app = new Hono()
-  app.route('/', createWebsiteRouter({ prisma, requirePermission: testPermission(permissions, companyId, actorId), supabaseAdmin: {} }))
+  const blobs=new Map()
+  const publicationContext=createWebsitePublicationContext({prisma,storage:{put:async(key,bytes)=>blobs.set(key,bytes),get:async key=>blobs.get(key)},runtime:async()=>({'entry.js':{bytes:Buffer.from('trusted-test-runtime'),mime:'text/javascript'}})})
+  app.route('/', createWebsiteRouter({ prisma, publicationContext, requirePermission: testPermission(permissions, companyId, actorId), supabaseAdmin: {} }))
   return app
 }
 export const request = (app, path, method = 'GET', body, auth = true) => app.request(`http://audit.test${path}`, {

@@ -6,7 +6,7 @@ import { revisionedSiteSchema } from './validators.js'
 
 const VALID_SOURCE_TYPES = new Set(['none', 'builder', 'dist'])
 
-export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc }) {
+export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc, publicationContext }) {
   const app = new Hono()
   app.onError(websiteErrorHandler)
   const uploadService = createDistUploadService({ prisma, supabaseAdmin })
@@ -94,6 +94,12 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, web
         const { sourceType } = body
         if (Object.keys(body).some(key => key !== 'sourceType') || !sourceType || !VALID_SOURCE_TYPES.has(sourceType)) {
           return c.json({ error: 'sourceType debe ser none, builder o dist' }, 422)
+        }
+        const managed=await prisma.websiteSite.findFirst({where:{id:siteId,companyId,enabled:true}})
+        if(managed?.releaseManaged&&publicationContext) {
+          if(sourceType!=='none')return c.json({error:'Usa un comando de publicación explícito.',code:'publication_requires_explicit_action'},409)
+          if(managed.activeReleaseId)await publicationContext.releases.unpublish({access:websiteAccessFromRequest(c),companyId,siteId,expectedPublicationRevision:managed.publicationRevision,idempotencyKey:c.req.header('Idempotency-Key')??`legacy-unpublish-${managed.activeReleaseId}`})
+          return c.json({data:{id:siteId,sourceType:'none'}})
         }
         const before = await prisma.$queryRaw`
           SELECT source_type FROM website_site

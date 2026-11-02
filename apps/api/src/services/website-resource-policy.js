@@ -43,6 +43,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
   }
   async function publicMutation(args, siteId) {
     const parent = await site(args.companyId, siteId)
+    if(parent.releaseManaged)return // sealed snapshot; these edits affect the next draft only
     const page = await prisma.websitePage.findFirst({ where: { companyId: args.companyId, siteId, enabled: true, status: 'published', visibility: 'public' }, select: { id: true } })
     if (page || parent.sourceType === 'dist') assertWebsiteAccess(args.access, args.companyId, 'website.pages.publish')
   }
@@ -86,15 +87,19 @@ export function createWebsiteResourcePolicy({ prisma }) {
 
     let page
     if (args.pageId) page = await resource('websitePage', companyId, args.pageId, args.siteId)
+    const managedPage=page&&(await site(companyId,page.siteId)).releaseManaged
+    if(managedPage&&(name==='softDeletePage'||args.data?.status!==undefined))throw new WebsiteServiceError('Usa un comando de publicación explícito.',409,'publication_requires_explicit_action')
     if (name === 'saveDraft' && args.metadata !== undefined) {
       const parsed = schemas.pageDraftMetadataSchema.safeParse(args.metadata)
       if (!parsed.success) throw new WebsiteServiceError('Datos inválidos.', 422, 'validation_failed')
       args.metadata = parsed.data
     }
-    if (page && (args.data?.status !== undefined || (page.status === 'published' && (name === 'updatePage' || name === 'softDeletePage')))) {
+    if (page && (args.data?.status !== undefined || (!managedPage&&page.status === 'published' && (name === 'updatePage' || name === 'softDeletePage')))) {
       assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
     }
     if (name === 'updateSite') {
+      const current=await site(companyId,args.siteId)
+      if(current.releaseManaged&&args.data.status!==undefined)throw new WebsiteServiceError('Usa un comando de publicación explícito.',409,'publication_requires_explicit_action')
       if (args.data.status !== undefined || args.data.domain !== undefined) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
       if (args.data.homepagePageId) await resource('websitePage', companyId, args.data.homepagePageId, args.siteId)
       if (args.data.themeId) await resource('websiteTheme', companyId, args.data.themeId, args.siteId)
@@ -148,7 +153,9 @@ export function createWebsiteResourcePolicy({ prisma }) {
       const existing = await prisma.websitePublishedRender.findFirst({ where: { siteId: entry.siteId, path } })
       if (existing && existing.companyId !== companyId) throw notFound('Recurso')
     }
-    if (post?.status === 'published' && ['updateBlogPost', 'softDeleteBlogPost'].includes(name)) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
+    const managedPost=post&&(await site(companyId,post.siteId)).releaseManaged
+    if(managedPost&&name==='softDeleteBlogPost')throw new WebsiteServiceError('Usa un comando de publicación explícito.',409,'publication_requires_explicit_action')
+    if (!managedPost&&post?.status === 'published' && ['updateBlogPost', 'softDeleteBlogPost'].includes(name)) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
     if (['createBlogCategory', 'updateBlogCategory', 'softDeleteBlogCategory'].includes(name)) await publicMutation(args, category?.siteId ?? args.siteId)
   }
   return { before, site, resource }

@@ -61,86 +61,30 @@ function makeSiteRow(overrides = {}) {
   }
 }
 
-// Discriminator convention used across these tests: the site that SHOULD be
-// selected is given source_type 'none' (serve() returns a distinguishable
-// { __kind: 'json', status: 404 }); the site that should NOT be selected is
-// given source_type 'builder' (serve() returns bare `null`). Since only one
-// of the two candidates can ever produce each shape, observing which one
-// came back unambiguously proves which site actually won.
-describe('createDistServeService — domain-based resolution (serve)', () => {
+// S3 removes the unsafe primary-company fallback. These tests now exercise
+// the hostname registry; unrelated hosts must never obtain the primary site.
+describe('createDistServeService ? strict domain resolution', () => {
   beforeEach(() => invalidatePrimaryCache())
-
-  it('resolves by matching Host header against a registered website_site.domain, even when a different primary company is configured', async () => {
-    const domainSite = makeSiteRow({ id: 'site-domain', company_slug: 'domainco', domain: 'https://example.com', source_type: 'none' })
-    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
-    const prisma = {
-      company: { findUnique: async () => ({ enabled: true }) },
-      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
-      $queryRaw: async (strings) => {
-        const sql = strings.join('?')
-        return sql.includes('ws.domain IS NOT NULL') ? [domainSite] : [primarySite]
-      },
+  function prismaFor(hostname) {
+    return {
+      websiteDomain:{findUnique:async({where})=>where.hostname===hostname?{siteId:'own-site',companyId:'own-company',state:'assigned',ready:true}:null},
+      websiteSite:{findFirst:async()=>({id:'own-site',companyId:'own-company',sourceType:'none',enabled:true})},
+      company:{findFirst:async()=>({slug:'own-company'})},
+      instanceConfig:{findUnique:async()=>{throw new Error('Primary fallback must not be consulted')}}
     }
-    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
-    const c = makeContextMock({ host: 'www.example.com' })
-    const result = await svc.serve(c, '/')
-    assert.equal(result?.__kind, 'json', 'expected the domain-matched site (source_type none) to win, not the primary one')
-    assert.equal(result.status, 404)
+  }
+  it('rejects a known site whose public source is disabled', async () => {
+    const svc=createDistServeService({prisma:prismaFor('shop.example.test'),supabaseAdmin:{}})
+    const result=await svc.serve(makeContextMock({host:'shop.example.test'}),'/')
+    assert.equal(result.__kind,'json');assert.equal(result.status,404)
   })
-
-  it('falls back to the primary-company lookup when the Host header matches no registered domain', async () => {
-    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'none' })
-    const prisma = {
-      company: { findUnique: async () => ({ enabled: true }) },
-      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
-      $queryRaw: async (strings) => {
-        const sql = strings.join('?')
-        return sql.includes('ws.domain IS NOT NULL') ? [] : [primarySite] // no domains registered at all
-      },
-    }
-    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
-    const c = makeContextMock({ host: 'localhost:5173' })
-    const result = await svc.serve(c, '/')
-    assert.equal(result?.__kind, 'json')
-    assert.equal(result.status, 404)
-  })
-
-  it('a malformed/empty domain row never matches a real request (fails safe, falls back to primary)', async () => {
-    const badRow = makeSiteRow({ domain: '', company_slug: 'bad', source_type: 'none' })
-    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
-    const prisma = {
-      company: { findUnique: async () => ({ enabled: true }) },
-      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
-      $queryRaw: async (strings) => {
-        const sql = strings.join('?')
-        // Real Postgres would already exclude this via `domain <> ''`, but
-        // guard defensively in the JS map-building step too, in case a
-        // NULL/'' slipped through some other path.
-        return sql.includes('ws.domain IS NOT NULL') ? [badRow] : [primarySite]
-      },
-    }
-    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
-    const c = makeContextMock({ host: 'anything.example' })
-    const result = await svc.serve(c, '/')
-    assert.equal(result, null, 'expected the malformed row to be skipped and the primary (builder) site to win')
-  })
-
-  it('an unrelated Host header (e.g. the ERP app itself) never matches and falls back to primary', async () => {
-    const domainSite = makeSiteRow({ domain: 'https://storefront.example.com', company_slug: 'storefront', source_type: 'none' })
-    const primarySite = makeSiteRow({ id: 'site-primary', company_slug: 'primaryco', source_type: 'builder' })
-    const prisma = {
-      company: { findUnique: async () => ({ enabled: true }) },
-      instanceConfig: { findUnique: async () => ({ value: 'company-primary' }) },
-      $queryRaw: async (strings) => {
-        const sql = strings.join('?')
-        return sql.includes('ws.domain IS NOT NULL') ? [domainSite] : [primarySite]
-      },
-    }
-    const svc = createDistServeService({ prisma, supabaseAdmin: {} })
-    const c = makeContextMock({ host: 'atlas-admin.internal.example.com' })
-    const result = await svc.serve(c, '/')
-    assert.equal(result, null, 'an unrelated hostname must not accidentally match a registered storefront domain')
-  })
+  for(const host of ['localhost:5173','anything.example','erp.example.test']) {
+    it(`rejects unknown ${host} instead of falling back to a primary company`,async()=>{
+      const svc=createDistServeService({prisma:prismaFor('shop.example.test'),supabaseAdmin:{}})
+      const result=await svc.serve(makeContextMock({host}),'/')
+      assert.equal(result.__kind,'json');assert.equal(result.status,404)
+    })
+  }
 })
 
 describe('isAssetPath', () => {

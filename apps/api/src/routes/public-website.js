@@ -1,3 +1,6 @@
+import { createWebsitePublicationContext } from '../services/website-publication-context.js'
+import { createPublicReleaseRoutes } from './website/public-release-routes.js'
+import { websiteErrorHandler } from '../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { createCatalogPublicService } from './catalog/catalog-public-service.js'
 import { createDistServeService } from '../services/dist-serve-service.js'
@@ -6,9 +9,16 @@ import { getCompanySlugHeader } from '../lib/public-request-headers.js'
 
 const ERP_PREFIXES = ['runly.', 'atlas.', 'website.', 'contacts.', 'hr.', 'finance.', 'fleet.']
 
-export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
+export function createPublicWebsiteRouter({ prisma, supabaseAdmin, publicationContext }) {
   const app = new Hono()
-  const siteResolver = createDistServeService({ prisma, supabaseAdmin })
+  const publication=publicationContext??createWebsitePublicationContext({prisma,supabaseAdmin})
+  const siteResolver = createDistServeService({ prisma, supabaseAdmin, publicationContext:publication })
+  app.route('/',createPublicReleaseRoutes(publication))
+  app.get('/admin-origin-check',async c=>{
+    const host=await publication.gateway.authority(c)
+    const configured=process.env.RUNLY_APP_URL?new URL(process.env.RUNLY_APP_URL).hostname:null
+    return c.body(null, host===configured||host==='localhost'||host==='127.0.0.1'?204:403)
+  })
 
   app.get('/desktop/config', async (c) => {
     return c.json({
@@ -23,6 +33,7 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
 
   app.get('/resolve', async (c) => {
     try {
+      const snapshot=await publication.gateway.resolve(c)
       const instanceConfig = await prisma.instanceConfig.findUnique({
         where: { key: 'initialized' },
       })
@@ -30,7 +41,9 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
         return c.json({ initialized: false })
       }
 
+      c.header('Cache-Control','no-store')
       const routePath = c.req.query('path') || '/'
+      if(snapshot.release)return c.json(publication.gateway.response(snapshot,routePath))
 
       const resolvedSite = await siteResolver.resolveSiteForRequest(c)
       const company = resolvedSite ? { id: resolvedSite.company_id, slug: resolvedSite.company_slug } : null
@@ -105,6 +118,7 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
 
       return c.json({
         initialized: true,
+        integrityMode: 'legacy-reference',
         site: {
           id: site.id,
           name: site.name,
@@ -129,24 +143,25 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
         menus,
       })
     } catch (err) {
-      if (err?.message?.includes('does not exist') || err?.code === '42P01') {
-        return c.json({ initialized: true, site: null, page: null, theme: null, menus: [] })
-      }
-      console.error('[public/website/resolve]', err?.message)
-      return c.json({ initialized: true, site: null, page: null, theme: null, menus: [] }, 500)
+      if(err.status)return websiteErrorHandler(err,c)
+      return c.json({error:'Servicio temporalmente no disponible.',code:'dependency_unavailable'},503)
     }
   })
 
   app.get('/blog', async (c) => {
     try {
       const { siteId, limit = '10', offset = '0' } = c.req.query()
+      const snapshot=await publication.gateway.resolve(c)
+      if(siteId&&siteId!==snapshot.site.id)return c.json({error:'Recurso no encontrado.'},404)
+      if(snapshot.release) { c.header('Cache-Control','no-store');return c.json({data:snapshot.release.manifest.routes.filter(r=>r.sourceKind==='blog').map(r=>({id:r.sourceId,title:r.title,slug:r.slug,seo:r.seo}))}) }
       if (!siteId) return c.json({ data: [] })
       const limitNum  = Math.min(parseInt(limit)  || 10, 50)
       const offsetNum = Math.max(parseInt(offset) || 0, 0)
       const rows = await prisma.$queryRaw`
         SELECT id, title, slug, excerpt, cover_asset_id, updated_at
         FROM website_page
-        WHERE site_id   = ${siteId}::uuid
+        WHERE site_id   = ${snapshot.site.id}::uuid
+          AND company_id = ${snapshot.site.companyId}::uuid
           AND visibility = 'public'
           AND EXISTS (SELECT 1 FROM website_site ws JOIN company co ON co.id = ws.company_id
                       WHERE ws.id = website_page.site_id AND ws.company_id = website_page.company_id
@@ -159,6 +174,7 @@ export function createPublicWebsiteRouter({ prisma, supabaseAdmin }) {
       `
       return c.json({ data: rows })
     } catch (err) {
+      if(err.status)return websiteErrorHandler(err,c)
       if (err?.message?.includes('does not exist') || err?.code === '42P01') return c.json({ data: [] })
       return c.json({ data: [] }, 500)
     }

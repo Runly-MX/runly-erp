@@ -1,3 +1,5 @@
+import { createWebsitePublicationContext } from '../../services/website-publication-context.js'
+import { createWebsiteReleaseRoutes } from './releases-routes.js'
 import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
 import { Hono } from 'hono'
 import { zValidator } from '@hono/zod-validator'
@@ -13,10 +15,12 @@ import { createDistRoutes } from './dist-routes.js'
 import { createSiteSchema, updateSiteSchema } from './validators.js'
 import { WebsiteServiceError } from './service-helpers.js'
 
-export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }) {
+export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, publicationContext }) {
   const app = new Hono()
   app.onError(websiteErrorHandler)
-  const websiteSvc = createWebsiteService({ prisma })
+  const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
+  const websiteSvc = createWebsiteService({ prisma, publicationContext: publication })
+  app.route('/website',createWebsiteReleaseRoutes({...publication,requirePermission}))
   const formsService = createFormsService({ prisma })
 
   app.route('/website', createPagesRouter({ websiteSvc, requirePermission }))
@@ -25,7 +29,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }
   app.route('/website', createBlogRouter({ websiteSvc, requirePermission }))
   app.route('/website', createFormsRouter({ formsService, requirePermission }))
   app.route('/', createWebsiteSettingsRouter({ prisma, requirePermission, supabaseAdmin }))
-  app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc }))
+  app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc, publicationContext:publication }))
 
   app.get('/website/sites', requirePermission('website.site.read'), async c => {
     c.header('Cache-Control', 'no-store')

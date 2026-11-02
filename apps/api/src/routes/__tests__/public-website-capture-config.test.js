@@ -37,12 +37,15 @@ describe('public website capture config', () => {
         return []
       },
     }
+    prisma.websiteDomain={findUnique:async({where})=>where.hostname==='shop.example.com'?{siteId:'01900000-0000-7000-8000-000000000002',companyId:'01900000-0000-7000-8000-000000000001',state:'assigned',ready:true}:null}
+    prisma.websiteSite={findFirst:async()=>({id:'01900000-0000-7000-8000-000000000002',companyId:'01900000-0000-7000-8000-000000000001',sourceType:'builder',enabled:true})}
+    prisma.company.findFirst=async()=>({slug:'acme'})
     const app = createPublicWebsiteRouter({
       prisma,
       supabaseAdmin: {},
     })
 
-    const response = await app.request('http://localhost/resolve?path=/')
+    const response = await app.request('http://shop.example.com/resolve?path=/')
     assert.equal(response.status, 200)
     const body = await response.json()
     assert.deepEqual(body.site, {

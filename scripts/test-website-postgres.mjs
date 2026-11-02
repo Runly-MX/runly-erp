@@ -52,9 +52,17 @@ try {
   if (!rolledBack || psql("SELECT count(*) FROM information_schema.columns WHERE table_name='website_site' AND column_name='draft_revision'").trim() !== '0') throw new Error('Failed migration did not roll back')
   console.log('Migration failure injection: additive DDL/backfill rolled back')
   psql(migration)
+  psql("INSERT INTO company(id,name,slug,updated_at) VALUES ('01900000-0000-7000-8000-000000000911','Duplicate host fixture','duplicate-host-fixture',now()); INSERT INTO website_site(id,company_id,name,domain,updated_at) VALUES ('01900000-0000-7000-8000-000000000909','01900000-0000-7000-8000-000000000901','Unresolved host A','https://duplicate.example.test',now()),('01900000-0000-7000-8000-000000000910','01900000-0000-7000-8000-000000000911','Unresolved host B','www.duplicate.example.test',now());")
+  const releaseMigration=readFileSync(join(root,'prisma/migrations/20261102110000_website_releases/migration.sql'),'utf8')
+  const oldTrigger=psql("SELECT pg_get_functiondef('website_touch_draft_site'::regproc)")
+  let releaseRolledBack=false
+  try{psql(releaseMigration.replace('COMMIT;','SELECT 1/0; COMMIT;'))}catch{releaseRolledBack=true}
+  if(!releaseRolledBack||psql("SELECT count(*) FROM information_schema.columns WHERE table_name='website_site' AND column_name='active_release_id'").trim()!=='0'||psql("SELECT pg_get_functiondef('website_touch_draft_site'::regproc)")!==oldTrigger)throw new Error('S3 migration failed to roll back')
+  console.log('S3 migration failure injection: DDL, mapping and replaced triggers rolled back')
+  psql(releaseMigration)
   execFileSync(process.execPath, [join(root,'node_modules/prisma/build/index.js'),'generate','--schema',join(root,'prisma/schema.prisma')], { cwd: temp, stdio: ['ignore','pipe','pipe'] })
   console.log('Prisma client generated from current schema; application config not loaded')
-  const result = spawnSync(process.execPath, ['--test', 'apps/api/src/routes/website/__tests__/website-postgres.test.js'], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name }, stdio: 'inherit' })
+  const result = spawnSync(process.execPath, ['--test', 'apps/api/src/routes/website/__tests__/website-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-releases-postgres.test.js'], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name }, stdio: 'inherit' })
   process.exitCode = result.status ?? 1
 } finally {
   if (started) {

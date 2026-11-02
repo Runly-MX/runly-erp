@@ -1,3 +1,4 @@
+import { createWebsitePublicationContext } from '../../services/website-publication-context.js'
 import { createWebsiteDraftService } from '../../services/website-draft-service.js'
 import { secureWebsiteMethods } from '../../services/website-authorization-service.js'
 import { createWebsiteResourcePolicy, WEBSITE_METHOD_PERMISSIONS } from '../../services/website-resource-policy.js'
@@ -7,7 +8,8 @@ import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-ser
 
 export { WebsiteServiceError }
 
-export function createWebsiteService({ prisma }) {
+export function createWebsiteService({ prisma, publicationContext, supabaseAdmin }) {
+  const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const drafts = createWebsiteDraftService({ prisma })
   function publicSite(site) {
     if (!site) return null
@@ -254,69 +256,7 @@ export function createWebsiteService({ prisma }) {
 
   async function saveDraft(args) { return drafts.save(args) }
 
-  async function publishPage({ companyId, pageId, actorId }) {
-    const before = await getPage({ companyId, pageId })
-
-    const maxVersion = await prisma.websitePageVersion.aggregate({
-      where: { pageId, companyId },
-      _max: { versionNumber: true },
-    })
-    const nextVersion = (maxVersion._max.versionNumber ?? 0) + 1
-
-    await prisma.websitePageVersion.create({
-      data: {
-        companyId,
-        pageId,
-        versionNumber: nextVersion,
-        builderData: before.draftBuilderData ?? {},
-        seo: before.seo ?? {},
-        status: 'published',
-        createdById: actorId ?? null,
-      },
-    })
-
-    const after = await prisma.websitePage.update({
-      where: { id: pageId, companyId, siteId: before.siteId },
-      data: {
-        publishedBuilderData: before.draftBuilderData,
-        status: 'published',
-        publishedAt: new Date(),
-        updatedById: actorId ?? null,
-      },
-    })
-
-    await prisma.websitePublishedRender.upsert({
-      where: { siteId_path: { siteId: after.siteId, path: after.routePath } },
-      create: {
-        companyId,
-        siteId: after.siteId,
-        sourceType: 'page',
-        sourceId: pageId,
-        path: after.routePath,
-        statusCode: 200,
-        publishedAt: new Date(),
-      },
-      update: {
-        sourceId: pageId,
-        sourceType: 'page',
-        statusCode: 200,
-        publishedAt: new Date(),
-      },
-    })
-
-    await prisma.auditLog.create({
-      data: {
-        actorId: actorId ?? null,
-        moduleKey: 'runly.website',
-        entityType: 'website.page',
-        entityId: pageId,
-        action: 'page.publish',
-        before: JSON.stringify({ status: before.status }),
-        after:  JSON.stringify({ status: 'published', publishedAt: after.publishedAt }),
-      },
-    })
-    return after
-  }
+  async function publishPage(args) { return publication.releases.publishLegacy(args, 'page') }
 
   async function softDeletePage({ companyId, pageId, actorId }) {
     const before = await getPage({ companyId, pageId })
@@ -586,28 +526,7 @@ export function createWebsiteService({ prisma }) {
 
   async function saveBlogDraft(args) { return drafts.save(args, 'post') }
 
-  async function publishBlogPost({ companyId, postId, actorId }) {
-    const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })
-    if (!post) throw notFound('Entrada de blog')
-    const updated = await prisma.websiteBlogPost.update({
-      where: { id: postId, companyId, siteId: post.siteId },
-      data: {
-        status:              'published',
-        publishedBuilderData: post.draftBuilderData,
-        publishedAt:         new Date(),
-        updatedById:         actorId ?? null,
-      },
-    })
-    const site = await prisma.websiteSite.findFirst({ where: { id: post.siteId, companyId, enabled: true } })
-    if (site) {
-      await prisma.websitePublishedRender.upsert({
-        where:  { siteId_path: { siteId: site.id, path: `/blog/${post.slug}` } },
-        update: { updatedAt: new Date() },
-        create: { companyId, siteId: site.id, sourceType: 'blog_post', sourceId: postId, path: `/blog/${post.slug}` },
-      })
-    }
-    return updated
-  }
+  async function publishBlogPost(args) { return publication.releases.publishLegacy(args, 'post') }
 
   async function softDeleteBlogPost({ companyId, postId }) {
     const post = await prisma.websiteBlogPost.findFirst({ where: { id: postId, companyId } })

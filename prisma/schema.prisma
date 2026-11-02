@@ -1341,6 +1341,11 @@ model UserPreference {
 // ─── atlas.website ────────────────────────────────────────────────────────────
 
 model WebsiteSite {
+  publicationRevision Int @default(0) @map("publication_revision")
+  activeReleaseId String? @db.Uuid @map("active_release_id")
+  lastPublishedReleaseId String? @db.Uuid @map("last_published_release_id")
+  lifecycle String @default("draft")
+  releaseManaged Boolean @default(false) @map("release_managed")
   defaultForCompany Boolean @default(false) @map("default_for_company")
   draftRevision Int @default(0) @map("draft_revision")
   draftIdentity Json? @map("draft_identity")
@@ -1406,7 +1411,7 @@ model WebsitePage {
 }
 
 model WebsitePageVersion {
-  id            String   @id @default(uuid(7)) @db.Uuid
+  id            String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId     String   @db.Uuid @map("company_id")
   pageId        String   @db.Uuid @map("page_id")
   versionNumber Int      @map("version_number")
@@ -6506,4 +6511,56 @@ model WebsiteDraftCommand {
   createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
   @@unique([companyId, actorId, operation, keyHash])
   @@map("website_draft_command")
+}
+
+model WebsiteRelease {
+ id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+ companyId String @db.Uuid @map("company_id")
+ siteId String @db.Uuid @map("site_id")
+ baseReleaseId String? @db.Uuid @map("base_release_id")
+ draftRevision Int @map("draft_revision")
+ publicationRevision Int @map("publication_revision")
+ state String @default("preparing")
+ manifest Json?
+ manifestHash String? @map("manifest_hash")
+ failureCode String? @map("failure_code")
+ actorId String @db.Uuid @map("actor_id")
+ createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+ @@unique([companyId,siteId,id])
+ @@index([companyId,siteId,createdAt,id], map:"website_release_history_idx")
+ @@map("website_release")
+}
+model WebsitePublicationEvent {
+ id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+ companyId String @db.Uuid @map("company_id")
+ siteId String @db.Uuid @map("site_id")
+ releaseId String? @db.Uuid @map("release_id")
+ fromReleaseId String? @db.Uuid @map("from_release_id")
+ publicationRevision Int @map("publication_revision")
+ action String
+ actorId String @db.Uuid @map("actor_id")
+ createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+ @@unique([companyId,siteId,publicationRevision])
+ @@index([companyId,siteId,releaseId],map:"website_event_release_idx")
+ @@map("website_publication_event")
+}
+model WebsitePublicationOutbox {
+ id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+ eventId String @unique @db.Uuid @map("event_id")
+ companyId String @db.Uuid @map("company_id")
+ siteId String @db.Uuid @map("site_id")
+ publicationRevision Int @map("publication_revision")
+ createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+ @@map("website_publication_outbox")
+}
+model WebsiteDomain {
+ hostname String @id
+ companyId String? @db.Uuid @map("company_id")
+ siteId String? @db.Uuid @map("site_id")
+ kind String
+ state String
+ ready Boolean @default(false)
+ createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+ @@index([companyId,siteId],map:"website_domain_owner_idx")
+ @@map("website_domain")
 }

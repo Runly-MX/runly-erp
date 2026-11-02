@@ -202,6 +202,7 @@ test('page update cannot reactivate, unpublish or alter live metadata without pu
 
 test('valid publish permission retains the existing publication operation', async () => {
   const prisma = memoryPrisma(), app = websiteApp(prisma, ['website.pages.publish'])
+  prisma._tables.websitePage[0].draftBuilderData={schemaVersion:1,regions:{main:{children:['a']}},blocks:{a:{id:'a',type:'HeroBlock',props:{title:'Publish'}}}}
   assert.equal((await request(app, `/website/pages/${id(101)}/publish`, 'POST')).status, 200)
   assert.equal(prisma._tables.websitePage[0].status, 'published')
   assert.equal(prisma._tables.websitePageVersion.length, 1)
