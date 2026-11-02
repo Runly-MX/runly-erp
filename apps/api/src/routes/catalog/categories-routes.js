@@ -83,6 +83,21 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
     }
   })
 
+  // Registered before /:id, otherwise "reorder" is captured as a category id.
+  app.patch('/catalog/categories/reorder', requirePermission('catalog.categories.update'), async (c) => {
+    try {
+      const companyId = c.get('companyId')
+      const parsed = reorderCategoriesSchema.safeParse(await c.req.json())
+      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
+      await productSvc.reorderCategories({ companyId, items: parsed.data.items })
+      return c.json({ ok: true })
+    } catch (err) {
+      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
+      console.error('[PATCH /catalog/categories/reorder]', err?.message)
+      return c.json({ error: 'Internal error' }, 500)
+    }
+  })
+
   app.patch('/catalog/categories/:id', requirePermission('catalog.categories.update'), async (c) => {
     try {
       const companyId = c.get('companyId')
@@ -126,20 +141,6 @@ export function createCategoriesRouter({ productSvc, prisma, requirePermission }
     } catch (err) {
       if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
       console.error('[DELETE /catalog/categories/:id]', err?.message)
-      return c.json({ error: 'Internal error' }, 500)
-    }
-  })
-
-  app.patch('/catalog/categories/reorder', requirePermission('catalog.categories.update'), async (c) => {
-    try {
-      const companyId = c.get('companyId')
-      const parsed = reorderCategoriesSchema.safeParse(await c.req.json())
-      if (!parsed.success) return c.json({ error: parsed.error.issues[0]?.message }, 400)
-      await productSvc.reorderCategories({ companyId, items: parsed.data.items })
-      return c.json({ ok: true })
-    } catch (err) {
-      if (err?.status && err.status < 500) return c.json({ error: err.message }, err.status)
-      console.error('[PATCH /catalog/categories/reorder]', err?.message)
       return c.json({ error: 'Internal error' }, 500)
     }
   })
