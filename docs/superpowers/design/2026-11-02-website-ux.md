@@ -5,6 +5,8 @@ Base de lectura: `efce9ea5586340a53920f0561b74bc38d0919fab` (cierres S1, S2 y S3
 
 **Estado de este documento: propuesta de diseño para revisión. No hay código de producción, ni cambios en backend, base de datos, migraciones, contratos, atlas-web-builder o documentos maestros de Codex.** Website completo sigue NO APTO E2E; ninguna pantalla de aquí se debe construir como definitiva hasta que su contrato esté en la columna "disponible" de la sección 10.
 
+**Revisión 2 (2026-11-02): el responsable aprobó la dirección general y cerró las cuatro preguntas abiertas. Las decisiones vigentes están en la sección 15 y prevalecen sobre cualquier texto anterior que las contradiga** (en particular 4.2, 6.5, 6.7, 6.9, 8.4, 10.2, 10.3, 11 y 13, que llevan notas de remisión). Los contratos nuevos de la sección 15 son **solicitudes sujetas a revisión de Codex, no capacidades implementadas**.
+
 Convenciones: `Hecho` = verificado en código o actas citadas. `Propuesta` = decisión de diseño. `Dependencia` = requiere algo que backend aún no entrega. Los textos de interfaz propuestos van en español con acentos; el código y este documento técnico siguen la convención del repositorio.
 
 ---
@@ -167,6 +169,8 @@ Todas bajo `/app/m/runly.website`. El `siteId` está **siempre en la ruta** (con
 Compatibilidad: las rutas actuales (`/pages`, `/forms`, `/settings`, `/pages/:id/editor`…) redirigen al sitio por defecto (`defaultForCompany`) o, si no hay uno, a `/sites`. Se mantiene `LegacyPublicRedirect` donde ya exista.
 
 ### 4.2 Navegación del shell
+
+> **Revisión 2:** la migración de rutas del editor y la compatibilidad se registran en 15.1.
 
 El manifiesto declara navegación estática. Propuesta de menú del módulo (permisos como hoy):
 
@@ -333,6 +337,8 @@ Tabla (`RunlyTable`) por sitio. Columnas: Título · Ruta · **En el sitio públ
 
 ### 6.5 Editor de página (`/sites/:siteId/pages/:pageId/editor`)
 
+> **Revisión 2:** el estado de guardado se amplía a tres niveles (cambios locales / borrador guardado con cambios pendientes de publicar / versión publicada) y B-1/B-2 pasan a solicitud aprobada al responsable del paquete. Ver 15.3.
+
 Ruta **administrativa** (corrige P-04). Contenedor a pantalla completa bajo una barra superior propia (`EditorTopBar`); el motor ocupa el resto, como hoy (`position: fixed` con `topOffset`).
 
 ```text
@@ -391,6 +397,8 @@ Primera opción = crear página con `POST .../pages` + `PUT draft` con el docume
 Título, ruta (con URL resultante), visibilidad del borrador, SEO (título, descripción, imagen social) → `PUT draft` con `metadata` y `seo`. Texto fijo: "Estos cambios se aplican a tu sitio público cuando publiques." Cambio de ruta de una página que ya está en el sitio: aviso "La dirección anterior dejará de funcionar".
 
 ### 6.7 Hoja de publicación (`PublishSheet`, `Dialog` md+ con encabezado, cuerpo y pie fijos)
+
+> **Revisión 2:** el preflight pasa a ser estructurado (formulario, página, bloque, código y acción de corrección) y deja de ser un mensaje general; ver 15.4 y 15.2.
 
 Flujo de tres estados; el pie nunca se mueve (regla de modales del proyecto).
 
@@ -460,6 +468,8 @@ Historial de versiones
 - No se muestran números de versión inventados; se usa fecha y persona. `[D]` El nombre de la persona requiere resolver `actorId` (la fila trae `actorId`); se usa el directorio de usuarios de empresa existente.
 
 ### 6.9 Formularios (`/sites/:siteId/forms`)
+
+> **Revisión 2:** reemplaza el aviso suave del selector por el modelo de estados de 15.2 (insertable, configurable, no publicable con causa visible).
 
 Lista con `RunlyTable`: Nombre · Estado (Activo/Desactivado) · Campos · Respuestas · Última respuesta. Detalle `/forms/:formId` con pestañas:
 
@@ -629,6 +639,8 @@ Ver tabla en 6.5.
 
 ### 8.4 Formularios, Calendar y Blog: capacidades bloqueadas
 
+> **Revisión 2:** ver 15.2 para el tratamiento definitivo de formularios; Calendar y Blog se mantienen como aquí.
+
 | Capacidad | Hoy (S3) | Diseño |
 |---|---|---|
 | Publicar páginas con formulario | `form_scope_unresolved` 422 al preparar | Aviso en el selector de formulario, y mensaje específico en la hoja de publicación. No se oculta la función de crear formularios. |
@@ -717,6 +729,8 @@ Campos del release verificados en `prisma/schema.prisma`: `id, siteId, baseRelea
 
 ### 10.2 Dependencias abiertas (no diseñar como disponibles)
 
+> **Revisión 2:** los contratos C-1 a C-4 de 15.4 amplían y reemplazan D-1 y D-8; B-1/B-2 quedan como solicitud aprobada (15.3). Todos son solicitudes sujetas a revisión de Codex.
+
 | ID | Dependencia | Responsable | Efecto en el diseño |
 |---|---|---|---|
 | D-1 | `SiteDTO` completo con `capabilities`, `blockers[]`, `hasUnpublishedChanges`, `primaryDomain`, `publicUrl` (contratos §4; **no implementado**) | Codex | Se deriva en cliente (8.1) con `useCapabilities`; sustituir sin tocar pantallas. |
@@ -739,7 +753,7 @@ Campos del release verificados en `prisma/schema.prisma`: `id, siteId, baseRelea
 
 | ID | Discrepancia | Propuesta |
 |---|---|---|
-| DS-1 | El editor sigue montado en `PublicWebsiteEntry` bajo `?edit=1` en el host público. S3 aísla el runtime público y el guardia de origen bloquea rutas administrativas desde hostnames públicos. No he verificado si ese camino sigue alcanzable bajo la configuración Nginx de S3. | Confirmar con Codex. El diseño asume que **no** y mueve el editor a una ruta administrativa. |
+| DS-1 | El editor sigue montado en `PublicWebsiteEntry` bajo `?edit=1` en el host público. S3 aísla el runtime público y el guardia de origen bloquea rutas administrativas desde hostnames públicos. No he verificado si ese camino sigue alcanzable bajo la configuración Nginx de S3. | **Resuelta en dirección (15.1):** editor solo administrativo. Codex debe confirmar el comportamiento actual tras S3; el código existente no se elimina todavía y la migración se registra en 15.1. |
 | DS-2 | Contratos v1 §4 describe `SiteDTO`, `hasUnpublishedChanges` y errores `{error:{code,...}}`; S2/S3 entregan fachadas existentes con sobres `{data}` y algunos `{error}` legacy (acta S1). | El cliente normaliza ambos sobres en `useWebsiteApi`. |
 | DS-3 | Contratos §2 propone `website.submissions.export`; el manifiesto **no** lo declara (solo `submissions.read/delete`). | La UI no ofrece exportar; se revisa cuando se declare. |
 | DS-4 | Contratos §6 dice que el cambio de fuente a dist exige además `site.update`, y S1 añade `pages.publish`; el flujo de ZIP combina 3 permisos. | `CapabilityGate` muestra qué permiso falta. |
@@ -750,6 +764,8 @@ Campos del release verificados en `prisma/schema.prisma`: `id, siteId, baseRelea
 ---
 
 ## 11. Plan de implementación frontend
+
+> **Revisión 2:** añade la migración de rutas y compatibilidad (15.1) y modifica F2, F3 y F5 según 15.5.
 
 Condición de entrada: contratos S4 estables o capability en `false`. Orden pensado para no construir pantallas sobre lo que backend aún no garantiza. Propiedad de archivos según el plan de Codex §4: `modules/runly.website/**`, `website/WebsitePageRenderer.jsx`, `EditorContextBar.jsx`, `runlyBlocks/**`; `shell/PublicWebsiteEntry.jsx` solo para separar el modo edición, coordinado.
 
@@ -810,13 +826,13 @@ Lista verificable; cada ítem se comprueba con capturas a 390 / 768 / 1440 px en
 | # | Decisión | Estado |
 |---|---|---|
 | DD-1 | Publicar es una acción del **sitio** con hoja de revisión; desaparecen el switch del Resumen y el publicar por página. | Propuesta firme (contratos S3). |
-| DD-2 | El editor se mueve a ruta administrativa y deja de vivir en la URL pública. | Propuesta; **confirmar DS-1 con Codex**. |
+| DD-2 | El editor vive solo en ruta administrativa autenticada; `?edit=1` en host público no se conserva. | **Aprobada** (15.1). Pendiente: Codex confirma comportamiento actual tras S3. |
 | DD-3 | Navegación del sitio como panel propio; el manifiesto se reduce a "Mis sitios". | Propuesta; cambia el manifiesto (backend) al implementar. |
-| DD-4 | Sin autoguardado en el primer corte. | Propuesta; revisar cuando B-1 exista. |
+| DD-4 | Sin autoguardado en el primer corte. | Propuesta; revisar cuando B-1 exista (15.3). |
 | DD-5 | "Eliminar sitio" se renombra "Archivar" y no se ofrece purga. | Propuesta firme (S1). |
 | DD-6 | Sin permisos por sitio; panel informativo "Quién puede qué". | Propuesta firme (contratos §2.2). |
 | DD-7 | Dominio propio: tarjeta "Próximamente". | Propuesta firme. |
-| DD-8 | Formularios se pueden crear y editar aunque aún no se puedan publicar en páginas; se avisa. | **Decisión abierta (D-2 abajo).** |
+| DD-8 | Formularios se pueden insertar y configurar en el borrador aunque FormScope esté pendiente; el estado no publicable y su causa se muestran siempre. | **Aprobada** (15.2). |
 
 **Preguntas que necesito resolver antes de implementar**
 
@@ -843,3 +859,166 @@ Lista verificable; cada ítem se comprueba con capturas a 390 / 768 / 1440 px en
 **Archivos de este entregable**
 - Creado: `docs/superpowers/design/2026-11-02-website-ux.md` (este documento).
 - No se modificó ningún otro archivo. Rama `design/website-ux` en el worktree independiente, creada desde `efce9ea5586340a53920f0561b74bc38d0919fab`.
+
+---
+
+## 15. Decisiones del responsable (revisión 2) y contratos solicitados
+
+Origen: respuesta del responsable a las cuatro preguntas de la sección 13. Esta sección **prevalece** sobre el texto anterior. No se implementa React, no se modifica backend, builder ni repositorio principal, y no se elimina código existente. Los contratos C-1 a C-5 y las interfaces B-1 a B-2 son **solicitudes sujetas a revisión de Codex o del responsable del paquete; no son capacidades implementadas**.
+
+| Pregunta | Decisión | Dónde queda diseñado |
+|---|---|---|
+| 1. Editor | Solo ruta administrativa autenticada; no se conserva `?edit=1` en el host público. Codex confirma el comportamiento tras S3. | 15.1 |
+| 2. Formularios | Insertables y configurables en el borrador con FormScope pendiente; estado no publicable y causa siempre visibles; nunca publicar con propietario ambiguo ni ocultar bloques en silencio; preflight con formulario, página, bloque y opciones. | 15.2 |
+| 3. atlas-web-builder | Se aprueba **solicitar** interfaces aditivas (`onChange`, `onDirtyChange`, `readOnly`); no se modifica ni se fuerza actualización del paquete. Tres niveles de estado. | 15.3 |
+| 4. Capacidades | El backend proporcionaría capacidades y permisos efectivos por sitio con razones, `hasUnpublishedChanges` autoritativo y preflight estructurado. Registrados como contratos solicitados. | 15.4 |
+
+### 15.1 Editor administrativo: migración de rutas y compatibilidad
+
+**Regla de diseño:** el editor existe únicamente en `/app/m/runly.website/sites/:siteId/pages/:pageId/editor`, dentro del shell ERP autenticado. Ningún recorrido de edición se inicia ni termina en un hostname público. El runtime público (`public-release-entry.jsx`) permanece sin editor ni sesión (contrato S3).
+
+**Registro de migración (no se elimina nada todavía):**
+
+| Origen actual | Evidencia | Destino | Compatibilidad transitoria | Acción pendiente |
+|---|---|---|---|---|
+| `/app/m/runly.website/pages/:id/editor` (redirige a `routePath?edit=1`) | `WebsitePageEditorScreen.jsx:161-167` | `/sites/:siteId/pages/:pageId/editor` | La ruta antigua resuelve `siteId` leyendo la página y redirige a la nueva; si no resuelve, va a `/sites` con aviso. | F2 |
+| `<routePath>?edit=1` en el host público | `shell/PublicWebsiteEntry.jsx:683-697, 859, 873` | Sin equivalente público | **Código conservado sin cambios** hasta que Codex confirme su estado tras S3. Después, un cambio separado y aprobado lo retira o lo reduce a una redirección a la ruta administrativa **solo si hay sesión ERP en el origen administrativo**; en un host público nunca. | Registro; cambio aparte tras confirmación (E-1) |
+| Montaje embebido del editor (`pageId`, `topOffset`) | `PublicWebsiteEntry.jsx:1005-1009`, `WebsitePageEditorScreen.jsx:97-100` | Contenedor de editor reutilizable para la ruta nueva | La API de props actual se conserva mientras el modo público exista. | F2 |
+| Llamadores que navegan al editor antiguo | `WebsiteWizard.jsx` (navega a `/pages/:id/editor`), `WebsitePagesScreen.jsx` (acción Editar), `EditorContextBar.jsx`, `PublicWebsiteEntry.jsx:859,873` | Rutas por `siteId` | Se migran por fase; los enlaces guardados (favoritos) siguen funcionando por la redirección de la primera fila. | F1/F2 |
+| `/pages`, `/forms`, `/settings`, `/theme`, `/blog`, `/templates`, `/payments` | Navegación del manifiesto | `/sites/:siteId/...` | Redirigen al sitio predeterminado (`defaultForCompany`) o a `/sites`. | F0/F8 |
+
+**Sin pérdida de contexto:** al abrir el editor desde cualquier punto se conserva `companyId` y `siteId` en la ruta; un enlace a un editor de otra empresa muestra 404 opaco (`resource_not_found`), nunca datos del recurso.
+
+**Para Codex (E-1):** confirmar (a) si `?edit=1` sigue alcanzable en el host público tras la configuración de S3, (b) si el guardia de origen cubre las rutas del editor, (c) si conviene retirar el modo edición en el mismo release que F2 o después.
+
+### 15.2 Formularios en el borrador con FormScope pendiente
+
+**Principio:** el borrador es privado y debe poder construirse completo; la **publicación** es la que se bloquea, de forma visible, explicada y reversible. Nunca se oculta, elimina o degrada un bloque en silencio.
+
+**Estados de publicabilidad (por formulario y por bloque que lo usa)**
+
+| Estado | Causa | Insertable | Configurable | Publicable | Texto de causa (UI) |
+|---|---|---|---|---|---|
+| Publicable | Propietario resuelto, formulario activo | Sí | Sí | Sí | — |
+| Propietario sin resolver | `form_scope_unresolved` (FormScope no disponible) | Sí | Sí | **No** | "Este formulario todavía no se puede publicar en el sitio: falta resolver a quién pertenece." |
+| Propietario ambiguo | `ambiguous_site_identifier` | Sí, con advertencia fuerte | Sí | **No, nunca** | "Este formulario podría pertenecer a otra área (por ejemplo Growth). No se publicará hasta que se aclare." |
+| Desactivado / archivado | Formulario deshabilitado | Sí | Sí | No | "Este formulario está desactivado." |
+| No encontrado / de otro sitio | Referencia inválida | No | — | No | "No encontramos este formulario." (sin revelar datos ajenos) |
+
+**Dónde se comunica (mismo estado, cuatro lugares, sin color como única señal)**
+
+1. **Bloque en el lienzo del editor:** insignia con icono y texto "No publicable" sobre el bloque `Formulario` (los bloques Runly son código de la aplicación, no del paquete). No altera el documento guardado.
+2. **Panel de propiedades del bloque:** `Alert` con la causa, el formulario afectado y las opciones de resolución (abajo).
+3. **Lista de páginas:** columna "Bloqueos de publicación" con contador por página y enlace al bloque.
+4. **Lista de formularios:** columna "Publicable" y "Se usa en" (páginas y bloques), con la causa.
+
+**Preflight de publicación (hoja 6.7)**
+
+Antes de preparar, y de nuevo al fallar la preparación, la hoja muestra los bloqueos **por formulario, página y bloque**:
+
+```text
+No se puede publicar todavía · 2 problemas
+┌ Página "Contacto" › bloque "Formulario de contacto"
+│ Formulario: "Solicitud de cotización"
+│ Causa: propietario sin resolver (aún no disponible para publicar)
+│ Opciones:  [Ir al bloque]  [Quitar el formulario de esta página]
+│            [Elegir otro formulario publicable]  [No publicar esta página por ahora]
+└
+┌ Página "Servicios" › bloque "Reservas"
+│ Causa: Calendar aún no disponible al publicar
+│ Opciones:  [Ir al bloque]  [Quitar el bloque]  [No publicar esta página por ahora]
+└
+                                         [Cancelar]  [Preparar publicación] (deshabilitado)
+```
+
+- **Todas las opciones de resolución son acciones explícitas del usuario:** ir al bloque en el editor; quitar el bloque; elegir otro formulario publicable; excluir esa página de **esta** publicación. "No publicar esta página por ahora" usa `publishPageIds` sin esa página: **la versión anterior de la página se conserva en el sitio público** (contrato S3: las páginas no seleccionadas conservan su snapshot). La hoja lo dice: "Seguirá visible la versión publicada anterior de esta página".
+- El botón de preparar permanece deshabilitado mientras haya bloqueos de severidad bloqueante que afecten páginas seleccionadas. Las advertencias no bloquean.
+- **Nunca** hay un botón "Publicar sin el formulario" que quite o esconda el bloque de forma automática. Quitar un bloque es siempre una edición explícita en el editor.
+- Mientras el backend no entregue preflight estructurado (C-3), la interfaz muestra **solo lo que puede afirmar**: (a) un análisis local informativo del borrador que detecta bloques de formulario o Calendar por su `type` y `props.formId` y los marca "Probablemente no publicable" con la causa conocida (capacidad global false); y (b) si la preparación falla, el `failureCode` con el mensaje de 6.7. El análisis local **nunca** es autoritativo ni habilita o bloquea por sí solo; se retira cuando C-3 exista.
+
+**Selector de formularios (`formPicker`):** lista los formularios del sitio con su chip de publicabilidad y permite elegir cualquiera salvo los "no encontrado". Conserva el campo existente `formId` del bloque (cambia el control, no la forma del documento), por lo que **no requiere migrar páginas guardadas**.
+
+**Históricos y releases válidos:** una publicación activa nunca se altera por un preflight fallido ni por un cambio de estado de formulario. Un sitio con release anterior válido sigue sirviéndolo y el rollback sigue disponible. Si una versión histórica (`integrityMode: legacy-reference`) ya incluía un formulario, Publicaciones lo indica ("Esta versión incluye formularios con propietario no verificado") sin pedir acción sobre ella. Las respuestas recibidas se conservan siempre.
+
+### 15.3 atlas-web-builder: solicitud de interfaces y estados en tres niveles
+
+**Solicitud al responsable del paquete (aditiva y retrocompatible; este documento no modifica el paquete ni propone actualizarlo):**
+
+| ID | Interfaz | Comportamiento propuesto | Compatibilidad |
+|---|---|---|---|
+| B-1a | `onChange(page, meta?)` | Se emite tras cambios de contenido o propiedades (no por selección ni cambio de dispositivo), con límite de frecuencia. `meta` indica el origen (`edit`, `undo`, `redo`, `template`). | Opcional; ausente = comportamiento actual. |
+| B-1b | `onDirtyChange(isDirty)` | `true` cuando el documento difiere del último guardado; vuelve a `false` al guardar y al deshacer hasta el punto guardado. Necesita saber cuándo terminó el guardado: que `onSaveDraft` pueda devolver una promesa o que exista un método imperativo `markSaved()`. | Opcional; sin la señal se usa el degradado de 6.5. |
+| B-2 | `readOnly` | Desactiva mutaciones y oculta Guardar y Publicar; conserva selección, propiedades en solo lectura y vista previa por dispositivo. Sirve para abrir una versión histórica o a un usuario sin permiso de edición. | Opcional; `false` por defecto. |
+
+Preguntas para el responsable del paquete: ¿deshacer hasta el estado guardado devuelve `dirty=false`?; ¿se puede esperar la promesa de `onSaveDraft`?; ¿en qué versión se incorporarán y se mantiene el esquema `schemaVersion: 1`? **Detección en la aplicación:** se activa con una bandera de compilación según la versión instalada del paquete, no por inspección en tiempo de ejecución. Sin las interfaces, el editor funciona en modo degradado (6.5). Las versiones 0.2.0 (instalada) y 0.2.4 (candidata) no se tocan.
+
+**Tres niveles de estado, diferenciados siempre en la barra del editor** (texto, icono y color; tooltip explicativo; `aria-live` al cambiar):
+
+| Nivel | Pregunta que responde | Texto | Origen del dato |
+|---|---|---|---|
+| 1. Cambios locales sin guardar | "¿Perderé algo si salgo?" | "Cambios sin guardar" | `onDirtyChange` (B-1b). Sin B-1 no se afirma; solo `Guardando…` y `Guardado`. |
+| 2. Borrador guardado, pendiente de publicar | "¿Lo guardado ya lo ve el público?" | "Guardado · pendiente de publicar" | `hasUnpublishedChanges` por página y sitio (C-2); mientras no exista, comparación de `draftRevision` del sitio con la del release activo (8.1), solo a nivel de sitio. |
+| 3. Versión publicada | "¿Qué ve el público ahora?" | "Publicado · 2 nov, 14:30" o "Sin publicar" | Release activo (`activeReleaseId`). |
+
+Prioridad de lo que destaca la barra: 1 > 2 > 3. Representación: indicador compacto de tres segmentos "Editando · Guardado · Publicado"; el segmento activo es el de mayor prioridad que aplica y los demás se muestran atenuados con su dato (hora o fecha). Combinaciones que debe cubrir:
+
+| Local | Guardado vs publicado | Publicado | Mensaje principal |
+|---|---|---|---|
+| sucio | cualquiera | cualquiera | "Cambios sin guardar" |
+| limpio | con diferencias | sí | "Guardado · pendiente de publicar" |
+| limpio | sin diferencias | sí | "Publicado · al día" |
+| limpio | — | no | "Borrador · nunca publicado" |
+| limpio | — | retirado | "Sitio retirado · el borrador está guardado" |
+
+### 15.4 Contratos solicitados al backend (sujetos a revisión de Codex)
+
+Ninguno existe hoy. Cada uno indica qué hace la interfaz mientras no exista.
+
+**C-1 — Capacidades y permisos efectivos por sitio.** Calculados por el servidor para (empresa, sitio, actor), en la fila del sitio o en un recurso de capacidades.
+- Forma propuesta: `capabilities: { <clave>: { allowed: boolean, reason?: { code, requiredPermission? } } }` y `effectivePermissions: string[]`.
+- Claves propuestas: `site.edit`, `pages.create|update|delete`, `pages.publish`, `release.rollback`, `site.unpublish`, `site.archive`, `domains.reserve`, `domains.custom`, `forms.manage`, `forms.publish`, `submissions.read|export|delete`, `import.zip`, `preview.site`, `catalog.link`.
+- Códigos de razón propuestos: `permission_denied` (con `requiredPermission`), `feature_unavailable`, `isolation_required`, `form_scope_unresolved`, `dependency_unavailable`, `lifecycle_state`.
+- El servidor entrega códigos estables; el texto en español lo resuelve el frontend con un mapa único.
+- **Mientras no exista:** `useCapabilities` deriva de los permisos de sesión y de las restricciones conocidas (8.4), con los mismos códigos de razón en los tooltips. Se sustituye la fuente sin cambiar las pantallas.
+
+**C-2 — `hasUnpublishedChanges` autoritativo.** En el sitio y por página (`publicState: unpublished|published|changed`, `publicReleaseId`, `documentHash`), cubriendo documentos, SEO, tema, menús e identidad. Opcional: `changedSince` con identificadores de lo que cambió.
+- **Mientras no exista:** solo el indicador de sitio por `draftRevision` (puede dar falsos "con cambios" y cubre mal tema y menús); no hay indicador por página.
+
+**C-3 — Preflight estructurado.** Lectura sin efectos (`POST .../releases/preflight` o `validationReport` en el detalle del release) y, como mejora, también en `issues` de `GET .../pages/:pageId/draft` para avisar al editar.
+- Forma propuesta por problema: `{ severity: 'blocking'|'warning', code, pageId, blockId, blockType, resource: { kind: 'form'|'asset'|'link'|'calendar', id }, remediation: [{ action: 'remove_block'|'replace_resource'|'exclude_page'|'resolve_owner'|'wait', target? }] }`, más `canPublish`.
+- Códigos: los ya existentes (`form_scope_unresolved`, `dynamic_binding_unavailable`, `unknown_block_type`, `unknown_block_property`, `invalid_block_property`, `unsafe_link`, `unsafe_content`, `asset_*`, `route_conflict`, `menu_reference_invalid`, `settings_not_publishable`).
+- Privacidad: ningún dato de otros tenants; un propietario ambiguo se declara ambiguo sin revelar qué recurso ajeno lo causa.
+- **Mientras no exista:** análisis local informativo más `failureCode` (15.2); sin enlace autoritativo al bloque.
+
+**C-4 — Publicabilidad de formularios.** En el DTO de formulario: `publishability: { state: 'publishable'|'owner_unresolved'|'owner_ambiguous'|'disabled', reason?, usedBy: [{ pageId, blockId }] }`, también en `GET /website/sites/:siteId/forms`.
+- **Mientras no exista:** se asume `owner_unresolved` para todos los formularios (capacidad global `forms.publish=false`) y `usedBy` se calcula analizando los borradores en cliente (informativo).
+
+**C-5 — Integridad de la versión en el DTO de release.** Exponer `integrityMode` (`sealed` o `legacy-reference`) y, si aplica, advertencias de referencias externas, para etiquetar versiones históricas sin inferirlas.
+- **Mientras no exista:** no se etiqueta la integridad en el historial.
+
+### 15.5 Cambios al plan de implementación (reemplazan lo que contradiga la sección 11)
+
+| Fase | Cambio |
+|---|---|
+| F0 | Añadir: tabla de migración de rutas (15.1) con redirecciones; banderas de compilación `builderSupportsDirty` y fuente de capacidades (`derived` o `server`); mapa de razones de indisponibilidad y de preflight por código. |
+| F2 | Ruta nueva del editor **sin tocar** `PublicWebsiteEntry`; tres niveles de estado en `EditorTopBar` con degradado si no hay B-1; `readOnly` solo cuando exista (B-2). El retiro del modo `?edit=1` queda como cambio posterior, aprobado y separado (tras E-1). |
+| F3 | `PublishSheet` con panel de preflight por problema (15.2) en lugar de mensajes generales; análisis local informativo hasta C-3. |
+| F5 | Formularios: estados de publicabilidad (15.2), insignia en bloque, columnas en listas, `formPicker` conservando `formId`. |
+| Sustitución de fuentes | Al llegar C-1, C-2, C-3 y C-4 se cambia **solo la fuente de datos** (`useCapabilities`, chip de estado, preflight); las pantallas no se rehacen. Es el criterio para reconciliar tras S4. |
+
+### 15.6 Discrepancias y contratos pendientes registrados (adicionales a 10.3)
+
+| ID | Discrepancia o pendiente | Responsable |
+|---|---|---|
+| DS-8 | Contratos v1 §4 prevé `capabilities` y `blockers[]` en `SiteDTO`; no está implementado y C-1/C-3 piden además razones estructuradas y preflight por bloque. Unificar en una sola forma al reconciliar. | Codex |
+| DS-9 | El detalle del release solo expone `failureCode` (esquema `WebsiteRelease`): sin página, bloque ni acción de corrección. Lo cubre C-3. | Codex |
+| DS-10 | `issues` del borrador (S2) cubre esquema y `unknown_block_type`; la no publicabilidad por formulario o Calendar solo aparece al preparar. Lo cubre C-3 (borrador). | Codex |
+| DS-11 | Cambiar `ContactFormBlock` a selector no cambia la forma del documento (`formId`); confirmar con quien mantenga los bloques que no hay otros consumidores del control manual. | Claude y Codex |
+| DS-12 | Etiquetar versiones históricas por integridad requiere C-5. | Codex |
+| E-1 | Estado real de `?edit=1` en el host público tras S3 y momento de retirarlo (15.1). | Codex |
+| E-2 | ¿El preflight puede ser de solo lectura y sin recibo? ¿Qué enumeración de acciones de corrección es estable? | Codex |
+| E-3 | Versión y calendario de B-1/B-2 en atlas-web-builder; semántica de `dirty` (15.3). | Responsable del paquete |
+
+### 15.7 Estado
+
+Las cuatro preguntas abiertas de la sección 13 quedan **cerradas por decisión del responsable**. Pendiente de terceros: E-1, E-2, E-3 y la revisión de C-1 a C-5. Siguiente paso previsto: esperar el cierre de S4 de Codex, reconciliar los contratos técnicos con este diseño e iniciar el frontend definitivo. No se implementa React ni se modifica ningún archivo fuera de este documento.
