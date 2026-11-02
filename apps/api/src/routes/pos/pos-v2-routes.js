@@ -95,6 +95,17 @@ export function createPosV2Router({ prisma, requirePermission, requireAnyPermiss
         if (body?.sessionId && !p.isAdmin && !['pos.payments.create','pos.caja.operate'].some((k) => p.permissionSet.has(k))) throw new CommerceError('FORBIDDEN', 'El cobro en mesa no permite operar una caja.', 403);
         if (!body?.sessionId && !p.isAdmin && !p.permissionSet.has('pos.comandas.charge')) throw new CommerceError('FORBIDDEN', 'Caja requiere una sesión explícita; el cobro en mesa requiere su propio permiso.', 403);
       }
+      // The counter (RETAIL) belongs to Caja: table-service roles (comandas only) may
+      // neither open a counter sale nor edit someone else's cart.
+      if (!['payment'].includes(action)) {
+        const p = permissions(c);
+        const counterRoles = ['pos.orders.create','pos.orders.update','pos.caja.operate'];
+        const touchesCounter = action === 'createOrder' ? body?.experience === 'RETAIL'
+          : ['addLine','updateLine','deleteLine'].includes(action) && params.orderId
+            ? (await prisma.posOrder.findFirst({ where: { id: params.orderId, companyId: getCompanyId(c) }, select: { experience: true } }))?.experience === 'RETAIL'
+            : false;
+        if (touchesCounter && !p.isAdmin && !counterRoles.some((k) => p.permissionSet.has(k))) throw new CommerceError('FORBIDDEN', 'Las ventas de mostrador requieren permiso de Caja.', 403);
+      }
       if(action==='updateRestaurantOrder'&&body?.waiterId&&body.waiterId!==getActorId(c)){
         const p=permissions(c);if(!p.isAdmin&&!['pos.orders.update','pos.admin.update'].some(k=>p.permissionSet.has(k)))throw new CommerceError('FORBIDDEN','No tienes permiso para reasignar a otro mesero.',403);
       }

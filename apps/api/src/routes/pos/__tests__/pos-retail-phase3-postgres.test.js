@@ -221,4 +221,15 @@ describe('Retail phase 3: real API, SDK, receipts and print attempts',{skip:!url
     assert.equal((await db.posOrder.findUnique({where:{id:o.id}})).status,'OPEN');
     assert.equal((await db.catalogProduct.findUnique({where:{id:f.product.id}})).stock,2);
   });
+
+  it('keeps the counter with Caja: a table-service role can neither open a retail sale nor edit its cart',async()=>{
+    const f=await fixture(),cashier=client(f,f.app,{'X-Test-Permissions':'pos.caja.operate'}),waiter=client(f,f.app,{'X-Test-Permissions':'pos.comandas.read,pos.comandas.create'});
+    const body={outletId:f.outlet.id,terminalId:f.terminal.id,sessionId:f.session.id,experience:'RETAIL',fulfillmentType:'TAKEAWAY'};
+    await assert.rejects(waiter.commerce.createOrder(body,'token',options()),{code:'FORBIDDEN'});
+    const o=await order(f,{api:cashier});
+    await assert.rejects(waiter.commerce.addLine(o.id,{expectedVersion:o.version,productId:f.product.id,quantity:'1'},'token',options()),{code:'FORBIDDEN'});
+    await assert.rejects(waiter.commerce.deleteLine(o.id,o.lines[0].id,{expectedVersion:o.version},'token',options()),{code:'FORBIDDEN'});
+    assert.equal((await db.posOrderLine.count({where:{orderId:o.id}})),1);
+    assert.equal(await db.posOrder.count({where:{companyId:f.company.id}}),1);
+  });
 });
