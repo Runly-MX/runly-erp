@@ -26,6 +26,7 @@ function RetailOrdersView() {
   const { activeCompanyId } = useActiveCompany()
   const [outletId, setOutletId] = useState(ALL)
   const [status, setStatus] = useState(ALL)
+  const [experience, setExperience] = useState(ALL)
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
   const [from, setFrom] = useState('')
@@ -44,8 +45,9 @@ function RetailOrdersView() {
     staleTime: 60_000,
   })
   const outlets = context.data?.data?.outlets ?? []
+  const retailOnly = outlets.length > 0 && outlets.every((o) => o.mode === 'RETAIL')
   const query = {
-    experience: 'RETAIL',
+    ...(experience !== ALL ? { experience } : {}),
     ...(outletId !== ALL ? { outletId } : {}),
     ...(status !== ALL ? { status } : {}),
     ...(validSearch ? { search: validSearch } : {}),
@@ -67,12 +69,13 @@ function RetailOrdersView() {
 
   return (
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
-      <PageHeader eyebrow="Punto de venta" title="Órdenes de tienda" description="Ventas de mostrador: consulta, comprobantes, cancelaciones y devoluciones." />
+      <PageHeader eyebrow="Punto de venta" title={retailOnly ? 'Órdenes de tienda' : 'Órdenes'} description={retailOnly ? 'Ventas de mostrador: consulta, comprobantes, cancelaciones y devoluciones.' : 'Ventas de mostrador y cuentas de restaurante: consulta, comprobantes, cancelaciones y devoluciones.'} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Folio de venta o comprobante" aria-label="Buscar por folio de venta o de comprobante" inputMode="numeric" />
         <SelectField aria-label="Sucursal" value={outletId} onValueChange={(v) => { setOutletId(v); setPage(1) }} options={[{ value: ALL, label: 'Todas las sucursales' }, ...outlets.map((o) => ({ value: o.id, label: o.name }))]} />
-        <SelectField aria-label="Estado" value={status} onValueChange={(v) => { setStatus(v); setPage(1) }} options={[{ value: ALL, label: 'Todos los estados' }, { value: 'OPEN', label: 'En curso' }, { value: 'PAID', label: 'Pagadas' }, { value: 'CANCELLED', label: 'Canceladas' }, { value: 'REFUNDED', label: 'Devueltas' }]} />
+        {!retailOnly && <SelectField aria-label="Tipo de orden" value={experience} onValueChange={(v) => { setExperience(v); setPage(1) }} options={[{ value: ALL, label: 'Tienda y restaurante' }, { value: 'RETAIL', label: 'Tienda' }, { value: 'RESTAURANT', label: 'Restaurante' }]} />}
+        <SelectField aria-label="Estado" value={status} onValueChange={(v) => { setStatus(v); setPage(1) }} options={[{ value: ALL, label: 'Todos los estados' }, { value: 'OPEN', label: 'En curso' }, { value: 'SENT', label: 'Enviadas a cocina' }, { value: 'PAID', label: 'Pagadas' }, { value: 'CANCELLED', label: 'Canceladas' }, { value: 'REFUNDED', label: 'Devueltas' }]} />
         <DateField aria-label="Desde" label="Desde" value={from} onChange={(e) => { setFrom(e?.target?.value ?? e ?? ''); setPage(1) }} />
         <DateField aria-label="Hasta" label="Hasta" value={to} onChange={(e) => { setTo(e?.target?.value ?? e ?? ''); setPage(1) }} />
       </div>
@@ -95,8 +98,8 @@ function RetailOrdersView() {
                 <li key={o.id}>
                   <button type="button" onClick={() => setOpenId(o.id)} className="flex min-h-16 w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-[hsl(var(--muted))]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
                     <span className="min-w-0 flex-1">
-                      <span className="block font-semibold text-[hsl(var(--foreground))]">Venta #{o.orderNumber}{o.receiptNumber ? ` · comprobante #${o.receiptNumber}` : ''}</span>
-                      <span className="block text-xs text-[hsl(var(--muted-foreground))]">{when(o.openedAt)} · {o.lineCount} artículo(s){outlets.length > 1 ? ` · ${outlets.find((x) => x.id === o.outletId)?.name ?? ''}` : ''}</span>
+                      <span className="block font-semibold text-[hsl(var(--foreground))]">{o.experience === 'RESTAURANT' ? `${o.orderLabel ?? 'Cuenta'} · cuenta #${o.orderNumber}` : `Venta #${o.orderNumber}`}{o.receiptNumber ? ` · comprobante #${o.receiptNumber}` : ''}</span>
+                      <span className="block text-xs text-[hsl(var(--muted-foreground))]">{when(o.openedAt)} · {o.lineCount} artículo(s){o.waiterName && o.experience === 'RESTAURANT' ? ` · ${o.waiterName}` : ''}{outlets.length > 1 ? ` · ${outlets.find((x) => x.id === o.outletId)?.name ?? ''}` : ''}</span>
                     </span>
                     <StatusPill size="sm" tone={meta.tone}>{meta.label}</StatusPill>
                     {o.refundStatus && o.refundStatus !== 'NONE' && <StatusPill size="sm" tone="warning">{o.refundStatus === 'FULL' ? 'Devuelta completa' : 'Devolución parcial'}</StatusPill>}
@@ -128,6 +131,7 @@ function RetailOrdersView() {
           token={token}
           companyId={activeCompanyId}
           userProfile={userProfile}
+          outlets={outlets}
           capabilities={context.data?.data?.capabilities ?? {}}
           methods={context.data?.data?.paymentMethods ?? []}
           onClose={() => {setOpenId(null);if(params.has('order')){const next=new URLSearchParams(params);next.delete('order');setParams(next,{replace:true})}}}

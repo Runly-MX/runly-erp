@@ -13,6 +13,8 @@ export function usePosSettings() {
   return useQuery({
     queryKey: ['pos', 'settings'],
     queryFn: () => runly.pos.getSettings(token),
+    // The API wraps the row in { data }; screens read the settings themselves.
+    select: (res) => res?.data ?? res,
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })

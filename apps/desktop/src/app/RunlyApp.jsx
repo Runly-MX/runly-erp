@@ -28,6 +28,8 @@ import { MODULE_SIDEBAR_SLOTS } from './sidebar-slots.js'
 import { useModuleNavBadges } from './useModuleNavBadges.js'
 import { useServiceWorkerNotifications } from './useServiceWorkerNotifications.js'
 import { useHelpTip } from './useHelpTip.js'
+import { filterPosNavigation } from '../modules/runly.pos/lib/posNavigation.js'
+import { usePosNavModes } from '../modules/runly.pos/hooks/usePosNavModes.js'
 import { RecordConnectionsButton } from '../shell/connections/RecordConnectionsButton.jsx'
 import { useTrashProviders, withTrashNavigation } from '../shell/trash/useTrashProviders.js'
 import { getShellViewportStyle } from './shellViewport.js'
@@ -226,7 +228,8 @@ export function RunlyApp() {
   const navBadges = useModuleNavBadges(activeModule?.key)
   // Shell-added "Desactivados" entry for modules with deactivated-record support.
   const trashProviders = useTrashProviders(activeModule?.key).data
-  const sidebarModule = useMemo(() => withTrashNavigation(activeModule, trashProviders), [activeModule, trashProviders])
+  const posModes = usePosNavModes({ enabled: activeModule?.key === 'runly.pos', token: session?.access_token, companyId: activeCompanyId })
+  const sidebarModule = useMemo(() => filterPosNavigation(withTrashNavigation(activeModule, trashProviders), posModes), [activeModule, trashProviders, posModes])
   const helpTip = useHelpTip()
   // While the on-screen keyboard is up, pin the shell to the visible area
   // (above the keyboard AND the iOS/Android suggestion/AutoFill bar). Without

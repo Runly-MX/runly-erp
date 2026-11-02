@@ -23,7 +23,7 @@ import { useRetailOrder } from './hooks/useRetailOrder.js'
 import {usePendingOperations} from './hooks/usePendingOperations.js'
 import {readPending,writePending} from './lib/pendingCommands.js'
 import { classifyPosError } from './lib/retailErrors.js'
-import { formatMoney, itemCount } from './lib/retailRules.js'
+import { activeLines, formatMoney, itemCount } from './lib/retailRules.js'
 
 // Side cart from 1024 px (landscape tablet, terminal, desktop); below that
 // the cart is a bottom PeekSheet. Only one of them is mounted.
@@ -188,7 +188,7 @@ function RetailCajaView() {
     body = (
       <RestaurantAccounts
         token={token} companyId={activeCompanyId} outlet={outlet} session={session} methods={methods} currency={currency}
-        canCharge={Boolean(caps.charge)} initialOrderId={params.get('cuenta')} onSettled={refreshContext}
+        canCharge={Boolean(caps.charge)} initialOrderId={params.get('cuenta')} onSettled={refreshContext} online={online} userId={userProfile?.id}
       />
     )
   } else {
@@ -226,11 +226,15 @@ function RetailCajaView() {
         </aside>
         ) : (
         <PeekSheet
+          modal
           expanded={cartOpen}
           onExpandedChange={setCartOpen}
           label="Venta actual"
           peekHeight={64}
           maxHeight="85dvh"
+          action={!cartOpen && !completed && sale.order && activeLines(sale.order).length > 0 && !sale.pending && !sale.failure && Number(sale.order.remainingAmount) > 0 ? (
+            <Button size="lg" className="h-12 min-w-28 text-base font-bold sm:h-12" onClick={() => setDialog({ kind: 'charge' })}>Cobrar</Button>
+          ) : null}
           handle={(
             <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-[hsl(var(--foreground))]">
               <span>{completed ? 'Venta cobrada' : `${itemCount(sale.order)} artículo(s)`}</span>

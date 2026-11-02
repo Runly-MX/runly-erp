@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Pencil, LayoutGrid } from 'lucide-react'
 import {
   PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription,
-  Button, EmptyState, Separator,
+  Button, EmptyState, Separator, StatusPill as UiStatusPill,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Tabs, TabsList, TabsTrigger, TabsContent,
   TextField, SelectField, SwitchField, Label,
@@ -20,70 +20,101 @@ import PosModifiersTab from '../components/PosModifiersTab.jsx'
 import ProductStationsPanel from '../components/ProductStationsPanel.jsx'
 
 function StatusPill({ active }) {
-  return (
-    <span className={[
-      'inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium',
-      active ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500',
-    ].join(' ')}>
-      <span className={['h-1.5 w-1.5 rounded-full', active ? 'bg-green-500' : 'bg-gray-400'].join(' ')} />
-      {active ? 'Activa' : 'Inactiva'}
-    </span>
-  )
+  return <UiStatusPill tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</UiStatusPill>
 }
 
 const MODE_OPTIONS = [
   { value: 'RESTAURANT', label: 'Restaurante' },
   { value: 'RETAIL', label: 'Tienda' },
-  { value: 'HYBRID', label: 'Híbrido' },
+  { value: 'HYBRID', label: 'Mixto (tienda y restaurante)' },
 ]
 
 export default function PosSettingsScreen() {
   const [tab, setTab] = useState('general')
-  const navigate = useNavigate()
+  const { data: settings } = usePosSettings()
+  const { data: outlets = [] } = usePosOutlets()
+  // Restaurant tools only show when the business (or any outlet) serves tables.
+  const restaurant = (settings?.mode ?? 'RESTAURANT') !== 'RETAIL' || outlets.some((o) => ['RESTAURANT', 'HYBRID'].includes(o.mode))
   return (
     <div className="min-h-full bg-[hsl(var(--background))] p-4 sm:p-6 lg:p-8">
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <PageHeader
-          title="Configuración POS"
-          description="Sucursales, terminales, estaciones y parámetros generales del punto de venta."
-          actions={
-            <Button
-              variant="outline"
-              onClick={() => navigate('/app/m/runly.pos/pos/admin/planos')}
-            >
-              <LayoutGrid size={16} />
-              Editor de planos
-            </Button>
-          }
+          title="Administración del punto de venta"
+          description="Tu negocio, sus sucursales, cajas y formas de pago. Lo de restaurante aparece solo si lo necesitas."
         />
-        <Tabs value={tab} onValueChange={setTab}>
+        <Tabs value={restaurant || tab !== 'restaurant' ? tab : 'general'} onValueChange={setTab}>
           <div className="overflow-x-auto pb-0.5">
             <TabsList className="mb-2 w-full min-w-max">
               <TabsTrigger value="general">General</TabsTrigger>
-              <TabsTrigger value="outlets">
-                <span className="sm:hidden">Sucursales</span>
-                <span className="hidden sm:inline">Sucursales y terminales</span>
+              <TabsTrigger value="cajas">
+                <span className="sm:hidden">Cajas</span>
+                <span className="hidden sm:inline">Cajas y pagos</span>
               </TabsTrigger>
-              <TabsTrigger value="stations">Estaciones</TabsTrigger>
-              <TabsTrigger value="payments">
-                <span className="sm:hidden">Pagos</span>
-                <span className="hidden sm:inline">Métodos de pago</span>
-              </TabsTrigger>
-              <TabsTrigger value="modifiers">Modificadores</TabsTrigger>
+              {restaurant && <TabsTrigger value="restaurant">Restaurante</TabsTrigger>}
+              <TabsTrigger value="advanced">Avanzado</TabsTrigger>
             </TabsList>
           </div>
-          <TabsContent value="general"><GeneralTab /></TabsContent>
-          <TabsContent value="outlets"><OutletsTab /></TabsContent>
-          <TabsContent value="stations"><StationsTab /></TabsContent>
-          <TabsContent value="payments"><PaymentMethodsTab /></TabsContent>
-          <TabsContent value="modifiers"><PosModifiersTab /></TabsContent>
+          <TabsContent value="general">
+            <div className="flex flex-col gap-6">
+              <GeneralTab part="general" />
+              <OutletsTab section="outlets" />
+            </div>
+          </TabsContent>
+          <TabsContent value="cajas">
+            <div className="flex flex-col gap-6">
+              <OutletsTab section="terminals" />
+              <PaymentMethodsTab />
+            </div>
+          </TabsContent>
+          {restaurant && <TabsContent value="restaurant"><RestaurantAdmin onEditOutlets={() => setTab('general')} /></TabsContent>}
+          <TabsContent value="advanced"><GeneralTab part="advanced" /></TabsContent>
         </Tabs>
       </div>
     </div>
   )
 }
 
-function GeneralTab() {
+// Everything that only matters for table service. None of it is required to
+// operate: tables can be created from Mesas and the floor plan is optional.
+function RestaurantAdmin({ onEditOutlets }) {
+  const navigate = useNavigate()
+  return (
+    <div className="flex flex-col gap-6">
+      <Card>
+        <CardHeader>
+          <CardTitle>Mesas</CardTitle>
+          <CardDescription>Se crean con un nombre y su capacidad desde la pantalla de Mesas; no necesitas un plano.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate('/app/m/runly.pos/pos/tables')}>Ir a Mesas</Button>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Comandero y preparación</CardTitle>
+          <CardDescription>Pantalla de cocina, impresión de comandas, estación por defecto y cobro en mesa se definen en cada sucursal.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={onEditOutlets}>Editar sucursales</Button>
+        </CardContent>
+      </Card>
+      <StationsTab />
+      <PosModifiersTab />
+      <Card>
+        <CardHeader>
+          <CardTitle>Plano del salón (opcional)</CardTitle>
+          <CardDescription>Dibuja tu salón si quieres verlo como plano. No hace falta para tomar pedidos ni cobrar.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button variant="outline" onClick={() => navigate('/app/m/runly.pos/pos/admin/planos')}><LayoutGrid size={16} />Editor de planos</Button>
+        </CardContent>
+      </Card>
+    </div>
+  )
+}
+
+// part: 'general' (business mode, tips) or 'advanced' (default tax rate).
+function GeneralTab({ part = 'general' }) {
   const { data: settings, isLoading } = usePosSettings()
   const update = useUpdatePosSettings()
   const [mode, setMode] = useState(null)
@@ -99,15 +130,25 @@ function GeneralTab() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Parámetros generales</CardTitle>
-        <CardDescription>Define el modo de operación y comportamiento del terminal.</CardDescription>
+        <CardTitle>{part === 'general' ? 'Tu negocio' : 'Opciones avanzadas'}</CardTitle>
+        <CardDescription>{part === 'general' ? 'Cómo vendes: define qué pantallas se ofrecen en el punto de venta.' : 'Reglas poco frecuentes. Cámbialas solo si sabes que las necesitas.'}</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        {part === 'general' && (<>
         <div className="flex flex-col gap-1.5">
-          <Label>Modo de operación</Label>
+          <Label>Modalidad de negocio</Label>
           <SelectField value={currentMode} onChange={setMode} options={MODE_OPTIONS} />
         </div>
         <Separator />
+        <SwitchField
+          id="tips-enabled"
+          label="Propinas habilitadas"
+          description="Permite que los operadores registren propinas al momento del cobro."
+          checked={currentTips}
+          onChange={setTipsEnabled}
+        />
+        </>)}
+        {part === 'advanced' && (
         <TextField
           label="Tasa de impuesto (%)"
           type="number"
@@ -119,14 +160,7 @@ function GeneralTab() {
           placeholder="0"
           hint="Aplica a todas las líneas de orden. Usa 0 para deshabilitar el IVA."
         />
-        <Separator />
-        <SwitchField
-          id="tips-enabled"
-          label="Propinas habilitadas"
-          description="Permite que los operadores registren propinas al momento del cobro."
-          checked={currentTips}
-          onChange={setTipsEnabled}
-        />
+        )}
         <div className="flex justify-end">
           <Button
             onClick={() => update.mutate({
@@ -144,7 +178,8 @@ function GeneralTab() {
   )
 }
 
-function OutletsTab() {
+// section: 'outlets' | 'terminals' | 'both' (the admin screen shows them apart).
+function OutletsTab({ section = 'both' }) {
   const { data: outlets = [], isLoading: loadingOutlets } = usePosOutlets()
   const { data: terminals = [], isLoading: loadingTerminals } = usePosTerminals()
   const createOutlet = useCreatePosOutlet()
@@ -247,6 +282,7 @@ function OutletsTab() {
   return (
     <div className="flex flex-col gap-6">
       {/* Outlets card */}
+      {section !== 'terminals' && (
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
@@ -285,8 +321,10 @@ function OutletsTab() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Terminals card */}
+      {section !== 'outlets' && (
       <Card>
         <CardHeader className="flex flex-row items-start justify-between gap-4">
           <div>
@@ -345,6 +383,7 @@ function OutletsTab() {
           )}
         </CardContent>
       </Card>
+      )}
 
       {/* Create outlet dialog */}
       <Dialog open={outletDialog} onOpenChange={setOutletDialog}>

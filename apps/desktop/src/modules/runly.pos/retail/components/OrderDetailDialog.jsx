@@ -17,7 +17,7 @@ function when(value) {
   try { return new Date(value).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) } catch { return '' }
 }
 
-export default function OrderDetailDialog({ orderId, token, companyId, userProfile, capabilities, methods, onClose, onChanged }) {
+export default function OrderDetailDialog({ orderId, token, companyId, userProfile, capabilities, methods, outlets = [], onClose, onChanged }) {
   const [sub, setSub] = useState(null)
   const query = useQuery({
     queryKey: ['pos-retail-order-detail', orderId, token],
@@ -29,8 +29,9 @@ export default function OrderDetailDialog({ orderId, token, companyId, userProfi
   const can = (key) => Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes(key))
   const meta = order ? ORDER_STATUS_META[order.status] ?? { label: order.status, tone: 'neutral' } : null
   const netPaid = Number(order?.netPaidAmount ?? 0)
-  const canCancel = order?.experience==='RETAIL' && ['DRAFT', 'OPEN'].includes(order.status) && can('pos.orders.cancel')
-  const canRefund = order?.experience==='RETAIL' && capabilities.refund && netPaid > 0 && !['CANCELLED', 'REFUNDED'].includes(order.status) && !order.historicalCurrencyUnknown
+  const restaurant = order?.experience === 'RESTAURANT'
+  const canCancel = ['DRAFT', 'OPEN', 'SENT', 'PARTIALLY_SERVED', 'SERVED'].includes(order?.status) && can('pos.orders.cancel')
+  const canRefund = capabilities.refund && netPaid > 0 && !['CANCELLED', 'REFUNDED'].includes(order.status) && !order.historicalCurrencyUnknown
   const methodName = (id) => methods.find((m) => m.id === id)?.name ?? 'Pago'
   const changed = () => { query.refetch(); onChanged() }
 
@@ -40,8 +41,8 @@ export default function OrderDetailDialog({ orderId, token, companyId, userProfi
         <DialogContent size="xl" scrollable className="p-0 md:p-0">
           <div className="shrink-0 border-b border-[hsl(var(--border))] px-6 pb-1 pt-5 pr-12">
             <DialogHeader icon={ReceiptText}>
-              <DialogTitle>{order ? `Venta #${order.orderNumber}` : 'Venta'}</DialogTitle>
-              <DialogDescription>{order ? when(order.openedAt) : 'Cargando...'}</DialogDescription>
+              <DialogTitle>{order ? (restaurant ? `${order.table?.name ?? 'Cuenta'} · cuenta #${order.orderNumber}` : `Venta #${order.orderNumber}`) : 'Orden'}</DialogTitle>
+              <DialogDescription>{order ? [when(order.openedAt), outlets.find((o) => o.id === order.outletId)?.name, restaurant && order.waiterName ? `Mesero: ${order.waiterName}` : null].filter(Boolean).join(' · ') : 'Cargando...'}</DialogDescription>
             </DialogHeader>
           </div>
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-6 py-5">
@@ -62,6 +63,7 @@ export default function OrderDetailDialog({ orderId, token, companyId, userProfi
                         <span className="min-w-0">
                           <span className="block font-semibold text-[hsl(var(--foreground))]">{l.productName}{l.variantLabel ? ` · ${l.variantLabel}` : ''}</span>
                           <span className="block text-xs text-[hsl(var(--muted-foreground))]">{formatQuantity(l.quantity)} × {money(l.unitPrice)}{Number(l.returnedQuantity) > 0 ? ` · devuelto ${formatQuantity(l.returnedQuantity)}` : ''}</span>
+                          {l.note && <span className="block text-xs text-[hsl(var(--muted-foreground))]">Nota: {l.note}</span>}
                         </span>
                         <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{money(l.totalAmount)}</span>
                       </li>
@@ -138,7 +140,7 @@ function CancelDialog({ order, token, onClose, onDone, onRefundInstead }) {
       onOpenChange={(v) => !v && !command.isPending && onClose()}
       icon={Ban}
       tone="destructive"
-      title={`Cancelar venta #${order.orderNumber}`}
+      title={`Cancelar ${order.experience === 'RESTAURANT' ? 'cuenta' : 'venta'} #${order.orderNumber}`}
       description="La venta queda cancelada y no se puede cobrar. No hay pagos que devolver."
       size="md"
       onSubmit={() => {

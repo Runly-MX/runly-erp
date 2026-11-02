@@ -11,7 +11,9 @@ import { usePosCommand } from '../retail/hooks/usePosCommand.js'
 import CommandFailureAlert from '../../runly.catalog/components/CommandFailureAlert.jsx'
 import CreateTableDialog from './components/CreateTableDialog.jsx'
 import RestaurantShell from './components/RestaurantShell.jsx'
+import ConnectionNotice from './components/ConnectionNotice.jsx'
 import TableCard from './components/TableCard.jsx'
+import { usePendingCount } from './hooks/usePendingCount.js'
 
 const ORDER_BASE = '/app/m/runly.pos/pos/comandero/mesa'
 const FILTERS = [
@@ -32,11 +34,12 @@ function readFlag(key, fallback) {
   try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1' } catch { return fallback }
 }
 
-function TablesBoard({ outlet, token, caps, currency, companyId }) {
+function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const now = useNow()
   const { userProfile } = useAuth()
+  const pending = usePendingCount({ userId: userProfile?.id, companyId })
   const [filter, setFilter] = useState('all')
   const [layout, setLayout] = useState('grid')
   const [mineOnly, setMineOnly] = useState(() => readFlag(`${MINE_KEY}.${userProfile?.id}`, false))
@@ -76,7 +79,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId }) {
   let body
   if (query.isPending) {
     body = <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" aria-label="Cargando mesas">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-36 rounded-2xl" />)}</div>
-  } else if (query.isError) {
+  } else if (query.isError && !query.data) {
     const info = classifyPosError(query.error)
     body = <ErrorState title="No se pudieron cargar las mesas" description={info.message} onRetry={query.refetch} />
   } else if (tables.length === 0) {
@@ -114,6 +117,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId }) {
         </div>
         {caps.floorPlanner && <Button size="lg" className="h-11 gap-2" onClick={() => setCreating(true)}><Plus className="h-4 w-4" aria-hidden="true" />Nueva mesa</Button>}
       </div>
+      <ConnectionNotice online={online} isError={query.isError} hasData={Boolean(query.data)} isFetching={query.isFetching} pending={pending} updatedAt={query.dataUpdatedAt} onRetry={query.refetch} />
       <CommandFailureAlert failure={clean.failure} onRetry={clean.retry} retrying={clean.isPending} />
       <div className="min-h-0 flex-1 overflow-y-auto pb-4" aria-busy={query.isFetching}>{body}</div>
       {creating && (
@@ -129,8 +133,8 @@ function TablesBoard({ outlet, token, caps, currency, companyId }) {
 export default function RestaurantTablesScreen({ comanderoMode = false }) {
   return (
     <RestaurantShell title={comanderoMode ? 'Comandero' : 'Mesas'}>
-      {({ outlet, token, caps, currency, companyId }) => (
-        <TablesBoard key={outlet.id} outlet={outlet} token={token} caps={caps} currency={currency} companyId={companyId} />
+      {({ outlet, token, caps, currency, companyId, online }) => (
+        <TablesBoard key={outlet.id} outlet={outlet} token={token} caps={caps} currency={currency} companyId={companyId} online={online} />
       )}
     </RestaurantShell>
   )

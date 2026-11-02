@@ -7,10 +7,13 @@ import { classifyPosError } from '../../retail/lib/retailErrors.js'
 import { formatMoney } from '../../retail/lib/retailRules.js'
 import { elapsedLabel } from '../lib/restaurantRules.js'
 import AccountCheckout from './AccountCheckout.jsx'
+import ConnectionNotice from './ConnectionNotice.jsx'
+import { usePendingCount } from '../hooks/usePendingCount.js'
 
 // Restaurant Caja: pending accounts of the outlet on the left, the selected
 // account's checkout on the right (a single column on narrow screens).
-export default function RestaurantAccounts({ token, companyId, outlet, session, methods, currency, canCharge, initialOrderId, onSettled }) {
+export default function RestaurantAccounts({ token, companyId, outlet, session, methods, currency, canCharge, initialOrderId, onSettled, online = true, userId }) {
+  const pending = usePendingCount({ userId, companyId })
   const [selected, setSelected] = useState(initialOrderId ?? null)
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(t) }, [])
@@ -27,9 +30,10 @@ export default function RestaurantAccounts({ token, companyId, outlet, session, 
     <div className={cn('min-h-0 flex-col border-[hsl(var(--border))] lg:flex lg:w-[360px] lg:shrink-0 lg:border-r', selected ? 'hidden' : 'flex flex-1')}>
       <h2 className="border-b border-[hsl(var(--border))] px-4 py-3 text-sm font-bold uppercase tracking-wide text-[hsl(var(--foreground))]">Cuentas por cobrar · {accounts.length}</h2>
       <div className="min-h-0 flex-1 overflow-y-auto p-3" aria-busy={list.isFetching}>
+        <div className="mb-3"><ConnectionNotice online={online} isError={list.isError} hasData={Boolean(list.data)} isFetching={list.isFetching} pending={pending} updatedAt={list.dataUpdatedAt} onRetry={list.refetch} /></div>
         {list.isPending ? (
           <div className="space-y-2" aria-label="Cargando cuentas"><Skeleton className="h-20" /><Skeleton className="h-20" /></div>
-        ) : list.isError ? (
+        ) : list.isError && !list.data ? (
           <ErrorState title="No se pudieron cargar las cuentas" description={classifyPosError(list.error).message} onRetry={list.refetch} />
         ) : accounts.length === 0 ? (
           <EmptyState icon={Receipt} title="No hay cuentas por cobrar" description="Las cuentas con consumo aparecen aquí en cuanto el mesero las abre." />

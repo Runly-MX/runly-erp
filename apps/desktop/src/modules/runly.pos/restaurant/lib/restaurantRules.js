@@ -114,3 +114,13 @@ export const RESTAURANT_ERRORS = {
   PREPARATION_STATION_REQUIRED: { kind: 'config', message: 'Falta una estación de cocina habilitada en esta sucursal. Un administrador debe configurarla.' },
   ALLOCATION_CONFLICT: { kind: 'conflict', message: 'Esa parte de la cuenta ya está cubierta. Se recargó el saldo.' },
 }
+
+// How far the screen can be trusted, most urgent first (see ConnectionNotice).
+export function connectionState({ online, isError, hasData, isFetching, pending }) {
+  if (!online) return 'offline'
+  if (pending > 0) return 'pending'
+  if (isError && hasData) return 'stale'
+  if (isFetching && !hasData) return 'recovering'
+  if (isError) return 'stale'
+  return 'confirmed'
+}

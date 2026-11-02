@@ -202,7 +202,10 @@ function OrderView({ outlet, token, caps, currency, companyId, userProfile, onli
         {wide ? (
           <aside className="flex w-[400px] shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[440px]" aria-label="Comanda">{panel}</aside>
         ) : (
-          <PeekSheet expanded={sheetOpen} onExpandedChange={setSheetOpen} label="Comanda" peekHeight={64} maxHeight="88dvh" bodyClassName="p-0"
+          <PeekSheet modal expanded={sheetOpen} onExpandedChange={setSheetOpen} label="Comanda" peekHeight={64} maxHeight="88dvh" bodyClassName="p-0"
+            action={!sheetOpen && canEdit && online && !dispatch.isPending && !sale.pending && (draft.length > 0 || lostSend) ? (
+              <Button size="lg" className="h-12 min-w-24 text-base font-bold sm:h-12" onClick={() => (lostSend ? dispatch.retry() : setDispatchLines(draft))}><Send className="h-4 w-4" aria-hidden="true" />{lostSend ? 'Reintentar' : 'Enviar'}</Button>
+            ) : null}
             handle={(
               <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-[hsl(var(--foreground))]">
                 <span>{draft.length ? `${draft.length} sin enviar` : `${sentCount} en la cuenta`}</span>
