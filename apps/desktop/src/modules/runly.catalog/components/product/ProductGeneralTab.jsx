@@ -49,7 +49,7 @@ export default function ProductGeneralTab({ product, token, access, saver }) {
   const categoryOptions = [{ value: '', label: 'Sin categoría' }, ...categories.map((c) => ({ value: c.id, label: c.name }))]
 
   return (
-    <form onSubmit={submit} className="space-y-5 pb-20">
+    <form onSubmit={submit} className="space-y-5">
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
         <div className="space-y-5 lg:col-span-2">
           <SectionCard title="Información básica" icon={FileEdit}>
