@@ -5,6 +5,7 @@ import { createCanvasLibrariesService } from './canvas-libraries.js'
 import { createCanvasSearch } from './canvas-search.js'
 import { createCanvasPublicLinksService } from './canvas-public.js'
 import { createGeocoder } from './canvas-geocoder.js'
+import { createDwgConverter } from './canvas-dwg.js'
 import { CANVAS_TEMPLATES } from './canvas-templates.js'
 
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
@@ -41,7 +42,7 @@ export function objectsDelta(results) {
   return JSON.stringify(delta).length <= DELTA_MAX_CHARS ? delta : { refetch: true }
 }
 
-export function createCanvasRouter({ prisma, requirePermission, broadcaster = null, entityResolver = null, service = null, dataSources = null, geocoder = createGeocoder(), search = null, librariesService = null, removeFiles = null }) {
+export function createCanvasRouter({ prisma, requirePermission, broadcaster = null, entityResolver = null, service = null, dataSources = null, geocoder = createGeocoder(), search = null, librariesService = null, removeFiles = null, dwgConverter = createDwgConverter() }) {
   const app = new Hono()
   const canvas = service ?? createCanvasService({ prisma, entityResolver, ...(removeFiles ? { removeFiles } : {}) })
   const libraries = librariesService ?? (prisma ? createCanvasLibrariesService({ prisma }) : null)
@@ -55,6 +56,14 @@ export function createCanvasRouter({ prisma, requirePermission, broadcaster = nu
   app.get('/canvas/geocode', requirePermission('canvas.view'), async (c) => {
     try { return c.json({ data: await geocoder.search(c.req.query('q')) }) }
     catch (error) { return errorResponse(c, error, 'Error al buscar la dirección.') }
+  })
+
+  app.get('/canvas/dwg/status', requirePermission('canvas.view'), (c) => c.json({ data: { enabled: dwgConverter.isConfigured() } }))
+  app.post('/canvas/dwg/convert', requirePermission('canvas.edit'), async (c) => {
+    try {
+      const dxf = await dwgConverter.convert(Buffer.from(await c.req.arrayBuffer()))
+      return c.body(dxf, 200, { 'content-type': 'text/plain; charset=utf-8' })
+    } catch (error) { return errorResponse(c, error, 'Error al convertir el DWG.') }
   })
 
   app.get('/canvas/data-sources', requirePermission('canvas.view'), async (c) => {

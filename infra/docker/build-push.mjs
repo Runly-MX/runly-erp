@@ -28,6 +28,7 @@
 //   pnpm docker:release:worker # multi-platform build + push worker only
 //   pnpm docker:release:transcriber # multi-platform build + push transcriber only
 //   pnpm docker:release:tts    # multi-platform build + push tts only
+//   pnpm docker:release:dwg    # multi-platform build + push dwg only
 //   pnpm docker:release:backup # multi-platform build + push backup only
 //
 // NOTE: Multi-platform builds (--push / default) use docker buildx and require
@@ -141,6 +142,13 @@ const ALL_IMAGES = [
     dockerfile: "infra/docker/tts.Dockerfile",
     label:      "TTS",
     inputs: [".dockerignore", "apps/tts/", "infra/docker/tts.Dockerfile"],
+  },
+  {
+    key:        "dwg",
+    tag:        `${REGISTRY}:dwg-latest`,
+    dockerfile: "infra/docker/dwg.Dockerfile",
+    label:      "DWG",
+    inputs: [".dockerignore", "apps/dwg/", "infra/docker/dwg.Dockerfile"],
   },
   {
     key:        "backup",

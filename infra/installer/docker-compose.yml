@@ -281,6 +281,20 @@ services:
           memory: ${TTS_MEMORY_LIMIT:-1024m}
     restart: unless-stopped
 
+  # Conversor DWG a DXF para runly.canvas (apps/dwg/main.py, LibreDWG). Sin
+  # estado, igual que runly-tts: un solo servicio compartido por setup-local y
+  # setup-external. Se publica via `pnpm docker:release:dwg`.
+  runly-dwg:
+    image: ${RUNLY_DWG_IMAGE:-raulbellosom/runlyerp:dwg-latest}
+    container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-dwg
+    profiles: ["dwg-converter"]
+    deploy:
+      resources:
+        limits:
+          cpus: "${DWG_CPU_LIMIT:-1}"
+          memory: ${DWG_MEMORY_LIMIT:-1024m}
+    restart: unless-stopped
+
   # Backup opcional (restic) — ver docs/superpowers/specs/2026-09-26-backup-recovery-system-design.md.
   # Split local/external por la misma razon que runly-transcriber-*: la ruta
   # de acceso a Supabase Storage difiere por completo entre modos (volumen

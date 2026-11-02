@@ -7,6 +7,9 @@ export const MAX_RASTER_SIDE = 7200
 export const isPdf = (file) => file?.type === 'application/pdf' || /\.pdf$/i.test(file?.name ?? '')
 export const isImage = (file) => /^image\//.test(file?.type ?? '')
 export const isDxf = (file) => /\.dxf$/i.test(file?.name ?? '')
+export const isDwg = (file) => /\.dwg$/i.test(file?.name ?? '')
+// Files service limit; a larger DWG is converted but its original is not kept.
+export const FILE_STORE_LIMIT_BYTES = 10 * 1024 * 1024
 
 let pdfjsPromise = null
 function getPdfjs() {

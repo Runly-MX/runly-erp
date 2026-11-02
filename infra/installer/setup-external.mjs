@@ -86,6 +86,7 @@ const liveKitCaddyImage = process.env.LIVEKIT_CADDY_IMAGE ?? "caddy:2-alpine";
 const liveKitEgressImage = process.env.LIVEKIT_EGRESS_IMAGE ?? "livekit/egress:v1.9.0";
 const transcriberImage = process.env.RUNLY_TRANSCRIBER_IMAGE ?? "raulbellosom/runlyerp:transcriber-latest";
 const ttsImage = process.env.RUNLY_TTS_IMAGE ?? "raulbellosom/runlyerp:tts-latest";
+const dwgImage = process.env.RUNLY_DWG_IMAGE ?? "raulbellosom/runlyerp:dwg-latest";
 const backupImage = process.env.RUNLY_BACKUP_IMAGE ?? "raulbellosom/runlyerp:backup-latest";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
@@ -170,6 +171,8 @@ const COMPOSE_INTERPOLATION_KEYS = [
   // update run (the Piper synthesis container was getting OOM-killed
   // mid-request on long "leer en voz alta" replies).
   "TTS_CPU_LIMIT", "TTS_MEMORY_LIMIT",
+  // runly-dwg deploy.resources.limits, same reason as the TTS pair above.
+  "DWG_CPU_LIMIT", "DWG_MEMORY_LIMIT",
 ];
 
 function composeInterpolationEnvLines(existingEnvContent) {
@@ -376,6 +379,19 @@ const OPTIONAL_VAR_GROUPS = [
       { key: "TTS_CPU_LIMIT",    placeholder: "1",        comment: null },
       { key: "TTS_MEMORY_LIMIT", placeholder: "1024m",    comment: "# Sube esto si /chat/mirai/tts da 502 en textos largos (el contenedor se queda sin RAM)" },
       { key: "MIRAI_TTS_URL",    placeholder: "", comment: "# Derivada automaticamente — no editar a mano" },
+    ],
+  },
+  {
+    header: [
+      "# ── Conversor DWG para planos de runly.canvas (LibreDWG, optional) ───────────",
+      "# local: instala y ejecuta runly-dwg en un contenedor propio en esta VPS.",
+      "# disabled: no se instala; los DWG no se pueden insertar (el DXF sigue funcionando).",
+    ],
+    vars: [
+      { key: "DWG_CONVERTER_MODE", placeholder: "disabled", comment: null },
+      { key: "DWG_CPU_LIMIT",      placeholder: "1",        comment: null },
+      { key: "DWG_MEMORY_LIMIT",   placeholder: "1024m",    comment: null },
+      { key: "DWG_CONVERTER_URL",  placeholder: "", comment: "# Derivada automaticamente — no editar a mano" },
     ],
   },
   {
@@ -598,6 +614,15 @@ function removeInactiveTranscriptionServices(mode) {
   ]);
 }
 
+function removeInactiveDwgConverter(mode) {
+  if (mode === "local") return;
+  tryRun("docker", [
+    "compose", ...composeFiles,
+    "--profile", "dwg-converter",
+    "rm", "--stop", "--force", "runly-dwg",
+  ]);
+}
+
 // Single shared service (no "-external" suffix) — runly-tts is stateless
 // and identical regardless of deployment mode, see its comment in
 // docker-compose.yml.
@@ -716,6 +741,25 @@ async function configureTranscription(filePath) {
     ["WHISPER_CPU_THREADS", whisperCpuThreads],
     ["TRANSCRIBER_DB_PASSWORD", dbPassword],
     ["TRANSCRIBER_DATABASE_URL", transcriberDatabaseUrl],
+  ]) {
+    content = setEnvValue(content, key, value);
+  }
+  await fs.writeFile(filePath, content, { encoding: "utf8", mode: 0o600 });
+  try { await fs.chmod(filePath, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
+
+  return { mode };
+}
+
+// Same pattern for the stateless DWG converter (runly-dwg).
+async function configureDwgConverter(filePath) {
+  let content = await fs.readFile(filePath, "utf8");
+  const mode = String(parseEnvValue(content, "DWG_CONVERTER_MODE") || "disabled").trim().toLowerCase();
+  if (!["local", "disabled"].includes(mode)) {
+    throw new Error(`DWG_CONVERTER_MODE must be "local" or "disabled" (got "${mode}").`);
+  }
+  for (const [key, value] of [
+    ["DWG_CONVERTER_MODE", mode],
+    ["DWG_CONVERTER_URL", mode === "local" ? "http://runly-dwg:8091" : ""],
   ]) {
     content = setEnvValue(content, key, value);
   }
@@ -1014,10 +1058,12 @@ async function main() {
   }
   let transcription = { mode: "disabled" };
   let miraiTts = { mode: "disabled" };
+  let dwgConverter = { mode: "disabled" };
   let backup = { mode: "disabled" };
   if (!upOnly) {
     transcription = await configureTranscription(envFile);
     miraiTts = await configureMiraiTts(envFile);
+    dwgConverter = await configureDwgConverter(envFile);
     backup = await configureBackup(envFile);
   }
 
@@ -1031,6 +1077,7 @@ async function main() {
     await writeComposeEnv(envFile);
     transcription = await configureTranscription(envFile);
     miraiTts = await configureMiraiTts(envFile);
+    dwgConverter = await configureDwgConverter(envFile);
     backup = await configureBackup(envFile);
   }
 
@@ -1088,6 +1135,7 @@ async function main() {
     }
     if (transcription.mode === "local") pullWithRetry(transcriberImage, "Transcriber");
     if (miraiTts.mode === "local") pullWithRetry(ttsImage, "TTS");
+    if (dwgConverter.mode === "local") pullWithRetry(dwgImage, "DWG");
     if (backup.mode === "enabled") pullWithRetry(backupImage, "Backup");
     // Remove dangling layers left behind when `latest` tags are re-pulled.
     // This prevents disk accumulation on every deploy without touching other projects.
@@ -1140,11 +1188,15 @@ async function main() {
   removeInactiveLiveKitServices(liveKit);
   removeInactiveTranscriptionServices(transcription.mode);
   removeInactiveMiraiTtsServices(miraiTts.mode);
+  removeInactiveDwgConverter(dwgConverter.mode);
   removeInactiveBackupServices(backup.mode);
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit, { recordingEnabled: liveKit.recordingEnabled })
     .flatMap((profile) => ["--profile", profile]);
   const transcriptionProfiles = transcription.mode === "local" ? ["--profile", "transcription-external"] : [];
-  const miraiTtsProfiles = miraiTts.mode === "local" ? ["--profile", "mirai-tts"] : [];
+  const miraiTtsProfiles = [
+    ...(miraiTts.mode === "local" ? ["--profile", "mirai-tts"] : []),
+    ...(dwgConverter.mode === "local" ? ["--profile", "dwg-converter"] : []),
+  ];
   const backupProfiles = getBackupComposeProfiles(backup, "external").flatMap((profile) => ["--profile", profile]);
   // Limit forced restarts to Runly/Calls: an unchanged editor must keep its sessions.
   const services = ["runly-api-external", "runly-worker-external", "runly-web-external",
@@ -1153,6 +1205,7 @@ async function main() {
       ...(liveKit.recordingEnabled ? ["egress"] : [])] : []),
     ...(transcription.mode === "local" ? ["runly-transcriber-external"] : []),
     ...(miraiTts.mode === "local" ? ["runly-tts"] : []),
+    ...(dwgConverter.mode === "local" ? ["runly-dwg"] : []),
     ...(backup.mode === "enabled" ? ["runly-backup-external"] : [])];
   run(
     "docker",

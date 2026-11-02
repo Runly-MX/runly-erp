@@ -2263,7 +2263,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
         }),
     },
-    canvas: createCanvasDomain({ request, withAuthHeaders, toQueryString }),
+    canvas: createCanvasDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     attendance: createAttendanceDomain({ request, withAuthHeaders, toQueryString }),
     lms: createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     connections: createConnectionsDomain({ request, withAuthHeaders, toQueryString }),

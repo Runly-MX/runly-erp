@@ -1,6 +1,6 @@
 const id = (value) => encodeURIComponent(value)
 
-export function createCanvasDomain({ request, withAuthHeaders, toQueryString }) {
+export function createCanvasDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const send = (method, path, data, token) => request(path, {
     method,
     headers: withAuthHeaders(token),
@@ -9,6 +9,14 @@ export function createCanvasDomain({ request, withAuthHeaders, toQueryString }) 
   return {
     listTemplates: (token) => send('GET', '/canvas/templates', undefined, token),
     getMapConfig: (token) => send('GET', '/canvas/map-config', undefined, token),
+    getDwgStatus: (token) => send('GET', '/canvas/dwg/status', undefined, token),
+    // Sends the raw DWG and resolves to the converted DXF text.
+    convertDwg: async (file, token) => {
+      const blob = await requestBlob('/canvas/dwg/convert', {
+        method: 'POST', headers: { ...withAuthHeaders(token), 'content-type': 'application/octet-stream' }, body: file,
+      })
+      return blob.text()
+    },
     geocode: (q, token) => send('GET', `/canvas/geocode${toQueryString({ q })}`, undefined, token),
     listBoards: (token) => send('GET', '/canvas/boards', undefined, token),
     createBoard: (data, token) => send('POST', '/canvas/boards', data, token),

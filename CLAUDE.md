@@ -60,6 +60,8 @@ pnpm tauri dev     # Native window with hot-reload
 
 Tauri requires Rust toolchain + Windows SDK. For development without Tauri, use `pnpm dev:frontend` (Vite web preview only).
 
+`runly.canvas` can insert AutoCAD `.dwg` plans (view only): the browser sends the file to `POST /canvas/dwg/convert`, which forwards it to the optional stateless `runly-dwg` container (LibreDWG `dwg2dxf`, `apps/dwg/`), and the returned DXF goes through the existing DXF rasterizer, so the conversion happens once per insertion and viewing a board never calls it again. Installer-provisioned with `DWG_CONVERTER_MODE=local` (profile `dwg-converter`, image published with `pnpm docker:release:dwg`); without `DWG_CONVERTER_URL` the API answers 503 and the UI suggests exporting to DXF. Spec: `docs/superpowers/specs/2026-11-02-canvas-dwg-viewer-design.md`.
+
 `runly.ledger` desktop offline mode is Tier 2.5: in Tauri builds the account list, account detail, transaction history, and summary charts read from the local SQLite cache when the app is offline; writes, groups/access management, import, and export remain online-only.
 
 ## Architecture

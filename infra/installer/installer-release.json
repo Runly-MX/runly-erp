@@ -152,7 +152,7 @@
       ]
     },
     "docker-compose.yml": {
-      "sha256": "f0f749276b251cf5d7344eefa67d36702db202f64a7db5fb863a1b2da3c1f351",
+      "sha256": "f8ce98921ca26944080947f91947ade701fa8e0772eb2cd37eae5f72740c414a",
       "modes": [
         "local",
         "external"
@@ -169,6 +169,7 @@
         "41c8ffe5e61f07173ba2db573a79596dd9f5f8b9",
         "4a10af144505600708c0a730469d3c159b29db77",
         "51e4e99fd175496b2be429fb333c6aae1fae7b6d",
+        "638129f18959bf03f14f8c3e5bc5850f4b807e03",
         "6bfdb981256af2e6ea594ca7aba3689677f1eb94",
         "7474169aca45b32a66960c5f816561b93c8a1c19",
         "7a10f03060150241588049d5fde2b0861dc40a7c",
@@ -243,12 +244,13 @@
       ]
     },
     "lib/installer-runtime.mjs": {
-      "sha256": "fc2acc9651a771098d9740e5d3be53bea7c8f720531e098678f98a3abfa0876c",
+      "sha256": "29aedb6ab5d27b0abccf72f52c71e2e44d1c768432795da757c93e9009ec2308",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": [
+        "b4b0bee158e37d9f54ed326c4ff5e54051343e6b",
         "bbbf861e02b440c3c4192e82215fd449b25c3652"
       ]
     },
@@ -368,7 +370,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "d10f75a290de65d12be9389cd4f6ddb29b67e17bd40e162434979ca36bf64cda",
+      "sha256": "9cb56233e50e0493569e5f899a9f86d61b5f3562333105a7bad849f8cedfefa0",
       "modes": [
         "local"
       ],
@@ -404,6 +406,7 @@
         "83b6c77a47bea70c5f1b9b166a478a2b694de97e",
         "88fc35e925c1d0049b69923bc633dd05fc9e2198",
         "892fba5f3092e32d365486cc30bab5b70b1c0671",
+        "8d6cf3d777e11e880e968835e8cd69adcf2e909a",
         "8e757f98f4f496bcc2ef0ed31b821d1a239a4db0",
         "9483e8be90e2d7668fc8c03193b3aa4efa07b49d",
         "97d78d66ab535ec73f63b7aa4cd977c79f507db3",
@@ -631,7 +634,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "dcaeff429ee0b9f92fedf229e41fb99aeaf68d7d0a052add4e4276327b551f19",
+      "sha256": "5437e39f7f7bcec14ae5408c26a160ebca5715ccf57013342566933bde059bae",
       "modes": [
         "external"
       ],
@@ -659,6 +662,7 @@
         "6f4c64f6e9debf08b22cb0a9a611a1feee132d1b",
         "72fce45c5d2c2c11bd72f6213f5d47cc98fcac31",
         "766c74ffebab2cf96f194770af95b9e7258e2f1b",
+        "771c6ab1f90fb92896c9cbe88603bd5e38e8c86e",
         "7751d6a87cd43a049f9a4d5c8c006a47188eeff1",
         "7bcbc7fbd62b8cfb28e91e6edbb7fe49e93d2fba",
         "879e18e934054188f9edb292834ea77b1704e09d",

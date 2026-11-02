@@ -2028,3 +2028,14 @@ Plan `docs/superpowers/plans/2026-10-20-inventory-supplier-portal-parity-backend
 - [x] Data-adapter seam (`lib/inventory-data-context.js`), guest capability/theme/admin-action/hash-route/form helpers, SDK `updateAreaGuest`. Verified: 2026-10-20 (`node --test` inventory lib tests + sdk-inventory-areas: 102 pass, 0 fail; `pnpm lint` clean; `pnpm build:web` in apps/desktop built).
 - [x] Manager UI (capability switches, badges, Editar permisos), portal shell/list/detail/form pages, Excel import through the guest client, propose-baja dialog. Same verification as above (compiles and lints only).
 - [ ] NOT verified in a browser or against a live API: responsive layout at 390px/1440px in both themes, form focus/blur behavior, staged file uploads, model/catalog creation, Excel import flow, theming with a real primaryColor, propose-baja round trip, touch targets on a device.
+
+## runly.canvas — DWG viewing (LibreDWG converter)
+
+Spec: `docs/superpowers/specs/2026-11-02-canvas-dwg-viewer-design.md`. Plan: `docs/superpowers/plans/2026-11-02-canvas-dwg-viewer.md`.
+
+- [x] `runly-dwg` container (`apps/dwg/main.py`, `infra/docker/dwg.Dockerfile`, LibreDWG 0.13.3 built from the GNU tarball because Debian bookworm does not package it); Verified: 2026-11-02 (image built; the six public LibreDWG samples DWG 2000/2004/2007/2010/2013/2018 convert in ~100 ms each and parse with the canvas DXF pipeline; non-DWG input answers 400)
+- [x] API `canvas-dwg.js` + `GET /canvas/dwg/status` and `POST /canvas/dwg/convert`, DWG accepted by the files service; Verified: 2026-11-02 (node --test canvas 93/93, files-dwg-mime 2/2)
+- [x] SDK `canvas.getDwgStatus` / `canvas.convertDwg` and desktop `insertDwg` (originals over 10 MB are converted but not stored); Verified: 2026-11-02 (media.test.js, vite build)
+- [x] Installer provisioning (`DWG_CONVERTER_MODE`, compose profile `dwg-converter`) in setup-local and setup-external; Verified: 2026-11-02 (installer node --test 109/109 after regenerating installer-release.json; `docker compose config` lists runly-dwg)
+- [ ] Browser smoke test of a DWG insertion on a real board, and a test with a customer DWG (only public samples were used)
+- [ ] Publish the image (`pnpm docker:release:dwg`) before enabling `DWG_CONVERTER_MODE=local` on an instance

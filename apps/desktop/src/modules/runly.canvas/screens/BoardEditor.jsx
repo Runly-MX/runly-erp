@@ -391,7 +391,7 @@ export default function BoardEditor() {
           <input
             ref={actions.fileInputRef}
             type="file"
-            accept="image/*,application/pdf,.dxf"
+            accept="image/*,application/pdf,.dxf,.dwg"
             className="hidden"
             onChange={(event) => { actions.handleFile(event.target.files?.[0]); event.target.value = '' }}
           />

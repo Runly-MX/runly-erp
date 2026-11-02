@@ -69,11 +69,16 @@ const ALLOWED_EXACT_MIME_TYPES = new Set([
   "application/vnd.rar",
   "application/x-rar-compressed",
   "application/x-7z-compressed",
+  // AutoCAD drawings (Canvas keeps the original next to the converted plan).
+  "application/acad",
+  "application/x-acad",
+  "application/x-dwg",
+  "application/dwg",
 ]);
 
 // Browsers often report .rar/.7z/.xml as octet-stream or leave the type
 // empty; accept those only when the extension is one of these.
-const EXTENSION_FALLBACK_TYPES = new Set(["xml", "zip", "rar", "7z"]);
+const EXTENSION_FALLBACK_TYPES = new Set(["xml", "zip", "rar", "7z", "dwg"]);
 
 const ALLOWED_MIME_PREFIXES = ["image/", "text/"];
 

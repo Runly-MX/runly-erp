@@ -111,6 +111,7 @@ const transcriberImage =
   (process.env.RUNLY_TRANSCRIBER_IMAGE ?? "raulbellosom/runlyerp:transcriber-latest");
 const ttsImage =
   (process.env.RUNLY_TTS_IMAGE ?? "raulbellosom/runlyerp:tts-latest");
+const dwgImage = process.env.RUNLY_DWG_IMAGE ?? "raulbellosom/runlyerp:dwg-latest";
 const backupImage =
   (process.env.RUNLY_BACKUP_IMAGE ?? "raulbellosom/runlyerp:backup-latest");
 
@@ -229,6 +230,8 @@ const COMPOSE_INTERPOLATION_KEYS = [
   // update-local.sh run (the Piper synthesis container was getting
   // OOM-killed mid-request on long "leer en voz alta" replies).
   "TTS_CPU_LIMIT", "TTS_MEMORY_LIMIT",
+  // runly-dwg deploy.resources.limits, same reason as the TTS pair above.
+  "DWG_CPU_LIMIT", "DWG_MEMORY_LIMIT",
 ];
 
 function composeInterpolationEnvLines(existingEnvContent) {
@@ -505,6 +508,16 @@ function removeInactiveMiraiTtsServices(miraiTtsMode) {
     "compose", ...composeFiles,
     "--profile", "mirai-tts",
     "rm", "--stop", "--force", "runly-tts",
+  ]);
+}
+
+// Same single-service pattern for the DWG converter (runly-dwg, stateless).
+function removeInactiveDwgConverter(dwgMode) {
+  if (dwgMode === "local") return;
+  tryRun("docker", [
+    "compose", ...composeFiles,
+    "--profile", "dwg-converter",
+    "rm", "--stop", "--force", "runly-dwg",
   ]);
 }
 
@@ -893,6 +906,16 @@ async function writeLocalEnv(supabaseInput, identity) {
   // haya nombrado la instalacion.
   const miraiTtsUrl = miraiTtsMode === "local" ? "http://runly-tts:8090" : "";
 
+  // DWG converter for runly.canvas plans (docs/superpowers/specs/2026-11-02-canvas-dwg-viewer-design.md).
+  // Stateless like TTS; "disabled" keeps DWG insertion off and the UI explains it.
+  const dwgMode = fromLocalEnv("DWG_CONVERTER_MODE") || "disabled";
+  if (!["local", "disabled"].includes(dwgMode)) {
+    throw new Error(`DWG_CONVERTER_MODE must be "local" or "disabled" (got "${dwgMode}").`);
+  }
+  const dwgCpuLimit = fromLocalEnv("DWG_CPU_LIMIT") || "1";
+  const dwgMemoryLimit = fromLocalEnv("DWG_MEMORY_LIMIT") || "1024m";
+  const dwgUrl = dwgMode === "local" ? "http://runly-dwg:8091" : "";
+
   // Backup and Recovery (docs/superpowers/specs/2026-09-26-backup-recovery-system-design.md).
   const backup = resolveBackupConfig({
     deployment: "local",
@@ -1064,6 +1087,14 @@ TTS_CPU_LIMIT=${ttsCpuLimit}
 TTS_MEMORY_LIMIT=${ttsMemoryLimit}
 MIRAI_TTS_URL=${miraiTtsUrl}
 
+# ── Conversor DWG para planos de runly.canvas (LibreDWG, optional) ───────────
+# local: instala y ejecuta runly-dwg en un contenedor propio en esta VPS.
+# disabled: no se instala; los DWG no se pueden insertar (el DXF sigue funcionando).
+DWG_CONVERTER_MODE=${dwgMode}
+DWG_CPU_LIMIT=${dwgCpuLimit}
+DWG_MEMORY_LIMIT=${dwgMemoryLimit}
+DWG_CONVERTER_URL=${dwgUrl}
+
 # ── Backup and Recovery (restic, optional) ───────────────────────────────────
 # enabled: instala runly-backup-local — respalda Postgres + Supabase Storage +
 # config cada noche, cifrado, a un bucket S3-compatible. Requiere
@@ -1158,7 +1189,7 @@ ${supabaseComposeSecrets}
     console.warn("");
   }
 
-  return { liveKit, office, supabase, transcriptionMode, miraiTtsMode, backup };
+  return { liveKit, office, supabase, transcriptionMode, miraiTtsMode, dwgMode, backup };
 }
 
 let releaseDeployment = () => {};
@@ -1232,7 +1263,7 @@ async function main() {
     console.log("[4/8] (no external status call needed — secrets are generated locally)");
   }
 
-  const { liveKit, office, supabase, transcriptionMode, miraiTtsMode, backup } = await writeLocalEnv(supabaseInput, identity);
+  const { liveKit, office, supabase, transcriptionMode, miraiTtsMode, dwgMode, backup } = await writeLocalEnv(supabaseInput, identity);
   await validateLiveKitDns(liveKit);
   console.log(`Generated ${localEnvFile}`);
   const generatedEnvContent = await fs.readFile(localEnvFile, "utf8");
@@ -1278,6 +1309,7 @@ async function main() {
     }
     if (transcriptionMode === "local") pullWithRetry(transcriberImage, "Transcriber");
     if (miraiTtsMode === "local") pullWithRetry(ttsImage, "TTS");
+    if (dwgMode === "local") pullWithRetry(dwgImage, "DWG");
     if (backup.mode === "enabled") pullWithRetry(backupImage, "Backup");
     if (supabaseMode === "selfhosted") {
       for (const image of SELF_HOSTED_SUPABASE_IMAGES) pullWithRetry(image, image);
@@ -1353,11 +1385,15 @@ async function main() {
   removeInactiveLiveKitServices(liveKit);
   removeInactiveTranscriptionServices(transcriptionMode);
   removeInactiveMiraiTtsServices(miraiTtsMode);
+  removeInactiveDwgConverter(dwgMode);
   removeInactiveBackupServices(backup.mode);
   const liveKitProfiles = getLiveKitComposeProfiles(liveKit, { recordingEnabled: liveKit.recordingEnabled })
     .flatMap((profile) => ["--profile", profile]);
   const transcriptionProfiles = transcriptionMode === "local" ? ["--profile", "transcription-local"] : [];
-  const miraiTtsProfiles = miraiTtsMode === "local" ? ["--profile", "mirai-tts"] : [];
+  const miraiTtsProfiles = [
+    ...(miraiTtsMode === "local" ? ["--profile", "mirai-tts"] : []),
+    ...(dwgMode === "local" ? ["--profile", "dwg-converter"] : []),
+  ];
   const backupProfiles = getBackupComposeProfiles(backup, "local").flatMap((profile) => ["--profile", profile]);
   // Limit forced restarts to Runly/Calls: an unchanged editor must keep its sessions.
   const services = ["runly-api-local", "runly-worker-local", "runly-web-local",
@@ -1366,6 +1402,7 @@ async function main() {
       ...(liveKit.recordingEnabled ? ["egress"] : [])] : []),
     ...(transcriptionMode === "local" ? ["runly-transcriber-local"] : []),
     ...(miraiTtsMode === "local" ? ["runly-tts"] : []),
+    ...(dwgMode === "local" ? ["runly-dwg"] : []),
     ...(backup.mode === "enabled" ? ["runly-backup-local"] : [])];
   run(
     "docker",

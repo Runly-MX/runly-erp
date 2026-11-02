@@ -7,7 +7,7 @@ import { convertShape } from '../lib/shapeConvert.js'
 import { fitSize, maxInsertSide } from '../lib/media.js'
 import { placeObjects } from '../lib/libraryImport/normalize.js'
 import { screenToWorld } from '../engine/viewport.js'
-import { useCreateHotspot, useCreateLayer, useCreatePage, useObjectBatch, useUpdateLayer, useUploadFile } from './useCanvasData.js'
+import { useCreateHotspot, useCreateLayer, useCreatePage, useObjectBatch, useConvertDwg, useUpdateLayer, useUploadFile } from './useCanvasData.js'
 import { useMediaInsert } from './useMediaInsert.js'
 
 const DRAWABLE = new Set(['vector', 'data'])
@@ -49,7 +49,7 @@ export function useBoardEditorActions({ boardId, pageId, rows, layers, layerId, 
   }, [setSelectedIds])
   const { mutation: batch, patchPending } = useObjectBatch(boardId, pageId, { onCreated })
   const hotspot = useCreateHotspot(boardId, pageId)
-  const createPage = useCreatePage(boardId), updateLayer = useUpdateLayer(boardId), upload = useUploadFile(boardId), createLayer = useCreateLayer(boardId)
+  const createPage = useCreatePage(boardId), updateLayer = useUpdateLayer(boardId), upload = useUploadFile(boardId), convertDwg = useConvertDwg(), createLayer = useCreateLayer(boardId)
 
   const fail = (error) => toast.error(error?.message ?? 'No se pudo guardar el cambio.')
   const layerById = (id) => layers.find((layer) => layer.id === id)
@@ -284,7 +284,7 @@ export function useBoardEditorActions({ boardId, pageId, rows, layers, layerId, 
     try { return await createPage.mutateAsync({ name: `Página ${count + 1}` }) } catch (error) { fail(error); return null }
   }
 
-  const media = useMediaInsert({ upload, viewport, size, drawableLayer, layers, lockLayer: (layer) => toggleLayer(layer, { locked: true }), rows, pageId, createRows, fail, calibratePage, hasCalibration })
+  const media = useMediaInsert({ upload, convertDwg, viewport, size, drawableLayer, layers, lockLayer: (layer) => toggleLayer(layer, { locked: true }), rows, pageId, createRows, fail, calibratePage, hasCalibration })
 
   const dataLayer = () => layers.find((layer) => layer.type === 'data' && !layer.locked) ?? null
 

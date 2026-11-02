@@ -374,6 +374,13 @@ export function useGeocode() {
   return useMutation({ mutationFn: async (q) => unwrap(await runly.canvas.geocode(q, token)) ?? [] })
 }
 
+// Whether this instance runs the DWG converter (runly-dwg); DWG insertion is
+// offered either way, but the failure message explains how to proceed.
+export function useConvertDwg() {
+  const token = useToken()
+  return useMutation({ mutationFn: (file) => runly.canvas.convertDwg(file, token) })
+}
+
 // Board settings are applied optimistically so the grid redraws at once.
 export function useUpdateBoardSettings(boardId) {
   const token = useToken(), client = useQueryClient(), key = boardKey(boardId)

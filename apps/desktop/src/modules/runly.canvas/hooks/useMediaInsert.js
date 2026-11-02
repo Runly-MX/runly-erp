@@ -1,15 +1,16 @@
 import { useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { fitSize, isDxf, isImage, isPdf, maxInsertSide as computeMaxInsertSide, openPdf, readImageSize, renderPdfPage } from '../lib/media.js'
+import { FILE_STORE_LIMIT_BYTES, fitSize, isDwg, isDxf, isImage, isPdf, maxInsertSide as computeMaxInsertSide, openPdf, readImageSize, renderPdfPage } from '../lib/media.js'
 import { rasterizeDxf } from '../lib/dxf.js'
 import { mediaTargetLayer } from '../lib/boardTemplates.js'
 import { screenToWorld } from '../engine/viewport.js'
 
-// Image, PDF and DXF insertion. PDFs with several pages go through a page
+// Image, PDF, DXF and DWG insertion. PDFs with several pages go through a page
 // picker; every inserted page becomes an image object placed side by side.
 // DXF plans are rasterized client-side (lib/dxf.js) and, when the file
-// declares its units and the page has no scale yet, auto-calibrate it.
-export function useMediaInsert({ upload, viewport, size, drawableLayer, layers, lockLayer, rows, pageId, createRows, fail, calibratePage, hasCalibration }) {
+// declares its units and the page has no scale yet, auto-calibrate it. DWG is
+// converted to DXF once by the server (runly-dwg), then follows the DXF path.
+export function useMediaInsert({ upload, convertDwg, viewport, size, drawableLayer, layers, lockLayer, rows, pageId, createRows, fail, calibratePage, hasCalibration }) {
   const [inserting, setInserting] = useState(false)
   const [pdf, setPdf] = useState(null)
   const fileInputRef = useRef(null)
@@ -48,30 +49,44 @@ export function useMediaInsert({ upload, viewport, size, drawableLayer, layers, 
     await placeImages([{ size: fitSize(natural.width, natural.height, maxInsertSide()), properties: { fileId: asset.id, name: file.name, naturalWidth: natural.width, naturalHeight: natural.height } }], 'Insertar imagen')
   }
 
+  // `dxfText` is the drawing, `source` the original file to keep (null when it
+  // cannot be stored), `label` the format name shown to the user.
+  async function placeDxfPlan(dxfText, sourceFile, name, label) {
+    const [result, source] = await Promise.all([rasterizeDxf(dxfText), sourceFile ? upload.mutateAsync(sourceFile) : null])
+    const png = new File([result.blob], `${name.replace(/\.(dxf|dwg)$/i, '')}.png`, { type: 'image/png' })
+    const asset = await upload.mutateAsync(png)
+    const [created] = await placeImages([{
+      size: fitSize(result.width, result.height, maxInsertSide()),
+      properties: {
+        fileId: asset.id, ...(source ? { sourceFileId: source.id } : {}), name,
+        naturalWidth: result.width, naturalHeight: result.height,
+        dxf: { unit: result.unit?.unit ?? null, width: result.extents.width, height: result.extents.height },
+      },
+    }], `Insertar ${label}`)
+    if (result.unit && !hasCalibration && created) {
+      const { x, y } = created.transform
+      calibratePage?.({
+        a: { x, y }, b: { x: x + created.geometry.width, y },
+        distance: result.extents.width * result.unit.toUnit, unit: result.unit.unit,
+      })
+      toast.success(`Plano ${label} insertado con escala en ${result.unit.unit}`)
+    } else {
+      toast.success(`Plano ${label} insertado`)
+    }
+  }
+
   async function insertDxf(file) {
     setInserting(true)
+    try { await placeDxfPlan(await file.text(), file, file.name, 'DXF') } catch (error) { fail(error) } finally { setInserting(false) }
+  }
+
+  async function insertDwg(file) {
+    setInserting(true)
     try {
-      const [result, source] = await Promise.all([rasterizeDxf(await file.text()), upload.mutateAsync(file)])
-      const png = new File([result.blob], `${file.name.replace(/\.dxf$/i, '')}.png`, { type: 'image/png' })
-      const asset = await upload.mutateAsync(png)
-      const [created] = await placeImages([{
-        size: fitSize(result.width, result.height, maxInsertSide()),
-        properties: {
-          fileId: asset.id, sourceFileId: source.id, name: file.name,
-          naturalWidth: result.width, naturalHeight: result.height,
-          dxf: { unit: result.unit?.unit ?? null, width: result.extents.width, height: result.extents.height },
-        },
-      }], 'Insertar DXF')
-      if (result.unit && !hasCalibration && created) {
-        const { x, y } = created.transform
-        calibratePage?.({
-          a: { x, y }, b: { x: x + created.geometry.width, y },
-          distance: result.extents.width * result.unit.toUnit, unit: result.unit.unit,
-        })
-        toast.success(`Plano DXF insertado con escala en ${result.unit.unit}`)
-      } else {
-        toast.success('Plano DXF insertado')
-      }
+      const dxfText = await convertDwg.mutateAsync(file)
+      const keep = file.size <= FILE_STORE_LIMIT_BYTES
+      if (!keep) toast.info('El DWG original supera 10 MB y no se conservó; se guardó solo el plano.')
+      await placeDxfPlan(dxfText, keep ? file : null, file.name, 'DWG')
     } catch (error) { fail(error) } finally { setInserting(false) }
   }
 
@@ -99,7 +114,8 @@ export function useMediaInsert({ upload, viewport, size, drawableLayer, layers, 
   async function handleFile(file) {
     if (!file) return
     if (isDxf(file)) return insertDxf(file)
-    if (!isImage(file) && !isPdf(file)) return toast.error('Formato no soportado. Usa una imagen (PNG, JPG, WebP, SVG), un PDF o un plano DXF.')
+    if (isDwg(file)) return insertDwg(file)
+    if (!isImage(file) && !isPdf(file)) return toast.error('Formato no soportado. Usa una imagen (PNG, JPG, WebP, SVG), un PDF o un plano DXF o DWG.')
     setInserting(true)
     try {
       if (isImage(file)) { await insertImage(file); toast.success('Imagen insertada'); return }
