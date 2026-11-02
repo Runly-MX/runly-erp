@@ -2,33 +2,37 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
+import { selectPosSettings } from '../lib/posSettings.js'
 
-function useToken() {
+function useScope() {
   const { session } = useAuth()
-  return session?.access_token
+  const { activeCompanyId } = useActiveCompany()
+  return { token:session?.access_token, companyId:activeCompanyId }
 }
 
 export function usePosSettings() {
-  const token = useToken()
+  const {token,companyId} = useScope()
   return useQuery({
-    queryKey: ['pos', 'settings'],
+    queryKey: ['pos', 'settings', companyId, token],
     queryFn: () => runly.pos.getSettings(token),
     // The API wraps the row in { data }; screens read the settings themselves.
-    select: (res) => res?.data ?? res,
-    enabled: Boolean(token),
+    select: selectPosSettings,
+    enabled: Boolean(token && companyId),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useUpdatePosSettings() {
-  const token = useToken()
+  const {token,companyId} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => runly.pos.updateSettings(data, token),
     onMutate: () => ({ toastId: toast.loading('Guardando configuración...') }),
-    onSuccess: (_, __, ctx) => {
+    onSuccess: (result, __, ctx) => {
       toast.dismiss(ctx?.toastId)
       toast.success('Configuración guardada')
+      qc.setQueryData(['pos','settings',companyId,token],result)
       qc.invalidateQueries({ queryKey: ['pos', 'settings'] })
     },
     onError: (err, __, ctx) => {
@@ -39,18 +43,18 @@ export function useUpdatePosSettings() {
 }
 
 export function usePosOutlets() {
-  const token = useToken()
+  const {token,companyId} = useScope()
   return useQuery({
-    queryKey: ['pos', 'outlets'],
+    queryKey: ['pos', 'outlets', companyId, token],
     queryFn: () => runly.pos.listOutlets(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
-    enabled: Boolean(token),
+    enabled: Boolean(token && companyId),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useCreatePosOutlet() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => runly.pos.createOutlet(data, token),
@@ -59,6 +63,8 @@ export function useCreatePosOutlet() {
       toast.dismiss(ctx?.toastId)
       toast.success('Sucursal creada')
       qc.invalidateQueries({ queryKey: ['pos', 'outlets'] })
+      qc.invalidateQueries({ queryKey: ['pos-nav-modes'] })
+      qc.invalidateQueries({ queryKey: ['pos-retail-context'] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -68,7 +74,7 @@ export function useCreatePosOutlet() {
 }
 
 export function useUpdatePosOutlet() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }) => runly.pos.updateOutlet(id, data, token),
@@ -77,6 +83,8 @@ export function useUpdatePosOutlet() {
       toast.dismiss(ctx?.toastId)
       toast.success('Sucursal actualizada')
       qc.invalidateQueries({ queryKey: ['pos', 'outlets'] })
+      qc.invalidateQueries({ queryKey: ['pos-nav-modes'] })
+      qc.invalidateQueries({ queryKey: ['pos-retail-context'] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)
@@ -86,18 +94,18 @@ export function useUpdatePosOutlet() {
 }
 
 export function usePosTerminals() {
-  const token = useToken()
+  const {token,companyId} = useScope()
   return useQuery({
-    queryKey: ['pos', 'terminals'],
+    queryKey: ['pos', 'terminals', companyId, token],
     queryFn: () => runly.pos.listTerminals(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
-    enabled: Boolean(token),
+    enabled: Boolean(token && companyId),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useCreatePosTerminal() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => runly.pos.createTerminal(data, token),
@@ -115,7 +123,7 @@ export function useCreatePosTerminal() {
 }
 
 export function useUpdatePosTerminal() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }) => runly.pos.updateTerminal(id, data, token),
@@ -133,18 +141,18 @@ export function useUpdatePosTerminal() {
 }
 
 export function usePosPaymentMethods() {
-  const token = useToken()
+  const {token,companyId} = useScope()
   return useQuery({
-    queryKey: ['pos', 'payment-methods'],
+    queryKey: ['pos', 'payment-methods', companyId, token],
     queryFn: () => runly.pos.listPaymentMethods(token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
-    enabled: Boolean(token),
+    enabled: Boolean(token && companyId),
     staleTime: 10 * 60 * 1000,
   })
 }
 
 export function useCreatePosPaymentMethod() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => runly.pos.createPaymentMethod(data, token),
@@ -162,7 +170,7 @@ export function useCreatePosPaymentMethod() {
 }
 
 export function useUpdatePosPaymentMethod() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }) => runly.pos.updatePaymentMethod(id, data, token),
@@ -180,18 +188,18 @@ export function useUpdatePosPaymentMethod() {
 }
 
 export function usePosStations(query = {}) {
-  const token = useToken()
+  const {token,companyId} = useScope()
   return useQuery({
-    queryKey: ['pos', 'stations', query],
+    queryKey: ['pos', 'stations', companyId, token, query],
     queryFn: () => runly.pos.listStations(query, token),
     select: (res) => Array.isArray(res) ? res : (res?.data ?? []),
-    enabled: Boolean(token),
+    enabled: Boolean(token && companyId),
     staleTime: 5 * 60 * 1000,
   })
 }
 
 export function useCreatePosStation() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (data) => runly.pos.createStation(data, token),
@@ -209,7 +217,7 @@ export function useCreatePosStation() {
 }
 
 export function useUpdatePosStation() {
-  const token = useToken()
+  const {token} = useScope()
   const qc = useQueryClient()
   return useMutation({
     mutationFn: ({ id, ...data }) => runly.pos.updateStation(id, data, token),

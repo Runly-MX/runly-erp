@@ -10,6 +10,7 @@ import { classifyPosError } from '../retail/lib/retailErrors.js'
 import { usePosCommand } from '../retail/hooks/usePosCommand.js'
 import CommandFailureAlert from '../../runly.catalog/components/CommandFailureAlert.jsx'
 import CreateTableDialog from './components/CreateTableDialog.jsx'
+import EditTableDialog from './components/EditTableDialog.jsx'
 import RestaurantShell from './components/RestaurantShell.jsx'
 import ConnectionNotice from './components/ConnectionNotice.jsx'
 import TableCard from './components/TableCard.jsx'
@@ -44,6 +45,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
   const [layout, setLayout] = useState('grid')
   const [mineOnly, setMineOnly] = useState(() => readFlag(`${MINE_KEY}.${userProfile?.id}`, false))
   const [creating, setCreating] = useState(false)
+  const [editing,setEditing]=useState(null),[showDisabled,setShowDisabled]=useState(false)
 
   const tablesKey = ['pos-restaurant-tables', companyId, outlet.id, mineOnly, token]
   const query = useQuery({
@@ -53,7 +55,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
     refetchInterval: 10_000,
     retry: (n, e) => ![401, 403, 404].includes(e?.status) && n < 2,
   })
-  const tables = (query.data?.data ?? []).filter((t) => t.enabled !== false)
+  const tables = (query.data?.data ?? []).filter((t) => t.enabled !== false || caps.floorPlanner&&showDisabled)
 
   const clean = usePosCommand({
     prefix: 'table-clean', scope: outlet.id,
@@ -97,6 +99,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
           <li key={table.id}>
             <TableCard table={table} currency={currency} now={now} layout={layout}
               onOpen={(t) => navigate(`${ORDER_BASE}/${t.id}`)}
+              onEdit={caps.floorPlanner ? setEditing : undefined}
               onClean={caps.floorPlanner ? (t) => clean.mutate({ tableId: t.id, expectedVersion: t.version }) : undefined} />
           </li>
         ))}
@@ -116,6 +119,7 @@ function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
           <Button variant={layout === 'list' ? 'default' : 'outline'} size="icon" className="h-11 w-11 sm:h-11 sm:w-11" aria-label="Lista" aria-pressed={layout === 'list'} onClick={() => setLayout('list')}><List className="h-5 w-5" aria-hidden="true" /></Button>
         </div>
         {caps.floorPlanner && <Button size="lg" className="h-11 gap-2" onClick={() => setCreating(true)}><Plus className="h-4 w-4" aria-hidden="true" />Nueva mesa</Button>}
+        {caps.floorPlanner&&<Button size="lg" variant="outline" className="min-h-11" aria-pressed={showDisabled} onClick={()=>setShowDisabled(!showDisabled)}>Mesas deshabilitadas</Button>}
       </div>
       <ConnectionNotice online={online} isError={query.isError} hasData={Boolean(query.data)} isFetching={query.isFetching} pending={pending} updatedAt={query.dataUpdatedAt} onRetry={query.refetch} />
       <CommandFailureAlert failure={clean.failure} onRetry={clean.retry} retrying={clean.isPending} />
@@ -124,6 +128,9 @@ function TablesBoard({ outlet, token, caps, currency, companyId, online }) {
         <CreateTableDialog outletId={outlet.id} token={token} suggestedName={nextName} onClose={() => setCreating(false)}
           onCreated={(table) => { setCreating(false); toast.success(`${table.name} creada`); queryClient.invalidateQueries({ queryKey: ['pos-restaurant-tables', companyId] }) }} />
       )}
+      {editing&&<EditTableDialog table={editing} token={token} onClose={()=>setEditing(null)}
+        onUpdated={()=>{setEditing(null);toast.success('Mesa actualizada');queryClient.invalidateQueries({queryKey:['pos-restaurant-tables',companyId]})}}
+        onConflict={()=>queryClient.invalidateQueries({queryKey:['pos-restaurant-tables',companyId]})}/>}
     </div>
   )
 }

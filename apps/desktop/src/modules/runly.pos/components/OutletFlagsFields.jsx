@@ -1,3 +1,4 @@
+import { POS_ADMIN_TOUCH } from './adminTouch.js'
 import { SwitchField, SelectField, Label } from '@runly/ui'
 
 const NO_STATION = '__none__'
@@ -7,7 +8,7 @@ export default function OutletFlagsFields({ value, onChange, stations = [] }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <SwitchField
+      <SwitchField touchTarget
         id="outlet-allow-table-charge"
         label="Permitir cobro en mesa"
         description="Los meseros pueden cobrar desde su dispositivo; el efectivo se concilia con un corte de mesero."
@@ -16,7 +17,7 @@ export default function OutletFlagsFields({ value, onChange, stations = [] }) {
       />
       <div className="flex flex-col gap-1.5">
         <Label>Estación de cocina por defecto</Label>
-        <SelectField
+        <SelectField contentClassName={POS_ADMIN_TOUCH}
           value={value.defaultStationId || NO_STATION}
           onChange={(v) => set({ defaultStationId: v === NO_STATION ? null : v })}
           placeholder="Sin estación por defecto"
@@ -26,14 +27,14 @@ export default function OutletFlagsFields({ value, onChange, stations = [] }) {
           ]}
         />
       </div>
-      <SwitchField
+      <SwitchField touchTarget
         id="outlet-kitchen-kds-enabled"
         label="Pantalla de cocina (KDS)"
         description="Las comandas de esta sucursal se muestran en la pantalla de cocina."
         checked={Boolean(value.kitchenKdsEnabled)}
         onChange={(checked) => set({ kitchenKdsEnabled: checked })}
       />
-      <SwitchField
+      <SwitchField touchTarget
         id="outlet-kitchen-print-enabled"
         label="Impresión de comandas"
         description="Las comandas de esta sucursal se envían también a la impresora de cocina."

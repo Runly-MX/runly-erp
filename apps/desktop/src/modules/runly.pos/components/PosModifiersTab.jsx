@@ -1,3 +1,4 @@
+import { POS_ADMIN_TOUCH } from './adminTouch.js'
 import { useMemo, useState } from 'react'
 import { Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
@@ -96,7 +97,7 @@ function GroupCard({ group, onEditGroup, onAddOption }) {
           <Button size="sm" variant="outline" onClick={() => onAddOption(group)}>
             <Plus size={14} className="mr-1" /> Opción
           </Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => onEditGroup(group)}>
+          <Button size="icon" variant="ghost" aria-label={`Editar grupo ${group.name}`} className="h-8 w-8 text-muted-foreground hover:text-foreground" onClick={() => onEditGroup(group)}>
             <Pencil size={14} />
           </Button>
         </div>
@@ -132,8 +133,10 @@ function OptionRow({ option, onBeforeToggle }) {
           <p className="text-xs text-muted-foreground">+${parseFloat(option.priceDelta).toFixed(2)}</p>
         )}
       </div>
-      <SwitchField
+      <SwitchField touchTarget
         id={`option-${option.id}-enabled`}
+        label={`Habilitar ${option.name}`}
+        className="[&_label]:sr-only"
         checked={Boolean(option.enabled)}
         onChange={handleToggle}
         disabled={updateOption.isPending}
@@ -259,7 +262,7 @@ export default function PosModifiersTab() {
 
       {/* Nuevo grupo */}
       <Dialog open={groupDialog} onOpenChange={setGroupDialog}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nuevo grupo</DialogTitle>
             <DialogDescription>Define un grupo de modificadores para {selectedProduct?.name}.</DialogDescription>
@@ -288,7 +291,7 @@ export default function PosModifiersTab() {
                 onChange={(e) => setGroupForm((f) => ({ ...f, maxSelect: e.target.value }))}
               />
             </div>
-            <SwitchField
+            <SwitchField touchTarget
               id="group-required"
               label="Requerido"
               description="El cliente debe elegir al menos una opción de este grupo."
@@ -307,7 +310,7 @@ export default function PosModifiersTab() {
 
       {/* Editar grupo */}
       <Dialog open={Boolean(editingGroup)} onOpenChange={(v) => !v && setEditingGroup(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Editar grupo</DialogTitle>
             <DialogDescription>Modifica el nombre, límites o estado del grupo.</DialogDescription>
@@ -335,14 +338,14 @@ export default function PosModifiersTab() {
                 onChange={(e) => setEditGroupForm((f) => ({ ...f, maxSelect: e.target.value }))}
               />
             </div>
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-group-required"
               label="Requerido"
               description="El cliente debe elegir al menos una opción de este grupo."
               checked={editGroupForm.required}
               onChange={(v) => setEditGroupForm((f) => ({ ...f, required: v }))}
             />
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-group-enabled"
               label="Grupo activo"
               description="Los grupos inactivos no se muestran al tomar la comanda."
@@ -361,7 +364,7 @@ export default function PosModifiersTab() {
 
       {/* Nueva opción */}
       <Dialog open={Boolean(optionGroup)} onOpenChange={(v) => !v && setOptionGroup(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nueva opción</DialogTitle>
             <DialogDescription>Agrega una opción al grupo {optionGroup?.name}.</DialogDescription>

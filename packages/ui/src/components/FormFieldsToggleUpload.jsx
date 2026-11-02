@@ -105,6 +105,7 @@ export function SwitchField({
   className,
   description,
   disabled = false,
+  touchTarget = false,
 }) {
   return (
     <div className={cn("flex flex-col gap-1", className)}>
@@ -138,18 +139,24 @@ export function SwitchField({
           disabled={disabled}
           onClick={() => !disabled && onChange?.(!checked)}
           className={cn(
-            "relative w-10 h-6 rounded-full transition-all duration-200 shrink-0",
+            "relative rounded-full transition-all duration-200 shrink-0",
+            touchTarget ? "w-11 h-11" : "w-10 h-6",
             "focus:outline-none focus:ring-2 focus:ring-primary/30",
             disabled ? "opacity-50 cursor-not-allowed" : "",
             // Unchecked track uses muted-foreground at low alpha: plain
             // bg-muted was nearly invisible on light glass surfaces (sheets).
-            checked ? "bg-primary" : "bg-[hsl(var(--muted-foreground)/0.3)]",
           )}
         >
+          <span aria-hidden="true" className={cn(
+            "pointer-events-none absolute rounded-full transition-colors",
+            touchTarget ? "left-0.5 top-1/2 h-6 w-10 -translate-y-1/2" : "inset-0",
+            checked ? "bg-primary" : "bg-[hsl(var(--muted-foreground)/0.3)]",
+          )} />
           <span
             className={cn(
-              "absolute top-1 w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200",
-              checked ? "left-5" : "left-1",
+              "pointer-events-none absolute w-4 h-4 rounded-full bg-white shadow-sm transition-all duration-200",
+              touchTarget ? "top-1/2 -translate-y-1/2" : "top-1",
+              checked ? (touchTarget ? "left-[22px]" : "left-5") : (touchTarget ? "left-1.5" : "left-1"),
             )}
           />
         </button>

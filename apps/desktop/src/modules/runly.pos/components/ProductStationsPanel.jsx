@@ -1,3 +1,4 @@
+import { POS_ADMIN_TOUCH } from './adminTouch.js'
 import { useMemo } from 'react'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -32,14 +33,14 @@ function ProductConfigRow({ product, config, stationOptions }) {
       <p className="text-sm font-medium">{product.name}</p>
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="sm:w-64">
-          <SelectField
+          <SelectField contentClassName={POS_ADMIN_TOUCH}
             value={stationId}
             onChange={handleStationChange}
             options={stationOptions}
             disabled={updateConfig.isPending}
           />
         </div>
-        <SwitchField
+        <SwitchField touchTarget
           id={`product-${product.id}-requires-preparation`}
           label="Requiere preparación"
           checked={requiresPreparation}

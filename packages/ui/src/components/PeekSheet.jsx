@@ -54,7 +54,17 @@ export function PeekSheet({
   useEffect(() => {
     const root = rootRef.current;
     if (!modal || !expanded || !root) return undefined;
-    const blocked = [...(root.parentElement?.children ?? [])].filter((node) => node !== root && !node.contains(root) && !node.inert);
+    // Inert every outside branch, including the app header/sidebar. Only
+    // blocking siblings of the immediate parent leaves those controls active.
+    const blocked = [];
+    let branch = root;
+    while (branch.parentElement) {
+      for (const node of branch.parentElement.children) {
+        if (node !== branch && !node.inert && !["SCRIPT", "STYLE", "LINK"].includes(node.tagName)) blocked.push(node);
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
     blocked.forEach((node) => { node.inert = true; });
     wasExpanded.current = true;
     bodyRef.current?.focus({ preventScroll: true });

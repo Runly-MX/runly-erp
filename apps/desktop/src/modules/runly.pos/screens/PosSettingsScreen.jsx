@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { Pencil, LayoutGrid } from 'lucide-react'
 import {
   PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription,
-  Button, EmptyState, Separator, StatusPill as UiStatusPill,
+  Button, EmptyState, ErrorState, Skeleton, Separator, StatusPill as UiStatusPill,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Tabs, TabsList, TabsTrigger, TabsContent,
   TextField, SelectField, SwitchField, Label,
@@ -18,6 +18,10 @@ import {
 import OutletFlagsFields from '../components/OutletFlagsFields.jsx'
 import PosModifiersTab from '../components/PosModifiersTab.jsx'
 import ProductStationsPanel from '../components/ProductStationsPanel.jsx'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
+import { useAuth } from '../../../auth/AuthProvider'
+import { settingsPatch } from '../lib/posSettings.js'
+import { POS_ADMIN_TOUCH } from '../components/adminTouch.js'
 
 function StatusPill({ active }) {
   return <UiStatusPill tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</UiStatusPill>
@@ -29,14 +33,14 @@ const MODE_OPTIONS = [
   { value: 'HYBRID', label: 'Mixto (tienda y restaurante)' },
 ]
 
-export default function PosSettingsScreen() {
+function PosSettingsView() {
   const [tab, setTab] = useState('general')
   const { data: settings } = usePosSettings()
   const { data: outlets = [] } = usePosOutlets()
   // Restaurant tools only show when the business (or any outlet) serves tables.
   const restaurant = (settings?.mode ?? 'RESTAURANT') !== 'RETAIL' || outlets.some((o) => ['RESTAURANT', 'HYBRID'].includes(o.mode))
   return (
-    <div className="min-h-full bg-[hsl(var(--background))] p-4 sm:p-6 lg:p-8">
+    <div className={`min-h-full bg-[hsl(var(--background))] p-4 sm:p-6 lg:p-8 ${POS_ADMIN_TOUCH}`}>
       <div className="mx-auto flex w-full max-w-5xl flex-col gap-6">
         <PageHeader
           title="Administración del punto de venta"
@@ -72,6 +76,12 @@ export default function PosSettingsScreen() {
       </div>
     </div>
   )
+}
+
+export default function PosSettingsScreen() {
+  const {activeCompanyId}=useActiveCompany()
+  const {userProfile}=useAuth()
+  return <PosSettingsView key={`${userProfile?.id}:${activeCompanyId}`} />
 }
 
 // Everything that only matters for table service. None of it is required to
@@ -115,17 +125,20 @@ function RestaurantAdmin({ onEditOutlets }) {
 
 // part: 'general' (business mode, tips) or 'advanced' (default tax rate).
 function GeneralTab({ part = 'general' }) {
-  const { data: settings, isLoading } = usePosSettings()
+  const { data: settings, isLoading, isError, error, refetch } = usePosSettings()
   const update = useUpdatePosSettings()
   const [mode, setMode] = useState(null)
   const [tipsEnabled, setTipsEnabled] = useState(null)
   const [taxRate, setTaxRate] = useState(null)
 
-  const currentMode = mode ?? settings?.mode ?? 'RESTAURANT'
-  const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? true
-  const currentTaxRate = taxRate ?? String(settings?.defaultTaxRate ?? 0)
+  const currentMode = mode ?? settings?.mode ?? ''
+  const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? false
+  const currentTaxRate = taxRate ?? (settings?.defaultTaxRate == null ? '' : String(settings.defaultTaxRate))
+  let patch = {}, validationError = null
+  try { patch = settingsPatch(part, {mode,tipsEnabled,taxRate}) } catch (e) { validationError = e.message }
 
-  if (isLoading) return <p className="text-sm text-muted-foreground">Cargando configuración...</p>
+  if (isLoading) return <Skeleton className="h-48" aria-label="Cargando configuración" />
+  if (isError) return <ErrorState title="No se pudo cargar la configuración" description={error?.message} onRetry={refetch} />
 
   return (
     <Card>
@@ -136,11 +149,10 @@ function GeneralTab({ part = 'general' }) {
       <CardContent className="flex flex-col gap-6">
         {part === 'general' && (<>
         <div className="flex flex-col gap-1.5">
-          <Label>Modalidad de negocio</Label>
-          <SelectField value={currentMode} onChange={setMode} options={MODE_OPTIONS} />
+          <SelectField contentClassName={POS_ADMIN_TOUCH} label="Modalidad de negocio" value={currentMode} onChange={setMode} options={MODE_OPTIONS} placeholder="Selecciona la modalidad" />
         </div>
         <Separator />
-        <SwitchField
+        <SwitchField touchTarget
           id="tips-enabled"
           label="Propinas habilitadas"
           description="Permite que los operadores registren propinas al momento del cobro."
@@ -161,14 +173,11 @@ function GeneralTab({ part = 'general' }) {
           hint="Aplica a todas las líneas de orden. Usa 0 para deshabilitar el IVA."
         />
         )}
+        {validationError && <p role="alert" className="text-sm text-destructive">{validationError}</p>}
         <div className="flex justify-end">
           <Button
-            onClick={() => update.mutate({
-              mode: currentMode,
-              tipsEnabled: currentTips,
-              defaultTaxRate: parseFloat(currentTaxRate) || 0,
-            })}
-            disabled={update.isPending}
+            onClick={() => update.mutate(patch, {onSuccess:()=>{setMode(null);setTipsEnabled(null);setTaxRate(null)}})}
+            disabled={update.isPending || Boolean(validationError) || !Object.keys(patch).length}
           >
             {update.isPending ? 'Guardando...' : 'Guardar cambios'}
           </Button>
@@ -311,6 +320,7 @@ function OutletsTab({ section = 'both' }) {
                       variant="ghost"
                       className="h-7 w-7 text-muted-foreground hover:text-foreground"
                       onClick={() => openEditOutlet(o)}
+                      aria-label={`Editar sucursal ${o.name}`}
                     >
                       <Pencil size={14} />
                     </Button>
@@ -339,7 +349,7 @@ function OutletsTab({ section = 'both' }) {
           {outlets.length > 0 && (
             <div className="flex flex-col gap-1.5">
               <Label>Filtrar por sucursal</Label>
-              <SelectField
+              <SelectField contentClassName={POS_ADMIN_TOUCH}
                 value={terminalFilter}
                 onChange={setTerminalFilter}
                 options={[
@@ -372,6 +382,7 @@ function OutletsTab({ section = 'both' }) {
                         variant="ghost"
                         className="h-7 w-7 text-muted-foreground hover:text-foreground"
                         onClick={() => openEditTerminal(t)}
+                        aria-label={`Editar terminal ${t.name}`}
                       >
                         <Pencil size={14} />
                       </Button>
@@ -387,7 +398,7 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Create outlet dialog */}
       <Dialog open={outletDialog} onOpenChange={setOutletDialog}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nueva sucursal</DialogTitle>
             <DialogDescription>Registra una ubicación física para el punto de venta.</DialogDescription>
@@ -418,7 +429,7 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Edit outlet dialog */}
       <Dialog open={Boolean(editingOutlet)} onOpenChange={(v) => !v && setEditingOutlet(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Editar sucursal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la sucursal.</DialogDescription>
@@ -436,7 +447,7 @@ function OutletsTab({ section = 'both' }) {
               value={editOutletCode}
               onChange={(e) => setEditOutletCode(e.target.value)}
             />
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-outlet-enabled"
               label="Sucursal activa"
               description="Las sucursales inactivas no aparecen al abrir sesiones."
@@ -461,7 +472,7 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Create terminal dialog */}
       <Dialog open={terminalDialog} onOpenChange={setTerminalDialog}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nueva terminal</DialogTitle>
             <DialogDescription>Asigna una terminal a la sucursal correspondiente.</DialogDescription>
@@ -469,7 +480,7 @@ function OutletsTab({ section = 'both' }) {
           <form onSubmit={(e) => { e.preventDefault(); handleCreateTerminal() }} className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-1.5">
               <Label>Sucursal</Label>
-              <SelectField
+              <SelectField contentClassName={POS_ADMIN_TOUCH}
                 value={terminalOutletId}
                 onChange={setTerminalOutletId}
                 options={outlets.map((o) => ({ value: o.id, label: o.name }))}
@@ -501,7 +512,7 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Edit terminal dialog */}
       <Dialog open={Boolean(editingTerminal)} onOpenChange={(v) => !v && setEditingTerminal(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Editar terminal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la terminal.</DialogDescription>
@@ -519,7 +530,7 @@ function OutletsTab({ section = 'both' }) {
               value={editTerminalCode}
               onChange={(e) => setEditTerminalCode(e.target.value)}
             />
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-terminal-enabled"
               label="Terminal activa"
               description="Las terminales inactivas no aparecen al abrir sesiones."
@@ -619,6 +630,7 @@ function PaymentMethodsTab() {
                     variant="ghost"
                     className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(m)}
+                    aria-label={`Editar método ${m.name}`}
                   >
                     <Pencil size={14} />
                   </Button>
@@ -631,7 +643,7 @@ function PaymentMethodsTab() {
 
       {/* Create dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nuevo método de pago</DialogTitle>
             <DialogDescription>Define cómo los clientes pueden pagar en esta sucursal.</DialogDescription>
@@ -653,7 +665,7 @@ function PaymentMethodsTab() {
             />
             <div className="flex flex-col gap-1.5">
               <Label>Tipo</Label>
-              <SelectField value={kind} onChange={setKind} options={KIND_OPTIONS} />
+              <SelectField contentClassName={POS_ADMIN_TOUCH} value={kind} onChange={setKind} options={KIND_OPTIONS} />
             </div>
             <DialogFooter>
               <Button type="button" variant="ghost" onClick={() => setDialog(false)}>Cancelar</Button>
@@ -667,7 +679,7 @@ function PaymentMethodsTab() {
 
       {/* Edit dialog */}
       <Dialog open={Boolean(editingMethod)} onOpenChange={(v) => !v && setEditingMethod(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Editar método de pago</DialogTitle>
             <DialogDescription>Modifica el nombre, tipo o estado del método.</DialogDescription>
@@ -687,9 +699,9 @@ function PaymentMethodsTab() {
             />
             <div className="flex flex-col gap-1.5">
               <Label>Tipo</Label>
-              <SelectField value={editKind} onChange={setEditKind} options={KIND_OPTIONS} />
+              <SelectField contentClassName={POS_ADMIN_TOUCH} value={editKind} onChange={setEditKind} options={KIND_OPTIONS} />
             </div>
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-pm-enabled"
               label="Método activo"
               description="Los métodos inactivos no aparecen al cobrar."
@@ -764,7 +776,7 @@ function StationsTab() {
       <CardContent className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label>Filtrar por sucursal</Label>
-          <SelectField
+          <SelectField contentClassName={POS_ADMIN_TOUCH}
             value={outletId}
             onChange={setOutletId}
             options={outlets.map((o) => ({ value: o.id, label: o.name }))}
@@ -790,6 +802,7 @@ function StationsTab() {
                     variant="ghost"
                     className="h-7 w-7 text-muted-foreground hover:text-foreground"
                     onClick={() => openEdit(s)}
+                    aria-label={`Editar estación ${s.name}`}
                   >
                     <Pencil size={14} />
                   </Button>
@@ -802,7 +815,7 @@ function StationsTab() {
 
       {/* Create station dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Nueva estación</DialogTitle>
             <DialogDescription>Define un área de preparación que recibirá comandas.</DialogDescription>
@@ -834,7 +847,7 @@ function StationsTab() {
 
       {/* Edit station dialog */}
       <Dialog open={Boolean(editingStation)} onOpenChange={(v) => !v && setEditingStation(null)}>
-        <DialogContent size="sm">
+        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
           <DialogHeader>
             <DialogTitle>Editar estación</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la estación.</DialogDescription>
@@ -852,7 +865,7 @@ function StationsTab() {
               value={editCode}
               onChange={(e) => setEditCode(e.target.value)}
             />
-            <SwitchField
+            <SwitchField touchTarget
               id="edit-station-enabled"
               label="Estación activa"
               description="Las estaciones inactivas no reciben comandas."

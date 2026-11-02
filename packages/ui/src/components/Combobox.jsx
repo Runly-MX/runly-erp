@@ -87,6 +87,7 @@ export const Combobox = forwardRef(function Combobox(
     icon: LeadingIconProp,
     className,
     triggerClassName,
+    contentClassName,
     options: rawOptions = [],
     value,
     onChange,
@@ -571,7 +572,7 @@ export const Combobox = forwardRef(function Combobox(
 
         {asSheet ? (
           <Sheet open={open} onOpenChange={(next) => { if (!next) close(); }}>
-            <SheetContent ref={dropdownRef} side="bottom" className="gap-0 p-0 pb-[var(--sab)]" style={{ zIndex }}>
+            <SheetContent ref={dropdownRef} side="bottom" className={cn("gap-0 p-0 pb-[var(--sab)]",contentClassName)} style={{ zIndex }}>
               <SheetHeader className="px-4 pb-2 pt-1">
                 <SheetTitle className="text-base">{label || placeholder || "Selecciona una opción"}</SheetTitle>
               </SheetHeader>
@@ -592,6 +593,7 @@ export const Combobox = forwardRef(function Combobox(
               }}
               className={cn(
                 "glass-floating flex flex-col overflow-hidden rounded-xl",
+                contentClassName,
                 "transition-[opacity,transform] ease-[cubic-bezier(0.16,1,0.3,1)] motion-reduce:transition-none",
                 flipped ? "origin-bottom" : "origin-top",
                 visible

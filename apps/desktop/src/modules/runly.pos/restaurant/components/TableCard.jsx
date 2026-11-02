@@ -1,4 +1,4 @@
-import { StatusPill, cn } from '@runly/ui'
+import { Button, StatusPill, cn } from '@runly/ui'
 import { BellRing, CheckCheck, Clock, Receipt, Sparkles, Users, UtensilsCrossed } from 'lucide-react'
 import { formatMoney } from '../../retail/lib/retailRules.js'
 import { TABLE_STATUS_META, elapsedLabel } from '../lib/restaurantRules.js'
@@ -6,8 +6,8 @@ import { TABLE_STATUS_META, elapsedLabel } from '../lib/restaurantRules.js'
 const STATUS_ICON = { AVAILABLE: CheckCheck, OCCUPIED: UtensilsCrossed, BILL_REQUESTED: Receipt, DIRTY: Sparkles, RESERVED: Clock }
 
 // One table. State is never color alone: every status has a label and an icon.
-export default function TableCard({ table, currency, now, layout = 'grid', onOpen, onClean }) {
-  const meta = TABLE_STATUS_META[table.status] ?? TABLE_STATUS_META.AVAILABLE
+export default function TableCard({ table, currency, now, layout = 'grid', onOpen, onClean, onEdit }) {
+  const meta = TABLE_STATUS_META[table.enabled===false?'DISABLED':table.status] ?? TABLE_STATUS_META.AVAILABLE
   const Icon = STATUS_ICON[table.status] ?? CheckCheck
   const order = table.activeOrder
   const ready = order?.readyLineCount ?? 0
@@ -18,7 +18,7 @@ export default function TableCard({ table, currency, now, layout = 'grid', onOpe
     order ? `cuenta ${order.orderNumber ?? ''}, ${formatMoney(order.totalAmount, currency)}${order.waiterName ? `, mesero ${order.waiterName}` : ''}` : `capacidad ${table.capacity}`,
     ready ? `${ready} listas para llevar` : null,
   ].filter(Boolean).join(', ')
-  const disabled = reconcile || table.status === 'DISABLED' || table.status === 'RESERVED' && !busy
+  const disabled = table.enabled===false || reconcile || table.status === 'DISABLED' || table.status === 'RESERVED' && !busy
 
   return (
     <div className={cn('relative rounded-2xl border bg-[hsl(var(--card))] transition-colors',
@@ -59,6 +59,7 @@ export default function TableCard({ table, currency, now, layout = 'grid', onOpe
           </button>
         </div>
       )}
+      {onEdit&&<div className="px-4 pb-4"><Button variant="outline" size="lg" className="h-11 w-full" aria-label={`Editar mesa ${table.name}`} onClick={()=>onEdit(table)}>Editar mesa</Button></div>}
     </div>
   )
 }
