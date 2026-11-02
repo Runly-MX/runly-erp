@@ -1,5 +1,5 @@
 {
-  "version": "2026.10.28.7",
+  "version": "2026.11.02.1",
   "modes": {
     "local": [
       ".env.local.example",
