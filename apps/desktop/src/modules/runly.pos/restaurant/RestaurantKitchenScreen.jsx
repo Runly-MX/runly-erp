@@ -98,8 +98,8 @@ function KitchenBoard({ outlet, token, caps, companyId, online, userProfile }) {
           </div>
         )}
         <span className="flex-1" />
-        {board.isError && board.data && (
-          <span role="status" className="text-sm font-semibold text-red-800 dark:text-red-300">No se pudo actualizar; se muestran los datos de hace un momento.</span>
+        {(!online || (board.isError && board.data)) && (
+          <span role="status" className="text-sm font-semibold text-red-800 dark:text-red-300">No se pudo actualizar: se muestra el último tablero conocido y puede estar desactualizado.</span>
         )}
         <Button variant="outline" size="lg" className="h-11 gap-2" onClick={() => board.refetch()} loading={board.isFetching}><RefreshCw className="h-4 w-4" aria-hidden="true" />Actualizar</Button>
       </div>

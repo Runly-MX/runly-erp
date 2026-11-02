@@ -75,7 +75,11 @@ export function useTableOrder({ token, userId, companyId, outletId, table }) {
       catch (error) {
         if (scopeRef.current === journalKey) {
           setFailure({ ...classifyPosError(error), label })
-          if (['conflict'].includes(classifyPosError(error).kind)) await query.refetch()
+          if (classifyPosError(error).kind === 'conflict') {
+            // e.g. TABLE_OCCUPIED: another waiter opened it first; show their account.
+            queryClient.invalidateQueries({ queryKey: ['pos-restaurant-tables', companyId] })
+            await query.refetch()
+          }
         }
         return null
       } finally {
