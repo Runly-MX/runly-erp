@@ -72,7 +72,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
   return (
     <div className="space-y-3">
       {ordered.length > 0 && (
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3" role="list" aria-label="Imágenes del producto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2" role="list" aria-label="Imágenes del producto">
           <SortableList
             layout="grid"
             items={items}
