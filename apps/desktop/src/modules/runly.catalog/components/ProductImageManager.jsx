@@ -86,7 +86,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
   return (
     <div className="space-y-3">
       {ordered.length > 0 && (
-        <div className="grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2" role="list" aria-label="Imágenes del producto">
+        <div className="grid grid-cols-[repeat(auto-fill,minmax(7.5rem,1fr))] gap-2" role="list" aria-label="Imágenes del producto">
           <SortableList
             layout="grid"
             items={items}
@@ -156,7 +156,7 @@ function ImageTile({ url, index, isCover, isDragging, dragHandleProps, disabled,
           <button
             type="button"
             {...dragHandleProps}
-            className="absolute left-1 top-1 flex h-11 w-11 cursor-grab touch-none items-center justify-center rounded-lg bg-black/55 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white active:cursor-grabbing"
+            className="absolute left-1 top-1 flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 cursor-grab touch-none items-center justify-center rounded-lg bg-black/55 text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white active:cursor-grabbing"
             aria-label={`Mover imagen ${index + 1}`}
             title="Arrastra para ordenar"
           >
@@ -168,7 +168,7 @@ function ImageTile({ url, index, isCover, isDragging, dragHandleProps, disabled,
             disabled={isCover}
             aria-pressed={isCover}
             className={cn(
-              'absolute right-1 top-1 flex h-11 w-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
+              'absolute right-1 top-1 flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white',
               isCover ? 'bg-amber-500 text-white' : 'bg-black/55 text-white hover:bg-black/70',
             )}
             aria-label={isCover ? 'Portada actual' : `Usar imagen ${index + 1} como portada`}
@@ -179,7 +179,7 @@ function ImageTile({ url, index, isCover, isDragging, dragHandleProps, disabled,
           <button
             type="button"
             onClick={onRemove}
-            className="absolute bottom-1 right-1 flex h-11 w-11 items-center justify-center rounded-lg bg-black/55 text-white opacity-100 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
+            className="absolute bottom-1 right-1 flex h-8 w-8 pointer-coarse:h-11 pointer-coarse:w-11 items-center justify-center rounded-lg bg-black/55 text-white opacity-100 hover:bg-red-700 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:opacity-0 sm:group-hover:opacity-100 sm:focus-visible:opacity-100"
             aria-label={`Quitar imagen ${index + 1}`}
             title="Quitar"
           >
