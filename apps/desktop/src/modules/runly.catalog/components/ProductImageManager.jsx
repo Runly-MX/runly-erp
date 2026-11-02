@@ -15,8 +15,21 @@ import { runly } from '../../../lib/runly.js'
 export default function ProductImageManager({ token, coverId, imageIds = [], onChange, disabled = false }) {
   const [signedUrls, setSignedUrls] = useState({})
   const [uploading, setUploading] = useState(0)
-  const ordered = [...new Set([coverId, ...imageIds].filter(Boolean))]
+  const serverOrdered = [...new Set([coverId, ...imageIds].filter(Boolean))]
+  const serverKey = serverOrdered.join(',')
+  // Optimistic order: the tiles stay where they were dropped while the parent
+  // saves. It is dropped as soon as the saved order arrives through the props,
+  // or after a grace period so a failed save falls back to the stored order.
+  const [pending, setPending] = useState(null)
+  const ordered = pending ?? serverOrdered
   const idsKey = ordered.join(',')
+
+  useEffect(() => { setPending(null) }, [serverKey])
+  useEffect(() => {
+    if (!pending) return undefined
+    const timer = setTimeout(() => setPending(null), 10000)
+    return () => clearTimeout(timer)
+  }, [pending])
 
   useEffect(() => {
     const missing = ordered.filter((id) => !signedUrls[id])
@@ -34,6 +47,7 @@ export default function ProductImageManager({ token, coverId, imageIds = [], onC
   }, [idsKey, token])
 
   function emit(next) {
+    setPending(next)
     onChange({ coverId: next[0] ?? null, imageIds: next.slice(1) })
   }
 
