@@ -218,11 +218,14 @@ const SCREEN_MAP = {
   "runly.fleet:/catalogs/:section": lazy(
     () => import("../modules/runly.fleet/screens/CatalogsScreen.jsx"),
   ),
-  "runly.website:/": lazy(
-    () => import("../modules/runly.website/screens/WebsiteOverviewScreen.jsx"),
+  "runly.website:/sites": lazy(
+    () => import("../modules/runly.website/screens/sites/SitesRouter.jsx"),
   ),
-  "runly.website:/pages": lazy(
-    () => import("../modules/runly.website/screens/WebsitePagesScreen.jsx"),
+  "runly.website:/legacy/pages": lazy(
+    () => import("../modules/runly.website/screens/sites/SitesRouter.jsx").then((m) => ({ default: m.LegacyPagesRedirect })),
+  ),
+  "runly.website:/legacy/settings": lazy(
+    () => import("../modules/runly.website/screens/sites/SitesRouter.jsx").then((m) => ({ default: m.LegacySettingsRedirect })),
   ),
   "runly.website:/templates": lazy(
     () => import("../modules/runly.website/screens/WebsiteTemplatesScreen.jsx"),
@@ -233,9 +236,9 @@ const SCREEN_MAP = {
   "runly.website:/templates/:id/preview": lazy(
     () => import("../modules/runly.website/screens/TemplatePreviewScreen.jsx"),
   ),
+  // Old editor links redirect to the admin route /sites/:siteId/pages/:id/editor.
   "runly.website:/pages/:id/editor": lazy(
-    () =>
-      import("../modules/runly.website/screens/WebsitePageEditorScreen.jsx"),
+    () => import("../modules/runly.website/screens/sites/SitesRouter.jsx").then((m) => ({ default: m.LegacyEditorRedirect })),
   ),
   "runly.website:/theme": lazy(
     () => import("../modules/runly.website/screens/WebsiteThemeScreen.jsx"),
@@ -253,7 +256,7 @@ const SCREEN_MAP = {
   "runly.website:/forms": lazy(
     () => import("../modules/runly.website/screens/WebsiteFormsScreen.jsx"),
   ),
-  "runly.website:/settings": lazy(
+  "runly.website:/settings/legacy": lazy(
     () => import("../modules/runly.website/screens/WebsiteSettingsScreen.jsx"),
   ),
   "runly.website:/payments": lazy(

@@ -17,6 +17,7 @@ import FormSubmissionsPanel from '../../../components/forms/FormSubmissionsPanel
 import FormSettingsPanel from '../../../components/forms/FormSettingsPanel.jsx'
 import FormPreview from '../../../components/forms/FormPreview.jsx'
 import FormApiPanel from '../../../components/forms/FormApiPanel.jsx'
+import { FormsPublishNotice } from '../components/FormsPublishNotice.jsx'
 
 async function apiGet(path, token) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -459,6 +460,7 @@ export default function WebsiteFormsScreen() {
         description="Define campos, copia el ID y úsalo en tu sitio con DynamicForm."
         actions={<Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>}
       />
+      <FormsPublishNotice />
 
       {formsQuery.isPending ? (
         <LoadingState message="Cargando formularios..." />

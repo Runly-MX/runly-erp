@@ -16,6 +16,17 @@ export function isPathAllowedByNavigation(module, subPath) {
 
   const modulePrefix = `/app/m/${module.key}`;
 
+  // Website's per-site workspace (/sites/:siteId/...) is not listed in the
+  // manifest navigation (backend-owned). It is reachable whenever the user can
+  // see the module's root entry (website.access); each command is still
+  // authorized by the API. See design doc 15 / frontend delivery notes.
+  if (module.key === 'runly.website' && /^\/sites(\/|$)/.test(subPath)) {
+    return navigation.some((item) => {
+      const pathname = String(item?.path ?? '').split(/[?#]/)[0];
+      return pathname === '/' || pathname === modulePrefix;
+    });
+  }
+
   function pathMatches(navPath) {
     if (!navPath) return false;
     // Normalize full paths to relative
@@ -117,6 +128,15 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     return null;
   }
   if (moduleKey === "runly.website") {
+    // Multisite workspace: every /sites/... route renders one router screen.
+    if (subPath === "/" || subPath === "/sites" || subPath.startsWith("/sites/")) {
+      return screenMap["runly.website:/sites"] ?? null;
+    }
+    // Pre-multisite entry points land on the company's default site.
+    if (subPath === "/pages") return screenMap["runly.website:/legacy/pages"] ?? null;
+    if (subPath === "/settings") return screenMap["runly.website:/legacy/settings"] ?? null;
+    // Previous settings screen (SMTP, anti-spam, analytics), kept reachable until it is rebuilt per site.
+    if (subPath === "/settings/legacy") return screenMap["runly.website:/settings/legacy"] ?? null;
     if (/^\/pages\/[^/]+\/editor$/.test(subPath)) {
       return screenMap["runly.website:/pages/:id/editor"] ?? null;
     }
