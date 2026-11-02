@@ -27,7 +27,7 @@ Fecha: 2026-11-01. Preparado sin SSH, push ni despliegue, sin tocar bases reales
 
 **CI real.** `.github/workflows` solo tiene tres flujos: `uuid-policy` y `supabase-schema-ownership-policy` (automáticos, ambos pasan) y `shared-packages` (publicación manual de paquetes compartidos, que exige un SHA completo contenido en `main`). **No existe un flujo automático de pruebas, lint ni build**: las compuertas de este expediente son manuales.
 
-**Las 11 pruebas globales que fallan**, todas fuera de Commerce (no se ejecutaron en la base anterior; la atribución se hizo por área y por archivos tocados, no por una corrida comparativa):
+**Las 11 pruebas globales que fallan**, todas fuera de Commerce. **Actualización:** la sección 12 las compara contra la base anterior y las clasifica con evidencia (0 regresiones); la atribución por área de esta tabla queda como contexto:
 
 | Área | Prueba | Causa observada |
 |---|---|---|
@@ -40,7 +40,7 @@ Fecha: 2026-11-01. Preparado sin SSH, push ni despliegue, sin tocar bases reales
 
 Divulgación: una primera corrida global se lanzó por error con el entorno normal del shell; el shell no tenía variables de bases y la única prueba que usaría una base viva exige `RUN_CROSS_TENANT_TESTS=1` (omitida). La detuve a los pocos segundos y la repetí con el entorno vacío (`env -i`). No se tocó ninguna base real.
 
-**Limitaciones.** Las 11 fallas deben revisarse antes de cualquier publicación general de otras líneas de trabajo; no bloquean el piloto de Commerce porque no ejercen ninguna ruta de Commerce, pero **no las he demostrado preexistentes ejecutándolas en la base anterior**. No se ejecutó prueba alguna contra un servicio externo.
+**Limitaciones.** Las 11 fallas deben revisarse antes de cualquier publicación general de otras líneas de trabajo; no bloquean el piloto de Commerce y, según la sección 12, fallan igual en la base anterior. No se ejecutó prueba alguna contra un servicio externo.
 
 ## 3. Riesgos conocidos
 
@@ -106,8 +106,8 @@ Cubierto en las secciones 4 y 6: sin cambios de datos en tablas preexistentes, s
 1. Anotar conteos de control en el servidor (solo lectura): órdenes, pagos, productos, usuarios, y `SELECT status, count(*) FROM pos_session GROUP BY 1`.
 2. Preflight en la copia más fresca: sin duplicados.
 3. **Respaldo final** inmediatamente antes (`pg_dump -Fc`) y copia fuera del servidor; registrar tamaño y hash.
-4. Publicar con el flujo habitual (`pnpm docker:release`; **no** se hizo aquí).
-5. Primera instalación **sin migrar al arrancar**: `docker-compose.no-db-init.yml` junto al compose normal (`RUNLY_SKIP_DB_INIT=1`). Si usas `update-local.sh`, hazlo así para la primera vez; recuerda que ese script descarga el instalador de la rama `main` del repositorio remoto.
+4. Publicar **siguiendo la sección 14** (copia limpia del SHA, imágenes explícitas, digest anotados); no usar `pnpm docker:release` en modo automático desde un árbol de trabajo con otros cambios. **No** se hizo aquí.
+5. Primera instalación **sin migrar al arrancar**: `docker-compose.no-db-init.yml` junto al compose normal (`RUNLY_SKIP_DB_INIT=1`). Si usas `update-local.sh`, hazlo así para la primera vez y fija `RUNLY_INSTALLER_REF` al SHA (sin esa variable descarga el instalador de la punta de `main`).
 6. Migrar de forma explícita con un contenedor de un solo uso de la imagen **nueva** del API, en la red de la instancia: `pnpm exec prisma migrate deploy`. Esperado: las seis migraciones aplicadas, sin errores.
 7. Ejecutar `node prisma/seed.js` en el mismo contenedor (crea los dos permisos).
 8. Recrear API, worker y web con el compose normal (sin omitir la inicialización) y esperar `GET /health`.
@@ -165,3 +165,93 @@ Estado de todas las filas: **PENDIENTE**. «B» = bloquea el GO si RECHAZA. Deta
 7. Ejecutar la matriz con dispositivos reales (sección 10), con tecnología de asistencia incluida, y registrar APRUEBA/RECHAZA con evidencia.
 8. Capacitar al personal en que **la tarjeta se cobra en una terminal externa y la referencia se captura a mano**.
 9. Dar tú el GO o NO-GO.
+
+
+---
+
+# Actualización: preflight local final
+
+Fecha: 2026-11-01. Solo verificaciones locales. Esta actualización **sustituye** lo que contradiga a las secciones anteriores (en particular la tabla de las 11 fallas de la sección 2, y los pasos B4–B5 de la sección 8). Sin SSH, push, despliegue, restauraciones ni operaciones sobre bases reales.
+
+## 12. Las 11 pruebas globales fallidas: clasificación con evidencia comparativa
+
+**Método.** Referencia anterior a Commerce: `bb1a9c704`, padre del primer commit de Commerce (`580b1331b`). Es también casi el estado publicado: la última publicación de imágenes registrada en la máquina de construcción es `1c0fda679`, a 4 commits de `bb1a9c704` y sin migraciones entre ambos. Se creó un worktree independiente de esa referencia y otro de una copia limpia del candidato. `package.json` y `pnpm-lock.yaml` son idénticos entre las dos revisiones, de modo que ambos usan las mismas dependencias instaladas; los paquetes del monorepo (`@runly/*`) se enlazaron a las fuentes de cada worktree (se comprobó que `@runly/core` y `@runly/ui` resolvían a su propio árbol). Cada archivo de prueba se ejecutó en ambos con el mismo entorno vacío (`env -i`), reportero TAP, y se compararon los resultados de cada prueba.
+
+**Resultado.** Las 14 líneas `not ok` (11 pruebas hoja y 3 contenedores) son **idénticas en la base anterior y en el candidato**. La única diferencia es una prueba nueva de transcripciones que pasa en el candidato. **Regresiones introducidas por el candidato: 0.** No fue necesario corregir código.
+
+| # | Prueba | Clasificación |
+|---|---|---|
+| 1–2 | Runtime de módulos: invocación declarada / administración de eventos (`module-runtime-routes`) | Preexistente demostrado |
+| 3–4 | Propuestas de contactos: disponible / deshabilitada por empresa (`contacts-proposal-module`) | Preexistente demostrado |
+| 5 | Análisis de transcripciones: propuestas del módulo `runly.contacts` | Preexistente demostrado |
+| 6 | Configuración pública de captura del sitio web | Preexistente demostrado |
+| 7 | Catálogo de bibliotecas de runtime vs versiones instaladas | Preexistente demostrado y **dependiente del entorno** (las versiones instaladas en este equipo no coinciden con el catálogo generado) |
+| 8 | Snapshot del kit de desarrollo del instalador | Preexistente demostrado |
+| 9 | Distribución de la dependencia de configuración de entorno del instalador | Preexistente demostrado |
+| 10–11 | Studio en navegador: guardia de navegación y tarjeta de marca | Preexistente demostrado; causa de fondo no investigada (pruebas de navegador) |
+
+Límites de la comparación: misma máquina y mismas dependencias en ambos lados (por eso las dependientes del entorno fallan en los dos); el cliente de Prisma generado es el del candidato en ambos, lo que no afecta a pruebas con dobles de Prisma. Que sean preexistentes no las hace correctas: siguen siendo deuda de las otras líneas de trabajo.
+
+## 13. Verificación del candidato exacto
+
+- **SHA completo:** `15a42bd4920baf58062a75300d69ee904f0bd334`. Se creó la etiqueta **local** anotada `commerce-pilot-candidate` sobre ese SHA (no empujada).
+- **Seis migraciones**, en el orden de su nombre, sin saltar ninguna (Prisma las aplica en ese orden). Dependencias: la 2 usa columnas añadidas por la 1; la 3 actúa sobre objetos del catálogo que la 2 prepara; la 5 modifica `pos_print_job`, que crea la 4; la 6 es independiente.
+- **Migración de Transcripciones (`20261217120000`).** Aditiva e idempotente (`IF NOT EXISTS`): dos columnas con valor por omisión constante (`'LOCAL'`, sin reescritura de la tabla), una columna nullable y dos tablas nuevas. Con el valor por omisión **no cambia el comportamiento** ni envía audio a servicios externos: el motor alojado exige consentimiento registrado de un administrador. El código del API de este candidato **requiere** esas columnas para las transcripciones: no se puede publicar el API del candidato sin esta migración. Riesgo para el piloto: **bajo**; si el piloto no usa transcripciones no necesita la imagen del transcriptor (solo `--api --web --worker`).
+- **Contenido ajeno a Commerce en el candidato** (34 commits desde `bb1a9c704`: 23 de Commerce, 6 de transcripciones/instalador y 5 del sitio web): transcripciones (hosted Whisper, glosario, correcciones; incluye `apps/transcriber`, `requirements.txt` y variables de instalador), sitio web (vista previa de plantillas, tema, contraste del héroe) e instalador (variables de transcripción, `installer-release.json`). Un piloto de Commerce recibirá todo eso. Si se quiere un candidato **solo** de Commerce habría que reconstruirlo seleccionando commits (no se hizo: es un cambio de alcance y exigiría repetir toda la validación).
+- **Publicación fijada o no.** Hallazgos reales:
+  1. Las imágenes se publican como `raulbellosom/runlyerp:<servicio>-latest` (**etiquetas mutables**, sin SHA ni versión), y `build-push.mjs` construye con el **árbol de trabajo de la máquina** donde se ejecuta (incluye cambios sin commit). No hay forma de "publicar el SHA X" salvo construir desde una copia limpia de ese SHA.
+  2. `update-local.sh` descarga el instalador de la rama `main` del repositorio remoto **salvo que se defina `RUNLY_INSTALLER_REF`** con un SHA de 40 caracteres; sin esa variable toma la punta actual de `main`. Los compose descargan `-latest`.
+  3. El comando `pnpm docker:release:check` (simulacro, ya ejecutado) pasa la comprobación de integridad del instalador y propone publicar API, Worker, Web y Transcriber (TTS y Backup sin cambios).
+- **Cómo evitar una publicación accidental de otra revisión:** (a) construir las imágenes **solo** desde una copia limpia del SHA (sección 14); (b) fijar el instalador con `RUNLY_INSTALLER_REF=<SHA>`; (c) registrar los *digest* de las imágenes recién publicadas y fijar el compose del piloto a esos digest para que un `-latest` posterior de otra persona no lo altere; (d) no mezclar un push posterior a `main` antes de la ventana sin repetir esta revisión.
+- **Rama o etiqueta de liberación.** Bastan una etiqueta anotada sobre el SHA (ya creada localmente) y una rama opcional `release/commerce-pilot` para correcciones que se apliquen **solo** al piloto. No se creó ni empujó ninguna rama. Empujar la etiqueta es decisión tuya.
+
+## 14. Procedimiento de publicación fijado a un commit (sustituye B4–B5)
+
+1. Copia limpia del candidato, no tu árbol de trabajo: `git worktree add ../runly-release commerce-pilot-candidate` (o clonar y hacer `git checkout 15a42bd4920baf58062a75300d69ee904f0bd334`). Verificar `git status` vacío y `git rev-parse HEAD` igual al SHA.
+2. Instalar con el lockfile: `pnpm install --frozen-lockfile`. Ejecutar en esa copia las compuertas de la sección 15.
+3. Antes de publicar, **anotar los digest actuales** de `api-latest`, `worker-latest`, `web-latest` (y `transcriber-latest` si se publicará) para poder volver a ellos: `docker buildx imagetools inspect raulbellosom/runlyerp:api-latest` (lectura del registro; requiere iniciar sesión).
+4. Publicar solo lo necesario, explícito y desde esa copia: `node infra/docker/build-push.mjs --api --worker --web` (agregar `--transcriber` solo si el piloto usará transcripciones). No usar `--all` ni el modo automático (que decide por archivos cambiados desde el último release registrado en esa máquina).
+5. Anotar los digest nuevos y registrar cuál compose los usa; en el piloto fijar `image: raulbellosom/runlyerp@sha256:<digest>` en un archivo de override en lugar de `-latest`.
+6. Instalador: publicar de forma independiente el instalador committeado con sus archivos (los Docker no lo publican), y al actualizar el piloto ejecutar `RUNLY_INSTALLER_REF=15a42bd4920baf58062a75300d69ee904f0bd334 ./update-local.sh` (u otro SHA revisado que contenga el mismo instalador). Para la **primera** vez usar `docker-compose.no-db-init.yml` y migrar de forma explícita (sección 8, B5–B8).
+7. El SHA debe existir en el remoto para que el instalador pueda descargarse con esa referencia; hacer el push es tuyo.
+
+## 15. Compuertas desde una copia limpia
+
+Ejecutado en un worktree limpio del SHA exacto, con las dependencias del equipo enlazadas:
+
+| Compuerta | Resultado |
+|---|---|
+| `eslint .` raíz (sin cambiar configuración ni ignorar nada) | **Exit 0, sin errores** |
+| `enforce-uuid-policy`, `enforce-supabase-schema-ownership-policy` | Correctos |
+| `generate-installer-release --check` | Correcto |
+| `vite build` del escritorio | Correcto |
+| `check:privacy` | 67 hallazgos de política, los mismos; 0 nuevos |
+
+**Cobertura real de CI.** Solo hay 3 flujos en `.github/workflows` (dos políticas automáticas y la publicación manual de paquetes compartidos). Lint, pruebas y compilación **no se ejecutan automáticamente**: son una compuerta manual que debe correrse en la copia limpia antes de publicar. `pnpm lint` en tu equipo seguirá fallando por el fixture ignorado hasta que lo muevas o lo ignores.
+
+**Aislamiento del ensayo de migraciones.** El script se endureció: los procesos hijos reciben un entorno mínimo sin variables del operador, `DOTENV_CONFIG_PATH` apuntando a un archivo inexistente (porque `prisma.config.ts` y `prisma/seed.js` cargan `dotenv`) y una comprobación de que toda URL de base es `127.0.0.1`. Prueba de aislamiento: se ejecutó con `DATABASE_URL`, `DIRECT_URL` y la URL del preflight apuntando a una dirección no enrutable (`203.0.113.1`) en el entorno del operador, y el ensayo pasó **15/15**, es decir, no usó esas variables. El contenedor escucha solo en `127.0.0.1` y se elimina al terminar; si se interrumpe, quedan contenedores con la etiqueta `runly.commerce-rehearsal=true` (así quedaron tres de corridas interrumpidas durante esta preparación, que ya se eliminaron): `docker ps -a --filter label=runly.commerce-rehearsal=true`. El ensayo con una copia real **sigue sin ejecutarse**.
+
+**Instalación nueva (alternativa de piloto aislado).** Una instalación nueva aplica todas las migraciones desde cero. Eso lo ejercitan las pilas desechables de Supabase en Docker de todos los E2E (decenas de corridas con las seis migraciones y el `seed`). Un intento de aplicarlas sobre un PostgreSQL desnudo se detuvo en la migración 41 porque requiere objetos de Supabase (`supabase_realtime`, `auth.uid()`); es una dependencia conocida de la imagen de base de datos, no un defecto de Commerce.
+
+## 16. Bloqueos reales para un piloto aislado
+
+1. **Ensayo sobre la copia de la base piloto**, si el piloto reutiliza datos existentes (pendiente de que proporciones la copia). Un piloto con **base nueva** no lo necesita.
+2. **Validación física** (hardware y lector de pantalla), sección 10 y matriz manual.
+3. **Publicación**: nadie ha construido todavía las imágenes desde una copia limpia ni anotado digest; sin eso, el piloto no es reproducible ni reversible por imagen.
+4. Decisión sobre incluir contenido ajeno (transcripciones, sitio web, instalador) o preparar un candidato solo de Commerce.
+5. Asignación de los permisos `pos.refunds.create` y `pos.discounts.apply` y de existencias por sucursal (R4, R5).
+6. Un respaldo restaurable probado antes de migrar una base con datos.
+
+**No son bloqueos:** las 11 fallas globales (preexistentes y ajenas), el error de lint del fixture local, la deuda de las otras líneas de trabajo.
+
+## 17. Acciones humanas actualizadas
+
+1. Elegir entre **piloto con base nueva** (más simple, no migra datos) o **piloto sobre datos existentes** (exige la copia y el ensayo).
+2. Si hay datos: copia aislada + `node scripts/rehearse-commerce-migrations.mjs --dump <archivo>` en un equipo local; enviar la salida.
+3. Construir las imágenes desde la copia limpia con los pasos de la sección 14; anotar digests (antes y después); empujar la etiqueta si quieres conservarla.
+4. Mover o ignorar el fixture de lint a tu criterio.
+5. Resto de las acciones de la sección 11 (permisos, existencias, matriz física, capacitación en tarjeta manual, GO/NO-GO).
+
+## 18. Veredicto
+
+**APTO PARA PREPARAR EL PILOTO.** Las 11 fallas globales están clasificadas con evidencia comparativa (0 regresiones del candidato), el candidato exacto y sus seis migraciones están verificados, el lint raíz y las demás compuertas pasan desde una copia limpia, y el ensayo de migraciones está endurecido y probado como aislado. Esto **no** es una autorización de liberación: sigue pendiente el ensayo con una copia real (si hay datos), la publicación fijada y anotada, y la validación física. Tarjeta: terminal externa y referencia capturada a mano; sin integración bancaria.

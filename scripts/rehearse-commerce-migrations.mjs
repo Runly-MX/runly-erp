@@ -40,6 +40,12 @@ const applyFile = (file, db = 'rehearsal') => { run('docker', ['cp', file, `${na
 const steps = [];
 const record = (step, ok, detail = '') => { steps.push({ step, ok, detail }); console.log(`${ok ? 'PASS' : 'FAIL'} ${step}${detail ? ` — ${detail}` : ''}`); };
 let created = false;
+// Child processes get a minimal environment: nothing from the operator's shell or from a repository .env
+// (prisma.config.ts and prisma/seed.js import dotenv) can point them at a real database.
+const noEnvFile = join(scratch, 'no.env');
+const baseEnv = Object.fromEntries(['PATH', 'Path', 'SystemRoot', 'TEMP', 'TMP', 'USERPROFILE', 'HOME', 'HOMEDRIVE', 'HOMEPATH', 'APPDATA', 'LOCALAPPDATA'].filter((k) => process.env[k]).map((k) => [k, process.env[k]]));
+const safeEnv = (db) => ({ ...baseEnv, DATABASE_URL: db, DIRECT_URL: db, DOTENV_CONFIG_PATH: noEnvFile });
+const assertLocal = (db) => { if (!['127.0.0.1', 'localhost'].includes(new URL(db).hostname)) throw new Error('El ensayo solo se conecta a su contenedor local.'); return db; };
 
 // Row fingerprint per table over a fixed column list (so new columns do not count).
 function fingerprints(db, columnsByTable) {
@@ -88,7 +94,7 @@ try {
   } else {
     const schema = join(scratch, 'baseline.prisma'); const baselineSql = join(scratch, 'baseline.sql');
     writeFileSync(schema, run('git', ['show', `${BASELINE}:prisma/schema.prisma`]));
-    run(process.execPath, [resolve(root, 'node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-empty', '--to-schema', schema, '--script', '--output', baselineSql], { env: { ...process.env, DIRECT_URL: url('rehearsal') } });
+    run(process.execPath, [resolve(root, 'node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-empty', '--to-schema', schema, '--script', '--output', baselineSql], { env: safeEnv(assertLocal(url('rehearsal'))) });
     applyFile(baselineSql);
     sql(`WITH c AS (INSERT INTO company(id,name,slug,updated_at) VALUES(uuidv7(),'Empresa sintética','sintetica',now()) RETURNING id),
       u AS (INSERT INTO user_profile(id,auth_user_id,display_name,email,updated_at) VALUES(uuidv7(),uuidv7(),'Operador','op@example.test',now()) RETURNING id),
@@ -111,7 +117,7 @@ try {
   record('backup taken (pg_dump -Fc) and every table fingerprinted', true, `${Object.keys(before).length} tables, ${Object.values(fpBefore).filter((v) => !v.startsWith('0:')).length} with rows`);
 
   // ---- 3. Preflight ------------------------------------------------------------------------
-  const pre = spawnSync(process.execPath, ['scripts/commerce-recovery-preflight.mjs'], { cwd: root, encoding: 'utf8', env: { ...process.env, RUNLY_COMMERCE_PREFLIGHT_DATABASE_URL: url('rehearsal') } });
+  const pre = spawnSync(process.execPath, ['scripts/commerce-recovery-preflight.mjs'], { cwd: root, encoding: 'utf8', env: { ...safeEnv(assertLocal(url('rehearsal'))), RUNLY_COMMERCE_PREFLIGHT_DATABASE_URL: url('rehearsal') } });
   record('read-only preflight finds nothing that needs reconciliation', pre.status === 0, pre.stdout.trim() || pre.stderr.trim().slice(0, 200));
 
   // ---- 4. Migrate ------------------------------------------------------------------------------
@@ -137,7 +143,7 @@ try {
   const newEmpty = withRows.every((t) => t === 'catalog_stock_balance');
   record('new tables start empty, except the documented stock-balance mirror (no fabricated history)', newEmpty, `rows in: ${withRows.join(', ') || 'none'}; `+ `${added.length} new tables; ${touched.length} existing tables gained columns`);
   console.log(`  touched existing tables: ${touched.join(', ')}`);
-  const drift = spawnSync(process.execPath, [resolve(root, 'node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--script'], { cwd: root, encoding: 'utf8', env: { ...process.env, DIRECT_URL: url('rehearsal') } });
+  const drift = spawnSync(process.execPath, [resolve(root, 'node_modules/prisma/build/index.js'), 'migrate', 'diff', '--from-config-datasource', '--to-schema', 'prisma/schema.prisma', '--script'], { cwd: root, encoding: 'utf8', env: safeEnv(assertLocal(url('rehearsal'))) });
   // Statements that would ADD something the schema expects mean the migrations left the database short.
   // DROPs only remove hand-written extras (SQL-level foreign keys, indexes, uuidv7 defaults) that the
   // datamodel does not declare; they are reported, never applied.
@@ -170,7 +176,7 @@ try {
   record('INFO previous-release direct writes to the catalog (see detail; a code rollback is only safe for the ones accepted)', true, JSON.stringify(legacyCatalog));
 
   // ---- 6b. The API runs prisma/seed.js on every start: what does it change on an installed instance? ------------
-  const seedEnv = { ...process.env, DATABASE_URL: url('rehearsal'), DIRECT_URL: url('rehearsal'), DOTENV_CONFIG_PATH: join(scratch, 'no.env') };
+  const seedEnv = safeEnv(assertLocal(url('rehearsal')));
   run(process.execPath, ['prisma/seed.js'], { env: seedEnv });
   const NEW_KEYS = "'pos.refunds.create','pos.discounts.apply'";
   sql(`DELETE FROM role_permission WHERE permission_id IN (SELECT id FROM permission WHERE key IN (${NEW_KEYS})); DELETE FROM permission WHERE key IN (${NEW_KEYS})`);
