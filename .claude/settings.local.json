@@ -1,6 +1,5 @@
 {
   "permissions": {
-    "defaultMode": "bypassPermissions",
     "allow": [
       "Bash(git *)",
       "Bash(pnpm *)",
@@ -32,7 +31,8 @@
       "Bash(jq *)",
       "Read",
       "Edit",
-      "Write"
+      "Write",
+      "Read(//tmp/**)"
     ],
     "deny": [
       "Bash(git reset --hard)",
@@ -40,6 +40,7 @@
       "Bash(git push --force)",
       "Bash(rm -rf /)",
       "Bash(format *)"
-    ]
+    ],
+    "defaultMode": "bypassPermissions"
   }
 }
