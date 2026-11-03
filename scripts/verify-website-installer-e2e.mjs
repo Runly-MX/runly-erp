@@ -252,7 +252,7 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
   const host = `ensayo-${created.id.slice(-8)}.${lab.content}`
   await stack.pool.query("INSERT INTO website_domain(hostname,company_id,site_id,kind,state,ready) VALUES($1,$2,$3,'platform','assigned',true)", [host, state.company.id, created.id])
   const site = await hostRequest(stack.ports.web, host, '/')
-  assert.equal(site.status, 200, `published site resolves through Nginx: ${site.body.slice(0, 200)}`); assert.match(site.body, /Hola desde el ensayo/)
+  assert.equal(site.status, 200, `published site resolves through Nginx: ${site.body.slice(0, 200)}`); assert.ok(site.body.includes(`data-release="${release.id}"`) && site.body.includes(`data-page-id="${page.id}"`), "the active release page is served")
   for (const path of ['/app/', '/app/login']) { const r = await hostRequest(stack.ports.web, host, path); assert.ok([403, 404].includes(r.status), `${path} on a site host: ${r.status}`); assert.doesNotMatch(r.body, /<div id="root"/) }
   assert.equal((await hostRequest(stack.ports.web, new URL(lab.app).hostname, '/app/')).status, 200, 'the administrative origin serves the ERP')
   assert.ok([403, 404].includes((await hostRequest(stack.ports.web, 'unknown.content.lab-sites.test', '/')).status), 'unassigned hostnames do not resolve')
