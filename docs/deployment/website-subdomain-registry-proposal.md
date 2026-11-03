@@ -1,6 +1,15 @@
 # Propuesta: registro global de subdominios de Website
 
-Estado: **propuesta para aprobación**. No se implementó ningún registro central, no se tocó DNS ni certificados y no se cambió ninguna validación de aislamiento.
+## Estado de las decisiones
+
+| Elemento | Estado |
+|---|---|
+| Arquitectura de registro centralizado para múltiples instalaciones | **Dirección aprobada** |
+| Implementación del registro (servicio, ruta REST, cliente, enrolamiento) | **Pendiente** |
+| Despliegue (DNS, certificados, edge, servicio) | **No autorizado** |
+| Dominio registrable independiente de `runly.mx` para contenido ZIP no confiable | **Aprobado conceptualmente; dominio aún sin seleccionar ni comprar** |
+
+Objetivo vigente: ofrecer subdominios automáticos `<slug>.sites.runly.mx` a empresas de múltiples instalaciones de Runly, con unicidad global. No se implementó ningún registro, no se tocó DNS ni certificados y no se cambió ninguna validación de aislamiento.
 
 ## Lo que existe hoy (verificado en el código)
 
@@ -9,10 +18,10 @@ Estado: **propuesta para aprobación**. No se implementó ningún registro centr
 - Lista de nombres reservados en código: admin, api, app, auth, login, public, preview, support, status, www, mail, erp, mcp, runly, atlas, internal, system (más prefijos `runly-`, `atlas-`, `internal-`, `system-`, `admin-`, `api-`, `auth-`).
 - `website-content-isolation.js` rechaza como raíz de contenido o vista previa cualquier host bajo `runly.mx`, igual al origen del ERP o que comparta dominio registrable con él, y exige HTTPS. **Se conserva tal cual**: el JavaScript no confiable de un ZIP nunca se sirve bajo `runly.mx`.
 
-## Decisiones que necesito de ti
+## Decisiones que siguen abiertas
 
-1. Dónde vive el registro y quién lo opera (recomendado: servicio propio de Runly, ver abajo).
-2. Dominio registrable independiente para ZIP y vista previa (ejemplo `runly-sites.net`) y quién lo compra.
+1. Dónde se aloja el registro y quién lo opera (se recomienda un servicio propio de Runly, descrito abajo).
+2. Selección y compra del dominio registrable independiente para ZIP y vista previa (ejemplo `runly-sites.net`).
 3. Si `sites.runly.mx` se solicita a la Public Suffix List (recomendado) antes del primer cliente.
 4. Si las instalaciones auto-hospedadas pueden reclamar nombres (recomendado: sí, con licencia/enrolamiento) o solo las gestionadas por Runly.
 

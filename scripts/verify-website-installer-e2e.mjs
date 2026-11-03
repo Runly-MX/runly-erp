@@ -203,21 +203,25 @@ const hostRequest = (port, host, path = '/') => new Promise((resolve, reject) =>
 })
 const document = text => { const blocks = { heading: { id: 'heading', type: 'HeadingBlock', props: { text, level: 'h1' }, children: {} } }; return { schemaVersion: 1, id: 'page-rehearsal', slug: '/', title: text, visibility: 'public', regions: { main: { id: 'main', children: ['heading'] } }, blocks, seo: { title: text, description: '', canonical: null, ogImageAssetId: null }, updatedAt: '2026-11-03T00:00:00.000Z' } }
 
-await scenario('website-update-from-previous-installer', { mode: 'external', via: { script: 'update-external.sh' }, prepare: prepareDisposableNotesStorageOwner, repeat: false, after: async ({ stack, run, state, origin, installerState, installerBefore, snapshot, directory }) => {
+async function seedFreshState(stack) {
+  const { users, companies, admin } = await seedStudioScenario(stack)
+  return { users, company: companies[0], admin, site: null, before: null, snapshot: async () => ({}) }
+}
+const websiteAfter = ({ fresh = false } = {}) => async ({ stack, run, state: seeded, origin, installerState, installerBefore, snapshot, directory }) => {
+  const state = seeded ?? await seedFreshState(stack)
   const envFile = join(directory, '.env.external'), read = () => readFile(envFile, 'utf8')
   const secrets = [stack.secret.SUPABASE_SERVICE_ROLE_KEY, stack.secret.SUPABASE_JWT_SECRET, stack.secret.SUPABASE_POSTGRES_PASSWORD].filter(Boolean)
   const noLeak = (name, output) => { for (const secret of secrets) assert.equal(output.includes(secret), false, `${name}: output leaked a credential`) }
   // 1-2. The installer refreshed itself and appended the Website keys once, blank, keeping the existing values.
-  assert.notEqual(installerBefore.version, manifest.version)
-  assert.equal((await installerState()).version, manifest.version)
+  if (installerBefore) { assert.notEqual(installerBefore.version, manifest.version); assert.equal((await installerState()).version, manifest.version) }
   let env = await read()
   for (const key of WEBSITE_KEYS) assert.deepEqual(envValue(env, key), [''], `${key} must be appended exactly once and blank`)
   assert.ok(env.includes(`SUPABASE_SERVICE_ROLE_KEY=${stack.secret.SUPABASE_SERVICE_ROLE_KEY}`), 'existing values are preserved')
   // 3. Migrations and historical data.
   const applied = (await stack.pool.query('SELECT migration_name, finished_at FROM _prisma_migrations')).rows
   for (const name of ['20261102110000_website_releases', '20261102180000_website_form_scope', '20261218120000_website_catalog_selection']) assert.ok(applied.some(row => row.migration_name === name && row.finished_at), `${name} applied`)
-  assert.deepEqual(await state.snapshot(), state.before, 'historical site, page, form and submission are unchanged')
-  assert.equal((await stack.pool.query('SELECT catalog_mode FROM website_site WHERE id=$1', [state.site.id])).rows[0].catalog_mode, 'legacy_all', 'historical sites keep their implicit catalog visibility')
+  if (!fresh) assert.deepEqual(await state.snapshot(), state.before, 'historical site, page, form and submission are unchanged')
+  if (!fresh) assert.equal((await stack.pool.query('SELECT catalog_mode FROM website_site WHERE id=$1', [state.site.id])).rows[0].catalog_mode, 'legacy_all', 'historical sites keep their implicit catalog visibility')
   // 4. Private release bucket created by the API itself.
   const bucket = await state.admin.storage.getBucket('runly-website-releases')
   assert.equal(bucket.error, null, 'the API must create the release bucket'); assert.equal(bucket.data.public, false)
@@ -232,7 +236,7 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
     assert.equal(r.status, status, `${method} ${path}: ${JSON.stringify(json).slice(0, 300)}`); return json
   }
   const listed = (await call('/website/sites')).data
-  assert.ok(listed.some(site => site.id === state.site.id), 'the historical site is listed after the update')
+  if (!fresh) assert.ok(listed.some(site => site.id === state.site.id), 'the historical site is listed after the update')
   // 6. The administrator sets the values once; a second update must keep them and change nothing else.
   let configured = env
   for (const [key, value] of [['RUNLY_APP_URL', lab.app], ['RUNLY_WEBSITE_NAMESPACE_ROOT', lab.namespace], ['RUNLY_WEBSITE_CONTENT_ROOT', lab.content], ['RUNLY_WEBSITE_PREVIEW_ROOT', lab.preview]])
@@ -261,6 +265,7 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
   const third = await run('repeat'); assert.equal(third.ok, true, third.output.slice(-1200)); noLeak('repeat', third.output)
   assert.equal(await read(), envBefore, 'a repeated update does not touch .env.external'); assert.deepEqual(await state.snapshot(), dataBefore)
   assert.equal((await hostRequest(stack.ports.web, host, '/')).status, 200)
+  if (!fresh) {
   // 9. Controlled failure: an interrupted refresh changes nothing and the published site keeps serving; recovery converges.
   const installerStable = await installerState(), schemaStable = await snapshot()
   await origin.setFail('setup-external.mjs corrupt')
@@ -270,6 +275,8 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
   await origin.setFail('')
   const recovered = await run('recovered'); assert.equal(recovered.ok, true, recovered.output.slice(-1200))
   assert.equal((await hostRequest(stack.ports.web, host, '/')).status, 200)
+  }
+  if (!fresh) {
   // 10. The previous API image still serves the migrated database (image rollback without restoring data).
   const container = `${stack.name}-previous-api`
   try {
@@ -280,5 +287,53 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
     const rollback = await fetch(`http://127.0.0.1:${port}/website/site`, { headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': state.company.id } })
     assert.equal(rollback.status, 200, 'the previous API image still serves the historical site endpoint'); assert.equal((await rollback.json()).data.id, state.site.id)
   } finally { await command('docker', ['rm', '-f', container]).catch(() => {}) }
+  }
+}
+await scenario('website-update-from-previous-installer', { mode: 'external', via: { script: 'update-external.sh' }, prepare: prepareDisposableNotesStorageOwner, repeat: false, after: websiteAfter() })
+await scenario('website-external-fresh-install', { mode: 'external', legacy: false, prepare: prepareDisposableNotesStorageOwner, repeat: false, after: websiteAfter({ fresh: true }) })
+// Image references: explicit SHA tags and image IDs are preserved across updates and allow returning to a previous image.
+const newSha = arg('new-sha'), prevSha = arg('prev-sha')
+if (!only.length || only.includes('website-image-references')) {
+  assert.match(newSha ?? '', /^[a-f0-9]{12}$/); assert.match(prevSha ?? '', /^[a-f0-9]{12}$/)
+}
+await scenario('website-image-references', { mode: 'external', legacy: false, prepare: prepareDisposableNotesStorageOwner, repeat: false, after: async ({ stack, run, snapshot, directory }) => {
+  const envFile = join(directory, '.env.external'), registry = 'raulbellosom/runlyerp'
+  const container = `${stack.name}-app-api-external`
+  const idOf = async ref => (await command('docker', ['image', 'inspect', '--format', '{{.Id}}', ref])).trim()
+  const running = async () => (await command('docker', ['inspect', '--format', '{{.Image}}', container])).trim()
+  const recorded = async () => JSON.parse(await readFile(join(directory, '.runly-installer/images.json'), 'utf8'))
+  const setImages = async refs => {
+    let env = await readFile(envFile, 'utf8')
+    for (const [key, value] of Object.entries(refs)) env = new RegExp(`^${key}=`, 'm').test(env) ? env.replace(new RegExp(`^${key}=.*$`, 'm'), `${key}=${value}`) : `${env.trimEnd()}\n${key}=${value}\n`
+    await writeFile(envFile, env)
+  }
+  const healthy = async () => { for (let i = 0; i < 30; i++) { if (await fetch(`${stack.urls.api}/health`).then(r => r.ok, () => false)) return true; await wait(1000) } return false }
+  const sha = kind => `${registry}:${kind}-${newSha}`
+  const select = refs => setImages({ RUNLY_API_IMAGE: refs.api, RUNLY_API_LOCAL_IMAGE: refs.api, RUNLY_WORKER_IMAGE: refs.worker, RUNLY_WEB_EXTERNAL_IMAGE: refs.web })
+  const settled = await snapshot()
+  // 1. Explicit commit-tagged images, never latest.
+  await select({ api: sha('api'), worker: sha('worker'), web: sha('web') })
+  const first = await run('sha-tags'); assert.equal(first.ok, true, first.output.slice(-1200))
+  assert.equal(await running(), await idOf(sha('api')), 'the API runs exactly the SHA-tagged image')
+  let images = await recorded()
+  assert.equal(images.images.api.reference, sha('api')); assert.equal(images.images.api.id, await idOf(sha('api')))
+  assert.ok(!JSON.stringify(images).includes('latest'), 'no latest reference is recorded'); assert.ok(!(await readFile(envFile, 'utf8')).includes(':api-latest'))
+  // 2. A further update keeps the selection.
+  const again = await run('sha-tags-again'); assert.equal(again.ok, true, again.output.slice(-1200))
+  assert.equal(await running(), await idOf(sha('api'))); assert.ok((await readFile(envFile, 'utf8')).includes(`RUNLY_API_IMAGE=${sha('api')}`), 'the reference survives the update')
+  // 3. An image ID is accepted as a reference as well (immutable by construction).
+  const apiId = await idOf(sha('api'))
+  await setImages({ RUNLY_API_IMAGE: apiId, RUNLY_API_LOCAL_IMAGE: apiId })
+  const byId = await run('by-id'); assert.equal(byId.ok, true, byId.output.slice(-1200)); assert.equal(await running(), apiId)
+  // 4. Rollback to the previous release image changes only the container; schema and data are untouched.
+  const previous = `${registry}:api-${prevSha}`
+  await setImages({ RUNLY_API_IMAGE: previous, RUNLY_API_LOCAL_IMAGE: previous })
+  const back = await run('rollback'); assert.equal(back.ok, true, back.output.slice(-1200))
+  assert.equal(await running(), await idOf(previous), 'the API container returned to the previous image'); assert.equal(await healthy(), true)
+  assert.deepEqual(await snapshot(), settled, 'rolling the image back does not change the schema')
+  assert.equal((await recorded()).images.api.reference, previous)
+  // 5. And forward again to the release image.
+  await setImages({ RUNLY_API_IMAGE: sha('api'), RUNLY_API_LOCAL_IMAGE: sha('api') })
+  const forward = await run('forward'); assert.equal(forward.ok, true, forward.output.slice(-1200)); assert.equal(await running(), await idOf(sha('api')))
 } })
 console.log(JSON.stringify({ passed: true, images, legacyImage, results }))
