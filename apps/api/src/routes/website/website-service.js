@@ -121,20 +121,51 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     })
   }
 
+  // Archive keeps every row for restoration. enabled=false removes the site from admin scoping and from the
+  // public gateway (which only resolves enabled sites); its domains stay reserved so a restore resumes them.
   async function deleteSite({ companyId, siteId, actorId }) {
-    const site = await prisma.websiteSite.findFirst({
-      where: { id: siteId, companyId },
-      select: { id: true, name: true },
-    })
+    const site = await prisma.websiteSite.findFirst({ where: { id: siteId, companyId, enabled: true }, select: { id: true, name: true, defaultForCompany: true } })
     if (!site) throw notFound('Sitio')
-
-    // Archive atomically; never cascade into versions, forms or responses.
     await prisma.$transaction(async (tx) => {
-      await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { enabled: false, status: 'maintenance' } })
-      await tx.auditLog.create({ data: {
-        actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId,
-        action: 'site.archive', before: JSON.stringify(site), after: JSON.stringify({ enabled: false }),
-      } })
+      await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { enabled: false, lifecycle: 'archived', status: 'maintenance', defaultForCompany: false } })
+      // The default marker must not strand the company without one.
+      if (site.defaultForCompany) {
+        const next = await tx.websiteSite.findFirst({ where: { companyId, enabled: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }], select: { id: true } })
+        if (next) await tx.websiteSite.update({ where: { id: next.id, companyId }, data: { defaultForCompany: true } })
+      }
+      await tx.auditLog.create({ data: { actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId, action: 'site.archive', before: JSON.stringify(site), after: JSON.stringify({ enabled: false, lifecycle: 'archived' }) } })
+    })
+    invalidateCache(companyId)
+    invalidatePrimaryCache()
+  }
+
+  // Restoring never republishes: the gateway serves only lifecycle 'published', so a site that had been published comes back
+  // as 'unpublished' (its release pointer is kept as the base of the next publication) and anything else as a draft.
+  async function restoreSite({ companyId, siteId, actorId }) {
+    const site = await prisma.websiteSite.findFirst({ where: { id: siteId, companyId, enabled: false, lifecycle: 'archived' }, select: { id: true, name: true, activeReleaseId: true, lastPublishedReleaseId: true } })
+    if (!site) throw notFound('Sitio')
+    await prisma.$transaction(async (tx) => {
+      const hasDefault = await tx.websiteSite.count({ where: { companyId, enabled: true, defaultForCompany: true } })
+      await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { enabled: true, lifecycle: site.activeReleaseId || site.lastPublishedReleaseId ? 'unpublished' : 'draft', status: 'draft', ...(hasDefault ? {} : { defaultForCompany: true }) } })
+      await tx.auditLog.create({ data: { actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId, action: 'site.restore', before: JSON.stringify(site), after: JSON.stringify({ enabled: true, restored: true }) } })
+    })
+    invalidateCache(companyId)
+    invalidatePrimaryCache()
+  }
+
+  // Deletion is a tombstone, never a cascade: names are retired, secrets wiped and the site leaves every listing and the
+  // public resolution, while pages, releases, forms and responses stay as retained records (audit trail kept).
+  // Only an archived site can be deleted, and the caller must type its exact name.
+  async function purgeSite({ companyId, siteId, actorId, confirmName }) {
+    const site = await prisma.websiteSite.findFirst({ where: { id: siteId, companyId, enabled: false, lifecycle: 'archived' }, select: { id: true, name: true } })
+    if (!site) throw notFound('Sitio')
+    if (confirmName !== site.name) throw new WebsiteServiceError('Escribe el nombre exacto del sitio para eliminarlo.', 422, 'confirmation_mismatch')
+    const domains = await prisma.websiteDomain.findMany({ where: { companyId, siteId }, select: { hostname: true } })
+    // Names are retired (never deleted or reassigned); registry-held ones are released there first.
+    await publication.hostnames.releaseForPurge({ companyId, siteId })
+    await prisma.$transaction(async (tx) => {
+      await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { lifecycle: 'deleted', domain: null, activeReleaseId: null, stripeSecretKey: null, stripePublishableKey: null, turnstileSecretKey: null, turnstileSiteKey: null } })
+      await tx.auditLog.create({ data: { actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId, action: 'site.delete', before: JSON.stringify(site), after: JSON.stringify({ lifecycle: 'deleted', domains: domains.map((row) => row.hostname) }) } })
     })
     invalidateCache(companyId)
     invalidatePrimaryCache()
@@ -535,7 +566,8 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
   }
 
   async function listSites({ companyId }) {
-    const rows = await prisma.websiteSite.findMany({ where: { companyId, enabled: true }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
+    // Archived sites are listed (lifecycle 'archived') so they can be restored; deleted tombstones never are.
+    const rows = await prisma.websiteSite.findMany({ where: { companyId, OR: [{ enabled: true }, { lifecycle: 'archived' }] }, orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] })
     return rows.map(publicSite)
   }
   async function saveSiteDraft(args) { return publicSite(await drafts.saveSite(args)) }
@@ -546,7 +578,7 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     getDefaultPageSite,
     createSite,
     updateSite,
-    deleteSite,
+    deleteSite, restoreSite, purgeSite,
     listPages,
     getPage,
     getPageByPath,

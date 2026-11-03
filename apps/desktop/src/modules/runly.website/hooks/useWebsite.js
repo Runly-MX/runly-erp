@@ -59,7 +59,7 @@ export function useSites() {
   const { api, companyId, ready } = useWebsiteScope()
   return useQuery({
     queryKey: websiteKeys.sites(companyId),
-    queryFn: async ({ signal }) => Promise.all(((await api.listSites({signal})).data??[]).map(async row=>({...row,...(await api.getState(row.id,{signal})).data}))),
+    queryFn: async ({ signal }) => Promise.all(((await api.listSites({signal})).data??[]).map(async row=>row.lifecycle==='archived'?row:({...row,...(await api.getState(row.id,{signal})).data}))), // archived sites are disabled: they have no live state
     enabled: ready,
     staleTime: 15_000,
   })

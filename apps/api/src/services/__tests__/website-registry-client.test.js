@@ -70,20 +70,22 @@ test('key lifecycle calls hit the registry key routes with idempotent signed mut
   assert.deepEqual(JSON.parse(calls[1].body), { publicKey: 'A'.repeat(43), graceSeconds: 3600 })
 })
 
-test('a key file is preferred over the environment variable, and a real namespace never falls back to local assignment', async () => {
+test('a key file is preferred over the environment variable, and a configured registry never falls back to local assignment', async () => {
   const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
   const { tmpdir } = await import('node:os')
   const { join } = await import('node:path')
-  const { localFallbackAllowed } = await import('../website-hostname-service.js')
+  const { localNamespaceUsable } = await import('../website-hostname-service.js')
   const dir = mkdtempSync(join(tmpdir(), 'registry-key-'))
   try {
     writeFileSync(join(dir, 'key'), seed.toString('base64url') + '\n', { mode: 0o600 })
     const client = createRegistryClientFromEnv({ RUNLY_REGISTRY_URL: 'http://x', RUNLY_INSTALLATION_ID: 'i', RUNLY_INSTALLATION_PRIVATE_KEY_FILE: join(dir, 'key') })
     assert.ok(client)
-    assert.equal(localFallbackAllowed(null, 'sites.lab.test'), true)
-    assert.equal(localFallbackAllowed(null, 'sites.runly.mx'), false, 'no registry and a real namespace: the reservation is refused')
-    assert.equal(localFallbackAllowed(client, 'sites.lab.test'), false, 'with a registry configured the registry always decides')
-    assert.equal(localFallbackAllowed(null, undefined), false)
+    assert.equal(localNamespaceUsable({ registry: null, registryConfigured: false, namespaceRoot: 'sites.example.org' }), true, 'no registry at all: the installation owns its namespace')
+    assert.equal(localNamespaceUsable({ registry: null, registryConfigured: true, namespaceRoot: 'sites.example.org' }), false, 'a registry that is configured but broken never decides locally')
+    assert.equal(localNamespaceUsable({ registry: client, registryConfigured: true, namespaceRoot: 'sites.example.org' }), false, 'with a registry the registry always decides')
+    assert.equal(localNamespaceUsable({ registry: null, registryConfigured: false, namespaceRoot: undefined }), false)
+    assert.equal(localNamespaceUsable({ registry: null, registryConfigured: false, namespaceRoot: 'not a domain' }), false)
+    assert.equal(localNamespaceUsable({ registry: null, registryConfigured: false, namespaceRoot: 'erp.example.org', adminHosts: ['erp.example.org:443'] }), false, 'the ERP host is never a namespace')
   } finally { rmSync(dir, { recursive: true, force: true }) }
 })
 

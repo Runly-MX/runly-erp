@@ -78,7 +78,10 @@ export function createWebsiteApi(token) {
     saveIdentity: (siteId, identity, expectedRevision, idempotencyKey) =>
       call(site(siteId), { method: 'PATCH', body: { identity, expectedRevision }, idempotencyKey }),
     // Legacy PATCH (site.update): used only for non-draft settings such as antispam/SMTP.
-    archiveSite: (siteId) => call(`/website/site/${s(siteId)}`, { method: 'DELETE' }),
+    archiveSite: (siteId) => call(`/website/sites/${s(siteId)}/archive`, { method: 'POST' }),
+    restoreSite: (siteId) => call(`/website/sites/${s(siteId)}/restore`, { method: 'POST' }),
+    // Permanent removal of an archived site; the server requires the exact site name.
+    deleteSite: (siteId, confirmName) => call(`/website/sites/${s(siteId)}`, { method: 'DELETE', body: { confirmName } }),
     listPages: (siteId, o) => call(`${site(siteId)}/pages`, o),
     createPage: (siteId, data, idempotencyKey) => call(`${site(siteId)}/pages`, { method: 'POST', body: data, idempotencyKey }),
     getDraft: (siteId, pageId, o) => call(`${site(siteId)}/pages/${s(pageId)}/draft`, o),

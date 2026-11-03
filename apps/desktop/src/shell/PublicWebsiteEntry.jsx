@@ -41,7 +41,10 @@ async function apiFetch(path, token, options = {}) {
 async function fetchWebsiteResolve(pathname) {
   const url = `${getApiUrl()}/public/website/resolve?path=${encodeURIComponent(pathname)}`
   const res = await fetch(url)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}))
+    throw Object.assign(new Error(`HTTP ${res.status}`), { code: body.code })
+  }
   return res.json()
 }
 
@@ -894,6 +897,8 @@ export function PublicWebsiteEntry() {
   }, [resolveData, navigate])
 
   if (resolveQuery.isPending) return <PublicPageLoader />
+  // The administrative hostname never shows a site; its root is the ERP.
+  if (resolveQuery.isError && resolveQuery.error?.code === 'administrative_origin') return <Navigate to="/app" replace />
   if (resolveQuery.isError)   return <PublicWebsite404 />
   if (resolveData?.initialized === false) return null
 

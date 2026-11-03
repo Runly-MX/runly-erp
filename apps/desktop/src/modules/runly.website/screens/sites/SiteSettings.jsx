@@ -118,7 +118,7 @@ export default function SiteSettings({ site, siteId, caps }) {
         </details>
         <details className="rounded-lg border border-[hsl(var(--border))] p-3">
           <summary className="cursor-pointer text-sm font-medium">Archivar este sitio</summary>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">El sitio deja de publicarse y se oculta de tu lista. Sus páginas, formularios y respuestas se conservan.</p>
+          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">El sitio deja de publicarse y sus direcciones dejan de responder. Pasa a Archivados en Sitios web, donde puedes restaurarlo (vuelve como borrador) o eliminarlo. Sus páginas, formularios y respuestas se conservan.</p>
           <CapabilityButton capability={caps.archive} className="mt-3" variant="destructive" onClick={() => setArchiveOpen(true)}><Archive className="h-4 w-4" /> Archivar sitio</CapabilityButton>
         </details>
       </section>
@@ -127,7 +127,7 @@ export default function SiteSettings({ site, siteId, caps }) {
         open={archiveOpen}
         onOpenChange={(open) => { if (!open && !archiving) { setArchiveOpen(false); setArchiveText('') } }}
         title="Archivar sitio"
-        description={`“${site.name}” dejará de publicarse y se ocultará de tu lista. Sus páginas, formularios y respuestas se conservan.`}
+        description={`“${site.name}” dejará de publicarse y pasará a Archivados. Sus páginas, formularios y respuestas se conservan.`}
         confirmLabel="Archivar sitio"
         loading={archiving}
         confirmDisabled={archiveText !== site.name}

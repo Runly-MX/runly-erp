@@ -61,5 +61,7 @@ export function requireWebsitePermission(requirePermission, permission) {
 
 export function websiteErrorHandler(error, c) {
   if (error instanceof WebsiteServiceError) return c.json({ error: error.message, code: error.code }, error.status)
+  // The client only sees a generic message; the operator needs the cause (name and code only, never request data).
+  console.error('[website] unhandled error:', error?.name, error?.code, String(error?.message ?? '').slice(0, 400))
   return c.json({ error: 'No se pudo completar la operación.' }, 500)
 }

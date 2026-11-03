@@ -209,3 +209,20 @@ Las migraciones son hacia adelante y aditivas; Prisma no las revierte. El ensayo
 ## Laboratorio frente a staging real
 
 Demostrado en laboratorio local desechable: lógica, permisos, aislamiento entre empresas, instalación y actualización con el instalador real e imágenes empaquetadas, persistencia de variables y secretos, migraciones sobre datos históricos, gateway Nginx real con hostnames `.test`. No demostrado: DNS, TLS, edge, caché de CDN, actualización con datos reales, rendimiento y operación. Este documento no declara apta ninguna instalación real.
+
+## Instalación autónoma (sin Developer Hub)
+
+Una instalación puede administrar sus propios subdominios sin registro global. Configuración mínima en el env de la instalación:
+
+```
+RUNLY_APP_URL=https://erp.ejemplo.com
+RUNLY_WEBSITE_NAMESPACE_ROOT=sitios.ejemplo.com
+RUNLY_WEBSITE_CONTENT_ROOT=<dominio registrable distinto del ERP, solo para ZIP>
+RUNLY_WEBSITE_PREVIEW_ROOT=<ídem, para vistas previas>
+```
+
+- DNS: `*.sitios.ejemplo.com` apunta al servidor de la instalación (con TLS comodín). Ese namespace es exclusivo de esta instalación: dos instalaciones no pueden usar el mismo sin coordinación (para eso existe el registro).
+- No se necesitan `RUNLY_REGISTRY_URL`, `RUNLY_INSTALLATION_ID` ni `RUNLY_INSTALLATION_PRIVATE_KEY`. Si se define `RUNLY_REGISTRY_URL`, el registro decide los nombres; un registro mal configurado nunca cae a decisiones locales.
+- Los nombres se reservan desde Website > Dominios (validación de formato, nombres reservados y colisiones en la base de la instalación). Un nombre liberado o de un sitio eliminado queda retirado y atado a su sitio: no se borra ni se reasigna.
+- La raíz del hostname administrativo (`RUNLY_APP_URL`) redirige a `/app`; los sitios solo se sirven desde hostnames asignados y listos. `localhost` y `127.0.0.1` son siempre el ERP.
+- Archivar un sitio lo deja de servir (sus nombres siguen reservados); restaurarlo lo devuelve como borrador sin republicar. Eliminar solo es posible desde Archivados, exige escribir el nombre del sitio y deja un registro retenido: nombres retirados, claves de pago y antispam borradas, auditoría conservada; páginas, versiones y respuestas permanecen sin referencias huérfanas.

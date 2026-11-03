@@ -1,6 +1,6 @@
 import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, AlertDescription, AlertTitle, ErrorState, LoadingState, SelectField, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
+import { Alert, AlertDescription, AlertTitle, ErrorState, LoadingState, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
 import { Archive, BookOpen, CreditCard, FileText, FormInput, Globe, History, LayoutDashboard, Palette, Settings, ShoppingBag, SlidersHorizontal, UploadCloud } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
 import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
@@ -109,28 +109,23 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
           <div><AlertTitle>Este sitio está archivado</AlertTitle><AlertDescription>Dejó de publicarse y no aparece en tu lista. Sus páginas, formularios y respuestas se conservan.</AlertDescription></div>
         </Alert>
       )}
-      <div className="flex min-h-0 flex-1 flex-col md:flex-row">
-        <nav aria-label="Secciones del sitio" className="hidden w-56 shrink-0 border-r border-[hsl(var(--border))] p-3 md:block">
-          <ul className="space-y-0.5">
-            {visibleSections.map((item) => (
-              <li key={item.id}>
-                <button
-                  type="button"
-                  aria-current={item.id === current ? 'page' : undefined}
-                  onClick={() => navigate(sitePath(siteId, item.id))}
-                  className={`flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${item.id === current ? 'bg-[hsl(var(--muted))] font-semibold' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]/60 hover:text-[hsl(var(--foreground))]'}`}
-                >
-                  <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" /> {item.label}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </nav>
-        <div className="border-b border-[hsl(var(--border))] p-3 md:hidden">
-          <SelectField label="Sección" value={current} onChange={(value) => navigate(sitePath(siteId, value))} options={visibleSections.map((item) => ({ value: item.id, label: item.label }))} />
-        </div>
-        <section className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</section>
-      </div>
+      <nav aria-label={`Secciones de ${data.name}`} className="border-b border-[hsl(var(--border))] px-2 md:px-4">
+        <ul className="flex gap-1 overflow-x-auto py-1.5">
+          {visibleSections.map((item) => (
+            <li key={item.id} className="shrink-0">
+              <button
+                type="button"
+                aria-current={item.id === current ? 'page' : undefined}
+                onClick={() => navigate(sitePath(siteId, item.id))}
+                className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${item.id === current ? 'bg-[hsl(var(--muted))] font-semibold' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]/60 hover:text-[hsl(var(--foreground))]'}`}
+              >
+                <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" /> {item.label}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </nav>
+      <section className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</section>
       <PublishSheet open={publishOpen} onOpenChange={setPublishOpen} site={data} pages={pages.data ?? []} activeRelease={release.data ?? null} />
       <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} siteId={siteId} draftPageIds={(pages.data ?? []).filter((page) => page.visibility === 'public').map((page) => page.id)} title="Vista previa del borrador guardado" />
     </div>

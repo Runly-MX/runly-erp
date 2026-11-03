@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { defaultTheme, defineTheme, serializePage } from '@raulbellosom/atlas-web-builder'
+import { defaultTheme, defineTheme } from '@raulbellosom/atlas-web-builder'
 import { Alert, AlertDescription, AlertTitle, Button, PageHeader, TextField } from '@runly/ui'
 import { AlertTriangle, Archive, CheckCircle2, Circle, FileText, Loader2, ShoppingBag } from 'lucide-react'
 import { companyFetch } from '../../../../lib/companyFetch.js'
@@ -55,7 +55,7 @@ export default function NewSiteScreen() {
   const [identity, setIdentity] = useState(null)
   const [steps, setSteps] = useState(null)
   const [fatal, setFatal] = useState(null)
-  const ctx = useRef({ keys: {}, siteId: null, revision: 0, logoFileId: null, pagesDone: new Set() })
+  const ctx = useRef({ keys: {}, siteId: null, revision: 0, logoFileId: null })
   const brandingQuery = useQuery({
     queryKey: ['website', companyId, 'branding'],
     queryFn: async () => (await api.companyBranding()).data,
@@ -107,16 +107,11 @@ export default function NewSiteScreen() {
           await api.createTheme({ siteId: ctx.current.siteId, name: 'Tema del sitio', tokens: built.tokens, typography: currentIdentity.font })
         }
         if (id === 'pages') {
-          const list = template.pages.filter((page) => selectedPages.includes(page.id))
-          for (const page of list) {
-            if (ctx.current.pagesDone.has(page.id)) continue
-            const slug = page.routePath.replace(/^\//, '').replace(/[^a-z0-9-]/g, '-') || 'inicio'
-            const created = (await api.createPage(ctx.current.siteId, { title: page.label, slug, routePath: page.routePath, pageType: 'page', visibility: 'public' }, key(`page:${page.id}`))).data
-            if (page.page) {
-              await api.saveDraft(ctx.current.siteId, created.id, { document: JSON.parse(serializePage(page.page)), expectedRevision: created.revision ?? 0 }, key(`draft:${page.id}`))
-            }
-            ctx.current.pagesDone.add(page.id)
-          }
+          // The server conforms the template to the publishable block catalog and creates every page atomically.
+          // The theme step already advanced the draft revision, so read the current one.
+          ctx.current.revision = (await api.getSite(ctx.current.siteId)).data?.draftRevision ?? ctx.current.revision
+          const applied = (await api.applyTemplate(ctx.current.siteId, template.id, { pageIds: selectedPages, includeTheme: false, expectedRevision: ctx.current.revision }, key('template'))).data
+          ctx.current.revision = applied?.draftRevision ?? ctx.current.revision
         }
         mark(id, 'done')
       } catch (error) {

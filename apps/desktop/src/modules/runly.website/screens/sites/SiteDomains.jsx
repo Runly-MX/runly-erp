@@ -47,7 +47,7 @@ export default function SiteDomains({ siteId, caps }) {
   async function act(domain, action) {
     setRowBusy(domain.hostname); setServerError(null)
     try {
-      await (action === 'activate' ? api.activateHostname(siteId, domain.hostname) : api.hostnameStatus(siteId, domain.hostname))
+      await (action === 'activate' ? api.activateHostname(siteId, domain.hostname) : action === 'release' ? api.releaseHostname(siteId, domain.hostname) : api.hostnameStatus(siteId, domain.hostname))
       await queryClient.invalidateQueries({ queryKey: websiteKeys.domains(companyId, siteId) })
     } catch (error) { setServerError(error) } finally { setRowBusy(null) }
   }
@@ -70,6 +70,7 @@ export default function SiteDomains({ siteId, caps }) {
                 <code className="break-all">{domain.hostname}</code>
                 <StatusPill tone={status.tone} size="sm">{status.label}</StatusPill>
                 {!domain.ready && domain.state === 'pending' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya. Actívala cuando la infraestructura esté lista.</span>}
+                {!domain.registryManaged && <CapabilityButton capability={caps.reserveHostname} size="sm" variant="outline" onClick={() => act(domain, 'release')} disabled={rowBusy === domain.hostname}>Liberar</CapabilityButton>}
                 {domain.registryManaged && !domain.ready && ['pending', 'assigned'].includes(domain.state) && (
                   <>
                     {domain.state === 'pending' && <CapabilityButton capability={caps.reserveHostname} size="sm" onClick={() => act(domain, 'activate')} disabled={rowBusy === domain.hostname}>Activar</CapabilityButton>}

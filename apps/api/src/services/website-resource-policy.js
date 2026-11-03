@@ -5,7 +5,7 @@ import { createFileAccess } from './files/access.js'
 
 export const WEBSITE_METHOD_PERMISSIONS = Object.freeze({
   listSites: 'website.site.read', saveSiteDraft: 'website.site.update',
-  getSite: 'website.site.read', getDefaultPageSite: 'website.pages.read', createSite: 'website.site.update', updateSite: 'website.site.update', deleteSite: 'website.site.update',
+  getSite: 'website.site.read', getDefaultPageSite: 'website.pages.read', createSite: 'website.site.update', updateSite: 'website.site.update', deleteSite: 'website.site.update', restoreSite: 'website.site.update', purgeSite: 'website.site.update',
   listPages: 'website.pages.read', getPage: 'website.pages.read', getPageByPath: 'website.pages.read',
   createPage: 'website.pages.create', updatePage: 'website.pages.update', saveDraft: 'website.pages.update',
   publishPage: 'website.pages.publish', softDeletePage: 'website.pages.delete',
@@ -69,7 +69,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
     const { companyId } = args
     const requiredIds = {
       saveSiteDraft: 'siteId',
-      updateSite: 'siteId', deleteSite: 'siteId', getPage: 'pageId', updatePage: 'pageId', saveDraft: 'pageId', publishPage: 'pageId', softDeletePage: 'pageId',
+      updateSite: 'siteId', deleteSite: 'siteId', restoreSite: 'siteId', purgeSite: 'siteId', getPage: 'pageId', updatePage: 'pageId', saveDraft: 'pageId', publishPage: 'pageId', softDeletePage: 'pageId',
       getTheme: 'themeId', updateTheme: 'themeId', updateMenu: 'menuId', softDeleteMenu: 'menuId', createMenuItem: 'menuId', reorderMenuItems: 'menuId',
       updateMenuItem: 'itemId', softDeleteMenuItem: 'itemId', updateBlogCategory: 'categoryId', softDeleteBlogCategory: 'categoryId',
       getBlogPost: 'postId', updateBlogPost: 'postId', saveBlogDraft: 'postId', publishBlogPost: 'postId', softDeleteBlogPost: 'postId',
@@ -81,7 +81,8 @@ export function createWebsiteResourcePolicy({ prisma }) {
     if (createSchemas[name]) parse(createSchemas[name], args, name !== 'createSite')
     if (updateSchemas[name]) parse(updateSchemas[name], args)
 
-    if (args.siteId) await site(companyId, args.siteId)
+    // Archived sites are disabled on purpose; restore and delete address them directly and verify state themselves.
+    if (args.siteId && !['restoreSite', 'purgeSite'].includes(name)) await site(companyId, args.siteId)
     const requiresSite = ['listPages', 'createPage', 'getPageByPath', 'listThemes', 'createTheme', 'upsertTheme', 'listMenus', 'createMenu', 'listBlogCategories', 'createBlogCategory', 'listBlogPosts', 'createBlogPost']
     if (requiresSite.includes(name) && !args.siteId) throw notFound('Recurso')
 
@@ -112,7 +113,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
       if (args.data.themeId) await resource('websiteTheme', companyId, args.data.themeId, args.siteId)
       if (args.data.settings?.logoFileId) await fileReference(args, args.data.settings.logoFileId, args.siteId)
     }
-    if (name === 'deleteSite') assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
+    if (['deleteSite', 'restoreSite', 'purgeSite'].includes(name)) assertWebsiteAccess(args.access, companyId, 'website.pages.publish')
 
     const theme = args.themeId ? await resource('websiteTheme', companyId, args.themeId, args.siteId) : null
     if (['createTheme', 'upsertTheme', 'updateTheme'].includes(name)) await publicMutation(args, theme?.siteId ?? args.siteId)

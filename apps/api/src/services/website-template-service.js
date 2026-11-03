@@ -3,6 +3,7 @@ import {createWebsiteDraftService,normalizeWebsiteDocument} from './website-draf
 import {assertWebsiteAccess} from './website-authorization-service.js'
 import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js'
 import {defaultTheme,defineTheme} from '@raulbellosom/atlas-web-builder'
+import {conformTemplateDocument} from './website-template-conform.js'
 
 export function createWebsiteTemplateService({prisma}) {
   const drafts=createWebsiteDraftService({prisma})
@@ -14,7 +15,7 @@ export function createWebsiteTemplateService({prisma}) {
     if(!Array.isArray(a.pageIds)||!a.pageIds.length||a.pageIds.length>100||new Set(a.pageIds).size!==a.pageIds.length||a.pageIds.some(id=>!template.pages.some(p=>p.id===id)))throw fail('validation_failed')
     if(typeof a.idempotencyKey!=='string'||a.idempotencyKey.length<16||a.idempotencyKey.length>200||!Number.isSafeInteger(a.expectedRevision))throw fail('validation_failed')
     if(a.includeTheme)for(const permission of ['website.site.update','website.theme.update'])assertWebsiteAccess(a.access,a.companyId,permission)
-    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:normalizeWebsiteDocument(p.page,{strict:true})}))
+    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:conformTemplateDocument(normalizeWebsiteDocument(p.page,{strict:true}))}))
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
       return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),expectedRevision:a.expectedRevision},async()=>{

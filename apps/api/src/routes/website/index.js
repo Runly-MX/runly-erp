@@ -119,5 +119,15 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
     },
   )
 
+  // Lifecycle of a whole site: archive (reversible), restore (back as an unpublished draft) and delete (tombstone, archived sites only).
+  const lifecycle = (method, status = 204) => async (c) => {
+    const body = method === 'purgeSite' ? await c.req.json().catch(() => ({})) : {}
+    await websiteSvc[method]({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), siteId: c.req.param('siteId'), actorId: c.get('userId') ?? null, confirmName: body.confirmName })
+    return c.body(null, status)
+  }
+  app.post('/website/sites/:siteId/archive', requirePermission('website.site.update'), lifecycle('deleteSite'))
+  app.post('/website/sites/:siteId/restore', requirePermission('website.site.update'), lifecycle('restoreSite'))
+  app.delete('/website/sites/:siteId', requirePermission('website.site.update'), lifecycle('purgeSite'))
+
   return app
 }

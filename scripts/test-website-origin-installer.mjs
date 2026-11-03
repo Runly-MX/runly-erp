@@ -11,7 +11,7 @@ const {build}=createRequire(new URL('../apps/api/package.json',import.meta.url))
 import {chromium} from 'playwright'
 const temp=mkdtempSync(join(tmpdir(),'runly-origin-lab-')),prefix='runly-origin-'+randomBytes(6).toString('hex'),network=prefix+'-net',owned=[]
 const docker=args=>execFileSync('docker',args,{encoding:'utf8',maxBuffer:1024*1024}).trim()
-const http=(url,host)=>new Promise((resolve,reject)=>{const req=httpRequest(url,{headers:{Host:host}},res=>{let body='';res.setEncoding('utf8');res.on('data',s=>body+=s);res.on('end',()=>resolve({status:res.statusCode,text:async()=>body}))});req.on('error',reject);req.end()})
+const http=(url,host)=>new Promise((resolve,reject)=>{const req=httpRequest(url,{headers:{Host:host}},res=>{let body='';res.setEncoding('utf8');res.on('data',s=>body+=s);res.on('end',()=>resolve({status:res.statusCode,headers:{get:k=>res.headers[k.toLowerCase()]},text:async()=>body}))});req.on('error',reject);req.end()})
 let browser,networkCreated=false
 try {
   const source=`import {Hono} from 'hono';import {serve} from '@hono/node-server';import {createWebsiteOriginGuard} from './src/services/website-origin-guard.js';
@@ -39,6 +39,8 @@ try {
       const response=await http(base+path,host);assert.ok([403,404].includes(response.status),`${file} ${host} ${path}: ${response.status}`);assert.doesNotMatch(await response.text(),/ADMIN_SHELL/)
     }
     const admin=await http(base+'/app/login','erp.localhost');assert.equal(admin.status,200);assert.match(await admin.text(),/ADMIN_SHELL/)
+    const adminRoot=await http(base+'/','erp.localhost');assert.equal(adminRoot.status,302,`${file} admin root`);assert.match(adminRoot.headers.get('location')??'',/\/app\/$/)
+    const siteRoot=await http(base+'/','site.localhost');assert.ok([403,404].includes(siteRoot.status),`${file} site root is never redirected into the ERP: ${siteRoot.status}`);assert.doesNotMatch(await siteRoot.text(),/ADMIN_SHELL/)
     const context=await browser.newContext();await context.route('**/*',route=>{const url=new URL(route.request().url());return url.hostname.endsWith('.localhost')&&url.port===port?route.continue():route.abort()})
     const page=await context.newPage()
     for(const path of ['/published?edit=1','/missing?edit=1','/app/login']){

@@ -377,50 +377,15 @@ export const runlyWebsiteManifest = createModuleManifest({
     { path: '/sites/:siteId/appearance', permissions: ['website.site.read', 'website.theme.read'] },
     { path: '/sites/:siteId/pages/:pageId/editor', permissions: ['website.site.read', 'website.pages.read'] },
   ],
+  // One entry: the sections of a site (pages, blog, catalog, forms, appearance, domains...) are tabs inside the site
+  // workspace, which always names the active site. The old /pages, /blog, /theme... routes remain as redirects.
   navigation: [
     {
-      label: 'Sitio web',
+      label: 'Sitios web',
       path: '/',
       icon: 'Globe',
       layout: 'main',
       permissionKey: 'website.access',
-    },
-    {
-      label: 'Contenido',
-      icon: 'FileText',
-      layout: 'main',
-      permissionKey: 'website.pages.read',
-      children: [
-        { label: 'Paginas',  path: '/pages', icon: 'FileText', permissionKey: 'website.pages.read' },
-        { label: 'Blog',     path: '/blog',  icon: 'BookOpen', permissionKey: 'website.pages.read' },
-      ],
-    },
-    {
-      label: 'Diseno',
-      icon: 'Palette',
-      layout: 'main',
-      permissionKey: 'website.theme.read',
-      children: [
-        { label: 'Tema',       path: '/theme',     icon: 'Palette',        permissionKey: 'website.theme.read' },
-        { label: 'Plantillas', path: '/templates', icon: 'LayoutTemplate', permissionKey: 'website.pages.create' },
-      ],
-    },
-    {
-      label: 'Negocio',
-      icon: 'CreditCard',
-      layout: 'main',
-      permissionKey: 'website.site.update',
-      children: [
-        { label: 'Formularios', path: '/forms',    icon: 'FormInput',  permissionKey: 'website.pages.read' },
-        { label: 'Pagos',       path: '/payments', icon: 'CreditCard', permissionKey: 'website.site.update' },
-      ],
-    },
-    {
-      label: 'Configuracion',
-      path: '/settings',
-      icon: 'Settings',
-      layout: 'main',
-      permissionKey: 'website.site.update',
     },
   ],
   blueprints: [
