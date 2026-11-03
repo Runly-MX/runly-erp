@@ -89,16 +89,6 @@ Alta de una instalación: (1) `node scripts/registry-installation-key.mjs --env-
 
 Rotación: `--rotate` (la anterior sigue válida 24 h), reiniciar la API, `--revoke-previous`. Compromiso: `POST /api/v1/admin/registry/keys/revoke` con la huella (inmediato) y `.../keys/enroll` tras verificar al titular. Los instaladores conservan los valores existentes y no los imprimen (verificado en el ensayo del instalador, incluida la rotación editando el archivo).
 
-## Siguiente ensayo de infraestructura (cuando se autorice)
-
-1. Staging del Hub: aplicar las dos migraciones y desplegar; comprobar `/registry/v1/names` sin firma (401).
-2. Operador: registrar el namespace de staging con `ready:false`; enrolar el Edge y dos instalaciones de staging con su `originUrl`.
-3. Edge de staging con un certificado wildcard de la CA de staging o interna; sin DNS público de producción.
-4. Rellenar las variables en ambos ERP y reiniciar; reservar el mismo nombre en ambos y comprobar que solo uno lo obtiene.
-5. Marcar el namespace `ready:true`, activar, publicar y comprobar la resolución por el Edge con un navegador real y con `curl --resolve`.
-6. Repetir las comprobaciones de suspensión, desconexión de una instalación, caída del registro y rotación de clave con tiempos reales, y medir latencias del Edge.
-7. Registrar resultados y decidir la apertura de `*.sites.runly.mx` y la compra del dominio de contenido ZIP por separado.
-
 ## Release de imágenes selectivo e inmutable
 
 `node infra/docker/release-selective.mjs` (alias `pnpm docker:release:selective`) sustituye a `pnpm docker:release` para Website: solo api, web y worker (DWG y el resto quedan en `build-push.mjs`), etiqueta `<imagen>-<sha12>` del commit exacto, nunca toca `-latest` por sí mismo, y registra en `.artifacts/releases/<sha12>.json` el digest de cada imagen y el digest previo de `-latest` para revertir.
@@ -116,20 +106,91 @@ Probado: 6 pruebas unitarias (argumentos, imágenes no permitidas, confirmación
 
 Antes de cualquier actualización: respaldo `complete` (base, buckets, módulos y configuración; requiere `BACKUP_STORAGE_S3_*` en modo external, ver `docs/deployment/backup-recovery.md`) y copia fuera del servidor del material de recuperación. Guardar `docker image inspect --format '{{index .RepoDigests 0}}'` de las imágenes en ejecución. La restauración de prueba va a un destino aislado con API y worker detenidos hasta recuperar base y archivos. El bucket `runly-website-releases` forma parte del respaldo: sin él los releases publicados no se pueden servir ni revertir.
 
-## Procedimiento del primer staging (cuando se autorice)
+## Procedimiento operativo: staging completamente independiente (Hub, Edge y dos ERP)
 
-Todo en una instancia independiente (VPS y Supabase propios, sin datos de producción, IP en el firewall), nunca en la instalación de producción.
+Nada de esto se ha ejecutado. Requiere tu autorización explícita para publicar imágenes y para tocar servidores. Convención: `<stg>` es la zona DNS de staging (no `runly.mx`), `HUB_SHA=b16de4a0065c71cdc4a4fb742997734db79b8359` (main local del Hub), `ERP_SHA=dc704354110379c192137ee657a54152d1e1cf2e` (etiqueta `dc7043541103`). Todos los hosts son de staging, sin datos ni credenciales de producción.
 
-1. Datos: copia anonimizada de una instalación previa, o sitios, formularios con respuestas y productos publicados sintéticos.
-2. Respaldo `complete` y registro de digests vigentes (sección anterior).
-3. Con autorización explícita: `git push origin main` y anotar el SHA (`git rev-parse HEAD`).
-4. Previsualizar: `node infra/docker/release-selective.mjs --images=api,web`.
-5. Construir: `node infra/docker/release-selective.mjs --images=api,web --build`.
-6. Publicar etiquetas SHA: `node infra/docker/release-selective.mjs --images=api,web --push --confirm=<sha12>`.
-7. En el servidor de staging, tras añadir y rellenar las variables `RUNLY_WEBSITE_*` y `RUNLY_APP_URL` en `.env.external`: apuntar `RUNLY_API_IMAGE` y `RUNLY_WEB_EXTERNAL_IMAGE` a las etiquetas SHA y ejecutar `RUNLY_INSTALLER_REF=<sha completo> ./update-external.sh`. Así staging no depende de `-latest` (probado en laboratorio con etiquetas SHA e IDs; falta probarlo contra un registro real).
-8. Verificar: `/health`; sitios históricos con sus URLs; `catalog_mode` `legacy_all` en los previos; respuestas de formularios intactas; crear, publicar, activar y revertir un sitio; importar un ZIP y comprobar el origen aislado desde un navegador real; `/app` no responde en hostnames de sitio.
-9. Repetir `update-external.sh` y comprobar que no cambia nada.
-10. Solo con staging aprobado y autorización aparte: `--promote --confirm=<sha12>` para producción.
+### 0. Hosts y DNS (solo zona de staging)
+
+| Host | Función | Registros |
+|---|---|---|
+| H (Hub) | Hub + Supabase propio, Nginx del Hub | `devs.<stg>`, `api.devs.<stg>`, `mcp.devs.<stg>`, `supabase.devs.<stg>` (A hacia H) |
+| H (Edge) | Edge en el mismo host, en `127.0.0.1:14060`, detrás del Nginx de H que termina TLS (ver 2.7) | `*.sites.<stg>` (A/AAAA hacia H) |
+| E1, E2 | ERP en modo external, cada uno con su Supabase | `erp1.<stg>`, `erp2.<stg>` y el origen público del gateway de cada uno (su Nginx web) |
+
+Certificados: los del Hub los emite `prod:tls` (HTTP-01). El comodín `*.sites.<stg>` debe emitirse fuera de banda (DNS-01) con una CA de staging o interna y copiarse a H en `/etc/runly-devhub/tls/sites.crt.pem` y `sites.key.pem` (root, 0600; solo Nginx los lee). Las variables del Edge no admiten rutas fuera de `/etc/runly-devhub/` ni claves en línea. Alternativa que `prod:setup` no cubre: Edge en un host propio con `EDGE_TLS_CERT_FILE`/`EDGE_TLS_KEY_FILE` sirviendo TLS directo en 443 (unidad y entorno instalados a mano); no es posible en el mismo host que el Nginx del Hub (conflicto del puerto 443).
+
+### 1. Imágenes del ERP (con tu autorización de publicación)
+
+Desde la raíz del ERP, en el commit `ERP_SHA`:
+
+    node infra/docker/release-selective.mjs --images=api,web,worker --ref=dc704354110379c192137ee657a54152d1e1cf2e --build
+    node infra/docker/release-selective.mjs --images=api,web,worker --ref=dc704354110379c192137ee657a54152d1e1cf2e --push --confirm=dc7043541103
+
+Anota los digests de `raulbellosom/runlyerp:*-latest` vigentes antes de promover. Para el staging NO se ejecuta `--promote`: E1 y E2 usan las etiquetas por SHA (paso 5). DWG no interviene. No usar `pnpm docker:release`.
+
+### 2. Hub en H (primera instalación)
+
+1. `git clone <repositorio del Hub> /opt/runly-developer-hub && cd /opt/runly-developer-hub && git checkout b16de4a0065c71cdc4a4fb742997734db79b8359`
+2. Pre-genera la identidad del Edge (el id se elige ahora para poder configurarlo antes de enrolarlo):
+
+        EDGE_ID=$(node -e "console.log(crypto.randomUUID())")
+        sudo useradd --system --user-group --no-create-home --home-dir /nonexistent --shell /usr/sbin/nologin runly-devhub-edge
+        sudo node -e "const c=require('node:crypto'),f=require('node:fs');const k=c.generateKeyPairSync('ed25519');f.writeFileSync('/etc/runly-devhub/edge.key',k.privateKey.export({format:'der',type:'pkcs8'}).subarray(-32).toString('base64url')+'\n',{mode:0o640});console.log('EDGE_PUBLIC_KEY='+k.publicKey.export({format:'jwk'}).x)"
+        sudo chown root:runly-devhub-edge /etc/runly-devhub/edge.key
+
+   Guarda el `EDGE_PUBLIC_KEY` impreso (la privada no se imprime).
+3. `sudo cp .env.production.example /etc/runly-devhub/production.env && sudo chmod 600 /etc/runly-devhub/production.env` y rellénalo con los valores de staging (según el runbook Beta del Hub). Añade: `EDGE_ENABLED=true`, `EDGE_REGISTRY_URL=https://api.devs.<stg>`, `EDGE_ID=<EDGE_ID>`, `EDGE_PRIVATE_KEY_FILE=/etc/runly-devhub/edge.key`, `EDGE_NAMESPACES=sites.<stg>`, `EDGE_HOST=127.0.0.1`, `EDGE_PORT=14060`, `EDGE_TRUSTED_PROXIES=127.0.0.1`.
+4. `sudo pnpm prod:preflight --env-file /etc/runly-devhub/production.env`
+5. `sudo pnpm prod:setup --env-file /etc/runly-devhub/production.env --smoke-email <tu correo>`
+   Instala y arranca la unidad `runly-devhub-edge.service`. Hasta que se enrole el Edge, sus peticiones al registro devuelven 401 y el Edge responde 503 (esperado).
+6. Verifica: `sudo pnpm prod:status`, `curl -s -o /dev/null -w '%{http_code}' https://api.devs.<stg>/registry/v1/names` debe devolver 401, y `systemctl is-active runly-devhub-edge`.
+
+7. Nginx para el comodín (una vez, a mano; `prod:setup` no lo gestiona): `sudo cp infra/production/nginx/edge-sites.conf.example /etc/nginx/conf.d/runly-edge-sites.conf`, sustituye `<stg>`, `sudo nginx -t && sudo systemctl reload nginx`.
+
+### 3. Operador del registro (en H)
+
+Crea o designa un administrador de plataforma (`pnpm platform:grant-admin`, ver su ayuda) y usa su id de usuario:
+
+    OP="sudo -u runly-devhub node scripts/registry-operator.mjs --operator <ID del administrador>"
+    $OP namespace --root sites.<stg> --ready false
+    $OP enroll --id <EDGE_ID> --kind edge --label "edge staging" --public-key <EDGE_PUBLIC_KEY>
+
+La unidad del Edge ya está corriendo: en cuanto se enrola deja de responder 503.
+
+### 4. ERP en E1 y E2 (modo external, instalación independiente)
+
+En cada ERP, con su `.env.external` ya completado según `infra/installer/README.md` y sin tocar producción:
+
+1. `node scripts/registry-installation-key.mjs --env-file .env.external` (muestra la clave pública; la privada queda en el archivo). Si usas un archivo de secreto, mueve la clave a `RUNLY_INSTALLATION_PRIVATE_KEY_FILE` con modo 0600.
+2. En H, enrola cada instalación con el origen público de su gateway:
+
+        $OP enroll --label "erp1 staging" --public-key <clave pública de E1> --origin https://erp1.<stg>
+
+   Anota el `id` devuelto.
+3. En `.env.external` de cada ERP: `RUNLY_REGISTRY_URL=https://api.devs.<stg>`, `RUNLY_INSTALLATION_ID=<id>`, `RUNLY_WEBSITE_NAMESPACE_ROOT=sites.<stg>`, `RUNLY_APP_URL=https://erp1.<stg>` (HTTPS y nombre de dominio), y `RUNLY_WEBSITE_CONTENT_ROOT`/`RUNLY_WEBSITE_PREVIEW_ROOT` solo si hay dominio independiente para ZIP.
+
+### 5. Actualizar los ERP a las imágenes por SHA
+
+En E1 y E2, antes de actualizar, fija en `.env.external`:
+
+    RUNLY_API_IMAGE=raulbellosom/runlyerp:api-dc7043541103
+    RUNLY_WORKER_IMAGE=raulbellosom/runlyerp:worker-dc7043541103
+    RUNLY_WEB_EXTERNAL_IMAGE=raulbellosom/runlyerp:web-dc7043541103
+
+y ejecuta `RUNLY_INSTALLER_REF=<SHA de 40 caracteres ya publicado en GitHub> ./update-external.sh`. El instalador conserva esas referencias entre actualizaciones, las fija por ID de imagen y no usa `latest`; para volver atrás cambia las tres variables por las etiquetas anteriores y repite el comando (probado en laboratorio: ida, vuelta y repetición no tocan el esquema). El `RUNLY_INSTALLER_REF` requiere que el commit esté publicado, lo que necesita tu autorización de push.
+
+### 6. Activación y verificación
+
+1. Con DNS, certificado y Edge funcionando: `$OP namespace --root sites.<stg> --ready true`.
+2. En cada ERP (administrador de empresa): Website, Dominios, Comprobar disponibilidad, Reservar y Activar el mismo nombre en E1 y E2 (solo uno lo obtiene); publicar un sitio.
+3. `curl --resolve <nombre>.sites.<stg>:443:<IP de H> https://<nombre>.sites.<stg>/` debe devolver la página del sitio con `data-release` igual al release activo; un nombre sin reservar, 404.
+4. Repite con tiempos reales: suspensión (`$OP name-state --hostname ... --state suspended --reason ...`, efecto en menos de 30 s en el Edge y 60 s en el ERP), apagar E1 (502 solo para sus nombres), detener el API del Hub unos minutos (el Edge sirve rutas confirmadas hasta 15 min y luego 503), y rotación de clave (`--rotate`, reinicio, `--revoke-previous`).
+5. Hub y Edge se actualizan después con `git pull && sudo pnpm prod:update` en H: el Edge no se detiene durante la actualización del Hub. Cambiar la configuración del Edge (por ejemplo `EDGE_NAMESPACES`) exige una nueva revisión del Hub, como cualquier cambio de configuración del instalador del Hub.
+
+### Reversión
+
+Hub: `sudo pnpm prod:rollback`. Edge: `sudo systemctl stop runly-devhub-edge` (los sitios dejan de resolverse públicamente; las instalaciones siguen sirviendo a quien las contacte directamente). ERP: variables de imagen a las etiquetas anteriores y `./update-external.sh`. Registro: sin borrados; un nombre problemático se suspende con `name-state`.
 
 ## Reversión
 
@@ -139,10 +200,11 @@ Las migraciones son hacia adelante y aditivas; Prisma no las revierte. El ensayo
 
 1. **Registro global de subdominios**: el núcleo está implementado y probado en laboratorio (Developer Hub + integración Website, ver `website-subdomain-registry-proposal.md`) pero **no desplegado**. Corrección de un error de este documento: `POST /website/sites/:id/domains` sí existía, pero solo reservaba con unicidad local y nada hacía la transición `pending` a `assigned`; el registro y la sincronía lo resuelven. Sin registro desplegado y un namespace listo, los sitios nuevos no tienen subdominio automático.
 2. **Dominio registrable independiente** con DNS comodín y certificado para ZIP y vista previa: decisión y compra externas.
-3. `main` no está en GitHub ni hay imágenes publicadas: el actualizador instalaría el `main` previo.
+3. `main` del ERP no está en GitHub ni hay imágenes publicadas: `RUNLY_INSTALLER_REF` exige un commit publicado. El Hub tampoco está desplegado.
 4. El ensayo del instalador no usa DNS, TLS, edge ni caché reales ni datos reales; el hostname se asigna por SQL allí. El laboratorio del registro (`pnpm test:website:registry`) sí reserva y activa por la API real.
 5. `release-selective.mjs --push/--promote` sin probar contra un registro (sí `--build` y `--dry-run`).
-6. Pendientes sin automatizar: touch real, lector de pantalla, caché real en CDN.
+6. La unidad systemd del Edge y su integración en el instalador del Hub están cubiertas por pruebas (configuración, arranque, reinicio, apagado, ausencia de secretos), pero no se ejecutaron bajo systemd real (no hay systemd en el entorno de pruebas) ni el Nginx de ejemplo del Edge se ha probado contra un Nginx real.
+7. Pendientes sin automatizar: touch real, lector de pantalla, caché real en CDN.
 
 ## Laboratorio frente a staging real
 
