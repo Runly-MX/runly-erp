@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createPrivateKey, createPublicKey, sign, verify, createHash } from 'node:crypto'
-import { createRegistryClient, createRegistryClientFromEnv, RegistryError, RegistryUnavailableError } from '../website-registry-client.js'
+import { createRegistryClient, createRegistryClientFromEnv, createRegistryClientFromEnvSafe, RegistryError, RegistryUnavailableError } from '../website-registry-client.js'
 import { signingString, slugProblem } from '../website-registry-contract.js'
 import { localLiveness } from '../website-hostname-service.js'
 
@@ -85,4 +85,13 @@ test('a key file is preferred over the environment variable, and a real namespac
     assert.equal(localFallbackAllowed(client, 'sites.lab.test'), false, 'with a registry configured the registry always decides')
     assert.equal(localFallbackAllowed(null, undefined), false)
   } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('a broken registry configuration degrades to "no registry" without leaking the key or stopping the boot', () => {
+  const warnings = []
+  const bad = { RUNLY_REGISTRY_URL: 'http://x', RUNLY_INSTALLATION_ID: 'i', RUNLY_INSTALLATION_PRIVATE_KEY: 'SECRET-NOT-A-KEY' }
+  assert.equal(createRegistryClientFromEnvSafe(bad, { warn: (...args) => warnings.push(args.join(' ')) }), null)
+  assert.equal(createRegistryClientFromEnvSafe({ ...bad, RUNLY_INSTALLATION_PRIVATE_KEY: undefined, RUNLY_INSTALLATION_PRIVATE_KEY_FILE: '/nonexistent/key' }, { warn: (...args) => warnings.push(args.join(' ')) }), null)
+  assert.equal(warnings.length, 2); assert.equal(warnings.join('').includes('SECRET-NOT-A-KEY'), false)
+  assert.ok(createRegistryClientFromEnvSafe({ ...bad, RUNLY_INSTALLATION_PRIVATE_KEY: Buffer.alloc(32, 1).toString('base64url') }))
 })

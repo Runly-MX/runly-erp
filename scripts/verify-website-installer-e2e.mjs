@@ -7,7 +7,7 @@ import assert from 'node:assert/strict'
 import { createRequire } from 'node:module'
 import { readFile, writeFile, mkdir, copyFile, cp } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { createHash, randomUUID } from 'node:crypto'
+import { createHash, randomBytes, randomUUID } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
 import { delimiter, dirname, join, resolve, sep } from 'node:path'
 import { createStudioStack, command, unusedPort } from './fixtures/studio/supabase-stack.mjs'
@@ -245,6 +245,22 @@ const websiteAfter = ({ fresh = false } = {}) => async ({ stack, run, state: see
   const second = await run('configured'); assert.equal(second.ok, true, `update with Website settings must succeed\n${second.output.slice(-1500)}`); noLeak('configured', second.output)
   env = await read()
   for (const [key, value] of [['RUNLY_WEBSITE_CONTENT_ROOT', lab.content], ['RUNLY_WEBSITE_PREVIEW_ROOT', lab.preview], ['RUNLY_WEBSITE_NAMESPACE_ROOT', lab.namespace], ['RUNLY_APP_URL', lab.app]]) assert.deepEqual(envValue(env, key), [value], `${key} survives the update`)
+  // 6b. Registry settings: administrator-owned, preserved by updates, rotatable by editing, never printed, and an unreachable
+  // registry never blocks the installation (platform subdomains simply stay unavailable; published sites are unaffected).
+  const seedOne = randomBytes(32).toString('base64url'), seedTwo = randomBytes(32).toString('base64url')
+  secrets.push(seedOne, seedTwo)
+  const setEnv = async (pairs) => { let text = await read(); for (const [key, value] of pairs) text = text.replace(new RegExp(`^${key}=.*$`, 'm'), () => `${key}=${value}`); await writeFile(envFile, text) }
+  const installationId = randomUUID()
+  await setEnv([['RUNLY_REGISTRY_URL', 'http://127.0.0.1:9'], ['RUNLY_INSTALLATION_ID', installationId], ['RUNLY_INSTALLATION_PRIVATE_KEY', seedOne]])
+  const withRegistry = await run('registry-settings'); assert.equal(withRegistry.ok, true, withRegistry.output.slice(-1500)); noLeak('registry-settings', withRegistry.output)
+  assert.deepEqual(envValue(await read(), 'RUNLY_INSTALLATION_PRIVATE_KEY'), [seedOne], 'the existing key is never overwritten by an update')
+  assert.deepEqual(envValue(await read(), 'RUNLY_INSTALLATION_ID'), [installationId])
+  await setEnv([['RUNLY_INSTALLATION_PRIVATE_KEY', seedTwo]]) // rotation: the administrator replaces the key
+  const rotated = await run('registry-rotated'); assert.equal(rotated.ok, true, rotated.output.slice(-1500)); noLeak('registry-rotated', rotated.output)
+  assert.deepEqual(envValue(await read(), 'RUNLY_INSTALLATION_PRIVATE_KEY'), [seedTwo], 'a rotated key survives further updates')
+  const apiLogs = await command('docker', ['logs', '--tail', '500', `${stack.name}-app-api-external`]).catch(() => '')
+  for (const secret of [seedOne, seedTwo]) assert.equal(apiLogs.includes(secret), false, 'the API log never contains the key')
+  assert.equal((await fetch(`${stack.urls.api}/health`)).status, 200, 'an unreachable registry does not stop the API')
   // 7. Publish a site and resolve it through the packaged Nginx and gateway.
   const created = (await call('/website/sites', { method: 'POST', status: 201, body: { name: 'Sitio ensayo' } })).data
   const page = (await call(`/website/sites/${created.id}/pages`, { method: 'POST', status: 201, body: { title: 'Home', slug: 'home', routePath: '/', visibility: 'public' } })).data

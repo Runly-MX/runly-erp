@@ -77,3 +77,12 @@ export function createRegistryClientFromEnv(env = process.env, options = {}) {
   if (!baseUrl || !installationId || !privateKey) return null
   return createRegistryClient({ baseUrl, installationId, privateKey, ...options })
 }
+
+// A misconfigured registry (bad key, unreadable key file) must not stop the ERP from booting: it is reported without any
+// secret and treated as "no registry", so platform subdomains stay unavailable and nothing is ever assigned locally.
+export function createRegistryClientFromEnvSafe(env = process.env, { warn = console.error, ...options } = {}) {
+  try { return createRegistryClientFromEnv(env, options) } catch (error) {
+    warn('[website-registry] invalid registry configuration; platform subdomains are disabled:', error?.message?.startsWith('REGISTRY_') ? error.message : 'key unreadable')
+    return null
+  }
+}

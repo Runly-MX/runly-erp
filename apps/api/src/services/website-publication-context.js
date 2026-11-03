@@ -7,7 +7,7 @@ const bundledRuntime=fileURLToPath(new URL('../../public/website-runtime',import
 import {createWebsiteReleaseStorage,releaseBytesHash} from './website-release-storage.js'
 import {createWebsiteReleaseService} from './website-release-service.js'
 import {createWebsiteGatewayService} from './website-gateway-service.js'
-import {createRegistryClientFromEnv} from './website-registry-client.js'
+import {createRegistryClientFromEnvSafe} from './website-registry-client.js'
 import {createWebsiteHostnameService} from './website-hostname-service.js'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {createWebsiteImportService} from './website-import-service.js'
@@ -37,7 +37,7 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
  const releases=createWebsiteReleaseService({prisma,storage,runtime,readFile,imports,isolation,...options})
  const adminUrl=process.env.RUNLY_APP_URL
  const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,registryMaxStaleMs:Number(process.env.RUNLY_REGISTRY_MAX_STALE_MS)||undefined,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host),...options})
- const registry=options.registry===undefined?createRegistryClientFromEnv(process.env):options.registry
+ const registry=options.registry===undefined?createRegistryClientFromEnvSafe(process.env):options.registry
  const hostnames=createWebsiteHostnameService({prisma,registry,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,gateway})
  const staticServing=createWebsiteStaticServing({prisma,storage,isolation})
  gateway.staticContent=staticServing.serve
