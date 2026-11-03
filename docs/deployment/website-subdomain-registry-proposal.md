@@ -7,10 +7,25 @@
 | Arquitectura centralizada para múltiples instalaciones | Dirección aprobada |
 | Núcleo del registro (servicio, API firmada, operador, auditoría) | **Implementado y probado en laboratorio**, en el Developer Hub (rama `website-subdomain-registry`) |
 | Integración Website (reservar, comprobar, activar, liberar, estado, sincronía) | **Implementada y probada en laboratorio** (rama `website-registry`) |
-| Despliegue del registro, DNS wildcard, TLS, edge | **No autorizado** y no realizado |
+| Seguridad del registro (rotación de claves, revocación, límites por IP e instalación, anti-repetición, auditoría sin secretos) | **Implementada y probada en laboratorio** (Hub) |
+| Runly Edge (enrutamiento público hostname -> instalación -> release) | **Implementado y probado en laboratorio** (Hub, `apps/edge`) |
+| Dos instalaciones ERP reales con registro y Edge | **Probado en laboratorio** (`pnpm test:website:multi`, 10 comprobaciones) |
+| Despliegue del registro y del Edge, DNS wildcard, certificados reales | **No autorizado** y no realizado |
 | Dominio registrable independiente para ZIP | Aprobado conceptualmente; sin seleccionar ni comprar |
 
 Objetivo vigente: subdominios automáticos `<slug>.sites.runly.mx` para empresas de múltiples instalaciones de Runly, con unicidad global. La distribución real todavía no funciona: faltan el despliegue del registro, el edge y DNS/TLS (ver "Dependencias y bloqueos").
+
+## Garantías de propagación y de disponibilidad (política explícita)
+
+| Situación | Garantía |
+|---|---|
+| Registro alcanzable | Una suspensión, revocación o cambio de readiness llega al Edge en `EDGE_CACHE_TTL_MS` (30 s) y al espejo local de cada instalación en `RUNLY_REGISTRY_SYNC_MS` (60 s, antes 5 min). |
+| Registro inaccesible | El Edge sigue sirviendo solo rutas que el registro confirmó como servidas, como máximo `EDGE_MAX_STALE_MS` (15 min); después responde 503. Nunca sirve desde datos viejos un nombre que no estaba servido. Cada instalación sirve los nombres gestionados por el registro hasta `RUNLY_REGISTRY_MAX_STALE_MS` (24 h) desde la última sincronía completa; después los trata como inexistentes (404) hasta volver a sincronizar. |
+| Nombres históricos (`registry_managed=false`) | No dependen del registro nunca. |
+| Reservas nuevas con el registro caído | Fallan con 503 `registry_unavailable`; nunca se asignan localmente. |
+| Silencio de una instalación | No libera ningún nombre. |
+
+Así ninguna decisión de seguridad queda obsoleta indefinidamente, y un corte breve del registro no tumba sitios legítimos.
 
 ## Dónde vive el registro
 
@@ -55,6 +70,14 @@ Reglas de nombre (contrato compartido): 3 a 50 caracteres `[a-z0-9-]`, sin `--` 
 - Sincronía (`RUNLY_REGISTRY_SYNC_MS`, 5 min por defecto): copia suspensiones, revocaciones y disponibilidad del namespace. Solo actualiza filas que ya existen: no crea titularidad, no libera ni borra.
 - Variables: `RUNLY_REGISTRY_URL`, `RUNLY_INSTALLATION_ID`, `RUNLY_INSTALLATION_PRIVATE_KEY`; la llave se genera con `node scripts/registry-installation-key.mjs --env-file .env.external` (no se imprime; se muestra la pública para enrolar).
 
+## Claves, rotación y compromiso
+
+Cada instalación puede tener hasta dos claves Ed25519 vivas. La rotación (`node scripts/registry-installation-key.mjs --env-file .env.external --rotate`) la firma una clave vigente, el registro acepta la nueva y mantiene la anterior durante una ventana de gracia (24 h por defecto, 60 s a 7 días); se reinicia la API con la nueva y luego `--revoke-previous` revoca la anterior. Una clave comprometida la revoca un operador al instante (incluso dentro de su gracia); si no queda ninguna clave válida, el operador verifica al titular por otro canal y enrola una nueva. La auditoría identifica la clave firmante por huella de 16 hex y nunca contiene claves ni firmas. La llave privada vive en el archivo de entorno del instalador (modo 600) o, preferentemente, en un archivo (`RUNLY_INSTALLATION_PRIVATE_KEY_FILE`) montado como secreto para que no quede en el entorno del contenedor; nunca se imprime, y una configuración inválida desactiva los subdominios sin impedir el arranque del ERP.
+
+## Runly Edge
+
+Componente de enrutamiento público, en el Hub (`apps/edge`): comparte contrato, límites y despliegue con el registro y no añade base de datos ni servicio de otra categoría. Resuelve `hostname -> instalación -> origen confiable`; cada instalación resuelve empresa, sitio y release activo. Solo usa el `Host` de la conexión (descarta `X-Forwarded-*`, `Forwarded`, `Authorization`), exige un solo `Host`, forma de origen y `<slug>.<namespace>`, y con TLS exige que el SNI coincida. El destino es únicamente el `origin_url` que un operador enroló (sin rutas ni credenciales; los destinos privados, loopback o de metadatos se rechazan, también por reenlace de DNS; no sigue redirecciones ni revela el origen). Cachea las decisiones con TTL, tolera la caída del registro con la política acotada anterior, aísla instalaciones desconectadas con un 502 genérico y un circuito breve, y registra sin consultas, cabeceras ni orígenes. Detalle en `docs/edge.md` del Hub.
+
 ## Contrato de resolución
 
 `hostname → instalación → empresa → sitio → release`: el hostname es el de la conexión (`Host`; las cabeceras reenviadas se ignoran). El registro decide qué instalación es titular; la instalación resuelve empresa, sitio y release activo con su fila local. Un hostname no registrado, suspendido, revocado, liberado o sin infraestructura lista responde 404. Servir un sitio publicado **no llama al registro**: una caída del registro no lo afecta, y el silencio nunca libera un nombre.
@@ -65,15 +88,17 @@ Reglas de nombre (contrato compartido): 3 a 50 caracteres `[a-z0-9-]`, sin `--` 
 
 ## Pruebas
 
-Hub (`pnpm test:registry`, PostgreSQL desechable con el rol real `hub_runtime`): 13 pruebas, entre ellas 30 rondas de carrera entre dos instalaciones con un único ganador, idempotencia concurrente, aislamiento entre instalaciones, ciclo completo, renombrado atómico, acciones de operador, auditoría inmutable, silencio sin liberación y la regla de `runly.mx`.
+Seguridad del registro (Hub, `pnpm test:registry`): 21 pruebas, incluidas rotación sin interrupción, revocación de una clave comprometida y recuperación, repetición de peticiones también tras una rotación, auditoría sin material de claves, tipos de principal (el Edge solo resuelve y nunca recibe empresa ni sitio) y límites por IP e instalación con proxies de confianza. Edge (Hub, `pnpm test:edge`): 11 pruebas, incluidas SSRF y reenlace de DNS, redirecciones, TLS con un certificado local, política de caducidad acotada e instalaciones desconectadas. Laboratorio multiinstalación (ERP, `pnpm test:website:multi`): dos ERP reales y desechables (cada uno con su Supabase/PostgreSQL y su API), un registro y el Edge; 10 comprobaciones: carreras reales por el mismo nombre entre ambas instalaciones, asociación a su sitio, resolución por el Edge, publicación, actualización y rollback, aislamiento y cabeceras falsificadas, rotación de clave en vivo, desconexión de una instalación, suspensión y restauración, caída del registro con recuperación, y revocación de una instalación.
+
+Núcleo (Hub, 13 de las 21 pruebas de `pnpm test:registry`, PostgreSQL desechable con el rol real `hub_runtime`), entre ellas 30 rondas de carrera entre dos instalaciones con un único ganador, idempotencia concurrente, aislamiento entre instalaciones, ciclo completo, renombrado atómico, acciones de operador, auditoría inmutable, silencio sin liberación y la regla de `runly.mx`.
 
 ERP (`pnpm test:website:registry`, API real con su laboratorio, registro real y una segunda instalación simulada con su propia llave): 11 comprobaciones: reserva pendiente que no sirve, 15 carreras REST contra cliente con un solo ganador y sin fila local para el perdedor, aislamiento entre instalaciones, empresas y lectores, idempotencia, validación, activación y resolución por hostname con cabeceras falsificadas, hostnames históricos intactos, caída y reinicio del registro con sitios sirviendo, suspensión y restauración por sincronía (incluida la disponibilidad del namespace), liberación y revocación de instalación. La segunda instalación es solo un cliente firmado, no un ERP completo.
 
 ## Dependencias y bloqueos
 
-1. Desplegar el Hub con la migración y las rutas (es un servicio central existente, pero este cambio no se ha desplegado).
+1. Desplegar el Hub con las migraciones y las rutas, y el Edge (no desplegados).
 2. Un operador de plataforma debe enrolar cada instalación (clave pública) y marcar `ready` el namespace; hoy no hay interfaz de operador, solo API.
-3. Edge de Runly, DNS wildcard y certificado wildcard para `*.sites.runly.mx`; el edge debe consultar o replicar nombre → instalación y reenviar al gateway de esa instalación. No existe ni se probó.
+3. DNS wildcard y certificado wildcard reales para `*.sites.runly.mx` apuntando al Edge, y la plataforma donde correrá (el Edge está implementado y probado solo en laboratorio, con un certificado local). Cada instalación servida debe exponer su gateway público con una URL de origen estable que un operador registre.
 4. Dominio independiente con wildcard y certificado para ZIP y vista previa.
-5. Custodia de la llave privada de cada instalación y su rotación (no implementada).
-6. Pendiente de diseño: redirecciones 301 de nombres renombrados en el edge, solicitud a la Public Suffix List, límites de tasa por IP en el Hub y despliegue multirregión.
+5. Custodia operativa de las llaves (copias de seguridad cifradas, procedimiento de recuperación) y una interfaz para operadores (hoy solo API).
+6. Pendiente de diseño: redirecciones 301 de nombres renombrados en el Edge, solicitud a la Public Suffix List, límites por instancia del Hub cuando haya varias réplicas (hoy son por proceso), y otros lectores locales de `website_domain` (formularios, vista previa) que no aplican la caducidad acotada.

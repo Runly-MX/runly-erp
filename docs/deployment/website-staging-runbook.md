@@ -75,6 +75,30 @@ El ensayo con imágenes empaquetadas encontró dos defectos que el laboratorio d
 | Migración ERP | `20261219120000_website_registry_projection` (aditiva; las filas históricas de `website_domain` siguen siendo de solo anexión). |
 | Edge y DNS | Wildcard `*.sites.<dominio>` hacia el edge, certificado wildcard (DNS-01), y dominio independiente con wildcard para ZIP y vista previa. Nada de esto existe aún. |
 
+## Registro, Edge y claves en un staging con varias instalaciones
+
+Piezas (todas probadas solo en laboratorio): Developer Hub con las migraciones `20261103000000` y `20261103010000`; Runly Edge (`pnpm edge` en el Hub); cada ERP con las tres variables del registro. Ninguna está desplegada.
+
+| Pieza | Variables y operación |
+|---|---|
+| Hub (registro) | `REGISTRY_TRUSTED_PROXIES` (CIDR de los proxies que pueden fijar `X-Forwarded-For`), `REGISTRY_IP_LIMIT_PER_MIN`, `REGISTRY_READ_LIMIT_PER_MIN`, `REGISTRY_WRITE_LIMIT_PER_MIN`, `REGISTRY_MAX_NAMES`, `REGISTRY_CLAIMS_PER_HOUR`, `REGISTRY_QUARANTINE_DAYS`. La ruta firmada incluye `/registry/v1`: el proxy no debe reescribirla. |
+| Edge | `EDGE_REGISTRY_URL`, `EDGE_ID`, `EDGE_PRIVATE_KEY` o `EDGE_PRIVATE_KEY_FILE`, `EDGE_NAMESPACES`, `EDGE_TLS_CERT_FILE`/`EDGE_TLS_KEY_FILE`, `EDGE_TRUSTED_PROXIES`, `EDGE_CACHE_TTL_MS` (30 s), `EDGE_NEGATIVE_TTL_MS` (5 s), `EDGE_MAX_STALE_MS` (15 min), `EDGE_ADMIN_PORT`/`EDGE_ADMIN_TOKEN`. `EDGE_ALLOW_HTTP_ORIGINS` y `EDGE_ALLOW_PRIVATE_ORIGINS` son solo de laboratorio y el proceso se niega a arrancar con ellas si `NODE_ENV=production`. |
+| ERP | `RUNLY_REGISTRY_URL`, `RUNLY_INSTALLATION_ID`, `RUNLY_INSTALLATION_PRIVATE_KEY` (o `RUNLY_INSTALLATION_PRIVATE_KEY_FILE`), `RUNLY_WEBSITE_NAMESPACE_ROOT`, y opcionales `RUNLY_REGISTRY_SYNC_MS` (60 s) y `RUNLY_REGISTRY_MAX_STALE_MS` (24 h). |
+
+Alta de una instalación: (1) `node scripts/registry-installation-key.mjs --env-file .env.external` genera la llave (no se imprime) y muestra la pública; (2) un administrador de plataforma llama a `POST /api/v1/admin/registry/installations` con `{label, publicKey, originUrl}` (el origen es la URL pública estable del gateway de esa instalación) y recibe el id; (3) se rellenan `RUNLY_REGISTRY_URL` y `RUNLY_INSTALLATION_ID` y se reinicia la API. El Edge se enrola igual con `kind:"edge"`. El namespace se registra con `ready:false` y solo se pasa a `true` cuando DNS, certificado y Edge existen.
+
+Rotación: `--rotate` (la anterior sigue válida 24 h), reiniciar la API, `--revoke-previous`. Compromiso: `POST /api/v1/admin/registry/keys/revoke` con la huella (inmediato) y `.../keys/enroll` tras verificar al titular. Los instaladores conservan los valores existentes y no los imprimen (verificado en el ensayo del instalador, incluida la rotación editando el archivo).
+
+## Siguiente ensayo de infraestructura (cuando se autorice)
+
+1. Staging del Hub: aplicar las dos migraciones y desplegar; comprobar `/registry/v1/names` sin firma (401).
+2. Operador: registrar el namespace de staging con `ready:false`; enrolar el Edge y dos instalaciones de staging con su `originUrl`.
+3. Edge de staging con un certificado wildcard de la CA de staging o interna; sin DNS público de producción.
+4. Rellenar las variables en ambos ERP y reiniciar; reservar el mismo nombre en ambos y comprobar que solo uno lo obtiene.
+5. Marcar el namespace `ready:true`, activar, publicar y comprobar la resolución por el Edge con un navegador real y con `curl --resolve`.
+6. Repetir las comprobaciones de suspensión, desconexión de una instalación, caída del registro y rotación de clave con tiempos reales, y medir latencias del Edge.
+7. Registrar resultados y decidir la apertura de `*.sites.runly.mx` y la compra del dominio de contenido ZIP por separado.
+
 ## Release de imágenes selectivo e inmutable
 
 `node infra/docker/release-selective.mjs` (alias `pnpm docker:release:selective`) sustituye a `pnpm docker:release` para Website: solo api, web y worker (DWG y el resto quedan en `build-push.mjs`), etiqueta `<imagen>-<sha12>` del commit exacto, nunca toca `-latest` por sí mismo, y registra en `.artifacts/releases/<sha12>.json` el digest de cada imagen y el digest previo de `-latest` para revertir.
