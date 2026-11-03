@@ -61,7 +61,7 @@ export function InventoryItemPicker({ open, onOpenChange, selected = [], onConfi
                       <Checkbox checked={checked} onCheckedChange={() => toggle(item)} onClick={(e) => e.stopPropagation()} aria-label={`Elegir ${item.name}`} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{item.name}</span>
-                        <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.assetTag, item.categoryName, item.serialNumber].filter(Boolean).join(', ')}</span>
+                        <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.assetTag ? `Activo: ${item.assetTag}` : 'Sin número de activo', item.serialNumber ? `Serie: ${item.serialNumber}` : null, item.categoryName].filter(Boolean).join(' · ')}</span>
                       </span>
                     </div>
                   </li>

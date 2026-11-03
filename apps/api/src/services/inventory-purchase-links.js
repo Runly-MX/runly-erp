@@ -125,7 +125,7 @@ export async function loadPurchaseNumbersForItems(client, companyId, itemIds) {
       if (number && entry[`${kind}Number`] === undefined) out.set(row.targetId, { ...entry, [`${kind}Number`]: number, [`${kind}Reference`]: references.get(row.sourceId) ?? null })
     }
   }
-  return new Map([...out].map(([id, value]) => [id, { purchaseOrderNumber: value.orderNumber ?? null, purchaseInvoiceNumber: value.invoiceNumber ?? null, purchaseOrderReference: value.orderReference ?? null, purchaseInvoiceReference: value.invoiceReference ?? null }]))
+  return new Map([...out].map(([id, value]) => [id, { purchaseOrderNumber: value.orderReference ?? value.orderNumber ?? null, purchaseInvoiceNumber: value.invoiceReference ?? value.invoiceNumber ?? null, purchaseOrderReference: value.orderReference ?? null, purchaseInvoiceReference: value.invoiceReference ?? null }]))
 }
 
 // Fields merged into the item detail/form payload.

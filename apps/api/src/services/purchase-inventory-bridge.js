@@ -98,11 +98,11 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
       ] } : {}),
     }
     const [rows, total] = await Promise.all([
-      prisma.invItem.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: { id: true, assetTag: true, name: true, status: true, category: { select: { name: true } } } }),
+      prisma.invItem.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take, select: { id: true, assetTag: true, serialNumber: true, name: true, status: true, category: { select: { name: true } } } }),
       prisma.invItem.count({ where }),
     ])
     return {
-      data: rows.map(row => ({ id: row.id, assetTag: row.assetTag, name: row.name, status: row.status, categoryName: row.category?.name ?? null })),
+      data: rows.map(row => ({ id: row.id, assetTag: row.assetTag, serialNumber: row.serialNumber, name: row.name, status: row.status, categoryName: row.category?.name ?? null })),
       total, page, pageSize, available: true,
     }
   }
