@@ -24,9 +24,23 @@ test('private storage adapter requires a private bucket and handles both error r
 })
 test('storage upload is create-only and accepts a concurrent identical object but rejects different bytes',async()=>{
  const objects=new Map();let options
- const client={upload:async(key,bytes,opts)=>{options=opts;if(objects.has(key))return{error:{message:'exists'}};objects.set(key,bytes);return{}},download:async key=>({data:{arrayBuffer:async()=>objects.get(key)},error:objects.has(key)?null:{message:'missing'}})}
+ let uploads=0
+ const client={upload:async(key,bytes,opts)=>{uploads++;options=opts;if(objects.has(key))return{error:{message:'exists'}};objects.set(key,bytes);return{}},download:async key=>({data:{arrayBuffer:async()=>objects.get(key)},error:objects.has(key)?null:{message:'missing',statusCode:'404'}})}
  const storage=createWebsiteReleaseStorage({supabaseAdmin:{storage:{getBucket:async()=>({data:{public:false}}),from:()=>client}}})
  await storage.put('key',Buffer.from('same'),'text/javascript');await storage.put('key',Buffer.from('same'),'text/javascript')
  assert.equal(options.upsert,false)
+ assert.equal(uploads,1)
  await assert.rejects(storage.put('key',Buffer.from('different'),'text/javascript'),e=>e.status===503)
+})
+
+test('storage preserves create-only race verification and fails closed on read outages',async()=>{
+ let reads=0,uploads=0
+ const bytes=Buffer.from('immutable')
+ const client={download:async()=>++reads===1?{error:{statusCode:'404'}}:{data:{arrayBuffer:async()=>bytes}},upload:async()=>{uploads++;return {error:{statusCode:'409'}}}}
+ const admin={storage:{getBucket:async()=>({data:{public:false}}),from:()=>client}}
+ await createWebsiteReleaseStorage({supabaseAdmin:admin}).put('key',bytes,'text/javascript')
+ assert.equal(uploads,1);assert.equal(reads,2)
+ client.download=async()=>({error:{statusCode:'503'}})
+ await assert.rejects(createWebsiteReleaseStorage({supabaseAdmin:admin}).put('key',bytes,'text/javascript'),e=>e.status===503)
+ assert.equal(uploads,1)
 })

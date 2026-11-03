@@ -25,7 +25,7 @@ export const SECTIONS = [
   { id: 'overview', label: 'Resumen', icon: LayoutDashboard },
   { id: 'pages', label: 'Páginas', icon: FileText },
   { id: 'blog', label: 'Blog', icon: BookOpen, legacy: true },
-  { id: 'forms', label: 'Formularios', icon: FormInput, legacy: true },
+  { id: 'forms', label: 'Formularios', icon: FormInput },
   { id: 'appearance', label: 'Apariencia', icon: Palette, legacy: true },
   { id: 'publishing', label: 'Publicaciones', icon: History },
   { id: 'domains', label: 'Dominios', icon: Globe },
@@ -70,7 +70,7 @@ function Appearance({ site }) {
 
 export default function SiteWorkspace({ siteId, section = 'overview' }) {
   const navigate = useNavigate()
-  const caps = useWebsiteCapabilities()
+  const caps = useWebsiteCapabilities(siteId)
   const { site, release, state } = useSiteContext(siteId)
   const sites = useSites()
   const pages = usePages(siteId)
@@ -98,7 +98,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
     domains: <SiteDomains {...props} />,
     import: <SiteImport {...props} />,
     settings: <SiteSettings {...props} />,
-    forms: <LegacyScope site={data}><FormsScreen /></LegacyScope>,
+    forms: <FormsScreen siteId={siteId} />,
     blog: <LegacyScope site={data}><BlogScreen /></LegacyScope>,
     appearance: <Appearance site={data} />,
   }[current]

@@ -18,14 +18,16 @@ test('error copy: known code, status fallback, unknown fallback', () => {
   assert.equal(describeFailure(undefined).title, 'No se pudo preparar la versión')
 })
 
-test('site state: derived from lifecycle and revisions, flagged approximate', () => {
+test('site state: uses authoritative C-2 instead of comparing unrelated revisions', () => {
   assert.equal(deriveSiteState({ lifecycle: 'draft' }, null).key, 'draft')
   const published = { lifecycle: 'published', activeReleaseId: 'r1', draftRevision: 5 }
   assert.equal(deriveSiteState(published, { draftRevision: 5 }).key, 'published')
-  const pending = deriveSiteState(published, { draftRevision: 3 })
+  const pending = deriveSiteState({ ...published, hasUnpublishedChanges: true }, { draftRevision: 3 })
   assert.equal(pending.key, 'published_pending')
   assert.equal(pending.hasPending, true)
-  assert.equal(pending.approximate, true)
+  assert.equal(pending.approximate, false)
+  assert.equal(deriveSiteState({...published, hasUnpublishedChanges: false}, {draftRevision: 1}).hasPending, false)
+  assert.equal(deriveSiteState({...published, lifecycle: 'archived', hasUnpublishedChanges: true}).key, 'archived')
   assert.equal(deriveSiteState(published, null).hasPending, null)
   assert.equal(deriveSiteState({ lifecycle: 'unpublished' }, null).key, 'unpublished')
   assert.equal(deriveSiteState({ lifecycle: 'archived' }, null).key, 'archived')
@@ -33,7 +35,7 @@ test('site state: derived from lifecycle and revisions, flagged approximate', ()
 })
 
 test('editor status never reports unsaved local edits', () => {
-  const state = deriveSiteState({ lifecycle: 'published', activeReleaseId: 'r1', draftRevision: 9 }, { draftRevision: 4 })
+  const state = deriveSiteState({ lifecycle: 'published', activeReleaseId: 'r1', hasUnpublishedChanges: true }, { draftRevision: 4 })
   const status = deriveEditorStatus({ saveState: 'idle', siteState: state })
   assert.equal(status.draft.label, 'Guardado · pendiente de publicar')
   assert.equal(status.published.label, 'Publicado')

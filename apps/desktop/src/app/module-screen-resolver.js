@@ -7,6 +7,11 @@ export function hasBuiltInModule(screenMap, key) {
 }
 
 export function isPathAllowedByNavigation(module, subPath) {
+  if(module?.key==='runly.website'&&(subPath==='/'||/^\/sites(?:\/|$)/.test(subPath))){
+    const paths=module.manifest?.authorizedRoutes??module.authorizedRoutes??[];
+    if(subPath==='/sites/new')return paths.includes('/sites/new');
+    return paths.some(path=>new RegExp('^'+path.replace(/:[^/]+/g,'[^/]+')+'$').test(subPath));
+  }
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === '/';
   if (subPath === '/') return true;
@@ -15,17 +20,6 @@ export function isPathAllowedByNavigation(module, subPath) {
   if (matchesFullscreenPath(module, subPath)) return true;
 
   const modulePrefix = `/app/m/${module.key}`;
-
-  // Website's per-site workspace (/sites/:siteId/...) is not listed in the
-  // manifest navigation (backend-owned). It is reachable whenever the user can
-  // see the module's root entry (website.access); each command is still
-  // authorized by the API. See design doc 15 / frontend delivery notes.
-  if (module.key === 'runly.website' && /^\/sites(\/|$)/.test(subPath)) {
-    return navigation.some((item) => {
-      const pathname = String(item?.path ?? '').split(/[?#]/)[0];
-      return pathname === '/' || pathname === modulePrefix;
-    });
-  }
 
   function pathMatches(navPath) {
     if (!navPath) return false;

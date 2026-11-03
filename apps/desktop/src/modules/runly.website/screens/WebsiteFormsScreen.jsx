@@ -17,7 +17,6 @@ import FormSubmissionsPanel from '../../../components/forms/FormSubmissionsPanel
 import FormSettingsPanel from '../../../components/forms/FormSettingsPanel.jsx'
 import FormPreview from '../../../components/forms/FormPreview.jsx'
 import FormApiPanel from '../../../components/forms/FormApiPanel.jsx'
-import { FormsPublishNotice } from '../components/FormsPublishNotice.jsx'
 
 async function apiGet(path, token) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -356,7 +355,7 @@ function NewFormDialog({ open, onOpenChange, siteId, token, assignees, turnstile
 }
 
 // ── Main screen ──────────────────────────────────────────────────────────────
-export default function WebsiteFormsScreen() {
+export default function WebsiteFormsScreen({ siteId: contextSiteId = null }) {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -372,8 +371,8 @@ export default function WebsiteFormsScreen() {
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn: () => apiGet('/website/site', token),
+    queryKey: ['website-site', contextSiteId, token],
+    queryFn: () => apiGet(contextSiteId ? `/website/sites/${contextSiteId}` : '/website/site', token),
     enabled: Boolean(token),
     staleTime: 60_000,
   })
@@ -384,7 +383,7 @@ export default function WebsiteFormsScreen() {
 
   const formsQuery = useQuery({
     queryKey: ['website-forms', siteId, token],
-    queryFn: () => apiGet(`/website/forms?siteId=${siteId}`, token),
+    queryFn: () => apiGet(`/website/sites/${siteId}/forms`, token),
     enabled: Boolean(token) && Boolean(siteId),
     staleTime: 30_000,
   })
@@ -460,7 +459,13 @@ export default function WebsiteFormsScreen() {
         description="Define campos, copia el ID y úsalo en tu sitio con DynamicForm."
         actions={<Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>}
       />
-      <FormsPublishNotice />
+      {selectedForm?.publishability && (
+        <Card className="p-4 text-sm" role="status">
+          <p>Publicabilidad: {selectedForm.publishability.state}</p>
+          {selectedForm.publishability.reason?.code && <p>{selectedForm.publishability.reason.code}</p>}
+          <p>Propietario: {selectedForm.scope?.ownerModule ?? 'Website'} · Referencias: {selectedForm.publishability.usedBy?.length ?? 0}</p>
+        </Card>
+      )}
 
       {formsQuery.isPending ? (
         <LoadingState message="Cargando formularios..." />

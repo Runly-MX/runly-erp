@@ -131,7 +131,7 @@ function PageSettingsDialog({ page, siteId, onClose, onSaved }) {
   )
 }
 
-export default function SitePages({ siteId, caps, pages }) {
+export default function SitePages({ siteId, site, caps, pages }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { api, companyId } = useWebsiteScope()
@@ -153,7 +153,7 @@ export default function SitePages({ siteId, caps, pages }) {
     { accessorKey: 'routePath', header: 'Ruta', cell: ({ row }) => <code className="text-xs">{row.original.routePath}</code> },
     {
       id: 'public', header: 'En el sitio público',
-      cell: ({ row }) => (row.original.status === 'published'
+      cell: ({ row }) => (site.pages?.find(p=>p.id===row.original.id)?.publicState==='published'||site.pages?.find(p=>p.id===row.original.id)?.publicState==='changed'
         ? <Badge variant="success">Sí</Badge>
         : <Badge variant="secondary">No</Badge>),
     },
@@ -174,7 +174,7 @@ export default function SitePages({ siteId, caps, pages }) {
         )
       },
     },
-  ], [navigate, siteId, caps.pagesUpdate.allowed, caps.pagesDelete.allowed])
+  ], [navigate, siteId, site.pages, caps.pagesUpdate.allowed, caps.pagesDelete.allowed])
 
   return (
     <div className="space-y-4 p-4 md:p-6">

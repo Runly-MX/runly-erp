@@ -69,13 +69,7 @@ export function PreviewDialog({ open, onOpenChange, siteId, releaseId = null, dr
           )}
           {status === 'error' && <div className="p-4"><ErrorNotice error={error} /></div>}
           {status === 'ready' && (
-            <iframe
-              title="Vista previa del sitio"
-              src={preview.url}
-              className="h-full min-h-[50dvh] w-full bg-white"
-              sandbox="allow-scripts allow-same-origin"
-              referrerPolicy="no-referrer"
-            />
+            <p className="p-6 text-sm">La vista previa se abre en una pestaña independiente para conservar el aislamiento y la cookie privada. El enlace se utiliza una sola vez; cierra este diálogo para generar otro.</p>
           )}
         </div>
         <DialogFooter>

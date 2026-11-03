@@ -1,5 +1,7 @@
 # Website: contratos del cierre funcional de backend
 
+**Integración React, 2026-11-02:** C-1 a C-5 consumidos en `website-functional-integration`; [evidencia y límites](../evidence/2026-11-02-website-recovery/functional-integration-results.md). Extensiones compatibles: effectivePermissions incluye pages/theme/menus.read; site.archive exige también pages.publish y domains.reserve también site.update, igual que sus comandos. El manifest administrativo entrega authorizedRoutes filtradas por permisos efectivos; el frontend exige patrones completos y el backend vuelve a autorizar. Se aplica a manifests antiguos sin reescribirlos. Preview se abre en pestaña independiente para mantener cookie Strict y grant único; se revoca al cerrar el diálogo. No hay cambios en firmas SDK, IDs ni snapshots históricos. Núcleo APTO en laboratorio; Website completo NO APTO E2E.
+
 Base: `c7865f6001d9fb90a51e0f8f6432bcddfa45238d`. Rama local `website-backend-closure`. Este documento complementa contratos v1, cierre S4 y diseño §15; no modifica los documentos de diseño. Trabajo autorizado de backend; Website sigue NO APTO E2E hasta la integración final con React.
 
 ## Consumo administrativo

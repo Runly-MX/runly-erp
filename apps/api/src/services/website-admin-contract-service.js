@@ -21,10 +21,12 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
     return site
   }
   function capabilities(a,site) {
-    const effectivePermissions=[...new Set(['website.site.read',...Object.values(permissions),'website.forms.read','website.forms.create','website.forms.delete'].filter(p=>a.access.can(p)))].sort()
+    const effectivePermissions=[...new Set(['website.site.read','website.pages.read','website.theme.read','website.theme.update','website.menus.read','website.menus.update',...Object.values(permissions),'website.forms.read','website.forms.create','website.forms.delete'].filter(p=>a.access.can(p)))].sort()
     const result={}
     for(const [key,p]of Object.entries(permissions)) {
       let reason=!a.access.can(p)?{code:'permission_denied',requiredPermission:p}:null
+      const additional=key==='site.archive'?'website.pages.publish':key==='domains.reserve'?'website.site.update':null
+      if(!reason&&additional&&!a.access.can(additional))reason={code:'permission_denied',requiredPermission:additional}
       if(!reason&&['domains.custom','submissions.export','submissions.delete'].includes(key))reason={code:'feature_unavailable'}
       if(!reason&&key==='domains.reserve'&&!namespaceRoot)reason={code:'namespace_unavailable'}
       if(!reason&&site.lifecycle==='archived')reason={code:'lifecycle_state'}

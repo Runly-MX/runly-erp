@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle, Button, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingState, PageHeader, StatusPill } from '@runly/ui'
 import { Eye, History, PauseCircle, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -42,6 +42,11 @@ export default function SitePublishing({ site, siteId, release, caps, onPublish 
   })
   const rows = (releases.data?.pages ?? []).flatMap((page) => page.data ?? [])
   const activeId = site.activeReleaseId
+  const integrity = useQuery({
+    queryKey: ['website', companyId, 'site', siteId, 'integrity', activeId],
+    queryFn: async ({ signal }) => (await api.getIntegrity(siteId, { signal })).data,
+    enabled: Boolean(api && companyId),
+  })
 
   async function command(name, run, success) {
     setBusy(true)
@@ -80,6 +85,8 @@ export default function SitePublishing({ site, siteId, release, caps, onPublish 
       />
       <section aria-labelledby="current-title" className="rounded-2xl border border-[hsl(var(--border))] p-4">
         <h2 id="current-title" className="text-base font-semibold">Versión publicada ahora</h2>
+        {integrity.data && <p className="mt-2 text-sm">Integridad: {integrity.data.integrityMode === 'sealed' ? 'Sellada' : integrity.data.integrityMode === 'legacy-reference' ? 'Referencias históricas sin verificar' : 'Sin verificar'}</p>}
+        {integrity.isError && <ErrorNotice error={integrity.error} />}
         {activeId && release ? (
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm">
             <span>{formatDate(release.createdAt)}</span>
@@ -106,7 +113,7 @@ export default function SitePublishing({ site, siteId, release, caps, onPublish 
               return (
                 <li key={row.id} className="flex flex-wrap items-center gap-3 p-3 text-sm">
                   <div className="min-w-0">
-                    <p className="font-medium">{formatDate(row.createdAt)}</p>
+                    <p className="font-medium">{formatDate(row.createdAt)} <span className="text-xs">{row.integrityMode==='sealed'?'Sellada':row.integrityMode==='legacy-reference'?'Referencias históricas':'Integridad sin verificar'}</span></p>
                     {row.state === 'failed' && <p className="text-xs text-[hsl(var(--muted-foreground))]">{describeFailure(row.failureCode).message}</p>}
                   </div>
                   {isActive ? <StatusPill tone="success" size="sm">Activa</StatusPill> : <StatusPill tone={meta.tone} size="sm">{meta.label}</StatusPill>}
@@ -114,7 +121,7 @@ export default function SitePublishing({ site, siteId, release, caps, onPublish 
                     {row.state === 'ready' && (
                       <CapabilityButton capability={caps.previewSite} size="sm" variant="ghost" onClick={() => setPreviewRelease(row)}><Eye className="h-4 w-4" /> Ver</CapabilityButton>
                     )}
-                    {row.state === 'ready' && !isActive && (
+                    {row.state === 'ready' && !row.manifest?.previewOnly && !isActive && (
                       <CapabilityButton capability={caps.publish} size="sm" variant="outline" onClick={() => setRollbackTarget(row)}><Undo2 className="h-4 w-4" /> Volver a esta versión</CapabilityButton>
                     )}
                   </span>

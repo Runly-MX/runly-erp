@@ -155,11 +155,11 @@ export default function SiteImport({ site, siteId, caps }) {
           <p className="text-sm text-[hsl(var(--muted-foreground))]">Aún no es público. Primero se prepara una versión, la puedes ver en una vista previa privada y después la activas.</p>
           {(phase === 'preparing' || phase === 'activating') && <div role="status" aria-live="polite"><ProgressBar value={null} /></div>}
           <div className="flex flex-wrap gap-2">
-            {phase === 'imported' && <CapabilityButton capability={caps.importZip} onClick={prepare}>Preparar versión</CapabilityButton>}
+            {phase === 'imported' && <CapabilityButton capability={caps.publish} onClick={prepare}>Preparar versión</CapabilityButton>}
             {phase === 'prepared' && (
               <>
                 <CapabilityButton capability={caps.previewSite} variant="outline" onClick={() => setPreviewOpen(true)}>Ver vista previa</CapabilityButton>
-                <CapabilityButton capability={caps.importZip} onClick={() => setActivateOpen(true)}>Activar versión</CapabilityButton>
+                <CapabilityButton capability={caps.publish} onClick={() => setActivateOpen(true)}>Activar versión</CapabilityButton>
               </>
             )}
             {phase === 'done' && <p className="text-sm">La versión está activa. Revisa Publicaciones para ver el historial.</p>}

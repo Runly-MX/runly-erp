@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle, Button, ErrorState, LoadingState } from '@runly/ui'
@@ -23,7 +23,7 @@ import { describeError, isRevisionConflict } from '../../lib/websiteErrors.js'
 import { deriveEditorStatus } from '../../lib/siteState.js'
 import { clearBackup, writeBackup } from '../../lib/localBackup.js'
 import { editorPath, sitePath, slugify } from '../../lib/pageRoute.js'
-import { analyzeDocument, blockingIssues } from '../../lib/publishability.js'
+
 import { describeCode } from '../../lib/websiteErrors.js'
 import { usePages, useSiteContext, useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { ConflictDialog } from '../../components/ConflictDialog.jsx'
@@ -74,8 +74,8 @@ function blankPage(page) {
 }
 
 function toInitialPage(document, pageMeta) {
-  if (!document || typeof document !== 'object' || !document.blocks) return blankPage(pageMeta)
-  try { return parsePage(JSON.stringify(document)) } catch { return blankPage(pageMeta) }
+  if (document && typeof document === 'object' && Object.keys(document).length === 0) return blankPage(pageMeta)
+  try { return parsePage(JSON.stringify(document)) } catch { return null }
 }
 
 // Admin-only editor route (design 15.1). The builder owns its canvas, undo/redo
@@ -87,7 +87,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
   const { session } = useAuth()
   const token = session?.access_token
   const { api, companyId, ready } = useWebsiteScope()
-  const caps = useWebsiteCapabilities()
+  const caps = useWebsiteCapabilities(siteId)
   const { site, release, state } = useSiteContext(siteId)
   const pages = usePages(siteId)
   const pageMeta = (pages.data ?? []).find((page) => page.id === pageId) ?? null
@@ -121,7 +121,9 @@ export default function SiteEditorScreen({ siteId, pageId }) {
   const [publishOpen, setPublishOpen] = useState(false)
 
   const draft = draftQuery.data
-  if (draft && revisionRef.current === null) revisionRef.current = draft.revision
+  useEffect(() => {
+    if (draft && revisionRef.current === null) revisionRef.current = draft.revision
+  }, [draft])
 
   const initialPage = useMemo(
     () => (draft ? toInitialPage(draft.document, pageMeta) : null),
@@ -133,14 +135,28 @@ export default function SiteEditorScreen({ siteId, pageId }) {
     const tokens = themeQuery.data?.tokens
     return tokens ? defineTheme({ ...defaultTheme, id: 'site-theme', name: 'Tema del sitio', tokens: { ...defaultTheme.tokens, ...tokens } }) : defaultTheme
   }, [themeQuery.data])
-  const blocks = useMemo(() => [...baseBlocks, ...buildRunlyBlocks(site.data?.siteType ?? 'website')], [site.data?.siteType])
+  const formsQuery = useQuery({
+    queryKey: ['website', companyId, 'site', siteId, 'forms'],
+    queryFn: async ({ signal }) => (await api.listForms(siteId, { signal })).data,
+    enabled: ready,
+  })
+  const blocks = useMemo(() => [...baseBlocks, ...buildRunlyBlocks(site.data?.siteType ?? 'website')].map((block) => {
+    if (block.type !== 'ContactFormBlock') return block
+    const forms = formsQuery.data ?? []
+    const options = forms.map((form) => ({ value: form.id, label: `${form.name} (${form.publishability?.state ?? 'pendiente'})` }))
+    for (const saved of Object.values(draft?.document?.blocks ?? {})) {
+      const id = saved.type === 'ContactFormBlock' && saved.props?.formId
+      if (id && !options.some((option) => option.value === id)) options.push({ value: id, label: 'Referencia no disponible' })
+    }
+    return { ...block, fields: { ...block.fields, formId: { type: 'select', label: 'Formulario del sitio', allowEmpty: true, options } } }
+  }), [site.data?.siteType, formsQuery.data, draft])
   const templates = useMemo(() => buildRunlyTemplates(site.data?.siteType ?? 'website'), [site.data?.siteType])
   const assets = useMemo(() => createAssetSource(token), [token])
 
   const status = deriveEditorStatus({ saveState, savedAt, siteState: state })
 
   const refreshSiteQueries = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: websiteKeys.site(companyId, siteId) })
+    queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId), predicate: (query) => query.queryKey[4] !== 'draft' })
     queryClient.invalidateQueries({ queryKey: websiteKeys.sites(companyId) })
     queryClient.invalidateQueries({ queryKey: websiteKeys.pages(companyId, siteId) })
   }, [queryClient, companyId, siteId])
@@ -219,17 +235,20 @@ export default function SiteEditorScreen({ siteId, pageId }) {
   const back = () => navigate(sitePath(siteId, 'pages'))
   const loadError = draftQuery.error ?? site.error
   const draftIssues = draft?.issues ?? []
-  const schemaBlocked = draftIssues.includes('schema_unsupported')
-  const localIssues = useMemo(() => blockingIssues(analyzeDocument(draft?.document)), [draft])
+  const emptyDraft = draft?.document && Object.keys(draft.document).length === 0 && draft.revision === 0
+  const schemaBlocked = !emptyDraft && (draftIssues.includes('schema_unsupported') || (draft && !initialPage))
+  const localIssues = []
   const canEdit = caps.pagesUpdate.allowed
 
   let body
   if (loadError) {
     body = <div className="p-6"><ErrorState title={describeError(loadError).title} description={describeError(loadError).message} onRetry={() => draftQuery.refetch()} /></div>
-  } else if (!draft || !initialPage || site.isPending) {
+  } else if (!draft || site.isPending) {
     body = <LoadingState variant="page" message="Cargando editor…" />
   } else if (schemaBlocked) {
     body = <div className="p-6"><ErrorNotice error={{ code: 'schema_unsupported', status: 422 }} /></div>
+  } else if(!canEdit){
+    body=<ErrorState title="Solo lectura" description="No tienes permiso para editar esta página. Consulta su vista previa autorizada." />
   } else {
     body = (
       <>
@@ -287,7 +306,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
 
   const publicPageIds = (pages.data ?? []).filter((page) => page.visibility === 'public').map((page) => page.id)
   return (
-    <div className="fixed inset-0 z-40 flex flex-col bg-[hsl(var(--background))]" data-testid="website-editor">
+    <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col bg-[hsl(var(--background))]" style={{ top: 'calc(var(--topbar-height, 3.5rem) + var(--sat, 0px))' }} data-testid="website-editor">
       <EditorTopBar
         title={pageMeta?.title ?? 'Página'}
         siteName={site.data?.name ?? ''}

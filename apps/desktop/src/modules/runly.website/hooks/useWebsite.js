@@ -31,20 +31,27 @@ export function useWebsiteScope() {
   return { api, companyId: activeCompanyId, ready: Boolean(api && activeCompanyId) }
 }
 
-export function useWebsiteCapabilities() {
-  const { userProfile } = useAuth()
-  return useMemo(() => {
-    const permissions = userProfile?.permissions ?? []
-    const hasPermission = (key) => Boolean(userProfile?.isAdmin || permissions.includes(key))
-    return buildCapabilities(hasPermission)
-  }, [userProfile])
+export function useSiteState(siteId) {
+  const {api,companyId,ready}=useWebsiteScope();const {session}=useAuth();
+  return useQuery({queryKey:['website',companyId,'actor',session?.user?.id,'state',siteId],queryFn:async({signal})=>(await api.getState(siteId,{signal})).data,enabled:ready&&Boolean(siteId),staleTime:0,retry:false});
+}
+export function useWebsiteCapabilities(siteId) {
+  const {userProfile}=useAuth(),state=useSiteState(siteId);
+  return useMemo(()=>{
+    if(!siteId)return buildCapabilities(key=>Boolean(userProfile?.isAdmin||userProfile?.permissions?.includes(key)));
+    const raw=state.data,cap=raw?.capabilities??{},permissions=raw?.effectivePermissions??[];
+    const unavailable={allowed:false,reason:{code:state.isError?'dependency_unavailable':'loading'}};
+    const need=permission=>raw?(permissions.includes(permission)?{allowed:true}:{allowed:false,reason:{code:'permission_denied',requiredPermission:permission}}):unavailable;
+    const get=key=>cap[key]??unavailable;
+    return {siteRead:need('website.site.read'),siteEdit:get('site.edit'),pagesRead:need('website.pages.read'),pagesCreate:get('pages.create'),pagesUpdate:get('pages.update'),pagesDelete:get('pages.delete'),publish:get('pages.publish'),archive:get('site.archive'),reserveHostname:get('domains.reserve'),importZip:get('import.zip'),previewSite:get('preview.site'),previewDraft:get('preview.site').allowed&&permissions.includes('website.pages.update')?{allowed:true}:unavailable,formsRead:need('website.forms.read'),formsPublish:get('forms.publish'),calendarPublish:get('calendar.publish'),customDomain:get('domains.custom')};
+  },[siteId,state.data,state.isError,userProfile]);
 }
 
 export function useSites() {
   const { api, companyId, ready } = useWebsiteScope()
   return useQuery({
     queryKey: websiteKeys.sites(companyId),
-    queryFn: async ({ signal }) => (await api.listSites({ signal })).data ?? [],
+    queryFn: async ({ signal }) => Promise.all(((await api.listSites({signal})).data??[]).map(async row=>({...row,...(await api.getState(row.id,{signal})).data}))),
     enabled: ready,
     staleTime: 15_000,
   })
@@ -75,7 +82,7 @@ export function usePages(siteId) {
   const { api, companyId, ready } = useWebsiteScope()
   return useQuery({
     queryKey: websiteKeys.pages(companyId, siteId),
-    queryFn: async ({ signal }) => (await api.listPages(siteId, { signal })).data ?? [],
+    queryFn: async ({ signal }) => ((await api.listPages(siteId,{signal})).data??[]).map(row=>({...row,...row.draftMetadata})),
     enabled: ready && Boolean(siteId),
     staleTime: 10_000,
   })
@@ -94,7 +101,8 @@ export function useDomains(siteId) {
 // Site + its active release + derived state, shared by the context bar and screens.
 export function useSiteContext(siteId) {
   const site = useSite(siteId)
+  const authoritative = useSiteState(siteId)
   const release = useRelease(siteId, site.data?.activeReleaseId ?? null)
-  const state = useMemo(() => deriveSiteState(site.data, release.data), [site.data, release.data])
-  return { site, release, state }
+  const state = useMemo(() => deriveSiteState({...site.data,...authoritative.data}, release.data), [site.data, release.data,authoritative.data])
+  return { site:{...site,data:site.data?{...site.data,...authoritative.data}:site.data}, release, state,authoritative }
 }

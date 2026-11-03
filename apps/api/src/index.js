@@ -1,4 +1,5 @@
 import { createWebsitePublicationContext } from './services/website-publication-context.js';
+import { runlyWebsiteManifest } from './manifests/official/feature-modules.js';
 import { createWebsitePreviewHandler } from './routes/website/preview-routes.js';
 import { createWebsiteOriginGuard } from './services/website-origin-guard.js';
 import { createRealtimeAccessService } from './services/realtime-access-service.js';
@@ -630,7 +631,13 @@ function getModuleRequiredPermission(moduleRow) {
 }
 
 function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
-  const manifest = moduleRow?.manifest ?? {};
+  const storedManifest = moduleRow?.manifest ?? {};
+  // Old installations receive the current routing policy without a data rewrite.
+  const manifest = moduleRow?.key === 'runly.website' ? {
+    ...storedManifest,
+    routePermissions: runlyWebsiteManifest.routePermissions,
+    fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...runlyWebsiteManifest.fullscreenPaths])],
+  } : storedManifest;
   const navigation = Array.isArray(manifest.navigation)
     ? manifest.navigation
     : [];
@@ -643,6 +650,12 @@ function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
   return {
     ...manifest,
     navigation: filteredNavigation,
+    ...(Array.isArray(manifest.routePermissions) ? {
+      authorizedRoutes: manifest.routePermissions.filter(route => isAdmin || (
+        (route.permissions ?? []).every(p => permissionSet.has(p)) &&
+        (!route.anyPermissions || route.anyPermissions.some(p => permissionSet.has(p)))
+      )).map(route => route.path),
+    } : {}),
   };
 }
 

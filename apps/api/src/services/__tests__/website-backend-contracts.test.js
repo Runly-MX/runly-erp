@@ -6,6 +6,25 @@ import {createFormsNamespace} from '../../../../../packages/storefront-sdk/src/f
 import {createRequestCore} from '../../../../../packages/storefront-sdk/src/core/request.js'
 import {createAnalyticsNamespace} from '../../../../../packages/storefront-sdk/src/analytics.js'
 import {createStorefrontCaptureRoutes} from '../../routes/storefront/storefront-capture-routes.js'
+import {createWebsiteAdminContractService} from '../website-admin-contract-service.js'
+import {createWebsiteAccess} from '../website-authorization-service.js'
+
+test('C-1 includes effective reads and matches compound command permissions',async()=>{
+ const site={id:'site',companyId:'company',draftRevision:0,publicationRevision:0,lifecycle:'draft',settings:{}}
+ const empty={findMany:async()=>[]}
+ const prisma={websiteSite:{findFirst:async()=>site},websitePage:empty,websiteMenu:empty,websiteMenuItem:empty,websiteBlogPost:empty,$transaction:async run=>run(prisma)}
+ const keys=new Set(['website.site.read','website.site.update','website.pages.read','website.theme.read','website.menus.read'])
+ const access=createWebsiteAccess({companyId:'company',actorId:'actor',can:key=>keys.has(key)})
+ const service=createWebsiteAdminContractService({prisma,namespaceRoot:'sites.test',isolation:{previewHost:()=> 'preview.example.test'}})
+ const input={companyId:'company',siteId:'site',access}
+ const state=await service.state(input)
+ assert.ok(state.effectivePermissions.includes('website.pages.read'))
+ assert.ok(state.effectivePermissions.includes('website.theme.read'))
+ assert.equal(state.capabilities['site.archive'].allowed,false)
+ assert.equal(state.capabilities['site.archive'].reason.requiredPermission,'website.pages.publish')
+ keys.delete('website.site.update');keys.add('website.domains.manage')
+ assert.equal((await service.state(input)).capabilities['domains.reserve'].reason.requiredPermission,'website.site.update')
+})
 
 test('origin routing preserves configured administrative/API hosts and public Catalog while rejecting public administration',async()=>{
  const app=new Hono();app.use('*',createWebsiteOriginGuard({gateway:{authority:async c=>new URL(c.req.url).hostname},adminHosts:['erp.example.test','api.example.test']}))

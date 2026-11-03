@@ -97,7 +97,7 @@ export default function NewSiteScreen() {
           ctx.current.logoFileId = (await res.json()).data?.id ?? null
         }
         if (id === 'identity') {
-          const settings = { giro: giro.trim() || null, buildMode: 'web_builder', logoFileId: ctx.current.logoFileId, useCompanyLogo: Boolean(currentIdentity?.useCompanyLogo && !ctx.current.logoFileId) }
+          const settings = {logoFileId:ctx.current.logoFileId}
           const saved = (await api.saveIdentity(ctx.current.siteId, { settings }, ctx.current.revision, key('identity'))).data
           ctx.current.revision = saved?.draftRevision ?? ctx.current.revision
         }

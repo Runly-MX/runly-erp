@@ -5,16 +5,21 @@ import { isPathAllowedByNavigation, resolveScreen } from '../module-screen-resol
 // The real manifest (backend-owned) lists these entries for runly.website.
 const website = {
   key: 'runly.website',
+  manifest: { authorizedRoutes: ['/sites', '/sites/:siteId/pages', '/sites/:siteId/pages/:pageId/editor'] },
   navigation: [
     { path: '/', permissionKey: 'website.access' },
     { label: 'Contenido', children: [{ path: '/pages' }, { path: '/blog' }] },
   ],
 }
 
-test('website /sites/* routes are reachable when the root entry is visible', () => {
+test('website routes require exact server-authorized route patterns', () => {
   assert.equal(isPathAllowedByNavigation(website, '/sites'), true)
   assert.equal(isPathAllowedByNavigation(website, '/sites/abc/pages'), true)
   assert.equal(isPathAllowedByNavigation(website, '/sites/abc/pages/p1/editor'), true)
+  assert.equal(isPathAllowedByNavigation(website, '/sites/new'), false)
+  assert.equal(isPathAllowedByNavigation(website, '/sites/abc/settings'), false)
+  assert.equal(isPathAllowedByNavigation(website, '/sites/abc/pages/p1/editor/extra'), false)
+  assert.equal(isPathAllowedByNavigation({ ...website, manifest: {} }, '/sites/abc/pages'), false)
 })
 
 test('website /sites/* routes stay closed without the root entry or in other modules', () => {

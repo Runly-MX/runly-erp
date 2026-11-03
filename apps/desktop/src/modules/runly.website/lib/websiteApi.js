@@ -64,6 +64,10 @@ const site = (siteId) => `/website/sites/${s(siteId)}`
 export function createWebsiteApi(token) {
   const call = (path, options) => websiteFetch(path, token, options)
   return {
+    getState:(id,o)=>call(site(id)+'/state',o),
+    getIntegrity:(id,o)=>call(site(id)+'/publication/integrity',o),
+    preflight:(id,body,o)=>call(site(id)+'/releases/preflight',{...o,method:'POST',body}),
+    listForms:(id,o)=>call(site(id)+'/forms',o),
     listSites: (o) => call('/website/sites', o),
     getSite: (siteId, o) => call(site(siteId), o),
     createSite: (data, idempotencyKey) => call('/website/sites', { method: 'POST', body: data, idempotencyKey }),

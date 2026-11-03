@@ -18,7 +18,7 @@ import {
 import { AlertTriangle, CheckCircle2, Loader2, Rocket } from 'lucide-react'
 import { newIdempotencyKey } from '../lib/websiteApi.js'
 import { describeError, describeFailure, describeCode } from '../lib/websiteErrors.js'
-import { analyzeDocument, blockingIssues } from '../lib/publishability.js'
+
 import { editorPath } from '../lib/pageRoute.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../hooks/useWebsite.js'
 import { ErrorNotice } from './ErrorNotice.jsx'
@@ -45,7 +45,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   const [showPages, setShowPages] = useState(false)
   const [release, setRelease] = useState(null)
   const [error, setError] = useState(null)
-  const [localIssues, setLocalIssues] = useState({})
+  const [localIssues,setLocalIssues]=useState({}),[preflight,setPreflight]=useState(null),[checking,setChecking]=useState(false)
   const keys = useRef({ prepare: null, activate: null })
   const cancelled = useRef(false)
 
@@ -62,22 +62,17 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
     if (open) { cancelled.current = false; reset() } else { cancelled.current = true }
   }, [open, reset])
 
-  // Informational local scan of the saved drafts (never authoritative, design 15.2).
-  useEffect(() => {
-    if (!open || !api || !site?.id) return undefined
-    let alive = true
-    const targets = publicPages.slice(0, 40)
-    Promise.all(targets.map(async (page) => {
-      try {
-        const draft = (await api.getDraft(site.id, page.id)).data
-        return [page.id, blockingIssues(analyzeDocument(draft?.document))]
-      } catch { return [page.id, []] }
-    })).then((entries) => { if (alive) setLocalIssues(Object.fromEntries(entries)) })
-    return () => { alive = false }
-  }, [open, api, site?.id, publicPages])
+  useEffect(()=>{
+    if(!open||!api||!site?.id)return undefined;
+    let alive=true;setChecking(true);setPreflight(null);
+    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
+      if(!alive)return;const report=response.data;setPreflight(report);const grouped={};for(const issue of report.issues??[]){const id=issue.pageId??'global';(grouped[id]??=[]).push(issue)}setLocalIssues(grouped);
+    }).catch(error=>{if(alive){setError(error);setPreflight(null)}}).finally(()=>{if(alive)setChecking(false)});
+    return()=>{alive=false};
+  },[open,api,site?.id,selectedIds,includeThemeAndMenus,firstPublication]);
 
   const issuePages = publicPages.filter((page) => (localIssues[page.id] ?? []).length > 0)
-  const selectedIssueCount = issuePages.filter((page) => !excluded.has(page.id)).length
+
 
   async function pollRelease(releaseId) {
     for (let attempt = 0; attempt < POLL_MAX; attempt += 1) {
@@ -103,6 +98,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         expectedPublicationRevision: String(fresh.publicationRevision),
         changes: { publishPageIds: selectedIds, includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
       }
+      const checked=(await api.preflight(site.id,body)).data;if(!checked.canPublish){setPreflight(checked);setError({code:checked.issues?.[0]?.code??'validation_failed'});setPhase('review');return}
       const created = (await api.prepareRelease(site.id, body, keys.current.prepare)).data
       setRelease(created)
       const finished = created.state === 'preparing' ? await pollRelease(created.id) : created
@@ -125,7 +121,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         expectedDraftRevision: String(release.draftRevision),
         expectedPublicationRevision: String(release.publicationRevision),
       }, keys.current.activate)
-      await queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId) })
+      await queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId), predicate: (query) => query.queryKey[4] !== 'draft' })
       setPhase('done')
     } catch (e) {
       keys.current.activate = null
@@ -157,23 +153,26 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
             <p className="text-sm text-[hsl(var(--muted-foreground))]">Vuelve a preparar la versión para incluir lo último que guardaste.</p>
           )}
 
+          {phase==='review'&&checking&&<p role="status">Validando publicación…</p>}
+          {phase==='review'&&localIssues.global?.map((issue)=><ErrorNotice key={JSON.stringify([issue.code,issue.resource])} error={{code:issue.code}}/>)}
           {phase === 'review' && (
             <>
               {issuePages.length > 0 && (
                 <Alert variant="warning">
                   <AlertTriangle className="h-4 w-4" aria-hidden="true" />
                   <div>
-                    <AlertTitle>Probablemente no se pueda publicar · {issuePages.length} {issuePages.length === 1 ? 'página' : 'páginas'}</AlertTitle>
+                    <AlertTitle>El servidor detectó bloqueos de publicación · {issuePages.length} {issuePages.length === 1 ? 'página' : 'páginas'}</AlertTitle>
                     <AlertDescription>
-                      Revisión local informativa; el servidor decide al preparar. Nada se quita ni se oculta automáticamente.
+                      Preflight de solo lectura. Nada se quita ni se oculta automáticamente.
                     </AlertDescription>
                     <ul className="mt-3 space-y-3 text-sm">
                       {issuePages.map((page) => (
                         <li key={page.id} className="rounded-lg border border-amber-400/40 p-3">
                           <p className="font-medium">Página “{page.title}”</p>
                           {(localIssues[page.id] ?? []).map((issue) => (
-                            <p key={issue.blockId} className="mt-1 text-xs">
-                              Bloque {issue.blockType === 'ContactFormBlock' ? 'Formulario' : 'Reservas'} · {describeCode(issue.code)?.message}
+                            <p key={`${issue.blockId ?? 'page'}:${issue.code}`} className="mt-1 text-xs">
+                              {issue.blockType ?? 'Página'} {issue.blockId ?? ''} · {describeCode(issue.code)?.message ?? issue.code}
+                              {' '}{(issue.remediation ?? []).map((item) => ({ replace_resource: 'Elige otro recurso.', exclude_page: 'Puedes excluir esta página.', resolve_owner: 'Resuelve el propietario del formulario.', wait: 'Espera y vuelve a comprobar.' }[item.action] ?? item.action)).join(' ')}
                             </p>
                           ))}
                           <div className="mt-2 flex flex-wrap gap-2">
@@ -261,8 +260,8 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         <DialogFooter className="shrink-0">
           {phase === 'review' && (<>
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={prepare} disabled={selectedIds.length === 0 && !includeThemeAndMenus}>
-              {errInfo?.reload ? 'Preparar de nuevo' : 'Preparar publicación'}{selectedIssueCount > 0 ? ' (con advertencias)' : ''}
+            <Button onClick={prepare} disabled={checking||!preflight?.canPublish}>
+              {errInfo?.reload ? 'Preparar de nuevo' : 'Preparar publicación'}
             </Button>
           </>)}
           {(phase === 'ready' || phase === 'activating') && (<>

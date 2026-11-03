@@ -7,7 +7,6 @@ import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
 import { PUBLIC_ROUTE_ROOT } from '../../lib/pageRoute.js'
-import { CAPABILITY_SOURCE } from '../../lib/capabilities.js'
 import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
@@ -104,7 +103,7 @@ export default function SiteSettings({ site, siteId, caps }) {
             </li>
           ))}
         </ul>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]" data-source={CAPABILITY_SOURCE}>Esta lista es una guía basada en tu sesión; el servidor confirma cada acción.</p>
+        <p className="text-xs text-[hsl(var(--muted-foreground))]" data-source="server">Permisos efectivos de este sitio, confirmados por el servidor.</p>
       </section>
 
       <section aria-labelledby="adv-title" className="space-y-3 rounded-2xl border border-[hsl(var(--border))] p-4">

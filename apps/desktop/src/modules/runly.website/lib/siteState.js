@@ -1,6 +1,4 @@
-// Display state derived from fields the backend already returns (S2/S3).
-// Nothing here is authoritative: `hasPending` compares revisions and is an
-// approximation until the backend ships `hasUnpublishedChanges` (contract C-2).
+// C-2 owns change detection. Lifecycle takes precedence over release pointers.
 
 export const LIFECYCLE_LABEL = {
   draft: 'Borrador (sin publicar)',
@@ -19,8 +17,14 @@ export function deriveSiteState(site, activeRelease) {
   if (lifecycle === 'maintenance') return { key: 'maintenance', label: LIFECYCLE_LABEL.maintenance, tone: 'brand', hasPending: null, approximate: true }
   if (lifecycle === 'unpublished') return { key: 'unpublished', label: LIFECYCLE_LABEL.unpublished, tone: 'neutral', hasPending: null, approximate: true }
   if (site.activeReleaseId) {
+    if (typeof site.hasUnpublishedChanges === 'boolean') return {
+      key: site.hasUnpublishedChanges ? 'published_pending' : 'published',
+      label: site.hasUnpublishedChanges ? 'Publicado · cambios sin publicar' : 'Publicado',
+      tone: site.hasUnpublishedChanges ? 'warning' : 'success',
+      hasPending: site.hasUnpublishedChanges, approximate: false,
+    }
     if (!activeRelease) return { key: 'published', label: LIFECYCLE_LABEL.published, tone: 'success', hasPending: null, approximate: true }
-    const pending = Number(site.draftRevision ?? 0) > Number(activeRelease.draftRevision ?? 0)
+    const pending = site.hasUnpublishedChanges===true
     return pending
       ? { key: 'published_pending', label: 'Publicado · cambios sin publicar', tone: 'warning', hasPending: true, approximate: true }
       : { key: 'published', label: LIFECYCLE_LABEL.published, tone: 'success', hasPending: false, approximate: true }
