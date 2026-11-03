@@ -96,6 +96,10 @@ export function createWebsiteApi(token) {
     unpublishSite: (siteId, data, idempotencyKey) => call(`${site(siteId)}/publication/unpublish`, { method: 'POST', body: data, idempotencyKey }),
     listDomains: (siteId, o) => call(`${site(siteId)}/domains`, o),
     reserveHostname: (siteId, slug) => call(`${site(siteId)}/domains`, { method: 'POST', body: { slug } }),
+    hostnameAvailability: (siteId, slug) => call(`${site(siteId)}/domains/availability?slug=${encodeURIComponent(slug)}`),
+    hostnameStatus: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}`),
+    activateHostname: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}/activate`, { method: 'POST' }),
+    releaseHostname: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}/release`, { method: 'POST' }),
     createPreview: (siteId, data, idempotencyKey) => call(`${site(siteId)}/previews`, { method: 'POST', body: data, idempotencyKey }),
     revokePreview: (siteId, previewId) => call(`${site(siteId)}/previews/${s(previewId)}`, { method: 'DELETE' }),
     createImport: (siteId, file, { routingMode = 'mpa', rootDirectory } = {}, idempotencyKey) => {

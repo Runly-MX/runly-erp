@@ -1,66 +1,79 @@
-# Propuesta: registro global de subdominios de Website
+# Registro global de subdominios de Website
 
-## Estado de las decisiones
+## Estado
 
 | Elemento | Estado |
 |---|---|
-| Arquitectura de registro centralizado para múltiples instalaciones | **Dirección aprobada** |
-| Implementación del registro (servicio, ruta REST, cliente, enrolamiento) | **Pendiente** |
-| Despliegue (DNS, certificados, edge, servicio) | **No autorizado** |
-| Dominio registrable independiente de `runly.mx` para contenido ZIP no confiable | **Aprobado conceptualmente; dominio aún sin seleccionar ni comprar** |
+| Arquitectura centralizada para múltiples instalaciones | Dirección aprobada |
+| Núcleo del registro (servicio, API firmada, operador, auditoría) | **Implementado y probado en laboratorio**, en el Developer Hub (rama `website-subdomain-registry`) |
+| Integración Website (reservar, comprobar, activar, liberar, estado, sincronía) | **Implementada y probada en laboratorio** (rama `website-registry`) |
+| Despliegue del registro, DNS wildcard, TLS, edge | **No autorizado** y no realizado |
+| Dominio registrable independiente para ZIP | Aprobado conceptualmente; sin seleccionar ni comprar |
 
-Objetivo vigente: ofrecer subdominios automáticos `<slug>.sites.runly.mx` a empresas de múltiples instalaciones de Runly, con unicidad global. No se implementó ningún registro, no se tocó DNS ni certificados y no se cambió ninguna validación de aislamiento.
+Objetivo vigente: subdominios automáticos `<slug>.sites.runly.mx` para empresas de múltiples instalaciones de Runly, con unicidad global. La distribución real todavía no funciona: faltan el despliegue del registro, el edge y DNS/TLS (ver "Dependencias y bloqueos").
 
-## Lo que existe hoy (verificado en el código)
+## Dónde vive el registro
 
-- `website-gateway-service.reserve()` crea `slug.<RUNLY_WEBSITE_NAMESPACE_ROOT>` con unicidad **local** (`website_domain.hostname` único en esa base). No tiene ruta REST: nada la llama fuera de pruebas.
-- La fila nace `pending` y `ready=false`; solo pasa a `assigned/ready` automáticamente si la raíz termina en `.test`. No existe ningún proceso que complete la transición en producción, y `resolve()` exige `assigned` y `ready`. Resultado: hoy un hostname de plataforma nunca se sirve fuera del laboratorio. El ensayo del instalador asigna la fila por SQL, como el laboratorio.
-- Lista de nombres reservados en código: admin, api, app, auth, login, public, preview, support, status, www, mail, erp, mcp, runly, atlas, internal, system (más prefijos `runly-`, `atlas-`, `internal-`, `system-`, `admin-`, `api-`, `auth-`).
-- `website-content-isolation.js` rechaza como raíz de contenido o vista previa cualquier host bajo `runly.mx`, igual al origen del ERP o que comparta dominio registrable con él, y exige HTTPS. **Se conserva tal cual**: el JavaScript no confiable de un ZIP nunca se sirve bajo `runly.mx`.
+En el **Runly Developer Hub**, el servicio central que ya existe (Hono, PostgreSQL, administración de plataforma con `hub.is_platform_admin`, migraciones y respaldo propios). No se crea otro sistema. Un registro dentro de una instalación no sería global, y la unicidad local fue precisamente el defecto anterior (`reserve()` solo era único en cada base).
 
-## Decisiones que siguen abiertas
+Archivos en el Hub: `supabase/migrations/20261103000000_subdomain_registry.sql`, `packages/contracts/registry.js` (contrato compartido), `apps/api/src/services/registry/{service,routes}.js`, montaje y rutas de operador en `apps/api/src/app.js`, pruebas en `tests/registry/` (`pnpm test:registry`) y `scripts/registry-lab-server.mjs`.
 
-1. Dónde se aloja el registro y quién lo opera (se recomienda un servicio propio de Runly, descrito abajo).
-2. Selección y compra del dominio registrable independiente para ZIP y vista previa (ejemplo `runly-sites.net`).
-3. Si `sites.runly.mx` se solicita a la Public Suffix List (recomendado) antes del primer cliente.
-4. Si las instalaciones auto-hospedadas pueden reclamar nombres (recomendado: sí, con licencia/enrolamiento) o solo las gestionadas por Runly.
+## Modelo
 
-## Arquitectura recomendada
+Tablas `hub.registry_*`: `namespaces` (raíz, `ready`, `executable_content`), `installations` (clave pública Ed25519, estado), `names` (hostname único global, instalación, referencias opacas de empresa y sitio, estado, versión), `requests` (idempotencia), `nonces` (anti-replay), `reserved` (nombres reservados por operadores) y `audit` (solo anexión). Restricciones en la base de datos:
 
-**Registro central** `registry.runly.mx` (servicio pequeño, base propia, no parte del ERP). Las instalaciones lo llaman con credencial de instancia; el ERP nunca expone el registro a navegadores.
+- `UNIQUE(hostname)` decide cualquier carrera; ninguna lógica de aplicación la sustituye.
+- Los nombres no se borran nunca (disparador); la identidad de un nombre es inmutable.
+- La auditoría no admite UPDATE ni DELETE.
+- Un namespace bajo `runly.mx` no puede marcarse `executable_content` (CHECK): el contenido ejecutable no confiable no puede vivir allí.
+- El rol de ejecución no tiene DELETE sobre nombres ni auditoría; RLS activo.
 
-Modelo:
+Estados: `pending` (reservado, aún no sirve), `assigned` (activo), `suspended` (reversible por operador), `revoked` (terminal para instalaciones), `quarantined` (liberado; 90 días reservado a su titular).
 
-- `registry_instance(instance_id, public_key, status, enrolled_at)`: una instalación se enrola una vez y firma sus peticiones.
-- `registry_name(name PK, instance_ref, company_ref, site_ref, state, version, created_at)` con `state` en `reserved | active | suspended | quarantined | released`. `company_ref` y `site_ref` son opacos (hash con sal de instancia), nunca identificadores del ERP.
-- `registry_audit` solo de anexión.
+## API de instalaciones (`/registry/v1`)
 
-Operaciones (todas idempotentes por clave y firmadas):
+Autenticación: `X-Runly-Installation`, `X-Runly-Timestamp` (±300 s), `X-Runly-Nonce` (un solo uso) y `X-Runly-Signature` (Ed25519 sobre método, ruta con consulta, marca de tiempo, nonce, SHA-256 del cuerpo y clave de idempotencia). Todo fallo de autenticación responde igual (401 `REGISTRY_AUTH_FAILED`). Las mutaciones exigen `Idempotency-Key`: misma clave y misma carga repiten la respuesta; misma clave con otra carga es 422.
 
-- `claim(name)`: crea `active` si el nombre es válido y está libre; devuelve el mismo registro si ya es de esa instancia/sitio. Unicidad global por restricción de base de datos.
-- `rename(old,new)`: reclama el nuevo, marca el anterior `quarantined` 90 días y lo mantiene como redirección 301 al nuevo.
-- `release(name)`: pasa a `quarantined` 90 días y luego a libre. La cuarentena evita que otro tome un nombre con enlaces vivos.
-- `reassign(name, instance)`: solo con transferencia firmada por ambas instancias o aprobación manual de un operador de Runly; queda en auditoría.
-- `suspend/revoke(name)`: acción de operador (abuso, impago, orden legal); el edge responde 410.
+| Operación | Efecto |
+|---|---|
+| `GET /availability?namespace&slug` | Disponibilidad; nunca revela quién ocupa un nombre |
+| `POST /names` | Reserva `pending` con referencias opacas; re-reservar el mismo sitio es idempotente |
+| `GET /names`, `GET /names/:hostname` | Solo nombres propios; ajenos son 404 |
+| `POST /names/:hostname/activate` | `pending → assigned` si el namespace está listo (409 `NAMESPACE_NOT_READY` si no) |
+| `POST /names/:hostname/release` | Cuarentena de 90 días; no aplica a nombres suspendidos o revocados |
+| `POST /names/:hostname/rename` | Atómico: reserva el nuevo y deja el anterior en cuarentena con redirección |
 
-Validación de nombres: solo ASCII `[a-z0-9-]`, 3 a 50 caracteres, sin punycode, sin guiones al inicio o final, lista reservada del código más marcas de Runly y términos de suplantación (bancos, soporte, pago), detección de confundibles y límite de reclamos por instancia y por hora.
+Operador (`/api/v1/admin/registry/*`, administrador de plataforma): enrolar instalaciones, suspender o revocar una instalación (revocar suspende sus nombres), marcar un namespace listo, suspender, revocar, restaurar o reasignar un nombre con motivo obligatorio, añadir nombres reservados, ver nombres y auditoría.
 
-Prevención de secuestro: el nombre queda ligado a `instance_id` con firma; la cuarentena en `release/rename`; no hay CNAME hacia terceros ni registros dangling (el wildcard apunta siempre al edge de Runly); un nombre `suspended` nunca se reutiliza automáticamente.
+Reglas de nombre (contrato compartido): 3 a 50 caracteres `[a-z0-9-]`, sin `--` ni punycode, lista reservada y prefijos del código, marcas protegidas con look-alikes (`str1pe`, `runlyshop`) y reservados añadidos por operadores. Límites por instalación: 500 nombres y 60 reservas por hora (configurables).
 
-## Resolución y DNS/TLS
+## Integración Website
 
-- DNS: `*.sites.runly.mx` (wildcard) hacia el **edge de Runly**. Para multi-instalación el edge consulta el registro (`name → instance origin`) y reenvía al gateway público de esa instalación con el `Host` original; las instalaciones no necesitan DNS propio para esto. Alternativa descartada: subzonas por instancia, porque rompe el formato `<slug>.sites.runly.mx`.
-- TLS: certificado wildcard `*.sites.runly.mx` emitido por DNS-01 en el edge, con CAA restringido a la CA elegida y renovación automática. Segundo wildcard independiente para `*.content.<dominio ZIP>` y `*.preview.<dominio ZIP>`; la clave privada de cada uno vive solo en su edge.
-- Separación: administración en `app.runly.mx` o el dominio de la instalación; sitios de plataforma en `sites.runly.mx` (solo contenido generado por el builder, sin JS arbitrario); ZIP y vista previa en el dominio registrable independiente. Sin cookies compartidas: las del ERP deben ser de host exacto, y la inscripción de `sites.runly.mx` en la Public Suffix List impide cookies entre sitios de distintos clientes.
-- Caché: HTML con TTL corto y revalidación; activos con hash inmutables. La activación o el rollback de un release purga por hostname. Falta probar encabezados reales en staging.
+- `POST /website/sites/:siteId/domains` reserva; `GET .../domains/availability?slug=`, `GET .../domains/:hostname`, `POST .../domains/:hostname/activate` y `.../release`. Permiso `website.domains.manage` (estado: `website.site.read`). SDK, cliente de escritorio y la pantalla Dominios incluyen comprobar disponibilidad, reservar, ver estado y activar.
+- Sin registro configurado, un namespace real responde 409 `registry_required`; solo los `.test` de laboratorio conservan la asignación local anterior. Ninguna instalación finge ser global.
+- La fila local de `website_domain` conserva la titularidad (inmutable) y refleja el estado del registro (`registry_managed`). Solo las filas gestionadas por el registro pueden cambiar `state` y `ready`; las históricas siguen siendo de solo anexión (migración `20261219120000`).
+- Sincronía (`RUNLY_REGISTRY_SYNC_MS`, 5 min por defecto): copia suspensiones, revocaciones y disponibilidad del namespace. Solo actualiza filas que ya existen: no crea titularidad, no libera ni borra.
+- Variables: `RUNLY_REGISTRY_URL`, `RUNLY_INSTALLATION_ID`, `RUNLY_INSTALLATION_PRIVATE_KEY`; la llave se genera con `node scripts/registry-installation-key.mjs --env-file .env.external` (no se imprime; se muestra la pública para enrolar).
 
-## Cambios de código previstos (después de aprobar)
+## Contrato de resolución
 
-1. Ruta REST protegida para `reserve` (permiso `website.domains.manage`) que llame al registro en lugar de la unicidad local, con modo local explícito para instalaciones sin registro.
-2. Proceso que haga la transición `pending → assigned/ready` al confirmar el registro y la salud del edge.
-3. Cliente del registro con firma de instancia y reintentos idempotentes; enrolamiento en el instalador.
-4. Gateway: respuesta 410 para nombres suspendidos y 301 para renombrados.
+`hostname → instalación → empresa → sitio → release`: el hostname es el de la conexión (`Host`; las cabeceras reenviadas se ignoran). El registro decide qué instalación es titular; la instalación resuelve empresa, sitio y release activo con su fila local. Un hostname no registrado, suspendido, revocado, liberado o sin infraestructura lista responde 404. Servir un sitio publicado **no llama al registro**: una caída del registro no lo afecta, y el silencio nunca libera un nombre.
 
-## Qué se probó ahora
+## Aislamiento
 
-Solo la resolución de hostnames en un namespace de laboratorio (`*.lab-sites.test`) a través del Nginx empaquetado y el gateway real, con la fila de dominio asignada directamente. No se probó DNS, TLS, edge, registro ni nada de lo anterior.
+`*.sites.runly.mx` es el objetivo comercial y puede ser `RUNLY_WEBSITE_NAMESPACE_ROOT`. No se autoriza servir allí contenido ejecutable no confiable, y no se cambió ninguna validación: `website-content-isolation.js` sigue rechazando raíces de contenido o vista previa bajo `runly.mx` o que comparten dominio registrable con el ERP. ZIP y vista previa usarán el dominio independiente aún por seleccionar, con comodín y certificado propios.
+
+## Pruebas
+
+Hub (`pnpm test:registry`, PostgreSQL desechable con el rol real `hub_runtime`): 13 pruebas, entre ellas 30 rondas de carrera entre dos instalaciones con un único ganador, idempotencia concurrente, aislamiento entre instalaciones, ciclo completo, renombrado atómico, acciones de operador, auditoría inmutable, silencio sin liberación y la regla de `runly.mx`.
+
+ERP (`pnpm test:website:registry`, API real con su laboratorio, registro real y una segunda instalación simulada con su propia llave): 11 comprobaciones: reserva pendiente que no sirve, 15 carreras REST contra cliente con un solo ganador y sin fila local para el perdedor, aislamiento entre instalaciones, empresas y lectores, idempotencia, validación, activación y resolución por hostname con cabeceras falsificadas, hostnames históricos intactos, caída y reinicio del registro con sitios sirviendo, suspensión y restauración por sincronía (incluida la disponibilidad del namespace), liberación y revocación de instalación. La segunda instalación es solo un cliente firmado, no un ERP completo.
+
+## Dependencias y bloqueos
+
+1. Desplegar el Hub con la migración y las rutas (es un servicio central existente, pero este cambio no se ha desplegado).
+2. Un operador de plataforma debe enrolar cada instalación (clave pública) y marcar `ready` el namespace; hoy no hay interfaz de operador, solo API.
+3. Edge de Runly, DNS wildcard y certificado wildcard para `*.sites.runly.mx`; el edge debe consultar o replicar nombre → instalación y reenviar al gateway de esa instalación. No existe ni se probó.
+4. Dominio independiente con wildcard y certificado para ZIP y vista previa.
+5. Custodia de la llave privada de cada instalación y su rotación (no implementada).
+6. Pendiente de diseño: redirecciones 301 de nombres renombrados en el edge, solicitud a la Public Suffix List, límites de tasa por IP en el Hub y despliegue multirregión.

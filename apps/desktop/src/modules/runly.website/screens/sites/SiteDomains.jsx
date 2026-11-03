@@ -10,8 +10,15 @@ import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 // Never claims HTTPS or "active" while `ready` is false (contracts section 4).
 function domainStatus(domain) {
   if (domain.ready) return { label: 'Activa', tone: 'success' }
+  if (domain.state === 'suspended') return { label: 'Suspendida', tone: 'danger' }
+  if (domain.state === 'revoked') return { label: 'Revocada', tone: 'danger' }
+  if (domain.state === 'quarantined') return { label: 'Liberada', tone: 'neutral' }
+  if (domain.state === 'assigned') return { label: 'Activada · infraestructura en preparación', tone: 'warning' }
   if (domain.state === 'pending' || domain.state === 'reserved' || !domain.state) return { label: 'Reservada · en preparación', tone: 'warning' }
   return { label: domain.state, tone: 'neutral' }
+}
+const AVAILABILITY = {
+  NAME_UNAVAILABLE: 'Ese nombre ya está en uso.', NAME_RESERVED: 'Ese nombre está reservado.', SLUG_INVALID: 'Usa de 3 a 50 letras minúsculas, números o guiones, sin guiones dobles.',
 }
 
 export default function SiteDomains({ siteId, caps }) {
@@ -21,6 +28,8 @@ export default function SiteDomains({ siteId, caps }) {
   const [slug, setSlug] = useState('')
   const [busy, setBusy] = useState(false)
   const [serverError, setServerError] = useState(null)
+  const [availability, setAvailability] = useState(null)
+  const [rowBusy, setRowBusy] = useState(null)
   const slugError = slug ? validateHostSlug(slug) : null
 
   async function reserve() {
@@ -30,6 +39,17 @@ export default function SiteDomains({ siteId, caps }) {
       setSlug('')
       await queryClient.invalidateQueries({ queryKey: websiteKeys.domains(companyId, siteId) })
     } catch (error) { setServerError(error) } finally { setBusy(false) }
+  }
+  async function checkAvailability() {
+    setBusy(true); setServerError(null); setAvailability(null)
+    try { setAvailability((await api.hostnameAvailability(siteId, slug)).data) } catch (error) { setServerError(error) } finally { setBusy(false) }
+  }
+  async function act(domain, action) {
+    setRowBusy(domain.hostname); setServerError(null)
+    try {
+      await (action === 'activate' ? api.activateHostname(siteId, domain.hostname) : api.hostnameStatus(siteId, domain.hostname))
+      await queryClient.invalidateQueries({ queryKey: websiteKeys.domains(companyId, siteId) })
+    } catch (error) { setServerError(error) } finally { setRowBusy(null) }
   }
   const info = serverError ? describeError(serverError) : null
   const fieldError = slugError ?? (info ? `${info.title}. ${info.message}` : undefined)
@@ -49,7 +69,13 @@ export default function SiteDomains({ siteId, caps }) {
               <li key={domain.hostname} className="flex flex-wrap items-center gap-3 text-sm">
                 <code className="break-all">{domain.hostname}</code>
                 <StatusPill tone={status.tone} size="sm">{status.label}</StatusPill>
-                {!domain.ready && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya, pero aún no está activa. No tienes que hacer nada.</span>}
+                {!domain.ready && domain.state === 'pending' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya. Actívala cuando la infraestructura esté lista.</span>}
+                {domain.registryManaged && !domain.ready && ['pending', 'assigned'].includes(domain.state) && (
+                  <>
+                    {domain.state === 'pending' && <CapabilityButton capability={caps.reserveHostname} size="sm" onClick={() => act(domain, 'activate')} disabled={rowBusy === domain.hostname}>Activar</CapabilityButton>}
+                    <Button size="sm" variant="outline" onClick={() => act(domain, 'status')} disabled={rowBusy === domain.hostname}>Actualizar estado</Button>
+                  </>
+                )}
               </li>
             )
           })}
@@ -59,12 +85,14 @@ export default function SiteDomains({ siteId, caps }) {
         <h2 id="reserve-title" className="text-base font-semibold">Elegir una dirección</h2>
         <div className="flex flex-wrap items-start gap-2">
           <div className="min-w-[14rem] flex-1">
-            <TextField label="Nombre de la dirección" value={slug} onChange={(e) => { setSlug(e.target.value.toLowerCase()); setServerError(null) }} placeholder="mi-negocio" error={fieldError} hint="3 a 50 caracteres: letras minúsculas, números y guiones." />
+            <TextField label="Nombre de la dirección" value={slug} onChange={(e) => { setSlug(e.target.value.toLowerCase()); setServerError(null); setAvailability(null) }} placeholder="mi-negocio" error={fieldError} hint="3 a 50 caracteres: letras minúsculas, números y guiones." />
           </div>
-          <div className="pt-6">
+          <div className="flex gap-2 pt-6">
+            <Button variant="outline" onClick={checkAvailability} disabled={busy || !slug || Boolean(slugError)}>Comprobar disponibilidad</Button>
             <CapabilityButton capability={caps.reserveHostname} onClick={reserve} disabled={busy || !slug || Boolean(slugError)}>{busy ? 'Reservando…' : 'Reservar'}</CapabilityButton>
           </div>
         </div>
+        {availability && <p role="status" className={availability.available ? 'text-sm text-emerald-600 dark:text-emerald-400' : 'text-sm text-[hsl(var(--destructive))]'}>{availability.available ? 'Ese nombre está disponible.' : (AVAILABILITY[availability.reason] ?? 'Ese nombre no está disponible.')}</p>}
       </section>
       <section aria-labelledby="custom-title" className="rounded-2xl border border-dashed border-[hsl(var(--border))] p-4">
         <h2 id="custom-title" className="flex items-center gap-2 text-base font-semibold">Dominio propio <StatusPill size="sm">Próximamente</StatusPill></h2>

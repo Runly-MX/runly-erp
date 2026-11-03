@@ -65,6 +65,16 @@ El ensayo con imágenes empaquetadas encontró dos defectos que el laboratorio d
 - Nginx/Caddy termina TLS y envía `Host` intacto al contenedor web; el gateway resuelve por hostname. Dominios reservados en código: admin, api, app, auth, login, public, preview, support, status, www, mail, erp, mcp, runly, atlas, internal, system.
 - Caché: las páginas públicas se sirven desde releases inmutables; la activación cambia el puntero. Verificar en staging encabezados de caché tras activar y tras rollback.
 
+## Servicios y variables nuevos para un staging con registro
+
+| Elemento | Detalle |
+|---|---|
+| Developer Hub | Aplicar `20261103000000_subdomain_registry.sql` y desplegar `/registry/v1`. Variables opcionales del servicio: `REGISTRY_MAX_NAMES` (500), `REGISTRY_CLAIMS_PER_HOUR` (60), `REGISTRY_QUARANTINE_DAYS` (90). Expone un host accesible por las instalaciones. |
+| Operador | Con una cuenta de administrador de plataforma: enrolar cada instalación (`POST /api/v1/admin/registry/installations`), registrar el namespace (`.../namespaces`, `ready:false` hasta que DNS, TLS y edge existan) y activarlo (`ready:true`) solo entonces. |
+| Instalación | `node scripts/registry-installation-key.mjs --env-file .env.external` genera la llave (la privada queda en el archivo, la pública se entrega al operador); rellenar `RUNLY_REGISTRY_URL` y `RUNLY_INSTALLATION_ID`. El instalador añade las tres claves en blanco y no las sobrescribe. Opcional: `RUNLY_REGISTRY_SYNC_MS`. |
+| Migración ERP | `20261219120000_website_registry_projection` (aditiva; las filas históricas de `website_domain` siguen siendo de solo anexión). |
+| Edge y DNS | Wildcard `*.sites.<dominio>` hacia el edge, certificado wildcard (DNS-01), y dominio independiente con wildcard para ZIP y vista previa. Nada de esto existe aún. |
+
 ## Release de imágenes selectivo e inmutable
 
 `node infra/docker/release-selective.mjs` (alias `pnpm docker:release:selective`) sustituye a `pnpm docker:release` para Website: solo api, web y worker (DWG y el resto quedan en `build-push.mjs`), etiqueta `<imagen>-<sha12>` del commit exacto, nunca toca `-latest` por sí mismo, y registra en `.artifacts/releases/<sha12>.json` el digest de cada imagen y el digest previo de `-latest` para revertir.
@@ -103,10 +113,10 @@ Las migraciones son hacia adelante y aditivas; Prisma no las revierte. El ensayo
 
 ## Bloqueos antes de un despliegue seguro
 
-1. **Registro global de subdominios**: no existe, y `reserve()` no tiene ruta REST ni transición `pending` a `assigned`; hoy ningún hostname de plataforma se sirve fuera del laboratorio. Propuesta pendiente de aprobación en `website-subdomain-registry-proposal.md`.
+1. **Registro global de subdominios**: el núcleo está implementado y probado en laboratorio (Developer Hub + integración Website, ver `website-subdomain-registry-proposal.md`) pero **no desplegado**. Corrección de un error de este documento: `POST /website/sites/:id/domains` sí existía, pero solo reservaba con unicidad local y nada hacía la transición `pending` a `assigned`; el registro y la sincronía lo resuelven. Sin registro desplegado y un namespace listo, los sitios nuevos no tienen subdominio automático.
 2. **Dominio registrable independiente** con DNS comodín y certificado para ZIP y vista previa: decisión y compra externas.
 3. `main` no está en GitHub ni hay imágenes publicadas: el actualizador instalaría el `main` previo.
-4. El ensayo no usa DNS, TLS, edge ni caché reales ni datos reales; el hostname se asigna por SQL.
+4. El ensayo del instalador no usa DNS, TLS, edge ni caché reales ni datos reales; el hostname se asigna por SQL allí. El laboratorio del registro (`pnpm test:website:registry`) sí reserva y activa por la API real.
 5. `release-selective.mjs --push/--promote` sin probar contra un registro (sí `--build` y `--dry-run`).
 6. Pendientes sin automatizar: touch real, lector de pantalla, caché real en CDN.
 

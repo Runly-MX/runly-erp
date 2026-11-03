@@ -22,6 +22,10 @@ export function createWebsiteDomain({ request, withAuthHeaders }) {
     rollbackRelease: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/publication/rollback`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
     unpublishSite: (siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/publication/unpublish`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
     reserveHostname: (siteId,slug,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify({slug})}),
+    hostnameAvailability: (siteId,slug,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains/availability?slug=${encodeURIComponent(slug)}`,{headers:withAuthHeaders(token)}),
+    hostnameStatus: (siteId,hostname,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains/${encodeURIComponent(hostname)}`,{headers:withAuthHeaders(token)}),
+    activateHostname: (siteId,hostname,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains/${encodeURIComponent(hostname)}/activate`,{method:'POST',headers:withAuthHeaders(token)}),
+    releaseHostname: (siteId,hostname,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/domains/${encodeURIComponent(hostname)}/release`,{method:'POST',headers:withAuthHeaders(token)}),
     listSites: token => request('/website/sites', { headers: withAuthHeaders(token) }),
     createSite: (data, idempotencyKey, token) => request('/website/sites', {
       method: 'POST', headers: { ...withAuthHeaders(token), 'Idempotency-Key': idempotencyKey }, body: JSON.stringify(data),
