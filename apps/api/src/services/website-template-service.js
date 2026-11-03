@@ -5,6 +5,9 @@ import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js
 import {defaultTheme,defineTheme} from '@raulbellosom/atlas-web-builder'
 import {conformTemplateDocument} from './website-template-conform.js'
 
+// A template theme may override any token group (color, font, radius, button, card), never the scale tokens.
+export const mergeTemplateTokens=(base,custom={})=>Object.fromEntries(Object.entries(base).map(([group,value])=>[group,custom[group]&&typeof value==='object'?{...value,...custom[group]}:value]))
+
 export function createWebsiteTemplateService({prisma}) {
   const drafts=createWebsiteDraftService({prisma})
   const fail=(code,status=422)=>new WebsiteServiceError('No se pudo aplicar la plantilla.',status,code)
@@ -31,7 +34,7 @@ export function createWebsiteTemplateService({prisma}) {
           created.push({id:row.id,title:row.title,routePath:row.routePath})
         }
         if(a.includeTheme&&template.themeTokens){
-          const tokens=defineTheme({...defaultTheme,id:'site-theme',name:template.label,tokens:{...defaultTheme.tokens,color:{...defaultTheme.tokens.color,...template.themeTokens.color}}}).tokens
+          const tokens=defineTheme({...defaultTheme,id:'site-theme',name:template.label,tokens:mergeTemplateTokens(defaultTheme.tokens,template.themeTokens)}).tokens
           const theme=await tx.websiteTheme.create({data:{companyId:a.companyId,siteId:a.siteId,name:template.label,tokens}})
           const current=await tx.websiteSite.findUnique({where:{id:a.siteId}})
           await tx.websiteSite.update({where:{id:a.siteId},data:{draftIdentity:{...(current.draftIdentity??{name:current.name,siteType:current.siteType,settings:current.settings??{},seoDefaults:current.seoDefaults??{}}),themeId:theme.id},draftRevision:{increment:1}}})

@@ -102,7 +102,11 @@ export default function NewSiteScreen() {
           ctx.current.revision = saved?.draftRevision ?? ctx.current.revision
         }
         if (id === 'theme') {
-          const tokens = { ...defaultTheme.tokens, color: { ...defaultTheme.tokens?.color, primary: currentIdentity.primaryColor, bg: currentIdentity.bgColor } }
+          // The template ships its own palette and type; the wizard colors only win when the person changed them.
+          const brand = template?.themeTokens ?? {}
+          const picked = { ...(currentIdentity.primaryColor !== '#4F46E5' && { primary: currentIdentity.primaryColor }), ...(currentIdentity.bgColor !== '#FFFFFF' && { bg: currentIdentity.bgColor }) }
+          const tokens = Object.fromEntries(Object.entries(defaultTheme.tokens).map(([group, value]) => [group, brand[group] && typeof value === 'object' ? { ...value, ...brand[group] } : value]))
+          tokens.color = { ...tokens.color, ...picked }
           const built = defineTheme({ ...defaultTheme, id: 'site-theme', name: 'Tema del sitio', tokens })
           await api.createTheme({ siteId: ctx.current.siteId, name: 'Tema del sitio', tokens: built.tokens, typography: currentIdentity.font })
         }

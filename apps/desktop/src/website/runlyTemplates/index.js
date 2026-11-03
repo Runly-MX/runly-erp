@@ -3,7 +3,10 @@ import { spaTemplate,         spaSitePages }         from '../runlyBlocks/templa
 import { tiendaTemplate,      tiendaSitePages }      from '../runlyBlocks/templates/tiendaTemplate.js'
 import { agenciaTemplate,     agenciaSitePages }     from '../runlyBlocks/templates/agenciaTemplate.js'
 import { negocioTemplate,     negocioSitePages }     from '../runlyBlocks/templates/negocioTemplate.js'
-import { habitiaTemplate, habtiaSitePages, habitiaThemeTokens } from '../runlyBlocks/templates/habitiaTemplate.js'
+import { habitiaTemplate, habtiaSitePages } from '../runlyBlocks/templates/habitiaTemplate.js'
+
+import { TEMPLATE_THEMES } from './templateThemes.js'
+import { polishPage } from './templatePolish.js'
 
 const CATEGORY_COLORS = {
   restaurante: '#92400e',
@@ -37,21 +40,21 @@ function wrapTemplate(tpl, sitePages = [], themeTokens = null) {
     label:       tpl.label,
     description: tpl.description,
     color:       CATEGORY_COLORS[tpl.category] || '#334155',
-    themeTokens,
+    themeTokens: TEMPLATE_THEMES[tpl.id] ?? themeTokens,
     pages: [
       {
         id:        'home',
         label:     'Inicio',
         routePath: '/',
         required:  true,
-        page:      buildPageData(tpl.id, 'home', 'Inicio', '/', tpl.description, homeData),
+        page:      buildPageData(tpl.id, 'home', 'Inicio', '/', tpl.description, polishPage(tpl.id, 'home', homeData)),
       },
       ...sitePages.map((p) => ({
         id:        p.id,
         label:     p.label,
         routePath: p.routePath,
         required:  p.required ?? false,
-        page:      buildPageData(tpl.id, p.id, p.label, p.routePath, p.description ?? '', p.build()),
+        page:      buildPageData(tpl.id, p.id, p.label, p.routePath, p.description ?? '', polishPage(tpl.id, p.id, p.build())),
       })),
     ],
   }
@@ -63,5 +66,5 @@ export const allTemplates = [
   wrapTemplate(tiendaTemplate,     tiendaSitePages),
   wrapTemplate(agenciaTemplate,    agenciaSitePages),
   wrapTemplate(negocioTemplate,    negocioSitePages),
-  wrapTemplate(habitiaTemplate,    habtiaSitePages, habitiaThemeTokens),
+  wrapTemplate(habitiaTemplate,    habtiaSitePages),
 ]

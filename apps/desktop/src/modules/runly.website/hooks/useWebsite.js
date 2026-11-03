@@ -59,7 +59,14 @@ export function useSites() {
   const { api, companyId, ready } = useWebsiteScope()
   return useQuery({
     queryKey: websiteKeys.sites(companyId),
-    queryFn: async ({ signal }) => Promise.all(((await api.listSites({signal})).data??[]).map(async row=>row.lifecycle==='archived'?row:({...row,...(await api.getState(row.id,{signal})).data}))), // archived sites are disabled: they have no live state
+    queryFn: async ({ signal }) => Promise.all(((await api.listSites({signal})).data??[]).map(async row=>{
+      if(row.lifecycle==='archived')return row // archived sites are disabled: they have no live state
+      // Card extras are optional: a missing permission or a failed call just leaves that line out.
+      const optional=request=>request.then(result=>result.data,()=>null)
+      const [state,forms,domains]=await Promise.all([api.getState(row.id,{signal}),optional(api.listForms(row.id,{signal})),optional(api.listDomains(row.id,{signal}))])
+      const liveDomain=(domains??[]).find(domain=>domain.state==='assigned'&&domain.ready)?.hostname??null
+      return {...row,...state.data,formCount:Array.isArray(forms)?forms.length:null,liveDomain}
+    })),
     enabled: ready,
     staleTime: 15_000,
   })

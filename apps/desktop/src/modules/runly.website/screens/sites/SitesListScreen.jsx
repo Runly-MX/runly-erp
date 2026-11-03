@@ -11,7 +11,7 @@ import {
   PageHeader,
   TextField,
 } from '@runly/ui'
-import { Archive, Globe, Plus } from 'lucide-react'
+import { Archive, Clock, FileText, FormInput, Globe, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import { useQueryClient } from '@tanstack/react-query'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -26,7 +26,10 @@ const TYPE_LABEL = { website: 'Sitio informativo', ecommerce: 'Sitio con Catálo
 // A browser-window thumbnail: the card reads as "a website" at a glance and the whole surface opens it.
 function SiteCard({ site, onOpen }) {
   const state = deriveSiteState(site, null)
-  const address = site.domain || site.hostname || null
+  const address = site.liveDomain || site.domain || null
+  const pages = Array.isArray(site.pages) ? site.pages : null
+  const published = pages?.filter((page) => page.publicState !== 'unpublished').length ?? 0
+  const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`
   return (
     <li className="group relative flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-colors hover:border-[hsl(var(--foreground))]/30 focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]">
       <div className="flex h-28 flex-col bg-[hsl(var(--muted))]/60" aria-hidden="true">
@@ -55,6 +58,11 @@ function SiteCard({ site, onOpen }) {
             />
           </div>
         </div>
+        <dl className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-[hsl(var(--muted-foreground))]">
+          {pages && <div className="flex items-center gap-1"><FileText className="h-3.5 w-3.5" aria-hidden="true" /><dt className="sr-only">Páginas</dt><dd>{plural(pages.length, 'página', 'páginas')}{published > 0 && published !== pages.length ? ` · ${published} publicadas` : ''}</dd></div>}
+          {site.formCount != null && <div className="flex items-center gap-1"><FormInput className="h-3.5 w-3.5" aria-hidden="true" /><dt className="sr-only">Formularios</dt><dd>{site.formCount === 0 ? 'Sin formularios' : plural(site.formCount, 'formulario', 'formularios')}</dd></div>}
+          {site.updatedAt && <div className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" aria-hidden="true" /><dt className="sr-only">Actualizado</dt><dd>{new Date(site.updatedAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}</dd></div>}
+        </dl>
         <div className="mt-auto flex flex-wrap items-center gap-2">
           <SiteStatusChip state={state} size="sm" />
           {site.defaultForCompany && <Badge variant="secondary">Predeterminado</Badge>}

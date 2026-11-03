@@ -118,17 +118,19 @@ export default function WebsitePageEditorScreen({
     enabled: Boolean(token) && Boolean(pageId),
   });
 
+  // Theme and site type belong to the page's own site, not to the company's default one.
+  const pageSiteId = pageQuery.data?.data?.siteId ?? pageQuery.data?.siteId ?? null;
   const siteQuery = useQuery({
-    queryKey: ["website-site", token],
-    queryFn: () => apiFetch("/website/site", token),
-    enabled: Boolean(token),
+    queryKey: ["website-site", pageSiteId, token],
+    queryFn: () => apiFetch(pageSiteId ? `/website/sites/${pageSiteId}` : "/website/site", token),
+    enabled: Boolean(token) && (!pageId || Boolean(pageSiteId)),
     staleTime: 60_000,
   });
 
   const themeQuery = useQuery({
-    queryKey: ["website-theme", token],
-    queryFn: () => apiFetch("/website/theme", token),
-    enabled: Boolean(token),
+    queryKey: ["website-theme", pageSiteId, token],
+    queryFn: () => apiFetch(pageSiteId ? `/website/theme?siteId=${pageSiteId}` : "/website/theme", token),
+    enabled: Boolean(token) && (!pageId || Boolean(pageSiteId)),
     staleTime: 60_000,
   });
 
