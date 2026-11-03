@@ -227,7 +227,9 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
   assert.equal(login.status, 200); const token = (await login.json()).data.access_token
   const call = async (path, { method = 'GET', body, status = 200 } = {}) => {
     const r = await fetch(stack.urls.api + path, { method, headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': state.company.id, 'Content-Type': 'application/json', 'Idempotency-Key': 'k'.repeat(24) + Math.random().toString(16).slice(2) }, ...(body !== undefined && { body: JSON.stringify(body) }) })
-    const json = await r.json(); assert.equal(r.status, status, `${method} ${path}: ${JSON.stringify(json).slice(0, 300)}`); return json
+    const json = await r.json()
+    if (r.status !== status) console.log((await command('docker', ['logs', '--tail', '60', `${stack.name}-app-api-external`]).catch(e => String(e.message))).slice(-3500))
+    assert.equal(r.status, status, `${method} ${path}: ${JSON.stringify(json).slice(0, 300)}`); return json
   }
   const listed = (await call('/website/sites')).data
   assert.ok(listed.some(site => site.id === state.site.id), 'the historical site is listed after the update')
