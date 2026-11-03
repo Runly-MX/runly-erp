@@ -277,8 +277,8 @@ await scenario('website-update-from-previous-installer', { mode: 'external', via
     const port = (await command('docker', ['port', container, '4010/tcp'])).trim().split(':').pop()
     let ok = false; for (let i = 0; i < 40 && !ok; i++) { ok = await fetch(`http://127.0.0.1:${port}/health`).then(r => r.ok, () => false); if (!ok) await wait(1500) }
     assert.equal(ok, true, 'the previous API image starts against the migrated database')
-    const rollback = await fetch(`http://127.0.0.1:${port}/website/sites`, { headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': state.company.id } })
-    assert.equal(rollback.status, 200, 'the previous API image still lists the historical sites'); assert.ok((await rollback.json()).data.some(row => row.id === state.site.id))
+    const rollback = await fetch(`http://127.0.0.1:${port}/website/site`, { headers: { Authorization: `Bearer ${token}`, 'X-Runly-Company-Id': state.company.id } })
+    assert.equal(rollback.status, 200, 'the previous API image still serves the historical site endpoint'); assert.equal((await rollback.json()).data.id, state.site.id)
   } finally { await command('docker', ['rm', '-f', container]).catch(() => {}) }
 } })
 console.log(JSON.stringify({ passed: true, images, legacyImage, results }))
