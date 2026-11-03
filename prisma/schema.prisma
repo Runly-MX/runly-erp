@@ -6650,6 +6650,10 @@ model WebsiteDomain {
  kind String
  state String
  ready Boolean @default(false)
+ registryManaged Boolean @default(false) @map("registry_managed")
+ registryVersion Int? @map("registry_version")
+ registryRedirectTo String? @map("registry_redirect_to")
+ registrySyncedAt DateTime? @db.Timestamptz @map("registry_synced_at")
  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
  @@index([companyId,siteId],map:"website_domain_owner_idx")
  @@map("website_domain")

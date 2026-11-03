@@ -1,6 +1,6 @@
 import {Hono} from 'hono'
 import {websiteAccessFromRequest,websiteErrorHandler} from '../../services/website-authorization-service.js'
-export function createWebsiteReleaseRoutes({releases,gateway,contracts,requirePermission}) {
+export function createWebsiteReleaseRoutes({releases,gateway,hostnames,contracts,requirePermission}) {
  const app=new Hono();app.onError(websiteErrorHandler)
  const args=c=>({companyId:c.get('companyId'),siteId:c.req.param('siteId'),access:websiteAccessFromRequest(c),idempotencyKey:c.req.header('Idempotency-Key')})
  app.get('/sites/:siteId/state',requirePermission('website.site.read'),async c=>c.json({data:await contracts.state(args(c))}))
@@ -13,6 +13,10 @@ export function createWebsiteReleaseRoutes({releases,gateway,contracts,requirePe
  app.post('/sites/:siteId/releases/preflight',requirePermission('website.pages.publish'),command(releases.preflight))
  app.post('/sites/:siteId/releases',requirePermission('website.pages.publish'),command(releases.prepare,202))
  for(const op of ['activate','rollback','unpublish'])app.post(`/sites/:siteId/publication/${op}`,requirePermission('website.pages.publish'),command(releases[op]))
- app.post('/sites/:siteId/domains',requirePermission('website.domains.manage'),command(gateway.reserve,201))
+ app.post('/sites/:siteId/domains',requirePermission('website.domains.manage'),command(hostnames.reserve,201))
+ app.get('/sites/:siteId/domains/availability',requirePermission('website.domains.manage'),async c=>c.json({data:await hostnames.availability({...args(c),slug:c.req.query('slug')})}))
+ app.get('/sites/:siteId/domains/:hostname',requirePermission('website.site.read'),async c=>c.json({data:await hostnames.status({...args(c),hostname:c.req.param('hostname')})}))
+ app.post('/sites/:siteId/domains/:hostname/activate',requirePermission('website.domains.manage'),async c=>c.json({data:await hostnames.activate({...args(c),hostname:c.req.param('hostname')})}))
+ app.post('/sites/:siteId/domains/:hostname/release',requirePermission('website.domains.manage'),async c=>c.json({data:await hostnames.release({...args(c),hostname:c.req.param('hostname')})}))
  return app
 }

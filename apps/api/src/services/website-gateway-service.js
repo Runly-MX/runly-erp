@@ -77,7 +77,7 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     assertWebsiteAccess(a.access,a.companyId,'website.site.read')
     if(!a.siteId)throw notFound('Recurso')
     if(!await prisma.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}}))throw notFound('Recurso')
-    return prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true}})
+    return prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true,registryManaged:true,registryVersion:true,registrySyncedAt:true}})
   }
   return {resolve,response,asset,reserve,authority,domains}
 }

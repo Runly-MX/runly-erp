@@ -259,6 +259,13 @@ const companyModuleService = createCompanyModuleService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin });
 const notificationService = createNotificationService({ prisma, broadcaster });
 const websitePublication = createWebsitePublicationContext({ prisma, supabaseAdmin });
+// Mirror registry state (suspensions, revocations, namespace readiness) into the local hostnames. Failures are
+// deferred, never fatal: published sites keep serving from local state while the registry is unreachable.
+if (websitePublication.registry) {
+  const syncHostnames = () => websitePublication.hostnames.sync().catch((error) => console.warn('[website-registry] sync deferred:', error.reason ?? error.code ?? error.name));
+  setTimeout(syncHostnames, 15_000).unref();
+  setInterval(syncHostnames, Number(process.env.RUNLY_REGISTRY_SYNC_MS) || 300_000).unref();
+}
 app.use('*', createWebsitePreviewHandler({ ...websitePublication, prisma }));
 app.use('*', createWebsiteOriginGuard({ prisma, gateway: websitePublication.gateway,
   adminHosts: [process.env.RUNLY_APP_URL,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).hostname) }));

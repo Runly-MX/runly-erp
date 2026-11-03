@@ -123,7 +123,7 @@ test('development sync preserves .env.local overrides without blanking inherited
 });
 
 test('Website origin settings ship blank in every template and survive repeated installer sync', async t => {
-  const websiteKeys = ['RUNLY_WEBSITE_NAMESPACE_ROOT', 'RUNLY_WEBSITE_CONTENT_ROOT', 'RUNLY_WEBSITE_PREVIEW_ROOT'];
+  const websiteKeys = ['RUNLY_WEBSITE_NAMESPACE_ROOT', 'RUNLY_WEBSITE_CONTENT_ROOT', 'RUNLY_WEBSITE_PREVIEW_ROOT', 'RUNLY_REGISTRY_URL', 'RUNLY_INSTALLATION_ID', 'RUNLY_INSTALLATION_PRIVATE_KEY'];
   const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'runly-env-sync-'));
   t.after(() => fs.rm(dir, { recursive: true, force: true }));
   for (const name of ['infra/installer/.env.external.example', 'infra/installer/.env.local.example', '.env.example']) {
