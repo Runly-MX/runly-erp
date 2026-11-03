@@ -39,7 +39,7 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
   function response(snapshot,path) {
     const m=snapshot.release.manifest,r=m.routes.find(r=>r.path===path)
     return {initialized:true,integrityMode:'sealed',releaseId:snapshot.release.id,publicationRevision:snapshot.site.publicationRevision,
-      site:{id:snapshot.site.id,name:m.identity.name,domain:snapshot.hostname,sourceType:m.kind,company:snapshot.company.slug,analyticsMode:m.identity.analyticsMode??'off',turnstileSiteKey:m.identity.turnstileSiteKey??null},
+      site:{id:snapshot.site.id,name:m.identity.name,domain:snapshot.hostname,sourceType:m.kind,company:snapshot.company.slug,analyticsMode:snapshot.site.analyticsMode??'off',turnstileSiteKey:snapshot.site.turnstileSiteKey??null},
       page:r?{id:r.sourceId,title:r.title,slug:r.slug,routePath:r.path,status:'published',publishedBuilderData:r.document,seo:r.seo}:null,theme:m.theme,menus:m.menus,
       runtime:{...m.runtime,assets:Object.fromEntries(Object.entries(m.runtime.assets).map(([k,v])=>[k,{hash:v.hash,mime:v.mime,size:v.size}]))},dynamic:m.dynamic,assets:Object.fromEntries(Object.entries(m.assets).map(([k,v])=>[k,{hash:v.hash,mime:v.mime,size:v.size}]))}
   }

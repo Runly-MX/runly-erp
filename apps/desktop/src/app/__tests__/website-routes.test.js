@@ -44,15 +44,20 @@ test('website screens: root and /sites/* share one router, legacy paths redirect
   assert.equal(resolveScreen(map, 'runly.website', '/forms', null), 'FORMS')
 })
 
-test('website sub-sections missing from the manifest inherit their parent policy', () => {
+test('website sub-sections require explicit routes instead of inheriting parent access', () => {
   const manifest = (paths) => ({ key: 'runly.website', manifest: { authorizedRoutes: paths }, navigation: [] })
   const reader = manifest(['/sites/:siteId', '/sites/:siteId/blog'])
-  assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/catalog'), true)
-  assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/blog/post1'), true)
+  assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/catalog'), false)
+  assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/blog/post1'), false)
   assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/payments'), false)
   assert.equal(isPathAllowedByNavigation(reader, '/sites/s1/advanced'), false)
   const editor = manifest(['/sites/:siteId', '/sites/:siteId/settings'])
-  assert.equal(isPathAllowedByNavigation(editor, '/sites/s1/payments'), true)
+  assert.equal(isPathAllowedByNavigation(editor, '/sites/s1/payments'), false)
   assert.equal(isPathAllowedByNavigation(editor, '/sites/s1/blog/post1'), false)
   assert.equal(isPathAllowedByNavigation(manifest([]), '/sites/s1/catalog'), false)
+  for(const route of ['/sites/:siteId/catalog','/sites/:siteId/advanced','/sites/:siteId/payments','/sites/:siteId/blog/:postId']) {
+    const path=route.replace(':siteId','s1').replace(':postId','p1')
+    assert.equal(isPathAllowedByNavigation(manifest([route]),path),true)
+    assert.equal(isPathAllowedByNavigation(manifest([route]),path+'/extra'),false)
+  }
 })

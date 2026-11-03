@@ -19,7 +19,7 @@ import { AlertTriangle, CheckCircle2, Loader2, Rocket } from 'lucide-react'
 import { newIdempotencyKey } from '../lib/websiteApi.js'
 import { describeError, describeFailure, describeCode } from '../lib/websiteErrors.js'
 
-import { editorPath } from '../lib/pageRoute.js'
+import { editorPath,sitePath } from '../lib/pageRoute.js'
 import { useBlogPosts, useDomains, useWebsiteScope, websiteKeys } from '../hooks/useWebsite.js'
 import { ErrorNotice } from './ErrorNotice.jsx'
 
@@ -41,6 +41,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   const domains = useDomains(open ? site?.id : null)
   const blog = useBlogPosts(open ? site?.id : null)
   const [postIds, setPostIds] = useState(() => new Set())
+  const [removedPostIds,setRemovedPostIds]=useState(()=>new Set())
   const [phase, setPhase] = useState('review') // review | preparing | ready | activating | done | failed
   const [excluded, setExcluded] = useState(() => new Set())
   const [includeThemeAndMenus, setIncludeThemeAndMenus] = useState(true)
@@ -59,7 +60,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
 
   const reset = useCallback(() => {
     keys.current = { prepare: null, activate: null }
-    setPhase('review'); setRelease(null); setError(null); setExcluded(new Set()); setPostIds(new Set()); setIncludeThemeAndMenus(true); setShowPages(false)
+    setPhase('review'); setRelease(null); setError(null); setExcluded(new Set()); setPostIds(new Set()); setRemovedPostIds(new Set()); setIncludeThemeAndMenus(true); setShowPages(false)
   }, [])
 
   useEffect(() => {
@@ -69,13 +70,13 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   useEffect(()=>{
     if(!open||!api||!site?.id)return undefined;
     let alive=true;setChecking(true);setPreflight(null);
-    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,publishPostIds:selectedPostIds,includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
+    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,publishPostIds:selectedPostIds,unpublishPostIds:[...removedPostIds],includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
       if(!alive)return;const report=response.data;setPreflight(report);const grouped={};for(const issue of report.issues??[]){const id=issue.pageId??'global';(grouped[id]??=[]).push(issue)}setLocalIssues(grouped);
     }).catch(error=>{if(alive){setError(error);setPreflight(null)}}).finally(()=>{if(alive)setChecking(false)});
     return()=>{alive=false};
-  },[open,api,site?.id,selectedIds,selectedPostIds,includeThemeAndMenus,firstPublication]);
+  },[open,api,site?.id,selectedIds,selectedPostIds,removedPostIds,includeThemeAndMenus,firstPublication]);
 
-  const issuePages = publicPages.filter((page) => (localIssues[page.id] ?? []).length > 0)
+  const issuePages = [...publicPages,...posts.map(post=>({...post,isPost:true}))].filter((page) => (localIssues[page.id] ?? []).length > 0)
 
 
   async function pollRelease(releaseId) {
@@ -100,7 +101,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         baseReleaseId: fresh.activeReleaseId ?? null,
         expectedDraftRevision: String(fresh.draftRevision),
         expectedPublicationRevision: String(fresh.publicationRevision),
-        changes: { publishPageIds: selectedIds, publishPostIds: selectedPostIds, includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
+        changes: { publishPageIds: selectedIds, publishPostIds: selectedPostIds, unpublishPostIds:[...removedPostIds], includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
       }
       const checked=(await api.preflight(site.id,body)).data;if(!checked.canPublish){setPreflight(checked);setError({code:checked.issues?.[0]?.code??'validation_failed'});setPhase('review');return}
       const created = (await api.prepareRelease(site.id, body, keys.current.prepare)).data
@@ -180,8 +181,8 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
                             </p>
                           ))}
                           <div className="mt-2 flex flex-wrap gap-2">
-                            <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); navigate(editorPath(site.id, page.id)) }}>Ir a la página</Button>
-                            <Button size="sm" variant="outline" onClick={() => setExcluded((prev) => { const next = new Set(prev); if (next.has(page.id)) next.delete(page.id); else next.add(page.id); return next })}>
+                            <Button size="sm" variant="outline" onClick={() => { onOpenChange(false); navigate(page.isPost?sitePath(site.id,`blog/${page.id}`):editorPath(site.id, page.id)) }}>Ir al contenido</Button>
+                            <Button size="sm" variant="outline" onClick={() => {if(page.isPost){setPostIds(prev=>{const next=new Set(prev);next.delete(page.id);return next});return}setExcluded((prev) => { const next = new Set(prev); if (next.has(page.id)) next.delete(page.id); else next.add(page.id); return next })}}>
                               {excluded.has(page.id) ? 'Incluir esta página' : 'No publicar esta página por ahora'}
                             </Button>
                           </div>
@@ -220,9 +221,10 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
                       {posts.map((post) => (
                         <li key={post.id}>
                           <label className="flex items-center gap-3 text-sm">
-                            <Checkbox checked={postIds.has(post.id)} onCheckedChange={(value) => setPostIds((prev) => { const next = new Set(prev); if (value) next.add(post.id); else next.delete(post.id); return next })} aria-label={`Publicar la entrada ${post.title}`} />
+                            <Checkbox checked={postIds.has(post.id)} disabled={removedPostIds.has(post.id)} onCheckedChange={(value) => setPostIds((prev) => { const next = new Set(prev); if (value) next.add(post.id); else next.delete(post.id); return next })} aria-label={`Publicar la entrada ${post.title}`} />
                             <span>{post.title}</span><span className="text-xs text-[hsl(var(--muted-foreground))]">{post.status === 'published' ? 'Publicada' : 'Borrador'}</span>
                           </label>
+                          {post.status==='published'&&<label className="flex items-center gap-3 text-sm"><Checkbox checked={removedPostIds.has(post.id)} disabled={postIds.has(post.id)} onCheckedChange={value=>setRemovedPostIds(prev=>{const next=new Set(prev);if(value)next.add(post.id);else next.delete(post.id);return next})} aria-label={`Retirar la entrada ${post.title}`}/>Retirar de la versión pública</label>}
                         </li>
                       ))}
                     </ul>

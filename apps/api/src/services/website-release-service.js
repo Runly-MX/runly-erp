@@ -11,7 +11,7 @@ import { z } from 'zod'
 const failure=(code,status=409)=>new WebsiteServiceError('No se pudo completar la publicación.',status,code)
 const known=new Set(BLOCK_CATALOG.blocks.map(b=>b.type))
 const definitions=new Map(BLOCK_CATALOG.blocks.map(b=>[b.type,b]))
-const changesSchema=z.object({publishPageIds:z.array(z.string().uuid()).max(100),publishPostIds:z.array(z.string().uuid()).max(100).default([]),unpublishPageIds:z.array(z.string().uuid()).max(100).default([]),includeThemeAndMenus:z.boolean().default(true)}).strict()
+const changesSchema=z.object({publishPageIds:z.array(z.string().uuid()).max(100),publishPostIds:z.array(z.string().uuid()).max(100).default([]),unpublishPageIds:z.array(z.string().uuid()).max(100).default([]),unpublishPostIds:z.array(z.string().uuid()).max(100).default([]),includeThemeAndMenus:z.boolean().default(true)}).strict()
 const revision=value=>{
   if(typeof value==='string'&&!/^\d+$/.test(value))throw failure('validation_failed',422)
   if(!['string','number'].includes(typeof value)||!Number.isSafeInteger(Number(value))||Number(value)<0)throw failure('validation_failed',422)
@@ -82,9 +82,12 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     const a={...authorize(input,previewCalls.has(input)?'website.pages.update':'website.pages.publish'),readOnly:readOnlyCalls.has(input)};if(!legacyCalls.has(input))assertWebsiteAccess(a.access,a.companyId,'website.site.read');key(a)
     a.expectedDraftRevision=revision(a.expectedDraftRevision);a.expectedPublicationRevision=revision(a.expectedPublicationRevision)
     const parsed=changesSchema.safeParse(a.changes);if(!parsed.success)throw failure('validation_failed',422);a.changes=parsed.data
+    // Preserve the canonical receipt hash of requests made before this field existed.
+    if(!a.changes.unpublishPostIds.length)delete a.changes.unpublishPostIds
+    if(a.changes.publishPostIds.some(id=>a.changes.unpublishPostIds?.includes(id)))throw failure('scope_conflict',422)
     if(a.changes.publishPageIds.some(id=>a.changes.unpublishPageIds.includes(id)))throw failure('scope_conflict',422)
     if(a.kind && a.kind!=='builder')throw failure('isolation_required')
-    if(!Array.isArray(a.changes?.publishPageIds)||(!a.changes.publishPageIds.length&&!a.changes.publishPostIds?.length&&!a.changes.unpublishPageIds?.length)||a.changes.publishPageIds.length>100)throw failure('validation_failed',422)
+    if(!Array.isArray(a.changes?.publishPageIds)||(!a.changes.publishPageIds.length&&!a.changes.publishPostIds?.length&&!a.changes.unpublishPageIds?.length&&!a.changes.unpublishPostIds?.length)||a.changes.publishPageIds.length>100)throw failure('validation_failed',422)
     // Capture with MVCC rather than locks: old SQL writers use page -> site.
     // Activation verifies the captured aggregate revision and manifest base.
     const captured=await prisma.$transaction(async tx=>{
@@ -114,17 +117,19 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     try {
       const issues=[];let location={}
       const issue=e=>({severity:'blocking',code:e.code??'dependency_unavailable',...location,resource:e.publicationResource??(location.blockType==='BookingFormBlock'?{kind:'calendar',id:null}:null),remediation:[{action:e.code==='form_scope_unresolved'||e.code==='ambiguous_site_identifier'?'resolve_owner':e.code==='dynamic_binding_unavailable'?'wait':'replace_resource'},{action:'exclude_page'}]})
-      const selected=new Set(a.changes.publishPageIds), removed=new Set(a.changes.unpublishPageIds??[])
+      const selected=new Set(a.changes.publishPageIds), removed=new Set(a.changes.unpublishPageIds??[]), removedPosts=new Set(a.changes.unpublishPostIds??[])
+      if([...removedPosts].some(id=>!captured.posts.some(p=>p.id===id)&&!captured.base?.routes.some(r=>r.sourceKind==='blog'&&r.sourceId===id)))throw notFound('Recurso')
+      if([...removed].some(id=>selected.has(id)))throw failure('validation_failed',422)
       if([...removed].some(id=>!captured.pages.some(p=>p.id===id)&&!captured.base?.routes.some(r=>r.sourceId===id)))throw notFound('Recurso')
       let routes=structuredClone(captured.base?.routes)??captured.pages.filter(p=>p.status==='published'&&p.visibility==='public'&&!selected.has(p.id)).map(p=>({path:p.routePath,sourceKind:'page',sourceId:p.id,document:p.publishedBuilderData,seo:p.seo??{},title:p.title,slug:p.slug,visibility:p.visibility}))
-      routes=routes.filter(r=>!selected.has(r.sourceId)&&!removed.has(r.sourceId))
+      routes=routes.filter(r=>!(r.sourceKind==='page'&&(selected.has(r.sourceId)||removed.has(r.sourceId)))&&!(r.sourceKind==='blog'&&removedPosts.has(r.sourceId)))
       for(const id of selected) {
         const p=captured.pages.find(p=>p.id===id);if(!p)throw notFound('Recurso')
         const meta=p.draftMetadata??p
         if(meta.visibility!=='public')throw failure('page_not_public',422)
         routes.push({path:meta.routePath,sourceKind:'page',sourceId:p.id,revision:p.revision,document:normalizeWebsiteDocument(p.draftBuilderData,{strict:true}),seo:p.draftSeo??p.seo??{},title:meta.title,slug:meta.slug,visibility:meta.visibility})
       }
-      for(const p of captured.posts.filter(p=>(a.changes.publishPostIds??[]).includes(p.id)||(!captured.base&&p.status==='published'))) {
+      for(const p of captured.posts.filter(p=>!removedPosts.has(p.id)&&((a.changes.publishPostIds??[]).includes(p.id)||(!captured.base&&p.status==='published')))) {
         routes=routes.filter(r=>r.sourceId!==p.id)
         const chosen=(a.changes.publishPostIds??[]).includes(p.id)
         routes.push({path:`/blog/${p.slug}`,sourceKind:'blog',sourceId:p.id,document:chosen?p.draftBuilderData:p.publishedBuilderData,seo:chosen?(p.draftSeo??p.seo??{}):(p.seo??{}),title:p.title,slug:p.slug,visibility:'public'})
@@ -171,7 +176,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         }
         if(field==='productId'&&value) {
           const selector=/^[0-9a-f-]{36}$/i.test(value)?{id:value}:{slug:value}
-          const product=await prisma.catalogProduct.findFirst({where:{...selector,companyId:a.companyId,enabled:true,published:true}})
+          const [product]=await prisma.$queryRaw`SELECT id FROM catalog_product WHERE company_id=${a.companyId}::uuid AND enabled=true AND published=true AND (id::text=${selector.id??''} OR slug=${selector.slug??''})`
           if(!product)throw notFound('Recurso');dynamic.push({kind:'catalog',productId:product.id});return value
         }
         if(/^(?:javascript|vbscript|data):/i.test(value)&&/url|href|link/i.test(field))throw failure('unsafe_link',422)
@@ -233,7 +238,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
       const publicSettings=new Set(['logoFileId','faviconFileId','businessName','address','contactEmail','contactPhone','whatsapp','socialLinks','brandColor'])
       if(Object.keys(identity.settings??{}).some(k=>!publicSettings.has(k)))throw failure('settings_not_publishable',422)
       const manifest={schemaVersion:1,kind:'builder',previewOnly:previewCalls.has(input),integrityMode:'sealed',companyId:a.companyId,siteId:a.siteId,routes,assets,dynamic,
-        identity:await visit({name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{},analyticsMode:identity.analyticsMode??'off',turnstileSiteKey:identity.turnstileSiteKey??null}),
+        identity:await visit({name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{}}),
         theme:include?await visit(captured.theme?{tokens:captured.theme.tokens,typography:captured.theme.typography,layout:captured.theme.layout,customCss:captured.theme.customCss}:null):captured.base.theme,
         menus,runtime:{rendererVersion:runtimeFiles['entry.js'].rendererVersion??'0.2.0',blockRegistryVersion:'runly-s3',assets:runtimeAssets}}
       if(a.readOnly)return {canPublish:issues.length===0,issues,expectedDraftRevision:captured.current.draftRevision,expectedPublicationRevision:captured.current.publicationRevision,baseReleaseId:captured.current.activeReleaseId}

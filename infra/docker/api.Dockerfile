@@ -70,6 +70,9 @@ COPY infra/installer/supabase/volumes/db/studio-realtime-role.sql infra/installe
 COPY infra/installer/supabase/volumes/db/notes-private-storage-owner.sql infra/installer/supabase/volumes/db/notes-private-storage-owner.sql
 COPY modules modules
 COPY apps/api apps/api
+# The template command reuses these pure JS blueprints; no administrative UI.
+COPY apps/desktop/src/website/runlyTemplates apps/desktop/src/website/runlyTemplates
+COPY apps/desktop/src/website/runlyBlocks/templates apps/desktop/src/website/runlyBlocks/templates
 COPY --from=website-runtime /app/apps/api/public/website-runtime apps/api/public/website-runtime
 COPY apps/shared apps/shared
 COPY scripts/diagnose-studio-catalog.mjs scripts/diagnose-studio-catalog.mjs

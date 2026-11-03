@@ -7,7 +7,7 @@ import { toast } from 'sonner'
 import { describeError } from '../lib/websiteErrors.js'
 import { describePublishability } from '../lib/formPublishability.js'
 import { editorPath, sitePath } from '../lib/pageRoute.js'
-import { usePages, useSessionPermission, useWebsiteScope } from '../hooks/useWebsite.js'
+import { usePages, useWebsiteCapabilities, useWebsiteScope } from '../hooks/useWebsite.js'
 import { CapabilityButton } from './CapabilityButton.jsx'
 
 // Plain-language explanation of C-4 publishability. Nothing is hidden or removed
@@ -17,8 +17,9 @@ export function FormPublishability({ form, siteId }) {
   const queryClient = useQueryClient()
   const { api, companyId } = useWebsiteScope()
   const pages = usePages(siteId)
-  const canResolve = useSessionPermission('website.forms.update')
-  const canResolveAmbiguous = useSessionPermission('growth.forms.update')
+  const caps=useWebsiteCapabilities(siteId)
+  const canResolve = caps.formsManage
+  const canResolveAmbiguous = caps.formsResolveAmbiguous
   const [ambiguousOpen, setAmbiguousOpen] = useState(false)
   const [busy, setBusy] = useState(false)
   const info = describePublishability(form.publishability)

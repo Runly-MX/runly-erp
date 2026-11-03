@@ -1,5 +1,10 @@
 export function createWebsiteDomain({ request, withAuthHeaders }) {
   return {
+    listSiteCatalogProducts:(siteId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
+    setSiteCatalogProduct:(siteId,productId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products/${encodeURIComponent(productId)}`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    setSiteCatalogSelection:(siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/selection`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    getCatalogProductUsage:(siteId,productId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products/${encodeURIComponent(productId)}/used-by?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
+    applySiteTemplate:(siteId,templateId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/templates/${encodeURIComponent(templateId)}/apply`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
     getSiteState:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/state',{headers:withAuthHeaders(token)}),
     getPublicationIntegrity:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/publication/integrity',{headers:withAuthHeaders(token)}),
     preflightRelease:(siteId,data,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/releases/preflight',{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),

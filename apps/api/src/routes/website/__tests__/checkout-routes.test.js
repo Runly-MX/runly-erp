@@ -24,7 +24,7 @@ function buildPrisma({ hasStripeKey = true, hasProduct = true, hasVariant = true
   return {
     $queryRaw: async (strings) => {
       const text = strings.join(" ");
-      if (text.includes("FROM website_site")) {
+      if (/FROM\s+website_site\s+WHERE/.test(text)) {
         return hasStripeKey
           ? [{ stripe_secret_key: "encrypted:sk_test_xxx", stripe_success_message: null, company_id: COMPANY_ID }]
           : [{ stripe_secret_key: null, stripe_success_message: null, company_id: COMPANY_ID }];
@@ -147,4 +147,11 @@ describe("POST /checkout — price/currency/name come from the catalog, never th
     });
     assert.equal(res.status, 400);
   });
+
+  it('does not expose private provider error details',async()=>{
+    class FailingStripe {get checkout(){return {sessions:{create:async()=>{throw Error('SYNTHETIC_PRIVATE_PROVIDER_DETAIL')}}}}}
+    const app=createPublicCheckoutRouter({prisma:buildPrisma(),StripeImpl:FailingStripe,decryptPasswordImpl:()=> 'synthetic'})
+    const response=await app.request('/checkout',{method:'POST',headers:{'X-Site-Id':SITE_ID,'Content-Type':'application/json'},body:JSON.stringify({items:[{productId:PRODUCT_ID,qty:1}]})})
+    assert.equal(response.status,500);assert.ok(!(await response.text()).includes('PRIVATE_PROVIDER_DETAIL'))
+  })
 });

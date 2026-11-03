@@ -37,7 +37,7 @@ try {
   if(bucket.error)throw bucket.error
   await buildWebsitePublicRuntime(join(directory,'runtime'))
   Object.assign(env,{RUNLY_API_TEST_MODE:'1',RUNLY_SKIP_DB_INIT:'1',NODE_ENV:'development',SUPABASE_URL:stack.urls.kong,RUNLY_SUPABASE_PUBLIC_URL:stack.urls.kong,
-    SUPABASE_ANON_KEY:stack.secret.SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY:stack.secret.SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET:stack.secret.SUPABASE_JWT_SECRET,
+    SUPABASE_ANON_KEY:stack.secret.SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY:stack.secret.SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWT_SECRET:stack.secret.SUPABASE_JWT_SECRET,JWT_SECRET:stack.secret.SUPABASE_JWT_SECRET,
     RUNLY_APP_URL:stack.urls.web,RUNLY_API_URL:stack.urls.api,CORS_ORIGIN:stack.urls.web,RUNLY_PROJECT_ROOT:resolve('.'),RUNLY_MODULES_DIR:join(directory,'modules'),RUNLY_WEBSITE_RUNTIME_DIR:join(directory,'runtime'),
     RUNLY_WEBSITE_NAMESPACE_ROOT:'sites.test',RUNLY_WEBSITE_CONTENT_ROOT:'content.localhost',RUNLY_WEBSITE_PREVIEW_ROOT:'preview.localhost'})
   await writeFile(join(directory,'private.json'),JSON.stringify({env,ports:stack.ports,urls:stack.urls,users:scenario.users,companies:scenario.companies,name:stack.name},null,2))

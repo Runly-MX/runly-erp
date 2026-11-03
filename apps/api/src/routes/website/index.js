@@ -1,4 +1,5 @@
 import { createWebsitePublicationContext } from '../../services/website-publication-context.js'
+import {createWebsiteDependencyRoutes} from './dependency-routes.js'
 import { createWebsiteReleaseRoutes } from './releases-routes.js'
 import { createWebsiteImportRoutes } from './import-routes.js'
 import { createWebsitePreviewRoutes } from './preview-routes.js'
@@ -21,6 +22,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   const app = new Hono()
   app.use('*',async(c,next)=>{c.header('Cache-Control','no-store');return next()})
   app.onError(websiteErrorHandler)
+  app.route('/website',createWebsiteDependencyRoutes({prisma,requirePermission,supabaseAdmin}))
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const websiteSvc = createWebsiteService({ prisma, publicationContext: publication })
   app.route('/website',createWebsiteReleaseRoutes({...publication,requirePermission}))

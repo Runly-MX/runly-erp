@@ -64,6 +64,10 @@ const site = (siteId) => `/website/sites/${s(siteId)}`
 export function createWebsiteApi(token) {
   const call = (path, options) => websiteFetch(path, token, options)
   return {
+    listCatalogProducts:(siteId,options={},o)=>call(`${site(siteId)}/catalog/products?${new URLSearchParams(options)}`,o),
+    setCatalogProduct:(siteId,productId,body,key)=>call(`${site(siteId)}/catalog/products/${s(productId)}`,{method:'PUT',body,idempotencyKey:key}),
+    catalogUsedBy:(siteId,productId,options={},o)=>call(`${site(siteId)}/catalog/products/${s(productId)}/used-by?${new URLSearchParams(options)}`,o),
+    applyTemplate:(siteId,templateId,body,key)=>call(`${site(siteId)}/templates/${s(templateId)}/apply`,{method:'POST',body,idempotencyKey:key}),
     getState:(id,o)=>call(site(id)+'/state',o),
     getIntegrity:(id,o)=>call(site(id)+'/publication/integrity',o),
     preflight:(id,body,o)=>call(site(id)+'/releases/preflight',{...o,method:'POST',body}),

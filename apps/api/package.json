@@ -16,6 +16,7 @@
     "@hono/zod-validator": "^0.8.0",
     "@modelcontextprotocol/sdk": "^1.32.1",
     "@prisma/client": "^7.8.0",
+    "@raulbellosom/atlas-web-builder": "0.2.4",
     "@runly/core": "workspace:^",
     "@runly/module-compiler": "workspace:*",
     "@runly/module-engine": "workspace:*",

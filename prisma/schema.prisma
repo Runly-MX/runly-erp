@@ -1341,6 +1341,8 @@ model UserPreference {
 // ─── atlas.website ────────────────────────────────────────────────────────────
 
 model WebsiteSite {
+  catalogMode String @default("explicit") @map("catalog_mode")
+  catalogProducts WebsiteCatalogProduct[]
   publicationRevision Int @default(0) @map("publication_revision")
   activeReleaseId String? @db.Uuid @map("active_release_id")
   lastPublishedReleaseId String? @db.Uuid @map("last_published_release_id")
@@ -1379,6 +1381,18 @@ model WebsiteSite {
   @@unique([companyId, id])
   @@index([companyId, enabled])
   @@map("website_site")
+}
+
+model WebsiteCatalogProduct {
+  companyId String @db.Uuid @map("company_id")
+  siteId String @db.Uuid @map("site_id")
+  productId String @db.Uuid @map("product_id")
+  included Boolean
+  site WebsiteSite @relation(fields:[companyId,siteId],references:[companyId,id],onDelete:Restrict,onUpdate:NoAction)
+  product CatalogProduct @relation(fields:[companyId,productId],references:[companyId,id],onDelete:Restrict,onUpdate:NoAction)
+  @@id([companyId,siteId,productId])
+  @@index([companyId,productId,siteId],map:"website_catalog_product_product_idx")
+  @@map("website_catalog_product")
 }
 
 model WebsitePage {
@@ -3002,6 +3016,7 @@ model CatalogCategory {
 }
 
 model CatalogProduct {
+  websiteSites WebsiteCatalogProduct[]
   revision Int @default(1)
   posEnabled Boolean @default(true) @map("pos_enabled")
   commercialTaxRate Decimal? @db.Decimal(8, 4) @map("commercial_tax_rate")
@@ -3033,6 +3048,7 @@ model CatalogProduct {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   category        CatalogCategory?         @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  @@unique([companyId,id],map:"catalog_product_website_owner_key")
   options         CatalogProductOption[]
   variants        CatalogProductVariant[]
   stockMovements  CatalogStockMovement[]

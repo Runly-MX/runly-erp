@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useInfiniteQuery, useQueryClient } from '@tanstack/react-query'
 import {
   ActionMenu,
   Alert,
@@ -27,10 +27,10 @@ import { ExternalLink, EyeOff, FilePlus2, Info, Package, ShoppingBag, Store } fr
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
-import { appendProductCard, formatPrice, gridsShowing, scanProductUsage } from '../../lib/catalogLink.js'
+import { appendProductCard, formatPrice } from '../../lib/catalogLink.js'
 import { sitePath } from '../../lib/pageRoute.js'
 import { useWebsiteScope } from '../../hooks/useWebsite.js'
-import { catalogKeys, useCatalogApi, useCatalogCategories, useCatalogPermissions, useCatalogProducts, usePageDrafts } from '../../hooks/useCatalog.js'
+import { catalogKeys, useCatalogApi, useCatalogCategories, useCatalogPermissions } from '../../hooks/useCatalog.js'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
 
 const STOCK = { out: ['Agotado', 'destructive'], low: ['Pocas piezas', 'warning'], ok: ['Disponible', 'success'] }
@@ -76,15 +76,26 @@ function AddToPageDialog({ product, pages, siteId, onClose, onDone }) {
   )
 }
 
-function ProductsTable({ mode, siteId, caps, perms, pages, usage, onAdd, onUnpublish, onPublish, filters }) {
+function ProductUsage({siteId,productId}) {
+  const {api,companyId}=useWebsiteScope()
+  const result=useInfiniteQuery({queryKey:['website',companyId,'site',siteId,'product-usage',productId],queryFn:({pageParam})=>api.catalogUsedBy(siteId,productId,pageParam?{cursor:pageParam}:{}),initialPageParam:null,getNextPageParam:last=>last.meta.nextCursor??undefined})
+  if(result.isError)return <ErrorNotice error={result.error}/>
+  if(result.isPending)return <span>Revisando…</span>
+  const rows=result.data.pages.flatMap(page=>page.data)
+  return <div className="text-xs">{rows.length?rows.map(row=>`${row.title} (${row.source}, ${row.kind})`).join(', '):'Sin referencias'}{result.hasNextPage&&<Button size="sm" variant="ghost" onClick={()=>result.fetchNextPage()}>Ver más referencias</Button>}</div>
+}
+
+function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, onPublish, filters }) {
   const navigate = useNavigate()
-  const query = useCatalogProducts({ ...filters, published: mode === 'published', page: 1, pageSize: PAGE_SIZE })
+  const {api,companyId}=useWebsiteScope()
+  const [offset,setOffset]=useState(0)
+  const query=useQuery({queryKey:['website',companyId,'catalog','selection',siteId,filters,mode,offset],queryFn:()=>api.listCatalogProducts(siteId,{...Object.fromEntries(Object.entries(filters).filter(([,v])=>v)),published:String(mode==='published'),limit:PAGE_SIZE,offset}),enabled:perms.read.allowed})
+  const selection=useMutation({mutationFn:async product=>{const state=(await api.getState(siteId)).data;return api.setCatalogProduct(siteId,product.id,{included:!product.includedInSite,expectedRevision:state.draftRevision},newIdempotencyKey())},onSuccess:()=>query.refetch(),onError:error=>toast.error(describeError(error).message)})
   const rows = query.data?.data ?? []
-  const total = query.data?.pagination?.total ?? rows.length
 
   const columns = useMemo(() => [
     {
-      id: 'product', header: 'Producto',
+      id: 'product', header: 'Producto', accessorFn: (product) => `${product.name} ${product.sku ?? ''} ${product.slug ?? ''}`,
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
           {row.original.image_url
@@ -106,11 +117,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, usage, onAdd, onUnpub
     ...(mode === 'published' ? [{
       id: 'usage', header: 'En este sitio',
       cell: ({ row }) => {
-        if (usage.isPending) return <span className="text-xs text-[hsl(var(--muted-foreground))]">Revisando…</span>
-        const cards = usage.value.cards.get(row.original.id) ?? []
-        const grids = gridsShowing(row.original, usage.value.grids)
-        if (!cards.length && !grids.length) return <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin usar</span>
-        return <span className="text-xs">{[...cards.map((p) => p.title), ...grids.map((g) => `${g.page.title} (grid)`)].filter((v, i, a) => a.indexOf(v) === i).join(', ')}</span>
+        return <div><p>{row.original.includedInSite?'Incluido en este sitio':'No incluido en este sitio'}</p><p>{row.original.publiclyVisible?'Visible actualmente':'No visible actualmente'}</p>{caps.pagesRead.allowed&&<ProductUsage siteId={siteId} productId={row.original.id}/>}</div>
       },
     }] : []),
     {
@@ -121,17 +128,18 @@ function ProductsTable({ mode, siteId, caps, perms, pages, usage, onAdd, onUnpub
           <ActionMenu
             label={`Acciones de ${product.name}`}
             items={[
+              {label:product.includedInSite?'Excluir de este sitio':'Incluir en este sitio',disabled:!caps.siteEdit.allowed||selection.isPending,onClick:()=>selection.mutate(product)},
               mode === 'published'
                 ? { label: 'Añadir a una página', icon: FilePlus2, disabled: !caps.pagesUpdate.allowed || !pages.length, onClick: () => onAdd(product) }
-                : { label: 'Publicar en la web', icon: Store, disabled: !perms.update.allowed, onClick: () => onPublish(product) },
-              ...(mode === 'published' ? [{ label: 'Quitar de la web', icon: EyeOff, variant: 'destructive', disabled: !perms.update.allowed, onClick: () => onUnpublish(product) }] : []),
+                : { label: 'Habilitar para web (empresa)', icon: Store, disabled: !perms.update.allowed, onClick: () => onPublish(product) },
+              ...(mode === 'published' ? [{ label: 'Deshabilitar para web (empresa)', icon: EyeOff, variant: 'destructive', disabled: !perms.update.allowed, onClick: () => onUnpublish(product) }] : []),
               { label: 'Editar en Catálogo', icon: ExternalLink, onClick: () => navigate(`/app/m/runly.catalog/${product.id}`) },
             ]}
           />
         )
       },
     },
-  ], [mode, caps.pagesUpdate.allowed, perms.update.allowed, pages.length, usage, navigate, onAdd, onUnpublish, onPublish])
+  ], [mode, siteId, caps.pagesRead.allowed, caps.siteEdit.allowed, caps.pagesUpdate.allowed, perms.update.allowed, pages.length, navigate, onAdd, onUnpublish, onPublish,selection])
 
   return (
     <div className="space-y-2">
@@ -149,7 +157,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, usage, onAdd, onUnpub
         emptyDescription={mode === 'published' ? 'Publica productos de tu Catálogo desde la pestaña “Disponibles para publicar”.' : 'Todos los productos activos de tu Catálogo ya se muestran en la web.'}
         stateKey={`website-catalog:${siteId}:${mode}`}
       />
-      {total > rows.length && <p className="text-xs text-[hsl(var(--muted-foreground))]">Mostrando {rows.length} de {total}. Filtra por categoría para ver el resto.</p>}
+      <div className="flex gap-2"><Button variant="outline" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-PAGE_SIZE))}>Anteriores</Button><Button variant="outline" disabled={query.data?.meta.nextOffset==null} onClick={()=>setOffset(query.data.meta.nextOffset)}>Siguientes productos</Button></div>
     </div>
   )
 }
@@ -157,7 +165,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, usage, onAdd, onUnpub
 export default function SiteCatalog({ siteId, site, caps, pages }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
-  const { companyId } = useWebsiteScope()
+  const { companyId, api } = useWebsiteScope()
   const catalogApi = useCatalogApi()
   const perms = useCatalogPermissions()
   const categories = useCatalogCategories(perms.read.allowed)
@@ -167,15 +175,15 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
   const [unpublishTarget, setUnpublishTarget] = useState(null)
 
   const pageList = (pages.data ?? []).filter((page) => page.visibility === 'public' || page.visibility === undefined)
-  const draftsState = usePageDrafts(siteId, pages.data ?? [], perms.read.allowed && tab === 'published')
-  const productsForScan = useCatalogProducts({ published: true, categoryId: categoryId || undefined, page: 1, pageSize: PAGE_SIZE }, perms.read.allowed).data?.data ?? []
-  const usage = useMemo(() => ({ isPending: draftsState.isPending, value: scanProductUsage(draftsState.drafts, productsForScan) }), [draftsState.isPending, draftsState.drafts, productsForScan])
-
-  const refreshCatalog = () => queryClient.invalidateQueries({ queryKey: catalogKeys.all(companyId) })
+  const withdrawalUsage=useQuery({queryKey:['website',companyId,'site',siteId,'withdrawal-usage',unpublishTarget?.id],enabled:Boolean(unpublishTarget&&caps.pagesRead.allowed),queryFn:async()=>{const rows=[];let cursor;do{const response=await api.catalogUsedBy(siteId,unpublishTarget.id,{limit:100,...(cursor&&{cursor})});rows.push(...response.data);cursor=response.meta.nextCursor}while(cursor);return rows}})
+  const refreshCatalog = () => {
+    queryClient.invalidateQueries({ queryKey: catalogKeys.all(companyId) })
+    queryClient.invalidateQueries({ queryKey: ['website', companyId, 'catalog', 'selection'] })
+  }
   const toggle = useMutation({
     mutationFn: ({ product, published }) => catalogApi.setPublished(product.id, published),
     onSuccess: (_, { product, published }) => {
-      toast.success(published ? `“${product.name}” ya se muestra en la web.` : `“${product.name}” se quitó de la web.`)
+      toast.success(published ? 'Producto elegible para web en la empresa. La inclusión por sitio es independiente.' : 'Producto deshabilitado globalmente para web.')
       refreshCatalog()
     },
     onError: (error) => toast.error(describeError(error).message),
@@ -183,7 +191,7 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
   })
 
   const categoryOptions = [{ value: '', label: 'Todas las categorías' }, ...(categories.data ?? []).map((category) => ({ value: category.id, label: category.name }))]
-  const unpublishUses = unpublishTarget ? [...(usage.value.cards.get(unpublishTarget.id) ?? []).map((p) => p.title), ...gridsShowing(unpublishTarget, usage.value.grids).map((g) => `${g.page.title} (grid)`)] : []
+  const unpublishUses=(withdrawalUsage.data??[]).map(row=>row.title)
 
   return (
     <div className="space-y-4 p-4 md:p-6">
@@ -219,8 +227,6 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
       ) : (
         <>
           <div className="max-w-xs"><SelectField label="Categoría" value={categoryId} onChange={setCategoryId} options={categoryOptions} /></div>
-          {draftsState.isError && <p className="text-xs text-amber-700 dark:text-amber-300" role="status">No se pudo revisar el uso en algunas páginas; la columna “En este sitio” puede estar incompleta.</p>}
-          {draftsState.truncated && <p className="text-xs text-[hsl(var(--muted-foreground))]">El uso se revisa en las primeras 50 páginas.</p>}
           <Tabs value={tab} onValueChange={setTab}>
             <TabsList>
               <TabsTrigger value="published">En la web</TabsTrigger>
@@ -229,7 +235,7 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
             {['published', 'available'].map((mode) => (
               <TabsContent key={mode} value={mode} className="pt-3">
                 <ProductsTable
-                  mode={mode} siteId={siteId} caps={caps} perms={perms} pages={pageList} usage={usage} filters={{ categoryId: categoryId || undefined }}
+                  mode={mode} siteId={siteId} caps={caps} perms={perms} pages={pageList} filters={{ categoryId: categoryId || undefined }}
                   onAdd={setAddTarget} onUnpublish={setUnpublishTarget}
                   onPublish={(product) => toggle.mutate({ product, published: true })}
                 />

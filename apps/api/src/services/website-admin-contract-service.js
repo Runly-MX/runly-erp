@@ -13,6 +13,9 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
     'domains.custom':'website.domains.manage','forms.manage':'website.forms.update','forms.publish':'website.pages.publish',
     'submissions.read':'website.submissions.read','submissions.export':'website.submissions.export','submissions.delete':'website.submissions.delete',
     'import.zip':'website.dist.upload','preview.site':'website.pages.read','catalog.link':'website.site.update',
+    'catalog.read':'catalog.products.read','catalog.select':'website.site.update',
+    'settings.operational':'website.site.update','payments.configure':'website.site.update','templates.apply':'website.pages.create',
+    'forms.resolveAmbiguous':'website.forms.update','templates.applyTheme':'website.theme.update',
   }
   async function owned(a,db=prisma) {
     assertWebsiteAccess(a.access,a.companyId,'website.site.read')
@@ -25,7 +28,7 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
     const result={}
     for(const [key,p]of Object.entries(permissions)) {
       let reason=!a.access.can(p)?{code:'permission_denied',requiredPermission:p}:null
-      const additional=key==='site.archive'?'website.pages.publish':key==='domains.reserve'?'website.site.update':null
+      const additional={'site.archive':'website.pages.publish','domains.reserve':'website.site.update','catalog.select':'catalog.products.read','forms.resolveAmbiguous':'growth.forms.update','templates.applyTheme':'website.site.update'}[key]
       if(!reason&&additional&&!a.access.can(additional))reason={code:'permission_denied',requiredPermission:additional}
       if(!reason&&['domains.custom','submissions.export','submissions.delete'].includes(key))reason={code:'feature_unavailable'}
       if(!reason&&key==='domains.reserve'&&!namespaceRoot)reason={code:'namespace_unavailable'}
@@ -34,7 +37,11 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       result[key]=reason?{allowed:false,reason}:{allowed:true}
     }
     result['calendar.publish']={allowed:false,reason:{code:'dynamic_binding_unavailable'}}
-    return {capabilities:result,effectivePermissions}
+    const sections={overview:['website.site.read'],pages:['website.pages.read'],blog:['website.pages.read'],catalog:['catalog.products.read'],forms:['website.forms.read'],appearance:['website.theme.read'],publishing:['website.pages.read'],domains:['website.site.read'],import:['website.dist.upload'],settings:['website.site.update'],advanced:['website.site.update'],payments:['website.site.update']}
+    const sectionCapabilities=Object.fromEntries(Object.entries(sections).map(([key,required])=>{
+      const missing=required.find(p=>!a.access.can(p));return [key,missing?{allowed:false,reason:{code:'permission_denied',requiredPermission:missing}}:{allowed:true}]
+    }))
+    return {capabilities:result,effectivePermissions,sectionCapabilities}
   }
   function document(value,manifest) {
     const normalized=normalizeWebsiteDocument(value)
@@ -68,7 +75,7 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       const items=await db.websiteMenuItem.findMany({where:{companyId:a.companyId,menuId:{in:menus.map(m=>m.id)},enabled:true},orderBy:{sortOrder:'asc'}})
       const themeProjection=theme?{tokens:theme.tokens,typography:theme.typography,layout:theme.layout,customCss:theme.customCss}:null
       const menuProjection=menus.map(m=>({id:m.id,name:m.name,location:m.location,items:items.filter(i=>i.menuId===m.id).map(i=>({id:i.id,label:i.label,url:i.url,pageId:i.pageId,parentId:i.parentId,target:i.target,sortOrder:i.sortOrder}))})).sort((a,b)=>a.id.localeCompare(b.id))
-      const identityProjection={name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{},analyticsMode:site.analyticsMode??'off',turnstileSiteKey:site.turnstileSiteKey??null}
+      const identityProjection={name:identity.name,siteType:identity.siteType,settings:identity.settings??{},seoDefaults:identity.seoDefaults??{}}
       const posts=await db.websiteBlogPost.findMany({where:{companyId:a.companyId,siteId:a.siteId,enabled:true}})
       const changedPosts=posts.some(p=>{const r=manifest?.routes?.find(r=>r.sourceKind==='blog'&&r.sourceId===p.id);try{return !r||hash({document:document(p.draftBuilderData,manifest),seo:p.draftSeo??p.seo??{},title:p.title,slug:p.slug})!==hash({document:document(r.document,manifest),seo:r.seo??{},title:r.title,slug:r.slug})}catch{return true}})
       const missingPosts=manifest?.routes?.some(r=>r.sourceKind==='blog'&&!posts.some(p=>p.id===r.sourceId))??false
@@ -86,7 +93,8 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
         if(bytes.length>8*1024*1024)throw new WebsiteServiceError('No se pudo verificar el archivo.',503,'dependency_unavailable')
         if(releaseBytesHash(bytes)!==ref.hash)changedFiles=true
       }
-      const changedGlobals=!manifest||hash(identityProjection)!==hash(manifest.identity)||hash(themeProjection)!==hash(manifest.theme)||hash(menuProjection)!==hash([...(manifest.menus??[])].sort((a,b)=>a.id.localeCompare(b.id)))
+      const publicIdentity={...manifest?.identity};delete publicIdentity.analyticsMode;delete publicIdentity.turnstileSiteKey
+      const changedGlobals=!manifest||hash(identityProjection)!==hash(publicIdentity)||hash(themeProjection)!==hash(manifest.theme)||hash(menuProjection)!==hash([...(manifest.menus??[])].sort((a,b)=>a.id.localeCompare(b.id)))
       const missingPublished=manifest?.routes?.some(r=>r.sourceKind==='page'&&!rows.some(p=>p.id===r.sourceId))??false
       return {id:site.id,companyId:a.companyId,draftRevision:site.draftRevision,publicationRevision:site.publicationRevision,activeReleaseId:site.activeReleaseId,lifecycle:site.lifecycle,
         hasUnpublishedChanges:manifest?.kind==='dist'?false:changedGlobals||changedPosts||missingPosts||changedFiles||missingPublished||pages.some(p=>p.hasUnpublishedChanges),pages:a.access.can('website.pages.read')?pages:[],...capabilities(a,site)}

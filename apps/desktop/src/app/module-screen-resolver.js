@@ -11,13 +11,7 @@ export function isPathAllowedByNavigation(module, subPath) {
     const paths=module.manifest?.authorizedRoutes??module.authorizedRoutes??[];
     if(subPath==='/sites/new')return paths.includes('/sites/new');
     const matches=(list,target)=>list.some(path=>new RegExp('^'+path.replace(/:[^/]+/g,'[^/]+')+'$').test(target));
-    if(matches(paths,subPath))return true;
-    // Sub-sections the manifest does not list yet inherit the policy of their
-    // parent entry (the backend still authorizes every operation).
-    const inherited=subPath.match(/^(\/sites\/[^/]+)\/(catalog|advanced|payments|blog\/[^/]+)$/);
-    if(!inherited)return false;
-    const parent={catalog:'',advanced:'/settings',payments:'/settings'}[inherited[2]]??'/blog';
-    return matches(paths,inherited[1]+parent);
+    return matches(paths,subPath);
   }
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === '/';

@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { zValidator } from '@hono/zod-validator'
-import { createSmtpConfigStore, encryptPassword, createWebsiteSmtpService } from '../../services/smtp-service.js'
+import { createSmtpConfigStore, encryptPassword, createWebsiteSmtpService, describeMailError } from '../../services/smtp-service.js'
 import { buildSmtpTestEmail } from '../../services/email-templates.js'
 import { createCompanyBrandService } from '../../services/company-brand-service.js'
 
@@ -75,7 +75,7 @@ export function createWebsiteSettingsRouter({ prisma, requirePermission, supabas
       })
       return c.json({ ok: true, source: config.source })
     } catch (err) {
-      return c.json({ error: err.message }, 400)
+      return c.json({ error: describeMailError(err).text }, 400)
     }
   })
 

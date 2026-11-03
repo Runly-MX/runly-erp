@@ -43,20 +43,6 @@ const Lazy = ({ children }) => <Suspense fallback={<LoadingState variant="page" 
 
 // Template application still writes through the historical default-site flow
 // (non-atomic, no revisioned drafts), so it is only offered for that site.
-function TemplatesScope({ site }) {
-  if (site?.defaultForCompany) return <TemplatesScreen />
-  return (
-    <div className="p-4 md:p-6">
-      <Alert variant="warning" role="status">
-        <Archive className="h-4 w-4" aria-hidden="true" />
-        <div>
-          <AlertTitle>Las plantillas todavía no admiten este sitio</AlertTitle>
-          <AlertDescription>Aplicar una plantilla crea páginas en el sitio predeterminado de tu empresa. Para evitar cambios en el sitio equivocado, no se ofrece aquí; crea las páginas desde Páginas.</AlertDescription>
-        </div>
-      </Alert>
-    </div>
-  )
-}
 
 function Appearance({ site, siteId }) {
   return (
@@ -69,7 +55,7 @@ function Appearance({ site, siteId }) {
         </TabsList>
         <TabsContent value="theme"><ThemeScreen siteId={siteId} /></TabsContent>
         <TabsContent value="menus"><MenusScreen siteId={siteId} /></TabsContent>
-        <TabsContent value="templates"><TemplatesScope site={site} /></TabsContent>
+        <TabsContent value="templates"><TemplatesScreen siteId={siteId} /></TabsContent>
       </Tabs>
     </Lazy>
   )
@@ -83,6 +69,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
   const pages = usePages(siteId)
   const [publishOpen, setPublishOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
+  const visibleSections = SECTIONS.filter(item=>caps.sections?.[item.id]?.allowed)
   const current = SECTIONS.some((item) => item.id === section) ? section : 'overview'
 
   if (site.isPending) return <LoadingState variant="page" />
@@ -125,7 +112,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
       <div className="flex min-h-0 flex-1 flex-col md:flex-row">
         <nav aria-label="Secciones del sitio" className="hidden w-56 shrink-0 border-r border-[hsl(var(--border))] p-3 md:block">
           <ul className="space-y-0.5">
-            {SECTIONS.map((item) => (
+            {visibleSections.map((item) => (
               <li key={item.id}>
                 <button
                   type="button"
@@ -140,7 +127,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
           </ul>
         </nav>
         <div className="border-b border-[hsl(var(--border))] p-3 md:hidden">
-          <SelectField label="Sección" value={current} onChange={(value) => navigate(sitePath(siteId, value))} options={SECTIONS.map((item) => ({ value: item.id, label: item.label }))} />
+          <SelectField label="Sección" value={current} onChange={(value) => navigate(sitePath(siteId, value))} options={visibleSections.map((item) => ({ value: item.id, label: item.label }))} />
         </div>
         <main className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</main>
       </div>

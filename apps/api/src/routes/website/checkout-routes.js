@@ -49,6 +49,7 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
           AND company_id = ${site.company_id}::uuid
           AND enabled = true
           AND published = true
+          AND EXISTS(SELECT 1 FROM website_site s WHERE s.id=${siteId}::uuid AND s.company_id=${site.company_id}::uuid AND COALESCE((SELECT l.included FROM website_catalog_product l WHERE l.company_id=s.company_id AND l.site_id=s.id AND l.product_id=catalog_product.id),s.catalog_mode='legacy_all'))
       `
       const productById = new Map(products.map((p) => [p.id, p]))
 
@@ -110,8 +111,8 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
 
       return c.json({ url: session.url })
     } catch (err) {
-      console.error('[public/website/checkout]', err?.message)
-      return c.json({ error: err.message }, 500)
+      // Provider errors can contain private configuration; keep them off the wire.
+      return c.json({ error: 'No se pudo completar el pago.' }, 500)
     }
   })
 
