@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { mkdir } from 'node:fs/promises'
-import { join, resolve } from 'node:path'
+import { join, relative, resolve, sep } from 'node:path'
 import { command } from './fixtures/studio/supabase-stack.mjs'
 // Builds the API image from a committed ref only, so a measurement label always
 // maps to an exact SHA. Local Docker engine only; nothing is pushed.
@@ -13,7 +13,7 @@ assert.ok(kinds.every(kind => ['api', 'worker', 'web'].includes(kind)))
 const directory = resolve('.artifacts/notifications', `build-${short}`), source = join(directory, 'source'), archive = join(directory, 'source.tar')
 await mkdir(source, { recursive: true })
 await command('git', ['archive', '--format=tar', '--output', archive, ref])
-await command('tar', ['-xf', archive, '-C', source])
+await command('tar', ['-xf', relative(process.cwd(), archive).split(sep).join('/'), '-C', relative(process.cwd(), source).split(sep).join('/')]) // relative: GNU tar reads "D:" as a remote host
 for (const kind of kinds) {
   const image = `runly-notifications:${kind}-${short}`
   // Web bakes its API/Supabase URLs at build time; the placeholders are only for local container boot.
