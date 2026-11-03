@@ -5,6 +5,7 @@ import { Hono } from "hono";
 import {
   createTokenBucketLimiter,
   createTurnstileVerifier,
+  readJsonBody,
 } from "../storefront/storefront-capture-routes.js";
 import {
   StorefrontCaptureError,
@@ -85,18 +86,14 @@ export function createPublicFormsRouter({
         return c.json({ error: "Demasiadas solicitudes." }, 429);
       }
 
-      const body = await c.req.json().catch(() => {
-        throw new StorefrontCaptureError(
-          "invalid_json",
-          "El cuerpo JSON no es valido.",
-          400,
-        );
-      });
+      const body = await readJsonBody(c);
       const idempotencyKey =
         c.req.header("Idempotency-Key") || legacyIdempotencyKey(body);
+      const scope=await prisma.websiteFormScope.findFirst({where:{companyId:form.companyId,formId:form.id}});
       const result = await captureService.submitForm({
         companySlug: company.slug,
         siteId: form.siteId,
+        ...(scope?.ownerKind==='website'?{websiteSiteId:scope.ownerWebsiteSiteId}:scope?.ownerKind==='growth_property'?{propertyId:scope.ownerPropertyId}:{}),
         formId: form.id,
         origin: c.req.header("Origin") || undefined,
         idempotencyKey,

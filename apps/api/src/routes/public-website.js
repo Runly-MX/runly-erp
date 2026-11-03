@@ -229,38 +229,48 @@ export function createPublicCatalogRouter({ prisma, supabaseAdmin = null }) {
   const siteResolver = createDistServeService({ prisma })
 
   // The npm storefront-sdk (packages/storefront-sdk) always sends
-  // X-Runly-Company and has no concept of the request's Host — honor that
-  // header first. Uploaded `dist` sites and the Website Builder's own
-  // in-editor preview don't send it, so they still resolve by Host.
-  async function getActiveCompanyId(c) {
-    const companySlug = getCompanySlugHeader(c)
-    if (companySlug) {
-      const company = await prisma.company.findUnique({ where: { slug: companySlug } })
-      if (company) return company.id
+  // A public Website host (or its known Origin on the central API) binds the
+  // site. Explicit SDK selectors cannot override it. Historical company-only
+  // consumers on the central API retain company-wide eligibility semantics.
+  async function scope(c) {
+    const selected=c.req.header('X-Runly-Website-Site')
+    if(selected&&!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(selected))throw new Error('invalid_scope')
+    const hostname=new URL(c.req.url).hostname
+    const adminHosts=[process.env.RUNLY_APP_URL,(process.env.RUNLY_API_URL??process.env.ATLAS_API_URL)].filter(Boolean).map(url=>new URL(url).hostname)
+    if(!['127.0.0.1','localhost',...adminHosts].includes(hostname)){
+      const site=await siteResolver.resolveSiteForRequest(c)
+      if(selected&&selected!==site.id)throw new Error('invalid_scope')
+      return {companyId:site.company_id,siteId:site.id}
     }
-    const site = await siteResolver.resolveSiteForRequest(c)
-    return site?.company_id ?? null
+    const origin=c.req.header('origin')
+    if(origin){
+      let host;try{host=new URL(origin).hostname}catch{throw new Error('invalid_scope')}
+      const binding=await prisma.websiteDomain.findFirst({where:{hostname:host,ready:true,state:'assigned'}})
+      if(binding){if(selected&&selected!==binding.siteId)throw new Error('invalid_scope');return {companyId:binding.companyId,siteId:binding.siteId}}
+    }
+    const slug=getCompanySlugHeader(c),company=slug?await prisma.company.findFirst({where:{slug,enabled:true}}):null
+    return {companyId:company?.id??null,siteId:selected??null}
   }
 
   app.get('/categories', async (c) => {
     try {
-      const companyId = await getActiveCompanyId(c)
+      const {companyId,siteId} = await scope(c)
       if (!companyId) return c.json({ data: [] })
-      const data = await publicSvc.listPublicCategories({ companyId })
+      const data = await publicSvc.listPublicCategories({ companyId,siteId })
       return c.json({ data })
     } catch (err) {
-      console.error('[public/catalog/categories]', err?.message)
-      return c.json({ data: [] }, 500)
+      // Return no infrastructure or provider details.
+      return c.json({ data: [] }, err.message==='invalid_scope'||err.status===404?404:500)
     }
   })
 
   app.get('/products', async (c) => {
     try {
-      const companyId = await getActiveCompanyId(c)
+      const {companyId,siteId} = await scope(c)
       if (!companyId) return c.json({ data: [], total: 0 })
       const { categorySlug, search, limit, offset } = c.req.query()
       const result = await publicSvc.listPublicProducts({
-        companyId,
+        companyId,siteId,
         categorySlug: categorySlug || undefined,
         search:       search       || undefined,
         limit:        limit  ? Number(limit)  : 20,
@@ -268,21 +278,21 @@ export function createPublicCatalogRouter({ prisma, supabaseAdmin = null }) {
       })
       return c.json(result)
     } catch (err) {
-      console.error('[public/catalog/products]', err?.message)
-      return c.json({ data: [], total: 0 }, 500)
+      // Fail closed.
+      return c.json({ data: [], total: 0 }, err.message==='invalid_scope'||err.status===404?404:500)
     }
   })
 
   app.get('/products/:slug', async (c) => {
     try {
-      const companyId = await getActiveCompanyId(c)
+      const {companyId,siteId} = await scope(c)
       if (!companyId) return c.json({ error: 'Not found' }, 404)
-      const data = await publicSvc.getPublicProductBySlug({ companyId, slug: c.req.param('slug') })
+      const data = await publicSvc.getPublicProductBySlug({ companyId,siteId, slug: c.req.param('slug') })
       if (!data) return c.json({ error: 'Not found' }, 404)
       return c.json({ data })
     } catch (err) {
-      console.error('[public/catalog/products/:slug]', err?.message)
-      return c.json({ error: 'Internal error' }, 500)
+      // Fail closed.
+      return c.json({ error: 'Not available' }, err.message==='invalid_scope'||err.status===404?404:500)
     }
   })
 

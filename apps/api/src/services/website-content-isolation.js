@@ -19,5 +19,5 @@ export function createWebsiteContentIsolation({adminOrigin,contentRoot,previewRo
   function previewOrigin(host) {return `${previewProtocol}//${host}${previewPort?':'+previewPort:''}`}
   function admin(){if(!adminOrigin)throw fail();return new URL(adminOrigin).origin}
   function isPreviewHost(host){const matches=!!previewRoot&&host.endsWith('.'+previewRoot)&&/^[a-f0-9]{32}$/.test(host.slice(0,-previewRoot.length-1));if(matches)independent(previewRoot);return matches}
-  return {publicHost,previewHost,previewOrigin,admin,isPreviewHost,localLab}
+  return {assertContentRoot:()=>independent(contentRoot),publicHost,previewHost,previewOrigin,admin,isPreviewHost,localLab}
 }

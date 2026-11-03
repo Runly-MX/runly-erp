@@ -21,6 +21,8 @@ describe("atlas SDK - website domain extraction", () => {
     });
 
     assert.deepEqual(Object.keys(domain).sort(), [
+      "listSiteCatalogProducts", "setSiteCatalogProduct", "setSiteCatalogSelection", "getCatalogProductUsage", "applySiteTemplate",
+      "getSiteState", "getPublicationIntegrity", "preflightRelease", "listSiteForms", "resolveFormScope",
       "activateRelease", "createImport", "createPage", "createPreview", "createSite",
       "deleteDist",
       "getDraft", "getImport",
@@ -28,7 +30,7 @@ describe("atlas SDK - website domain extraction", () => {
       "listDomains", "listPages", "listReleases", "listSites", "prepareRelease", "reserveHostname", "revokePreview", "rollbackRelease", "saveDraft", "saveSiteDraft",
       "unpublishSite", "updateSite",
       "uploadDist",
-    ]);
+    ].sort());
   });
 
   it("keeps request paths, methods, auth, and multipart upload", async () => {

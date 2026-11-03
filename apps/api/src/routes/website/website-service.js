@@ -48,6 +48,7 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
       const created = await prisma.websiteSite.create({
         data: {
           companyId,
+          catalogMode: 'explicit',
           defaultForCompany,
           draftIdentity: { name: data.name, siteType: data.siteType ?? 'website', settings: {}, seoDefaults: {} },
           name:          data.name,
@@ -79,22 +80,20 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
   }
 
   async function updateSite({ companyId, siteId, data, actorId }) {
+    return prisma.$transaction(async prisma=>{
+    await drafts.lockSite(prisma,companyId,siteId)
     const before = await prisma.websiteSite.findFirst({
       where: { id: siteId, companyId },
     })
     if (!before) throw notFound('Sitio')
 
+    const content=Object.fromEntries(['name','siteType','homepagePageId','themeId','settings','seoDefaults'].filter(k=>data[k]!==undefined).map(k=>[k,data[k]]))
     const after = await prisma.websiteSite.update({
       where: { id: siteId, companyId },
       data: {
-        ...(data.name                !== undefined && { name:                 data.name }),
-        ...(data.domain              !== undefined && { domain:               data.domain }),
-        ...(data.status              !== undefined && { status:               data.status }),
-        ...(data.siteType            !== undefined && { siteType:             data.siteType }),
-        ...(data.homepagePageId      !== undefined && { homepagePageId:       data.homepagePageId }),
-        ...(data.themeId             !== undefined && { themeId:              data.themeId }),
-        ...(data.settings            !== undefined && { settings:             data.settings }),
-        ...(data.seoDefaults         !== undefined && { seoDefaults:          data.seoDefaults }),
+        ...(before.releaseManaged?Object.keys(content).length?{draftIdentity:{...(before.draftIdentity??{name:before.name,siteType:before.siteType,settings:before.settings??{},seoDefaults:before.seoDefaults??{},themeId:before.themeId,homepagePageId:before.homepagePageId}),...content},draftRevision:{increment:1}}:{}:content),
+        ...(data.domain!==undefined&&{domain:data.domain}),
+        ...(data.status!==undefined&&{status:data.status}),
         ...(data.stripePublishableKey  !== undefined && { stripePublishableKey:  data.stripePublishableKey }),
         ...(data.stripeSecretKey      !== undefined && { stripeSecretKey:       encryptedSecret(data.stripeSecretKey) }),
         ...(data.stripeSuccessMessage !== undefined && { stripeSuccessMessage:  data.stripeSuccessMessage }),
@@ -119,6 +118,7 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     invalidateCache(companyId)
     invalidatePrimaryCache()
     return afterPublic
+    })
   }
 
   async function deleteSite({ companyId, siteId, actorId }) {

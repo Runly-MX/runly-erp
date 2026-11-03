@@ -12,12 +12,15 @@ function requireFormId(formId) {
 
 export function createFormsNamespace({
   request,
-  siteId,
+  siteId, websiteSiteId,propertyId,pageId,
   getAnalyticsContext = () => null,
   analytics = null,
   randomId = defaultRandomId,
 }) {
-  const siteHeaders = siteId ? { 'X-Runly-Site': siteId } : {}
+  if(websiteSiteId&&propertyId)throw new TypeError('forms: scope_conflict')
+  const siteHeaders = websiteSiteId?{'X-Runly-Website-Site':websiteSiteId}:propertyId?{'X-Runly-Property':propertyId}:siteId?{'X-Runly-Site':siteId}:{}
+  if(pageId)siteHeaders['X-Runly-Page']=pageId
+  const revisions=new Map()
 
   async function get(formId) {
     const response = await request(
@@ -27,6 +30,7 @@ export function createFormsNamespace({
       { headers: siteHeaders },
     )
     const form = response?.data ?? response
+    if(Number.isInteger(form.definitionRevision))revisions.set(formId,form.definitionRevision)
     analytics?.track?.('form_view', { formId })
     return form
   }
@@ -40,6 +44,7 @@ export function createFormsNamespace({
         `/public/storefront/v1/forms/${requireFormId(formId)}/submissions`,
         {
           values: values ?? {},
+          ...((options.expectedDefinitionRevision??revisions.get(formId))!==undefined?{expectedDefinitionRevision:options.expectedDefinitionRevision??revisions.get(formId)}:{}),
           ...(context.visitorId ? { visitorId: context.visitorId } : {}),
           ...(context.sessionId ? { sessionId: context.sessionId } : {}),
           ...(options.turnstileToken

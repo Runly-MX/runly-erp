@@ -611,6 +611,7 @@ function FloatingChatHubInner() {
       <div style={bubbleStyle}>
         <button
           type="button"
+          aria-label={isOpen ? "Cerrar chat" : "Abrir chat"}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}

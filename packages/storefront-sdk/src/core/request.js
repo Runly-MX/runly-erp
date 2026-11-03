@@ -45,15 +45,18 @@ export function createRequestCore({ baseUrl, company, getSession, fetchFn = fetc
     }
 
     let errorMessage = `Error ${response.status}`
-    let details = null
+    let details = null,serverCode=null
     try {
       const parsed = await response.json()
+      serverCode=parsed?.code??parsed?.error?.code??null
       const err = parsed?.error
       errorMessage = typeof err === 'string' ? err : (err?.message ?? errorMessage)
       details = err?.details ?? parsed?.details ?? null
     } catch {}
 
     const code = STATUS_TO_CODE[response.status] ?? 'UNKNOWN'
-    throw new StorefrontError(errorMessage, code, response.status, details)
+    const error=new StorefrontError(errorMessage, code, response.status, details)
+    if(serverCode)error.serverCode=serverCode
+    throw error
   }
 }

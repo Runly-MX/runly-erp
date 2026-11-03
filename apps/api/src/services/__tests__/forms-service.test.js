@@ -11,10 +11,12 @@ const USER_ID = "33333333-3333-7333-8333-333333333333";
 const access = createWebsiteAccess({ companyId: COMPANY_ID, actorId: USER_ID, can: () => true });
 
 function createPrismaStub() {
-  const forms = [];
+  const forms = [],scopes=[];const property={id:'analytics',companyId:COMPANY_ID,websiteSiteId:SITE_ID,enabled:true,status:'active'};
   return {
+    $transaction:async function(fn){return fn(this)},$queryRaw:async()=>[],
+    websiteFormScope:{findFirst:async({where})=>scopes.find(s=>s.formId===where.formId)||null,create:async({data})=>{const scope={id:'scope',...data};scopes.push(scope);return scope}},
     websiteSite: { findFirst: async ({ where }) => where.id === SITE_ID && where.companyId === COMPANY_ID ? { id: SITE_ID, companyId: COMPANY_ID, enabled: true } : null },
-    growthProperty: { findFirst: async () => null },
+    growthProperty: { findFirst: async ({where}) => where.id===property.id?property:null,upsert:async()=>property },
     websiteForm: {
       findMany: async ({ where }) =>
         forms.filter((f) => f.companyId === where.companyId && f.siteId === where.siteId && f.enabled === where.enabled),

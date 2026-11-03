@@ -123,5 +123,5 @@ export function createWebsiteDraftService({ prisma }) {
       })
     })
   }
-  return { save, saveSite, createSite, lockSite, receipt }
+  return { save, saveSite, createSite, lockSite, receipt, expected }
 }

@@ -427,7 +427,8 @@
       {
         'Content-Type': 'application/json',
         'X-Runly-Company': COMPANY,
-        'X-Runly-Site': SITE_ID,
+        ...(cfg.websiteSiteId || global.document.documentElement?.dataset?.release ? { 'X-Runly-Website-Site': cfg.websiteSiteId || cfg.siteId } : cfg.propertyId ? { 'X-Runly-Property': cfg.propertyId } : { 'X-Runly-Site': SITE_ID }),
+        ...(global.document.documentElement?.dataset?.pageId ? { 'X-Runly-Page': global.document.documentElement.dataset.pageId } : {}),
       },
       extra || {}
     )
@@ -544,7 +545,7 @@
     }
     var batch = takeBatch()
     if (!batch) return false
-    var query = new URLSearchParams({ company: COMPANY, siteId: SITE_ID })
+    var query = new URLSearchParams({company:COMPANY,...(cfg.websiteSiteId||global.document.documentElement?.dataset?.release?{websiteSiteId:cfg.websiteSiteId||cfg.siteId}:cfg.propertyId?{propertyId:cfg.propertyId}:{siteId:SITE_ID})})
     var accepted = global.navigator.sendBeacon(
       API_URL + '/public/storefront/v1/events/batch?' + query.toString(),
       JSON.stringify(batch.body)
@@ -883,6 +884,7 @@
         })
         var turnstileInput = form.querySelector('[name="cf-turnstile-response"]')
         var body = { values: values, honeypot: honeypot.value || '' }
+        if (Number.isInteger(definition.definitionRevision)) body.expectedDefinitionRevision = definition.definitionRevision
         var current = context()
         if (current) {
           body.visitorId = current.visitorId

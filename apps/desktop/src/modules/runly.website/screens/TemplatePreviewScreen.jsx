@@ -1,6 +1,6 @@
 import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState, useMemo, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   AtlasWebBuilderProvider,
@@ -12,11 +12,14 @@ import {
   defineTheme,
 } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
-import { Button } from '@runly/ui'
+import { Button, ConfirmDialog } from '@runly/ui'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import {useWebsiteCapabilities} from '../hooks/useWebsite.js'
+import {newIdempotencyKey} from '../lib/websiteApi.js'
+import {describeError} from '../lib/websiteErrors.js'
 import { allTemplates } from '../../../website/runlyTemplates/index.js'
 import { RunlySiteFrame } from '../../../website/RunlySiteFrame.jsx'
 import {
@@ -41,7 +44,7 @@ async function apiFetch(path, token, options = {}) {
   })
   if (!res.ok) {
     const err = await res.json().catch(() => ({}))
-    throw new Error(err.error || `HTTP ${res.status}`)
+    throw Object.assign(new Error(err.error || `HTTP ${res.status}`),{code:err.code,status:res.status})
   }
   return res.json()
 }
@@ -97,6 +100,10 @@ function TemplatePagePreview({ page, theme }) {
 export default function TemplatePreviewScreen() {
   const { '*': wildcard } = useParams()
   const navigate = useNavigate()
+  const [searchParams]=useSearchParams()
+  const contextSiteId=searchParams.get('siteId')
+  const commandRef=useRef(null)
+  const templatesPath=contextSiteId?`/app/m/runly.website/sites/${encodeURIComponent(contextSiteId)}/appearance`:'/app/m/runly.website/templates'
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -111,6 +118,7 @@ export default function TemplatePreviewScreen() {
 
   const [selectedPageIds, setSelectedPageIds] = useState([])
   const [previewPageId, setPreviewPageId] = useState(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const previewScrollRef = useRef(null)
 
   useEffect(() => {
@@ -121,57 +129,25 @@ export default function TemplatePreviewScreen() {
   }, [template])
 
   const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn:  () => apiFetch('/website/site', token),
+    queryKey: ['website-site',contextSiteId, token],
+    queryFn:  () => apiFetch(contextSiteId?`/website/sites/${contextSiteId}`:'/website/site', token),
     enabled:  Boolean(token),
     staleTime: 60_000,
   })
   const site = siteQuery.data?.data ?? null
+  const caps=useWebsiteCapabilities(site?.id)
 
   const applyMutation = useMutation({
     mutationFn: async () => {
       if (!template || !site) throw new Error('Sin plantilla o sitio seleccionado')
-      const pagesToCreate = template.pages.filter((p) => selectedPageIds.includes(p.id))
-      let firstPageId = null
-      let created = 0
-      let skipped = 0
-
-      for (const p of pagesToCreate) {
-        try {
-          const res = await apiFetch('/website/pages', token, {
-            method: 'POST',
-            body: JSON.stringify({
-              siteId:     site.id,
-              title:      p.label,
-              slug:       routeToSlug(p.routePath),
-              routePath:  p.routePath.startsWith('/') ? p.routePath : `/${p.routePath}`,
-              pageType:   'page',
-              visibility: 'public',
-            }),
-          })
-          const created_ = res.data ?? res
-          if (!firstPageId) firstPageId = created_.id
-          await apiFetch(`/website/pages/${created_.id}/draft`, token, {
-            method: 'POST',
-            body: JSON.stringify({ draft_builder_data: serializePage(p.page) }),
-          })
-          created++
-        } catch (err) {
-          if (err.message?.includes('ya esta en uso')) skipped++
-          else throw err
-        }
-      }
-      if (template.themeTokens) {
-        await apiFetch('/website/theme', token, {
-          method: 'POST',
-          body: JSON.stringify({ site_id: site.id, tokens: previewTheme.tokens }),
-        })
-      }
-
-      return { firstPageId, created, skipped }
+      const body={expectedRevision:site.draftRevision,pageIds:selectedPageIds,includeTheme:Boolean(template.themeTokens&&caps.templatesApplyTheme?.allowed)}
+      const hash=JSON.stringify({...body,expectedRevision:undefined})
+      if(commandRef.current?.hash!==hash)commandRef.current={hash,body,key:newIdempotencyKey()}
+      const result=await apiFetch(`/website/sites/${site.id}/templates/${template.id}/apply`,token,{method:'POST',headers:{'Idempotency-Key':commandRef.current.key},body:JSON.stringify(commandRef.current.body)})
+      return {firstPageId:result.data.firstPageId,created:result.data.pages.length,skipped:0}
     },
     onSuccess: ({ firstPageId, created, skipped }) => {
-      queryClient.invalidateQueries({ queryKey: ['website-pages'] })
+      queryClient.invalidateQueries({queryKey:['website']})
       if (created === 0) {
         const skip = skipped > 0
           ? `${skipped} pagina${skipped !== 1 ? 's' : ''} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)`
@@ -182,17 +158,17 @@ export default function TemplatePreviewScreen() {
       const msg = `${created} pagina${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}`
       const skip = skipped > 0 ? ` · ${skipped} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : ''
       toast.success(msg + skip)
-      if (firstPageId) navigate(`/app/m/runly.website/pages/${firstPageId}/editor`)
-      else navigate('/app/m/runly.website/pages')
+      if (firstPageId) navigate(`/app/m/runly.website/sites/${site.id}/pages/${firstPageId}/editor`)
+      else navigate(`/app/m/runly.website/sites/${site.id}/pages`)
     },
-    onError: (err) => toast.error(err.message),
+    onError: (err) => {toast.error(describeError(err).message);if(err.code==='revision_conflict'){commandRef.current=null;siteQuery.refetch()}},
   })
 
   if (!template) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Plantilla no encontrada.</p>
-        <Button variant="outline" onClick={() => navigate('/app/m/runly.website/templates')}>
+        <Button variant="outline" onClick={() => navigate(templatesPath)}>
           Volver a plantillas
         </Button>
       </div>
@@ -235,7 +211,7 @@ export default function TemplatePreviewScreen() {
         {/* Header */}
         <div className="p-4 border-b border-[hsl(var(--border))]">
           <button
-            onClick={() => navigate('/app/m/runly.website/templates')}
+            onClick={() => navigate(templatesPath)}
             className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-3 cursor-pointer"
           >
             <ArrowLeft size={13} />
@@ -266,8 +242,8 @@ export default function TemplatePreviewScreen() {
                 type="checkbox"
                 className="rounded shrink-0"
                 checked={selectedPageIds.includes(p.id)}
-                disabled={p.required}
-                onChange={() => { if (!p.required) togglePage(p.id) }}
+                disabled={applyMutation.isPending}
+                onChange={() => togglePage(p.id)}
               />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">{p.label}</p>
@@ -290,12 +266,12 @@ export default function TemplatePreviewScreen() {
             </p>
           )}
           <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
-            Las rutas ya existentes seran omitidas.
+            Si una ruta ya existe, no se aplica ninguna página. Desmárcala o revisa el sitio antes de reintentar.
           </p>
           <Button
             className="w-full"
-            onClick={() => applyMutation.mutate()}
-            disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site}
+            onClick={() => setConfirmOpen(true)}
+            disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site || !caps.templatesApply?.allowed}
           >
             {applyMutation.isPending
               ? 'Creando paginas...'
@@ -335,6 +311,17 @@ export default function TemplatePreviewScreen() {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        tone="warning"
+        title={`Aplicar «${template.label}»`}
+        description={`Se crearán ${selectedPageIds.length} página(s) como borrador en ${site?.name ?? 'este sitio'}.`}
+        detail={`No se modifican páginas existentes ni lo que ya está publicado${template.themeTokens && caps.templatesApplyTheme?.allowed ? '; el tema del borrador se reemplazará por el de la plantilla' : ''}. Nada se publica hasta que uses Publicar.`}
+        confirmLabel="Aplicar plantilla"
+        loading={applyMutation.isPending}
+        onConfirm={() => { setConfirmOpen(false); applyMutation.mutate() }}
+      />
     </div>
   )
 }

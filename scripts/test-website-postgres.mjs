@@ -23,7 +23,7 @@ try {
   started = true
   let ready = false
   for (let i = 0; i < 60; i++) {
-    if (spawnSync('docker', ['exec', name, 'pg_isready', '-U', 'postgres', '-d', 'website_s2_test'], { stdio: 'ignore' }).status === 0) { ready = true; break }
+    if (spawnSync('docker', ['exec', name, 'pg_isready', '-h','127.0.0.1', '-U', 'postgres', '-d', 'website_s2_test'], { stdio: 'ignore' }).status === 0) { ready = true; break }
     await new Promise(resolve => setTimeout(resolve, 250))
   }
   if (!ready) throw new Error('Disposable PostgreSQL did not become ready')
@@ -66,9 +66,15 @@ try {
   if(!importRolledBack||psql("SELECT to_regclass('website_import') IS NULL").trim()!=='t')throw new Error('S4 migration failed to roll back')
   console.log('S4 migration failure injection: imports, bindings and preview schema rolled back')
   psql(importMigration)
+  const scopeMigration=readFileSync(join(root,'prisma/migrations/20261102180000_website_form_scope/migration.sql'),'utf8')
+  let scopeRolledBack=false
+  try{psql(scopeMigration.replace('COMMIT;','SELECT 1/0; COMMIT;'))}catch{scopeRolledBack=true}
+  if(!scopeRolledBack||psql("SELECT to_regclass('website_form_scope') IS NULL").trim()!=='t')throw new Error('FormScope migration rollback failed')
+  psql(scopeMigration)
+  console.log('FormScope migration rollback/retention verified')
   execFileSync(process.execPath, [join(root,'node_modules/prisma/build/index.js'),'generate','--schema',join(root,'prisma/schema.prisma')], { cwd: temp, stdio: ['ignore','pipe','pipe'] })
   console.log('Prisma client generated from current schema; application config not loaded')
-  const result = spawnSync(process.execPath, ['--test', 'apps/api/src/routes/website/__tests__/website-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-releases-postgres.test.js', 'apps/api/src/routes/website/__tests__/website-imports-postgres.test.js'], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name }, stdio: 'inherit' })
+  const result = spawnSync(process.execPath, ['--test',...(process.argv.includes('--closure-only')?['apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:process.argv.includes('--backend-closure')?['apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:['apps/api/src/routes/website/__tests__/website-postgres.test.js','apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-imports-postgres.test.js'])], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name,RUNLY_WEBSITE_TEST_SKIP_BROWSER:process.argv.includes('--skip-browser')?'1':'0' }, stdio: 'inherit' })
   process.exitCode = result.status ?? 1
   if(result.status===0&&process.argv.includes('--browser')){
     const browser=spawnSync(process.execPath,['scripts/website-s4-browser-lab.mjs'],{cwd:root,env:{...process.env,RUNLY_WEBSITE_TEST_DATABASE_URL:url,RUNLY_WEBSITE_TEST_DISPOSABLE:name},stdio:'inherit'});process.exitCode=browser.status??1

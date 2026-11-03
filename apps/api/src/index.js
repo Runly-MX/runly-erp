@@ -1,4 +1,5 @@
 import { createWebsitePublicationContext } from './services/website-publication-context.js';
+import { runlyWebsiteManifest } from './manifests/official/feature-modules.js';
 import { createWebsitePreviewHandler } from './routes/website/preview-routes.js';
 import { createWebsiteOriginGuard } from './services/website-origin-guard.js';
 import { createRealtimeAccessService } from './services/realtime-access-service.js';
@@ -260,7 +261,7 @@ const notificationService = createNotificationService({ prisma, broadcaster });
 const websitePublication = createWebsitePublicationContext({ prisma, supabaseAdmin });
 app.use('*', createWebsitePreviewHandler({ ...websitePublication, prisma }));
 app.use('*', createWebsiteOriginGuard({ prisma, gateway: websitePublication.gateway,
-  adminHosts: process.env.RUNLY_APP_URL ? [new URL(process.env.RUNLY_APP_URL).hostname] : [] }));
+  adminHosts: [process.env.RUNLY_APP_URL,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).hostname) }));
 const distServeService = createDistServeService({ prisma, supabaseAdmin, publicationContext: websitePublication });
 const inventoryService = createInventoryService({ prisma });
 const inventoryNotifSvc = createInventoryNotificationService({ prisma, notificationService });
@@ -630,7 +631,13 @@ function getModuleRequiredPermission(moduleRow) {
 }
 
 function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
-  const manifest = moduleRow?.manifest ?? {};
+  const storedManifest = moduleRow?.manifest ?? {};
+  // Old installations receive the current routing policy without a data rewrite.
+  const manifest = moduleRow?.key === 'runly.website' ? {
+    ...storedManifest,
+    routePermissions: runlyWebsiteManifest.routePermissions,
+    fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...runlyWebsiteManifest.fullscreenPaths])],
+  } : storedManifest;
   const navigation = Array.isArray(manifest.navigation)
     ? manifest.navigation
     : [];
@@ -643,6 +650,12 @@ function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
   return {
     ...manifest,
     navigation: filteredNavigation,
+    ...(Array.isArray(manifest.routePermissions) ? {
+      authorizedRoutes: manifest.routePermissions.filter(route => isAdmin || (
+        (route.permissions ?? []).every(p => permissionSet.has(p)) &&
+        (!route.anyPermissions || route.anyPermissions.some(p => permissionSet.has(p)))
+      )).map(route => route.path),
+    } : {}),
   };
 }
 
@@ -845,7 +858,7 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "Idempotency-Key", "X-Pair-Secret"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),

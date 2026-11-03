@@ -22,7 +22,7 @@ export async function fetchPublicCatalog(path, params = {}) {
   }
   const qs = query.toString()
   const res = await fetch(`${cfg.apiUrl}/public/catalog/${path}${qs ? `?${qs}` : ''}`, {
-    headers: { 'X-Runly-Company': cfg.company },
+    headers: { 'X-Runly-Company': cfg.company,...(cfg.siteId?{'X-Runly-Website-Site':cfg.siteId}:{}) },
   })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()

@@ -20,7 +20,16 @@ export function createWebsiteReleaseStorage({supabaseAdmin}) {
   }
   async function put(key,bytes,mime) {
     try {
-    const client=await privateBucket(), result=await client.upload(key,bytes,{upsert:false,contentType:mime})
+    const client=await privateBucket()
+    // Reuse immutable bytes without reposting an existing large object. Storage
+    // can reject that POST before consuming its body, stalling the next read.
+    const current=await client.download(key)
+    if(!current.error&&current.data) {
+      if(releaseBytesHash(Buffer.from(await current.data.arrayBuffer()))!==releaseBytesHash(bytes))throw unavailable()
+      return
+    }
+    if(String(current.error?.statusCode??current.error?.status)!=='404')throw unavailable()
+    const result=await client.upload(key,bytes,{upsert:false,contentType:mime})
     if(result.error) {
       // Concurrent create-only writers may have installed the same bytes.
       const existing=await get(key)

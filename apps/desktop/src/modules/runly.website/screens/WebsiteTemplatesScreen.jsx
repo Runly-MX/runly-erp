@@ -4,7 +4,7 @@ import { PageHeader } from '@runly/ui'
 import { LayoutTemplate } from 'lucide-react'
 import { allTemplates } from '../../../website/runlyTemplates/index.js'
 
-export default function WebsiteTemplatesScreen() {
+export default function WebsiteTemplatesScreen({siteId}) {
   const navigate = useNavigate()
 
   return (
@@ -18,7 +18,7 @@ export default function WebsiteTemplatesScreen() {
         {allTemplates.map((tpl) => (
           <button
             key={tpl.id}
-            onClick={() => navigate(`/app/m/runly.website/templates/${tpl.id}/preview`)}
+            onClick={() => navigate(`/app/m/runly.website/templates/${tpl.id}/preview${siteId?`?siteId=${encodeURIComponent(siteId)}`:''}`)}
             className="text-left rounded-xl border border-border bg-card overflow-hidden hover:border-primary/40 hover:shadow-md transition-all group"
           >
             <div

@@ -94,7 +94,7 @@ export function createAnalyticsNamespace({
   request,
   baseUrl,
   company,
-  siteId: initialSiteId = null,
+  siteId: initialSiteId = null,websiteSiteId,propertyId,
   environment = {},
 }) {
   const windowObject = environment.window ?? globalThis.window ?? null
@@ -110,6 +110,8 @@ export function createAnalyticsNamespace({
   const setTimeoutFn = environment.setTimeout ?? globalThis.setTimeout
   const clearTimeoutFn = environment.clearTimeout ?? globalThis.clearTimeout
 
+  if(websiteSiteId&&propertyId)throw new TypeError("analytics: scope_conflict")
+  const scopeHeaders=()=>websiteSiteId?{"X-Runly-Website-Site":websiteSiteId}:propertyId?{"X-Runly-Property":propertyId}:siteId?{"X-Runly-Site":siteId}:{}
   let siteId = initialSiteId
   let config = null
   let started = false
@@ -359,7 +361,7 @@ export function createAnalyticsNamespace({
         '/public/storefront/v1/events/batch',
         batch.body,
         {
-          headers: siteId ? { 'X-Runly-Site': siteId } : {},
+          headers: scopeHeaders(),
           keepalive: true,
           credentials: 'omit',
         },
@@ -385,7 +387,7 @@ export function createAnalyticsNamespace({
     if (!batch) return false
     const query = new URLSearchParams({
       company,
-      ...(siteId ? { siteId } : {}),
+      ...(websiteSiteId?{websiteSiteId}:propertyId?{propertyId}:siteId ? { siteId } : {}),
     })
     const accepted = navigatorObject.sendBeacon(
       `${baseUrl}/public/storefront/v1/events/batch?${query}`,
@@ -421,7 +423,7 @@ export function createAnalyticsNamespace({
       'GET',
       '/public/storefront/v1/config',
       null,
-      { headers: siteId ? { 'X-Runly-Site': siteId } : {} },
+      { headers: scopeHeaders() },
     )
     config = response?.data ?? response
     siteId = config?.siteId ?? siteId

@@ -319,6 +319,7 @@ describe("deprecated website form adapter", () => {
     const calls = [];
     const app = createPublicFormsRouter({
       prisma: {
+        websiteFormScope:{findFirst:async()=>({ownerKind:'website',ownerWebsiteSiteId:SITE_ID})},
         websiteForm: {
           findFirst: async () => ({
             id: FORM_ID,

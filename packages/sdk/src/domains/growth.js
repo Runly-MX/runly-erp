@@ -11,6 +11,7 @@ export function createGrowthDomain({
     });
 
   return {
+    resolveFormScope:(formId,data,token)=>request(`/growth/forms/${encodeURIComponent(formId)}/scope`,{method:"POST",headers:withAuthHeaders(token),body:JSON.stringify(data)}),
     listAnalyticsSites: (token) =>
       request("/growth/analytics/sites", {
         headers: withAuthHeaders(token),

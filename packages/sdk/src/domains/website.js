@@ -1,5 +1,15 @@
 export function createWebsiteDomain({ request, withAuthHeaders }) {
   return {
+    listSiteCatalogProducts:(siteId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
+    setSiteCatalogProduct:(siteId,productId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products/${encodeURIComponent(productId)}`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    setSiteCatalogSelection:(siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/selection`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    getCatalogProductUsage:(siteId,productId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products/${encodeURIComponent(productId)}/used-by?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
+    applySiteTemplate:(siteId,templateId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/templates/${encodeURIComponent(templateId)}/apply`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
+    getSiteState:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/state',{headers:withAuthHeaders(token)}),
+    getPublicationIntegrity:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/publication/integrity',{headers:withAuthHeaders(token)}),
+    preflightRelease:(siteId,data,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/releases/preflight',{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),
+    listSiteForms:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/forms',{headers:withAuthHeaders(token)}),
+    resolveFormScope:(siteId,formId,data,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/forms/'+encodeURIComponent(formId)+'/scope',{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),
     createImport:(siteId,file,options,key,token)=>{const body=new FormData();body.append('file',file);body.append('routingMode',options?.routingMode??'mpa');if(options?.rootDirectory)body.append('rootDirectory',options.rootDirectory);return request(`/website/sites/${encodeURIComponent(siteId)}/imports`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body})},
     getImport:(siteId,importId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/imports/${encodeURIComponent(importId)}`,{headers:withAuthHeaders(token)}),
     createPreview:(siteId,data,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/previews`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),

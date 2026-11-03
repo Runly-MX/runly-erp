@@ -8,19 +8,20 @@ function toQueryString(params) {
   return s ? `?${s}` : ''
 }
 
-export function createCatalogNamespace({ request }) {
+export function createCatalogNamespace({ request, websiteSiteId }) {
+  const scoped=path=>request('GET',path,null,websiteSiteId?{headers:{'X-Runly-Website-Site':websiteSiteId}}:{})
   async function products(options = {}) {
-    const res = await request('GET', `/public/catalog/products${toQueryString(options)}`)
+    const res = await scoped(`/public/catalog/products${toQueryString(options)}`)
     return res
   }
 
   async function getProduct(id) {
-    const res = await request('GET', `/public/catalog/products/${encodeURIComponent(id)}`)
+    const res = await scoped(`/public/catalog/products/${encodeURIComponent(id)}`)
     return res.data
   }
 
   async function categories(options = {}) {
-    const res = await request('GET', `/public/catalog/categories${toQueryString(options)}`)
+    const res = await scoped(`/public/catalog/categories${toQueryString(options)}`)
     return res
   }
 

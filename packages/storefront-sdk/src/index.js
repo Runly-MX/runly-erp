@@ -35,7 +35,7 @@ export { StorefrontError }
 export function createStorefrontClient({
   baseUrl,
   company,
-  siteId,
+  siteId, websiteSiteId, propertyId,pageId,
   supabaseUrl,
   supabaseAnonKey,
   onSessionChange,
@@ -94,19 +94,21 @@ export function createStorefrontClient({
   const guestChat = createGuestChatDomain(_requestWithRefresh, supabaseUrl, supabaseAnonKey)
   const auth      = createAuthNamespace({ supabase, request: _requestWithRefresh, session })
   const files     = createFilesNamespace({ request: _requestWithRefresh })
-  const catalog   = createCatalogNamespace({ request: _requestWithRefresh })
+  const catalog   = createCatalogNamespace({ request: _requestWithRefresh, websiteSiteId })
   const discovery = createDiscoveryNamespace({ request: _requestWithRefresh })
   const realtime  = createRealtimeNamespace({ request: _requestWithRefresh })
   const resolvedSiteId =
-    siteId ??
+    websiteSiteId??propertyId??siteId ??
     (typeof window !== 'undefined' ? (window.RUNLY_CONFIG ?? window.ATLAS_CONFIG)?.siteId : null)
   const analytics = createAnalyticsNamespace({
+    websiteSiteId,propertyId,
     request: _requestWithRefresh,
     baseUrl,
     company,
     siteId: resolvedSiteId,
   })
   const forms = createFormsNamespace({
+    websiteSiteId,propertyId,pageId,
     request: _requestWithRefresh,
     siteId: resolvedSiteId,
     analytics,

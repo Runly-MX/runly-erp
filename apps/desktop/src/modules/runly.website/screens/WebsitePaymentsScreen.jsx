@@ -17,17 +17,10 @@ import {
   TextField,
 } from '@runly/ui'
 import { CreditCard } from 'lucide-react'
+import { useScopedSite } from '../hooks/useScopedSite.js'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-
-async function apiGet(path, token) {
-  const res = await companyFetch(`${getApiUrl()}${path}`, {
-    headers: { Authorization: `Bearer ${token}` },
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
 
 async function apiPatch(path, token, body) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -42,7 +35,7 @@ async function apiPatch(path, token, body) {
   return res.json()
 }
 
-export default function WebsitePaymentsScreen() {
+export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -52,12 +45,7 @@ export default function WebsitePaymentsScreen() {
   const [secretKey, setSecretKey] = useState('')
   const [successMessage, setSuccessMessage] = useState('')
 
-  const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn: () => apiGet('/website/site', token),
-    enabled: Boolean(token),
-    staleTime: 60_000,
-  })
+  const siteQuery = useScopedSite(siteIdProp)
 
   const site = siteQuery.data?.data ?? null
   const siteId = site?.id ?? null
@@ -72,7 +60,7 @@ export default function WebsitePaymentsScreen() {
   const saveMutation = useMutation({
     mutationFn: (payload) => apiPatch(`/website/site/${siteId}`, token, payload),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['website-site', token] })
+      queryClient.invalidateQueries({ queryKey: ['website-site'] })
       toast.success('Configuracion de pagos guardada')
       setSheetOpen(false)
     },

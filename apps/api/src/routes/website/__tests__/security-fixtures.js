@@ -30,7 +30,7 @@ export function memoryPrisma() {
     growthProperty: [row(31, A, undefined, { kind: 'external_sdk', websiteSiteId: null })],
     fileAsset: [row(301, A, undefined, { entityId: A, uploadedById: USER, accessScope: 'COMPANY', visibility: 'PUBLIC' }), row(302, B, undefined, { entityId: B, uploadedById: id(92), accessScope: 'PRIVATE' }), row(303, A, undefined, { entityId: A, uploadedById: id(92), accessScope: 'PRIVATE' })],
     fileAssetShare: [],
-    websiteDraftCommand: [], websiteRelease: [], websitePublicationEvent: [], websitePublicationOutbox: [], websiteDomain: [],
+    websiteFormScope: [], websiteDraftCommand: [], websiteRelease: [], websitePublicationEvent: [], websitePublicationOutbox: [], websiteDomain: [],
     websitePageVersion: [], websitePublishedRender: [], auditLog: [], membership: [],
   }
   const writes = []
@@ -80,6 +80,7 @@ export function memoryPrisma() {
     catch (error) { for (const name of Object.keys(tables)) tables[name] = before[name]; writes.splice(count); throw error }
   }
   prisma.$queryRaw = async (strings, ...values) => {
+    if(strings.join('').includes('FROM website_form WHERE'))return prisma.websiteForm.findMany({where:{id:values[0],companyId:values[1]}})
     if(strings.join('').includes('pg_advisory_xact_lock'))return []
     if (strings.join('').includes('FROM website_page WHERE')) return prisma.websitePage.findMany({ where: { id: values[0], companyId: values[1] } })
     if (strings.join('').includes('FROM website_blog_post WHERE')) return prisma.websiteBlogPost.findMany({ where: { id: values[0], companyId: values[1] } })

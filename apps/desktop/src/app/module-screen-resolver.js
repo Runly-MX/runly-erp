@@ -7,6 +7,12 @@ export function hasBuiltInModule(screenMap, key) {
 }
 
 export function isPathAllowedByNavigation(module, subPath) {
+  if(module?.key==='runly.website'&&(subPath==='/'||/^\/sites(?:\/|$)/.test(subPath))){
+    const paths=module.manifest?.authorizedRoutes??module.authorizedRoutes??[];
+    if(subPath==='/sites/new')return paths.includes('/sites/new');
+    const matches=(list,target)=>list.some(path=>new RegExp('^'+path.replace(/:[^/]+/g,'[^/]+')+'$').test(target));
+    return matches(paths,subPath);
+  }
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === '/';
   if (subPath === '/') return true;
@@ -117,6 +123,15 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     return null;
   }
   if (moduleKey === "runly.website") {
+    // Multisite workspace: every /sites/... route renders one router screen.
+    if (subPath === "/" || subPath === "/sites" || subPath.startsWith("/sites/")) {
+      return screenMap["runly.website:/sites"] ?? null;
+    }
+    // Pre-multisite entry points land on the company's default site.
+    if (subPath === "/pages") return screenMap["runly.website:/legacy/pages"] ?? null;
+    if (subPath === "/settings") return screenMap["runly.website:/legacy/settings"] ?? null;
+    // Previous settings screen (SMTP, anti-spam, analytics), kept reachable until it is rebuilt per site.
+    if (subPath === "/settings/legacy") return screenMap["runly.website:/settings/legacy"] ?? null;
     if (/^\/pages\/[^/]+\/editor$/.test(subPath)) {
       return screenMap["runly.website:/pages/:id/editor"] ?? null;
     }

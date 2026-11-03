@@ -133,4 +133,5 @@ infra/installer/.runly-installer/
 # Content-addressed public runtime generated during the API build.
 .artifacts/website-public-runtime/
 .artifacts/website-s4/
+.artifacts/website-integration/
 apps/api/public/website-runtime/

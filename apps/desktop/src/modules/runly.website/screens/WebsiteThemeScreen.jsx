@@ -17,6 +17,8 @@ import {
   TextField,
   LoadingState,
 } from "@runly/ui";
+import { createWebsiteApi, newIdempotencyKey } from "../lib/websiteApi.js";
+import { useScopedSite } from "../hooks/useScopedSite.js";
 import { toast } from "sonner";
 import { usePersistedTab } from "../../../hooks/usePersistedTab.js";
 import ThemeColorEditor from "./ThemeColorEditor.jsx";
@@ -33,7 +35,7 @@ async function apiGet(path, token) {
   return res.json();
 }
 
-export default function WebsiteThemeScreen() {
+export default function WebsiteThemeScreen({ siteId: siteIdProp = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
@@ -51,12 +53,7 @@ export default function WebsiteThemeScreen() {
     "Content-Type": "application/json",
   };
 
-  const siteQuery = useQuery({
-    queryKey: ["website-site", token],
-    queryFn: () => apiGet("/website/site", token),
-    enabled: Boolean(token),
-    staleTime: 60_000,
-  });
+  const siteQuery = useScopedSite(siteIdProp);
   const siteId = siteQuery.data?.data?.id ?? null;
   const site = siteQuery.data?.data ?? null;
 
@@ -140,8 +137,15 @@ export default function WebsiteThemeScreen() {
     onError: (err) => toast.error(err.message || "Error al guardar"),
   });
 
+  // Multisite: the chosen theme goes through the revisioned identity draft and
+  // reaches the public site on the next publish. The historical route (no siteId)
+  // keeps writing the default site directly.
+  const appliedThemeId = siteIdProp ? (site?.draftIdentity?.themeId ?? site?.themeId ?? null) : (site?.themeId ?? null);
   const useSiteThemeMutation = useMutation({
     mutationFn: async () => {
+      if (siteIdProp) {
+        return createWebsiteApi(token).saveIdentity(siteIdProp, { themeId: activeThemeId }, site.draftRevision, newIdempotencyKey());
+      }
       const res = await companyFetch(`${getApiUrl()}/website/site/${site.id}`, {
         method: "PATCH",
         headers,
@@ -151,10 +155,11 @@ export default function WebsiteThemeScreen() {
       return res.json();
     },
     onSuccess: () => {
-      toast.success("Tema aplicado al sitio");
+      toast.success(siteIdProp ? "Tema elegido en el borrador. Se aplica al publicar." : "Tema aplicado al sitio");
       queryClient.invalidateQueries({ queryKey: ["website-site"] });
+      queryClient.invalidateQueries({ queryKey: ["website"] });
     },
-    onError: () => toast.error("Error al aplicar el tema"),
+    onError: (err) => toast.error(err?.code === "revision_conflict" ? "El sitio cambió. Recarga e inténtalo de nuevo." : "Error al aplicar el tema"),
   });
 
   function updateDraft(key, value) {
@@ -248,7 +253,7 @@ export default function WebsiteThemeScreen() {
                   />
 
                   <div className="flex items-center gap-2">
-                    {site?.themeId !== activeThemeId && (
+                    {appliedThemeId !== activeThemeId && (
                       <Button
                         variant="outline"
                         size="sm"

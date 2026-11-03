@@ -1,3 +1,4 @@
+import {createWebsiteAdminContractService} from './website-admin-contract-service.js'
 import {readFile as readDisk} from 'node:fs/promises'
 import {resolve} from 'node:path'
 import {createWebsiteReleaseStorage,releaseBytesHash} from './website-release-storage.js'
@@ -30,9 +31,10 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
  const imports=createWebsiteImportService({prisma,storage,limits:options.importLimits})
  const releases=createWebsiteReleaseService({prisma,storage,runtime,readFile,imports,isolation,...options})
  const adminUrl=process.env.RUNLY_APP_URL
- const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,adminHosts:adminUrl?[new URL(adminUrl).host]:[],...options})
+ const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host),...options})
  const staticServing=createWebsiteStaticServing({prisma,storage,isolation})
  gateway.staticContent=staticServing.serve
  const previews=createWebsitePreviewService({prisma,isolation,storage,releases})
- return {storage,releases,gateway,runtime,imports,isolation,previews}
+ const contracts=createWebsiteAdminContractService({prisma,isolation,readFile,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,...options})
+ return {storage,releases,gateway,runtime,imports,isolation,previews,contracts}
 }

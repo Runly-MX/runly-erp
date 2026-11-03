@@ -355,7 +355,9 @@ function NewFormDialog({ open, onOpenChange, siteId, token, assignees, turnstile
 }
 
 // ── Main screen ──────────────────────────────────────────────────────────────
-export default function WebsiteFormsScreen() {
+import { FormPublishability } from '../components/FormPublishability.jsx'
+
+export default function WebsiteFormsScreen({ siteId: contextSiteId = null }) {
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()
@@ -371,8 +373,8 @@ export default function WebsiteFormsScreen() {
 
   // ── Queries ────────────────────────────────────────────────────────────────
   const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn: () => apiGet('/website/site', token),
+    queryKey: ['website-site', contextSiteId, token],
+    queryFn: () => apiGet(contextSiteId ? `/website/sites/${contextSiteId}` : '/website/site', token),
     enabled: Boolean(token),
     staleTime: 60_000,
   })
@@ -383,7 +385,7 @@ export default function WebsiteFormsScreen() {
 
   const formsQuery = useQuery({
     queryKey: ['website-forms', siteId, token],
-    queryFn: () => apiGet(`/website/forms?siteId=${siteId}`, token),
+    queryFn: () => apiGet(`/website/sites/${siteId}/forms`, token),
     enabled: Boolean(token) && Boolean(siteId),
     staleTime: 30_000,
   })
@@ -459,6 +461,7 @@ export default function WebsiteFormsScreen() {
         description="Define campos, copia el ID y úsalo en tu sitio con DynamicForm."
         actions={<Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>}
       />
+      {selectedForm?.publishability && <FormPublishability form={selectedForm} siteId={siteId} />}
 
       {formsQuery.isPending ? (
         <LoadingState message="Cargando formularios..." />

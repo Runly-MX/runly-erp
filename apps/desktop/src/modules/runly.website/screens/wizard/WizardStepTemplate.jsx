@@ -52,7 +52,7 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
             </button>
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground mb-2.5">Paginas a incluir</p>
+            <p className="text-sm font-semibold text-foreground mb-2.5">Páginas a incluir</p>
             <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
               {selectedTemplate.pages.map((p) => (
                 <label
@@ -89,7 +89,7 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
         {onBack && (
           <button type="button" onClick={onBack}
             className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all">
-            Atras
+            Atrás
           </button>
         )}
         <button
@@ -107,7 +107,7 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
               Creando sitio...
             </>
           ) : selectedTemplate
-            ? `Crear con ${selectedPages.length} pagina${selectedPages.length !== 1 ? 's' : ''}`
+            ? `Crear con ${selectedPages.length} página${selectedPages.length !== 1 ? 's' : ''}`
             : 'Crear sitio en blanco'}
         </button>
       </div>
