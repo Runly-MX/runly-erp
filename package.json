@@ -22,6 +22,7 @@
     "lint:packages": "pnpm -r lint",
     "test:website:e2e": "node scripts/test-website-e2e.mjs",
     "test:website:registry": "node scripts/test-website-registry.mjs",
+    "test:website:multi": "node scripts/test-website-multiinstance.mjs",
     "docker:build": "node infra/docker/build-push.mjs --build",
     "docker:push": "node infra/docker/build-push.mjs --push",
     "docker:release": "node infra/docker/build-push.mjs",
