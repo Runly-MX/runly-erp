@@ -60,3 +60,29 @@ test('local liveness: only an assigned name in a ready namespace is ever served'
   assert.deepEqual(localLiveness({ state: 'assigned', ready: false }), { state: 'assigned', ready: false })
   for (const state of ['pending', 'suspended', 'revoked', 'quarantined']) assert.equal(localLiveness({ state, ready: true }).ready, false, state)
 })
+
+test('key lifecycle calls hit the registry key routes with idempotent signed mutations', async () => {
+  const calls = []
+  const fetchImpl = async (url, init) => { calls.push({ url, method: init.method ?? 'GET', body: init.body }); return new Response(JSON.stringify({ keys: [], fingerprint: 'abcdef0123456789', revoked: true }), { status: 200 }) }
+  const client = createRegistryClient({ baseUrl: 'http://x', installationId: 'i', privateKey: seed.toString('base64url'), fetchImpl })
+  await client.keys(); await client.rotateKey('A'.repeat(43), 3600); await client.revokeKey('11111111-1111-4111-8111-111111111111')
+  assert.deepEqual(calls.map((c) => `${c.method} ${new URL(c.url).pathname}`), ['GET /registry/v1/keys', 'POST /registry/v1/keys/rotate', 'POST /registry/v1/keys/11111111-1111-4111-8111-111111111111/revoke'])
+  assert.deepEqual(JSON.parse(calls[1].body), { publicKey: 'A'.repeat(43), graceSeconds: 3600 })
+})
+
+test('a key file is preferred over the environment variable, and a real namespace never falls back to local assignment', async () => {
+  const { mkdtempSync, writeFileSync, rmSync } = await import('node:fs')
+  const { tmpdir } = await import('node:os')
+  const { join } = await import('node:path')
+  const { localFallbackAllowed } = await import('../website-hostname-service.js')
+  const dir = mkdtempSync(join(tmpdir(), 'registry-key-'))
+  try {
+    writeFileSync(join(dir, 'key'), seed.toString('base64url') + '\n', { mode: 0o600 })
+    const client = createRegistryClientFromEnv({ RUNLY_REGISTRY_URL: 'http://x', RUNLY_INSTALLATION_ID: 'i', RUNLY_INSTALLATION_PRIVATE_KEY_FILE: join(dir, 'key') })
+    assert.ok(client)
+    assert.equal(localFallbackAllowed(null, 'sites.lab.test'), true)
+    assert.equal(localFallbackAllowed(null, 'sites.runly.mx'), false, 'no registry and a real namespace: the reservation is refused')
+    assert.equal(localFallbackAllowed(client, 'sites.lab.test'), false, 'with a registry configured the registry always decides')
+    assert.equal(localFallbackAllowed(null, undefined), false)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})

@@ -1,4 +1,5 @@
 import { createHash, createPrivateKey, randomBytes, sign } from 'node:crypto'
+import { readFileSync } from 'node:fs'
 import { HEADERS, REGISTRY_BASE, signingString } from './website-registry-contract.js'
 
 // Signed client for the global subdomain registry (Runly Developer Hub). The installation holds an Ed25519
@@ -59,6 +60,9 @@ export function createRegistryClient({ baseUrl, installationId, privateKey, fetc
       return names
     },
     claim: (input, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/names`, input, idempotencyKey).then((r) => r.data),
+    keys: () => call('GET', `${REGISTRY_BASE}/keys`).then((r) => r.data.keys),
+    rotateKey: (publicKey, graceSeconds, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/keys/rotate`, { publicKey, ...(graceSeconds && { graceSeconds }) }, idempotencyKey).then((r) => r.data),
+    revokeKey: (keyId, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/keys/${encodeURIComponent(keyId)}/revoke`, undefined, idempotencyKey).then((r) => r.data),
     activate: (hostname, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/names/${encodeURIComponent(hostname)}/activate`, undefined, idempotencyKey).then((r) => r.data),
     release: (hostname, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/names/${encodeURIComponent(hostname)}/release`, undefined, idempotencyKey).then((r) => r.data),
     rename: (hostname, slug, idempotencyKey) => mutating('POST', `${REGISTRY_BASE}/names/${encodeURIComponent(hostname)}/rename`, { slug }, idempotencyKey).then((r) => r.data),
@@ -67,7 +71,9 @@ export function createRegistryClient({ baseUrl, installationId, privateKey, fetc
 
 // Returns null when the installation has no registry configuration (hostnames are then local-only).
 export function createRegistryClientFromEnv(env = process.env, options = {}) {
-  const baseUrl = env.RUNLY_REGISTRY_URL, installationId = env.RUNLY_INSTALLATION_ID, privateKey = env.RUNLY_INSTALLATION_PRIVATE_KEY
+  // A key file (0600, e.g. a mounted secret) is preferred so the key does not sit in the container environment.
+  const baseUrl = env.RUNLY_REGISTRY_URL, installationId = env.RUNLY_INSTALLATION_ID
+  const privateKey = env.RUNLY_INSTALLATION_PRIVATE_KEY_FILE ? readFileSync(env.RUNLY_INSTALLATION_PRIVATE_KEY_FILE, 'utf8').trim() : env.RUNLY_INSTALLATION_PRIVATE_KEY
   if (!baseUrl || !installationId || !privateKey) return null
   return createRegistryClient({ baseUrl, installationId, privateKey, ...options })
 }

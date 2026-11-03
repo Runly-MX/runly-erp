@@ -7,7 +7,7 @@ import {prepareDisposableNotesStorageOwner} from './realtime-2/notes-storage-own
 
 // Uses a fresh, verified Compose project. No inherited application environment,
 // shared database, fixture API, or replacement authentication provider.
-const directory=resolve('.artifacts/website-integration')
+const directory=resolve(process.env.WEBSITE_LAB_DIR??'.artifacts/website-integration')
 await mkdir(directory,{recursive:true})
 const stack=await createStudioStack()
 try {

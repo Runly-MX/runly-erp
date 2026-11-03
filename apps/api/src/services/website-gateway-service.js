@@ -12,7 +12,7 @@ export function strictWebsiteHostname(authority) {
   if(host.split('.').some(label=>!label||label.length>63||!/^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/.test(label)))throw fail('invalid_hostname',400)
   return host
 }
-export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminHosts=[],trustedAuthority,isolation}) {
+export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminHosts=[],trustedAuthority,isolation,registryMaxStaleMs=24*3600*1000,now=Date.now}) {
   const admin=new Set(adminHosts.filter(Boolean).map(strictWebsiteHostname))
   async function authority(c) {
     // Forwarded headers are ignored unless a server-owned peer verifier supplied
@@ -24,6 +24,9 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(admin.has(hostname))throw fail('administrative_origin')
     const domain=await prisma.websiteDomain.findUnique({where:{hostname}})
     if(!domain||domain.state!=='assigned'||!domain.ready||!domain.siteId)throw notFound('Recurso')
+    // Registry-managed names are served from the last confirmation only for a bounded time: security decisions
+    // (suspension, revocation) must not stay stale forever when the registry is unreachable. Historical names are unaffected.
+    if(domain.registryManaged&&(!domain.registrySyncedAt||now()-new Date(domain.registrySyncedAt).getTime()>registryMaxStaleMs))throw notFound('Recurso')
     const site=await prisma.websiteSite.findFirst({where:{id:domain.siteId,companyId:domain.companyId,enabled:true}})
     const company=site&&await prisma.company.findFirst({where:{id:site.companyId,enabled:true},select:{slug:true}})
     if(!site||!company)throw notFound('Recurso')

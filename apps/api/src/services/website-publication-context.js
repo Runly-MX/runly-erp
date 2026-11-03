@@ -36,7 +36,7 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
  const imports=createWebsiteImportService({prisma,storage,limits:options.importLimits})
  const releases=createWebsiteReleaseService({prisma,storage,runtime,readFile,imports,isolation,...options})
  const adminUrl=process.env.RUNLY_APP_URL
- const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host),...options})
+ const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,registryMaxStaleMs:Number(process.env.RUNLY_REGISTRY_MAX_STALE_MS)||undefined,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host),...options})
  const registry=options.registry===undefined?createRegistryClientFromEnv(process.env):options.registry
  const hostnames=createWebsiteHostnameService({prisma,registry,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,gateway})
  const staticServing=createWebsiteStaticServing({prisma,storage,isolation})

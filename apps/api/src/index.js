@@ -264,7 +264,9 @@ const websitePublication = createWebsitePublicationContext({ prisma, supabaseAdm
 if (websitePublication.registry) {
   const syncHostnames = () => websitePublication.hostnames.sync().catch((error) => console.warn('[website-registry] sync deferred:', error.reason ?? error.code ?? error.name));
   setTimeout(syncHostnames, 15_000).unref();
-  setInterval(syncHostnames, Number(process.env.RUNLY_REGISTRY_SYNC_MS) || 300_000).unref();
+  // Default 60 s: a suspension or revocation reaches the gateway within about a minute while the registry is reachable;
+  // while it is not, registry-managed names stop resolving after RUNLY_REGISTRY_MAX_STALE_MS (24 h by default).
+  setInterval(syncHostnames, Number(process.env.RUNLY_REGISTRY_SYNC_MS) || 60_000).unref();
 }
 app.use('*', createWebsitePreviewHandler({ ...websitePublication, prisma }));
 app.use('*', createWebsiteOriginGuard({ prisma, gateway: websitePublication.gateway,

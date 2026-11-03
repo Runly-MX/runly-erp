@@ -4,7 +4,7 @@ import {registerHooks,createRequire} from 'node:module'
 import {spawn} from 'node:child_process'
 import net from 'node:net'
 import pg from 'pg'
-const config=JSON.parse(await readFile(resolve('.artifacts/website-integration/private.json'),'utf8'))
+const config=JSON.parse(await readFile(resolve(process.env.WEBSITE_LAB_DIR??'.artifacts/website-integration','private.json'),'utf8'))
 if(!/^runly-studio-e2e-[a-f0-9]+$/.test(config.name)||!config.env.DATABASE_URL.includes(`@127.0.0.1:${config.ports.db}/`))throw Error('UNVERIFIED_LAB')
 const guard=new pg.Pool({connectionString:config.env.DATABASE_URL})
 try {if((await guard.query('SELECT id FROM runly_studio_test.environment')).rows[0]?.id!==config.name)throw Error('LAB_MARKER_MISMATCH')}

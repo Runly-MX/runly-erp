@@ -28,6 +28,8 @@ const mapError = (error) => {
   return error
 }
 // Registry state -> local liveness. Only 'assigned' with a ready namespace is ever served.
+// Only laboratory namespaces may be reserved without the global registry; a real one never falls back to a local decision.
+export const localFallbackAllowed = (registry, namespaceRoot) => !registry && Boolean(namespaceRoot?.endsWith('.test'))
 export const localLiveness = (view) => ({ state: view.state, ready: view.state === 'assigned' && Boolean(view.ready) })
 const idemKey = (a, op, ...parts) => a.idempotencyKey && a.idempotencyKey.length >= 16 ? `${a.idempotencyKey}:${op}`.slice(0, 200) : createHash('sha256').update([op, ...parts, Date.now(), Math.random()].join('|')).digest('hex')
 
@@ -65,7 +67,7 @@ export function createWebsiteHostnameService({ prisma, registry, namespaceRoot, 
     const site = await guarded(a)
     if (!registry) {
       // Lab-only fallback kept from before the registry; a real namespace must never be reserved locally.
-      if (namespaceRoot?.endsWith('.test')) return gateway.reserve(a)
+      if (localFallbackAllowed(registry, namespaceRoot)) return gateway.reserve(a)
       requireRegistry()
     }
     const slug = String(a.slug ?? '').toLowerCase()
@@ -111,12 +113,16 @@ export function createWebsiteHostnameService({ prisma, registry, namespaceRoot, 
     if (!registry) return { skipped: true }
     const names = await registry.list()
     let updated = 0
+    const confirmed = []
     for (const view of names) {
       const row = await prisma.websiteDomain.findFirst({ where: { hostname: view.hostname, registryManaged: true } })
       if (!row) continue
+      confirmed.push(row.hostname)
       const next = localLiveness(view)
       if (row.state !== next.state || row.ready !== next.ready || row.registryVersion !== view.version) { await apply(row.hostname, view); updated += 1 }
     }
+    // A complete answer from the registry is the freshness proof the gateway checks (registryMaxStaleMs).
+    if (confirmed.length) await prisma.websiteDomain.updateMany({ where: { hostname: { in: confirmed }, registryManaged: true }, data: { registrySyncedAt: new Date() } })
     return { checked: names.length, updated }
   }
   return { availability, reserve, activate, release, status, sync }
