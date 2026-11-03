@@ -5,6 +5,7 @@
 //   --plan (default)  print what would be built and tagged; touches nothing
 //   --build           build the images locally from `git archive <ref>` (exact commit, single platform)
 //   --push            push <image>-<sha12> tags only; refuses any tag that already exists in the registry
+//   --dry-run         with --push/--promote: print the exact docker commands, run none
 //   --promote         point <image>-latest at an already pushed SHA tag (needs the digests recorded by --push)
 // --push and --promote need --confirm=<sha12> equal to the resolved commit, so nothing is published by accident.
 // Only api, web and worker can be selected here (default api,web); DWG, transcriber, TTS and backup stay with build-push.mjs.
@@ -19,7 +20,8 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REGISTRY = "raulbellosom/runlyerp";
+// RUNLY_RELEASE_REGISTRY redirects every tag, e.g. to a disposable local registry (localhost:5000/runlyerp).
+export const REGISTRY = process.env.RUNLY_RELEASE_REGISTRY || "raulbellosom/runlyerp";
 export const SELECTABLE = ["api", "web", "worker"];
 
 export function parseArgs(argv) {
@@ -29,7 +31,7 @@ export function parseArgs(argv) {
   if (unknown.length || images.length === 0) throw new Error(`UNSUPPORTED_IMAGES: ${unknown.join(",") || "none selected"}`);
   const modes = ["build", "push", "promote"].filter((mode) => argv.includes(`--${mode}`));
   if (modes.length > 1) throw new Error("ONE_MODE_ONLY");
-  return { images: [...new Set(images)], ref: value("ref") ?? "HEAD", mode: modes[0] ?? "plan", confirm: value("confirm") ?? null };
+  return { images: [...new Set(images)], ref: value("ref") ?? "HEAD", mode: modes[0] ?? "plan", confirm: value("confirm") ?? null, dryRun: argv.includes("--dry-run") };
 }
 
 export const shaTag = (key, sha) => `${REGISTRY}:${key}-${sha.slice(0, 12)}`;
@@ -57,9 +59,16 @@ const remoteDigest = (tag) => {
   return result.status === 0 ? result.out : null;
 };
 
+let DRY = false;
+const mutate = (args, options) => {
+  if (DRY) { console.log(`  [dry-run] docker ${args.join(" ")}`); return ""; }
+  return must("docker", args, options);
+};
+
 function main() {
   const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
   const options = parseArgs(process.argv.slice(2));
+  DRY = options.dryRun;
   const sha = must("git", ["rev-parse", "--verify", `${options.ref}^{commit}`], { cwd: repoRoot });
   assertConfirmed(options.mode, options.confirm, sha);
   const recordFile = path.join(repoRoot, ".artifacts/releases", `${sha.slice(0, 12)}.json`);
@@ -89,26 +98,26 @@ function main() {
 
   if (options.mode === "push") {
     // Refuse before pushing anything if any selected tag is taken: a published SHA tag is immutable.
-    const taken = options.images.filter((key) => tagExists(shaTag(key, sha)));
+    const taken = DRY ? [] : options.images.filter((key) => tagExists(shaTag(key, sha)));
     if (taken.length) throw new Error(`TAG_EXISTS: ${taken.map((key) => shaTag(key, sha)).join(", ")}`);
     for (const key of options.images) {
-      must("docker", ["push", shaTag(key, sha)], { stdio: "inherit" });
-      record.images[key] = { ...record.images[key], tag: shaTag(key, sha), digest: remoteDigest(shaTag(key, sha)) };
+      mutate(["push", shaTag(key, sha)], { stdio: "inherit" });
+      if (!DRY) record.images[key] = { ...record.images[key], tag: shaTag(key, sha), digest: remoteDigest(shaTag(key, sha)) };
     }
   }
 
   if (options.mode === "promote") {
     for (const key of options.images) {
-      const digest = record.images[key]?.digest;
+      const digest = DRY ? "sha256:<recorded-by-push>" : record.images[key]?.digest;
       if (!digest) throw new Error(`NOT_PUSHED: ${key} has no recorded digest; run --push first`);
-      record.images[key].previousLatestDigest = remoteDigest(latestTag(key));
-      must("docker", ["buildx", "imagetools", "create", "-t", latestTag(key), `${REGISTRY}@${digest}`], { stdio: "inherit" });
-      record.images[key].promotedAt = new Date().toISOString();
-      const previous = record.images[key].previousLatestDigest;
+      const previous = DRY ? null : remoteDigest(latestTag(key));
+      mutate(["buildx", "imagetools", "create", "-t", latestTag(key), `${REGISTRY}@${digest}`], { stdio: "inherit" });
+      if (!DRY) { record.images[key].previousLatestDigest = previous; record.images[key].promotedAt = new Date().toISOString(); }
       console.log(`  rollback ${key}: docker buildx imagetools create -t ${latestTag(key)} ${previous ? `${REGISTRY}@${previous}` : "(no previous digest recorded)"}`);
     }
   }
 
+  if (DRY) { console.log("Dry run: no command executed, no record written."); return; }
   fs.mkdirSync(path.dirname(recordFile), { recursive: true });
   fs.writeFileSync(recordFile, `${JSON.stringify(record, null, 2)}\n`);
   console.log(`Record: ${path.relative(repoRoot, recordFile)}`);

@@ -40,3 +40,15 @@ test("the CLI plan prints tags and changes nothing", () => {
   assert.notEqual(refused.status, 0);
   assert.match(refused.stderr, /CONFIRM_REQUIRED/);
 });
+
+test("dry-run push and promote print the docker commands and execute nothing", () => {
+  const sha = spawnSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).stdout.trim();
+  const env = { ...process.env, RUNLY_RELEASE_REGISTRY: "localhost:5999/runlyerp" };
+  const push = spawnSync(process.execPath, ["infra/docker/release-selective.mjs", "--images=api", "--push", "--dry-run", `--confirm=${sha.slice(0, 12)}`], { encoding: "utf8", env });
+  assert.equal(push.status, 0, push.stderr);
+  assert.ok(push.stdout.includes(`[dry-run] docker push localhost:5999/runlyerp:api-${sha.slice(0, 12)}`));
+  const promote = spawnSync(process.execPath, ["infra/docker/release-selective.mjs", "--images=api", "--promote", "--dry-run", `--confirm=${sha.slice(0, 12)}`], { encoding: "utf8", env });
+  assert.equal(promote.status, 0, promote.stderr);
+  assert.match(promote.stdout, /\[dry-run\] docker buildx imagetools create -t localhost:5999\/runlyerp:api-latest/);
+  assert.match(promote.stdout, /Dry run: no command executed/);
+});
