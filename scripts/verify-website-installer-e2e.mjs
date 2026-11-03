@@ -48,7 +48,7 @@ async function seedLegacy(stack) {
   const form = await insertRow(stack.pool, 'website_form', { company_id: company.id, site_id: site.id, name: 'Contacto' })
   const submission = await insertRow(stack.pool, 'website_form_submission', { company_id: company.id, form_id: form.id, data: JSON.stringify({ mensaje: 'respuesta historica' }) })
   const snapshot = async () => ({
-    site: (await stack.pool.query('SELECT id, name, slug FROM website_site ORDER BY id')).rows,
+    site: (await stack.pool.query('SELECT id, name FROM website_site ORDER BY id')).rows,
     pages: (await stack.pool.query('SELECT id, site_id, title FROM website_page ORDER BY id')).rows,
     forms: (await stack.pool.query('SELECT id, site_id, name FROM website_form ORDER BY id')).rows,
     submissions: (await stack.pool.query('SELECT id, form_id, data FROM website_form_submission ORDER BY id')).rows,
