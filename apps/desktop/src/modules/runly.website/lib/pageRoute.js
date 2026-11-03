@@ -33,4 +33,5 @@ export function validateHostSlug(slug) {
 
 export const PUBLIC_ROUTE_ROOT = '/app/m/runly.website'
 export const sitePath = (siteId, section = '') => `${PUBLIC_ROUTE_ROOT}/sites/${siteId}${section ? `/${section}` : ''}`
+export const postEditorPath = (siteId, postId) => (siteId ? sitePath(siteId, `blog/${postId}`) : `${PUBLIC_ROUTE_ROOT}/blog/${postId}/editor`)
 export const editorPath = (siteId, pageId) => sitePath(siteId, `pages/${pageId}/editor`)

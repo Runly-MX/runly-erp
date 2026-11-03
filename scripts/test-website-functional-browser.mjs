@@ -74,7 +74,7 @@ try{
   await button(page,'Crear formulario').click();formId=(await (await created).json()).id
   await button(page,'+ Agregar campo').click();await dialog(page).getByLabel(/Etiqueta/).fill('Nombre visitante')
   await button(dialog(page),'Agregar').click();await dialog(page).waitFor({state:'hidden'})
-  await page.getByText('Publicabilidad: publishable',{exact:true}).waitFor()
+  await page.locator('[data-publishability="publishable"]').waitFor()
  })
  await check('C-3 structured readonly preflight and site form picker',async()=>{
   await page.goto(editor());await button(page,'Guardar borrador').waitFor();await drag(page,'Formulario de contacto');await save(page)

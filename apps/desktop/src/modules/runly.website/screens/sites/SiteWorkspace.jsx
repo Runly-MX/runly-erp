@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle, ErrorState, LoadingState, SelectField, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
-import { Archive, BookOpen, FileText, FormInput, Globe, History, LayoutDashboard, Palette, Settings, UploadCloud } from 'lucide-react'
+import { Archive, BookOpen, CreditCard, FileText, FormInput, Globe, History, LayoutDashboard, Palette, Settings, ShoppingBag, SlidersHorizontal, UploadCloud } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
 import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
 import { usePages, useSiteContext, useSites, useWebsiteCapabilities } from '../../hooks/useWebsite.js'
@@ -14,57 +14,64 @@ import SitePublishing from './SitePublishing.jsx'
 import SiteDomains from './SiteDomains.jsx'
 import SiteSettings from './SiteSettings.jsx'
 import SiteImport from './SiteImport.jsx'
+import SiteCatalog from './SiteCatalog.jsx'
 
 const FormsScreen = lazy(() => import('../WebsiteFormsScreen.jsx'))
 const BlogScreen = lazy(() => import('../WebsiteBlogScreen.jsx'))
 const ThemeScreen = lazy(() => import('../WebsiteThemeScreen.jsx'))
 const MenusScreen = lazy(() => import('../WebsiteMenusScreen.jsx'))
 const TemplatesScreen = lazy(() => import('../WebsiteTemplatesScreen.jsx'))
+const PaymentsScreen = lazy(() => import('../WebsitePaymentsScreen.jsx'))
+const AdvancedSettingsScreen = lazy(() => import('../WebsiteSettingsScreen.jsx'))
 
 export const SECTIONS = [
   { id: 'overview', label: 'Resumen', icon: LayoutDashboard },
   { id: 'pages', label: 'Páginas', icon: FileText },
-  { id: 'blog', label: 'Blog', icon: BookOpen, legacy: true },
+  { id: 'blog', label: 'Blog', icon: BookOpen },
+  { id: 'catalog', label: 'Catálogo', icon: ShoppingBag },
   { id: 'forms', label: 'Formularios', icon: FormInput },
-  { id: 'appearance', label: 'Apariencia', icon: Palette, legacy: true },
+  { id: 'appearance', label: 'Apariencia', icon: Palette },
   { id: 'publishing', label: 'Publicaciones', icon: History },
   { id: 'domains', label: 'Dominios', icon: Globe },
   { id: 'import', label: 'Importar ZIP', icon: UploadCloud },
   { id: 'settings', label: 'Configuración', icon: Settings },
+  { id: 'advanced', label: 'Correo y analítica', icon: SlidersHorizontal },
+  { id: 'payments', label: 'Pagos', icon: CreditCard },
 ]
 
-// These screens predate multisite and always operate on the company's default
-// site (they call the legacy /website/site routes). Until they take a siteId,
-// they are only offered for that site: no section may silently edit another.
-function LegacyScope({ site, children }) {
-  if (site?.defaultForCompany) return <Suspense fallback={<LoadingState variant="page" />}>{children}</Suspense>
+const Lazy = ({ children }) => <Suspense fallback={<LoadingState variant="page" />}>{children}</Suspense>
+
+// Template application still writes through the historical default-site flow
+// (non-atomic, no revisioned drafts), so it is only offered for that site.
+function TemplatesScope({ site }) {
+  if (site?.defaultForCompany) return <TemplatesScreen />
   return (
     <div className="p-4 md:p-6">
       <Alert variant="warning" role="status">
         <Archive className="h-4 w-4" aria-hidden="true" />
         <div>
-          <AlertTitle>Esta sección aún no admite este sitio</AlertTitle>
-          <AlertDescription>Por ahora solo funciona con el sitio predeterminado de tu empresa. Para evitar cambios en el sitio equivocado, no se muestra aquí.</AlertDescription>
+          <AlertTitle>Las plantillas todavía no admiten este sitio</AlertTitle>
+          <AlertDescription>Aplicar una plantilla crea páginas en el sitio predeterminado de tu empresa. Para evitar cambios en el sitio equivocado, no se ofrece aquí; crea las páginas desde Páginas.</AlertDescription>
         </div>
       </Alert>
     </div>
   )
 }
 
-function Appearance({ site }) {
+function Appearance({ site, siteId }) {
   return (
-    <LegacyScope site={site}>
+    <Lazy>
       <Tabs defaultValue="theme" className="p-2">
         <TabsList>
           <TabsTrigger value="theme">Tema</TabsTrigger>
           <TabsTrigger value="menus">Menús</TabsTrigger>
           <TabsTrigger value="templates">Plantillas</TabsTrigger>
         </TabsList>
-        <TabsContent value="theme"><ThemeScreen /></TabsContent>
-        <TabsContent value="menus"><MenusScreen /></TabsContent>
-        <TabsContent value="templates"><TemplatesScreen /></TabsContent>
+        <TabsContent value="theme"><ThemeScreen siteId={siteId} /></TabsContent>
+        <TabsContent value="menus"><MenusScreen siteId={siteId} /></TabsContent>
+        <TabsContent value="templates"><TemplatesScope site={site} /></TabsContent>
       </Tabs>
-    </LegacyScope>
+    </Lazy>
   )
 }
 
@@ -98,9 +105,12 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
     domains: <SiteDomains {...props} />,
     import: <SiteImport {...props} />,
     settings: <SiteSettings {...props} />,
-    forms: <FormsScreen siteId={siteId} />,
-    blog: <LegacyScope site={data}><BlogScreen /></LegacyScope>,
-    appearance: <Appearance site={data} />,
+    catalog: <SiteCatalog {...props} />,
+    forms: <Lazy><FormsScreen siteId={siteId} /></Lazy>,
+    blog: <Lazy><BlogScreen siteId={siteId} /></Lazy>,
+    appearance: <Appearance site={data} siteId={siteId} />,
+    advanced: <Lazy><AdvancedSettingsScreen siteId={siteId} /></Lazy>,
+    payments: <Lazy><PaymentsScreen siteId={siteId} /></Lazy>,
   }[current]
 
   return (

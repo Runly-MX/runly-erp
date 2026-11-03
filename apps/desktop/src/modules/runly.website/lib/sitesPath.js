@@ -7,5 +7,7 @@ export function parseSitesPath(pathname) {
   if (first === 'new') return { view: 'new' }
   const editor = rest.match(/^pages\/([^/]+)\/editor$/)
   if (editor) return { view: 'editor', siteId: first, pageId: editor[1] }
+  const post = rest.match(/^blog\/([^/]+)$/)
+  if (post) return { view: 'blogEditor', siteId: first, postId: post[1] }
   return { view: 'workspace', siteId: first, section: rest.split('/')[0] || 'overview' }
 }

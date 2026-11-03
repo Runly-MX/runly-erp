@@ -22,6 +22,8 @@ import {
   useColumnResize,
 } from "@runly/ui";
 import { toast } from "sonner";
+import { useScopedSite } from "../hooks/useScopedSite.js";
+import { postEditorPath } from "../lib/pageRoute.js";
 import WebsiteNewBlogPostDialog from "./WebsiteNewBlogPostDialog.jsx";
 
 async function apiGet(path, token) {
@@ -44,7 +46,7 @@ function fmtDate(dateStr) {
   return new Date(dateStr).toLocaleDateString("es-MX", { dateStyle: "medium" });
 }
 
-export default function WebsiteBlogScreen() {
+export default function WebsiteBlogScreen({ siteId: siteIdProp = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
@@ -55,12 +57,7 @@ export default function WebsiteBlogScreen() {
   const [categoryFilter, setCategoryFilter] = useState("");
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  const siteQuery = useQuery({
-    queryKey: ["website-site", token],
-    queryFn: () => apiGet("/website/site", token),
-    enabled: Boolean(token),
-    staleTime: 60_000,
-  });
+  const siteQuery = useScopedSite(siteIdProp);
   const siteId = siteQuery.data?.data?.id ?? null;
 
   const catsQuery = useQuery({
@@ -89,7 +86,10 @@ export default function WebsiteBlogScreen() {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error(res.status === 409 ? "Este sitio publica por versiones: la entrada no se puede eliminar desde aquí todavía." : (body.error ?? `HTTP ${res.status}`));
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -97,8 +97,8 @@ export default function WebsiteBlogScreen() {
       queryClient.invalidateQueries({ queryKey: ["blog-posts", siteId] });
       setDeleteTarget(null);
     },
-    onError: () => {
-      toast.error("Error al eliminar la entrada");
+    onError: (error) => {
+      toast.error(error.message || "Error al eliminar la entrada");
       setDeleteTarget(null);
     },
   });
@@ -172,7 +172,7 @@ export default function WebsiteBlogScreen() {
                       key={post.id}
                       className="cursor-pointer"
                       onClick={() =>
-                        navigate(`/app/m/runly.website/blog/${post.id}/editor`)
+                        navigate(postEditorPath(siteIdProp, post.id))
                       }
                     >
                       <TableCell className="font-medium text-[hsl(var(--foreground))]">
@@ -194,9 +194,7 @@ export default function WebsiteBlogScreen() {
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
-                              navigate(
-                                `/app/m/runly.website/blog/${post.id}/editor`,
-                              );
+                              navigate(postEditorPath(siteIdProp, post.id));
                             }}
                             className="text-xs text-[var(--brand-primary)] hover:underline"
                           >
@@ -229,7 +227,7 @@ export default function WebsiteBlogScreen() {
         onOpenChange={setDialogOpen}
         onCreated={(post) => {
           queryClient.invalidateQueries({ queryKey: ["blog-posts", siteId] });
-          navigate(`/app/m/runly.website/blog/${post.id}/editor`);
+          navigate(postEditorPath(siteIdProp, post.id));
         }}
       />
 

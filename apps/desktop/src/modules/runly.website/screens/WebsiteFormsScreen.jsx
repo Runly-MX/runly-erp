@@ -355,6 +355,8 @@ function NewFormDialog({ open, onOpenChange, siteId, token, assignees, turnstile
 }
 
 // ── Main screen ──────────────────────────────────────────────────────────────
+import { FormPublishability } from '../components/FormPublishability.jsx'
+
 export default function WebsiteFormsScreen({ siteId: contextSiteId = null }) {
   const { session } = useAuth()
   const token = session?.access_token
@@ -459,13 +461,7 @@ export default function WebsiteFormsScreen({ siteId: contextSiteId = null }) {
         description="Define campos, copia el ID y úsalo en tu sitio con DynamicForm."
         actions={<Button onClick={() => setNewFormOpen(true)}>Nuevo formulario</Button>}
       />
-      {selectedForm?.publishability && (
-        <Card className="p-4 text-sm" role="status">
-          <p>Publicabilidad: {selectedForm.publishability.state}</p>
-          {selectedForm.publishability.reason?.code && <p>{selectedForm.publishability.reason.code}</p>}
-          <p>Propietario: {selectedForm.scope?.ownerModule ?? 'Website'} · Referencias: {selectedForm.publishability.usedBy?.length ?? 0}</p>
-        </Card>
-      )}
+      {selectedForm?.publishability && <FormPublishability form={selectedForm} siteId={siteId} />}
 
       {formsQuery.isPending ? (
         <LoadingState message="Cargando formularios..." />

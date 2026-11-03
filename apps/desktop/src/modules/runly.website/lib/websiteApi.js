@@ -102,6 +102,8 @@ export function createWebsiteApi(token) {
       return call(`${site(siteId)}/imports`, { method: 'POST', formData, idempotencyKey })
     },
     getImport: (siteId, importId, o) => call(`${site(siteId)}/imports/${s(importId)}`, o),
+    resolveFormScope: (siteId, formId, body) => call(`${site(siteId)}/forms/${s(formId)}/scope`, { method: 'POST', body }),
+    listBlogPosts: (siteId, o) => call(`/website/blog/posts?siteId=${s(siteId)}&pageSize=100`, o),
     getLegacyPage: (pageId, o) => call(`/website/pages/${s(pageId)}`, o),
     companyBranding: (o) => call('/company/branding', o),
   }

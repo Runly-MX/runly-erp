@@ -6,7 +6,7 @@ import { Archive, Info } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
-import { PUBLIC_ROUTE_ROOT } from '../../lib/pageRoute.js'
+import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
 import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
@@ -110,10 +110,10 @@ export default function SiteSettings({ site, siteId, caps }) {
         <h2 id="adv-title" className="text-base font-semibold">Avanzado</h2>
         <details className="rounded-lg border border-[hsl(var(--border))] p-3">
           <summary className="cursor-pointer text-sm font-medium">Correo, antispam, analítica y pagos</summary>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">Estas opciones todavía usan la pantalla anterior y solo funcionan con el sitio predeterminado de tu empresa.</p>
+          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">El correo (SMTP) es de la empresa y lo comparten sus sitios. La analítica, el antispam y los pagos se guardan en este sitio.</p>
           <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="outline" disabled={!site.defaultForCompany} onClick={() => navigate(`${PUBLIC_ROUTE_ROOT}/settings/legacy`)}>Correo, antispam y analítica</Button>
-            <Button variant="outline" disabled={!site.defaultForCompany} onClick={() => navigate(`${PUBLIC_ROUTE_ROOT}/payments`)}>Pagos</Button>
+            <Button variant="outline" onClick={() => navigate(sitePath(siteId, 'advanced'))}>Correo, antispam y analítica</Button>
+            <Button variant="outline" onClick={() => navigate(sitePath(siteId, 'payments'))}>Pagos</Button>
           </div>
         </details>
         <details className="rounded-lg border border-[hsl(var(--border))] p-3">

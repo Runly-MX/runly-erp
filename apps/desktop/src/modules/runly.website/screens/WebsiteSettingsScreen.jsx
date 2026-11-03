@@ -27,6 +27,7 @@ import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { runly, getActiveCompanyId } from '../../../lib/runly.js'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider.jsx'
 import { WebsiteSourceSelector } from '../components/WebsiteSourceSelector.jsx'
+import { useScopedSite } from '../hooks/useScopedSite.js'
 import { DistUploadPanel } from '../components/DistUploadPanel.jsx'
 
 async function apiFetch(path, token, options = {}) {
@@ -76,7 +77,7 @@ const ANALYTICS_MODE_OPTIONS = [
   { value: 'consent_required', label: 'Requiere consentimiento' },
 ]
 
-export default function WebsiteSettingsScreen() {
+export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
   const { activeCompanyId } = useActiveCompany()
   const smtpDirtyRef = useRef(false)
   const { session } = useAuth()
@@ -90,13 +91,11 @@ export default function WebsiteSettingsScreen() {
   const [turnstileSecretChanged, setTurnstileSecretChanged] = useState(false)
 
   // --- Site query (same pattern as WebsiteOverviewScreen) ---
-  const siteQuery = useQuery({
-    queryKey: ['website-site', token],
-    queryFn: () => apiFetch('/website/site', token),
-    enabled: Boolean(token),
-    staleTime: 60_000,
-  })
+  const siteQuery = useScopedSite(siteIdProp)
   const siteId = siteQuery.data?.data?.id
+  // Inside a site workspace the file source is managed by "Importar ZIP"; the
+  // historical source switch only exists on the legacy route.
+  const scoped = Boolean(siteIdProp)
 
   useEffect(() => {
     const site = siteQuery.data?.data
@@ -113,7 +112,7 @@ export default function WebsiteSettingsScreen() {
   const sourceQuery = useQuery({
     queryKey: ['website-site-source', siteId],
     queryFn: () => apiFetch(`/website/sites/${siteId}`, token),
-    enabled: Boolean(token) && Boolean(siteId),
+    enabled: Boolean(token) && Boolean(siteId) && !scoped,
   })
 
   // --- SMTP config query ---
@@ -290,12 +289,14 @@ export default function WebsiteSettingsScreen() {
           description="Ajusta las integraciones y credenciales de tu sitio web."
         />
 
-        <Tabs defaultValue="source">
+        <Tabs defaultValue={scoped ? 'smtp' : 'source'}>
           <TabsList>
+            {!scoped && (
             <TabsTrigger value="source">
-              <Globe className="w-4 h-4 mr-1.5" />
-              Fuente del sitio
-            </TabsTrigger>
+                <Globe className="w-4 h-4 mr-1.5" />
+                Fuente del sitio
+              </TabsTrigger>
+            )}
             <TabsTrigger value="smtp">
               <Mail className="w-4 h-4 mr-1.5" />
               Correo electronico
@@ -307,7 +308,7 @@ export default function WebsiteSettingsScreen() {
           </TabsList>
 
           {/* Tab: Fuente del sitio */}
-          <TabsContent value="source" className="mt-4">
+          {!scoped && (<TabsContent value="source" className="mt-4">
             <Card className="p-0 overflow-hidden">
               <div className="px-4 py-3 border-b border-border bg-muted/40">
                 <p className="text-sm font-semibold">Fuente del sitio</p>
@@ -347,7 +348,7 @@ export default function WebsiteSettingsScreen() {
                 )}
               </div>
             </Card>
-          </TabsContent>
+          </TabsContent>)}
 
           {/* Tab: Correo electronico (SMTP) */}
           <TabsContent value="smtp" className="mt-4">
@@ -356,7 +357,7 @@ export default function WebsiteSettingsScreen() {
                 <div>
                   <p className="text-sm font-semibold">Correo electronico (SMTP)</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    Credenciales propias del sitio. Si no se configuran, se usa el SMTP de esta empresa como respaldo.
+                    Credenciales de correo de Website, compartidas por todos los sitios de la empresa. Si no se configuran, se usa el SMTP de la empresa como respaldo.
                   </p>
                 </div>
                 {smtpConfigured && (

@@ -15,6 +15,7 @@ export const websiteKeys = {
   draft: (companyId, siteId, pageId) => ['website', companyId, 'site', siteId, 'draft', pageId],
   releases: (companyId, siteId) => ['website', companyId, 'site', siteId, 'releases'],
   release: (companyId, siteId, releaseId) => ['website', companyId, 'site', siteId, 'release', releaseId],
+  blog: (companyId, siteId) => ['website', companyId, 'site', siteId, 'blog'],
   domains: (companyId, siteId) => ['website', companyId, 'site', siteId, 'domains'],
   all: (companyId) => ['website', companyId],
 }
@@ -45,6 +46,13 @@ export function useWebsiteCapabilities(siteId) {
     const get=key=>cap[key]??unavailable;
     return {siteRead:need('website.site.read'),siteEdit:get('site.edit'),pagesRead:need('website.pages.read'),pagesCreate:get('pages.create'),pagesUpdate:get('pages.update'),pagesDelete:get('pages.delete'),publish:get('pages.publish'),archive:get('site.archive'),reserveHostname:get('domains.reserve'),importZip:get('import.zip'),previewSite:get('preview.site'),previewDraft:get('preview.site').allowed&&permissions.includes('website.pages.update')?{allowed:true}:unavailable,formsRead:need('website.forms.read'),formsPublish:get('forms.publish'),calendarPublish:get('calendar.publish'),customDomain:get('domains.custom')};
   },[siteId,state.data,state.isError,userProfile]);
+}
+
+// One session permission as a capability ({ allowed, reason }); the server re-checks.
+export function useSessionPermission(permissionKey) {
+  const { userProfile } = useAuth()
+  const allowed = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes(permissionKey))
+  return allowed ? { allowed: true } : { allowed: false, reason: { code: 'permission_denied', requiredPermission: permissionKey } }
 }
 
 export function useSites() {
@@ -83,6 +91,16 @@ export function usePages(siteId) {
   return useQuery({
     queryKey: websiteKeys.pages(companyId, siteId),
     queryFn: async ({ signal }) => ((await api.listPages(siteId,{signal})).data??[]).map(row=>({...row,...row.draftMetadata})),
+    enabled: ready && Boolean(siteId),
+    staleTime: 10_000,
+  })
+}
+
+export function useBlogPosts(siteId) {
+  const { api, companyId, ready } = useWebsiteScope()
+  return useQuery({
+    queryKey: websiteKeys.blog(companyId, siteId),
+    queryFn: async ({ signal }) => (await api.listBlogPosts(siteId, { signal })).data ?? [],
     enabled: ready && Boolean(siteId),
     staleTime: 10_000,
   })

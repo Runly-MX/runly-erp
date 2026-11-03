@@ -17,6 +17,7 @@ import {
   DialogFooter,
   LoadingState,
 } from "@runly/ui";
+import { useScopedSite } from "../hooks/useScopedSite.js";
 import { toast } from "sonner";
 import MenuItemTree from "./MenuItemTree.jsx";
 
@@ -40,7 +41,7 @@ async function apiGet(path, token) {
   return res.json();
 }
 
-export default function WebsiteMenusScreen() {
+export default function WebsiteMenusScreen({ siteId: siteIdProp = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const queryClient = useQueryClient();
@@ -53,12 +54,7 @@ export default function WebsiteMenusScreen() {
   });
   const [confirmDelete, setConfirmDelete] = useState(null);
 
-  const siteQuery = useQuery({
-    queryKey: ["website-site", token],
-    queryFn: () => apiGet("/website/site", token),
-    enabled: Boolean(token),
-    staleTime: 60_000,
-  });
+  const siteQuery = useScopedSite(siteIdProp);
   const siteId = siteQuery.data?.data?.id ?? null;
 
   const menusQuery = useQuery({

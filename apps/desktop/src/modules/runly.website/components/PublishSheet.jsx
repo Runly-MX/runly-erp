@@ -20,7 +20,7 @@ import { newIdempotencyKey } from '../lib/websiteApi.js'
 import { describeError, describeFailure, describeCode } from '../lib/websiteErrors.js'
 
 import { editorPath } from '../lib/pageRoute.js'
-import { useDomains, useWebsiteScope, websiteKeys } from '../hooks/useWebsite.js'
+import { useBlogPosts, useDomains, useWebsiteScope, websiteKeys } from '../hooks/useWebsite.js'
 import { ErrorNotice } from './ErrorNotice.jsx'
 
 const POLL_MS = 1500
@@ -39,6 +39,8 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   const queryClient = useQueryClient()
   const { api, companyId } = useWebsiteScope()
   const domains = useDomains(open ? site?.id : null)
+  const blog = useBlogPosts(open ? site?.id : null)
+  const [postIds, setPostIds] = useState(() => new Set())
   const [phase, setPhase] = useState('review') // review | preparing | ready | activating | done | failed
   const [excluded, setExcluded] = useState(() => new Set())
   const [includeThemeAndMenus, setIncludeThemeAndMenus] = useState(true)
@@ -51,11 +53,13 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
 
   const publicPages = useMemo(() => pages.filter((page) => page.visibility === 'public' || page.visibility === undefined), [pages])
   const firstPublication = !site?.activeReleaseId
+  const posts = useMemo(() => (blog.data ?? []).filter((post) => post.status !== 'archived'), [blog.data])
+  const selectedPostIds = useMemo(() => posts.filter((post) => postIds.has(post.id)).map((post) => post.id), [posts, postIds])
   const selectedIds = useMemo(() => publicPages.filter((page) => !excluded.has(page.id)).map((page) => page.id), [publicPages, excluded])
 
   const reset = useCallback(() => {
     keys.current = { prepare: null, activate: null }
-    setPhase('review'); setRelease(null); setError(null); setExcluded(new Set()); setIncludeThemeAndMenus(true); setShowPages(false)
+    setPhase('review'); setRelease(null); setError(null); setExcluded(new Set()); setPostIds(new Set()); setIncludeThemeAndMenus(true); setShowPages(false)
   }, [])
 
   useEffect(() => {
@@ -65,11 +69,11 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   useEffect(()=>{
     if(!open||!api||!site?.id)return undefined;
     let alive=true;setChecking(true);setPreflight(null);
-    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
+    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,publishPostIds:selectedPostIds,includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
       if(!alive)return;const report=response.data;setPreflight(report);const grouped={};for(const issue of report.issues??[]){const id=issue.pageId??'global';(grouped[id]??=[]).push(issue)}setLocalIssues(grouped);
     }).catch(error=>{if(alive){setError(error);setPreflight(null)}}).finally(()=>{if(alive)setChecking(false)});
     return()=>{alive=false};
-  },[open,api,site?.id,selectedIds,includeThemeAndMenus,firstPublication]);
+  },[open,api,site?.id,selectedIds,selectedPostIds,includeThemeAndMenus,firstPublication]);
 
   const issuePages = publicPages.filter((page) => (localIssues[page.id] ?? []).length > 0)
 
@@ -96,7 +100,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         baseReleaseId: fresh.activeReleaseId ?? null,
         expectedDraftRevision: String(fresh.draftRevision),
         expectedPublicationRevision: String(fresh.publicationRevision),
-        changes: { publishPageIds: selectedIds, includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
+        changes: { publishPageIds: selectedIds, publishPostIds: selectedPostIds, includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
       }
       const checked=(await api.preflight(site.id,body)).data;if(!checked.canPublish){setPreflight(checked);setError({code:checked.issues?.[0]?.code??'validation_failed'});setPhase('review');return}
       const created = (await api.prepareRelease(site.id, body, keys.current.prepare)).data
@@ -207,6 +211,22 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
                       </li>
                     ))}
                   </ul>
+                )}
+                {posts.length > 0 && (
+                  <div className="space-y-2 border-t border-[hsl(var(--border))] pt-3">
+                    <p className="text-sm font-medium">Entradas del blog</p>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Las entradas ya publicadas conservan su última versión pública. Marca una para publicar su borrador guardado.</p>
+                    <ul className="space-y-2">
+                      {posts.map((post) => (
+                        <li key={post.id}>
+                          <label className="flex items-center gap-3 text-sm">
+                            <Checkbox checked={postIds.has(post.id)} onCheckedChange={(value) => setPostIds((prev) => { const next = new Set(prev); if (value) next.add(post.id); else next.delete(post.id); return next })} aria-label={`Publicar la entrada ${post.title}`} />
+                            <span>{post.title}</span><span className="text-xs text-[hsl(var(--muted-foreground))]">{post.status === 'published' ? 'Publicada' : 'Borrador'}</span>
+                          </label>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
                 )}
                 <label className="flex items-center gap-3 text-sm">
                   <Checkbox checked={firstPublication ? true : includeThemeAndMenus} disabled={firstPublication} onCheckedChange={setIncludeThemeAndMenus} aria-label="Incluir tema y menús" />

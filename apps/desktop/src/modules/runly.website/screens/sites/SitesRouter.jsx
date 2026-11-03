@@ -8,6 +8,7 @@ import { useSites, useWebsiteScope } from '../../hooks/useWebsite.js'
 import SiteEditorScreen from './SiteEditorScreen.jsx'
 import SitesListScreen from './SitesListScreen.jsx'
 import NewSiteScreen from './NewSiteScreen.jsx'
+import WebsiteBlogPostEditorScreen from '../WebsiteBlogPostEditorScreen.jsx'
 import SiteWorkspace from './SiteWorkspace.jsx'
 
 // One screen for every /sites/... route. The module resolver maps all of them
@@ -17,6 +18,7 @@ export default function SitesRouter() {
   const route = parseSitesPath(pathname)
   if (route.view === 'new') return <NewSiteScreen />
   if (route.view === 'editor') return <SiteEditorScreen key={`${route.siteId}:${route.pageId}`} siteId={route.siteId} pageId={route.pageId} />
+  if (route.view === 'blogEditor') return <WebsiteBlogPostEditorScreen key={route.postId} siteId={route.siteId} postId={route.postId} />
   if (route.view === 'workspace') return <SiteWorkspace key={route.siteId} siteId={route.siteId} section={route.section} />
   return <SitesListScreen />
 }
