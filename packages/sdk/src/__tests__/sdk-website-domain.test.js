@@ -22,7 +22,7 @@ describe("atlas SDK - website domain extraction", () => {
 
     assert.deepEqual(Object.keys(domain).sort(), [
       "listSiteCatalogProducts", "setSiteCatalogProduct", "setSiteCatalogSelection", "getCatalogProductUsage", "applySiteTemplate",
-      "getSiteState", "getPublicationIntegrity", "preflightRelease", "listSiteForms", "resolveFormScope",
+      "getSiteState", "hostnameAvailability", "hostnameStatus", "activateHostname", "releaseHostname", "getPublicationIntegrity", "preflightRelease", "listSiteForms", "resolveFormScope",
       "activateRelease", "createImport", "createPage", "createPreview", "createSite",
       "deleteDist",
       "getDraft", "getImport",
