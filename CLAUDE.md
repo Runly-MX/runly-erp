@@ -265,6 +265,15 @@ Before adding a new feature, read:
 - `docs/TASKS.md` - current phase status and roadmap
 - `docs/ai-context/ui-screen-audit-checklist.md` - 14-aspect UI checklist for all module screens; run before marking any screen complete
 
+## Code exploration: two complementary indexes
+
+Both are local, optional, and git-ignored. Use whichever fits the question; neither replaces the other.
+
+- **codebase-memory-mcp** (MCP tools): symbol-level lookups. Use `search_graph`, `trace_path`, `get_code_snippet` and `search_code` for "where is X defined", "what calls Y", exact snippets and call chains. Index first with `index_repository` if the project is not indexed.
+- **graphify** (`graphify-out/`, code-only graph built with `/graphify .`): structural and architectural questions. Use `/graphify query "<question>"`, `/graphify path "A" "B"` and `/graphify explain "X"`, or read `graphify-out/GRAPH_REPORT.md` (god nodes, communities, surprising connections) for "how do these areas connect", "what are the central pieces" and cross-module relationships.
+- For a single known file or a plain text search, `Grep`/`Glob`/`Read` are still the fastest option.
+- If `graphify-out/` is missing or stale, say so instead of guessing; rebuild with `/graphify . --update`. The graph lives only on disk (`/graphify` outputs are never committed) and may lag behind recent commits.
+
 ## Spec-Driven Development
 
 All new features and modules follow the spec -> plan -> implementation -> verification workflow. Implementation must not begin without an approved spec in `docs/superpowers/specs/` and an approved plan in `docs/superpowers/plans/`. See `docs/spec-driven-development.md` for the full methodology, required spec sections, module checklist, and agent mode rules.
