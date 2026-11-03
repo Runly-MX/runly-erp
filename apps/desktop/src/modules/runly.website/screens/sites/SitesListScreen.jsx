@@ -23,6 +23,47 @@ import { SiteStatusChip } from '../../components/SiteStatusChip.jsx'
 
 const TYPE_LABEL = { website: 'Sitio informativo', ecommerce: 'Sitio con Catálogo', blog: 'Blog', landing: 'Landing' }
 
+// A browser-window thumbnail: the card reads as "a website" at a glance and the whole surface opens it.
+function SiteCard({ site, onOpen }) {
+  const state = deriveSiteState(site, null)
+  const address = site.domain || site.hostname || null
+  return (
+    <li className="group relative flex flex-col overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] transition-colors hover:border-[hsl(var(--foreground))]/30 focus-within:ring-2 focus-within:ring-[hsl(var(--ring))]">
+      <div className="flex h-28 flex-col bg-[hsl(var(--muted))]/60" aria-hidden="true">
+        <div className="flex items-center gap-1.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))]/70 px-3 py-2">
+          <span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" /><span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" /><span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" />
+          <span className="ml-2 min-w-0 flex-1 truncate rounded-md bg-[hsl(var(--muted))] px-2 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">{address ?? 'Sin dirección todavía'}</span>
+        </div>
+        <div className="flex flex-1 items-center justify-center text-4xl font-semibold text-[hsl(var(--muted-foreground))]/50">{(site.name ?? '?').trim().charAt(0).toUpperCase()}</div>
+      </div>
+      <div className="flex flex-1 flex-col gap-3 p-4">
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <h2 className="truncate text-base font-semibold">
+              <button type="button" onClick={() => onOpen()} className="after:absolute after:inset-0 focus-visible:outline-none">{site.name}</button>
+            </h2>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{TYPE_LABEL[site.siteType] ?? 'Sitio'}</p>
+          </div>
+          <div className="relative z-10">
+            <ActionMenu
+              label={`Más acciones de ${site.name}`}
+              items={[
+                { label: 'Páginas', onClick: () => onOpen('pages') },
+                { label: 'Publicaciones', onClick: () => onOpen('publishing') },
+                { label: 'Configuración', onClick: () => onOpen('settings') },
+              ]}
+            />
+          </div>
+        </div>
+        <div className="mt-auto flex flex-wrap items-center gap-2">
+          <SiteStatusChip state={state} size="sm" />
+          {site.defaultForCompany && <Badge variant="secondary">Predeterminado</Badge>}
+        </div>
+      </div>
+    </li>
+  )
+}
+
 // Entry point of the module: every company site, never an implicit "first" one.
 export default function SitesListScreen() {
   const navigate = useNavigate()
@@ -76,33 +117,8 @@ export default function SitesListScreen() {
             <TextField label="Buscar sitio" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Nombre del sitio" />
           </div>
           {visible.length === 0 && <EmptyState variant="compact" title="Ningún sitio coincide con la búsqueda." />}
-          <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3" aria-label="Sitios">
-            {visible.map((site) => {
-              const state = deriveSiteState(site, null)
-              return (
-                <li key={site.id} className="flex flex-col gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0">
-                      <h2 className="truncate text-base font-semibold">{site.name}</h2>
-                      <p className="text-xs text-[hsl(var(--muted-foreground))]">{TYPE_LABEL[site.siteType] ?? 'Sitio'}</p>
-                    </div>
-                    {site.defaultForCompany && <Badge variant="secondary">Predeterminado</Badge>}
-                  </div>
-                  <SiteStatusChip state={state} size="sm" />
-                  <div className="mt-auto flex items-center justify-between gap-2">
-                    <Button size="sm" onClick={() => navigate(sitePath(site.id, 'overview'))}>Abrir</Button>
-                    <ActionMenu
-                      label={`Más acciones de ${site.name}`}
-                      items={[
-                        { label: 'Páginas', onClick: () => navigate(sitePath(site.id, 'pages')) },
-                        { label: 'Publicaciones', onClick: () => navigate(sitePath(site.id, 'publishing')) },
-                        { label: 'Configuración', onClick: () => navigate(sitePath(site.id, 'settings')) },
-                      ]}
-                    />
-                  </div>
-                </li>
-              )
-            })}
+          <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-label="Sitios">
+            {visible.map((site) => <SiteCard key={site.id} site={site} onOpen={(section = 'overview') => navigate(sitePath(site.id, section))} />)}
           </ul>
         </>
       )}

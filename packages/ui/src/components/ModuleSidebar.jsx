@@ -400,7 +400,7 @@ export function ModuleSidebar({
             {module.name}
           </p>
           <p className="text-[11px] text-[hsl(var(--muted-foreground))] leading-tight mt-0.5">
-            Módulo
+            {module.subtitle ?? "Módulo"}
           </p>
         </div>
         {/* Install as app button:

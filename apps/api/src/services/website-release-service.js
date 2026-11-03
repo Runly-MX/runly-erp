@@ -3,6 +3,7 @@ import { WebsiteServiceError,notFound } from '../routes/website/service-helpers.
 import { assertWebsiteAccess } from './website-authorization-service.js'
 import { createWebsiteDraftService,normalizeWebsiteDocument,websiteDocumentHash as hash } from './website-draft-service.js'
 import {createWebsiteFormScopeService} from './website-form-scope-service.js'
+import {conformTemplateDocument} from './website-template-conform.js'
 import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { createFileAccess } from './files/access.js'
@@ -189,7 +190,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         try {
           if(r.visibility!=='public')throw failure('page_not_public',422)
           websiteReleasePath(r.path);if(paths.has(r.path))throw failure('route_conflict',422);paths.add(r.path)
-          r.document=normalizeWebsiteDocument(r.document,{strict:true})
+          r.document=conformTemplateDocument(normalizeWebsiteDocument(r.document,{strict:true})) /* sealed copy only: the draft is never rewritten */
           for(const block of Object.values(r.document.blocks)) {
             location={pageId:r.sourceId,blockId:block.id,blockType:block.type}
             try {

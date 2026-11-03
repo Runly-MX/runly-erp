@@ -1,9 +1,10 @@
 import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle, ErrorState, LoadingState, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
-import { Archive, BookOpen, CreditCard, FileText, FormInput, Globe, History, LayoutDashboard, Palette, Settings, ShoppingBag, SlidersHorizontal, UploadCloud } from 'lucide-react'
+import { Archive } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
-import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
+import { PUBLIC_ROUTE_ROOT } from '../../lib/pageRoute.js'
+import { SECTIONS } from '../../lib/siteSections.js'
 import { usePages, useSiteContext, useSites, useWebsiteCapabilities } from '../../hooks/useWebsite.js'
 import { SiteContextBar } from '../../components/SiteContextBar.jsx'
 import { PublishSheet } from '../../components/PublishSheet.jsx'
@@ -23,21 +24,6 @@ const MenusScreen = lazy(() => import('../WebsiteMenusScreen.jsx'))
 const TemplatesScreen = lazy(() => import('../WebsiteTemplatesScreen.jsx'))
 const PaymentsScreen = lazy(() => import('../WebsitePaymentsScreen.jsx'))
 const AdvancedSettingsScreen = lazy(() => import('../WebsiteSettingsScreen.jsx'))
-
-export const SECTIONS = [
-  { id: 'overview', label: 'Resumen', icon: LayoutDashboard },
-  { id: 'pages', label: 'Páginas', icon: FileText },
-  { id: 'blog', label: 'Blog', icon: BookOpen },
-  { id: 'catalog', label: 'Catálogo', icon: ShoppingBag },
-  { id: 'forms', label: 'Formularios', icon: FormInput },
-  { id: 'appearance', label: 'Apariencia', icon: Palette },
-  { id: 'publishing', label: 'Publicaciones', icon: History },
-  { id: 'domains', label: 'Dominios', icon: Globe },
-  { id: 'import', label: 'Importar ZIP', icon: UploadCloud },
-  { id: 'settings', label: 'Configuración', icon: Settings },
-  { id: 'advanced', label: 'Correo y analítica', icon: SlidersHorizontal },
-  { id: 'payments', label: 'Pagos', icon: CreditCard },
-]
 
 const Lazy = ({ children }) => <Suspense fallback={<LoadingState variant="page" />}>{children}</Suspense>
 
@@ -69,7 +55,6 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
   const pages = usePages(siteId)
   const [publishOpen, setPublishOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
-  const visibleSections = SECTIONS.filter(item=>caps.sections?.[item.id]?.allowed)
   const current = SECTIONS.some((item) => item.id === section) ? section : 'overview'
 
   if (site.isPending) return <LoadingState variant="page" />
@@ -109,22 +94,6 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
           <div><AlertTitle>Este sitio está archivado</AlertTitle><AlertDescription>Dejó de publicarse y no aparece en tu lista. Sus páginas, formularios y respuestas se conservan.</AlertDescription></div>
         </Alert>
       )}
-      <nav aria-label={`Secciones de ${data.name}`} className="border-b border-[hsl(var(--border))] px-2 md:px-4">
-        <ul className="flex gap-1 overflow-x-auto py-1.5">
-          {visibleSections.map((item) => (
-            <li key={item.id} className="shrink-0">
-              <button
-                type="button"
-                aria-current={item.id === current ? 'page' : undefined}
-                onClick={() => navigate(sitePath(siteId, item.id))}
-                className={`flex items-center gap-2 whitespace-nowrap rounded-md px-3 py-2 text-sm transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${item.id === current ? 'bg-[hsl(var(--muted))] font-semibold' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))]/60 hover:text-[hsl(var(--foreground))]'}`}
-              >
-                <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" /> {item.label}
-              </button>
-            </li>
-          ))}
-        </ul>
-      </nav>
       <section className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</section>
       <PublishSheet open={publishOpen} onOpenChange={setPublishOpen} site={data} pages={pages.data ?? []} activeRelease={release.data ?? null} />
       <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} siteId={siteId} draftPageIds={(pages.data ?? []).filter((page) => page.visibility === 'public').map((page) => page.id)} title="Vista previa del borrador guardado" />

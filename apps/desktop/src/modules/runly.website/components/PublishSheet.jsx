@@ -168,7 +168,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
                   <div>
                     <AlertTitle>El servidor detectó bloqueos de publicación · {issuePages.length} {issuePages.length === 1 ? 'página' : 'páginas'}</AlertTitle>
                     <AlertDescription>
-                      Preflight de solo lectura. Nada se quita ni se oculta automáticamente.
+                      Revisión de solo lectura: tu borrador no se modifica.
                     </AlertDescription>
                     <ul className="mt-3 space-y-3 text-sm">
                       {issuePages.map((page) => (
