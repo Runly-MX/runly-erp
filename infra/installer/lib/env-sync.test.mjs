@@ -121,3 +121,26 @@ test('development sync preserves .env.local overrides without blanking inherited
   assert.ok(local.startsWith(overrides));
   for (const key of keys) assert.ok(envAssignments(local).some(entry => entry.key === key));
 });
+
+test('Website origin settings ship blank in every template and survive repeated installer sync', async t => {
+  const websiteKeys = ['RUNLY_WEBSITE_NAMESPACE_ROOT', 'RUNLY_WEBSITE_CONTENT_ROOT', 'RUNLY_WEBSITE_PREVIEW_ROOT'];
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'runly-env-sync-'));
+  t.after(() => fs.rm(dir, { recursive: true, force: true }));
+  for (const name of ['infra/installer/.env.external.example', 'infra/installer/.env.local.example', '.env.example']) {
+    const example = await fs.readFile(new URL(`../../../${name}`, import.meta.url), 'utf8');
+    for (const key of websiteKeys) assert.match(example, new RegExp(`^${key}=$`, 'm'), `${name} ${key}`);
+  }
+  const example = path.join(dir, 'example');
+  await fs.writeFile(example, await fs.readFile(new URL('../.env.external.example', import.meta.url), 'utf8'));
+  const file = path.join(dir, '.env.external');
+  await fs.writeFile(file, 'RUNLY_WEBSITE_CONTENT_ROOT=content.sites.example.net\nDATABASE_URL="fixture-private-value"\n');
+  const log = [];
+  await syncMissingEnvFile(file, example, { log: message => log.push(message) });
+  const first = await fs.readFile(file, 'utf8');
+  assert.match(first, /^RUNLY_WEBSITE_CONTENT_ROOT=content\.sites\.example\.net$/m);
+  assert.match(first, /^RUNLY_WEBSITE_NAMESPACE_ROOT=$/m);
+  assert.equal(envAssignments(first).filter(entry => entry.key === 'RUNLY_WEBSITE_CONTENT_ROOT').length, 1);
+  await syncMissingEnvFile(file, example, { log: message => log.push(message) });
+  assert.equal(await fs.readFile(file, 'utf8'), first);
+  assert.doesNotMatch(log.join(''), /fixture-private-value|sites\.example\.net/);
+});

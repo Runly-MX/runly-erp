@@ -1,6 +1,9 @@
 import {createWebsiteAdminContractService} from './website-admin-contract-service.js'
 import {readFile as readDisk} from 'node:fs/promises'
 import {resolve} from 'node:path'
+import {fileURLToPath} from 'node:url'
+// Anchored to this file, not the process cwd: the API container starts in /app/apps/api.
+const bundledRuntime=fileURLToPath(new URL('../../public/website-runtime',import.meta.url))
 import {createWebsiteReleaseStorage,releaseBytesHash} from './website-release-storage.js'
 import {createWebsiteReleaseService} from './website-release-service.js'
 import {createWebsiteGatewayService} from './website-gateway-service.js'
@@ -12,7 +15,7 @@ import {createWebsitePreviewService} from './website-preview-service.js'
 export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:provided,runtime:providedRuntime,...options}) {
  const storage=provided??createWebsiteReleaseStorage({supabaseAdmin})
  const runtime=providedRuntime??(async()=>{
-   const folder=resolve(process.env.RUNLY_WEBSITE_RUNTIME_DIR??'apps/api/public/website-runtime')
+   const folder=resolve(process.env.RUNLY_WEBSITE_RUNTIME_DIR??bundledRuntime)
    const registry=JSON.parse(await readDisk(resolve(folder,'registry.json'),'utf8')), files={}
    for(const[name,entry]of Object.entries(registry)) {
      if(!['entry.js','style.css'].includes(name))throw new WebsiteServiceError('Runtime inválido.',503,'runtime_unavailable')

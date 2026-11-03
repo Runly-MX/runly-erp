@@ -33,7 +33,7 @@ Deshabilitadas o fuera de alcance: Calendar (sin contrato público de reservas),
 
 ## Configuración de staging
 
-Añadir a `.env.external` (el actualizador no la toca; Compose la pasa al API con `env_file`). Ejemplos, no valores reales:
+El instalador ahora añade las tres claves `RUNLY_WEBSITE_*` en blanco a `.env.external` (plantilla `.env.external.example`, solo si faltan) y nunca modifica un valor existente. El administrador las rellena una vez y las actualizaciones posteriores las conservan; esto se comprobó en el ensayo del instalador. Compose las pasa al API con `env_file`. Ejemplos, no valores reales:
 
 ```
 RUNLY_APP_URL=https://erp.staging.example.com
@@ -42,9 +42,20 @@ RUNLY_WEBSITE_CONTENT_ROOT=content.staging-sites.example.net
 RUNLY_WEBSITE_PREVIEW_ROOT=preview.staging-sites.example.net
 ```
 
-El instalador no genera estas variables ni tiene pruebas que garanticen que `setup-external.mjs` conserva claves desconocidas: comprobarlo en el ensayo. Sin ellas la publicación aislada responde 409 `isolation_required` (falla cerrado).
+Sin valores, la publicación aislada responde 409 `isolation_required` (falla cerrado). `RUNLY_APP_URL` debe ser un nombre de dominio HTTPS (no una IP) para que el aislamiento pueda comparar dominios registrables.
 
-Reglas del código (`website-content-isolation.js`): las raíces de contenido y vista previa no pueden estar bajo `runly.mx`, ni compartir dominio registrable con el origen del ERP, y requieren HTTPS. El bucket privado `runly-website-releases` debe existir en Storage y el rol de servicio tener acceso.
+Reglas del código (`website-content-isolation.js`): las raíces de contenido y vista previa no pueden estar bajo `runly.mx`, ni compartir dominio registrable con el origen del ERP, y requieren HTTPS. El API crea el bucket privado `runly-website-releases` al arrancar (antes nada lo creaba, ver Hallazgos).
+
+## Hallazgos corregidos por el ensayo del instalador
+
+El ensayo con imágenes empaquetadas encontró dos defectos que el laboratorio de desarrollo ocultaba porque preparaba el entorno a mano:
+
+1. Nada creaba el bucket privado `runly-website-releases`: publicar habría respondido 503 en una instalación nueva. Ahora lo crea `ensureBuckets()`.
+2. El runtime público se buscaba relativo al directorio de trabajo; en el contenedor el API arranca en `/app/apps/api`, así que la ruta no existía y preparar un release fallaba. Ahora se resuelve respecto al código (`RUNLY_WEBSITE_RUNTIME_DIR` sigue siendo válida).
+
+## Ensayo del instalador
+
+`node scripts/verify-website-installer-e2e.mjs --api-image=... --worker-image=... --web-image=...` (imágenes de `node scripts/build-local-api-image.mjs --kinds=api,worker,web`, construidas desde `git archive` del commit). Usa una pila Supabase desechable, un origen de distribución controlado (sin GitHub ni registro; pulls y prunes son no-ops) y el `update-external.sh` real partiendo de la versión previa del instalador y de la imagen API anterior (`runly-realtime2:full-api-fa6f6d2a2877`). Comprueba: actualización del instalador, claves Website añadidas una vez y en blanco, valores previos intactos, migraciones aplicadas, sitio/página/formulario/respuesta históricos sin cambios, `catalog_mode=legacy_all`, bucket privado, acceso administrativo, valores del administrador que sobreviven a otra actualización, publicación de un sitio y resolución por el Nginx empaquetado (el host del sitio no sirve `/app`; el origen administrativo sí; un host sin asignar no resuelve), repetición sin cambios, fallo controlado de refresco (corrupción) sin efectos y con el sitio sirviendo, recuperación, y que la imagen API anterior arranca contra la base migrada. Ninguna salida contiene credenciales (se verifica). Hay además dos escenarios con `--only=`: `website-external-fresh-install` (instalación external sobre base vacía con el instalador actual, mismas verificaciones de variables, secretos, publicación y repetición) y `website-image-references` (etiquetas `<imagen>-<sha12>` y IDs de imagen como referencias: el contenedor corre exactamente esa imagen, `.runly-installer/images.json` registra referencia e ID, la selección sobrevive a otra actualización, no aparece `latest`, y un cambio de la referencia a la imagen de `cc350912a174` devuelve el contenedor a esa imagen sin tocar el esquema, y vuelta adelante). El instalador ya fija las imágenes por ID tras resolverlas y exige la etiqueta `io.runly.installer.contract`, que las tres Dockerfiles incluyen. Limitaciones: sin DNS ni TLS reales; las referencias `repo@sha256:` de un registro no se probaron (requieren registro); el hostname del sitio se asigna por SQL porque no existe ruta REST para reservarlo.
 
 ## DNS y TLS recomendados
 
@@ -54,30 +65,51 @@ Reglas del código (`website-content-isolation.js`): las raíces de contenido y 
 - Nginx/Caddy termina TLS y envía `Host` intacto al contenedor web; el gateway resuelve por hostname. Dominios reservados en código: admin, api, app, auth, login, public, preview, support, status, www, mail, erp, mcp, runly, atlas, internal, system.
 - Caché: las páginas públicas se sirven desde releases inmutables; la activación cambia el puntero. Verificar en staging encabezados de caché tras activar y tras rollback.
 
+## Release de imágenes selectivo e inmutable
+
+`node infra/docker/release-selective.mjs` (alias `pnpm docker:release:selective`) sustituye a `pnpm docker:release` para Website: solo api, web y worker (DWG y el resto quedan en `build-push.mjs`), etiqueta `<imagen>-<sha12>` del commit exacto, nunca toca `-latest` por sí mismo, y registra en `.artifacts/releases/<sha12>.json` el digest de cada imagen y el digest previo de `-latest` para revertir.
+
+| Modo | Efecto |
+|---|---|
+| (por defecto) plan | Imprime commit y etiquetas; no construye ni publica. |
+| `--build` | Construye localmente desde `git archive` del SHA. |
+| `--push --confirm=<sha12>` | Publica solo etiquetas SHA; rechaza cualquier etiqueta que ya exista en el registro. |
+| `--promote --confirm=<sha12>` | Apunta `-latest` a un digest ya publicado y escribe el comando exacto de reversión. |
+
+Probado: 6 pruebas unitarias (argumentos, imágenes no permitidas, confirmación obligatoria, plan, y `--dry-run` de push y promote que imprime los comandos sin ejecutarlos). `--build` se ejecutó de verdad para api, web y worker del commit `0134b780a8c6` y para api de `cc350912a174`: producen `raulbellosom/runlyerp:<imagen>-<sha12>` y un registro con el ID de imagen; las etiquetas `-latest` locales existentes y la imagen DWG no cambiaron (mismos IDs antes y después; el script no puede seleccionar DWG). `RUNLY_RELEASE_REGISTRY` redirige todas las etiquetas a otro registro. **No probado**: `--push` y `--promote` reales: esta máquina no tiene una imagen de registro local y descargarla exigiría acceso a Docker Hub, así que no se ejecutaron; el mecanismo sí admite un registro local desechable (`RUNLY_RELEASE_REGISTRY=localhost:<puerto>/runlyerp`) cuando se disponga de uno. `build-push.mjs` y `docker:release` siguen existiendo y siguen sobrescribiendo `-latest`; no usarlos para Website.
+
+## Respaldo y recuperación
+
+Antes de cualquier actualización: respaldo `complete` (base, buckets, módulos y configuración; requiere `BACKUP_STORAGE_S3_*` en modo external, ver `docs/deployment/backup-recovery.md`) y copia fuera del servidor del material de recuperación. Guardar `docker image inspect --format '{{index .RepoDigests 0}}'` de las imágenes en ejecución. La restauración de prueba va a un destino aislado con API y worker detenidos hasta recuperar base y archivos. El bucket `runly-website-releases` forma parte del respaldo: sin él los releases publicados no se pueden servir ni revertir.
+
 ## Procedimiento del primer staging (cuando se autorice)
 
-1. Provisionar una instancia independiente (VPS y Supabase propios, sin datos de producción). Documentar su IP en el firewall.
-2. Restaurar una copia anonimizada de una instalación Runly previa (o crear datos sintéticos con sitios, formularios con respuestas y productos publicados).
-3. Respaldo completo previo (`complete`, con B2/S3 configurado) y anotar las versiones de imagen actuales. Una restauración de prueba va a un destino aislado.
-4. Con autorización: `git push` de `main`, `pnpm docker:release:check`, `pnpm docker:release`, y anotar el SHA.
-5. En el servidor: añadir las variables, crear DNS comodín y certificados de staging, `RUNLY_INSTALLER_REF=<sha> ./update-external.sh`.
-6. Sincronizar módulos si el flujo lo requiere (`POST /modules/sync`) y reiniciar si cambiaron manifiestos.
-7. Verificar: `/health`; sitios históricos conservan sus URLs; `catalog_mode` de sitios previos es `legacy_all`; respuestas de formularios intactas; crear sitio, publicar, activar, rollback; importar ZIP y comprobar el origen aislado desde un navegador real; que `/app` no responda en hostnames de sitio.
-8. Repetir la actualización para comprobar idempotencia.
+Todo en una instancia independiente (VPS y Supabase propios, sin datos de producción, IP en el firewall), nunca en la instalación de producción.
+
+1. Datos: copia anonimizada de una instalación previa, o sitios, formularios con respuestas y productos publicados sintéticos.
+2. Respaldo `complete` y registro de digests vigentes (sección anterior).
+3. Con autorización explícita: `git push origin main` y anotar el SHA (`git rev-parse HEAD`).
+4. Previsualizar: `node infra/docker/release-selective.mjs --images=api,web`.
+5. Construir: `node infra/docker/release-selective.mjs --images=api,web --build`.
+6. Publicar etiquetas SHA: `node infra/docker/release-selective.mjs --images=api,web --push --confirm=<sha12>`.
+7. En el servidor de staging, tras añadir y rellenar las variables `RUNLY_WEBSITE_*` y `RUNLY_APP_URL` en `.env.external`: apuntar `RUNLY_API_IMAGE` y `RUNLY_WEB_EXTERNAL_IMAGE` a las etiquetas SHA y ejecutar `RUNLY_INSTALLER_REF=<sha completo> ./update-external.sh`. Así staging no depende de `-latest` (probado en laboratorio con etiquetas SHA e IDs; falta probarlo contra un registro real).
+8. Verificar: `/health`; sitios históricos con sus URLs; `catalog_mode` `legacy_all` en los previos; respuestas de formularios intactas; crear, publicar, activar y revertir un sitio; importar un ZIP y comprobar el origen aislado desde un navegador real; `/app` no responde en hostnames de sitio.
+9. Repetir `update-external.sh` y comprobar que no cambia nada.
+10. Solo con staging aprobado y autorización aparte: `--promote --confirm=<sha12>` para producción.
 
 ## Reversión
 
-Las migraciones son hacia adelante y aditivas; Prisma no las revierte. Por inspección del SQL, el esquema nuevo debería tolerar imágenes anteriores (tablas nuevas y columnas con valor por defecto); no se ha probado una API antigua contra la base migrada, hacerlo en el ensayo. Ante fallo: volver a las imágenes anteriores por tag, y si hay daño de datos restaurar el respaldo en un destino aislado antes de tocar producción. Una migración fallida queda sin terminar; no continuar sin revisar (`STUDIO_FAILURE_REQUIRES_REVIEW`, ver `INSTALLER_UPDATE_SCRIPTS_BEHAVIOR.md`). Importante: los tags `-latest` se sobrescriben, así que anotar antes el digest de las imágenes vigentes.
+Las migraciones son hacia adelante y aditivas; Prisma no las revierte. El ensayo comprobó que la imagen API anterior arranca contra la base migrada y sirve el sitio histórico por `/website/site`; el multisitio no existe en esa imagen. Ante fallo: volver a las etiquetas SHA anteriores (o el digest registrado) y, si hay daño de datos, restaurar el respaldo en un destino aislado antes de tocar producción. Un refresco interrumpido no cambia nada y se repite; una migración fallida queda sin terminar y no se continúa sin revisar (`STUDIO_FAILURE_REQUIRES_REVIEW`, `INSTALLER_UPDATE_SCRIPTS_BEHAVIOR.md`).
 
 ## Bloqueos antes de un despliegue seguro
 
-1. `*.sites.runly.mx` exige un registro global de slugs entre instalaciones; ese servicio no existe. Sin él, solo hostnames propios por instalación.
-2. Falta un dominio registrable independiente con DNS comodín y certificado para ZIP/vista previa; sin él la importación de ZIP falla cerrada.
-3. El instalador no provisiona ni prueba las variables `RUNLY_WEBSITE_*`.
-4. `main` aún no está en GitHub ni hay imágenes publicadas: el actualizador instalaría el `main` previo.
-5. Nunca se ha ejecutado el actualizador contra una instalación con datos reales ni el instalador completo con Website.
+1. **Registro global de subdominios**: no existe, y `reserve()` no tiene ruta REST ni transición `pending` a `assigned`; hoy ningún hostname de plataforma se sirve fuera del laboratorio. Propuesta pendiente de aprobación en `website-subdomain-registry-proposal.md`.
+2. **Dominio registrable independiente** con DNS comodín y certificado para ZIP y vista previa: decisión y compra externas.
+3. `main` no está en GitHub ni hay imágenes publicadas: el actualizador instalaría el `main` previo.
+4. El ensayo no usa DNS, TLS, edge ni caché reales ni datos reales; el hostname se asigna por SQL.
+5. `release-selective.mjs --push/--promote` sin probar contra un registro (sí `--build` y `--dry-run`).
 6. Pendientes sin automatizar: touch real, lector de pantalla, caché real en CDN.
 
 ## Laboratorio frente a staging real
 
-Demostrado en laboratorio: lógica, permisos, aislamiento entre empresas, migración reversible en esquema temporal, gateway Nginx real con hostnames `.localhost`. No demostrado: DNS, TLS, caché de CDN, instalador completo, actualización con datos reales, rendimiento y operación.
+Demostrado en laboratorio local desechable: lógica, permisos, aislamiento entre empresas, instalación y actualización con el instalador real e imágenes empaquetadas, persistencia de variables y secretos, migraciones sobre datos históricos, gateway Nginx real con hostnames `.test`. No demostrado: DNS, TLS, edge, caché de CDN, actualización con datos reales, rendimiento y operación. Este documento no declara apta ninguna instalación real.

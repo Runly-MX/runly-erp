@@ -759,6 +759,8 @@ async function ensureBuckets() {
     allowedMimeTypes: ['image/*', 'audio/*', 'video/*', 'application/pdf'],
   });
   await ensureBucket(WEBSITE_BUCKET_NAME, { public: true, fileSizeLimit: 104857600, allowedMimeTypes: null });
+  // Immutable release bytes; website-release-storage refuses to use it unless it is private.
+  await ensureBucket("runly-website-releases", { public: false });
   await ensureBucket("runly-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
   const { prepareNotesPrivateStorage } = await import('./routes/notes/image-storage.js');
   await prepareNotesPrivateStorage({ prisma, supabaseAdmin });
