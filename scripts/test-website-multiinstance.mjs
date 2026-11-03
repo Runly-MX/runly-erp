@@ -234,11 +234,13 @@ try {
   })
 
   await check('installation revocation: its names stop at the Edge, the other installation is unaffected, history is kept', async () => {
+    const owned = async () => (await registryDb.query('SELECT count(*)::int n FROM hub.registry_names WHERE installation_id=$1', [rowB.id])).rows[0].n
+    const before = await owned()
     const cut = await hub.setInstallationStatus(operator, { id: rowB.id, status: 'revoked', reason: 'multi-instance lab compromise' })
     assert.ok(cut.suspendedNames >= 1)
     await until(async () => (await viaEdge(hostB)).status === 404, 'edge stops serving the revoked installation', 15000)
     assert.equal(releaseOf((await viaEdge(hostA)).body), releaseA1)
-    assert.equal((await registryDb.query('SELECT count(*)::int n FROM hub.registry_names WHERE installation_id=$1', [rowB.id])).rows[0].n >= 11, true, 'no name was deleted')
+    assert.ok(before >= 2); assert.equal(await owned(), before, 'no name was deleted')
     await until(async () => (await B.direct(hostB)).status === 404, 'the revoked installation stops resolving managed names after its stale bound', 30000)
     assert.ok((await hub.operatorAudit({ hostname: hostB })).some((row) => row.action === 'installation_revoked' || row.action === 'claim'))
   })
