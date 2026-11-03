@@ -129,7 +129,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
         <div className="border-b border-[hsl(var(--border))] p-3 md:hidden">
           <SelectField label="Sección" value={current} onChange={(value) => navigate(sitePath(siteId, value))} options={visibleSections.map((item) => ({ value: item.id, label: item.label }))} />
         </div>
-        <main className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</main>
+        <section className="min-w-0 flex-1" aria-label={SECTIONS.find((item) => item.id === current)?.label}>{body}</section>
       </div>
       <PublishSheet open={publishOpen} onOpenChange={setPublishOpen} site={data} pages={pages.data ?? []} activeRelease={release.data ?? null} />
       <PreviewDialog open={previewOpen} onOpenChange={setPreviewOpen} siteId={siteId} draftPageIds={(pages.data ?? []).filter((page) => page.visibility === 'public').map((page) => page.id)} title="Vista previa del borrador guardado" />

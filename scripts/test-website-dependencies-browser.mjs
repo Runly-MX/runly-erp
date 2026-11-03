@@ -44,7 +44,7 @@ try{
   await page.goto(url(f.templateTarget,'appearance'));await page.getByRole('tab',{name:'Plantillas',exact:true}).click()
   await button(page,/Negocio & Servicios/).click();assert.equal(new URL(page.url()).searchParams.get('siteId'),f.templateTarget)
   const applied=page.waitForResponse(r=>r.url().includes('/templates/atlas-negocio/apply')&&r.request().method()==='POST')
-  await button(page,/Aplicar/).click();assert.equal((await applied).status(),200)
+  await button(page,/Aplicar/).click();await button(page.getByRole('dialog'),'Aplicar plantilla').click();assert.equal((await applied).status(),200)
   await page.waitForURL(new RegExp('/sites/'+f.templateTarget+'/pages/[^/]+/editor'))
   await button(page,'Guardar borrador').waitFor()
   assert.equal((await db.query('SELECT count(*)::int n FROM website_page WHERE site_id=$1',[f.templateTarget])).rows[0].n,4)

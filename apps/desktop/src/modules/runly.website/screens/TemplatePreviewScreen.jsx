@@ -12,7 +12,7 @@ import {
   defineTheme,
 } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
-import { Button } from '@runly/ui'
+import { Button, ConfirmDialog } from '@runly/ui'
 import { ArrowLeft } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -118,6 +118,7 @@ export default function TemplatePreviewScreen() {
 
   const [selectedPageIds, setSelectedPageIds] = useState([])
   const [previewPageId, setPreviewPageId] = useState(null)
+  const [confirmOpen, setConfirmOpen] = useState(false)
   const previewScrollRef = useRef(null)
 
   useEffect(() => {
@@ -269,7 +270,7 @@ export default function TemplatePreviewScreen() {
           </p>
           <Button
             className="w-full"
-            onClick={() => applyMutation.mutate()}
+            onClick={() => setConfirmOpen(true)}
             disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site || !caps.templatesApply?.allowed}
           >
             {applyMutation.isPending
@@ -310,6 +311,17 @@ export default function TemplatePreviewScreen() {
         </div>
       </div>
 
+      <ConfirmDialog
+        open={confirmOpen}
+        onOpenChange={setConfirmOpen}
+        tone="warning"
+        title={`Aplicar «${template.label}»`}
+        description={`Se crearán ${selectedPageIds.length} página(s) como borrador en ${site?.name ?? 'este sitio'}.`}
+        detail={`No se modifican páginas existentes ni lo que ya está publicado${template.themeTokens && caps.templatesApplyTheme?.allowed ? '; el tema del borrador se reemplazará por el de la plantilla' : ''}. Nada se publica hasta que uses Publicar.`}
+        confirmLabel="Aplicar plantilla"
+        loading={applyMutation.isPending}
+        onConfirm={() => { setConfirmOpen(false); applyMutation.mutate() }}
+      />
     </div>
   )
 }

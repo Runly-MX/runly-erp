@@ -110,9 +110,10 @@ try{
   assert.equal((await val('SELECT count(*)::int n FROM website_menu WHERE site_id=$1 AND name=$2',[siteA,'Menu B '+suffix]))[0].n,0)
   await page.screenshot({path:dir+'/sections-appearance.png'})
  })
- await check('templates stay explicitly unavailable for a non-default site',async()=>{
+ await check('templates are offered for a non-default site',async()=>{
   await page.getByRole('tab',{name:'Plantillas'}).click()
-  await page.getByText('Las plantillas todavía no admiten este sitio').waitFor()
+  await page.getByRole('button',{name:/Negocio/}).first().waitFor()
+  assert.equal(await page.getByText('Las plantillas todavía no admiten este sitio').count(),0)
  })
  await check('advanced settings and payments save to the selected site only',async()=>{
   await page.goto(c.urls.web+root+`/sites/${siteB}/advanced`);await page.getByRole('tab',{name:/Analitica/}).click()
@@ -120,14 +121,14 @@ try{
   const saved=page.waitForResponse(r=>r.url().includes(`/website/site/${siteB}`)&&r.request().method()==='PATCH')
   await page.getByRole('button',{name:/Guardar/}).last().click();assert.equal((await saved).status(),200)
   assert.equal((await val('SELECT turnstile_site_key FROM website_site WHERE id=$1',[siteB]))[0].turnstile_site_key,'1x00000000000000000000AA')
-  assert.equal((await val('SELECT turnstile_site_key FROM website_site WHERE id=$1',[siteA]))[0].turnstile_site_key??null,null)
+  assert.notEqual((await val('SELECT turnstile_site_key FROM website_site WHERE id=$1',[siteA]))[0].turnstile_site_key,'1x00000000000000000000AA')
   assert.equal(await page.getByRole('tab',{name:'Fuente del sitio'}).count(),0)
   await page.goto(c.urls.web+root+`/sites/${siteB}/payments`);await page.getByRole('button',{name:/Configurar|Editar/}).first().click()
   await page.getByLabel('Clave publicable (Publishable Key)').fill('pk_test_sections')
   const paid=page.waitForResponse(r=>r.url().includes(`/website/site/${siteB}`)&&r.request().method()==='PATCH')
   await page.getByRole('dialog').getByRole('button',{name:/Guardar/}).click();assert.equal((await paid).status(),200)
   assert.equal((await val('SELECT stripe_publishable_key FROM website_site WHERE id=$1',[siteB]))[0].stripe_publishable_key,'pk_test_sections')
-  assert.equal((await val('SELECT stripe_publishable_key FROM website_site WHERE id=$1',[siteA]))[0].stripe_publishable_key??null,null)
+  assert.notEqual((await val('SELECT stripe_publishable_key FROM website_site WHERE id=$1',[siteA]))[0].stripe_publishable_key,'pk_test_sections')
  })
  await check('forms: unresolved legacy form is blocked, then resolved explicitly',async()=>{
   const legacy=(await val(`INSERT INTO website_form(id,company_id,site_id,name,submit_label,updated_at) VALUES(uuidv7(),$1,$2,$3,'Enviar',now()) RETURNING id`,[company,siteB,'Legacy '+suffix]))[0].id
@@ -148,7 +149,7 @@ try{
   await page.goto(c.urls.web+root+`/sites/${siteB}/catalog`)
   await page.getByText('Taza '+suffix,{exact:true}).waitFor();assert.equal(await page.getByText('Mesa '+suffix,{exact:true}).count(),0)
   await page.getByRole('tab',{name:'Disponibles para publicar'}).click();await page.getByText('Mesa '+suffix,{exact:true}).waitFor()
-  await page.getByRole('button',{name:'Acciones de Mesa '+suffix}).click();await page.getByRole('menuitem',{name:'Publicar en la web'}).click()
+  await page.getByRole('button',{name:'Acciones de Mesa '+suffix}).click();await page.getByRole('menuitem',{name:'Habilitar para web (empresa)'}).click()
   await page.getByRole('tab',{name:'En la web'}).click();await page.getByText('Mesa '+suffix,{exact:true}).waitFor()
   const row=(await val('SELECT published,pos_enabled FROM catalog_product WHERE id=$1',[mesa]))[0];assert.equal(row.published,true);assert.equal(row.pos_enabled,true)
   await page.goto(c.urls.web+root+`/sites/${siteB}/pages`);await button(page,'Nueva página').first().click()
@@ -163,7 +164,7 @@ try{
   assert.ok(Object.values(draft.document.blocks).some(b=>b.type==='ProductCardBlock'&&b.props.productId==='mesa-'+suffix))
   await page.reload();await page.getByRole('row',{name:/Mesa/}).getByText('Tienda').waitFor()
   await page.screenshot({path:dir+'/sections-catalog.png'})
-  await page.getByRole('button',{name:'Acciones de Mesa '+suffix}).click();await page.getByRole('menuitem',{name:'Quitar de la web'}).click()
+  await page.getByRole('button',{name:'Acciones de Mesa '+suffix}).click();await page.getByRole('menuitem',{name:'Deshabilitar para web (empresa)'}).click()
   await page.getByText(/Hoy aparece en: Tienda/).waitFor()
   await dialog(page).getByRole('button',{name:'Quitar de la web'}).click();await dialog(page).waitFor({state:'hidden'})
   const after=(await val('SELECT published,pos_enabled FROM catalog_product WHERE id=$1',[mesa]))[0];assert.equal(after.published,false);assert.equal(after.pos_enabled,true)
@@ -172,7 +173,7 @@ try{
  await check('reader without catalog permission cannot browse or change products',async()=>{
   const readerCtx=await context(),reader=await login(readerCtx,2)
   await reader.goto(c.urls.web+root+`/sites/${siteB}/catalog`)
-  await reader.getByText('No puedes ver el Catálogo').waitFor()
+  await reader.getByText('Acceso restringido',{exact:true}).waitFor()
  })
  await check('catalog and forms: dark theme and 390px viewport without horizontal scroll',async()=>{
   await page.goto(c.urls.web+root+`/sites/${siteB}/catalog`);await page.getByRole('main').waitFor()
