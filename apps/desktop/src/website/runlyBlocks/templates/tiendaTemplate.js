@@ -4,16 +4,14 @@ import { defineTemplate } from '@raulbellosom/atlas-web-builder'
 // (/producto reads ?p=<slug>, /carrito checks out through the site's Stripe); everything decorative is CSS / inline SVG.
 const NAVBAR = {
   id: 'navbar',
-  type: 'NavbarBlock',
+  type: 'StoreNavbarBlock',
   props: {
     variant: 'light',
     brand: 'Mi Tienda',
     links: 'Inicio | /\nTienda | /productos\nNosotros | /nosotros\nContacto | /contacto',
-    ctaLabel: 'Carrito',
-    ctaHref: '/carrito',
-    ctaVariant: 'outline',
+    cartLabel: 'Carrito',
+    cartHref: '/carrito',
     sticky: true,
-    height: '64',
   },
   children: {},
 }
@@ -33,13 +31,25 @@ const FOOTER = {
 }
 
 const block = (id, type, props, children = {}) => ({ id, type, props, children })
-const page = (...blocks) => ({ rootIds: blocks.map((b) => b.id), blocks: Object.fromEntries(blocks.map((b) => [b.id, b])) })
+// Blocks listed as another block's children stay out of rootIds.
+const page = (...blocks) => {
+  const nested = new Set(blocks.flatMap((b) => Object.values(b.children).flat()))
+  return { rootIds: blocks.filter((b) => !nested.has(b.id)).map((b) => b.id), blocks: Object.fromEntries(blocks.map((b) => [b.id, b])) }
+}
 
 const storeHero = (props) => block('hero', 'StoreHeroBlock', { eyebrow: '', highlight: '', subtitle: '', ctaLabel: '', ctaHref: '', ctaSecondLabel: '', ctaSecondHref: '', badge: '', size: 'compact', ...props })
 
 const grid = (props = {}) => block('products', 'ProductsGridBlock', { categorySlug: '', limit: 8, columns: '4', showPrice: true, showSearch: false, showCategories: false, showAddToCart: true, detailHref: '/producto', ...props })
 
 const trust = (tone = 'light') => block('trust', 'TrustStripBlock', { items: 'Envío a todo el país|Gratis desde $999\nDevolución en 30 días|Sin preguntas\nPago seguro|Tarjeta con cifrado\nAtención humana|Respondemos en el día', tone })
+
+// Compact newsletter signup: '@newsletter' becomes a site form named "Newsletter" when the template is applied.
+const newsletterBlocks = () => [
+  block('newsletter', 'SectionBlock', { paddingY: '8', paddingX: '6', fullBleed: false, maxWidth: '640px' }, { children: ['newsletter-title', 'newsletter-text', 'newsletter-form'] }),
+  block('newsletter-title', 'HeadingBlock', { text: 'Recibe novedades y ofertas', level: 'h2', align: 'left' }),
+  block('newsletter-text', 'TextBlock', { text: 'Una carta corta al mes con lanzamientos y descuentos para suscriptores.', color: 'muted', paddingY: '2' }),
+  block('newsletter-form', 'ContactFormBlock', { formId: '@newsletter', successMessage: 'Gracias por suscribirte.', buttonLabel: 'Suscribirme' }),
+]
 
 const closing = block('cta', 'CtaBannerBlock', {
   eyebrow: 'Hablemos',
@@ -83,6 +93,7 @@ export const tiendaTemplate = defineTemplate({
       trust(),
       testimonials,
       closing,
+      ...newsletterBlocks(),
       FOOTER,
     )
   },
@@ -100,6 +111,7 @@ export const tiendaSitePages = [
       storeHero({ eyebrow: 'Tienda', title: 'Todo el', highlight: 'catálogo', subtitle: 'Busca por nombre o filtra por categoría. Cada pieza se envía con cuidado.' }),
       grid({ limit: 24, showSearch: true, showCategories: true }),
       trust('dark'),
+      ...newsletterBlocks(),
       FOOTER,
     ),
   },
@@ -124,7 +136,7 @@ export const tiendaSitePages = [
     description: 'Carrito de compras y pago.',
     build: () => page(
       NAVBAR,
-      block('cart', 'CartPageBlock', { mode: 'cart', checkoutLabel: 'Pagar', shopHref: '/productos' }),
+      block('cart', 'CartPageBlock', { mode: 'cart', checkoutLabel: 'Pagar', shopHref: '/productos', promoNote: '¿Tienes un código? Lo ingresas al pagar.' }),
       trust(),
       FOOTER,
     ),
@@ -137,7 +149,7 @@ export const tiendaSitePages = [
     description: 'Confirmación después del pago.',
     build: () => page(
       NAVBAR,
-      block('thanks', 'CartPageBlock', { mode: 'thanks', checkoutLabel: 'Pagar', shopHref: '/productos' }),
+      block('thanks', 'CartPageBlock', { mode: 'thanks', checkoutLabel: 'Pagar', shopHref: '/productos', promoNote: '¿Tienes un código? Lo ingresas al pagar.' }),
       FOOTER,
     ),
   },

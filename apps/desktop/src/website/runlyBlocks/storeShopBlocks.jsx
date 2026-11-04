@@ -104,7 +104,7 @@ export const ProductDetailBlock = defineBlock({
 
 const SAMPLE_LINES = [{ productId: 's1', name: 'Camisa de lino lavado', price: 890, currency: 'MXN', qty: 1, variantLabel: 'M' }, { productId: 's2', name: 'Vela de soya', price: 320, currency: 'MXN', qty: 2 }]
 
-function CartPage({ mode, checkoutLabel, shopHref }) {
+function CartPage({ mode, checkoutLabel, shopHref, promoNote }) {
   const live = useCartLines()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
@@ -163,7 +163,7 @@ function CartPage({ mode, checkoutLabel, shopHref }) {
         <aside style={{ padding: 28, borderRadius: 24, background: '#fff', border: `1px solid ${LINE}` }}>
           <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 26, color: INK }}>Resumen</h2>
           <p style={{ display: 'flex', justifyContent: 'space-between', margin: '18px 0 0', fontFamily: SANS, color: INK }}><span>Subtotal estimado</span><strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCatalogPrice(total, currency)}</strong></p>
-          <p style={{ margin: '8px 0 20px', fontFamily: SANS, fontSize: 13, lineHeight: 1.5, color: MUTED }}>El total final y el envío se confirman en el pago seguro.</p>
+          <p style={{ margin: '8px 0 20px', fontFamily: SANS, fontSize: 13, lineHeight: 1.5, color: MUTED }}>El total final y el envío se confirman en el pago seguro.{promoNote ? ` ${promoNote}` : ''}</p>
           <button type="button" className="rs-btn" disabled={busy || preview} onClick={pay} style={{ ...button(true), width: '100%' }}>{busy ? 'Redirigiendo…' : checkoutLabel || 'Pagar'}</button>
           <p role="alert" style={{ margin: '10px 0 0', minHeight: 20, fontFamily: SANS, fontSize: 14, color: ACCENT }}>{error}</p>
         </aside>
@@ -176,12 +176,13 @@ export const CartPageBlock = defineBlock({
   type: 'CartPageBlock',
   label: 'Carrito y pago',
   category: 'atlas-ecommerce',
-  defaultProps: { mode: 'cart', checkoutLabel: 'Pagar', shopHref: '/productos' },
+  defaultProps: { mode: 'cart', checkoutLabel: 'Pagar', shopHref: '/productos', promoNote: '¿Tienes un código? Lo ingresas al pagar.' },
   fields: {
     mode: { type: 'select', label: 'Modo', options: [{ value: 'cart', label: 'Carrito' }, { value: 'thanks', label: 'Gracias por tu compra' }] },
     checkoutLabel: { type: 'text', label: 'Texto del boton de pago' },
     shopHref: { type: 'link', label: 'Enlace a la tienda' },
+    promoNote: { type: 'text', label: 'Nota de codigo de descuento (vacio la oculta)' },
   },
-  groups: [{ label: 'Contenido', fields: ['mode', 'checkoutLabel', 'shopHref'] }],
+  groups: [{ label: 'Contenido', fields: ['mode', 'checkoutLabel', 'shopHref', 'promoNote'] }],
   render: (props) => <CartPage {...props} />,
 })

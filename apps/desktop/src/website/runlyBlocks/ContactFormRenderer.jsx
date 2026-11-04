@@ -4,6 +4,9 @@ import { getApiUrl } from '../../lib/runtimeConfig.js'
 
 let sdkPromise = null
 
+// A form with a single field (newsletter) reads better as one inline row: field and button side by side.
+const COMPACT_CSS = `[data-compact="true"] form{display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end}[data-compact="true"] ._ae-form-field{flex:1 1 220px;margin:0}[data-compact="true"] ._ae-form-button{flex:0 0 auto;min-height:44px}[data-compact="true"] ._ae-form-status{flex-basis:100%;margin:0}`
+
 function loadStorefrontSdk() {
   if (typeof window === 'undefined') {
     return Promise.reject(new Error('El SDK storefront requiere un navegador'))
@@ -70,6 +73,7 @@ export default function ContactFormRenderer({
           return
         }
         controller = mounted
+        targetRef.current?.setAttribute('data-compact', String(targetRef.current.querySelectorAll('._ae-form-field').length === 1))
         if (loadingRef.current) loadingRef.current.style.display = 'none'
       })
       .catch(() => {
@@ -106,6 +110,7 @@ export default function ContactFormRenderer({
       >
         No se pudo cargar el formulario configurado.
       </p>
+      <style>{COMPACT_CSS}</style>
       <div ref={targetRef} />
     </div>
   )
