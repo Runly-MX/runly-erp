@@ -20,6 +20,7 @@ export function createWebsiteTemplateService({prisma}) {
     if(!Array.isArray(a.pageIds)||!a.pageIds.length||a.pageIds.length>100||new Set(a.pageIds).size!==a.pageIds.length||a.pageIds.some(id=>!template.pages.some(p=>p.id===id)))throw fail('validation_failed')
     if(typeof a.idempotencyKey!=='string'||a.idempotencyKey.length<16||a.idempotencyKey.length>200||!Number.isSafeInteger(a.expectedRevision))throw fail('validation_failed')
     if(a.includeTheme)for(const permission of ['website.site.update','website.theme.update'])assertWebsiteAccess(a.access,a.companyId,permission)
+    if(a.replaceExisting)assertWebsiteAccess(a.access,a.companyId,'website.pages.delete')
     const branding=a.branding??null
     if(branding?.logoFileId){
       const file=await prisma.fileAsset.findFirst({where:{id:branding.logoFileId,entityId:{in:[a.companyId,a.siteId]},enabled:true}})
@@ -28,11 +29,17 @@ export function createWebsiteTemplateService({prisma}) {
     const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:applyTemplateBranding(conformTemplateDocument(normalizeWebsiteDocument(structuredClone(p.page),{strict:true})),branding??{})}))
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
-      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),branding,expectedRevision:a.expectedRevision},async()=>{
+      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),replaceExisting:Boolean(a.replaceExisting),branding,expectedRevision:a.expectedRevision},async()=>{
         const site=await tx.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}})
         if(!site)throw notFound('Recurso');drafts.expected(site.draftRevision,a.expectedRevision)
-        const existing=await tx.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true}})
-        if(pages.some(p=>existing.some(row=>row.routePath===p.routePath||row.draftMetadata?.routePath===p.routePath)))throw fail('route_conflict',409)
+        const existing=await tx.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{id:true,enabled:true,routePath:true,draftMetadata:true}})
+        const clashes=existing.filter(row=>pages.some(p=>row.routePath===p.routePath||row.draftMetadata?.routePath===p.routePath))
+        // Replacing deletes only the draft pages whose route the template takes; the public version changes on the next publish.
+        if(clashes.length&&(!a.replaceExisting||clashes.some(row=>!row.enabled)))throw fail('route_conflict',409)
+        for(const row of clashes){
+          await tx.websitePage.update({where:{id:row.id},data:{enabled:false,routePath:`${row.routePath}#deleted-${row.id}`}})
+          await tx.auditLog.create({data:{actorId:a.access.actorId,moduleKey:'runly.website',entityType:'website.page',entityId:row.id,action:'page.delete',metadata:{companyId:a.companyId,siteId:a.siteId,reason:'template.replace',templateId:a.templateId}}})
+        }
         // A ContactFormBlock placeholder gets the site's contact form; without permission to create forms it is dropped.
         if(pages.some(p=>usesContactForm(p.document))){
           let canCreate=true
@@ -56,7 +63,7 @@ export function createWebsiteTemplateService({prisma}) {
         }
         await tx.auditLog.create({data:{actorId:a.access.actorId,moduleKey:'runly.website',entityType:'website.site',entityId:a.siteId,action:'template.apply',metadata:{companyId:a.companyId,templateId:a.templateId,pageIds:created.map(p=>p.id)}}})
         const final=await tx.websiteSite.findUnique({where:{id:a.siteId}})
-        return {siteId:a.siteId,pages:created,firstPageId:created[0].id,draftRevision:final.draftRevision,publicReleaseUnchanged:true}
+        return {siteId:a.siteId,pages:created,replaced:clashes.length,firstPageId:created[0].id,draftRevision:final.draftRevision,publicReleaseUnchanged:true}
       })
     },{timeout:30000})
   }

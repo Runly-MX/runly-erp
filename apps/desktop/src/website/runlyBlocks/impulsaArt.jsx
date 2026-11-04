@@ -73,7 +73,7 @@ export const IM_CSS = `
 export const ImStyle = () => <style>{IM_CSS}</style>
 
 export const Section = ({ children, bg = G.white, pad = 'clamp(56px, 7vw, 96px)', id, style, innerRef, rv }) => (
-  <section id={id} ref={innerRef} data-rv={rv} className="im" style={{ position: 'relative', background: bg, padding: `${pad} 0`, ...style }}>
+  <section id={id} ref={innerRef} data-rv={rv} className="im" style={{ position: 'relative', overflowX: 'clip', background: bg, padding: `${pad} 0`, ...style }}>
     <ImStyle />
     <div style={{ ...WRAP, position: 'relative' }}>{children}</div>
   </section>

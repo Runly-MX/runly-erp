@@ -12,13 +12,13 @@ import {
   defineTheme,
 } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
-import { Button, ConfirmDialog, EmptyState } from '@runly/ui'
+import { Button, Checkbox, ConfirmDialog, EmptyState } from '@runly/ui'
 import { AlertTriangle, ArrowLeft, Eye, Info, LayoutTemplate, Wand2 } from 'lucide-react'
 import { TemplatesPageSelector } from '../components/TemplatesPageSelector.jsx'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import {useWebsiteCapabilities} from '../hooks/useWebsite.js'
+import {usePages, useWebsiteCapabilities} from '../hooks/useWebsite.js'
 import {newIdempotencyKey} from '../lib/websiteApi.js'
 import {describeError} from '../lib/websiteErrors.js'
 import { allTemplates } from '../../../website/runlyTemplates/index.js'
@@ -137,19 +137,27 @@ export default function TemplatePreviewScreen() {
   })
   const site = siteQuery.data?.data ?? null
   const caps=useWebsiteCapabilities(site?.id)
+  const sitePages = usePages(site?.id)
+  const [replaceExisting, setReplaceExisting] = useState(false)
+  // Draft pages that already use a route of the selected template pages; applying either replaces them or fails.
+  const conflicts = useMemo(() => {
+    const routes = new Set((template?.pages ?? []).filter((p) => selectedPageIds.includes(p.id)).map((p) => p.routePath))
+    return (sitePages.data ?? []).filter((page) => routes.has(page.routePath))
+  }, [template, selectedPageIds, sitePages.data])
+  const replacing = replaceExisting && conflicts.length > 0
 
   const applyMutation = useMutation({
     mutationFn: async () => {
       if (!template || !site) throw new Error('Sin plantilla o sitio seleccionado')
       // Every page write bumps the site revision, so read the current one instead of the cached site.
       const fresh=await apiFetch(`/website/sites/${site.id}`,token)
-      const body={expectedRevision:fresh.data.draftRevision,pageIds:selectedPageIds,includeTheme:Boolean(template.themeTokens&&caps.templatesApplyTheme?.allowed)}
+      const body={expectedRevision:fresh.data.draftRevision,pageIds:selectedPageIds,includeTheme:Boolean(template.themeTokens&&caps.templatesApplyTheme?.allowed),replaceExisting:replacing}
       const hash=JSON.stringify({...body,expectedRevision:undefined})
       if(commandRef.current?.hash!==hash)commandRef.current={hash,body,key:newIdempotencyKey()}
       const result=await apiFetch(`/website/sites/${site.id}/templates/${template.id}/apply`,token,{method:'POST',headers:{'Idempotency-Key':commandRef.current.key},body:JSON.stringify(commandRef.current.body)})
-      return {firstPageId:result.data.firstPageId,created:result.data.pages.length,skipped:0}
+      return {firstPageId:result.data.firstPageId,created:result.data.pages.length,replaced:result.data.replaced??0,skipped:0}
     },
-    onSuccess: ({ firstPageId, created, skipped }) => {
+    onSuccess: ({ firstPageId, created, replaced, skipped }) => {
       queryClient.invalidateQueries({queryKey:['website']})
       if (created === 0) {
         const skip = skipped > 0
@@ -160,7 +168,8 @@ export default function TemplatePreviewScreen() {
       }
       const msg = `${created} pagina${created !== 1 ? 's' : ''} creada${created !== 1 ? 's' : ''}`
       const skip = skipped > 0 ? ` · ${skipped} omitida${skipped !== 1 ? 's' : ''} (ruta ya existe)` : ''
-      toast.success(msg + skip)
+      const swap = replaced > 0 ? ` · ${replaced} reemplazada${replaced !== 1 ? 's' : ''}` : ''
+      toast.success(msg + swap + skip)
       if (firstPageId) navigate(`/app/m/runly.website/sites/${site.id}/pages/${firstPageId}/editor`)
       else navigate(`/app/m/runly.website/sites/${site.id}/pages`)
     },
@@ -244,14 +253,27 @@ export default function TemplatePreviewScreen() {
               Configura tu sitio primero para aplicar plantillas.
             </p>
           )}
-          <p className="flex gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
-            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-            Si una ruta ya existe, no se aplica ninguna página. Desmárcala o revisa el sitio antes de reintentar.
-          </p>
+          {conflicts.length > 0 ? (
+            <div className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/5 p-3">
+              <p className="flex gap-2 text-xs text-amber-800 dark:text-amber-300">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                <span>Tu sitio ya tiene {conflicts.length === 1 ? 'una página' : `${conflicts.length} páginas`} en estas rutas: {conflicts.map((page) => `${page.title} (${page.routePath})`).join(', ')}.</span>
+              </p>
+              <label className="flex cursor-pointer items-start gap-2 text-xs">
+                <Checkbox checked={replaceExisting} disabled={!caps.pagesDelete?.allowed || applyMutation.isPending} onCheckedChange={(value) => setReplaceExisting(Boolean(value))} aria-label="Reemplazar las páginas que ya existen" className="mt-0.5" />
+                <span><span className="font-medium">Reemplazar las páginas que ya existen</span><span className="block text-[11px] text-[hsl(var(--muted-foreground))]">Se borran de tu borrador y se crean las de la plantilla. Tu sitio público no cambia hasta que publiques.</span></span>
+              </label>
+            </div>
+          ) : (
+            <p className="flex gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+              <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+              Se crean como páginas nuevas del borrador. Nada se publica hasta que uses Publicar.
+            </p>
+          )}
           <Button
             className="w-full"
             onClick={() => setConfirmOpen(true)}
-            disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site || !caps.templatesApply?.allowed}
+            disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site || !caps.templatesApply?.allowed || (conflicts.length > 0 && !replaceExisting)}
           >
             <Wand2 className="mr-1.5 h-4 w-4" aria-hidden />
             {applyMutation.isPending
@@ -303,8 +325,8 @@ export default function TemplatePreviewScreen() {
         onOpenChange={setConfirmOpen}
         tone="warning"
         title={`Aplicar «${template.label}»`}
-        description={`Se crearán ${selectedPageIds.length} página(s) como borrador en ${site?.name ?? 'este sitio'}.`}
-        detail={`No se modifican páginas existentes ni lo que ya está publicado${template.themeTokens && caps.templatesApplyTheme?.allowed ? '; el tema del borrador se reemplazará por el de la plantilla' : ''}. Nada se publica hasta que uses Publicar.`}
+        description={`Se crearán ${selectedPageIds.length} página(s) como borrador en ${site?.name ?? 'este sitio'}${replacing ? ` y se reemplazarán ${conflicts.length}: ${conflicts.map((page) => page.title).join(', ')}` : ''}.`}
+        detail={`${replacing ? 'Las páginas reemplazadas se borran del borrador; ' : 'No se modifican páginas existentes; '}lo publicado no cambia${template.themeTokens && caps.templatesApplyTheme?.allowed ? '; el tema del borrador se reemplazará por el de la plantilla' : ''}. Nada se publica hasta que uses Publicar.`}
         confirmLabel="Aplicar plantilla"
         loading={applyMutation.isPending}
         onConfirm={() => { setConfirmOpen(false); applyMutation.mutate() }}

@@ -128,6 +128,24 @@ test('forms are reused by name and created once per site', async () => {
   assert.equal(await db.websiteFormField.count({ where: { formId: newsletter.id } }), 1)
 })
 
+test('a second template conflicts on shared routes unless it replaces the existing draft pages', async () => {
+  const f = await fixture()
+  await f.apply('atlas-impulsa', ['home', 'contacto'])
+  const before = await draftsOf(f)
+  await assert.rejects(f.apply('atlas-aura', ['home', 'precios']), (error) => error.code === 'route_conflict')
+  const result = await f.apply('atlas-aura', ['home', 'precios'], { replaceExisting: true })
+  assert.equal(result.replaced, 1)
+  const live = await db.websitePage.findMany({ where: { siteId: f.site.id, enabled: true }, select: { routePath: true, draftBuilderData: true } })
+  assert.deepEqual(live.map((p) => p.routePath).sort(), ['/', '/contacto', '/precios'])
+  assert.equal(live.find((p) => p.routePath === '/').draftBuilderData.blocks.hero.type, 'CrHeroBlock')
+  const old = await db.websitePage.findUnique({ where: { id: before.find((p) => p.routePath === '/').id } })
+  assert.equal(old.enabled, false)
+  assert.match(old.routePath, /^\/#deleted-/)
+  const denied = await fixture({ can: (p) => p !== 'website.pages.delete' })
+  await denied.apply('atlas-impulsa', ['home'])
+  await assert.rejects(denied.apply('atlas-aura', ['home'], { replaceExisting: true }), (error) => error.status === 403 || error.code === 'permission_denied')
+})
+
 test('applying a template never leaks one site\'s form or brand into the next', async () => {
   const a = await fixture()
   await a.apply('atlas-maya', ['contacto'], { branding: { name: 'Marca de A' } })
