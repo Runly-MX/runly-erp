@@ -61,7 +61,7 @@ export const TEMPLATE_THEMES = {
     card: { radius: 'lg', shadow: 'md', padding: '6' },
   },
   'atlas-aurora': {
-    color: { primary: '#0E7490', primaryFg: '#FFFFFF', bg: '#F8FAFC', fg: '#0B1B2B', muted: '#5B6B7C', accent: '#F97316' },
+    color: { primary: '#0E7490', primaryFg: '#FFFFFF', bg: '#FBF7F0', fg: '#0B1B2B', muted: '#52606D', accent: '#F97316' },
     font: { sans },
     radius: { md: '12px', lg: '22px' },
     button: { style: 'solid', radius: 'pill' },

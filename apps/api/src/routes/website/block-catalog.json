@@ -2961,6 +2961,168 @@
       }
     },
     {
+      "type": "LandscapeHeroBlock",
+      "label": "Hero de paisaje en capas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "scene": "mountains",
+        "eyebrow": "Cuaderno de viajes",
+        "coordinates": "",
+        "title": "Viaja a donde",
+        "highlight": "cambia el cielo",
+        "subtitle": "Itinerarios a la medida, guías locales y hoteles con encanto.",
+        "ctaLabel": "Ver destinos",
+        "ctaHref": "/destinos",
+        "ctaSecondLabel": "",
+        "ctaSecondHref": "",
+        "height": "820px",
+        "cue": "Desplázate"
+      },
+      "fields": {
+        "scene": {
+          "type": "select",
+          "label": "Paisaje",
+          "options": [
+            "mountains",
+            "ocean",
+            "desert",
+            "forest"
+          ]
+        },
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "coordinates": {
+          "type": "text",
+          "label": "Coordenadas o dato corto"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título en cursiva (color de acento)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "height": {
+          "type": "select",
+          "label": "Altura",
+          "options": [
+            "560px",
+            "680px",
+            "820px"
+          ]
+        },
+        "cue": {
+          "type": "text",
+          "label": "Indicador de scroll (vacío para ocultar)"
+        }
+      }
+    },
+    {
+      "type": "ChapterBlock",
+      "label": "Capítulo editorial con paisaje",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "scene": "ocean",
+        "index": "01",
+        "kicker": "Capítulo uno",
+        "title": "Costa del Pacífico",
+        "body": "Atardeceres largos, surf suave y cocina de mar a pie de playa.",
+        "details": "Mejor época | Nov – Abr\nDuración | 5 a 9 días\nDesde | $18,900",
+        "place": "Pacífico · 19.4° N",
+        "ctaLabel": "Ver itinerario",
+        "ctaHref": "/contacto",
+        "flip": "left",
+        "tone": "light"
+      },
+      "fields": {
+        "scene": {
+          "type": "select",
+          "label": "Paisaje",
+          "options": [
+            "ocean",
+            "mountains",
+            "desert",
+            "forest"
+          ]
+        },
+        "index": {
+          "type": "text",
+          "label": "Número del capítulo"
+        },
+        "kicker": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "details": {
+          "type": "textarea",
+          "label": "Datos (Etiqueta | Valor, uno por línea, máx. 4)"
+        },
+        "place": {
+          "type": "text",
+          "label": "Etiqueta sobre la ilustración"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "flip": {
+          "type": "select",
+          "label": "Texto a",
+          "options": [
+            "left",
+            "right"
+          ]
+        },
+        "tone": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "light",
+            "dark"
+          ]
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",

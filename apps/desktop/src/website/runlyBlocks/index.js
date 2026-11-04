@@ -28,6 +28,8 @@ import { ProjectCardsBlock } from './projectCardsBlock.jsx'
 import { LogoCloudBlock }    from './logoCloudBlock.jsx'
 import { TopBarBlock }       from './topBarBlock.jsx'
 import { ParallaxSectionBlock } from './parallaxSectionBlock.jsx'
+import { LandscapeHeroBlock } from './landscapeHeroBlock.jsx'
+import { ChapterBlock } from './chapterBlock.jsx'
 
 // --- Templates ---
 import {
@@ -71,6 +73,8 @@ export const universalRunlyBlocks = [
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  LandscapeHeroBlock,
+  ChapterBlock,
 ]
 
 export const ecommerceRunlyBlocks = [
