@@ -61,6 +61,7 @@ test('reject private/local/metadata, mixed DNS, protocol redirects and downgrade
  for(const location of ['http://127.0.0.1/a','http://[::1]/a','http://169.254.169.254/a','file:///index.json','ftp://catalog.example/a']) await assert.rejects(readCatalogBytes('http://catalog.example/a',{resolveHost:dns,requestImpl:requestFixture([{status:302,headers:{location}}])}),/PRIVATE_ADDRESS|REDIRECT_REJECTED/)
  await assert.rejects(resolveCatalogAddress(new URL('http://localhost/a'),async()=>[{address:'127.0.0.1',family:4}]),/PRIVATE_ADDRESS/)
  await assert.rejects(resolveCatalogAddress(new URL('http://catalog.example/a'),async()=>[{address:'192.0.2.1',family:4},{address:'10.0.0.1',family:4}]),/PRIVATE_ADDRESS/)
+ assert.equal((await resolveCatalogAddress(new URL('https://catalog.example/a'),async()=>[{address:'2606:4700::1',family:6},{address:'8.8.8.8',family:4}])).address,'8.8.8.8')
  await assert.rejects(readCatalogBytes('https://catalog.example/a',{resolveHost:dns,requestImpl:requestFixture([{status:302,headers:{location:'http://catalog.example/a'}}])}),/REDIRECT_REJECTED/)
 })
 test('explicit local file catalogs retain bounded reads and reject path/symlink escape',async()=>{

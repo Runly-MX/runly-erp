@@ -25,7 +25,8 @@ export async function resolveCatalogAddress(url, resolveHost = lookup) {
   const hostname = url.hostname.replace(/^\[|\]$/g, '')
   const addresses = isIP(hostname) ? [{ address: hostname, family: isIP(hostname) }] : await resolveHost(hostname, { all: true, verbatim: true })
   if (!addresses.length || addresses.some(value => !publicAddress(value.address))) throw new CatalogDownloadError('CATALOG_PRIVATE_ADDRESS')
-  return addresses[0]
+  // Prefer IPv4: many container hosts have no IPv6 route, so an AAAA-first answer never connects.
+  return addresses.find(value => value.family === 4) ?? addresses[0]
 }
 
 // Count bytes as they arrive, regardless of Content-Length. No arrayBuffer().
@@ -82,7 +83,7 @@ export async function readCatalogBytes(value, { maxBytes = 25 * 1024 * 1024, hea
         url = next; continue
       }
       if (status === 304) { response.destroy(); return { status } }
-      if (status !== 200) { response.destroy(); throw new CatalogDownloadError('CATALOG_UNREACHABLE') }
+      if (status !== 200) { response.destroy(); throw Object.assign(new CatalogDownloadError('CATALOG_UNREACHABLE'), { httpStatus: status }) }
       const length = response.headers['content-length']
       if (length !== undefined && (!/^\d+$/.test(String(length)) || Number(length) > maxBytes)) { response.destroy(); throw new CatalogDownloadError('CATALOG_RESPONSE_TOO_LARGE') }
       const buffer = await collectBounded(response, maxBytes)

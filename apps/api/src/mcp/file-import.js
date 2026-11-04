@@ -53,8 +53,12 @@ export async function readImportFiles(files, download = readCatalogBytes) {
     const url = new URL(ref.download_url);
     insist(url.protocol === 'https:' && !url.username && !url.password && !url.hash, 'file_source_rejected', 'Se requiere una referencia HTTPS de archivo del cliente.', 400);
     let buffer;
-    try { ({ buffer } = await download(url.href, { maxBytes: MAX_BYTES, httpsOnly: true })); }
-    catch { insist(false, 'file_unavailable', 'No se pudo descargar el original o supera 10 MB. Vuelve a adjuntarlo para obtener una referencia vigente.', 422); }
+    // Some CDNs answer 403 to requests without a User-Agent.
+    try { ({ buffer } = await download(url.href, { maxBytes: MAX_BYTES, httpsOnly: true, headers: { 'user-agent': 'Runly-MCP/1.0' } })); }
+    catch (error) {
+      // Host and cause only: the query string is a signed credential.
+      console.warn(JSON.stringify({ event: 'mcp.file.download_failed', host: url.hostname, code: error?.code ?? error?.name, httpStatus: error?.httpStatus }));
+      insist(false, 'file_unavailable', 'No se pudo descargar el original o supera 10 MB. Vuelve a adjuntarlo para obtener una referencia vigente.', 422); }
     total += buffer.length;
     insist(buffer.length > 0 && buffer.length <= MAX_BYTES && total <= 30 * 1024 * 1024, 'file_too_large', 'Máximo 10 MB por archivo y 30 MB por propuesta.', 422);
     const hex = buffer.subarray(0, 12).toString('hex');
