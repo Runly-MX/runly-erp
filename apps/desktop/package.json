@@ -37,7 +37,7 @@
     "@ffmpeg/core": "^0.12.10",
     "@hookform/resolvers": "^5.4.0",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@raulbellosom/atlas-web-builder": "0.3.2",
+    "@raulbellosom/atlas-web-builder": "0.3.4",
     "@runly/core": "workspace:*",
     "@runly/module-compiler": "workspace:*",
     "@runly/offline": "workspace:*",
