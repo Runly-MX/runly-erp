@@ -2961,6 +2961,319 @@
       }
     },
     {
+      "type": "FinHeroBlock",
+      "label": "Hero fintech con teléfono",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Tu aliado financiero de confianza",
+        "title": "Una banca mejor para",
+        "highlight": "un futuro más brillante",
+        "subtitle": "Administra tu dinero, solicita el crédito ideal y alcanza tus metas desde una sola app, con tasas claras y sin comisiones ocultas.",
+        "ctaLabel": "Explorar préstamos",
+        "ctaHref": "/prestamos",
+        "ctaSecondLabel": "Cómo funciona",
+        "ctaSecondHref": "/como-funciona",
+        "trust": "Sin comisiones ocultas | Aprobación en 24 horas | Datos protegidos",
+        "balanceLabel": "Saldo disponible",
+        "balance": 24580.5,
+        "currency": "MXN",
+        "transactions": "Nómina Acme | Ingreso | +18500\nSupermercado | Compras | -842.3\nTransferencia a Luis | Envío | -1200\nPago de crédito | Préstamo | -2150",
+        "loanTitle": "Préstamo aprobado",
+        "loanAmount": "$150,000",
+        "loanNote": "Pago mensual desde $4,820"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "trust": {
+          "type": "text",
+          "label": "Garantías (separadas por |)"
+        },
+        "balanceLabel": {
+          "type": "text",
+          "label": "Etiqueta del saldo"
+        },
+        "balance": {
+          "type": "number",
+          "label": "Saldo de ejemplo"
+        },
+        "currency": {
+          "type": "select",
+          "label": "Moneda",
+          "options": [
+            "MXN",
+            "USD",
+            "EUR"
+          ]
+        },
+        "transactions": {
+          "type": "textarea",
+          "label": "Movimientos (Nombre | Categoría | Monto, uno por línea)"
+        },
+        "loanTitle": {
+          "type": "text",
+          "label": "Tarjeta flotante: título"
+        },
+        "loanAmount": {
+          "type": "text",
+          "label": "Tarjeta flotante: monto"
+        },
+        "loanNote": {
+          "type": "text",
+          "label": "Tarjeta flotante: nota"
+        }
+      }
+    },
+    {
+      "type": "FinCalculatorBlock",
+      "label": "Calculadora de préstamo",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Calcula tu pago",
+        "title": "Planea tu préstamo en segundos",
+        "subtitle": "Ajusta monto, plazo y tasa para ver cuánto pagarías cada mes. Es una estimación sin compromiso.",
+        "defaultAmount": 100000,
+        "defaultTerm": 36,
+        "defaultRate": 14.9,
+        "minAmount": 5000,
+        "maxAmount": 500000,
+        "currency": "MXN",
+        "ctaLabel": "Solicitar este préstamo",
+        "ctaHref": "/contacto",
+        "disclaimer": "Cálculo informativo con tasa fija; la oferta final depende de tu perfil crediticio."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "defaultAmount": {
+          "type": "number",
+          "label": "Monto inicial"
+        },
+        "defaultTerm": {
+          "type": "number",
+          "label": "Plazo inicial (meses)"
+        },
+        "defaultRate": {
+          "type": "number",
+          "label": "Tasa anual inicial (%)"
+        },
+        "minAmount": {
+          "type": "number",
+          "label": "Monto mínimo"
+        },
+        "maxAmount": {
+          "type": "number",
+          "label": "Monto máximo"
+        },
+        "currency": {
+          "type": "select",
+          "label": "Moneda",
+          "options": [
+            "MXN",
+            "USD",
+            "EUR"
+          ]
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "disclaimer": {
+          "type": "textarea",
+          "label": "Aviso legal"
+        }
+      }
+    },
+    {
+      "type": "FinLoanCardsBlock",
+      "label": "Tarjetas de préstamos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Nuestros productos",
+        "title": "Un crédito para cada meta",
+        "subtitle": "Opciones transparentes con tasas competitivas y plazos que se adaptan a tu presupuesto.",
+        "loans": "Préstamo personal | Fondos para los momentos importantes, con pagos fijos y sin sorpresas. | Desde 12.9% | /prestamos | personal\nCrédito hipotecario | Tu casa soñada con tasas competitivas y plazos de hasta 30 años. | Desde 9.5% | /prestamos | home\nCrédito automotriz | Estrena auto con aprobación rápida, nuevo o seminuevo. | Desde 10.9% | /prestamos | car\nCrédito empresarial | Financiamiento a la medida del flujo de caja de tu negocio. | Desde 13.5% | /prestamos | business",
+        "rateLabel": "Tasa anual",
+        "columns": "4",
+        "background": "white"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "loans": {
+          "type": "textarea",
+          "label": "Préstamos (Título | Descripción | Tasa | Enlace | Ícono: personal, home, car o business; uno por línea)"
+        },
+        "rateLabel": {
+          "type": "text",
+          "label": "Etiqueta de la tasa"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "type": "FinStepsBlock",
+      "label": "Pasos con línea guía",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Pasos simples",
+        "title": "Cómo funciona",
+        "subtitle": "Empezar es fácil. Sigue estos tres pasos y toma el control de tu futuro financiero.",
+        "steps": "Solicita en línea | Completa una solicitud sencilla en pocos minutos, desde tu celular o computadora.\nRecibe tu aprobación | Te respondemos en menos de 24 horas, sin comisiones ocultas ni letras chiquitas.\nObtén tus fondos | El dinero se deposita en tu cuenta en cuanto firmas digitalmente.",
+        "background": "muted"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "steps": {
+          "type": "textarea",
+          "label": "Pasos (Título | Descripción; uno por línea)"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "type": "FinClosingBlock",
+      "label": "Cierre en verde oscuro",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "¿Listo para comenzar?",
+        "title": "Tus metas financieras están más cerca de lo que crees",
+        "subtitle": "Únete a miles de clientes satisfechos y da el primer paso hacia un futuro financiero más brillante.",
+        "ctaLabel": "Comenzar hoy",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Ver préstamos",
+        "ctaSecondHref": "/prestamos"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        }
+      }
+    },
+    {
       "type": "LandscapeHeroBlock",
       "label": "Hero de paisaje en capas",
       "category": "atlas",
@@ -3123,6 +3436,317 @@
       }
     },
     {
+      "type": "MayaPortraitBlock",
+      "label": "Maya: retrato con insignia",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "imageSrc": "",
+        "imageAlt": "",
+        "badgeValue": "6+",
+        "badgeLabel": "años creando webs",
+        "note": "¡Hola, soy Maya!",
+        "chipOne": "UI/UX",
+        "chipTwo": "Marca"
+      },
+      "fields": {
+        "imageSrc": {
+          "type": "image",
+          "label": "Retrato"
+        },
+        "imageAlt": {
+          "type": "text",
+          "label": "Texto alternativo"
+        },
+        "badgeValue": {
+          "type": "text",
+          "label": "Insignia: cifra"
+        },
+        "badgeLabel": {
+          "type": "text",
+          "label": "Insignia: texto"
+        },
+        "note": {
+          "type": "text",
+          "label": "Nota a mano"
+        },
+        "chipOne": {
+          "type": "text",
+          "label": "Etiqueta 1"
+        },
+        "chipTwo": {
+          "type": "text",
+          "label": "Etiqueta 2"
+        }
+      }
+    },
+    {
+      "type": "MayaTagBlock",
+      "label": "Maya: etiqueta a mano",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "text": "Diseñadora web freelance",
+        "tone": "yellow",
+        "align": "left"
+      },
+      "fields": {
+        "text": {
+          "type": "text",
+          "label": "Texto"
+        },
+        "tone": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "yellow",
+            "blue",
+            "white"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center"
+          ]
+        }
+      }
+    },
+    {
+      "type": "MayaTickerBlock",
+      "label": "Maya: cinta de palabras",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "items": "Diseño web\nMarca\nTiendas en línea\nSEO\nUI/UX",
+        "tone": "yellow"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Palabras (una por línea)"
+        },
+        "tone": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "yellow",
+            "blue"
+          ]
+        }
+      }
+    },
+    {
+      "type": "MayaWorkBlock",
+      "label": "Maya: proyectos en tarjetas inclinadas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Trabajo seleccionado",
+        "title": "Algunos de mis",
+        "highlight": "favoritos",
+        "subtitle": "Cada proyecto es único.",
+        "projects": "Bloom & Wild | Tienda en línea | /trabajo\nNorthland Studio | Sitio de agencia | /trabajo\nPure Balance | Sitio de bienestar | /trabajo"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra resaltada"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "projects": {
+          "type": "textarea",
+          "label": "Proyectos (Nombre | Tipo | Enlace, uno por línea)"
+        }
+      }
+    },
+    {
+      "type": "MayaNotesBlock",
+      "label": "Maya: testimonios en notas adhesivas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Clientes felices",
+        "title": "Resultados",
+        "highlight": "reales",
+        "testimonials": "Jessica Miller|Fundadora, Bloom & Wild|5\nEl sitio se ve increíble y funciona mejor que nunca."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra resaltada"
+        },
+        "testimonials": {
+          "type": "textarea",
+          "label": "Testimonios (Nombre|Cargo|Estrellas, luego el texto; separa con ---)"
+        }
+      }
+    },
+    {
+      "type": "MayaPageHeroBlock",
+      "label": "Maya: encabezado de página",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Servicios",
+        "title": "Todo lo que tu sitio",
+        "highlight": "necesita",
+        "subtitle": "Desde el diseño hasta la puesta en marcha."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra resaltada"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        }
+      }
+    },
+    {
+      "type": "MayaClosingBlock",
+      "label": "Maya: cierre con barra de contacto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "¿Tienes un proyecto en mente?",
+        "title": "Hagamos algo",
+        "highlight": "increíble",
+        "subtitle": "Me encantará conocerlo. Envíame un mensaje y empecemos juntos.",
+        "ctaLabel": "Enviar mensaje",
+        "ctaHref": "/contacto",
+        "email": "hola@mayadesigns.com",
+        "phone": "(415) 555-0198",
+        "location": "San Diego, CA"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra resaltada"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "email": {
+          "type": "text",
+          "label": "Correo"
+        },
+        "phone": {
+          "type": "text",
+          "label": "Teléfono"
+        },
+        "location": {
+          "type": "text",
+          "label": "Ubicación"
+        }
+      }
+    },
+    {
+      "type": "MayaPlansBlock",
+      "label": "Maya: paquetes de precios",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Paquetes",
+        "title": "Simples, con gran",
+        "highlight": "impacto",
+        "subtitle": "Soluciones flexibles para negocios en cada etapa.",
+        "currency": "$",
+        "ctaLabel": "Empezar",
+        "ctaHref": "/contacto",
+        "plans": "Inicial|750\nIdeal para proyectos pequeños\nSitio de 3 páginas\nSEO básico\n---\nCrecimiento|1,350|Más popular\nPara negocios en crecimiento\nHasta 7 páginas\nSEO completo"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra resaltada"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Texto del botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "plans": {
+          "type": "textarea",
+          "label": "Planes (Nombre|Precio|Insignia opcional, descripción y características por línea; separa con ---)"
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",
@@ -3132,7 +3756,11 @@
         "categorySlug": "",
         "limit": 8,
         "columns": "4",
-        "showPrice": true
+        "showPrice": true,
+        "showSearch": false,
+        "showCategories": false,
+        "showAddToCart": false,
+        "detailHref": "/producto"
       },
       "fields": {
         "categorySlug": {
@@ -3155,6 +3783,199 @@
         "showPrice": {
           "type": "toggle",
           "label": "Mostrar precio"
+        },
+        "showSearch": {
+          "type": "toggle",
+          "label": "Mostrar buscador"
+        },
+        "showCategories": {
+          "type": "toggle",
+          "label": "Mostrar filtro de categorias"
+        },
+        "showAddToCart": {
+          "type": "toggle",
+          "label": "Boton agregar al carrito"
+        },
+        "detailHref": {
+          "type": "link",
+          "label": "Pagina de detalle del producto"
+        }
+      }
+    },
+    {
+      "type": "ProductDetailBlock",
+      "label": "Detalle de producto",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "addLabel": "Agregar al carrito",
+        "backHref": "/productos",
+        "cartHref": "/carrito"
+      },
+      "fields": {
+        "addLabel": {
+          "type": "text",
+          "label": "Texto del boton"
+        },
+        "backHref": {
+          "type": "link",
+          "label": "Enlace \"volver a la tienda\""
+        },
+        "cartHref": {
+          "type": "link",
+          "label": "Enlace al carrito"
+        }
+      }
+    },
+    {
+      "type": "CartPageBlock",
+      "label": "Carrito y pago",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "mode": "cart",
+        "checkoutLabel": "Pagar",
+        "shopHref": "/productos"
+      },
+      "fields": {
+        "mode": {
+          "type": "select",
+          "label": "Modo",
+          "options": [
+            "cart",
+            "thanks"
+          ]
+        },
+        "checkoutLabel": {
+          "type": "text",
+          "label": "Texto del boton de pago"
+        },
+        "shopHref": {
+          "type": "link",
+          "label": "Enlace a la tienda"
+        }
+      }
+    },
+    {
+      "type": "StoreHeroBlock",
+      "label": "Portada de tienda editorial",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Colección de temporada",
+        "title": "Objetos para vivir",
+        "highlight": "con calma",
+        "subtitle": "Piezas hechas con cuidado, materiales honestos y envío a todo el país.",
+        "ctaLabel": "Comprar ahora",
+        "ctaHref": "/productos",
+        "ctaSecondLabel": "Nuestra historia",
+        "ctaSecondHref": "/nosotros",
+        "badge": "Envío gratis desde $999",
+        "size": "full"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetitulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Titulo"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra destacada"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripcion"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Boton principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del boton principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Boton secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace del boton secundario"
+        },
+        "badge": {
+          "type": "text",
+          "label": "Etiqueta flotante"
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "full",
+            "compact"
+          ]
+        }
+      }
+    },
+    {
+      "type": "CollectionTilesBlock",
+      "label": "Colecciones ilustradas",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Colecciones",
+        "title": "Encuentra tu próxima pieza favorita",
+        "tiles": "Hogar|Texturas suaves y objetos que se quedan.|/productos\nModa|Cortes simples, telas nobles.|/productos\nPapelería|Para escribir despacio.|/productos\nRegalos|Detalles que sí se notan.|/productos",
+        "linkLabel": "Explorar"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetitulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Titulo"
+        },
+        "tiles": {
+          "type": "textarea",
+          "label": "Colecciones (Nombre | Descripcion | Enlace, una por linea, max. 4)"
+        },
+        "linkLabel": {
+          "type": "text",
+          "label": "Texto del enlace"
+        }
+      }
+    },
+    {
+      "type": "TrustStripBlock",
+      "label": "Franja de confianza",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "items": "Envío a todo el país|Gratis desde $999\nDevolución en 30 días|Sin preguntas\nPago seguro|Tarjeta con cifrado\nAtención humana|Respondemos en el día",
+        "tone": "light"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Puntos (Titulo | Detalle, uno por linea, max. 4)"
+        },
+        "tone": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "light",
+            "dark"
+          ]
         }
       }
     },

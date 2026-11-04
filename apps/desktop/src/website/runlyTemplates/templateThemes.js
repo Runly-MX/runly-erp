@@ -19,9 +19,9 @@ export const TEMPLATE_THEMES = {
     card: { radius: 'lg', shadow: 'sm', padding: '8' },
   },
   'atlas-tienda': {
-    color: { primary: '#18181B', primaryFg: '#FFFFFF', bg: '#FFFFFF', fg: '#18181B', muted: '#71717A', accent: '#E11D48' },
+    color: { primary: '#1F1A17', primaryFg: '#FAF7F2', bg: '#FAF7F2', fg: '#1F1A17', muted: '#6B5F55', accent: '#B4411F' },
     font: { sans },
-    radius: { md: '10px', lg: '16px' },
+    radius: { md: '12px', lg: '24px' },
     button: { style: 'solid', radius: 'pill' },
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
