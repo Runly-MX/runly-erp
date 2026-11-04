@@ -17,7 +17,7 @@ import {
   Button,
   useIsMobile,
 } from '@runly/ui'
-import { CircleDashed, FilePlus2, FileText, Globe, Lock, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
+import { CircleDashed, FilePlus2, FileText, Globe, Lock, PauseCircle, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -40,7 +40,8 @@ function formatDay(value) {
 }
 
 // Public state is icon + text: live, live with unpublished edits, or draft only.
-function PublicState({ state }) {
+function PublicState({ state, retired }) {
+  if (retired) return <StatusPill tone="neutral" size="sm" icon={PauseCircle} title="El sitio está retirado: nadie ve esta página.">Sitio retirado</StatusPill>
   if (state === 'changed') return <StatusPill tone="warning" size="sm" icon={PencilLine}>Publicada · con cambios</StatusPill>
   if (state === 'published') return <StatusPill tone="success" size="sm" icon={Globe}>Publicada</StatusPill>
   return <StatusPill tone="neutral" size="sm" icon={CircleDashed}>Solo borrador</StatusPill>
@@ -163,6 +164,7 @@ export default function SitePages({ siteId, site, caps, pages }) {
   })
 
   const isMobile = useIsMobile()
+  const retired = site.lifecycle === 'unpublished'
   const publicStateOf = (id) => site.pages?.find((p) => p.id === id)?.publicState
   const menuItems = (page) => [
     { label: 'Editar', icon: Pencil, onClick: () => navigate(editorPath(siteId, page.id)) },
@@ -182,10 +184,10 @@ export default function SitePages({ siteId, site, caps, pages }) {
   const columns = useMemo(() => [
     { accessorKey: 'title', header: 'Página', cell: ({ row }) => titleButton(row.original) },
     { accessorKey: 'routePath', header: 'Ruta', cell: ({ row }) => <code className="rounded-md bg-[hsl(var(--muted))] px-1.5 py-0.5 text-xs">{row.original.routePath}</code> },
-    { id: 'public', header: 'En el sitio público', cell: ({ row }) => <PublicState state={publicStateOf(row.original.id)} /> },
+    { id: 'public', header: 'En el sitio público', cell: ({ row }) => <PublicState state={publicStateOf(row.original.id)} retired={retired} /> },
     { id: 'updated', header: 'Última edición', cell: ({ row }) => <span className="tabular-nums text-[hsl(var(--muted-foreground))]">{formatDay(row.original.updatedAt)}</span> },
     { id: 'actions', header: '', enableSorting: false, cell: ({ row }) => <ActionMenu label={`Acciones de ${row.original.title}`} items={menuItems(row.original)} /> },
-  ], [navigate, siteId, site.pages, caps.pagesUpdate.allowed, caps.pagesDelete.allowed])
+  ], [navigate, siteId, site.pages, retired, caps.pagesUpdate.allowed, caps.pagesDelete.allowed])
 
   const renderCard = (page) => (
     <article className={ROW_CARD}>
@@ -194,7 +196,7 @@ export default function SitePages({ siteId, site, caps, pages }) {
         <ActionMenu label={`Acciones de ${page.title}`} items={menuItems(page)} triggerClassName="h-11 w-11 sm:h-7 sm:w-7" />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] pt-3">
-        <PublicState state={publicStateOf(page.id)} />
+        <PublicState state={publicStateOf(page.id)} retired={retired} />
         <span className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">Editada {formatDay(page.updatedAt)}</span>
       </div>
       <Button className={`mt-3 w-full ${TOUCH}`} size="sm" variant="outline" onClick={() => navigate(editorPath(siteId, page.id))}><Pencil className="mr-1.5 h-3.5 w-3.5" aria-hidden />Editar contenido</Button>

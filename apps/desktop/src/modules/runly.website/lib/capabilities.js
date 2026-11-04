@@ -43,5 +43,9 @@ export function reasonText(reason) {
   if (reason.code === 'form_scope_unresolved') return 'Los formularios todavía no se pueden publicar en el sitio.'
   if (reason.code === 'dynamic_binding_unavailable') return 'Calendar todavía no se puede publicar en el sitio.'
   if (reason.code === 'feature_unavailable') return 'Esta función todavía no está disponible.'
+  if (reason.code === 'isolation_required') return 'Esta instalación todavía no tiene configurado el dominio aislado de vistas previas. Pide al administrador que lo active.'
+  if (reason.code === 'namespace_unavailable') return 'Esta instalación todavía no tiene configurada la dirección base de los sitios.'
+  if (reason.code === 'lifecycle_state') return 'El sitio está archivado. Restáuralo para usar esta función.'
+  if (reason.code === 'loading') return 'Cargando…'
   return 'No disponible por ahora.'
 }
