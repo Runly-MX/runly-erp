@@ -51,6 +51,25 @@ function toFieldName(label) {
     .replace(/^_|_$/g, '')
 }
 
+// The API answers with raw zod issues (JSON string); turn them into a sentence a person can act on.
+function humanizeFieldError(message) {
+  let issues
+  try { issues = JSON.parse(message) } catch { return message }
+  if (!Array.isArray(issues) || issues.length === 0) return message
+  const labels = { name: 'El nombre del campo (clave)', label: 'La etiqueta', fieldType: 'El tipo' }
+  return issues.map((i) => {
+    const who = labels[i.path?.[0]] ?? 'Un valor'
+    if (i.code === 'invalid_format') {
+      return i.path?.[0] === 'name'
+        ? `${who} debe empezar con una letra minuscula y usar solo minusculas, numeros y guion bajo (ej. apellidos o segundo_nombre).`
+        : `${who} no tiene un formato valido.`
+    }
+    if (i.code === 'too_small') return `${who} es obligatorio.`
+    if (i.code === 'too_big') return `${who} es demasiado largo.`
+    return `${who} no es valido.`
+  }).join(' ')
+}
+
 // Parses existing card_select options from DB [{value,label,description}] to editor state
 function parseCardOptions(options) {
   if (!Array.isArray(options)) return [{ label: '', description: '' }]
@@ -161,7 +180,7 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved, wizardMode, m
       onSaved()
       onOpenChange(false)
     },
-    onError: (err) => toast.error(err.message || 'Error al guardar campo'),
+    onError: (err) => toast.error(humanizeFieldError(err.message) || 'No se pudo guardar el campo'),
   })
 
   function handleLabelChange(e) {
@@ -192,7 +211,7 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved, wizardMode, m
     e.preventDefault()
     const payload = {
       label:       form.label.trim(),
-      name:        form.name.trim(),
+      name:        toFieldName(form.name).replace(/^(\d)/, 'campo_$1'),
       fieldType:   form.fieldType,
       semanticKey: form.semanticKey,
       placeholder: form.placeholder.trim() || undefined,
@@ -216,8 +235,9 @@ function FieldForm({ formId, field, isEdit, onOpenChange, onSaved, wizardMode, m
       <TextField
         label="Nombre del campo (clave)"
         value={form.name}
-        onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value })) }}
+        onChange={(e) => { setNameTouched(true); setForm((f) => ({ ...f, name: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '_') })) }}
         placeholder="nombre_campo"
+        hint="Solo minusculas, numeros y guion bajo. Ej: apellidos, segundo_nombre"
         required
       />
       <div className="grid grid-cols-2 gap-3">
