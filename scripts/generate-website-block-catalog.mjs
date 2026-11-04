@@ -28,7 +28,7 @@ try {
       blocks.push({
         type: block.type, label: block.label ?? block.type, category: block.category ?? null, group,
         slots: Object.keys(block.slots ?? {}),
-        defaultProps: JSON.parse(JSON.stringify(block.defaultProps ?? {})),
+        defaultProps: JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(block.defaultProps ?? {}).filter(([key]) => key in (block.fields ?? {}))))),
         fields: Object.fromEntries(Object.entries(block.fields ?? {}).map(([key, definition]) => [key, field(definition)])),
       });
     }

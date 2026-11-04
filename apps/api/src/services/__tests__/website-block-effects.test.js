@@ -21,3 +21,11 @@ test('a draft document keeps effect props', () => {
   const doc = normalizeWebsiteDocument({ schemaVersion: 1, id: 'p', slug: '/', title: 'p', visibility: 'public', regions: { main: { id: 'r', children: ['a'] } }, blocks: { a: { id: 'a', type: 'HeadingBlock', props: { text: 'Hola', _animation: { preset: 'fade-in', duration: 600, delay: 0, easing: 'ease-out' } }, children: {} } } }, { strict: true })
   assert.equal(doc.blocks.a.props._animation.preset, 'fade-in')
 })
+
+test('accepts stagger, parallax, lazy and the new presets; rejects out-of-range values', () => {
+  assert.ok(isValidEffect('_animation', { preset: 'blur-in', duration: 500, delay: 0, easing: 'ease' }))
+  assert.ok(isValidEffect('_stagger', 120) && isValidEffect('_parallax', { speed: 0.3 }) && isValidEffect('_lazy', true))
+  assert.equal(isValidEffect('_stagger', 5000), false)
+  assert.equal(isValidEffect('_parallax', { speed: 3 }), false)
+  assert.equal(isValidEffect('_lazyMinHeight', '240'), false)
+})

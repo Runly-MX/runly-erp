@@ -1392,7 +1392,8 @@
           "label": "Carga",
           "options": [
             "lazy",
-            "eager"
+            "eager",
+            "priority"
           ]
         },
         "draggable": {
@@ -1663,6 +1664,201 @@
             "8",
             "12",
             "16"
+          ]
+        }
+      }
+    },
+    {
+      "type": "CounterBlock",
+      "label": "Contador",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "value": 1200,
+        "from": 0,
+        "prefix": "",
+        "suffix": "+",
+        "label": "Clientes satisfechos",
+        "duration": 1500,
+        "decimals": 0,
+        "locale": "",
+        "grouping": true,
+        "color": "fg",
+        "size": "3xl",
+        "align": "center"
+      },
+      "fields": {
+        "value": {
+          "type": "number",
+          "label": "Valor final",
+          "step": 1
+        },
+        "from": {
+          "type": "number",
+          "label": "Valor inicial",
+          "step": 1
+        },
+        "prefix": {
+          "type": "text",
+          "label": "Prefijo"
+        },
+        "suffix": {
+          "type": "text",
+          "label": "Sufijo"
+        },
+        "label": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "duration": {
+          "type": "number",
+          "label": "Duración (ms)",
+          "min": 0,
+          "max": 10000,
+          "step": 100
+        },
+        "decimals": {
+          "type": "number",
+          "label": "Decimales",
+          "min": 0,
+          "max": 6,
+          "step": 1
+        },
+        "locale": {
+          "type": "text",
+          "label": "Idioma de formato (ej. es-MX)"
+        },
+        "grouping": {
+          "type": "toggle",
+          "label": "Separador de miles"
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "type": "TypewriterBlock",
+      "label": "Texto animado",
+      "category": "content",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "prefix": "Creamos",
+        "phrases": "sitios web\ntiendas en línea\nexperiencias únicas",
+        "suffix": "",
+        "typeSpeed": 80,
+        "deleteSpeed": 40,
+        "pause": 1600,
+        "loop": true,
+        "color": "fg",
+        "size": "2xl",
+        "align": "center"
+      },
+      "fields": {
+        "prefix": {
+          "type": "text",
+          "label": "Texto antes"
+        },
+        "phrases": {
+          "type": "textarea",
+          "label": "Frases (una por línea)"
+        },
+        "suffix": {
+          "type": "text",
+          "label": "Texto después"
+        },
+        "typeSpeed": {
+          "type": "number",
+          "label": "Velocidad al escribir (ms)",
+          "min": 20,
+          "max": 1000,
+          "step": 10
+        },
+        "deleteSpeed": {
+          "type": "number",
+          "label": "Velocidad al borrar (ms)",
+          "min": 10,
+          "max": 1000,
+          "step": 10
+        },
+        "pause": {
+          "type": "number",
+          "label": "Pausa entre frases (ms)",
+          "min": 200,
+          "max": 10000,
+          "step": 100
+        },
+        "loop": {
+          "type": "toggle",
+          "label": "Repetir en bucle"
+        },
+        "color": {
+          "type": "select",
+          "label": "Color",
+          "options": [
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "xs",
+            "sm",
+            "md",
+            "lg",
+            "xl",
+            "2xl",
+            "3xl"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
           ]
         }
       }
