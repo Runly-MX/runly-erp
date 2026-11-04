@@ -5189,6 +5189,590 @@
       }
     },
     {
+      "type": "DevNavbarBlock",
+      "label": "Barra de navegación dev",
+      "category": "navigation",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "brand": "DR",
+        "links": "Inicio | /\nSobre mí | /sobre-mi\nProyectos | /proyectos\nExperiencia | /experiencia\nContacto | /contacto",
+        "active": "/",
+        "ctaLabel": "Hablemos",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Iniciales o nombre"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Enlaces (Etiqueta | /ruta, uno por línea)"
+        },
+        "active": {
+          "type": "text",
+          "label": "Ruta activa"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "DevHeroBlock",
+      "label": "Portada de portafolio",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "greeting": "Hola, soy",
+        "firstName": "Daniel",
+        "lastName": "Ramos",
+        "role": "Ingeniero de software y desarrollador full stack",
+        "typedPrefix": "Hoy construyo",
+        "phrases": "APIs rápidas y fiables\ninterfaces claras y accesibles\nproductos que se pueden mantener",
+        "description": "Creo productos digitales que resuelven problemas reales. De la idea al despliegue, convierto retos complejos en soluciones simples y bien cuidadas.",
+        "ctaLabel": "Ver mi trabajo",
+        "ctaHref": "/proyectos",
+        "ctaSecondLabel": "Descargar CV",
+        "ctaSecondHref": "#",
+        "status": "Disponible para nuevos proyectos desde enero"
+      },
+      "fields": {
+        "greeting": {
+          "type": "text",
+          "label": "Saludo"
+        },
+        "firstName": {
+          "type": "text",
+          "label": "Nombre"
+        },
+        "lastName": {
+          "type": "text",
+          "label": "Apellido (en naranja)"
+        },
+        "role": {
+          "type": "text",
+          "label": "Puesto"
+        },
+        "typedPrefix": {
+          "type": "text",
+          "label": "Texto antes de la máquina de escribir"
+        },
+        "phrases": {
+          "type": "textarea",
+          "label": "Frases animadas (una por línea)"
+        },
+        "description": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario (CV)"
+        },
+        "status": {
+          "type": "text",
+          "label": "Estado de disponibilidad"
+        }
+      }
+    },
+    {
+      "type": "DevAboutBlock",
+      "label": "Sobre mí con rasgos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "01 / sobre mí",
+        "title": "Sobre mí",
+        "body": "Me apasiona crear soluciones limpias, eficientes y escalables con buenas experiencias de usuario. Disfruto trabajar con tecnologías que empujan la web hacia adelante y con equipos que cuidan los detalles.",
+        "traits": "Resuelvo problemas | bulb\nDetallista | target\nCódigo limpio | code\nSiempre aprendiendo | book\nTrabajo en equipo | users\nMente curiosa | spark",
+        "linkLabel": "Conoce mi historia",
+        "linkHref": "/sobre-mi",
+        "scene": "ventana"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "traits": {
+          "type": "textarea",
+          "label": "Rasgos (Texto | icono, uno por línea)"
+        },
+        "linkLabel": {
+          "type": "text",
+          "label": "Enlace"
+        },
+        "linkHref": {
+          "type": "link",
+          "label": "Destino del enlace"
+        },
+        "scene": {
+          "type": "select",
+          "label": "Ilustración",
+          "options": [
+            "ventana",
+            "puf",
+            "escritorio"
+          ]
+        }
+      }
+    },
+    {
+      "type": "DevSkillsBlock",
+      "label": "Habilidades y tecnologías",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "02 / stack",
+        "title": "Habilidades y tecnologías",
+        "skills": "JavaScript | js\nTypeScript | ts\nReact | react\nNext.js | next\nNode.js | node\nMongoDB | mongo\nTailwind CSS | tailwind\nGit y GitHub | git\nMás | dots"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "skills": {
+          "type": "textarea",
+          "label": "Tecnologías (Nombre | icono, una por línea)"
+        }
+      }
+    },
+    {
+      "type": "DevWorkBlock",
+      "label": "Trabajo seleccionado",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "03 / proyectos",
+        "title": "Trabajo seleccionado",
+        "linkLabel": "Ver todos los proyectos",
+        "linkHref": "/proyectos",
+        "showFilters": false,
+        "allLabel": "Todos",
+        "projects": "Lumen Académico | Plataforma de cursos en línea con analítica de progreso y pagos integrados. | Next.js, TypeScript, Tailwind | monitor | Web | #\nPanel Meridiano | Tablero de visualización con resultados escolares del periodo 2016-2025. | Next.js, Recharts, Node.js | laptop | Datos | #\nAula Segura | App de aprendizaje con contenido protegido y accesos por rol. | Next.js, MongoDB, Stripe | phone | Móvil | #"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "linkLabel": {
+          "type": "text",
+          "label": "Enlace superior"
+        },
+        "linkHref": {
+          "type": "link",
+          "label": "Destino del enlace"
+        },
+        "showFilters": {
+          "type": "toggle",
+          "label": "Mostrar filtros por categoría"
+        },
+        "allLabel": {
+          "type": "text",
+          "label": "Texto del filtro \"todos\""
+        },
+        "projects": {
+          "type": "textarea",
+          "label": "Proyectos (Título | Descripción | Tecnologías, separadas por coma | monitor, laptop o phone | Categoría | Enlace)"
+        }
+      }
+    },
+    {
+      "type": "DevPageHeroBlock",
+      "label": "Encabezado de página dev",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "path": "~/proyectos",
+        "title": "Cosas que",
+        "highlight": "he construido",
+        "subtitle": "Una selección de productos en los que he trabajado: del primer boceto al despliegue.",
+        "scene": "escritorio"
+      },
+      "fields": {
+        "path": {
+          "type": "text",
+          "label": "Ruta decorativa"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabras en naranja"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "scene": {
+          "type": "select",
+          "label": "Ilustración",
+          "options": [
+            "escritorio",
+            "ventana",
+            "puf"
+          ]
+        }
+      }
+    },
+    {
+      "type": "DevTimelineBlock",
+      "label": "Línea de tiempo de experiencia",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "04 / trayectoria",
+        "title": "Experiencia",
+        "layout": "horizontal",
+        "items": "2024 - Actualidad | Desarrollador web | Estudio Brújula | Construyo aplicaciones web escalables y paneles de administración para clientes. | briefcase\n2023 - 2024 | Practicante full stack | Proyectos varios | Trabajé en proyectos reales y APIs con el stack MERN, con revisiones de código semanales. | window\n2022 - 2023 | Desarrollador freelance | Independiente | Entregué sitios web y soluciones a medida para emprendimientos y negocios locales. | user"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "layout": {
+          "type": "select",
+          "label": "Disposición",
+          "options": [
+            "horizontal",
+            "vertical"
+          ]
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Etapas (Fechas | Puesto | Empresa | Descripción | icono)"
+        }
+      }
+    },
+    {
+      "type": "DevProcessBlock",
+      "label": "Mi proceso en pasos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "05 / método",
+        "title": "Mi proceso",
+        "steps": "Descubrir | Entender el problema a fondo. | search\nDiseñar | Planear y dibujar soluciones simples. | pencil\nDesarrollar | Escribir código limpio y construir funciones. | code\nLanzar | Probar a fondo y publicar con calma. | rocket\nMejorar | Medir, iterar y seguir puliendo. | chart"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "steps": {
+          "type": "textarea",
+          "label": "Pasos (Nombre | Descripción | icono)"
+        }
+      }
+    },
+    {
+      "type": "DevSkillBarsBlock",
+      "label": "Habilidades por nivel",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "nivel de dominio",
+        "title": "Habilidades por nivel",
+        "subtitle": "Mi punto de partida honesto en cada herramienta, de lo que uso a diario a lo que sigo aprendiendo.",
+        "skills": "JavaScript y TypeScript | 92 | Mi lenguaje de cada día\nReact y Next.js | 88 | Interfaces y renderizado en servidor\nNode.js y APIs REST | 85 | Servicios, colas y autenticación\nBases de datos | 78 | PostgreSQL y MongoDB\nPruebas y calidad | 74 | Unitarias, integración y e2e\nDevOps básico | 62 | Docker y despliegues automáticos"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "skills": {
+          "type": "textarea",
+          "label": "Habilidades (Nombre | nivel 0-100 | Nota)"
+        }
+      }
+    },
+    {
+      "type": "DevStoryBlock",
+      "label": "Historia con cifras",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "mi historia",
+        "title": "De armar páginas a diseñar sistemas",
+        "body": "Empecé a programar a los quince años, arreglando el sitio web de la papelería de mi barrio. Esa primera tarde entendí que el código es una forma de ayudar a otras personas a hacer su trabajo.\n\nHoy diseño y construyo productos completos: interfaces, servicios y la infraestructura que los sostiene. Me importa que lo que entrego sea claro para quien lo usa y también para quien lo mantiene después de mí.\n\nCuando no estoy frente a la pantalla, estoy en bicicleta, probando recetas nuevas o leyendo sobre arquitectura de software.",
+        "facts": "9 | + | años escribiendo software\n40 | + | proyectos entregados\n12 | | equipos con los que he trabajado\n100 | % | cuidado por los detalles"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Historia (párrafos separados por una línea en blanco)"
+        },
+        "facts": {
+          "type": "textarea",
+          "label": "Cifras (Número | sufijo | texto)"
+        }
+      }
+    },
+    {
+      "type": "DevValuesBlock",
+      "label": "Valores sobre tinta",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "cómo trabajo",
+        "title": "Lo que me guía",
+        "values": "Claridad antes que ingenio | El código que cualquiera entiende cuesta menos de mantener que el que solo yo entiendo. | code\nEmpatía con quien usa | Cada pantalla la usa una persona con prisa, con cansancio o con dudas. Diseño pensando en ella. | users\nPequeños pasos, entregas reales | Prefiero publicar algo útil cada semana que prometer algo perfecto en seis meses. | rocket\nCuriosidad con criterio | Pruebo lo nuevo, pero solo lo adopto cuando resuelve un problema real. | spark"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "values": {
+          "type": "textarea",
+          "label": "Valores (Título | Descripción | icono)"
+        }
+      }
+    },
+    {
+      "type": "DevNowUsesBlock",
+      "label": "Ahora y herramientas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "nowTitle": "Ahora mismo",
+        "nowItems": "code | Construyendo | Un sistema de reservas para una red de clínicas.\nbook | Leyendo | Diseño de aplicaciones intensivas en datos.\nspark | Aprendiendo | Rust, a ratos y sin prisa.\ncoffee | Fuera de pantalla | Ciclismo de ruta y café de especialidad.",
+        "usesTitle": "Mis herramientas",
+        "usesItems": "Editor | Neovim y VS Code\nTerminal | WezTerm con zsh\nNavegador | Firefox Developer Edition\nDiseño | Figma y papel cuadriculado\nNotas | Un cuaderno de hojas sueltas\nHardware | Laptop de 14 pulgadas y teclado mecánico"
+      },
+      "fields": {
+        "nowTitle": {
+          "type": "text",
+          "label": "Título de \"ahora\""
+        },
+        "nowItems": {
+          "type": "textarea",
+          "label": "Ahora (icono | Etiqueta | Texto)"
+        },
+        "usesTitle": {
+          "type": "text",
+          "label": "Título de herramientas"
+        },
+        "usesItems": {
+          "type": "textarea",
+          "label": "Herramientas (Categoría | Herramienta)"
+        }
+      }
+    },
+    {
+      "type": "DevCaseBlock",
+      "label": "Caso de estudio destacado",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "caso de estudio",
+        "title": "Lumen Académico: de 9 a 2 segundos de carga",
+        "body": "La plataforma tardaba casi diez segundos en abrir un curso. Medimos, priorizamos lo que más pesaba y reescribimos la capa de datos con caché y renderizado en servidor, sin detener las clases en curso.",
+        "metrics": "-78% | tiempo de carga\n+34% | cursos terminados\n99.9% | disponibilidad",
+        "ctaLabel": "Hablemos de tu proyecto",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "metrics": {
+          "type": "textarea",
+          "label": "Resultados (Cifra | Texto)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "DevContactBlock",
+      "label": "Banda de contacto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "title": "Construyamos algo",
+        "highlight": "significativo juntos.",
+        "subtitle": "Cuéntame tu idea o el problema que quieres resolver; te respondo en menos de un día hábil.",
+        "email": "hola@example.com",
+        "phone": "+52 55 0000 0000",
+        "location": "Guadalajara, México",
+        "connectTitle": "Conectemos",
+        "socials": "GitHub | https://github.com/example | github\nLinkedIn | https://www.linkedin.com/in/example | linkedin\nX | https://x.com/example | x\nCorreo | mailto:hola@example.com | mail"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Final del título (en naranja)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "email": {
+          "type": "text",
+          "label": "Correo"
+        },
+        "phone": {
+          "type": "text",
+          "label": "Teléfono"
+        },
+        "location": {
+          "type": "text",
+          "label": "Ubicación"
+        },
+        "connectTitle": {
+          "type": "text",
+          "label": "Título de redes"
+        },
+        "socials": {
+          "type": "textarea",
+          "label": "Redes (Nombre | enlace | icono)"
+        }
+      }
+    },
+    {
+      "type": "DevChannelsBlock",
+      "label": "Canales y disponibilidad",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "canales",
+        "title": "Elige cómo escribirme",
+        "channels": "mail | Correo | hola@example.com | mailto:hola@example.com\nphone | Teléfono | +52 55 0000 0000 | tel:+525500000000\nlinkedin | LinkedIn | /in/daniel-ramos-example | https://www.linkedin.com/in/example\ngithub | GitHub | @daniel-ramos-example | https://github.com/example",
+        "availabilityTitle": "Disponibilidad",
+        "availabilityStatus": "Aceptando proyectos desde enero",
+        "availabilityItems": "Respuesta | En menos de 24 horas hábiles\nHorario | Lunes a viernes, 9:00 a 18:00 (CST)\nModalidad | Remoto, con visitas puntuales en Guadalajara\nTipo de trabajo | Proyectos de 2 a 6 meses o apoyo por horas"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "channels": {
+          "type": "textarea",
+          "label": "Canales (icono | Nombre | Valor | Enlace)"
+        },
+        "availabilityTitle": {
+          "type": "text",
+          "label": "Título de disponibilidad"
+        },
+        "availabilityStatus": {
+          "type": "text",
+          "label": "Estado actual"
+        },
+        "availabilityItems": {
+          "type": "textarea",
+          "label": "Detalles (Etiqueta | Texto)"
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",
