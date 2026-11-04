@@ -6,6 +6,7 @@ import { negocioTemplate,     negocioSitePages }     from '../runlyBlocks/templa
 import { habitiaTemplate, habtiaSitePages } from '../runlyBlocks/templates/habitiaTemplate.js'
 import { finoraTemplate,      finoraSitePages }      from '../runlyBlocks/templates/finoraTemplate.js'
 import { mayaTemplate,        mayaSitePages }        from '../runlyBlocks/templates/mayaTemplate.js'
+import { auroraTemplate,      auroraSitePages }      from '../runlyBlocks/templates/auroraTemplate.js'
 
 import { TEMPLATE_THEMES } from './templateThemes.js'
 import { polishPage } from './templatePolish.js'
@@ -20,6 +21,7 @@ const CATEGORY_COLORS = {
   hogar:       '#7C5A3E',
   finanzas:    '#166534',
   portafolio:  '#1D4ED8',
+  viajes:      '#0E7490',
 }
 
 function buildPageData(templateId, pageId, label, routePath, description, { rootIds, blocks }) {
@@ -74,4 +76,5 @@ export const allTemplates = [
   wrapTemplate(habitiaTemplate,    habtiaSitePages),
   wrapTemplate(finoraTemplate,     finoraSitePages),
   wrapTemplate(mayaTemplate,       mayaSitePages),
+  wrapTemplate(auroraTemplate,     auroraSitePages),
 ]
