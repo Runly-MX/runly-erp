@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "../../auth/AuthProvider.jsx";
 import { getApiUrl } from "../../lib/runtimeConfig.js";
-import { Button, ConfirmDialog, LoadingState } from "@runly/ui";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { Button, ConfirmDialog, EmptyState, LoadingState } from "@runly/ui";
+import { ChevronDown, ChevronUp, Inbox } from "lucide-react";
 import { toast } from "sonner";
 
 function fmtDate(d) {
@@ -123,11 +123,11 @@ export default function FormSubmissionsPanel({ formId, basePath = '/website' }) 
 
   if (submissions.length === 0) {
     return (
-      <div className="py-10 text-center">
-        <p className="text-[hsl(var(--muted-foreground))] text-sm">
-          No hay envios todavia.
-        </p>
-      </div>
+      <EmptyState
+        icon={Inbox}
+        title="Aún no hay respuestas"
+        description="Cuando alguien llene este formulario, su respuesta aparecerá aquí al instante."
+      />
     );
   }
 

@@ -240,8 +240,8 @@ export default function GrowthAnalyticsScreen() {
       ) : (
         <EmptyState
           icon={TrendingUp}
-          title="No hay datos disponibles"
-          description="Todavia no se han recibido metricas para este periodo."
+          title="Aún no hay métricas para mostrar"
+          description="En cuanto tu sitio reciba visitas, verás aquí de dónde llegan y qué hacen."
         />
       )}
     </div>

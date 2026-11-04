@@ -212,8 +212,8 @@ function EmptyChart() {
   return (
     <EmptyState
       icon={Activity}
-      title="Sin datos en este periodo"
-      description="Amplia el rango o revisa que el storefront este enviando eventos."
+      title="Todavía no hay movimiento en este periodo"
+      description="Prueba con un rango de fechas más amplio, o revisa que tu sitio esté enviando visitas."
     />
   );
 }

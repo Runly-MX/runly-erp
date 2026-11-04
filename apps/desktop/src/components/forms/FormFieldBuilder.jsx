@@ -8,12 +8,13 @@ import {
   useSortable, sortableKeyboardCoordinates,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, Type, Mail, Phone, AlignLeft, List, CheckSquare, Hash, Calendar, ToggleLeft, LayoutGrid, Tags, Plus, X } from 'lucide-react'
+import { GripVertical, MoreHorizontal, Pencil, Trash2, ListPlus, Type, Mail, Phone, AlignLeft, List, CheckSquare, Hash, Calendar, ToggleLeft, LayoutGrid, Tags, Plus, X } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../lib/runtimeConfig.js'
 import {
-  Button, CheckboxField, ConfirmDialog, SelectField, TextField,
+  Badge, Button, CheckboxField, ConfirmDialog, EmptyState, SelectField, TextField,
+  DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
 } from '@runly/ui'
 import { toast } from 'sonner'
@@ -338,38 +339,54 @@ function FieldDialog({ formId, field, open, onOpenChange, onSaved, wizardMode, m
   )
 }
 
+const ROW_GRID = 'grid grid-cols-[auto_minmax(0,1fr)_auto] sm:grid-cols-[auto_minmax(0,1fr)_9rem_11rem_auto] items-center gap-x-3'
+const typeLabel = (value) => FIELD_TYPES.find((t) => t.value === value)?.label ?? value
+
 function SortableField({ field, onEdit, onDelete, wizardMode }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: field.id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.6 : 1 }
   const TypeIcon = FIELD_TYPES.find((t) => t.value === field.fieldType)?.Icon ?? Type
+  const mapped = field.semanticKey && field.semanticKey !== 'custom' ? SEMANTIC_OPTIONS.find((option) => option.value === field.semanticKey)?.label : null
 
   return (
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 px-3 py-2.5 bg-[hsl(var(--background))] border border-[hsl(var(--border))] rounded-lg group"
+      className={`${ROW_GRID} border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-2 py-2.5 transition-colors hover:bg-[hsl(var(--muted))]/40 sm:px-3 ${isDragging ? 'relative z-10 rounded-lg shadow-lg' : ''}`}
     >
-      <button {...attributes} {...listeners} className="cursor-grab text-[hsl(var(--muted-foreground))] touch-none">
-        <GripVertical size={14} />
+      <button type="button" {...attributes} {...listeners} aria-label={`Reordenar ${field.label}`} className="flex h-8 w-6 cursor-grab touch-none items-center justify-center rounded text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] active:cursor-grabbing">
+        <GripVertical className="h-4 w-4" />
       </button>
-      <TypeIcon size={14} className="text-[hsl(var(--muted-foreground))] shrink-0" />
-      <span className="flex-1 text-sm font-medium">{field.label}</span>
-      {field.required && <span className="text-[10px] text-red-500 font-mono">*</span>}
-      <span className="text-xs font-mono text-[hsl(var(--muted-foreground))]">{field.fieldType}</span>
-      {wizardMode && (
-        <span className="text-[10px] rounded-full bg-[var(--brand-primary)]/10 text-[var(--brand-primary)] px-2 py-0.5 font-semibold">
-          Paso {field.stepNumber ?? 1}
+
+      <button type="button" onClick={() => onEdit(field)} className="flex min-w-0 items-center gap-3 text-left">
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><TypeIcon className="h-4 w-4" /></span>
+        <span className="min-w-0">
+          <span className="flex min-w-0 items-center gap-2">
+            <span className="truncate text-sm font-medium">{field.label}</span>
+            {field.required && <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">Requerido</Badge>}
+            {wizardMode && <Badge variant="secondary" className="shrink-0 px-1.5 py-0 text-[10px]">Paso {field.stepNumber ?? 1}</Badge>}
+          </span>
+          <span className="block truncate font-mono text-xs text-[hsl(var(--muted-foreground))]">
+            {field.name}<span className="font-sans sm:hidden"> · {typeLabel(field.fieldType)}</span>
+          </span>
         </span>
-      )}
-      {field.semanticKey && field.semanticKey !== 'custom' && (
-        <span className="text-[10px] rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[hsl(var(--muted-foreground))]">
-          {SEMANTIC_OPTIONS.find((option) => option.value === field.semanticKey)?.label}
-        </span>
-      )}
-      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(field)} className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><Pencil size={12} /></button>
-        <button onClick={() => onDelete(field)} className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"><Trash2 size={12} /></button>
-      </div>
+      </button>
+
+      <span className="hidden truncate text-sm text-[hsl(var(--muted-foreground))] sm:block">{typeLabel(field.fieldType)}</span>
+      <span className="hidden truncate text-sm sm:block">
+        {mapped ? <Badge variant="secondary">{mapped}</Badge> : <span className="text-[hsl(var(--muted-foreground))]">—</span>}
+      </span>
+
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger asChild>
+          <Button size="icon" variant="ghost" aria-label={`Acciones de ${field.label}`}><MoreHorizontal className="h-4 w-4" /></Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="end">
+          <DropdownMenuItem onSelect={() => onEdit(field)}><Pencil />Editar</DropdownMenuItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem className="text-red-600 focus:text-red-600" onSelect={() => onDelete(field)}><Trash2 />Eliminar</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
     </div>
   )
 }
@@ -492,33 +509,39 @@ export default function FormFieldBuilder({ formId, fields = [], onRefresh, wizar
         />
       )}
       {displayFields.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-8 text-center">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay campos. Agrega el primer campo.</p>
-        </div>
+        <EmptyState
+          icon={ListPlus}
+          title="Tu formulario aún no tiene campos"
+          description="Agrega el primero: nombre, correo o un mensaje. Así sabrás quién te escribe y qué necesita."
+          action={<Button onClick={() => setAddOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Agregar el primer campo</Button>}
+        />
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={displayFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
-            <div className="space-y-1.5">
-              {displayFields.map((field) => (
-                <SortableField
-                  key={field.id}
-                  field={field}
-                  onEdit={(f) => { setEditField(f); setEditOpen(true) }}
-                  onDelete={setConfirmField}
-                  wizardMode={wizardMode}
-                />
-              ))}
+        <>
+          <div className="overflow-hidden rounded-xl border border-[hsl(var(--border))]">
+            <div className={`${ROW_GRID} bg-[hsl(var(--muted))]/40 px-2 py-2 text-xs font-medium text-[hsl(var(--muted-foreground))] sm:px-3`}>
+              <span className="w-6" />
+              <span>Nombre</span>
+              <span className="hidden sm:block">Tipo</span>
+              <span className="hidden sm:block">Se guarda como</span>
+              <span className="w-9" />
             </div>
-          </SortableContext>
-        </DndContext>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={displayFields.map((f) => f.id)} strategy={verticalListSortingStrategy}>
+                {displayFields.map((field) => (
+                  <SortableField
+                    key={field.id}
+                    field={field}
+                    onEdit={(f) => { setEditField(f); setEditOpen(true) }}
+                    onDelete={setConfirmField}
+                    wizardMode={wizardMode}
+                  />
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
+          <Button variant="outline" className="w-full border-dashed" onClick={() => setAddOpen(true)}><Plus className="mr-1.5 h-4 w-4" />Agregar campo</Button>
+        </>
       )}
-
-      <button
-        onClick={() => setAddOpen(true)}
-        className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
-      >
-        + Agregar campo
-      </button>
 
       <FieldDialog formId={formId} field={null} open={addOpen} onOpenChange={setAddOpen} onSaved={() => { setLocalFields([]); onRefresh() }} wizardMode={wizardMode} maxStep={effectiveMaxStep} basePath={basePath} />
       <FieldDialog formId={formId} field={editField} open={editOpen} onOpenChange={(v) => { setEditOpen(v); if (!v) setEditField(null) }} onSaved={() => { setLocalFields([]); onRefresh() }} wizardMode={wizardMode} maxStep={effectiveMaxStep} basePath={basePath} />

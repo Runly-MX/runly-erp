@@ -16,11 +16,11 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { GripVertical, Pencil, Trash2, ChevronRight } from 'lucide-react'
+import { GripVertical, ListTree, Pencil, Trash2, ChevronRight } from 'lucide-react'
 import { useMutation } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { ConfirmDialog } from '@runly/ui'
+import { ConfirmDialog, EmptyState } from '@runly/ui'
 import { toast } from 'sonner'
 import MenuItemDialog from './MenuItemDialog.jsx'
 
@@ -162,9 +162,11 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
   if (rootItems.length === 0 && childItems.length === 0) {
     return (
       <div className="space-y-4">
-        <div className="rounded-xl border border-dashed border-[hsl(var(--border))] p-8 text-center">
-          <p className="text-[hsl(var(--muted-foreground))] text-sm">No hay elementos en este menu.</p>
-        </div>
+        <EmptyState
+          icon={ListTree}
+          title="Este menú está vacío"
+          description="Agrega los enlaces que tus visitantes verán para moverse por tu sitio: Inicio, Servicios, Contacto…"
+        />
         <button
           onClick={() => setAddOpen(true)}
           className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"

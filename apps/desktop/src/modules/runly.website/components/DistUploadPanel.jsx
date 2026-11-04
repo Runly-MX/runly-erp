@@ -518,10 +518,10 @@ const sdk = createStorefrontClient({
               ) : !buildsQuery.data?.data?.length ? (
                 <div className="px-4 py-6 text-center">
                   <p className="text-sm text-muted-foreground">
-                    No hay builds guardados
+                    Aún no hay versiones guardadas
                   </p>
                   <p className="text-xs text-muted-foreground/70 mt-1">
-                    Los proximos uploads se guardaran aqui para descarga
+                    Cada ZIP que subas quedará aquí para que lo puedas descargar de nuevo
                   </p>
                 </div>
               ) : (
