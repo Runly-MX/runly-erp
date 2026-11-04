@@ -22,7 +22,7 @@ import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError, isRevisionConflict } from '../../lib/websiteErrors.js'
 import { deriveEditorStatus } from '../../lib/siteState.js'
 import { clearBackup, writeBackup } from '../../lib/localBackup.js'
-import { editorPath, sitePath, slugify } from '../../lib/pageRoute.js'
+import { editorPath, sitePath, slugify, standaloneEditorPath } from '../../lib/pageRoute.js'
 
 import { describeCode } from '../../lib/websiteErrors.js'
 import { useDomains, usePages, useSiteContext, useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
@@ -81,7 +81,7 @@ function toInitialPage(document, pageMeta) {
 // Admin-only editor route (design 15.1). The builder owns its canvas, undo/redo
 // and its own "Guardar borrador"/"Publicar" buttons; we only provide the
 // callbacks it exposes. Saves are revisioned (PUT .../draft + expectedRevision).
-export default function SiteEditorScreen({ siteId, pageId }) {
+export default function SiteEditorScreen({ siteId, pageId, standalone = false }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
   const { session } = useAuth()
@@ -215,7 +215,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
         clearBackup(companyId, siteId, pageId)
         refreshSiteQueries()
         toast.success('Tu versión se guardó como una página nueva (privada).')
-        navigate(editorPath(siteId, created.id))
+        navigate(standalone ? standaloneEditorPath(siteId, created.id) : editorPath(siteId, created.id))
         return
       }
       if (kind === 'discard') {
@@ -314,7 +314,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
 
   const publicPageIds = (pages.data ?? []).filter((page) => page.visibility === 'public').map((page) => page.id)
   return (
-    <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col bg-[hsl(var(--background))]" style={{ top: 'calc(var(--topbar-height, 3.5rem) + var(--sat, 0px))' }} data-testid="website-editor">
+    <div className="fixed inset-x-0 bottom-0 z-40 flex flex-col bg-[hsl(var(--background))]" style={{ top: standalone ? 0 : 'calc(var(--topbar-height, 3.5rem) + var(--sat, 0px))' }} data-testid="website-editor">
       <EditorTopBar
         title={pageMeta?.title ?? 'Página'}
         siteName={site.data?.name ?? ''}
@@ -322,6 +322,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
         caps={caps}
         saveState={saveState}
         onBack={back}
+        onOpenFull={standalone ? undefined : () => window.open(standaloneEditorPath(siteId, pageId), '_blank', 'noopener')}
         onPreview={() => setPreviewOpen(true)}
         onPublish={() => setPublishOpen(true)}
         readOnlyReason={canEdit ? '' : 'Solo lectura'}

@@ -47,6 +47,7 @@ import { AppRouteGuard } from "./AppRouteGuard.jsx";
 import { ResetPasswordScreen } from "../auth/ResetPasswordScreen.jsx";
 import PublicNoteScreen from "../modules/runly.notes/PublicNoteScreen.jsx";
 
+const StandaloneSiteEditor = lazy(() => import("../modules/runly.website/screens/sites/StandaloneSiteEditor.jsx"));
 const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/GuestCallScreen.jsx"));
 // LiveKit Egress recorder page (no session; joins with the egress token).
 const EgressCallScreen = lazy(() => import("../modules/runly.chat/calls/egress/EgressCallScreen.jsx"));
@@ -212,6 +213,11 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="/app/mcp" element={<McpConnectionScreen />} />
                     <Route path="/app/accept-invitation" element={<AcceptInvitationScreen />} />
                     <Route path="/app/shared/:resourceType/:id" element={<SharedResourceScreen />} />
+                    <Route path="/app/editor/sites/:siteId/pages/:pageId" element={
+                      <ActiveCompanyProvider><ActiveCompanyGate>
+                        <Suspense fallback={null}><StandaloneSiteEditor /></Suspense>
+                      </ActiveCompanyGate></ActiveCompanyProvider>
+                    } />
                     <Route
                       path="/app"
                       element={

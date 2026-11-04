@@ -1,5 +1,5 @@
 import { Button, StatusPill } from '@runly/ui'
-import { AlertTriangle, ArrowLeft, CheckCircle2, CloudOff, Eye, FileEdit, Loader2, Rocket } from 'lucide-react'
+import { AlertTriangle, ArrowLeft, CheckCircle2, CloudOff, ExternalLink, Eye, FileEdit, Loader2, Rocket } from 'lucide-react'
 import { CapabilityButton } from './CapabilityButton.jsx'
 
 const SAVE_ICON = { saving: Loader2, saved: CheckCircle2, error: AlertTriangle, conflict: AlertTriangle, offline: CloudOff, idle: FileEdit }
@@ -14,7 +14,7 @@ function hhmm(at) {
 // atlas-web-builder 0.2.4 exposes no change/dirty signal or imperative save handle:
 // saving stays on the builder's own "Guardar borrador" button (onSaveDraft), and
 // "Publicar sitio" here publishes what is already SAVED.
-export function EditorTopBar({ title, siteName, status, caps, saveState, onBack, onPreview, onPublish, readOnlyReason }) {
+export function EditorTopBar({ title, siteName, status, caps, saveState, onBack, onOpenFull, onPreview, onPublish, readOnlyReason }) {
   const SaveIcon = SAVE_ICON[saveState] ?? FileEdit
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 md:px-4">
@@ -34,6 +34,11 @@ export function EditorTopBar({ title, siteName, status, caps, saveState, onBack,
       </div>
       <div className="ml-auto flex items-center gap-2">
         {readOnlyReason && <span className="text-xs text-[hsl(var(--muted-foreground))]">{readOnlyReason}</span>}
+        {onOpenFull && (
+          <Button variant="outline" size="sm" onClick={onOpenFull} title="Abrir el editor solo, en una pestaña nueva">
+            <ExternalLink className="h-4 w-4" /> <span className="hidden sm:inline">Pantalla completa</span>
+          </Button>
+        )}
         <CapabilityButton capability={caps.previewDraft} variant="outline" size="sm" onClick={onPreview}>
           <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Vista previa del sitio</span>
         </CapabilityButton>
