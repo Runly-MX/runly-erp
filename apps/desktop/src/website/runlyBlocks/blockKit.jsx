@@ -110,7 +110,8 @@ export function useScrollVar(max = 800) {
   const ref = useRef(null)
   useEffect(() => {
     const el = ref.current
-    if (!el || reduced()) return undefined
+    // Scroll-linked repaints of large SVG scenes stutter on phones; parallax is a desktop-only nicety.
+    if (!el || reduced() || !window.matchMedia?.('(min-width: 901px) and (pointer: fine)').matches) return undefined
     let frame
     const update = () => { frame = 0; const top = el.getBoundingClientRect().top; el.style.setProperty('--sy', String(Math.max(-max, Math.min(max, -top)).toFixed(1))) }
     const onScroll = () => { if (!frame) frame = requestAnimationFrame(update) }

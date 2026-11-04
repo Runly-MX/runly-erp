@@ -18,6 +18,9 @@ const NAV_CSS = `
 .im-nav .mob summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:${G.mint};color:${G.forest}}
 .im-nav .mob summary::-webkit-details-marker{display:none}
 .im-nav .mob[open] summary{background:${G.forest};color:#fff}
+.im-nav .mob[open] .panel{animation:im-menu .28s cubic-bezier(.2,.8,.2,1);transform-origin:top right}
+@keyframes im-menu{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.im-nav .mob[open] .panel{animation:none}}
 .im-nav .panel{position:absolute;right:0;top:calc(100% + 10px);width:min(86vw,320px);background:#fff;border:1px solid ${G.line};border-radius:18px;padding:10px;box-shadow:0 24px 50px -20px rgba(15,59,34,.35);display:grid;gap:2px}
 .im-nav .panel a{display:flex;align-items:center;min-height:48px;padding:0 14px;border-radius:12px;color:${G.ink};font-weight:600;text-decoration:none}
 .im-nav .panel a:hover,.im-nav .panel a[aria-current="page"]{background:${G.mint};color:${G.forest}}

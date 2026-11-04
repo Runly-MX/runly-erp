@@ -18,6 +18,7 @@ export const CR_CSS = `
 .cr-glass{position:relative;isolation:isolate;overflow:hidden;background:linear-gradient(140deg,rgba(255,255,255,.62),rgba(255,255,255,.22));-webkit-backdrop-filter:blur(22px) saturate(180%);backdrop-filter:blur(22px) saturate(180%);border:1px solid rgba(255,255,255,.7);box-shadow:inset 0 1px 1px rgba(255,255,255,.95),inset 0 -10px 24px -14px rgba(255,255,255,.7),0 24px 60px -28px rgba(20,70,150,.45)}
 .cr-glass::before{content:"";position:absolute;inset:0;z-index:-1;pointer-events:none;background:radial-gradient(320px circle at calc(var(--mx,.3)*100%) calc(var(--my,.1)*100%),rgba(255,255,255,.75),transparent 55%);opacity:.8;transition:opacity .3s}
 .cr-glass::after{content:"";position:absolute;inset:-40% -60%;z-index:-1;pointer-events:none;background:linear-gradient(115deg,transparent 42%,rgba(255,255,255,.55) 50%,transparent 58%);transform:translateX(-60%)}
+.cr-glass.flat{-webkit-backdrop-filter:none;backdrop-filter:none;background:linear-gradient(140deg,rgba(255,255,255,.86),rgba(255,255,255,.62))}
 .cr-glass.dark{background:linear-gradient(140deg,rgba(18,40,80,.55),rgba(18,40,80,.25));border-color:rgba(255,255,255,.22);color:#fff;box-shadow:inset 0 1px 1px rgba(255,255,255,.35),0 24px 60px -28px rgba(5,20,50,.7)}
 .cr-glass.dark::before{background:radial-gradient(320px circle at calc(var(--mx,.3)*100%) calc(var(--my,.1)*100%),rgba(255,255,255,.18),transparent 55%)}
 .cr-btn{position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:48px;padding:0 22px;border-radius:999px;font-weight:700;font-size:15px;text-decoration:none;cursor:pointer;border:0;transition:transform .25s cubic-bezier(.3,1.3,.5,1),box-shadow .3s ease}
@@ -57,10 +58,14 @@ export const CR_CSS = `
 .cr-grad{animation:cr-gradtext 6s linear infinite}
 .cr svg .cr-cloud{animation:cr-drift linear infinite}
 .cr-ripple{animation:cr-ripple 2.4s ease-out infinite}
-.cr-rv{transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1),filter .9s ease;transition-delay:calc(var(--i,0)*110ms)}
-[data-rv="wait"] .cr-rv{opacity:0;transform:translateY(30px) scale(.98);filter:blur(8px)}
+.cr-rv{transition:opacity .9s cubic-bezier(.2,.7,.2,1),transform .9s cubic-bezier(.2,.7,.2,1);transition-delay:calc(var(--i,0)*110ms)}
+[data-rv="wait"] .cr-rv{opacity:0;transform:translateY(30px) scale(.98)}
 [data-rv="wait"] .cr-rv.up{transform:translateY(80px)}
 }
+/* Phones and touch screens: backdrop blur is the costliest effect, so it is lighter and nothing animates behind or across glass. */
+@media (max-width:900px),(pointer:coarse){.cr-glass{-webkit-backdrop-filter:blur(12px) saturate(160%);backdrop-filter:blur(12px) saturate(160%)}.cr-glass::after,.cr-blob{animation:none!important}.cr-glass::before{display:none}}
+@keyframes cr-menu{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:no-preference){details[open]>.cr-menu{animation:cr-menu .28s cubic-bezier(.2,.8,.2,1);transform-origin:top right}}
 @media (prefers-reduced-motion:reduce){.cr *,.cr,.cr *::before,.cr *::after{animation:none!important;transition:none!important}}
 `
 export const CrStyle = () => <style>{CR_CSS}</style>
@@ -111,17 +116,17 @@ export function SkyScene({ height = '100%', clouds = 6 }) {
         <linearGradient id={`${id}m1`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#7E98BC" /><stop offset="1" stopColor="#9DB4D2" /></linearGradient>
         <linearGradient id={`${id}m2`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#5D7397" /><stop offset="1" stopColor="#7F95B6" /></linearGradient>
         <linearGradient id={`${id}g`} x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="#8DB86A" /><stop offset=".5" stopColor="#6E9F4E" /><stop offset="1" stopColor="#4F7F37" /></linearGradient>
-        <filter id={`${id}b`} x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="6" /></filter>
+        <radialGradient id={`${id}c`}><stop offset=".55" stopColor="#FFFFFF" /><stop offset="1" stopColor="#FFFFFF" stopOpacity="0" /></radialGradient>
       </defs>
       <rect width="1600" height="900" fill={`url(#${id}s)`} />
       <rect width="1600" height="900" fill={`url(#${id}h)`} />
-      <g style={layer(0.08)} filter={`url(#${id}b)`} fill="#FFFFFF">
+      <g style={layer(0.08)} fill={`url(#${id}c)`}>
         {Array.from({ length: clouds }, (_, index) => {
           const y = 80 + (index * 67) % 260, s = 0.6 + ((index * 37) % 50) / 60
           return (
             <g key={index} className="cr-cloud" style={{ animationDuration: `${70 + index * 17}s`, animationDelay: `${-index * 23}s` }}>
               <g transform={`translate(${-260} ${y}) scale(${s})`} opacity={0.75 + (index % 3) * 0.08}>
-                <ellipse cx="80" cy="40" rx="80" ry="26" /><ellipse cx="130" cy="26" rx="54" ry="30" /><ellipse cx="60" cy="24" rx="40" ry="22" /><ellipse cx="170" cy="42" rx="50" ry="18" />
+                <ellipse cx="80" cy="40" rx="92" ry="32" /><ellipse cx="130" cy="26" rx="64" ry="38" /><ellipse cx="60" cy="24" rx="50" ry="28" /><ellipse cx="170" cy="42" rx="60" ry="24" />
               </g>
             </g>
           )
@@ -169,7 +174,7 @@ export function Phone({ title, topics, active }) {
         </div>
         <div style={{ position: 'relative', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '8px', padding: '26px 14px 0' }}>
           {topics.map((topic, index) => (
-            <span key={topic} className="cr-float" style={{ animationDelay: `${-index * 0.9}s`, animationDuration: `${5 + (index % 3)}s`, padding: '8px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, color: topic === active ? C.ink : '#fff', background: topic === active ? '#fff' : 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.45)', boxShadow: topic === active ? '0 8px 20px -8px rgba(0,0,0,.35)' : 'inset 0 1px 1px rgba(255,255,255,.5)', WebkitBackdropFilter: 'blur(8px)', backdropFilter: 'blur(8px)' }}>{topic}</span>
+            <span key={topic} className="cr-float" style={{ animationDelay: `${-index * 0.9}s`, animationDuration: `${5 + (index % 3)}s`, padding: '8px 12px', borderRadius: '999px', fontSize: '12px', fontWeight: 700, color: topic === active ? C.ink : '#fff', background: topic === active ? '#fff' : 'rgba(255,255,255,.2)', border: '1px solid rgba(255,255,255,.45)', boxShadow: topic === active ? '0 8px 20px -8px rgba(0,0,0,.35)' : 'inset 0 1px 1px rgba(255,255,255,.5)' }}>{topic}</span>
           ))}
         </div>
         <div style={{ position: 'absolute', left: '50%', bottom: '14%', translate: '-50% 0' }}><Orb size={78} /></div>

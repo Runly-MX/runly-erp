@@ -3,6 +3,19 @@ import {websiteErrorHandler} from '../../services/website-authorization-service.
 import {websiteReleasePath} from '../../services/website-release-service.js'
 import {websiteIsolatedHeaders} from '../../services/website-static-serving.js'
 import {requestOrigin,websiteSeoHead} from '../../services/website-seo-head.js'
+import {brotliCompressSync,gzipSync,constants as zlib} from 'node:zlib'
+// The runtime and stylesheet are content-addressed (the URL carries their hash), so they never change: they are
+// compressed once and cached by browsers for a year. A ~1 MB runtime sent raw with no-store took ~5 s on a phone.
+const compressed=new Map()
+function sendCode(c,hash,bytes,mime) {
+  const accept=c.req.header('accept-encoding')??'', encoding=/br/.test(accept)?'br':/gzip/.test(accept)?'gzip':null
+  c.header('Content-Type',mime);c.header('Cache-Control','public, max-age=31536000, immutable');c.header('Vary','Accept-Encoding')
+  if(!encoding||bytes.length<1024)return c.body(bytes)
+  const key=`${encoding}:${hash}`
+  if(!compressed.has(key)){if(compressed.size>64)compressed.delete(compressed.keys().next().value);compressed.set(key,encoding==='br'?brotliCompressSync(bytes,{params:{[zlib.BROTLI_PARAM_QUALITY]:9}}):gzipSync(bytes,{level:9}))}
+  c.header('Content-Encoding',encoding);return c.body(compressed.get(key))
+}
+const isCode=mime=>/^text\/(?:javascript|css)/.test(mime??'')
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))
 export function createPublicReleaseRoutes({gateway,runtime}) {
  const app=new Hono();app.onError(websiteErrorHandler)
@@ -10,11 +23,12 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
  app.get('/releases/:releaseId/assets/:hash',async c=>{
    const result=await gateway.asset(c,c.req.param('releaseId'),c.req.param('hash'))
    if(result.kind==='dist')websiteIsolatedHeaders(c)
+   if(result.kind!=='dist'&&isCode(result.mime))return sendCode(c,c.req.param('hash'),Buffer.from(result.bytes),result.mime)
    c.header('Content-Type',result.mime);return c.body(result.bytes)
  })
  app.get('/runtime/:hash',async c=>{
    const files=await runtime(), file=Object.values(files).find(f=>f.hash===c.req.param('hash'))
-   if(!file)return c.notFound();c.header('Content-Type',file.mime);return c.body(file.bytes)
+   if(!file)return c.notFound();return sendCode(c,file.hash,Buffer.from(file.bytes),file.mime)
  })
  return app
 }

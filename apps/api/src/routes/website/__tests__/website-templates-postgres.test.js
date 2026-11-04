@@ -192,7 +192,7 @@ async function publishedSite(templateId, siteType = 'website') {
   const base = `http://${f.host.hostname}:${address.port}`
   const open = async (viewport = { width: 1280, height: 900 }) => {
     const context = await browser.newContext({ viewport })
-    await context.route('**/*', (route) => { const u = new URL(route.request().url()); return u.hostname === f.host.hostname && u.port === String(address.port) ? route.continue() : route.abort() })
+    await context.route('**/*', (route) => { const u = new URL(route.request().url()); return u.hostname === f.host.hostname && u.port === String(address.port) ? route.continue({ headers: { ...route.request().headers(), 'accept-encoding': 'gzip, deflate, br' } }) : route.abort() })
     const page = await context.newPage()
     const problems = []
     page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`))
@@ -362,3 +362,32 @@ test('Tienda: browse, add to cart, live cart count, checkout with trusted prices
     assert.deepEqual(problems.filter((p) => !/favicon|checkout\.stripe/.test(p)), [])
   } finally { await site.close() }
 })
+
+// ---- Opt-in performance probe (RUNLY_WEBSITE_PERF=1): a mid-range phone (4x CPU slowdown, slow 4G) per template ----
+// Reports time until the page is visible and frames per second while idle and while scrolling. Measures only.
+const perf = process.env.RUNLY_WEBSITE_PERF === '1'
+for (const template of allTemplates) {
+  test(`${template.id}: phone performance probe`, { skip: skipBrowser || !perf }, async () => {
+    const site = await publishedSite(template.id, template.id === 'atlas-tienda' ? 'ecommerce' : 'website')
+    try {
+      const { page } = await site.open({ width: 390, height: 800 })
+      const cdp = await page.context().newCDPSession(page)
+      await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 })
+      await cdp.send('Network.emulateNetworkConditions', { offline: false, latency: 150, downloadThroughput: 1.6 * 1024 * 1024 / 8, uploadThroughput: 750 * 1024 / 8 })
+      await page.goto(site.base + '/', { waitUntil: 'commit' })
+      const visible = await page.waitForFunction(() => document.querySelector('#runly-public-root header, #runly-public-root nav') && performance.now(), null, { timeout: 60000, polling: 50 }).then((h) => h.jsonValue())
+      await page.waitForTimeout(1500)
+      const sample = (scroll) => page.evaluate((scroll) => new Promise((done) => {
+        let frames = 0, long = 0
+        const obs = new PerformanceObserver((list) => { for (const e of list.getEntries()) long += e.duration })
+        try { obs.observe({ type: 'longtask' }) } catch {}
+        const start = performance.now()
+        const tick = (now) => { frames += 1; if (scroll) window.scrollBy(0, 14); if (now - start < 3000) requestAnimationFrame(tick); else { obs.disconnect(); done({ fps: Math.round(frames / ((now - start) / 1000)), long: Math.round(long) }) } }
+        requestAnimationFrame(tick)
+      }), scroll)
+      const idle = await sample(false)
+      const scrolling = await sample(true)
+      console.log(`PERF ${template.id.padEnd(18)} visible ${String(Math.round(visible)).padStart(5)} ms | idle ${String(idle.fps).padStart(3)} fps, ${String(idle.long).padStart(5)} ms blocked | scroll ${String(scrolling.fps).padStart(3)} fps, ${String(scrolling.long).padStart(5)} ms blocked`)
+    } finally { await site.close() }
+  })
+}

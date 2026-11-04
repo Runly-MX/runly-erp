@@ -53,7 +53,7 @@ export const CrNavbarBlock = defineBlock({
           <div className="cta"><Btn href={ctaHref}>{ctaLabel}</Btn></div>
           <details className="mob">
             <summary className="cr-glass" aria-label="Abrir menú"><span className="bars" aria-hidden="true" /></summary>
-            <nav className="panel cr-glass" aria-label="Principal móvil">
+            <nav className="panel cr-glass cr-menu" aria-label="Principal móvil">
               {items.map((item) => <a key={item.href + item.label} href={item.href} aria-current={item.href === active ? 'page' : undefined}>{item.label}</a>)}
               {ctaLabel && <a href={safeHref(ctaHref)} style={{ justifyContent: 'center', marginTop: '6px', background: C.blueHex, color: '#fff' }}>{ctaLabel}</a>}
             </nav>
@@ -331,7 +331,7 @@ export const CrVoicesBlock = defineBlock({
   render: (props) => <Voices {...props} />,
 })
 const Voice = ({ name, role, text, hidden }) => (
-  <figure className="cr-glass" aria-hidden={hidden || undefined} style={{ margin: 0, width: '320px', flexShrink: 0, padding: '20px', borderRadius: '24px' }}>
+  <figure className="cr-glass flat" aria-hidden={hidden || undefined} style={{ margin: 0, width: '320px', flexShrink: 0, padding: '20px', borderRadius: '24px' }}>
     <Stars />
     <blockquote style={{ margin: '10px 0 0', fontSize: '15px', lineHeight: 1.6 }}>{text}</blockquote>
     <figcaption style={{ marginTop: '14px', display: 'flex', alignItems: 'center', gap: '10px' }}>
