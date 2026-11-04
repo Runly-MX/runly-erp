@@ -21,9 +21,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'light',
+    tone: 'light',
     brand: 'Serenity Spa',
     tagline: 'Bienestar integral para cuerpo, mente y espíritu.',
     columns: 'Servicios | Servicios\nMasajes | /servicios\nFaciales | /servicios\nAromaterapia | /servicios\nYoga | /servicios\n---\nInformación | Información\nNosotros | /\nEquipo | /equipo\nPolítica de privacidad | /\n---\nContacto | Contacto\nReservar cita | /contacto\nWhatsApp | /\nInstagram | /',

@@ -21,9 +21,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'dark',
+    tone: 'ink',
     brand: 'Finora',
     tagline: 'Banca moderna para un futuro más brillante.',
     columns: 'Préstamos | Préstamos\nPersonal | /prestamos\nHipotecario | /prestamos\nAutomotriz | /prestamos\nEmpresarial | /prestamos\n---\nFinora | Finora\nCómo funciona | /como-funciona\nNosotros | /nosotros\nContacto | /contacto\n---\nLegal | Legal\nAviso de privacidad | /\nTérminos y condiciones | /',

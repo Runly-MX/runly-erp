@@ -20,9 +20,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'dark',
+    tone: 'ink',
     brand: 'Aurora Viajes',
     tagline: 'Viajes diseñados para recordarse.',
     columns: 'Explorar | Explorar\nDestinos | /destinos\nExperiencias | /experiencias\nContacto | /contacto\n---\nAyuda | Ayuda\nPreguntas frecuentes | /\nPolíticas de cancelación | /\n---\nLegal | Legal\nAviso de privacidad | /\nTérminos y condiciones | /',

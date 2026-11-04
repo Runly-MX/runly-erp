@@ -27,9 +27,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant:  'dark',
+    tone: 'ink',
     brand:    'Habitia',
     tagline:  'Objetos que dan vida al hogar.',
     columns:  'Colecciones | Colecciones\nSala | /coleccion\nComedor | /coleccion\nRecámara | /coleccion\nJardín | /coleccion\n---\nHabitia | Habitia\nNuestra historia | /nosotros\nGuía de cuidados | /cuidados\nContacto | /contacto\n---\nAyuda | Ayuda\nEnvíos y devoluciones | /\nPreguntas frecuentes | /\nPolítica de privacidad | /',

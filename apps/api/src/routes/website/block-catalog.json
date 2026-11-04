@@ -2971,6 +2971,57 @@
       }
     },
     {
+      "type": "SiteFooterBlock",
+      "label": "Pie de página con colores del tema",
+      "category": "navigation",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "tone": "ink",
+        "brand": "Mi sitio",
+        "tagline": "",
+        "columns": "Explorar\nInicio | /\nContacto | /contacto",
+        "copyright": "",
+        "showBrand": true,
+        "backToTop": true
+      },
+      "fields": {
+        "tone": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "ink",
+            "primary",
+            "light"
+          ]
+        },
+        "brand": {
+          "type": "text",
+          "label": "Nombre"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Lema"
+        },
+        "columns": {
+          "type": "textarea",
+          "label": "Columnas (título en la primera línea; Etiqueta | /ruta; separadas por ---)"
+        },
+        "copyright": {
+          "type": "text",
+          "label": "Derechos"
+        },
+        "showBrand": {
+          "type": "toggle",
+          "label": "Mostrar nombre y lema"
+        },
+        "backToTop": {
+          "type": "toggle",
+          "label": "Enlace \"Volver arriba\""
+        }
+      }
+    },
+    {
       "type": "FinHeroBlock",
       "label": "Hero fintech con teléfono",
       "category": "atlas",

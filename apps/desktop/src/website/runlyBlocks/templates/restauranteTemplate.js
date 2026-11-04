@@ -46,9 +46,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'dark',
+    tone: 'ink',
     brand: 'El Sabor',
     tagline: 'Cocina de autor con alma y tradición.',
     columns: 'Navegar | Navegar\nInicio | /\nMenú | /menu\nGalería | /galeria\nNosotros | /nosotros\n---\nContacto | Contacto\nReservaciones | /contacto\nWhatsApp | /\nInstagram | /\n---\nHorario | Horario\nLunes a Viernes | /\n1:00pm – 11:00pm | /\nSábados y Domingos | /\n12:00pm – 11:30pm | /',

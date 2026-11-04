@@ -18,9 +18,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'light',
+    tone: 'light',
     brand: 'Empresa',
     tagline: 'Tu aliado estratégico para el crecimiento empresarial.',
     columns: 'Servicios | Servicios\nConsultoría | /servicios\nOptimización | /servicios\nCapacitación | /servicios\nTransformación Digital | /servicios\n---\nEmpresa | Empresa\nNosotros | /nosotros\nCasos de éxito | /\nContacto | /contacto\n---\nLegal | Legal\nPolítica de privacidad | /\nTérminos | /',

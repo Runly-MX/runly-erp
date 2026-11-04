@@ -5,7 +5,7 @@ const nearestHeight = (value) => LOGO_HEIGHTS.reduce((best, h) => (Math.abs(h - 
 
 export function applyTemplateBranding(document, { name, logoFileId, logoHeight } = {}) {
   for (const block of Object.values(document?.blocks ?? {})) {
-    if (!['NavbarBlock', 'StoreNavbarBlock', 'FooterBlock'].includes(block.type)) continue
+    if (!['NavbarBlock', 'StoreNavbarBlock', 'FooterBlock', 'SiteFooterBlock'].includes(block.type)) continue
     const previous = block.props.brand
     if (name) {
       block.props.brand = name

@@ -18,9 +18,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'primary',
+    tone: 'primary',
     brand: 'Mi Tienda',
     tagline: 'Objetos hechos con calma, enviados con cuidado.',
     columns: 'Comprar | Comprar\nTodos los productos | /productos\nMi carrito | /carrito\n---\nAyuda | Ayuda\nContacto | /contacto\nNosotros | /nosotros\n---\nLegal | Legal\nTérminos y condiciones | /\nPolítica de privacidad | /',

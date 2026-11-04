@@ -14,6 +14,7 @@ const TILES = Object.fromEntries(Object.entries({
 }).map(([name, rows]) => [name, rows.map((row) => row.join(NEWLINE)).join(NEWLINE + '---' + NEWLINE)]))
 
 const ROLE = { navbar: 'NavbarBlock', footer: 'FooterBlock' }
+const FOOTER_TYPES = new Set(['FooterBlock', 'SiteFooterBlock'])
 
 export function polishPage(templateId, pageId, data) {
   const config = POLISH[templateId]
@@ -21,7 +22,7 @@ export function polishPage(templateId, pageId, data) {
   const home = pageId === 'home'
   const blocks = { ...data.blocks }
   const rootIds = [...data.rootIds]
-  const body = rootIds.filter((id) => ![ROLE.navbar, ROLE.footer].includes(blocks[id]?.type))
+  const body = rootIds.filter((id) => ![ROLE.navbar].includes(blocks[id]?.type) && !FOOTER_TYPES.has(blocks[id]?.type))
   const copy = (id) => { blocks[id] = { ...blocks[id], props: { ...blocks[id].props } }; return blocks[id].props }
 
   for (const id of body) {

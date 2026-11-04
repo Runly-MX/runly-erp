@@ -28,6 +28,7 @@ import { ProjectCardsBlock } from './projectCardsBlock.jsx'
 import { LogoCloudBlock }    from './logoCloudBlock.jsx'
 import { TopBarBlock }       from './topBarBlock.jsx'
 import { ParallaxSectionBlock } from './parallaxSectionBlock.jsx'
+import { SiteFooterBlock } from './siteFooterBlock.jsx'
 import { FinHeroBlock } from './finHeroBlock.jsx'
 import { FinClosingBlock } from './finClosingBlock.jsx'
 import { FinCalculatorBlock } from './finCalculatorBlock.jsx'
@@ -87,6 +88,7 @@ export const universalRunlyBlocks = [
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  SiteFooterBlock,
   FinHeroBlock,
   FinCalculatorBlock,
   FinLoanCardsBlock,
@@ -159,6 +161,7 @@ export {
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  SiteFooterBlock,
   FinHeroBlock,
   FinCalculatorBlock,
   FinLoanCardsBlock,

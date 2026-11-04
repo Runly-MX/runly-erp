@@ -22,9 +22,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'dark',
+    tone: 'ink',
     brand: 'Maya Web Studio',
     tagline: 'Sitios web bonitos y funcionales para marcas que quieren crecer.',
     columns: 'Explorar | Explorar\nServicios | /servicios\nTrabajo | /trabajo\nProceso | /proceso\n---\nContacto | Contacto\nhola@mayadesigns.com | /contacto\n(415) 555-0198 | /contacto\nSan Diego, CA | /contacto\n---\nLegal | Legal\nAviso de privacidad | /\nTérminos y condiciones | /',

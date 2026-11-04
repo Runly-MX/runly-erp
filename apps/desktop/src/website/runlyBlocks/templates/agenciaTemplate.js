@@ -18,9 +18,9 @@ const NAVBAR = {
 
 const FOOTER = {
   id: 'footer',
-  type: 'FooterBlock',
+  type: 'SiteFooterBlock',
   props: {
-    variant: 'dark',
+    tone: 'ink',
     brand: 'Nexus Studio',
     tagline: 'Creatividad, estrategia y tecnología al servicio de tu marca.',
     columns: 'Servicios | Servicios\nBranding | /servicios\nDiseño Web | /servicios\nMarketing Digital | /servicios\nDesarrollo | /servicios\n---\nAgencia | Agencia\nNosotros | /\nPortafolio | /portafolio\nEquipo | /equipo\n---\nContacto | Contacto\nHablemos | /contacto\nLinkedIn | /\nInstagram | /',
