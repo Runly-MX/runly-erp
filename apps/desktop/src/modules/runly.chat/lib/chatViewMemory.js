@@ -14,7 +14,7 @@ export function rememberChatView(state) {
 }
 
 export function markChatViewUnmounted(conversationId) {
-  if (remembered?.conversationId === conversationId) remembered.unmountedAt = Date.now();
+  if (remembered && remembered.conversationId === conversationId) remembered.unmountedAt = Date.now();
 }
 
 // React renders the new tree before it runs the old tree's unmount cleanup,
