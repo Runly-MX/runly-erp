@@ -19,11 +19,14 @@ export const SECTIONS = [
 ]
 
 const SITE_PATH = new RegExp(`^${PUBLIC_ROUTE_ROOT}/sites/([^/]+)`)
+const TEMPLATE_PATH = new RegExp(`^${PUBLIC_ROUTE_ROOT}/templates/`)
 
 // While a site is open the shell sidebar belongs to that site: its name on top, a way back to the list and only its
 // own sections. Outside a site (or any other module) the module is returned untouched.
-export function useSiteSidebarModule(activeModule, pathname) {
-  const siteId = activeModule?.key === 'runly.website' ? SITE_PATH.exec(pathname)?.[1] ?? null : null
+// Template previews opened from a site carry it as ?siteId= and keep that site's sidebar.
+export function useSiteSidebarModule(activeModule, pathname, search = '') {
+  const fromQuery = TEMPLATE_PATH.test(pathname) ? new URLSearchParams(search).get('siteId') : null
+  const siteId = activeModule?.key === 'runly.website' ? SITE_PATH.exec(pathname)?.[1] ?? (fromQuery ? encodeURIComponent(fromQuery) : null) : null
   const id = siteId ? decodeURIComponent(siteId) : null
   const site = useSite(id)
   const caps = useWebsiteCapabilities(id)

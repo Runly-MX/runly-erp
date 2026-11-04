@@ -94,10 +94,21 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
         if(releaseBytesHash(bytes)!==ref.hash)changedFiles=true
       }
       const publicIdentity={...manifest?.identity};delete publicIdentity.analyticsMode;delete publicIdentity.turnstileSiteKey
-      const changedGlobals=!manifest||hash(identityProjection)!==hash(publicIdentity)||hash(themeProjection)!==hash(manifest.theme)||hash(menuProjection)!==hash([...(manifest.menus??[])].sort((a,b)=>a.id.localeCompare(b.id)))
-      const missingPublished=manifest?.routes?.some(r=>r.sourceKind==='page'&&!rows.some(p=>p.id===r.sourceId))??false
+      const changedIdentity=!manifest||hash(identityProjection)!==hash(publicIdentity),changedTheme=!manifest||hash(themeProjection)!==hash(manifest.theme)
+      const changedMenus=!manifest||hash(menuProjection)!==hash([...(manifest.menus??[])].sort((a,b)=>a.id.localeCompare(b.id)))
+      const changedGlobals=changedIdentity||changedTheme||changedMenus
+      const removedPages=manifest?.routes?.filter(r=>r.sourceKind==='page'&&!rows.some(p=>p.id===r.sourceId))??[]
+      const missingPublished=removedPages.length>0
+      // What the "unpublished changes" badge summarizes; only kinds and counts, page titles need pages.read.
+      const canReadPages=a.access.can('website.pages.read')
+      const changes=[
+        ...(changedIdentity?[{kind:'identity'}]:[]),...(changedTheme?[{kind:'theme'}]:[]),...(changedMenus?[{kind:'menus'}]:[]),
+        ...(canReadPages?pages.filter(p=>p.hasUnpublishedChanges).map(p=>{const row=rows.find(r=>r.id===p.id);return {kind:'page',id:p.id,title:(row.draftMetadata??row).title,isNew:p.publicState==='unpublished'}}):[]),
+        ...(removedPages.length?[{kind:'removedPages',count:removedPages.length,titles:canReadPages?removedPages.map(r=>r.title):[]}]:[]),
+        ...(changedPosts||missingPosts?[{kind:'posts'}]:[]),...(changedFiles?[{kind:'files'}]:[]),
+      ]
       return {id:site.id,companyId:a.companyId,draftRevision:site.draftRevision,publicationRevision:site.publicationRevision,activeReleaseId:site.activeReleaseId,lifecycle:site.lifecycle,
-        hasUnpublishedChanges:manifest?.kind==='dist'?false:changedGlobals||changedPosts||missingPosts||changedFiles||missingPublished||pages.some(p=>p.hasUnpublishedChanges),pages:a.access.can('website.pages.read')?pages:[],...capabilities(a,site)}
+        hasUnpublishedChanges:manifest?.kind==='dist'?false:changedGlobals||changedPosts||missingPosts||changedFiles||missingPublished||pages.some(p=>p.hasUnpublishedChanges),changes:manifest?.kind==='dist'?[]:changes,pages:canReadPages?pages:[],...capabilities(a,site)}
     },{isolationLevel:'RepeatableRead',timeout:30000})
   }
   function releaseDTO(row) {

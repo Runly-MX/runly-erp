@@ -141,7 +141,9 @@ export default function TemplatePreviewScreen() {
   const applyMutation = useMutation({
     mutationFn: async () => {
       if (!template || !site) throw new Error('Sin plantilla o sitio seleccionado')
-      const body={expectedRevision:site.draftRevision,pageIds:selectedPageIds,includeTheme:Boolean(template.themeTokens&&caps.templatesApplyTheme?.allowed)}
+      // Every page write bumps the site revision, so read the current one instead of the cached site.
+      const fresh=await apiFetch(`/website/sites/${site.id}`,token)
+      const body={expectedRevision:fresh.data.draftRevision,pageIds:selectedPageIds,includeTheme:Boolean(template.themeTokens&&caps.templatesApplyTheme?.allowed)}
       const hash=JSON.stringify({...body,expectedRevision:undefined})
       if(commandRef.current?.hash!==hash)commandRef.current={hash,body,key:newIdempotencyKey()}
       const result=await apiFetch(`/website/sites/${site.id}/templates/${template.id}/apply`,token,{method:'POST',headers:{'Idempotency-Key':commandRef.current.key},body:JSON.stringify(commandRef.current.body)})

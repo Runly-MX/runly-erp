@@ -293,7 +293,8 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     const before = await getPage({ companyId, pageId })
     await prisma.websitePage.update({
       where: { id: pageId, companyId, siteId: before.siteId },
-      data: { enabled: false },
+      // The (site, route_path) unique index also covers deleted rows; free the route for new pages.
+      data: { enabled: false, routePath: `${before.routePath}#deleted-${pageId}` },
     })
     await prisma.auditLog.create({
       data: {

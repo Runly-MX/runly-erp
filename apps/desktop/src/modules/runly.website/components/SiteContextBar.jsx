@@ -10,7 +10,15 @@ import {
 import { ChevronDown, Eye, Globe, Rocket } from 'lucide-react'
 import { SiteStatusChip } from './SiteStatusChip.jsx'
 import { CapabilityButton } from './CapabilityButton.jsx'
-import { PUBLIC_ROUTE_ROOT, sitePath } from '../lib/pageRoute.js'
+import { PUBLIC_ROUTE_ROOT, editorPath, sitePath } from '../lib/pageRoute.js'
+
+const CHANGE_SECTION = { identity: 'settings', theme: 'appearance', menus: 'appearance', removedPages: 'pages', posts: 'blog' }
+
+function describeChange(change) {
+  if (change.kind === 'page') return `${change.isNew ? 'Página nueva' : 'Página editada'}: ${change.title}`
+  if (change.kind === 'removedPages') return `${change.count === 1 ? 'Una página borrada sigue' : `${change.count} páginas borradas siguen`} en el sitio público${change.titles?.length ? ` (${change.titles.join(', ')})` : ''}`
+  return { identity: 'Nombre, tipo o ajustes del sitio', theme: 'Tema (colores y tipografía)', menus: 'Menús de navegación', posts: 'Entradas del blog', files: 'Imágenes usadas en el sitio' }[change.kind] ?? change.kind
+}
 
 // Persistent context for every section of a site: which site, whether the
 // draft differs from what is public, and the two primary actions.
@@ -53,7 +61,25 @@ export function SiteContextBar({ site, sites = [], state, caps, onPublish, onPre
           </DropdownMenuContent>
         </DropdownMenu>
       </nav>
-      <SiteStatusChip state={state} />
+      {state?.hasPending && site?.changes?.length ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button type="button" className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]" aria-label="Ver qué cambios faltan por publicar">
+              <SiteStatusChip state={state} />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="w-80 max-w-[calc(100vw-2rem)]">
+            <DropdownMenuLabel>Pendiente de publicar</DropdownMenuLabel>
+            {site.changes.map((change) => (
+              <DropdownMenuItem key={change.id ?? change.kind} onSelect={() => change.kind === 'page' ? navigate(editorPath(site.id, change.id)) : CHANGE_SECTION[change.kind] && navigate(sitePath(site.id, CHANGE_SECTION[change.kind]))}>
+                <span className="min-w-0 whitespace-normal text-sm">{describeChange(change)}</span>
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
+            <div className="px-2 py-1.5 text-xs text-[hsl(var(--muted-foreground))]">Tu sitio público no cambia hasta que uses Publicar.</div>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : <SiteStatusChip state={state} />}
       <div className="ml-auto flex items-center gap-2">
         <CapabilityButton capability={caps?.previewSite} variant="outline" size="sm" onClick={onPreview} disabled={archived}>
           <Eye className="h-4 w-4" /> <span className="hidden sm:inline">Vista previa</span>
