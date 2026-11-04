@@ -60,6 +60,13 @@ export default function ProductsGridRenderer({ categorySlug = '', limit = 8, col
   const cfg = readAtlasConfig()
   const configured = Boolean(cfg?.apiUrl && cfg?.company)
 
+  // Header search (?q=) and category links (?c=) land here already filtered.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (showSearch && params.get('q')) setSearch(params.get('q'))
+    if (showCategories && params.get('c')) setChip(params.get('c'))
+  }, [showSearch, showCategories])
+
   useEffect(() => {
     if (!showCategories || !configured) return
     fetchPublicCatalog('categories').then((json) => setCategories(json?.data ?? [])).catch(() => {})

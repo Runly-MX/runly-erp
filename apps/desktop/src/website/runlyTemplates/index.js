@@ -8,6 +8,7 @@ import { finoraTemplate,      finoraSitePages }      from '../runlyBlocks/templa
 import { mayaTemplate,        mayaSitePages }        from '../runlyBlocks/templates/mayaTemplate.js'
 import { auroraTemplate,      auroraSitePages }      from '../runlyBlocks/templates/auroraTemplate.js'
 import { devfolioTemplate, devfolioSitePages } from '../runlyBlocks/templates/devfolioTemplate.js'
+import { mercadoTemplate, mercadoSitePages } from '../runlyBlocks/templates/mercadoTemplate.js'
 import { impulsaTemplate, impulsaSitePages } from '../runlyBlocks/templates/impulsaTemplate.js'
 
 import { TEMPLATE_THEMES } from './templateThemes.js'
@@ -82,5 +83,6 @@ export const allTemplates = [
   wrapTemplate(mayaTemplate,       mayaSitePages),
   wrapTemplate(auroraTemplate,     auroraSitePages),
   wrapTemplate(devfolioTemplate,   devfolioSitePages),
+  wrapTemplate(mercadoTemplate,    mercadoSitePages),
   wrapTemplate(impulsaTemplate,    impulsaSitePages),
 ]

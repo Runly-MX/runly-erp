@@ -81,4 +81,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'pill' },
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
+  'atlas-mercado': {
+    color: { primary: '#14432F', primaryFg: '#FFFFFF', bg: '#F6F5F0', fg: '#15241C', muted: '#5D6A62', accent: '#D9482B' },
+    font: { sans },
+    radius: { md: '10px', lg: '20px' },
+    button: { style: 'solid', radius: 'md' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
+  },
 }

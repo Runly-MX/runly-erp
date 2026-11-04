@@ -6589,6 +6589,408 @@
       }
     },
     {
+      "type": "MercadoHeaderBlock",
+      "label": "Mercado: cabecera con buscador y carrito",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "announcements": "Envío gratis en compras desde $999\nDevoluciones fáciles en 30 días\nPagos 100% seguros",
+        "brand": "Brote",
+        "tagline": "Vive mejor",
+        "logoSrc": "",
+        "searchPlaceholder": "Busca productos, marcas y más...",
+        "searchHref": "/productos",
+        "accountLabel": "Mi cuenta",
+        "accountHref": "/contacto",
+        "wishlistLabel": "Favoritos",
+        "wishlistHref": "/productos",
+        "cartLabel": "Carrito",
+        "cartHref": "/carrito",
+        "allLabel": "Todas las categorías",
+        "allHref": "/productos",
+        "links": "Inicio | /\nTienda | /productos\nOfertas | /productos\nNovedades | /productos\nNosotros | /nosotros\nContacto | /contacto",
+        "active": "/",
+        "sticky": true
+      },
+      "fields": {
+        "announcements": {
+          "type": "textarea",
+          "label": "Avisos de la barra superior (uno por línea)"
+        },
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Lema bajo la marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Logotipo (opcional)"
+        },
+        "searchPlaceholder": {
+          "type": "text",
+          "label": "Texto del buscador"
+        },
+        "searchHref": {
+          "type": "link",
+          "label": "Página de resultados"
+        },
+        "accountLabel": {
+          "type": "text",
+          "label": "Texto de cuenta (vacío lo oculta)"
+        },
+        "accountHref": {
+          "type": "link",
+          "label": "Enlace de cuenta"
+        },
+        "wishlistLabel": {
+          "type": "text",
+          "label": "Texto de favoritos (vacío lo oculta)"
+        },
+        "wishlistHref": {
+          "type": "link",
+          "label": "Enlace de favoritos"
+        },
+        "cartLabel": {
+          "type": "text",
+          "label": "Texto del carrito"
+        },
+        "cartHref": {
+          "type": "link",
+          "label": "Enlace del carrito"
+        },
+        "allLabel": {
+          "type": "text",
+          "label": "Botón de categorías"
+        },
+        "allHref": {
+          "type": "link",
+          "label": "Enlace del botón de categorías"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Menú: Etiqueta | /ruta (uno por línea)"
+        },
+        "active": {
+          "type": "text",
+          "label": "Ruta resaltada en el menú"
+        },
+        "sticky": {
+          "type": "toggle",
+          "label": "Fija al hacer scroll"
+        }
+      }
+    },
+    {
+      "type": "MercadoHeroBlock",
+      "label": "Mercado: portada en carrusel",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "slides": "Eleva tu día a día | Productos de calidad en todas las categorías, pensados para tu forma de vivir. | Comprar ahora | /productos\nTu casa, renovada | Textiles, iluminación y piezas que hacen hogar. | Ver hogar | /productos\nTecnología que acompaña | Audio, relojes y accesorios para todos los días. | Ver tecnología | /productos",
+        "image1": "",
+        "image2": "",
+        "image3": "",
+        "sealTop": "Rebajas de verano",
+        "sealValue": "40%",
+        "sealBottom": "de descuento",
+        "trust": "escudo | Calidad garantizada\netiqueta | Precios justos\nclientes | Más de 10 mil clientes",
+        "autoplay": true,
+        "interval": "6000"
+      },
+      "fields": {
+        "slides": {
+          "type": "textarea",
+          "label": "Diapositivas: Título | Texto | Botón | /ruta (una por línea, máximo 3)"
+        },
+        "image1": {
+          "type": "image",
+          "label": "Imagen de la diapositiva 1"
+        },
+        "image2": {
+          "type": "image",
+          "label": "Imagen de la diapositiva 2"
+        },
+        "image3": {
+          "type": "image",
+          "label": "Imagen de la diapositiva 3"
+        },
+        "sealTop": {
+          "type": "text",
+          "label": "Sello: texto superior"
+        },
+        "sealValue": {
+          "type": "text",
+          "label": "Sello: cifra (vacío lo oculta)"
+        },
+        "sealBottom": {
+          "type": "text",
+          "label": "Sello: texto inferior"
+        },
+        "trust": {
+          "type": "textarea",
+          "label": "Garantías: icono | texto (iconos: tv, moda, hogar, belleza, deporte, juguetes, libros, mascotas, todo, envio, devolucion, candado, soporte, escudo, etiqueta, clientes, regalo, hoja, bolsa, reloj, sofa, audio)"
+        },
+        "autoplay": {
+          "type": "toggle",
+          "label": "Avance automático"
+        },
+        "interval": {
+          "type": "select",
+          "label": "Tiempo por diapositiva",
+          "options": [
+            "4000",
+            "6000",
+            "8000"
+          ]
+        }
+      }
+    },
+    {
+      "type": "MercadoCategoriesBlock",
+      "label": "Mercado: categorías con íconos",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "title": "",
+        "items": "Electrónica | tv | /productos?c=electronica\nModa | moda | /productos?c=moda\nHogar | hogar | /productos?c=hogar\nBelleza | belleza | /productos?c=belleza\nDeportes | deporte | /productos?c=deportes\nJuguetes | juguetes | /productos?c=juguetes\nLibros | libros | /productos?c=libros\nMascotas | mascotas | /productos?c=mascotas\nVer todo | todo | /productos"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título (opcional)"
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Categorías: Nombre | icono | /ruta (iconos: tv, moda, hogar, belleza, deporte, juguetes, libros, mascotas, todo, envio, devolucion, candado, soporte, escudo, etiqueta, clientes, regalo, hoja, bolsa, reloj, sofa, audio)"
+        }
+      }
+    },
+    {
+      "type": "MercadoPicksBlock",
+      "label": "Mercado: carrusel de productos",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "title": "Elegidos para ti",
+        "linkLabel": "Ver todas las ofertas",
+        "linkHref": "/productos",
+        "categorySlug": "",
+        "limit": "10",
+        "detailHref": "/producto"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "linkLabel": {
+          "type": "text",
+          "label": "Texto del enlace"
+        },
+        "linkHref": {
+          "type": "link",
+          "label": "Enlace"
+        },
+        "categorySlug": {
+          "type": "text",
+          "label": "Categoría (slug, vacío = todas)"
+        },
+        "limit": {
+          "type": "select",
+          "label": "Cantidad de productos",
+          "options": [
+            "5",
+            "10",
+            "15",
+            "20"
+          ]
+        },
+        "detailHref": {
+          "type": "link",
+          "label": "Página de detalle"
+        }
+      }
+    },
+    {
+      "type": "MercadoPromoTilesBlock",
+      "label": "Mercado: tres promociones",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "tiles": "Novedades | Estilos frescos recién llegados | Comprar | /productos\nRenueva tu hogar | Haz de tu espacio algo mejor | Comprar | /productos\nTecnología esencial | Mejora tu estilo de vida | Comprar | /productos",
+        "image1": "",
+        "image2": "",
+        "image3": ""
+      },
+      "fields": {
+        "tiles": {
+          "type": "textarea",
+          "label": "Promociones: Antetítulo | Título | Botón | /ruta (máximo 3)"
+        },
+        "image1": {
+          "type": "image",
+          "label": "Imagen de la promoción 1"
+        },
+        "image2": {
+          "type": "image",
+          "label": "Imagen de la promoción 2"
+        },
+        "image3": {
+          "type": "image",
+          "label": "Imagen de la promoción 3"
+        }
+      }
+    },
+    {
+      "type": "MercadoReviewsBlock",
+      "label": "Mercado: reseñas en carrusel",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "title": "Nos recomiendan miles",
+        "score": "4.8",
+        "scoreLabel": "calificación promedio",
+        "reviews": "Sara J. | 5\nCalidad increíble y entrega rapidísima. Se volvió mi tienda de confianza para todo.\n---\nMiguel T. | 5\nBuenos precios, atención excelente y devoluciones muy sencillas. La recomiendo.\n---\nPriya K. | 5\nMe encanta la variedad: encuentro todo en un solo lugar. Súper práctico.\n---\nLaura M. | 5\nEl empaque llegó impecable y el producto tal cual la foto. Volveré a comprar."
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "score": {
+          "type": "text",
+          "label": "Calificación promedio (vacío la oculta)"
+        },
+        "scoreLabel": {
+          "type": "text",
+          "label": "Texto de la calificación"
+        },
+        "reviews": {
+          "type": "textarea",
+          "label": "Reseñas: Nombre | estrellas, en la siguiente línea el texto; separadas por ---"
+        }
+      }
+    },
+    {
+      "type": "MercadoNewsletterBlock",
+      "label": "Mercado: banda de suscripción",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "title": "No te pierdas nada",
+        "text": "Ofertas exclusivas, novedades e ideas de estilo directo en tu correo.",
+        "note": "Respetamos tu privacidad. Cancela cuando quieras."
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "note": {
+          "type": "text",
+          "label": "Nota de privacidad"
+        }
+      }
+    },
+    {
+      "type": "MercadoServicesBlock",
+      "label": "Mercado: garantías de servicio",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "items": "envio | Envío gratis | En compras desde $999\ndevolucion | Devoluciones fáciles | Tienes 30 días para cambiar\ncandado | Pago seguro | Compra 100% protegida\nsoporte | Atención 24/7 | Estamos para ayudarte"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Garantías: icono | Título | Texto (máximo 4; iconos: tv, moda, hogar, belleza, deporte, juguetes, libros, mascotas, todo, envio, devolucion, candado, soporte, escudo, etiqueta, clientes, regalo, hoja, bolsa, reloj, sofa, audio)"
+        }
+      }
+    },
+    {
+      "type": "MercadoFooterBlock",
+      "label": "Mercado: pie de página",
+      "category": "navigation",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "brand": "Brote",
+        "tagline": "Tu tienda para todo lo de cada día: calidad en todas las categorías.",
+        "social": "facebook | https://facebook.com\ninstagram | https://instagram.com\nx | https://x.com\nyoutube | https://youtube.com",
+        "columns": "Tienda\nTodas las categorías | /productos\nNovedades | /productos\nMás vendidos | /productos\nOfertas | /productos\n---\nAtención al cliente\nMi carrito | /carrito\nEnvíos y devoluciones | /contacto\nPreguntas frecuentes | /contacto\nContacto | /contacto\n---\nEmpresa\nNosotros | /nosotros\nTrabaja con nosotros | /contacto\nSustentabilidad | /nosotros",
+        "appTitle": "Descarga nuestra app",
+        "appText": "Compra desde donde estés con nuestra app.",
+        "appStoreHref": "",
+        "playStoreHref": "",
+        "copyright": "© 2026 Brote. Todos los derechos reservados.",
+        "legal": "Aviso de privacidad | /\nTérminos y condiciones | /\nPolítica de cookies | /",
+        "region": "México (MXN)"
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre"
+        },
+        "tagline": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "social": {
+          "type": "textarea",
+          "label": "Redes: red | enlace (facebook, instagram, x, youtube, tiktok)"
+        },
+        "columns": {
+          "type": "textarea",
+          "label": "Columnas (título en la primera línea; Etiqueta | /ruta; separadas por ---)"
+        },
+        "appTitle": {
+          "type": "text",
+          "label": "Título de la app"
+        },
+        "appText": {
+          "type": "text",
+          "label": "Texto de la app"
+        },
+        "appStoreHref": {
+          "type": "link",
+          "label": "Enlace App Store (vacío lo oculta)"
+        },
+        "playStoreHref": {
+          "type": "link",
+          "label": "Enlace Google Play (vacío lo oculta)"
+        },
+        "copyright": {
+          "type": "text",
+          "label": "Derechos"
+        },
+        "legal": {
+          "type": "textarea",
+          "label": "Enlaces legales: Etiqueta | /ruta"
+        },
+        "region": {
+          "type": "text",
+          "label": "País y moneda (vacío lo oculta)"
+        }
+      }
+    },
+    {
       "type": "BookingFormBlock",
       "label": "Formulario de reservacion",
       "category": "atlas-bookings",

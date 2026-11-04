@@ -5,7 +5,7 @@ const safeHref = (value) => (/^(https?:|mailto:|tel:|\/|#)/i.test(value) ? value
 
 // Columns are separated by "---"; the first line of a column is its title (a trailing "| ..." is ignored, older
 // templates wrote "Title | Title"), the rest are "Label | /path".
-function parseColumns(raw) {
+export function parseColumns(raw) {
   if (typeof raw !== 'string') return []
   return raw.split('---').map((chunk) => chunk.split('\n').map((line) => line.trim()).filter(Boolean)).filter((lines) => lines.length).map(([title, ...rest]) => ({
     title: title.split('|')[0].trim(),
