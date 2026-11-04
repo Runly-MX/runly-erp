@@ -25,7 +25,7 @@ export function createWebsiteTemplateService({prisma}) {
       const file=await prisma.fileAsset.findFirst({where:{id:branding.logoFileId,entityId:{in:[a.companyId,a.siteId]},enabled:true}})
       if(!file||!/^image\/(?:png|jpeg|webp|gif|avif)$/.test(file.mimeType??''))throw fail('validation_failed')
     }
-    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:applyTemplateBranding(conformTemplateDocument(normalizeWebsiteDocument(p.page,{strict:true})),branding??{})}))
+    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:applyTemplateBranding(conformTemplateDocument(normalizeWebsiteDocument(structuredClone(p.page),{strict:true})),branding??{})}))
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
       return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),branding,expectedRevision:a.expectedRevision},async()=>{
