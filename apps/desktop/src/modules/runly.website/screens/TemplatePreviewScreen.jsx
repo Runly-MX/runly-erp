@@ -208,10 +208,11 @@ export default function TemplatePreviewScreen() {
   }
 
   return (
-    <div className="flex h-full flex-col overflow-hidden md:flex-row">
+    // Phones: the whole screen scrolls and the preview gets a tall fixed viewport; md+: two panes, each scrolling.
+    <div className="flex h-full flex-col overflow-y-auto md:flex-row md:overflow-hidden">
 
       {/* Selection + apply */}
-      <aside className="flex max-h-[50vh] shrink-0 flex-col border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] md:h-full md:max-h-none md:w-80 md:border-b-0 md:border-r">
+      <aside className="flex shrink-0 flex-col border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] md:h-full md:max-h-none md:w-80 md:border-b-0 md:border-r">
         <div className="border-b border-[hsl(var(--border))] p-4">
           <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(templatesPath)}>
             <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
@@ -261,7 +262,7 @@ export default function TemplatePreviewScreen() {
       </aside>
 
       {/* Page switcher + sandboxed preview */}
-      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+      <div className="flex h-[85dvh] min-w-0 shrink-0 flex-col md:h-auto md:min-h-0 md:flex-1 md:shrink">
         <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2">
           <span className="mr-1 inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
             <Eye className="h-3.5 w-3.5" aria-hidden />Vista previa

@@ -38,10 +38,12 @@ export function useSiteSidebarModule(activeModule, pathname, search = '') {
       name: site.data?.name ?? 'Sitio web',
       subtitle: 'Sitio web',
       icon: 'Globe',
+      // A template preview belongs to Apariencia, where its Plantillas tab lives.
+      ...(fromQuery && !SITE_PATH.test(pathname) && { activePath: `${PUBLIC_ROUTE_ROOT}/sites/${siteId}/appearance` }),
       navigation: [
         { label: 'Todos mis sitios', path: '/', icon: 'ArrowLeft' },
         ...(allowed.length ? allowed : SECTIONS.slice(0, 1)).map((item) => ({ label: item.label, path: `/sites/${siteId}${item.id === 'overview' ? '' : `/${item.id}`}`, icon: item.icon })),
       ],
     }
-  }, [activeModule, id, siteId, site.data?.name, caps.sections])
+  }, [activeModule, id, siteId, fromQuery, pathname, site.data?.name, caps.sections])
 }

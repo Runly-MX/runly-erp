@@ -294,7 +294,7 @@ export function RunlyApp() {
               <ModuleSidebar
                 key={activeModule?.key}
                 module={sidebarModule}
-                currentPath={location.pathname}
+                currentPath={navModule?.activePath ?? location.pathname}
                 onNavigate={(path) => navigate(path)}
                 collapsed={collapsed}
                 onCollapse={toggleCollapsed}
@@ -370,7 +370,7 @@ export function RunlyApp() {
           >
             <ModuleSidebar
               module={sidebarModule}
-              currentPath={location.pathname}
+              currentPath={navModule?.activePath ?? location.pathname}
               onNavigate={(path) => {
                 navigate(path);
                 setSidebarOverlayOpen(false);
