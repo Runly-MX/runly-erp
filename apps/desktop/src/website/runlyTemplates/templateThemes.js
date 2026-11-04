@@ -46,4 +46,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'sm' },
     card: { radius: 'md', shadow: 'sm', padding: '6' },
   },
+  'atlas-finora': {
+    color: { primary: '#17835E', primaryFg: '#FFFFFF', bg: '#F6FBF8', fg: '#0B2E22', muted: '#5C7A6D', accent: '#0B3D2E' },
+    font: { sans },
+    radius: { md: '12px', lg: '20px' },
+    button: { style: 'solid', radius: 'pill' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
+  },
 }
