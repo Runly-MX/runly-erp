@@ -1,4 +1,5 @@
 import { defineTemplate } from '@raulbellosom/atlas-web-builder'
+import { HOVER_LIFT, STAGGER, counterBand } from './_effects.js'
 
 const block0 = (id, type, props) => ({ id, type, props, children: {} })
 const HERO_TINT = { kind: 'gradient', angle: 180, from: '#DCEBFF', to: '#FFF8E8' }
@@ -53,14 +54,14 @@ const CLIENTS = 'oceanic\npaperplane\nleaf & co.\nnorthern\nsundaze\nhive digita
 
 const TESTIMONIALS = 'Jessica Miller|Fundadora, Bloom & Wild|5\nMaya transformó por completo nuestra presencia en línea. El sitio se ve increíble y funciona mejor que nunca.\n---\nDaniel Kim|CEO, Northland Studio|5\nCreativa, profesional y muy fácil de trabajar. La recomiendo a cualquier marca que quiera destacar en línea.\n---\nSofía Reyes|Dueña, Pure Balance|5\nEntendió mi negocio desde la primera llamada y entregó a tiempo un sitio que mis clientes aman.'
 
-const plan = (id, props) => block(id, 'PricingBlock', { currency: '$', period: '', ctaLabel: 'Empezar', ctaHref: '/contacto', radius: 'lg', shadow: 'md', ...props })
+const plan = (id, props) => block(id, 'PricingBlock', { currency: '$', period: '', ctaLabel: 'Empezar', ctaHref: '/contacto', radius: 'lg', shadow: 'md', ...HOVER_LIFT, ...props })
 
 // Heading plus three plans side by side, inside a section with the given background.
 const packages = (background) => [
   block('pricing', 'SectionBlock', { paddingY: '12', background }, { children: ['pricing-head', 'pricing-sub', 'pricing-grid'] }),
   block('pricing-head', 'HeadingBlock', { text: 'Paquetes simples, gran impacto', level: 'h2', align: 'center' }),
   block('pricing-sub', 'TextBlock', { text: 'Soluciones flexibles para negocios en cada etapa.', align: 'center' }),
-  block('pricing-grid', 'GridBlock', { minItemWidth: 260, gap: '4' }, { children: ['plan-1', 'plan-2', 'plan-3'] }),
+  block('pricing-grid', 'GridBlock', { minItemWidth: 260, gap: '4', ...STAGGER }, { children: ['plan-1', 'plan-2', 'plan-3'] }),
   plan('plan-1', { plan: 'Inicial', price: '750', description: 'Ideal para proyectos pequeños', features: 'Sitio de 3 páginas\nDiseño adaptable a celular\nSEO básico\nFormulario de contacto' }),
   plan('plan-2', { plan: 'Crecimiento', price: '1,350', description: 'Para negocios en crecimiento', features: 'Hasta 7 páginas\nDiseño personalizado\nOptimización SEO\nOptimización de velocidad\n30 días de soporte', highlighted: true, badge: 'Más popular' }),
   plan('plan-3', { plan: 'Premium', price: '2,200', description: 'Servicio completo listo para escalar', features: 'Hasta 15 páginas\nFunciones avanzadas\nTienda en línea\nSoporte prioritario\n60 días de soporte' }),
@@ -97,7 +98,7 @@ export const mayaTemplate = defineTemplate({
           subtitle: 'Creo sitios web hermosos y fáciles de usar que ayudan a las marcas a destacar y crecer en línea.',
           ctaLabel: 'Ver mi trabajo', ctaHref: '/trabajo', ctaSecondLabel: 'Mis servicios', ctaSecondHref: '/servicios',
         }),
-        block('stats', 'StatsBlock', { eyebrow: '', title: '', stats: '6+\nAños de experiencia\nDiseñando para marcas\n---\n120+\nProyectos entregados\nEn distintos sectores\n---\n98%\nClientes satisfechos\nQue vuelven a trabajar conmigo', background: 'white', align: 'center' }),
+        ...counterBand('stats', [[6, '+', 'Años de experiencia'], [120, '+', 'Proyectos entregados'], [98, '%', 'Clientes satisfechos']]),
         work({ eyebrow: 'Trabajo seleccionado', title: 'Algunos de mis favoritos', subtitle: 'Cada proyecto es único. Estos son algunos de los que más me enorgullecen.', projects: WORK_CARDS.split('\n---\n').slice(0, 3).join('\n---\n') }),
         ...packages('muted'),
         clients(),

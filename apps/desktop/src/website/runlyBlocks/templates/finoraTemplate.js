@@ -1,4 +1,5 @@
 import { defineTemplate } from '@raulbellosom/atlas-web-builder'
+import { counterBand } from './_effects.js'
 
 const HERO_TINT = { kind: 'gradient', angle: 180, from: '#D9F2E6', to: '#F6FBF8' }
 
@@ -73,11 +74,7 @@ export const finoraTemplate = defineTemplate({
           ctaSecondLabel: 'Cómo funciona', ctaSecondHref: '/como-funciona',
           titleSize: '3xl', minHeight: '480px',
         }),
-        trust: block('trust', 'StatsBlock', {
-          eyebrow: '', title: '',
-          stats: '1M+\nClientes felices\nEn todo el país\n---\n4.8/5\nCalificación\nPromedio de clientes\n---\n100%\nSeguro y confiable\nDatos protegidos\n---\n24 h\nTiempo de respuesta\nPara tu aprobación',
-          background: 'white', align: 'center',
-        }),
+        ...Object.fromEntries(counterBand('trust', [[1, 'M+', 'Clientes felices'], [4.8, '/5', 'Calificación promedio', 1], [100, '%', 'Seguro y confiable'], [24, ' h', 'Para tu aprobación']]).map((b) => [b.id, b])),
         loans: block('loans', 'ServicesGridBlock', {
           eyebrow: 'Nuestros productos', title: 'Un crédito para cada meta',
           subtitle: 'Opciones transparentes con tasas competitivas y plazos que se adaptan a tu presupuesto.',

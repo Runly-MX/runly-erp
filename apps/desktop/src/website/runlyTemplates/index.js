@@ -9,6 +9,7 @@ import { mayaTemplate,        mayaSitePages }        from '../runlyBlocks/templa
 
 import { TEMPLATE_THEMES } from './templateThemes.js'
 import { polishPage } from './templatePolish.js'
+import { revealSections } from '../runlyBlocks/templates/_effects.js'
 
 const CATEGORY_COLORS = {
   restaurante: '#92400e',
@@ -51,14 +52,14 @@ function wrapTemplate(tpl, sitePages = [], themeTokens = null) {
         label:     'Inicio',
         routePath: '/',
         required:  true,
-        page:      buildPageData(tpl.id, 'home', 'Inicio', '/', tpl.description, polishPage(tpl.id, 'home', homeData)),
+        page:      buildPageData(tpl.id, 'home', 'Inicio', '/', tpl.description, revealSections(polishPage(tpl.id, 'home', homeData))),
       },
       ...sitePages.map((p) => ({
         id:        p.id,
         label:     p.label,
         routePath: p.routePath,
         required:  p.required ?? false,
-        page:      buildPageData(tpl.id, p.id, p.label, p.routePath, p.description ?? '', polishPage(tpl.id, p.id, p.build())),
+        page:      buildPageData(tpl.id, p.id, p.label, p.routePath, p.description ?? '', revealSections(polishPage(tpl.id, p.id, p.build()))),
       })),
     ],
   }
