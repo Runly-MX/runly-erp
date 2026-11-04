@@ -35,6 +35,7 @@ import { FinLoanCardsBlock, FinStepsBlock } from './finLoanCardsBlock.jsx'
 import { LandscapeHeroBlock } from './landscapeHeroBlock.jsx'
 import { ChapterBlock } from './chapterBlock.jsx'
 import { ProductDetailBlock, CartPageBlock } from './storeShopBlocks.jsx'
+import { StoreNavbarBlock } from './storeNavbarBlock.jsx'
 import { StoreHeroBlock, CollectionTilesBlock, TrustStripBlock } from './storeEditorialBlocks.jsx'
 import { mayaBlocks, MayaPortraitBlock, MayaTagBlock, MayaTickerBlock, MayaWorkBlock, MayaNotesBlock, MayaPageHeroBlock, MayaClosingBlock } from './mayaBlocks.jsx'
 import { MayaPlansBlock } from './mayaPlansBlock.jsx'
@@ -96,6 +97,7 @@ export const ecommerceRunlyBlocks = [
   ProductsGridBlock,
   ProductDetailBlock,
   CartPageBlock,
+  StoreNavbarBlock,
   StoreHeroBlock,
   CollectionTilesBlock,
   TrustStripBlock,
@@ -117,6 +119,7 @@ export {
   ContactFormBlock,
   ProductDetailBlock,
   CartPageBlock,
+  StoreNavbarBlock,
   StoreHeroBlock,
   CollectionTilesBlock,
   TrustStripBlock,
