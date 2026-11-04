@@ -25,7 +25,7 @@ import { clearBackup, writeBackup } from '../../lib/localBackup.js'
 import { editorPath, sitePath, slugify } from '../../lib/pageRoute.js'
 
 import { describeCode } from '../../lib/websiteErrors.js'
-import { usePages, useSiteContext, useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
+import { useDomains, usePages, useSiteContext, useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { ConflictDialog } from '../../components/ConflictDialog.jsx'
 import { EditorTopBar } from '../../components/EditorTopBar.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
@@ -90,6 +90,13 @@ export default function SiteEditorScreen({ siteId, pageId }) {
   const caps = useWebsiteCapabilities(siteId)
   const { site, release, state } = useSiteContext(siteId)
   const pages = usePages(siteId)
+  const domains = useDomains(siteId)
+  // The SEO panel previews and canonical URLs use the site's live hostname when it has one.
+  const liveHost = (domains.data ?? []).find((domain) => domain.state === 'assigned' && domain.ready)?.hostname
+  const seoContext = useMemo(() => ({
+    site: { name: site.data?.name, settings: { defaultSeo: site.data?.seoDefaults ?? {} } },
+    baseUrl: liveHost ? `https://${liveHost}` : '',
+  }), [site.data?.name, site.data?.seoDefaults, liveHost])
   const pageMeta = (pages.data ?? []).find((page) => page.id === pageId) ?? null
 
   const draftQuery = useQuery({
@@ -286,6 +293,7 @@ export default function SiteEditorScreen({ siteId, pageId }) {
             theme={theme}
             assets={assets}
             brandName={site.data?.name ?? 'Sitio'}
+            seo={seoContext}
             onSaveDraft={handleSave}
             onPublish={handleBuilderPublish}
             resources={site.data?.siteType === 'ecommerce' ? {
