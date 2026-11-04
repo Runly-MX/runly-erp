@@ -2,6 +2,8 @@ import { useMemo } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import { useRuntimeModules } from "../app/useRuntimeModules";
+import { useSite } from "../modules/runly.website/hooks/useWebsite.js";
+import { SECTIONS } from "../modules/runly.website/lib/siteSections.js";
 import { TRASH_SUBPATH } from "../shell/trash/useTrashProviders.js";
 
 const STATIC_LABELS = {
@@ -10,7 +12,7 @@ const STATIC_LABELS = {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-function buildCrumbs(pathname, moduleMap) {
+function buildCrumbs(pathname, moduleMap, siteName) {
   if (pathname === "/app" || pathname === "/app/" || pathname === "/app/home") {
     return [];
   }
@@ -32,6 +34,19 @@ function buildCrumbs(pathname, moduleMap) {
 
   if (!rawSub) {
     return [{ label: mod.name, path: moduleRoot, color: mod.color, isLast: true }];
+  }
+
+  const siteMatch = moduleKey === "runly.website" && rawSub.match(/^sites\/([^/]+)(?:\/([^/]+))?/);
+  if (siteMatch && siteMatch[1] !== "new") {
+    // Show the site name and its section instead of the raw "sites/<uuid>" path.
+    const section = SECTIONS.find((s) => s.id === siteMatch[2]);
+    const sitePath = `${moduleRoot}/sites/${siteMatch[1]}`;
+    const crumbs = [
+      { label: mod.name, path: moduleRoot, color: mod.color, isLast: false },
+      { label: siteName ?? "Sitio", path: sitePath, isLast: !siteMatch[2] },
+    ];
+    if (siteMatch[2]) crumbs.push({ label: section?.label ?? siteMatch[2], path: pathname, isLast: true });
+    return crumbs;
   }
 
   const subPath = `/${rawSub}`;
@@ -67,9 +82,11 @@ export function Breadcrumbs() {
   const navigate = useNavigate();
   const { moduleMap } = useRuntimeModules();
 
+  const siteId = pathname.match(/^\/app\/m\/runly\.website\/sites\/([^/]+)/)?.[1];
+  const { data: site } = useSite(siteId && siteId !== "new" ? siteId : null);
   const crumbs = useMemo(
-    () => buildCrumbs(pathname, moduleMap),
-    [pathname, moduleMap],
+    () => buildCrumbs(pathname, moduleMap, site?.name),
+    [pathname, moduleMap, site?.name],
   );
 
   if (crumbs.length === 0) return null;

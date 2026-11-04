@@ -13,6 +13,8 @@ export function isPathAllowedByNavigation(module, subPath) {
     const matches=(list,target)=>list.some(path=>new RegExp('^'+path.replace(/:[^/]+/g,'[^/]+')+'$').test(target));
     return matches(paths,subPath);
   }
+  // Reached from a site's Plantillas tab, so it is not a navigation entry of its own.
+  if (module?.key === 'runly.website' && /^\/templates\/[^/]+\/(preview|detail)$/.test(subPath)) return true;
   const navigation = module?.navigation ?? [];
   if (!navigation.length) return subPath === '/';
   if (subPath === '/') return true;
