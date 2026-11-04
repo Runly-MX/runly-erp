@@ -48,6 +48,7 @@ import { habitiaBlocks, HabitiaHeroBlock, HabitiaRoomsBlock, HabitiaPiecesBlock,
 import { devfolioBlocks } from './devfolioRegistry.js'
 import { mercadoBlocks } from './mercadoRegistry.js'
 import { impulsaBlocks } from './impulsaRegistry.js'
+import { cristalBlocks } from './cristalRegistry.js'
 
 // --- Templates ---
 import {
@@ -112,6 +113,7 @@ export const universalRunlyBlocks = [
   ...habitiaBlocks,
   ...devfolioBlocks,
   ...impulsaBlocks,
+  ...cristalBlocks,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -217,6 +219,7 @@ export {
 export * from './devfolioRegistry.js'
 export * from './mercadoRegistry.js'
 export * from './impulsaRegistry.js'
+export * from './cristalRegistry.js'
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
 

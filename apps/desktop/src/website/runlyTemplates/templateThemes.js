@@ -88,4 +88,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'md' },
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
+  'atlas-aura': {
+    color: { primary: '#0A66E8', primaryFg: '#FFFFFF', bg: '#F5F9FF', fg: '#0B1B33', muted: '#56688A', accent: '#8B7CFF' },
+    font: { sans: "'DM Sans', Inter, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif" },
+    radius: { md: '16px', lg: '28px' },
+    button: { style: 'solid', radius: 'pill' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
+  },
 }

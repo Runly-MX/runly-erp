@@ -6264,6 +6264,497 @@
       }
     },
     {
+      "type": "CrNavbarBlock",
+      "label": "Barra de navegación de vidrio",
+      "category": "navigation",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "brand": "Aura",
+        "links": "Inicio | /\nFunciones | /funciones\nPrecios | /precios\nContacto | /contacto",
+        "active": "/",
+        "ctaLabel": "Descargar app",
+        "ctaHref": "/precios"
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Marca"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Enlaces (Etiqueta | /ruta, uno por línea)"
+        },
+        "active": {
+          "type": "text",
+          "label": "Ruta activa"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "CrHeroBlock",
+      "label": "Portada de vidrio con teléfono",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "badge": "Nuevo",
+        "badgeText": "Asistente de bienestar con IA",
+        "title": "Bienestar con IA",
+        "titleSoft": "que entiende",
+        "titleStrong": "cómo te sientes",
+        "text": "Recibe orientación personal sobre tu sueño, tu energía y tus hábitos. Seguimiento de señales, recordatorios inteligentes y respuestas claras, en un solo lugar.",
+        "ctaLabel": "Descargar app",
+        "ctaHref": "/precios",
+        "ctaSecondLabel": "Probar el asistente",
+        "ctaSecondHref": "/funciones",
+        "phoneTitle": "Asistente Aura",
+        "topics": "Sueño\nEstrés\nEnergía\nÁnimo\nNutrición\nHábitos\nRespiración",
+        "activeTopic": "Ánimo",
+        "widgets": "Ritmo cardiaco | 72 | lpm | Rango 60-100 · Óptimo | heart\nSueño | 7 h 45 | min | Meta 7-9 h · Bien | moon\nAsistencia 24/7 | Habla ahora | | Respuesta en segundos | call"
+      },
+      "fields": {
+        "badge": {
+          "type": "text",
+          "label": "Insignia"
+        },
+        "badgeText": {
+          "type": "text",
+          "label": "Texto de la insignia"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título (degradado)"
+        },
+        "titleSoft": {
+          "type": "text",
+          "label": "Título (suave)"
+        },
+        "titleStrong": {
+          "type": "text",
+          "label": "Título (fuerte)"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "phoneTitle": {
+          "type": "text",
+          "label": "Título en el teléfono"
+        },
+        "topics": {
+          "type": "textarea",
+          "label": "Temas en el teléfono (uno por línea)"
+        },
+        "activeTopic": {
+          "type": "text",
+          "label": "Tema activo"
+        },
+        "widgets": {
+          "type": "textarea",
+          "label": "Tarjetas flotantes (Título | cifra | unidad | nota | icono, hasta 3)"
+        }
+      }
+    },
+    {
+      "type": "CrFeaturesBlock",
+      "label": "Funciones en mosaico de vidrio",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Funciones",
+        "title": "Todo tu bienestar,",
+        "highlight": "en un mismo lugar",
+        "lead": "Herramientas sencillas que aprenden de ti y te ayudan a tomar mejores decisiones cada día.",
+        "items": "Conversación natural | Cuéntale cómo te sientes con tus palabras; Aura entiende el contexto y responde claro. | chat | wide\nTendencias de tu semana | Sueño, ritmo y actividad en una sola vista, con alertas cuando algo cambia. | chart | wide\nMetas que se cumplen | Objetivos pequeños y medibles que se ajustan a tu ritmo. | ring\nModo voz | Habla con Aura mientras caminas o cocinas. | wave\nRecordatorios inteligentes | Agua, pausas y descanso en el momento justo. | toggle"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "lead": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Tarjetas (Título | texto | visual: chat, chart, ring, wave, toggle u orb | wide para doble ancho)"
+        }
+      }
+    },
+    {
+      "type": "CrWindowBlock",
+      "label": "Ventana con paisaje",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "badge": "Más de 10,000 personas en la lista",
+        "title": "Enfócate en un mundo",
+        "titleStrong": "lleno de distracciones",
+        "text": "Silencia el ruido de las notificaciones y recupera tu atención para lo que de verdad importa.",
+        "ctaLabel": "Únete a la lista",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "badge": {
+          "type": "text",
+          "label": "Insignia"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "titleStrong": {
+          "type": "text",
+          "label": "Título fuerte"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "CrStepsBlock",
+      "label": "Pasos de vidrio",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Cómo funciona",
+        "title": "Empieza en",
+        "highlight": "tres pasos",
+        "steps": "Cuéntale cómo estás | Responde unas preguntas sobre tu rutina, tu sueño y tus metas. | chat\nRecibe tu plan | Aura arma un plan diario que se ajusta a ti. | sparkle\nAvanza cada día | Sigue tu progreso y celebra cada meta cumplida. | trend"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "steps": {
+          "type": "textarea",
+          "label": "Pasos (Título | texto | icono)"
+        }
+      }
+    },
+    {
+      "type": "CrVoicesBlock",
+      "label": "Cifras y opiniones en carrusel",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Opiniones",
+        "title": "Personas que ya",
+        "highlight": "se sienten mejor",
+        "stats": "4.9 | calificación promedio\n120,000+ | personas activas\n87% | duerme mejor en 30 días",
+        "voices": "Lucía Fernández | Diseñadora | Por fin entiendo por qué amanezco cansada. Los recordatorios cambiaron mis noches.\nJorge Ramírez | Maestro | Hablarle a Aura mientras camino es lo mejor de mi día.\nAna Castillo | Enfermera | Claro, amable y sin rodeos. Me ayuda a cuidar mis turnos.\nDiego Morales | Programador | Las pausas activas me salvaron la espalda.\nSofía Herrera | Estudiante | Mis metas pequeñas ahora sí las cumplo.\nPablo Núñez | Chef | La vista semanal me muestra lo que antes no veía."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "stats": {
+          "type": "textarea",
+          "label": "Cifras (Cifra | texto)"
+        },
+        "voices": {
+          "type": "textarea",
+          "label": "Opiniones (Nombre | ocupación | texto)"
+        }
+      }
+    },
+    {
+      "type": "CrPricingBlock",
+      "label": "Planes de vidrio",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Planes",
+        "title": "Elige cómo quieres",
+        "highlight": "cuidarte",
+        "lead": "Empieza gratis. Cambia de plan o cancela cuando quieras.",
+        "currency": "$",
+        "period": "/mes",
+        "yearlyLabel": "Anual · ahorra 20%",
+        "plans": "Esencial | 0 | 0 | Para empezar a conocerte. | Conversación con Aura; Registro de sueño; Recordatorios básicos | Descargar gratis | /contacto\nPlus | 129 | 99 | Para avanzar con un plan diario. | Todo lo de Esencial; Plan personalizado; Modo voz ilimitado; Tendencias semanales | Probar 14 días | /contacto | popular\nFamilia | 249 | 199 | Hasta 5 personas en una sola cuenta. | Todo lo de Plus; 5 perfiles; Metas compartidas; Soporte prioritario | Elegir Familia | /contacto"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "lead": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "period": {
+          "type": "text",
+          "label": "Periodo"
+        },
+        "yearlyLabel": {
+          "type": "text",
+          "label": "Etiqueta del pago anual"
+        },
+        "plans": {
+          "type": "textarea",
+          "label": "Planes (Nombre | precio mensual | precio anual por mes | texto | punto; punto | botón | /enlace | popular)"
+        }
+      }
+    },
+    {
+      "type": "CrFaqBlock",
+      "label": "Preguntas frecuentes de vidrio",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Lo que más nos",
+        "highlight": "preguntan",
+        "items": "¿Aura sustituye a un médico? | No. Aura te orienta y te ayuda a crear hábitos; ante cualquier síntoma o duda de salud consulta a un profesional.\n¿Mis datos están seguros? | Tus datos se cifran y nunca se venden. Puedes descargarlos o borrarlos cuando quieras.\n¿Funciona con mi reloj? | Sí, se conecta con los relojes y apps de salud más comunes para leer sueño y ritmo cardiaco.\n¿Puedo cancelar en cualquier momento? | Sí, desde la app y sin penalizaciones."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Preguntas (Pregunta | respuesta)"
+        }
+      }
+    },
+    {
+      "type": "CrClosingBlock",
+      "label": "Cierre con orbe y boletín",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [
+        "form"
+      ],
+      "defaultProps": {
+        "title": "Empieza a sentirte mejor",
+        "highlight": "desde hoy",
+        "text": "Descarga Aura gratis y recibe tu primer plan en menos de dos minutos.",
+        "ctaLabel": "Descargar para iPhone",
+        "ctaHref": "/precios",
+        "ctaSecondLabel": "Descargar para Android",
+        "ctaSecondHref": "/precios",
+        "formTitle": "Recibe ideas de bienestar cada semana"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón 1"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace 1"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón 2"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace 2"
+        },
+        "formTitle": {
+          "type": "text",
+          "label": "Título del boletín"
+        }
+      }
+    },
+    {
+      "type": "CrPageHeroBlock",
+      "label": "Encabezado de página con cielo",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Funciones",
+        "title": "Diseñada para",
+        "highlight": "acompañarte",
+        "text": "Una app que escucha, aprende y te ayuda a sentirte mejor un día a la vez.",
+        "crumb": "Funciones"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "crumb": {
+          "type": "text",
+          "label": "Nombre en la ruta"
+        }
+      }
+    },
+    {
+      "type": "CrContactBlock",
+      "label": "Contacto de vidrio con formulario",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [
+        "form"
+      ],
+      "defaultProps": {
+        "title": "Escríbenos",
+        "text": "Resolvemos dudas sobre la app, planes para empresas y prensa. Respondemos en menos de un día hábil.",
+        "channels": "Correo | hola@example.com | mailto:hola@example.com | mail\nTeléfono | +52 55 1234 5678 | tel:+525512345678 | phone\nOficina | Ciudad de México | # | pin\nHorario | Lunes a viernes, 9:00 a 18:00 | # | clock"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "channels": {
+          "type": "textarea",
+          "label": "Canales (Título | dato | enlace | icono)"
+        }
+      }
+    },
+    {
+      "type": "CrFooterBlock",
+      "label": "Pie de página de vidrio",
+      "category": "navigation",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "brand": "Aura",
+        "tagline": "Tu asistente de bienestar con IA. Orienta, no diagnostica: ante cualquier síntoma consulta a un profesional de la salud.",
+        "columns": "Producto\nFunciones | /funciones\nPrecios | /precios\nContacto | /contacto\n---\nLegal\nPrivacidad | /contacto\nTérminos | /contacto\n---\nSíguenos\nInstagram | https://instagram.com\nLinkedIn | https://linkedin.com",
+        "copyright": "© Aura. Todos los derechos reservados."
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Marca"
+        },
+        "tagline": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "columns": {
+          "type": "textarea",
+          "label": "Columnas (Título, luego Etiqueta | enlace; separa columnas con ---)"
+        },
+        "copyright": {
+          "type": "text",
+          "label": "Derechos"
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",

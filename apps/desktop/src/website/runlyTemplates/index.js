@@ -10,6 +10,7 @@ import { auroraTemplate,      auroraSitePages }      from '../runlyBlocks/templa
 import { devfolioTemplate, devfolioSitePages } from '../runlyBlocks/templates/devfolioTemplate.js'
 import { mercadoTemplate, mercadoSitePages } from '../runlyBlocks/templates/mercadoTemplate.js'
 import { impulsaTemplate, impulsaSitePages } from '../runlyBlocks/templates/impulsaTemplate.js'
+import { cristalTemplate, cristalSitePages } from '../runlyBlocks/templates/cristalTemplate.js'
 
 import { TEMPLATE_THEMES } from './templateThemes.js'
 import { polishPage } from './templatePolish.js'
@@ -27,6 +28,7 @@ const CATEGORY_COLORS = {
   viajes:      '#0E7490',
   'portafolio-dev': '#C2410C',
   marketing:   '#1F7A33',
+  app:         '#0A66E8',
 }
 
 function buildPageData(templateId, pageId, label, routePath, description, { rootIds, blocks }) {
@@ -85,4 +87,5 @@ export const allTemplates = [
   wrapTemplate(devfolioTemplate,   devfolioSitePages),
   wrapTemplate(mercadoTemplate,    mercadoSitePages),
   wrapTemplate(impulsaTemplate,    impulsaSitePages),
+  wrapTemplate(cristalTemplate,    cristalSitePages),
 ]
