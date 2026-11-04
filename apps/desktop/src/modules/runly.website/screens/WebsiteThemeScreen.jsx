@@ -13,10 +13,14 @@ import {
   DialogFooter,
   EmptyState,
   ChipTabs,
-  PageHeader,
+  StatusPill,
   TextField,
   LoadingState,
 } from "@runly/ui";
+import { CheckCircle2, LayoutTemplate, Paintbrush, Palette, Save, Type } from "lucide-react";
+import { SiteSectionHeader } from "../components/SiteSectionHeader.jsx";
+import { ThemePicker } from "../components/ThemePicker.jsx";
+import { ThemePreviewCard } from "../components/ThemePreviewCard.jsx";
 import { createWebsiteApi, newIdempotencyKey } from "../lib/websiteApi.js";
 import { useScopedSite } from "../hooks/useScopedSite.js";
 import { toast } from "sonner";
@@ -26,6 +30,7 @@ import ThemeTypographyEditor from "./ThemeTypographyEditor.jsx";
 
 const TABS = ["Colores", "Tipografia"];
 const TAB_LABELS = { Colores: "Colores", Tipografia: "Tipografía" };
+const TAB_ICONS = { Colores: Palette, Tipografia: Type };
 
 async function apiGet(path, token) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -171,32 +176,27 @@ export default function WebsiteThemeScreen({ siteId: siteIdProp = null }) {
 
   if (!siteId) {
     return (
-      <div className="p-4 md:p-6 space-y-6">
-        <PageHeader
-          eyebrow="Runly Website"
-          title="Tema"
-          description="Personaliza los colores y tipografia del sitio publico."
-        />
+      <div className="p-4 md:p-6 space-y-5">
+        <SiteSectionHeader icon={Palette} tone="violet" title="Tema" description="Personaliza los colores y la tipografía del sitio público." />
         <EmptyState
+          icon={Palette}
           title="Sitio web no configurado"
-          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+          description='Configura tu sitio web primero desde la sección "Sitio web".'
         />
       </div>
     );
   }
 
   return (
-    <div className="p-4 md:p-6 space-y-6 h-full">
-      <PageHeader
-        eyebrow="Runly Website"
+    <div className="p-4 md:p-6 space-y-5 h-full">
+      <SiteSectionHeader
+        icon={Palette}
+        tone="violet"
         title="Tema"
-        description="Personaliza los colores y tipografia del sitio publico."
+        description="Personaliza los colores y la tipografía del sitio público."
         actions={
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => navigate("/app/m/runly.website/templates")}
-          >
+          <Button variant="outline" size="sm" onClick={() => navigate("/app/m/runly.website/templates")}>
+            <LayoutTemplate className="mr-1.5 h-4 w-4" aria-hidden />
             Cambiar plantilla
           </Button>
         }
@@ -205,114 +205,68 @@ export default function WebsiteThemeScreen({ siteId: siteIdProp = null }) {
       {themesQuery.isPending ? (
         <LoadingState message="Cargando temas..." />
       ) : themes.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border p-10 text-center space-y-4">
-          <p className="text-muted-foreground text-sm">No hay temas creados.</p>
-          <Button size="sm" onClick={() => setNewThemeOpen(true)}>
-            Crear primer tema
-          </Button>
-        </div>
+        <EmptyState
+          icon={Paintbrush}
+          title="Todavía no hay temas"
+          description="Crea un tema para definir los colores y las fuentes de tu sitio."
+          action={{ label: "Crear primer tema", onClick: () => setNewThemeOpen(true) }}
+        />
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-start">
-          {/* Left: config editors */}
-          <div className="space-y-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 items-start">
+          <div className="min-w-0 space-y-4">
             {themes.length > 1 && (
-              <div className="flex gap-2 flex-wrap">
-                {themes.map((t) => (
-                  <button
-                    key={t.id}
-                    onClick={() => {
-                      setSelectedThemeId(t.id);
-                      setIsDirty(false);
-                    }}
-                    className={`px-3 py-1.5 rounded-lg text-sm border transition-colors ${
-                      activeThemeId === t.id
-                        ? "bg-primary text-primary-foreground border-transparent"
-                        : "border-border hover:bg-muted"
-                    }`}
-                  >
-                    {t.name}
-                    {t.isDefault && (
-                      <span className="ml-1 text-xs opacity-70">(activo)</span>
-                    )}
-                  </button>
-                ))}
-              </div>
+              <ThemePicker
+                themes={themes}
+                activeThemeId={activeThemeId}
+                appliedThemeId={appliedThemeId}
+                onSelect={(id) => { setSelectedThemeId(id); setIsDirty(false); }}
+              />
             )}
 
             {themeDetailQuery.isPending ? (
               <LoadingState message="Cargando tema..." />
             ) : themeDetail ? (
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
+              <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <ChipTabs
                     ariaLabel="Secciones del tema"
                     showDescription={false}
-                    tabs={TABS.map((tab) => ({ value: tab, label: TAB_LABELS[tab], badge: isDirty ? "*" : undefined }))}
+                    tabs={TABS.map((tab) => ({ value: tab, label: TAB_LABELS[tab], icon: TAB_ICONS[tab], badge: isDirty ? "*" : undefined }))}
                     value={activeTab}
                     onChange={setActiveTab}
                   />
-
-                  <div className="flex items-center gap-2">
-                    {appliedThemeId !== activeThemeId && (
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => useSiteThemeMutation.mutate()}
-                        disabled={useSiteThemeMutation.isPending}
-                      >
+                  <div className="flex flex-wrap items-center gap-2">
+                    {appliedThemeId !== activeThemeId ? (
+                      <Button variant="outline" size="sm" onClick={() => useSiteThemeMutation.mutate()} disabled={useSiteThemeMutation.isPending}>
+                        <CheckCircle2 className="mr-1.5 h-4 w-4" aria-hidden />
                         Usar este tema
                       </Button>
+                    ) : (
+                      <StatusPill tone="success" icon={CheckCircle2}>En uso</StatusPill>
                     )}
-                    <Button
-                      size="sm"
-                      onClick={() => saveMutation.mutate()}
-                      disabled={saveMutation.isPending || !isDirty}
-                    >
-                      {saveMutation.isPending
-                        ? "Guardando..."
-                        : "Guardar cambios"}
+                    <Button size="sm" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !isDirty}>
+                      <Save className="mr-1.5 h-4 w-4" aria-hidden />
+                      {saveMutation.isPending ? "Guardando..." : "Guardar cambios"}
                     </Button>
                   </div>
                 </div>
 
                 {activeTab === "Colores" ? (
-                  <ThemeColorEditor
-                    tokens={draft.tokens}
-                    onChange={(tokens) => updateDraft("tokens", tokens)}
-                  />
+                  <ThemeColorEditor tokens={draft.tokens} onChange={(tokens) => updateDraft("tokens", tokens)} />
                 ) : (
-                  <ThemeTypographyEditor
-                    typography={draft.typography}
-                    onChange={(typography) =>
-                      updateDraft("typography", typography)
-                    }
-                  />
+                  <ThemeTypographyEditor typography={draft.typography} onChange={(typography) => updateDraft("typography", typography)} />
                 )}
               </div>
             ) : null}
           </div>
 
-          {/* Right: preview panel */}
-          <div className="rounded-xl border border-border bg-muted overflow-hidden sticky top-6 min-h-75">
-            <div className="flex items-center justify-center h-full p-8 text-center text-muted-foreground">
-              <div>
-                <div
-                  className="w-16 h-16 rounded-xl mb-3 mx-auto border border-border"
-                  style={{ background: "var(--primary, #4F46E5)" }}
-                />
-                <p className="text-sm font-medium">Vista previa del tema</p>
-                <p className="text-xs mt-1 text-muted-foreground">
-                  Guarda los cambios para ver el efecto
-                </p>
-              </div>
-            </div>
-          </div>
+          <ThemePreviewCard tokens={draft.tokens} typography={draft.typography} isDirty={isDirty} />
         </div>
       )}
 
       <Dialog open={newThemeOpen} onOpenChange={setNewThemeOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
+        <DialogContent size="md">
+          <DialogHeader icon={Paintbrush}>
             <DialogTitle>Nuevo tema</DialogTitle>
           </DialogHeader>
           <form
@@ -331,17 +285,10 @@ export default function WebsiteThemeScreen({ siteId: siteIdProp = null }) {
               autoFocus
             />
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setNewThemeOpen(false)}
-              >
+              <Button type="button" variant="outline" onClick={() => setNewThemeOpen(false)}>
                 Cancelar
               </Button>
-              <Button
-                type="submit"
-                disabled={createThemeMutation.isPending || !newThemeName.trim()}
-              >
+              <Button type="submit" disabled={createThemeMutation.isPending || !newThemeName.trim()}>
                 {createThemeMutation.isPending ? "Creando..." : "Crear"}
               </Button>
             </DialogFooter>

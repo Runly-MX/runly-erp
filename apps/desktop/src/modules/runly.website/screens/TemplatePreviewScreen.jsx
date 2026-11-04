@@ -12,8 +12,9 @@ import {
   defineTheme,
 } from '@raulbellosom/atlas-web-builder'
 import '@raulbellosom/atlas-web-builder/styles'
-import { Button, ConfirmDialog } from '@runly/ui'
-import { ArrowLeft } from 'lucide-react'
+import { Button, ConfirmDialog, EmptyState } from '@runly/ui'
+import { AlertTriangle, ArrowLeft, Eye, Info, LayoutTemplate, Wand2 } from 'lucide-react'
+import { TemplatesPageSelector } from '../components/TemplatesPageSelector.jsx'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -166,11 +167,13 @@ export default function TemplatePreviewScreen() {
 
   if (!template) {
     return (
-      <div className="flex flex-col items-center justify-center h-full gap-4 p-8 text-center">
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Plantilla no encontrada.</p>
-        <Button variant="outline" onClick={() => navigate(templatesPath)}>
-          Volver a plantillas
-        </Button>
+      <div className="p-4 md:p-6">
+        <EmptyState
+          icon={LayoutTemplate}
+          title="Plantilla no encontrada"
+          description="Puede que se haya retirado o que el enlace esté incompleto."
+          action={{ label: 'Volver a plantillas', onClick: () => navigate(templatesPath) }}
+        />
       </div>
     )
   }
@@ -203,69 +206,43 @@ export default function TemplatePreviewScreen() {
   }
 
   return (
-    <div className="flex h-full overflow-hidden">
+    <div className="flex h-full flex-col overflow-hidden md:flex-row">
 
-      {/* Left panel: selection + apply */}
-      <div className="w-72 shrink-0 flex flex-col border-r border-[hsl(var(--border))] bg-[hsl(var(--background))] h-full">
-
-        {/* Header */}
-        <div className="p-4 border-b border-[hsl(var(--border))]">
-          <button
-            onClick={() => navigate(templatesPath)}
-            className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors mb-3 cursor-pointer"
-          >
-            <ArrowLeft size={13} />
+      {/* Selection + apply */}
+      <aside className="flex max-h-[50vh] shrink-0 flex-col border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] md:h-full md:max-h-none md:w-80 md:border-b-0 md:border-r">
+        <div className="border-b border-[hsl(var(--border))] p-4">
+          <Button variant="ghost" size="sm" className="-ml-2 mb-2" onClick={() => navigate(templatesPath)}>
+            <ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />
             Plantillas
-          </button>
-          <div className="flex items-center gap-2 mb-1">
-            <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: template.color }} />
-            <h2 className="font-semibold text-[hsl(var(--foreground))] truncate">{template.label}</h2>
+          </Button>
+          <div className="flex items-start gap-3">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl text-white shadow-sm" style={{ background: template.themeTokens?.color?.primary ?? template.color }}>
+              <LayoutTemplate className="h-5 w-5" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h2 className="truncate text-base font-semibold text-[hsl(var(--foreground))]">{template.label}</h2>
+              <p className="text-xs leading-relaxed text-[hsl(var(--muted-foreground))]">{template.description}</p>
+            </div>
           </div>
-          <p className="text-xs text-[hsl(var(--muted-foreground))] leading-relaxed">
-            {template.description}
-          </p>
         </div>
 
-        {/* Page selection */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-1">
-          <p className="text-[11px] font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wider mb-3">
-            Paginas a crear
-          </p>
-          {template.pages.map((p) => (
-            <label
-              key={p.id}
-              className={`flex items-center gap-2.5 px-3 py-2.5 rounded-lg transition-colors ${
-                p.required ? 'opacity-60' : 'cursor-pointer hover:bg-[hsl(var(--muted)/0.5)]'
-              } ${selectedPageIds.includes(p.id) ? 'bg-[hsl(var(--muted)/0.3)]' : ''}`}
-            >
-              <input
-                type="checkbox"
-                className="rounded shrink-0"
-                checked={selectedPageIds.includes(p.id)}
-                disabled={applyMutation.isPending}
-                onChange={() => togglePage(p.id)}
-              />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-[hsl(var(--foreground))] truncate">{p.label}</p>
-                <p className="text-[11px] text-[hsl(var(--muted-foreground))] font-mono">{p.routePath}</p>
-              </div>
-              {p.required && (
-                <span className="text-[10px] text-white dark:text-amber-300 bg-amber-500 dark:bg-amber-950/40 border border-transparent dark:border-amber-800 rounded px-1.5 py-0.5 shrink-0">
-                  base
-                </span>
-              )}
-            </label>
-          ))}
+        <div className="flex-1 overflow-y-auto p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">Páginas a crear</p>
+            <span className="text-xs font-medium tabular-nums text-[hsl(var(--muted-foreground))]">{selectedPageIds.length} de {template.pages.length}</span>
+          </div>
+          <TemplatesPageSelector pages={template.pages} selectedIds={selectedPageIds} disabled={applyMutation.isPending} onToggle={togglePage} />
         </div>
 
-        {/* Apply footer */}
-        <div className="p-4 border-t border-[hsl(var(--border))] space-y-2">
+        <div className="space-y-2 border-t border-[hsl(var(--border))] p-4">
           {!site && (
-            <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            <p className="flex gap-2 text-xs text-amber-700 dark:text-amber-400">
+              <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
               Configura tu sitio primero para aplicar plantillas.
             </p>
           )}
-          <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+          <p className="flex gap-2 text-[11px] text-[hsl(var(--muted-foreground))]">
+            <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
             Si una ruta ya existe, no se aplica ninguna página. Desmárcala o revisa el sitio antes de reintentar.
           </p>
           <Button
@@ -273,41 +250,48 @@ export default function TemplatePreviewScreen() {
             onClick={() => setConfirmOpen(true)}
             disabled={applyMutation.isPending || selectedPageIds.length === 0 || !site || !caps.templatesApply?.allowed}
           >
+            <Wand2 className="mr-1.5 h-4 w-4" aria-hidden />
             {applyMutation.isPending
-              ? 'Creando paginas...'
-              : `Aplicar — ${selectedPageIds.length} pagina${selectedPageIds.length !== 1 ? 's' : ''}`}
+              ? 'Creando páginas...'
+              : `Aplicar — ${selectedPageIds.length} página${selectedPageIds.length !== 1 ? 's' : ''}`}
           </Button>
         </div>
-      </div>
+      </aside>
 
-      {/* Right panel: page switcher + sandboxed preview */}
-      <div className="flex-1 min-w-0 flex flex-col h-full">
-        <div className="flex items-center gap-1 px-3 py-2 border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] overflow-x-auto shrink-0">
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mr-2 shrink-0">
-            Vista previa
+      {/* Page switcher + sandboxed preview */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+        <div className="flex shrink-0 items-center gap-1.5 overflow-x-auto border-b border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2">
+          <span className="mr-1 inline-flex shrink-0 items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
+            <Eye className="h-3.5 w-3.5" aria-hidden />Vista previa
           </span>
-          {template.pages.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              onClick={() => showPreviewPage(p.id)}
-              className={`shrink-0 rounded-md px-2.5 py-1 text-xs transition-colors cursor-pointer ${
-                previewEntry?.id === p.id
-                  ? 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] font-medium'
-                  : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]'
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
+          {template.pages.map((p) => {
+            const active = previewEntry?.id === p.id
+            return (
+              <button
+                key={p.id}
+                type="button"
+                aria-pressed={active}
+                onClick={() => showPreviewPage(p.id)}
+                className={`min-h-9 shrink-0 cursor-pointer rounded-full px-3 text-xs transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] ${
+                  active
+                    ? 'bg-[hsl(var(--foreground))] font-medium text-[hsl(var(--background))]'
+                    : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]'
+                }`}
+              >
+                {p.label}
+              </button>
+            )
+          })}
         </div>
-        <div
-          ref={previewScrollRef}
-          className="flex-1 overflow-y-auto bg-white"
-          onClickCapture={handlePreviewClick}
-          onSubmitCapture={(e) => e.preventDefault()}
-        >
-          {previewEntry && <TemplatePagePreview key={previewEntry.id} page={previewEntry.page} theme={previewTheme} />}
+        <div className="min-h-0 flex-1 bg-[hsl(var(--muted))]/50 p-2 md:p-4">
+          <div
+            ref={previewScrollRef}
+            className="h-full overflow-y-auto rounded-xl border border-[hsl(var(--border))] bg-white shadow-sm"
+            onClickCapture={handlePreviewClick}
+            onSubmitCapture={(e) => e.preventDefault()}
+          >
+            {previewEntry && <TemplatePagePreview key={previewEntry.id} page={previewEntry.page} theme={previewTheme} />}
+          </div>
         </div>
       </div>
 

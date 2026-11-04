@@ -1,25 +1,12 @@
 import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import {
-  Badge,
-  Button,
-  Card,
-  EmptyState,
-  ErrorState,
-  NumberField,
-  PageHeader,
-  PasswordField,
-  Skeleton,
-  SelectField,
-  SwitchField,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  TextField,
-} from '@runly/ui'
-import { BarChart3, Globe, Mail, Server, User } from 'lucide-react'
+import { Button, ChipTabs, EmptyState, ErrorState, Skeleton } from '@runly/ui'
+import { BarChart3, Globe, Mail } from 'lucide-react'
+import { SiteSectionHeader } from '../components/SiteSectionHeader.jsx'
+import { SettingsCard } from '../components/SettingsCard.jsx'
+import { SettingsSmtpCard } from '../components/SettingsSmtpCard.jsx'
+import { SettingsAnalyticsCard } from '../components/SettingsAnalyticsCard.jsx'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -73,7 +60,7 @@ const CAPTURE_EMPTY = {
 }
 const ANALYTICS_MODE_OPTIONS = [
   { value: 'off', label: 'Desactivada' },
-  { value: 'anonymous', label: 'Anonima sin banner' },
+  { value: 'anonymous', label: 'Anónima' },
   { value: 'consent_required', label: 'Requiere consentimiento' },
 ]
 
@@ -96,6 +83,7 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
   // Inside a site workspace the file source is managed by "Importar ZIP"; the
   // historical source switch only exists on the legacy route.
   const scoped = Boolean(siteIdProp)
+  const [tab, setTab] = useState(scoped ? 'smtp' : 'source')
 
   useEffect(() => {
     const site = siteQuery.data?.data
@@ -246,11 +234,20 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
   const turnstileSecretSet =
     siteQuery.data?.data?.turnstileSecretKeySet ?? false
 
+  const header = (
+    <SiteSectionHeader
+      icon={Mail}
+      tone="emerald"
+      title="Correo y analítica"
+      description="Ajusta el envío de correos, la medición de visitas y la protección de formularios."
+    />
+  )
+
   if (siteQuery.isError) {
     return (
       <div className="p-4 md:p-6">
         <ErrorState
-          title="No se pudo cargar la configuracion"
+          title="No se pudo cargar la configuración"
           message={siteQuery.error?.message}
           onRetry={() => siteQuery.refetch()}
         />
@@ -261,15 +258,12 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
   // No site configured yet — show empty state
   if (!siteQuery.isPending && !siteId) {
     return (
-      <div className="p-4 md:p-6 space-y-6">
-        <PageHeader
-          eyebrow="Runly Website"
-          title="Configuracion"
-          description="Ajusta las integraciones y credenciales de tu sitio web."
-        />
+      <div className="p-4 md:p-6 space-y-5">
+        {header}
         <EmptyState
+          icon={Globe}
           title="No hay sitio configurado"
-          description="Completa el asistente de configuracion para activar estas opciones."
+          description="Completa el asistente de configuración para activar estas opciones."
           action={
             <Button onClick={() => navigate('/app/m/runly.website')}>
               Ir al asistente
@@ -280,258 +274,88 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
     )
   }
 
+  const tabs = [
+    ...(!scoped ? [{ value: 'source', label: 'Fuente del sitio', icon: Globe }] : []),
+    { value: 'smtp', label: 'Correo', icon: Mail },
+    { value: 'analytics', label: 'Analítica', icon: BarChart3 },
+  ]
+
   return (
     <div className="flex flex-col min-h-full">
-      <div className="flex-1 p-4 md:p-6 space-y-6 max-w-3xl mx-auto w-full">
-        <PageHeader
-          eyebrow="Runly Website"
-          title="Configuracion"
-          description="Ajusta las integraciones y credenciales de tu sitio web."
-        />
+      <div className="flex-1 p-4 md:p-6 space-y-5 max-w-4xl mx-auto w-full">
+        {header}
 
-        <Tabs defaultValue={scoped ? 'smtp' : 'source'}>
-          <TabsList>
-            {!scoped && (
-            <TabsTrigger value="source">
-                <Globe className="w-4 h-4 mr-1.5" />
-                Fuente del sitio
-              </TabsTrigger>
+        <ChipTabs ariaLabel="Secciones de configuración" showDescription={false} tabs={tabs} value={tab} onChange={setTab} />
+
+        {!scoped && tab === 'source' && (
+          <SettingsCard icon={Globe} tone="blue" title="Fuente del sitio" description="Elige qué se sirve en la ruta raíz de tu dominio.">
+            {sourceQuery.isPending || siteQuery.isPending ? (
+              <div className="space-y-2">
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+                <Skeleton className="h-16 rounded-lg" />
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <WebsiteSourceSelector
+                  currentSource={sourceQuery.data?.data?.sourceType ?? 'builder'}
+                  onSelect={(value) => sourceChangeMutation.mutate(value)}
+                  isLoading={sourceChangeMutation.isPending}
+                />
+                {sourceQuery.data?.data?.sourceType === 'dist' && (
+                  <div className="pt-4 border-t border-[hsl(var(--border))]">
+                    <p className="text-sm font-medium mb-3">Archivos del build</p>
+                    <DistUploadPanel
+                      site={sourceQuery.data?.data}
+                      token={token}
+                      siteId={siteId}
+                      onUpload={(file) => uploadDistMutation.mutate(file)}
+                      onDelete={() => deleteDistMutation.mutate()}
+                      isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}
+                      uploadError={uploadDistMutation.isError ? uploadDistMutation.error?.message : null}
+                    />
+                  </div>
+                )}
+              </div>
             )}
-            <TabsTrigger value="smtp">
-              <Mail className="w-4 h-4 mr-1.5" />
-              Correo electronico
-            </TabsTrigger>
-            <TabsTrigger value="analytics">
-              <BarChart3 className="w-4 h-4 mr-1.5" />
-              Analitica
-            </TabsTrigger>
-          </TabsList>
+          </SettingsCard>
+        )}
 
-          {/* Tab: Fuente del sitio */}
-          {!scoped && (<TabsContent value="source" className="mt-4">
-            <Card className="p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-border bg-muted/40">
-                <p className="text-sm font-semibold">Fuente del sitio</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Elige que se sirve en la ruta raiz de tu dominio.
-                </p>
-              </div>
-              <div className="p-4 space-y-4">
-                {sourceQuery.isPending || siteQuery.isPending ? (
-                  <div className="space-y-2">
-                    <Skeleton className="h-16 rounded-lg" />
-                    <Skeleton className="h-16 rounded-lg" />
-                    <Skeleton className="h-16 rounded-lg" />
-                  </div>
-                ) : (
-                  <>
-                    <WebsiteSourceSelector
-                      currentSource={sourceQuery.data?.data?.sourceType ?? 'builder'}
-                      onSelect={(value) => sourceChangeMutation.mutate(value)}
-                      isLoading={sourceChangeMutation.isPending}
-                    />
-                    {sourceQuery.data?.data?.sourceType === 'dist' && (
-                      <div className="pt-2 border-t border-border">
-                        <p className="text-sm font-medium mb-3">Archivos del build</p>
-                        <DistUploadPanel
-                          site={sourceQuery.data?.data}
-                          token={token}
-                          siteId={siteId}
-                          onUpload={(file) => uploadDistMutation.mutate(file)}
-                          onDelete={() => deleteDistMutation.mutate()}
-                          isUploading={uploadDistMutation.isPending || deleteDistMutation.isPending}
-                          uploadError={uploadDistMutation.isError ? uploadDistMutation.error?.message : null}
-                        />
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            </Card>
-          </TabsContent>)}
+        {tab === 'smtp' && (
+          <SettingsSmtpCard
+            form={smtpForm}
+            setForm={setSmtpForm}
+            configured={smtpConfigured}
+            loading={configQuery.isPending}
+            passChanged={passChanged}
+            onPassChange={(value) => {
+              setSmtpForm((f) => ({ ...f, pass: value }))
+              setPassChanged(true)
+            }}
+            onTlsChange={(checked) => { smtpDirtyRef.current = true; setSmtpForm((f) => ({ ...f, tls: checked })) }}
+            onDirty={() => { smtpDirtyRef.current = true }}
+            onSubmit={handleSmtpSubmit}
+            saving={smtpSaveMutation.isPending}
+            onTest={() => smtpTestMutation.mutate()}
+            testing={smtpTestMutation.isPending}
+          />
+        )}
 
-          {/* Tab: Correo electronico (SMTP) */}
-          <TabsContent value="smtp" className="mt-4">
-            <Card className="p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-border bg-muted/40 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-semibold">Correo electronico (SMTP)</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Credenciales de correo de Website, compartidas por todos los sitios de la empresa. Si no se configuran, se usa el SMTP de la empresa como respaldo.
-                  </p>
-                </div>
-                {smtpConfigured && (
-                  <Badge variant="success" className="shrink-0 gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                    Configurado
-                  </Badge>
-                )}
-              </div>
-
-              <div className="p-4 space-y-4">
-                {configQuery.isPending ? (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <Skeleton className="h-11 rounded-lg" />
-                      <Skeleton className="h-11 rounded-lg" />
-                    </div>
-                    <Skeleton className="h-11 w-full rounded-lg" />
-                    <Skeleton className="h-11 w-full rounded-lg" />
-                    <Skeleton className="h-11 w-full rounded-lg" />
-                    <Skeleton className="h-11 w-full rounded-lg" />
-                  </div>
-                ) : (
-                  <form onChangeCapture={() => { smtpDirtyRef.current = true }} onSubmit={handleSmtpSubmit} className="space-y-4">
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <TextField
-                        label="Servidor (host)"
-                        icon={Server}
-                        placeholder="smtp.gmail.com"
-                        value={smtpForm.host}
-                        onChange={(e) => setSmtpForm((f) => ({ ...f, host: e.target.value }))}
-                        required
-                      />
-                      <NumberField
-                        label="Puerto"
-                        value={smtpForm.port}
-                        onChange={(e) => setSmtpForm((f) => ({ ...f, port: Number(e.target.value) }))}
-                        required
-                      />
-                    </div>
-
-                    <TextField
-                      label="Usuario"
-                      icon={User}
-                      placeholder="reservas@minegocio.com"
-                      value={smtpForm.user}
-                      onChange={(e) => setSmtpForm((f) => ({ ...f, user: e.target.value }))}
-                      required
-                    />
-
-                    <PasswordField
-                      label={smtpConfigured && !passChanged ? 'Contrasena (dejar en blanco para mantener)' : 'Contrasena'}
-                      placeholder={smtpConfigured ? '••••••••' : ''}
-                      value={smtpForm.pass}
-                      onChange={(e) => {
-                        setSmtpForm((f) => ({ ...f, pass: e.target.value }))
-                        setPassChanged(true)
-                      }}
-                    />
-
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <TextField
-                        label="Nombre del remitente"
-                        icon={Mail}
-                        placeholder="Mi Restaurante"
-                        value={smtpForm.from_name}
-                        onChange={(e) => setSmtpForm((f) => ({ ...f, from_name: e.target.value }))}
-                      />
-                      <TextField
-                        label="Email del remitente"
-                        icon={Mail}
-                        placeholder="reservas@minegocio.com"
-                        value={smtpForm.from_email}
-                        onChange={(e) => setSmtpForm((f) => ({ ...f, from_email: e.target.value }))}
-                      />
-                    </div>
-
-                    <SwitchField
-                      id="ws-smtp-tls"
-                      label={[25, 587].includes(Number(smtpForm.port)) ? 'Exigir STARTTLS' : 'Usar TLS directo (SSL)'}
-                      checked={Number(smtpForm.port) === 465 || smtpForm.tls}
-                      disabled={Number(smtpForm.port) === 465}
-                      onChange={(checked) => { smtpDirtyRef.current = true; setSmtpForm((f) => ({ ...f, tls: checked })) }}
-                    />
-
-                    <p className="text-sm text-muted-foreground">
-                      {[25, 587].includes(Number(smtpForm.port))
-                        ? 'La conexion se cifra mediante STARTTLS. Activa esta opcion para exigirlo; desactivada, se usa si el servidor lo ofrece.'
-                        : 'El puerto 465 siempre usa TLS directo. Para STARTTLS usa el puerto 587, segun las indicaciones de tu proveedor.'}
-                    </p>
-
-                    <div className="flex gap-2 pt-2 border-t border-border">
-                      <Button type="submit" disabled={smtpSaveMutation.isPending} className="flex-1">
-                        {smtpSaveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        onClick={() => smtpTestMutation.mutate()}
-                        disabled={smtpTestMutation.isPending}
-                      >
-                        {smtpTestMutation.isPending ? 'Enviando...' : 'Enviar prueba'}
-                      </Button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="analytics" className="mt-4">
-            <Card className="p-0 overflow-hidden">
-              <div className="px-4 py-3 border-b border-border bg-muted/40">
-                <p className="text-sm font-semibold">Analitica y proteccion de formularios</p>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  Controla la captura del storefront y las claves publicas de Cloudflare Turnstile.
-                </p>
-              </div>
-              <form onSubmit={handleCaptureSubmit} className="p-4 space-y-4">
-                <SelectField
-                  label="Modo de analitica"
-                  value={captureForm.analyticsMode}
-                  onChange={(value) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      analyticsMode: value,
-                    }))
-                  }
-                  options={ANALYTICS_MODE_OPTIONS}
-                />
-                <p className="text-xs text-muted-foreground">
-                  Runly respeta siempre Do Not Track. El modo con consentimiento no
-                  envia eventos hasta que el visitante lo autoriza.
-                </p>
-                <TextField
-                  label="Turnstile Site Key"
-                  value={captureForm.turnstileSiteKey}
-                  onChange={(event) =>
-                    setCaptureForm((current) => ({
-                      ...current,
-                      turnstileSiteKey: event.target.value,
-                    }))
-                  }
-                  placeholder="Clave publica"
-                />
-                <PasswordField
-                  label={
-                    turnstileSecretSet && !turnstileSecretChanged
-                      ? 'Turnstile Secret Key (dejar en blanco para mantener)'
-                      : 'Turnstile Secret Key'
-                  }
-                  value={captureForm.turnstileSecretKey}
-                  onChange={(event) => {
-                    setCaptureForm((current) => ({
-                      ...current,
-                      turnstileSecretKey: event.target.value,
-                    }))
-                    setTurnstileSecretChanged(true)
-                  }}
-                  placeholder={turnstileSecretSet ? '••••••••' : 'Clave secreta'}
-                />
-                <Button
-                  type="submit"
-                  disabled={captureSaveMutation.isPending}
-                  className="w-full"
-                >
-                  {captureSaveMutation.isPending
-                    ? 'Guardando...'
-                    : 'Guardar analitica'}
-                </Button>
-              </form>
-            </Card>
-          </TabsContent>
-        </Tabs>
+        {tab === 'analytics' && (
+          <SettingsAnalyticsCard
+            form={captureForm}
+            setForm={setCaptureForm}
+            modeOptions={ANALYTICS_MODE_OPTIONS}
+            secretSet={turnstileSecretSet}
+            secretChanged={turnstileSecretChanged}
+            onSecretChange={(value) => {
+              setCaptureForm((current) => ({ ...current, turnstileSecretKey: value }))
+              setTurnstileSecretChanged(true)
+            }}
+            onSubmit={handleCaptureSubmit}
+            saving={captureSaveMutation.isPending}
+          />
+        )}
       </div>
     </div>
   )

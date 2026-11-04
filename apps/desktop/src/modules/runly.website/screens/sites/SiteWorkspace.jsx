@@ -1,7 +1,7 @@
 import { lazy, Suspense, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Alert, AlertDescription, AlertTitle, ErrorState, LoadingState, Tabs, TabsContent, TabsList, TabsTrigger } from '@runly/ui'
-import { Archive } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, ChipTabs, ErrorState, LoadingState } from '@runly/ui'
+import { Archive, LayoutTemplate, Menu, Palette } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
 import { PUBLIC_ROUTE_ROOT } from '../../lib/pageRoute.js'
 import { SECTIONS } from '../../lib/siteSections.js'
@@ -30,20 +30,25 @@ const Lazy = ({ children }) => <Suspense fallback={<LoadingState variant="page" 
 // Template application still writes through the historical default-site flow
 // (non-atomic, no revisioned drafts), so it is only offered for that site.
 
-function Appearance({ site, siteId }) {
+const APPEARANCE_TABS = [
+  { value: 'theme', label: 'Tema', icon: Palette },
+  { value: 'menus', label: 'Menús', icon: Menu },
+  { value: 'templates', label: 'Plantillas', icon: LayoutTemplate },
+]
+
+function Appearance({ siteId }) {
+  const [tab, setTab] = useState('theme')
   return (
-    <Lazy>
-      <Tabs defaultValue="theme" className="p-2">
-        <TabsList>
-          <TabsTrigger value="theme">Tema</TabsTrigger>
-          <TabsTrigger value="menus">Menús</TabsTrigger>
-          <TabsTrigger value="templates">Plantillas</TabsTrigger>
-        </TabsList>
-        <TabsContent value="theme"><ThemeScreen siteId={siteId} /></TabsContent>
-        <TabsContent value="menus"><MenusScreen siteId={siteId} /></TabsContent>
-        <TabsContent value="templates"><TemplatesScreen siteId={siteId} /></TabsContent>
-      </Tabs>
-    </Lazy>
+    <div>
+      <div className="px-4 pt-4 md:px-6">
+        <ChipTabs ariaLabel="Secciones de apariencia" showDescription={false} tabs={APPEARANCE_TABS} value={tab} onChange={setTab} />
+      </div>
+      <Lazy>
+        {tab === 'theme' && <ThemeScreen siteId={siteId} />}
+        {tab === 'menus' && <MenusScreen siteId={siteId} />}
+        {tab === 'templates' && <TemplatesScreen siteId={siteId} />}
+      </Lazy>
+    </div>
   )
 }
 

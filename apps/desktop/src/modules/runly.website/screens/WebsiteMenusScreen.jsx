@@ -7,7 +7,6 @@ import {
   Button,
   ConfirmDialog,
   EmptyState,
-  PageHeader,
   SelectField,
   TextField,
   Dialog,
@@ -17,19 +16,22 @@ import {
   DialogFooter,
   LoadingState,
 } from "@runly/ui";
+import { Menu as MenuIcon, Plus, Trash2 } from "lucide-react";
 import { useScopedSite } from "../hooks/useScopedSite.js";
 import { toast } from "sonner";
 import MenuItemTree from "./MenuItemTree.jsx";
+import { SiteSectionHeader } from "../components/SiteSectionHeader.jsx";
+import { MenusList, MENU_LOCATION_ICONS } from "../components/MenusList.jsx";
 
 const LOCATION_LABELS = {
   header: "Encabezado",
-  footer: "Pie de pagina",
+  footer: "Pie de página",
   sidebar: "Barra lateral",
 };
 
 const LOCATION_OPTIONS = [
   { value: "header", label: "Encabezado" },
-  { value: "footer", label: "Pie de pagina" },
+  { value: "footer", label: "Pie de página" },
   { value: "sidebar", label: "Barra lateral" },
 ];
 
@@ -130,107 +132,99 @@ export default function WebsiteMenusScreen({ siteId: siteIdProp = null }) {
 
   if (siteQuery.isPending) return <LoadingState variant="page" />;
 
+  const header = (actions) => (
+    <SiteSectionHeader
+      icon={MenuIcon}
+      tone="blue"
+      title="Menús"
+      description="Organiza los enlaces de navegación de tu sitio público."
+      actions={actions}
+    />
+  );
+
   if (!siteId) {
     return (
-      <div className="p-4 md:p-6 space-y-6">
-        <PageHeader
-          eyebrow="Runly Website"
-          title="Menus"
-          description="Configura la navegacion del sitio publico."
-        />
+      <div className="p-4 md:p-6 space-y-5">
+        {header()}
         <EmptyState
+          icon={MenuIcon}
           title="Sitio web no configurado"
-          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+          description='Configura tu sitio web primero desde la sección "Sitio web".'
         />
       </div>
     );
   }
 
+  const SelectedIcon = MENU_LOCATION_ICONS[selectedMenu?.location] ?? MenuIcon;
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <PageHeader
-        eyebrow="Runly Website"
-        title="Menus"
-        description="Configura la navegacion del sitio publico."
-        actions={
-          <Button onClick={() => setNewMenuOpen(true)}>Nuevo menu</Button>
-        }
-      />
+    <div className="p-4 md:p-6 space-y-5">
+      {header(
+        menus.length > 0 && (
+          <Button onClick={() => setNewMenuOpen(true)}>
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden />
+            Nuevo menú
+          </Button>
+        ),
+      )}
 
       {menusQuery.isPending ? (
         <LoadingState message="Cargando menús..." />
       ) : menus.length === 0 ? (
         <EmptyState
-          title="Sin menus"
-          description="Crea tu primer menu para configurar la navegacion del sitio."
+          icon={MenuIcon}
+          title="Todavía no hay menús"
+          description="Crea un menú para que tus visitantes encuentren tus páginas desde el encabezado o el pie de página."
           action={{
-            label: "Crear primer menu",
+            label: "Crear primer menú",
             onClick: () => setNewMenuOpen(true),
           }}
         />
       ) : (
-        <div className="flex gap-6">
-          <div className="w-48 shrink-0 space-y-1">
-            {menus.map((menu) => (
-              <button
-                key={menu.id}
-                onClick={() => setSelectedMenuId(menu.id)}
-                className={`w-full text-left px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                  activeId === menu.id
-                    ? "bg-[var(--brand-primary)] text-[var(--brand-primary-foreground)] font-medium"
-                    : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]"
-                }`}
-              >
-                <div className="font-medium truncate">{menu.name}</div>
-                <div
-                  className={`text-xs mt-0.5 ${activeId === menu.id ? "opacity-70" : "text-[hsl(var(--muted-foreground))]"}`}
-                >
-                  {LOCATION_LABELS[menu.location] ?? menu.location}
-                </div>
-              </button>
-            ))}
-          </div>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+          <MenusList menus={menus} activeId={activeId} locationLabels={LOCATION_LABELS} onSelect={setSelectedMenuId} />
 
-          <div className="flex-1 space-y-4">
+          <div className="min-w-0 flex-1">
             {selectedMenu ? (
-              <>
-                <div className="flex items-center justify-between">
-                  <h2 className="text-base font-medium text-[hsl(var(--foreground))]">
-                    {selectedMenu.name}
-                    <span className="ml-2 text-xs text-[hsl(var(--muted-foreground))] font-normal">
-                      (
-                      {LOCATION_LABELS[selectedMenu.location] ??
-                        selectedMenu.location}
-                      )
-                    </span>
-                  </h2>
-                  <button
+              <section aria-label={selectedMenu.name} className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+                <div className="flex flex-wrap items-center gap-3 border-b border-[hsl(var(--border))] p-4">
+                  <span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-sky-500/12 text-sky-600 dark:text-sky-400"><SelectedIcon className="h-5 w-5" aria-hidden /></span>
+                  <div className="min-w-0 flex-1">
+                    <h2 className="truncate text-base font-semibold text-[hsl(var(--foreground))]">{selectedMenu.name}</h2>
+                    <p className="text-xs text-[hsl(var(--muted-foreground))]">Ubicación: {LOCATION_LABELS[selectedMenu.location] ?? selectedMenu.location}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="sm"
                     onClick={() => setConfirmDelete(selectedMenu)}
-                    className="text-xs text-[hsl(var(--destructive))] hover:underline"
+                    className="text-[hsl(var(--destructive))] hover:text-[hsl(var(--destructive))]"
                   >
-                    Eliminar menu
-                  </button>
+                    <Trash2 className="mr-1.5 h-4 w-4" aria-hidden />
+                    Eliminar menú
+                  </Button>
                 </div>
-                <MenuItemTree
-                  menuId={selectedMenu.id}
-                  items={selectedMenu.items ?? []}
-                  onReorder={handleReorder}
-                  onRefresh={() =>
-                    queryClient.invalidateQueries({
-                      queryKey: ["website-menus", siteId],
-                    })
-                  }
-                />
-              </>
+                <div className="p-4">
+                  <MenuItemTree
+                    menuId={selectedMenu.id}
+                    items={selectedMenu.items ?? []}
+                    onReorder={handleReorder}
+                    onRefresh={() =>
+                      queryClient.invalidateQueries({
+                        queryKey: ["website-menus", siteId],
+                      })
+                    }
+                  />
+                </div>
+              </section>
             ) : null}
           </div>
         </div>
       )}
 
       <Dialog open={newMenuOpen} onOpenChange={setNewMenuOpen}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle>Nuevo menu</DialogTitle>
+        <DialogContent size="md">
+          <DialogHeader icon={MenuIcon}>
+            <DialogTitle>Nuevo menú</DialogTitle>
           </DialogHeader>
           <form
             onSubmit={(e) => {
@@ -250,7 +244,7 @@ export default function WebsiteMenusScreen({ siteId: siteIdProp = null }) {
               autoFocus
             />
             <SelectField
-              label="Ubicacion"
+              label="Ubicación"
               value={newMenuForm.location}
               onChange={(v) => setNewMenuForm((f) => ({ ...f, location: v }))}
               options={LOCATION_OPTIONS}
@@ -281,8 +275,8 @@ export default function WebsiteMenusScreen({ siteId: siteIdProp = null }) {
         onOpenChange={(open) => {
           if (!open) setConfirmDelete(null);
         }}
-        title="Eliminar menu"
-        description={`Se eliminara permanentemente el menu "${confirmDelete?.name}". Esta accion no se puede deshacer.`}
+        title="Eliminar menú"
+        description={`Se eliminará permanentemente el menú "${confirmDelete?.name}". Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         loading={deleteMenuMutation.isPending}
         onConfirm={() => deleteMenuMutation.mutate(confirmDelete?.id)}
