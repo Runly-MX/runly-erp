@@ -104,7 +104,7 @@ export default function TemplatePreviewScreen() {
   const [searchParams]=useSearchParams()
   const contextSiteId=searchParams.get('siteId')
   const commandRef=useRef(null)
-  const templatesPath=contextSiteId?`/app/m/runly.website/sites/${encodeURIComponent(contextSiteId)}/appearance`:'/app/m/runly.website/templates'
+  const templatesPath=contextSiteId?`/app/m/runly.website/sites/${encodeURIComponent(contextSiteId)}/appearance?tab=templates`:'/app/m/runly.website/templates'
   const { session } = useAuth()
   const token = session?.access_token
   const queryClient = useQueryClient()

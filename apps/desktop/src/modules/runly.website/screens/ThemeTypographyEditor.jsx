@@ -1,9 +1,8 @@
 import { useEffect } from 'react'
 import { SelectField } from '@runly/ui'
 import { ensureStudioFont } from '../../runly.studio/lib/studio-fonts.js'
-import { SITE_FONTS } from '../lib/siteFonts.js'
+import { SiteFontSelect } from '../components/SiteFontSelect.jsx'
 
-const FONT_OPTIONS = SITE_FONTS.map((font) => ({ value: font.stack, label: font.family }))
 const SIZE_OPTIONS    = ['14px', '15px', '16px', '17px', '18px'].map((s) => ({ value: s, label: s }))
 const WEIGHT_OPTIONS  = ['400', '500', '600', '700', '800'].map((w) => ({ value: w, label: w }))
 
@@ -18,7 +17,6 @@ export default function ThemeTypographyEditor({ typography = {}, onChange }) {
   const merged = { ...DEFAULTS, ...typography }
   // The preview paints with the self-hosted catalog files; unknown families just fall back.
   useEffect(() => { for (const stack of [merged.headingFont, merged.bodyFont]) ensureStudioFont(String(stack).split(',')[0].replace(/['"]/g, '').trim()).catch(() => {}) }, [merged.headingFont, merged.bodyFont])
-  const optionsFor = (current) => (FONT_OPTIONS.some((o) => o.value === current) ? FONT_OPTIONS : [{ value: current, label: String(current).split(',')[0] }, ...FONT_OPTIONS])
 
   function handleChange(key, value) {
     onChange({ ...merged, [key]: value })
@@ -31,18 +29,8 @@ export default function ThemeTypographyEditor({ typography = {}, onChange }) {
       </p>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <SelectField
-          label="Fuente del cuerpo"
-          value={merged.bodyFont}
-          onChange={(v) => handleChange('bodyFont', v)}
-          options={optionsFor(merged.bodyFont)}
-        />
-        <SelectField
-          label="Fuente de titulos"
-          value={merged.headingFont}
-          onChange={(v) => handleChange('headingFont', v)}
-          options={optionsFor(merged.headingFont)}
-        />
+        <SiteFontSelect label="Fuente del cuerpo" value={merged.bodyFont} onChange={(v) => handleChange('bodyFont', v)} />
+        <SiteFontSelect label="Fuente de títulos" value={merged.headingFont} onChange={(v) => handleChange('headingFont', v)} />
         <SelectField
           label="Tamano base"
           value={merged.baseFontSize}

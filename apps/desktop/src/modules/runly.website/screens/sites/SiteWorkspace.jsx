@@ -1,5 +1,5 @@
 import { lazy, Suspense, useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle, ChipTabs, ErrorState, LoadingState } from '@runly/ui'
 import { Archive, LayoutTemplate, Menu, Palette } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -37,7 +37,9 @@ const APPEARANCE_TABS = [
 ]
 
 function Appearance({ siteId }) {
-  const [tab, setTab] = useState('theme')
+  // ?tab= lets other screens (the template preview's back button) return to a specific tab.
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState(() => (APPEARANCE_TABS.some((item) => item.value === searchParams.get('tab')) ? searchParams.get('tab') : 'theme'))
   return (
     <div>
       <div className="px-4 pt-4 md:px-6">
