@@ -85,6 +85,8 @@ describe("POST /checkout — price/currency/name come from the catalog, never th
     assert.equal(lineItem.price_data.currency, "mxn");
     assert.equal(lineItem.price_data.product_data.name, "Producto real");
     assert.equal(lineItem.quantity, 2);
+    assert.equal(capture.sessionParams.allow_promotion_codes, true);
+    assert.equal(capture.sessionParams.discounts, undefined);
   });
 
   it("uses the variant price when variantId is given, and validates it belongs to the product", async () => {

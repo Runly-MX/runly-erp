@@ -104,6 +104,8 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
 
       const session = await stripe.checkout.sessions.create({
         mode:        'payment',
+        // Codes are validated and applied by Stripe on its page; the client never sends prices or discounts.
+        allow_promotion_codes: true,
         line_items:  lineItems,
         success_url: `${origin}/gracias?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:  `${origin}/`,
