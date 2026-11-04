@@ -5,6 +5,7 @@ import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js
 import {defaultTheme,defineTheme} from '@raulbellosom/atlas-web-builder'
 import {conformTemplateDocument} from './website-template-conform.js'
 import {applyTemplateBranding} from './website-template-branding.js'
+import {bindContactForm,ensureContactForm,usesContactForm} from './website-template-forms.js'
 
 // A template theme may override any token group (color, font, radius, button, card), never the scale tokens.
 export const mergeTemplateTokens=(base,custom={})=>Object.fromEntries(Object.entries(base).map(([group,value])=>[group,custom[group]&&typeof value==='object'?{...value,...custom[group]}:value]))
@@ -32,6 +33,13 @@ export function createWebsiteTemplateService({prisma}) {
         if(!site)throw notFound('Recurso');drafts.expected(site.draftRevision,a.expectedRevision)
         const existing=await tx.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true}})
         if(pages.some(p=>existing.some(row=>row.routePath===p.routePath||row.draftMetadata?.routePath===p.routePath)))throw fail('route_conflict',409)
+        // A ContactFormBlock placeholder gets the site's contact form; without permission to create forms it is dropped.
+        if(pages.some(p=>usesContactForm(p.document))){
+          let canCreate=true
+          try{assertWebsiteAccess(a.access,a.companyId,'website.forms.create')}catch{canCreate=false}
+          const formId=canCreate?await ensureContactForm({tx,companyId:a.companyId,siteId:a.siteId}):null
+          for(const p of pages)bindContactForm(p.document,formId)
+        }
         const created=[]
         for(const page of pages){
           const slug=page.routePath.replace(/^\//,'').replace(/[^a-z0-9-]/g,'-')||'inicio'

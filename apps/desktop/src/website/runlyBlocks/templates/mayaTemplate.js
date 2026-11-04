@@ -150,11 +150,12 @@ export const mayaSitePages = [
   },
   {
     id: 'contacto', label: 'Contacto', routePath: '/contacto', description: 'Canales de contacto.',
-    build: () => page(['topbar', 'navbar', 'hero', 'channels', 'footer'], [
+    build: () => page(['topbar', 'navbar', 'hero', 'channels', 'form', 'footer'], [
       TOPBAR,
       NAVBAR,
       hero({ eyebrow: 'Contacto', title: '¿Tienes un proyecto en mente?', subtitle: 'Me encantaría escucharlo. Respondo en menos de 24 horas.', ctaLabel: '', titleSize: '2xl', minHeight: '360px' }),
       block('channels', 'FeaturesSectionBlock', { eyebrow: 'Hablemos', title: 'Elige cómo prefieres escribirme', subtitle: '', layout: 'grid-3', iconStyle: 'arrow', background: 'white', features: 'Correo electrónico\nhola@mayadesigns.com — cuéntame tu idea y te respondo pronto.\n---\nTeléfono\n(415) 555-0198 — de lunes a viernes de 9:00 a 18:00.\n---\nUbicación\nSan Diego, California — reuniones en línea o en persona.' }),
+      block('form', 'ContactFormBlock', { formId: '@contact', successMessage: 'Gracias, te responderemos muy pronto.', buttonLabel: 'Enviar mensaje' }),
       FOOTER,
     ]),
   },

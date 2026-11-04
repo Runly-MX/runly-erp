@@ -112,6 +112,7 @@ export const auroraSitePages = [
       NAVBAR,
       hero({ scene: 'ocean', eyebrow: 'Contacto', title: 'Cuéntanos a dónde', highlight: 'quieres ir', subtitle: 'Respondemos con una propuesta en menos de 24 horas.', ctaLabel: '', height: '560px', cue: '' }),
       block('channels', 'FeaturesSectionBlock', { eyebrow: 'Hablemos', title: 'Elige cómo prefieres escribirnos', subtitle: '', layout: 'grid-3', iconStyle: 'arrow', background: 'white', features: 'Correo electrónico\nhola@auroraviajes.com — cuéntanos fechas, destino y presupuesto.\n---\nWhatsApp\n+52 55 0000 0000 — de lunes a sábado de 9:00 a 20:00.\n---\nOficina\nAv. del Mar 200, Ciudad de México — con cita previa.' }),
+      block('form', 'ContactFormBlock', { formId: '@contact', successMessage: 'Gracias, te responderemos muy pronto.', buttonLabel: 'Enviar mensaje' }),
       FOOTER,
     ),
   },

@@ -177,7 +177,7 @@ export const finoraSitePages = [
     routePath: '/contacto',
     description: 'Canales de atención y solicitud.',
     build: () => ({
-      rootIds: ['navbar', 'hero', 'channels', 'footer'],
+      rootIds: ['navbar', 'hero', 'channels', 'form', 'footer'],
       blocks: {
         navbar: NAVBAR,
         hero: hero({ eyebrow: 'Contacto', title: 'Hablemos de tus metas', subtitle: 'Un asesor te responderá en menos de 24 horas.', ctaLabel: '', titleSize: '2xl', minHeight: '360px' }),
@@ -185,6 +185,7 @@ export const finoraSitePages = [
           eyebrow: 'Canales de atención', title: 'Elige cómo prefieres contactarnos', subtitle: '', layout: 'grid-3', iconStyle: 'arrow', background: 'white',
           features: 'Correo electrónico\nhola@finora.com — para solicitudes, dudas y seguimiento de tu crédito.\n---\nTeléfono y WhatsApp\n+52 55 0000 0000 — de lunes a viernes de 9:00 a 18:00 horas.\n---\nSucursal\nAv. Reforma 100, Ciudad de México — con cita previa.',
         }),
+        form: block('form', 'ContactFormBlock', { formId: '@contact', successMessage: 'Gracias, te responderemos muy pronto.', buttonLabel: 'Enviar mensaje' }),
         footer: FOOTER,
       },
     }),
