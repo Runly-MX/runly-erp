@@ -50,7 +50,12 @@ function ProductThumb({ product }) {
 }
 const PAGE_SIZE = 100
 
-function AddToPageDialog({ product, pages, siteId, onClose, onDone }) {
+async function setInSite(api, siteId, productId, included) {
+  const state = (await api.getState(siteId)).data
+  return api.setCatalogProduct(siteId, productId, { included, expectedRevision: state.draftRevision }, newIdempotencyKey())
+}
+
+function AddToPageDialog({ product, pages, siteId, canInclude, onClose, onDone }) {
   const { api } = useWebsiteScope()
   const [pageId, setPageId] = useState('')
   const [busy, setBusy] = useState(false)
@@ -64,6 +69,8 @@ function AddToPageDialog({ product, pages, siteId, onClose, onDone }) {
       const next = appendProductCard(latest.document, product)
       if (!next) { setNeedsEditor(true); return }
       await api.saveDraft(siteId, pageId, { document: next, expectedRevision: latest.revision }, newIdempotencyKey())
+      // A card for a product the site excludes renders nothing, so placing it implies including it.
+      if (canInclude && !product.includedInSite) await setInSite(api, siteId, product.id, true)
       toast.success('Producto añadido al final de la página. Se publica con el sitio.')
       onDone(pageId)
     } catch (e) { setError(e) } finally { setBusy(false) }
@@ -96,16 +103,26 @@ function ProductUsage({siteId,productId}) {
   if(result.isError)return <ErrorNotice error={result.error}/>
   if(result.isPending)return <span className="text-xs text-[hsl(var(--muted-foreground))]">Revisando…</span>
   const rows=result.data.pages.flatMap(page=>page.data)
-  return <div className="flex flex-wrap items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]"><Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />{rows.length?rows.map(row=>`${row.title} (${row.source}, ${row.kind})`).join(', '):'Sin referencias'}{result.hasNextPage&&<Button size="sm" variant="ghost" onClick={()=>result.fetchNextPage()}>Ver más referencias</Button>}</div>
+  // One entry per page; flag pages where the product is only in the unpublished draft.
+  const pagesById=new Map()
+  for(const row of rows)pagesById.set(row.title,pagesById.get(row.title)||!row.source.startsWith('draft'))
+  const label=[...pagesById].map(([title,live])=>live?title:`${title} (sin publicar)`).join(', ')
+  return <div className="flex flex-wrap items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]"><Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />{rows.length?`Aparece en: ${label}`:'Aún no está en ninguna página. Usa “Añadir a una página”.'}{result.hasNextPage&&<Button size="sm" variant="ghost" onClick={()=>result.fetchNextPage()}>Ver más referencias</Button>}</div>
 }
 
-// Per-site inclusion and current visibility, each as icon + text.
-function SiteUsage({ product, siteId, showRefs }) {
+// One status that says what is missing, plus the fix inline when it is "include in this site".
+function SiteUsage({ product, siteId, showRefs, canInclude, including, onInclude }) {
   return (
     <div className="space-y-1.5">
-      <div className="flex flex-wrap gap-1.5">
-        {product.includedInSite ? <StatusPill tone="success" size="sm" icon={CheckCircle2}>Incluido en este sitio</StatusPill> : <StatusPill size="sm" icon={CircleDashed}>No incluido en este sitio</StatusPill>}
-        {product.publiclyVisible ? <StatusPill tone="success" size="sm" icon={Eye}>Visible actualmente</StatusPill> : <StatusPill size="sm" icon={EyeOff}>No visible actualmente</StatusPill>}
+      <div className="flex flex-wrap items-center gap-1.5">
+        {product.publiclyVisible
+          ? <StatusPill tone="success" size="sm" icon={Eye}>Visible en este sitio</StatusPill>
+          : product.includedInSite
+            ? <StatusPill tone="warning" size="sm" icon={CircleDashed}>Se verá al publicar el sitio</StatusPill>
+            : <>
+                <StatusPill size="sm" icon={EyeOff}>Oculto en este sitio</StatusPill>
+                {canInclude && <Button size="sm" variant="outline" disabled={including} onClick={onInclude}><CheckCircle2 className="h-3.5 w-3.5" aria-hidden />Mostrar en este sitio</Button>}
+              </>}
       </div>
       {showRefs && <ProductUsage siteId={siteId} productId={product.id} />}
     </div>
@@ -117,7 +134,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
   const {api,companyId}=useWebsiteScope()
   const [offset,setOffset]=useState(0)
   const query=useQuery({queryKey:['website',companyId,'catalog','selection',siteId,filters,mode,offset],queryFn:()=>api.listCatalogProducts(siteId,{...Object.fromEntries(Object.entries(filters).filter(([,v])=>v)),published:String(mode==='published'),limit:PAGE_SIZE,offset}),enabled:perms.read.allowed})
-  const selection=useMutation({mutationFn:async product=>{const state=(await api.getState(siteId)).data;return api.setCatalogProduct(siteId,product.id,{included:!product.includedInSite,expectedRevision:state.draftRevision},newIdempotencyKey())},onSuccess:()=>query.refetch(),onError:error=>toast.error(describeError(error).message)})
+  const selection=useMutation({mutationFn:product=>setInSite(api,siteId,product.id,!product.includedInSite),onSuccess:()=>query.refetch(),onError:error=>toast.error(describeError(error).message)})
   const rows = query.data?.data ?? []
   const isMobile = useIsMobile()
   const actionTrigger = isMobile ? 'h-11 w-11' : undefined
@@ -141,7 +158,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
     ...(mode === 'published' ? [{
       id: 'usage', header: 'En este sitio',
       cell: ({ row }) => {
-        return <SiteUsage product={row.original} siteId={siteId} showRefs={caps.pagesRead.allowed} />
+        return <SiteUsage product={row.original} siteId={siteId} showRefs={caps.pagesRead.allowed} canInclude={caps.siteEdit.allowed} including={selection.isPending} onInclude={() => selection.mutate(row.original)} />
       },
     }] : []),
     {
@@ -156,7 +173,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
               {label:product.includedInSite?'Excluir de este sitio':'Incluir en este sitio',disabled:!caps.siteEdit.allowed||selection.isPending,onClick:()=>selection.mutate(product)},
               mode === 'published'
                 ? { label: 'Añadir a una página', icon: FilePlus2, disabled: !caps.pagesUpdate.allowed || !pages.length, onClick: () => onAdd(product) }
-                : { label: 'Habilitar para web (empresa)', icon: Store, disabled: !perms.update.allowed, onClick: () => onPublish(product) },
+                : { label: 'Publicar en este sitio', icon: Store, disabled: !perms.update.allowed, onClick: () => onPublish(product) },
               ...(mode === 'published' ? [{ label: 'Deshabilitar para web (empresa)', icon: EyeOff, variant: 'destructive', disabled: !perms.update.allowed, onClick: () => onUnpublish(product) }] : []),
               { label: 'Editar en Catálogo', icon: ExternalLink, onClick: () => navigate(`/app/m/runly.catalog/${product.id}`) },
             ]}
@@ -230,9 +247,13 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
     queryClient.invalidateQueries({ queryKey: ['website', companyId, 'catalog', 'selection'] })
   }
   const toggle = useMutation({
-    mutationFn: ({ product, published }) => catalogApi.setPublished(product.id, published),
-    onSuccess: (_, { product, published }) => {
-      toast.success(published ? 'Producto elegible para web en la empresa. La inclusión por sitio es independiente.' : 'Producto deshabilitado globalmente para web.')
+    mutationFn: async ({ product, published }) => {
+      await catalogApi.setPublished(product.id, published)
+      // Publishing from this site's screen means "show it here" too.
+      if (published && caps.siteEdit.allowed && !product.includedInSite) await setInSite(api, siteId, product.id, true)
+    },
+    onSuccess: (_, { published }) => {
+      toast.success(published ? 'Producto publicado en este sitio. Añádelo a una página para mostrarlo.' : 'Producto quitado de la web en todos los sitios.')
       refreshCatalog()
     },
     onError: (error) => toast.error(describeError(error).message),
@@ -295,7 +316,7 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
           {!perms.update.allowed && <p className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="h-3.5 w-3.5 shrink-0" aria-hidden />Tu rol no permite publicar ni quitar productos de la web; puedes consultarlos.</p>}
         </>
       )}
-      {addTarget && <AddToPageDialog product={addTarget} pages={pageList} siteId={siteId} onClose={() => setAddTarget(null)} onDone={() => { setAddTarget(null); queryClient.invalidateQueries({ queryKey: ['website', companyId, 'site', siteId] }) }} />}
+      {addTarget && <AddToPageDialog product={addTarget} pages={pageList} siteId={siteId} canInclude={caps.siteEdit.allowed} onClose={() => setAddTarget(null)} onDone={() => { setAddTarget(null); refreshCatalog(); queryClient.invalidateQueries({ queryKey: ['website', companyId, 'site', siteId] }) }} />}
       <ConfirmDialog
         open={Boolean(unpublishTarget)}
         onOpenChange={(open) => { if (!open && !toggle.isPending) setUnpublishTarget(null) }}
