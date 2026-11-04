@@ -99,15 +99,19 @@ esa cuenta después de publicar la API. No se declara esa prueba como realizada.
 
 ## Límites y seguridad
 
-- JPEG, PNG, GIF, WebP, PDF, XML UTF-8, Word (.docx) y PowerPoint (.pptx), sin
+- JPEG, PNG, GIF, WebP, PDF, XML UTF-8, Word (.docx), PowerPoint (.pptx),
+  Excel (.xlsx) y texto UTF-8 (.txt, .csv), sin
   conversión. Máximo cinco archivos por propuesta,
   10 MB por archivo y 30 MB en conjunto. El tipo se obtiene de la firma binaria;
-  si el cliente declara otro tipo, se rechaza. XML no admite DTD, entidades ni
+  si el cliente declara otro tipo, se rechaza (salvo imagen por imagen y, en
+  texto, `text/*` o `application/vnd.ms-excel` para CSV). XML no admite DTD, entidades ni
   contenido activo; no ejecuta reconocimiento fiscal ni cambios financieros.
-  Word/PowerPoint se aceptan solo como paquete OOXML real con su parte principal
+  Word/PowerPoint/Excel se aceptan solo como paquete OOXML real con su parte principal
   y sin macros ni ActiveX (para plantillas de certificado de Aprendizaje:
-  importar sin destino y luego `lms.certificate_template.create`). Otros
-  formatos Office, SVG, HEIC y ZIP no están habilitados por esta operación.
+  importar sin destino y luego `lms.certificate_template.create`). TXT/CSV deben
+  ser UTF-8 válido sin bytes de control ni marcado (`<etiqueta`); es CSV si el
+  cliente lo declara `text/csv` o el nombre termina en `.csv`. Otros
+  formatos Office (.doc, .xls, .xlsm), SVG, HEIC y ZIP no están habilitados por esta operación.
 - Descargas HTTPS con límite de bytes real y timeout, DNS validado y fijado a la
   conexión, rechazo de direcciones privadas/loopback y redirecciones inseguras.
   Se reutiliza el downloader existente de Catálogo, sin enviar credenciales ERP

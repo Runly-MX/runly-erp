@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
 import { Readable } from 'node:stream';
+import PizZip from 'pizzip';
 import { readImportFiles } from '../file-import.js';
 import { readCatalogBytes } from '../../services/catalog/catalog-download.js';
 
@@ -33,6 +34,16 @@ test('originales XML/CFDI: conservar bytes sin parsear entidades ni permitir con
   assert.deepEqual(loaded.buffer, xml);
   assert.equal(loaded.manifest.mimeType, 'application/xml');
   for (const text of ['<!DOCTYPE test [<!ENTITY x SYSTEM "file:///example">]><test>&x;</test>', '<?xml version="1.0"?><svg/>', '<html><script>test</script></html>', '<?xml version="1.0"?><?xml-stylesheet href="https://example.test/style.xsl"?><test/>']) await assert.rejects(() => readImportFiles([file], async () => ({ buffer: Buffer.from(text) })), { code: 'file_type_rejected' });
+});
+test('originales TXT/CSV/XLSX: texto UTF-8 sin marcado y Excel sin macros', async () => {
+  const csv = Buffer.from('folio,total\nA-1,850\n');
+  const [loaded] = await readImportFiles([{ ...file, file_name: 'compras.csv', mime_type: 'application/vnd.ms-excel' }], async () => ({ buffer: csv }));
+  assert.equal(loaded.manifest.mimeType, 'text/csv');
+  assert.equal((await readImportFiles([file], async () => ({ buffer: Buffer.from('notas de la junta') })))[0].manifest.name, 'file-test.txt');
+  for (const buffer of [Buffer.from('a\u0000b'), Buffer.from([0xff, 0xfe, 0x41]), Buffer.from('hola <img src=x onerror=1>')]) await assert.rejects(() => readImportFiles([file], async () => ({ buffer })), { code: 'file_type_rejected' });
+  const xlsx = zip => { const z = new PizZip(); z.file('[Content_Types].xml', `<Types><Override ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.${zip}+xml"/></Types>`); z.file('xl/workbook.xml', '<workbook/>'); return z.generate({ type: 'nodebuffer' }); };
+  assert.equal((await readImportFiles([file], async () => ({ buffer: xlsx('main') })))[0].manifest.mimeType, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+  await assert.rejects(() => readImportFiles([file], async () => ({ buffer: xlsx('main.macroEnabled') })), { code: 'file_type_rejected' });
 });
 test('descarga compartida: DNS público fijado, sin credenciales; bloquea redirección privada/downgrade y streams grandes', async () => {
   const dns = async () => [{ address: '192.0.2.1', family: 4 }];
