@@ -2,7 +2,7 @@
 // tone: blue | violet | emerald | amber | rose | sky (same tints as SiteMetric).
 const TONES = {
   blue: 'from-sky-500/15 text-sky-600 dark:text-sky-400 bg-sky-500/15',
-  violet: 'from-violet-500/15 text-violet-600 dark:text-violet-400 bg-violet-500/15',
+  violet: 'from-orange-500/15 text-orange-600 dark:text-orange-400 bg-orange-500/15',
   emerald: 'from-emerald-500/15 text-emerald-600 dark:text-emerald-400 bg-emerald-500/15',
   amber: 'from-amber-500/15 text-amber-600 dark:text-amber-400 bg-amber-500/15',
   rose: 'from-rose-500/15 text-rose-600 dark:text-rose-400 bg-rose-500/15',
