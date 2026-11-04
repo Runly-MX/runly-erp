@@ -21,7 +21,8 @@
         "maxWidth": "1280px",
         "paddingX": "24px",
         "sticky": false,
-        "showBrandName": true
+        "showBrandName": true,
+        "mobileBreakpoint": "768px"
       },
       "fields": {
         "variant": {
@@ -112,6 +113,15 @@
         "sticky": {
           "type": "toggle",
           "label": "Pegajoso (sticky)"
+        },
+        "mobileBreakpoint": {
+          "type": "select",
+          "label": "Menú móvil por debajo de",
+          "options": [
+            "640px",
+            "768px",
+            "1024px"
+          ]
         }
       }
     },
@@ -3747,6 +3757,1387 @@
       }
     },
     {
+      "type": "AgencyHeroBlock",
+      "label": "Agencia: hero tipográfico",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Estudio creativo",
+        "tag": "Agenda abierta para nuevos proyectos",
+        "title": "Marcas que no pasan",
+        "highlight": "desapercibidas",
+        "subtitle": "Estrategia, identidad y producto digital para empresas que quieren ser recordadas.",
+        "ctaLabel": "Ver trabajo",
+        "ctaHref": "/portafolio",
+        "ctaSecondLabel": "Hablemos",
+        "ctaSecondHref": "/contacto",
+        "size": "full"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "tag": {
+          "type": "text",
+          "label": "Etiqueta de disponibilidad"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título delineado (acento)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "full",
+            "compact"
+          ]
+        }
+      }
+    },
+    {
+      "type": "AgencyMarqueeBlock",
+      "label": "Agencia: marquesina cinética",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "items": "Estrategia · Identidad · Sitios web · Producto digital · Contenido · Performance",
+        "speed": "normal"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Palabras (separadas por ·)"
+        },
+        "speed": {
+          "type": "select",
+          "label": "Velocidad",
+          "options": [
+            "slow",
+            "normal",
+            "fast"
+          ]
+        }
+      }
+    },
+    {
+      "type": "AgencyWorkBlock",
+      "label": "Agencia: casos con póster",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Trabajo selecto",
+        "title": "Casos que se notan",
+        "ctaLabel": "Ver todo el portafolio",
+        "ctaHref": "/portafolio",
+        "projects": "Aurora | Identidad y web | 2025 | +180% tráfico\nMarca de bienestar con un sistema visual propio.\n---\nRuta | Producto digital | 2025 | 40k usuarios\nApp de logística urbana pensada para el día a día.\n---\nOrigen | Campaña | 2024 | 3x leads\nContenido y performance para una marca de consumo."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "projects": {
+          "type": "textarea",
+          "label": "Casos (Nombre | Categoría | Año | Resultado, línea de descripción; separar con ---)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "AgencyServicesBlock",
+      "label": "Agencia: lista de servicios",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Servicios",
+        "title": "Lo que hacemos",
+        "showArrow": true,
+        "services": "Estrategia de marca\nPosicionamiento, narrativa y un plan claro de crecimiento.\n---\nIdentidad visual\nLogotipo, sistema gráfico y manual vivo de marca.\n---\nSitios web y producto\nDiseño y desarrollo rápido, accesible y listo para convertir."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "services": {
+          "type": "textarea",
+          "label": "Filas (Nombre, luego descripción; separar con ---)"
+        },
+        "showArrow": {
+          "type": "toggle",
+          "label": "Mostrar flecha"
+        }
+      }
+    },
+    {
+      "type": "AgencyFactsBlock",
+      "label": "Agencia: cifras gigantes",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "stats": "200+ | Proyectos\n50+ | Clientes\n98% | Retención\n15 | Premios"
+      },
+      "fields": {
+        "stats": {
+          "type": "textarea",
+          "label": "Cifras (una por línea: Valor | Etiqueta)"
+        }
+      }
+    },
+    {
+      "type": "AgencyVoicesBlock",
+      "label": "Agencia: citas de clientes",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Clientes",
+        "title": "Lo que dicen",
+        "voices": "Ricardo Blanco | CEO, FinTech\nDuplicamos el tráfico orgánico en tres meses y la marca por fin se parece a lo que somos.\n---\nCristina Pacheco | Marketing, Retailmex\nUn rebrand moderno, coherente y con una identidad que conecta.\n---\nSamuel Orozco | Fundador, EduTech\nEntregaron a tiempo, dentro del presupuesto y con una calidad excepcional."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "voices": {
+          "type": "textarea",
+          "label": "Citas (Nombre | Cargo, luego la cita; separar con ---)"
+        }
+      }
+    },
+    {
+      "type": "AgencyTeamBlock",
+      "label": "Agencia: equipo con monogramas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Equipo",
+        "title": "Las personas detrás",
+        "team": "Andrés Villanueva | Dirección creativa\nMás de 12 años en identidad y diseño digital.\n---\nValeria Cruz | Estrategia\nMarketing digital y consultoría de marca.\n---\nJorge Medina | Desarrollo\nArquitecturas web limpias y escalables.\n---\nNatalia Ríos | Diseño UX\nInvestigación y diseño centrado en la conversión."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "team": {
+          "type": "textarea",
+          "label": "Personas (Nombre | Cargo, luego bio; separar con ---)"
+        }
+      }
+    },
+    {
+      "type": "AgencyClosingBlock",
+      "label": "Agencia: cierre gigante",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Siguiente paso",
+        "title": "Tu marca merece algo",
+        "highlight": "inolvidable.",
+        "email": "hola@nexusstudio.com",
+        "ctaLabel": "Iniciar proyecto",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "",
+        "ctaSecondHref": ""
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título en cursiva"
+        },
+        "email": {
+          "type": "text",
+          "label": "Correo"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        }
+      }
+    },
+    {
+      "type": "BizHeroBlock",
+      "label": "Negocio: hero con propuesta de valor",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Consultoría para empresas",
+        "title": "Decisiones claras, resultados",
+        "highlight": "medibles.",
+        "subtitle": "Acompañamos a empresas medianas a reducir costos, ordenar su operación y crecer con un plan que se puede ejecutar.",
+        "ctaLabel": "Agendar diagnóstico",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Ver servicios",
+        "ctaSecondHref": "/servicios",
+        "proofs": "Sin contratos forzosos\nEquipo senior dedicado\nReportes semanales",
+        "panelLabel": "Ahorro operativo promedio",
+        "panelValue": "-28%",
+        "panelCaption": "Primeros 6 meses de acompañamiento",
+        "size": "full"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título en azul"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "proofs": {
+          "type": "textarea",
+          "label": "Garantías (una por línea)"
+        },
+        "panelLabel": {
+          "type": "text",
+          "label": "Panel: etiqueta"
+        },
+        "panelValue": {
+          "type": "text",
+          "label": "Panel: cifra"
+        },
+        "panelCaption": {
+          "type": "text",
+          "label": "Panel: nota"
+        },
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "full",
+            "compact"
+          ]
+        }
+      }
+    },
+    {
+      "type": "BizPillarsBlock",
+      "label": "Negocio: pilares numerados",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Por qué elegirnos",
+        "title": "La ventaja de trabajar con nosotros",
+        "subtitle": "Aliados estratégicos, no proveedores.",
+        "background": "white",
+        "items": "Metodología comprobada | Validada\nProcesos aplicados en más de 200 proyectos para resultados consistentes.\n---\nEquipo senior dedicado\nTu cuenta la atienden profesionales con experiencia real en tu industria.\n---\nEnfoque en retorno\nCada decisión busca un retorno medible sobre tu inversión."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Pilares (Nombre | Etiqueta opcional, luego descripción; separar con ---)"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "type": "BizKpiBandBlock",
+      "label": "Negocio: franja de KPIs",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Resultados",
+        "title": "Una trayectoria respaldada por números",
+        "kpis": "350+ | Empresas asesoradas\n$50M+ | En ahorros generados\n97% | Renovación de contratos\n10+ | Años en el mercado"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "kpis": {
+          "type": "textarea",
+          "label": "KPIs (Cifra | Etiqueta; una por línea)"
+        }
+      }
+    },
+    {
+      "type": "BizProcessBlock",
+      "label": "Negocio: línea de tiempo del proceso",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Cómo trabajamos",
+        "title": "Un proceso claro, de la idea al resultado",
+        "subtitle": "Cada etapa tiene entregables, responsables y fechas acordadas desde el inicio.",
+        "steps": "Diagnóstico | Semanas 1-2\nEntrevistas, análisis de datos y mapa de oportunidades.\n---\nPlan | Semana 3\nIniciativas priorizadas con responsables y métricas.\n---\nImplementación | Meses 2-4\nEjecución acompañada con tablero de seguimiento.\n---\nOptimización | Mes 5 en adelante\nMedición, ajustes y transferencia al equipo."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "steps": {
+          "type": "textarea",
+          "label": "Etapas (Nombre | Duración, luego descripción; separar con ---; 3 a 5)"
+        }
+      }
+    },
+    {
+      "type": "BizCasesBlock",
+      "label": "Negocio: casos con resultado",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Casos de éxito",
+        "title": "Resultados que otras empresas ya consiguieron",
+        "subtitle": "",
+        "cases": "Grupo Lozano | Industrial | -28% | costos operativos en 6 meses\nReestructuramos compras y logística sin sacrificar calidad.\nFernando Lozano, Director General\n---\nDistribuidora Valdez | Distribución | 15 años | sin acceso a crédito preferencial\nOrdenamos la estructura financiera hasta lograr mejores tasas.\nMónica Valdez, CFO\n---\nTech Startup | Tecnología | Serie A | cerrada tras ordenar la operación\nAcompañamos del MVP a la ronda con control operativo.\nGustavo Aranda, CEO"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "cases": {
+          "type": "textarea",
+          "label": "Casos (Cliente | Sector | Resultado | Etiqueta; después descripción y firma en líneas; separar con ---)"
+        }
+      }
+    },
+    {
+      "type": "BizEngagementBlock",
+      "label": "Negocio: comparación de modelos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Modelos de trabajo",
+        "title": "Elige cómo quieres trabajar con nosotros",
+        "subtitle": "Precios claros desde el primer día, sin cargos ocultos.",
+        "highlight": "2",
+        "ctaLabel": "Solicitar propuesta",
+        "ctaHref": "/contacto",
+        "models": "Diagnóstico | Acompañamiento | Equipo dedicado",
+        "prices": "Inversión | $18,000 único | $12,000 / mes | A medida",
+        "rows": "Diagnóstico inicial | si | si | si\nConsultoría mensual | no | 16 horas | Ilimitada\nProyectos activos | no | 1 | Varios\nTablero de métricas | no | si | si\nCapacitación | no | Trimestral | Continua\nSLA de respuesta | no | no | si"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "models": {
+          "type": "text",
+          "label": "Modelos (separados con |)"
+        },
+        "prices": {
+          "type": "text",
+          "label": "Precios (Inversión | precio 1 | precio 2 ...)"
+        },
+        "rows": {
+          "type": "textarea",
+          "label": "Filas (Concepto | valor por modelo; \"si\" = incluido, \"no\" = no incluido)"
+        },
+        "highlight": {
+          "type": "select",
+          "label": "Modelo destacado",
+          "options": [
+            "1",
+            "2",
+            "3"
+          ]
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "BizTrustBlock",
+      "label": "Negocio: señales de confianza",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "title": "Empresas que confían en nosotros",
+        "clients": "Grupo Lozano · Distribuidora Valdez · NovaTech · Altiva · Ferrum",
+        "badges": "ISO 9001 | Gestión de calidad\nNDA firmado | Confidencialidad total\nAuditoría anual | Procesos verificados"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "clients": {
+          "type": "textarea",
+          "label": "Clientes (separados por ·)"
+        },
+        "badges": {
+          "type": "textarea",
+          "label": "Sellos (Nombre | Descripción; una por línea)"
+        }
+      }
+    },
+    {
+      "type": "BizClosingBlock",
+      "label": "Negocio: cierre con diagnóstico",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Diagnóstico gratuito",
+        "title": "45 minutos que pueden cambiar tu empresa",
+        "subtitle": "Analizamos tu situación y te decimos con honestidad si podemos ayudarte.",
+        "points": "Sin costo ni compromiso\nRespuesta en menos de 24 horas\nPlan de acción por escrito",
+        "ctaLabel": "Agendar sesión",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "",
+        "ctaSecondHref": ""
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "points": {
+          "type": "textarea",
+          "label": "Qué incluye (una por línea)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        }
+      }
+    },
+    {
+      "type": "RestoHeroBlock",
+      "label": "Restaurante: portada con pizarra",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "size": "full",
+        "eyebrow": "Cocina de mercado desde 2012",
+        "title": "Una mesa para",
+        "accent": "quedarse",
+        "subtitle": "Producto de temporada, fuego lento y recetas de casa. Cenas sin prisa en el corazón de la ciudad.",
+        "ctaLabel": "Reservar mesa",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Ver la carta",
+        "ctaSecondHref": "/menu",
+        "boardTitle": "Hoy en la mesa",
+        "dishes": "Ceviche de camarón | 13 | Limón, cilantro y chile serrano\nPollo en mole negro | 22 | Treinta ingredientes, arroz y frijoles\nFilete a las brasas | 32 | 300 g con guarnición a elegir\nFlan de cajeta | 6 | Receta de la abuela",
+        "stamp": "Hecho a mano"
+      },
+      "fields": {
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "full",
+            "page"
+          ]
+        },
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "accent": {
+          "type": "text",
+          "label": "Palabra destacada (cursiva)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "boardTitle": {
+          "type": "text",
+          "label": "Título de la pizarra"
+        },
+        "dishes": {
+          "type": "textarea",
+          "label": "Platillos (Nombre | Precio | Descripción, máx. 5)"
+        },
+        "stamp": {
+          "type": "text",
+          "label": "Texto del sello (vacío = sin sello)"
+        }
+      }
+    },
+    {
+      "type": "RestoMenuBlock",
+      "label": "Restaurante: carta numerada",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "La carta",
+        "title": "Lo que servimos",
+        "subtitle": "Platillos de temporada, hechos al momento.",
+        "currency": "$",
+        "tone": "paper",
+        "menu": "Para empezar\nEnsalada de la casa | Mixta con aderezo balsámico y manchego | 9\nSopa de fideo seco | Receta tradicional con chipotle y crema | 7\nCeviche de camarón | Camarón fresco, limón, cilantro y chile | 13\n---\nPlatos fuertes\nFilete a las brasas | 300 g con guarnición a elegir | 32\nPollo en mole negro | Mole de treinta ingredientes con arroz | 22\nPasta al pesto | Fettuccine con pesto artesanal y parmesano | 18\n---\nPara cerrar\nFlan de cajeta | Receta de la abuela | 6\nPastel de tres leches | Esponjoso y húmedo | 7.5\nHelado artesanal | Tres bolas a elegir | 5"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "tone": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "paper",
+            "chalk"
+          ]
+        },
+        "menu": {
+          "type": "textarea",
+          "label": "Carta (línea de curso; luego Nombre | Descripción | Precio; separa cursos con ---)"
+        }
+      }
+    },
+    {
+      "type": "RestoHoursBlock",
+      "label": "Restaurante: horario y ubicación",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Reservaciones",
+        "title": "Te guardamos tu mesa",
+        "hours": "Lun – Vie | 1:00 – 11:00 pm\nSábados | 12:00 – 11:30 pm\nDomingos | 12:00 – 9:00 pm",
+        "address": "Calle del Mercado 24, Centro Histórico, Ciudad de México",
+        "phone": "Tel. +52 55 0000 0000",
+        "note": "Grupos de seis o más: avísanos con un día de anticipación.",
+        "ctaLabel": "Reservar mesa",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Llamar",
+        "ctaSecondHref": "tel:+525500000000"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "hours": {
+          "type": "textarea",
+          "label": "Horario (Día | Horas, uno por línea)"
+        },
+        "address": {
+          "type": "textarea",
+          "label": "Dirección"
+        },
+        "phone": {
+          "type": "text",
+          "label": "Teléfono"
+        },
+        "note": {
+          "type": "textarea",
+          "label": "Nota"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        }
+      }
+    },
+    {
+      "type": "SpaHeroBlock",
+      "label": "Spa: portada con respiración",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "size": "full",
+        "eyebrow": "Spa urbano en Polanco",
+        "title": "Un lugar para",
+        "accent": "volver a ti",
+        "subtitle": "Masajes, faciales y rituales de agua en espacios privados, con productos naturales y todo el tiempo del mundo.",
+        "ctaLabel": "Reservar un ritual",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Ver rituales",
+        "ctaSecondHref": "/servicios",
+        "inhale": "Inhala",
+        "exhale": "Exhala",
+        "facts": "Rituales | 25+\nTerapeutas certificadas | 12\nAños de calma | 12"
+      },
+      "fields": {
+        "size": {
+          "type": "select",
+          "label": "Tamaño",
+          "options": [
+            "full",
+            "page"
+          ]
+        },
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "accent": {
+          "type": "text",
+          "label": "Palabra destacada (cursiva)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "inhale": {
+          "type": "text",
+          "label": "Texto al inhalar"
+        },
+        "exhale": {
+          "type": "text",
+          "label": "Texto al exhalar"
+        },
+        "facts": {
+          "type": "textarea",
+          "label": "Datos (Etiqueta | Valor, máx. 3)"
+        }
+      }
+    },
+    {
+      "type": "SpaRitualsBlock",
+      "label": "Spa: lista de rituales",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Rituales",
+        "title": "Tratamientos pensados para bajar el ritmo",
+        "subtitle": "Cada ritual se adapta a tu cuerpo y a tu día. Sin prisa, sin ruido.",
+        "currency": "$",
+        "rituals": "Masaje terapéutico | Técnicas para soltar tensión y mejorar la circulación. | 60 – 90 min | 1,200\nFacial premium | Limpieza profunda y activos naturales para una piel luminosa. | 75 min | 1,450\nAromaterapia | Aceites esenciales puros que equilibran cuerpo y mente. | 60 min | 1,100\nCircuito de hidroterapia | Agua a distintas temperaturas para renovar la energía. | 90 min | 980\nYoga y meditación | Clases guiadas, en grupo pequeño o privadas. | 60 min | 450\nNutrición holística | Asesoría para sostener los resultados de tus rituales. | 45 min | 700",
+        "ctaLabel": "Reservar un ritual",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Subtítulo"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "rituals": {
+          "type": "textarea",
+          "label": "Rituales (Nombre | Descripción | Duración | Precio, uno por línea)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "SpaClosingBlock",
+      "label": "Spa: cierre con horario",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Agenda tu cita",
+        "title": "Tu momento de calma empieza hoy",
+        "body": "Primera consulta sin costo y 20% de descuento en tu primer ritual.",
+        "ctaLabel": "Reservar ahora",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "WhatsApp",
+        "ctaSecondHref": "https://wa.me/525500000000",
+        "hours": "Lunes a sábado | 9:00 – 20:00\nDomingos | 10:00 – 17:00"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "hours": {
+          "type": "textarea",
+          "label": "Horario (Día | Horas, uno por línea)"
+        }
+      }
+    },
+    {
+      "type": "HabitiaHeroBlock",
+      "label": "Portada lookbook",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "issue": "Lookbook Nº 07 · Otoño 2026",
+        "index": "Sala · Comedor · Recámara · Jardín",
+        "title": "Casa,",
+        "highlight": "con carácter",
+        "subtitle": "Jarrones, lámparas y textiles elegidos a mano para que cada cuarto cuente su propia historia.",
+        "ctaLabel": "Ver la colección",
+        "ctaHref": "/coleccion",
+        "ctaSecondLabel": "Nuestra historia",
+        "ctaSecondHref": "/nosotros"
+      },
+      "fields": {
+        "issue": {
+          "type": "text",
+          "label": "Número de edición"
+        },
+        "index": {
+          "type": "text",
+          "label": "Índice (derecha)"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Enlace secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Destino del enlace secundario"
+        }
+      }
+    },
+    {
+      "type": "HabitiaRoomsBlock",
+      "label": "Índice de habitaciones",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Índice",
+        "title": "Un cuarto",
+        "highlight": "a la vez",
+        "href": "/coleccion",
+        "rooms": "Sala | Sofás de lino, mesas bajas y lámparas de luz cálida para quedarse a conversar. | 24 piezas\nComedor | Mesas de madera maciza, sillas tejidas y vajilla hecha a mano. | 18 piezas\nRecámara | Ropa de cama en algodón lavado, veladores y luz que baja el ritmo. | 21 piezas\nJardín | Macetas, bancas y textiles que aguantan sol, lluvia y sobremesas. | 15 piezas"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "href": {
+          "type": "link",
+          "label": "Enlace de cada fila"
+        },
+        "rooms": {
+          "type": "textarea",
+          "label": "Habitaciones (Nombre | Descripción | Etiqueta, una por línea)"
+        }
+      }
+    },
+    {
+      "type": "HabitiaPiecesBlock",
+      "label": "Piezas de la temporada",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Selección de temporada",
+        "title": "Piezas que",
+        "highlight": "se quedan",
+        "ctaLabel": "Consultar disponibilidad",
+        "ctaHref": "/contacto",
+        "pieces": "Jarrón Duna | Cerámica esmaltada | $1,290 | jarron\nLámpara Brasa | Base de barro, pantalla de lino | $2,480 | lampara\nPalma de interior | Maceta de terracota | $890 | planta\nCuenco Arena | Gres hecho a mano | $540 | cuenco"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "pieces": {
+          "type": "textarea",
+          "label": "Piezas (Nombre | Material | Precio | jarron, lampara, planta, cuenco, vela o libros)"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace de las piezas y del botón"
+        }
+      }
+    },
+    {
+      "type": "HabitiaMaterialsBlock",
+      "label": "Franja de materiales",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Materiales",
+        "title": "Hecho para durar y envejecer bien",
+        "materials": "Madera maciza | Aceite de teca cada seis meses.\nLino lavado | Lavado en frío, plancha en húmedo.\nCerámica | A mano y sin cambios bruscos de calor.\nCuero natural | Crema acondicionadora dos veces al año."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "materials": {
+          "type": "textarea",
+          "label": "Materiales (Nombre | Cuidado, uno por línea, máx. 5)"
+        }
+      }
+    },
+    {
+      "type": "HabitiaQuoteBlock",
+      "label": "Cita a doble página",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "quote": "Un hogar no se construye con paredes. Se construye con los objetos que elegimos, las texturas que tocamos y la luz que dejamos entrar.",
+        "attribution": "Habitia, carta del editor",
+        "folio": "24",
+        "scene": "sala"
+      },
+      "fields": {
+        "quote": {
+          "type": "textarea",
+          "label": "Cita"
+        },
+        "attribution": {
+          "type": "text",
+          "label": "Firma"
+        },
+        "folio": {
+          "type": "text",
+          "label": "Número de página"
+        },
+        "scene": {
+          "type": "select",
+          "label": "Ilustración",
+          "options": [
+            "sala",
+            "mesa",
+            "taller"
+          ]
+        }
+      }
+    },
+    {
+      "type": "HabitiaLeafletBlock",
+      "label": "Folleto de cuidados",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "edition": "Folleto Nº 03 · Edición 2026",
+        "title": "Cuidar es",
+        "highlight": "conservar",
+        "subtitle": "Cuatro materiales, cuatro rutinas simples. Con ellas tus piezas se ven mejor cada año.",
+        "panels": "Madera maciza\nCalidez que se gana con el tiempo.\n+ Limpia con paño seco\n+ Aceita con teca cada seis meses\n- Evita la humedad directa\n- No uses productos abrasivos\n---\nLino y algodón\nSuaves, frescos y cada vez mejores.\n+ Lava en frío y por separado\n+ Plancha en húmedo\n- Evita el cloro\n- No los seques al sol directo\n---\nCerámica\nHecha a mano, una a una.\n+ Lávala a mano con jabón neutro\n+ Sécala por completo antes de guardar\n- Evita cambios bruscos de calor\n- No la metas al microondas\n---\nCuero natural\nCada marca cuenta su historia.\n+ Limpia con paño apenas húmedo\n+ Acondiciona dos veces al año\n- Evita el sol y el radiador\n- No uses alcohol"
+      },
+      "fields": {
+        "edition": {
+          "type": "text",
+          "label": "Edición"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "panels": {
+          "type": "textarea",
+          "label": "Paneles (nombre, frase y consejos con + o -; separa paneles con ---)"
+        }
+      }
+    },
+    {
+      "type": "HabitiaStoryBlock",
+      "label": "Historia editorial",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "El origen",
+        "year": "2016",
+        "title": "Empezamos con",
+        "highlight": "una sola mesa",
+        "body": "Dos diseñadores, una camioneta y una duda: por qué las tiendas de hogar vendían lo mismo. Visitamos talleres y ferias, y elegimos a mano cada pieza que hoy ves aquí.",
+        "signature": "Ana y Diego",
+        "scene": "mesa",
+        "flip": "left"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "year": {
+          "type": "text",
+          "label": "Año o número grande"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "signature": {
+          "type": "text",
+          "label": "Firma"
+        },
+        "scene": {
+          "type": "select",
+          "label": "Ilustración",
+          "options": [
+            "sala",
+            "mesa",
+            "taller"
+          ]
+        },
+        "flip": {
+          "type": "select",
+          "label": "Texto a",
+          "options": [
+            "left",
+            "right"
+          ]
+        }
+      }
+    },
+    {
+      "type": "HabitiaFiguresBlock",
+      "label": "Cifras editoriales",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Habitia en cifras",
+        "title": "Una casa se arma pieza a pieza",
+        "figures": "8|Años curando|Desde 2016\n3,200|Hogares|En 12 países\n180|Artesanos|Con pago justo\n0|Piezas rápidas|Solo diseño duradero"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "figures": {
+          "type": "textarea",
+          "label": "Cifras (Valor | Etiqueta | Nota, una por línea, máx. 4)"
+        }
+      }
+    },
+    {
+      "type": "HabitiaPageHeroBlock",
+      "label": "Cabecera de página lookbook",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "folio": "Colección · Nº 02",
+        "title": "La colección,",
+        "highlight": "cuarto por cuarto",
+        "subtitle": "Piezas seleccionadas para transformar cualquier espacio.",
+        "scene": "coleccion"
+      },
+      "fields": {
+        "folio": {
+          "type": "text",
+          "label": "Sección y número"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "scene": {
+          "type": "select",
+          "label": "Ilustración",
+          "options": [
+            "coleccion",
+            "historia",
+            "cuidados",
+            "contacto"
+          ]
+        }
+      }
+    },
+    {
+      "type": "HabitiaClosingBlock",
+      "label": "Cierre con lámpara",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Comunidad Habitia",
+        "title": "Deja la luz",
+        "highlight": "encendida",
+        "subtitle": "Escríbenos y te ayudamos a encontrar la pieza justa para tu espacio, sin compromiso.",
+        "ctaLabel": "Hablar con nosotros",
+        "ctaHref": "/contacto",
+        "note": "Respondemos en menos de 24 horas."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Palabra en cursiva"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "note": {
+          "type": "text",
+          "label": "Nota"
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",
@@ -3837,7 +5228,8 @@
       "defaultProps": {
         "mode": "cart",
         "checkoutLabel": "Pagar",
-        "shopHref": "/productos"
+        "shopHref": "/productos",
+        "promoNote": "¿Tienes un código? Lo ingresas al pagar."
       },
       "fields": {
         "mode": {
@@ -3855,6 +5247,55 @@
         "shopHref": {
           "type": "link",
           "label": "Enlace a la tienda"
+        },
+        "promoNote": {
+          "type": "text",
+          "label": "Nota de codigo de descuento (vacio la oculta)"
+        }
+      }
+    },
+    {
+      "type": "StoreNavbarBlock",
+      "label": "Navbar de tienda con carrito",
+      "category": "atlas-ecommerce",
+      "group": "ecommerce",
+      "slots": [],
+      "defaultProps": {
+        "variant": "light",
+        "brand": "Mi Tienda",
+        "links": "Inicio | /\nTienda | /productos\nNosotros | /nosotros\nContacto | /contacto",
+        "cartLabel": "Carrito",
+        "cartHref": "/carrito",
+        "sticky": true
+      },
+      "fields": {
+        "variant": {
+          "type": "select",
+          "label": "Estilo",
+          "options": [
+            "light",
+            "dark"
+          ]
+        },
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Enlace | /ruta (uno por linea)"
+        },
+        "cartLabel": {
+          "type": "text",
+          "label": "Texto del carrito"
+        },
+        "cartHref": {
+          "type": "link",
+          "label": "Enlace del carrito"
+        },
+        "sticky": {
+          "type": "toggle",
+          "label": "Pegajoso (sticky)"
         }
       }
     },

@@ -39,6 +39,11 @@ import { StoreNavbarBlock } from './storeNavbarBlock.jsx'
 import { StoreHeroBlock, CollectionTilesBlock, TrustStripBlock } from './storeEditorialBlocks.jsx'
 import { mayaBlocks, MayaPortraitBlock, MayaTagBlock, MayaTickerBlock, MayaWorkBlock, MayaNotesBlock, MayaPageHeroBlock, MayaClosingBlock } from './mayaBlocks.jsx'
 import { MayaPlansBlock } from './mayaPlansBlock.jsx'
+import { agencyBlocks, AgencyHeroBlock, AgencyMarqueeBlock, AgencyWorkBlock, AgencyServicesBlock, AgencyFactsBlock, AgencyVoicesBlock, AgencyTeamBlock, AgencyClosingBlock } from './agencyBlocks.jsx'
+import { bizBlocks, BizHeroBlock, BizPillarsBlock, BizKpiBandBlock, BizProcessBlock, BizCasesBlock, BizEngagementBlock, BizTrustBlock, BizClosingBlock } from './bizBlocks.jsx'
+import { RestoHeroBlock, RestoMenuBlock, RestoHoursBlock } from './restoBlocks.jsx'
+import { SpaHeroBlock, SpaRitualsBlock, SpaClosingBlock } from './spaBlocks.jsx'
+import { habitiaBlocks, HabitiaHeroBlock, HabitiaRoomsBlock, HabitiaPiecesBlock, HabitiaMaterialsBlock, HabitiaQuoteBlock, HabitiaLeafletBlock, HabitiaStoryBlock, HabitiaFiguresBlock, HabitiaPageHeroBlock, HabitiaClosingBlock } from './habitiaBlocks.jsx'
 
 // --- Templates ---
 import {
@@ -91,6 +96,15 @@ export const universalRunlyBlocks = [
   ChapterBlock,
   ...mayaBlocks,
   MayaPlansBlock,
+  ...agencyBlocks,
+  ...bizBlocks,
+  RestoHeroBlock,
+  RestoMenuBlock,
+  RestoHoursBlock,
+  SpaHeroBlock,
+  SpaRitualsBlock,
+  SpaClosingBlock,
+  ...habitiaBlocks,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -158,6 +172,38 @@ export {
   MayaPageHeroBlock,
   MayaClosingBlock,
   MayaPlansBlock,
+  AgencyHeroBlock,
+  AgencyMarqueeBlock,
+  AgencyWorkBlock,
+  AgencyServicesBlock,
+  AgencyFactsBlock,
+  AgencyVoicesBlock,
+  AgencyTeamBlock,
+  AgencyClosingBlock,
+  BizHeroBlock,
+  BizPillarsBlock,
+  BizKpiBandBlock,
+  BizProcessBlock,
+  BizCasesBlock,
+  BizEngagementBlock,
+  BizTrustBlock,
+  BizClosingBlock,
+  RestoHeroBlock,
+  RestoMenuBlock,
+  RestoHoursBlock,
+  SpaHeroBlock,
+  SpaRitualsBlock,
+  SpaClosingBlock,
+  HabitiaHeroBlock,
+  HabitiaRoomsBlock,
+  HabitiaPiecesBlock,
+  HabitiaMaterialsBlock,
+  HabitiaQuoteBlock,
+  HabitiaLeafletBlock,
+  HabitiaStoryBlock,
+  HabitiaFiguresBlock,
+  HabitiaPageHeroBlock,
+  HabitiaClosingBlock,
 }
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
