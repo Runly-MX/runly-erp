@@ -12,12 +12,6 @@ const POLISH = {
     strip: { items: 'Masajes · Faciales · Aromaterapia · Yoga · Hidroterapia · Nutrición', background: 'cream' },
     quote: { quote: 'El bienestar no es un destino: es un ritual que eliges cada día.', attribution: '— El equipo Serenity', background: 'cream', after: 'stats' },
   },
-  'atlas-tienda': {
-    tint: ['#FFE4E6', '#FFFFFF'],
-    strip: { items: 'Envío gratis desde $999 · Devoluciones en 30 días · Pago seguro · Atención por WhatsApp', background: 'dark' },
-    quote: null,
-    closing: 'gradient-dark',
-  },
   'atlas-agencia': {
     tint: ['#E9E3FF', '#FAFAFB'],
     strip: { items: 'Estrategia · Branding · Sitios web · Producto digital · Contenido · Performance', background: 'dark' },
