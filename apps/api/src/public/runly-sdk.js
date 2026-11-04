@@ -742,6 +742,42 @@
     }
   }
 
+  // Headless access for sites that draw their own form: fetch the definition, then submit values to it.
+  function getForm(formId) {
+    if (!formId) return Promise.reject(new Error('getForm: formId es requerido'))
+    return analytics.start().catch(function () { return null }).then(function () {
+      return request('/public/storefront/v1/forms/' + encodeURIComponent(formId), { method: 'GET', credentials: 'omit' })
+    }).then(function (response) {
+      var definition = response && response.data ? response.data : response
+      analytics.track('form_view', { formId: definition.id })
+      return definition
+    })
+  }
+
+  function submitForm(definition, values, extra) {
+    var more = extra || {}
+    var body = { values: values, honeypot: more.honeypot || '' }
+    if (Number.isInteger(definition.definitionRevision)) body.expectedDefinitionRevision = definition.definitionRevision
+    var current = context()
+    if (current) {
+      body.visitorId = current.visitorId
+      body.sessionId = current.sessionId
+    }
+    if (more.turnstileToken) body.turnstileToken = more.turnstileToken
+    return request('/public/storefront/v1/forms/' + encodeURIComponent(definition.id) + '/submissions', {
+      method: 'POST',
+      headers: { 'Idempotency-Key': randomId() },
+      body: JSON.stringify(body),
+    }).then(function (submissionResponse) {
+      var result = submissionResponse && submissionResponse.data ? submissionResponse.data : submissionResponse
+      analytics.track('form_submit', { formId: definition.id, submissionId: result && result.submissionId })
+      return result
+    }, function (error) {
+      analytics.track('form_submit_error', { formId: definition.id, code: error.code || 'UNKNOWN' })
+      throw error
+    })
+  }
+
   function renderForm(selector, options) {
     var opts = options || {}
     var target = typeof selector === 'string'
@@ -883,34 +919,10 @@
             : control.input.value
         })
         var turnstileInput = form.querySelector('[name="cf-turnstile-response"]')
-        var body = { values: values, honeypot: honeypot.value || '' }
-        if (Number.isInteger(definition.definitionRevision)) body.expectedDefinitionRevision = definition.definitionRevision
-        var current = context()
-        if (current) {
-          body.visitorId = current.visitorId
-          body.sessionId = current.sessionId
-        }
-        if (turnstileInput && turnstileInput.value) {
-          body.turnstileToken = turnstileInput.value
-        }
-
-        request(
-          '/public/storefront/v1/forms/' +
-            encodeURIComponent(definition.id) +
-            '/submissions',
-          {
-            method: 'POST',
-            headers: { 'Idempotency-Key': randomId() },
-            body: JSON.stringify(body),
-          }
-        ).then(function (submissionResponse) {
-          var result = submissionResponse && submissionResponse.data
-            ? submissionResponse.data
-            : submissionResponse
-          analytics.track('form_submit', {
-            formId: definition.id,
-            submissionId: result && result.submissionId,
-          })
+        submitForm(definition, values, {
+          honeypot: honeypot.value,
+          turnstileToken: turnstileInput && turnstileInput.value,
+        }).then(function (result) {
           status.textContent =
             labels.success ||
             (result && result.message) ||
@@ -919,10 +931,6 @@
           if (typeof form.reset === 'function') form.reset()
           if (opts.onSuccess) opts.onSuccess(result)
         }).catch(function (error) {
-          analytics.track('form_submit_error', {
-            formId: definition.id,
-            code: error.code || 'UNKNOWN',
-          })
           status.textContent = labels.error || error.message || 'No se pudo enviar'
           if (opts.onError) opts.onError(error)
         }).finally(function () {
@@ -951,6 +959,8 @@
   })
   global.RunlyERP.analytics = analytics
   global.RunlyERP.renderForm = renderForm
+  global.RunlyERP.getForm = getForm
+  global.RunlyERP.submitForm = submitForm
   global.AtlasERP = global.RunlyERP
 
   if (cfg.analyticsMode && cfg.analyticsMode !== 'off') {

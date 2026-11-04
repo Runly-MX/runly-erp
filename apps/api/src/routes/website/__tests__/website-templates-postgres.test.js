@@ -240,7 +240,10 @@ test('Maya: the typewriter headline rotates and the contact form saves a real su
     }
     assert.ok(samples.size >= 4, `the headline should type and change, saw: ${[...samples].join(' / ')}`)
 
-    await page.goto(site.base + '/contacto')
+    const contact = await page.goto(site.base + '/contacto')
+    assert.match(await contact.text(), /<link rel="icon" href="[^"]+">/, 'the page declares its own tab icon instead of the host favicon')
+    await page.locator('.rf-form').waitFor()
+    assert.equal(await page.locator('._ae-form-wrap').count(), 0, 'the form is drawn by the site, not the SDK card')
     await page.getByLabel('Nombre').fill('Visitante de prueba')
     await page.getByLabel('Correo').fill('visitante@example.test')
     await page.getByLabel('Mensaje').fill('Quiero un sitio nuevo')

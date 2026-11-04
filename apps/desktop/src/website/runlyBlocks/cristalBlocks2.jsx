@@ -159,7 +159,7 @@ function Closing({ title, highlight, text, ctaLabel, ctaHref, ctaSecondLabel, ct
         {form && (
           <div className="cr-glass dark cr-rv" style={{ '--i': 4, margin: '44px auto 0', maxWidth: '620px', padding: '22px', borderRadius: '26px', textAlign: 'left' }}>
             <p style={{ margin: '0 0 12px', fontWeight: 700 }}>{formTitle}</p>
-            <div style={{ background: '#fff', color: C.ink, borderRadius: '18px', padding: '14px' }}>{form}</div>
+            {form}
           </div>
         )}
       </div>
