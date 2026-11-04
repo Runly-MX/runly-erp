@@ -158,8 +158,12 @@ export function createFileImport({ prisma, config, supabaseAdmin, download }) {
     if (p.result) return p.result;
     insist(p.approved && !p.rejected, 'approval_required', 'Aprueba la carga en Runly antes de guardar los originales.', 403);
     insist(supabaseAdmin?.storage, 'storage_unavailable', 'Almacenamiento no disponible.', 503);
-    const loaded = await readImportFiles(args.files, download);
-    insist(fingerprint(loaded.map(file => file.manifest)) === fingerprint(p.files), 'file_changed', 'Los archivos cambiaron. Prepara y aprueba otra propuesta.', 409);
+    // Pin by content only: ChatGPT reissues file_id/file_name on every call, so the
+    // approved manifest (name, id) is kept and matched to the bytes by SHA-256.
+    const bySha = (a, b) => a.sha256.localeCompare(b.sha256);
+    const approvedFiles = [...p.files].sort(bySha), downloaded = (await readImportFiles(args.files, download)).sort((a, b) => bySha(a.manifest, b.manifest));
+    insist(downloaded.length === approvedFiles.length && downloaded.every((file, i) => ['sha256', 'sizeBytes', 'mimeType'].every(key => file.manifest[key] === approvedFiles[i][key])), 'file_changed', 'Los archivos cambiaron. Prepara y aprueba otra propuesta.', 409);
+    const loaded = downloaded.map((file, i) => ({ buffer: file.buffer, manifest: approvedFiles[i] }));
     const uploaded = [];
     // No retries around external storage. Rollback removes only newly uploaded,
     // unreferenced objects. A completed proposal is returned before downloading.

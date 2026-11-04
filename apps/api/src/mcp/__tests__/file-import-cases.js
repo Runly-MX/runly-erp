@@ -32,7 +32,9 @@ export async function fileImportTests(t, { prisma, config, auth, company, other,
     changed = true;
     await assert.rejects(() => commit(proposal), { code: 'file_changed' });
     changed = false;
-    const [result, concurrent] = await Promise.all([commit(proposal), commit(proposal)]);
+    // ChatGPT reissues file_id/file_name on the commit call; the bytes decide.
+    const reissued = files.map(({ file_name: _name, ...file }) => ({ ...file, file_id: `${file.file_id}-reissued` }));
+    const [result, concurrent] = await Promise.all([commit(proposal, { files: reissued }), commit(proposal)]);
     assert.deepEqual(concurrent, result);
     assert.equal(result.result.itemId, item.id);
     assert.equal(result.result.files.length, 3);
@@ -45,6 +47,7 @@ export async function fileImportTests(t, { prisma, config, auth, company, other,
       assert.equal(link.fileAsset.metadata.sourceEntityId, item.id);
       assert.equal(link.fileAsset.metadata.sha256, digest(png));
       assert.equal(link.fileAsset.visibility, 'PRIVATE');
+      assert.match(link.fileAsset.originalName, /^Foto \d\.png$/);
     }
     const before = fetches;
     assert.deepEqual(await commit(proposal, { files: files.map(file => ({ ...file, download_url: 'https://expired.example.test/original' })) }), result);
