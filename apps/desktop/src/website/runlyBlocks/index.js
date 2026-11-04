@@ -30,6 +30,8 @@ import { TopBarBlock }       from './topBarBlock.jsx'
 import { ParallaxSectionBlock } from './parallaxSectionBlock.jsx'
 import { LandscapeHeroBlock } from './landscapeHeroBlock.jsx'
 import { ChapterBlock } from './chapterBlock.jsx'
+import { mayaBlocks, MayaPortraitBlock, MayaTagBlock, MayaTickerBlock, MayaWorkBlock, MayaNotesBlock, MayaPageHeroBlock, MayaClosingBlock } from './mayaBlocks.jsx'
+import { MayaPlansBlock } from './mayaPlansBlock.jsx'
 
 // --- Templates ---
 import {
@@ -75,6 +77,8 @@ export const universalRunlyBlocks = [
   ParallaxSectionBlock,
   LandscapeHeroBlock,
   ChapterBlock,
+  ...mayaBlocks,
+  MayaPlansBlock,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -117,6 +121,14 @@ export {
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  MayaPortraitBlock,
+  MayaTagBlock,
+  MayaTickerBlock,
+  MayaWorkBlock,
+  MayaNotesBlock,
+  MayaPageHeroBlock,
+  MayaClosingBlock,
+  MayaPlansBlock,
 }
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────

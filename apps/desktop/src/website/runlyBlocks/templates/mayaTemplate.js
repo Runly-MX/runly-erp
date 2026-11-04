@@ -1,9 +1,7 @@
 import { defineTemplate } from '@raulbellosom/atlas-web-builder'
-import { HOVER_LIFT, STAGGER, counterBand } from './_effects.js'
+import { counterBand } from './_effects.js'
 
 const block0 = (id, type, props) => ({ id, type, props, children: {} })
-const HERO_TINT = { kind: 'gradient', angle: 180, from: '#DCEBFF', to: '#FFF8E8' }
-
 const TOPBAR = block0('topbar', 'TopBarBlock', { message: '¡Creemos algo increíble!', email: 'hola@mayadesigns.com', phone: '(415) 555-0198', hours: 'Lun - Vie: 9:00 - 18:00', background: 'muted' })
 
 const NAVBAR = {
@@ -40,45 +38,39 @@ const REVEAL = { _animation: { preset: 'slide-up', duration: 700, delay: 0, easi
 const block = (id, type, props, children = {}) => ({ id, type, props, children })
 const reveal = (b) => ({ ...b, props: { ...b.props, ...REVEAL } })
 
-const hero = (props) => block('hero', 'HeroBlock', {
-  variant: 'centered', ctaVariant: 'solid', imageSrc: '', background: HERO_TINT, align: 'center',
-  paddingY: '16', contentMaxWidth: '768px', shadow: 'none', ...props,
-})
-
-const WORK = 'Bloom & Wild\nTienda en línea para una florería artesanal con checkout en un paso.\n---\nNorthland Studio\nSitio de agencia creativa con portafolio y casos de estudio.\n---\nPure Balance\nSitio de bienestar con reservas y blog de contenido.\n---\nOceanic\nMarca de viajes con landing de campaña y captación de contactos.\n---\nLeaf & Co.\nCatálogo para una marca de plantas y decoración.\n---\nSundaze\nSitio de eventos con agenda y venta de boletos.'
-
-const WORK_CARDS = 'Bloom & Wild | Tienda en línea | /trabajo\n---\nNorthland Studio | Sitio de agencia creativa | /trabajo\n---\nPure Balance | Sitio de bienestar | /trabajo\n---\nOceanic | Landing de campaña | /trabajo\n---\nLeaf & Co. | Catálogo de marca | /trabajo\n---\nSundaze | Sitio de eventos | /trabajo'
-const work = (props) => block('work', 'ProjectCardsBlock', { columns: '3', background: 'white', ...props })
+const WORK_CARDS = 'Bloom & Wild | Tienda en línea | /trabajo\nNorthland Studio | Sitio de agencia creativa | /trabajo\nPure Balance | Sitio de bienestar | /trabajo\nOceanic | Landing de campaña | /trabajo\nLeaf & Co. | Catálogo de marca | /trabajo\nSundaze | Sitio de eventos | /trabajo'
+const work = (props) => block('work', 'MayaWorkBlock', props)
 
 const CLIENTS = 'oceanic\npaperplane\nleaf & co.\nnorthern\nsundaze\nhive digital'
+const clients = () => block('clients', 'LogoCloudBlock', { title: 'Marcas que confían en mí', names: CLIENTS, background: 'white' })
 
 const TESTIMONIALS = 'Jessica Miller|Fundadora, Bloom & Wild|5\nMaya transformó por completo nuestra presencia en línea. El sitio se ve increíble y funciona mejor que nunca.\n---\nDaniel Kim|CEO, Northland Studio|5\nCreativa, profesional y muy fácil de trabajar. La recomiendo a cualquier marca que quiera destacar en línea.\n---\nSofía Reyes|Dueña, Pure Balance|5\nEntendió mi negocio desde la primera llamada y entregó a tiempo un sitio que mis clientes aman.'
+const notes = (title, highlight) => block('testimonials', 'MayaNotesBlock', { eyebrow: 'Clientes felices', title, highlight, testimonials: TESTIMONIALS })
 
-const plan = (id, props) => block(id, 'PricingBlock', { currency: '$', period: '', ctaLabel: 'Empezar', ctaHref: '/contacto', radius: 'lg', shadow: 'md', ...HOVER_LIFT, ...props })
+const ticker = (items = 'Diseño web\nMarca\nTiendas en línea\nSEO\nUI/UX\nVelocidad', tone = 'yellow') => block('ticker', 'MayaTickerBlock', { items, tone })
+const closing = (title, highlight) => block('cta', 'MayaClosingBlock', { eyebrow: '¿Tienes un proyecto en mente?', title, highlight, subtitle: 'Me encantará conocerlo. Envíame un mensaje y empecemos juntos.', ctaLabel: 'Enviar mensaje', ctaHref: '/contacto', email: 'hola@mayadesigns.com', phone: '(415) 555-0198', location: 'San Diego, CA' })
+const pageHero = (props) => block('hero', 'MayaPageHeroBlock', props)
 
-// Heading plus three plans side by side, inside a section with the given background.
-const packages = (background) => [
-  block('pricing', 'SectionBlock', { paddingY: '12', background }, { children: ['pricing-head', 'pricing-sub', 'pricing-grid'] }),
-  block('pricing-head', 'HeadingBlock', { text: 'Paquetes simples, gran impacto', level: 'h2', align: 'center' }),
-  block('pricing-sub', 'TextBlock', { text: 'Soluciones flexibles para negocios en cada etapa.', align: 'center' }),
-  block('pricing-grid', 'GridBlock', { minItemWidth: 260, gap: '4', ...STAGGER }, { children: ['plan-1', 'plan-2', 'plan-3'] }),
-  plan('plan-1', { plan: 'Inicial', price: '750', description: 'Ideal para proyectos pequeños', features: 'Sitio de 3 páginas\nDiseño adaptable a celular\nSEO básico\nFormulario de contacto' }),
-  plan('plan-2', { plan: 'Crecimiento', price: '1,350', description: 'Para negocios en crecimiento', features: 'Hasta 7 páginas\nDiseño personalizado\nOptimización SEO\nOptimización de velocidad\n30 días de soporte', highlighted: true, badge: 'Más popular' }),
-  plan('plan-3', { plan: 'Premium', price: '2,200', description: 'Servicio completo listo para escalar', features: 'Hasta 15 páginas\nFunciones avanzadas\nTienda en línea\nSoporte prioritario\n60 días de soporte' }),
-]
+const PLANS = 'Inicial|750\nIdeal para proyectos pequeños\nSitio de 3 páginas\nDiseño adaptable a celular\nSEO básico\nFormulario de contacto\n---\nCrecimiento|1,350|Más popular\nPara negocios en crecimiento\nHasta 7 páginas\nDiseño personalizado\nOptimización SEO\nOptimización de velocidad\n30 días de soporte\n---\nPremium|2,200\nServicio completo listo para escalar\nHasta 15 páginas\nFunciones avanzadas\nTienda en línea\nSoporte prioritario\n60 días de soporte'
+const packages = () => [block('pricing', 'MayaPlansBlock', { eyebrow: 'Paquetes', title: 'Simples, con gran', highlight: 'impacto', subtitle: 'Soluciones flexibles para negocios en cada etapa.', currency: '$', ctaLabel: 'Empezar', ctaHref: '/contacto', plans: PLANS })]
 
-const cta = (title) => block('cta', 'CtaBannerBlock', {
-  eyebrow: '¿Tienes un proyecto en mente?', title, subtitle: 'Me encantará conocerlo. Envíame un mensaje y empecemos juntos.',
-  ctaLabel: 'Enviar mensaje', ctaHref: '/contacto', ctaSecondLabel: 'Ver mi trabajo', ctaSecondHref: '/trabajo', variant: 'gradient-primary', size: 'large', align: 'center',
-})
-
-const clients = () => block('clients', 'LogoCloudBlock', { title: 'Marcas que confían en mí', names: CLIENTS, background: 'white' })
-const testimonials = (title) => block('testimonials', 'TestimonialsBlock', { eyebrow: 'Clientes felices', title, columns: '3', background: 'muted', testimonials: TESTIMONIALS })
-
-const showcase = (props) => block('hero', 'ShowcaseHeroBlock', { badgeValue: '6+', badgeLabel: 'Años de experiencia', ...props })
-
-const NO_REVEAL = new Set(['topbar', 'navbar', 'hero', 'footer'])
+const NO_REVEAL = new Set(['topbar', 'navbar', 'hero', 'ticker', 'footer'])
 const page = (rootIds, list) => ({ rootIds, blocks: Object.fromEntries(list.map((b) => [b.id, NO_REVEAL.has(b.id) || !rootIds.includes(b.id) ? b : reveal(b)])) })
+
+const HERO_BG = { kind: 'gradient', angle: 180, from: '#DCEBFF', to: '#F5F9FF' }
+// Home hero: handwritten tag, rotating headline (typewriter), copy and buttons on the left; portrait collage on the right.
+const homeHero = () => [
+  block('hero', 'SectionBlock', { paddingY: '12', paddingX: '6', background: HERO_BG, fullBleed: true }, { children: ['hero-grid'] }),
+  block('hero-grid', 'GridBlock', { minItemWidth: 340, gap: '12' }, { children: ['hero-copy', 'hero-art'] }),
+  block('hero-copy', 'ContainerBlock', { maxWidth: 'full', paddingX: '0', background: null }, { children: ['hero-tag', 'hero-type', 'hero-text', 'hero-btns'] }),
+  block('hero-tag', 'MayaTagBlock', { text: 'Diseñadora web freelance', tone: 'yellow', align: 'left' }),
+  block('hero-type', 'TypewriterBlock', { prefix: 'Diseño sitios web que', phrases: 'inspiran\nbrillan\nvenden\nenamoran', suffix: '', typeSpeed: 90, deleteSpeed: 45, pause: 1800, loop: true, color: 'primary', size: '3xl', align: 'left' }),
+  block('hero-text', 'TextBlock', { text: 'Creo sitios web hermosos y fáciles de usar que ayudan a las marcas a destacar y crecer en línea.', size: 'lg', color: 'muted', maxWidth: '480px', paddingY: '4' }),
+  block('hero-btns', 'GridBlock', { minItemWidth: 170, gap: '3' }, { children: ['hero-btn-1', 'hero-btn-2'] }),
+  block('hero-btn-1', 'ButtonBlock', { label: 'Ver mi trabajo', href: '/trabajo', variant: 'solid', size: 'lg', color: 'primary', radius: 'pill', align: 'left' }),
+  block('hero-btn-2', 'ButtonBlock', { label: 'Mis servicios', href: '/servicios', variant: 'outline', size: 'lg', color: 'fg', radius: 'pill', align: 'left' }),
+  block('hero-art', 'MayaPortraitBlock', { imageSrc: '', imageAlt: '', badgeValue: '6+', badgeLabel: 'años creando webs', note: '¡Hola, soy Maya!', chipOne: 'UI/UX', chipTwo: 'Marca' }),
+]
 
 export const mayaTemplate = defineTemplate({
   id: 'atlas-maya',
@@ -87,23 +79,18 @@ export const mayaTemplate = defineTemplate({
   category: 'portafolio',
   build() {
     return page(
-      ['topbar', 'navbar', 'hero', 'stats', 'work', 'pricing', 'clients', 'testimonials', 'cta', 'footer'],
+      ['topbar', 'navbar', 'hero', 'ticker', 'stats', 'work', 'pricing', 'clients', 'testimonials', 'cta', 'footer'],
       [
         TOPBAR,
         NAVBAR,
-        showcase({
-          eyebrow: 'Diseñadora web freelance',
-          title: 'Diseño sitios web',
-          highlight: 'que inspiran y brillan',
-          subtitle: 'Creo sitios web hermosos y fáciles de usar que ayudan a las marcas a destacar y crecer en línea.',
-          ctaLabel: 'Ver mi trabajo', ctaHref: '/trabajo', ctaSecondLabel: 'Mis servicios', ctaSecondHref: '/servicios',
-        }),
+        ...homeHero(),
+        ticker(),
         ...counterBand('stats', [[6, '+', 'Años de experiencia'], [120, '+', 'Proyectos entregados'], [98, '%', 'Clientes satisfechos']]),
-        work({ eyebrow: 'Trabajo seleccionado', title: 'Algunos de mis favoritos', subtitle: 'Cada proyecto es único. Estos son algunos de los que más me enorgullecen.', projects: WORK_CARDS.split('\n---\n').slice(0, 3).join('\n---\n') }),
-        ...packages('muted'),
+        work({ eyebrow: 'Trabajo seleccionado', title: 'Algunos de mis', highlight: 'favoritos', subtitle: 'Cada proyecto es único. Estos son algunos de los que más me enorgullecen.', projects: WORK_CARDS.split('\n').slice(0, 3).join('\n') }),
+        ...packages(),
         clients(),
-        testimonials('Resultados reales'),
-        cta('Hagamos algo increíble juntos'),
+        notes('Resultados', 'reales'),
+        closing('Hagamos algo', 'increíble'),
         FOOTER,
       ],
     )
@@ -113,13 +100,14 @@ export const mayaTemplate = defineTemplate({
 export const mayaSitePages = [
   {
     id: 'servicios', label: 'Servicios', routePath: '/servicios', description: 'Servicios y paquetes de diseño web.',
-    build: () => page(['topbar', 'navbar', 'hero', 'services', 'pricing', 'cta', 'footer'], [
+    build: () => page(['topbar', 'navbar', 'hero', 'services', 'ticker', 'pricing', 'cta', 'footer'], [
       TOPBAR,
       NAVBAR,
-      hero({ eyebrow: 'Servicios y paquetes', title: 'Todo lo que tu sitio necesita', subtitle: 'Desde el diseño hasta la puesta en marcha, me encargo de cada detalle.', ctaLabel: 'Solicitar cotización', ctaHref: '/contacto', titleSize: '2xl', minHeight: '360px' }),
+      pageHero({ eyebrow: 'Servicios y paquetes', title: 'Todo lo que tu sitio', highlight: 'necesita', subtitle: 'Desde el diseño hasta la puesta en marcha, me encargo de cada detalle.' }),
       block('services', 'ServicesGridBlock', { eyebrow: 'Qué hago', title: 'Diseño con propósito', subtitle: '', columns: '3', services: 'Diseño web\nSitios a la medida de tu marca, claros y fáciles de navegar.\n---\nTiendas en línea\nCatálogo, carrito y pagos para vender desde el primer día.\n---\nOptimización SEO\nTu sitio listo para que te encuentren en buscadores.\n---\nIdentidad visual\nLogotipo, paleta y tipografías coherentes con tu marca.\n---\nMantenimiento\nActualizaciones, respaldos y soporte continuo.\n---\nCapacitación\nAprende a editar tu sitio con confianza.', cardStyle: 'bordered', align: 'left' }),
-      ...packages('muted'),
-      cta('Elige tu paquete y empecemos'),
+      ticker('Identidad\nDiseño web\nTiendas\nSEO\nCapacitación\nSoporte', 'blue'),
+      ...packages(),
+      closing('Elige tu paquete y', 'empecemos'),
       FOOTER,
     ]),
   },
@@ -128,11 +116,11 @@ export const mayaSitePages = [
     build: () => page(['topbar', 'navbar', 'hero', 'work', 'clients', 'testimonials', 'cta', 'footer'], [
       TOPBAR,
       NAVBAR,
-      hero({ eyebrow: 'Portafolio', title: 'Proyectos que me enorgullecen', subtitle: 'Marcas de distintos sectores que confiaron en mí para crecer en línea.', ctaLabel: '', titleSize: '2xl', minHeight: '360px' }),
-      work({ eyebrow: 'Casos', title: 'Trabajo reciente', projects: WORK_CARDS }),
+      pageHero({ eyebrow: 'Portafolio', title: 'Proyectos que me', highlight: 'enorgullecen', subtitle: 'Marcas de distintos sectores que confiaron en mí para crecer en línea.' }),
+      work({ eyebrow: 'Casos', title: 'Trabajo', highlight: 'reciente', subtitle: '', projects: WORK_CARDS }),
       clients(),
-      testimonials('Lo que dicen de trabajar conmigo'),
-      cta('¿Tu proyecto sería el siguiente?'),
+      notes('Lo que dicen de', 'trabajar conmigo'),
+      closing('¿Tu proyecto será el', 'siguiente?'),
       FOOTER,
     ]),
   },
@@ -141,10 +129,10 @@ export const mayaSitePages = [
     build: () => page(['topbar', 'navbar', 'hero', 'steps', 'faq', 'cta', 'footer'], [
       TOPBAR,
       NAVBAR,
-      hero({ eyebrow: 'Mi proceso', title: 'Trabajar conmigo es simple', subtitle: 'Un proceso claro, con entregas definidas y comunicación constante.', ctaLabel: '', titleSize: '2xl', minHeight: '360px' }),
+      pageHero({ eyebrow: 'Mi proceso', title: 'Trabajar conmigo es', highlight: 'simple', subtitle: 'Un proceso claro, con entregas definidas y comunicación constante.' }),
       block('steps', 'FeaturesSectionBlock', { eyebrow: 'Paso a paso', title: 'De la idea al lanzamiento', subtitle: '', layout: 'grid-3', iconStyle: 'number', background: 'white', features: 'Descubrimiento\nNos conocemos, definimos objetivos y aterrizamos el alcance.\n---\nDiseño\nTe presento propuestas visuales y afinamos juntos cada detalle.\n---\nDesarrollo\nConstruyo el sitio, lo pruebo en todos los dispositivos y lo optimizo.\n---\nLanzamiento\nPublicamos, medimos y te acompaño durante los primeros días.\n---\nSoporte\nResuelvo dudas y hago ajustes durante el periodo incluido.\n---\nCrecimiento\nPlanificamos mejoras para seguir creciendo.' }),
       block('faq', 'FeaturesSectionBlock', { eyebrow: 'Preguntas frecuentes', title: 'Antes de empezar', subtitle: '', layout: 'list', iconStyle: 'arrow', background: 'muted', features: '¿Cuánto tarda un proyecto?\nUn sitio de 3 páginas toma de 2 a 3 semanas; uno de 7 páginas, de 4 a 5.\n---\n¿Puedo editar el sitio yo misma?\nSí, te dejo todo listo y te enseño a hacerlo.\n---\n¿Qué necesito para empezar?\nTu logotipo, textos e imágenes si los tienes; si no, te ayudo a conseguirlos.' }),
-      cta('Cuéntame sobre tu proyecto'),
+      closing('Cuéntame sobre tu', 'proyecto'),
       FOOTER,
     ]),
   },
@@ -153,7 +141,7 @@ export const mayaSitePages = [
     build: () => page(['topbar', 'navbar', 'hero', 'channels', 'form', 'footer'], [
       TOPBAR,
       NAVBAR,
-      hero({ eyebrow: 'Contacto', title: '¿Tienes un proyecto en mente?', subtitle: 'Me encantaría escucharlo. Respondo en menos de 24 horas.', ctaLabel: '', titleSize: '2xl', minHeight: '360px' }),
+      pageHero({ eyebrow: 'Contacto', title: '¿Tienes un proyecto', highlight: 'en mente?', subtitle: 'Me encantaría escucharlo. Respondo en menos de 24 horas.' }),
       block('channels', 'FeaturesSectionBlock', { eyebrow: 'Hablemos', title: 'Elige cómo prefieres escribirme', subtitle: '', layout: 'grid-3', iconStyle: 'arrow', background: 'white', features: 'Correo electrónico\nhola@mayadesigns.com — cuéntame tu idea y te respondo pronto.\n---\nTeléfono\n(415) 555-0198 — de lunes a viernes de 9:00 a 18:00.\n---\nUbicación\nSan Diego, California — reuniones en línea o en persona.' }),
       block('form', 'ContactFormBlock', { formId: '@contact', successMessage: 'Gracias, te responderemos muy pronto.', buttonLabel: 'Enviar mensaje' }),
       FOOTER,
