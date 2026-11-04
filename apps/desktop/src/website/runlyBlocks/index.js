@@ -45,6 +45,7 @@ import { bizBlocks, BizHeroBlock, BizPillarsBlock, BizKpiBandBlock, BizProcessBl
 import { RestoHeroBlock, RestoMenuBlock, RestoHoursBlock } from './restoBlocks.jsx'
 import { SpaHeroBlock, SpaRitualsBlock, SpaClosingBlock } from './spaBlocks.jsx'
 import { habitiaBlocks, HabitiaHeroBlock, HabitiaRoomsBlock, HabitiaPiecesBlock, HabitiaMaterialsBlock, HabitiaQuoteBlock, HabitiaLeafletBlock, HabitiaStoryBlock, HabitiaFiguresBlock, HabitiaPageHeroBlock, HabitiaClosingBlock } from './habitiaBlocks.jsx'
+import { devfolioBlocks } from './devfolioRegistry.js'
 
 // --- Templates ---
 import {
@@ -107,6 +108,7 @@ export const universalRunlyBlocks = [
   SpaRitualsBlock,
   SpaClosingBlock,
   ...habitiaBlocks,
+  ...devfolioBlocks,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -208,6 +210,7 @@ export {
   HabitiaPageHeroBlock,
   HabitiaClosingBlock,
 }
+export * from './devfolioRegistry.js'
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
 
