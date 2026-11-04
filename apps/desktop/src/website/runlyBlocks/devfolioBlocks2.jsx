@@ -20,7 +20,8 @@ const TL_CSS = `
 .dv-tlv>li{position:relative;display:grid;grid-template-columns:72px minmax(0,1fr);gap:0 24px;padding-bottom:36px}
 .dv-tlv>li:last-child{padding-bottom:0}
 .dv-tlv .cn{position:absolute;left:34px;top:80px;bottom:8px;width:3px;background:${DOTS_V};transform-origin:top}
-.dv-tlv>li:last-child .cn{display:none}
+.dv-tlv>li:last-child .cn,.dv-tlv>li.ce .cn{display:none}
+@media (min-width:1000px){.dv-tlv{max-width:none;grid-template-columns:repeat(2,minmax(0,1fr));grid-template-rows:repeat(var(--rows,2),auto);grid-auto-flow:column;column-gap:64px}}
 @media (prefers-reduced-motion:no-preference){@supports (animation-timeline:view()){.dv-tlv .cn{animation:dv-growy linear both;animation-timeline:view();animation-range:entry 0% entry 100%}}}
 @media (max-width:860px){.dv-tl{grid-template-columns:1fr;gap:28px}.dv-tl>li{display:grid;grid-template-columns:72px minmax(0,1fr);gap:0 20px}.dv-tl .cn{left:34px;top:80px;bottom:-24px;height:auto;width:3px;background:${DOTS_V}}}
 `
@@ -45,9 +46,9 @@ export const DevTimelineBlock = defineBlock({
       <Section>
         <style>{TL_CSS}</style>
         <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
-        <ol className={vertical ? 'dv-tlv' : 'dv-tl'}>
+        <ol className={vertical ? 'dv-tlv' : 'dv-tl'} style={vertical ? { '--rows': Math.ceil(rows.length / 2) } : undefined}>
           {rows.map(([dates, role, company, text, icon], index) => (
-            <li key={dates + role} className="dv-rv" style={{ '--i': index }}>
+            <li key={dates + role} className={`dv-rv${vertical && index === Math.ceil(rows.length / 2) - 1 ? ' ce' : ''}`} style={{ '--i': index }}>
               <Disc icon={icon || 'briefcase'} />
               <span className="cn dv-grow" aria-hidden="true" />
               <div style={{ paddingTop: vertical ? '6px' : '16px' }}>
