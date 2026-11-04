@@ -2883,6 +2883,84 @@
       }
     },
     {
+      "type": "ParallaxSectionBlock",
+      "label": "Sección con parallax",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "tone": "sky",
+        "shapes": "circles",
+        "speed": "0.2",
+        "paddingY": "16",
+        "minHeight": "",
+        "align": "center"
+      },
+      "fields": {
+        "tone": {
+          "type": "select",
+          "label": "Color de fondo",
+          "options": [
+            "sky",
+            "sunset",
+            "forest",
+            "ink",
+            "primary",
+            "light"
+          ]
+        },
+        "shapes": {
+          "type": "select",
+          "label": "Formas flotantes",
+          "options": [
+            "circles",
+            "rings",
+            "blobs",
+            "none"
+          ]
+        },
+        "speed": {
+          "type": "select",
+          "label": "Intensidad del movimiento",
+          "options": [
+            "0.1",
+            "0.2",
+            "0.3"
+          ]
+        },
+        "paddingY": {
+          "type": "select",
+          "label": "Espacio vertical",
+          "options": [
+            "8",
+            "12",
+            "16",
+            "24"
+          ]
+        },
+        "minHeight": {
+          "type": "select",
+          "label": "Altura mínima",
+          "options": [
+            "",
+            "360px",
+            "480px",
+            "600px"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación del contenido",
+          "options": [
+            "center",
+            "left"
+          ]
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",

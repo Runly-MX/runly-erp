@@ -27,6 +27,7 @@ import { ShowcaseHeroBlock } from './showcaseHeroBlock.jsx'
 import { ProjectCardsBlock } from './projectCardsBlock.jsx'
 import { LogoCloudBlock }    from './logoCloudBlock.jsx'
 import { TopBarBlock }       from './topBarBlock.jsx'
+import { ParallaxSectionBlock } from './parallaxSectionBlock.jsx'
 
 // --- Templates ---
 import {
@@ -69,6 +70,7 @@ export const universalRunlyBlocks = [
   ProjectCardsBlock,
   LogoCloudBlock,
   TopBarBlock,
+  ParallaxSectionBlock,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -110,6 +112,7 @@ export {
   ProjectCardsBlock,
   LogoCloudBlock,
   TopBarBlock,
+  ParallaxSectionBlock,
 }
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
