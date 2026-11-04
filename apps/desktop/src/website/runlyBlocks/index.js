@@ -28,6 +28,10 @@ import { ProjectCardsBlock } from './projectCardsBlock.jsx'
 import { LogoCloudBlock }    from './logoCloudBlock.jsx'
 import { TopBarBlock }       from './topBarBlock.jsx'
 import { ParallaxSectionBlock } from './parallaxSectionBlock.jsx'
+import { FinHeroBlock } from './finHeroBlock.jsx'
+import { FinClosingBlock } from './finClosingBlock.jsx'
+import { FinCalculatorBlock } from './finCalculatorBlock.jsx'
+import { FinLoanCardsBlock, FinStepsBlock } from './finLoanCardsBlock.jsx'
 import { LandscapeHeroBlock } from './landscapeHeroBlock.jsx'
 import { ChapterBlock } from './chapterBlock.jsx'
 import { mayaBlocks, MayaPortraitBlock, MayaTagBlock, MayaTickerBlock, MayaWorkBlock, MayaNotesBlock, MayaPageHeroBlock, MayaClosingBlock } from './mayaBlocks.jsx'
@@ -75,6 +79,11 @@ export const universalRunlyBlocks = [
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  FinHeroBlock,
+  FinCalculatorBlock,
+  FinLoanCardsBlock,
+  FinStepsBlock,
+  FinClosingBlock,
   LandscapeHeroBlock,
   ChapterBlock,
   ...mayaBlocks,
@@ -121,6 +130,11 @@ export {
   LogoCloudBlock,
   TopBarBlock,
   ParallaxSectionBlock,
+  FinHeroBlock,
+  FinCalculatorBlock,
+  FinLoanCardsBlock,
+  FinStepsBlock,
+  FinClosingBlock,
   MayaPortraitBlock,
   MayaTagBlock,
   MayaTickerBlock,

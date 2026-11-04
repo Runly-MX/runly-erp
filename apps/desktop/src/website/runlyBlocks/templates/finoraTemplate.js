@@ -45,16 +45,9 @@ const hero = (props) => ({
 
 const block = (id, type, props) => ({ id, type, props, children: {} })
 
-const LOANS = 'Préstamo personal\nRecibe los fondos que necesitas para los momentos importantes de la vida, con pagos fijos y sin sorpresas.\n---\nCrédito hipotecario\nConvierte la casa de tus sueños en realidad con tasas competitivas y plazos flexibles de hasta 30 años.\n---\nCrédito automotriz\nEstrena el auto que quieres con tasas bajas y aprobación rápida, nuevo o seminuevo.\n---\nCrédito empresarial\nImpulsa el crecimiento de tu negocio con financiamiento a la medida de tu flujo de caja.'
-
-const STEPS = 'Solicita en línea\nCompleta una solicitud sencilla en pocos minutos, desde tu celular o computadora.\n---\nRecibe tu aprobación\nTe respondemos en menos de 24 horas, sin comisiones ocultas ni letras chiquitas.\n---\nObtén tus fondos\nEl dinero se deposita directamente en tu cuenta en cuanto firmas digitalmente.'
-
 const TESTIMONIALS = 'Sarah Johnson|Cliente de crédito hipotecario|5\nFinora hizo que comprar mi casa fuera muy fácil. El proceso fue sencillo y el equipo me acompañó en cada paso.\n---\nMichael Brown|Cliente de préstamo personal|5\nMe aprobaron mi préstamo en menos de 24 horas. Es la mejor experiencia bancaria que he tenido.\n---\nEmily Davis|Cliente de crédito automotriz|5\nExcelentes tasas, servicio rápido y una experiencia en línea muy clara. Totalmente recomendado.'
 
-const cta = (title, subtitle) => block('cta', 'CtaBannerBlock', {
-  eyebrow: '¿Listo para comenzar?', title, subtitle, ctaLabel: 'Comenzar hoy', ctaHref: '/contacto',
-  ctaSecondLabel: 'Ver préstamos', ctaSecondHref: '/prestamos', variant: 'gradient-dark', size: 'large', align: 'center',
-})
+const cta = (title, subtitle) => block('cta', 'FinClosingBlock', { title, subtitle })
 
 export const finoraTemplate = defineTemplate({
   id: 'atlas-finora',
@@ -66,30 +59,11 @@ export const finoraTemplate = defineTemplate({
       rootIds: ['navbar', 'hero', 'trust', 'loans', 'steps', 'payment', 'testimonials', 'cta', 'footer'],
       blocks: {
         navbar: NAVBAR,
-        hero: hero({
-          eyebrow: 'Tu aliado financiero de confianza',
-          title: 'Banca para un futuro más brillante',
-          subtitle: 'Soluciones bancarias simples, seguras e inteligentes. Elige el préstamo ideal, administra tu dinero y alcanza tus metas, todo en un solo lugar.',
-          ctaLabel: 'Explorar préstamos', ctaHref: '/prestamos',
-          ctaSecondLabel: 'Cómo funciona', ctaSecondHref: '/como-funciona',
-          titleSize: '3xl', minHeight: '480px',
-        }),
+        hero: block('hero', 'FinHeroBlock', {}),
         ...Object.fromEntries(counterBand('trust', [[1, 'M+', 'Clientes felices'], [4.8, '/5', 'Calificación promedio', 1], [100, '%', 'Seguro y confiable'], [24, ' h', 'Para tu aprobación']]).map((b) => [b.id, b])),
-        loans: block('loans', 'ServicesGridBlock', {
-          eyebrow: 'Nuestros productos', title: 'Un crédito para cada meta',
-          subtitle: 'Opciones transparentes con tasas competitivas y plazos que se adaptan a tu presupuesto.',
-          columns: '4', services: LOANS, cardStyle: 'card', align: 'left',
-        }),
-        steps: block('steps', 'FeaturesSectionBlock', {
-          eyebrow: 'Pasos simples', title: 'Cómo funciona',
-          subtitle: 'Empezar es fácil. Sigue estos tres pasos y toma el control de tu futuro financiero.',
-          layout: 'grid-3', iconStyle: 'number', background: 'muted', features: STEPS,
-        }),
-        payment: block('payment', 'StatsBlock', {
-          eyebrow: 'Calcula tu pago mensual', title: 'Ejemplo: préstamo personal de $10,000 a 3 años',
-          stats: '$306\nPago mensual estimado\nPor mes\n---\n$1,040\nIntereses totales\nEn todo el plazo\n---\n$11,040\nPago total\nCapital más intereses',
-          background: 'primary', align: 'center',
-        }),
+        loans: block('loans', 'FinLoanCardsBlock', { background: 'white' }),
+        steps: block('steps', 'FinStepsBlock', { background: 'muted' }),
+        payment: block('payment', 'FinCalculatorBlock', {}),
         testimonials: block('testimonials', 'TestimonialsBlock', {
           eyebrow: 'Testimonios', title: 'Lo que dicen nuestros clientes', columns: '3', background: 'muted', testimonials: TESTIMONIALS,
         }),
@@ -107,11 +81,12 @@ export const finoraSitePages = [
     routePath: '/prestamos',
     description: 'Préstamos personales, hipotecarios, automotrices y empresariales.',
     build: () => ({
-      rootIds: ['navbar', 'hero', 'loans', 'features', 'split', 'cta', 'footer'],
+      rootIds: ['navbar', 'hero', 'loans', 'calc', 'features', 'split', 'cta', 'footer'],
       blocks: {
         navbar: NAVBAR,
         hero: hero({ eyebrow: 'Nuestros productos', title: 'Encuentra el crédito ideal para ti', subtitle: 'Tasas bajas, plazos flexibles y aprobación rápida, sin comisiones ocultas.', ctaLabel: 'Solicitar ahora', ctaHref: '/contacto', titleSize: '2xl', minHeight: '360px' }),
-        loans: block('loans', 'ServicesGridBlock', { eyebrow: 'Créditos', title: 'Elige el que mejor se adapta a ti', subtitle: '', columns: '2', services: LOANS, cardStyle: 'bordered', align: 'left' }),
+        loans: block('loans', 'FinLoanCardsBlock', { eyebrow: 'Créditos', title: 'Elige el que mejor se adapta a ti', subtitle: '', columns: '2', background: 'white' }),
+        calc: block('calc', 'FinCalculatorBlock', { title: 'Simula tu crédito antes de solicitarlo' }),
         features: block('features', 'FeaturesSectionBlock', {
           eyebrow: 'Beneficios', title: 'Ventajas de elegir Finora', subtitle: '', layout: 'grid-2', iconStyle: 'check', background: 'muted',
           features: 'Tasas competitivas\nOfrecemos tasas bajas y fijas para que sepas siempre cuánto pagarás.\n---\nSin comisiones ocultas\nTodo el costo del crédito se muestra desde el inicio, sin sorpresas.\n---\nPagos flexibles\nElige la fecha y el plazo que mejor se ajusten a tu presupuesto.\n---\nAprobación en 24 horas\nSolicita en línea y recibe una respuesta rápida de nuestro equipo.',
@@ -136,7 +111,7 @@ export const finoraSitePages = [
       blocks: {
         navbar: NAVBAR,
         hero: hero({ eyebrow: 'Pasos simples', title: 'Del trámite a tu cuenta en tres pasos', subtitle: 'Todo el proceso es en línea, claro y sin filas.', ctaLabel: 'Comenzar solicitud', ctaHref: '/contacto', titleSize: '2xl', minHeight: '360px' }),
-        steps: block('steps', 'FeaturesSectionBlock', { eyebrow: 'El proceso', title: 'Así de fácil', subtitle: '', layout: 'grid-3', iconStyle: 'number', background: 'white', features: STEPS }),
+        steps: block('steps', 'FinStepsBlock', { eyebrow: 'El proceso', title: 'Así de fácil', subtitle: '', background: 'white' }),
         requirements: block('requirements', 'FeaturesSectionBlock', {
           eyebrow: 'Antes de empezar', title: 'Lo que necesitas', subtitle: 'Ten estos documentos a la mano para agilizar tu solicitud.', layout: 'list', iconStyle: 'check', background: 'muted',
           features: 'Identificación oficial\nVigente y legible, por ambos lados.\n---\nComprobante de domicilio\nCon antigüedad no mayor a tres meses.\n---\nComprobante de ingresos\nÚltimos recibos de nómina o estados de cuenta.',
