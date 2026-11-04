@@ -25,7 +25,8 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
   const isPdf = template?.format === 'pdf'
   const keys = useMemo(() => (isPdf ? fields.map((f) => f.key) : version?.placeholders ?? []), [isPdf, fields, version?.placeholders])
   const unknown = useMemo(() => unknownTags(kind, keys), [kind, keys])
-  const known = keys.length - unknown.length
+  // A tag mapped to a data field counts as matched, saved or not.
+  const known = keys.length - unknown.filter((tag) => !mapping[tag]).length
 
   const save = useMutation({
     mutationFn: async ({ publish }) => {
@@ -156,6 +157,7 @@ export function TemplateMappingDialog({ template, warnings = [], kind, api, onOp
                 ))}
               </div>
             ) : null}
+            <TemplateFieldReference kind={kind} />
           </div>
           )}
     </TemplateDialogFrame>

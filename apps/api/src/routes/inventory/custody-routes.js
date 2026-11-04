@@ -163,6 +163,19 @@ export function createInventoryCustodyRouter({ prisma, requirePermission, Invent
     } catch (err) { return fail(c, err, 'No se pudo actualizar el artículo del resguardo.'); }
   });
 
+  router.post('/inventory/custodies/:id/photos', manage, async (c) => {
+    try {
+      const form = await c.req.formData();
+      return c.json({ custody: await svc().addPhoto(c.req.param('id'), c.get('companyId'), c.get('userId'), form.get('file')) }, 201);
+    } catch (err) { return fail(c, err, 'No se pudo guardar la foto.'); }
+  });
+
+  router.delete('/inventory/custodies/:id/photos/:fileId', manage, async (c) => {
+    try {
+      return c.json({ custody: await svc().removePhoto(c.req.param('id'), c.req.param('fileId'), c.get('companyId'), c.get('userId')) });
+    } catch (err) { return fail(c, err, 'No se pudo quitar la foto.'); }
+  });
+
   router.post('/inventory/custodies/:id/signatures', manage, async (c) => {
     try {
       return c.json({ custody: await svc().sign(c.req.param('id'), await body(c), c.get('companyId'), c.get('userId'), onBehalf(c)) });

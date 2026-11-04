@@ -20,6 +20,11 @@ export function createInventoryCustodyDomain({ request, requestBlob, withAuthHea
       update: (custodyId, data, token) => send('PATCH', `/inventory/custodies/${id(custodyId)}`, data, token),
       // Hand-edited snapshot fields of one row; null restores the item value -> { custody }.
       updateItem: (custodyId, rowId, data, token) => send('PATCH', `/inventory/custodies/${id(custodyId)}/items/${id(rowId)}`, data, token),
+      // Photo of the equipment (simple returns); formData: file -> { custody }.
+      addPhoto: (custodyId, formData, token) => request(`/inventory/custodies/${id(custodyId)}/photos`, {
+        method: 'POST', headers: withAuthHeaders(token), body: formData, onlineOnly: true,
+      }),
+      removePhoto: (custodyId, fileId, token) => send('DELETE', `/inventory/custodies/${id(custodyId)}/photos/${id(fileId)}`, undefined, token),
       // { role, pngBase64 } draws a signature; { role: 'deliverer', useSaved: true } applies the saved one.
       sign: (custodyId, { role, pngBase64, useSaved }, token) => send('POST', `/inventory/custodies/${id(custodyId)}/signatures`,
         useSaved ? { role, useSaved: true } : { role, pngBase64 }, token),

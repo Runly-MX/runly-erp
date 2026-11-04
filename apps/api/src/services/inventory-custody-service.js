@@ -17,6 +17,7 @@ import {
   generatePublicToken, hashToken, isPlausibleToken, isTokenUsable, mergeSnapshot, nextEditedFields, normalizeCustodyInput,
   normalizeItemOverrides, savedSignatureDecision, signatureResetFor, shouldAutoComplete, autoCompleteActorId,
   assertSignatureReplaceable, completionErrorMessage, unsignedCompletionDecision,
+  assertSimpleReturnKind, MAX_CUSTODY_PHOTOS, MAX_CUSTODY_PHOTO_BYTES,
 } from './inventory-custody-helpers.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -197,7 +198,43 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       signatureUrl(companyId, row.receiverSignatureFileId),
       signatureUrl(companyId, row.delivererSignatureFileId),
     ]);
-    return { ...serializeCustody(row), receiverSignatureUrl, delivererSignatureUrl };
+    return { ...serializeCustody(row), receiverSignatureUrl, delivererSignatureUrl, photos: await listPhotos(id, companyId) };
+  }
+
+  const photoWhere = (custodyId, companyId) => ({
+    entityType: 'InvCustody', entityId: companyId, moduleKey: MODULE_KEY, enabled: true,
+    metadata: { path: ['sourceEntityId'], equals: custodyId },
+    AND: [{ metadata: { path: ['label'], equals: 'photo' } }],
+  });
+
+  async function listPhotos(custodyId, companyId) {
+    const rows = await prisma.fileAsset.findMany({ where: photoWhere(custodyId, companyId), orderBy: { createdAt: 'asc' } });
+    return Promise.all(rows.map(async (row) => ({ id: row.id, name: row.originalName, url: (await files.signedUrl(row, { download: false }).catch(() => null))?.url ?? null })));
+  }
+
+  // Photos of the returned equipment (simple returns); allowed until the record is cancelled.
+  async function addPhoto(id, companyId, profileId, file) {
+    const custody = await load(id, companyId);
+    if (custody.status === 'CANCELLED') throw new InventoryServiceError('El resguardo está cancelado.', 409);
+    if (!file || typeof file.arrayBuffer !== 'function' || !file.size) throw new InventoryServiceError('Adjunta una foto.', 400);
+    if (!String(file.type).startsWith('image/')) throw new InventoryServiceError('Solo se admiten imágenes.', 400);
+    if (file.size > MAX_CUSTODY_PHOTO_BYTES) throw new InventoryServiceError('La foto supera 10 MB.', 400);
+    const count = await prisma.fileAsset.count({ where: photoWhere(id, companyId) });
+    if (count >= MAX_CUSTODY_PHOTOS) throw new InventoryServiceError(`Un resguardo admite hasta ${MAX_CUSTODY_PHOTOS} fotos.`, 409);
+    await files.store({
+      companyId, uploadedById: profileId, buffer: Buffer.from(await file.arrayBuffer()), fileName: file.name || 'foto.jpg', mimeType: file.type,
+      entityType: 'InvCustody', sourceEntityId: id, metadata: { label: 'photo' },
+    });
+    await audit(companyId, profileId, id, 'inventory.custody.photo_added', { name: file.name });
+    return get(id, companyId);
+  }
+
+  async function removePhoto(id, fileId, companyId, profileId) {
+    await load(id, companyId);
+    const { count } = await prisma.fileAsset.updateMany({ where: { ...photoWhere(id, companyId), id: fileId }, data: { enabled: false } });
+    if (!count) throw new InventoryServiceError('La foto no existe.', 404);
+    await audit(companyId, profileId, id, 'inventory.custody.photo_removed', { fileId });
+    return get(id, companyId);
   }
 
   // Deliverer: a company user (default: the caller); someone else, or a free
@@ -213,6 +250,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     assertCompany(companyId);
     if (!profileId) throw new InventoryServiceError('Usuario no encontrado.', 400);
     const input = normalizeCustodyInput(body);
+    assertSimpleReturnKind(input.kind, input.formal);
     await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     await assertEmployee(prisma, companyId, input.employeeId);
     await assertTemplate(prisma, companyId, input.templateId, profileId);
@@ -221,7 +259,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
       const { folio, sequence } = await allocateFolio(tx, companyId, input.kind, input.date);
       return tx.invCustody.create({
         data: {
-          companyId, folio, sequence, kind: input.kind, employeeId: input.employeeId, date: input.date,
+          companyId, folio, sequence, kind: input.kind, formal: input.formal, employeeId: input.employeeId, date: input.date,
           comments: input.comments ?? null, documentTemplateId: input.templateId ?? null,
           delivererName: input.delivererId ? null : (input.delivererName ?? null),
           delivererId: input.delivererId || (input.delivererName ? null : profileId),
@@ -241,6 +279,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     const current = await load(id, companyId);
     assertCustodyAction(current, 'update');
     const input = normalizeCustodyInput(body, { partial: true });
+    assertSimpleReturnKind(input.kind ?? current.kind, input.formal ?? current.formal);
     if (input.delivererId === null) throw new InventoryServiceError('Selecciona quién entrega.', 400);
     if (input.delivererId && input.delivererId !== current.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
     else if (input.delivererName !== undefined && !input.delivererId) await checkDeliverer(input, companyId, profileId, canDeliverOnBehalf);
@@ -319,6 +358,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     if (!['receiver', 'deliverer'].includes(role)) throw new InventoryServiceError('Indica quién firma (receiver o deliverer).', 400);
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'sign');
+    if (!custody.formal) throw new InventoryServiceError('Una devolución simple no lleva firmas.', 409);
     assertSignatureReplaceable(custody, role);
     if (useSaved === true) {
       if (role !== 'deliverer') throw new InventoryServiceError('Solo quien entrega puede usar una firma guardada.', 400);
@@ -399,6 +439,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   async function createPublicLink(id, companyId, profileId, { origin, sendEmail = false } = {}) {
     const custody = await load(id, companyId);
     assertCustodyAction(custody, 'publicLink');
+    if (!custody.formal) throw new InventoryServiceError('Una devolución simple no lleva enlace de firma.', 409);
     if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId) await refreshSnapshot(custody);
     const { token, hash, expiresAt } = generatePublicToken();
@@ -448,7 +489,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
     assertCustodyAction(custody, 'complete');
     if (!custody.items.length) throw new InventoryServiceError('Agrega al menos un artículo al resguardo.', 409);
     const noSignatureReason = unsignedCompletionDecision({ custody, allowUnsigned, reason: unsignedReason, canCompleteUnsigned });
-    if (!custody.receiverSignatureFileId && !noSignatureReason) {
+    if (custody.formal && !custody.receiverSignatureFileId && !noSignatureReason) {
       throw new InventoryServiceError('Falta la firma de quien recibe. Captúrala o envía el enlace de firma.', 409);
     }
     if (custody.status === 'DRAFT' && !custody.receiverSignatureFileId && !custody.delivererSignatureFileId) await refreshSnapshot(custody);
@@ -473,6 +514,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
 
     let documentError = null;
     let emailSent = false;
+    if (!custody.formal) return { custody: await get(id, companyId), emailSent, documentError };
     try {
       const completed = await load(id, companyId);
       const { document } = await documents.generateAndAttach(completed, { profileId });
@@ -570,7 +612,7 @@ export function createInventoryCustodyService({ prisma, supabaseAdmin = null, en
   }
 
   return {
-    list, get, create, update, updateItem, sign, createPublicLink, complete, regenerateDocument, cancel, documentUrl, preview,
+    list, get, create, update, updateItem, addPhoto, removePhoto, sign, createPublicLink, complete, regenerateDocument, cancel, documentUrl, preview,
     getPublic, signPublic, templates,
     listDeliverers: deliverers.list,
   };

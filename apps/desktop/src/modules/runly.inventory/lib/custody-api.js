@@ -29,6 +29,9 @@ export function normalizeCustody(raw) {
   return {
     ...raw,
     items,
+    // false = simple return: comments and photos, no signatures or document.
+    formal: raw.formal !== false,
+    photos: Array.isArray(raw.photos) ? raw.photos : [],
     receiverSignatureUrl: raw.receiverSignatureUrl ?? null,
     delivererSignatureUrl: raw.delivererSignatureUrl ?? null,
     employeeName: raw.employeeName ?? personName(employee) ?? '—',

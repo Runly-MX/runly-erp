@@ -16,6 +16,7 @@ import { CustodyDetailsEditor } from '../components/custody/CustodyDetailsEditor
 import { CustodyItemsSection } from '../components/custody/CustodyItemsSection.jsx'
 import { custodyItemColumns } from '../components/custody/custodyItemColumns.jsx'
 import { useGuardedCustodyPatch } from '../components/custody/useGuardedCustodyPatch.jsx'
+import { CustodyPhotosSection } from '../components/custody/CustodyPhotosSection.jsx'
 
 const UNSIGNED_PERMISSION = 'inventory.custody.complete_unsigned'
 const UNSIGNED_REASON_MIN = 10
@@ -48,6 +49,7 @@ export default function InventoryCustodyDetailScreen() {
   if (!custody) return <NotFoundState title="Este resguardo no existe" description="Puede que se haya eliminado o que no tengas acceso." back={{ label: "Ver resguardos", onClick: () => navigate(LIST_PATH) }} home={{ label: "Ir al inicio", onClick: () => navigate("/app/home") }} />
 
   const open = isCustodyEditable(custody)
+  const simple = !custody.formal
 
   async function openFile(mode) {
     try {
@@ -62,7 +64,7 @@ export default function InventoryCustodyDetailScreen() {
   async function handleComplete() {
     try {
       await complete.mutateAsync({ id: custody.id, ...(allowUnsigned ? { allowUnsigned: true, unsignedReason: unsignedReason.trim() } : {}) })
-      toast.success('Resguardo completado', { description: 'Se generó el documento y se actualizaron las asignaciones.' })
+      toast.success(simple ? 'Devolución registrada' : 'Resguardo completado', { description: simple ? 'Los artículos quedaron devueltos.' : 'Se generó el documento y se actualizaron las asignaciones.' })
       setCompleteOpen(false)
       setUnsignedReason('')
     } catch (err) {
@@ -94,7 +96,7 @@ export default function InventoryCustodyDetailScreen() {
         onBack={() => navigate(LIST_PATH)}
         actions={(
           <div className="flex flex-wrap gap-2">
-            {open ? (
+            {open && !simple ? (
               <Button variant="outline" size="sm" onClick={() => openFile('preview')} disabled={fileUrl.isPending}>
                 <Eye className="mr-1.5 h-3.5 w-3.5" />Vista previa
               </Button>
@@ -107,14 +109,14 @@ export default function InventoryCustodyDetailScreen() {
             {open ? (
               <Button variant="outline" size="sm" onClick={() => setCancelOpen(true)}><Ban className="mr-1.5 h-3.5 w-3.5" />Cancelar resguardo</Button>
             ) : null}
-            {open && !custody.receiverSigned && canCompleteUnsigned ? (
+            {open && !simple && !custody.receiverSigned && canCompleteUnsigned ? (
               <Button variant="outline" size="sm" disabled={custody.items.length === 0}
                 title="Para casos como un préstamo temporal; queda registrado en la bitácora"
                 onClick={() => { setAllowUnsigned(true); setCompleteOpen(true) }}><PenOff className="mr-1.5 h-3.5 w-3.5" />Completar sin firma</Button>
             ) : null}
             {open ? (
               <Button size="sm" disabled={custody.items.length === 0} title={custody.items.length === 0 ? 'Agrega al menos un artículo' : undefined}
-                onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />Completar</Button>
+                onClick={() => { setAllowUnsigned(false); setCompleteOpen(true) }}><CheckCheck className="mr-1.5 h-3.5 w-3.5" />{simple ? 'Registrar devolución' : 'Completar'}</Button>
             ) : null}
           </div>
         )}
@@ -157,19 +159,23 @@ export default function InventoryCustodyDetailScreen() {
         </>
       )}
 
-      {custody.status !== 'CANCELLED' ? <CustodySignaturesSection custody={custody} /> : null}
+      {simple && custody.status !== 'CANCELLED' ? <CustodyPhotosSection custody={custody} editable={open} /> : null}
+
+      {!simple && custody.status !== 'CANCELLED' ? <CustodySignaturesSection custody={custody} /> : null}
 
       <ConfirmDialog
         open={completeOpen}
         onOpenChange={setCompleteOpen}
-        title={allowUnsigned ? 'Completar sin firma' : 'Completar resguardo'}
+        title={allowUnsigned ? 'Completar sin firma' : simple ? 'Registrar devolución' : 'Completar resguardo'}
         icon={allowUnsigned ? PenOff : FileCheck2}
         confirmDisabled={allowUnsigned && unsignedReason.trim().length < UNSIGNED_REASON_MIN}
         tone="primary"
-        description={custody.kind === 'RETURN'
+        description={simple
+          ? 'Los artículos quedarán devueltos y se guardarán los comentarios y las fotos. No se genera documento ni se piden firmas.'
+          : custody.kind === 'RETURN'
           ? 'Se generará el documento final y los artículos quedarán devueltos. El resguardo ya no podrá editarse.'
           : 'Se generará el documento final y los artículos quedarán asignados al colaborador. El resguardo ya no podrá editarse.'}
-        confirmLabel={allowUnsigned ? 'Completar sin firma' : 'Completar'}
+        confirmLabel={allowUnsigned ? 'Completar sin firma' : simple ? 'Registrar' : 'Completar'}
         loading={complete.isPending}
         onConfirm={handleComplete}
       >

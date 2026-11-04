@@ -253,7 +253,16 @@ const STORAGE_BUCKET_NAME = "runly-files";
 const STOREFRONT_BUCKET_NAME = "runly-storefront";
 const WEBSITE_BUCKET_NAME = "runly-website";
 const filesService = createFilesService({ prisma, supabaseAdmin });
-const officeService = createOfficeService({ prisma, supabaseAdmin, broadcaster, onFileAssetSaved: createCertTemplateOfficeRescan({ prisma }) });
+const rescanCertTemplate = createCertTemplateOfficeRescan({ prisma });
+const officeService = createOfficeService({
+  prisma, supabaseAdmin, broadcaster,
+  onFileAssetSaved: async (saved) => {
+    await rescanCertTemplate(saved);
+    if (saved.file?.moduleKey === "runly.documents" && saved.file.entityType === "DocumentTemplate") {
+      await documentsHub.fileTemplates.rescanByFile({ companyId: saved.companyId, fileAssetId: saved.file.id });
+    }
+  },
+});
 const bundlerService = createModuleBundlerService({ prisma, supabaseAdmin });
 const companyModuleService = createCompanyModuleService({ prisma });
 const notificationDeliveryWorker = createNotificationDeliveryWorker({ prisma, supabaseAdmin });
@@ -1890,7 +1899,7 @@ app.put(
 
 // Office access is decided per file (office/access.js): runly.files permissions
 // for files, LMS permissions for course submissions and certificate templates.
-app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess: requireAnyPermission(["files.assets.read", "lms.access", "lms.grade", "lms.course.manage"]) }));
+app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess: requireAnyPermission(["files.assets.read", "lms.access", "lms.grade", "lms.course.manage", "inventory.template.manage", "documents.templates.update"]) }));
 app.route("/", createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
 app.route("/", createIdentitySessionsRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 

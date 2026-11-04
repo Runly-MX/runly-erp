@@ -5,6 +5,24 @@ import { authorizeLmsOfficeFile, isLmsOfficeFile } from './lms-access.js';
 
 export const OFFICE_FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+const DOCUMENT_TEMPLATE_ENTITIES = new Set(['DocumentTemplate', 'InvDocumentTemplate']);
+// shortcut: manage permission per kind hardcoded here (the kind registry lives in
+// the documents hub); move it to the registry when a third kind needs Office.
+const KIND_MANAGE_PERMISSION = { 'inventory.custody': 'inventory.template.manage', 'lms.certificate': 'lms.course.manage' };
+
+const isDocumentTemplateFile = file => DOCUMENT_TEMPLATE_ENTITIES.has(file?.entityType) && (file.entityType === 'InvDocumentTemplate' || file.moduleKey === 'runly.documents');
+
+// The file must be a version file of an enabled template of the same company.
+async function authorizeDocumentTemplateFile({ db, file, companyId, can }) {
+  const version = await db.documentTemplateVersion.findFirst({
+    where: { fileAssetId: file.id, template: { companyId, enabled: true } },
+    select: { template: { select: { kind: true } } },
+  });
+  if (!version) throw new OfficeError('Esta plantilla ya no usa este archivo.', 403, 'unsupported_scope');
+  const manage = KIND_MANAGE_PERMISSION[version.template.kind];
+  if (!can('documents.templates.update') && !(manage && can(manage))) throw new OfficeError('No tienes permiso para abrir esta plantilla.', 403, 'forbidden');
+}
+
 export function createOfficeAccess({ prisma }) {
   const fileAccess = createFileAccess({ prisma });
   async function authorize({ authUserId, fileId, mode = 'view', claims, imageEdit = false }, db = prisma) {
@@ -34,7 +52,10 @@ export function createOfficeAccess({ prisma }) {
     // runly.lms files are gated by LMS permissions (see lms-access.js), not by
     // runly.files ones: graders and learners need not have files access.
     const lms = isLmsOfficeFile(file);
-    if (!lms) {
+    // Hub template files (runly.documents) are gated by the template kind's manage
+    // permission, so a template manager needs no runly.files access.
+    const docTemplate = isDocumentTemplateFile(file);
+    if (!lms && !docTemplate) {
       requireAccess('files.assets.read');
       if (mode === 'edit') requireAccess('files.assets.update');
     }
@@ -47,6 +68,8 @@ export function createOfficeAccess({ prisma }) {
     }
     if (lms) {
       await authorizeLmsOfficeFile({ db, file, companyId, profile, can, mode });
+    } else if (docTemplate) {
+      await authorizeDocumentTemplateFile({ db, file, companyId, can });
     } else if (task) {
       requireAccess(`projects.task.${operation}`);
       const project = task.project;

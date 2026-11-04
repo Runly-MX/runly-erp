@@ -396,5 +396,14 @@ export function createDocumentFileTemplateService({ prisma, files, kinds }) {
     return { url, expiresIn, fileName: asset.originalName };
   }
 
-  return { upload, createBlank, replaceVersionFile, suggest, saveMapping, publishVersion, setDefault, setVisibility, list, describe, remove, fileUrl };
+  // The office editor saved a template file in place: refresh the tags of the version that owns it.
+  async function rescanByFile({ companyId, fileAssetId }) {
+    const version = await prisma.documentTemplateVersion.findFirst({
+      where: { fileAssetId, template: { companyId, enabled: true } },
+      orderBy: { versionNumber: "desc" },
+    });
+    return version ? replaceVersionFile({ companyId, profileId: null, templateId: version.templateId, versionId: version.id }) : null;
+  }
+
+  return { upload, createBlank, replaceVersionFile, rescanByFile, suggest, saveMapping, publishVersion, setDefault, setVisibility, list, describe, remove, fileUrl };
 }

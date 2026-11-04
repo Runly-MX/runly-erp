@@ -113,6 +113,11 @@ export function normalizeCustodyInput(body = {}, { partial = false } = {}) {
     if (!CUSTODY_KINDS.includes(kind)) throw new InventoryServiceError('El tipo de resguardo no es válido.', 400);
     out.kind = kind;
   }
+  // false = simple return: comments and photos, no signatures or document.
+  if (body.formal !== undefined) {
+    if (typeof body.formal !== 'boolean') throw new InventoryServiceError('El formato del resguardo no es válido.', 400);
+    out.formal = body.formal;
+  }
   if (!partial || body.employeeId !== undefined) {
     const employeeId = optionalUuid(body.employeeId, 'El colaborador');
     if (!employeeId) throw new InventoryServiceError('Selecciona el colaborador.', 400);
@@ -134,6 +139,13 @@ export function normalizeCustodyInput(body = {}, { partial = false } = {}) {
   }
   return out;
 }
+
+export function assertSimpleReturnKind(kind, formal) {
+  if (formal === false && kind !== 'RETURN') throw new InventoryServiceError('Solo las devoluciones pueden registrarse sin formato.', 400);
+}
+
+export const MAX_CUSTODY_PHOTOS = 12;
+export const MAX_CUSTODY_PHOTO_BYTES = 10 * 1024 * 1024;
 
 // Returns the Spanish problems that block completing, one per item.
 // `items`: InvItem rows (with enabled/adminStatus/assignedToId);

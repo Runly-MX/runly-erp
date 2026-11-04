@@ -71,6 +71,17 @@ export const useSignCustody = () =>
   useCustodyMutation(async ({ id, role, dataUrl, useSaved }, token) =>
     parseCustody(await runly.inventory.custodies.sign(id, useSaved ? { role, useSaved: true } : { role, pngBase64: dataUrlToBase64(dataUrl) }, token)))
 
+// { id, file } adds a photo of the equipment; { id, fileId } removes one.
+export const useAddCustodyPhoto = () =>
+  useCustodyMutation(async ({ id, file }, token) => {
+    const form = new FormData()
+    form.append('file', file)
+    return parseCustody(await runly.inventory.custodies.addPhoto(id, form, token))
+  })
+
+export const useRemoveCustodyPhoto = () =>
+  useCustodyMutation(async ({ id, fileId }, token) => parseCustody(await runly.inventory.custodies.removePhoto(id, fileId, token)))
+
 export const useCompleteCustody = () =>
   useCustodyMutation(async ({ id, ...data }, token) => parseCustody(await runly.inventory.custodies.complete(id, data, token)))
 

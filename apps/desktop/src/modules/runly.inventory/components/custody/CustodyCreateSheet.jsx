@@ -10,32 +10,40 @@ import { useCreateCustody, useEmployeeOptions } from '../../hooks/useInventoryCu
 import { useInventoryCan } from '../../hooks/useInventoryAdmin.js'
 import { CustodyDelivererField, DELIVER_ON_BEHALF } from './CustodyDelivererField.jsx'
 
+const RETURN_FORMATS = [
+  { value: 'simple', label: 'Registro simple (comentarios y fotos)' },
+  { value: 'formal', label: 'Con acta de recepción (firmas y documento)' },
+]
+
 // Minimal creation: kind + employee (+ deliverer when permitted). Items,
 // template, comments and signatures are edited on the detail screen.
 export function CustodyCreateSheet({ open, onOpenChange, defaults = null, onCreated }) {
   const { userProfile } = useAuth()
   const can = useInventoryCan()
   const canDelegate = can(DELIVER_ON_BEHALF)
-  const [form, setForm] = useState({ kind: 'DELIVERY', employeeId: '', itemIds: [], delivererId: '' })
+  const [form, setForm] = useState({ kind: 'DELIVERY', employeeId: '', itemIds: [], delivererId: '', formal: false })
   const employees = useEmployeeOptions({ enabled: open })
   const create = useCreateCustody()
 
   useEffect(() => {
-    if (open) setForm({ kind: defaults?.kind ?? 'DELIVERY', employeeId: defaults?.employeeId ?? '', itemIds: defaults?.itemIds ?? [], delivererId: userProfile?.id ?? '' })
+    if (open) setForm({ kind: defaults?.kind ?? 'DELIVERY', employeeId: defaults?.employeeId ?? '', itemIds: defaults?.itemIds ?? [], delivererId: userProfile?.id ?? '', formal: false })
   }, [open, defaults, userProfile?.id])
 
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value }))
+
+  const simple = form.kind === 'RETURN' && !form.formal
 
   async function submit() {
     try {
       const created = await create.mutateAsync({
         kind: form.kind,
+        ...(form.kind === 'RETURN' ? { formal: form.formal } : {}),
         employeeId: form.employeeId,
         date: toLocalIso(),
         itemIds: form.itemIds ?? [],
         ...(canDelegate && form.delivererId ? { delivererId: form.delivererId } : {}),
       })
-      toast.success('Resguardo creado', { description: form.itemIds?.length ? 'Revisa el resguardo y recaba las firmas, o complétalo sin firma.' : 'Agrega los artículos y recaba las firmas.' })
+      toast.success(simple ? 'Devolución creada' : 'Resguardo creado', { description: simple ? 'Agrega los artículos, comentarios y fotos, y regístrala.' : form.itemIds?.length ? 'Revisa el resguardo y recaba las firmas, o complétalo sin firma.' : 'Agrega los artículos y recaba las firmas.' })
       onOpenChange(false)
       onCreated?.(created)
     } catch (err) {
@@ -63,7 +71,11 @@ export function CustodyCreateSheet({ open, onOpenChange, defaults = null, onCrea
             placeholder="Seleccionar colaborador..."
             searchPlaceholder="Buscar colaborador..."
           />
-          <CustodyDelivererField value={form.delivererId} onChange={set('delivererId')} canDelegate={canDelegate} disabled={create.isPending} />
+          {form.kind === 'RETURN' ? (
+            <SelectField label="Formato" options={RETURN_FORMATS} value={form.formal ? 'formal' : 'simple'}
+              onValueChange={(value) => setForm((f) => ({ ...f, formal: value === 'formal' }))} disabled={create.isPending} />
+          ) : null}
+          {simple ? null : <CustodyDelivererField value={form.delivererId} onChange={set('delivererId')} canDelegate={canDelegate} disabled={create.isPending} />}
         </div>
         <SheetFooter className="shrink-0 border-t border-[hsl(var(--border))] px-5 py-4">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={create.isPending}>Cancelar</Button>

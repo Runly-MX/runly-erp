@@ -4438,6 +4438,7 @@ model InvCustody {
   folio                    String    @db.VarChar(40)
   sequence                 Int
   kind                     String    @default("DELIVERY") @db.VarChar(20)
+  formal                   Boolean   @default(true)
   status                   String    @default("DRAFT") @db.VarChar(30)
   employeeId               String    @map("employee_id") @db.Uuid
   delivererId              String?   @map("deliverer_id") @db.Uuid
