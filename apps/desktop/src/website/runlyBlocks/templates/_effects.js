@@ -16,7 +16,9 @@ export function counterBand(id, items, { background = 'white', color = 'primary'
   ]
 }
 
-const STATIC_TYPES = new Set(['NavbarBlock', 'FooterBlock', 'SiteFooterBlock', 'TopBarBlock', 'HeroBlock', 'ShowcaseHeroBlock', 'ParallaxSectionBlock', 'LandscapeHeroBlock', 'MayaPortraitBlock', 'MayaPageHeroBlock', 'MayaTickerBlock', 'FinHeroBlock', 'RestoHeroBlock', 'SpaHeroBlock', 'StoreNavbarBlock', 'HabitiaHeroBlock', 'HabitiaPageHeroBlock', 'AgencyHeroBlock', 'BizHeroBlock', 'DevNavbarBlock', 'DevHeroBlock', 'DevPageHeroBlock', 'DevContactBlock'])
+const STATIC_TYPES = new Set(['NavbarBlock', 'FooterBlock', 'SiteFooterBlock', 'TopBarBlock', 'HeroBlock', 'ShowcaseHeroBlock', 'ParallaxSectionBlock', 'LandscapeHeroBlock', 'MayaPortraitBlock', 'MayaPageHeroBlock', 'MayaTickerBlock', 'FinHeroBlock', 'RestoHeroBlock', 'SpaHeroBlock', 'StoreNavbarBlock', 'HabitiaHeroBlock', 'HabitiaPageHeroBlock', 'AgencyHeroBlock', 'BizHeroBlock', 'DevNavbarBlock', 'DevHeroBlock', 'DevPageHeroBlock', 'DevContactBlock',
+  // Impulsa blocks reveal their own items with a stagger; a section-level fade on top would double it.
+  'ImNavbarBlock', 'ImHeroBlock', 'ImLogosBlock', 'ImServicesBlock', 'ImResultsBlock', 'ImProcessBlock', 'ImTestimonialCtaBlock', 'ImNewsletterBlock', 'ImPageHeroBlock', 'ImAboutBlock', 'ImServiceDetailBlock', 'ImPricingBlock', 'ImFaqBlock', 'ImChannelsBlock'])
 const REVEAL = { _animation: { preset: 'slide-fade-up', duration: 700, delay: 0, easing: 'ease-out' }, _scrollReveal: true }
 
 // Every top-level body section fades up as it scrolls into view; the bars and the hero stay put so the first paint

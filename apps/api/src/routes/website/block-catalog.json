@@ -5773,6 +5773,497 @@
       }
     },
     {
+      "type": "ImNavbarBlock",
+      "label": "Barra de navegación Impulsa",
+      "category": "navigation",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "brand": "Impulsa",
+        "links": "Nosotros | /nosotros\nServicios | /servicios\nPrecios | /precios\nBlog | /blog\nContacto | /contacto",
+        "active": "/",
+        "ctaLabel": "Pedir cotización",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Marca"
+        },
+        "links": {
+          "type": "textarea",
+          "label": "Enlaces (Etiqueta | /ruta, uno por línea)"
+        },
+        "active": {
+          "type": "text",
+          "label": "Ruta activa"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "ImHeroBlock",
+      "label": "Portada Impulsa con cohete",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Socio de crecimiento digital",
+        "title": "Impulsamos el crecimiento digital de",
+        "highlight": "marcas ambiciosas",
+        "text": "Somos tu agencia de marketing digital integral. Ayudamos a los negocios a crecer en línea con estrategias basadas en datos que entregan resultados reales.",
+        "ctaLabel": "Agenda una consultoría gratis",
+        "ctaHref": "/contacto",
+        "ctaSecondLabel": "Ver servicios",
+        "ctaSecondHref": "/servicios",
+        "stats": "+250% | Crecimiento | trend\n+180% | Tráfico | users\n98% | Clientes satisfechos | star"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado (verde)"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace secundario"
+        },
+        "stats": {
+          "type": "textarea",
+          "label": "Tarjetas flotantes (Cifra | texto | icono, hasta 3)"
+        }
+      }
+    },
+    {
+      "type": "ImLogosBlock",
+      "label": "Marcas que confían",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "label": "Marcas que confían en nosotros",
+        "brands": "Nubora\nVértice\nCASA ALBA\nRumbo\nlumen lab\nkora.io\nSierra & Co\nOLA FRESCA"
+      },
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Texto"
+        },
+        "brands": {
+          "type": "textarea",
+          "label": "Marcas (una por línea)"
+        }
+      }
+    },
+    {
+      "type": "ImServicesBlock",
+      "label": "Servicios en tarjetas ilustradas",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Nuestros servicios",
+        "title": "Soluciones que hacen",
+        "highlight": "crecer tu negocio",
+        "lead": "De la estrategia a la ejecución: marketing digital de punta a punta para que tu marca destaque.",
+        "services": "Posicionamiento SEO | Mejora tu lugar en los buscadores y atrae tráfico orgánico que convierte. | /servicios\nPublicidad digital | Más visibilidad y mejor retorno con campañas pagadas medidas al peso. | /servicios\nRedes sociales | Conecta con tu audiencia y construye una comunidad leal alrededor de tu marca. | /servicios\nEmail marketing | Nutre prospectos y convierte suscriptores en clientes recurrentes. | /servicios"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "lead": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "services": {
+          "type": "textarea",
+          "label": "Servicios (Título | texto | /enlace, uno por línea; ilustración por posición)"
+        }
+      }
+    },
+    {
+      "type": "ImResultsBlock",
+      "label": "Banda de resultados con contadores",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "title": "Resultados que",
+        "highlight": "hablan por sí solos",
+        "text": "No prometemos resultados: entregamos crecimiento medible, mes con mes.",
+        "ctaLabel": "Ver casos de éxito",
+        "ctaHref": "/servicios",
+        "stats": "150+ | Clientes felices | users\n320+ | Proyectos entregados | briefcase\n95% | Tasa de éxito | chart\n10+ | Años de experiencia | star"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        },
+        "stats": {
+          "type": "textarea",
+          "label": "Cifras (Cifra | texto | icono, una por línea)"
+        }
+      }
+    },
+    {
+      "type": "ImProcessBlock",
+      "label": "Proceso en pasos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Nuestro proceso",
+        "title": "Un proceso simple en",
+        "highlight": "4 pasos",
+        "lead": "Seguimos un método probado para entregar resultados excepcionales.",
+        "steps": "Descubrir | Analizamos tu negocio e identificamos oportunidades. | search\nEstrategia | Diseñamos un plan a la medida de tus metas. | target\nEjecutar | Lanzamos campañas que impulsan resultados reales. | rocket\nOptimizar | Medimos, analizamos y mejoramos de forma continua. | trend"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "lead": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "steps": {
+          "type": "textarea",
+          "label": "Pasos (Título | texto | icono, uno por línea)"
+        }
+      }
+    },
+    {
+      "type": "ImTestimonialCtaBlock",
+      "label": "Testimonio con llamado a la acción",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "quote": "Impulsa transformó nuestra presencia en línea: en solo tres meses generamos 200% más prospectos. Totalmente recomendados.",
+        "name": "Mariana López",
+        "role": "Directora, Grupo Sereno",
+        "ctaTitle": "¿Listo para hacer crecer tu negocio?",
+        "ctaText": "Construyamos juntos algo extraordinario.",
+        "ctaLabel": "Pide tu propuesta gratis",
+        "ctaHref": "/contacto"
+      },
+      "fields": {
+        "quote": {
+          "type": "textarea",
+          "label": "Testimonio"
+        },
+        "name": {
+          "type": "text",
+          "label": "Nombre"
+        },
+        "role": {
+          "type": "text",
+          "label": "Cargo y empresa"
+        },
+        "ctaTitle": {
+          "type": "text",
+          "label": "Título del llamado"
+        },
+        "ctaText": {
+          "type": "text",
+          "label": "Texto del llamado"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón"
+        }
+      }
+    },
+    {
+      "type": "ImNewsletterBlock",
+      "label": "Boletín con formulario",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [
+        "form"
+      ],
+      "defaultProps": {
+        "title": "Mantente al día con ideas digitales",
+        "text": "Suscríbete y recibe cada mes los últimos consejos, tendencias y estrategias en tu correo."
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        }
+      }
+    },
+    {
+      "type": "ImPageHeroBlock",
+      "label": "Encabezado de página Impulsa",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Servicios",
+        "title": "Todo lo que necesitas para",
+        "highlight": "crecer en línea",
+        "text": "Estrategia, contenido, campañas y medición en un solo equipo.",
+        "crumb": "Servicios"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "crumb": {
+          "type": "text",
+          "label": "Nombre en la ruta de navegación"
+        }
+      }
+    },
+    {
+      "type": "ImAboutBlock",
+      "label": "Nosotros con valores",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Quiénes somos",
+        "title": "Un equipo obsesionado con",
+        "highlight": "tu crecimiento",
+        "body": "Nacimos en 2015 con una idea sencilla: el marketing digital debe medirse en ventas, no en «me gusta». Hoy somos estrategas, creativos y analistas que trabajan como una extensión de tu equipo.",
+        "checks": "Estrategias basadas en datos, no en corazonadas\nReportes claros cada mes, sin letra pequeña\nUn equipo dedicado que conoce tu negocio",
+        "values": "Transparencia | Sabes qué hacemos, cuánto cuesta y qué resultados trae. | shield\nVelocidad | Probamos rápido, aprendemos y escalamos lo que funciona. | bolt\nCercanía | Hablas con personas, no con tickets. | chat",
+        "figures": "10+ | años\n150+ | clientes\n24 | especialistas"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "body": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "checks": {
+          "type": "textarea",
+          "label": "Puntos destacados (uno por línea)"
+        },
+        "values": {
+          "type": "textarea",
+          "label": "Valores (Título | texto | icono)"
+        },
+        "figures": {
+          "type": "textarea",
+          "label": "Cifras (Cifra | texto)"
+        }
+      }
+    },
+    {
+      "type": "ImServiceDetailBlock",
+      "label": "Detalle de servicios alternado",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "items": "Posicionamiento SEO | Auditoría técnica, contenido que responde lo que tu cliente busca y enlaces de calidad. | Auditoría técnica completa; Estrategia de palabras clave; Contenido optimizado cada mes\nPublicidad digital | Campañas en buscadores y redes con presupuesto controlado y retorno medido. | Campañas en Google y Meta; Pruebas A/B de anuncios; Reporte de retorno semanal\nRedes sociales | Calendario editorial, diseño y comunidad para que tu marca converse todos los días. | Calendario y diseño de piezas; Gestión de comunidad; Colaboraciones con creadores\nEmail marketing | Flujos automáticos que nutren prospectos y recuperan ventas. | Bienvenida y carritos abandonados; Segmentación por comportamiento; Boletines con diseño propio"
+      },
+      "fields": {
+        "items": {
+          "type": "textarea",
+          "label": "Servicios (Título | texto | punto; punto; punto)"
+        }
+      }
+    },
+    {
+      "type": "ImPricingBlock",
+      "label": "Planes y precios",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Planes",
+        "title": "Planes claros para",
+        "highlight": "cada etapa",
+        "lead": "Sin contratos forzosos. Cambia o cancela cuando quieras.",
+        "currency": "$",
+        "period": "/mes",
+        "yearlyLabel": "Anual · 2 meses gratis",
+        "plans": "Despegue | 9,900 | 8,250 | Para negocios que empiezan en digital. | SEO local; 2 redes sociales; Reporte mensual | Empezar | /contacto\nCrecimiento | 18,900 | 15,750 | El favorito para acelerar ventas. | SEO completo; Publicidad digital; 3 redes sociales; Email marketing | Elegir plan | /contacto | popular\nEscala | 34,900 | 29,080 | Para marcas que quieren dominar su mercado. | Todo lo de Crecimiento; Estratega dedicado; Reportes semanales; Pruebas y optimización continua | Hablar con ventas | /contacto"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "lead": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "currency": {
+          "type": "text",
+          "label": "Moneda"
+        },
+        "period": {
+          "type": "text",
+          "label": "Periodo"
+        },
+        "yearlyLabel": {
+          "type": "text",
+          "label": "Etiqueta del pago anual"
+        },
+        "plans": {
+          "type": "textarea",
+          "label": "Planes (Nombre | precio mensual | precio anual por mes | texto | punto; punto | botón | /enlace | popular)"
+        }
+      }
+    },
+    {
+      "type": "ImFaqBlock",
+      "label": "Preguntas frecuentes",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Preguntas frecuentes",
+        "title": "Resolvemos tus",
+        "highlight": "dudas",
+        "items": "¿En cuánto tiempo veo resultados? | La publicidad da resultados desde la primera semana; el SEO suele mostrar crecimiento sostenido entre el tercer y el sexto mes.\n¿Hay plazo forzoso? | No. Los planes son mensuales y puedes cancelar con 30 días de aviso.\n¿El presupuesto de anuncios está incluido? | No: el presupuesto de pauta lo pagas directo a cada plataforma y nosotros lo administramos.\n¿Cómo me entero de los avances? | Recibes un reporte claro cada mes y tienes una reunión de seguimiento con tu estratega."
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Etiqueta"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título resaltado"
+        },
+        "items": {
+          "type": "textarea",
+          "label": "Preguntas (Pregunta | respuesta, una por línea)"
+        }
+      }
+    },
+    {
+      "type": "ImChannelsBlock",
+      "label": "Canales de contacto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "channels": "Correo | hola@example.com | mailto:hola@example.com | mail\nTeléfono | +52 33 1234 5678 | tel:+523312345678 | phone\nOficina | Av. Chapultepec 123, Guadalajara | # | pin\nHorario | Lunes a viernes, 9:00 a 18:00 | # | clock"
+      },
+      "fields": {
+        "channels": {
+          "type": "textarea",
+          "label": "Canales (Título | dato | enlace | icono, uno por línea)"
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",

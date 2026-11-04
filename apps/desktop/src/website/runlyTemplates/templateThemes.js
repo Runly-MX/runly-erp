@@ -74,4 +74,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'md' },
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
+  'atlas-impulsa': {
+    color: { primary: '#1F7A33', primaryFg: '#FFFFFF', bg: '#FFFFFF', fg: '#0E1A12', muted: '#55635A', accent: '#3FAE4F' },
+    font: { sans: "'DM Sans', Inter, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif" },
+    radius: { md: '12px', lg: '24px' },
+    button: { style: 'solid', radius: 'pill' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
+  },
 }

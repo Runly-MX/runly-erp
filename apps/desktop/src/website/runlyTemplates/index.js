@@ -8,6 +8,7 @@ import { finoraTemplate,      finoraSitePages }      from '../runlyBlocks/templa
 import { mayaTemplate,        mayaSitePages }        from '../runlyBlocks/templates/mayaTemplate.js'
 import { auroraTemplate,      auroraSitePages }      from '../runlyBlocks/templates/auroraTemplate.js'
 import { devfolioTemplate, devfolioSitePages } from '../runlyBlocks/templates/devfolioTemplate.js'
+import { impulsaTemplate, impulsaSitePages } from '../runlyBlocks/templates/impulsaTemplate.js'
 
 import { TEMPLATE_THEMES } from './templateThemes.js'
 import { polishPage } from './templatePolish.js'
@@ -24,6 +25,7 @@ const CATEGORY_COLORS = {
   portafolio:  '#1D4ED8',
   viajes:      '#0E7490',
   'portafolio-dev': '#C2410C',
+  marketing:   '#1F7A33',
 }
 
 function buildPageData(templateId, pageId, label, routePath, description, { rootIds, blocks }) {
@@ -80,4 +82,5 @@ export const allTemplates = [
   wrapTemplate(mayaTemplate,       mayaSitePages),
   wrapTemplate(auroraTemplate,     auroraSitePages),
   wrapTemplate(devfolioTemplate,   devfolioSitePages),
+  wrapTemplate(impulsaTemplate,    impulsaSitePages),
 ]
