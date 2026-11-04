@@ -4,27 +4,14 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
-import {
-  Badge,
-  Button,
-  PageHeader,
-  EmptyState,
-  ConfirmDialog,
-  SelectField,
-  Table,
-  TableHeader,
-  TableBody,
-  TableRow,
-  TableHead,
-  TableCell,
-  LoadingState,
-  ColumnResizeHandle,
-  useColumnResize,
-} from "@runly/ui";
+import { Button, EmptyState, ConfirmDialog, SelectField, LoadingState } from "@runly/ui";
+import { Newspaper, PenLine, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { useScopedSite } from "../hooks/useScopedSite.js";
 import { postEditorPath } from "../lib/pageRoute.js";
 import WebsiteNewBlogPostDialog from "./WebsiteNewBlogPostDialog.jsx";
+import { SiteSectionHeader } from "../components/SiteSectionHeader.jsx";
+import { BlogPostList } from "../components/BlogPostList.jsx";
 
 async function apiGet(path, token) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -34,23 +21,10 @@ async function apiGet(path, token) {
   return res.json();
 }
 
-const STATUS_LABELS = {
-  draft: "Borrador",
-  published: "Publicado",
-  archived: "Archivado",
-};
-const STATUS_VARIANT = { published: "success", draft: "warning", archived: "secondary" };
-
-function fmtDate(dateStr) {
-  if (!dateStr) return "—";
-  return new Date(dateStr).toLocaleDateString("es-MX", { dateStyle: "medium" });
-}
-
 export default function WebsiteBlogScreen({ siteId: siteIdProp = null }) {
   const { session } = useAuth();
   const token = session?.access_token;
   const navigate = useNavigate();
-  const resize = useColumnResize("website-blog");
   const queryClient = useQueryClient();
 
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -105,40 +79,53 @@ export default function WebsiteBlogScreen({ siteId: siteIdProp = null }) {
 
   if (siteQuery.isPending) return <LoadingState variant="page" />;
 
+  const publishedCount = posts.filter((post) => post.status === "published").length;
+  const draftCount = posts.filter((post) => post.status === "draft").length;
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <PageHeader
-        eyebrow="Runly Website"
+    <div className="space-y-5 p-4 md:p-6">
+      <SiteSectionHeader
+        icon={Newspaper}
+        tone="violet"
         title="Blog"
-        description="Gestiona las entradas del blog publico."
+        description="Escribe y organiza las entradas del blog público de tu sitio."
         actions={
           <Button onClick={() => setDialogOpen(true)} disabled={!siteId}>
-            Nuevo post
+            <Plus className="mr-1.5 h-4 w-4" aria-hidden />Nueva entrada
           </Button>
         }
       />
 
       {!siteId ? (
         <EmptyState
+          icon={Newspaper}
           title="Sitio web no configurado"
-          description='Configura tu sitio web primero desde la seccion "Sitio web".'
+          description='Configura tu sitio web primero desde la sección "Sitio web".'
         />
       ) : (
         <>
-          {categories.length > 0 && (
-            <div className="max-w-xs">
-              <SelectField
-                label="Categoria"
-                value={categoryFilter}
-                onChange={setCategoryFilter}
-                options={[
-                  { value: "", label: "Todas las categorias" },
-                  ...categories.map((cat) => ({
-                    value: cat.id,
-                    label: cat.name,
-                  })),
-                ]}
-              />
+          {(categories.length > 0 || posts.length > 0) && (
+            <div className="flex flex-wrap items-end justify-between gap-3">
+              {posts.length > 0 ? (
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                  <span className="font-semibold tabular-nums text-[hsl(var(--foreground))]">{posts.length}</span> entrada{posts.length !== 1 ? "s" : ""}
+                  {" · "}<span className="tabular-nums">{publishedCount}</span> publicada{publishedCount !== 1 ? "s" : ""}
+                  {" · "}<span className="tabular-nums">{draftCount}</span> en borrador
+                </p>
+              ) : <span />}
+              {categories.length > 0 && (
+                <div className="w-full sm:w-64">
+                  <SelectField
+                    label="Categoría"
+                    value={categoryFilter}
+                    onChange={setCategoryFilter}
+                    options={[
+                      { value: "", label: "Todas las categorías" },
+                      ...categories.map((cat) => ({ value: cat.id, label: cat.name })),
+                    ]}
+                  />
+                </div>
+              )}
             </div>
           )}
 
@@ -146,77 +133,21 @@ export default function WebsiteBlogScreen({ siteId: siteIdProp = null }) {
             <LoadingState message="Cargando entradas..." />
           ) : posts.length === 0 ? (
             <EmptyState
-              title="Sin entradas de blog"
-              description="Crea tu primera entrada para empezar a publicar contenido."
+              icon={PenLine}
+              title={categoryFilter ? "No hay entradas en esta categoría" : "Tu blog está vacío"}
+              description={categoryFilter ? "Prueba con otra categoría o crea una entrada nueva." : "Comparte novedades, guías o casos de éxito. Tu primera entrada se guarda como borrador hasta que la publiques."}
               action={{
                 label: "Crear primera entrada",
                 onClick: () => setDialogOpen(true),
               }}
             />
           ) : (
-            <div className="rounded-xl border border-[hsl(var(--border))] overflow-hidden">
-              <Table {...resize.tableProps(["title", "category", "status", "published", "actions"])}>
-                <TableHeader>
-                  <TableRow>
-                    {[["title", "Titulo"], ["category", "Categoria"], ["status", "Estado"], ["published", "Publicado"], ["actions", ""]].map(([key, label]) => (
-                      <TableHead key={key} className={key === "actions" ? "relative w-24" : "relative"} {...resize.headerProps(key)}>
-                        {label}
-                        <ColumnResizeHandle {...resize.handleProps(key)} />
-                      </TableHead>
-                    ))}
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {posts.map((post) => (
-                    <TableRow
-                      key={post.id}
-                      className="cursor-pointer"
-                      onClick={() =>
-                        navigate(postEditorPath(siteIdProp, post.id))
-                      }
-                    >
-                      <TableCell className="font-medium text-[hsl(var(--foreground))]">
-                        {post.title}
-                      </TableCell>
-                      <TableCell className="text-[hsl(var(--muted-foreground))]">
-                        {post.category?.name ?? "—"}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={STATUS_VARIANT[post.status] ?? "secondary"}>
-                          {STATUS_LABELS[post.status] ?? post.status}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-[hsl(var(--muted-foreground))] text-xs">
-                        {fmtDate(post.publishedAt)}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              navigate(postEditorPath(siteIdProp, post.id));
-                            }}
-                            className="text-xs text-[var(--brand-primary)] hover:underline"
-                          >
-                            Editar
-                          </button>
-                          <button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setDeleteTarget(post);
-                            }}
-                            disabled={deleteMutation.isPending}
-                            className="text-xs text-[hsl(var(--destructive))] hover:underline disabled:opacity-50"
-                          >
-                            Eliminar
-                          </button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
+            <BlogPostList
+              posts={posts}
+              deleting={deleteMutation.isPending}
+              onOpen={(post) => navigate(postEditorPath(siteIdProp, post.id))}
+              onDelete={setDeleteTarget}
+            />
           )}
         </>
       )}
@@ -237,7 +168,7 @@ export default function WebsiteBlogScreen({ siteId: siteIdProp = null }) {
           if (!open) setDeleteTarget(null);
         }}
         title="Eliminar entrada"
-        description={`Se eliminara permanentemente la entrada "${deleteTarget?.title}". Esta accion no se puede deshacer.`}
+        description={`Se eliminará permanentemente la entrada "${deleteTarget?.title}". Esta acción no se puede deshacer.`}
         confirmLabel="Eliminar"
         loading={deleteMutation.isPending}
         onConfirm={() => deleteMutation.mutate(deleteTarget?.id)}

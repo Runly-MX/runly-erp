@@ -2,11 +2,13 @@ import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
-  Badge,
+  Alert,
+  AlertDescription,
+  AlertTitle,
   Button,
   EmptyState,
-  PageHeader,
   PasswordField,
+  StatusPill,
   Sheet,
   SheetContent,
   SheetHeader,
@@ -16,7 +18,8 @@ import {
   TextareaField,
   TextField,
 } from '@runly/ui'
-import { CreditCard } from 'lucide-react'
+import { CircleCheck, CircleDashed, CreditCard, Info, KeyRound, Lock, MessageSquareText, Settings2, ShieldCheck } from 'lucide-react'
+import { SiteSectionHeader } from '../components/SiteSectionHeader.jsx'
 import { useScopedSite } from '../hooks/useScopedSite.js'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -61,7 +64,7 @@ export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
     mutationFn: (payload) => apiPatch(`/website/site/${siteId}`, token, payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['website-site'] })
-      toast.success('Configuracion de pagos guardada')
+      toast.success('Configuración de pagos guardada')
       setSheetOpen(false)
     },
     onError: (err) => toast.error(err.message ?? 'Error al guardar'),
@@ -80,25 +83,32 @@ export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
 
   const keysConfigured = Boolean(site?.stripePublishableKey && site?.stripeSecretKeySet)
 
+  const details = site ? [
+    { icon: KeyRound, label: 'Clave publicable', value: site.stripePublishableKey ? `${site.stripePublishableKey.slice(0, 8)}…` : 'Sin capturar', ok: Boolean(site.stripePublishableKey), mono: Boolean(site.stripePublishableKey) },
+    { icon: Lock, label: 'Clave secreta', value: site.stripeSecretKeySet ? 'Guardada y cifrada' : 'Sin capturar', ok: Boolean(site.stripeSecretKeySet) },
+    { icon: MessageSquareText, label: 'Mensaje de éxito', value: site.stripeSuccessMessage ? 'Personalizado' : 'Predeterminado', ok: true },
+  ] : []
+
   return (
-    <div className="p-4 md:p-6 space-y-6">
-      <PageHeader
-        eyebrow="Runly Website"
+    <div className="space-y-5 p-4 md:p-6">
+      <SiteSectionHeader
+        icon={CreditCard}
+        tone="amber"
         title="Pagos"
-        description="Configura pasarelas de pago para tu tienda."
+        description="Conecta una pasarela de pago para cobrar en tu tienda en línea."
       />
 
       {siteQuery.isPending ? (
-        <div className="rounded-xl border border-border bg-card p-5">
+        <div className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
-              <Skeleton className="w-10 h-10 rounded-lg shrink-0" />
+              <Skeleton className="h-12 w-12 shrink-0 rounded-xl" />
               <div className="space-y-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-3 w-40" />
               </div>
             </div>
-            <Skeleton className="h-8 w-24 rounded-lg" />
+            <Skeleton className="h-9 w-28 rounded-md" />
           </div>
         </div>
       ) : !site ? (
@@ -110,42 +120,50 @@ export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
       ) : (
         <>
           {site.siteType !== 'ecommerce' && (
-            <div className="rounded-xl border border-border bg-muted/50 text-sm px-4 py-3 text-muted-foreground">
-              Este sitio es de tipo <strong>{site.siteType}</strong>. El checkout de Stripe solo aplica a sitios de tipo <strong>ecommerce</strong>.
-            </div>
+            <Alert role="status">
+              <Info className="h-4 w-4" aria-hidden="true" />
+              <div>
+                <AlertTitle>El checkout solo aplica a tiendas</AlertTitle>
+                <AlertDescription>
+                  Este sitio es de tipo <strong>{site.siteType}</strong>. El checkout de Stripe solo aplica a sitios de tipo <strong>ecommerce</strong>.
+                </AlertDescription>
+              </div>
+            </Alert>
           )}
 
-          {/* Gateway card: Stripe */}
-          <div className="rounded-xl border border-border bg-card p-5 flex items-start justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-lg bg-[#635BFF]/10 flex items-center justify-center shrink-0">
-                <span className="text-[#635BFF] font-bold text-lg font-mono">S</span>
+          <section aria-label="Stripe" className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]">
+            <div className="flex flex-wrap items-center gap-4 p-4 md:p-5">
+              <span className="grid h-12 w-12 shrink-0 place-items-center rounded-xl bg-[#635BFF]/12" aria-hidden>
+                <span className="font-mono text-xl font-bold text-[#635BFF] dark:text-[#8B85FF]">S</span>
+              </span>
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-base font-semibold">Stripe</h2>
+                  {keysConfigured
+                    ? <StatusPill tone="success" icon={CircleCheck} size="sm">Conectado</StatusPill>
+                    : <StatusPill tone="neutral" icon={CircleDashed} size="sm">Sin configurar</StatusPill>}
+                </div>
+                <p className="mt-0.5 text-sm text-[hsl(var(--muted-foreground))]">Pagos con tarjeta y transferencias</p>
               </div>
-              <div>
-                <p className="font-semibold text-foreground">Stripe</p>
-                <p className="text-xs text-muted-foreground">Pagos con tarjeta y transferencias</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              {keysConfigured ? (
-                <Badge variant="success" className="gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" />
-                  Conectado
-                </Badge>
-              ) : (
-                <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full border text-muted-foreground bg-muted border-border">
-                  Sin configurar
-                </span>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setSheetOpen(true)}
-              >
+              <Button className="w-full sm:w-auto" variant={keysConfigured ? 'outline' : 'default'} onClick={() => setSheetOpen(true)}>
+                <Settings2 className="mr-1.5 h-4 w-4" aria-hidden />
                 {keysConfigured ? 'Editar' : 'Configurar'}
               </Button>
             </div>
-          </div>
+            <dl className="grid border-t border-[hsl(var(--border))] sm:grid-cols-3 sm:divide-x sm:divide-[hsl(var(--border))]">
+              {details.map((item) => (
+                <div key={item.label} className="flex items-center gap-3 border-b border-[hsl(var(--border))] px-4 py-3 last:border-b-0 sm:border-b-0 md:px-5">
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${item.ok ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-400' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>
+                    <item.icon className="h-4 w-4" aria-hidden />
+                  </span>
+                  <div className="min-w-0">
+                    <dt className="text-xs text-[hsl(var(--muted-foreground))]">{item.label}</dt>
+                    <dd className={`truncate text-sm font-medium ${item.mono ? 'font-mono' : ''}`}>{item.value}</dd>
+                  </div>
+                </div>
+              ))}
+            </dl>
+          </section>
         </>
       )}
 
@@ -169,14 +187,15 @@ export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
                 value={secretKey}
                 onChange={(e) => setSecretKey(e.target.value)}
               />
-              <p className="text-xs text-muted-foreground">
+              <p className="flex items-start gap-2 rounded-lg bg-[hsl(var(--muted))]/50 p-3 text-xs text-[hsl(var(--muted-foreground))]">
+                <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden />
                 La clave secreta se almacena cifrada con AES-256-GCM y nunca se expone en respuestas de la API.
               </p>
             </div>
 
             <div className="space-y-4">
               <TextareaField
-                label="Mensaje de exito (opcional)"
+                label="Mensaje de éxito (opcional)"
                 placeholder="Gracias por tu compra. Te enviaremos un correo con los detalles."
                 value={successMessage}
                 onChange={(e) => setSuccessMessage(e.target.value)}
@@ -189,7 +208,7 @@ export default function WebsitePaymentsScreen({ siteId: siteIdProp = null }) {
                 Cancelar
               </Button>
               <Button type="submit" disabled={saveMutation.isPending || !siteId}>
-                {saveMutation.isPending ? 'Guardando...' : 'Guardar configuracion'}
+                {saveMutation.isPending ? 'Guardando...' : 'Guardar configuración'}
               </Button>
             </SheetFooter>
           </form>
