@@ -124,7 +124,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
       if([...removed].some(id=>selected.has(id)))throw failure('validation_failed',422)
       if([...removed].some(id=>!captured.pages.some(p=>p.id===id)&&!captured.base?.routes.some(r=>r.sourceId===id)))throw notFound('Recurso')
       let routes=structuredClone(captured.base?.routes)??captured.pages.filter(p=>p.status==='published'&&p.visibility==='public'&&!selected.has(p.id)).map(p=>({path:p.routePath,sourceKind:'page',sourceId:p.id,document:p.publishedBuilderData,seo:p.seo??{},title:p.title,slug:p.slug,visibility:p.visibility}))
-      routes=routes.filter(r=>!(r.sourceKind==='page'&&(selected.has(r.sourceId)||removed.has(r.sourceId)))&&!(r.sourceKind==='blog'&&removedPosts.has(r.sourceId)))
+      routes=routes.filter(r=>!(r.sourceKind==='page'&&(selected.has(r.sourceId)||removed.has(r.sourceId)||!captured.pages.some(p=>p.id===r.sourceId)))&&!(r.sourceKind==='blog'&&removedPosts.has(r.sourceId)))
       for(const id of selected) {
         const p=captured.pages.find(p=>p.id===id);if(!p)throw notFound('Recurso')
         const meta=p.draftMetadata??p
@@ -221,7 +221,13 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
       location={pageId:null,blockId:null,blockType:null}
       const include=a.changes.includeThemeAndMenus!==false
       if(!captured.base&&!include)throw failure('theme_snapshot_required',422)
-      const menus=include?captured.menus.map(m=>({id:m.id,name:m.name,location:m.location,items:captured.items.filter(i=>i.menuId===m.id).map(i=>({id:i.id,label:i.label,url:i.url,pageId:i.pageId,parentId:i.parentId,target:i.target,sortOrder:i.sortOrder}))})):captured.base.menus
+      const sourceMenus=include?captured.menus.map(m=>({id:m.id,name:m.name,location:m.location,items:captured.items.filter(i=>i.menuId===m.id).map(i=>({id:i.id,label:i.label,url:i.url,pageId:i.pageId,parentId:i.parentId,target:i.target,sortOrder:i.sortOrder}))})):captured.base.menus
+      // Links to pages left out of this version (unpublished, private, deleted) leave its menus with their children.
+      const menus=sourceMenus.map(m=>{
+        const out=new Set(m.items.filter(i=>(i.pageId&&!routes.some(r=>r.sourceId===i.pageId))||(i.url?.startsWith('/')&&!routes.some(r=>r.path===i.url))).map(i=>i.id))
+        for(let grew=true;grew;){grew=false;for(const i of m.items)if(i.parentId&&out.has(i.parentId)&&!out.has(i.id)){out.add(i.id);grew=true}}
+        return out.size?{...m,items:m.items.filter(i=>!out.has(i.id))}:m
+      })
       for(const m of menus)for(const i of m.items) {
         let parent=i.parentId;const seen=new Set([i.id])
         while(parent){if(seen.has(parent))throw failure('menu_reference_invalid',422);seen.add(parent);parent=m.items.find(other=>other.id===parent)?.parentId}

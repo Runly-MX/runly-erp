@@ -149,7 +149,10 @@ export default function WebsiteThemeScreen({ siteId: siteIdProp = null }) {
   const useSiteThemeMutation = useMutation({
     mutationFn: async () => {
       if (siteIdProp) {
-        return createWebsiteApi(token).saveIdentity(siteIdProp, { themeId: activeThemeId }, site.draftRevision, newIdempotencyKey());
+        // Page saves bump the site revision, so the cached site here is usually stale.
+        const api = createWebsiteApi(token);
+        const fresh = (await api.getSite(siteIdProp)).data;
+        return api.saveIdentity(siteIdProp, { themeId: activeThemeId }, fresh.draftRevision, newIdempotencyKey());
       }
       const res = await companyFetch(`${getApiUrl()}/website/site/${site.id}`, {
         method: "PATCH",

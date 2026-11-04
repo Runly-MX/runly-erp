@@ -59,6 +59,11 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   const posts = useMemo(() => (blog.data ?? []).filter((post) => post.status !== 'archived'), [blog.data])
   const selectedPostIds = useMemo(() => posts.filter((post) => postIds.has(post.id)).map((post) => post.id), [posts, postIds])
   const selectedIds = useMemo(() => publicPages.filter((page) => !excluded.has(page.id)).map((page) => page.id), [publicPages, excluded])
+  // Live pages whose draft is no longer public leave the site with this version.
+  const unpublishPageIds = useMemo(() => {
+    const live = new Set((site?.pages ?? []).filter((p) => p.publicState !== 'unpublished').map((p) => p.id))
+    return pages.filter((page) => live.has(page.id) && page.visibility && page.visibility !== 'public').map((page) => page.id)
+  }, [pages, site?.pages])
 
   const reset = useCallback(() => {
     keys.current = { prepare: null, activate: null }
@@ -72,11 +77,11 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
   useEffect(()=>{
     if(!open||!api||!site?.id)return undefined;
     let alive=true;setChecking(true);setPreflight(null);
-    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,publishPostIds:selectedPostIds,unpublishPostIds:[...removedPostIds],includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
+    api.preflight(site.id,{kind:'builder',changes:{publishPageIds:selectedIds,publishPostIds:selectedPostIds,unpublishPageIds,unpublishPostIds:[...removedPostIds],includeThemeAndMenus:firstPublication?true:includeThemeAndMenus}}).then(response=>{
       if(!alive)return;const report=response.data;setPreflight(report);const grouped={};for(const issue of report.issues??[]){const id=issue.pageId??'global';(grouped[id]??=[]).push(issue)}setLocalIssues(grouped);
     }).catch(error=>{if(alive){setError(error);setPreflight(null)}}).finally(()=>{if(alive)setChecking(false)});
     return()=>{alive=false};
-  },[open,api,site?.id,selectedIds,selectedPostIds,removedPostIds,includeThemeAndMenus,firstPublication]);
+  },[open,api,site?.id,selectedIds,selectedPostIds,unpublishPageIds,removedPostIds,includeThemeAndMenus,firstPublication]);
 
   const issuePages = [...publicPages,...posts.map(post=>({...post,isPost:true}))].filter((page) => (localIssues[page.id] ?? []).length > 0)
 
@@ -103,7 +108,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
         baseReleaseId: fresh.activeReleaseId ?? null,
         expectedDraftRevision: String(fresh.draftRevision),
         expectedPublicationRevision: String(fresh.publicationRevision),
-        changes: { publishPageIds: selectedIds, publishPostIds: selectedPostIds, unpublishPostIds:[...removedPostIds], includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
+        changes: { publishPageIds: selectedIds, publishPostIds: selectedPostIds, unpublishPageIds, unpublishPostIds:[...removedPostIds], includeThemeAndMenus: firstPublication ? true : includeThemeAndMenus },
       }
       const checked=(await api.preflight(site.id,body)).data;if(!checked.canPublish){setPreflight(checked);setError({code:checked.issues?.[0]?.code??'validation_failed'});setPhase('review');return}
       const created = (await api.prepareRelease(site.id, body, keys.current.prepare)).data

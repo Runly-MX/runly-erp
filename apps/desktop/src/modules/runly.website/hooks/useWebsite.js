@@ -34,7 +34,7 @@ export function useWebsiteScope() {
 
 export function useSiteState(siteId) {
   const {api,companyId,ready}=useWebsiteScope();const {session}=useAuth();
-  return useQuery({queryKey:['website',companyId,'actor',session?.user?.id,'state',siteId],queryFn:async({signal})=>(await api.getState(siteId,{signal})).data,enabled:ready&&Boolean(siteId),staleTime:0,retry:false});
+  return useQuery({queryKey:[...websiteKeys.site(companyId,siteId),'state',session?.user?.id],queryFn:async({signal})=>(await api.getState(siteId,{signal})).data,enabled:ready&&Boolean(siteId),staleTime:0,retry:false});
 }
 export function useWebsiteCapabilities(siteId) {
   const {userProfile}=useAuth(),state=useSiteState(siteId);

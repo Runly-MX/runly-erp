@@ -17,7 +17,7 @@ import {
   Button,
   useIsMobile,
 } from '@runly/ui'
-import { CircleDashed, FilePlus2, FileText, Globe, Lock, PauseCircle, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
+import { CircleDashed, EyeOff, FilePlus2, FileText, Globe, Lock, PauseCircle, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -153,6 +153,7 @@ export default function SitePages({ siteId, site, caps, pages }) {
   const [newOpen, setNewOpen] = useState(false)
   const [settingsPage, setSettingsPage] = useState(null)
   const [deletePage, setDeletePage] = useState(null)
+  const [unpublishPage, setUnpublishPage] = useState(null)
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: websiteKeys.pages(companyId, siteId) })
     queryClient.invalidateQueries({ queryKey: websiteKeys.site(companyId, siteId) })
@@ -163,12 +164,35 @@ export default function SitePages({ siteId, site, caps, pages }) {
     onError: (error) => { toast.error(describeError(error).message); setDeletePage(null) },
   })
 
+  // A new version identical to the live one minus this page; the draft stays as is.
+  const unpublish = useMutation({
+    mutationFn: async (page) => {
+      const fresh = (await api.getSite(siteId)).data
+      const created = (await api.prepareRelease(siteId, {
+        kind: 'builder', baseReleaseId: fresh.activeReleaseId ?? null,
+        expectedDraftRevision: String(fresh.draftRevision), expectedPublicationRevision: String(fresh.publicationRevision),
+        changes: { publishPageIds: [], unpublishPageIds: [page.id], includeThemeAndMenus: false },
+      }, newIdempotencyKey())).data
+      let release = created
+      for (let i = 0; release.state === 'preparing' && i < 60; i += 1) {
+        await new Promise((resolve) => setTimeout(resolve, 1500))
+        release = (await api.getRelease(siteId, created.id)).data
+      }
+      if (release.state !== 'ready') throw { code: release.failureCode ?? 'preparation_failed' }
+      await api.activateRelease(siteId, { releaseId: release.id, manifestHash: release.manifestHash, expectedDraftRevision: String(release.draftRevision), expectedPublicationRevision: String(release.publicationRevision) }, newIdempotencyKey())
+    },
+    onSuccess: () => { toast.success('Página retirada del sitio público'); setUnpublishPage(null); queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId) }) },
+    onError: (error) => { toast.error(describeError(error).message); setUnpublishPage(null) },
+  })
+
   const isMobile = useIsMobile()
   const retired = site.lifecycle === 'unpublished'
   const publicStateOf = (id) => site.pages?.find((p) => p.id === id)?.publicState
+  const isLive = (id) => ['published', 'changed'].includes(publicStateOf(id))
   const menuItems = (page) => [
     { label: 'Editar', icon: Pencil, onClick: () => navigate(editorPath(siteId, page.id)) },
     { label: 'Ajustes de la página', icon: Settings2, disabled: !caps.pagesUpdate.allowed, onClick: () => setSettingsPage(page) },
+    ...(isLive(page.id) ? [{ label: 'Retirar del sitio público', icon: EyeOff, disabled: !caps.publish.allowed, onClick: () => setUnpublishPage(page) }] : []),
     { label: 'Eliminar', icon: Trash2, variant: 'destructive', disabled: !caps.pagesDelete.allowed, onClick: () => setDeletePage(page) },
   ]
   const titleButton = (page) => (
@@ -187,7 +211,7 @@ export default function SitePages({ siteId, site, caps, pages }) {
     { id: 'public', header: 'En el sitio público', cell: ({ row }) => <PublicState state={publicStateOf(row.original.id)} retired={retired} /> },
     { id: 'updated', header: 'Última edición', cell: ({ row }) => <span className="tabular-nums text-[hsl(var(--muted-foreground))]">{formatDay(row.original.updatedAt)}</span> },
     { id: 'actions', header: '', enableSorting: false, cell: ({ row }) => <ActionMenu label={`Acciones de ${row.original.title}`} items={menuItems(row.original)} /> },
-  ], [navigate, siteId, site.pages, retired, caps.pagesUpdate.allowed, caps.pagesDelete.allowed])
+  ], [navigate, siteId, site.pages, retired, caps.pagesUpdate.allowed, caps.pagesDelete.allowed, caps.publish.allowed])
 
   const renderCard = (page) => (
     <article className={ROW_CARD}>
@@ -239,12 +263,21 @@ export default function SitePages({ siteId, site, caps, pages }) {
         open={Boolean(deletePage)}
         onOpenChange={(open) => { if (!open) setDeletePage(null) }}
         title="Eliminar página"
-        description={deletePage?.status === 'published'
-          ? `“${deletePage?.title}” está en tu sitio público. Se quitará cuando publiques de nuevo; hasta entonces sigue visible. Eliminarla requiere permiso de borrado y de publicación.`
+        description={deletePage && isLive(deletePage.id)
+          ? `“${deletePage?.title}” está en tu sitio público. Se quitará cuando publiques de nuevo; hasta entonces sigue visible. Para quitarla ya, usa “Retirar del sitio público”.`
           : `Se eliminará “${deletePage?.title}” del borrador del sitio.`}
         confirmLabel="Eliminar"
         loading={remove.isPending}
         onConfirm={() => remove.mutate(deletePage)}
+      />
+      <ConfirmDialog
+        open={Boolean(unpublishPage)}
+        onOpenChange={(open) => { if (!open && !unpublish.isPending) setUnpublishPage(null) }}
+        title="Retirar del sitio público"
+        description={`“${unpublishPage?.title}” dejará de verse en tu sitio ahora mismo. El resto del sitio no cambia y la página queda como borrador; vuelve a publicarse la próxima vez que publiques si su visibilidad es pública.`}
+        confirmLabel="Retirar"
+        loading={unpublish.isPending}
+        onConfirm={() => unpublish.mutate(unpublishPage)}
       />
     </div>
   )

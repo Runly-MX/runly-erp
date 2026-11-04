@@ -89,7 +89,8 @@ export function createWebsiteResourcePolicy({ prisma }) {
     let page
     if (args.pageId) page = await resource('websitePage', companyId, args.pageId, args.siteId)
     const managedPage=page&&(await site(companyId,page.siteId)).releaseManaged
-    if(managedPage&&(name==='softDeletePage'||args.data?.status!==undefined))throw new WebsiteServiceError('Usa un comando de publicación explícito.',409,'publication_requires_explicit_action')
+    // Deleting a managed page only touches the draft; its public route leaves with the next release.
+    if(managedPage&&args.data?.status!==undefined)throw new WebsiteServiceError('Usa un comando de publicación explícito.',409,'publication_requires_explicit_action')
     if (name === 'saveDraft' && args.metadata !== undefined) {
       const parsed = schemas.pageDraftMetadataSchema.safeParse(args.metadata)
       if (!parsed.success) throw new WebsiteServiceError('Datos inválidos.', 422, 'validation_failed')
