@@ -2415,6 +2415,278 @@
       }
     },
     {
+      "type": "ShowcaseHeroBlock",
+      "label": "Hero con retrato y tarjeta flotante",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Diseñadora web freelance",
+        "title": "Diseño sitios web",
+        "highlight": "que inspiran y brillan",
+        "subtitle": "Creo sitios hermosos y fáciles de usar que ayudan a las marcas a destacar y crecer en línea.",
+        "ctaLabel": "Ver mi trabajo",
+        "ctaHref": "/trabajo",
+        "ctaSecondLabel": "",
+        "ctaSecondHref": "",
+        "imageSrc": "",
+        "imageAlt": "",
+        "badgeValue": "6+",
+        "badgeLabel": "Años de experiencia",
+        "shape": "accent",
+        "background": "tint"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "highlight": {
+          "type": "text",
+          "label": "Título destacado (color de marca)"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "ctaLabel": {
+          "type": "text",
+          "label": "Botón principal"
+        },
+        "ctaHref": {
+          "type": "link",
+          "label": "Enlace del botón principal"
+        },
+        "ctaSecondLabel": {
+          "type": "text",
+          "label": "Botón secundario"
+        },
+        "ctaSecondHref": {
+          "type": "link",
+          "label": "Enlace del botón secundario"
+        },
+        "imageSrc": {
+          "type": "image",
+          "label": "Imagen o retrato"
+        },
+        "imageAlt": {
+          "type": "text",
+          "label": "Texto alternativo de la imagen"
+        },
+        "badgeValue": {
+          "type": "text",
+          "label": "Tarjeta flotante: cifra"
+        },
+        "badgeLabel": {
+          "type": "text",
+          "label": "Tarjeta flotante: texto"
+        },
+        "shape": {
+          "type": "select",
+          "label": "Forma decorativa",
+          "options": [
+            "accent",
+            "primary",
+            "none"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "tint",
+            "white",
+            "dark"
+          ]
+        }
+      }
+    },
+    {
+      "type": "ProjectCardsBlock",
+      "label": "Tarjetas de proyectos",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "eyebrow": "Trabajo seleccionado",
+        "title": "Algunos de mis favoritos",
+        "subtitle": "",
+        "projects": "Bloom & Wild | Tienda en línea | /trabajo\n---\nNorthland Studio | Sitio de agencia creativa | /trabajo\n---\nPure Balance | Sitio de bienestar | /trabajo",
+        "image1": "",
+        "image2": "",
+        "image3": "",
+        "image4": "",
+        "image5": "",
+        "image6": "",
+        "columns": "3",
+        "background": "white"
+      },
+      "fields": {
+        "eyebrow": {
+          "type": "text",
+          "label": "Antetítulo"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "subtitle": {
+          "type": "textarea",
+          "label": "Descripción"
+        },
+        "projects": {
+          "type": "textarea",
+          "label": "Proyectos (Nombre | Categoría | Enlace, separados por ---)"
+        },
+        "image1": {
+          "type": "image",
+          "label": "Imagen 1"
+        },
+        "image2": {
+          "type": "image",
+          "label": "Imagen 2"
+        },
+        "image3": {
+          "type": "image",
+          "label": "Imagen 3"
+        },
+        "image4": {
+          "type": "image",
+          "label": "Imagen 4"
+        },
+        "image5": {
+          "type": "image",
+          "label": "Imagen 5"
+        },
+        "image6": {
+          "type": "image",
+          "label": "Imagen 6"
+        },
+        "columns": {
+          "type": "select",
+          "label": "Columnas",
+          "options": [
+            "2",
+            "3",
+            "4"
+          ]
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "type": "LogoCloudBlock",
+      "label": "Logos de clientes",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "title": "Marcas que confían en mí",
+        "names": "oceanic\npaperplane\nleaf & co.\nnorthern\nsundaze\nhive digital",
+        "logo1": "",
+        "logo2": "",
+        "logo3": "",
+        "logo4": "",
+        "logo5": "",
+        "logo6": "",
+        "background": "white"
+      },
+      "fields": {
+        "title": {
+          "type": "text",
+          "label": "Título (opcional)"
+        },
+        "names": {
+          "type": "textarea",
+          "label": "Nombres de marca (uno por línea; se muestran si no hay logo)"
+        },
+        "logo1": {
+          "type": "image",
+          "label": "Logo 1"
+        },
+        "logo2": {
+          "type": "image",
+          "label": "Logo 2"
+        },
+        "logo3": {
+          "type": "image",
+          "label": "Logo 3"
+        },
+        "logo4": {
+          "type": "image",
+          "label": "Logo 4"
+        },
+        "logo5": {
+          "type": "image",
+          "label": "Logo 5"
+        },
+        "logo6": {
+          "type": "image",
+          "label": "Logo 6"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "white",
+            "muted"
+          ]
+        }
+      }
+    },
+    {
+      "type": "TopBarBlock",
+      "label": "Barra superior de contacto",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "message": "¡Creemos algo increíble!",
+        "email": "hola@ejemplo.com",
+        "phone": "(415) 555-0198",
+        "hours": "Lun - Vie: 9:00 - 18:00",
+        "background": "muted"
+      },
+      "fields": {
+        "message": {
+          "type": "text",
+          "label": "Mensaje"
+        },
+        "email": {
+          "type": "text",
+          "label": "Correo"
+        },
+        "phone": {
+          "type": "text",
+          "label": "Teléfono"
+        },
+        "hours": {
+          "type": "text",
+          "label": "Horario"
+        },
+        "background": {
+          "type": "select",
+          "label": "Fondo",
+          "options": [
+            "muted",
+            "dark",
+            "primary"
+          ]
+        }
+      }
+    },
+    {
       "type": "ProductsGridBlock",
       "label": "Grid de productos",
       "category": "atlas-ecommerce",

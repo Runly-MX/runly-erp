@@ -23,6 +23,10 @@ import { QuoteBlock }        from './quoteBlock.jsx'
 
 // --- Bloques específicos por giro ---
 import { MenuGridBlock } from './menuGridBlock.jsx'
+import { ShowcaseHeroBlock } from './showcaseHeroBlock.jsx'
+import { ProjectCardsBlock } from './projectCardsBlock.jsx'
+import { LogoCloudBlock }    from './logoCloudBlock.jsx'
+import { TopBarBlock }       from './topBarBlock.jsx'
 
 // --- Templates ---
 import {
@@ -61,6 +65,10 @@ export const universalRunlyBlocks = [
   MarqueeBlock,
   BentoGridBlock,
   QuoteBlock,
+  ShowcaseHeroBlock,
+  ProjectCardsBlock,
+  LogoCloudBlock,
+  TopBarBlock,
 ]
 
 export const ecommerceRunlyBlocks = [
@@ -98,6 +106,10 @@ export {
   MarqueeBlock,
   BentoGridBlock,
   QuoteBlock,
+  ShowcaseHeroBlock,
+  ProjectCardsBlock,
+  LogoCloudBlock,
+  TopBarBlock,
 }
 
 // ─── Builders por tipo de sitio ──────────────────────────────────────────────
