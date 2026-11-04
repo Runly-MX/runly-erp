@@ -130,7 +130,7 @@ export default function NewSiteScreen() {
           // The server conforms the template to the publishable block catalog and creates every page atomically.
           // The theme step already advanced the draft revision, so read the current one.
           ctx.current.revision = (await api.getSite(ctx.current.siteId)).data?.draftRevision ?? ctx.current.revision
-          const applied = (await api.applyTemplate(ctx.current.siteId, template.id, { pageIds: selectedPages, includeTheme: false, expectedRevision: ctx.current.revision }, key('template'))).data
+          const applied = (await api.applyTemplate(ctx.current.siteId, template.id, { pageIds: selectedPages, includeTheme: false, expectedRevision: ctx.current.revision, branding: { name: name.trim(), ...(ctx.current.logoFileId && { logoFileId: ctx.current.logoFileId, logoHeight: Number(currentIdentity?.logoHeight) || 40 }) } }, key('template'))).data
           ctx.current.revision = applied?.draftRevision ?? ctx.current.revision
         }
         mark(id, 'done')

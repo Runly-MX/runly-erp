@@ -4,6 +4,7 @@ import {assertWebsiteAccess} from './website-authorization-service.js'
 import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js'
 import {defaultTheme,defineTheme} from '@raulbellosom/atlas-web-builder'
 import {conformTemplateDocument} from './website-template-conform.js'
+import {applyTemplateBranding} from './website-template-branding.js'
 
 // A template theme may override any token group (color, font, radius, button, card), never the scale tokens.
 export const mergeTemplateTokens=(base,custom={})=>Object.fromEntries(Object.entries(base).map(([group,value])=>[group,custom[group]&&typeof value==='object'?{...value,...custom[group]}:value]))
@@ -18,10 +19,15 @@ export function createWebsiteTemplateService({prisma}) {
     if(!Array.isArray(a.pageIds)||!a.pageIds.length||a.pageIds.length>100||new Set(a.pageIds).size!==a.pageIds.length||a.pageIds.some(id=>!template.pages.some(p=>p.id===id)))throw fail('validation_failed')
     if(typeof a.idempotencyKey!=='string'||a.idempotencyKey.length<16||a.idempotencyKey.length>200||!Number.isSafeInteger(a.expectedRevision))throw fail('validation_failed')
     if(a.includeTheme)for(const permission of ['website.site.update','website.theme.update'])assertWebsiteAccess(a.access,a.companyId,permission)
-    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:conformTemplateDocument(normalizeWebsiteDocument(p.page,{strict:true}))}))
+    const branding=a.branding??null
+    if(branding?.logoFileId){
+      const file=await prisma.fileAsset.findFirst({where:{id:branding.logoFileId,entityId:{in:[a.companyId,a.siteId]},enabled:true}})
+      if(!file||!/^image\/(?:png|jpeg|webp|gif|avif)$/.test(file.mimeType??''))throw fail('validation_failed')
+    }
+    const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:applyTemplateBranding(conformTemplateDocument(normalizeWebsiteDocument(p.page,{strict:true})),branding??{})}))
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
-      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),expectedRevision:a.expectedRevision},async()=>{
+      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),branding,expectedRevision:a.expectedRevision},async()=>{
         const site=await tx.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}})
         if(!site)throw notFound('Recurso');drafts.expected(site.draftRevision,a.expectedRevision)
         const existing=await tx.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true}})

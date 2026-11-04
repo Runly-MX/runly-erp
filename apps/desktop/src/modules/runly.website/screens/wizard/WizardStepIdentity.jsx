@@ -1,9 +1,10 @@
 // apps/desktop/src/modules/runly.website/screens/wizard/WizardStepIdentity.jsx
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { Button, DistDropZone } from '@runly/ui'
-import { ImagePlus, Palette, Type } from 'lucide-react'
+import { CheckCircle2, ImagePlus, Loader2, Palette, Type } from 'lucide-react'
 import { extractColorsFromFile, extractColorsFromBlobUrl, PRESET_COLORS } from '../../lib/colorExtract.js'
 import { fontCss } from '../../lib/siteFonts.js'
+import { formatBytes, optimizeLogo } from '../../lib/logoOptimize.js'
 import { WizardFontPicker, useFontsReady } from './WizardFontPicker.jsx'
 
 const FIVE_MB = 5 * 1024 * 1024
@@ -128,7 +129,7 @@ function LivePreview({ name, identity, logoUrl }) {
       </div>
       <div className="space-y-3 p-5 transition-colors" style={{ background: identity.bgColor }}>
         <div className="flex items-center gap-2">
-          {logoUrl ? <img src={logoUrl} alt="" className="h-6 max-w-24 object-contain" /> : <span className="h-5 w-5 rounded-md" style={{ background: identity.primaryColor }} />}
+          {logoUrl ? <img src={logoUrl} alt="" style={{ height: Math.round(Number(identity.logoHeight || 40) * 0.6) }} className="max-w-32 object-contain" /> : <span className="h-5 w-5 rounded-md" style={{ background: identity.primaryColor }} />}
           <span className="text-xs font-semibold" style={{ ...heading, color: identity.primaryColor }}>{name || 'Mi sitio'}</span>
         </div>
         <h4 className="text-2xl font-bold leading-tight" style={{ ...heading, color: identity.primaryColor }}>{name || 'Tu negocio, en línea'}</h4>
@@ -140,11 +141,14 @@ function LivePreview({ name, identity, logoUrl }) {
 }
 
 export function WizardStepIdentity({ defaultValues, companyLogoUrl, siteName = '', onNext, onBack }) {
-  const [identity, setIdentity] = useState(() => ({ primaryColor: '#4F46E5', bgColor: '#FFFFFF', font: 'Inter', headingFont: 'Inter', bodyFont: 'Inter', ...(defaultValues ?? {}) }))
+  const [identity, setIdentity] = useState(() => ({ primaryColor: '#4F46E5', bgColor: '#FFFFFF', font: 'Inter', headingFont: 'Inter', bodyFont: 'Inter', logoHeight: '40', ...(defaultValues ?? {}) }))
   const [logoFile,        setLogoFile]        = useState(null)
   const [logoPreviewUrl,  setLogoPreviewUrl]  = useState(null)
   const [useCompanyLogo,  setUseCompanyLogo]  = useState(false)
   const [suggestedColors, setSuggestedColors] = useState(PRESET_COLORS)
+  const [logoInfo, setLogoInfo] = useState(null)
+  const [optimizing, setOptimizing] = useState(false)
+  const [logoError, setLogoError] = useState('')
   const set = (patch) => setIdentity((i) => ({ ...i, ...patch }))
 
   useEffect(() => {
@@ -168,9 +172,31 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, siteName = '
     })
   }, [useCompanyLogo, companyLogoUrl])
 
-  // `font` stays the body family so older consumers keep working.
-  function handleSubmit() {
-    onNext({ ...identity, font: identity.bodyFont, logoFile, useCompanyLogo })
+  async function pickLogo(file) {
+    setUseCompanyLogo(false); setLogoError(''); setOptimizing(true)
+    try {
+      const result = await optimizeLogo(file)
+      setLogoFile(result.file); setLogoInfo(result)
+    } catch {
+      setLogoFile(null); setLogoInfo(null); setLogoError('No pudimos leer ese archivo. Prueba con un PNG, WebP o SVG.')
+    } finally { setOptimizing(false) }
+  }
+
+  function clearLogo() {
+    setLogoFile(null); setLogoPreviewUrl(null); setUseCompanyLogo(false); setLogoInfo(null); setLogoError(''); setSuggestedColors(PRESET_COLORS)
+  }
+
+  async function handleSubmit() {
+    let finalLogo = logoFile
+    if (!finalLogo && useCompanyLogo && companyLogoUrl) {
+      setOptimizing(true)
+      try {
+        const blob = await (await fetch(companyLogoUrl)).blob()
+        finalLogo = (await optimizeLogo(new File([blob], 'logo-empresa', { type: blob.type || 'image/png' }))).file
+      } catch { finalLogo = null } finally { setOptimizing(false) }
+    }
+    // font stays the body family so older consumers keep working.
+    onNext({ ...identity, font: identity.bodyFont, logoFile: finalLogo, useCompanyLogo })
   }
 
   const fromLogo = suggestedColors !== PRESET_COLORS && suggestedColors.length > 0
@@ -179,16 +205,44 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, siteName = '
     <div className="space-y-4">
       <LivePreview name={siteName} identity={identity} logoUrl={logoPreviewUrl ?? (useCompanyLogo ? companyLogoUrl : null)} />
 
-      <Section icon={ImagePlus} title="Logo" hint="Opcional. De aquí sacamos colores sugeridos.">
+      <Section icon={ImagePlus} title="Logo" hint="Opcional. Lo recortamos y optimizamos para que cargue rápido, y sale en el encabezado de tus páginas.">
         <LogoZone
           logoFile={logoFile}
           logoPreviewUrl={logoPreviewUrl}
           companyLogoUrl={companyLogoUrl}
           useCompanyLogo={useCompanyLogo}
-          onFile={(f) => { setUseCompanyLogo(false); setLogoFile(f) }}
+          onFile={pickLogo}
           onUseCompany={() => { setLogoFile(null); setLogoPreviewUrl(null); setUseCompanyLogo(true) }}
-          onRemove={() => { setLogoFile(null); setLogoPreviewUrl(null); setUseCompanyLogo(false); setSuggestedColors(PRESET_COLORS) }}
+          onRemove={clearLogo}
         />
+        {optimizing && <p role="status" className="mt-3 flex items-center gap-2 text-xs text-[hsl(var(--muted-foreground))]"><Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> Optimizando tu logo…</p>}
+        {logoError && <p role="alert" className="mt-3 text-xs text-[hsl(var(--destructive))]">{logoError}</p>}
+        {logoInfo && !optimizing && (
+          <div className="mt-3 space-y-3">
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl bg-emerald-500/8 p-3 text-xs text-[hsl(var(--foreground))]">
+              <CheckCircle2 className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+              <span className="font-medium">Listo para cargar rápido:</span>
+              <span>{formatBytes(logoInfo.before)} → {formatBytes(logoInfo.after)} · {logoInfo.width}×{logoInfo.height}px · {logoInfo.format.toUpperCase()}</span>
+              {logoInfo.trimmed && <span>· márgenes vacíos recortados</span>}
+              {logoInfo.vector && <span>· SVG convertido a imagen</span>}
+            </p>
+            <div className="grid grid-cols-2 gap-2" aria-label="Cómo se ve sobre fondo claro y oscuro">
+              <span className="grid h-16 place-items-center rounded-xl border border-[hsl(var(--border))] bg-white"><img src={logoPreviewUrl} alt="" className="max-h-10 max-w-[80%] object-contain" /></span>
+              <span className="grid h-16 place-items-center rounded-xl border border-[hsl(var(--border))] bg-slate-900"><img src={logoPreviewUrl} alt="" className="max-h-10 max-w-[80%] object-contain" /></span>
+            </div>
+          </div>
+        )}
+        {(logoFile || useCompanyLogo) && (
+          <div className="mt-3">
+            <p className="mb-1.5 text-xs font-semibold text-[hsl(var(--muted-foreground))]">Tamaño en el encabezado del sitio</p>
+            <div role="radiogroup" aria-label="Tamaño del logo" className="inline-flex rounded-lg bg-[hsl(var(--muted))] p-0.5">
+              {[['24', 'Chico'], ['32', 'Mediano'], ['40', 'Normal'], ['48', 'Grande'], ['64', 'Extra']].map(([value, label]) => (
+                <button key={value} type="button" role="radio" aria-checked={identity.logoHeight === value} onClick={() => set({ logoHeight: value })}
+                  className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${identity.logoHeight === value ? 'bg-[hsl(var(--card))] shadow-sm' : 'text-[hsl(var(--muted-foreground))]'}`}>{label}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
 
       <Section icon={Palette} title="Colores" hint="Un color de marca y el fondo de tus páginas.">
@@ -214,7 +268,7 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, siteName = '
 
       <div className="flex gap-3 pt-1">
         {onBack && <Button variant="outline" className="flex-1" onClick={onBack}>Atrás</Button>}
-        <Button className="flex-1" onClick={handleSubmit}>Siguiente</Button>
+        <Button className="flex-1" onClick={handleSubmit} disabled={optimizing}>{optimizing ? 'Preparando logo…' : 'Siguiente'}</Button>
       </div>
     </div>
   )
