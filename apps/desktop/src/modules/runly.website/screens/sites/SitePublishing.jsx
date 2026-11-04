@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react'
 import { useInfiniteQuery, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Button, Checkbox, ConfirmDialog, EmptyState, ErrorState, LoadingState, StatusPill } from '@runly/ui'
+import { Button, Checkbox, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ErrorState, LoadingState, StatusPill } from '@runly/ui'
 import { AlertCircle, Ban, CheckCircle2, Clock, Eye, History, Info, Loader2, PauseCircle, Radio, Rocket, ShieldAlert, ShieldCheck, Undo2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
@@ -22,6 +22,18 @@ const STATE = {
   ready: { label: 'Lista', tone: 'neutral', icon: CheckCircle2 },
   failed: { label: 'No se pudo preparar', tone: 'danger', icon: AlertCircle },
   revoked: { label: 'Revocada', tone: 'neutral', icon: Ban },
+}
+
+function ChangeTile({ icon, tone, label, value, highlight = false }) {
+  return (
+    <div className={`flex items-center gap-3 rounded-xl border p-3 ${highlight ? 'border-[hsl(var(--ring))]/40 bg-[hsl(var(--muted))]/40' : 'border-[hsl(var(--border))]'}`}>
+      <SiteIconChip icon={icon} tone={tone} size="sm" />
+      <div className="min-w-0">
+        <p className="text-xs text-[hsl(var(--muted-foreground))]">{label}</p>
+        <p className="truncate text-sm font-semibold tabular-nums">{value}</p>
+      </div>
+    </div>
+  )
 }
 
 function integrityInfo(mode, long = false) {
@@ -176,33 +188,55 @@ export default function SitePublishing({ site, siteId, release, caps, onPublish 
         </p>
       </SitePanel>
 
-      <ConfirmDialog
-        open={Boolean(rollbackTarget)}
-        onOpenChange={(open) => { if (!open && !busy) { setRollbackTarget(null); setRollbackError(null) } }}
-        tone="warning"
-        title="Volver a una versión anterior"
-        description={`Tu sitio público volverá a la versión del ${formatDate(rollbackTarget?.createdAt)}. Tus borradores no se pierden.`}
-        confirmLabel="Volver a esta versión"
-        loading={busy}
-        onConfirm={rollback}
-      >
-        {rollbackError && <div className="mt-3"><ErrorNotice error={rollbackError} /></div>}
-      </ConfirmDialog>
-      <ConfirmDialog
-        open={unpublishOpen}
-        onOpenChange={(open) => { if (!open && !busy) { setUnpublishOpen(false); setUnderstood(false) } }}
-        title="Retirar el sitio"
-        description="Tu sitio dejará de ser visible. No se borra nada: podrás publicarlo de nuevo."
-        confirmLabel="Retirar el sitio"
-        loading={busy}
-        confirmDisabled={!understood}
-        onConfirm={unpublish}
-      >
-        <label className="mt-3 flex items-center gap-3 text-sm">
-          <Checkbox checked={understood} onCheckedChange={setUnderstood} aria-label="Entiendo que mis visitantes dejarán de ver el sitio" />
-          Entiendo que mis visitantes dejarán de ver el sitio.
-        </label>
-      </ConfirmDialog>
+      <Dialog open={Boolean(rollbackTarget)} onOpenChange={(open) => { if (!open && !busy) { setRollbackTarget(null); setRollbackError(null) } }}>
+        <DialogContent size="lg">
+          <DialogHeader icon={Undo2}>
+            <DialogTitle>Volver a una versión anterior</DialogTitle>
+            <DialogDescription>Tu sitio público cambiará a esta versión en cuanto confirmes.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChangeTile icon={Radio} tone="neutral" label="Ahora en línea" value={formatDate(release?.createdAt)} />
+              <ChangeTile icon={Undo2} tone="orange" label="Volverá a" value={formatDate(rollbackTarget?.createdAt)} highlight />
+            </div>
+            <ul className="space-y-1.5 rounded-xl bg-[hsl(var(--muted))]/50 p-3 text-sm">
+              <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden /> Tus borradores no se pierden.</li>
+              <li className="flex items-center gap-2"><History className="h-4 w-4 text-emerald-600" aria-hidden /> La versión actual queda en el historial: puedes regresar a ella.</li>
+            </ul>
+            {rollbackError && <ErrorNotice error={rollbackError} />}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setRollbackTarget(null); setRollbackError(null) }} disabled={busy}>Cancelar</Button>
+            <Button onClick={rollback} disabled={busy}>{busy ? 'Volviendo…' : 'Volver a esta versión'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <Dialog open={unpublishOpen} onOpenChange={(open) => { if (!open && !busy) { setUnpublishOpen(false); setUnderstood(false) } }}>
+        <DialogContent size="lg">
+          <DialogHeader icon={PauseCircle}>
+            <DialogTitle>Retirar el sitio</DialogTitle>
+            <DialogDescription>Tu sitio dejará de ser visible para todos. Podrás publicarlo de nuevo cuando quieras.</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid gap-2 sm:grid-cols-2">
+              <ChangeTile icon={Radio} tone="emerald" label="Hoy" value="En línea" />
+              <ChangeTile icon={PauseCircle} tone="rose" label="Después" value="Retirado" highlight />
+            </div>
+            <ul className="space-y-1.5 rounded-xl bg-[hsl(var(--muted))]/50 p-3 text-sm">
+              <li className="flex items-center gap-2"><ShieldCheck className="h-4 w-4 text-emerald-600" aria-hidden /> No se borra nada: páginas, borradores e historial se conservan.</li>
+              <li className="flex items-center gap-2"><Ban className="h-4 w-4 text-rose-600" aria-hidden /> Tus visitantes verán que el sitio no está disponible.</li>
+            </ul>
+            <label className="flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
+              <Checkbox checked={understood} onCheckedChange={setUnderstood} aria-label="Entiendo que mis visitantes dejarán de ver el sitio" />
+              Entiendo que mis visitantes dejarán de ver el sitio.
+            </label>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setUnpublishOpen(false); setUnderstood(false) }} disabled={busy}>Cancelar</Button>
+            <Button variant="destructive" onClick={unpublish} disabled={busy || !understood}>{busy ? 'Retirando…' : 'Retirar el sitio'}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
       <PreviewDialog open={Boolean(previewRelease)} onOpenChange={(open) => { if (!open) setPreviewRelease(null) }} siteId={siteId} releaseId={previewRelease?.id ?? null} title={`Versión del ${formatDate(previewRelease?.createdAt)}`} />
     </div>
   )
