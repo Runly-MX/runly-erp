@@ -6,8 +6,13 @@
 // Builder's own live preview and on the actual published site, so this
 // reads window.RUNLY_CONFIG (window.ATLAS_CONFIG as legacy fallback) exactly
 // like the storefront IIFE does — see docs/ai-context/runly-storefront-sdk.md.
+// Server-side rendering has no window: it sets the same config the published runtime puts on window.RUNLY_CONFIG,
+// so blocks that read it while rendering produce identical markup on both sides (required for hydration).
+let serverConfig = null
+export function setServerAtlasConfig(config) { serverConfig = config ?? null }
+
 export function readAtlasConfig() {
-  if (typeof window === 'undefined') return null
+  if (typeof window === 'undefined') return serverConfig
   return window.RUNLY_CONFIG ?? window.ATLAS_CONFIG ?? null
 }
 

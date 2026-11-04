@@ -16,7 +16,8 @@ import { createPublicCheckoutRouter } from '../checkout-routes.js'
 import { createStorefrontCaptureRoutes } from '../../storefront/storefront-capture-routes.js'
 import { createDistServeService } from '../../../services/dist-serve-service.js'
 import { createWebsiteOriginGuard } from '../../../services/website-origin-guard.js'
-import { buildWebsitePublicRuntime } from '../../../../../../scripts/build-website-public-runtime.mjs'
+import { buildWebsitePublicRuntime, buildWebsiteSsr } from '../../../../../../scripts/build-website-public-runtime.mjs'
+import { createWebsiteSsr } from '../../../services/website-ssr.js'
 import { createWebsiteService } from '../website-service.js'
 import { createWebsiteAccess } from '../../../services/website-authorization-service.js'
 import { createWebsitePublicationContext } from '../../../services/website-publication-context.js'
@@ -31,8 +32,8 @@ const marker = process.env.RUNLY_WEBSITE_TEST_DISPOSABLE
 if (!url || new URL(url).hostname !== '127.0.0.1' || new URL(url).pathname !== '/website_s2_test' || !/^runly-website-test-[a-f0-9-]+$/.test(marker ?? '')) throw new Error('Disposable runner required')
 if (execFileSync('docker', ['port', marker, '5432/tcp'], { encoding: 'utf8' }).trim() !== `127.0.0.1:${new URL(url).port}`) throw new Error('Not the disposable database')
 
-let db, root, runtime, n = 0
-before(async () => { db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) }); root = await mkdtemp(join(tmpdir(), 'website-templates-')); runtime = await buildWebsitePublicRuntime() })
+let db, root, runtime, ssrDir, n = 0
+before(async () => { db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) }); root = await mkdtemp(join(tmpdir(), 'website-templates-')); runtime = await buildWebsitePublicRuntime(); ssrDir = join(root, 'ssr'); await buildWebsiteSsr(ssrDir, runtime['entry.js'].hash) })
 after(async () => { await db?.$disconnect(); if (root && resolve(root).startsWith(resolve(tmpdir()))) await rm(root, { recursive: true }) })
 const uuid = async () => (await db.$queryRaw`SELECT uuidv7()::text id`)[0].id
 
@@ -46,7 +47,7 @@ async function fixture({ siteType = 'website', can = () => true, namespaceRoot =
   const actor = await db.userProfile.create({ data: { id: await uuid(), authUserId: await uuid(), email: `tpl-${k}@example.test`, displayName: 'Template test' } })
   const access = createWebsiteAccess({ companyId: company.id, actorId: actor.id, can })
   const ctx = { companyId: company.id, access }
-  const publication = createWebsitePublicationContext({ prisma: db, storage, runtime: async () => runtime, namespaceRoot, adminHosts: ['erp.example.test'] })
+  const publication = createWebsitePublicationContext({ prisma: db, storage, runtime: async () => runtime, ssr: createWebsiteSsr({ folder: ssrDir }), namespaceRoot, adminHosts: ['erp.example.test'] })
   const svc = createWebsiteService({ prisma: db, publicationContext: publication })
   const site = await svc.createSite({ ...ctx, data: { name: 'Sitio de prueba', siteType } })
   const args = { ...ctx, siteId: site.id }
@@ -213,6 +214,7 @@ for (const template of allTemplates) {
         for (const route of template.pages) {
           const response = await page.goto(site.base + route.routePath)
           assert.equal(response.status(), 200, `${template.id} ${route.routePath}`)
+          assert.match(await response.text(), /<div id="runly-public-root" data-ssr="hydrate">[\s\S]*<(?:header|nav)[\s>]/, `${template.id} ${route.routePath} is not pre-rendered with its navigation`)
           await page.waitForLoadState('networkidle').catch(() => {})
           const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
           assert.ok(overflow <= 1, `${template.id} ${route.routePath} @${viewport.width}px overflows by ${overflow}px`)

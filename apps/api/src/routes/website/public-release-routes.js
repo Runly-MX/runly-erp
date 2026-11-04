@@ -32,7 +32,7 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
  })
  return app
 }
-export async function serveWebsiteRelease(c,gateway,path,runtime) {
+export async function serveWebsiteRelease(c,gateway,path,runtime,ssr) {
  const snapshot=await gateway.resolve(c)
  const turnstile=snapshot.release?snapshot.release.manifest.dynamic?.some(d=>d.kind==='form')&&snapshot.release.manifest.identity.turnstileSiteKey:snapshot.site.turnstileSiteKey
  const challenge=turnstile?' https://challenges.cloudflare.com':''
@@ -56,6 +56,10 @@ export async function serveWebsiteRelease(c,gateway,path,runtime) {
  const url=ref=>`/public/website/releases/${snapshot.release.id}/assets/${ref.hash}`
  c.header('Cache-Control','no-store');c.header('X-Content-Type-Options','nosniff')
  c.header('Content-Security-Policy',`default-src 'self'; script-src 'self'${challenge}; frame-src ${turnstile?'https://challenges.cloudflare.com':"'none'"}; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`)
- // Only UUIDs and computed hex digests enter the shell; tenant text is fetched as JSON.
- return c.html(`<!doctype html><html lang="es" data-release="${snapshot.release.id}" data-page-id="${data.page.id}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${websiteSeoHead({page:data.page,identity:snapshot.release.manifest.identity,origin:requestOrigin(c)})}${css?`<link rel="stylesheet" href="${url(css)}">`:''}</head><body><div id="runly-public-root"></div><script type="module" src="${url(ref)}"></script></body></html>`)
+ // Attributes carry only UUIDs and hex digests. The body is pre-rendered by React from the same release data the
+ // runtime fetches (React escapes all tenant text; rich HTML is reduced to plain text on the server), then hydrated.
+ const origin=requestOrigin(c), config={company:data.site.company,companySlug:data.site.company,siteId:data.site.id,apiUrl:origin,baseUrl:origin,analyticsMode:data.site.analyticsMode,turnstileSiteKey:data.site.turnstileSiteKey}
+ const rendered=ssr?await ssr({releaseId:snapshot.release.id,path,entryHash:ref.hash,page:data.page,theme:data.theme,config}):null
+ const body=rendered?`<div id="runly-public-root" data-ssr="${rendered.hydrate?'hydrate':'replace'}">${rendered.html}</div>`:'<div id="runly-public-root"></div>'
+ return c.html(`<!doctype html><html lang="es" data-release="${snapshot.release.id}" data-page-id="${data.page.id}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${websiteSeoHead({page:data.page,identity:snapshot.release.manifest.identity,origin:requestOrigin(c)})}${css?`<link rel="stylesheet" href="${url(css)}">`:''}<link rel="modulepreload" href="${url(ref)}"></head><body>${body}<script type="module" src="${url(ref)}"></script></body></html>`)
 }

@@ -16,6 +16,8 @@ export function useReveal(threshold = 0.18) {
   useEffect(() => {
     const el = ref.current
     if (!el || reduced() || typeof IntersectionObserver === 'undefined') return undefined
+    // A server-rendered page is already on screen: hiding what is visible to animate it in again would flicker.
+    if (document.getElementById('runly-public-root')?.dataset.ssr && el.getBoundingClientRect().top < window.innerHeight) return undefined
     setState('wait')
     const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) { setState('in'); observer.disconnect() } }, { threshold, rootMargin: '0px 0px -8% 0px' })
     observer.observe(el)

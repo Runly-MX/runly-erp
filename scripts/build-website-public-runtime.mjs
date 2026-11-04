@@ -21,4 +21,18 @@ export async function buildWebsitePublicRuntime(output) {
   if(output){await mkdir(output,{recursive:true});for(const[name,file]of Object.entries(files))await writeFile(join(output,name),file.bytes);await writeFile(join(output,'registry.json'),JSON.stringify(Object.fromEntries(Object.entries(files).map(([name,file])=>[name,{hash:file.hash,mime:file.mime,rendererVersion:file.rendererVersion}]))))}
   return files
 }
-if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) await buildWebsitePublicRuntime(resolve(process.argv[2]??'.artifacts/website-public-runtime'))
+// Node build of the same renderer, for server-side rendering of published pages. `ssr.json` pins the client entry it
+// matches: the API only pre-renders releases that load exactly this runtime, so hydration sees the same code.
+export async function buildWebsiteSsr(output,entryHash) {
+  const root=resolve(dirname(fileURLToPath(import.meta.url)),'..')
+  const result=await build({absWorkingDir:root,entryPoints:['apps/desktop/src/website/public-release-ssr.jsx'],bundle:true,write:false,outfile:'ssr.mjs',platform:'node',format:'esm',jsx:'automatic',minify:true,metafile:true,define:{'process.env.NODE_ENV':'"production"','import.meta.env':'{"PROD":true,"DEV":false}'},loader:{'.css':'empty','.woff2':'empty','.woff':'empty','.ttf':'empty'},banner:{js:"import{createRequire as __cr}from'module';const require=__cr(import.meta.url);"}})
+  if(Object.keys(result.metafile.inputs).some(p=>/AuthProvider|supabaseClient|shell\/|modules\/runly\./.test(p)))throw new Error('SSR runtime imports an administrative entry')
+  const bytes=Buffer.from(result.outputFiles.find(f=>f.path.endsWith('.mjs')).contents)
+  if(output){await mkdir(output,{recursive:true});await writeFile(join(output,'ssr.mjs'),bytes);await writeFile(join(output,'ssr.json'),JSON.stringify({entryHash,hash:createHash('sha256').update(bytes).digest('hex')}))}
+  return bytes
+}
+if(process.argv[1]&&resolve(process.argv[1])===fileURLToPath(import.meta.url)) {
+  const output=resolve(process.argv[2]??'.artifacts/website-public-runtime')
+  const files=await buildWebsitePublicRuntime(output)
+  await buildWebsiteSsr(output,files['entry.js'].hash)
+}

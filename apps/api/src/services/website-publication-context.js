@@ -14,6 +14,7 @@ import {createWebsiteImportService} from './website-import-service.js'
 import {createWebsiteContentIsolation} from './website-content-isolation.js'
 import {createWebsiteStaticServing} from './website-static-serving.js'
 import {createWebsitePreviewService} from './website-preview-service.js'
+import {createWebsiteSsr} from './website-ssr.js'
 export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:provided,runtime:providedRuntime,...options}) {
  const storage=provided??createWebsiteReleaseStorage({supabaseAdmin})
  const runtime=providedRuntime??(async()=>{
@@ -27,6 +28,7 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
    if(!files['entry.js'])throw new WebsiteServiceError('Runtime no disponible.',503,'runtime_unavailable')
    return files
  })
+ const ssr=options.ssr??createWebsiteSsr({folder:resolve(process.env.RUNLY_WEBSITE_RUNTIME_DIR??bundledRuntime)})
  const readFile=options.readFile??(async file=>{
    const result=await supabaseAdmin.storage.from(file.bucket).download(file.objectKey)
    if(result.error||!result.data)throw new WebsiteServiceError('Archivo no disponible.',503,'dependency_unavailable')
@@ -43,5 +45,5 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
  gateway.staticContent=staticServing.serve
  const previews=createWebsitePreviewService({prisma,isolation,storage,releases})
  const contracts=createWebsiteAdminContractService({prisma,isolation,readFile,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,...options})
- return {storage,releases,gateway,hostnames,registry,runtime,imports,isolation,previews,contracts}
+ return {storage,releases,gateway,hostnames,registry,runtime,ssr,imports,isolation,previews,contracts}
 }

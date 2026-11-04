@@ -258,7 +258,7 @@ export function createDistServeService({ prisma, supabaseAdmin, publicationConte
   async function serve(c, urlPath) {
     let site
     try {
-      const releaseResponse = await serveWebsiteRelease(c,publication.gateway,urlPath,publication.runtime)
+      const releaseResponse = await serveWebsiteRelease(c,publication.gateway,urlPath,publication.runtime,publication.ssr)
       if(releaseResponse)return releaseResponse
       site = await resolveSiteForRequest(c)
     } catch (err) {
