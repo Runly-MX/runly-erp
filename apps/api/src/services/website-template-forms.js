@@ -1,19 +1,36 @@
 import { createWebsiteFormScopeService } from './website-form-scope-service.js'
 
-// Templates cannot know a form id, so a ContactFormBlock with this placeholder in `formId` asks the apply step to
-// provide one: it reuses the site's "Contacto" form or creates it (name, email, message) in the same transaction.
+// Templates cannot know a form id, so a ContactFormBlock whose `formId` is a placeholder asks the apply step to provide
+// one: it reuses the site's form with that name or creates it in the same transaction.
 export const CONTACT_FORM_PLACEHOLDER = '@contact'
-const FORM_NAME = 'Contacto'
+export const NEWSLETTER_FORM_PLACEHOLDER = '@newsletter'
 
-const isPlaceholder = (block) => block?.type === 'ContactFormBlock' && block.props?.formId === CONTACT_FORM_PLACEHOLDER
+const field = (label, name, fieldType, semanticKey, placeholder) => ({ label, name, fieldType, semanticKey, required: true, placeholder })
+export const FORM_PLACEHOLDERS = {
+  [CONTACT_FORM_PLACEHOLDER]: {
+    name: 'Contacto', submitLabel: 'Enviar mensaje', successMessage: 'Gracias, te responderemos muy pronto.',
+    fields: [field('Nombre', 'nombre', 'text', 'name', 'Tu nombre'), field('Correo', 'correo', 'email', 'email', 'tu@correo.com'), field('Mensaje', 'mensaje', 'textarea', 'message', 'Cuéntanos qué necesitas')],
+  },
+  [NEWSLETTER_FORM_PLACEHOLDER]: {
+    name: 'Newsletter', submitLabel: 'Suscribirme', successMessage: 'Gracias por suscribirte.',
+    fields: [field('Correo', 'correo', 'email', 'email', 'tu@correo.com')],
+  },
+}
 
-export const usesContactForm = (document) => Object.values(document?.blocks ?? {}).some(isPlaceholder)
+const isPlaceholder = (block) => block?.type === 'ContactFormBlock' && Object.hasOwn(FORM_PLACEHOLDERS, block.props?.formId)
 
-// Sets the form id on every placeholder block; without a form (no permission to create one) the blocks are removed so
-// the page never carries a form that cannot publish.
-export function bindContactForm(document, formId) {
+// Distinct placeholders present in the document, e.g. ['@contact', '@newsletter'].
+export const placeholdersIn = (document) => [...new Set(Object.values(document?.blocks ?? {}).filter(isPlaceholder).map((b) => b.props.formId))]
+
+export const usesContactForm = (document) => placeholdersIn(document).length > 0
+
+// `forms` maps placeholder -> form id (null/missing when none could be created). Blocks without a form are removed so
+// the page never carries a form that cannot publish. A plain string id keeps the old single-form call working.
+export function bindContactForm(document, forms) {
+  const ids = !forms || typeof forms === 'string' ? Object.fromEntries(Object.keys(FORM_PLACEHOLDERS).map((k) => [k, forms || null])) : forms
   const blocks = Object.values(document?.blocks ?? {}).filter(isPlaceholder)
   for (const block of blocks) {
+    const formId = ids[block.props.formId]
     if (formId) { block.props.formId = formId; continue }
     delete document.blocks[block.id]
     for (const region of Object.values(document.regions ?? {})) region.children = (region.children ?? []).filter((id) => id !== block.id)
@@ -27,18 +44,15 @@ export function bindContactForm(document, formId) {
   return document
 }
 
-const FIELDS = [
-  { label: 'Nombre', name: 'nombre', fieldType: 'text', semanticKey: 'name', required: true, placeholder: 'Tu nombre' },
-  { label: 'Correo', name: 'correo', fieldType: 'email', semanticKey: 'email', required: true, placeholder: 'tu@correo.com' },
-  { label: 'Mensaje', name: 'mensaje', fieldType: 'textarea', semanticKey: 'message', required: true, placeholder: 'Cuéntanos qué necesitas' },
-]
-
 // Must run inside the apply transaction (`tx`), so a failed apply leaves no orphan form.
-export async function ensureContactForm({ tx, companyId, siteId }) {
-  const existing = await tx.websiteForm.findFirst({ where: { companyId, siteId, name: FORM_NAME, enabled: true }, select: { id: true } })
+export async function ensureTemplateForm({ tx, companyId, siteId, placeholder = CONTACT_FORM_PLACEHOLDER }) {
+  const def = FORM_PLACEHOLDERS[placeholder]
+  const existing = await tx.websiteForm.findFirst({ where: { companyId, siteId, name: def.name, enabled: true }, select: { id: true } })
   if (existing) return existing.id
-  const form = await tx.websiteForm.create({ data: { companyId, siteId, name: FORM_NAME, submitLabel: 'Enviar mensaje', successMessage: 'Gracias, te responderemos muy pronto.', createsLead: true, honeypotEnabled: true, turnstileRequired: false, wizardMode: false } })
+  const form = await tx.websiteForm.create({ data: { companyId, siteId, name: def.name, submitLabel: def.submitLabel, successMessage: def.successMessage, createsLead: true, honeypotEnabled: true, turnstileRequired: false, wizardMode: false } })
   await createWebsiteFormScopeService({ prisma: tx }).provision({ companyId, formId: form.id, ownerKind: 'website', ownerId: siteId, allowAmbiguous: true, newForm: true, db: tx })
-  await tx.websiteFormField.createMany({ data: FIELDS.map((field, index) => ({ companyId, formId: form.id, ...field, options: null, sortOrder: index, stepNumber: 1, stepTitle: null })) })
+  await tx.websiteFormField.createMany({ data: def.fields.map((f, index) => ({ companyId, formId: form.id, ...f, options: null, sortOrder: index, stepNumber: 1, stepTitle: null })) })
   return form.id
 }
+
+export const ensureContactForm = (args) => ensureTemplateForm({ ...args, placeholder: CONTACT_FORM_PLACEHOLDER })

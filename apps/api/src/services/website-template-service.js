@@ -5,7 +5,7 @@ import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js
 import {defaultTheme,defineTheme} from '@raulbellosom/atlas-web-builder'
 import {conformTemplateDocument} from './website-template-conform.js'
 import {applyTemplateBranding} from './website-template-branding.js'
-import {bindContactForm,ensureContactForm,usesContactForm} from './website-template-forms.js'
+import {bindContactForm,ensureTemplateForm,placeholdersIn,usesContactForm} from './website-template-forms.js'
 
 // A template theme may override any token group (color, font, radius, button, card), never the scale tokens.
 export const mergeTemplateTokens=(base,custom={})=>Object.fromEntries(Object.entries(base).map(([group,value])=>[group,custom[group]&&typeof value==='object'?{...value,...custom[group]}:value]))
@@ -37,8 +37,9 @@ export function createWebsiteTemplateService({prisma}) {
         if(pages.some(p=>usesContactForm(p.document))){
           let canCreate=true
           try{assertWebsiteAccess(a.access,a.companyId,'website.forms.create')}catch{canCreate=false}
-          const formId=canCreate?await ensureContactForm({tx,companyId:a.companyId,siteId:a.siteId}):null
-          for(const p of pages)bindContactForm(p.document,formId)
+          const forms={}
+          for(const placeholder of new Set(pages.flatMap(p=>placeholdersIn(p.document))))forms[placeholder]=canCreate?await ensureTemplateForm({tx,companyId:a.companyId,siteId:a.siteId,placeholder}):null
+          for(const p of pages)bindContactForm(p.document,forms)
         }
         const created=[]
         for(const page of pages){
