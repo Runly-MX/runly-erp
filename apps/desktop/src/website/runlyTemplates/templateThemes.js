@@ -67,4 +67,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'pill' },
     card: { radius: 'lg', shadow: 'md', padding: '6' },
   },
+  'atlas-devfolio': {
+    color: { primary: '#F26A1B', primaryFg: '#1A1A1A', bg: '#FBF6EE', fg: '#1A1A1A', muted: '#5B5249', accent: '#C2410C' },
+    font: { sans },
+    radius: { md: '8px', lg: '16px' },
+    button: { style: 'solid', radius: 'md' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
+  },
 }
