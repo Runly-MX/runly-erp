@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, PageHeader, SelectField, TextField } from '@runly/ui'
-import { Archive, Info } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, ConfirmDialog, SelectField, TextField } from '@runly/ui'
+import { AlertTriangle, Archive, BadgeCheck, Check, ChevronRight, CreditCard, IdCard, Info, Mail, Minus, Settings, ShieldCheck, SlidersHorizontal } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -10,6 +10,8 @@ import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
 import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
+import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
+import { SiteIconChip, SitePanel } from '../../components/SitePanel.jsx'
 
 const TYPES = [
   { value: 'website', label: 'Sitio informativo' },
@@ -17,6 +19,20 @@ const TYPES = [
   { value: 'blog', label: 'Blog' },
   { value: 'landing', label: 'Landing page' },
 ]
+
+// Navigation row to a sub-screen: tinted chip, label, hint and chevron; 44px+ tall.
+function LinkRow({ icon, tone, label, hint, onClick }) {
+  return (
+    <button type="button" onClick={onClick} className="group flex min-h-[3.5rem] w-full items-center gap-3 rounded-xl border border-[hsl(var(--border))] p-3 text-left transition-colors duration-200 hover:border-[hsl(var(--ring))]/40 hover:bg-[hsl(var(--muted))]/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
+      <SiteIconChip icon={icon} tone={tone} />
+      <span className="min-w-0 flex-1">
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-[hsl(var(--muted-foreground))]">{hint}</span>
+      </span>
+      <ChevronRight className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))] transition-transform duration-200 group-hover:translate-x-0.5" aria-hidden />
+    </button>
+  )
+}
 
 export default function SiteSettings({ site, siteId, caps }) {
   const navigate = useNavigate()
@@ -48,6 +64,7 @@ export default function SiteSettings({ site, siteId, caps }) {
     ['Elegir la dirección', caps.reserveHostname.allowed],
     ['Ver formularios y respuestas', caps.formsRead.allowed],
   ]
+  const allowedCount = matrix.filter(([, allowed]) => allowed).length
 
   async function save() {
     setBusy(true); setError(null); setStale(false)
@@ -72,56 +89,66 @@ export default function SiteSettings({ site, siteId, caps }) {
   }
 
   return (
-    <div className="space-y-6 p-4 md:p-6">
-      <PageHeader title="Configuración" description="Identidad del sitio, permisos y opciones avanzadas." />
-      <section aria-labelledby="identity-title" className="space-y-4 rounded-2xl border border-[hsl(var(--border))] p-4">
-        <h2 id="identity-title" className="text-base font-semibold">Identidad</h2>
+    <div className="space-y-5 p-4 md:p-6">
+      <SiteSectionHeader icon={Settings} tone="amber" title="Configuración" description="Identidad del sitio, permisos y opciones avanzadas." />
+
+      <SitePanel id="identity-title" icon={IdCard} tone="blue" title="Identidad" description="Los cambios se guardan en el borrador y llegan al sitio público cuando publiques.">
         <div className="grid gap-4 md:grid-cols-2">
           <TextField label="Nombre del sitio" value={name} onChange={(e) => setName(e.target.value)} required />
           <SelectField label="Tipo de sitio" value={siteType} onChange={setSiteType} options={TYPES} />
         </div>
-        {siteType !== baseType && <p className="text-xs text-amber-700 dark:text-amber-300">Cambiar el tipo cambia los bloques disponibles en el editor. No modifica el contenido ya guardado.</p>}
+        {siteType !== baseType && (
+          <p className="mt-3 flex gap-2 rounded-xl bg-amber-500/10 p-3 text-xs text-amber-800 dark:text-amber-300">
+            <AlertTriangle className="h-4 w-4 shrink-0" aria-hidden />Cambiar el tipo cambia los bloques disponibles en el editor. No modifica el contenido ya guardado.
+          </p>
+        )}
         {stale && (
-          <Alert variant="warning" role="alert">
+          <Alert variant="warning" role="alert" className="mt-3">
             <Info className="h-4 w-4" aria-hidden="true" />
             <div><AlertTitle>Este sitio cambió</AlertTitle><AlertDescription>Alguien guardó cambios antes que tú. Cargamos la versión actual; revisa tus datos y vuelve a guardar.</AlertDescription></div>
           </Alert>
         )}
-        {error && <ErrorNotice error={error} />}
-        <div className="flex justify-end"><CapabilityButton capability={caps.siteEdit} onClick={save} disabled={busy || !dirty || !name.trim()}>{busy ? 'Guardando…' : 'Guardar identidad'}</CapabilityButton></div>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]">Los cambios de identidad se guardan en el borrador y llegan al sitio público cuando publiques.</p>
-      </section>
+        {error && <div className="mt-3"><ErrorNotice error={error} /></div>}
+        <div className="mt-4 flex flex-wrap items-center justify-end gap-3 border-t border-[hsl(var(--border))] pt-4">
+          {dirty && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tienes cambios sin guardar</span>}
+          <CapabilityButton capability={caps.siteEdit} onClick={save} disabled={busy || !dirty || !name.trim()}>{busy ? 'Guardando…' : 'Guardar identidad'}</CapabilityButton>
+        </div>
+      </SitePanel>
 
-      <section aria-labelledby="who-title" className="space-y-3 rounded-2xl border border-[hsl(var(--border))] p-4">
-        <h2 id="who-title" className="text-base font-semibold">Quién puede qué</h2>
-        <p className="text-sm text-[hsl(var(--muted-foreground))]">Los permisos son de la empresa y valen para todos sus sitios: no se pueden dar a una persona solo para un sitio. Aquí ves lo que tu rol permite.</p>
-        <ul className="divide-y divide-[hsl(var(--border))] text-sm">
+      <SitePanel
+        id="who-title"
+        icon={ShieldCheck}
+        tone="violet"
+        title="Quién puede qué"
+        description="Los permisos son de la empresa y valen para todos sus sitios: no se pueden dar a una persona solo para un sitio. Aquí ves lo que tu rol permite."
+        action={<span className="text-sm font-semibold tabular-nums">{allowedCount} de {matrix.length}</span>}
+      >
+        <ul className="grid gap-2 sm:grid-cols-2">
           {matrix.map(([label, allowed]) => (
-            <li key={label} className="flex items-center justify-between py-2">
-              <span>{label}</span>
-              <span className={allowed ? 'font-medium' : 'text-[hsl(var(--muted-foreground))]'}>{allowed ? 'Tu rol lo permite' : 'Tu rol no lo permite'}</span>
+            <li key={label} className={`flex items-center gap-3 rounded-xl border p-3 text-sm ${allowed ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-[hsl(var(--border))]'}`}>
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${allowed ? 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>
+                {allowed ? <Check className="h-4 w-4" aria-hidden /> : <Minus className="h-4 w-4" aria-hidden />}
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block font-medium">{label}</span>
+                <span className={`block text-xs ${allowed ? 'text-emerald-700 dark:text-emerald-400' : 'text-[hsl(var(--muted-foreground))]'}`}>{allowed ? 'Tu rol lo permite' : 'Tu rol no lo permite'}</span>
+              </span>
             </li>
           ))}
         </ul>
-        <p className="text-xs text-[hsl(var(--muted-foreground))]" data-source="server">Permisos efectivos de este sitio, confirmados por el servidor.</p>
-      </section>
+        <p className="mt-3 flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]" data-source="server"><BadgeCheck className="h-3.5 w-3.5" aria-hidden />Permisos efectivos de este sitio, confirmados por el servidor.</p>
+      </SitePanel>
 
-      <section aria-labelledby="adv-title" className="space-y-3 rounded-2xl border border-[hsl(var(--border))] p-4">
-        <h2 id="adv-title" className="text-base font-semibold">Avanzado</h2>
-        <details className="rounded-lg border border-[hsl(var(--border))] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Correo, antispam, analítica y pagos</summary>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">El correo (SMTP) es de la empresa y lo comparten sus sitios. La analítica, el antispam y los pagos se guardan en este sitio.</p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => navigate(sitePath(siteId, 'advanced'))}>Correo, antispam y analítica</Button>
-            <Button variant="outline" onClick={() => navigate(sitePath(siteId, 'payments'))}>Pagos</Button>
-          </div>
-        </details>
-        <details className="rounded-lg border border-[hsl(var(--border))] p-3">
-          <summary className="cursor-pointer text-sm font-medium">Archivar este sitio</summary>
-          <p className="mt-2 text-sm text-[hsl(var(--muted-foreground))]">El sitio deja de publicarse y sus direcciones dejan de responder. Pasa a Archivados en Sitios web, donde puedes restaurarlo (vuelve como borrador) o eliminarlo. Sus páginas, formularios y respuestas se conservan.</p>
-          <CapabilityButton capability={caps.archive} className="mt-3" variant="destructive" onClick={() => setArchiveOpen(true)}><Archive className="h-4 w-4" /> Archivar sitio</CapabilityButton>
-        </details>
-      </section>
+      <SitePanel id="adv-title" icon={SlidersHorizontal} tone="neutral" title="Avanzado" description="El correo (SMTP) es de la empresa y lo comparten sus sitios. La analítica, el antispam y los pagos se guardan en este sitio.">
+        <div className="grid gap-2 sm:grid-cols-2">
+          <LinkRow icon={Mail} tone="blue" label="Correo, antispam y analítica" hint="Envío de formularios, protección y métricas" onClick={() => navigate(sitePath(siteId, 'advanced'))} />
+          <LinkRow icon={CreditCard} tone="emerald" label="Pagos" hint="Cobros en línea de este sitio" onClick={() => navigate(sitePath(siteId, 'payments'))} />
+        </div>
+      </SitePanel>
+
+      <SitePanel id="archive-title" danger icon={Archive} tone="rose" title="Archivar este sitio" description="El sitio deja de publicarse y sus direcciones dejan de responder. Pasa a Archivados en Sitios web, donde puedes restaurarlo (vuelve como borrador) o eliminarlo. Sus páginas, formularios y respuestas se conservan.">
+        <CapabilityButton capability={caps.archive} variant="destructive" onClick={() => setArchiveOpen(true)}><Archive className="h-4 w-4" aria-hidden /> Archivar sitio</CapabilityButton>
+      </SitePanel>
 
       <ConfirmDialog
         open={archiveOpen}

@@ -6,7 +6,6 @@ import {
   Alert,
   AlertDescription,
   AlertTitle,
-  Badge,
   Button,
   ConfirmDialog,
   DataTable,
@@ -16,14 +15,15 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  PageHeader,
   SelectField,
+  StatusPill,
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
+  useIsMobile,
 } from '@runly/ui'
-import { ExternalLink, EyeOff, FilePlus2, Info, Package, ShoppingBag, Store } from 'lucide-react'
+import { AlertTriangle, CheckCircle2, ChevronLeft, ChevronRight, CircleDashed, Eye, EyeOff, ExternalLink, FilePlus2, Info, Link2, Package, PackageX, ShoppingBag, Store } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
@@ -32,8 +32,22 @@ import { sitePath } from '../../lib/pageRoute.js'
 import { useWebsiteScope } from '../../hooks/useWebsite.js'
 import { catalogKeys, useCatalogApi, useCatalogCategories, useCatalogPermissions } from '../../hooks/useCatalog.js'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
+import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
+import { ROW_CARD } from '../../components/SitePanel.jsx'
 
-const STOCK = { out: ['Agotado', 'destructive'], low: ['Pocas piezas', 'warning'], ok: ['Disponible', 'success'] }
+const STOCK = { out: ['Agotado', 'danger', PackageX], low: ['Pocas piezas', 'warning', AlertTriangle], ok: ['Disponible', 'success', CheckCircle2] }
+
+function StockPill({ product }) {
+  if (product.track_stock === false) return <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin control</span>
+  const [label, tone, icon] = STOCK[product.stock_status] ?? STOCK.ok
+  return <StatusPill tone={tone} size="sm" icon={icon}>{label}</StatusPill>
+}
+
+function ProductThumb({ product }) {
+  return product.image_url
+    ? <img src={product.image_url} alt="" className="h-11 w-11 shrink-0 rounded-lg border border-[hsl(var(--border))] object-cover" loading="lazy" />
+    : <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-amber-500/12 text-amber-600 dark:text-amber-400" aria-hidden="true"><Package className="h-5 w-5" /></span>
+}
 const PAGE_SIZE = 100
 
 function AddToPageDialog({ product, pages, siteId, onClose, onDone }) {
@@ -80,9 +94,22 @@ function ProductUsage({siteId,productId}) {
   const {api,companyId}=useWebsiteScope()
   const result=useInfiniteQuery({queryKey:['website',companyId,'site',siteId,'product-usage',productId],queryFn:({pageParam})=>api.catalogUsedBy(siteId,productId,pageParam?{cursor:pageParam}:{}),initialPageParam:null,getNextPageParam:last=>last.meta.nextCursor??undefined})
   if(result.isError)return <ErrorNotice error={result.error}/>
-  if(result.isPending)return <span>Revisando…</span>
+  if(result.isPending)return <span className="text-xs text-[hsl(var(--muted-foreground))]">Revisando…</span>
   const rows=result.data.pages.flatMap(page=>page.data)
-  return <div className="text-xs">{rows.length?rows.map(row=>`${row.title} (${row.source}, ${row.kind})`).join(', '):'Sin referencias'}{result.hasNextPage&&<Button size="sm" variant="ghost" onClick={()=>result.fetchNextPage()}>Ver más referencias</Button>}</div>
+  return <div className="flex flex-wrap items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]"><Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden />{rows.length?rows.map(row=>`${row.title} (${row.source}, ${row.kind})`).join(', '):'Sin referencias'}{result.hasNextPage&&<Button size="sm" variant="ghost" onClick={()=>result.fetchNextPage()}>Ver más referencias</Button>}</div>
+}
+
+// Per-site inclusion and current visibility, each as icon + text.
+function SiteUsage({ product, siteId, showRefs }) {
+  return (
+    <div className="space-y-1.5">
+      <div className="flex flex-wrap gap-1.5">
+        {product.includedInSite ? <StatusPill tone="success" size="sm" icon={CheckCircle2}>Incluido en este sitio</StatusPill> : <StatusPill size="sm" icon={CircleDashed}>No incluido en este sitio</StatusPill>}
+        {product.publiclyVisible ? <StatusPill tone="success" size="sm" icon={Eye}>Visible actualmente</StatusPill> : <StatusPill size="sm" icon={EyeOff}>No visible actualmente</StatusPill>}
+      </div>
+      {showRefs && <ProductUsage siteId={siteId} productId={product.id} />}
+    </div>
+  )
 }
 
 function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, onPublish, filters }) {
@@ -92,32 +119,29 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
   const query=useQuery({queryKey:['website',companyId,'catalog','selection',siteId,filters,mode,offset],queryFn:()=>api.listCatalogProducts(siteId,{...Object.fromEntries(Object.entries(filters).filter(([,v])=>v)),published:String(mode==='published'),limit:PAGE_SIZE,offset}),enabled:perms.read.allowed})
   const selection=useMutation({mutationFn:async product=>{const state=(await api.getState(siteId)).data;return api.setCatalogProduct(siteId,product.id,{included:!product.includedInSite,expectedRevision:state.draftRevision},newIdempotencyKey())},onSuccess:()=>query.refetch(),onError:error=>toast.error(describeError(error).message)})
   const rows = query.data?.data ?? []
+  const isMobile = useIsMobile()
+  const actionTrigger = isMobile ? 'h-11 w-11' : undefined
 
   const columns = useMemo(() => [
     {
       id: 'product', header: 'Producto', accessorFn: (product) => `${product.name} ${product.sku ?? ''} ${product.slug ?? ''}`,
       cell: ({ row }) => (
         <div className="flex items-center gap-3">
-          {row.original.image_url
-            ? <img src={row.original.image_url} alt="" className="h-10 w-10 rounded-md object-cover" loading="lazy" />
-            : <span className="flex h-10 w-10 items-center justify-center rounded-md bg-[hsl(var(--muted))]" aria-hidden="true"><Package className="h-4 w-4" /></span>}
+          <ProductThumb product={row.original} />
           <div className="min-w-0"><p className="truncate font-medium">{row.original.name}</p><p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{row.original.sku || row.original.slug}</p></div>
         </div>
       ),
     },
     { id: 'category', header: 'Categoría', cell: ({ row }) => row.original.category_name ?? '—' },
-    { id: 'price', header: 'Precio', cell: ({ row }) => formatPrice(row.original.price, row.original.currency || 'MXN') },
+    { id: 'price', header: 'Precio', cell: ({ row }) => <span className="font-medium tabular-nums">{formatPrice(row.original.price, row.original.currency || 'MXN')}</span> },
     {
       id: 'stock', header: 'Existencias',
-      cell: ({ row }) => {
-        const [label, variant] = STOCK[row.original.stock_status] ?? STOCK.ok
-        return row.original.track_stock === false ? <span className="text-xs text-[hsl(var(--muted-foreground))]">Sin control</span> : <Badge variant={variant}>{label}</Badge>
-      },
+      cell: ({ row }) => <StockPill product={row.original} />,
     },
     ...(mode === 'published' ? [{
       id: 'usage', header: 'En este sitio',
       cell: ({ row }) => {
-        return <div><p>{row.original.includedInSite?'Incluido en este sitio':'No incluido en este sitio'}</p><p>{row.original.publiclyVisible?'Visible actualmente':'No visible actualmente'}</p>{caps.pagesRead.allowed&&<ProductUsage siteId={siteId} productId={row.original.id}/>}</div>
+        return <SiteUsage product={row.original} siteId={siteId} showRefs={caps.pagesRead.allowed} />
       },
     }] : []),
     {
@@ -127,6 +151,7 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
         return (
           <ActionMenu
             label={`Acciones de ${product.name}`}
+            triggerClassName={actionTrigger}
             items={[
               {label:product.includedInSite?'Excluir de este sitio':'Incluir en este sitio',disabled:!caps.siteEdit.allowed||selection.isPending,onClick:()=>selection.mutate(product)},
               mode === 'published'
@@ -139,10 +164,25 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
         )
       },
     },
-  ], [mode, siteId, caps.pagesRead.allowed, caps.siteEdit.allowed, caps.pagesUpdate.allowed, perms.update.allowed, pages.length, navigate, onAdd, onUnpublish, onPublish,selection])
+  ], [mode, siteId, caps.pagesRead.allowed, caps.siteEdit.allowed, caps.pagesUpdate.allowed, perms.update.allowed, pages.length, navigate, onAdd, onUnpublish, onPublish,selection,actionTrigger])
+
+  // Phones get stacked product cards; the same columns render inside each card.
+  const renderCard = (product) => {
+    const cell = (id) => columns.find((c) => c.id === id)?.cell({ row: { original: product } })
+    return (
+      <article className={ROW_CARD}>
+        <div className="flex items-start gap-2"><div className="min-w-0 flex-1">{cell('product')}</div>{cell('actions')}</div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[hsl(var(--border))] pt-3 text-sm">
+          {cell('price')}<StockPill product={product} />
+          {product.category_name && <span className="w-full text-xs text-[hsl(var(--muted-foreground))]">{product.category_name}</span>}
+        </div>
+        {mode === 'published' && <div className="mt-2">{cell('usage')}</div>}
+      </article>
+    )
+  }
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       <DataTable
         columns={columns}
         data={rows}
@@ -156,8 +196,17 @@ function ProductsTable({ mode, siteId, caps, perms, pages, onAdd, onUnpublish, o
         emptyTitle={mode === 'published' ? 'Todavía no hay productos en la web' : 'No hay productos pendientes de publicar'}
         emptyDescription={mode === 'published' ? 'Publica productos de tu Catálogo desde la pestaña “Disponibles para publicar”.' : 'Todos los productos activos de tu Catálogo ya se muestran en la web.'}
         stateKey={`website-catalog:${siteId}:${mode}`}
+        viewModes={['table', 'cards']}
+        defaultViewMode={isMobile ? 'cards' : 'table'}
+        viewStorageKey={`website-catalog-view:${isMobile ? 'm' : 'd'}`}
+        renderCard={renderCard}
       />
-      <div className="flex gap-2"><Button variant="outline" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-PAGE_SIZE))}>Anteriores</Button><Button variant="outline" disabled={query.data?.meta.nextOffset==null} onClick={()=>setOffset(query.data.meta.nextOffset)}>Siguientes productos</Button></div>
+      {(offset > 0 || query.data?.meta.nextOffset != null) && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-xs tabular-nums text-[hsl(var(--muted-foreground))]">Productos {offset + 1}–{offset + rows.length}</span>
+          <div className="flex gap-2"><Button variant="outline" disabled={!offset} onClick={()=>setOffset(Math.max(0,offset-PAGE_SIZE))}><ChevronLeft className="h-4 w-4" aria-hidden />Anteriores</Button><Button variant="outline" disabled={query.data?.meta.nextOffset==null} onClick={()=>setOffset(query.data.meta.nextOffset)}>Siguientes productos<ChevronRight className="h-4 w-4" aria-hidden /></Button></div>
+        </div>
+      )}
     </div>
   )
 }
@@ -195,18 +244,17 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
 
   return (
     <div className="space-y-4 p-4 md:p-6">
-      <PageHeader
+      <SiteSectionHeader
+        icon={ShoppingBag}
+        tone="amber"
         title="Catálogo"
         description="Elige qué productos de tu Catálogo se muestran en la web y dónde aparecen en este sitio."
-        actions={<Button variant="outline" onClick={() => navigate('/app/m/runly.catalog')}><ExternalLink className="h-4 w-4" /> Abrir Catálogo</Button>}
+        actions={<Button variant="outline" onClick={() => navigate('/app/m/runly.catalog')}><ExternalLink className="h-4 w-4" aria-hidden /> Abrir Catálogo</Button>}
       />
-      <Alert role="note">
-        <Info className="h-4 w-4" aria-hidden="true" />
-        <div>
-          <AlertTitle>El Catálogo es de tu empresa</AlertTitle>
-          <AlertDescription>Los productos, precios, imágenes, variantes y categorías se editan en el Catálogo. “Mostrar en la web” aplica a todos los sitios de la empresa y es independiente de la disponibilidad en punto de venta.</AlertDescription>
-        </div>
-      </Alert>
+      <p role="note" className="flex gap-2 rounded-xl bg-[hsl(var(--muted))]/50 p-3 text-xs text-[hsl(var(--muted-foreground))]">
+        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+        <span><strong className="font-semibold text-[hsl(var(--foreground))]">El Catálogo es de tu empresa.</strong> Los productos, precios, imágenes, variantes y categorías se editan en el Catálogo. “Mostrar en la web” aplica a todos los sitios de la empresa y es independiente de la disponibilidad en punto de venta.</span>
+      </p>
       {site.siteType !== 'ecommerce' && (
         <Alert variant="warning" role="status">
           <Info className="h-4 w-4" aria-hidden="true" />
@@ -214,7 +262,7 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
             <AlertTitle>Este sitio no es de tipo “Sitio con Catálogo”</AlertTitle>
             <AlertDescription>
               Los bloques de producto solo aparecen en el editor de sitios con Catálogo.{' '}
-              <button type="button" className="underline" onClick={() => navigate(sitePath(siteId, 'settings'))}>Cambiar el tipo de sitio</button>
+              <button type="button" className="font-medium underline underline-offset-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]" onClick={() => navigate(sitePath(siteId, 'settings'))}>Cambiar el tipo de sitio</button>
             </AlertDescription>
           </div>
         </Alert>
@@ -226,12 +274,14 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
         </Alert>
       ) : (
         <>
-          <div className="max-w-xs"><SelectField label="Categoría" value={categoryId} onChange={setCategoryId} options={categoryOptions} /></div>
           <Tabs value={tab} onValueChange={setTab}>
-            <TabsList>
-              <TabsTrigger value="published">En la web</TabsTrigger>
-              <TabsTrigger value="available">Disponibles para publicar</TabsTrigger>
-            </TabsList>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+              <TabsList className="w-full sm:w-auto">
+                <TabsTrigger value="published" className="flex-1 sm:flex-none"><Store className="mr-1.5 h-4 w-4" aria-hidden />En la web</TabsTrigger>
+                <TabsTrigger value="available" className="flex-1 sm:flex-none"><Package className="mr-1.5 h-4 w-4" aria-hidden />Disponibles para publicar</TabsTrigger>
+              </TabsList>
+              <div className="w-full sm:max-w-xs"><SelectField label="Categoría" value={categoryId} onChange={setCategoryId} options={categoryOptions} /></div>
+            </div>
             {['published', 'available'].map((mode) => (
               <TabsContent key={mode} value={mode} className="pt-3">
                 <ProductsTable
@@ -242,7 +292,7 @@ export default function SiteCatalog({ siteId, site, caps, pages }) {
               </TabsContent>
             ))}
           </Tabs>
-          {!perms.update.allowed && <p className="text-xs text-[hsl(var(--muted-foreground))]">Tu rol no permite publicar ni quitar productos de la web; puedes consultarlos.</p>}
+          {!perms.update.allowed && <p className="flex items-center gap-1.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="h-3.5 w-3.5 shrink-0" aria-hidden />Tu rol no permite publicar ni quitar productos de la web; puedes consultarlos.</p>}
         </>
       )}
       {addTarget && <AddToPageDialog product={addTarget} pages={pageList} siteId={siteId} onClose={() => setAddTarget(null)} onDone={() => { setAddTarget(null); queryClient.invalidateQueries({ queryKey: ['website', companyId, 'site', siteId] }) }} />}
