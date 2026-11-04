@@ -4,6 +4,7 @@ import { assertWebsiteAccess } from './website-authorization-service.js'
 import { createWebsiteDraftService,normalizeWebsiteDocument,websiteDocumentHash as hash } from './website-draft-service.js'
 import {createWebsiteFormScopeService} from './website-form-scope-service.js'
 import {conformTemplateDocument} from './website-template-conform.js'
+import {isEffectProp,isValidEffect} from './website-block-effects.js'
 import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { createFileAccess } from './files/access.js'
@@ -201,6 +202,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
               if(block.type==='BookingFormBlock')throw failure('dynamic_binding_unavailable',422)
               for(const [name,value]of Object.entries(block.props??{})) {
                 const field=definition.fields[name]
+                if(isEffectProp(name)){if(!isValidEffect(name,value))throw failure('invalid_block_property',422);continue}
                 if(!field)throw failure('unknown_block_property',422)
                 if(value==null||JSON.stringify(value)===JSON.stringify(definition.defaultProps?.[name]))continue
                 if((['text','textarea','link','image','color'].includes(field.type)&&typeof value!=='string')||
