@@ -67,3 +67,14 @@
     transform: none;
   }
 }
+
+/*
+ * Page baseline for rendered websites. Blocks size themselves with width: 100% plus padding, which only fits with
+ * border-box, and the browser's default 8px body margin would leave a white frame around full-bleed sections.
+ */
+.runly-site, .runly-site *, .runly-site *::before, .runly-site *::after {
+  box-sizing: border-box;
+}
+body:has(.runly-site) {
+  margin: 0;
+}
