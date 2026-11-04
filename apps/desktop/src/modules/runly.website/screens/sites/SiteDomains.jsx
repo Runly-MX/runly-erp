@@ -6,6 +6,7 @@ import { describeError } from '../../lib/websiteErrors.js'
 import { validateHostSlug } from '../../lib/pageRoute.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
+import { SiteAddress } from '../../components/SiteAddress.jsx'
 
 // Never claims HTTPS or "active" while `ready` is false (contracts section 4).
 function domainStatus(domain) {
@@ -67,7 +68,7 @@ export default function SiteDomains({ siteId, caps }) {
             const status = domainStatus(domain)
             return (
               <li key={domain.hostname} className="flex flex-wrap items-center gap-3 text-sm">
-                <code className="break-all">{domain.hostname}</code>
+                <SiteAddress hostname={domain.hostname} ready={domain.ready} />
                 <StatusPill tone={status.tone} size="sm">{status.label}</StatusPill>
                 {!domain.ready && domain.state === 'pending' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya. Actívala cuando la infraestructura esté lista.</span>}
                 {!domain.registryManaged && <CapabilityButton capability={caps.reserveHostname} size="sm" variant="outline" onClick={() => act(domain, 'release')} disabled={rowBusy === domain.hostname}>Liberar</CapabilityButton>}
