@@ -9,7 +9,7 @@ import { createChatExtraEntityTypes, EXTRA_REFERENCE_PERMISSIONS } from "./chat-
 // instead of filtering a capped first page in the browser.
 export const SEARCHABLE_TYPES = [
   "contact", "hr_employee", "inventory_item", "vehicle",
-  "purchase_case", "purchase_order", "purchase_invoice", "pos_order",
+  "purchase_case", "purchase_order", "purchase_invoice", "pos_order", "note",
 ];
 
 const PERMISSIONS = {
@@ -82,7 +82,7 @@ export function createChatEntitySearchService({ prisma, fleetService, inventoryA
         status: v.status ?? null, statusBadgeType: "vehicle", coverImageFileId: v.cover_image_file_asset_id ?? null,
       }));
     }
-    return extra.search(entityType, companyId, q, limit);
+    return extra.search(entityType, companyId, q, limit, profileId);
   }
 
   // One type per call keeps the permission check and the payload simple;

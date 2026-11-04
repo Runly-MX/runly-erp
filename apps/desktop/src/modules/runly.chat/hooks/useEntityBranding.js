@@ -24,6 +24,7 @@ const MODULE_BY_ENTITY = {
   calendar_event: "runly.calendar",
   ledger_account: "runly.ledger",
   file: "runly.files",
+  note: "runly.notes",
 };
 
 // Shared with useRuntimeModules (same query key and fetcher), reduced to the

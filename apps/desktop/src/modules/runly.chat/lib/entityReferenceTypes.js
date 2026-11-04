@@ -1,4 +1,4 @@
-import { User, Paperclip, Landmark, IdCard, SquareKanban, CheckSquare, CalendarDays, Car, Package, ClipboardList, Receipt, FolderKanban, ShoppingCart } from "lucide-react";
+import { User, Paperclip, Landmark, IdCard, SquareKanban, CheckSquare, CalendarDays, Car, Package, ClipboardList, Receipt, FolderKanban, ShoppingCart, StickyNote } from "lucide-react";
 import { runly } from "../../../lib/runly";
 
 // Every connector type the chat composer's "+" picker can attach to a
@@ -22,6 +22,7 @@ export const ENTITY_TYPE_LIST = [
   { value: "purchase_invoice", label: "Factura de compra", Icon: Receipt, flat: true },
   { value: "purchase_case", label: "Expediente de compra", Icon: FolderKanban, flat: true },
   { value: "pos_order", label: "Pedido POS", Icon: ShoppingCart, flat: true },
+  { value: "note", label: "Nota", Icon: StickyNote, flat: true },
 ];
 
 // Types searched on the server across all their attributes (serial number,
@@ -29,7 +30,7 @@ export const ENTITY_TYPE_LIST = [
 // plus client-side filtering below.
 export const SERVER_SEARCH_TYPES = new Set([
   "contact", "hr_employee", "inventory_item", "vehicle",
-  "purchase_order", "purchase_invoice", "purchase_case", "pos_order",
+  "purchase_order", "purchase_invoice", "purchase_case", "pos_order", "note",
 ]);
 
 // Module shortcuts for the composer's /module:search. `aliases[0]` is what
@@ -43,6 +44,7 @@ export const SLASH_SOURCES = [
   { key: "purchase_invoice", label: "Facturas de compra", aliases: ["facturas", "factura"], color: "#ef4444" },
   { key: "purchase_case", label: "Expedientes de compra", aliases: ["expedientes", "expediente"], color: "#64748b" },
   { key: "pos_order", label: "Pedidos POS", aliases: ["pedidos", "pos", "ventas"], color: "#ec4899" },
+  { key: "note", label: "Notas", aliases: ["notas", "nota", "apuntes"], color: "#eab308" },
   { key: "project", label: "Proyectos", aliases: ["proyectos", "proyecto"], color: "#6366f1" },
   { key: "calendar_event", label: "Eventos", aliases: ["eventos", "calendario", "evento"], color: "#22c55e" },
   { key: "ledger_account", label: "Cuentas", aliases: ["cuentas", "bancos"], color: "#10b981" },

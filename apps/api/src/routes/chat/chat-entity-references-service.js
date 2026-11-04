@@ -159,7 +159,7 @@ export function createChatEntityReferencesService({ prisma, contactsService, fil
           ].filter((d) => d.value),
         };
       }
-      if (EXTRA_REFERENCE_PERMISSIONS[entityType]) return await extraTypes.resolve(entityType, ctx.companyId, recordId);
+      if (EXTRA_REFERENCE_PERMISSIONS[entityType]) return await extraTypes.resolve(entityType, ctx.companyId, recordId, ctx.profileId);
       return null; // unknown entityType — drop silently
     } catch {
       return null; // any resolution failure (404/403/etc from the target service) — drop silently, never surface

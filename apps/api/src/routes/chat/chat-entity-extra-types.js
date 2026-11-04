@@ -10,6 +10,7 @@ export const EXTRA_REFERENCE_PERMISSIONS = {
   purchase_order: "purchases.order.read",
   purchase_invoice: "purchases.invoice.read",
   pos_order: "pos.orders.read",
+  note: "notes.notes.read",
 };
 
 const STATUS_ES = {
@@ -51,8 +52,32 @@ export function createChatExtraEntityTypes({ prisma }) {
     subtitle: [row.status, money(row.totalAmount, "MXN")].filter(Boolean).join(" · ") || null,
   });
 
-  async function search(entityType, companyId, q, limit) {
+  const noteOption = (row) => ({
+    entityType: "note", recordId: row.id, label: row.title || "Sin título",
+    subtitle: row.content_text ? String(row.content_text).slice(0, 80) : null,
+  });
+
+  // Notes are private per user: only notes the actor owns or was shared, in
+  // this company (or personal), never trashed.
+  async function findNotes({ companyId, profileId, recordId = null, q = "", take }) {
+    if (!profileId) return [];
+    const pattern = `%${terms(q).join("%")}%`;
+    return prisma.$queryRaw`
+      SELECT n.id, n.title, LEFT(n.content_text, 300) AS content_text, n.updated_at
+      FROM notes n
+      WHERE n.deleted_at IS NULL AND n.is_trashed IS NOT TRUE
+        AND (n.company_id = ${companyId}::uuid OR n.company_id IS NULL)
+        AND (${recordId}::uuid IS NULL OR n.id = ${recordId}::uuid)
+        AND (${pattern} = '%%' OR n.title ILIKE ${pattern} OR n.content_text ILIKE ${pattern})
+        AND public.runly_note_user_access(n.id, ${profileId}::uuid, false)
+      ORDER BY n.updated_at DESC
+      LIMIT ${take}
+    `;
+  }
+
+  async function search(entityType, companyId, q, limit, profileId) {
     const take = Math.min(Math.max(limit, 1), 30);
+    if (entityType === "note") return (await findNotes({ companyId, profileId, q, take })).map(noteOption);
     if (entityType === "purchase_case") {
       const rows = await prisma.purchaseCase.findMany({
         where: { companyId, ...whereTerms(q, ["number", "title", "description"]) },
@@ -97,7 +122,16 @@ export function createChatExtraEntityTypes({ prisma }) {
   }
 
   // Returns the card snapshot (+ `details` for the preview popover) or null.
-  async function resolve(entityType, companyId, recordId) {
+  async function resolve(entityType, companyId, recordId, profileId) {
+    if (entityType === "note") {
+      const [row] = await findNotes({ companyId, profileId, recordId, take: 1 });
+      if (!row) return null;
+      return {
+        ...noteOption(row), title: row.title || "Sin título",
+        url: `/app/m/runly.notes/notes?note=${recordId}`,
+        details: compact([{ label: "Actualizada", value: dateOnly(row.updated_at) }]),
+      };
+    }
     if (entityType === "purchase_case") {
       const row = await prisma.purchaseCase.findFirst({ where: { id: recordId, companyId } });
       if (!row) return null;
