@@ -2,32 +2,6 @@
 // publishable catalog, and never external images (publishing rejects them): the look comes from a tinted hero, a
 // background rhythm between sections, a keyword strip, a pull quote and a prominent closing call to action.
 const POLISH = {
-  'atlas-restaurante': {
-    tint: ['#FBE3C8', '#FFFBF5'],
-    strip: { items: 'Cocina de mercado · Producto local · Horno de leña · Postres de la casa · Carta de vinos', background: 'dark' },
-    quote: { quote: 'La buena mesa empieza con buenos ingredientes y termina con buena compañía.', attribution: '— El equipo de cocina', background: 'cream', after: 'gallery' },
-  },
-  'atlas-spa': {
-    tint: ['#CFEAE3', '#F7FAF8'],
-    strip: { items: 'Masajes · Faciales · Aromaterapia · Yoga · Hidroterapia · Nutrición', background: 'cream' },
-    quote: { quote: 'El bienestar no es un destino: es un ritual que eliges cada día.', attribution: '— El equipo Serenity', background: 'cream', after: 'stats' },
-  },
-  'atlas-agencia': {
-    tint: ['#E9E3FF', '#FAFAFB'],
-    strip: { items: 'Estrategia · Branding · Sitios web · Producto digital · Contenido · Performance', background: 'dark' },
-    quote: { quote: 'Diseñamos para que tu marca se note y tu negocio crezca.', attribution: '— Dirección creativa', background: 'dark', after: 'features' },
-    closing: 'gradient-dark',
-  },
-  'atlas-negocio': {
-    tint: ['#DBE7FF', '#FFFFFF'],
-    strip: { items: 'Consultoría · Finanzas · Operaciones · Capacitación · Tecnología', background: 'dark' },
-    quote: { quote: 'Las decisiones claras nacen de números claros y de un plan que se puede ejecutar.', attribution: '— Nuestro equipo', background: 'cream', after: 'stats' },
-  },
-  'atlas-habitia': {
-    tint: ['#F1DFD0', '#FAF7F2'],
-    strip: null,
-    quote: null,
-  },
 }
 
 // The built-in galleries ship without photos and would render as grey boxes; they become text tiles until the

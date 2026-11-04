@@ -5,14 +5,14 @@ const serif = "'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif"
 
 export const TEMPLATE_THEMES = {
   'atlas-restaurante': {
-    color: { primary: '#9A3412', primaryFg: '#FFFFFF', bg: '#FFFBF5', fg: '#1C1917', muted: '#78716C', accent: '#D97706' },
+    color: { primary: '#8C2F1B', primaryFg: '#FFFFFF', bg: '#FBF3E4', fg: '#2A1810', muted: '#6B5445', accent: '#E6B85C' },
     font: { sans: serif },
     radius: { md: '6px', lg: '10px' },
     button: { style: 'solid', radius: 'sm' },
     card: { radius: 'md', shadow: 'sm', padding: '6' },
   },
   'atlas-spa': {
-    color: { primary: '#0F766E', primaryFg: '#FFFFFF', bg: '#F7FAF8', fg: '#16302B', muted: '#5F7A74', accent: '#C08457' },
+    color: { primary: '#2F6B5F', primaryFg: '#FFFFFF', bg: '#F6F3EE', fg: '#1F3A35', muted: '#55706A', accent: '#8A5A3C' },
     font: { sans },
     radius: { md: '12px', lg: '24px' },
     button: { style: 'solid', radius: 'pill' },
@@ -26,21 +26,21 @@ export const TEMPLATE_THEMES = {
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
   'atlas-agencia': {
-    color: { primary: '#6D28D9', primaryFg: '#FFFFFF', bg: '#FAFAFB', fg: '#0F0A1F', muted: '#6B6880', accent: '#F59E0B' },
+    color: { primary: '#C6FF3D', primaryFg: '#0B0B0F', bg: '#0B0B0F', fg: '#F4F4EF', muted: '#A8A8B3', accent: '#C6FF3D' },
     font: { sans },
-    radius: { md: '8px', lg: '14px' },
-    button: { style: 'solid', radius: 'md' },
-    card: { radius: 'lg', shadow: 'md', padding: '6' },
+    radius: { md: '4px', lg: '8px' },
+    button: { style: 'solid', radius: 'pill' },
+    card: { radius: 'md', shadow: 'none', padding: '6' },
   },
   'atlas-negocio': {
-    color: { primary: '#1E40AF', primaryFg: '#FFFFFF', bg: '#FFFFFF', fg: '#0F172A', muted: '#64748B', accent: '#0EA5E9' },
+    color: { primary: '#1E40AF', primaryFg: '#FFFFFF', bg: '#F8FAFC', fg: '#0F172A', muted: '#475569', accent: '#0369A1' },
     font: { sans },
     radius: { md: '8px', lg: '12px' },
     button: { style: 'solid', radius: 'md' },
-    card: { radius: 'lg', shadow: 'md', padding: '6' },
+    card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
   'atlas-habitia': {
-    color: { primary: '#B5603A', primaryFg: '#FFFFFF', bg: '#FAF7F2', fg: '#1A1410', muted: '#8C7E72', accent: '#4D6B4A' },
+    color: { primary: '#A4522E', primaryFg: '#FFFFFF', bg: '#FAF7F2', fg: '#2A1E17', muted: '#6B5A4C', accent: '#4D6B4A' },
     font: { sans: serif },
     radius: { md: '4px', lg: '8px' },
     button: { style: 'solid', radius: 'sm' },
