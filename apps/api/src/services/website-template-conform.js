@@ -1,4 +1,5 @@
 import { createRequire } from 'node:module'
+import { isEffectProp } from './website-block-effects.js'
 
 // Built-in templates were authored against looser block props than the publishable catalog enforces
 // (select values outside the options, props the block does not have). They are conformed when applied so a template
@@ -51,6 +52,7 @@ export function conformTemplateDocument(document) {
     const definition = definitions.get(block.type)
     if (!definition || !block.props) continue
     for (const [name, value] of Object.entries(block.props)) {
+      if (isEffectProp(name)) continue
       const field = definition.fields[name]
       if (!field) { delete block.props[name]; continue }
       if (field.type === 'select' && !field.options?.includes(value)) {

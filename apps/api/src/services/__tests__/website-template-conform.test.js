@@ -4,6 +4,7 @@ import { createRequire } from 'node:module'
 import { conformTemplateDocument, nearestOption } from '../website-template-conform.js'
 import { allTemplates } from '../../../../desktop/src/website/runlyTemplates/index.js'
 import { normalizeWebsiteDocument } from '../website-draft-service.js'
+import { isEffectProp, isValidEffect } from '../website-block-effects.js'
 
 const definitions = new Map(createRequire(import.meta.url)('../../routes/website/block-catalog.json').blocks.map((b) => [b.type, b]))
 
@@ -22,6 +23,7 @@ test('every built-in template page passes the publish rules for block props once
     for (const block of Object.values(document.blocks)) {
       const definition = definitions.get(block.type)
       for (const [name, value] of Object.entries(block.props ?? {})) {
+        if (isEffectProp(name)) { assert.ok(isValidEffect(name, value), `${template.id}/${page.id} ${block.type}.${name} is not a valid effect`); continue }
         const field = definition.fields[name]
         assert.ok(field, `${template.id}/${page.id} ${block.type}.${name} is unknown`)
         if (value == null || JSON.stringify(value) === JSON.stringify(definition.defaultProps?.[name])) continue
