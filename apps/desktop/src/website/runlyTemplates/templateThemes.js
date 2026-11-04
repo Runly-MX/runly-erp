@@ -53,4 +53,11 @@ export const TEMPLATE_THEMES = {
     button: { style: 'solid', radius: 'pill' },
     card: { radius: 'lg', shadow: 'sm', padding: '6' },
   },
+  'atlas-maya': {
+    color: { primary: '#2563EB', primaryFg: '#FFFFFF', bg: '#F5F9FF', fg: '#0F2347', muted: '#5B6B88', accent: '#FBBF24' },
+    font: { sans },
+    radius: { md: '12px', lg: '20px' },
+    button: { style: 'solid', radius: 'pill' },
+    card: { radius: 'lg', shadow: 'md', padding: '6' },
+  },
 }
