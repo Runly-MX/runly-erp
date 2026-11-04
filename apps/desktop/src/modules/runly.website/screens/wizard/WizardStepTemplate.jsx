@@ -1,6 +1,7 @@
 // apps/desktop/src/modules/runly.website/screens/wizard/WizardStepTemplate.jsx
 import { useState } from 'react'
-import { Badge } from '@runly/ui'
+import { Badge, Button, Checkbox } from '@runly/ui'
+import { ArrowLeft, FilePlus2, Loader2 } from 'lucide-react'
 import { allTemplates } from '../../../../website/runlyTemplates/index.js'
 
 export function WizardStepTemplate({ onNext, onBack, isPending }) {
@@ -16,68 +17,64 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
     onNext({ template: selectedTemplate, selectedPages })
   }
 
+  const toggle = (id, checked) => setSelectedPages((prev) => (checked ? [...prev, id] : prev.filter((x) => x !== id)))
+
   return (
     <div className="space-y-4">
       {!selectedTemplate ? (
-        <div className="grid grid-cols-2 gap-3 max-h-80 overflow-y-auto pr-1">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <button type="button" onClick={handleSubmit}
+            className="flex items-center gap-3 rounded-2xl border-2 border-dashed border-[hsl(var(--border))] p-4 text-left transition-colors hover:border-orange-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] sm:col-span-2">
+            <span className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"><FilePlus2 className="h-5 w-5" aria-hidden /></span>
+            <span>
+              <span className="block font-semibold">Empezar en blanco</span>
+              <span className="block text-sm text-[hsl(var(--muted-foreground))]">Sin plantilla: tú agregas las páginas.</span>
+            </span>
+          </button>
           {allTemplates.map((tpl) => (
             <button
               key={tpl.id}
               type="button"
               onClick={() => handleSelect(tpl)}
-              className="text-left rounded-2xl border-2 border-border hover:border-primary/40 hover:shadow-lg overflow-hidden transition-all duration-200 group bg-card"
+              className="group overflow-hidden rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-left transition-colors hover:border-orange-500/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"
             >
-              <div className="h-24 relative overflow-hidden" style={{ background: `linear-gradient(135deg, ${tpl.color}, ${tpl.color}aa)` }}>
-                <div className="absolute top-2 right-2 bg-black/30 backdrop-blur-sm text-white text-[10px] font-medium px-2 py-0.5 rounded-full">
-                  {tpl.pages?.length ?? 0} pag
+              <div className="relative h-24 overflow-hidden" style={{ background: `linear-gradient(135deg, ${tpl.color}, ${tpl.color}aa)` }}>
+                <div className="absolute left-3 top-3 right-3 space-y-1.5" aria-hidden>
+                  <span className="block h-1.5 w-1/3 rounded-full bg-white/70" />
+                  <span className="block h-1.5 w-1/2 rounded-full bg-white/40" />
+                  <span className="block h-5 w-16 rounded-md bg-white/80" />
                 </div>
+                <span className="absolute bottom-2 right-2 rounded-full bg-black/30 px-2 py-0.5 text-[10px] font-medium text-white backdrop-blur-sm">
+                  {tpl.pages?.length ?? 0} {tpl.pages?.length === 1 ? 'página' : 'páginas'}
+                </span>
               </div>
               <div className="p-3.5">
-                <p className="text-sm font-bold text-foreground group-hover:text-primary transition-colors">{tpl.label}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{tpl.description}</p>
+                <p className="text-sm font-semibold group-hover:text-orange-600 dark:group-hover:text-orange-400">{tpl.label}</p>
+                <p className="mt-0.5 line-clamp-2 text-xs text-[hsl(var(--muted-foreground))]">{tpl.description}</p>
               </div>
             </button>
           ))}
         </div>
       ) : (
         <div className="space-y-4">
-          <div className="flex items-center justify-between bg-primary/5 border border-primary/20 rounded-2xl px-4 py-3">
+          <div className="flex items-center justify-between rounded-2xl border border-orange-500/30 bg-orange-500/5 px-4 py-3">
             <div className="flex items-center gap-2.5">
-              <div className="w-3 h-3 rounded-full" style={{ background: selectedTemplate.color }}/>
-              <span className="text-sm font-semibold text-primary">{selectedTemplate.label}</span>
+              <span className="h-3 w-3 rounded-full" style={{ background: selectedTemplate.color }} />
+              <span className="text-sm font-semibold">{selectedTemplate.label}</span>
             </div>
-            <button type="button" onClick={() => setSelectedTemplate(null)}
-              className="text-xs text-primary/70 hover:text-primary font-semibold transition-colors">
-              Cambiar plantilla
-            </button>
+            <Button variant="ghost" size="sm" onClick={() => setSelectedTemplate(null)}>Cambiar plantilla</Button>
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground mb-2.5">Páginas a incluir</p>
-            <div className="space-y-2 max-h-64 overflow-y-auto pr-1">
+            <p className="mb-2.5 text-sm font-semibold">Páginas a incluir</p>
+            <div className="max-h-72 space-y-2 overflow-y-auto pr-1">
               {selectedTemplate.pages.map((p) => (
-                <label
-                  key={p.id}
-                  className={`flex items-center gap-3 p-3 rounded-xl border-2 cursor-pointer transition-all ${
-                    selectedPages.includes(p.id) ? 'border-primary/30 bg-primary/5' : 'border-border bg-card/50'
-                  } ${p.required ? 'opacity-75' : ''}`}
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedPages.includes(p.id)}
-                    disabled={p.required}
-                    onChange={(e) => {
-                      if (e.target.checked) setSelectedPages((prev) => [...prev, p.id])
-                      else setSelectedPages((prev) => prev.filter((id) => id !== p.id))
-                    }}
-                    className="w-4 h-4 rounded accent-primary"
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-foreground">{p.label}</p>
-                    <p className="text-xs text-muted-foreground font-mono">{p.routePath}</p>
+                <label key={p.id} className={`flex cursor-pointer items-center gap-3 rounded-xl border p-3 transition-colors ${selectedPages.includes(p.id) ? 'border-orange-500/40 bg-orange-500/5' : 'border-[hsl(var(--border))]'}`}>
+                  <Checkbox checked={selectedPages.includes(p.id)} disabled={p.required} onCheckedChange={(checked) => toggle(p.id, Boolean(checked))} aria-label={`Incluir ${p.label}`} />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-medium">{p.label}</p>
+                    <p className="font-mono text-xs text-[hsl(var(--muted-foreground))]">{p.routePath}</p>
                   </div>
-                  {p.required && (
-                    <Badge variant="warning">Requerida</Badge>
-                  )}
+                  {p.required && <Badge variant="warning">Requerida</Badge>}
                 </label>
               ))}
             </div>
@@ -85,31 +82,14 @@ export function WizardStepTemplate({ onNext, onBack, isPending }) {
         </div>
       )}
 
-      <div className="flex gap-3 pt-2">
-        {onBack && (
-          <button type="button" onClick={onBack}
-            className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all">
-            Atrás
-          </button>
+      <div className="flex gap-3 pt-1">
+        {onBack && <Button variant="outline" className="flex-1" onClick={onBack}><ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />Atrás</Button>}
+        {selectedTemplate && (
+          <Button className="flex-1" disabled={isPending} onClick={handleSubmit}>
+            {isPending && <Loader2 className="mr-1.5 h-4 w-4 animate-spin" aria-hidden />}
+            {isPending ? 'Creando sitio…' : `Crear con ${selectedPages.length} página${selectedPages.length !== 1 ? 's' : ''}`}
+          </Button>
         )}
-        <button
-          type="button"
-          disabled={isPending}
-          onClick={handleSubmit}
-          className="flex-1 py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-60 transition-all flex items-center justify-center gap-2"
-        >
-          {isPending ? (
-            <>
-              <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="3" strokeOpacity="0.25"/>
-                <path d="M12 2a10 10 0 0 1 10 10" stroke="currentColor" strokeWidth="3" strokeLinecap="round"/>
-              </svg>
-              Creando sitio...
-            </>
-          ) : selectedTemplate
-            ? `Crear con ${selectedPages.length} página${selectedPages.length !== 1 ? 's' : ''}`
-            : 'Crear sitio en blanco'}
-        </button>
       </div>
     </div>
   )

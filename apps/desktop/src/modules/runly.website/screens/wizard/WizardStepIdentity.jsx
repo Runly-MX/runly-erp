@@ -1,15 +1,10 @@
 // apps/desktop/src/modules/runly.website/screens/wizard/WizardStepIdentity.jsx
-import { useState, useEffect, useRef } from 'react'
-import { DistDropZone } from '@runly/ui'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Button, DistDropZone } from '@runly/ui'
+import { ImagePlus, Palette, Type } from 'lucide-react'
 import { extractColorsFromFile, extractColorsFromBlobUrl, PRESET_COLORS } from '../../lib/colorExtract.js'
-
-const FONTS = [
-  { value: 'Inter',            label: 'Inter',            family: 'Inter, sans-serif' },
-  { value: 'Playfair Display', label: 'Playfair Display', family: "'Playfair Display', serif" },
-  { value: 'Space Grotesk',    label: 'Space Grotesk',    family: "'Space Grotesk', sans-serif" },
-  { value: 'DM Sans',          label: 'DM Sans',          family: "'DM Sans', sans-serif" },
-  { value: 'Merriweather',     label: 'Merriweather',     family: "'Merriweather', serif" },
-]
+import { fontCss } from '../../lib/siteFonts.js'
+import { WizardFontPicker, useFontsReady } from './WizardFontPicker.jsx'
 
 const FIVE_MB = 5 * 1024 * 1024
 
@@ -78,16 +73,79 @@ function LogoZone({ logoFile, logoPreviewUrl, companyLogoUrl, useCompanyLogo, on
   )
 }
 
-export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBack }) {
-  const [identity, setIdentity] = useState(defaultValues ?? {
-    primaryColor: '#4F46E5',
-    bgColor: '#FFFFFF',
-    font: 'Inter',
-  })
+function Section({ icon: Icon, title, hint, children }) {
+  return (
+    <section className="rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4">
+      <div className="mb-3 flex items-center gap-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-orange-500/12 text-orange-600 dark:text-orange-400"><Icon className="h-4 w-4" aria-hidden /></span>
+        <div className="min-w-0">
+          <h3 className="text-sm font-semibold">{title}</h3>
+          {hint && <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>}
+        </div>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function ColorField({ label, value, onChange }) {
+  return (
+    <div>
+      <label className="mb-1.5 block text-xs font-semibold text-[hsl(var(--muted-foreground))]">{label}</label>
+      <div className="flex items-center gap-2.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2 transition-colors focus-within:border-[hsl(var(--ring))]">
+        <div className="relative">
+          <input type="color" value={value} onChange={(e) => onChange(e.target.value)} aria-label={label} className="absolute inset-0 h-full w-full cursor-pointer opacity-0" />
+          <div className="h-8 w-8 rounded-lg border border-[hsl(var(--border))] shadow-sm" style={{ background: value }} />
+        </div>
+        <input type="text" value={value} onChange={(e) => onChange(e.target.value)} aria-label={`${label} (código)`} className="min-w-0 flex-1 bg-transparent font-mono text-sm outline-none" />
+      </div>
+    </div>
+  )
+}
+
+function Swatches({ colors, current, onPick }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {colors.map((color) => (
+        <button key={color} type="button" onClick={() => onPick(color)} aria-label={`Usar ${color}`} aria-pressed={current === color}
+          className={`h-8 w-8 rounded-lg border-2 transition-transform hover:scale-110 active:scale-95 ${current === color ? 'scale-110 border-[hsl(var(--foreground))] ring-2 ring-[hsl(var(--foreground))]/20' : 'border-[hsl(var(--border))]'}`}
+          style={{ background: color }} />
+      ))}
+    </div>
+  )
+}
+
+// A browser-window mock of the site so color and type choices read at a glance.
+function LivePreview({ name, identity, logoUrl }) {
+  const ready = useFontsReady(useMemo(() => [identity.headingFont, identity.bodyFont], [identity.headingFont, identity.bodyFont]))
+  const heading = ready.has(identity.headingFont) ? { fontFamily: fontCss(identity.headingFont) } : undefined
+  const body = ready.has(identity.bodyFont) ? { fontFamily: fontCss(identity.bodyFont) } : undefined
+  return (
+    <div className="overflow-hidden rounded-2xl border border-[hsl(var(--border))] shadow-sm" aria-label="Vista previa del estilo">
+      <div className="flex items-center gap-1.5 border-b border-[hsl(var(--border))] bg-[hsl(var(--muted))]/60 px-3 py-2">
+        <span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" /><span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" /><span className="h-2 w-2 rounded-full bg-[hsl(var(--border))]" />
+        <span className="ml-2 truncate rounded-md bg-[hsl(var(--background))] px-2 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">{(name || 'mi-sitio').toLowerCase().replace(/\s+/g, '-')}.sites</span>
+      </div>
+      <div className="space-y-3 p-5 transition-colors" style={{ background: identity.bgColor }}>
+        <div className="flex items-center gap-2">
+          {logoUrl ? <img src={logoUrl} alt="" className="h-6 max-w-24 object-contain" /> : <span className="h-5 w-5 rounded-md" style={{ background: identity.primaryColor }} />}
+          <span className="text-xs font-semibold" style={{ ...heading, color: identity.primaryColor }}>{name || 'Mi sitio'}</span>
+        </div>
+        <h4 className="text-2xl font-bold leading-tight" style={{ ...heading, color: identity.primaryColor }}>{name || 'Tu negocio, en línea'}</h4>
+        <p className="max-w-sm text-sm opacity-80" style={{ ...body, color: '#334155' }}>Así se verán tus textos. Cambia colores y fuentes y mira el resultado al instante.</p>
+        <span className="inline-block rounded-lg px-4 py-2 text-xs font-semibold text-white" style={{ ...body, background: identity.primaryColor }}>Contáctanos</span>
+      </div>
+    </div>
+  )
+}
+
+export function WizardStepIdentity({ defaultValues, companyLogoUrl, siteName = '', onNext, onBack }) {
+  const [identity, setIdentity] = useState(() => ({ primaryColor: '#4F46E5', bgColor: '#FFFFFF', font: 'Inter', headingFont: 'Inter', bodyFont: 'Inter', ...(defaultValues ?? {}) }))
   const [logoFile,        setLogoFile]        = useState(null)
   const [logoPreviewUrl,  setLogoPreviewUrl]  = useState(null)
   const [useCompanyLogo,  setUseCompanyLogo]  = useState(false)
   const [suggestedColors, setSuggestedColors] = useState(PRESET_COLORS)
+  const set = (patch) => setIdentity((i) => ({ ...i, ...patch }))
 
   useEffect(() => {
     if (!logoFile) {
@@ -110,14 +168,18 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
     })
   }, [useCompanyLogo, companyLogoUrl])
 
+  // `font` stays the body family so older consumers keep working.
   function handleSubmit() {
-    onNext({ ...identity, logoFile, useCompanyLogo })
+    onNext({ ...identity, font: identity.bodyFont, logoFile, useCompanyLogo })
   }
 
+  const fromLogo = suggestedColors !== PRESET_COLORS && suggestedColors.length > 0
+
   return (
-    <div className="space-y-5">
-      <div>
-        <label className="block text-sm font-semibold text-foreground mb-2">Logo del sitio</label>
+    <div className="space-y-4">
+      <LivePreview name={siteName} identity={identity} logoUrl={logoPreviewUrl ?? (useCompanyLogo ? companyLogoUrl : null)} />
+
+      <Section icon={ImagePlus} title="Logo" hint="Opcional. De aquí sacamos colores sugeridos.">
         <LogoZone
           logoFile={logoFile}
           logoPreviewUrl={logoPreviewUrl}
@@ -127,103 +189,32 @@ export function WizardStepIdentity({ defaultValues, companyLogoUrl, onNext, onBa
           onUseCompany={() => { setLogoFile(null); setLogoPreviewUrl(null); setUseCompanyLogo(true) }}
           onRemove={() => { setLogoFile(null); setLogoPreviewUrl(null); setUseCompanyLogo(false); setSuggestedColors(PRESET_COLORS) }}
         />
-      </div>
+      </Section>
 
-      <hr className="border-border"/>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold text-foreground mb-1.5">Color primario</label>
-          <div className="flex items-center gap-2.5 border-2 border-border rounded-xl px-3 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all bg-background">
-            <div className="relative">
-              <input type="color" value={identity.primaryColor}
-                onChange={(e) => setIdentity((i) => ({ ...i, primaryColor: e.target.value }))}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/>
-              <div className="w-8 h-8 rounded-lg shadow-sm border border-border/50" style={{ background: identity.primaryColor }}/>
-            </div>
-            <input type="text" value={identity.primaryColor}
-              onChange={(e) => setIdentity((i) => ({ ...i, primaryColor: e.target.value }))}
-              className="flex-1 text-sm font-mono text-foreground outline-none bg-transparent"/>
+      <Section icon={Palette} title="Colores" hint="Un color de marca y el fondo de tus páginas.">
+        <div className="grid gap-4 sm:grid-cols-2">
+          <ColorField label="Color primario" value={identity.primaryColor} onChange={(primaryColor) => set({ primaryColor })} />
+          <ColorField label="Color de fondo" value={identity.bgColor} onChange={(bgColor) => set({ bgColor })} />
+        </div>
+        {fromLogo && (
+          <div className="mt-4">
+            <p className="mb-2 text-xs font-semibold text-[hsl(var(--muted-foreground))]">Extraídos del logo</p>
+            <Swatches colors={suggestedColors} current={identity.primaryColor} onPick={(primaryColor) => set({ primaryColor })} />
           </div>
-        </div>
-        <div>
-          <label className="block text-sm font-semibold text-foreground mb-1.5">Color de fondo</label>
-          <div className="flex items-center gap-2.5 border-2 border-border rounded-xl px-3 py-2.5 focus-within:border-primary focus-within:ring-2 focus-within:ring-primary/20 transition-all bg-background">
-            <div className="relative">
-              <input type="color" value={identity.bgColor}
-                onChange={(e) => setIdentity((i) => ({ ...i, bgColor: e.target.value }))}
-                className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"/>
-              <div className="w-8 h-8 rounded-lg shadow-sm border border-border" style={{ background: identity.bgColor }}/>
-            </div>
-            <input type="text" value={identity.bgColor}
-              onChange={(e) => setIdentity((i) => ({ ...i, bgColor: e.target.value }))}
-              className="flex-1 text-sm font-mono text-foreground outline-none bg-transparent"/>
-          </div>
-        </div>
-      </div>
-
-      {suggestedColors !== PRESET_COLORS && suggestedColors.length > 0 && (
-        <div>
-          <p className="text-xs font-semibold text-muted-foreground mb-2">Colores extraídos del logo</p>
-          <div className="flex gap-2 flex-wrap">
-            {suggestedColors.map((color) => (
-              <button key={color} type="button" onClick={() => setIdentity((i) => ({ ...i, primaryColor: color }))}
-                aria-label={`Usar ${color}`}
-                className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 active:scale-95 ${
-                  identity.primaryColor === color ? 'border-foreground scale-110 ring-2 ring-foreground/20' : 'border-border hover:border-foreground/40'
-                }`}
-                style={{ background: color }}/>
-            ))}
-          </div>
-        </div>
-      )}
-
-      <div>
-        <p className="text-xs font-semibold text-muted-foreground mb-2">Colores predefinidos</p>
-        <div className="flex gap-2 flex-wrap">
-          {PRESET_COLORS.map((color) => (
-            <button key={color} type="button" onClick={() => setIdentity((i) => ({ ...i, primaryColor: color }))}
-              aria-label={`Usar ${color}`}
-              className={`w-8 h-8 rounded-lg border-2 transition-all hover:scale-110 active:scale-95 ${
-                identity.primaryColor === color ? 'border-foreground scale-110 ring-2 ring-foreground/20' : 'border-border hover:border-foreground/40'
-              }`}
-              style={{ background: color }}/>
-          ))}
-        </div>
-      </div>
-
-      <div className="h-8 rounded-xl border border-border transition-all duration-300"
-        style={{ background: `linear-gradient(90deg, ${identity.primaryColor} 0%, ${identity.primaryColor}bb 40%, ${identity.bgColor} 100%)` }}/>
-
-      <div>
-        <label className="block text-sm font-semibold text-foreground mb-2">Tipografía</label>
-        <div className="grid grid-cols-5 gap-2">
-          {FONTS.map((f) => (
-            <button key={f.value} type="button"
-              onClick={() => setIdentity((i) => ({ ...i, font: f.value }))}
-              className={`rounded-xl border-2 p-3 text-center transition-all duration-150 ${
-                identity.font === f.value
-                  ? 'border-primary bg-primary/5 ring-2 ring-primary/20'
-                  : 'border-border hover:border-border/80 bg-card'
-              }`}>
-              <p className="text-lg font-semibold text-foreground leading-none" style={{ fontFamily: f.family }}>Aa</p>
-              <p className="text-[10px] text-muted-foreground mt-1.5 leading-tight truncate">{f.label}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="flex gap-3 pt-2">
-        {onBack && (
-          <button type="button" onClick={onBack}
-            className="flex-1 py-3 rounded-xl font-semibold text-sm text-foreground border-2 border-border hover:bg-muted transition-all">
-            Atrás
-          </button>
         )}
-        <button type="button" onClick={handleSubmit}
-          className="flex-1 py-3 rounded-xl font-semibold text-sm bg-primary text-primary-foreground hover:bg-primary/90 transition-all">
-          Siguiente
-        </button>
+        <div className="mt-4">
+          <p className="mb-2 text-xs font-semibold text-[hsl(var(--muted-foreground))]">Predefinidos</p>
+          <Swatches colors={PRESET_COLORS} current={identity.primaryColor} onPick={(primaryColor) => set({ primaryColor })} />
+        </div>
+      </Section>
+
+      <Section icon={Type} title="Tipografía" hint="Elige una combinación o ajusta títulos y texto por separado.">
+        <WizardFontPicker headingFont={identity.headingFont} bodyFont={identity.bodyFont} onChange={set} />
+      </Section>
+
+      <div className="flex gap-3 pt-1">
+        {onBack && <Button variant="outline" className="flex-1" onClick={onBack}>Atrás</Button>}
+        <Button className="flex-1" onClick={handleSubmit}>Siguiente</Button>
       </div>
     </div>
   )

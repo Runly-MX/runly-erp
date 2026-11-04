@@ -2,8 +2,8 @@ import { useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { defaultTheme, defineTheme } from '@raulbellosom/atlas-web-builder'
-import { Alert, AlertDescription, AlertTitle, Button, PageHeader, TextField } from '@runly/ui'
-import { AlertTriangle, Archive, CheckCircle2, Circle, FileText, Loader2, ShoppingBag } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, Button, ProgressBar, StatusPill, TextField } from '@runly/ui'
+import { AlertTriangle, Archive, ArrowLeft, Check, CheckCircle2, Circle, FileText, Loader2, LayoutTemplate, PanelsTopLeft, Palette, ShoppingBag, Sparkles } from 'lucide-react'
 import { companyFetch } from '../../../../lib/companyFetch.js'
 import { getApiUrl } from '../../../../lib/runtimeConfig.js'
 import { useAuth } from '../../../../auth/AuthProvider.jsx'
@@ -13,25 +13,41 @@ import { PUBLIC_ROUTE_ROOT, sitePath } from '../../lib/pageRoute.js'
 import { useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { WizardStepIdentity } from '../wizard/WizardStepIdentity.jsx'
 import { WizardStepTemplate } from '../wizard/WizardStepTemplate.jsx'
+import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
+import { typographyFromFonts } from '../../lib/siteFonts.js'
 
-const STEP_LABELS = ['Cómo construirlo', 'Nombre e identidad', 'Punto de partida']
+const STEPS = [
+  { label: 'Cómo construirlo', icon: LayoutTemplate, title: '¿Cómo quieres construirlo?', hint: 'Elige el tipo de sitio. Siempre puedes cambiarlo después.' },
+  { label: 'Nombre e identidad', icon: Palette, title: 'Nombre e identidad', hint: 'Dale nombre, color y letra a tu marca. Verás el resultado al instante.' },
+  { label: 'Punto de partida', icon: Sparkles, title: 'Punto de partida', hint: 'Elige una plantilla o empieza en blanco. Todo se puede cambiar después.' },
+]
 
 const SCENARIOS = [
-  { id: 'website', icon: FileText, title: 'Sitio informativo', description: 'Páginas, contacto y blog, sin tienda. Es lo más simple para empezar.', recommended: true },
-  { id: 'ecommerce', icon: ShoppingBag, title: 'Sitio con Catálogo', description: 'Muestra los productos publicados de tu Catálogo. No los duplica.' },
-  { id: 'zip', icon: Archive, title: 'Importar un sitio (ZIP)', description: 'Sube un sitio estático ya compilado. No se instala ni se ejecuta código del servidor.' },
+  { id: 'website', icon: FileText, art: 'from-orange-500 to-amber-400', title: 'Sitio informativo', description: 'Páginas, contacto y blog, sin tienda. Es lo más simple para empezar.', recommended: true },
+  { id: 'ecommerce', icon: ShoppingBag, art: 'from-sky-500 to-cyan-400', title: 'Sitio con Catálogo', description: 'Muestra los productos publicados de tu Catálogo. No los duplica.' },
+  { id: 'zip', icon: Archive, art: 'from-slate-600 to-slate-400', title: 'Importar un sitio (ZIP)', description: 'Sube un sitio estático ya compilado. No se instala ni se ejecuta código del servidor.' },
 ]
 
 const STATUS_ICON = { pending: Circle, running: Loader2, done: CheckCircle2, error: AlertTriangle, skipped: Circle }
 
 function StepIndicator({ index }) {
   return (
-    <ol className="mb-6 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm" aria-label="Pasos para crear el sitio">
-      {STEP_LABELS.map((label, i) => (
-        <li key={label} aria-current={i === index ? 'step' : undefined} className={i === index ? 'font-semibold' : 'text-[hsl(var(--muted-foreground))]'}>
-          <span className="mr-1.5 inline-flex h-5 w-5 items-center justify-center rounded-full border text-xs">{i + 1}</span>{label}
-        </li>
-      ))}
+    <ol className="grid grid-cols-3 gap-2" aria-label="Pasos para crear el sitio">
+      {STEPS.map((item, i) => {
+        const done = i < index
+        const active = i === index
+        return (
+          <li key={item.label} aria-current={active ? 'step' : undefined} className={`flex items-center gap-2.5 rounded-xl border p-2.5 transition-colors ${active ? 'border-orange-500/50 bg-orange-500/5' : 'border-[hsl(var(--border))]'}`}>
+            <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${done ? 'bg-emerald-500 text-white' : active ? 'bg-orange-500 text-white' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'}`}>
+              {done ? <Check className="h-4 w-4" aria-hidden /> : <item.icon className="h-4 w-4" aria-hidden />}
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[10px] font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Paso {i + 1}</span>
+              <span className={`block truncate text-xs sm:text-sm ${active ? 'font-semibold' : 'text-[hsl(var(--muted-foreground))]'}`}>{item.label}</span>
+            </span>
+          </li>
+        )
+      })}
     </ol>
   )
 }
@@ -108,7 +124,7 @@ export default function NewSiteScreen() {
           const tokens = Object.fromEntries(Object.entries(defaultTheme.tokens).map(([group, value]) => [group, brand[group] && typeof value === 'object' ? { ...value, ...brand[group] } : value]))
           tokens.color = { ...tokens.color, ...picked }
           const built = defineTheme({ ...defaultTheme, id: 'site-theme', name: 'Tema del sitio', tokens })
-          await api.createTheme({ siteId: ctx.current.siteId, name: 'Tema del sitio', tokens: built.tokens, typography: currentIdentity.font })
+          await api.createTheme({ siteId: ctx.current.siteId, name: 'Tema del sitio', tokens: built.tokens, typography: typographyFromFonts({ headingFont: currentIdentity.headingFont ?? currentIdentity.font ?? 'Inter', bodyFont: currentIdentity.bodyFont ?? currentIdentity.font ?? 'Inter' }) })
         }
         if (id === 'pages') {
           // The server conforms the template to the publishable block catalog and creates every page atomically.
@@ -159,20 +175,29 @@ export default function NewSiteScreen() {
   }
 
   if (steps) {
+    const doneCount = steps.filter((item) => item.status === 'done').length
+    const percent = steps.length ? Math.round((doneCount / steps.length) * 100) : 0
     return (
       <div className="mx-auto w-full max-w-2xl space-y-4 p-4 md:p-6">
-        <PageHeader title="Creando tu sitio" description="Cada paso se puede reintentar sin duplicar nada." />
-        <ol className="space-y-2 rounded-xl border border-[hsl(var(--border))] p-4" aria-live="polite">
-          {steps.map((item) => {
-            const Icon = STATUS_ICON[item.status] ?? Circle
-            return (
-              <li key={item.id} className="flex items-start gap-3 text-sm">
-                <Icon className={`mt-0.5 h-4 w-4 ${item.status === 'running' ? 'animate-spin' : ''} ${item.status === 'done' ? 'text-emerald-600' : item.status === 'error' ? 'text-[hsl(var(--destructive))]' : ''}`} aria-hidden="true" />
-                <div><p className={item.status === 'error' ? 'font-medium' : ''}>{item.label}</p>{item.detail && <p className="text-xs text-[hsl(var(--muted-foreground))]">{item.detail}</p>}</div>
-              </li>
-            )
-          })}
-        </ol>
+        <SiteSectionHeader icon={Sparkles} tone="violet" title="Creando tu sitio" description="Cada paso se puede reintentar sin duplicar nada." />
+        <div className="space-y-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-5">
+          <div className="flex items-center gap-3">
+            <ProgressBar value={percent} />
+            <span className="text-sm font-semibold tabular-nums">{percent}%</span>
+          </div>
+          <ol className="space-y-2" aria-live="polite">
+            {steps.map((item) => {
+              const Icon = STATUS_ICON[item.status] ?? Circle
+              const tone = item.status === 'done' ? 'bg-emerald-500/12 text-emerald-600' : item.status === 'error' ? 'bg-rose-500/12 text-rose-600' : item.status === 'running' ? 'bg-orange-500/12 text-orange-600' : 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]'
+              return (
+                <li key={item.id} className="flex items-start gap-3 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
+                  <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-lg ${tone}`}><Icon className={`h-4 w-4 ${item.status === 'running' ? 'animate-spin' : ''}`} aria-hidden="true" /></span>
+                  <div className="min-w-0 pt-1"><p className={item.status === 'error' ? 'font-medium' : ''}>{item.label}</p>{item.detail && <p className="text-xs text-[hsl(var(--muted-foreground))]">{item.detail}</p>}</div>
+                </li>
+              )
+            })}
+          </ol>
+        </div>
         {fatal && (
           <Alert variant="warning" role="alert">
             <AlertTriangle className="h-4 w-4" aria-hidden="true" />
@@ -191,50 +216,65 @@ export default function NewSiteScreen() {
     )
   }
 
+  const current = STEPS[step]
   return (
-    <div className="mx-auto w-full max-w-3xl p-4 pb-28 md:p-6">
-      <PageHeader title="Crear sitio" description="Tres pasos. Lo demás (catálogo, formularios, dirección) es opcional y se hace después." onBack={() => navigate(PUBLIC_ROUTE_ROOT)} backLabel="Mis sitios" />
+    <div className="mx-auto w-full max-w-3xl space-y-5 p-4 pb-28 md:p-6">
+      <SiteSectionHeader
+        icon={PanelsTopLeft}
+        tone="violet"
+        title="Crear sitio"
+        description="Tres pasos. Lo demás (catálogo, formularios, dirección) es opcional y se hace después."
+        actions={<Button variant="ghost" size="sm" onClick={() => navigate(PUBLIC_ROUTE_ROOT)}><ArrowLeft className="mr-1.5 h-4 w-4" aria-hidden />Mis sitios</Button>}
+      />
       <StepIndicator index={step} />
       {!canCreate && (
-        <Alert variant="warning" className="mb-4" role="alert">
+        <Alert variant="warning" role="alert">
           <AlertTriangle className="h-4 w-4" aria-hidden="true" />
           <div><AlertTitle>No tienes permiso para crear sitios</AlertTitle><AlertDescription>Pide a un administrador el permiso de edición del sitio web.</AlertDescription></div>
         </Alert>
       )}
+      <div>
+        <h2 className="text-lg font-semibold">{current.title}</h2>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">{current.hint}</p>
+      </div>
       {step === 0 && (
-        <section aria-labelledby="how-title" className="space-y-4">
-          <h2 id="how-title" className="text-lg font-semibold">¿Cómo quieres construirlo?</h2>
-          <div className="grid gap-3 sm:grid-cols-3" role="radiogroup" aria-labelledby="how-title">
-            {SCENARIOS.map((item) => {
-              const disabled = item.id === 'zip' && !zipAllowed
-              const selected = scenario === item.id
-              return (
-                <button
-                  key={item.id}
-                  type="button"
-                  role="radio"
-                  aria-checked={selected}
-                  disabled={disabled}
-                  onClick={() => setScenario(item.id)}
-                  className={`flex flex-col gap-2 rounded-2xl border-2 p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-60 ${selected ? 'border-(--brand-primary) bg-(--brand-soft)' : 'border-[hsl(var(--border))] hover:border-(--brand-primary)/50'}`}
-                >
-                  <item.icon className="h-6 w-6" aria-hidden="true" />
-                  <span className="font-semibold">{item.title}{item.recommended && <span className="ml-2 text-xs font-medium text-(--brand-primary-text)">Recomendado</span>}</span>
+        <section aria-label={current.title} className="grid gap-3 sm:grid-cols-3" role="radiogroup">
+          {SCENARIOS.map((item) => {
+            const disabled = item.id === 'zip' && !zipAllowed
+            const selected = scenario === item.id
+            return (
+              <button
+                key={item.id}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                disabled={disabled}
+                onClick={() => setScenario(item.id)}
+                className={`group relative flex flex-col overflow-hidden rounded-2xl border-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-60 ${selected ? 'border-orange-500 bg-orange-500/5' : 'border-[hsl(var(--border))] hover:border-orange-500/50'}`}
+              >
+                <span className={`grid h-24 place-items-center bg-gradient-to-br ${item.art}`} aria-hidden="true">
+                  <item.icon className="h-10 w-10 text-white drop-shadow-sm" />
+                </span>
+                {selected && <span className="absolute right-3 top-3 grid h-6 w-6 place-items-center rounded-full bg-orange-500 text-white"><Check className="h-4 w-4" aria-hidden="true" /></span>}
+                <span className="flex flex-1 flex-col gap-1.5 p-4">
+                  <span className="flex flex-wrap items-center gap-2 font-semibold">{item.title}{item.recommended && <StatusPill tone="success" size="sm">Recomendado</StatusPill>}</span>
                   <span className="text-sm text-[hsl(var(--muted-foreground))]">{item.description}</span>
-                  {disabled && <span className="text-xs">Necesitas permisos de importación y publicación.</span>}
-                </button>
-              )
-            })}
-          </div>
+                  {disabled && <span className="text-xs text-amber-700 dark:text-amber-300">Necesitas permisos de importación y publicación.</span>}
+                </span>
+              </button>
+            )
+          })}
         </section>
       )}
       {step === 1 && (
-        <section aria-labelledby="id-title" className="space-y-4">
-          <h2 id="id-title" className="text-lg font-semibold">Nombre e identidad</h2>
-          <TextField label="Nombre del sitio" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mi sitio web" error={nameError || undefined} required />
-          <TextField label="¿A qué se dedica? (opcional)" value={giro} onChange={(e) => setGiro(e.target.value)} placeholder="Cafetería, despacho contable…" />
+        <section aria-label={current.title} className="space-y-4">
+          <div className="grid gap-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 sm:grid-cols-2">
+            <TextField label="Nombre del sitio" value={name} onChange={(e) => setName(e.target.value)} placeholder="Mi sitio web" error={nameError || undefined} required />
+            <TextField label="¿A qué se dedica? (opcional)" value={giro} onChange={(e) => setGiro(e.target.value)} placeholder="Cafetería, despacho contable…" />
+          </div>
           <WizardStepIdentity
             defaultValues={identity ?? undefined}
+            siteName={name.trim()}
             companyLogoUrl={brandingQuery.data?.logoUrl ?? null}
             onNext={finishIdentity}
             onBack={() => setStep(0)}
@@ -242,14 +282,12 @@ export default function NewSiteScreen() {
         </section>
       )}
       {step === 2 && (
-        <section aria-labelledby="tpl-title" className="space-y-4">
-          <h2 id="tpl-title" className="text-lg font-semibold">Punto de partida</h2>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Elige una plantilla o empieza en blanco. Todo se puede cambiar después.</p>
+        <section aria-label={current.title} className="space-y-4">
           <WizardStepTemplate onBack={() => setStep(1)} isPending={false} onNext={({ template, selectedPages }) => run(template, selectedPages, identity)} />
         </section>
       )}
       {step === 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-end gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3 md:static md:mt-6 md:border-0 md:bg-transparent md:p-0">
+        <div className="fixed inset-x-0 bottom-0 z-30 flex justify-end gap-2 border-t border-[hsl(var(--border))] bg-[hsl(var(--background))] p-3 md:static md:border-0 md:bg-transparent md:p-0">
           <Button variant="outline" onClick={() => navigate(PUBLIC_ROUTE_ROOT)}>Cancelar</Button>
           <Button disabled={!scenario || !canCreate} onClick={() => setStep(1)}>Siguiente</Button>
         </div>
