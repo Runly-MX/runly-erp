@@ -65,9 +65,14 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       const rows=await db.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId,enabled:true}})
       const pages=rows.map(row=>{
         const published=manifest?.routes?.find(r=>r.sourceKind==='page'&&r.sourceId===row.id)
-        let changed=true,documentHash=null
-        try{const draft=pageProjection(row,manifest);documentHash=hash(draft.document);changed=!published||hash(draft)!==hash(pageProjection(published,manifest,true))}catch{/* Invalid historical drafts stay visible as changed, without repair. */}
-        return {id:row.id,revision:row.revision,hasUnpublishedChanges:changed,publicState:published?(changed?'changed':'published'):'unpublished',publicReleaseId:published?release.id:null,documentHash}
+        let changed=true,documentHash=null,changedFields=[]
+        try{
+          const draft=pageProjection(row,manifest);documentHash=hash(draft.document)
+          const live=published&&pageProjection(published,manifest,true)
+          changed=!published||hash(draft)!==hash(live)
+          if(live)changedFields=Object.keys(draft).filter(k=>hash(draft[k])!==hash(live[k]))
+        }catch{/* Invalid historical drafts stay visible as changed, without repair. */}
+        return {id:row.id,revision:row.revision,hasUnpublishedChanges:changed,publicState:published?(changed?'changed':'published'):'unpublished',publicReleaseId:published?release.id:null,documentHash,changedFields}
       })
       const identity=site.draftIdentity??site
       const theme=identity.themeId?await db.websiteTheme.findFirst({where:{id:identity.themeId,companyId:a.companyId,siteId:a.siteId,enabled:true}}):null
@@ -99,12 +104,13 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       const changedGlobals=changedIdentity||changedTheme||changedMenus
       const removedPages=manifest?.routes?.filter(r=>r.sourceKind==='page'&&!rows.some(p=>p.id===r.sourceId))??[]
       const missingPublished=removedPages.length>0
-      // What the "unpublished changes" badge summarizes; only kinds and counts, page titles need pages.read.
+      // What the "unpublished changes" summary lists; page details need pages.read.
       const canReadPages=a.access.can('website.pages.read')
       const changes=[
-        ...(changedIdentity?[{kind:'identity'}]:[]),...(changedTheme?[{kind:'theme'}]:[]),...(changedMenus?[{kind:'menus'}]:[]),
-        ...(canReadPages?pages.filter(p=>p.hasUnpublishedChanges).map(p=>{const row=rows.find(r=>r.id===p.id);return {kind:'page',id:p.id,title:(row.draftMetadata??row).title,isNew:p.publicState==='unpublished'}}):[]),
-        ...(removedPages.length?[{kind:'removedPages',count:removedPages.length,titles:canReadPages?removedPages.map(r=>r.title):[]}]:[]),
+        ...(changedIdentity?[{kind:'identity',fields:Object.keys(identityProjection).filter(k=>hash(identityProjection[k]??{})!==hash(publicIdentity[k]??{}))}]:[]),
+        ...(changedTheme?[{kind:'theme',name:theme?.name??null}]:[]),...(changedMenus?[{kind:'menus'}]:[]),
+        ...(canReadPages?pages.filter(p=>p.hasUnpublishedChanges).map(p=>{const row=rows.find(r=>r.id===p.id),meta=row.draftMetadata??row;return {kind:'page',id:p.id,title:meta.title,path:meta.routePath,visibility:meta.visibility,isNew:p.publicState==='unpublished',fields:p.changedFields}}):[]),
+        ...(canReadPages?removedPages.map(r=>({kind:'removedPage',id:r.sourceId,title:r.title,path:r.path})):removedPages.length?[{kind:'removedPage',id:null,title:null,path:null}]:[]),
         ...(changedPosts||missingPosts?[{kind:'posts'}]:[]),...(changedFiles?[{kind:'files'}]:[]),
       ]
       return {id:site.id,companyId:a.companyId,draftRevision:site.draftRevision,publicationRevision:site.publicationRevision,activeReleaseId:site.activeReleaseId,lifecycle:site.lifecycle,

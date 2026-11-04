@@ -3,6 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ActionMenu,
+  Alert,
+  AlertDescription,
+  AlertTitle,
   ConfirmDialog,
   DataTable,
   Dialog,
@@ -17,12 +20,13 @@ import {
   Button,
   useIsMobile,
 } from '@runly/ui'
-import { CircleDashed, EyeOff, FilePlus2, FileText, Globe, Lock, PauseCircle, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
+import { AlertTriangle, CircleDashed, EyeOff, FilePlus2, FileText, Globe, Lock, PauseCircle, Pencil, PencilLine, Plus, Settings2, Trash2, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError } from '../../lib/websiteErrors.js'
 import { editorPath, routeFromSlug, slugify, validateRoute } from '../../lib/pageRoute.js'
 import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
+import { useUnpublishPages } from '../../hooks/useUnpublishPages.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
@@ -164,26 +168,9 @@ export default function SitePages({ siteId, site, caps, pages }) {
     onError: (error) => { toast.error(describeError(error).message); setDeletePage(null) },
   })
 
-  // A new version identical to the live one minus this page; the draft stays as is.
-  const unpublish = useMutation({
-    mutationFn: async (page) => {
-      const fresh = (await api.getSite(siteId)).data
-      const created = (await api.prepareRelease(siteId, {
-        kind: 'builder', baseReleaseId: fresh.activeReleaseId ?? null,
-        expectedDraftRevision: String(fresh.draftRevision), expectedPublicationRevision: String(fresh.publicationRevision),
-        changes: { publishPageIds: [], unpublishPageIds: [page.id], includeThemeAndMenus: false },
-      }, newIdempotencyKey())).data
-      let release = created
-      for (let i = 0; release.state === 'preparing' && i < 60; i += 1) {
-        await new Promise((resolve) => setTimeout(resolve, 1500))
-        release = (await api.getRelease(siteId, created.id)).data
-      }
-      if (release.state !== 'ready') throw { code: release.failureCode ?? 'preparation_failed' }
-      await api.activateRelease(siteId, { releaseId: release.id, manifestHash: release.manifestHash, expectedDraftRevision: String(release.draftRevision), expectedPublicationRevision: String(release.publicationRevision) }, newIdempotencyKey())
-    },
-    onSuccess: () => { toast.success('Página retirada del sitio público'); setUnpublishPage(null); queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId) }) },
-    onError: (error) => { toast.error(describeError(error).message); setUnpublishPage(null) },
-  })
+  const unpublish = useUnpublishPages(siteId, { onDone: () => setUnpublishPage(null) })
+  // Deleted from the draft but still in the live version until the next publish.
+  const removedLive = (site.changes ?? []).filter((change) => change.kind === 'removedPage' && change.id)
 
   const isMobile = useIsMobile()
   const retired = site.lifecycle === 'unpublished'
@@ -238,6 +225,22 @@ export default function SitePages({ siteId, site, caps, pages }) {
         description="El contenido que editas es un borrador privado. Se publica con “Publicar”."
         actions={newButton}
       />
+      {removedLive.length > 0 && !retired && (
+        <Alert variant="warning">
+          <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="min-w-0 flex-1">
+              <AlertTitle>{removedLive.length === 1 ? 'Una página borrada sigue en tu sitio público' : `${removedLive.length} páginas borradas siguen en tu sitio público`}</AlertTitle>
+              <AlertDescription>
+                {removedLive.map((change) => `${change.title} (${change.path})`).join(', ')}. Ya no están en tu borrador, por eso no aparecen en la lista; los visitantes las siguen viendo hasta que publiques o las retires.
+              </AlertDescription>
+            </div>
+            <CapabilityButton capability={caps.publish} size="sm" variant="outline" onClick={() => setUnpublishPage({ ids: removedLive.map((change) => change.id), title: removedLive.map((change) => change.title).join(', ') })}>
+              <EyeOff className="h-4 w-4" aria-hidden /> Retirar ahora
+            </CapabilityButton>
+          </div>
+        </Alert>
+      )}
       <DataTable
         columns={columns}
         data={pages.data ?? []}
@@ -274,10 +277,12 @@ export default function SitePages({ siteId, site, caps, pages }) {
         open={Boolean(unpublishPage)}
         onOpenChange={(open) => { if (!open && !unpublish.isPending) setUnpublishPage(null) }}
         title="Retirar del sitio público"
-        description={`“${unpublishPage?.title}” dejará de verse en tu sitio ahora mismo. El resto del sitio no cambia y la página queda como borrador; vuelve a publicarse la próxima vez que publiques si su visibilidad es pública.`}
+        description={unpublishPage?.ids
+          ? `“${unpublishPage.title}” dejará de verse en tu sitio ahora mismo. El resto del sitio no cambia.`
+          : `“${unpublishPage?.title}” dejará de verse en tu sitio ahora mismo. El resto del sitio no cambia y la página queda como borrador; vuelve a publicarse la próxima vez que publiques si su visibilidad es pública.`}
         confirmLabel="Retirar"
         loading={unpublish.isPending}
-        onConfirm={() => unpublish.mutate(unpublishPage)}
+        onConfirm={() => unpublish.mutate(unpublishPage.ids ?? [unpublishPage.id])}
       />
     </div>
   )
