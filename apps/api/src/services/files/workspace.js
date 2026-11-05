@@ -3,6 +3,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { OFFICE_FORMATS } from "@runly/core";
 import { signedUrlsWithVariant } from "../../lib/image-variants.js";
 import { createFileAccess, FileAccessError } from "./access.js";
+import { attachPersonSubtitles } from "../../lib/person-subtitles.js";
 
 export function createFilesWorkspace({
   prisma,
@@ -41,33 +42,13 @@ export function createFilesWorkspace({
         }),
       );
     }
-    const subtitles = companyId ? await workSubtitles(companyId, list.map((u) => u.id)) : new Map();
-    return list.map((u) => ({
+    const out = list.map((u) => ({
       id: u.id,
       displayName: u.displayName,
       email: u.email,
       avatarUrl: u.avatarFileId ? (urlByFileId.get(u.avatarFileId) ?? null) : null,
-      subtitle: subtitles.get(u.id) ?? null,
     }));
-  }
-
-  // "Puesto · Departamento" from the linked HR record, else the company role,
-  // so people with similar names can be told apart.
-  async function workSubtitles(companyId, ids) {
-    if (!ids.length) return new Map();
-    const [employees, memberships] = await Promise.all([
-      prisma.hrEmployee.findMany({
-        where: { companyId, userProfileId: { in: ids }, enabled: true },
-        select: { userProfileId: true, jobTitle: true, department: true, jobTitleRef: { select: { name: true } }, departmentRef: { select: { name: true } } },
-      }),
-      prisma.membership.findMany({ where: { companyId, userId: { in: ids }, enabled: true }, select: { userId: true, role: { select: { name: true } } } }),
-    ]);
-    const out = new Map(memberships.map((m) => [m.userId, m.role?.name ?? null]));
-    for (const e of employees) {
-      const text = [e.jobTitleRef?.name ?? e.jobTitle, e.departmentRef?.name ?? e.department].filter(Boolean).join(" · ");
-      if (text) out.set(e.userProfileId, text);
-    }
-    return out;
+    return attachPersonSubtitles(out, { prisma, companyId });
   }
   function shareUrl(fileId) {
     try {

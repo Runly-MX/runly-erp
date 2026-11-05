@@ -9,6 +9,8 @@ import { ALLOWED_TYPES, createNoteReferencesService } from './references-service
 import { isUuid } from './subpages.js'
 import { createNoteImageService } from './image-service.js'
 import { withResourceInvitationAccess } from '../../services/resource-invitation-access.js'
+import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js'
+import { attachPersonSubtitles } from '../../lib/person-subtitles.js'
 
 export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission, broadcaster, notificationService }) {
   requirePermission = withResourceInvitationAccess({ prisma, requirePermission, resourceType: 'note' })
@@ -265,8 +267,11 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   internal.get('/shareable-users', requirePermission('notes.shares.create'), async (c) => {
     try {
       const { userId } = getAuth(c)
-      const users = await shares.listShareableUsers(userId, c.req.query('search') ?? null, c.get('companyId'))
-      return c.json({ users })
+      const companyId = c.get('companyId')
+      const users = await shares.listShareableUsers(userId, c.req.query('search') ?? null, companyId)
+      await attachUserAvatarUrls(users, { prisma, supabaseAdmin, variant: 'thumb' })
+      await attachPersonSubtitles(users, { prisma, companyId })
+      return c.json({ users: users.map(({ avatarFileId, ...user }) => user) })
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
     }
@@ -452,7 +457,11 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       const { userId } = getAuth(c)
       const noteId = c.req.param('id')
       const sharesList = await shares.listShares(noteId, userId)
-      return c.json({ shares: sharesList })
+      // Signed photo for each person with access (the row carries only the file id).
+      const people = sharesList.map((s) => ({ id: s.shared_with_user_id, avatarFileId: s.avatar_file_id }))
+      await attachUserAvatarUrls(people, { prisma, supabaseAdmin, variant: 'thumb' })
+      await attachPersonSubtitles(people, { prisma, companyId: c.get('companyId') })
+      return c.json({ shares: sharesList.map(({ avatar_file_id, ...s }, i) => ({ ...s, avatarUrl: people[i].avatarUrl, subtitle: people[i].subtitle })) })
     } catch (e) {
       return c.json({ error: e.message }, e.status ?? 500)
     }

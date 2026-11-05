@@ -1,14 +1,12 @@
 import { useState, useEffect, useRef } from 'react'
-import { Search, X, Check, UserPlus, Shield, Users, Loader2 } from 'lucide-react'
+import { Search, X, UserPlus, Shield, Users, Loader2 } from 'lucide-react'
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogDescription,
-  Avatar,
-  AvatarImage,
-  AvatarFallback,
+  PersonOption,
   Select,
   SelectTrigger,
   SelectValue,
@@ -25,18 +23,6 @@ const PERMISSION_OPTIONS = [
   { value: 'read', label: 'Solo lectura' },
   { value: 'edit', label: 'Puede editar' },
 ]
-
-function UserAvatar({ name, avatarUrl, className = 'h-9 w-9' }) {
-  const initial = (name ?? '?').trim()[0]?.toUpperCase() ?? '?'
-  return (
-    <Avatar className={className}>
-      {avatarUrl && <AvatarImage src={avatarUrl} alt={name} />}
-      <AvatarFallback className="bg-amber-100 text-amber-700 dark:bg-amber-900/50 dark:text-amber-200 text-sm font-semibold">
-        {initial}
-      </AvatarFallback>
-    </Avatar>
-  )
-}
 
 function PermissionSelect({ value, onChange, disabled }) {
   return (
@@ -200,33 +186,16 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
                   </p>
                 </div>
               ) : (
-                <ul className="divide-y divide-[hsl(var(--border))]">
-                  {userList.map(user => {
-                    const fullName = user.displayName || user.email
-                    const isSelected = selectedUser?.id === user.id
-                    return (
-                      <li key={user.id}>
-                        <button
-                          type="button"
-                          onClick={() => setSelectedUser(prev => (prev?.id === user.id ? null : user))}
-                          aria-pressed={isSelected}
-                          className={[
-                            'flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors',
-                            isSelected
-                              ? 'bg-amber-500/10 dark:bg-amber-400/10'
-                              : 'hover:bg-[hsl(var(--muted))]',
-                          ].join(' ')}
-                        >
-                          <UserAvatar name={fullName} avatarUrl={user.avatarUrl} />
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-medium leading-tight text-[hsl(var(--foreground))]">{fullName}</p>
-                            <p className="truncate text-xs leading-tight text-[hsl(var(--muted-foreground))]">{user.email}</p>
-                          </div>
-                          {isSelected && <Check className="h-4 w-4 shrink-0 text-amber-500" />}
-                        </button>
-                      </li>
-                    )
-                  })}
+                <ul className="p-1">
+                  {userList.map(user => (
+                    <li key={user.id}>
+                      <PersonOption
+                        user={user}
+                        selected={selectedUser?.id === user.id}
+                        onSelect={u => setSelectedUser(prev => (prev?.id === u.id ? null : u))}
+                      />
+                    </li>
+                  ))}
                 </ul>
               )}
             </div>
@@ -235,14 +204,7 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
           {/* ── Selected user → pick permission + add ── */}
           {selectedUser && (
             <div className="flex flex-wrap items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-900/50 dark:bg-amber-950/30">
-              <UserAvatar
-                name={selectedUser.displayName || selectedUser.email}
-                avatarUrl={selectedUser.avatarUrl}
-                className="h-8 w-8"
-              />
-              <p className="min-w-0 flex-1 truncate text-sm font-medium text-[hsl(var(--foreground))]">
-                {selectedUser.displayName || selectedUser.email}
-              </p>
+              <PersonOption user={selectedUser} className="min-w-0 flex-1 px-0 py-0" />
               <PermissionSelect value={permission} onChange={setPermission} disabled={shareNote.isPending} />
               <button
                 type="button"
@@ -284,13 +246,10 @@ export function NoteShareModal({ note, noteId, open, onOpenChange }) {
                       key={share.id}
                       className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl px-2 py-2 transition-colors hover:bg-[hsl(var(--muted))]"
                     >
-                      <UserAvatar name={name} avatarUrl={share.avatar_url ?? null} className="h-8 w-8" />
-                      <div className="min-w-36 flex-1">
-                        <p className="truncate text-sm font-medium leading-tight text-[hsl(var(--foreground))]">{name}</p>
-                        {share.user_email && (
-                          <p className="truncate text-xs leading-tight text-[hsl(var(--muted-foreground))]">{share.user_email}</p>
-                        )}
-                      </div>
+                      <PersonOption
+                        user={{ displayName: name, email: share.user_email, avatarUrl: share.avatarUrl, subtitle: share.subtitle }}
+                        className="min-w-36 flex-1 px-0 py-0"
+                      />
                       <div className="ml-auto flex items-center gap-2">
                         <PermissionSelect
                           value={share.permission}

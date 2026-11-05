@@ -1,31 +1,11 @@
 // apps/desktop/src/modules/runly.chat/components/UserPicker.jsx
 //
-// Shared user-search-and-multi-select building blocks, extracted from
-// CreateChatModal.jsx so ChannelMembersTab's "Anadir miembros" picker can
-// reuse the exact same pattern without duplicating it.
-import { useState } from "react";
-import { Check } from "lucide-react";
-import { Skeleton } from "@runly/ui";
+// User-search-and-multi-select building blocks for chat and files, on top of
+// the shared @runly/ui PersonAvatar / PersonOption.
+import { PersonAvatar, PersonOption, Skeleton, personName } from "@runly/ui";
 
 export function UserAvatar({ user, size = "md" }) {
-  const sizeClass = size === "sm" ? "h-7 w-7 text-xs" : "h-9 w-9 text-sm";
-  // An expired or missing photo falls back to the initial.
-  const [failedUrl, setFailedUrl] = useState(null);
-  const avatar = user.avatarUrl && failedUrl !== user.avatarUrl ? (
-    <img
-      src={user.avatarUrl}
-      alt={user.displayName}
-      onError={() => setFailedUrl(user.avatarUrl)}
-      className={`${sizeClass} rounded-full object-cover shrink-0`}
-    />
-  ) : (
-    <div
-      className={`${sizeClass} rounded-full flex items-center justify-center font-semibold shrink-0`}
-      style={{ backgroundColor: "var(--brand-primary)", color: "var(--brand-primary-foreground)" }}
-    >
-      {user.displayName?.[0]?.toUpperCase() ?? "?"}
-    </div>
-  );
+  const avatar = <PersonAvatar name={personName(user)} src={user.avatarUrl ?? null} size={size} />;
   // `online` is set by useCompanyPeople; other callers simply omit it.
   if (!user.online) return avatar;
   return (
@@ -37,30 +17,7 @@ export function UserAvatar({ user, size = "md" }) {
 }
 
 export function UserPickerItem({ user, selected, onToggle }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onToggle(user)}
-      className={[
-        "flex items-center gap-3 w-full px-3 py-2 rounded-lg text-left transition-colors",
-        selected
-          ? "bg-[var(--brand-primary)]/10"
-          : "hover:bg-[hsl(var(--muted))]",
-      ].join(" ")}
-    >
-      <UserAvatar user={user} />
-      <div className="min-w-0 flex-1">
-        <p className="text-sm font-medium truncate">{user.displayName}</p>
-        <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{user.online ? "En línea" : user.email}</p>
-        {user.subtitle && <p className="text-xs text-[hsl(var(--muted-foreground))] truncate">{user.subtitle}</p>}
-      </div>
-      {selected && (
-        <div className="shrink-0 h-5 w-5 rounded-full bg-[var(--brand-primary)] flex items-center justify-center">
-          <Check className="h-3 w-3 text-[var(--brand-primary-foreground)]" />
-        </div>
-      )}
-    </button>
-  );
+  return <PersonOption user={user} selected={selected} onSelect={onToggle} secondary={user.online ? "En línea" : user.email} />;
 }
 
 export function UserListSkeleton() {

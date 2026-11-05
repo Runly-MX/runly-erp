@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, EmptyState, SearchInput } from "@runly/ui";
+import { Button, EmptyState, PersonOption, SearchInput } from "@runly/ui";
 import { UserPlus, X } from "lucide-react";
 import { UserAvatar, UserPickerItem, UserListSkeleton } from "../../runly.chat/components/UserPicker";
 import { runly } from "../../../lib/runly";
@@ -85,15 +85,16 @@ export function FolderMembersPanel({ folder, token }) {
       ) : (members.data ?? []).length ? (
         <ul className="grid gap-2">
           {members.data.map((m) => (
-            <li key={m.userId} className="flex items-center gap-2 border-t pt-2">
-              <UserAvatar user={m.user ?? { displayName: "Usuario" }} size="sm" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium">{m.user?.displayName ?? "Usuario"}</p>
-                <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[m.user?.email, m.user?.subtitle].filter(Boolean).join(" · ")}</p>
-              </div>
-              <Button variant="ghost" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(m.userId)}>
-                Quitar
-              </Button>
+            <li key={m.userId} className="border-t pt-2">
+              <PersonOption
+                user={m.user ?? { displayName: "Usuario" }}
+                className="px-0 py-0"
+                trailing={
+                  <Button variant="ghost" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(m.userId)}>
+                    Quitar
+                  </Button>
+                }
+              />
             </li>
           ))}
         </ul>
