@@ -36,6 +36,7 @@ import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
 import { isNewTabClick, rowOpenProps } from "./row-open.js";
 import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
+import { clearAllPatch } from "../components/filter-menu-helpers.js";
 import { toggleWithRange } from "./selection-range.js";
 
 // Select value as a tinted pill: stable color per option (or option.color).
@@ -272,7 +273,13 @@ export function RunlyTable({
     }, 300);
     return () => clearTimeout(timer);
   }, [searchInput, search]);
-  const [filterValues, setFilterValues] = useState(() => ({ ...(restored?.filters ?? {}), ...(initialFilters ?? {}) }));
+  // Restore only filters the user can see and clear: a saved deep-link filter
+  // (e.g. ?serialNumber=) whose control is gone would silently narrow the list.
+  const [filterValues, setFilterValues] = useState(() => {
+    const known = { ...clearAllPatch(filterBarFilters), ...(externalFilters ?? {}) };
+    const kept = Object.entries(restored?.filters ?? {}).filter(([key]) => key in known);
+    return { ...Object.fromEntries(kept), ...(initialFilters ?? {}) };
+  });
   const filterValuesRef = useRef(filterValues);
   filterValuesRef.current = filterValues;
   const externalFiltersKey = externalFilters ? JSON.stringify(externalFilters) : "";
