@@ -2,9 +2,9 @@
 name: runly.pos
 description: The register identity of Runly ERP's point of sale; squared, gridded, Runly logo navy and orange, light and dark.
 colors:
-  logo-orange: "#F15A22"
-  logo-orange-hover: "#D94A15"
-  logo-orange-text: "#C2410C"
+  logo-orange: "#F5411E"
+  logo-orange-hover: "#DC3613"
+  logo-orange-text: "#B8330F"
   logo-orange-bright: "#FF8A4C"
   orange-ink: "#0B1530"
   register-navy: "#0B2458"
@@ -19,7 +19,7 @@ colors:
   input-rule: "hsl(219 16% 74%)"
   hover-surface: "hsl(216 25% 97%)"
   press-surface: "hsl(218 24% 94%)"
-  dark-orange: "#F5651F"
+  dark-orange: "#FF5A2E"
   dark-orange-hover: "#FF7A3D"
   dark-orange-ink: "#0B0F17"
   dark-band: "#05070C"

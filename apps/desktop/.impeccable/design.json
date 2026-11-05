@@ -5,9 +5,9 @@
   "scope": "Only inside the POS module (apps/desktop/src/modules/runly.pos), applied by PosThemeScope via the .pos-theme class on the screen root and on body while mounted. The rest of Runly ERP keeps its own system.",
   "extensions": {
     "colorMeta": {
-      "logo-orange": { "role": "primary", "displayName": "Logo Orange", "canonical": "#F15A22", "tonalRamp": ["oklch(25% 0.06 40)", "oklch(35% 0.10 40)", "oklch(47% 0.15 40)", "oklch(58% 0.19 40)", "oklch(65% 0.20 40)", "oklch(75% 0.14 45)", "oklch(86% 0.07 50)", "oklch(95% 0.02 55)"] },
-      "logo-orange-hover": { "role": "primary", "displayName": "Pressed Orange", "canonical": "#D94A15" },
-      "logo-orange-text": { "role": "primary", "displayName": "Orange Text", "canonical": "#C2410C" },
+      "logo-orange": { "role": "primary", "displayName": "Logo Orange", "canonical": "#F5411E", "tonalRamp": ["oklch(25% 0.06 40)", "oklch(35% 0.10 40)", "oklch(47% 0.15 40)", "oklch(58% 0.19 40)", "oklch(65% 0.20 40)", "oklch(75% 0.14 45)", "oklch(86% 0.07 50)", "oklch(95% 0.02 55)"] },
+      "logo-orange-hover": { "role": "primary", "displayName": "Pressed Orange", "canonical": "#DC3613" },
+      "logo-orange-text": { "role": "primary", "displayName": "Orange Text", "canonical": "#B8330F" },
       "logo-orange-bright": { "role": "secondary", "displayName": "Band Caption Orange", "canonical": "#FF8A4C" },
       "orange-ink": { "role": "primary", "displayName": "Orange Ink", "canonical": "#0B1530" },
       "register-navy": { "role": "secondary", "displayName": "Register Navy", "canonical": "#0B2458", "tonalRamp": ["oklch(15% 0.05 265)", "oklch(25% 0.09 265)", "oklch(35% 0.10 265)", "oklch(47% 0.09 265)", "oklch(60% 0.07 265)", "oklch(72% 0.05 265)", "oklch(84% 0.03 265)", "oklch(95% 0.01 265)"] },
@@ -22,7 +22,7 @@
       "input-rule": { "role": "neutral", "displayName": "Input Rule", "canonical": "hsl(219 16% 74%)" },
       "hover-surface": { "role": "neutral", "displayName": "Hover Surface", "canonical": "hsl(216 25% 97%)" },
       "press-surface": { "role": "neutral", "displayName": "Press Surface", "canonical": "hsl(218 24% 94%)" },
-      "dark-orange": { "role": "primary", "displayName": "Logo Orange (dark)", "canonical": "#F5651F" },
+      "dark-orange": { "role": "primary", "displayName": "Logo Orange (dark)", "canonical": "#FF5A2E" },
       "dark-orange-hover": { "role": "primary", "displayName": "Bright Orange (dark hover)", "canonical": "#FF7A3D" },
       "dark-orange-ink": { "role": "primary", "displayName": "Orange Ink (dark)", "canonical": "#0B0F17" },
       "dark-band": { "role": "secondary", "displayName": "Display Black", "canonical": "#05070C" },
@@ -37,8 +37,8 @@
       "dark-input-rule": { "role": "neutral", "displayName": "Input Rule (dark)", "canonical": "hsl(222 22% 30%)" }
     },
     "cssVariables": {
-      "light": { "--brand-primary": "#F15A22", "--brand-primary-hover": "#D94A15", "--brand-primary-foreground": "#0B1530", "--brand-primary-text": "#C2410C", "--pos-band": "#0B2458", "--pos-band-foreground": "#FFFFFF", "--pos-band-muted": "#AEBBD6", "--pos-band-accent": "#FF8A4C", "--background": "216 25% 96%", "--foreground": "222 72% 14%", "--card": "0 0% 100%", "--muted": "218 24% 93%", "--muted-foreground": "222 22% 38%", "--border": "219 20% 87%", "--input": "219 16% 74%", "--ring": "17 88% 54%" },
-      "dark": { "--brand-primary": "#F5651F", "--brand-primary-hover": "#FF7A3D", "--brand-primary-foreground": "#0B0F17", "--brand-primary-text": "#FF8A4C", "--pos-band": "#05070C", "--pos-band-foreground": "#F4F7FF", "--pos-band-muted": "#8E9AB3", "--pos-band-accent": "#FF8A4C", "--background": "222 35% 6%", "--foreground": "220 33% 94%", "--card": "222 33% 10%", "--muted": "222 30% 15%", "--muted-foreground": "220 20% 68%", "--border": "222 28% 19%", "--input": "222 22% 30%", "--ring": "20 100% 60%" },
+      "light": { "--brand-primary": "#F5411E", "--brand-primary-hover": "#DC3613", "--brand-primary-foreground": "#0B1530", "--brand-primary-text": "#B8330F", "--pos-band": "#0B2458", "--pos-band-foreground": "#FFFFFF", "--pos-band-muted": "#AEBBD6", "--pos-band-accent": "#FF8A4C", "--background": "216 25% 96%", "--foreground": "222 72% 14%", "--card": "0 0% 100%", "--muted": "218 24% 93%", "--muted-foreground": "222 22% 38%", "--border": "219 20% 87%", "--input": "219 16% 74%", "--ring": "17 88% 54%" },
+      "dark": { "--brand-primary": "#FF5A2E", "--brand-primary-hover": "#FF7A3D", "--brand-primary-foreground": "#0B0F17", "--brand-primary-text": "#FF8A4C", "--pos-band": "#05070C", "--pos-band-foreground": "#F4F7FF", "--pos-band-muted": "#8E9AB3", "--pos-band-accent": "#FF8A4C", "--background": "222 35% 6%", "--foreground": "220 33% 94%", "--card": "222 33% 10%", "--muted": "222 30% 15%", "--muted-foreground": "220 20% 68%", "--border": "222 28% 19%", "--input": "222 22% 30%", "--ring": "20 100% 60%" },
       "source": "apps/desktop/src/modules/runly.pos/pos-theme.css"
     },
     "typographyMeta": {
@@ -72,7 +72,7 @@
       "refersTo": "button-charge",
       "description": "The primary action: orange with dark ink, 56px, amount in the label; disabled goes muted.",
       "html": "<div class=\"ds-row\"><button class=\"ds-btn-charge\">Cobrar $87.00</button><button class=\"ds-btn-charge\" disabled>Cobrar</button></div>",
-      "css": ".ds-row{display:flex;gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-btn-charge{height:56px;min-width:220px;padding:0 24px;border:none;border-radius:4px;background:#F15A22;color:#0B1530;font-size:1.125rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color 150ms}.ds-btn-charge:hover{background:#D94A15}.ds-btn-charge:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(0 0% 100%),0 0 0 4px hsl(17 88% 54%)}.ds-btn-charge:disabled{background:hsl(218 24% 93%);color:hsl(222 22% 38%);cursor:not-allowed}"
+      "css": ".ds-row{display:flex;gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-btn-charge{height:56px;min-width:220px;padding:0 24px;border:none;border-radius:4px;background:#F5411E;color:#0B1530;font-size:1.125rem;font-weight:700;font-variant-numeric:tabular-nums;cursor:pointer;transition:background-color 150ms}.ds-btn-charge:hover{background:#DC3613}.ds-btn-charge:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(0 0% 100%),0 0 0 4px hsl(17 88% 54%)}.ds-btn-charge:disabled{background:hsl(218 24% 93%);color:hsl(222 22% 38%);cursor:not-allowed}"
     },
     {
       "name": "Outline Button",
@@ -96,7 +96,7 @@
       "refersTo": "search-scan-field",
       "description": "56px search field with 2px rule; focus turns the border orange with the ring.",
       "html": "<label class=\"ds-search\"><svg width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><circle cx=\"11\" cy=\"11\" r=\"8\"/><path d=\"m21 21-4.3-4.3\"/></svg><input placeholder=\"Buscar o escanear\" aria-label=\"Buscar o escanear\"></label>",
-      "css": ".ds-search{position:relative;display:flex;align-items:center;width:420px;color:hsl(222 22% 38%)}.ds-search svg{position:absolute;left:16px}.ds-search input{width:100%;height:56px;padding:0 16px 0 48px;border:2px solid hsl(219 16% 74%);border-radius:4px;background:hsl(0 0% 100%);color:hsl(222 72% 14%);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1rem}.ds-search input::placeholder{color:hsl(222 22% 38%)}.ds-search input:focus-visible{outline:none;border-color:#F15A22;box-shadow:0 0 0 2px hsl(17 88% 54% / .5)}"
+      "css": ".ds-search{position:relative;display:flex;align-items:center;width:420px;color:hsl(222 22% 38%)}.ds-search svg{position:absolute;left:16px}.ds-search input{width:100%;height:56px;padding:0 16px 0 48px;border:2px solid hsl(219 16% 74%);border-radius:4px;background:hsl(0 0% 100%);color:hsl(222 72% 14%);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-size:1rem}.ds-search input::placeholder{color:hsl(222 22% 38%)}.ds-search input:focus-visible{outline:none;border-color:#F5411E;box-shadow:0 0 0 2px hsl(17 88% 54% / .5)}"
     },
     {
       "name": "POS Navigation",
@@ -104,7 +104,7 @@
       "refersTo": "pos-nav-tab",
       "description": "Text tabs in the POS bar; active tab carries a 2px orange underline on the bar rule.",
       "html": "<nav class=\"ds-nav\" aria-label=\"Punto de venta\"><a href=\"#\" class=\"ds-tab is-active\" aria-current=\"page\">Caja</a><a href=\"#\" class=\"ds-tab\">Citas</a><a href=\"#\" class=\"ds-tab\">Órdenes</a><a href=\"#\" class=\"ds-tab\">Administración</a></nav>",
-      "css": ".ds-nav{display:flex;border-bottom:1px solid hsl(219 20% 87%);background:hsl(0 0% 100%);font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-tab{display:inline-flex;align-items:center;height:44px;margin-bottom:-1px;padding:0 12px;border-bottom:2px solid transparent;color:hsl(222 22% 38%);font-size:.875rem;font-weight:600;text-decoration:none;transition:color 150ms}.ds-tab:hover{color:hsl(222 72% 14%)}.ds-tab.is-active{border-bottom-color:#F15A22;color:hsl(222 72% 14%)}.ds-tab:focus-visible{outline:none;box-shadow:inset 0 0 0 2px hsl(17 88% 54%)}"
+      "css": ".ds-nav{display:flex;border-bottom:1px solid hsl(219 20% 87%);background:hsl(0 0% 100%);font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-tab{display:inline-flex;align-items:center;height:44px;margin-bottom:-1px;padding:0 12px;border-bottom:2px solid transparent;color:hsl(222 22% 38%);font-size:.875rem;font-weight:600;text-decoration:none;transition:color 150ms}.ds-tab:hover{color:hsl(222 72% 14%)}.ds-tab.is-active{border-bottom-color:#F5411E;color:hsl(222 72% 14%)}.ds-tab:focus-visible{outline:none;box-shadow:inset 0 0 0 2px hsl(17 88% 54%)}"
     },
     {
       "name": "Category Chip",
@@ -112,7 +112,7 @@
       "refersTo": "category-chip",
       "description": "Square 44px chips; active one gets a 3px orange underline, no fill change.",
       "html": "<div class=\"ds-chips\"><button class=\"ds-chip\" aria-pressed=\"true\">Todos</button><button class=\"ds-chip\" aria-pressed=\"false\">Bebidas</button><button class=\"ds-chip\" aria-pressed=\"false\">Abarrotes</button></div>",
-      "css": ".ds-chips{display:flex;gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-chip{height:44px;padding:0 16px;border:1px solid hsl(219 20% 87%);border-radius:4px;background:hsl(0 0% 100%);color:hsl(222 22% 38%);font-size:.875rem;font-weight:600;cursor:pointer;transition:color 150ms}.ds-chip:hover{color:hsl(222 72% 14%)}.ds-chip[aria-pressed=true]{border-color:hsl(219 16% 74%);color:hsl(222 72% 14%);box-shadow:inset 0 -3px 0 #F15A22}.ds-chip:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(17 88% 54%)}"
+      "css": ".ds-chips{display:flex;gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-chip{height:44px;padding:0 16px;border:1px solid hsl(219 20% 87%);border-radius:4px;background:hsl(0 0% 100%);color:hsl(222 22% 38%);font-size:.875rem;font-weight:600;cursor:pointer;transition:color 150ms}.ds-chip:hover{color:hsl(222 72% 14%)}.ds-chip[aria-pressed=true]{border-color:hsl(219 16% 74%);color:hsl(222 72% 14%);box-shadow:inset 0 -3px 0 #F5411E}.ds-chip:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(17 88% 54%)}"
     },
     {
       "name": "Ruled Product Grid",
@@ -120,7 +120,7 @@
       "refersTo": "product-cell",
       "description": "Cells share 1px rules; a cell in the sale gets an inset orange outline and a navy quantity badge.",
       "html": "<ul class=\"ds-grid\"><li><button class=\"ds-cell\"><span class=\"ds-ini\">AK</span><span class=\"ds-name\">Arroz 1 kg</span><span class=\"ds-foot\"><span class=\"ds-price\">$34.80</span><span class=\"ds-add\">+</span></span></button></li><li><button class=\"ds-cell is-in\"><span class=\"ds-qty\">2</span><span class=\"ds-ini\">CM</span><span class=\"ds-name\">Coca-Cola 600 ml</span><span class=\"ds-foot\"><span class=\"ds-price\">$23.20</span><span class=\"ds-add\">+</span></span></button></li></ul>",
-      "css": ".ds-grid{display:grid;grid-template-columns:repeat(2,200px);margin:0;padding:0;list-style:none;border-left:1px solid hsl(219 20% 87%);border-top:1px solid hsl(219 20% 87%);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums}.ds-grid li{border-right:1px solid hsl(219 20% 87%);border-bottom:1px solid hsl(219 20% 87%);background:hsl(0 0% 100%)}.ds-cell{position:relative;display:flex;flex-direction:column;gap:8px;width:100%;min-height:136px;padding:12px;border:none;background:transparent;text-align:left;cursor:pointer;transition:background-color 150ms}.ds-cell:hover{background:hsl(216 25% 97%)}.ds-cell:active{background:hsl(218 24% 94%)}.ds-cell:focus-visible{outline:none;box-shadow:inset 0 0 0 2px hsl(17 88% 54%)}.ds-cell.is-in{box-shadow:inset 0 0 0 2px #F15A22}.ds-ini{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:hsl(218 24% 93%);color:hsl(222 22% 38%);font-size:.875rem;font-weight:700}.ds-name{font-size:.875rem;font-weight:600;color:hsl(222 72% 14%)}.ds-foot{display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto}.ds-price{font-size:1.125rem;font-weight:700;color:hsl(222 72% 14%)}.ds-add{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:4px;background:#F15A22;color:#0B1530;font-weight:700}.ds-qty{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 6px;border-radius:3px;background:#0B2458;color:#fff;font-size:.875rem;font-weight:700}"
+      "css": ".ds-grid{display:grid;grid-template-columns:repeat(2,200px);margin:0;padding:0;list-style:none;border-left:1px solid hsl(219 20% 87%);border-top:1px solid hsl(219 20% 87%);font-family:'Plus Jakarta Sans',system-ui,sans-serif;font-variant-numeric:tabular-nums}.ds-grid li{border-right:1px solid hsl(219 20% 87%);border-bottom:1px solid hsl(219 20% 87%);background:hsl(0 0% 100%)}.ds-cell{position:relative;display:flex;flex-direction:column;gap:8px;width:100%;min-height:136px;padding:12px;border:none;background:transparent;text-align:left;cursor:pointer;transition:background-color 150ms}.ds-cell:hover{background:hsl(216 25% 97%)}.ds-cell:active{background:hsl(218 24% 94%)}.ds-cell:focus-visible{outline:none;box-shadow:inset 0 0 0 2px hsl(17 88% 54%)}.ds-cell.is-in{box-shadow:inset 0 0 0 2px #F5411E}.ds-ini{display:flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:4px;background:hsl(218 24% 93%);color:hsl(222 22% 38%);font-size:.875rem;font-weight:700}.ds-name{font-size:.875rem;font-weight:600;color:hsl(222 72% 14%)}.ds-foot{display:flex;align-items:flex-end;justify-content:space-between;margin-top:auto}.ds-price{font-size:1.125rem;font-weight:700;color:hsl(222 72% 14%)}.ds-add{display:inline-flex;align-items:center;justify-content:center;width:36px;height:36px;border-radius:4px;background:#F5411E;color:#0B1530;font-weight:700}.ds-qty{position:absolute;top:12px;right:12px;display:inline-flex;align-items:center;justify-content:center;min-width:28px;height:28px;padding:0 6px;border-radius:3px;background:#0B2458;color:#fff;font-size:.875rem;font-weight:700}"
     },
     {
       "name": "Payment Method Selector",
@@ -128,7 +128,7 @@
       "refersTo": "payment-method-active",
       "description": "Radio group of 56px squared buttons; active is a solid orange fill with dark ink.",
       "html": "<div class=\"ds-methods\" role=\"radiogroup\" aria-label=\"Método\"><button role=\"radio\" aria-checked=\"true\" class=\"ds-method\">Efectivo</button><button role=\"radio\" aria-checked=\"false\" class=\"ds-method\">Tarjeta</button><button role=\"radio\" aria-checked=\"false\" class=\"ds-method\">Transferencia</button></div>",
-      "css": ".ds-methods{display:grid;grid-template-columns:repeat(3,160px);gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-method{height:56px;border:1px solid hsl(219 20% 87%);border-radius:6px;background:hsl(0 0% 100%);color:hsl(222 72% 14%);font-size:1rem;font-weight:600;cursor:pointer}.ds-method:hover{background:hsl(218 24% 93%)}.ds-method[aria-checked=true]{border-color:#F15A22;background:#F15A22;color:#0B1530}.ds-method:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(17 88% 54%)}"
+      "css": ".ds-methods{display:grid;grid-template-columns:repeat(3,160px);gap:8px;font-family:'Plus Jakarta Sans',system-ui,sans-serif}.ds-method{height:56px;border:1px solid hsl(219 20% 87%);border-radius:6px;background:hsl(0 0% 100%);color:hsl(222 72% 14%);font-size:1rem;font-weight:600;cursor:pointer}.ds-method:hover{background:hsl(218 24% 93%)}.ds-method[aria-checked=true]{border-color:#F5411E;background:#F5411E;color:#0B1530}.ds-method:focus-visible{outline:none;box-shadow:0 0 0 2px hsl(17 88% 54%)}"
     }
   ],
   "narrative": {
