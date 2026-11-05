@@ -1,5 +1,6 @@
 import { createWebsitePublicationContext } from './services/website-publication-context.js';
 import { runlyWebsiteManifest } from './manifests/official/feature-modules.js';
+import { runlyPosManifest } from './manifests/official/core-modules.js';
 import { createWebsitePreviewHandler } from './routes/website/preview-routes.js';
 import { createWebsiteOriginGuard } from './services/website-origin-guard.js';
 import { createRealtimeAccessService } from './services/realtime-access-service.js';
@@ -663,6 +664,13 @@ function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
     ...storedManifest,
     routePermissions: runlyWebsiteManifest.routePermissions,
     fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...runlyWebsiteManifest.fullscreenPaths])],
+  } : moduleRow?.key === 'runly.pos' ? {
+    // The POS identity (color, full-screen operating screens, labels) ships
+    // with the code; an installation synced earlier keeps its own nav entries.
+    ...storedManifest,
+    color: runlyPosManifest.color,
+    fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...runlyPosManifest.fullscreenPaths])],
+    navigation: (storedManifest.navigation ?? []).map((item) => ({ ...item, label: runlyPosManifest.navigation.find((n) => n.path === item.path)?.label ?? item.label })),
   } : storedManifest;
   const navigation = Array.isArray(manifest.navigation)
     ? manifest.navigation

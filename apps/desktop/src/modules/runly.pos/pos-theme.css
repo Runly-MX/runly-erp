@@ -2,12 +2,12 @@
    Light = navy ink and navy bands with logo orange for action; dark = grey-white
    on blue-black with the same orange. Scoped to .pos-theme so the rest of the
    ERP keeps its own look. Orange fills carry dark ink: white on this orange
-   fails AA (3.6:1), #0B1530 passes (6.1:1). */
+   fails AA (3.7:1), #0B1530 passes (4.9:1). */
 .pos-theme {
-  --brand-primary: #F15A22;
-  --brand-primary-hover: #D94A15;
+  --brand-primary: #F5411E;
+  --brand-primary-hover: #DC3613;
   --brand-primary-foreground: #0B1530;
-  --brand-primary-text: #C2410C;
+  --brand-primary-text: #B8330F;
   --brand-primary-on-dark: #FF8A4C;
   --brand-soft: hsl(218 24% 93%);
 
@@ -23,7 +23,7 @@
   --accent-foreground: 222 72% 14%;
   --border: 219 20% 87%;
   --input: 219 16% 74%;
-  --ring: 17 88% 54%;
+  --ring: 10 91% 54%;
   --surface-1: 0 0% 100%;
   --surface-2: 216 25% 97%;
   --surface-3: 218 24% 94%;
@@ -74,23 +74,23 @@
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
-  accent-color: #F15A22;
+  accent-color: #F5411E;
   scrollbar-color: hsl(var(--input)) transparent;
 }
 
 .pos-theme ::selection {
-  background: rgba(241, 90, 34, 0.28);
+  background: rgba(245, 65, 30, 0.26);
   color: inherit;
 }
 
 .dark .pos-theme,
 .pos-theme.dark {
-  --brand-primary: #F5651F;
+  --brand-primary: #FF5A2E;
   --brand-primary-hover: #FF7A3D;
   --brand-primary-foreground: #0B0F17;
   --brand-primary-text: #FF8A4C;
   --brand-primary-on-dark: #FF8A4C;
-  --brand-primary-computed: #F5651F;
+  --brand-primary-computed: #FF5A2E;
   --brand-soft: hsl(222 30% 15%);
 
   --background: 222 35% 6%;
@@ -115,7 +115,7 @@
   --pos-band-muted: #8E9AB3;
   --pos-band-accent: #FF8A4C;
 
-  accent-color: #F5651F;
+  accent-color: #FF5A2E;
 }
 
 /* Shared surfaces inside the POS (body carries .pos-theme while it is

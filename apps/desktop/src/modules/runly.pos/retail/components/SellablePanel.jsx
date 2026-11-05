@@ -39,6 +39,9 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
     staleTime: 15_000,
   })
   const items = list.data?.pages.flatMap((p) => p.data ?? []) ?? []
+  // A catalog with photos sells by sight: every card then gets the same photo
+  // area (initials where a product has none). Without photos, compact cards.
+  const visual = items.some((i) => i.imageUrl)
   const total = list.data?.pages[0]?.pagination?.total ?? 0
 
   function pick(item) {
@@ -152,7 +155,7 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
                 <li className={CELL}><QuickSaleTile disabled={disabled} onClick={onQuickSale} /></li>
               )}
               {items.map((item) => (
-                <li key={item.id} className={CELL}><SellableCard item={item} currency={currency} quantity={inCart[item.productId] ?? 0} disabled={disabled} onPick={() => pick(item)} /></li>
+                <li key={item.id} className={CELL}><SellableCard item={item} currency={currency} visual={visual} quantity={inCart[item.productId] ?? 0} disabled={disabled} onPick={() => pick(item)} /></li>
               ))}
             </ul>
             <div className="mt-3 flex flex-col items-center gap-1 text-sm text-[hsl(var(--muted-foreground))]">
@@ -200,7 +203,7 @@ function QuickSaleTile({ disabled, onClick }) {
   )
 }
 
-function SellableCard({ item, currency, quantity, disabled, onPick }) {
+function SellableCard({ item, currency, visual, quantity, disabled, onPick }) {
   const off = !item.available && !item.requiresVariant
   const price = grossPrice(item.price, item.tax?.rate, item.tax?.included)
   const low = item.trackStock && item.available && item.stock != null && item.stock > 0 && item.stock <= 5
@@ -212,16 +215,18 @@ function SellableCard({ item, currency, quantity, disabled, onPick }) {
       aria-label={`${item.name}, ${item.requiresVariant ? `desde ${formatMoney(price, item.currency ?? currency)}, elegir opción` : formatMoney(price, item.currency ?? currency)}${quantity ? `, ${formatQuantity(quantity)} en la venta` : ''}${off ? `, no disponible: ${item.unavailableMessage ?? ''}` : ''}`}
       className={cn(
         'group relative flex h-full w-full flex-col gap-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed',
-        off ? 'bg-[hsl(var(--muted))]' : 'hover:bg-[hsl(var(--surface-2))] active:bg-[hsl(var(--surface-3))]',
+        off ? 'opacity-55' : 'hover:bg-[hsl(var(--surface-2))] active:bg-[hsl(var(--surface-3))]',
         quantity > 0 && 'shadow-[inset_0_0_0_2px_var(--brand-primary)]',
       )}
     >
       {item.imageUrl ? (
         <img src={item.imageUrl} alt="" className="aspect-[4/3] w-full rounded-md object-cover" loading="lazy" />
+      ) : visual ? (
+        <span aria-hidden="true" className="flex aspect-[4/3] w-full items-center justify-center rounded-md bg-[hsl(var(--muted))] text-3xl font-bold tracking-tight text-[hsl(var(--muted-foreground))]">{productInitials(item.name)}</span>
       ) : (
         <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-md bg-[hsl(var(--muted))] text-sm font-bold text-[hsl(var(--muted-foreground))]">{productInitials(item.name)}</span>
       )}
-      {item.requiresVariant && <span className="absolute left-14 top-4 inline-flex items-center gap-1 rounded-sm bg-[hsl(var(--card))] px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--foreground))] shadow-sm"><Layers className="h-3.5 w-3.5" aria-hidden="true" />Opciones</span>}
+      {item.requiresVariant && <span className={cn(visual ? "left-5 top-5" : "left-14 top-4", "absolute inline-flex items-center gap-1 rounded-sm bg-[hsl(var(--card))] px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--foreground))] shadow-sm")}><Layers className="h-3.5 w-3.5" aria-hidden="true" />Opciones</span>}
       {quantity > 0 && <span className="absolute right-3 top-3 inline-flex h-7 min-w-7 items-center justify-center rounded-sm bg-(--pos-band) px-1.5 text-sm font-bold text-(--pos-band-foreground)" aria-hidden="true">{formatQuantity(quantity)}</span>}
       <span className="line-clamp-2 text-sm font-semibold text-[hsl(var(--foreground))]">{item.name}</span>
       <span className="mt-auto flex items-end justify-between gap-2">
