@@ -34,7 +34,7 @@ export function createPosRefundService({ commands, store }) {
       else if (!input.reference) fail('VALIDATION_ERROR', 'Registra la referencia de devolución externa.', 400);
       payments.push(input);
     }
-    await store.lockStockLines(tx, ctx.companyId, lineDocuments.map((d) => d.line));
+    await store.lockStockLines(tx, ctx.companyId, lineDocuments.map((d) => d.line).filter((line) => !line.customItem));
     const created = await tx.posRefund.create({ data: { companyId: ctx.companyId, orderId, sessionId: session.id,
       amount: amount(total), currency: value.currency, reason: data.reason, createdById: ctx.actorId,
     } });

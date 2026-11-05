@@ -63,6 +63,7 @@ export function useRetailOrder({token,userId,companyId,outletId,terminalId,sessi
       if(line)return[{action:'updateLine',lineId:line.id,input:{quantity:String(Number(line.quantity)+1)}}]
       return[...(!o?[create()]:[]),{action:'addLine',input:{productId:item.productId,...(item.variantId?{variantId:item.variantId}:{}),quantity:'1'}}]
     }),
+    addCustom:({name,unitPrice})=>start(`Agregando ${name}`,(o)=>[...(!o?[create()]:[]),{action:'addLine',input:{customItem:{name,unitPrice},quantity:'1'}}]),
     setQuantity:(line,quantity)=>start('Actualizando cantidad',()=>[{action:'updateLine',lineId:line.id,input:{quantity:String(quantity)}}]),
     removeLine:(line)=>start('Quitando art\u00edculo',()=>[{action:'deleteLine',lineId:line.id,input:{}}]),
     discountLine:(line,amount,reason)=>start('Aplicando descuento',()=>[{action:'discount',lineId:line.id,input:{amount,reason}}]),

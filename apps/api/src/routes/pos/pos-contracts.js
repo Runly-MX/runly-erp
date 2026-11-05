@@ -57,8 +57,12 @@ export const commandSchemas = {
   createOrder: z.object({ outletId: id, terminalId: id.optional(), sessionId: id.optional(),
     experience: z.enum(['RETAIL', 'RESTAURANT']), fulfillmentType: z.enum(['DINE_IN', 'TAKEAWAY', 'PICKUP', 'DELIVERY']),
     tableId: id.optional(), guestCount: z.number().int().min(1).max(99).optional(), notes: note }).strict(),
-  addLine: z.object({ expectedVersion: version, productId: id, variantId: id.nullable().optional(), quantity,
-    guestSeatId: id.nullable().optional(), note, modifiers: z.array(z.object({ optionId: id }).strict()).max(30).optional() }).strict(),
+  // Either a catalog product or a free-amount "Venta rápida" item, never both.
+  addLine: z.object({ expectedVersion: version, productId: id.optional(), variantId: id.nullable().optional(), quantity,
+    customItem: z.object({ name: z.string().trim().min(1).max(120), unitPrice: positiveCash }).strict().optional(),
+    guestSeatId: id.nullable().optional(), note, modifiers: z.array(z.object({ optionId: id }).strict()).max(30).optional() }).strict()
+    .refine((v) => Boolean(v.productId) !== Boolean(v.customItem), { message: 'Indica un producto o un monto libre.', path: ['productId'] })
+    .refine((v) => !v.customItem || (!v.variantId && !v.modifiers?.length), { message: 'El monto libre no lleva variantes ni modificadores.', path: ['customItem'] }),
   updateLine: z.object({ expectedVersion: version, quantity: quantity.optional(), guestSeatId: id.nullable().optional(), note }).strict(),
   deleteLine: z.object({ expectedVersion: version }).strict(),
   discount: z.object({ expectedVersion: version, amount: cash, reason }).strict(),

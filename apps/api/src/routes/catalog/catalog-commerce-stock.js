@@ -75,7 +75,7 @@ export function createCatalogCommerceStock({ prisma }) {
   }
 
   async function sale(tx, value, actorId) {
-    const lines = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false }, orderBy: [{ productId: 'asc' }, { variantId: 'asc' }, { id: 'asc' }] });
+    const lines = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false, customItem: false }, orderBy: [{ productId: 'asc' }, { variantId: 'asc' }, { id: 'asc' }] });
     await checkOrder(tx, value, lines);
     for (const line of lines) {
       const { product } = await item(tx, value.companyId, line.productId, line.variantId);

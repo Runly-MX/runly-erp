@@ -115,6 +115,11 @@ try {
   assert.equal(sql("SELECT has_table_privilege('anon','pos_kitchen_ticket','UPDATE') OR has_table_privilege('authenticated','pos_table','SELECT')").trim(),'f');
   console.log('PASS phase 4 migration: tables, reservations and planner geometry preserved; outlet derived from its floor; no fabricated dispatches/allocations; new and legacy preparation tables have RLS and no public-client grants.');
 
+  apply(resolve(root,'prisma/migrations/20261224090000_pos_outlet_mode_follows_business/migration.sql'));
+  apply(resolve(root,'prisma/migrations/20261224100000_pos_quick_sale_and_appointments_flag/migration.sql'));
+  assert.equal(sql("SELECT count(*) FROM pos_order_line WHERE custom_item").trim(),'0');
+  console.log('PASS direct-sale migration: free-amount lines and appointments switch are additive.');
+
   const files = ['apps/api/src/routes/pos/__tests__','apps/api/src/routes/catalog/__tests__']
     .flatMap((folder) => readdirSync(resolve(root,folder)).filter((f)=>f.endsWith('.test.js')).map((f)=>`${folder}/${f}`));
   files.push('apps/api/src/manifests/official/__tests__/runly-pos-contract.test.js',

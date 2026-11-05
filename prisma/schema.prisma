@@ -3151,6 +3151,7 @@ model PosSettings {
   tipsEnabled         Boolean  @default(true) @map("tips_enabled")
   serviceChargeRate   Decimal  @default(0.00) @db.Decimal(8, 4) @map("service_charge_rate")
   receiptFooter       String?  @map("receipt_footer")
+  appointmentsEnabled Boolean  @default(false) @map("appointments_enabled")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -3340,6 +3341,7 @@ model PosOrderLine {
   priceVersion Int? @map("price_version")
   returnedQuantity Decimal @default(0) @db.Decimal(12, 3) @map("returned_quantity")
   voided Boolean @default(false)
+  customItem Boolean @default(false) @map("custom_item")
   refundLines PosRefundLine[]
   id                   String           @id @default(dbgenerated("uuidv7()")) @db.Uuid
   orderId              String           @db.Uuid @map("order_id")

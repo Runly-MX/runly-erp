@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { useInfiniteQuery, useQuery } from '@tanstack/react-query'
 import { Button, EmptyState, ErrorState, Input, Skeleton, StatusPill, cn } from '@runly/ui'
-import { Barcode, ImageOff, Layers, PackageSearch, Plus, Search, X } from 'lucide-react'
+import { Barcode, ImageOff, Layers, PackageSearch, Plus, Search, X, Zap } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../../lib/runly.js'
 import { classifyPosError } from '../lib/retailErrors.js'
@@ -14,7 +14,7 @@ const PAGE_SIZE = 30
 // C1 sellables of this outlet: search by name/SKU/barcode (debounced), exact
 // scan on Enter or from a keyboard-wedge reader, categories and "Cargar
 // más". Searching or scanning never charges; an ambiguous code asks.
-export default function SellablePanel({ token, outletId, currency, inCart = {}, disabled, onAdd }) {
+export default function SellablePanel({ token, outletId, currency, inCart = {}, disabled, onAdd, onQuickSale }) {
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
   const [categoryId, setCategoryId] = useState(null)
@@ -143,6 +143,9 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
         ) : (
           <>
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label={`${total} productos`}>
+              {onQuickSale && !search && !categoryId && (
+                <li><QuickSaleTile disabled={disabled} onClick={onQuickSale} /></li>
+              )}
               {items.map((item) => (
                 <li key={item.id}><SellableCard item={item} currency={currency} quantity={inCart[item.productId] ?? 0} disabled={disabled} onPick={() => pick(item)} /></li>
               ))}
@@ -168,6 +171,21 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
         />
       )}
     </section>
+  )
+}
+
+function QuickSaleTile({ disabled, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex h-full min-h-48 w-full flex-col items-center justify-center gap-3 rounded-2xl border-2 border-dashed border-(--brand-primary)/40 bg-(--brand-primary)/5 p-4 text-center transition-colors hover:border-(--brand-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      <span className="flex h-12 w-12 items-center justify-center rounded-full bg-(--brand-primary) text-(--brand-primary-foreground)"><Zap className="h-6 w-6" aria-hidden="true" /></span>
+      <span className="text-base font-bold text-[hsl(var(--foreground))]">Venta rápida</span>
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">Cobra un monto libre</span>
+    </button>
   )
 }
 

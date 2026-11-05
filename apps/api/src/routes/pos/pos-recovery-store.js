@@ -140,7 +140,9 @@ export function createPosRecoveryStore({ commands, prisma }) {
   }
 
   async function stockGate(tx, value) {
-    const lines = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false } });
+    const all = await tx.posOrderLine.findMany({ where: { orderId: value.id, voided: false } });
+    // "Venta rápida" lines carry no product and no stock.
+    const lines = all.filter((line) => !line.customItem);
     for (const line of lines) {
       if (!line.productId) fail('STOCK_RECOVERY_NOT_READY', 'El artículo histórico requiere conciliación comercial.');
       const product = await row(tx, 'catalogProduct', value.companyId, line.productId, { enabled: true });
@@ -150,7 +152,7 @@ export function createPosRecoveryStore({ commands, prisma }) {
       await assertAvailable(tx, value.companyId, product.id, line.variantId, value.outletId);
 
     }
-    if (!lines.length) fail('INVALID_TRANSITION', 'No se puede cobrar una orden sin consumo.');
+    if (!all.length) fail('INVALID_TRANSITION', 'No se puede cobrar una orden sin consumo.');
     await ledger.checkOrder(tx, value, lines);
   }
 

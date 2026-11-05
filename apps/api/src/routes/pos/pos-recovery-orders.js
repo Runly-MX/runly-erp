@@ -45,6 +45,7 @@ export function createPosRecoveryOrders({ commands, store }) {
     const value = await store.editOrder(tx, ctx.companyId, orderId, data.expectedVersion);
     if(value.experience==='RETAIL'&&data.guestSeatId)fail('VALIDATION_ERROR','Tienda no utiliza asientos.',400);
     store.editable(value,{allowSent:true}); store.knownCurrency(value);
+    if (data.customItem) return addCustomLine(tx, ctx, data, value);
     const product = await store.row(tx, 'catalogProduct', ctx.companyId, data.productId, { enabled: true });
     if (product.currency !== value.currency) fail('CURRENCY_MISMATCH', 'El producto usa otra moneda.');
     if (product.productType === 'VARIABLE' && !data.variantId) fail('VARIANT_REQUIRED', 'Selecciona una variante.');
@@ -70,6 +71,22 @@ export function createPosRecoveryOrders({ commands, store }) {
     if (selection.snapshots.length) await tx.posOrderLineModifier.createMany({ data: selection.snapshots.map((s) => ({ ...s, lineId: line.id, companyId: ctx.companyId })) });
     await store.recalculate(tx, value);
     const after = await store.dto(tx, ctx.companyId, orderId);
+    await commands.audit(tx, { ...ctx, entityType: 'PosOrderLine', entityId: line.id, action: 'pos.order_line.create', after });
+    return after;
+  }
+
+  // "Venta rápida": a counter amount with no catalog product and no stock. The
+  // typed amount is the final price, so the order's tax rate is included in it.
+  async function addCustomLine(tx, ctx, data, value) {
+    const taxRate = String(value.taxSnapshot?.rate ?? 0);
+    const unitPrice = store.amount(store.decimal(data.customItem.unitPrice));
+    const totals = store.lineTotals({ quantity: data.quantity, unitPrice, taxRate, taxIncluded: true });
+    const line = await tx.posOrderLine.create({ data: {
+      orderId: value.id, productId: null, productName: data.customItem.name, customItem: true, quantity: data.quantity,
+      baseUnitPrice: unitPrice, unitPrice, taxIncluded: true, taxRate, taxAmount: totals.taxAmount, totalAmount: totals.totalAmount, note: data.note,
+    } });
+    await store.recalculate(tx, value);
+    const after = await store.dto(tx, ctx.companyId, value.id);
     await commands.audit(tx, { ...ctx, entityType: 'PosOrderLine', entityId: line.id, action: 'pos.order_line.create', after });
     return after;
   }

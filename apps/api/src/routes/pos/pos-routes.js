@@ -18,6 +18,7 @@ import {
   updateOutletSchema,
   updatePaymentMethodSchema,
   updateProductConfigSchema,
+  setupSchema,
   updateSettingsSchema,
   updateTerminalSchema,
 } from "./validators.js";
@@ -65,6 +66,15 @@ export function createPosRouter({ prisma, requirePermission, requireAnyPermissio
       return c.json({ data: await settingsSvc.updateSettings({ ...context(c), data }) });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la configuracion POS.");
+    }
+  });
+
+  app.post("/pos/setup", requirePermission("pos.settings.manage"), async (c) => {
+    try {
+      const data = await parseBody(c, setupSchema);
+      return c.json({ data: await settingsSvc.setup({ ...context(c), data }) }, 201);
+    } catch (err) {
+      return handleError(c, err, "No se pudo configurar el punto de venta.");
     }
   });
 

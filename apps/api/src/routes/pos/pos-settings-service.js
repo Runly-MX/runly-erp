@@ -14,6 +14,12 @@ function cleanData(data = {}) {
   );
 }
 
+const DEFAULT_PAYMENT_METHODS = [
+  { name: "Efectivo", code: "CASH", kind: "CASH", requiresReference: false },
+  { name: "Tarjeta", code: "CARD", kind: "CARD", requiresReference: false },
+  { name: "Transferencia", code: "TRANSFER", kind: "TRANSFER", requiresReference: false },
+];
+
 export function createPosSettingsService({ prisma }) {
   async function getSettings({ companyId }) {
     const scopedCompanyId = requireCompanyId(companyId);
@@ -228,7 +234,29 @@ export function createPosSettingsService({ prisma }) {
     return updated;
   }
 
+  // First run from the register: business mode, one outlet, one register and the
+  // usual payment methods in one step. Only while the company has no outlets.
+  async function setup({ companyId, actorId, data }) {
+    const scopedCompanyId = requireCompanyId(companyId);
+    await getSettings({ companyId: scopedCompanyId });
+    if (await prisma.posOutlet.count({ where: { companyId: scopedCompanyId } })) {
+      throw new PosServiceError("El punto de venta ya está configurado. Recarga la pantalla.", 409);
+    }
+    const result = await prisma.$transaction(async (tx) => {
+      const settings = await tx.posSettings.update({ where: { companyId: scopedCompanyId }, data: { mode: data.mode } });
+      const outlet = await tx.posOutlet.create({ data: { companyId: scopedCompanyId, name: data.outletName.trim(), mode: data.mode } });
+      const terminal = await tx.posTerminal.create({ data: { companyId: scopedCompanyId, outletId: outlet.id, name: data.terminalName.trim() } });
+      const existing = new Set((await tx.posPaymentMethod.findMany({ where: { companyId: scopedCompanyId } })).map((m) => m.code));
+      const methods = DEFAULT_PAYMENT_METHODS.filter((m) => !existing.has(m.code));
+      if (methods.length) await tx.posPaymentMethod.createMany({ data: methods.map((m) => ({ ...m, companyId: scopedCompanyId })) });
+      return { settings, outlet, terminal };
+    });
+    await writeAudit(prisma, { actorId, entityType: "PosSettings", entityId: result.settings.id, action: "pos.setup.create", after: result });
+    return result;
+  }
+
   return {
+    setup,
     getSettings,
     updateSettings,
     listOutlets,

@@ -232,4 +232,15 @@ describe('Retail phase 3: real API, SDK, receipts and print attempts',{skip:!url
     assert.equal((await db.posOrderLine.count({where:{orderId:o.id}})),1);
     assert.equal(await db.posOrder.count({where:{companyId:f.company.id}}),1);
   });
+
+  it('charges a free-amount line without stock and refuses a product plus amount',async()=>{
+    const f=await fixture({initial:0});
+    let o=(await f.client.commerce.createOrder({outletId:f.outlet.id,terminalId:f.terminal.id,sessionId:f.session.id,experience:'RETAIL',fulfillmentType:'TAKEAWAY'},'token',options())).data;
+    o=(await f.client.commerce.addLine(o.id,{expectedVersion:o.version,customItem:{name:'Venta rápida',unitPrice:'50.00'},quantity:'1'},'token',options())).data;
+    assert.equal(o.totalAmount,'50.00');assert.equal(o.lines[0].customItem,true);assert.equal(o.lines[0].productId,null);
+    await assert.rejects(()=>f.client.commerce.addLine(o.id,{expectedVersion:o.version,productId:f.product.id,customItem:{name:'X',unitPrice:'1'},quantity:'1'},'token',options()),(e)=>e.status===400);
+    const paid=(await pay(f,o)).data;
+    assert.equal(paid.order.status,'PAID');
+    assert.equal(await db.catalogStockMovement.count({where:{companyId:f.company.id,sourceType:'POS_SALE'}}),0);
+  });
 });

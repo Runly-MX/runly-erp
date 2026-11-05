@@ -48,7 +48,8 @@ export function createPosRecoveryService({ prisma }) {
       operationState: !outlet ? 'SELECT_OUTLET' : !terminal ? 'SELECT_TERMINAL' : !settings?.currency ? 'CONFIGURATION_REQUIRED' : !currentSession ? 'OPEN_SESSION' : currentSession.currency!==settings.currency ? 'RECONCILIATION_REQUIRED' : 'READY',
       restaurantOperationState:!outlet?'SELECT_OUTLET':!['RESTAURANT','HYBRID'].includes(outlet.mode)?'EXPERIENCE_NOT_AVAILABLE':!settings?.currency?'CONFIGURATION_REQUIRED':'READY',
       selectedOutletId: outlet?.id ?? null, selectedTerminalId: terminal?.id ?? null, currentSession,
-      currency: settings?.currency ?? null, paymentMethods: methods,
+      currency: settings?.currency ?? null, paymentMethods: methods, appointmentsEnabled: Boolean(settings?.appointmentsEnabled),
+      canSetup: !outlets.length && allowed('pos.settings.manage'),
       preparation:outlet?{kdsEnabled:outlet.kitchenKdsEnabled,printEnabled:outlet.kitchenPrintEnabled,
         manual:!outlet.kitchenKdsEnabled&&!outlet.kitchenPrintEnabled,lateAfterMinutes:RESTAURANT_LATE_AFTER_MINUTES}:null,
       capabilities: {

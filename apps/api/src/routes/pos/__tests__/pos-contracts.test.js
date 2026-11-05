@@ -22,3 +22,13 @@ test('published phase-1 fixtures match the real request validators and stable UX
   assert.ok(COMMERCE_ERROR_CODES.includes('REFUND_REQUIRED'));
   assert.ok(COMMERCE_ERROR_CODES.includes('PREPARATION_STATION_REQUIRED'));
 });
+
+test('addLine takes a catalog product or a free amount, never both', () => {
+  const base = { expectedVersion: 1, quantity: '1' };
+  const productId = '0190f3a0-0000-7000-8000-000000000001';
+  assert.equal(parse(commandSchemas.addLine, { ...base, customItem: { name: 'Venta rápida', unitPrice: '50.00' } }).customItem.name, 'Venta rápida');
+  assert.equal(parse(commandSchemas.addLine, { ...base, productId }).productId, productId);
+  assert.throws(() => parse(commandSchemas.addLine, base), { code: 'VALIDATION_ERROR' });
+  assert.throws(() => parse(commandSchemas.addLine, { ...base, productId, customItem: { name: 'X', unitPrice: '1' } }), { code: 'VALIDATION_ERROR' });
+  assert.throws(() => parse(commandSchemas.addLine, { ...base, customItem: { name: 'X', unitPrice: '0' } }), { code: 'VALIDATION_ERROR' });
+});

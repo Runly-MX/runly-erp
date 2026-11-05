@@ -12,7 +12,12 @@ function makePrisma() {
   const prisma = {
     audits,
     openTableOrders: 0,
-    $transaction: async (ops) => Promise.all(ops),
+    $transaction: async (arg) => (typeof arg === "function" ? arg(prisma) : Promise.all(arg)),
+    posPaymentMethod: {
+      rows: [],
+      findMany: async () => prisma.posPaymentMethod.rows,
+      createMany: async ({ data }) => { prisma.posPaymentMethod.rows.push(...data); },
+    },
     posOrder: { count: async () => prisma.openTableOrders },
     posSettings: {
       findUnique: async ({ where }) => settings.get(where.companyId) ?? null,
@@ -28,6 +33,7 @@ function makePrisma() {
       },
     },
     posOutlet: {
+      count: async ({ where }) => [...outlets.values()].filter((row) => row.companyId === where.companyId).length,
       findMany: async ({ where }) =>
         [...outlets.values()].filter((row) => row.companyId === where.companyId),
       create: async ({ data }) => {
@@ -138,6 +144,24 @@ describe("createPosSettingsService", () => {
 
     await assert.rejects(
       () => svc.updateSettings({ companyId: "company-1", actorId: "user-1", data: { mode: "RETAIL" } }),
+      (err) => err instanceof PosServiceError && err.status === 409,
+    );
+  });
+
+  it("sets up mode, outlet, register and payment methods once", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSettingsService({ prisma });
+    const scope = { companyId: "company-1", actorId: "user-1" };
+
+    const result = await svc.setup({ ...scope, data: { mode: "RETAIL", outletName: " Tienda ", terminalName: "Caja 1" } });
+
+    assert.equal(result.settings.mode, "RETAIL");
+    assert.equal(result.outlet.mode, "RETAIL");
+    assert.equal(result.outlet.name, "Tienda");
+    assert.equal(result.terminal.outletId, result.outlet.id);
+    assert.deepEqual(prisma.posPaymentMethod.rows.map((m) => m.kind), ["CASH", "CARD", "TRANSFER"]);
+    await assert.rejects(
+      () => svc.setup({ ...scope, data: { mode: "RETAIL", outletName: "Otra", terminalName: "Caja 2" } }),
       (err) => err instanceof PosServiceError && err.status === 409,
     );
   });

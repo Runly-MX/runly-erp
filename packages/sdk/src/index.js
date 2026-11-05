@@ -1605,6 +1605,12 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     pos: {
+      setup: (data, token) =>
+        request("/pos/setup", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       getSettings: (token) =>
         request("/pos/settings", { headers: withAuthHeaders(token) }),
       updateSettings: (data, token) =>

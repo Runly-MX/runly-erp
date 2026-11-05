@@ -12,6 +12,8 @@ import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import CartPanel from './components/CartPanel.jsx'
 import ChargeDialog from './components/ChargeDialog.jsx'
 import PosContextGate from './components/PosContextGate.jsx'
+import PosQuickSetup from './components/PosQuickSetup.jsx'
+import QuickSaleDialog from './components/QuickSaleDialog.jsx'
 import PosOperationBar, { useOnline } from './components/PosOperationBar.jsx'
 import ReceiptDialog from './components/ReceiptDialog.jsx'
 import SaleCompletePanel from './components/SaleCompletePanel.jsx'
@@ -71,6 +73,16 @@ function RetailCajaView() {
   // register, session and ledger; a restaurant-only outlet only has Mesas.
   const mixed = Boolean(caps.retail && caps.restaurant)
   const tablesView = Boolean(caps.restaurant) && (!caps.retail || params.get('vista') === 'mesas')
+  // One outlet with one register: nothing to choose, open it directly.
+  const state = context?.operationState
+  useEffect(() => {
+    if (!context || ctx.notice) return
+    if (state === 'SELECT_OUTLET' && context.outlets?.length === 1) ctx.chooseOutlet(context.outlets[0].id)
+    if (state === 'SELECT_TERMINAL') {
+      const terminals = (context.terminals ?? []).filter((t) => t.outletId === context.selectedOutletId)
+      if (terminals.length === 1) ctx.chooseTerminal(terminals[0].id)
+    }
+  }, [state, context, ctx])
   const setView = (value) => setParams((prev) => { const next = new URLSearchParams(prev); if (value === 'mesas') next.set('vista', 'mesas'); else { next.delete('vista'); next.delete('cuenta') } return next }, { replace: true })
 
   // After a lost payment response the dialog may be closed: ask the server
@@ -134,6 +146,12 @@ function RetailCajaView() {
     body = info.kind === 'forbidden'
       ? <EmptyState icon={Lock} title="No tienes acceso a la caja" description="Pide a un administrador el permiso para operar la caja de punto de venta." />
       : <ErrorState title="No se pudo cargar la caja" description={info.message} onRetry={ctx.refetch} />
+  } else if (context?.canSetup) {
+    body = (
+      <div className="overflow-y-auto p-4 sm:p-8">
+        <PosQuickSetup token={token} onDone={() => { refreshContext(); queryClient.invalidateQueries({ queryKey: ['pos-nav-modes'] }); queryClient.invalidateQueries({ queryKey: ['pos'] }) }} />
+      </div>
+    )
   } else if (!context || ['SELECT_OUTLET', 'SELECT_TERMINAL'].includes(context.operationState)) {
     body = (
       <div className="overflow-y-auto p-4 sm:p-6">
@@ -219,6 +237,7 @@ function RetailCajaView() {
             inCart={completed ? {} : quantitiesByProduct(sale.order)}
             disabled={!online || Boolean(sale.pending) || Boolean(completed) || sale.loading || !caps.charge || Boolean(unresolved.length)}
             onAdd={(item) => sale.addItem(item)}
+            onQuickSale={() => setDialog({ kind: 'quick' })}
           />
         </div>
         {wide ? (
@@ -294,6 +313,9 @@ function RetailCajaView() {
           onConflict={() => sale.reload()}
           onClose={settleAfterCharge}
         />
+      )}
+      {dialog?.kind === 'quick' && (
+        <QuickSaleDialog currency={currency} onClose={() => setDialog(null)} onAdd={(item) => { setDialog(null); sale.addCustom(item) }} />
       )}
       {dialog?.kind === 'receipt' && <ReceiptDialog receiptId={dialog.receiptId} token={token} onClose={() => setDialog(null)} />}
       {dialog?.kind === 'cash' && (

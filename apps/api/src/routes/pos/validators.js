@@ -50,7 +50,14 @@ export const updateSettingsSchema = z.object({
   tipsEnabled: z.boolean().optional(),
   serviceChargeRate: moneySchema.min(0).max(100).optional(),
   receiptFooter: optionalNullableText(1000),
+  appointmentsEnabled: z.boolean().optional(),
 });
+
+export const setupSchema = z.object({
+  mode: posModeSchema,
+  outletName: z.string().trim().min(1).max(160),
+  terminalName: z.string().trim().min(1).max(160),
+}).strict();
 
 export const createOutletSchema = z.object({
   name: z.string().min(1).max(160),
