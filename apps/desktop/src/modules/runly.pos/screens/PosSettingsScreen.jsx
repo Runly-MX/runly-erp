@@ -627,7 +627,7 @@ function PaymentMethodsTab() {
                 <div>
                   <p className="text-sm font-medium">{m.name}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {KIND_LABELS[m.kind] ?? m.kind}{m.code ? ` · ${m.code}` : ''}
+                    {KIND_LABELS[m.kind] ?? m.kind}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">

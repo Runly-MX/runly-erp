@@ -8,7 +8,7 @@ import { runly } from '../../../../lib/runly.js'
 export const MODE_TILES = [
   { value: 'RETAIL', icon: Store, title: 'Tienda', text: 'Venta directa en mostrador: buscas o escaneas, cobras y entregas ticket.' },
   { value: 'RESTAURANT', icon: Utensils, title: 'Restaurante', text: 'Mesas, comandas y cocina; cobras la cuenta al final.' },
-  { value: 'HYBRID', icon: Layers, title: 'Ambos', text: 'Mostrador y mesas en la misma caja.' },
+  { value: 'HYBRID', icon: Layers, title: 'Mixto', text: 'Mostrador y mesas en la misma caja.' },
 ]
 
 // Large selectable tiles for the business mode (setup and Administración).
@@ -27,7 +27,7 @@ export function ModeTiles({ value, onChange, disabled }) {
             onClick={() => onChange(v)}
             className={cn(
               'flex flex-col items-start gap-2 rounded-2xl border p-4 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-60',
-              active ? 'border-(--brand-primary) bg-(--brand-primary)/8' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-(--brand-primary)/60',
+              active ? 'border-(--brand-primary) bg-[hsl(var(--card))] shadow-[inset_0_0_0_1px_var(--brand-primary)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-(--brand-primary)/60',
             )}
           >
             <span className={cn('flex h-11 w-11 items-center justify-center rounded-xl', active ? 'bg-(--brand-primary) text-(--brand-primary-foreground)' : 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]')}>
