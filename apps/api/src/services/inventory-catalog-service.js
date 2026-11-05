@@ -225,7 +225,7 @@ export function createInventoryCatalogService({ prisma }) {
     const rows = await prisma.invCondition.findMany({
       where: { companyId, enabled: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      include: { _count: { select: { items: enabledOnly } } },
+      include: { _count: { select: { items: { where: { item: { enabled: true } } } } } },
     });
     return rows.map(({ _count, ...row }) => ({ ...row, itemCount: _count?.items ?? 0 }));
   }
@@ -250,7 +250,7 @@ export function createInventoryCatalogService({ prisma }) {
     assertCompany(companyId);
     const condition = await prisma.invCondition.findFirst({ where: { id, companyId, enabled: true } });
     if (!condition) throw new InventoryServiceError('Condición no encontrada.', 404);
-    await assertUnused({ companyId, conditionId: id }, 'esta condición');
+    await assertUnused({ companyId, conditions: { some: { conditionId: id } } }, 'esta condición');
     return prisma.invCondition.update({ where: { id }, data: { enabled: false } });
   }
 

@@ -8,6 +8,7 @@ import { createUserSignatureService } from './user-signature-service.js';
 import { decodeSignaturePng } from './inventory-custody-helpers.js';
 import { resolveCompanyBranding } from './pdf-branding-service.js';
 import { renderDeregistrationActPdf } from './inventory-deregistration-act-pdf.js';
+import { CONDITIONS_INCLUDE, conditionNameOf } from './inventory-conditions.js';
 
 const MODULE_KEY = 'runly.inventory';
 const MAX_FILES_PER_ITEM = 20;
@@ -44,14 +45,14 @@ export function createDeregistrationActService({ prisma, supabaseAdmin, files = 
     const [full, holder] = await Promise.all([
       tx.invItem.findUnique({
         where: { id: item.id },
-        include: { category: { select: { name: true } }, brand: { select: { name: true } }, location: { select: { name: true } }, area: { select: { name: true } }, condition: { select: { name: true } } },
+        include: { category: { select: { name: true } }, brand: { select: { name: true } }, location: { select: { name: true } }, area: { select: { name: true } }, ...CONDITIONS_INCLUDE },
       }),
       item.assignedToId ? tx.hrEmployee.findUnique({ where: { id: item.assignedToId }, select: { firstName: true, lastName: true } }) : null,
     ]);
     return {
       itemId: item.id, name: full.name, assetTag: full.assetTag, serialNumber: full.serialNumber, model: full.model,
       brand: full.brand?.name ?? null, category: full.category?.name ?? null, location: full.location?.name ?? null,
-      area: full.area?.name ?? null, condition: full.condition?.name ?? null,
+      area: full.area?.name ?? null, condition: conditionNameOf(full),
       purchaseDate: full.purchaseDate ? utcDay(full.purchaseDate) : null,
       purchasePrice: full.purchasePrice === null ? null : String(full.purchasePrice),
       vendorName: full.vendorName, invoiceNumber: full.invoiceNumber,

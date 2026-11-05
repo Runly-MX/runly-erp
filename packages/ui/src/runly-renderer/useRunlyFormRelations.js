@@ -325,7 +325,12 @@ export function useRunlyFormRelations({
       }
 
       if (descriptor.create?.selectCreated !== false && createdId) {
-        setFormValues((prev) => ({ ...prev, [fieldName]: createdId }));
+        setFormValues((prev) => ({
+          ...prev,
+          [fieldName]: descriptor.multiple
+            ? [...new Set([...(Array.isArray(prev[fieldName]) ? prev[fieldName] : []), createdId])]
+            : createdId,
+        }));
         setFieldErrors((prev) => ({ ...prev, [fieldName]: "" }));
       }
 

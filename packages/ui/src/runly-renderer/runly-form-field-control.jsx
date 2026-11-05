@@ -273,7 +273,7 @@ export function renderFormFieldControl(field, ctx) {
       // <field>__label instead of an empty picker.
       const savedLabel = initialData?.[`${field.name}__label`];
       const staticOpts =
-        value && savedLabel && !loadedOpts.some((option) => String(option.value) === String(value))
+        !descriptor.multiple && value && savedLabel && !loadedOpts.some((option) => String(option.value) === String(value))
           ? [{ value: String(value), label: String(savedLabel) }, ...loadedOpts]
           : loadedOpts;
       const createActionLabel =
@@ -287,7 +287,8 @@ export function renderFormFieldControl(field, ctx) {
           {...sharedProps}
           icon={FieldIcon}
           error={relationError}
-          value={value ?? null}
+          multiple={descriptor.multiple}
+          value={descriptor.multiple ? (Array.isArray(value) ? value : []) : (value ?? null)}
           options={staticOpts}
           loading={descriptor.source === "remote" ? rs.loading : false}
           loadError={descriptor.source === "remote" ? rs.error : null}

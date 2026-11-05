@@ -191,6 +191,9 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
       const [{ item, by }] = found.values();
       const incoming = { name: unit.name ?? data.common.name, partNumber: unit.partNumber ?? data.common.partNumber };
       for (const key of COMMON_UPDATE_KEYS) incoming[key] = { value: data.common[key], label: labels[key] };
+      // The intake picks one condition; on an existing item it becomes its whole list.
+      if (data.common.conditionId) incoming.conditionIds = { value: [data.common.conditionId], label: labels.conditionId };
+      delete incoming.conditionId;
       const { changes, patch } = diffItemFields(item, incoming);
       updates.push({ index, matchedBy: by, item: brief(item), changes, patch });
       if (unit.mode === 'create') {

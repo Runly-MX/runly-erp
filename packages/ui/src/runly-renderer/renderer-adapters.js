@@ -223,6 +223,8 @@ export function normalizeRelationDescriptor(fieldLike) {
     pageSize: typeof raw.pageSize === 'number' && raw.pageSize > 0 ? raw.pageSize : 20,
     preload: raw.preload !== false,
     clearable: typeof raw.clearable === 'boolean' ? raw.clearable : !required,
+    // The field value is an id array (e.g. inventory conditionIds).
+    multiple: raw.multiple === true,
     disabledField: typeof raw.disabledField === 'string' && raw.disabledField ? raw.disabledField : null,
     displayFields: raw.displayFields != null && typeof raw.displayFields === 'object' && !Array.isArray(raw.displayFields)
       ? raw.displayFields

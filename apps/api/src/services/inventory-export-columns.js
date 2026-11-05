@@ -3,6 +3,7 @@
 // its includes plus the batch lookups built by inventory-export-service.js).
 import { ADMIN_STATUS_LABELS } from './inventory-admin-service.js';
 import { reasonText } from './inventory-deregistration-act-pdf.js';
+import { conditionNameOf } from './inventory-conditions.js';
 
 const OPERATIONAL = { available: 'Disponible', assigned: 'Asignado', maintenance: 'Mantenimiento' };
 const ORIGINS = { PURCHASE: 'Compra', DONATION: 'Donación', LEASE: 'Arrendamiento', OTHER: 'Otro' };
@@ -45,7 +46,7 @@ export const EXPORT_COLUMNS = [
 
   { key: 'adminStatus', label: 'Estado', group: 'status', default: true, value: ({ item }) => ADMIN_STATUS_LABELS[item.adminStatus] ?? item.adminStatus },
   { key: 'status', label: 'Disponibilidad', group: 'status', default: true, value: ({ item }) => OPERATIONAL[item.status] ?? item.status },
-  { key: 'condition', label: 'Condición física', group: 'status', default: true, value: ({ item }) => item.condition?.name },
+  { key: 'condition', label: 'Condición física', group: 'status', default: true, value: ({ item }) => conditionNameOf(item) },
   { key: 'registeredAt', label: 'Fecha de alta', group: 'status', default: true, value: ({ item }) => day(item.registeredAt) },
 
   { key: 'location', label: 'Ubicación', group: 'place', default: true, value: ({ item }) => item.location?.name },

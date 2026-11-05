@@ -7,6 +7,7 @@ import { createHash, createHmac, randomBytes } from 'node:crypto';
 import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import { signedUrlWithVariant } from '../lib/image-variants.js';
 import { createCompanyBrandService } from './company-brand-service.js';
+import { CONDITIONS_INCLUDE, conditionNameOf } from './inventory-conditions.js';
 
 const date = (value) => (value ? new Date(value).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : null);
 const personName = (p) => (p ? [p.firstName, p.lastName].filter(Boolean).join(' ') || null : null);
@@ -23,7 +24,7 @@ export const PUBLIC_DETAIL_FIELDS = Object.freeze([
   ['showCategory', 'Categoría', false, (i) => i.category?.name],
   ['showLocation', 'Ubicación', true, (i) => i.location?.name],
   ['showArea', 'Área', false, (i) => i.area?.name],
-  ['showCondition', 'Condición', false, (i) => i.condition?.name],
+  ['showCondition', 'Condición', false, (i) => conditionNameOf(i)],
   ['showHolder', 'Responsable', false, (i) => personName(i.assignedTo) ?? 'Sin asignar'],
   ['showDescription', 'Descripción', false, (i) => i.description],
   ['showPurchaseDate', 'Fecha de compra', false, (i) => date(i.purchaseDate)],
@@ -154,7 +155,7 @@ export function createInventoryPublicService({
         catalogModel: { select: { name: true } },
         category: { select: { name: true } },
         area: { select: { name: true } },
-        condition: { select: { name: true } },
+        ...CONDITIONS_INCLUDE,
         assignedTo: { select: { firstName: true, lastName: true } },
       },
     });

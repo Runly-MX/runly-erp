@@ -105,7 +105,8 @@ export const INVENTORY_ITEM_FORM = {
           },
           { field: 'status', label: 'Disponibilidad', type: 'select', icon: 'CircleDot', required: true, options: STATUS_OPTIONS },
           {
-            field: 'conditionId',
+            // Several at once (e.g. Nuevo + Sin usar); each one matches its own filter.
+            field: 'conditionIds',
             label: 'Condición',
             type: 'relation',
             icon: 'Activity',
@@ -114,6 +115,7 @@ export const INVENTORY_ITEM_FORM = {
               labelField: 'name',
               preload: true,
               clearable: true,
+              multiple: true,
               create: {
                 enabled: true,
                 mode: 'quick',

@@ -4159,12 +4159,25 @@ model InvCondition {
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
-  company Company   @relation("CompanyInvConditions", fields: [companyId], references: [id])
-  items   InvItem[]
+  company Company            @relation("CompanyInvConditions", fields: [companyId], references: [id])
+  items   InvItemCondition[]
 
   @@unique([companyId, name])
   @@index([companyId])
   @@map("inv_condition")
+}
+
+// An item may carry several conditions at once (e.g. Nuevo + Sin usar).
+model InvItemCondition {
+  itemId      String @db.Uuid @map("item_id")
+  conditionId String @db.Uuid @map("condition_id")
+
+  item      InvItem      @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  condition InvCondition @relation(fields: [conditionId], references: [id], onDelete: Cascade)
+
+  @@id([itemId, conditionId])
+  @@index([conditionId])
+  @@map("inv_item_condition")
 }
 
 // Formal record of every administrative transition (alta/baja) of an item.
@@ -4428,8 +4441,7 @@ model InvItem {
   registeredAt         DateTime? @db.Date @map("registered_at")
   deregisteredAt       DateTime? @db.Date @map("deregistered_at")
   deregistrationReason String?   @db.VarChar(40) @map("deregistration_reason")
-  conditionId          String?   @db.Uuid @map("condition_id")
-  areaId        String?   @db.Uuid @map("area_id")
+  areaId       String?   @db.Uuid @map("area_id")
   // Optional GPS point (WGS84); both set or both null.
   latitude      Decimal?  @db.Decimal(9, 6)
   longitude     Decimal?  @db.Decimal(9, 6)
@@ -4440,7 +4452,7 @@ model InvItem {
 
   area         InvArea?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
   company      Company        @relation("CompanyInvItems", fields: [companyId], references: [id])
-  condition    InvCondition?  @relation(fields: [conditionId], references: [id], onDelete: SetNull)
+  conditions   InvItemCondition[]
   adminEvents  InvItemAdminEvent[]
   category     InvCategory?   @relation(fields: [categoryId], references: [id])
   brand        InvBrand?      @relation(fields: [brandId], references: [id])
@@ -4459,7 +4471,6 @@ model InvItem {
   @@index([companyId, folio])
   @@index([companyId, status])
   @@index([companyId, adminStatus])
-  @@index([conditionId])
   @@index([categoryId])
   @@index([assignedToId])
   @@index([modelId])

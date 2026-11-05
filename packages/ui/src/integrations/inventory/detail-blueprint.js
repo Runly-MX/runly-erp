@@ -65,7 +65,7 @@ export const INVENTORY_ITEM_DETAIL = {
         columns: 2,
         fields: [
           { field: 'locationName', label: 'Ubicación', icon: 'MapPin', filterBy: { param: 'locationId', valueField: 'locationId' } },
-          { field: 'conditionName', label: 'Condición', icon: 'Activity', filterBy: { param: 'conditionId', valueField: 'conditionId' } },
+          { field: 'conditionName', label: 'Condición', icon: 'Activity', filterBy: { param: 'conditionId', valueField: 'conditionIds' } },
           { field: 'assignedAt', label: 'Fecha de asignación', type: 'date', icon: 'CalendarDays' },
         ],
       },

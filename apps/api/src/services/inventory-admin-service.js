@@ -213,9 +213,12 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
   async function summary(companyId, scope = null) {
     assertCompany(companyId);
     const where = { companyId, enabled: true, ...(scopeWhere(scope) ?? {}) };
-    const [byAdmin, byCondition, byStatus, conditions, proposals] = await Promise.all([
+    const active = { ...where, adminStatus: { not: 'deregistered' } };
+    // An item with several conditions counts once in each of them.
+    const [byAdmin, byConditionRows, withoutCondition, byStatus, conditions, proposals] = await Promise.all([
       prisma.invItem.groupBy({ by: ['adminStatus'], where, _count: { _all: true } }),
-      prisma.invItem.groupBy({ by: ['conditionId'], where: { ...where, adminStatus: { not: 'deregistered' } }, _count: { _all: true } }),
+      prisma.invItemCondition.groupBy({ by: ['conditionId'], where: { item: active }, _count: { _all: true } }),
+      prisma.invItem.count({ where: { ...active, conditions: { none: {} } } }),
       prisma.invItem.groupBy({ by: ['status'], where: { ...where, adminStatus: { not: 'deregistered' } }, _count: { _all: true } }),
       prisma.invCondition.findMany({ where: { companyId }, select: { id: true, name: true, color: true, sortOrder: true } }),
       prisma.invItem.findMany({
@@ -228,6 +231,7 @@ export function createInventoryAdminService({ prisma, activityBridge, notifier =
     const adminCounts = Object.fromEntries(ADMIN_STATUSES.map((s) => [s, 0]));
     for (const row of byAdmin) adminCounts[row.adminStatus] = row._count._all;
     const conditionById = new Map(conditions.map((c) => [c.id, c]));
+    const byCondition = withoutCondition ? [...byConditionRows, { conditionId: null, _count: { _all: withoutCondition } }] : byConditionRows;
     return {
       total: Object.values(adminCounts).reduce((a, b) => a + b, 0),
       byAdminStatus: adminCounts,

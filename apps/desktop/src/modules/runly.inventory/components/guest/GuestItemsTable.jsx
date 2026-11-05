@@ -39,7 +39,7 @@ export function GuestItemsTable({ areaId, onOpen, onEdit = null }) {
         { field: 'areaName', label: 'Área', sortable: true },
         { field: 'status', label: 'Disponibilidad', sortable: true, type: 'select', options: STATUS_OPTIONS },
         { field: 'adminStatus', label: 'Estado', sortable: true, type: 'select', options: ADMIN_OPTIONS },
-        { field: 'conditionName', label: 'Condición', sortable: true, defaultVisible: false },
+        { field: 'conditionName', label: 'Condición', sortable: false, defaultVisible: false },
         { field: 'locationName', label: 'Ubicación', sortable: true, defaultVisible: false },
         { field: 'serialNumber', label: 'No. Serie', sortable: true, defaultVisible: false },
         { field: 'model', label: 'Modelo', sortable: true, defaultVisible: false },
@@ -50,7 +50,7 @@ export function GuestItemsTable({ areaId, onOpen, onEdit = null }) {
       filters: [
         { key: 'adminStatus', label: 'Estado', type: 'select', icon: ShieldCheck, options: ADMIN_FILTER_OPTIONS.map((o) => ({ ...o, color: ADMIN_COLORS[o.value] })) },
         { key: 'status', label: 'Disponibilidad', type: 'select', icon: Activity, options: STATUS_OPTIONS },
-        { key: 'conditionId', label: 'Condición', type: 'select', icon: Wrench, options: asOptions(catalogs?.conditions) },
+        { key: 'conditionId', label: 'Condición', type: 'multiselect', icon: Wrench, options: asOptions(catalogs?.conditions) },
         { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: asOptions(catalogs?.categories) },
         { key: 'brandId', label: 'Marca', type: 'select', icon: Tag, options: asOptions(catalogs?.brands) },
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: asOptions(catalogs?.locations) },

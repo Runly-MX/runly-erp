@@ -23,7 +23,7 @@ export function useInventoryMapFilters() {
     { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: toOptions(categories, true) },
     { key: 'status', label: 'Disponibilidad', type: 'select', icon: Activity, options: STATUS_OPTIONS },
     { key: 'adminStatus', label: 'Estado', type: 'select', icon: ShieldCheck, options: ADMIN_FILTER_OPTIONS.map((o) => ({ ...o, color: ADMIN_COLORS[o.value] })) },
-    { key: 'conditionId', label: 'Condición', type: 'select', icon: Wrench, options: toOptions(conditions) },
+    { key: 'conditionId', label: 'Condición', type: 'multiselect', icon: Wrench, options: toOptions(conditions) },
     { key: 'brandId', label: 'Marca', type: 'select', icon: Tag, options: toOptions(brands) },
     { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: toOptions(locations) },
     ...(areaOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', icon: FolderTree, options: areaOptions }] : []),

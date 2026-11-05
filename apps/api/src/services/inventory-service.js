@@ -13,6 +13,7 @@ import { publishDomainEvent } from './domain-events/events.js';
 import { FOLIO_MAX, createFolioAllocator, normalizeFolio } from './inventory-folio.js';
 import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
 import { normalizeGeoPoint } from '../lib/geo-point.js';
+import { CONDITIONS_INCLUDE, conditionFields, conditionNameOf, conditionIdsInput, assertConditionsInCompany, conditionsWrite } from './inventory-conditions.js';
 
 function geoPointOf(data) {
   try { return normalizeGeoPoint(data.latitude, data.longitude); } catch (err) { throw new InventoryServiceError(err.message, 400); }
@@ -57,7 +58,6 @@ const ITEM_SORTS = {
   name: (dir) => ({ name: dir }),
   status: (dir) => ({ status: dir }),
   adminStatus: (dir) => ({ adminStatus: dir }),
-  conditionName: (dir) => ({ condition: { name: dir } }),
   model: (dir) => ({ model: dir }),
   serialNumber: (dir) => ({ serialNumber: dir }),
   purchaseDate: (dir) => ({ purchaseDate: { sort: dir, nulls: 'last' } }),
@@ -236,7 +236,7 @@ export function createInventoryService({ prisma, activityBridge }) {
           brand: { select: { id: true, name: true } },
           location: { select: { id: true, name: true } },
           area: { select: { id: true, name: true } },
-          condition: { select: { id: true, name: true, color: true } },
+          ...CONDITIONS_INCLUDE,
           assignedTo: { select: { id: true, firstName: true, lastName: true, employeeCode: true } },
         },
         orderBy: itemOrderBy(sortBy, sortDir),
@@ -253,7 +253,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       brandName: item.brand?.name ?? null,
       locationName: item.location?.name ?? null,
       areaName: item.areaId ? (item.area?.name ?? null) : 'General',
-      conditionName: item.condition?.name ?? null,
+      ...conditionFields(item),
       assignedToName: item.assignedTo
         ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ')
         : null,
@@ -308,7 +308,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
       locationName: item.location?.name ?? null,
-      conditionName: item.condition?.name ?? null,
+      conditionName: conditionNameOf(item),
       areaName: item.areaId ? (item.area?.name ?? null) : 'General',
       model: item.model ?? null,
       serialNumber: item.serialNumber ?? null,
@@ -344,7 +344,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     category: { select: { id: true, name: true } },
     brand: { select: { id: true, name: true } },
     location: { select: { id: true, name: true } },
-    condition: { select: { id: true, name: true } },
+    ...CONDITIONS_INCLUDE,
     area: { select: { id: true, name: true } },
     customValues: { include: { field: { select: { id: true, label: true } } } },
   }
@@ -358,7 +358,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         category: { select: { id: true, name: true, icon: true, color: true, description: true } },
         brand:    { select: { id: true, name: true, website: true } },
         location: { select: { id: true, name: true, address: true } },
-        condition: { select: { id: true, name: true, color: true } },
+        ...CONDITIONS_INCLUDE,
         assignedTo: {
           select: { id: true, firstName: true, lastName: true, employeeCode: true, userProfileId: true },
         },
@@ -380,7 +380,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       categoryName: item.category?.name ?? null,
       brandName: item.brand?.name ?? null,
       locationName: item.location?.name ?? null,
-      conditionName: item.condition?.name ?? null,
+      ...conditionFields(item),
       assignedToName: item.assignedTo
         ? ([item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ') || null)
         : null,
@@ -408,7 +408,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     await assertRefInCompany('invCategory', data.categoryId, companyId, 'El tipo');
     await assertRefInCompany('invBrand', data.brandId, companyId, 'La marca');
     await assertRefInCompany('invLocation', data.locationId, companyId, 'La ubicacion');
-    await assertRefInCompany('invCondition', data.conditionId, companyId, 'La condicion');
+    const conditionIds = conditionIdsInput(data);
+    await assertConditionsInCompany(prisma, conditionIds, companyId);
     await assertRefInCompany('invArea', data.areaId, companyId, 'El area');
     if (data.status !== undefined && data.status !== null && !EDITABLE_STATUSES.has(data.status)) {
       throw new InventoryServiceError('Estado no válido: usa Disponible o Mantenimiento. Las bajas se registran desde la ficha del activo.', 400);
@@ -462,7 +463,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (categoryId !== undefined) itemData.categoryId = categoryId;
     if (brandId !== undefined) itemData.brandId = brandId;
     if (locationId !== undefined) itemData.locationId = locationId;
-    if (data.conditionId !== undefined) itemData.conditionId = data.conditionId || null;
+    if (conditionIds?.length) itemData.conditions = conditionsWrite(conditionIds);
     if (serialNumber !== undefined) itemData.serialNumber = serialNumber;
     if (model !== undefined) itemData.model = model;
     if (modelId !== undefined) itemData.modelId = modelId || null;
@@ -580,18 +581,22 @@ export function createInventoryService({ prisma, activityBridge }) {
     // compatible; guarded writes and their readback share one transaction.
     async function updateRecord(db, args) {
       if (!expectedAt) return db.invItem.update(args);
+      // updateMany takes no nested writes: conditions go in a second update of the same transaction.
+      const { conditions, ...data } = args.data;
       const { count } = await db.invItem.updateMany({
         where: { id, companyId, enabled: true, assetTag: existing.assetTag,
           updatedAt: { gte: expectedAt, lt: new Date(expectedAt.getTime() + 1) } },
-        data: args.data,
+        data,
       });
       if (count !== 1) throw stale();
+      if (conditions) await db.invItem.update({ where: { id }, data: { conditions } });
       return db.invItem.findFirst({ where: { id, companyId }, include: args.include });
     }
     await assertRefInCompany('invCategory', data.categoryId, companyId, 'El tipo');
     await assertRefInCompany('invBrand', data.brandId, companyId, 'La marca');
     await assertRefInCompany('invLocation', data.locationId, companyId, 'La ubicacion');
-    await assertRefInCompany('invCondition', data.conditionId, companyId, 'La condicion');
+    const conditionIds = conditionIdsInput(data);
+    await assertConditionsInCompany(prisma, conditionIds, companyId);
     await assertRefInCompany('invArea', data.areaId, companyId, 'El area');
 
     const {
@@ -667,7 +672,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       if (existing.status === 'assigned') throw new InventoryServiceError('Registra la devolución del activo antes de cambiar su estado.', 409);
       updateData.status = status;
     }
-    if (data.conditionId !== undefined) updateData.conditionId = data.conditionId || null;
+    if (conditionIds !== undefined) updateData.conditions = conditionsWrite(conditionIds, { replace: true });
     if (data.areaId !== undefined) updateData.areaId = data.areaId || null;
     if (purchaseDate !== undefined) updateData.purchaseDate = purchaseDate ? new Date(purchaseDate) : null;
     if (purchasePrice !== undefined) updateData.purchasePrice = purchasePrice;
@@ -709,7 +714,7 @@ export function createInventoryService({ prisma, activityBridge }) {
             category: { select: { id: true, name: true, icon: true, color: true } },
             brand: { select: { id: true, name: true } },
             location: { select: { id: true, name: true } },
-            condition: { select: { id: true, name: true } },
+            ...CONDITIONS_INCLUDE,
             area: { select: { id: true, name: true } },
             customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryIds: true, onDemand: true } } } },
           },
@@ -729,7 +734,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         companyId,
       }).catch(() => {});
       await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(result ?? { id }) });
-      return economicProjection.one(companyId, result);
+      return economicProjection.one(companyId, { ...result, ...conditionFields(result) });
     }
 
     const updated = await writeWith(afterWrite, (db) => updateRecord(db, {
@@ -739,7 +744,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         category: { select: { id: true, name: true, icon: true, color: true } },
         brand: { select: { id: true, name: true } },
         location: { select: { id: true, name: true } },
-        condition: { select: { id: true, name: true } },
+        ...CONDITIONS_INCLUDE,
         area: { select: { id: true, name: true } },
         customValues: { include: { field: { select: { id: true, label: true } } } },
       },
@@ -758,7 +763,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       companyId,
     }).catch(() => {});
     await publishDomainEvent(prisma, { companyId, event: 'inventory.item.updated', payload: itemEventPayload(updated) });
-    return economicProjection.one(companyId, updated);
+    return economicProjection.one(companyId, { ...updated, ...conditionFields(updated) });
   }
 
   async function deleteItem(id, companyId, actorAuthId = null) {

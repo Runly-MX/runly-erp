@@ -40,7 +40,7 @@ describe('Canvas data sources', () => {
 
   it('describes an item by status, assignee and location', async () => {
     const prisma = prismaWith({
-      invItem: { findMany: async () => [{ id: 'it-1', name: 'Laptop 14', assetTag: 'A-001', status: 'assigned', adminStatus: 'registered', assignedTo: { firstName: 'Ana', lastName: 'Ruiz' }, location: { name: 'Oficina' }, condition: { name: 'Buena' } }] },
+      invItem: { findMany: async () => [{ id: 'it-1', name: 'Laptop 14', assetTag: 'A-001', status: 'assigned', adminStatus: 'registered', assignedTo: { firstName: 'Ana', lastName: 'Ruiz' }, location: { name: 'Oficina' }, conditions: [{ condition: { id: 'c-1', name: 'Buena' } }] }] },
     })
     const sources = createCanvasDataSources({ prisma, access: allowAll, relationTargets: {}, inventoryAccess: unrestricted })
     const result = await sources.resolve({ authUserId: 'auth-1', companyId: COMPANY, refs: [{ source: 'inventory_item', id: 'it-1' }] })

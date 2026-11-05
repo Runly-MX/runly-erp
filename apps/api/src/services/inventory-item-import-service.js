@@ -144,6 +144,8 @@ export function suggestItemMapping(headers, customFields = []) {
 }
 
 const NEW_REF = '__new__';
+// The Condición cell may list several ("Nuevo, Sin usar"), the way the export writes them.
+const conditionNames = (value) => [...new Set(String(value ?? '').split(/[,;]/).map((s) => s.trim()).filter(Boolean))];
 // Incoming values for diffItemFields. `refs` holds the resolved catalog ids
 // (or NEW_REF when the entry would be created, undefined to leave it alone).
 function incomingFor(d, refs) {
@@ -154,7 +156,8 @@ function incomingFor(d, refs) {
     vendorName: d.vendorName, invoiceNumber: d.invoiceNumber,
     purchaseDate: d.purchaseDate, purchasePrice: d.purchasePrice, warrantyExpiry: d.warrantyExpiry,
     categoryId: ref(d.type, refs.categoryId), brandId: ref(d.brand, refs.brandId),
-    locationId: ref(d.location, refs.locationId), conditionId: ref(d.condition, refs.conditionId),
+    locationId: ref(d.location, refs.locationId),
+    conditionIds: refs.conditionIds?.length ? { value: refs.conditionIds, label: conditionNames(d.condition).join(', ') } : undefined,
   };
 }
 
@@ -277,9 +280,11 @@ export function createInventoryItemImportService({
     const purchasePrice = d.purchasePrice ? parseImportPrice(d.purchasePrice) : null;
     if (Number.isNaN(purchasePrice)) errors.push(`Precio «${d.purchasePrice}» no válido.`);
 
-    for (const [field, map] of [['type', ctx.types], ['brand', ctx.brands], ['location', ctx.locations], ['condition', ctx.conditions]]) {
+    for (const [field, map] of [['type', ctx.types], ['brand', ctx.brands], ['location', ctx.locations]]) {
       if (d[field] && !map.has(key(d[field]))) missing[field] = d[field];
     }
+    const missingConditions = conditionNames(d.condition).filter((n) => !ctx.conditions.has(key(n)));
+    if (missingConditions.length) missing.condition = missingConditions;
     // A model joins the catalog only with its type and brand; an existing
     // model also supplies the type when the file has none.
     if (d.model) {
@@ -355,7 +360,8 @@ export function createInventoryItemImportService({
       if (!item && row.matchId && scope) row.restricted = true;
       if (!item) continue;
       const d = row.data;
-      const refs = { categoryId: lookup(ctx.types, d.type), brandId: lookup(ctx.brands, d.brand), locationId: lookup(ctx.locations, d.location), conditionId: lookup(ctx.conditions, d.condition) };
+      const conditionIds = conditionNames(d.condition).map((n) => { const id = lookup(ctx.conditions, n); return id === NEW_REF ? `${NEW_REF}:${n}` : id; }).filter(Boolean);
+      const refs = { categoryId: lookup(ctx.types, d.type), brandId: lookup(ctx.brands, d.brand), locationId: lookup(ctx.locations, d.location), conditionIds };
       row.existing = { id: item.id, name: item.name, assetTag: item.assetTag ?? null, serialNumber: item.serialNumber ?? null };
       row.changes = diffItemFields(item, incomingFor(d, refs)).changes;
       row.item = item;
@@ -378,7 +384,9 @@ export function createInventoryItemImportService({
     catalog('categoryId', ctx.types, d.type);
     catalog('brandId', ctx.brands, d.brand);
     catalog('locationId', ctx.locations, d.location);
-    catalog('conditionId', ctx.conditions, d.condition);
+    const known = conditionNames(d.condition).filter((n) => ctx.conditions.has(key(n)));
+    // Proposals carry string values: the conditions travel as a CSV of ids.
+    if (known.length) changes.conditionId = { value: known.map((n) => ctx.conditions.get(key(n))).join(','), label: known.join(', ') };
     const matchedField = row.matchedBy;
     return { matchedField, matchedValue: matchedField === 'assetTag' ? d.assetTag : d.serialNumber, changes };
   }
@@ -396,7 +404,7 @@ export function createInventoryItemImportService({
       if (row.restricted) counts.restricted += 1;
     }
     const unique = (values) => [...new Map(values.filter(Boolean).map((v) => [key(v), v])).values()];
-    const pick = (field) => unique(analyzed.map((r) => r.missing?.[field]));
+    const pick = (field) => unique(analyzed.flatMap((r) => r.missing?.[field] ?? []));
     return {
       rows: analyzed.map(({ item, matchId, matchedBy, ...row }) => row),
       counts,
@@ -477,12 +485,13 @@ export function createInventoryItemImportService({
           const brandId = await find(ctx.brands, 'invBrand', d.brand);
           const categoryId = await find(ctx.types, 'invCategory', d.type);
           const locationId = await find(ctx.locations, 'invLocation', d.location);
-          const conditionId = await find(ctx.conditions, 'invCondition', d.condition);
+          const conditionIds = [];
+          for (const n of conditionNames(d.condition)) { const id = await find(ctx.conditions, 'invCondition', n); if (id) conditionIds.push(id); }
           const modelBrandId = brandId ?? row.item.brandId;
           const model = d.model && (createMissing
             ? await ensureModel(d.model, categoryId ?? row.item.categoryId, modelBrandId)
             : ctx.models.find((m) => m.brandId === modelBrandId && m.nameKey === key(d.model)));
-          const { patch } = diffItemFields(row.item, incomingFor(d, { categoryId, brandId, locationId, conditionId }));
+          const { patch } = diffItemFields(row.item, incomingFor(d, { categoryId, brandId, locationId, conditionIds }));
           if (model?.id && patch.model) patch.modelId = model.id;
           if (!Object.keys(patch).length) { notApplied += 1; record(row, 'skipped', 'Sin cambios respecto al activo existente.'); continue; }
           await inventoryService.updateItem(row.existing.id, patch, companyId, { actorAuthId: authUserId });
@@ -503,7 +512,8 @@ export function createInventoryItemImportService({
         const model = await ensureModel(d.model, categoryId, brandId);
         categoryId = categoryId ?? model?.typeId ?? undefined;
         const locationId = await ensure(ctx.locations, 'invLocation', d.location);
-        const conditionId = await ensure(ctx.conditions, 'invCondition', d.condition);
+        const conditionIds = [];
+        for (const n of conditionNames(d.condition)) conditionIds.push(await ensure(ctx.conditions, 'invCondition', n));
         item = await inventoryService.createItem({
           name: d.autoName ? undefined : d.name,
           assetTag: d.assetTag || undefined,
@@ -517,7 +527,7 @@ export function createInventoryItemImportService({
           locationId,
           status: d.status,
           adminStatus: d.adminStatus,
-          conditionId,
+          conditionIds,
           purchaseDate: d.purchaseDate || undefined,
           purchasePrice: d.purchasePrice ?? undefined,
           vendorName: d.vendorName || undefined,

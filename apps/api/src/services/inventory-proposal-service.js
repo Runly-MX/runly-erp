@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { InventoryServiceError } from './inventory-guards.js';
 import { cleanIdentifier } from './inventory-identifiers.js';
 import { canWriteArea } from './inventory-scope.js';
+import { CONDITIONS_INCLUDE, conditionFields } from './inventory-conditions.js';
 
 const uuid = z.string().uuid();
 const plain = (max) => z.string().trim().max(max);
@@ -20,7 +21,8 @@ const FIELDS = {
   categoryId: { schema: uuid, label: 'Tipo', relation: 'category' },
   brandId: { schema: uuid, label: 'Marca', relation: 'brand' },
   locationId: { schema: uuid, label: 'Ubicación', relation: 'location' },
-  conditionId: { schema: uuid, label: 'Condición', relation: 'condition' },
+  // One id or a CSV of ids: an item may carry several conditions.
+  conditionId: { schema: z.string().regex(/^[0-9a-f-]{36}(,[0-9a-f-]{36})*$/i).max(2000), label: 'Condición', relation: 'condition' },
   partNumber: { schema: plain(255), label: 'Número de parte' },
   warrantyExpiry: { schema: dateOnly, label: 'Vencimiento de garantía' },
   warrantyNotes: { schema: plain(2000), label: 'Notas de garantía' },
@@ -44,7 +46,7 @@ const reviewSchema = z.object({
   note: plain(1000).nullish(),
 }).strict();
 
-const RELATION_NAME = { category: 'category', brand: 'brand', location: 'location', condition: 'condition' };
+const RELATION_NAME = { category: 'category', brand: 'brand', location: 'location' };
 // DATE columns arrive as UTC midnight: read them with the UTC getters so the day never shifts.
 function iso(value) {
   if (!value) return null;
@@ -102,7 +104,7 @@ export function createInventoryProposalService({ prisma, inventoryService = null
         where: { id: { in: itemIds }, companyId },
         include: {
           category: { select: { name: true } }, brand: { select: { name: true } },
-          location: { select: { name: true } }, condition: { select: { name: true } }, area: { select: { name: true } },
+          location: { select: { name: true } }, ...CONDITIONS_INCLUDE, area: { select: { name: true } },
         },
       })
       : [];
@@ -112,6 +114,7 @@ export function createInventoryProposalService({ prisma, inventoryService = null
   const currentOf = (item, field) => {
     const def = FIELDS[field];
     if (field === 'warrantyExpiry') return { value: iso(item.warrantyExpiry) };
+    if (field === 'conditionId') { const { conditionIds, conditionName } = conditionFields(item); return { value: conditionIds.join(',') || null, label: conditionName }; }
     if (def.relation && RELATION_NAME[def.relation]) return { value: item[field] ?? null, label: item[RELATION_NAME[def.relation]]?.name ?? null };
     return { value: item[field] ?? null };
   };

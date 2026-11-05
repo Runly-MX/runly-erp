@@ -107,8 +107,8 @@ export function GuestItemFormSections({ form, item, areaOptions, areaLabel, cata
               <SelectField label="Disponibilidad" required value={field.value} options={GUEST_WRITABLE_STATUS_OPTIONS} onValueChange={field.onChange} />
             )} />
           ) : null}
-          <Controller name="conditionId" control={control} render={({ field }) => (
-            <GuestCatalogField kind="conditions" noun="Condición" label="Condición" icon={Activity} rows={catalogs?.conditions} value={field.value} onChange={field.onChange} canCreate={canCreate} />
+          <Controller name="conditionIds" control={control} render={({ field }) => (
+            <GuestCatalogField kind="conditions" noun="Condición" label="Condición" icon={Activity} rows={catalogs?.conditions} value={field.value} onChange={field.onChange} canCreate={canCreate} multiple />
           )} />
         </div>
       </SectionCard>

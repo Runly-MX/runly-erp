@@ -28,8 +28,9 @@ export function buildProposalFields(values = {}, lookups = {}) {
   }
   for (const def of PLAIN.slice(2, 3)) if (text(values[def.key])) fields.push({ ...def, value: text(values[def.key]), display: text(values[def.key]) })
   for (const def of RELATIONS.slice(2)) {
-    const value = text(values[def.key])
-    if (value) fields.push({ key: def.key, label: def.label, value, display: lookups[def.list]?.find((r) => r.id === value)?.name ?? value })
+    // The form holds several conditions (conditionIds); they travel as one CSV value.
+    const ids = def.key === 'conditionId' ? [values.conditionIds ?? values.conditionId ?? []].flat().map(text).filter(Boolean) : [text(values[def.key])].filter(Boolean)
+    if (ids.length) fields.push({ key: def.key, label: def.label, value: ids.join(','), display: ids.map((id) => lookups[def.list]?.find((r) => r.id === id)?.name ?? id).join(', ') })
   }
   for (const def of PLAIN.slice(3)) if (text(values[def.key])) fields.push({ ...def, value: text(values[def.key]).slice(0, def.key === 'warrantyExpiry' ? 10 : undefined), display: text(values[def.key]) })
   return fields

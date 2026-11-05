@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { getConfiguredTimeZone } from '@runly/core';
 import { scopeWhere, mineWhere } from './inventory-scope.js';
+import { conditionFilterIds } from './inventory-conditions.js';
 
 export function inventoryDayStart(value, dayOffset = 0, timeZone = getConfiguredTimeZone()) {
   const [year, month, day] = value.split('-').map(Number);
@@ -23,7 +24,8 @@ export const inventoryFiltersSchema = z.object({
   categoryId: z.uuid().optional(), brandId: z.uuid().optional(), locationId: z.uuid().optional(), assignedToId: z.uuid().optional(),
   status: z.enum(['available', 'assigned', 'maintenance']).optional(),
   adminStatus: z.enum(['registration_pending', 'registered', 'deregistration_proposed', 'deregistered']).optional(),
-  conditionId: z.uuid().optional(),
+  // One condition id or a CSV of them (items holding any of them).
+  conditionId: z.union([z.string().max(2000), z.array(z.uuid()).max(50)]).optional(),
   model: z.string().max(255).optional(), folio: z.string().max(100).optional(), assetTag: z.string().max(100).optional(),
   serialNumber: z.string().max(255).optional(), partNumber: z.string().max(255).optional(), modelId: z.uuid().optional(),
   missingSerial: z.boolean().optional(), createdFrom: z.iso.date().optional(), createdTo: z.iso.date().optional(),
@@ -61,7 +63,8 @@ export function buildInventoryWhere(companyId, filters = {}, scope = null, mine 
   // searchIds (from inventory-search-service) replaces the 3-column contains.
   if (Array.isArray(filters.searchIds)) where.id = { in: filters.searchIds };
   else if (q) where.OR =['name', 'assetTag', 'serialNumber'].map(field => ({ [field]: { contains: q, mode: 'insensitive' } }));
-  for (const field of ['categoryId', 'brandId', 'locationId', 'conditionId', 'assignedToId', 'status', 'modelId']) if (filters[field]) where[field] = filters[field];
+  for (const field of ['categoryId', 'brandId', 'locationId', 'assignedToId', 'status', 'modelId']) if (filters[field]) where[field] = filters[field];
+  if (filters.conditionId) where.conditions = { some: { conditionId: { in: conditionFilterIds(filters.conditionId) } } };
   if (filters.unassigned) where.assignedToId = null;
   if (filters.areaId) where.areaId = filters.areaId === AREA_NONE ? null : filters.areaId;
   // Exact (case-insensitive) match on free-text columns, e.g. from the detail view magnifier.

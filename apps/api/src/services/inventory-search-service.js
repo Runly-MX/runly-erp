@@ -22,7 +22,8 @@ export function inventorySearchSources(companyId, pattern) {
       LEFT JOIN inv_category cat ON cat.id = i.category_id
       LEFT JOIN inv_brand br ON br.id = i.brand_id
       LEFT JOIN inv_location loc ON loc.id = i.location_id
-      LEFT JOIN inv_condition cond ON cond.id = i.condition_id
+      LEFT JOIN inv_item_condition ic ON ic.item_id = i.id
+      LEFT JOIN inv_condition cond ON cond.id = ic.condition_id
       LEFT JOIN inv_model mdl ON mdl.id = i.model_id
       LEFT JOIN hr_employee cur ON cur.id = i.assigned_to_id
       WHERE ${co('i')} AND i.enabled = true AND (${like([

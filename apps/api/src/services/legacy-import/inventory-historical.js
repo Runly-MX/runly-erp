@@ -7,6 +7,7 @@ import { ACQUISITION_ORIGINS } from '../inventory-service.js';
 import { assignItemTx } from '../inventory-assignment-tx.js';
 import { FOLIO_MAX, createFolioAllocator, normalizeFolio } from '../inventory-folio.js';
 import { findActiveDuplicates } from '../inventory-identifiers.js';
+import { conditionIdsInput, conditionsWrite } from '../inventory-conditions.js';
 import { LegacyImportError, clip, toDateOnly, toTimestamp, writeImportAudit, sha256 } from './shared.js';
 
 const MODULE_KEY = 'runly.inventory';
@@ -79,7 +80,9 @@ function itemFields(data) {
   const out = {};
   const text = { name: 255, description: 2000, serialNumber: 255, model: 255, partNumber: 255, vendorName: 255, invoiceNumber: 100, warrantyNotes: 500, licenseKey: 500, notes: 2000, itemType: 50 };
   for (const [key, max] of Object.entries(text)) if (data[key] !== undefined) out[key] = clip(data[key], max);
-  for (const key of ['categoryId', 'brandId', 'locationId', 'conditionId', 'modelId']) if (data[key] !== undefined) out[key] = data[key] || null;
+  for (const key of ['categoryId', 'brandId', 'locationId', 'modelId']) if (data[key] !== undefined) out[key] = data[key] || null;
+  const conditionIds = conditionIdsInput(data);
+  if (conditionIds?.length) out.conditions = conditionsWrite(conditionIds);
   for (const key of ['purchaseDate', 'warrantyExpiry', 'licenseExpiry']) if (data[key] !== undefined) out[key] = toDateOnly(data[key]);
   if (data.purchasePrice !== undefined && data.purchasePrice !== null && data.purchasePrice !== '') {
     const price = Number(data.purchasePrice);
@@ -99,7 +102,7 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
   const folios = createFolioAllocator();
   async function assertRefs(companyId, data) {
     const checks = [['invCategory', data.categoryId, 'tipo'], ['invBrand', data.brandId, 'marca'], ['invLocation', data.locationId, 'ubicación'],
-      ['invCondition', data.conditionId, 'condición'], ['invModel', data.modelId, 'modelo']];
+      ...(conditionIdsInput(data) ?? []).map((id) => ['invCondition', id, 'condición']), ['invModel', data.modelId, 'modelo']];
     for (const [model, id, label] of checks) {
       if (!id) continue;
       const row = await prisma[model].findFirst({ where: { id, companyId }, select: { id: true } });

@@ -4,7 +4,9 @@
 // inventoryService.updateItem. Empty incoming values never blank an existing
 // value, and identifiers are never part of the patch.
 
-// kind: text | ref | date | number. `rel` is the included relation holding the display name.
+import { CONDITIONS_INCLUDE, conditionsOf } from './inventory-conditions.js';
+
+// kind: text | ref | refs (id list, order-free) | date | number. `rel` is the included relation holding the display name.
 export const UPDATABLE_FIELDS = [
   { key: 'name', label: 'Nombre', kind: 'text' },
   { key: 'model', label: 'Modelo', kind: 'text' },
@@ -12,7 +14,7 @@ export const UPDATABLE_FIELDS = [
   { key: 'categoryId', label: 'Tipo', kind: 'ref', rel: 'category' },
   { key: 'brandId', label: 'Marca', kind: 'ref', rel: 'brand' },
   { key: 'locationId', label: 'Ubicación', kind: 'ref', rel: 'location' },
-  { key: 'conditionId', label: 'Condición', kind: 'ref', rel: 'condition' },
+  { key: 'conditionIds', label: 'Condición', kind: 'refs' },
   { key: 'description', label: 'Descripción', kind: 'text' },
   { key: 'notes', label: 'Notas', kind: 'text' },
   { key: 'vendorName', label: 'Proveedor', kind: 'text' },
@@ -29,16 +31,21 @@ export const EXISTING_ITEM_INCLUDE = {
   category: { select: { name: true } },
   brand: { select: { name: true } },
   location: { select: { name: true } },
-  condition: { select: { name: true } },
+  ...CONDITIONS_INCLUDE,
 };
 
-const isEmpty = (value) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '') || Number.isNaN(value);
+const isEmpty = (value) => value === undefined || value === null || (typeof value === 'string' && value.trim() === '') || Number.isNaN(value) || (Array.isArray(value) && value.length === 0);
+const sameKey = (value) => (Array.isArray(value) ? [...value].map(String).sort().join(',') : value);
 // Prisma @db.Date values are UTC midnight, so read the UTC parts (not a local conversion).
 const isoDate = (value) => (value instanceof Date
   ? `${value.getUTCFullYear()}-${String(value.getUTCMonth() + 1).padStart(2, '0')}-${String(value.getUTCDate()).padStart(2, '0')}`
   : String(value ?? '').slice(0, 10));
 
 function currentOf(field, existing) {
+  if (field.kind === 'refs') {
+    const conditions = conditionsOf(existing);
+    return conditions.length ? { value: conditions.map((c) => c.id), label: conditions.map((c) => c.name).join(', ') } : { value: null, label: null };
+  }
   const raw = existing[field.key];
   if (isEmpty(raw)) return { value: null, label: null };
   if (field.kind === 'ref') return { value: raw, label: existing[field.rel]?.name ?? null };
@@ -55,9 +62,9 @@ export function diffItemFields(existing, incoming = {}) {
     const entry = incoming[field.key];
     const given = entry !== null && typeof entry === 'object' && !(entry instanceof Date) && 'value' in entry ? entry : { value: entry };
     if (isEmpty(given.value)) continue;
-    const next = field.kind === 'date' ? isoDate(given.value) : field.kind === 'number' ? Number(given.value) : field.kind === 'ref' ? given.value : String(given.value).trim();
+    const next = field.kind === 'date' ? isoDate(given.value) : field.kind === 'number' ? Number(given.value) : field.kind === 'ref' || field.kind === 'refs' ? given.value : String(given.value).trim();
     const current = currentOf(field, existing);
-    if (current.value === next) continue;
+    if (sameKey(current.value) === sameKey(next)) continue;
     changes.push({ field: field.key, label: field.label, current: current.label, incoming: given.label ?? String(next) });
     patch[field.key] = next;
   }

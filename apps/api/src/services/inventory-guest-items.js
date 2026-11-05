@@ -14,6 +14,7 @@ import { canViewItem, canWriteArea, guestCan } from './inventory-scope.js';
 import { createInventoryModelService } from './inventory-model-service.js';
 import { createInventoryGuestCatalog, customFieldRow } from './inventory-guest-catalog.js';
 import { findActiveDuplicates } from './inventory-identifiers.js';
+import { conditionFields } from './inventory-conditions.js';
 import { loadGuestBranding } from './inventory-guest-branding.js';
 import { createInventoryAdminService, ADMIN_TRANSITIONS, DEREGISTRATION_REASONS } from './inventory-admin-service.js';
 import { GUEST_LOCKED_ADMIN_STATUSES } from './inventory-item-import-service.js';
@@ -31,7 +32,7 @@ const FIELDS = {
   categoryId: uuid.nullable(),
   brandId: uuid.nullable(),
   locationId: uuid.nullable(),
-  conditionId: uuid.nullable(),
+  conditionIds: z.array(uuid).max(50),
   modelId: uuid.nullable(),
   model: text(255),
   folio: text(50),
@@ -87,8 +88,8 @@ export function serializeGuestItem(item, { coverUrl = null } = {}) {
     brandName: item.brand?.name ?? item.brandName ?? null,
     locationId: item.locationId ?? null,
     locationName: item.location?.name ?? item.locationName ?? null,
-    conditionId: item.conditionId ?? null,
-    conditionName: item.condition?.name ?? item.conditionName ?? null,
+    conditionIds: conditionFields(item).conditionIds,
+    conditionName: conditionFields(item).conditionName,
     coverUrl,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,

@@ -8,6 +8,7 @@ import { assertCompany, InventoryServiceError } from './inventory-guards.js';
 import { buildInventoryWhere, inventoryFiltersSchema } from './inventory-query.js';
 import { createInventorySearch } from './inventory-search-service.js';
 import { DEFAULT_LISTED_ADMIN_STATUSES } from './inventory-admin-service.js';
+import { CONDITIONS_INCLUDE } from './inventory-conditions.js';
 import {
   CUSTOM_FIELD_PREFIX, EXPORT_COLUMNS, catalogGroups, customFieldColumns,
 } from './inventory-export-columns.js';
@@ -136,7 +137,7 @@ export function createInventoryExportService({ prisma, supabaseAdmin = null }) {
         orderBy: { id: 'asc' }, take: CHUNK,
         include: {
           category: { select: { name: true } }, brand: { select: { name: true } }, location: { select: { name: true } },
-          condition: { select: { name: true } }, catalogModel: { select: { name: true } },
+          ...CONDITIONS_INCLUDE, catalogModel: { select: { name: true } },
           assignedTo: { select: { firstName: true, lastName: true, employeeCode: true, workEmail: true } },
           createdBy: { select: { displayName: true, firstName: true, lastName: true } },
           customValues: { select: { fieldId: true, value: true } },

@@ -44,7 +44,9 @@ export default function InventoryScreen() {
   const navigate = useNavigate()
   const [searchParams, setSearchParams] = useSearchParams()
   const initialFilters = useMemo(
-    () => Object.fromEntries(URL_FILTERS.map(key => [key, searchParams.get(key)]).filter(([, value]) => value)),
+    // conditionId is multi-select: ?conditionId=a,b opens with both picked.
+    () => Object.fromEntries(URL_FILTERS.map(key => [key, searchParams.get(key)]).filter(([, value]) => value)
+      .map(([key, value]) => [key, key === 'conditionId' ? value.split(',') : value])),
     [searchParams],
   )
   const initialSearch = searchParams.get('search') ?? ''
@@ -188,7 +190,7 @@ export default function InventoryScreen() {
         { field: 'purchaseInvoiceNumber', label: 'Factura', sortable: false },
         { field: 'purchaseOrderNumber', label: 'Orden de compra', sortable: false },
         ...(canReadLabels ? [{ field: 'labelPrintCount', label: 'Etiqueta', sortable: false, component: 'runly.inventory:LabelStateCell' }] : []),
-        { field: 'conditionName',  label: 'Condición',   sortable: true,  defaultVisible: false },
+        { field: 'conditionName',  label: 'Condición',   sortable: false, defaultVisible: false },
         { field: 'locationName',   label: 'Ubicacion',   sortable: true,  defaultVisible: false },
         { field: 'serialNumber',   label: 'No. Serie',   sortable: true,  defaultVisible: false },
         { field: 'model',          label: 'Modelo',      sortable: true,  defaultVisible: false },
@@ -200,7 +202,7 @@ export default function InventoryScreen() {
       filters: [
         { key: 'adminStatus', label: 'Estado', type: 'select', icon: ShieldCheck, options: ADMIN_FILTER_OPTIONS.map(o => ({ ...o, color: ADMIN_COLORS[o.value] })) },
         { key: 'status',     label: 'Disponibilidad', type: 'select', icon: Activity, options: STATUS_OPTIONS },
-        { key: 'conditionId', label: 'Condición', type: 'select', icon: Wrench, options: conditionOptions },
+        { key: 'conditionId', label: 'Condición', type: 'multiselect', icon: Wrench, options: conditionOptions },
         { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: categoryOptions },
         { key: 'brandId',    label: 'Marca',     type: 'select', icon: Tag, options: brandOptions },
         { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },

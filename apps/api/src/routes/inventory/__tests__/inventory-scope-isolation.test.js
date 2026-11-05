@@ -89,6 +89,7 @@ function build({ featureOn = true, includeOwn = true } = {}) {
     invLabelPrint: { findMany: async () => [], count: async () => 0, groupBy: async () => [] },
     entityRelation: { findMany: async () => [] },
     invCondition: { findMany: async () => [] },
+    invItemCondition: { groupBy: async () => [] },
     membership: { findMany: async () => [] },
     $queryRaw: async (_strings, ...values) => { rawCalls.push(flatten(values)); return []; },
   };

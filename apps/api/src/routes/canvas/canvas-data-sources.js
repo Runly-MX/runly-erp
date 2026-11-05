@@ -8,6 +8,7 @@ import { EXTERNAL_RELATION_TARGETS } from '@runly/module-compiler'
 import { createUserAccessService } from '../../services/user-access-service.js'
 import { createInventoryAccess } from '../../services/inventory-access.js'
 import { scopeWhere } from '../../services/inventory-scope.js'
+import { CONDITIONS_INCLUDE, conditionNameOf } from '../../services/inventory-conditions.js'
 
 const INVENTORY = { module: 'runly.inventory', permission: 'inventory.item.read' }
 export const DATA_SOURCES = Object.freeze({
@@ -77,12 +78,13 @@ export function createCanvasDataSources({ prisma, relationTargets, access = crea
     async inventory_item(companyId, ids, restriction) {
       const items = await prisma.invItem.findMany({
         where: { companyId, id: { in: ids }, enabled: true, ...(restriction ?? {}) },
-        select: { id: true, name: true, assetTag: true, status: true, adminStatus: true, assignedTo: { select: { firstName: true, lastName: true } }, location: { select: { name: true } }, condition: { select: { name: true } } },
+        select: { id: true, name: true, assetTag: true, status: true, adminStatus: true, assignedTo: { select: { firstName: true, lastName: true } }, location: { select: { name: true } }, ...CONDITIONS_INCLUDE },
       })
       return new Map(items.map((item) => {
         const retired = item.adminStatus && item.adminStatus !== 'registered'
         const assignee = item.assignedTo ? `${item.assignedTo.firstName} ${item.assignedTo.lastName}`.trim() : null
         const status = STATUS_LABELS[item.status] ?? item.status
+        const condition = conditionNameOf(item)
         return [item.id, {
           title: item.name, subtitle: item.assetTag ?? null,
           summary: retired ? 'Dado de baja' : assignee ? `${status} · ${assignee}` : status,
@@ -91,7 +93,7 @@ export function createCanvasDataSources({ prisma, relationTargets, access = crea
             { label: 'Estado', value: retired ? 'Dado de baja' : status },
             ...(assignee ? [{ label: 'Asignado a', value: assignee }] : []),
             ...(item.location?.name ? [{ label: 'Ubicación', value: item.location.name }] : []),
-            ...(item.condition?.name ? [{ label: 'Condición', value: item.condition.name }] : []),
+            ...(condition ? [{ label: 'Condición', value: condition }] : []),
           ],
           url: `/app/m/runly.inventory/inventory/${item.id}`,
         }]
