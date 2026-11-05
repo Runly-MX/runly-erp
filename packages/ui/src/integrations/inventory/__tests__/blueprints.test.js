@@ -56,3 +56,11 @@ test('form: Asignación section only when asked, right before custom fields', ()
   const shown = labels(buildItemFormBlueprint(false, { showDirectAssignment: true }))
   assert.equal(shown[shown.indexOf('Asignación') + 1], 'Campos personalizados')
 })
+
+test('item form keeps the decimals of the geolocation', async () => {
+  const { castValueByType } = await import('../../../runly-renderer/runly-form-utils.js')
+  const section = buildItemFormBlueprint(true).schema.sections.find((s) => s.id === 'geolocation')
+  const [lat, lng] = section.fields
+  assert.equal(castValueByType(20.676701, lat.type), 20.676701)
+  assert.equal(castValueByType('-105.249792', lng.type), -105.249792)
+})

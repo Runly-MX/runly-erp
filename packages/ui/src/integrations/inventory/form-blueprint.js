@@ -138,8 +138,9 @@ export const INVENTORY_ITEM_FORM = {
         icon: 'LocateFixed',
         collapsible: true,
         fields: [
-          { field: 'latitude', label: 'Latitud', type: 'number' },
-          { field: 'longitude', label: 'Longitud', type: 'number' },
+          // decimal, not number: RunlyForm casts `number` with parseInt.
+          { field: 'latitude', label: 'Latitud', type: 'decimal' },
+          { field: 'longitude', label: 'Longitud', type: 'decimal' },
         ],
       },
       {
