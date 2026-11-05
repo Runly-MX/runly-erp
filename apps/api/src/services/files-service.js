@@ -917,6 +917,9 @@ export function createFilesService({ prisma, supabaseAdmin }) {
           moduleKey: file.moduleKey,
           entityType: file.entityType,
           metadata: { path: ["sourceEntityId"], equals: sourceEntityId },
+          // Only the current cover: each row write fires the per-row company lifecycle trigger.
+          isCover: true,
+          id: { not: file.id },
         },
         data: { isCover: false },
       });

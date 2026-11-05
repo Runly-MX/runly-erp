@@ -512,7 +512,7 @@ describe('setItemFileCover', () => {
     const result = await svc.setItemFileCover(ITEM_ID, 'file-1', COMPANY_ID)
 
     assert.equal(result.isCover, true)
-    assert.deepEqual(updateManyArgs.where, { itemId: ITEM_ID })
+    assert.deepEqual(updateManyArgs.where, { itemId: ITEM_ID, isCover: true, id: { not: 'file-1' } })
     assert.deepEqual(updateManyArgs.data, { isCover: false })
     assert.equal(updateArgs.where.id, 'file-1')
     assert.equal(updateArgs.data.isCover, true)

@@ -314,6 +314,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       vendorName: item.vendorName ?? null,
       invoiceNumber: item.invoiceNumber ?? null,
       acquisitionOrigin: item.acquisitionOrigin ?? 'OTHER',
+      receivedAt: item.receivedAt ?? null,
       warrantyExpiry: item.warrantyExpiry ?? null,
       warrantyNotes: item.warrantyNotes ?? null,
       notes: item.notes ?? null,
@@ -464,6 +465,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (vendorName !== undefined) itemData.vendorName = vendorName;
     if (invoiceNumber !== undefined) itemData.invoiceNumber = invoiceNumber;
     if (acquisitionOrigin !== undefined) itemData.acquisitionOrigin = normalizeAcquisitionOrigin(acquisitionOrigin);
+    if (data.receivedAt !== undefined) itemData.receivedAt = data.receivedAt ? new Date(data.receivedAt) : null;
     if (warrantyExpiry !== undefined) itemData.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
     if (warrantyNotes !== undefined) itemData.warrantyNotes = warrantyNotes;
     if (licenseKey !== undefined) itemData.licenseKey = licenseKey;
@@ -664,6 +666,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (vendorName !== undefined) updateData.vendorName = vendorName;
     if (invoiceNumber !== undefined) updateData.invoiceNumber = invoiceNumber;
     if (acquisitionOrigin !== undefined) updateData.acquisitionOrigin = normalizeAcquisitionOrigin(acquisitionOrigin);
+    if (data.receivedAt !== undefined) updateData.receivedAt = data.receivedAt ? new Date(data.receivedAt) : null;
     if (warrantyExpiry !== undefined) updateData.warrantyExpiry = warrantyExpiry ? new Date(warrantyExpiry) : null;
     if (warrantyNotes !== undefined) updateData.warrantyNotes = warrantyNotes;
     if (licenseKey !== undefined) updateData.licenseKey = licenseKey;
@@ -965,7 +968,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     return prisma.$transaction(async (tx) => {
       const row = await tx.invItemFile.findFirst({ where: { id: docId, itemId } });
       if (!row) throw new InventoryServiceError('File association not found', 404);
-      await tx.invItemFile.updateMany({ where: { itemId }, data: { isCover: false } });
+      // Only touch the current cover: every row write fires the per-row company lifecycle trigger (~80 ms).
+      await tx.invItemFile.updateMany({ where: { itemId, isCover: true, id: { not: docId } }, data: { isCover: false } });
       return tx.invItemFile.update({ where: { id: docId }, data: { isCover: true } });
     });
   }

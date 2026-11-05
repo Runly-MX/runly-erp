@@ -35,6 +35,7 @@ function fieldMatches(rowValue, whereValue) {
   if (whereValue && typeof whereValue === "object" && Array.isArray(whereValue.in)) {
     return whereValue.in.includes(rowValue);
   }
+  if (whereValue && typeof whereValue === "object" && "not" in whereValue) return rowValue !== whereValue.not;
   return rowValue === whereValue;
 }
 
@@ -44,6 +45,7 @@ function rowMatches(row, where) {
   if (!fieldMatches(row.moduleKey, where.moduleKey)) return false;
   if (!fieldMatches(row.entityType, where.entityType)) return false;
   if (!fieldMatches(row.enabled, where.enabled)) return false;
+  if (!fieldMatches(row.isCover, where.isCover)) return false;
   if (!metadataMatches(row, where)) return false;
   return true;
 }
