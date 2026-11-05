@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.pos/retail/components/PosOperationBar.jsx
 import { useEffect, useState } from 'react'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, StatusPill } from '@runly/ui'
-import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, LockKeyhole, Menu, Receipt, Repeat, Store, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, LockKeyhole, LogOut, Menu, Receipt, Repeat, Store, Wifi, WifiOff } from 'lucide-react'
 
 export function useOnline() {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
@@ -21,7 +21,7 @@ function openedAt(session) {
 
 // Operation surface header: where I am (outlet · register), register state,
 // operator and connection. Register operations live in one menu.
-export default function PosOperationBar({ outletName, terminalName, session, cashier, online, capabilities, onCashIn, onCashOut, onClose, onOrders, onChangeCaja, saleInProgress }) {
+export default function PosOperationBar({ outletName, terminalName, session, cashier, online, capabilities, onCashIn, onCashOut, onClose, onOrders, onChangeCaja, onSignOut, saleInProgress }) {
   return (
     <header className="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
       <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-(--brand-primary) text-(--brand-primary-foreground) sm:flex"><Store className="h-5 w-5" aria-hidden="true" /></span>
@@ -55,10 +55,20 @@ export default function PosOperationBar({ outletName, terminalName, session, cas
               <LockKeyhole className="mr-2 h-4 w-4" aria-hidden="true" />{saleInProgress ? 'Cerrar caja (termina la venta)' : 'Cerrar caja'}
             </DropdownMenuItem>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onSelect={onChangeCaja} disabled={saleInProgress} className="min-h-11">
-            {saleInProgress ? <CircleSlash className="mr-2 h-4 w-4" aria-hidden="true" /> : <Repeat className="mr-2 h-4 w-4" aria-hidden="true" />}Cambiar de caja
-          </DropdownMenuItem>
+          {onChangeCaja && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onChangeCaja} disabled={saleInProgress} className="min-h-11">
+                {saleInProgress ? <CircleSlash className="mr-2 h-4 w-4" aria-hidden="true" /> : <Repeat className="mr-2 h-4 w-4" aria-hidden="true" />}Cambiar de caja
+              </DropdownMenuItem>
+            </>
+          )}
+          {onSignOut && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={onSignOut} className="min-h-11"><LogOut className="mr-2 h-4 w-4" aria-hidden="true" />Salir (otro cajero)</DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
     </header>

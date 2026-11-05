@@ -185,3 +185,20 @@ test('one request through several routers authorizes the identity once', async (
   await app.request('/x', { headers: { Authorization: 'Bearer fixture-token' } })
   assert.equal(checks, 2)
 })
+
+test('POS operator tokens go only through their resolver, never the JWT authority', async () => {
+  const calls = []
+  const app = new Hono()
+  app.use('*', createAuthMiddleware({
+    cacheGet: () => undefined, cacheSet: () => {}, getJwtSecret: () => SECRET,
+    supabaseAdmin: { auth: { getUser: async () => { calls.push('remote'); return { data: { user: null }, error: { status: 401 } } } } },
+    resolveOperatorToken: async (token, c) => (token === 'posop.good' && c.req.path.startsWith('/pos/v2/') ? { authUserId: 'auth-ana' } : null),
+  }))
+  app.get('*', c => c.json({ userId: c.get('authUserId'), operator: Boolean(c.get('posOperator')) }))
+  const call = (path, token) => app.request(path, { headers: { Authorization: `Bearer ${token}` } })
+  const ok = await call('/pos/v2/context', 'posop.good')
+  assert.deepEqual(await ok.json(), { userId: 'auth-ana', operator: true })
+  assert.equal((await call('/contacts', 'posop.good')).status, 401)
+  assert.equal((await call('/pos/v2/context', 'posop.forged')).status, 401)
+  assert.deepEqual(calls, [])
+})

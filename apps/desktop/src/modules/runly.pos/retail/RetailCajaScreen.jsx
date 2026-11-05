@@ -44,7 +44,8 @@ function useWideLayout() {
 // POS Tienda: a modern register. Choose outlet + register once, open the
 // register, scan or tap, charge, hand the receipt, next customer. Retail
 // only: no tables, seats, kitchen or floor plans.
-function RetailCajaView() {
+// device: a register opened by link ({ onSignOut }); no ERP navigation.
+export function RetailCajaView({ device = null }) {
   const { session: auth, userProfile } = useAuth()
   const token = auth?.access_token
   const { activeCompanyId } = useActiveCompany()
@@ -314,11 +315,12 @@ function RetailCajaView() {
           online={online}
           capabilities={caps}
           saleInProgress={saleInProgress}
-          onOrders={() => navigate('/app/m/runly.pos/pos/orders')}
+          onOrders={device ? undefined : () => navigate('/app/m/runly.pos/pos/orders')}
           onCashIn={() => setDialog({ kind: 'cash', type: 'IN' })}
           onCashOut={() => setDialog({ kind: 'cash', type: 'OUT' })}
           onClose={() => setDialog({ kind: 'close' })}
-          onChangeCaja={() => { setCompleted(null); ctx.changeCaja() }}
+          onChangeCaja={device ? undefined : () => { setCompleted(null); ctx.changeCaja() }}
+          onSignOut={device?.onSignOut}
         />
       )}
       {ready && mixed && (

@@ -11,7 +11,8 @@ import { setActiveCompanyId, getActiveCompanyId } from '../lib/runly'
 const _vaultDb = new RunlyOfflineDatabase()
 const _sessionVault = new SessionVault(_vaultDb)
 
-const AuthContext = createContext(null)
+// Exported so a register opened by link can provide its cashier session.
+export const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient()

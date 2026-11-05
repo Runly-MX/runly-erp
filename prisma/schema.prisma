@@ -3212,6 +3212,7 @@ model PosTerminal {
   sessions PosSession[]
   orders   PosOrder[]
 
+  deviceLinks PosDeviceLink[]
   @@unique([companyId, code])
   @@index([companyId, outletId])
   @@map("pos_terminal")
@@ -3574,6 +3575,51 @@ model PosAppointment {
   @@index([companyId, startsAt])
   @@index([companyId, status])
   @@map("pos_appointment")
+}
+
+// A register opened from a link: the device pairs once (6-digit code approved
+// by an admin), then each cashier enters with a PIN. Reset/revoke kill every
+// operator token issued for it (pairedAt is part of the token).
+model PosDeviceLink {
+  id                 String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId          String    @db.Uuid @map("company_id")
+  terminalId         String    @db.Uuid @map("terminal_id")
+  name               String
+  linkToken          String    @unique @map("link_token")
+  deviceTokenHash    String?   @map("device_token_hash")
+  pairingCode        String?   @map("pairing_code")
+  pairingSecretHash  String?   @map("pairing_secret_hash")
+  pairingLabel       String?   @map("pairing_label")
+  pairingRequestedAt DateTime? @map("pairing_requested_at")
+  approvedAt         DateTime? @map("approved_at")
+  pairingTokenEnc    String?   @map("pairing_token_enc")
+  pairedAt           DateTime? @map("paired_at")
+  lastSeenAt         DateTime? @map("last_seen_at")
+  failedPinAttempts  Int       @default(0) @map("failed_pin_attempts")
+  pinLockedUntil     DateTime? @map("pin_locked_until")
+  revokedAt          DateTime? @map("revoked_at")
+  createdById        String    @db.Uuid @map("created_by_id")
+  createdAt          DateTime  @default(now()) @map("created_at")
+  updatedAt          DateTime  @updatedAt @map("updated_at")
+
+  terminal PosTerminal @relation(fields: [terminalId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@map("pos_device_link")
+}
+
+// Cashier PIN per company: HMAC of companyId:pin, unique inside the company.
+model PosOperatorPin {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @db.Uuid @map("company_id")
+  userId    String   @db.Uuid @map("user_id")
+  pinHash   String   @map("pin_hash")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@unique([companyId, userId])
+  @@unique([companyId, pinHash])
+  @@map("pos_operator_pin")
 }
 
 model PosKitchenStation {

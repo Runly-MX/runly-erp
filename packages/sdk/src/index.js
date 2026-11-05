@@ -1605,6 +1605,34 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     pos: {
+      deviceLinks: {
+        list: (token) => request("/pos/device-links", { headers: withAuthHeaders(token) }),
+        create: (data, token) =>
+          request("/pos/device-links", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        approve: (id, code, token) =>
+          request(`/pos/device-links/${encodeURIComponent(id)}/approve`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify({ code }) }),
+        reset: (id, token) =>
+          request(`/pos/device-links/${encodeURIComponent(id)}/reset`, { method: "POST", headers: withAuthHeaders(token) }),
+        revoke: (id, token) =>
+          request(`/pos/device-links/${encodeURIComponent(id)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
+      },
+      operatorPins: {
+        list: (token) => request("/pos/operator-pins", { headers: withAuthHeaders(token) }),
+        set: (userId, pin, token) =>
+          request(`/pos/operator-pins/${encodeURIComponent(userId)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ pin }) }),
+        remove: (userId, token) =>
+          request(`/pos/operator-pins/${encodeURIComponent(userId)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
+      },
+      // Public: a register opened from a link (no user session).
+      device: {
+        info: (link) => request(`/public/pos/devices/${encodeURIComponent(link)}`),
+        pair: (link, label) =>
+          request(`/public/pos/devices/${encodeURIComponent(link)}/pair`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label }) }),
+        pairStatus: (link, secret) =>
+          request(`/public/pos/devices/${encodeURIComponent(link)}/pair${toQueryString({ secret })}`),
+        operator: (link, deviceToken, pin) =>
+          request(`/public/pos/devices/${encodeURIComponent(link)}/operator`, { method: "POST", headers: { "Content-Type": "application/json", "X-Pos-Device-Token": deviceToken }, body: JSON.stringify({ pin }) }),
+      },
       appointments: {
         list: (query, token) =>
           request(`/pos/appointments${toQueryString(query)}`, { headers: withAuthHeaders(token) }),

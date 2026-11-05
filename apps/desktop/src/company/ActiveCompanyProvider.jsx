@@ -28,7 +28,8 @@ function writeStoredCompanyId(id) {
   } catch {}
 }
 
-const ActiveCompanyContext = createContext(null)
+// Exported so a register opened by link can provide its company.
+export const ActiveCompanyContext = createContext(null)
 
 export function ActiveCompanyProvider({ children }) {
   const { session, refreshProfile } = useAuth()

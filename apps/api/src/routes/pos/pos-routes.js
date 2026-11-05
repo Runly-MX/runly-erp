@@ -6,6 +6,7 @@ import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 import { createPosFloorRoutes } from "./pos-floor-routes.js";
 import { createPosAppointmentRoutes } from "./pos-appointment-routes.js";
+import { createPosDeviceRoutes } from "./pos-device-routes.js";
 import { createPosModifierService } from "./pos-modifier-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
@@ -49,7 +50,7 @@ function handleError(c, err, fallback) {
   return c.json({ error: fallback }, 500);
 }
 
-export function createPosRouter({ prisma, requirePermission, requireAnyPermission, broadcaster = null }) {
+export function createPosRouter({ prisma, requirePermission, requireAnyPermission, broadcaster = null, deviceService = null }) {
   const app = new Hono();
   app.route('', createPosV2Router({ prisma, requirePermission, requireAnyPermission, broadcaster }));
   const settingsSvc = createPosSettingsService({ prisma });
@@ -61,6 +62,7 @@ export function createPosRouter({ prisma, requirePermission, requireAnyPermissio
 
   app.route("", createPosFloorRoutes({ prisma, requirePermission }));
   if (requireAnyPermission) app.route("", createPosAppointmentRoutes({ prisma, requireAnyPermission }));
+  if (deviceService) app.route("", createPosDeviceRoutes({ deviceService, requirePermission }));
 
   app.patch("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
     try {

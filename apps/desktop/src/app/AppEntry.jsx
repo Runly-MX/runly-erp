@@ -55,6 +55,7 @@ const PublicBoardScreen = lazy(() => import("../modules/runly.canvas/screens/Pub
 const PublicFileScreen = lazy(() => import("../modules/runly.files/screens/PublicFileScreen.jsx"));
 const PublicFolderScreen = lazy(() => import("../modules/runly.files/screens/PublicFolderScreen.jsx"));
 const AttendanceKioskScreen = lazy(() => import("../modules/runly.attendance/kiosk/KioskScreen.jsx"));
+const PosDeviceScreen = lazy(() => import("../modules/runly.pos/device/PosDeviceScreen.jsx"));
 const AttendancePhoneKeyScreen = lazy(() => import("../modules/runly.attendance/phone/PhoneKeyScreen.jsx"));
 // Public custody (resguardo) signing page: token link, no login, no shell.
 const PublicCustodySignScreen = lazy(() => import("../modules/runly.inventory/screens/PublicCustodySignScreen.jsx"));
@@ -199,6 +200,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="folders/:token" element={<Suspense fallback={null}><PublicFolderScreen /></Suspense>} />
                     {/* Attendance: offline kiosk + phone key (no login, no shell) */}
                     <Route path="kiosk/:link" element={<Suspense fallback={null}><AttendanceKioskScreen /></Suspense>} />
+                    {/* runly.pos: register opened by link (device pairing + cashier PIN, no login) */}
+                    <Route path="pos/:link" element={<Suspense fallback={null}><PosDeviceScreen /></Suspense>} />
                     <Route path="attendance/phone" element={<Suspense fallback={null}><AttendancePhoneKeyScreen /></Suspense>} />
                     <Route path="custody/:token" element={<Suspense fallback={null}><PublicCustodySignScreen /></Suspense>} />
                     <Route path="inv/:token" element={<Suspense fallback={null}><PublicInventoryItemScreen /></Suspense>} />

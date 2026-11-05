@@ -7,6 +7,8 @@ export function createAuthMiddleware({
   cacheSet,
   userContextTtlSeconds,
   authorizeIdentity = async () => null,
+  // Optional resolver for POS operator tokens (registers opened by link + PIN).
+  resolveOperatorToken = null,
   getJwtSecret = () => process.env.SUPABASE_JWT_SECRET,
   warn = (...args) => console.warn(...args),
 }) {
@@ -37,6 +39,17 @@ export function createAuthMiddleware({
     const token = authHeader?.startsWith("Bearer ") ? authHeader.slice(7) : null;
     if (!token)
       return c.json({ error: "No autorizado. Debes iniciar sesion." }, 401);
+
+    if (resolveOperatorToken && token.startsWith("posop.")) {
+      const operator = await resolveOperatorToken(token, c);
+      if (!operator) return c.json({ error: "No autorizado. La sesión de caja expiró; vuelve a escribir tu PIN." }, 401);
+      c.set("authUserId", operator.authUserId);
+      c.set("posOperator", true);
+      const deniedOperator = await authorizeIdentity(c, operator.authUserId);
+      if (deniedOperator) return deniedOperator;
+      c.set("authorizedIdentity", true);
+      return next();
+    }
 
     const cacheKey = `auth:token:${createHash("sha256").update(token).digest("hex")}`;
     let userId = cacheGet(cacheKey);

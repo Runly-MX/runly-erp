@@ -103,6 +103,8 @@ import { createSearchRouter } from "./routes/search-routes.js";
 import { createFleetRouter } from "./routes/fleet/index.js";
 import { createCatalogRouter } from "./routes/catalog/index.js";
 import { createPosRouter } from "./routes/pos/index.js";
+import { createPosDeviceService } from "./routes/pos/pos-device-service.js";
+import { createPosDevicePublicRouter } from "./routes/pos/pos-device-routes.js";
 import { createCalendarRouter } from "./routes/calendar/index.js";
 import { createProjectsRouter } from "./routes/projects/index.js";
 import { createCanvasRouter, createCanvasPublicRouter } from "./routes/canvas/index.js";
@@ -336,12 +338,16 @@ function mapSetupError(err) {
   return { status: 500, error: "Error interno al inicializar la instancia." };
 }
 
+// One instance: link resets/revocations clear the same cache the middleware reads.
+const posDeviceService = createPosDeviceService({ prisma });
+
 const authMiddleware = createAuthMiddleware({
   supabaseAdmin,
   cacheGet,
   cacheSet,
   userContextTtlSeconds: TTL.USER_CONTEXT,
   authorizeIdentity: createCompanyAccessPolicy({ prisma, loadContext: (authUserId) => getUserContextByAuthId(authUserId) }),
+  resolveOperatorToken: (token, c) => posDeviceService.verifyOperatorToken(token, { path: c.req.path, companyHeader: c.req.header("X-Runly-Company-Id") || null }),
 });
 
 const ADMIN_ROLE_KEYS = new Set(["runly.admin", "system.admin"]);
@@ -882,7 +888,7 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret", "X-Pos-Device-Token"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),
@@ -2263,6 +2269,9 @@ app.route("/", createCanvasPublicRouter({
 const attendanceEvents = createAttendanceEvents({ prisma, broadcaster, notificationService });
 app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, events: attendanceEvents }));
 
+// POS registers opened from a link: /public/pos/devices/* (link + device token, no user auth).
+app.route("/", createPosDevicePublicRouter({ deviceService: posDeviceService }));
+
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
 app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
 
@@ -2567,7 +2576,7 @@ mountWithAuth(app, createUsersRouter({ prisma, requirePermission, requireAnyPerm
 mountWithAuth(app, createSearchRouter({ prisma, getUserContext: getOrLoadUserContext, resolveTenantContext }));
 mountWithAuth(app, createFleetRouter({ prisma, requirePermission, broadcaster, enrichFilesWithSignedUrls: filesService.enrichFilesWithSignedUrls.bind(filesService) }));
 mountWithAuth(app, createCatalogRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));
-mountWithAuth(app, createPosRouter({ prisma, requirePermission, requireAnyPermission, broadcaster }));
+mountWithAuth(app, createPosRouter({ prisma, requirePermission, requireAnyPermission, broadcaster, deviceService: posDeviceService }));
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster, relationTargets }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));

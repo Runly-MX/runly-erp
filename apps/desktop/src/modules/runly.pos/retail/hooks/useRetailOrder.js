@@ -1,6 +1,6 @@
 import {useCallback,useEffect,useLayoutEffect,useMemo,useRef,useState} from 'react'
 import {useQuery,useQueryClient} from '@tanstack/react-query'
-import {runly} from '../../../../lib/runly.js'
+import {getActiveCompanyId,runly} from '../../../../lib/runly.js'
 import {classifyPosError} from '../lib/retailErrors.js'
 import {OPEN_STATUSES,orderKey} from '../lib/retailRules.js'
 import {createOrderWorkflow,pendingKey} from '../lib/pendingCommands.js'
@@ -21,7 +21,7 @@ export function useRetailOrder({token,userId,companyId,outletId,terminalId,sessi
   },[companyId,queryClient,token,storageKey,journalKey])
   const workflow=useMemo(()=>createOrderWorkflow({key:journalKey,metadata:{userId,companyId,sessionId,terminalId,prefix:'order'},
     onOrder:setOrder,send:(step)=>{
-      if(localStorage.getItem('runly-active-company')!==companyId)throw Object.assign(new Error('La empresa activa cambi\u00f3.'),{code:'company_changed',status:409})
+      if(getActiveCompanyId()!==companyId)throw Object.assign(new Error('La empresa activa cambi\u00f3.'),{code:'company_changed',status:409})
       const options={idempotencyKey:step.key}
       if(step.action==='createOrder')return runly.commerce.createOrder(step.body,token,options)
       if(step.action==='addLine')return runly.commerce.addLine(step.orderId,step.body,token,options)

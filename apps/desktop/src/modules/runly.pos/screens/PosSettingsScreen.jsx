@@ -23,6 +23,7 @@ import { useAuth } from '../../../auth/AuthProvider'
 import { settingsPatch } from '../lib/posSettings.js'
 import { POS_ADMIN_TOUCH } from '../components/adminTouch.js'
 import { ModeTiles } from '../retail/components/PosQuickSetup.jsx'
+import PosDeviceAccess from '../components/PosDeviceAccess.jsx'
 
 function StatusPill({ active }) {
   return <UiStatusPill tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</UiStatusPill>
@@ -63,6 +64,7 @@ function PosSettingsView() {
             <div className="flex flex-col gap-6">
               <OutletsTab section="terminals" />
               <PaymentMethodsTab />
+              <PosDeviceAccess />
             </div>
           </TabsContent>
           {restaurant && <TabsContent value="restaurant"><RestaurantAdmin onEditOutlets={() => setTab('general')} /></TabsContent>}
