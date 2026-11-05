@@ -65,7 +65,7 @@ function loadStorefrontSdk() {
   return sdkPromise
 }
 
-function loadTurnstile() {
+export function loadTurnstile() {
   if (window.turnstile) return Promise.resolve(window.turnstile)
   turnstilePromise ??= new Promise((resolve, reject) => {
     const script = document.createElement('script')

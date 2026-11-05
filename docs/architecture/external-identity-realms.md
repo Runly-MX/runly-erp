@@ -142,6 +142,22 @@ File: `apps/api/src/routes/website/accounts-routes.js`.
 
 **Human check:** Turnstile runs on register when the site has a key.
 
+### Cuentas de clientes (UI)
+
+**Admin section:** site settings, tab "Cuentas de clientes" (`apps/desktop/src/modules/runly.website/components/SettingsAccountsCard.jsx`).
+- Switches for `enabled`, `allowSignup` and `requireEmailVerification`, plus the session length in days (1 to 365).
+- A table of the site's accounts (email, name, verified, last sign-in, status) with server-side search.
+- Row actions "Desactivar" / "Reactivar" and "Cerrar sesiones", each behind a confirmation.
+- Reading needs `website.accounts.read`; the switches and row actions only show with `website.accounts.manage` (or their aliases).
+
+**Public block:** `AccountPortalBlock` (`apps/desktop/src/website/runlyBlocks/accountPortalBlock.jsx`, client in `accountPublicClient.js`). It is a universal block, so any template can place it.
+- The Mercado and Tienda templates ship a `/cuenta` page with it. Mercado's header "Mi cuenta" link and both footers point there.
+- **Signed out:** sign in, sign up (with Turnstile when the site has a key), and "forgot password". When verification is on, sign-up ends with "Revisa tu correo para confirmar tu cuenta".
+- **Email links:** `?accion=verificar&t=…` confirms the email and `?accion=restablecer&t=…` shows the new password form. The token is removed from the address bar right away.
+- **Signed in:** "Mi cuenta" with name and phone, password change, sign out, and "Reenviar correo" while the email is unverified.
+- **Accounts off:** a 404 from the API shows "Las cuentas no están disponibles en este sitio."
+- **Rendering:** SSR renders a loading state, and the session is read only in effects, so hydration matches. Without a runtime config (the editor preview) the block shows a static sign-in form that sends nothing.
+
 **Admin routes** (ERP, authenticated):
 
 | Method | Path |

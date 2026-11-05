@@ -104,7 +104,7 @@ export const MercadoHeaderBlock = defineBlock({
   defaultProps: {
     announcements: 'Envío gratis en compras desde $999\nDevoluciones fáciles en 30 días\nPagos 100% seguros',
     brand: 'Brote', tagline: 'Vive mejor', logoSrc: '', searchPlaceholder: 'Busca productos, marcas y más...', searchHref: '/productos',
-    accountLabel: 'Mi cuenta', accountHref: '/contacto', wishlistLabel: 'Favoritos', wishlistHref: '/productos', cartLabel: 'Carrito', cartHref: '/carrito',
+    accountLabel: 'Mi cuenta', accountHref: '/cuenta', wishlistLabel: 'Favoritos', wishlistHref: '/productos', cartLabel: 'Carrito', cartHref: '/carrito',
     allLabel: 'Todas las categorías', allHref: '/productos',
     links: 'Inicio | /\nTienda | /productos\nOfertas | /productos\nNovedades | /productos\nNosotros | /nosotros\nContacto | /contacto',
     active: '/', sticky: true,

@@ -12,7 +12,7 @@ const page = (...blocks) => {
 const header = (active) => block('header', 'MercadoHeaderBlock', {
   announcements: 'Envío gratis en compras desde $999\nDevoluciones fáciles en 30 días\nPagos 100% seguros',
   brand: 'Brote', tagline: 'Vive mejor', logoSrc: '', searchPlaceholder: 'Busca productos, marcas y más...', searchHref: '/productos',
-  accountLabel: 'Mi cuenta', accountHref: '/contacto', wishlistLabel: 'Favoritos', wishlistHref: '/productos', cartLabel: 'Carrito', cartHref: '/carrito',
+  accountLabel: 'Mi cuenta', accountHref: '/cuenta', wishlistLabel: 'Favoritos', wishlistHref: '/productos', cartLabel: 'Carrito', cartHref: '/carrito',
   allLabel: 'Todas las categorías', allHref: '/productos',
   links: 'Inicio | /\nTienda | /productos\nOfertas | /productos\nNovedades | /productos\nNosotros | /nosotros\nContacto | /contacto',
   active, sticky: true,
@@ -111,6 +111,15 @@ export const mercadoSitePages = [
       header('/carrito'),
       block('thanks', 'CartPageBlock', { mode: 'thanks', checkoutLabel: 'Pagar', shopHref: '/productos', promoNote: '¿Tienes un código? Lo ingresas al pagar.' }),
       block('picks', 'MercadoPicksBlock', { title: 'Sigue explorando', linkLabel: 'Ver todo', linkHref: '/productos', categorySlug: '', limit: '10', detailHref: '/producto' }),
+      FOOTER,
+    ),
+  },
+  {
+    id: 'cuenta', label: 'Mi cuenta', routePath: '/cuenta', required: false, description: 'Acceso, registro y datos de la cuenta del cliente.',
+    build: () => page(
+      header('/cuenta'),
+      block('account', 'AccountPortalBlock', {}),
+      services(),
       FOOTER,
     ),
   },

@@ -1900,6 +1900,15 @@
       }
     },
     {
+      "type": "AccountPortalBlock",
+      "label": "Cuenta de cliente",
+      "category": "atlas",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {},
+      "fields": {}
+    },
+    {
       "type": "BlogIndexBlock",
       "label": "Lista de posts del blog",
       "category": "atlas",
@@ -2112,7 +2121,8 @@
         "caption4": "",
         "caption5": "",
         "caption6": "",
-        "aspectRatio": "4/3"
+        "aspectRatio": "4/3",
+        "zoom": true
       },
       "fields": {
         "eyebrow": {
@@ -2155,6 +2165,10 @@
             "16/9",
             "3/4"
           ]
+        },
+        "zoom": {
+          "type": "toggle",
+          "label": "Ampliar la imagen al hacer clic"
         },
         "image1": {
           "type": "image",
@@ -6819,7 +6833,8 @@
       "defaultProps": {
         "addLabel": "Agregar al carrito",
         "backHref": "/productos",
-        "cartHref": "/carrito"
+        "cartHref": "/carrito",
+        "zoomImage": true
       },
       "fields": {
         "addLabel": {
@@ -6833,6 +6848,10 @@
         "cartHref": {
           "type": "link",
           "label": "Enlace al carrito"
+        },
+        "zoomImage": {
+          "type": "toggle",
+          "label": "Ampliar la imagen al hacer clic"
         }
       }
     },
@@ -7093,7 +7112,7 @@
         "searchPlaceholder": "Busca productos, marcas y más...",
         "searchHref": "/productos",
         "accountLabel": "Mi cuenta",
-        "accountHref": "/contacto",
+        "accountHref": "/cuenta",
         "wishlistLabel": "Favoritos",
         "wishlistHref": "/productos",
         "cartLabel": "Carrito",

@@ -2,11 +2,12 @@ import { companyFetch } from '../../../lib/companyFetch.js'
 import { useState, useEffect, useRef } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { Button, ChipTabs, EmptyState, ErrorState, Skeleton } from '@runly/ui'
-import { BarChart3, Globe, Mail } from 'lucide-react'
+import { BarChart3, Globe, Mail, Users } from 'lucide-react'
 import { SiteSectionHeader } from '../components/SiteSectionHeader.jsx'
 import { SettingsCard } from '../components/SettingsCard.jsx'
 import { SettingsSmtpCard } from '../components/SettingsSmtpCard.jsx'
 import { SettingsAnalyticsCard } from '../components/SettingsAnalyticsCard.jsx'
+import { SettingsAccountsCard } from '../components/SettingsAccountsCard.jsx'
 import { useNavigate } from 'react-router-dom'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -278,6 +279,7 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
     ...(!scoped ? [{ value: 'source', label: 'Fuente del sitio', icon: Globe }] : []),
     { value: 'smtp', label: 'Correo', icon: Mail },
     { value: 'analytics', label: 'Analítica', icon: BarChart3 },
+    { value: 'accounts', label: 'Cuentas de clientes', icon: Users },
   ]
 
   return (
@@ -356,6 +358,8 @@ export default function WebsiteSettingsScreen({ siteId: siteIdProp = null }) {
             saving={captureSaveMutation.isPending}
           />
         )}
+
+        {tab === 'accounts' && siteId && <SettingsAccountsCard siteId={siteId} token={token} />}
       </div>
     </div>
   )

@@ -154,6 +154,18 @@ export const tiendaSitePages = [
     ),
   },
   {
+    id: 'cuenta',
+    label: 'Mi cuenta',
+    routePath: '/cuenta',
+    required: false,
+    description: 'Acceso, registro y datos de la cuenta del cliente.',
+    build: () => page(
+      NAVBAR,
+      block('account', 'AccountPortalBlock', {}),
+      FOOTER,
+    ),
+  },
+  {
     id: 'nosotros',
     label: 'Nosotros',
     routePath: '/nosotros',
