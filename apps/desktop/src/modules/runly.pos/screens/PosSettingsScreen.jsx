@@ -6,7 +6,7 @@ import {
   Button, EmptyState, ErrorState, Skeleton, Separator, StatusPill as UiStatusPill,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
   Tabs, TabsList, TabsTrigger, TabsContent,
-  TextField, SelectField, SwitchField, Label,
+  TextField, SelectField, SwitchField, SwatchField, Label,
 } from '@runly/ui'
 import {
   usePosSettings, useUpdatePosSettings,
@@ -24,6 +24,10 @@ import { settingsPatch } from '../lib/posSettings.js'
 import { POS_ADMIN_TOUCH } from '../components/adminTouch.js'
 import { ModeTiles } from '../retail/components/PosQuickSetup.jsx'
 import PosDeviceAccess from '../components/PosDeviceAccess.jsx'
+
+// The operating screens' default orange (pos-theme.css) first, then common brand colors.
+const POS_DEFAULT_ACCENT = '#F5411E'
+const POS_ACCENT_SWATCHES = [POS_DEFAULT_ACCENT, '#E11D48', '#D97706', '#16A34A', '#008C8C', '#0A7BFF', '#4F46E5', '#7C3AED', '#0F172A']
 
 function StatusPill({ active }) {
   return <UiStatusPill tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</UiStatusPill>
@@ -50,6 +54,10 @@ function PosSettingsView() {
                 <span className="sm:hidden">Cajas</span>
                 <span className="hidden sm:inline">Cajas y pagos</span>
               </TabsTrigger>
+              <TabsTrigger value="links">
+                <span className="sm:hidden">Enlaces</span>
+                <span className="hidden sm:inline">Cajas por enlace</span>
+              </TabsTrigger>
               {restaurant && <TabsTrigger value="restaurant">Restaurante</TabsTrigger>}
               <TabsTrigger value="advanced">Avanzado</TabsTrigger>
             </TabsList>
@@ -64,9 +72,10 @@ function PosSettingsView() {
             <div className="flex flex-col gap-6">
               <OutletsTab section="terminals" />
               <PaymentMethodsTab />
-              <PosDeviceAccess />
             </div>
           </TabsContent>
+          {/* Like Asistencia's kiosks: each register opens apart at /app/p/pos/<link>, outside the ERP. */}
+          <TabsContent value="links"><PosDeviceAccess /></TabsContent>
           {restaurant && <TabsContent value="restaurant"><RestaurantAdmin onEditOutlets={() => setTab('general')} /></TabsContent>}
           <TabsContent value="advanced"><GeneralTab part="advanced" /></TabsContent>
         </Tabs>
@@ -128,12 +137,14 @@ function GeneralTab({ part = 'general' }) {
   const [tipsEnabled, setTipsEnabled] = useState(null)
   const [taxRate, setTaxRate] = useState(null)
   const [appointments, setAppointments] = useState(null)
+  const [accent, setAccent] = useState(null)
 
   const currentMode = mode ?? settings?.mode ?? ''
   const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? false
   const currentTaxRate = taxRate ?? (settings?.defaultTaxRate == null ? '' : String(settings.defaultTaxRate))
+  const currentAccent = accent ?? settings?.accentColor ?? ''
   let patch = {}, validationError = null
-  try { patch = settingsPatch(part, {mode,tipsEnabled,taxRate,appointmentsEnabled:appointments}) } catch (e) { validationError = e.message }
+  try { patch = settingsPatch(part, {mode,tipsEnabled,taxRate,appointmentsEnabled:appointments,accentColor:accent}) } catch (e) { validationError = e.message }
 
   if (isLoading) return <Skeleton className="h-48" aria-label="Cargando configuración" />
   if (isError) return <ErrorState title="No se pudo cargar la configuración" description={error?.message} onRetry={refetch} />
@@ -166,6 +177,30 @@ function GeneralTab({ part = 'general' }) {
           checked={appointments ?? settings?.appointmentsEnabled ?? false}
           onChange={setAppointments}
         />
+        <Separator />
+        <div className="flex flex-col gap-3">
+          <SwatchField
+            id="pos-accent"
+            label="Color de la caja"
+            hint="Botones y acentos de Caja, Comandero, Cocina y las cajas abiertas por enlace. La administración conserva los colores de Runly."
+            value={currentAccent || POS_DEFAULT_ACCENT}
+            onChange={setAccent}
+            swatches={POS_ACCENT_SWATCHES}
+            disabled={update.isPending}
+          />
+          <div className="flex flex-wrap items-end gap-3">
+            <TextField
+              id="pos-accent-hex"
+              label="Color personalizado"
+              value={currentAccent}
+              onChange={(e) => setAccent(e.target.value)}
+              placeholder={POS_DEFAULT_ACCENT}
+              maxLength={7}
+              className="w-40"
+            />
+            {currentAccent && <Button variant="outline" onClick={() => setAccent('')} disabled={update.isPending}>Usar el naranja predeterminado</Button>}
+          </div>
+        </div>
         </>)}
         {part === 'advanced' && (
         <TextField
@@ -183,7 +218,7 @@ function GeneralTab({ part = 'general' }) {
         {validationError && <p role="alert" className="text-sm text-destructive">{validationError}</p>}
         <div className="flex justify-end">
           <Button
-            onClick={() => update.mutate(patch, {onSuccess:()=>{setMode(null);setTipsEnabled(null);setTaxRate(null);setAppointments(null)}})}
+            onClick={() => update.mutate(patch, {onSuccess:()=>{setMode(null);setTipsEnabled(null);setTaxRate(null);setAppointments(null);setAccent(null)}})}
             disabled={update.isPending || Boolean(validationError) || !Object.keys(patch).length}
           >
             {update.isPending ? 'Guardando...' : 'Guardar cambios'}

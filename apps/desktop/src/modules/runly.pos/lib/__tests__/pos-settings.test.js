@@ -22,3 +22,10 @@ test('invalid/empty taxes never become zero; an explicitly entered zero is valid
   for(const taxRate of ['', ' ', 'abc', '16abc', '-1', '101', 'Infinity'])assert.throws(()=>settingsPatch('advanced',{taxRate}),/tasa/)
   assert.deepEqual(settingsPatch('advanced',{taxRate:'0'}),{defaultTaxRate:0})
 })
+
+test('accent color: hex normalized, empty resets to the default, junk rejected',()=>{
+  const base={mode:null,tipsEnabled:null,taxRate:null}
+  assert.deepEqual(settingsPatch('general',{...base,accentColor:' #1a2b3c '}),{accentColor:'#1A2B3C'})
+  assert.deepEqual(settingsPatch('general',{...base,accentColor:''}),{accentColor:null})
+  assert.throws(()=>settingsPatch('general',{...base,accentColor:'red'}),/#RRGGBB/)
+})

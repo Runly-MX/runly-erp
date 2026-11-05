@@ -157,7 +157,7 @@ components:
 
 **Creative North Star: "The Counter Instrument"**
 
-This system covers only the point of sale module (`apps/desktop/src/modules/runly.pos`). It is applied by `PosThemeScope`, which wraps every POS screen in `.pos-theme` and puts the same class on `body` while a POS screen is mounted, so portaled dialogs, menus and toasts match. Every other ERP screen keeps the ERP's own system; nothing here applies outside that scope.
+This system covers only the POS operating screens: Caja, Comandero, Cocina and the register opened by link (`/app/p/pos/<link>`). It is applied by `PosThemeScope` (`ModuleOutlet` wraps only those paths; `PosDeviceScreen` wraps the link register), which puts `.pos-theme` on the screen and on `body` while mounted, so portaled dialogs, menus and toasts match. The POS administration screens (Órdenes, Citas, Mesas, Administración, historial) keep the regular Runly ERP system and the module color #008C8C. The orange is the default accent; a company can pick its own in Administración > General (`pos_settings.accent_color`), which `PosThemeScope` maps to `--pos-accent-*`.
 
 The POS reads as a business register, not a consumer app: a squared, gridded surface where 1px rules separate the panels, the product grid shares its cell borders, and the charge path is the strongest object on screen. Light theme is a cool grey-white ground with white panels, dark navy ink and a navy band; dark theme is blue-black with graphite panels and grey-white ink. Runly logo orange is reserved for action and selection. The signature is the customer-display band: the total (and the change) sits on a navy band (black in dark) in large tabular figures under a short orange caption, the way a register's customer display reads.
 
@@ -284,7 +284,7 @@ A radio group of 56px squared buttons with icon and name; the active method is f
 ## Do's and Don'ts
 
 ### Do:
-- **Do** wrap every POS screen in `PosThemeScope` so dialogs and toasts inherit the scope through `body.pos-theme`.
+- **Do** wrap only the operating screens in `PosThemeScope` (with the company accent) so dialogs and toasts inherit the scope through `body.pos-theme`.
 - **Do** put dark orange ink on every orange fill (6.1:1), never white (3.6:1).
 - **Do** reserve orange for actions and selection; show the figure the cashier reads out on the navy band with an orange caption.
 - **Do** separate regions with 1px hairlines and keep corners within 3-10px.
@@ -292,7 +292,7 @@ A radio group of 56px squared buttons with icon and name; the active method is f
 - **Do** keep the success, danger and warning tones from the shared `@runly/ui` components.
 
 ### Don't:
-- **Don't** apply these tokens outside the POS module; the rest of Runly ERP keeps its own system.
+- **Don't** apply these tokens to the POS administration screens or anywhere else in Runly ERP; they keep the ERP system.
 - **Don't** use glass, blur, tint or glow on POS surfaces.
 - **Don't** use pastel fills for chips, pills or mode tiles; state is an outline or a solid action fill.
 - **Don't** fade a disabled orange control; switch it to the muted fill.

@@ -41,9 +41,10 @@ export default function PosDeviceScreen() {
   else if (info.isError) body = <div className="pt-24"><EmptyState icon={Link2Off} title="Este enlace de caja no está disponible" description="Pide a un administrador un enlace nuevo." /></div>
   else if (!deviceToken) body = <PairingCard link={link} info={info.data.data} onPaired={async (token) => { write(localStorage, deviceKey, token); await info.refetch(); setDeviceToken(token) }} />
   else if (!operator) body = <PinPad link={link} info={info.data.data} deviceToken={deviceToken} onSignIn={signIn} onDeviceRejected={forgetDevice} />
-  else return <DeviceRegister operator={operator} onSignOut={signOut} />
+  const accent = info.data?.data?.accentColor ?? null
+  if (operator && deviceToken && info.data) return <DeviceRegister operator={operator} onSignOut={signOut} accent={accent} />
 
-  return <PosThemeScope className="min-h-dvh px-4 py-8">{body}</PosThemeScope>
+  return <PosThemeScope className="min-h-dvh px-4 py-8" accent={accent}>{body}</PosThemeScope>
 }
 
 function Header({ info, subtitle }) {
@@ -173,7 +174,7 @@ function PinPad({ link, info, deviceToken, onSignIn, onDeviceRejected }) {
 }
 
 // The regular register with the cashier's session and company provided here.
-function DeviceRegister({ operator, onSignOut }) {
+function DeviceRegister({ operator, onSignOut, accent }) {
   const queryClient = useQueryClient()
   const { companyId, profile, operatorToken } = operator
   // Before the first render: every request must carry this company.
@@ -200,7 +201,7 @@ function DeviceRegister({ operator, onSignOut }) {
   return (
     <AuthContext.Provider value={auth}>
       <ActiveCompanyContext.Provider value={company}>
-        <PosThemeScope className="h-dvh">
+        <PosThemeScope className="h-dvh" accent={accent}>
           <RetailCajaView key={`${profile.id}:${companyId}`} device={{ onSignOut }} />
         </PosThemeScope>
       </ActiveCompanyContext.Provider>

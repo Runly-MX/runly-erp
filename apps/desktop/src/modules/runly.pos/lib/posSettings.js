@@ -6,7 +6,7 @@ export function selectPosSettings(response) {
 
 // General and Avanzado edit different fields. A save must not rewrite fields
 // that the operator did not edit (including values hidden on another tab).
-export function settingsPatch(part, { mode, tipsEnabled, taxRate, appointmentsEnabled = null }) {
+export function settingsPatch(part, { mode, tipsEnabled, taxRate, appointmentsEnabled = null, accentColor = null }) {
   const patch = {}
   if (part === 'general') {
     if (mode !== null) {
@@ -15,6 +15,12 @@ export function settingsPatch(part, { mode, tipsEnabled, taxRate, appointmentsEn
     }
     if (tipsEnabled !== null) patch.tipsEnabled = tipsEnabled
     if (appointmentsEnabled !== null) patch.appointmentsEnabled = appointmentsEnabled
+    // '' resets the POS to its default orange.
+    if (accentColor !== null) {
+      const value = accentColor.trim()
+      if (value && !/^#[0-9a-fA-F]{6}$/.test(value)) throw new Error('Escribe el color como #RRGGBB.')
+      patch.accentColor = value ? value.toUpperCase() : null
+    }
   } else if (taxRate !== null) {
     const value = String(taxRate).trim()
     if (!value || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 100) throw new Error('Escribe una tasa de impuesto entre 0 y 100.')

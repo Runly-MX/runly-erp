@@ -129,11 +129,12 @@ export function createPosDeviceService({ prisma, secret = process.env.POS_DEVICE
 
   async function info(linkToken) {
     const row = await byLink(linkToken);
-    const [terminal, company] = await Promise.all([
+    const [terminal, company, settings] = await Promise.all([
       prisma.posTerminal.findFirst({ where: { id: row.terminalId }, select: { id: true, name: true, outletId: true, outlet: { select: { name: true } } } }),
       prisma.company.findUnique({ where: { id: row.companyId }, select: { name: true } }),
+      prisma.posSettings.findUnique({ where: { companyId: row.companyId }, select: { accentColor: true } }),
     ]);
-    return { name: row.name, companyName: company?.name ?? null, terminalName: terminal?.name ?? null, outletName: terminal?.outlet?.name ?? null, paired: Boolean(row.deviceTokenHash) };
+    return { name: row.name, companyName: company?.name ?? null, terminalName: terminal?.name ?? null, outletName: terminal?.outlet?.name ?? null, paired: Boolean(row.deviceTokenHash), accentColor: settings?.accentColor ?? null };
   }
 
   async function pair(linkToken, label) {

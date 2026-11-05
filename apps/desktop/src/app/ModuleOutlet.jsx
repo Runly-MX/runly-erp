@@ -1,6 +1,6 @@
 import { hasBuiltInModule, isPathAllowedByNavigation, resolveScreen } from './module-screen-resolver.js';
 import { lazy, Suspense, useEffect, useMemo } from "react";
-import PosThemeScope from "../modules/runly.pos/components/PosThemeScope.jsx";
+import { PosOperatingScope } from "../modules/runly.pos/components/PosThemeScope.jsx";
 import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { findModuleByKey, resolveModuleAliasPath } from '@runly/core';
 import { Badge, NotFoundState, Skeleton } from "@runly/ui";
@@ -14,6 +14,9 @@ import { useBrandingStore } from "../stores/branding.js";
 import { TRASH_SUBPATH } from "../shell/trash/useTrashProviders.js";
 
 const TrashScreen = lazy(() => import("../shell/trash/TrashScreen.jsx").then((m) => ({ default: m.TrashScreen })));
+
+// Caja, Comandero (incl. /mesa/:id) and Cocina: the full-screen POS counter (not Caja's historial).
+const POS_OPERATING_PATH = /^\/pos\/(caja|cocina|comandero(\/mesa\/[^/]+)?)\/?$/;
 
 const SCREEN_MAP = {
   'runly.studio:/': lazy(() => import('../modules/runly.studio/screens/StudioScreen.jsx')),
@@ -714,6 +717,6 @@ export function ModuleOutlet() {
       {Screen ? <Screen /> : <ModulePlaceholder module={module} />}
     </Suspense>
   );
-  // The POS carries its own identity (palette, squared radii) on every screen.
-  return moduleKey === "runly.pos" ? <PosThemeScope>{content}</PosThemeScope> : content;
+  // Only the POS operating screens carry the POS identity; its administration keeps the Runly look.
+  return moduleKey === "runly.pos" && POS_OPERATING_PATH.test(subPath) ? <PosOperatingScope>{content}</PosOperatingScope> : content;
 }

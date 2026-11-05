@@ -3162,6 +3162,7 @@ model PosSettings {
   serviceChargeRate   Decimal  @default(0.00) @db.Decimal(8, 4) @map("service_charge_rate")
   receiptFooter       String?  @map("receipt_footer")
   appointmentsEnabled Boolean  @default(false) @map("appointments_enabled")
+  accentColor         String?  @map("accent_color")
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 

@@ -51,6 +51,7 @@ export const updateSettingsSchema = z.object({
   serviceChargeRate: moneySchema.min(0).max(100).optional(),
   receiptFooter: optionalNullableText(1000),
   appointmentsEnabled: z.boolean().optional(),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, "Elige un color válido.").nullable().optional(),
 });
 
 export const setupSchema = z.object({

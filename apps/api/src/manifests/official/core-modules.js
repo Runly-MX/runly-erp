@@ -1153,7 +1153,7 @@ export const runlyPosManifest = createModuleManifest({
   core: true,
   uninstallable: false,
   icon: "Store",
-  color: "#F5411E",
+  color: "#008C8C",
   pwa: { shortName: "POS", startPath: "/pos/terminal" },
   accentColor: "#007A7A",
   initials: "POS",

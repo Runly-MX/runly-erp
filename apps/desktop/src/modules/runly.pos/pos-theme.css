@@ -2,13 +2,15 @@
    Light = navy ink and navy bands with logo orange for action; dark = grey-white
    on blue-black with the same orange. Scoped to .pos-theme so the rest of the
    ERP keeps its own look. Orange fills carry dark ink: white on this orange
-   fails AA (3.7:1), #0B1530 passes (4.9:1). */
+   fails AA (3.7:1), #0B1530 passes (4.9:1).
+   A company can pick its own accent (Administración > General): PosThemeScope
+   sets --pos-accent-*, and these tokens fall back to the orange without it. */
 .pos-theme {
-  --brand-primary: #F5411E;
-  --brand-primary-hover: #DC3613;
-  --brand-primary-foreground: #0B1530;
-  --brand-primary-text: #B8330F;
-  --brand-primary-on-dark: #FF8A4C;
+  --brand-primary: var(--pos-accent, #F5411E);
+  --brand-primary-hover: var(--pos-accent-hover, #DC3613);
+  --brand-primary-foreground: var(--pos-accent-foreground, #0B1530);
+  --brand-primary-text: var(--pos-accent-text, #B8330F);
+  --brand-primary-on-dark: var(--pos-accent-on-dark, #FF8A4C);
   --brand-soft: hsl(218 24% 93%);
 
   --background: 216 25% 96%;
@@ -23,7 +25,7 @@
   --accent-foreground: 222 72% 14%;
   --border: 219 20% 87%;
   --input: 219 16% 74%;
-  --ring: 10 91% 54%;
+  --ring: var(--pos-accent-ring, 10 91% 54%);
   --surface-1: 0 0% 100%;
   --surface-2: 216 25% 97%;
   --surface-3: 218 24% 94%;
@@ -51,7 +53,7 @@
   --pos-band: #0B2458;
   --pos-band-foreground: #FFFFFF;
   --pos-band-muted: #AEBBD6;
-  --pos-band-accent: #FF8A4C;
+  --pos-band-accent: var(--pos-accent-on-dark, #FF8A4C);
 
   /* Opaque surfaces: no glass, blur or brand glow on dialogs and sheets. */
   --glass-blur: 0px;
@@ -74,23 +76,23 @@
   background-color: hsl(var(--background));
   color: hsl(var(--foreground));
   font-variant-numeric: tabular-nums;
-  accent-color: #F5411E;
+  accent-color: var(--brand-primary);
   scrollbar-color: hsl(var(--input)) transparent;
 }
 
 .pos-theme ::selection {
-  background: rgba(245, 65, 30, 0.26);
+  background: color-mix(in srgb, var(--brand-primary) 26%, transparent);
   color: inherit;
 }
 
 .dark .pos-theme,
 .pos-theme.dark {
-  --brand-primary: #FF5A2E;
-  --brand-primary-hover: #FF7A3D;
-  --brand-primary-foreground: #0B0F17;
-  --brand-primary-text: #FF8A4C;
-  --brand-primary-on-dark: #FF8A4C;
-  --brand-primary-computed: #FF5A2E;
+  --brand-primary: var(--pos-accent, #FF5A2E);
+  --brand-primary-hover: var(--pos-accent-on-dark, #FF7A3D);
+  --brand-primary-foreground: var(--pos-accent-foreground, #0B0F17);
+  --brand-primary-text: var(--pos-accent-on-dark, #FF8A4C);
+  --brand-primary-on-dark: var(--pos-accent-on-dark, #FF8A4C);
+  --brand-primary-computed: var(--brand-primary);
   --brand-soft: hsl(222 30% 15%);
 
   --background: 222 35% 6%;
@@ -105,7 +107,7 @@
   --accent-foreground: 220 33% 94%;
   --border: 222 28% 19%;
   --input: 222 22% 30%;
-  --ring: 20 100% 60%;
+  --ring: var(--pos-accent-ring, 20 100% 60%);
   --surface-1: 222 33% 10%;
   --surface-2: 222 35% 7%;
   --surface-3: 222 30% 13%;
@@ -113,9 +115,9 @@
   --pos-band: #05070C;
   --pos-band-foreground: #F4F7FF;
   --pos-band-muted: #8E9AB3;
-  --pos-band-accent: #FF8A4C;
+  --pos-band-accent: var(--pos-accent-on-dark, #FF8A4C);
 
-  accent-color: #FF5A2E;
+  accent-color: var(--brand-primary);
 }
 
 /* Shared surfaces inside the POS (body carries .pos-theme while it is
