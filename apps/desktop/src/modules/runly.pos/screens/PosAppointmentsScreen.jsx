@@ -104,7 +104,7 @@ export default function PosAppointmentsScreen() {
                     {a.customerPhone && <p className="flex items-center gap-1 text-sm text-[hsl(var(--muted-foreground))]"><Phone className="h-3.5 w-3.5" aria-hidden="true" />{a.customerPhone}</p>}
                     {(a.items ?? []).length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
-                        {a.items.map((i, n) => <span key={n} className="rounded-full bg-[hsl(var(--muted))] px-2.5 py-0.5 text-xs font-medium text-[hsl(var(--foreground))]">{i.name}</span>)}
+                        {a.items.map((i, n) => <span key={n} className="rounded-sm bg-[hsl(var(--muted))] px-2 py-0.5 text-xs font-medium text-[hsl(var(--foreground))]">{i.name}</span>)}
                         <span className="px-1 text-xs font-semibold tabular-nums text-[hsl(var(--muted-foreground))]">{formatMoney(total, currency)}</span>
                       </div>
                     )}
