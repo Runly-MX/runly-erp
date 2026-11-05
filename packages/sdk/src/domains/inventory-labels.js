@@ -20,7 +20,7 @@ export function createInventoryLabelsDomain({ request, requestBlob, withAuthHead
       createPrinter: (data, token) => send('POST', '/inventory/label-printers', data, token),
       updatePrinter: (printerId, data, token) => send('PUT', `/inventory/label-printers/${id(printerId)}`, data, token),
       deletePrinter: (printerId, token) => send('DELETE', `/inventory/label-printers/${id(printerId)}`, undefined, token),
-      // body: { items: [{ itemId, quantity }], templateId?, layout?, printerId?, format: 'zpl'|'pdf'|'png', sheet? } -> Blob
+      // body: { items: [{ itemId, quantity }], templateId?, layout?, printerId?, format: 'zpl'|'pdf'|'png', sheet?, zip? (png: ZIP, one per item) } -> Blob
       render: (body, token) => requestBlob('/inventory/labels/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', ...withAuthHeaders(token) },

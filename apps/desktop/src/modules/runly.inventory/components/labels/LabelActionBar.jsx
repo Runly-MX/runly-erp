@@ -3,9 +3,10 @@ import { ChevronDown, Download, Eye, Loader2, Printer } from 'lucide-react'
 import { plural } from './studio-ui.jsx'
 
 const DOWNLOADS = [
-  { format: 'pdf', label: 'PDF', hint: 'todas las etiquetas' },
+  { format: 'pdf', label: 'PDF', hint: 'una por página' },
+  { format: 'pdf-sheet', label: 'PDF hoja carta', hint: 'varias por hoja, con márgenes' },
   { format: 'zpl', label: 'ZPL', hint: 'para Zebra' },
-  { format: 'png', label: 'PNG', hint: 'imagen de una etiqueta' },
+  { format: 'png', label: 'PNG', hint: 'imágenes (ZIP si son varias)' },
 ]
 
 export const MOBILE_STEPS = [

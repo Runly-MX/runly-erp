@@ -7,7 +7,7 @@ import { createBrowserEnv, labelFilename, labelTransports, preparePrintPlan, res
 
 // Print / download for the queue: render on the API, hand the file to the
 // printer transport, and only then log the print (POST /inventory/labels/prints).
-// PNG downloads are a single-label preview, so they are not logged.
+// PNG downloads (one image, or a ZIP with one per item) are not logged.
 // sheet: letter grid ({ columns, rows, gapMm, marginMm, guides }) applied to PDF only.
 // onLogged(rows) runs after the print was registered (to refresh label stats).
 export function useLabelOutput({ rows, templateId, layout, printer, sheet = null, onLogged }) {
@@ -28,14 +28,16 @@ export function useLabelOutput({ rows, templateId, layout, printer, sheet = null
     }
   }
 
-  async function renderBlob(format) {
+  async function renderBlob(format, { sheet: sheetOverride, zip = false } = {}) {
+    const grid = sheetOverride ?? sheet
     return render.mutateAsync({
       items: toRenderItems(rows),
       templateId: templateId ?? undefined,
       layout: layout ?? undefined,
       printerId: printer?.id ?? undefined,
       format,
-      ...(sheet && format === 'pdf' ? { sheet } : {}),
+      ...(grid && format === 'pdf' ? { sheet: grid } : {}),
+      ...(zip && format === 'png' ? { zip: true } : {}),
     })
   }
 
@@ -63,14 +65,16 @@ export function useLabelOutput({ rows, templateId, layout, printer, sheet = null
     }
   }
 
-  async function download(format) {
+  // options: { sheet } forces a letter grid on the PDF; PNG with several items is a ZIP.
+  async function download(format, options = {}) {
     if (!rows.length) return
     setBusy(format)
     try {
-      const blob = await renderBlob(format)
-      createBrowserEnv().download(blob, labelFilename(format))
+      const zip = format === 'png' && rows.length > 1
+      const blob = await renderBlob(format, { ...options, zip })
+      createBrowserEnv().download(blob, labelFilename(zip ? 'zip' : format))
       if (format !== 'png') await logPrint(false)
-      toast.success(format === 'png' ? 'Vista previa descargada' : 'Etiquetas descargadas')
+      toast.success(zip ? 'Imágenes descargadas en ZIP' : format === 'png' ? 'Imagen descargada' : 'Etiquetas descargadas')
     } catch (err) {
       toast.error(err?.message ?? 'No se pudieron generar las etiquetas')
     } finally {

@@ -14,7 +14,7 @@ import {
 import { useLabelOutput } from '../hooks/useLabelOutput.js'
 import { MAX_LABELS, labeledRows, parseLabelsParams, queueReducer, statsAfterPrint, totalLabels } from '../lib/label-queue.js'
 import { draftError, draftToLayout, isDraftDirty, templateToDraft } from '../lib/label-layout.js'
-import { DEFAULT_SHEET, clampSheet, sheetFit, sheetPages } from '../lib/label-sheet.js'
+import { DEFAULT_SHEET, autoSheet, clampSheet, sheetFit, sheetPages } from '../lib/label-sheet.js'
 import { loadDesign, saveDesign } from '../lib/label-design-store.js'
 import { buildLabelPreview } from '../lib/label-preview.js'
 import { reprintItems } from '../lib/label-history.js'
@@ -194,6 +194,16 @@ function LabelStudio({ companyId, companyName }) {
     if (reprinted.length) setConfirmReprint(() => action)
     else action()
   }
+  // 'pdf-sheet': the configured letter grid when it fits, otherwise the fullest
+  // grid that respects its margin and gap.
+  function downloadAs(format) {
+    if (format === 'png') return labelOutput.download('png')
+    if (format !== 'pdf-sheet') return guarded(() => labelOutput.download(format))
+    const grid = sheet ?? autoSheet(output.sheet, Number(draft.widthMm), Number(draft.heightMm))
+    const gridFit = sheetFit(grid, Number(draft.widthMm), Number(draft.heightMm))
+    if (!gridFit.fits) return toast.error('La etiqueta no cabe en una hoja carta', { description: gridFit.reason })
+    return guarded(() => labelOutput.download('pdf', { sheet: clampSheet(grid) }))
+  }
 
   // ── Template management ──────────────────────────────────────────────────
   const saveTemplate = useSaveLabelTemplate()
@@ -336,7 +346,7 @@ function LabelStudio({ companyId, companyName }) {
           assets={rows.length} labels={total} reprinted={reprinted.length} templateName={template ? `${template.name}${dirty ? ' (modificada)' : ''}` : null}
           printerName={printerName} plan={plan} busy={labelOutput.busy} disabled={outputDisabled} disabledReason={disabledReason}
           onPrint={() => guarded(labelOutput.print)}
-          onDownload={(format) => (format === 'png' ? labelOutput.download(format) : guarded(() => labelOutput.download(format)))}
+          onDownload={downloadAs}
           step={step} onStep={changeStep} onPreview={() => setPreviewOpen(true)} />
       ) : null}
 

@@ -197,7 +197,8 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
   }
 
   // body: { items: [{ itemId, quantity }], templateId?, layout? (unsaved overrides), printerId?, format?,
-  //         sheet? ({ columns, rows, gapMm, marginMm, guides }: letter grid, PDF only) }
+  //         sheet? ({ columns, rows, gapMm, marginMm, guides }: letter grid, PDF only),
+  //         zip? (PNG only: one image per item in a ZIP) }
   async function render(companyId, body = {}, { baseUrl = '' } = {}) {
     assertCompany(companyId);
     const rows = Array.isArray(body.items) ? body.items : [];
@@ -214,7 +215,7 @@ export function createInventoryLabelService({ prisma, publicBaseUrl = '', resolv
       loadItems(companyId, rows),
       prisma.company.findUnique({ where: { id: companyId }, select: { name: true } }),
     ]);
-    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: await tokenResolver(companyId, items, layout, baseUrl), sheet: format === 'pdf' ? body.sheet ?? null : null });
+    return renderLabels({ layout, format, rows, items, companyName: company?.name ?? '', resolveItemQrUrl: await tokenResolver(companyId, items, layout, baseUrl), sheet: format === 'pdf' ? body.sheet ?? null : null, zip: format === 'png' && body.zip === true });
   }
 
   // ── Print log ───────────────────────────────────────────────────────────

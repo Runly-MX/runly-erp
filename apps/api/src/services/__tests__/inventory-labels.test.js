@@ -1,6 +1,7 @@
 // inventory-labels.test.js — layout model and ZPL/PDF/PNG rendering (pure, no DB).
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
+import JSZip from 'jszip';
 import {
   normalizeLayout, normalizeSheet, selectLines, expandQueue, renderLabels, createPlaceholderQrUrl, embeddedQrText, DEFAULT_TEMPLATES,
 } from '../inventory-labels/index.js';
@@ -81,6 +82,13 @@ describe('label rendering', () => {
     assert.equal((pdf.body.toString('latin1').match(/\/Type \/Page\b/g) ?? []).length, 2);
     const png = await renderLabels({ ...base, format: 'png', rows: [{ itemId: '1', quantity: 1 }] });
     assert.deepEqual([...png.body.subarray(1, 4)], [0x50, 0x4e, 0x47]);
+  });
+
+  it('zips one PNG per item when asked', async () => {
+    const out = await renderLabels({ ...base, items: [item('1'), item('2')], format: 'png', zip: true, rows: [{ itemId: '1', quantity: 2 }, { itemId: '2' }] });
+    assert.equal(out.contentType, 'application/zip');
+    const archive = await JSZip.loadAsync(out.body);
+    assert.deepEqual(Object.keys(archive.files).sort(), ['TEL-CIS-CP7-1.png', 'TEL-CIS-CP7-2.png']);
   });
 
   it('rejects an empty queue and unknown formats', async () => {
