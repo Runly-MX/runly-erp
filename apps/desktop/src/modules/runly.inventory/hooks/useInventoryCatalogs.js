@@ -256,6 +256,28 @@ export function useDeleteInventoryCustomField() {
   })
 }
 
+// Ids of the items that carry a field (bulk "Activos" sheet in Catálogos).
+export function useInventoryCustomFieldItems(fieldId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['inventory', 'custom-fields', 'items', fieldId],
+    queryFn: async () => (await runly.inventory.listCustomFieldItems(fieldId, token))?.data ?? [],
+    enabled: Boolean(token && fieldId),
+  })
+}
+
+export function useSetInventoryCustomFieldItems() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, add, remove }) => runly.inventory.setCustomFieldItems(id, { add, remove }, token),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['inventory', 'custom-fields', 'items'] })
+      qc.invalidateQueries({ queryKey: ['inventory', 'items'] })
+    },
+  })
+}
+
 export function useReorderInventoryCustomFields() {
   const token = useToken()
   const qc = useQueryClient()

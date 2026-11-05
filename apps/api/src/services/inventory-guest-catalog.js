@@ -23,7 +23,7 @@ const modelRow = (m) => ({
 });
 export const customFieldRow = (f) => ({
   id: f.id, label: f.label, fieldKey: f.fieldKey, fieldType: f.fieldType, options: f.options ?? null, required: Boolean(f.required),
-  sortOrder: f.sortOrder ?? 0, categoryId: f.categoryId ?? null, onDemand: Boolean(f.onDemand),
+  sortOrder: f.sortOrder ?? 0, categoryIds: f.categoryIds ?? [], onDemand: Boolean(f.onDemand),
 });
 
 export function createInventoryGuestCatalog({ prisma, contextOf, audit }) {

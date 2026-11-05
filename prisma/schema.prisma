@@ -4101,7 +4101,6 @@ model InvCategory {
   parent       InvCategory?  @relation("InvCategoryChildren", fields: [parentId], references: [id], onDelete: SetNull)
   children     InvCategory[] @relation("InvCategoryChildren")
   items        InvItem[]
-  customFields InvCustomField[]
   models       InvModel[]
 
   @@unique([companyId, name])
@@ -4501,7 +4500,8 @@ model InvAssignment {
 model InvCustomField {
   id         String   @id @default(uuid(7)) @db.Uuid
   companyId  String   @db.Uuid @map("company_id")
-  categoryId String?  @db.Uuid @map("category_id")
+  // Types that ask for the field automatically; empty = every type (or none when onDemand).
+  categoryIds String[] @default([]) @db.Uuid @map("category_ids")
   label      String   @db.VarChar(100)
   fieldKey   String   @db.VarChar(50) @map("field_key")
   fieldType  String   @db.VarChar(30) @map("field_type")
@@ -4513,11 +4513,10 @@ model InvCustomField {
   createdAt  DateTime @default(now()) @map("created_at")
 
   company  Company       @relation("CompanyInvCustomFields", fields: [companyId], references: [id])
-  category InvCategory?  @relation(fields: [categoryId], references: [id])
   values   InvCustomFieldValue[]
 
   @@index([companyId, fieldKey])
-  @@index([categoryId])
+  @@index([categoryIds], type: Gin)
   @@map("inv_custom_field")
 }
 

@@ -6,6 +6,7 @@ import { createInventoryAccess } from './inventory-access.js';
 import { createInventoryModelService } from './inventory-model-service.js';
 import { findActiveDuplicates } from './inventory-identifiers.js';
 import { createInventoryScope } from './inventory-scope.js';
+import { typeFieldsWhere } from './inventory-catalog-service.js';
 
 // Serial / asset number must be unique among ACTIVE items: tell the user (and MirAI) to update the existing one.
 async function assertNotDuplicated(db, companyId, data) {
@@ -75,7 +76,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
       prisma.invBrand.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
       prisma.invCategory.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
       prisma.invLocation.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
-      prisma.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, ...(search ? { label: { contains: search.slice(0, 200), mode: 'insensitive' } } : {}) }, take: 50, orderBy: { label: 'asc' }, include: { category: { select: { name: true } } } }),
+      prisma.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, ...(search ? { label: { contains: search.slice(0, 200), mode: 'insensitive' } } : {}) }, take: 50, orderBy: { label: 'asc' } }),
       createInventoryModelService({ prisma }).list({ companyId: scope.companyId, search }),
       prisma.invCondition.findMany({ where, take: 50, orderBy: { name: 'asc' }, select: { id: true, name: true } }),
     ]);
@@ -112,7 +113,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
         reused = Boolean(row.reused);
       } else if (kind === 'customField') {
         const categoryId = await resolve('invCategory', data.categoryName);
-        const matches = await db.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, categoryId, fieldKey: data.fieldKey }, take: 2 });
+        const matches = await db.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, categoryIds: categoryId ? { equals: [categoryId] } : { isEmpty: true }, fieldKey: data.fieldKey }, take: 2 });
         if (matches.length > 1 || matches[0] && (matches[0].fieldType !== data.fieldType || matches[0].required !== data.required || JSON.stringify(matches[0].options ?? []) !== JSON.stringify(data.options ?? []))) throw new InventoryServiceError('La clave del campo ya existe con otra definición.', 409);
         row = matches[0]; reused = Boolean(row);
         row ??= await service.createCustomField({ ...data, categoryId }, scope.companyId);
@@ -121,7 +122,7 @@ export function createInventoryChatActions({ prisma, authorize = createInventory
         const brandId = await resolve('invBrand', data.brandName);
         const locationId = await resolve('invLocation', data.locationName);
         await assertNotDuplicated(db, scope.companyId, data);
-        const definitions = await db.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, OR: [{ categoryId: null }, ...(categoryId ? [{ categoryId }] : [])] } });
+        const definitions = await db.invCustomField.findMany({ where: { companyId: scope.companyId, enabled: true, ...typeFieldsWhere(categoryId) } });
         const values = [];
         for (const value of data.customValues ?? []) {
           const matches = definitions.filter(field => field.fieldKey === value.fieldKey);

@@ -18,6 +18,7 @@ function prismaWith({ categoryCount = 0, rows = [], itemCount = 0, modelCount = 
     },
     invItem: { count: async () => itemCount },
     invModel: { count: async () => modelCount },
+    invCustomField: { findMany: async () => [{ categoryIds: [TYPE] }, { categoryIds: [TYPE, 'other'] }] },
   };
 }
 
@@ -34,7 +35,7 @@ test('listCategories seeds default types only for a company with no types at all
 });
 
 test('listCategories flattens counts', async () => {
-  const prisma = prismaWith({ categoryCount: 1, rows: [{ id: TYPE, name: 'Laptop', _count: { items: 4, customFields: 2, models: 3 } }] });
+  const prisma = prismaWith({ categoryCount: 1, rows: [{ id: TYPE, name: 'Laptop', _count: { items: 4, models: 3 } }] });
   const [row] = await createInventoryCatalogService({ prisma }).listCategories(COMPANY);
   assert.deepEqual(row, { id: TYPE, name: 'Laptop', itemCount: 4, customFieldCount: 2, modelCount: 3 });
 });
@@ -60,3 +61,31 @@ test('createBrand and updateCategory normalize the folio code', async () => {
   assert.equal(calls.brand.code, 'CIS')
   assert.equal(calls.category.code, 'TEL')
 })
+
+test('custom fields: several types per field, legacy categoryId, bulk add/remove on visible items only', async () => {
+  const writes = [];
+  const prisma = {
+    invCategory: { findFirst: async () => ({ id: TYPE }) },
+    invCustomField: {
+      create: async ({ data }) => { writes.push(data); return data; },
+      findFirst: async () => ({ id: 'f1' }),
+    },
+    invItem: { findMany: async () => [{ id: 'i1' }, { id: 'i2' }] },
+    invCustomFieldValue: {
+      createMany: (args) => { writes.push(args); return { count: args.data.length }; },
+      deleteMany: (args) => { writes.push(args); return { count: args.where.itemId.in.length }; },
+    },
+    $transaction: async (ops) => Promise.all(ops),
+  };
+  const svc = createInventoryCatalogService({ prisma });
+  await svc.createCustomField({ label: 'RAM', fieldKey: 'ram', fieldType: 'text', categoryIds: [TYPE, TYPE, 'other'] }, COMPANY);
+  await svc.createCustomField({ label: 'Placa', fieldKey: 'placa', fieldType: 'text', categoryId: TYPE }, COMPANY);
+  await svc.createCustomField({ label: 'Nota', fieldKey: 'nota', fieldType: 'text', onDemand: true, categoryIds: [TYPE] }, COMPANY);
+  assert.deepEqual(writes.map((w) => w.categoryIds), [[TYPE, 'other'], [TYPE], []]);
+
+  writes.length = 0;
+  const res = await svc.setCustomFieldItems('f1', { add: ['i1', 'foreign'], remove: ['i2', 'i1'] }, COMPANY, null);
+  assert.deepEqual(res, { added: 1, removed: 1 });
+  assert.deepEqual(writes[0].data, [{ itemId: 'i1', fieldId: 'f1', value: null }]);
+  assert.deepEqual(writes[1].where, { fieldId: 'f1', itemId: { in: ['i2'] } });
+});

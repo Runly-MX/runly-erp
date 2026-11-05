@@ -63,7 +63,7 @@ const blank = (v) => {
 // Custom fields that apply to the chosen type (or to every type).
 export function applicableCustomFields(customFields = [], categoryId) {
   const cat = categoryId || null
-  return customFields.filter((f) => !f.categoryId || f.categoryId === cat)
+  return customFields.filter((f) => !f.categoryIds?.length || f.categoryIds.includes(cat))
 }
 
 // Entries ({ field, value }) the form starts with, in the shape DynamicFieldsSection expects: the

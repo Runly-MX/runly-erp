@@ -170,10 +170,13 @@ export function createInventoryItemImportService({
   async function loadCustomFields(companyId) {
     const rows = await prisma.invCustomField.findMany({
       where: { companyId, enabled: true },
-      select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, category: { select: { name: true } } },
+      select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryIds: true },
       orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }],
     });
-    return rows.map((f) => ({ ...f, typeName: f.category?.name ?? null }));
+    const typeIds = [...new Set(rows.flatMap((f) => f.categoryIds ?? []))];
+    const types = typeIds.length ? await prisma.invCategory.findMany({ where: { companyId, id: { in: typeIds } }, select: { id: true, name: true } }) : [];
+    const nameById = new Map(types.map((t) => [t.id, t.name]));
+    return rows.map((f) => ({ ...f, typeNames: (f.categoryIds ?? []).map((id) => nameById.get(id)).filter(Boolean) }));
   }
 
   // Mappable fields for the UI: base fields plus the company's custom fields.
@@ -183,7 +186,7 @@ export function createInventoryItemImportService({
     return {
       fields: [
         ...importFields.map(({ key: k, label, group }) => ({ key: k, label, group })),
-        ...custom.map((f) => ({ key: `custom:${f.id}`, label: f.label, group: 'Campos personalizados', hint: f.typeName ? `Solo tipo ${f.typeName}` : null })),
+        ...custom.map((f) => ({ key: `custom:${f.id}`, label: f.label, group: 'Campos personalizados', hint: f.typeNames.length ? `Solo ${f.typeNames.join(', ')}` : null })),
       ],
       customFields: custom,
       statuses: IMPORT_STATUSES,
@@ -290,8 +293,8 @@ export function createInventoryItemImportService({
     for (const [field, raw] of Object.entries(d)) {
       if (!field.startsWith('custom:') || !raw) continue;
       const def = ctx.customFields.get(field.slice(7));
-      if (def.categoryId && def.typeName && d.type && key(def.typeName) !== key(d.type)) {
-        notes.push(`«${def.label}» solo aplica al tipo ${def.typeName}; se omite.`);
+      if (def.typeNames?.length && d.type && !def.typeNames.some((name) => key(name) === key(d.type))) {
+        notes.push(`«${def.label}» solo aplica a: ${def.typeNames.join(', ')}; se omite.`);
         continue;
       }
       const result = customValue(def, raw);

@@ -165,7 +165,7 @@ test('preview derives the name from brand + model and plans the new model', asyn
 });
 
 test('commit creates missing type, brand and model, custom values and photos', async () => {
-  const prisma = fakePrisma({ customFields: [{ id: 'f1', label: 'RAM', fieldKey: 'ram', fieldType: 'number', categoryId: null, category: null }] });
+  const prisma = fakePrisma({ customFields: [{ id: 'f1', label: 'RAM', fieldKey: 'ram', fieldType: 'number', categoryIds: [] }] });
   const createdItems = [];
   const attached = [];
   const service = createInventoryItemImportService({

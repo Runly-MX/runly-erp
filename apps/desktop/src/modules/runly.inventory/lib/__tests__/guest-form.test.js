@@ -3,9 +3,9 @@ import assert from 'node:assert/strict'
 import { applicableCustomFields, buildGuestPayload, guestCustomEntries, guestItemDefaults, guestItemSchema } from '../guest-form.js'
 
 const FIELDS = [
-  { id: 'f1', fieldKey: 'k1', categoryId: null, required: true },
-  { id: 'f2', fieldKey: 'k2', categoryId: 'cat-a' },
-  { id: 'f3', fieldKey: 'k3', categoryId: 'cat-b' },
+  { id: 'f1', fieldKey: 'k1', categoryIds: [], required: true },
+  { id: 'f2', fieldKey: 'k2', categoryIds: ['cat-a'] },
+  { id: 'f3', fieldKey: 'k3', categoryIds: ['cat-b'] },
 ]
 
 describe('guest item form', () => {

@@ -3001,6 +3001,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           method: "DELETE",
           headers: withAuthHeaders(token),
         }),
+      listCustomFieldItems: (id, token) =>
+        request(`/inventory/custom-fields/${encodeURIComponent(id)}/items`, {
+          headers: withAuthHeaders(token),
+        }),
+      setCustomFieldItems: (id, data, token) =>
+        request(`/inventory/custom-fields/${encodeURIComponent(id)}/items`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
       reorderCategories: (items, token) =>
         request("/inventory/categories/reorder", {
           method: "PATCH",

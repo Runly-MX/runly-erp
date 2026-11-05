@@ -365,7 +365,7 @@ export function createInventoryService({ prisma, activityBridge }) {
         createdBy: { select: { id: true, firstName: true, lastName: true } },
         customValues: {
           include: {
-            field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } },
+            field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryIds: true, onDemand: true } },
           },
         },
         // full file list intentionally omitted here — fetched separately by
@@ -498,7 +498,7 @@ export function createInventoryService({ prisma, activityBridge }) {
             category: { select: { id: true, name: true, icon: true, color: true } },
             brand: { select: { id: true, name: true } },
             location: { select: { id: true, name: true } },
-            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } } } },
+            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryIds: true, onDemand: true } } } },
           },
         });
       });
@@ -711,7 +711,7 @@ export function createInventoryService({ prisma, activityBridge }) {
             location: { select: { id: true, name: true } },
             condition: { select: { id: true, name: true } },
             area: { select: { id: true, name: true } },
-            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryId: true, onDemand: true } } } },
+            customValues: { include: { field: { select: { id: true, label: true, fieldKey: true, fieldType: true, options: true, categoryIds: true, onDemand: true } } } },
           },
         });
       });

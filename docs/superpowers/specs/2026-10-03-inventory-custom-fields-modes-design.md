@@ -56,3 +56,17 @@ containers scrolled the whole app shell when focused (checkbox click).
 
 No per-item required rules; no reordering of extra fields; no migration of
 existing data.
+
+## Addendum 2026-11-05: several types per field and bulk assignment
+
+- `inv_custom_field.category_id` became `category_ids uuid[]` (migration
+  `20261227100000_inv_custom_field_types`, backfilled from the old column).
+  Empty list + `onDemand: false` = every type; empty list + `onDemand: true` =
+  only the items it is added to. The API still accepts the legacy single
+  `categoryId` on create/update (inline creator, MirAI actions).
+- Catálogos > Campos defaults new fields to "Solo en los activos
+  seleccionados" and lets "En los tipos que elijas" mark several types.
+- `GET|POST /inventory/custom-fields/:id/items` (`{ add, remove }` item ids,
+  max 5000, area scope applied) back the "Activos" sheet: adding creates an
+  empty value so the field shows on each item's form; removing deletes the
+  stored value.

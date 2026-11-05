@@ -196,11 +196,11 @@ export function DynamicFieldsSection({
   }, [autoDefs, extraDefs]);
 
   const shownIds = new Set(shownDefs.map((def) => def.id));
-  const sameType = (def) => Boolean(categoryValue) && String(def.categoryId ?? "") === String(categoryValue);
+  const sameType = (def) => Boolean(categoryValue) && (def.categoryIds ?? []).map(String).includes(String(categoryValue));
   const libraryOptions = (library ?? [])
     .filter((def) => !shownIds.has(def.id))
     .sort((a, b) => Number(sameType(b)) - Number(sameType(a)))
-    .map((def) => ({ value: def.id, label: def.label, description: def.onDemand ? "A demanda" : sameType(def) ? "De este tipo" : def.categoryId ? "De otro tipo" : "Todos los tipos" }));
+    .map((def) => ({ value: def.id, label: def.label, description: def.onDemand ? "A demanda" : sameType(def) ? "De este tipo" : def.categoryIds?.length ? "De otros tipos" : "Todos los tipos" }));
 
   const suggestions = config?.apiPath
     ? async (fieldId, search) => {

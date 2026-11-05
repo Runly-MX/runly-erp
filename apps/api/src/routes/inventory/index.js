@@ -516,6 +516,27 @@ export function createInventoryRouter({
     }
   });
 
+  router.get("/inventory/custom-fields/:id/items", requirePermission("inventory.catalog.read"), async (c) => {
+    try {
+      const data = await inventoryService.listCustomFieldItems(c.req.param("id"), c.get("companyId"), await scopeOf(c));
+      return c.json({ data });
+    } catch (err) {
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
+      return c.json({ error: "No se pudieron cargar los activos del campo." }, 500);
+    }
+  });
+
+  router.post("/inventory/custom-fields/:id/items", requirePermission("inventory.customfield.manage"), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const data = await inventoryService.setCustomFieldItems(c.req.param("id"), body ?? {}, c.get("companyId"), await scopeOf(c));
+      return c.json({ data });
+    } catch (err) {
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
+      return c.json({ error: "No se pudo actualizar los activos del campo." }, 500);
+    }
+  });
+
   for (const [seg, permGroup, listFn, createFn, updateFn, deleteFn, reorderFn, singular, plural] of catalog) {
     router.get(`/inventory/${seg}`, requirePermission("inventory.catalog.read"), async (c) => {
       try {

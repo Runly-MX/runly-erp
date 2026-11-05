@@ -3,7 +3,7 @@ import { GripVertical } from 'lucide-react'
 import { CatalogRowActions } from './CatalogRowActions.jsx'
 import { CatalogCountLink } from './CatalogCountLink.jsx'
 
-export function CatalogListRow({ icon: Icon, color = '#7c3aed', title, subtitle, badges = [], dragHandleProps, isDragging, onEdit, onDelete }) {
+export function CatalogListRow({ icon: Icon, color = '#7c3aed', title, subtitle, badges = [], actions = null, dragHandleProps, isDragging, onEdit, onDelete }) {
   return (
     <div className={cn('flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2.5', isDragging && 'opacity-50 shadow-lg')}>
       {dragHandleProps ? (
@@ -24,6 +24,7 @@ export function CatalogListRow({ icon: Icon, color = '#7c3aed', title, subtitle,
           return <CatalogCountLink key={label} label={label} to={to} />
         })}
       </div>
+      {actions}
       <CatalogRowActions name={title} onEdit={onEdit} onDelete={onDelete} />
     </div>
   )

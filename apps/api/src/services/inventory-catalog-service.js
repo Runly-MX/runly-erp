@@ -3,6 +3,7 @@ import { createInventoryEconomicProjection, isEconomicInventoryField } from './i
 // brands, locations, conditions and custom fields. Extracted from inventory-service.js.
 import { InventoryServiceError, assertCompany, createRefGuard } from './inventory-guards.js';
 import { normalizeCode } from './inventory-folio.js';
+import { scopeWhere } from './inventory-scope.js';
 
 // Seeded once per company (see listCategories) and by the 20260928120000 migration.
 export const DEFAULT_INVENTORY_TYPES = [
@@ -33,6 +34,17 @@ export const DEFAULT_INVENTORY_CONDITIONS = [
 ];
 
 const enabledOnly = { where: { enabled: true } };
+
+// Custom fields a type may carry: its own (categoryIds has it) plus the all-types ones (empty list).
+// On-demand fields have an empty list too, so callers that only want automatic ones add onDemand: false.
+export const typeFieldsWhere = (categoryId) => ({ OR: [{ categoryIds: { isEmpty: true } }, ...(categoryId ? [{ categoryIds: { has: categoryId } }] : [])] });
+
+// API payload -> categoryIds. Accepts the legacy single `categoryId` (chat actions, inline creator).
+function categoryIdsOf(data) {
+  if (Array.isArray(data.categoryIds)) return [...new Set(data.categoryIds.filter((id) => typeof id === 'string' && id))];
+  if (data.categoryId !== undefined) return data.categoryId ? [String(data.categoryId)] : [];
+  return undefined;
+}
 
 export function createInventoryCatalogService({ prisma }) {
   const assertRefInCompany = createRefGuard(prisma);
@@ -65,9 +77,12 @@ export function createInventoryCatalogService({ prisma }) {
     const rows = await prisma.invCategory.findMany({
       where: { companyId, enabled: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
-      include: { _count: { select: { items: enabledOnly, customFields: enabledOnly, models: enabledOnly } } },
+      include: { _count: { select: { items: enabledOnly, models: enabledOnly } } },
     });
-    return rows.map(({ _count, ...row }) => ({ ...row, itemCount: _count?.items ?? 0, customFieldCount: _count?.customFields ?? 0, modelCount: _count?.models ?? 0 }));
+    const fieldTypes = await prisma.invCustomField.findMany({ where: { companyId, enabled: true, onDemand: false }, select: { categoryIds: true } });
+    const fieldCount = new Map();
+    for (const { categoryIds } of fieldTypes) for (const id of categoryIds) fieldCount.set(id, (fieldCount.get(id) ?? 0) + 1);
+    return rows.map(({ _count, ...row }) => ({ ...row, itemCount: _count?.items ?? 0, customFieldCount: fieldCount.get(row.id) ?? 0, modelCount: _count?.models ?? 0 }));
   }
 
   async function createCategory(data, companyId) {
@@ -273,26 +288,26 @@ export function createInventoryCatalogService({ prisma }) {
     const where = { companyId, enabled: true };
     if (categoryId === 'all') {
       // no type filter
-    } else if (categoryId) {
-      where.OR = [{ categoryId }, { categoryId: null }];
-      where.onDemand = false;
     } else {
-      where.categoryId = null;
-      where.onDemand = false;
+      Object.assign(where, typeFieldsWhere(categoryId), { onDemand: false });
     }
     const fields = await prisma.invCustomField.findMany({ where, orderBy: [{ sortOrder: 'asc' }, { label: 'asc' }] });
     return await createInventoryEconomicProjection({ prisma }).mode(companyId) === 'DOCUMENTARY' ? fields.filter(f => !isEconomicInventoryField(f)) : fields;
   }
 
+  async function assertTypesInCompany(categoryIds, companyId) {
+    for (const id of categoryIds ?? []) await assertRefInCompany('invCategory', id, companyId, 'El tipo');
+  }
+
   async function createCustomField(data, companyId) {
     assertCompany(companyId);
-    const { label, fieldKey, fieldType, categoryId, options, required, sortOrder, onDemand } = data;
-    await assertRefInCompany('invCategory', categoryId, companyId, 'El tipo');
+    const { label, fieldKey, fieldType, options, required, sortOrder, onDemand } = data;
+    const categoryIds = categoryIdsOf(data);
+    await assertTypesInCompany(categoryIds, companyId);
     const createData = { companyId, label, fieldKey, fieldType };
     // An on-demand field belongs to no type: it is added per item.
     if (onDemand !== undefined) createData.onDemand = Boolean(onDemand);
-    if (createData.onDemand) createData.categoryId = null;
-    if (categoryId !== undefined && !createData.onDemand) createData.categoryId = categoryId;
+    if (categoryIds !== undefined) createData.categoryIds = createData.onDemand ? [] : categoryIds;
     if (options !== undefined) createData.options = options;
     if (required !== undefined) createData.required = required;
     if (sortOrder !== undefined) createData.sortOrder = sortOrder;
@@ -303,19 +318,52 @@ export function createInventoryCatalogService({ prisma }) {
     assertCompany(companyId);
     const existing = await prisma.invCustomField.findFirst({ where: { id, companyId, enabled: true } });
     if (!existing) throw new InventoryServiceError('Custom field not found', 404);
-    const { label, fieldKey, fieldType, categoryId, options, required, sortOrder, onDemand } = data;
-    await assertRefInCompany('invCategory', categoryId, companyId, 'El tipo');
+    const { label, fieldKey, fieldType, options, required, sortOrder, onDemand } = data;
+    const categoryIds = categoryIdsOf(data);
+    await assertTypesInCompany(categoryIds, companyId);
     const updateData = {};
     if (onDemand !== undefined) updateData.onDemand = Boolean(onDemand);
     if (label !== undefined) updateData.label = label;
     if (fieldKey !== undefined) updateData.fieldKey = fieldKey;
     if (fieldType !== undefined) updateData.fieldType = fieldType;
-    if (categoryId !== undefined) updateData.categoryId = categoryId;
+    if (categoryIds !== undefined) updateData.categoryIds = categoryIds;
     if (options !== undefined) updateData.options = options;
     if (required !== undefined) updateData.required = required;
     if (sortOrder !== undefined) updateData.sortOrder = sortOrder;
-    if (updateData.onDemand) updateData.categoryId = null;
+    if (updateData.onDemand) updateData.categoryIds = [];
     return prisma.invCustomField.update({ where: { id }, data: updateData });
+  }
+
+  // Items that carry the field (a value row, even empty: on-demand fields stay on the item's form).
+  async function listCustomFieldItems(id, companyId, scope) {
+    assertCompany(companyId);
+    const rows = await prisma.invCustomFieldValue.findMany({
+      where: { fieldId: id, field: { companyId }, item: { companyId, enabled: true, ...(scopeWhere(scope) ?? {}) } },
+      select: { itemId: true },
+    });
+    return rows.map((row) => row.itemId);
+  }
+
+  // Bulk add/remove of a field on selected items (Catálogos > Campos > Activos). Adding creates
+  // an empty value so the field shows on each item's form; removing deletes the stored value.
+  async function setCustomFieldItems(id, { add, remove } = {}, companyId, scope) {
+    assertCompany(companyId);
+    const field = await prisma.invCustomField.findFirst({ where: { id, companyId, enabled: true }, select: { id: true } });
+    if (!field) throw new InventoryServiceError('Campo no encontrado.', 404);
+    const ids = (list) => [...new Set((Array.isArray(list) ? list : []).filter((v) => typeof v === 'string'))];
+    const [toAdd, toRemove] = [ids(add), ids(remove)];
+    if (toAdd.length + toRemove.length > 5000) throw new InventoryServiceError('Selecciona como máximo 5000 activos a la vez.', 400);
+    const visible = new Set((await prisma.invItem.findMany({
+      where: { id: { in: [...toAdd, ...toRemove] }, companyId, enabled: true, ...(scopeWhere(scope) ?? {}) },
+      select: { id: true },
+    })).map((row) => row.id));
+    const addIds = toAdd.filter((itemId) => visible.has(itemId));
+    const removeIds = toRemove.filter((itemId) => visible.has(itemId) && !addIds.includes(itemId));
+    const [added, removed] = await prisma.$transaction([
+      prisma.invCustomFieldValue.createMany({ data: addIds.map((itemId) => ({ itemId, fieldId: id, value: null })), skipDuplicates: true }),
+      prisma.invCustomFieldValue.deleteMany({ where: { fieldId: id, itemId: { in: removeIds } } }),
+    ]);
+    return { added: added.count, removed: removed.count };
   }
 
   async function deleteCustomField(id, companyId) {
@@ -343,6 +391,7 @@ export function createInventoryCatalogService({ prisma }) {
     listLocations, createLocation, updateLocation, deleteLocation,
     listConditions, createCondition, updateCondition, deleteCondition,
     listCustomFields, listCustomFieldValues, createCustomField, updateCustomField, deleteCustomField,
+    listCustomFieldItems, setCustomFieldItems,
     reorderCategories: (companyId, items) => reorderCatalog('invCategory', companyId, items),
     reorderBrands: (companyId, items) => reorderCatalog('invBrand', companyId, items),
     reorderLocations: (companyId, items) => reorderCatalog('invLocation', companyId, items),

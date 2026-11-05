@@ -36,8 +36,8 @@ function build() {
       { id: MODEL_X, companyId: CO2, enabled: true, name: 'Hidden', nameKey: 'hidden', typeId: TYPE_X, brandId: BRAND_X, year: null },
     ],
     invCustomField: [
-      { id: FIELD, companyId: CO, enabled: true, label: 'Sub ubicación', fieldKey: 'sub', fieldType: 'text', required: true, onDemand: false, categoryId: null, sortOrder: 0 },
-      { id: FIELD_X, companyId: CO2, enabled: true, label: 'Ajeno', fieldKey: 'x', fieldType: 'text', onDemand: false, categoryId: null },
+      { id: FIELD, companyId: CO, enabled: true, label: 'Sub ubicación', fieldKey: 'sub', fieldType: 'text', required: true, onDemand: false, categoryIds: [], sortOrder: 0 },
+      { id: FIELD_X, companyId: CO2, enabled: true, label: 'Ajeno', fieldKey: 'x', fieldType: 'text', onDemand: false, categoryIds: [] },
     ],
   });
   const audits = [];

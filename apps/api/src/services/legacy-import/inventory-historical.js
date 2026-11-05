@@ -111,14 +111,14 @@ export function createInventoryHistorical({ prisma, refs, fileStore, defaultSour
   // company field of the item's category first, then a global one.
   async function resolveCustomValues(companyId, categoryId, customValues, warnings) {
     if (!Array.isArray(customValues) || !customValues.length) return [];
-    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, select: { id: true, fieldKey: true, categoryId: true } });
+    const fields = await prisma.invCustomField.findMany({ where: { companyId, enabled: true }, select: { id: true, fieldKey: true, categoryIds: true } });
     const byId = new Map(fields.map((field) => [field.id, field]));
     const out = new Map();
     for (const entry of customValues) {
       let field = entry.fieldId ? byId.get(entry.fieldId) : null;
       if (!field && entry.fieldKey) {
         const matches = fields.filter((candidate) => candidate.fieldKey === entry.fieldKey);
-        field = matches.find((candidate) => candidate.categoryId && candidate.categoryId === categoryId) ?? matches.find((candidate) => !candidate.categoryId) ?? null;
+        field = matches.find((candidate) => categoryId && candidate.categoryIds?.includes(categoryId)) ?? matches.find((candidate) => !candidate.categoryIds?.length) ?? null;
       }
       if (!field) { warnings.push(`Campo personalizado desconocido: ${entry.fieldKey ?? entry.fieldId}.`); continue; }
       out.set(field.id, entry.value === undefined || entry.value === null ? null : String(entry.value).slice(0, 2000));

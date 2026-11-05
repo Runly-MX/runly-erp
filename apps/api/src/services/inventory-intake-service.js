@@ -6,6 +6,7 @@ import { intakeSchema, observationSchema } from '../routes/inventory/intake-vali
 import { createInventoryModelService } from './inventory-model-service.js';
 import { EXISTING_ITEM_INCLUDE, diffItemFields } from './inventory-update-diff.js';
 import { canWriteArea, scopeWhere } from './inventory-scope.js';
+import { typeFieldsWhere } from './inventory-catalog-service.js';
 
 const lower = (value) => String(value ?? '').trim().toLocaleLowerCase('es');
 const brief = (item) => ({ id: item.id, name: item.name, assetTag: item.assetTag ?? null, serialNumber: item.serialNumber ?? null });
@@ -155,8 +156,7 @@ export function createInventoryIntakeService({ prisma, env = process.env, vision
         throw new InventoryServiceError('Un catálogo no pertenece a la empresa actual.', 400);
       }
     }
-    const definitions = await db.invCustomField.findMany({ where: { companyId, enabled: true,
-      OR: [{ categoryId: null }, ...(data.common.categoryId ? [{ categoryId: data.common.categoryId }] : [])] } });
+    const definitions = await db.invCustomField.findMany({ where: { companyId, enabled: true, ...typeFieldsWhere(data.common.categoryId) } });
     const values = data.common.customValues ?? [];
     if (new Set(values.map(v => v.fieldId)).size !== values.length || values.some(v => !definitions.some(d => d.id === v.fieldId))) {
       throw new InventoryServiceError('Revisa los campos personalizados de la categoría.', 400);
