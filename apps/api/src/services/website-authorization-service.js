@@ -8,6 +8,9 @@ export const WEBSITE_PERMISSION_ALIASES = Object.freeze({
   'website.forms.delete': ['website.pages.delete'],
   'website.submissions.read': ['website.pages.read'],
   'website.submissions.delete': ['website.pages.delete'],
+  // Roles that already configure the site keep managing its customer accounts without a reseed.
+  'website.accounts.read': ['website.site.read'],
+  'website.accounts.manage': ['website.site.update'],
 })
 const issuedAccess = new WeakSet()
 

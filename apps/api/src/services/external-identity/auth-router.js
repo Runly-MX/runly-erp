@@ -94,11 +94,13 @@ export function createExternalAuthRouter({
     c.set('externalAccount', found.account); c.set('externalSession', found.session); return next()
   }
   const ua = (c) => c.req.header('user-agent') ?? null
+  // Email links point back to the host the visitor used (a site can have several names).
+  const requestContext = (c) => ({ origin: `${isHttps(c) ? 'https' : 'http'}://${c.req.header('host')}` })
 
   app.post('/register', limit('register', clientIp), body(externalAuthSchemas.register), async (c) => {
     const realm = c.get('externalRealm'), { turnstileToken, ...data } = c.get('body')
     if (verifyHuman && !(await verifyHuman({ c, realm, token: turnstileToken }))) return c.json({ error: 'No pudimos verificar que eres una persona.', code: 'CHALLENGE_FAILED' }, 403)
-    const result = await identity.register({ realm, ...data, userAgent: ua(c) })
+    const result = await identity.register({ realm, ...data, userAgent: ua(c), context: requestContext(c) })
     if (result.session) writeSessionCookie(c, result.session)
     return c.json(result.session ? { account: result.account } : { verificationRequired: true }, 201)
   })
@@ -127,14 +129,14 @@ export function createExternalAuthRouter({
   })
 
   app.post('/verify-email/request', limit('email', clientIp), signedIn, async (c) => {
-    await identity.requestEmailVerification({ realm: c.get('externalRealm'), account: c.get('externalAccount') })
+    await identity.requestEmailVerification({ realm: c.get('externalRealm'), account: c.get('externalAccount'), context: requestContext(c) })
     return c.body(null, 204)
   })
   app.post('/verify-email', limit('login', clientIp), body(externalAuthSchemas.token), async (c) =>
     c.json({ account: await identity.verifyEmail({ realm: c.get('externalRealm'), token: c.get('body').token }) }))
 
   app.post('/password/forgot', limit('email', clientIp), body(externalAuthSchemas.forgot), async (c) => {
-    await identity.requestPasswordReset({ realm: c.get('externalRealm'), email: c.get('body').email })
+    await identity.requestPasswordReset({ realm: c.get('externalRealm'), email: c.get('body').email, context: requestContext(c) })
     return c.body(null, 204)
   })
   app.post('/password/reset', limit('login', clientIp), body(externalAuthSchemas.reset), async (c) => {

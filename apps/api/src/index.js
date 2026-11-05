@@ -92,6 +92,7 @@ import {
 import { createPublicFormsRouter } from "./routes/website/forms-public-routes.js";
 import { createPublicBookingsRouter } from "./routes/website/bookings-routes.js";
 import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js";
+import { createWebsiteAccountsPublicRouter, createWebsiteIdentity } from "./routes/website/accounts-routes.js";
 import { createStorefrontRouter } from "./routes/storefront/storefront-router.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
@@ -2233,6 +2234,9 @@ app.route("/public/website", publicBookingsRouter);
 const publicCheckoutRouter = createPublicCheckoutRouter({ prisma });
 app.route("/public/website", publicCheckoutRouter);
 
+// Customer accounts of published sites (External Identity realm per site); never Runly users.
+app.route("/public/website/account", createWebsiteAccountsPublicRouter({ prisma, gateway: websitePublication.gateway, identity: createWebsiteIdentity({ prisma, supabaseAdmin }) }));
+
 const storefrontRouter = createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon });
 app.route("/public/storefront", storefrontRouter);
 
@@ -2339,6 +2343,7 @@ app.get("/public", (c) => {
       { method: "POST", path: "/public/website/forms/:formId/submit",   auth: "none",       description: "Submit a website form" },
       { method: "POST", path: "/public/website/bookings",               auth: "none",       description: "Create a booking" },
       { method: "POST", path: "/public/website/checkout",               auth: "none",       description: "Initiate a checkout (Stripe)" },
+      { method: "POST", path: "/public/website/account/*",              auth: "site cookie", description: "Site customer accounts (External Identity)" },
       // Static site
       { method: "GET",  path: "/public/site/erp-badge-check",           auth: "optional",   description: "Check if the current session has ERP access (used by the injected beacon)" },
       { method: "GET",  path: "/public/site/*",                         auth: "none",       description: "Serve the compiled static website" },

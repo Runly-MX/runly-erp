@@ -1039,6 +1039,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "website",
     order: 3,
   },
+  "website.accounts.read": {
+    displayNameEs: "Ver cuentas de clientes",
+    descriptionEs: "Permite ver las cuentas que los visitantes crean en los sitios publicados.",
+    groupKey: "website",
+    order: 4,
+  },
+  "website.accounts.manage": {
+    displayNameEs: "Gestionar cuentas de clientes",
+    descriptionEs: "Permite activar las cuentas del sitio, desactivar cuentas y cerrar sus sesiones.",
+    groupKey: "website",
+    order: 5,
+  },
   "website.pages.read": {
     displayNameEs: "Ver paginas",
     descriptionEs: "Permite ver las paginas del sitio web.",

@@ -22,7 +22,7 @@ function assertPassword(password) {
     throw fail(`La contraseña debe tener entre ${PASSWORD_MIN} y ${PASSWORD_MAX} caracteres.`, 422, 'VALIDATION_ERROR')
 }
 
-// notify({ realm, account, kind, token }) is supplied by the consumer: it builds the link and sends the email.
+// notify({ realm, account, kind, token, context }) is supplied by the consumer: it builds the link and sends the email.
 // kind: 'verify_email' | 'reset_password' | 'already_registered'. onRegistered({ realm, account }) runs after
 // an account is created (website uses it to link a Contact). Both are best effort: a failure never undoes the account.
 export function createExternalIdentity({ prisma, notify = async () => {}, onRegistered = async () => {}, now = () => new Date() }) {
@@ -59,14 +59,14 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
   const revokeAll = (accountId, exceptSessionId = null) => prisma.externalSession.updateMany({
     where: { accountId, revokedAt: null, ...(exceptSessionId ? { id: { not: exceptSessionId } } : {}) }, data: { revokedAt: now() } })
 
-  async function register({ realm, email, password, displayName, phone = null, userAgent = null }) {
+  async function register({ realm, email, password, displayName, phone = null, userAgent = null, context = null }) {
     if (!realm.allowSignup) throw fail('El registro está cerrado en este sitio.', 403, 'SIGNUP_CLOSED')
     assertPassword(password)
     email = normalizeEmail(email)
     const existing = await prisma.externalAccount.findUnique({ where: { realmId_email: { realmId: realm.id, email } } })
     if (existing) {
       // With verification on, the answer is identical to a new sign-up and only the owner of the inbox learns more.
-      if (realm.requireEmailVerification) { await quiet(() => notify({ realm, account: existing, kind: 'already_registered', token: null })); return { verificationRequired: true } }
+      if (realm.requireEmailVerification) { await quiet(() => notify({ realm, account: existing, kind: 'already_registered', token: null, context })); return { verificationRequired: true } }
       throw fail('Ese correo ya tiene una cuenta. Inicia sesión o recupera tu contraseña.', 409, 'EMAIL_TAKEN')
     }
     let account
@@ -78,7 +78,7 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
     }
     await quiet(() => onRegistered({ realm, account }))
     if (realm.requireEmailVerification) {
-      await quiet(async () => notify({ realm, account, kind: 'verify_email', token: await issueToken(account, 'verify_email') }))
+      await quiet(async () => notify({ realm, account, kind: 'verify_email', token: await issueToken(account, 'verify_email'), context }))
       return { verificationRequired: true }
     }
     return { account: publicAccount(account), session: await createSession(realm, account, userAgent) }
@@ -112,9 +112,9 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
     if (token) await prisma.externalSession.updateMany({ where: { tokenHash: hashToken(token), revokedAt: null }, data: { revokedAt: now() } })
   }
 
-  async function requestEmailVerification({ realm, account }) {
+  async function requestEmailVerification({ realm, account, context = null }) {
     if (account.emailVerifiedAt) return
-    await notify({ realm, account, kind: 'verify_email', token: await issueToken(account, 'verify_email') })
+    await notify({ realm, account, kind: 'verify_email', token: await issueToken(account, 'verify_email'), context })
   }
 
   async function verifyEmail({ realm, token }) {
@@ -122,10 +122,10 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
     return publicAccount(await prisma.externalAccount.update({ where: { id: account.id }, data: { emailVerifiedAt: account.emailVerifiedAt ?? now() } }))
   }
 
-  async function requestPasswordReset({ realm, email }) {
+  async function requestPasswordReset({ realm, email, context = null }) {
     const account = await prisma.externalAccount.findUnique({ where: { realmId_email: { realmId: realm.id, email: normalizeEmail(email) } } })
     if (!account || account.status !== 'active') return
-    await quiet(async () => notify({ realm, account, kind: 'reset_password', token: await issueToken(account, 'reset_password') }))
+    await quiet(async () => notify({ realm, account, kind: 'reset_password', token: await issueToken(account, 'reset_password'), context }))
   }
 
   async function resetPassword({ realm, token, password }) {

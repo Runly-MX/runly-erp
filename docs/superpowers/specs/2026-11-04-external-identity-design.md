@@ -6,7 +6,7 @@ External Identity: a reusable login system for people who are not Runly users (w
 
 ## 2. Status
 
-Proposed
+In Progress (backend done 2026-11-04; reference doc: `docs/architecture/external-identity-realms.md`)
 
 ## 3. Context
 
@@ -142,21 +142,18 @@ All of these require the request host to resolve to an enabled realm; otherwise 
 
 ## 13. SDK contract
 
-`client.website.accounts`:
-- `list(siteId, query)`
-- `update(siteId, accountId, body)`
-- `revokeSessions(siteId, accountId)`
-- `getSettings(siteId)`
-- `updateSettings(siteId, body)`
+`client.website` gains:
+- `getAccountSettings(siteId)`
+- `updateAccountSettings(siteId, body)`
+- `listAccounts(siteId, query)`
+- `setAccountStatus(siteId, accountId, status)`
+- `revokeAccountSessions(siteId, accountId)`
 
-The public site runtime calls the public routes with `fetch(..., { credentials: 'same-origin' })` through its own small client, not the ERP SDK.
+The public site runtime calls the public routes with `fetch(..., { credentials: 'same-origin' })`, not through the ERP SDK.
 
 ## 14. Validator contract
 
-`packages/validators` gets:
-- `externalRegisterSchema`, `externalLoginSchema`, `externalProfileSchema`, `externalPasswordChangeSchema`
-- `externalForgotSchema`, `externalResetSchema`
-- `externalRealmSettingsSchema`, `externalAccountStatusSchema`
+The public schemas live with the engine (`externalAuthSchemas` in `services/external-identity/auth-router.js`) because only the API uses them. Admin schemas live in `routes/website/accounts-routes.js`. Nothing is added to `packages/validators`.
 
 Rules: email max 254; password 10–128 characters; displayName 1–120.
 
@@ -177,7 +174,7 @@ N/A. The template blocks are website blocks: `account-login`, `account-register`
 - `website.accounts.read` guards `GET` accounts and settings.
 - `website.accounts.manage` guards `PATCH` account, revoke sessions, and `PUT` settings.
 
-Both are granted to company admin roles by the seed. Public routes need no Runly permission; their trust boundary is the realm resolved from the host.
+Both are aliased to `website.site.read` and `website.site.update` (`WEBSITE_PERMISSION_ALIASES`), so roles that already configure a site manage its accounts without a reseed. Public routes need no Runly permission; their trust boundary is the realm resolved from the host.
 
 ## 19. Multi-company behavior
 
@@ -214,7 +211,7 @@ Each entry stores the before/after of the changed fields. Visitor actions (login
 6. A reset token is used twice or after expiry (1 h; verify links last 24 h): `TOKEN_INVALID`.
 7. A password reset or change revokes the other sessions.
 8. An unknown email on login still runs a scrypt comparison against a dummy hash, so timing does not reveal registered emails.
-9. When the contact link is on, registration finds or creates a `Contact` by email in the company. An existing contact is linked, never overwritten.
+9. When the contact link is on, registration finds or creates a `Contact` by email in the company (new ones get type `customer` and tag `cliente-web`). An existing contact is linked, never overwritten.
 10. Email sending fails: the account is still created, and the visitor can ask for a new verification link.
 
 ## 24. Risks

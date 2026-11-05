@@ -14,6 +14,7 @@ import { createMenusRouter } from './menus-routes.js'
 import { createBlogRouter } from './blog-routes.js'
 import { createFormsRouter } from './forms-routes.js'
 import { createWebsiteSettingsRouter } from './website-settings-routes.js'
+import { createWebsiteAccountsAdminRouter, createWebsiteIdentity } from './accounts-routes.js'
 import { createDistRoutes } from './dist-routes.js'
 import { createSiteSchema, updateSiteSchema } from './validators.js'
 import { WebsiteServiceError } from './service-helpers.js'
@@ -46,6 +47,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   app.route('/website', createBlogRouter({ websiteSvc, requirePermission }))
   app.route('/website', createFormsRouter({ formsService, requirePermission }))
   app.route('/', createWebsiteSettingsRouter({ prisma, requirePermission, supabaseAdmin }))
+  app.route('/website', createWebsiteAccountsAdminRouter({ prisma, requirePermission, identity: createWebsiteIdentity({ prisma, supabaseAdmin }) }))
   app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc, publicationContext:publication }))
 
   app.get('/website/sites', requirePermission('website.site.read'), async c => {

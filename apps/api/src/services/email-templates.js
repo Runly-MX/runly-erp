@@ -522,6 +522,32 @@ export function buildUserWelcomeEmail({ loginUrl, email, brand = null, env = pro
   return { subject: `Tu cuenta en ${orgName} ya está activa`, html, text };
 }
 
+// Customer accounts of a company's public site (External Identity). They are not Runly users, so the
+// copy names only the site, never Runly. kind: verify_email | reset_password | already_registered.
+export function buildExternalAccountEmail({ kind, url, siteName, brand = null, env = process.env }) {
+  const site = siteName || brand?.name || "el sitio";
+  const copy = {
+    verify_email: { heading: "Confirma tu correo", kicker: "Tu cuenta", cta: "Confirmar correo",
+      body: `Gracias por crear tu cuenta en ${site}. Confirma tu correo para empezar a usarla.`, note: "El enlace vence en 24 horas." },
+    reset_password: { heading: "Restablecer tu contraseña", kicker: "Seguridad de la cuenta", cta: "Elegir nueva contraseña",
+      body: `Recibimos una solicitud para restablecer la contraseña de tu cuenta en ${site}. Si no fuiste tú, ignora este correo.`, note: "El enlace vence en 1 hora." },
+    already_registered: { heading: "Ya tienes una cuenta", kicker: "Tu cuenta", cta: "Iniciar sesión",
+      body: `Alguien intentó crear una cuenta en ${site} con este correo, pero ya tienes una. Si fuiste tú, inicia sesión o recupera tu contraseña.`, note: "Si no fuiste tú, puedes ignorar este correo." },
+  }[kind];
+  const bodyHtml = `
+        <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">${escapeHtml(copy.body)}</p>
+        <p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#64748b">
+          Si el botón no funciona, copia este enlace en tu navegador:<br />
+          <span style="word-break:break-all;color:#334155">${escapeHtml(url)}</span>
+        </p>
+        <p style="margin:0;font-size:12px;line-height:1.6;color:#94a3b8">${escapeHtml(copy.note)}</p>`;
+  const html = renderRunlyEmailLayout({
+    kicker: copy.kicker, heading: copy.heading, bodyHtml, cta: { label: copy.cta, url },
+    footnote: `Recibiste este correo por tu cuenta en ${site}.`, brand: brand ? { ...brand, name: site } : { name: site }, env,
+  });
+  return { subject: `${copy.heading} · ${site}`, html, text: [site, "", copy.body, "", url].join("\n") };
+}
+
 export function buildFormSubmissionEmail({ formName, values, fields = [], brand = null, env = process.env }) {
   const labelByName = new Map(fields.map((f) => [f.name, f.label]));
   const rows = Object.entries(values ?? {})
