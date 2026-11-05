@@ -9,6 +9,7 @@ import { InventoryStatusBadge } from '../components/InventoryStatusBadge.jsx'
 import { StatusPanel, muted } from '../components/custody/PublicCustodyParts.jsx'
 
 const ITEM_PATH = '/app/m/runly.inventory/inventory'
+const MONO_KEYS = new Set(['folio', 'showAssetTag', 'showSerial', 'showPartNumber', 'showInvoice'])
 
 function Brand({ item, loading }) {
   return (
@@ -67,18 +68,16 @@ export default function PublicInventoryItemScreen() {
     )
   }
 
-  // Empty values are skipped so the page stays short; only the holder says "Sin asignar".
-  const mono = (value) => <span className="font-mono">{value}</span>
+  // The API sends only the enabled fields that have a value, already in order.
   const rows = item ? [
-    item.folio && ['Folio', mono(item.folio)],
-    item.assetTag && ['Número de activo', mono(item.assetTag)],
-    item.serialNumber && ['Número de serie', mono(item.serialNumber)],
-    item.itemType && ['Tipo', item.itemType],
-    item.brandName && ['Marca', item.brandName],
-    item.modelName && ['Modelo', item.modelName],
-    item.locationName && ['Ubicación', <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{item.locationName}</span>],
-    item.holderName !== undefined && ['Responsable', item.holderName || 'Sin asignar'],
+    item.folio && { key: 'folio', label: 'Folio', value: item.folio },
+    ...(item.details ?? []),
   ].filter(Boolean) : []
+  const cell = ({ key, value }) => (
+    MONO_KEYS.has(key) ? <span className="font-mono">{value}</span>
+      : key === 'showLocation' ? <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{value}</span>
+        : value
+  )
 
   return (
     <div className="h-dvh overflow-y-auto overscroll-contain">
@@ -114,7 +113,7 @@ export default function PublicInventoryItemScreen() {
             </section>
             {rows.length ? (
               <dl className="divide-y divide-[hsl(var(--border)/0.6)] rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-4">
-                {rows.map(([label, value]) => <Row key={label} label={label}>{value}</Row>)}
+                {rows.map((row) => <Row key={row.key} label={row.label}>{cell(row)}</Row>)}
               </dl>
             ) : null}
           </>

@@ -2,7 +2,8 @@
 // filtering, company isolation and the public route, against an in-memory prisma.
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import { createInventoryPublicService } from '../inventory-public-service.js';
+import { readFile } from 'node:fs/promises';
+import { PUBLIC_PAGE_DEFAULTS, createInventoryPublicService } from '../inventory-public-service.js';
 import { createInventoryItemPublicRouter } from '../../routes/inventory/item-public-routes.js';
 import { createInventoryLabelService } from '../inventory-label-service.js';
 
@@ -21,7 +22,7 @@ function fakePrisma() {
   const tokens = [];
   const config = [];
   const items = [
-    { id: 'i1', companyId: A, enabled: true, folio: 'LAP-1', name: 'Laptop', status: 'available', adminStatus: 'registered', serialNumber: 'SN1', assetTag: 'AT-7', itemType: 'Laptop', model: 'old text', purchasePrice: '999.5', location: { name: 'Oficina' }, brand: { name: 'Dell' }, catalogModel: { name: 'Latitude 5440' }, assignedTo: { firstName: 'Ana', lastName: 'Ruiz' } },
+    { id: 'i1', companyId: A, enabled: true, folio: 'LAP-1', name: 'Laptop', status: 'available', adminStatus: 'registered', serialNumber: 'SN1', assetTag: 'AT-7', itemType: 'Laptop', model: 'old text', purchasePrice: '999.5', warrantyExpiry: new Date('2027-12-31'), vendorName: ' ', location: { name: 'Oficina' }, brand: { name: 'Dell' }, catalogModel: { name: 'Latitude 5440' }, assignedTo: { firstName: 'Ana', lastName: 'Ruiz' } },
     { id: 'i2', companyId: B, enabled: true, folio: 'LAP-2', name: 'Otra', status: 'available', adminStatus: 'registered', location: null, assignedTo: null },
   ];
   return {
@@ -98,24 +99,25 @@ describe('inventory public tokens', () => {
 });
 
 describe('inventory public page fields', () => {
-  it('defaults show identifiers and specs, hide the holder and never the cost', async () => {
+  it('defaults show identifiers, specs and location; the rest is opt-in and the cost never', async () => {
     const { svc } = make();
     const data = await svc.resolve(await svc.ensureToken(A, 'i1'));
-    assert.deepEqual(Object.keys(data).sort(), [
-      'adminStatus', 'assetTag', 'brandName', 'companyLogoUrl', 'companyName', 'folio', 'itemId', 'itemType', 'locationName', 'modelName', 'name', 'photoUrl', 'serialNumber', 'status',
-    ].sort());
-    assert.equal(data.brandName, 'Dell');
-    assert.equal(data.modelName, 'Latitude 5440');
+    assert.deepEqual(data.details.map((d) => [d.label, d.value]), [
+      ['Número de activo', 'AT-7'], ['Número de serie', 'SN1'], ['Tipo', 'Laptop'], ['Marca', 'Dell'], ['Modelo', 'Latitude 5440'], ['Ubicación', 'Oficina'],
+    ]);
+    assert.ok(!('purchasePrice' in data));
     assert.equal(data.companyName, 'Acme');
   });
 
   it('settings toggle each extra field', async () => {
     const { svc } = make();
     const token = await svc.ensureToken(A, 'i1');
-    await svc.updateSettings(A, { showHolder: true, showSerial: false, showSpecs: false, showLocation: false, showPhoto: false, showStatus: false });
+    const off = Object.fromEntries(Object.keys(PUBLIC_PAGE_DEFAULTS).map((key) => [key, false]));
+    await svc.updateSettings(A, { ...off, showHolder: true, showWarranty: true, showVendor: true });
     const data = await svc.resolve(token);
-    assert.equal(data.holderName, 'Ana Ruiz');
-    for (const key of ['locationName', 'photoUrl', 'status', 'adminStatus', 'serialNumber', 'assetTag', 'itemType', 'brandName', 'modelName', 'purchasePrice']) assert.ok(!(key in data));
+    // showVendor is on but empty, so it is omitted.
+    assert.deepEqual(data.details.map((d) => [d.key, d.value]), [['showHolder', 'Ana Ruiz'], ['showWarranty', '31/12/2027']]);
+    for (const key of ['photoUrl', 'status', 'adminStatus']) assert.ok(!(key in data));
     assert.equal(data.folio, 'LAP-1');
   });
 
@@ -123,7 +125,12 @@ describe('inventory public page fields', () => {
     const { svc } = make();
     await svc.updateSettings(A, { showSerial: false });
     assert.equal((await svc.getSettings(B)).showSerial, true);
-    await assert.rejects(svc.updateSettings(A, { showSpecs: 'yes' }), { status: 400 });
+    await assert.rejects(svc.updateSettings(A, { showBrand: 'yes' }), { status: 400 });
+  });
+
+  it('the settings dialog lists exactly the server keys', async () => {
+    const source = await readFile(new URL('../../../../desktop/src/modules/runly.inventory/components/labels/PublicPageSettingsDialog.jsx', import.meta.url), 'utf8');
+    assert.deepEqual([...source.matchAll(/key: '(show\w+)'/g)].map((m) => m[1]), Object.keys(PUBLIC_PAGE_DEFAULTS));
   });
 });
 

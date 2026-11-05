@@ -8,8 +8,33 @@ import { InventoryServiceError, assertCompany } from './inventory-guards.js';
 import { signedUrlWithVariant } from '../lib/image-variants.js';
 import { createCompanyBrandService } from './company-brand-service.js';
 
+const date = (value) => (value ? new Date(value).toLocaleDateString('es-MX', { timeZone: 'UTC' }) : null);
+const personName = (p) => (p ? [p.firstName, p.lastName].filter(Boolean).join(' ') || null : null);
+
+// Detail rows of the public page, in display order: [setting, label, default, value(item)].
+// Purchase cost, license key and internal notes are never published.
+export const PUBLIC_DETAIL_FIELDS = Object.freeze([
+  ['showAssetTag', 'Número de activo', true, (i) => i.assetTag],
+  ['showSerial', 'Número de serie', true, (i) => i.serialNumber],
+  ['showType', 'Tipo', true, (i) => i.itemType],
+  ['showBrand', 'Marca', true, (i) => i.brand?.name],
+  ['showModel', 'Modelo', true, (i) => i.catalogModel?.name ?? i.model],
+  ['showPartNumber', 'Número de parte', false, (i) => i.partNumber],
+  ['showCategory', 'Categoría', false, (i) => i.category?.name],
+  ['showLocation', 'Ubicación', true, (i) => i.location?.name],
+  ['showArea', 'Área', false, (i) => i.area?.name],
+  ['showCondition', 'Condición', false, (i) => i.condition?.name],
+  ['showHolder', 'Responsable', false, (i) => personName(i.assignedTo) ?? 'Sin asignar'],
+  ['showDescription', 'Descripción', false, (i) => i.description],
+  ['showPurchaseDate', 'Fecha de compra', false, (i) => date(i.purchaseDate)],
+  ['showVendor', 'Proveedor', false, (i) => i.vendorName],
+  ['showInvoice', 'Factura', false, (i) => i.invoiceNumber],
+  ['showWarranty', 'Garantía hasta', false, (i) => date(i.warrantyExpiry)],
+]);
+
 export const PUBLIC_PAGE_DEFAULTS = Object.freeze({
-  showPhoto: true, showStatus: true, showLocation: true, showSerial: true, showSpecs: true, showHolder: false,
+  showPhoto: true, showStatus: true,
+  ...Object.fromEntries(PUBLIC_DETAIL_FIELDS.map(([key, , on]) => [key, on])),
 });
 const SETTING_KEYS = Object.keys(PUBLIC_PAGE_DEFAULTS);
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -123,9 +148,13 @@ export function createInventoryPublicService({
       where: { id: row.itemId, companyId: row.companyId, enabled: true },
       select: {
         id: true, folio: true, name: true, status: true, adminStatus: true, serialNumber: true, assetTag: true, itemType: true, model: true,
+        partNumber: true, description: true, purchaseDate: true, vendorName: true, invoiceNumber: true, warrantyExpiry: true,
         location: { select: { name: true } },
         brand: { select: { name: true } },
         catalogModel: { select: { name: true } },
+        category: { select: { name: true } },
+        area: { select: { name: true } },
+        condition: { select: { name: true } },
         assignedTo: { select: { firstName: true, lastName: true } },
       },
     });
@@ -145,16 +174,11 @@ export function createInventoryPublicService({
     };
     if (settings.showPhoto) data.photoUrl = photoUrl;
     if (settings.showStatus) { data.status = item.status; data.adminStatus = item.adminStatus; }
-    if (settings.showLocation) data.locationName = item.location?.name ?? null;
-    if (settings.showSerial) { data.assetTag = item.assetTag ?? null; data.serialNumber = item.serialNumber ?? null; }
-    if (settings.showSpecs) {
-      data.itemType = item.itemType ?? null;
-      data.brandName = item.brand?.name ?? null;
-      data.modelName = item.catalogModel?.name ?? item.model ?? null;
-    }
-    if (settings.showHolder) {
-      data.holderName = item.assignedTo ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ') || null : null;
-    }
+    // Only enabled fields with a value; [{ key, label, value }] in display order.
+    data.details = PUBLIC_DETAIL_FIELDS
+      .filter(([key]) => settings[key])
+      .map(([key, label, , value]) => ({ key, label, value: value(item) ?? null }))
+      .filter((row) => row.value != null && String(row.value).trim() !== '');
     return data;
   }
 

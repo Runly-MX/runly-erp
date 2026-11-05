@@ -6,13 +6,27 @@ import { Globe, Unlink } from 'lucide-react'
 import { toast } from 'sonner'
 import { usePublicPageSettings, useRevokeAllPublicLinks, useSavePublicPageSettings } from '../../hooks/useInventoryLabels.js'
 
+// Mirrors PUBLIC_DETAIL_FIELDS in apps/api/src/services/inventory-public-service.js
+// (same keys and order). The purchase cost is never published, so it is not listed.
 const FIELDS = [
   { key: 'showPhoto', label: 'Foto', hint: 'Imagen de portada del equipo.' },
   { key: 'showStatus', label: 'Estado y disponibilidad', hint: 'Alta o baja, y si está disponible o asignado.' },
+  { key: 'showAssetTag', label: 'Número de activo' },
+  { key: 'showSerial', label: 'Número de serie' },
+  { key: 'showType', label: 'Tipo' },
+  { key: 'showBrand', label: 'Marca' },
+  { key: 'showModel', label: 'Modelo' },
+  { key: 'showPartNumber', label: 'Número de parte' },
+  { key: 'showCategory', label: 'Categoría' },
   { key: 'showLocation', label: 'Ubicación', hint: 'Dónde se encuentra el equipo.' },
-  { key: 'showSerial', label: 'Número de activo y de serie', hint: 'Identificadores del equipo.' },
-  { key: 'showSpecs', label: 'Tipo, marca y modelo', hint: 'Qué equipo es.' },
-  { key: 'showHolder', label: 'Responsable asignado', hint: 'Persona que tiene el equipo. Oculto por defecto.' },
+  { key: 'showArea', label: 'Área' },
+  { key: 'showCondition', label: 'Condición' },
+  { key: 'showHolder', label: 'Responsable asignado', hint: 'Persona que tiene el equipo.' },
+  { key: 'showDescription', label: 'Descripción' },
+  { key: 'showPurchaseDate', label: 'Fecha de compra' },
+  { key: 'showVendor', label: 'Proveedor' },
+  { key: 'showInvoice', label: 'Factura', hint: 'Número de factura de compra.' },
+  { key: 'showWarranty', label: 'Garantía', hint: 'Fecha en que vence la garantía.' },
 ]
 
 // Company setting for the anonymous page opened from the QR (always shows
@@ -44,7 +58,7 @@ export function PublicPageSettingsDialog({ open, onOpenChange }) {
         <DialogContent scrollable size="md">
           <DialogHeader icon={Globe}>
             <DialogTitle>Página pública del equipo</DialogTitle>
-            <DialogDescription>Qué ve quien escanea el código QR sin iniciar sesión. El nombre, el folio y la empresa siempre se muestran.</DialogDescription>
+            <DialogDescription>Qué ve quien escanea el código QR sin iniciar sesión. El nombre, el folio y la empresa siempre se muestran; los campos vacíos se omiten.</DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-0.5">
             {query.isLoading || (query.data && !draft) ? (
