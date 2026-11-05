@@ -239,7 +239,8 @@ export function RunlyApp() {
   // (the chat composer's send button) stays hidden behind that bar.
   const keyboard = useKeyboardViewport()
   const shellViewportStyle = getShellViewportStyle(keyboard)
-  const showFooter = !(getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === 'runly.chat' && isFullscreen) && !keyboard.open
+  const posFullscreen = activeModule?.key === 'runly.pos' && isFullscreen
+  const showFooter = !((getLegacyModuleKey(activeModule?.key ?? moduleKeyFromPath) === 'runly.chat' && isFullscreen) || posFullscreen) && !keyboard.open
 
   return (
     <OfflineProvider apiBaseUrl={apiBaseUrl} onTransportReady={handleTransportReady}
@@ -260,7 +261,7 @@ export function RunlyApp() {
           style={shellViewportStyle}
           data-shell-footer={showFooter ? 'true' : 'false'}
         >
-      <TopbarWithNetworkStatus
+      {!posFullscreen && <TopbarWithNetworkStatus
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
         onModuleMenuToggle={
@@ -272,7 +273,7 @@ export function RunlyApp() {
         canInstall={canInstall}
         manualInstallReady={manualInstallReady}
         onInstall={install}
-      />
+      />}
 
       {/* Mobile backdrop */}
       {showSidebar && mobileOpen && (
@@ -285,7 +286,7 @@ export function RunlyApp() {
       )}
 
       {/* Body: sidebar + scrollable main, fills viewport below the topbar */}
-      <div className="flex flex-col h-full pt-topbar">
+      <div className={posFullscreen ? "flex flex-col h-full pt-[var(--sat)]" : "flex flex-col h-full pt-topbar"}>
         <div className="flex flex-1 min-h-0">
           {showSidebar &&
             (sidebarLoading ? (
@@ -392,9 +393,10 @@ export function RunlyApp() {
 
         <AppLauncher />
         <CommandPalette activeModule={activeModule} />
-        <FloatingChatHub />
-        <QuickNotesWidget />
-        <CornerMenu />
+        {/* Floating widgets never cover the POS counter, kitchen or tables. */}
+        {!posFullscreen && <FloatingChatHub />}
+        {!posFullscreen && <QuickNotesWidget />}
+        {!posFullscreen && <CornerMenu />}
       </div>
       </ModuleBundleLoader>
     </OfflineProvider>

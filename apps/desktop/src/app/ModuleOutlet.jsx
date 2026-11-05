@@ -1,5 +1,6 @@
 import { hasBuiltInModule, isPathAllowedByNavigation, resolveScreen } from './module-screen-resolver.js';
 import { lazy, Suspense, useEffect, useMemo } from "react";
+import PosThemeScope from "../modules/runly.pos/components/PosThemeScope.jsx";
 import { useParams, useNavigate, useLocation, Navigate } from "react-router-dom";
 import { findModuleByKey, resolveModuleAliasPath } from '@runly/core';
 import { Badge, NotFoundState, Skeleton } from "@runly/ui";
@@ -708,9 +709,11 @@ export function ModuleOutlet() {
   }
 
   const Screen = resolveScreen(SCREEN_MAP, moduleKey, subPath, BlueprintCrudScreen);
-  return (
+  const content = (
     <Suspense fallback={<LoadingFallback />}>
       {Screen ? <Screen /> : <ModulePlaceholder module={module} />}
     </Suspense>
   );
+  // The POS carries its own identity (palette, squared radii) on every screen.
+  return moduleKey === "runly.pos" ? <PosThemeScope>{content}</PosThemeScope> : content;
 }
