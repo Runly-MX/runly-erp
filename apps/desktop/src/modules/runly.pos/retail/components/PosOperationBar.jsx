@@ -1,7 +1,7 @@
 // apps/desktop/src/modules/runly.pos/retail/components/PosOperationBar.jsx
 import { useEffect, useState } from 'react'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, StatusPill } from '@runly/ui'
-import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, LockKeyhole, Menu, Receipt, Repeat, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, LockKeyhole, Menu, Receipt, Repeat, Store, Wifi, WifiOff } from 'lucide-react'
 
 export function useOnline() {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
@@ -23,10 +23,11 @@ function openedAt(session) {
 // operator and connection. Register operations live in one menu.
 export default function PosOperationBar({ outletName, terminalName, session, cashier, online, capabilities, onCashIn, onCashOut, onClose, onOrders, onChangeCaja, saleInProgress }) {
   return (
-    <header className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
+    <header className="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
+      <span className="hidden h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-(--brand-primary) text-(--brand-primary-foreground) sm:flex"><Store className="h-5 w-5" aria-hidden="true" /></span>
       <div className="min-w-0">
         <p className="truncate text-sm font-bold text-[hsl(var(--foreground))] sm:text-base">{outletName} · {terminalName}</p>
-        {cashier && <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">Cajero: {cashier}</p>}
+        {cashier && <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">Atiende {cashier}</p>}
       </div>
       {session
         ? <StatusPill tone="success" icon={CircleCheck}>Caja abierta {openedAt(session)}</StatusPill>
@@ -42,7 +43,7 @@ export default function PosOperationBar({ outletName, terminalName, session, cas
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" className="w-64">
-          <DropdownMenuItem onSelect={onOrders} className="min-h-11"><Receipt className="mr-2 h-4 w-4" aria-hidden="true" />Órdenes y devoluciones</DropdownMenuItem>
+          {onOrders && <DropdownMenuItem onSelect={onOrders} className="min-h-11"><Receipt className="mr-2 h-4 w-4" aria-hidden="true" />Órdenes y devoluciones</DropdownMenuItem>}
           {session && capabilities?.openSession && (
             <>
               <DropdownMenuItem onSelect={onCashIn} className="min-h-11"><ArrowDownToLine className="mr-2 h-4 w-4" aria-hidden="true" />Entrada de efectivo</DropdownMenuItem>

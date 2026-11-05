@@ -241,7 +241,7 @@ function RetailCajaView() {
           />
         </div>
         {wide ? (
-        <aside className="flex w-[380px] shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[420px]" aria-label="Venta actual">
+        <aside className="my-3 mr-3 flex w-[380px] shrink-0 flex-col overflow-hidden rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm xl:w-[420px]" aria-label="Venta actual">
           {cartContent}
         </aside>
         ) : (

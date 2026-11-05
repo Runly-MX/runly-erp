@@ -1,7 +1,8 @@
 // apps/desktop/src/modules/runly.pos/retail/components/CartPanel.jsx
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { Button, ConfirmDialog, CurrencyField, NumberStepper, TextField } from '@runly/ui'
-import { BadgePercent, Loader2, ShoppingCart, Trash2 } from 'lucide-react'
+import { BadgePercent, ImageOff, Loader2, ShoppingCart, Trash2, Zap } from 'lucide-react'
 import CommandFailureAlert from '../../../runly.catalog/components/CommandFailureAlert.jsx'
 import FormDialog from '../../../runly.catalog/components/FormDialog.jsx'
 import { activeLines, formatMoney, formatQuantity, itemCount, toMoneyString } from '../lib/retailRules.js'
@@ -18,13 +19,17 @@ export default function CartPanel({ sale, currency, canDiscount, onCharge, compa
   const money = (v) => formatMoney(v, order?.currency ?? currency)
   const paid = Number(order?.paidAmount ?? 0) > 0
   const canCharge = Boolean(order) && lines.length > 0 && !busy && !failure && Number(order.remainingAmount) > 0
+  const images = useSellableImages(lines.length)
 
   return (
     <div className="flex h-full min-h-0 flex-col">
       {!compact && (
-        <div className="flex items-center justify-between gap-2 border-b border-[hsl(var(--border))] px-4 py-3">
-          <h2 className="text-lg font-bold text-[hsl(var(--foreground))]">Venta actual</h2>
-          <span className="text-sm text-[hsl(var(--muted-foreground))]">{itemCount(order)} artículo(s){order?.orderNumber ? ` · #${order.orderNumber}` : ''}</span>
+        <div className="flex items-center justify-between gap-2 px-5 pb-2 pt-4">
+          <div>
+            <h2 className="text-lg font-bold text-[hsl(var(--foreground))]">Venta actual</h2>
+            <p className="text-sm text-[hsl(var(--muted-foreground))]">{itemCount(order)} artículo(s)</p>
+          </div>
+          {order?.orderNumber && <span className="rounded-full bg-[hsl(var(--muted))] px-3 py-1 text-sm font-semibold tabular-nums text-[hsl(var(--foreground))]">#{order.orderNumber}</span>}
         </div>
       )}
 
@@ -44,41 +49,43 @@ export default function CartPanel({ sale, currency, canDiscount, onCharge, compa
           <div className="mb-3 flex gap-2"><Button variant="ghost" size="lg" onClick={sale.reload}>Recargar la venta</Button></div>
         )}
         {lines.length === 0 ? (
-          <div className="flex h-full min-h-40 flex-col items-center justify-center gap-2 py-8 text-center text-[hsl(var(--muted-foreground))]">
-            <ShoppingCart className="h-8 w-8" aria-hidden="true" />
-            <p className="text-sm">Escanea o toca un producto para empezar.</p>
+          <div className="flex h-full min-h-40 flex-col items-center justify-center gap-3 py-8 text-center text-[hsl(var(--muted-foreground))]">
+            <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[hsl(var(--muted))]"><ShoppingCart className="h-7 w-7" aria-hidden="true" /></span>
+            <p className="max-w-56 text-sm">Escanea o toca un producto para empezar la venta.</p>
           </div>
         ) : (
-          <ul className="divide-y divide-[hsl(var(--border))]" aria-label="Artículos de la venta">
+          <ul className="space-y-2 py-1" aria-label="Artículos de la venta">
             {lines.map((line) => (
-              <li key={line.id} className="py-3">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-semibold text-[hsl(var(--foreground))]">{line.productName}</p>
-                    {line.variantLabel && <p className="text-sm text-[hsl(var(--muted-foreground))]">{line.variantLabel}</p>}
-                    <p className="text-xs text-[hsl(var(--muted-foreground))]">{money(line.unitPrice)} c/u{Number(line.discountAmount) > 0 ? ` · descuento ${money(line.discountAmount)}` : ''}</p>
+              <li key={line.id} className="flex gap-3 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] p-2.5">
+                <LineThumb line={line} src={images[line.productId]} />
+                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="truncate font-semibold text-[hsl(var(--foreground))]">{line.productName}</p>
+                      <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{line.variantLabel ? `${line.variantLabel} · ` : ''}{money(line.unitPrice)} c/u{Number(line.discountAmount) > 0 ? ` · −${money(line.discountAmount)}` : ''}</p>
+                    </div>
+                    <span className="shrink-0 font-bold tabular-nums text-[hsl(var(--foreground))]">{money(line.totalAmount)}</span>
                   </div>
-                  <span className="shrink-0 text-base font-bold tabular-nums text-[hsl(var(--foreground))]">{money(line.totalAmount)}</span>
-                </div>
-                <div className="mt-2 flex items-center gap-2">
-                  <NumberStepper
-                    value={Number(line.quantity)}
-                    onChange={(q) => q !== Number(line.quantity) && sale.setQuantity(line, q)}
-                    min={1}
-                    max={9999}
-                    label={`Cantidad de ${line.productName}`}
-                    disabled={busy || paid}
-                  />
-                  <span className="sr-only">{formatQuantity(line.quantity)} unidades</span>
-                  <span className="flex-1" />
-                  {canDiscount && !paid && (
-                    <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-11 sm:w-11" onClick={() => setDiscountFor(line)} disabled={busy} aria-label={`Descuento en ${line.productName}`} title="Descuento">
-                      <BadgePercent className="h-5 w-5" aria-hidden="true" />
+                  <div className="flex items-center gap-1">
+                    <NumberStepper
+                      value={Number(line.quantity)}
+                      onChange={(q) => q !== Number(line.quantity) && sale.setQuantity(line, q)}
+                      min={1}
+                      max={9999}
+                      label={`Cantidad de ${line.productName}`}
+                      disabled={busy || paid}
+                    />
+                    <span className="sr-only">{formatQuantity(line.quantity)} unidades</span>
+                    <span className="flex-1" />
+                    {canDiscount && !paid && (
+                      <Button variant="ghost" size="icon" className="h-10 w-10 sm:h-10 sm:w-10" onClick={() => setDiscountFor(line)} disabled={busy} aria-label={`Descuento en ${line.productName}`} title="Descuento">
+                        <BadgePercent className="h-5 w-5" aria-hidden="true" />
+                      </Button>
+                    )}
+                    <Button variant="ghost" size="icon" className="h-10 w-10 text-[hsl(var(--muted-foreground))] hover:text-red-700 sm:h-10 sm:w-10" onClick={() => sale.removeLine(line)} disabled={busy || paid} aria-label={`Quitar ${line.productName}`} title="Quitar">
+                      <Trash2 className="h-5 w-5" aria-hidden="true" />
                     </Button>
-                  )}
-                  <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-11 sm:w-11" onClick={() => sale.removeLine(line)} disabled={busy || paid} aria-label={`Quitar ${line.productName}`} title="Quitar">
-                    <Trash2 className="h-5 w-5" aria-hidden="true" />
-                  </Button>
+                  </div>
                 </div>
               </li>
             ))}
@@ -86,7 +93,7 @@ export default function CartPanel({ sale, currency, canDiscount, onCharge, compa
         )}
       </div>
 
-      <div className="space-y-2 border-t border-[hsl(var(--border))] px-4 py-3">
+      <div className="m-3 mt-2 space-y-3 rounded-2xl bg-[hsl(var(--muted))]/60 p-4">
         {order && lines.length > 0 && (
           <dl className="space-y-1 text-sm">
             <div className="flex justify-between text-[hsl(var(--muted-foreground))]"><dt>Subtotal</dt><dd className="tabular-nums">{money(order.subtotalAmount)}</dd></div>
@@ -133,6 +140,27 @@ export default function CartPanel({ sale, currency, canDiscount, onCharge, compa
       )}
     </div>
   )
+}
+
+// Product photos already loaded by the product grid, so the cart needs no
+// extra request. Re-read when the number of lines changes.
+function useSellableImages(lineCount) {
+  const queryClient = useQueryClient()
+  return useMemo(() => {
+    const map = {}
+    for (const [, data] of queryClient.getQueriesData({ queryKey: ['pos-retail-sellables'] })) {
+      for (const page of data?.pages ?? []) for (const item of page?.data ?? []) if (item.imageUrl && !map[item.productId]) map[item.productId] = item.imageUrl
+    }
+    return map
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [queryClient, lineCount])
+}
+
+function LineThumb({ line, src }) {
+  const box = 'flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl'
+  if (line.customItem) return <span className={`${box} bg-(--brand-primary)/10 text-(--brand-primary)`}><Zap className="h-6 w-6" aria-hidden="true" /></span>
+  if (src) return <img src={src} alt="" className={`${box} object-cover`} loading="lazy" />
+  return <span className={`${box} bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]`}><ImageOff className="h-5 w-5" aria-hidden="true" /></span>
 }
 
 function DiscountDialog({ line, currency, onClose, onApply }) {

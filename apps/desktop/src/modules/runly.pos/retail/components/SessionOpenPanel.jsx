@@ -24,18 +24,16 @@ export default function SessionOpenPanel({ token, outletId, terminalId, currency
 
   return (
     <form
-      className="mx-auto w-full max-w-md space-y-5 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6"
+      className="mx-auto mt-4 w-full max-w-md space-y-5 rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-sm sm:mt-10 sm:p-8"
       onSubmit={(e) => {
         e.preventDefault()
         command.mutate({ outletId, terminalId, openingCashAmount: toMoneyString(amount) ?? '0.00', ...(notes.trim() ? { notes: notes.trim() } : {}) })
       }}
     >
-      <div className="flex items-start gap-3">
-        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-(--brand-soft) text-(--brand-primary-text) dark:text-(--brand-primary-on-dark)"><Wallet className="h-6 w-6" aria-hidden="true" /></span>
-        <div>
-          <h1 className="text-xl font-bold text-[hsl(var(--foreground))]">Abrir {cajaName}</h1>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Cuenta el efectivo con el que empiezas el turno.</p>
-        </div>
+      <div className="flex flex-col items-center gap-2 text-center">
+        <span className="flex h-16 w-16 items-center justify-center rounded-2xl bg-(--brand-primary) text-(--brand-primary-foreground)"><Wallet className="h-8 w-8" aria-hidden="true" /></span>
+        <h1 className="text-2xl font-bold text-[hsl(var(--foreground))]">Abrir {cajaName}</h1>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Cuenta el efectivo con el que empiezas el turno.</p>
       </div>
       <CommandFailureAlert failure={command.failure} onRetry={command.retry} retrying={command.isPending} />
       <CurrencyField label="Fondo inicial" value={amount} onChange={setAmount} currency={currency ?? 'MXN'} min={0} className="h-14 text-xl font-bold" hint="Puede ser cero." />

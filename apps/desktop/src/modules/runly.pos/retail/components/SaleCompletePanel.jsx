@@ -17,18 +17,18 @@ export default function SaleCompletePanel({ result, methods, onReceipt, onNext }
   useEffect(() => { nextRef.current?.focus() }, [])
 
   return (
-    <div className="flex h-full flex-col gap-4 overflow-y-auto p-4" role="status" aria-live="polite">
-      <div className="flex items-center gap-3">
-        <CircleCheck className="h-10 w-10 shrink-0 text-emerald-700 dark:text-emerald-300" aria-hidden="true" />
-        <div>
-          <p className="text-xl font-bold text-[hsl(var(--foreground))]">Venta cobrada</p>
-          <p className="text-sm text-[hsl(var(--muted-foreground))]">Orden #{order.orderNumber}</p>
-        </div>
+    <div className="flex h-full flex-col gap-5 overflow-y-auto p-5" role="status" aria-live="polite">
+      <div className="flex flex-col items-center gap-2 pt-4 text-center">
+        <span className="flex h-20 w-20 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+          <CircleCheck className="h-11 w-11" aria-hidden="true" />
+        </span>
+        <p className="text-2xl font-bold text-[hsl(var(--foreground))]">Venta cobrada</p>
+        <p className="text-sm text-[hsl(var(--muted-foreground))]">Orden #{order.orderNumber}</p>
       </div>
       {change !== null && (
-        <div className="rounded-2xl bg-[hsl(var(--muted))] p-4">
-          <p className="text-sm font-semibold text-[hsl(var(--foreground))]">Cambio a entregar</p>
-          <p className="text-5xl font-extrabold tabular-nums text-[hsl(var(--foreground))]">{money(change)}</p>
+        <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-5 text-center dark:border-emerald-900 dark:bg-emerald-950/40">
+          <p className="text-sm font-semibold text-emerald-900 dark:text-emerald-200">Cambio a entregar</p>
+          <p className="text-5xl font-extrabold tabular-nums text-emerald-900 dark:text-emerald-100">{money(change)}</p>
         </div>
       )}
       <dl className="space-y-1.5 text-base">

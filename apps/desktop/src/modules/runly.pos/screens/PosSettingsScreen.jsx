@@ -22,16 +22,11 @@ import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { useAuth } from '../../../auth/AuthProvider'
 import { settingsPatch } from '../lib/posSettings.js'
 import { POS_ADMIN_TOUCH } from '../components/adminTouch.js'
+import { ModeTiles } from '../retail/components/PosQuickSetup.jsx'
 
 function StatusPill({ active }) {
   return <UiStatusPill tone={active ? 'success' : 'neutral'}>{active ? 'Activa' : 'Inactiva'}</UiStatusPill>
 }
-
-const MODE_OPTIONS = [
-  { value: 'RESTAURANT', label: 'Restaurante' },
-  { value: 'RETAIL', label: 'Tienda' },
-  { value: 'HYBRID', label: 'Mixto (tienda y restaurante)' },
-]
 
 function PosSettingsView() {
   const [tab, setTab] = useState('general')
@@ -148,8 +143,10 @@ function GeneralTab({ part = 'general' }) {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         {part === 'general' && (<>
-        <div className="flex flex-col gap-1.5">
-          <SelectField contentClassName={POS_ADMIN_TOUCH} label="Modalidad de negocio" value={currentMode} onChange={setMode} options={MODE_OPTIONS} placeholder="Selecciona la modalidad" hint="Se aplica a todas las sucursales. Tienda oculta mesas, Comandero y Cocina." />
+        <div className="flex flex-col gap-2">
+          <p className="text-sm font-medium text-[hsl(var(--foreground))]">Cómo vendes</p>
+          <ModeTiles value={currentMode} onChange={setMode} disabled={update.isPending} />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Se aplica a todas las sucursales. Tienda oculta mesas, Comandero y Cocina.</p>
         </div>
         <Separator />
         <SwitchField touchTarget

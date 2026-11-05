@@ -122,8 +122,8 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
             aria-selected={categoryId === c.id}
             onClick={() => setCategoryId(c.id)}
             className={cn(
-              'h-11 shrink-0 whitespace-nowrap rounded-xl border px-4 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
-              categoryId === c.id ? 'border-(--brand-primary) bg-(--brand-primary) text-(--brand-primary-foreground)' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]',
+              'h-11 shrink-0 whitespace-nowrap rounded-full border px-5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
+              categoryId === c.id ? 'border-(--brand-primary) bg-(--brand-primary) text-(--brand-primary-foreground) shadow-sm' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] text-[hsl(var(--foreground))] hover:border-(--brand-primary)/50',
             )}
           >
             {c.name}
@@ -133,16 +133,22 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
 
       <div className="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-2" aria-busy={list.isFetching}>
         {list.isPending ? (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label="Cargando productos">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label="Cargando productos">
             {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-40 rounded-2xl" />)}
           </div>
         ) : list.isError ? (
           <ErrorState title="No se pudieron cargar los productos" description={classifyPosError(list.error).message} onRetry={list.refetch} />
         ) : items.length === 0 ? (
-          <EmptyState icon={PackageSearch} title={search ? 'Sin resultados' : 'No hay productos a la venta'} description={search ? `Nada coincide con «${search}». Si es un código, presiona Enter para buscarlo exacto.` : 'Agrega productos en Catálogo y habilítalos para esta sucursal.'} />
+          <div className="flex flex-col gap-3">
+            {/* A shop without catalog can still charge a free amount. */}
+            {onQuickSale && !search && !categoryId && (
+              <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5"><QuickSaleTile disabled={disabled} onClick={onQuickSale} /></div>
+            )}
+            <EmptyState icon={PackageSearch} title={search ? 'Sin resultados' : 'No hay productos a la venta'} description={search ? `Nada coincide con «${search}». Si es un código, presiona Enter para buscarlo exacto.` : 'Agrega productos en Catálogo y habilítalos para esta sucursal.'} />
+          </div>
         ) : (
           <>
-            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4" aria-label={`${total} productos`}>
+            <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5" aria-label={`${total} productos`}>
               {onQuickSale && !search && !categoryId && (
                 <li><QuickSaleTile disabled={disabled} onClick={onQuickSale} /></li>
               )}
@@ -199,13 +205,13 @@ function SellableCard({ item, currency, quantity, disabled, onPick }) {
       disabled={disabled}
       aria-label={`${item.name}, ${item.requiresVariant ? `desde ${formatMoney(item.price, item.currency ?? currency)}, elegir opción` : formatMoney(item.price, item.currency ?? currency)}${quantity ? `, ${formatQuantity(quantity)} en la venta` : ''}${off ? `, no disponible: ${item.unavailableMessage ?? ''}` : ''}`}
       className={cn(
-        'group flex h-full w-full flex-col overflow-hidden rounded-2xl border text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 disabled:cursor-not-allowed',
+        'group flex h-full w-full flex-col overflow-hidden rounded-2xl border text-left shadow-sm transition-all hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 disabled:cursor-not-allowed',
         off ? 'border-dashed border-[hsl(var(--input))] bg-[hsl(var(--muted))]' : quantity ? 'border-(--brand-primary) bg-[hsl(var(--card))] active:scale-[0.99]' : 'border-[hsl(var(--border))] bg-[hsl(var(--card))] hover:border-(--brand-primary) active:scale-[0.99]',
       )}
     >
-      <div className="relative aspect-[4/3] w-full bg-[hsl(var(--muted))]">
+      <div className="relative m-2 mb-0 aspect-[4/3] overflow-hidden rounded-xl bg-[hsl(var(--muted))]">
         {item.imageUrl ? (
-          <img src={item.imageUrl} alt="" className="h-full w-full object-cover" loading="lazy" />
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105" loading="lazy" />
         ) : (
           <div className="flex h-full w-full items-center justify-center text-[hsl(var(--muted-foreground))]"><ImageOff className="h-6 w-6" aria-hidden="true" /></div>
         )}
