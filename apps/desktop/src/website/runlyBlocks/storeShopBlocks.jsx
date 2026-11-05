@@ -1,5 +1,5 @@
 // Product detail and cart page blocks. Both run in the visitor's browser against the public catalog and checkout endpoints.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { fetchPublicCatalog, formatCatalogPrice, readAtlasConfig } from './catalogPublicClient.js'
 import { ImageSlot } from './ProductsGridRenderer.jsx'
@@ -11,7 +11,25 @@ const wrap = { maxWidth: 1100, marginInline: 'auto' }
 const section = { padding: 'clamp(40px, 6vw, 80px) 24px', background: PAPER }
 const variantLabel = (v) => Object.values(v?.option_values ?? {}).join(' / ') || v?.sku || 'Opción'
 
-function ProductDetail({ backHref, cartHref, addLabel }) {
+// Native <dialog> gives the lightbox Esc-to-close, focus trapping and the top layer without extra code.
+function ZoomableImage({ src, alt }) {
+  const ref = useRef(null)
+  const close = () => ref.current?.close()
+  return (
+    <>
+      <button type="button" aria-label={`Ampliar imagen: ${alt}`} onClick={() => ref.current?.showModal()} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in' }}>
+        <ImageSlot src={src} alt={alt} />
+      </button>
+      <dialog ref={ref} className="rs-zoom" aria-label={alt} onClick={(e) => { if (e.target === ref.current) close() }} style={{ padding: 0, border: 0, background: 'transparent', maxWidth: '96vw', maxHeight: '96vh', overflow: 'visible' }}>
+        <img src={src} alt={alt} style={{ display: 'block', maxWidth: '94vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} />
+        <button type="button" aria-label="Cerrar" onClick={close} style={{ position: 'fixed', top: 16, right: 16, width: 44, height: 44, borderRadius: 999, border: 0, background: PAPER, color: INK, fontSize: 24, lineHeight: 1, cursor: 'pointer' }}>×</button>
+      </dialog>
+      <style>{'.rs-zoom::backdrop{background:rgba(15,12,10,.85)}'}</style>
+    </>
+  )
+}
+
+function ProductDetail({ backHref, cartHref, addLabel, zoomImage }) {
   const [state, setState] = useState(() => (readAtlasConfig()?.apiUrl ? { status: 'loading', product: null } : { status: 'sample', product: SAMPLE_PRODUCT }))
   const [variantId, setVariantId] = useState('')
   const [qty, setQty2] = useState(1)
@@ -53,7 +71,9 @@ function ProductDetail({ backHref, cartHref, addLabel }) {
       <Styles />
       <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 72px)' }}>
         <div style={{ position: 'relative', aspectRatio: '4 / 5', borderRadius: '28px 28px 6px 6px', overflow: 'hidden', background: 'linear-gradient(160deg, #EFE7DB 0%, #E4D8C8 100%)' }}>
-          <ImageSlot src={product.image_url} alt={product.name} />
+          {product.image_url && zoomImage !== false
+            ? <ZoomableImage src={product.image_url} alt={product.name} />
+            : <ImageSlot src={product.image_url} alt={product.name} />}
         </div>
         <div style={{ alignSelf: 'center' }}>
           <a href={backHref || '/productos'} style={{ fontFamily: SANS, fontSize: 14, color: MUTED, display: 'inline-block', minHeight: 44, lineHeight: '44px' }}>← Volver a la tienda</a>
@@ -92,13 +112,14 @@ export const ProductDetailBlock = defineBlock({
   type: 'ProductDetailBlock',
   label: 'Detalle de producto',
   category: 'atlas-ecommerce',
-  defaultProps: { addLabel: 'Agregar al carrito', backHref: '/productos', cartHref: '/carrito' },
+  defaultProps: { addLabel: 'Agregar al carrito', backHref: '/productos', cartHref: '/carrito', zoomImage: true },
   fields: {
     addLabel: { type: 'text', label: 'Texto del boton' },
     backHref: { type: 'link', label: 'Enlace "volver a la tienda"' },
     cartHref: { type: 'link', label: 'Enlace al carrito' },
+    zoomImage: { type: 'toggle', label: 'Ampliar la imagen al hacer clic' },
   },
-  groups: [{ label: 'Contenido', fields: ['addLabel', 'backHref', 'cartHref'] }],
+  groups: [{ label: 'Contenido', fields: ['addLabel', 'backHref', 'cartHref', 'zoomImage'] }],
   render: (props) => <ProductDetail {...props} />,
 })
 
