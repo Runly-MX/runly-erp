@@ -4,7 +4,7 @@
 POS venta directa (Tienda) — rediseño visual, arranque guiado, venta por monto, integración con calendario y cajas abiertas por enlace y PIN.
 
 ## 2. Status
-In Progress (approved by the owner 2026-11-04: calendar = cortes + reservaciones + citas; link access = cashiers without ERP login; visual direction = "Clara y suave").
+Complete (approved by the owner 2026-11-04: calendar = cortes + reservaciones + citas; link access = cashiers without ERP login; visual direction = "Clara y suave").
 
 ## 3. Context
 `runly.pos` grew around restaurant service (mesas, comandero, cocina). A retail register exists (`retail/`, commerce contracts C0-C8) but owners could not reach it: the business mode was ignored (fixed in 8a6d3543d) and the screens read as configuration-heavy. Owners want a direct-sale POS for shops (abarrotes, boutique, servicios) that is visual, quick to set up and usable from any counter device.
