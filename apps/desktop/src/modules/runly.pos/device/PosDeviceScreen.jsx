@@ -12,6 +12,7 @@ import { AuthContext } from '../../../auth/AuthProvider.jsx'
 import { ActiveCompanyContext } from '../../../company/ActiveCompanyProvider'
 import { runly, setActiveCompanyId } from '../../../lib/runly.js'
 import { RetailCajaView } from '../retail/RetailCajaScreen.jsx'
+import PosThemeScope from '../components/PosThemeScope.jsx'
 import { selectionKey } from '../retail/lib/retailRules.js'
 
 const read = (storage, key) => { try { return JSON.parse(storage.getItem(key) ?? 'null') } catch { return null } }
@@ -42,7 +43,7 @@ export default function PosDeviceScreen() {
   else if (!operator) body = <PinPad link={link} info={info.data.data} deviceToken={deviceToken} onSignIn={signIn} onDeviceRejected={forgetDevice} />
   else return <DeviceRegister operator={operator} onSignOut={signOut} />
 
-  return <div className="min-h-dvh bg-[hsl(var(--background))] px-4 py-8">{body}</div>
+  return <PosThemeScope className="min-h-dvh px-4 py-8">{body}</PosThemeScope>
 }
 
 function Header({ info, subtitle }) {
@@ -145,8 +146,8 @@ function PinPad({ link, info, deviceToken, onSignIn, onDeviceRejected }) {
     <div className="mx-auto flex w-full max-w-sm flex-col gap-6 rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-6 shadow-sm sm:p-8">
       <Header info={info} subtitle="Escribe tu PIN de cajero." />
       <div className="flex justify-center gap-3" aria-label={`${pin.length} dígitos escritos`}>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <span key={i} className={cn('h-4 w-4 rounded-full border-2', i < pin.length ? 'border-(--brand-primary) bg-(--brand-primary)' : 'border-[hsl(var(--border))]', i >= 4 && i >= pin.length && 'opacity-40')} />
+        {Array.from({ length: Math.max(4, pin.length) }).map((_, i) => (
+          <span key={i} className={cn('h-4 w-4 rounded-sm border-2', i < pin.length ? 'border-(--brand-primary) bg-(--brand-primary)' : 'border-[hsl(var(--input))]')} />
         ))}
       </div>
       {error && <p role="alert" className="text-center text-sm font-semibold text-red-700 dark:text-red-300">{error}</p>}
@@ -159,7 +160,7 @@ function PinPad({ link, info, deviceToken, onSignIn, onDeviceRejected }) {
             disabled={busy || (key === 'ok' && pin.length < 4)}
             aria-label={key === 'del' ? 'Borrar' : key === 'ok' ? 'Entrar' : key}
             className={cn(
-              'flex h-16 items-center justify-center rounded-2xl text-2xl font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-50',
+              'flex h-16 items-center justify-center rounded-2xl text-2xl font-bold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:bg-[hsl(var(--muted))] disabled:text-[hsl(var(--muted-foreground))]',
               key === 'ok' ? 'bg-(--brand-primary) text-(--brand-primary-foreground)' : 'bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/70 active:scale-95',
             )}
           >
@@ -199,9 +200,9 @@ function DeviceRegister({ operator, onSignOut }) {
   return (
     <AuthContext.Provider value={auth}>
       <ActiveCompanyContext.Provider value={company}>
-        <div className="h-dvh">
+        <PosThemeScope className="h-dvh">
           <RetailCajaView key={`${profile.id}:${companyId}`} device={{ onSignOut }} />
-        </div>
+        </PosThemeScope>
       </ActiveCompanyContext.Provider>
     </AuthContext.Provider>
   )
