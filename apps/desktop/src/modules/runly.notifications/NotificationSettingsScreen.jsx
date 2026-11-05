@@ -49,6 +49,7 @@ const EVENT_CATALOG = [
   { eventType: 'chat.mention.new', title: 'Mención en chat', description: 'Cuando te mencionan en una conversación.', icon: MessageCircle },
   { eventType: 'chat.thread.reply', title: 'Respuesta en un hilo', description: 'Cuando responden en un hilo en el que participas.', icon: MessageCircle },
   { eventType: 'notes.note.shared', title: 'Nota compartida', description: 'Cuando comparten una nota contigo.', icon: Users },
+  { eventType: 'files.folder.shared', title: 'Carpeta compartida', description: 'Cuando comparten una carpeta de Archivos contigo.', icon: Users },
   { eventType: 'inventory.item.mention', title: 'Mención en inventario', description: 'Cuando te mencionan en un comentario de inventario.', icon: CheckSquare2 },
   {
     eventType: "chat.message.new",

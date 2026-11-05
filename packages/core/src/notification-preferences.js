@@ -12,6 +12,7 @@ const IMPORTANT_EVENTS = new Set([
   'chat.member.added',
   'chat.mention.new',
   'notes.note.shared',
+  'files.folder.shared',
   'inventory.item.mention',
   'inventory.item.deregistration_proposed',
 ]);

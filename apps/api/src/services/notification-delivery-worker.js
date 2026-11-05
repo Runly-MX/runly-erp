@@ -153,6 +153,7 @@ const EVENT_TYPE_LABELS = {
   "pfm.budget.overage": "Presupuesto excedido",
   // Notas
   "notes.note.shared": "Nota compartida",
+  "files.folder.shared": "Carpeta compartida",
   // Website / storefront
   "website.sale.confirmed": "Venta confirmada",
   // Aprendizaje
@@ -176,6 +177,7 @@ const PRIORITY_LABELS = {
 
 const SOURCE_TYPE_LABELS = {
   CalendarEvent: "Evento de calendario",
+  FileFolder: "Carpeta",
   Contact: "Contacto",
   HrEmployee: "Empleado",
   FileAsset: "Archivo",

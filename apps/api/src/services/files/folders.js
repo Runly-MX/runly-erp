@@ -11,9 +11,11 @@ import { FilesServiceError } from "../files-service.js";
 import { FILES_LINK_MODULE, FILE_LINK_MODES, serializeFileLink } from "./public-links.js";
 import { FILES_ORIGIN_MODULES, folderVisibleWhere } from "./visibility.js";
 import { recordGroups, visibleProjectsWhere } from "./record-folders.js";
+import { createNotificationService } from "../notification-service.js";
 
 export const FOLDER_LINK_RESOURCE = "folder.share";
 export const FOLDER_SCOPES = ["PRIVATE", "COMPANY"];
+export const FOLDER_SHARED_EVENT = "files.folder.shared";
 const MAX_DEPTH = 8;
 const MAX_FOLDERS_PER_COMPANY = 2000;
 const MAX_LINKS_PER_FOLDER = 20;
@@ -28,7 +30,7 @@ function cleanName(value) {
   return name;
 }
 
-export function createFilesFolders({ prisma, filesService, people }) {
+export function createFilesFolders({ prisma, filesService, people, notifications = createNotificationService({ prisma }) }) {
   const can = (context, key) => context.admin || context.permissions?.has(key);
   const need = (context, key) => {
     if (!can(context, key)) throw new FilesServiceError("No tienes permiso para realizar esta acción.", 403);
@@ -167,13 +169,36 @@ export function createFilesFolders({ prisma, filesService, people }) {
       select: { userId: true },
     });
     if (valid.length !== wanted.length) throw new FilesServiceError("Algunas personas no pertenecen a la empresa.", 400);
-    const current = await prisma.fileFolderMember.count({ where: { folderId: folder.id } });
-    if (current + wanted.length > MAX_MEMBERS_PER_FOLDER) throw new FilesServiceError("Esta carpeta alcanzó el máximo de personas.", 409);
+    const existing = new Set((await prisma.fileFolderMember.findMany({ where: { folderId: folder.id }, select: { userId: true } })).map((r) => r.userId));
+    const added = wanted.filter((id) => !existing.has(id) && id !== context.profileId);
+    if (existing.size + wanted.length > MAX_MEMBERS_PER_FOLDER) throw new FilesServiceError("Esta carpeta alcanzó el máximo de personas.", 409);
     await prisma.fileFolderMember.createMany({
       data: wanted.map((userId) => ({ folderId: folder.id, userId, invitedById: context.profileId })),
       skipDuplicates: true,
     });
     await audit(context, folder.id, "files.folder.member.add", { userIds: wanted });
+    if (added.length) {
+      // A failed notification never undoes the share.
+      try {
+        await notifications.publish({
+          companyId: context.companyId,
+          actorId: context.profileId,
+          input: {
+            eventType: FOLDER_SHARED_EVENT,
+            title: "Compartieron una carpeta contigo",
+            body: `Ahora puedes ver «${folder.name}» y los archivos que contiene.`,
+            link: `/app/m/runly.files?workspace=folders&folder=${folder.id}`,
+            recipients: { userIds: added },
+            channels: ["in_app", "email", "web_push"],
+            sourceType: "FileFolder",
+            sourceId: folder.id,
+            metadata: { folderId: folder.id },
+          },
+        });
+      } catch (error) {
+        console.error(`[${FOLDER_SHARED_EVENT}]`, error?.message ?? error);
+      }
+    }
     return listMembers({ authUserId, activeContext, folderId: folder.id });
   }
 
