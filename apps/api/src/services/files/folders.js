@@ -1,14 +1,16 @@
 // Folders of the runly.files explorer: a company-scoped tree of containers for
 // files-origin documents. Module attachments are not filed into folders; the
 // explorer shows them as virtual per-module folders (groupBy moduleKey).
-// Folder visibility: admins see everything, others see COMPANY folders and
-// their own PRIVATE ones. A folder's public link (module_public_link,
+// Folder visibility: admins see everything, others see COMPANY folders, their
+// own PRIVATE ones and folders shared with them by name (file_folder_member,
+// inherited by subfolders). A folder's public link (module_public_link,
 // resourceKey folder.share) exposes the enabled files of its whole subtree.
 import crypto from "node:crypto";
 import { linkStatus } from "../module-public-links-service.js";
 import { FilesServiceError } from "../files-service.js";
 import { FILES_LINK_MODULE, FILE_LINK_MODES, serializeFileLink } from "./public-links.js";
-import { FILES_ORIGIN_MODULES } from "./visibility.js";
+import { FILES_ORIGIN_MODULES, folderVisibleWhere } from "./visibility.js";
+import { recordGroups, visibleProjectsWhere } from "./record-folders.js";
 
 export const FOLDER_LINK_RESOURCE = "folder.share";
 export const FOLDER_SCOPES = ["PRIVATE", "COMPANY"];
@@ -16,6 +18,7 @@ const MAX_DEPTH = 8;
 const MAX_FOLDERS_PER_COMPANY = 2000;
 const MAX_LINKS_PER_FOLDER = 20;
 const MOVE_MAX_FILES = 200;
+const MAX_MEMBERS_PER_FOLDER = 200;
 
 function cleanName(value) {
   const name = String(value ?? "").trim();
@@ -25,7 +28,7 @@ function cleanName(value) {
   return name;
 }
 
-export function createFilesFolders({ prisma, filesService }) {
+export function createFilesFolders({ prisma, filesService, people }) {
   const can = (context, key) => context.admin || context.permissions?.has(key);
   const need = (context, key) => {
     if (!can(context, key)) throw new FilesServiceError("No tienes permiso para realizar esta acción.", 403);
@@ -37,11 +40,10 @@ export function createFilesFolders({ prisma, filesService }) {
     return context;
   }
 
-  const visibleWhere = (context) =>
-    context.admin ? { companyId: context.companyId } : { companyId: context.companyId, OR: [{ scope: "COMPANY" }, { createdById: context.profileId }] };
+  const visibleWhere = (context) => folderVisibleWhere(prisma, context);
 
   async function visibleFolder(context, id) {
-    const folder = id ? await prisma.fileFolder.findFirst({ where: { id, ...visibleWhere(context) } }) : null;
+    const folder = id ? await prisma.fileFolder.findFirst({ where: { id, ...(await visibleWhere(context)) } }) : null;
     if (!folder) throw new FilesServiceError("Carpeta no encontrada.", 404);
     return folder;
   }
@@ -100,7 +102,8 @@ export function createFilesFolders({ prisma, filesService }) {
   // files each holds, and the per-module virtual folders with their counts.
   async function tree({ authUserId, activeContext }) {
     const context = await contextFor(authUserId, activeContext);
-    const folders = await prisma.fileFolder.findMany({ where: visibleWhere(context), orderBy: { name: "asc" } });
+    const folders = await prisma.fileFolder.findMany({ where: await visibleWhere(context), orderBy: { name: "asc" }, include: { _count: { select: { members: true } } } });
+    const visibleIds = new Set(folders.map((f) => f.id));
     const filesOrigin = { entityType: "AtlasFile", OR: [{ moduleKey: null }, { moduleKey: { in: FILES_ORIGIN_MODULES } }] };
     const readable = await filesService.visibility.listWhere(context);
     const [perFolder, perModule] = await Promise.all([
@@ -112,10 +115,74 @@ export function createFilesFolders({ prisma, filesService }) {
       }),
     ]);
     const counts = new Map(perFolder.map((r) => [r.folderId, r._count._all]));
+    const modules = perModule.filter((r) => r.moduleKey).map((r) => ({ moduleKey: r.moduleKey, count: r._count._all }));
+    // Projects get a folder each from the moment they exist, files or not.
+    if (!modules.some((m) => m.moduleKey === "runly.projects") && (await prisma.project.count({ where: visibleProjectsWhere(context) }))) {
+      modules.push({ moduleKey: "runly.projects", count: 0 });
+    }
     return {
-      folders: folders.map((f) => ({ ...serialize(f), fileCount: counts.get(f.id) ?? 0 })),
-      modules: perModule.filter((r) => r.moduleKey).map((r) => ({ moduleKey: r.moduleKey, count: r._count._all })),
+      folders: folders.map((f) => ({
+        ...serialize(f),
+        // A folder shared by name whose parent the caller cannot see shows at the top.
+        parentId: f.parentId && visibleIds.has(f.parentId) ? f.parentId : null,
+        memberCount: f._count.members,
+        fileCount: counts.get(f.id) ?? 0,
+      })),
+      modules,
     };
+  }
+
+  // Per-record folders of one module folder (one per project, employee...).
+  async function records({ authUserId, activeContext, moduleKey }) {
+    const context = await contextFor(authUserId, activeContext);
+    return recordGroups(prisma, context, moduleKey, await filesService.visibility.listWhere(context));
+  }
+
+  // ---- people a folder is shared with (owner or admin) -------------------
+  async function listMembers({ authUserId, activeContext, folderId }) {
+    const context = await contextFor(authUserId, activeContext);
+    const folder = await manageableFolder(context, folderId);
+    const rows = await prisma.fileFolderMember.findMany({ where: { folderId: folder.id }, orderBy: { createdAt: "asc" } });
+    const users = await people.attachAvatarUrls(
+      await prisma.userProfile.findMany({ where: { id: { in: rows.map((r) => r.userId) } }, select: { id: true, displayName: true, email: true, avatarFileId: true } }),
+    );
+    return rows.map((r) => ({ userId: r.userId, createdAt: r.createdAt, user: users.find((u) => u.id === r.userId) ?? null }));
+  }
+
+  async function memberCandidates({ authUserId, activeContext, folderId, q = "" }) {
+    const context = await contextFor(authUserId, activeContext);
+    const folder = await manageableFolder(context, folderId);
+    const taken = new Set((await prisma.fileFolderMember.findMany({ where: { folderId: folder.id }, select: { userId: true } })).map((r) => r.userId));
+    taken.add(folder.createdById);
+    return (await people.searchPeople(context, String(q ?? ""))).filter((u) => !taken.has(u.id));
+  }
+
+  async function addMembers({ authUserId, activeContext, folderId, userIds }) {
+    const context = await contextFor(authUserId, activeContext);
+    const folder = await manageableFolder(context, folderId);
+    const wanted = [...new Set(userIds)].filter((id) => id !== folder.createdById);
+    // Only active people of this company can be added.
+    const valid = await prisma.membership.findMany({
+      where: { companyId: context.companyId, enabled: true, userId: { in: wanted }, user: { enabled: true, isBot: false } },
+      select: { userId: true },
+    });
+    if (valid.length !== wanted.length) throw new FilesServiceError("Algunas personas no pertenecen a la empresa.", 400);
+    const current = await prisma.fileFolderMember.count({ where: { folderId: folder.id } });
+    if (current + wanted.length > MAX_MEMBERS_PER_FOLDER) throw new FilesServiceError("Esta carpeta alcanzó el máximo de personas.", 409);
+    await prisma.fileFolderMember.createMany({
+      data: wanted.map((userId) => ({ folderId: folder.id, userId, invitedById: context.profileId })),
+      skipDuplicates: true,
+    });
+    await audit(context, folder.id, "files.folder.member.add", { userIds: wanted });
+    return listMembers({ authUserId, activeContext, folderId: folder.id });
+  }
+
+  async function removeMember({ authUserId, activeContext, folderId, userId }) {
+    const context = await contextFor(authUserId, activeContext);
+    const folder = await manageableFolder(context, folderId);
+    await prisma.fileFolderMember.deleteMany({ where: { folderId: folder.id, userId } });
+    await audit(context, folder.id, "files.folder.member.remove", { userId });
+    return { userId };
   }
 
   async function create({ authUserId, activeContext, name, parentId = null, scope = "PRIVATE" }) {
@@ -268,5 +335,8 @@ export function createFilesFolders({ prisma, filesService }) {
     return serializeFileLink(updated);
   }
 
-  return { tree, create, update, remove, moveFiles, listLinks, createLink, revokeLink, descendantIds, linkStatus };
+  return {
+    tree, records, create, update, remove, moveFiles, listLinks, createLink, revokeLink,
+    listMembers, memberCandidates, addMembers, removeMember, descendantIds, linkStatus,
+  };
 }

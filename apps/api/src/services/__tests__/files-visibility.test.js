@@ -9,11 +9,13 @@ const BOARD = "01900000-0000-7000-8000-0000000000c3";
 const HOTSPOT = "01900000-0000-7000-8000-0000000000d4";
 
 // memberBoards: board ids the caller belongs to.
-function fakePrisma({ memberBoards = [], shares = [], queryRows = [] } = {}) {
+function fakePrisma({ memberBoards = [], shares = [], queryRows = [], folderMembers = [], folders = [] } = {}) {
   const calls = [];
   const memberOf = (where) => memberBoards.includes(where.id ?? where.boardId);
   return {
     calls,
+    fileFolderMember: { findMany: async () => folderMembers.map((folderId) => ({ folderId })) },
+    fileFolder: { findMany: async () => folders },
     fileAssetShare: {
       findUnique: async ({ where }) =>
         shares.find((s) => s.fileId === where.fileId_userId.fileId && s.userId === where.fileId_userId.userId) ?? null,
@@ -69,6 +71,17 @@ describe("files visibility", () => {
     const prisma = fakePrisma({ shares: [{ fileId: "f1", userId: ME, status: "ACCEPTED" }] });
     const restricted = file({ moduleKey: "runly.files", entityType: "AtlasFile", accessScope: "RESTRICTED" });
     assert.equal(await createFileVisibility({ prisma }).canRead(restricted, context()), true);
+  });
+
+  it("a folder shared by name opens its documents and those of its subfolders", async () => {
+    const folders = [{ id: "top", parentId: null }, { id: "sub", parentId: "top" }, { id: "other", parentId: null }];
+    const prisma = fakePrisma({ folderMembers: ["top"], folders });
+    const visibility = createFileVisibility({ prisma });
+    const doc = (folderId) => file({ moduleKey: "runly.files", entityType: "AtlasFile", accessScope: "RESTRICTED", folderId });
+    assert.equal(await visibility.canRead(doc("sub"), context()), true);
+    assert.equal(await visibility.canRead(doc("other"), context()), false);
+    const { OR } = await visibility.listWhere(context());
+    assert.deepEqual(OR.find((w) => w.folderId)?.folderId.in.sort(), ["sub", "top"]);
   });
 
   it("permission-gated modules require the module read permission", async () => {

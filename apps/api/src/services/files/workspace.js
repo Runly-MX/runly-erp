@@ -256,6 +256,10 @@ export function createFilesWorkspace({
   async function members({ authUserId, activeContext, fileId, q = "" }) {
     const context = await contextFor(authUserId, activeContext);
     await manageable(context, fileId);
+    return searchPeople(context, q);
+  }
+  // Active company members who can open runly.files, by name or email.
+  async function searchPeople(context, q = "") {
     const rows = await prisma.membership.findMany({
       where: {
         companyId: context.companyId,
@@ -275,6 +279,7 @@ export function createFilesWorkspace({
         },
         user: {
           enabled: true,
+          isBot: false,
           OR: [
             { displayName: { contains: q.slice(0, 100), mode: "insensitive" } },
             { email: { contains: q.slice(0, 100), mode: "insensitive" } },
@@ -428,5 +433,5 @@ export function createFilesWorkspace({
       throw new FileAccessError("La invitación ya no está disponible.", 404);
     return { ok: true };
   }
-  return { create, sharing, members, changeSharing, invitations, respond };
+  return { create, sharing, members, searchPeople, attachAvatarUrls, changeSharing, invitations, respond };
 }

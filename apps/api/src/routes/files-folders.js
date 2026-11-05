@@ -4,18 +4,21 @@ import { Hono } from "hono";
 import { z } from "zod";
 import { fileShareLinkCreateSchema } from "@runly/validators";
 import { createFilesFolders } from "../services/files/folders.js";
+import { createFilesWorkspace } from "../services/files/workspace.js";
 import { FileAccessError } from "../services/files/access.js";
 import { FilesServiceError } from "../services/files-service.js";
 import { tenantActiveContext } from "../lib/active-context.js";
 
-export function createFilesFoldersRouter({ prisma, filesService, authMiddleware, requirePermission }) {
+export function createFilesFoldersRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
-  const service = createFilesFolders({ prisma, filesService });
+  const people = createFilesWorkspace({ prisma, supabaseAdmin, filesService });
+  const service = createFilesFolders({ prisma, filesService, people });
   const id = z.uuid();
   const scope = z.enum(["PRIVATE", "COMPANY"]);
   const createSchema = z.strictObject({ name: z.string().min(1).max(120), parentId: id.nullable().optional(), scope: scope.optional() });
   const updateSchema = z.strictObject({ name: z.string().min(1).max(120).optional(), scope: scope.optional(), parentId: id.nullable().optional() });
   const moveSchema = z.strictObject({ fileIds: z.array(id).min(1).max(200), folderId: id.nullable() });
+  const membersSchema = z.strictObject({ userIds: z.array(id).min(1).max(50) });
   const auth = [authMiddleware, requirePermission("files.assets.read")];
 
   const handle = (fallback, run, status = 200) => async (c) => {
@@ -31,6 +34,15 @@ export function createFilesFoldersRouter({ prisma, filesService, authMiddleware,
   };
 
   app.get("/files/folders", ...auth, handle("No se pudieron cargar las carpetas.", (c, base) => service.tree(base)));
+  app.get("/files/folders/records", ...auth, handle("No se pudieron cargar las carpetas del módulo.", (c, base) =>
+    service.records({ ...base, moduleKey: z.string().min(1).max(120).parse(c.req.query("moduleKey")) })));
+  app.get("/files/folders/:id/members", ...auth, handle("No se pudieron cargar las personas.", (c, base) => service.listMembers({ ...base, folderId: id.parse(c.req.param("id")) })));
+  app.get("/files/folders/:id/candidates", ...auth, handle("No se pudieron cargar las personas.", (c, base) =>
+    service.memberCandidates({ ...base, folderId: id.parse(c.req.param("id")), q: z.string().max(100).optional().parse(c.req.query("q")) })));
+  app.post("/files/folders/:id/members", ...auth, handle("No se pudo compartir la carpeta.", async (c, base) =>
+    service.addMembers({ ...base, folderId: id.parse(c.req.param("id")), ...membersSchema.parse(await c.req.json()) })));
+  app.delete("/files/folders/:id/members/:userId", ...auth, handle("No se pudo quitar a la persona.", (c, base) =>
+    service.removeMember({ ...base, folderId: id.parse(c.req.param("id")), userId: id.parse(c.req.param("userId")) })));
   app.post("/files/folders", ...auth, handle("No se pudo crear la carpeta.", async (c, base) => service.create({ ...base, ...createSchema.parse(await c.req.json()) }), 201));
   app.post("/files/folders/move-files", ...auth, handle("No se pudieron mover los archivos.", async (c, base) => service.moveFiles({ ...base, ...moveSchema.parse(await c.req.json()) })));
   app.patch("/files/folders/:id", ...auth, handle("No se pudo actualizar la carpeta.", async (c, base) => service.update({ ...base, id: id.parse(c.req.param("id")), ...updateSchema.parse(await c.req.json()) })));

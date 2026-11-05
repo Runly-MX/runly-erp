@@ -945,9 +945,25 @@ model FileFolder {
   parent      FileFolder?  @relation("FileFolderTree", fields: [parentId], references: [id], onDelete: Restrict)
   children    FileFolder[] @relation("FileFolderTree")
   files       FileAsset[]
+  members     FileFolderMember[]
 
   @@index([companyId, parentId])
   @@map("file_folder")
+}
+
+// People a folder is shared with by name: they see it, its subfolders and the
+// documents inside them.
+model FileFolderMember {
+  id          String     @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  folderId    String     @db.Uuid @map("folder_id")
+  userId      String     @db.Uuid @map("user_id")
+  invitedById String     @db.Uuid @map("invited_by_id")
+  createdAt   DateTime   @default(now()) @map("created_at")
+  folder      FileFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+
+  @@unique([folderId, userId])
+  @@index([userId])
+  @@map("file_folder_member")
 }
 
 model FileAssetShare {

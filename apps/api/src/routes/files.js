@@ -12,7 +12,7 @@ import { IMAGE_VARIANTS, publicUrlWithVariant, signedUrlWithVariant } from "../l
 export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
   const app = new Hono();
   app.route('/', createFilesWorkspaceRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
-  app.route('/', createFilesFoldersRouter({ prisma, filesService, authMiddleware, requirePermission }));
+  app.route('/', createFilesFoldersRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
   const WEBSITE_BUCKET_NAME = "runly-website";
   const linksService = createFilePublicLinksService({ prisma, filesService });
   const linkHandler = (fallback, run) => async (c) => {
@@ -190,6 +190,7 @@ app.get(
           entityType: c.req.query("entityType"),
           entityId: c.req.query("entityId"),
           sourceEntityId: c.req.query("sourceEntityId"),
+          record: c.req.query("record"),
           mime: c.req.query("mime"),
           visibility: c.req.query("visibility"),
           enabled: c.req.query("enabled"),

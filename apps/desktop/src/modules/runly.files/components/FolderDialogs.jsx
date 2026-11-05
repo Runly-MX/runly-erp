@@ -15,9 +15,10 @@ import {
 import { ChevronRight, Folder, FolderPen, FolderPlus, FolderSymlink, FolderTree, Share2, Users } from "lucide-react";
 import { runly } from "../../../lib/runly";
 import { ROOT_FOLDER, childrenOf, descendantIds, publicFolderPath } from "../lib/folders";
+import { FolderMembersPanel } from "./FolderMembersPanel";
 
 const SCOPES = [
-  { value: "PRIVATE", label: "Privada: solo tú (y administradores)" },
+  { value: "PRIVATE", label: "Privada: tú y las personas que elijas" },
   { value: "COMPANY", label: "Toda la empresa" },
 ];
 const LINK_MODES = [
@@ -150,18 +151,23 @@ export function FolderShareDialog({ folder, token, pending, onChangeScope, onOpe
   }, [folder.id, token]);
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent size="lg">
+      <DialogContent size="lg" scrollable className="max-h-[85dvh]">
         <DialogHeader icon={Share2}>
           <DialogTitle>Compartir «{folder.name}»</DialogTitle>
           <DialogDescription>Define quién ve la carpeta dentro de Runly y crea enlaces para personas externas.</DialogDescription>
         </DialogHeader>
-        <div className="grid gap-5">
+        <div className="grid min-h-0 flex-1 gap-5 overflow-y-auto">
           <div className="grid gap-1.5">
             <SelectField id="folder-share-scope" label="Quién la ve en Runly" value={folder.scope} options={SCOPES} disabled={pending} onChange={onChangeScope} />
             <p className="text-xs text-[hsl(var(--muted-foreground))]">
               Al compartirla con la empresa, también se comparten las subcarpetas. Los archivos que muevas a una carpeta compartida pasan a ser visibles para la empresa.
             </p>
           </div>
+          {folder.scope !== "COMPANY" && (
+            <div className="border-t pt-4">
+              <FolderMembersPanel folder={folder} token={token} />
+            </div>
+          )}
           <div className="border-t pt-4">
             <PublicLinksPanel title="Enlaces públicos" api={linksApi} modes={LINK_MODES} />
             <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">

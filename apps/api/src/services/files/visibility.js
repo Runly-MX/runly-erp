@@ -3,7 +3,8 @@
 // docs/superpowers/specs/2026-10-01-files-access-model-design.md
 //
 // A non-admin user can read a file when they uploaded it, hold an ACCEPTED
-// share, it is a runly.files document shared with the whole company, or it is
+// share, it is a runly.files document shared with the whole company or kept in
+// a folder shared with them by name, or it is
 // a module attachment whose originating record the owning module lets them
 // read. Module-internal attachment routes keep using files/access.js: they
 // already authorize the record before listing its files.
@@ -134,6 +135,33 @@ export const FILE_ACCESS_RULES = {
   },
 };
 
+// Folders shared with the caller by name plus every folder inside them.
+export async function sharedFolderIds(prisma, { companyId, profileId }) {
+  const direct = await prisma.fileFolderMember.findMany({ where: { userId: profileId, folder: { companyId } }, select: { folderId: true } });
+  if (!direct.length) return [];
+  const all = await prisma.fileFolder.findMany({ where: { companyId }, select: { id: true, parentId: true } });
+  const out = new Set(direct.map((m) => m.folderId));
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const f of all) {
+      if (f.parentId && out.has(f.parentId) && !out.has(f.id)) {
+        out.add(f.id);
+        grew = true;
+      }
+    }
+  }
+  return [...out];
+}
+
+// Prisma `where` on file_folder with every folder the caller sees.
+export async function folderVisibleWhere(prisma, context) {
+  if (context.admin) return { companyId: context.companyId };
+  const shared = await sharedFolderIds(prisma, context);
+  const OR = [{ scope: "COMPANY" }, { createdById: context.profileId }];
+  if (shared.length) OR.push({ id: { in: shared } });
+  return { companyId: context.companyId, OR };
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 function hasPermission(context, key) {
@@ -173,6 +201,8 @@ export function createFileVisibility({ prisma }) {
       { shares: { some: { userId: profileId, status: "ACCEPTED" } } },
       { ...filesOriginWhere, accessScope: "COMPANY" },
     ];
+    const sharedFolders = await sharedFolderIds(prisma, context);
+    if (sharedFolders.length) OR.push({ ...filesOriginWhere, folderId: { in: sharedFolders } });
     const openTypes = [];
     const recordFileIds = [];
     for (const [entityType, rule] of Object.entries(FILE_ACCESS_RULES)) {
@@ -209,6 +239,7 @@ export function createFileVisibility({ prisma }) {
       where: { fileId_userId: { fileId: file.id, userId: context.profileId } },
     });
     if (share?.status === "ACCEPTED") return true;
+    if (file.folderId && isFilesOrigin(file) && (await sharedFolderIds(prisma, context)).includes(file.folderId)) return true;
     if (file.accessScope === "RESTRICTED") return false;
     if (isFilesOrigin(file)) return true;
     const rule = FILE_ACCESS_RULES[file.entityType];

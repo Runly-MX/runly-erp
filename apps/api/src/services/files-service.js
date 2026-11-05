@@ -1,5 +1,6 @@
 ﻿import { createFileAccess } from "./files/access.js";
-import { createFileVisibility, describeFile, isFilesOrigin, FILES_ORIGIN_MODULES } from "./files/visibility.js";
+import { createFileVisibility, describeFile, folderVisibleWhere, isFilesOrigin, FILES_ORIGIN_MODULES } from "./files/visibility.js";
+import { recordFilesWhere } from "./files/record-folders.js";
 import JSZip from "jszip";
 import { publishDomainEvent } from "./domain-events/events.js";
 import { fileKindWhere } from "./files/query.js";
@@ -416,11 +417,7 @@ export function createFilesService({ prisma, supabaseAdmin }) {
     const requestedFolderId = String(fields.folderId ?? "").trim();
     if (requestedFolderId && filesOrigin) {
       const folder = await prisma.fileFolder.findFirst({
-        where: {
-          id: requestedFolderId,
-          companyId: context.companyId,
-          ...(context.admin ? {} : { OR: [{ scope: "COMPANY" }, { createdById: context.profileId }] }),
-        },
+        where: { id: requestedFolderId, ...(await folderVisibleWhere(prisma, context)) },
         select: { id: true, scope: true },
       });
       if (!folder) throw new FilesServiceError("Carpeta no encontrada.", 404);
@@ -559,6 +556,8 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       const folderId = String(query.folderId ?? "").trim();
       if (folderId === "root") where.AND.push(filesOriginWhere, { folderId: null });
       else if (folderId) where.AND.push({ folderId });
+      // Per-record folder inside a module ("Project:<id>", "HrEmployee:<id>").
+      if (query.record) where.AND.push(await recordFilesWhere(prisma, companyId, String(query.record)));
       if (query.kind) where.AND.push(fileKindWhere(query.kind));
       if (enabled !== undefined) where.enabled = enabled;
       if (moduleKey) where.moduleKey = moduleKey;

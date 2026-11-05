@@ -81,7 +81,7 @@ export function FilesSidebar({ workspace, folder, moduleKey, folders, modules, i
         <div key={f.id}>
           <Row
             depth={depth}
-            icon={f.scope === "COMPANY" ? Users : isOpen && kids.length ? FolderOpen : Folder}
+            icon={f.scope === "COMPANY" ? Users : f.memberCount ? Share2 : isOpen && kids.length ? FolderOpen : Folder}
             label={f.name}
             active={workspace === "folders" && folder === f.id}
             expandable={kids.length > 0}

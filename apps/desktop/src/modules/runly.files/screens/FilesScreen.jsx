@@ -30,6 +30,7 @@ import { FileDetailPanel } from "../components/FileDetailPanel";
 import { FileRenameModal } from "../components/FileRenameModal";
 import { FilesUploadDialog } from "../components/FilesUploadDialog";
 import { FILES_WORKSPACES } from "../components/FilesSidebar";
+import { ModuleRecordsBar } from "../components/ModuleRecordsBar";
 import { FilesNavigation } from "../components/FilesNavigation";
 import { FilesFolderManager } from "../components/FilesFolderManager";
 import { FilesUploadQueue } from "../components/FilesUploadQueue";
@@ -99,6 +100,7 @@ export default function FilesScreen() {
     q: searchParams.get("q") || "",
     kind: searchParams.get("kind") || "",
     moduleKey: searchParams.get("moduleKey") || "",
+    record: workspace === "modules" ? searchParams.get("record") || "" : "",
     enabled: searchParams.get("enabled") || "",
     sortBy: searchParams.get("sortBy") || "updatedAt",
     sortDir: searchParams.get("sortDir") || "desc",
@@ -132,8 +134,8 @@ export default function FilesScreen() {
   const folderApi = useFilesFolders({ token, userId: session?.user?.id, enabled: canReadFiles });
   const currentFolder = inFolders && folder !== ROOT_FOLDER ? folderApi.folders.find((f) => f.id === folder) : null;
   const dropTarget = inFolders ? (currentFolder ? `«${currentFolder.name}»` : "Mis carpetas") : "Mis archivos";
-  const selectView = ({ workspace: next, folder: nextFolder = "", moduleKey = "" }) =>
-    changeQuery({ workspace: next, folder: nextFolder, moduleKey, q: "", kind: "", enabled: "" });
+  const selectView = ({ workspace: next, folder: nextFolder = "", moduleKey = "", record = "" }) =>
+    changeQuery({ workspace: next, folder: nextFolder, moduleKey, record, q: "", kind: "", enabled: "" });
   const [viewerOpen, setViewerOpen] = useState(false);
   const [toggleTarget, setToggleTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -691,6 +693,15 @@ export default function FilesScreen() {
               }}
               onOpen={(id) => selectView({ workspace: "folders", folder: id })}
             />
+            {workspace === "modules" && queryParams.moduleKey && (
+              <ModuleRecordsBar
+                token={token}
+                userId={session?.user?.id}
+                moduleKey={queryParams.moduleKey}
+                record={queryParams.record}
+                onOpen={(record) => selectView({ workspace: "modules", moduleKey: queryParams.moduleKey, record })}
+              />
+            )}
             <FilesToolbar
               search={explorer.search}
               onSearchChange={explorer.setSearch}

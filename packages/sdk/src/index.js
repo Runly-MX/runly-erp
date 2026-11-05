@@ -1068,6 +1068,11 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       getPublicFolder: (linkToken, folderId) => request(`/public/folders/${encodeURIComponent(linkToken)}${toQueryString({ folder: folderId })}`, { onlineOnly: true }),
       folders: {
         tree: (token) => request('/files/folders', { headers: withAuthHeaders(token), onlineOnly: true }),
+        records: (moduleKey, token) => request(`/files/folders/records${toQueryString({ moduleKey })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        members: (id, token) => request(`/files/folders/${encodeURIComponent(id)}/members`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        memberCandidates: (id, q, token) => request(`/files/folders/${encodeURIComponent(id)}/candidates${toQueryString({ q })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        addMembers: (id, userIds, token) => request(`/files/folders/${encodeURIComponent(id)}/members`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ userIds }), onlineOnly: true }),
+        removeMember: (id, userId, token) => request(`/files/folders/${encodeURIComponent(id)}/members/${encodeURIComponent(userId)}`, { method: 'DELETE', headers: withAuthHeaders(token), onlineOnly: true }),
         create: (data, token) => request('/files/folders', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
         update: (id, data, token) => request(`/files/folders/${encodeURIComponent(id)}`, { method: 'PATCH', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
         remove: (id, token) => request(`/files/folders/${encodeURIComponent(id)}`, { method: 'DELETE', headers: withAuthHeaders(token), onlineOnly: true }),
