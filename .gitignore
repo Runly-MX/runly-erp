@@ -137,3 +137,16 @@ infra/installer/.runly-installer/
 .artifacts/releases/
 .artifacts/website-multi/
 apps/api/public/website-runtime/
+
+# Impeccable design skill (vendored by its installer, includes binaries; reinstall per machine)
+.claude/skills/impeccable/
+.claude/agents/impeccable-*
+.github/skills/impeccable/
+.github/agents/impeccable-*
+.github/hooks/impeccable.json
+# Impeccable per-machine output: review captures, mocks, build state, critiques, hook cache
+**/.impeccable/review/
+**/.impeccable/mocks/
+**/.impeccable/build/
+**/.impeccable/critique/
+**/.impeccable/hook.cache.json

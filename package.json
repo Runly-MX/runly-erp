@@ -19,6 +19,7 @@
     "dev:tauri": "node scripts/start-office-dev.mjs && concurrently --kill-others-on-fail -n api,tauri,worker -c cyan,magenta,yellow \"pnpm dev:api\" \"pnpm --filter @runly/desktop dev\" \"pnpm dev:worker\"",
     "build": "pnpm -r build",
     "lint": "eslint .",
+    "clean:shots": "node scripts/clean-shots.mjs",
     "lint:packages": "pnpm -r lint",
     "test:website:e2e": "node scripts/test-website-e2e.mjs",
     "test:website:registry": "node scripts/test-website-registry.mjs",
