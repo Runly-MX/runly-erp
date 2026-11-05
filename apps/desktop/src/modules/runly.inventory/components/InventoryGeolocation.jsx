@@ -47,11 +47,15 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
   const { latitude, longitude } = value ?? {}
   const located = hasGeoPoint(latitude, longitude)
   const map = useMapStyle()
-  const [text, setText] = useState('')
+  // The field shows the current point; `draft` holds what the user typed until it is applied.
+  const current = located ? formatGeoPoint(latitude, longitude) : ''
+  const [draft, setDraft] = useState(null)
+  const text = draft ?? current
+  const dirty = draft !== null && draft.trim() !== '' && draft.trim() !== current
   const [message, setMessage] = useState('')
   const device = useDeviceLocation()
   const locating = device.locating
-  const setPoint = (lat, lng, note = '') => { onChange({ latitude: round6(lat), longitude: round6(lng) }); setMessage(note) }
+  const setPoint = (lat, lng, note = '') => { onChange({ latitude: round6(lat), longitude: round6(lng) }); setDraft(null); setMessage(note) }
 
   async function locateMe() {
     setMessage('')
@@ -63,7 +67,7 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
   function apply(raw) {
     const point = parseCoordinates(raw)
     if (!point) { setMessage('No reconocí las coordenadas. Usa el formato «19.432608, -99.133209» o pega un enlace de Google Maps.'); return false }
-    setPoint(point.latitude, point.longitude); setText('')
+    setPoint(point.latitude, point.longitude, 'Ubicación actualizada. Guarda el activo para conservarla.')
     return true
   }
 
@@ -77,13 +81,14 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
         </Button>
         <div className="flex items-end gap-2">
           <div className="min-w-0 flex-1">
-            <TextField label={located ? 'Cambiar: pega coordenadas o enlace' : 'Pegar coordenadas o enlace'} icon={MapPin} value={text} autoComplete="off"
-              placeholder={located ? formatGeoPoint(latitude, longitude) : '19.432608, -99.133209'}
-              onChange={(e) => setText(e.target.value)}
+            <TextField label="Coordenadas o enlace de mapa" icon={MapPin} value={text} autoComplete="off"
+              placeholder="Ej. 19.432608, -99.133209"
+              onChange={(e) => setDraft(e.target.value)}
+              onFocus={(e) => e.target.select()}
               onPaste={(e) => { if (apply(e.clipboardData.getData('text'))) e.preventDefault() }}
-              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) apply(text) } }} />
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (dirty) apply(draft) } }} />
           </div>
-          <Button type="button" variant="outline" className="shrink-0" onClick={() => apply(text)} disabled={!text.trim()}>Aplicar</Button>
+          <Button type="button" variant="outline" className="shrink-0" onClick={() => apply(draft)} disabled={!dirty}>Aplicar</Button>
         </div>
       </div>
       {blocked ? <LocationPermissionHelp permission={device.permission} locating={locating} onRetry={locateMe} /> : null}
@@ -94,7 +99,7 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
         <div className="flex flex-wrap items-center gap-2">
           <span className="flex items-center gap-1.5 text-sm tabular-nums"><MapPin className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />{formatGeoPoint(latitude, longitude)}</span>
           <OpenInMapsLink latitude={latitude} longitude={longitude} />
-          <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => { onChange({ latitude: null, longitude: null }); setMessage('') }}>
+          <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => { onChange({ latitude: null, longitude: null }); setDraft(null); setMessage('') }}>
             <X className="mr-1 h-4 w-4" />Quitar
           </Button>
         </div>
