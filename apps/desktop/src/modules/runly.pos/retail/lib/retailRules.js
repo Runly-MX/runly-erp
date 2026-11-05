@@ -20,6 +20,21 @@ export function formatQuantity(value) {
   return Number.isInteger(n) ? String(n) : n.toLocaleString('es-MX', { maximumFractionDigits: 3 })
 }
 
+// Unit price the customer pays: catalog prices may exclude tax; the order
+// adds it, so the tile and the line show it included. rate is a percent.
+export function grossPrice(price, rate, included) {
+  const n = Number(price)
+  if (price === null || price === undefined || !Number.isFinite(n)) return price
+  if (included !== false || !Number(rate)) return n.toFixed(2)
+  return (Math.round(n * (1 + Number(rate) / 100) * 100) / 100).toFixed(2)
+}
+
+// Up to two initials from the words that start with a letter ("Huevo 12
+// piezas" -> "HP"), for products and lines without a photo.
+export function productInitials(name) {
+  return String(name ?? '').split(/\s+/).filter((w) => /^\p{L}/u.test(w)).slice(0, 2).map((w) => w[0].toUpperCase()).join('') || '#'
+}
+
 // Units of each product already in the sale (all its variants together), for
 // the counter on the product cards.
 export function quantitiesByProduct(order) {

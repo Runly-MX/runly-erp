@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { activeLines, changePreview, itemCount, orderKey, quantitiesByProduct, selectionKey, tenderSuggestions, toMoneyString } from '../retailRules.js'
+import { activeLines, changePreview, grossPrice, itemCount, orderKey, productInitials, quantitiesByProduct, selectionKey, tenderSuggestions, toMoneyString } from '../retailRules.js'
 import { classifyPosError } from '../retailErrors.js'
 
 test('cash preview: owed 100, received 200 → change 100 (applied stays 100)', () => {
@@ -52,4 +52,18 @@ test('card counter: units per product across variants, voided lines ignored', ()
   ] }
   assert.deepEqual(quantitiesByProduct(order), { p1: 3 })
   assert.deepEqual(quantitiesByProduct(null), {})
+})
+
+test('initials skip words that start with a digit', () => {
+  assert.equal(productInitials('Huevo 12 piezas'), 'HP')
+  assert.equal(productInitials('Coca-Cola 600 ml'), 'CM')
+  assert.equal(productInitials('500 g'), 'G')
+  assert.equal(productInitials(''), '#')
+})
+
+test('tiles and lines show the price the customer pays', () => {
+  assert.equal(grossPrice('20.00', '16.0000', false), '23.20')
+  assert.equal(grossPrice('20.00', '16.0000', true), '20.00')
+  assert.equal(grossPrice('20.00', '0', false), '20.00')
+  assert.equal(grossPrice(null, '16', false), null)
 })

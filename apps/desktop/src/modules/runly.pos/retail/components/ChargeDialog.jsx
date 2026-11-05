@@ -23,6 +23,9 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
   const [tendered, setTendered] = useState(Number(fixedAmount ?? order.remainingAmount))
   const [reference, setReference] = useState('')
   const [errors, setErrors] = useState({})
+  // Partial payment is the exception: its amount field stays behind a link.
+  const [partial, setPartial] = useState(false)
+  const showAmount = partial || Boolean(fixedAmount) || Boolean(errors.amount)
   const method = usable.find((m) => m.id === methodId)
   const cash = method?.kind === 'CASH'
   const currency = order.currency
@@ -118,8 +121,10 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
               {errors.method && <p role="alert" className="text-sm font-semibold text-red-800 dark:text-red-300">{errors.method}</p>}
             </div>
 
-            <CurrencyField label="Importe a aplicar" value={amount} onChange={setAmount} currency={currency} min={0} error={errors.amount} disabled={processing || Boolean(fixedAmount)}
-              hint={Number(amount) < Number(order.remainingAmount) ? 'Pago parcial: quedará saldo pendiente.' : 'Lo que se abona a la venta.'} className="h-14 text-xl font-bold" />
+            {showAmount && (
+              <CurrencyField label="Importe a aplicar" value={amount} onChange={setAmount} currency={currency} min={0} error={errors.amount} disabled={processing || Boolean(fixedAmount)}
+                hint={Number(amount) < Number(order.remainingAmount) ? 'Pago parcial: quedará saldo pendiente.' : 'Lo que se abona a la venta.'} className="h-14 text-xl font-bold" />
+            )}
 
             {cash ? (
               <div className="space-y-3">
@@ -131,9 +136,9 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
                     </Button>
                   ))}
                 </div>
-                <div className="flex items-baseline justify-between rounded-xl bg-[hsl(var(--muted))] px-4 py-3">
-                  <span className="text-sm font-semibold text-[hsl(var(--foreground))]">Cambio (vista previa)</span>
-                  <span className="text-2xl font-extrabold tabular-nums text-[hsl(var(--foreground))]">{preview !== null ? money(preview) : '—'}</span>
+                <div className="flex items-baseline justify-between rounded-md bg-(--pos-band) px-4 py-3 text-(--pos-band-foreground)" aria-live="polite">
+                  <span className="text-sm font-bold uppercase tracking-wide text-(--pos-band-accent)">Cambio</span>
+                  <span className="text-3xl font-bold">{preview !== null ? money(preview) : '—'}</span>
                 </div>
               </div>
             ) : method ? (
@@ -142,6 +147,9 @@ export default function ChargeDialog({ order, sessionId, token, methods, onPaid,
                 <TextField label={method.requiresReference ? 'Referencia' : 'Referencia (opcional)'} required={method.requiresReference} value={reference} onChange={(e) => setReference(e.target.value)} error={errors.reference} maxLength={120} disabled={processing} icon={null} />
               </div>
             ) : null}
+            {!fixedAmount && !showAmount && (
+              <Button type="button" variant="ghost" className="-ml-2 self-start" disabled={processing} onClick={() => setPartial(true)}>Cobrar solo una parte</Button>
+            )}
           </div>
           <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-[hsl(var(--border))] px-6 py-4 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" size="lg" className="h-14" onClick={onClose} disabled={processing}>Cancelar</Button>

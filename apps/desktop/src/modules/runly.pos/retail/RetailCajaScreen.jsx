@@ -274,7 +274,7 @@ export function RetailCajaView({ device = null }) {
           />
         </div>
         {wide ? (
-        <aside className="my-3 mr-3 flex w-[380px] shrink-0 flex-col overflow-hidden rounded-3xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] shadow-sm xl:w-[420px]" aria-label="Venta actual">
+        <aside className="flex w-[380px] shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--card))] xl:w-[420px]" aria-label="Venta actual">
           {cartContent}
         </aside>
         ) : (
@@ -290,8 +290,8 @@ export function RetailCajaView({ device = null }) {
           ) : null}
           handle={(
             <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-[hsl(var(--foreground))]">
-              <span>{completed ? 'Venta cobrada' : `${itemCount(sale.order)} artículo(s)`}</span>
-              <span className="text-lg font-extrabold tabular-nums">{completed ? formatMoney(completed.order.totalAmount, completed.order.currency) : formatMoney(sale.order?.remainingAmount ?? 0, sale.order?.currency ?? currency)}</span>
+              <span>{completed ? 'Venta cobrada' : (itemCount(sale.order) === 1 ? '1 artículo' : `${itemCount(sale.order)} artículos`)}</span>
+              <span className="rounded-sm bg-(--pos-band) px-2.5 py-1 text-lg font-bold text-(--pos-band-foreground)">{completed ? formatMoney(completed.order.totalAmount, completed.order.currency) : formatMoney(sale.order?.remainingAmount ?? 0, sale.order?.currency ?? currency)}</span>
             </span>
           )}
           bodyClassName="p-0"
@@ -315,7 +315,7 @@ export function RetailCajaView({ device = null }) {
           online={online}
           capabilities={caps}
           saleInProgress={saleInProgress}
-          onOrders={device ? undefined : () => navigate('/app/m/runly.pos/pos/orders')}
+          nav={!device}
           onCashIn={() => setDialog({ kind: 'cash', type: 'IN' })}
           onCashOut={() => setDialog({ kind: 'cash', type: 'OUT' })}
           onClose={() => setDialog({ kind: 'close' })}
