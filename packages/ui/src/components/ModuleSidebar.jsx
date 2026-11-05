@@ -117,6 +117,7 @@ export function ModuleSidebar({
             onNavigate(item.fullPath);
           }}
           title={collapsed ? item.label : undefined}
+          data-nav-active={isActive || undefined}
           className={cn(
             "w-full flex items-center gap-2.5 px-2.5 h-9 rounded-lg text-sm",
             "transition-colors duration-150 cursor-pointer outline-none overflow-hidden",

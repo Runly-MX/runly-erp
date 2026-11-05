@@ -28,7 +28,7 @@ export default function PosNav({ className, exit = false }) {
   const items = ITEMS.filter((i) => allowed(i.any) && (!i.restaurant || restaurant) && (!i.appointments || nav.appointments))
   if (items.length < 2 && !exit) return null
   return (
-    <nav aria-label="Punto de venta" className={cn('-mb-px flex min-w-0 items-stretch overflow-x-auto', className)}>
+    <nav aria-label="Punto de venta" className={cn('-mb-px flex min-w-0 items-stretch overflow-x-auto [mask-image:linear-gradient(to_right,black_88%,transparent)] lg:[mask-image:none]', className)}>
       {items.map((item) => (
         <NavLink
           key={item.to}
