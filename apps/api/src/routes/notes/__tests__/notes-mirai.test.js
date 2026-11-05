@@ -32,13 +32,25 @@ test("notes_search: returns exact total with noteId and a capped excerpt", async
   assert.equal(out.notas[0].extracto.length, 200);
 });
 
-test("notes_get: caps content at 6000 chars and flags truncation", async () => {
-  const notesSvc = fakeNotesSvc({ getNote: async () => ({ id: "n1", title: "Larga", content_text: "x".repeat(7000), tags: [{ name: "importante" }] }) });
+test("notes_get: caps content at 5000 chars, flags truncation and reads the next part by offset", async () => {
+  const notesSvc = fakeNotesSvc({ getNote: async () => ({ id: "n1", title: "Larga", content_text: "x".repeat(5000) + "y".repeat(2000), tags: [{ name: "importante" }] }) });
   const [, notes_get] = createNotesMiraiQueries({ prisma: {}, notesSvc });
   const out = await notes_get.run({ noteId: "n1" }, actx);
-  assert.equal(out.contenido.length, 6000);
+  assert.equal(out.contenido.length, 5000);
   assert.equal(out.truncado, true);
+  assert.equal(out.siguienteOffset, 5000);
   assert.deepEqual(out.etiquetas, ["importante"]);
+  const next = await notes_get.run({ noteId: "n1", offset: out.siguienteOffset }, actx);
+  assert.equal(next.contenido, "y".repeat(2000));
+  assert.equal(next.truncado, false);
+});
+
+test("describeContext: includes the open note's content and points long notes to notes_get offset", async () => {
+  const notesSvc = fakeNotesSvc({ getNote: async () => ({ id: "n1", title: "Acta", content_text: "Punto clave: presupuesto" + "z".repeat(5000) }) });
+  const cap = createNotesMiraiCapabilities({ prisma: {}, supabaseAdmin: {}, notesSvc });
+  const line = await cap.describeContext({ recordType: "note", recordId: "n1" }, actx);
+  assert.match(line, /Punto clave: presupuesto/);
+  assert.match(line, /offset 4000/);
 });
 
 test("notes_get: not found -> error, never throws", async () => {

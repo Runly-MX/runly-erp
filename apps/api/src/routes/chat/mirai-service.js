@@ -26,6 +26,8 @@ const DEFAULT_WEB_MODEL = "groq/compound-mini";
 const MAX_TOOL_ITERATIONS = 8;
 const HISTORY_LIMIT = 20;
 const HISTORY_MESSAGE_MAX_CHARS = 4000;
+// ~2.5K tokens: keeps a multi-round turn under the provider's per-minute limit.
+const HISTORY_TOTAL_MAX_CHARS = 10_000;
 const RATE_MAX = 20;
 const RATE_WINDOW_MS = 60_000;
 const GROQ_TIMEOUT_MS = 25_000;
@@ -64,6 +66,20 @@ export function matchMiraiMention(body) {
 }
 
 export { stripMentionTokens };
+
+// Every tool round resends the whole history, so it shares one char budget.
+// `rows` newest first; returns oldest first. The latest message always fits.
+export function trimHistoryRows(rows) {
+  let budget = HISTORY_TOTAL_MAX_CHARS;
+  const kept = [];
+  for (const m of rows) {
+    const len = Math.min(String(m.body || "").length, HISTORY_MESSAGE_MAX_CHARS);
+    if (kept.length && len > budget) break;
+    budget -= len;
+    kept.push(m);
+  }
+  return kept.reverse();
+}
 
 // The chat/live/channel/panel prompts all tell the model to answer in plain
 // text (only ```fences``` and `backticks` for code — see AssistantMarkdown.jsx,
@@ -399,11 +415,11 @@ export function createMiraiService({
       ORDER BY m.created_at DESC
       LIMIT ${HISTORY_LIMIT}
     `;
-    rows.reverse();
+    const kept = trimHistoryRows(rows);
     // One huge pasted message must not be replayed in full on every later turn.
     const clip = (text) => (text.length > HISTORY_MESSAGE_MAX_CHARS ? `${text.slice(0, HISTORY_MESSAGE_MAX_CHARS)}
 [mensaje largo recortado]` : text);
-    return rows.map((m) => {
+    return kept.map((m) => {
       if (m.sender_type === "assistant") return { role: "assistant", content: clip(m.body || "") };
       if (m.sender_type === "system") return { role: "user", content: `[sistema] ${clip(m.body || "")}` };
       return { role: "user", content: clip(m.body || "") };

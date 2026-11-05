@@ -8,7 +8,8 @@
 // and listNotes use).
 const SEARCH_MAX = 30;
 const EXCERPT_MAX = 200;
-const CONTENT_MAX = 6000;
+// Stays under mirai-service's 8 KB tool-result clamp once JSON-escaped.
+const CONTENT_MAX = 5000;
 
 export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = false }) {
   const notes_search = {
@@ -94,20 +95,32 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
     name: "notes_get",
     permission: "notes.notes.read",
     definition: {
-      description: "Devuelve el contenido (texto plano, hasta 6000 caracteres) de UNA nota por noteId; si es una subpagina indica `subpaginaDe`. Solo funciona si el usuario es dueno o tiene la nota compartida.",
-      parameters: { type: "object", properties: { noteId: { type: "string" } }, required: ["noteId"] },
+      description: "Devuelve el contenido (texto plano, hasta 5000 caracteres desde `offset`) de UNA nota por noteId; si es una subpagina indica `subpaginaDe`. Si `truncado` es true, vuelve a llamar con `siguienteOffset` para leer la siguiente parte; lee solo las partes que necesites. Solo funciona si el usuario es dueno o tiene la nota compartida.",
+      parameters: {
+        type: "object",
+        properties: {
+          noteId: { type: "string" },
+          offset: { type: "integer", description: "Caracter desde el que leer (0 por defecto)." },
+        },
+        required: ["noteId"],
+      },
     },
     async run(args, actx) {
       const noteId = String(args?.noteId ?? "");
       if (!noteId) return { error: "Indica el noteId (de notes_search)." };
+      const offset = Math.max(0, Number.parseInt(args?.offset, 10) || 0);
       try {
         const note = await notesSvc.getNote(noteId, actx.actorProfileId);
+        const text = note.content_text ?? "";
+        const end = offset + CONTENT_MAX;
         return {
           noteId: note.id,
           titulo: note.title,
           subpaginaDe: note.parent_note_id ?? null,
-          contenido: (note.content_text ?? "").slice(0, CONTENT_MAX),
-          truncado: (note.content_text ?? "").length > CONTENT_MAX,
+          contenido: text.slice(offset, end),
+          totalCaracteres: text.length,
+          truncado: text.length > end,
+          ...(text.length > end ? { siguienteOffset: end } : {}),
           etiquetas: (note.tags ?? []).map((t) => t.name),
         };
       } catch (err) {
