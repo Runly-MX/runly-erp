@@ -239,6 +239,24 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     }
   }
 
+  // Site links in the canvas are real <a href="/contacto">; following them leaves the app. Stay put and offer
+  // to open the linked page in the editor instead (no auto-jump: the builder does not warn about unsaved edits).
+  const handleCanvasClick = (event) => {
+    const anchor = event.target.closest?.('a[href]')
+    if (!anchor || anchor.target === '_blank') return
+    event.preventDefault()
+    const href = anchor.getAttribute('href') || ''
+    if (!href.startsWith('/')) return
+    const path = href.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
+    const target = (pages.data ?? []).find((page) => ((page.routePath ?? '').replace(/\/+$/, '') || '/') === path)
+    if (!target || target.id === pageId) return
+    toast(`Enlace a "${target.title}"`, {
+      id: 'website-editor-link',
+      description: 'Guarda el borrador antes de cambiar de página.',
+      action: { label: 'Abrir página', onClick: () => navigate(standalone ? standaloneEditorPath(siteId, target.id) : editorPath(siteId, target.id)) },
+    })
+  }
+
   const back = () => navigate(sitePath(siteId, 'pages'))
   const loadError = draftQuery.error ?? site.error
   const draftIssues = draft?.issues ?? []
@@ -284,7 +302,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
           </Alert>
         )}
         {saveError && <div className="m-3"><ErrorNotice error={saveError} /></div>}
-        <div className="relative min-h-0 flex-1">
+        <div className="relative min-h-0 flex-1" onClickCapture={handleCanvasClick}>
           <AtlasWebBuilderEditor
             key={editorKey}
             blocks={blocks}
