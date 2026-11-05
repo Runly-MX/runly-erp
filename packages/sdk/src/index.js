@@ -1605,6 +1605,18 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     pos: {
+      appointments: {
+        list: (query, token) =>
+          request(`/pos/appointments${toQueryString(query)}`, { headers: withAuthHeaders(token) }),
+        get: (id, token) =>
+          request(`/pos/appointments/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+        create: (data, token) =>
+          request("/pos/appointments", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        update: (id, data, token) =>
+          request(`/pos/appointments/${encodeURIComponent(id)}`, { method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+        setStatus: (id, data, token) =>
+          request(`/pos/appointments/${encodeURIComponent(id)}/status`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+      },
       setup: (data, token) =>
         request("/pos/setup", {
           method: "POST",

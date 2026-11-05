@@ -23,3 +23,9 @@ test('unknown modes and other modules are never filtered', () => {
   const other = { key: 'runly.crm', navigation: [] }
   assert.equal(filterPosNavigation(other, ['RETAIL']), other)
 })
+
+test('Citas only shows once appointments are on', () => {
+  const pos = { key: 'runly.pos', navigation: [{ path: '/app/m/runly.pos/pos/caja' }, { path: '/app/m/runly.pos/pos/citas' }] }
+  assert.deepEqual(filterPosNavigation(pos, ['RETAIL']).navigation.map((i) => i.path.split('/').pop()), ['caja'])
+  assert.equal(filterPosNavigation(pos, ['RETAIL'], { appointments: true }), pos)
+})

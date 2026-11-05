@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, AlertTitle, Button, EmptyState, ErrorState, PeekSheet, SegmentedControl, Skeleton } from '@runly/ui'
-import { Lock, Settings2, Utensils, WifiOff } from 'lucide-react'
+import { CalendarClock, Lock, Settings2, Utensils, WifiOff } from 'lucide-react'
 import RestaurantAccounts from '../restaurant/components/RestaurantAccounts.jsx'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
@@ -73,6 +73,37 @@ function RetailCajaView() {
   // register, session and ledger; a restaurant-only outlet only has Mesas.
   const mixed = Boolean(caps.retail && caps.restaurant)
   const tablesView = Boolean(caps.restaurant) && (!caps.retail || params.get('vista') === 'mesas')
+  // Citas: "Cobrar" opens the register with ?cita=<id>; its services go into the
+  // sale and, once paid, the appointment is marked as charged.
+  const citaId = params.get('cita')
+  const [cita, setCita] = useState(null)
+  const dropCita = () => { setCita(null); setParams((prev) => { const next = new URLSearchParams(prev); next.delete('cita'); return next }, { replace: true }) }
+  useEffect(() => {
+    if (!citaId || !session?.id || cita?.id === citaId) return
+    let stop = false
+    ;(async () => {
+      try {
+        const appointment = (await runly.pos.appointments.get(citaId, token)).data
+        if (stop) return
+        if (!['SCHEDULED', 'ARRIVED'].includes(appointment.status)) { toast.error('Esta cita ya fue cerrada.'); dropCita(); return }
+        setCita(appointment)
+        for (const item of appointment.items ?? []) await sale.addItem({ productId: item.productId, variantId: item.variantId, name: item.name })
+        toast.success(`Cita de ${appointment.customerName} cargada en la venta`)
+      } catch (error) {
+        if (!stop) { toast.error(error?.message ?? 'No se pudo cargar la cita.'); dropCita() }
+      }
+    })()
+    return () => { stop = true }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [citaId, session?.id])
+  function completeCita(order) {
+    if (!cita || order?.status !== 'PAID') return
+    runly.pos.appointments.setStatus(cita.id, { status: 'COMPLETED', orderId: order.id }, token)
+      .then(() => toast.success('Cita cobrada'))
+      .catch(() => toast.error('La venta se cobró, pero no se pudo marcar la cita como cobrada.'))
+    dropCita()
+  }
+
   // One outlet with one register: nothing to choose, open it directly.
   const state = context?.operationState
   useEffect(() => {
@@ -96,6 +127,7 @@ function RetailCajaView() {
       if (order.status === 'PAID') {
         const payment = [...(order.payments ?? [])].filter((p) => p.status === 'CAPTURED').pop()
         sale.finish()
+        completeCita(order)
         setCompleted({ order, payment, receiptId: order.receiptId })
         setCartOpen(true)
         refreshContext()
@@ -295,6 +327,15 @@ function RetailCajaView() {
             options={[{ value: 'mostrador', label: 'Mostrador' }, { value: 'mesas', label: 'Mesas' }]} />
         </div>
       )}
+      {cita && (
+        <Alert className="mx-3 mt-3 w-auto">
+          <CalendarClock className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Cobrando la cita de {cita.customerName}</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-2">Al cobrar la venta, la cita queda como cobrada.
+            <Button variant="ghost" size="sm" onClick={dropCita}>Desvincular</Button>
+          </AlertDescription>
+        </Alert>
+      )}
       {unresolved.some((r)=>r.prefix!=='order'||!session)&&!dialog&&(
         <Alert className="m-3"><AlertTitle>Operación pendiente de confirmar</AlertTitle><AlertDescription>Recupera su resultado antes de cerrar o cambiar de caja.</AlertDescription>
           {unresolved.filter((r)=>r.prefix!=='order'||!session).map((r)=><Button key={r.storageKey} variant="outline" loading={recovering||Boolean(sale.pending)} onClick={()=>r.prefix==='order'?sale.retry():recover(r)}>Recuperar operación pendiente</Button>)}
@@ -308,7 +349,7 @@ function RetailCajaView() {
           sessionId={session.id}
           token={token}
           methods={methods}
-          onPaid={(result) => { setDialog(null); sale.finish(); setCompleted(result); setCartOpen(true); refreshContext() }}
+          onPaid={(result) => { setDialog(null); sale.finish(); completeCita(result.order); setCompleted(result); setCartOpen(true); refreshContext() }}
           onPartial={(order) => sale.setOrder(order)}
           onConflict={() => sale.reload()}
           onClose={settleAfterCharge}

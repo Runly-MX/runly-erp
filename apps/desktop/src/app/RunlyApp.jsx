@@ -231,7 +231,7 @@ export function RunlyApp() {
   const trashProviders = useTrashProviders(activeModule?.key).data
   const posModes = usePosNavModes({ enabled: activeModule?.key === 'runly.pos', token: session?.access_token, companyId: activeCompanyId })
   const navModule = useSiteSidebarModule(activeModule, location.pathname, location.search)
-  const sidebarModule = useMemo(() => filterPosNavigation((navModule === activeModule ? withTrashNavigation(navModule, trashProviders) : navModule), posModes), [navModule, trashProviders, posModes])
+  const sidebarModule = useMemo(() => filterPosNavigation((navModule === activeModule ? withTrashNavigation(navModule, trashProviders) : navModule), posModes.modes, { appointments: posModes.appointments }), [navModule, trashProviders, posModes])
   const helpTip = useHelpTip()
   // While the on-screen keyboard is up, pin the shell to the visible area
   // (above the keyboard AND the iOS/Android suggestion/AutoFill bar). Without

@@ -125,12 +125,13 @@ function GeneralTab({ part = 'general' }) {
   const [mode, setMode] = useState(null)
   const [tipsEnabled, setTipsEnabled] = useState(null)
   const [taxRate, setTaxRate] = useState(null)
+  const [appointments, setAppointments] = useState(null)
 
   const currentMode = mode ?? settings?.mode ?? ''
   const currentTips = tipsEnabled ?? settings?.tipsEnabled ?? false
   const currentTaxRate = taxRate ?? (settings?.defaultTaxRate == null ? '' : String(settings.defaultTaxRate))
   let patch = {}, validationError = null
-  try { patch = settingsPatch(part, {mode,tipsEnabled,taxRate}) } catch (e) { validationError = e.message }
+  try { patch = settingsPatch(part, {mode,tipsEnabled,taxRate,appointmentsEnabled:appointments}) } catch (e) { validationError = e.message }
 
   if (isLoading) return <Skeleton className="h-48" aria-label="Cargando configuración" />
   if (isError) return <ErrorState title="No se pudo cargar la configuración" description={error?.message} onRetry={refetch} />
@@ -156,6 +157,13 @@ function GeneralTab({ part = 'general' }) {
           checked={currentTips}
           onChange={setTipsEnabled}
         />
+        <SwitchField touchTarget
+          id="appointments-enabled"
+          label="Citas"
+          description="Agenda citas con cliente y servicios, y cóbralas desde la caja. Se ven también en el calendario."
+          checked={appointments ?? settings?.appointmentsEnabled ?? false}
+          onChange={setAppointments}
+        />
         </>)}
         {part === 'advanced' && (
         <TextField
@@ -173,7 +181,7 @@ function GeneralTab({ part = 'general' }) {
         {validationError && <p role="alert" className="text-sm text-destructive">{validationError}</p>}
         <div className="flex justify-end">
           <Button
-            onClick={() => update.mutate(patch, {onSuccess:()=>{setMode(null);setTipsEnabled(null);setTaxRate(null)}})}
+            onClick={() => update.mutate(patch, {onSuccess:()=>{setMode(null);setTipsEnabled(null);setTaxRate(null);setAppointments(null)}})}
             disabled={update.isPending || Boolean(validationError) || !Object.keys(patch).length}
           >
             {update.isPending ? 'Guardando...' : 'Guardar cambios'}

@@ -164,6 +164,16 @@ enum PosTableStatus {
   @@map("pos_table_status")
 }
 
+enum PosAppointmentStatus {
+  SCHEDULED
+  ARRIVED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("pos_appointment_status")
+}
+
 enum PosReservationStatus {
   CONFIRMED
   SEATED
@@ -3182,6 +3192,7 @@ model PosOutlet {
   defaultStation PosKitchenStation? @relation("OutletDefaultStation", fields: [defaultStationId], references: [id], onDelete: SetNull)
   waiterShifts PosWaiterShift[]
 
+  appointments PosAppointment[]
   @@unique([companyId, code])
   @@index([companyId, enabled])
   @@map("pos_outlet")
@@ -3537,6 +3548,32 @@ model PosReservation {
   @@index([companyId, status])
   @@index([tableId, status])
   @@map("pos_reservation")
+}
+
+// Service appointments (estética, consultorio): booked with client and catalog
+// services, then charged from Caja. items: [{productId, variantId?, name, price}].
+model PosAppointment {
+  id              String               @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String               @db.Uuid @map("company_id")
+  outletId        String               @db.Uuid @map("outlet_id")
+  contactId       String?              @db.Uuid @map("contact_id")
+  customerName    String               @map("customer_name")
+  customerPhone   String?              @map("customer_phone")
+  startsAt        DateTime             @map("starts_at")
+  durationMinutes Int                  @default(60) @map("duration_minutes")
+  items           Json                 @default("[]")
+  notes           String?
+  status          PosAppointmentStatus @default(SCHEDULED)
+  orderId         String?              @db.Uuid @map("order_id")
+  createdById     String               @db.Uuid @map("created_by_id")
+  createdAt       DateTime             @default(now()) @map("created_at")
+  updatedAt       DateTime             @updatedAt @map("updated_at")
+
+  outlet PosOutlet @relation(fields: [outletId], references: [id], onDelete: Cascade)
+
+  @@index([companyId, startsAt])
+  @@index([companyId, status])
+  @@map("pos_appointment")
 }
 
 model PosKitchenStation {

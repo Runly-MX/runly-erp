@@ -6,7 +6,7 @@ export function selectPosSettings(response) {
 
 // General and Avanzado edit different fields. A save must not rewrite fields
 // that the operator did not edit (including values hidden on another tab).
-export function settingsPatch(part, { mode, tipsEnabled, taxRate }) {
+export function settingsPatch(part, { mode, tipsEnabled, taxRate, appointmentsEnabled = null }) {
   const patch = {}
   if (part === 'general') {
     if (mode !== null) {
@@ -14,6 +14,7 @@ export function settingsPatch(part, { mode, tipsEnabled, taxRate }) {
       patch.mode = mode
     }
     if (tipsEnabled !== null) patch.tipsEnabled = tipsEnabled
+    if (appointmentsEnabled !== null) patch.appointmentsEnabled = appointmentsEnabled
   } else if (taxRate !== null) {
     const value = String(taxRate).trim()
     if (!value || !Number.isFinite(Number(value)) || Number(value) < 0 || Number(value) > 100) throw new Error('Escribe una tasa de impuesto entre 0 y 100.')

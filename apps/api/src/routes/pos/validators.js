@@ -322,3 +322,29 @@ export const updateProductConfigSchema = z
     availableInPos: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Nada que actualizar." });
+
+const appointmentItemSchema = z.object({ productId: z.string().uuid(), variantId: z.string().uuid().nullable().optional() }).strict();
+
+export const createAppointmentSchema = z.object({
+  outletId: z.string().uuid(),
+  contactId: z.string().uuid().nullable().optional(),
+  customerName: z.string().trim().min(1).max(160),
+  customerPhone: optionalNullableText(60),
+  startsAt: z.string().datetime({ offset: true }),
+  durationMinutes: z.coerce.number().int().min(5).max(720).optional(),
+  items: z.array(appointmentItemSchema).max(20).optional(),
+  notes: optionalNullableText(1000),
+}).strict();
+
+export const updateAppointmentSchema = createAppointmentSchema.partial().strict();
+
+export const appointmentStatusSchema = z.object({
+  status: z.enum(["SCHEDULED", "ARRIVED", "COMPLETED", "CANCELLED", "NO_SHOW"]),
+  orderId: z.string().uuid().optional(),
+}).strict();
+
+export const listAppointmentsSchema = z.object({
+  from: z.string().datetime({ offset: true }),
+  to: z.string().datetime({ offset: true }),
+  outletId: z.string().uuid().optional(),
+});

@@ -9,6 +9,7 @@ import { Hono } from "hono";
 import { createPosFloorService } from "./pos-floor-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosReservationService } from "./pos-reservation-service.js";
+import { createPosCalendarBridge } from "./pos-calendar-bridge.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   assignWaiterSchema,
@@ -56,6 +57,9 @@ export function createPosFloorRoutes({ prisma, requirePermission }) {
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
   const reservationSvc = createPosReservationService({ prisma });
+  const calendar = createPosCalendarBridge({ prisma });
+  // Calendar mirroring runs after the response is decided and never fails it.
+  const mirror = (ctx, reservation) => { calendar.syncReservation({ ...ctx, reservation }).catch(() => {}); return reservation; };
 
   app.get("/pos/floors", requirePermission("pos.floor.read"), async (c) => {
     try {
@@ -249,7 +253,7 @@ export function createPosFloorRoutes({ prisma, requirePermission }) {
   app.post("/pos/reservations", requirePermission("pos.orders.create"), async (c) => {
     try {
       const data = await parseBody(c, createReservationSchema);
-      return c.json({ data: await reservationSvc.createReservation({ ...context(c), data }) }, 201);
+      return c.json({ data: mirror(context(c), await reservationSvc.createReservation({ ...context(c), data })) }, 201);
     } catch (err) {
       return handleError(c, err, "No se pudo crear la reservación.");
     }
@@ -269,7 +273,7 @@ export function createPosFloorRoutes({ prisma, requirePermission }) {
     try {
       const data = await parseBody(c, updateReservationSchema);
       return c.json({
-        data: await reservationSvc.updateReservation({ ...context(c), id: c.req.param("id"), data }),
+        data: mirror(context(c), await reservationSvc.updateReservation({ ...context(c), id: c.req.param("id"), data })),
       });
     } catch (err) {
       return handleError(c, err, "No se pudo actualizar la reservación.");

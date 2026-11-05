@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { runly } from '../../../lib/runly.js'
 
-// Modalities of the company's outlets, for the POS sidebar only.
+// Modalities of the company's outlets and the appointments switch, for the
+// POS sidebar only.
 export function usePosNavModes({ enabled, token, companyId }) {
   const query = useQuery({
     queryKey: ['pos-nav-modes', companyId, token],
@@ -10,5 +11,6 @@ export function usePosNavModes({ enabled, token, companyId }) {
     staleTime: 60_000,
     retry: false,
   })
-  return query.data?.data?.outlets?.map((o) => o.mode) ?? null
+  const data = query.data?.data
+  return { modes: data?.outlets?.map((o) => o.mode) ?? null, appointments: Boolean(data?.appointmentsEnabled) }
 }

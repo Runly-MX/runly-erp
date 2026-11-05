@@ -5,6 +5,7 @@ import { createPosSessionService } from "./pos-session-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 import { createPosFloorRoutes } from "./pos-floor-routes.js";
+import { createPosAppointmentRoutes } from "./pos-appointment-routes.js";
 import { createPosModifierService } from "./pos-modifier-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
@@ -59,6 +60,7 @@ export function createPosRouter({ prisma, requirePermission, requireAnyPermissio
   const sessionReader = requireAnyPermission ? requireAnyPermission(['pos.sessions.read','pos.caja.read']) : requirePermission('pos.sessions.read');
 
   app.route("", createPosFloorRoutes({ prisma, requirePermission }));
+  if (requireAnyPermission) app.route("", createPosAppointmentRoutes({ prisma, requireAnyPermission }));
 
   app.patch("/pos/settings", requirePermission("pos.settings.manage"), async (c) => {
     try {

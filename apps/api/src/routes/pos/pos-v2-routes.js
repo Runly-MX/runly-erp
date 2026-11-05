@@ -6,6 +6,7 @@ import {currentSessionQuerySchema,printJobSchema,printResultSchema} from './pos-
 import { Hono } from 'hono';
 import { CommerceError, contextQuerySchema, listOrdersSchema, parse, resourceIdSchema, refundPreviewSchema, shiftStatusSchema } from './pos-contracts.js';
 import { createPosRecoveryService } from './pos-recovery-service.js';
+import { createPosCalendarBridge } from './pos-calendar-bridge.js';
 import { getActorId, getCompanyId,PosServiceError } from './service-helpers.js';
 import { orderStatusSchema, salesChannelSchema } from './validators.js';
 
@@ -20,6 +21,7 @@ export function createPosV2Router({ prisma, requirePermission, requireAnyPermiss
   const app = new Hono();
   const service = createPosRecoveryService({ prisma });
   const receipts=createPosReceiptService({prisma});
+  const calendar=createPosCalendarBridge({prisma});
   const any = requireAnyPermission ?? ((keys) => requirePermission(keys[0]));
 
   app.use('/pos/v2/*', async (c, next) => {
@@ -110,6 +112,7 @@ export function createPosV2Router({ prisma, requirePermission, requireAnyPermiss
         const p=permissions(c);if(!p.isAdmin&&!['pos.orders.update','pos.admin.update'].some(k=>p.permissionSet.has(k)))throw new CommerceError('FORBIDDEN','No tienes permiso para reasignar a otro mesero.',403);
       }
       const result = await service.execute(action, { companyId: getCompanyId(c), actorId: getActorId(c) }, body, params, key);
+      if (action === 'closeSession') calendar.syncCorte({ companyId: getCompanyId(c), actorId: getActorId(c), sessionId: params.sessionId }).catch(() => {});
       // Notification failure never turns a committed payment into an apparent failure.
       const updatedOrderId=params.orderId??result.orderId;
       if (broadcaster && updatedOrderId) Promise.resolve().then(() => broadcaster.broadcastToCompany(getCompanyId(c), 'pos.order.updated', {
