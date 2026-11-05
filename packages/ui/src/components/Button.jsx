@@ -64,6 +64,8 @@ const Button = forwardRef(function Button(
       ref={ref}
       data-variant={variant ?? "default"}
       disabled={disabled || loading}
+      // Never an implicit submit: inside a form, only type="submit" sends it.
+      type={asChild ? undefined : "button"}
       {...props}
     >
       {asChild ? children : (

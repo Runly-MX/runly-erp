@@ -92,6 +92,11 @@ export default function InventoryItemForm() {
 
   const itemQuery = useInventoryItem(isEdit ? id : null)
   const editItem = itemQuery.data?.data ?? itemQuery.data ?? null
+  // The form starts from the item as first loaded: a background refetch (e.g.
+  // after assigning from the form, or on window focus) would reset RunlyForm
+  // and drop the user's unsaved edits.
+  const [formItem, setFormItem] = useState(editItem)
+  if (editItem && formItem?.id !== editItem.id) setFormItem(editItem)
   // Legacy purchase fields only stay editable on items that already carry them;
   // new commercial data is recorded in Compras.
   const showLegacyPurchase = Boolean(isEdit && editItem?.hasLegacyPurchaseData)
@@ -169,7 +174,7 @@ export default function InventoryItemForm() {
           targetId={id}
           key={isEdit ? 'edit' : `create-${formKey}`}
           blueprint={blueprint}
-          initialData={isEdit ? editItem : createInitial}
+          initialData={isEdit ? formItem : createInitial}
           submitRequest={!isEdit && settings.multi ? submitBulk : null}
           fieldPins={isEdit ? null : {
             pinned: settings.pinned,
