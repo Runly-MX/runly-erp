@@ -134,11 +134,10 @@ async function fetchDefinitions({ apiBaseUrl, apiPath, categoryId, headers }) {
   return Array.isArray(json.data) ? json.data : Array.isArray(json) ? json : [];
 }
 
-// Custom fields of a record, all opt-in: a field is shown only when the record
-// already holds a value for it (or it is on-demand), or the user added it from
-// the "Agregar campo" search / the inline creator. Empty fields never appear on
-// their own — the record's type only ranks them first in the search. Each shown
-// field can be removed. Values are written into formValues under
+// Custom fields of a record: the ones set to appear for the record's type (or
+// for all types) show on their own; the rest are opt-in — shown when the record
+// already holds a value, or added from the "Agregar campo" search / the inline
+// creator. Each shown field can be removed. Values are written into formValues under
 // `${valuePrefix}.${fieldKey}`; RunlyForm turns them into `customValues` +
 // `removedCustomFieldIds`. `config.createPath` (POST) enables creating
 // definitions inline.
@@ -173,12 +172,30 @@ export function DynamicFieldsSection({
     });
   }, [initialEntries, addedExtras, removedIds]);
 
+  // Automatic fields: the API returns the type's fields plus the all-types ones
+  // (only the all-types ones without a type), never on-demand ones.
+  const [typeLibrary, setTypeLibrary] = useState([]);
+  const headersKey = JSON.stringify(requestHeaders);
   useEffect(() => {
-    onDefinitionsChange?.(extraDefs.map((def) => ({ ...def, _extra: true })));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [extraDefs]);
+    if (!config?.apiPath) return undefined;
+    let cancelled = false;
+    fetchDefinitions({ apiBaseUrl, apiPath: config.apiPath, categoryId: categoryValue || null, headers: JSON.parse(headersKey) })
+      .then((rows) => { if (!cancelled) setTypeLibrary(rows); })
+      .catch(() => { if (!cancelled) setTypeLibrary([]); });
+    return () => { cancelled = true; };
+  }, [apiBaseUrl, config?.apiPath, categoryValue, headersKey]);
+  const autoDefs = useMemo(() => {
+    const extraIds = new Set(extraDefs.map((def) => def.id));
+    return typeLibrary.filter((def) => def?.id && !def.onDemand && !extraIds.has(def.id) && !removedIds.includes(def.id));
+  }, [typeLibrary, extraDefs, removedIds]);
+  const shownDefs = useMemo(() => [...autoDefs, ...extraDefs], [autoDefs, extraDefs]);
 
-  const shownIds = new Set(extraDefs.map((def) => def.id));
+  useEffect(() => {
+    onDefinitionsChange?.([...autoDefs, ...extraDefs.map((def) => ({ ...def, _extra: true }))]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoDefs, extraDefs]);
+
+  const shownIds = new Set(shownDefs.map((def) => def.id));
   const sameType = (def) => Boolean(categoryValue) && String(def.categoryId ?? "") === String(categoryValue);
   const libraryOptions = (library ?? [])
     .filter((def) => !shownIds.has(def.id))
@@ -245,8 +262,8 @@ export function DynamicFieldsSection({
 
   return (
     <div className="space-y-4">
-      {extraDefs.length > 0 ? (
-        <div className="grid gap-4 md:grid-cols-2">{extraDefs.map((def) => renderControl(def, true))}</div>
+      {shownDefs.length > 0 ? (
+        <div className="grid gap-4 md:grid-cols-2">{shownDefs.map((def) => renderControl(def, true))}</div>
       ) : (
         <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin campos personalizados. Busca y agrega solo los que necesites.</p>
       )}
@@ -277,7 +294,7 @@ export function DynamicFieldsSection({
           onClose={() => setCreator({ open: false, label: "" })}
           createPath={config.createPath}
           categoryValue={categoryValue}
-          existingKeys={[...(library ?? []), ...extraDefs].map((def) => def.fieldKey)}
+          existingKeys={[...(library ?? []), ...shownDefs].map((def) => def.fieldKey)}
           apiBaseUrl={apiBaseUrl}
           token={token}
           companyId={companyId}
