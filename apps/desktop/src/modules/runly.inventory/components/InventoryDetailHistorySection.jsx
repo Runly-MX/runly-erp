@@ -11,6 +11,8 @@ export default function InventoryDetailHistorySection({ data, apiBaseUrl, token,
       entityType="InvItem"
       entityId={data?.id}
       emptyMessage="Sin cambios registrados para este activo."
+      // Short card; the rest is in "Ver historial completo".
+      limit={4}
       changeLabels={INVENTORY_ACTIVITY_FIELD_LABELS}
     />
   )

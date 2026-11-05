@@ -191,9 +191,9 @@ test('remote image guard rejects internal addresses and non-http links', () => {
   assert.deepEqual(splitImageUrls('https://a.com/1.jpg, ftp://x, http://b.com/2.png'), ['https://a.com/1.jpg', 'http://b.com/2.png']);
 });
 
-test('itemOrderBy sorts relation columns by name and falls back to newest', () => {
-  assert.deepEqual(itemOrderBy('brandName', 'asc'), [{ brand: { name: 'asc' } }, { createdAt: 'desc' }]);
-  assert.deepEqual(itemOrderBy('nope', 'asc'), { createdAt: 'desc' });
+test('itemOrderBy sorts relation columns by name and falls back to last updated', () => {
+  assert.deepEqual(itemOrderBy('brandName', 'asc'), [{ brand: { name: 'asc' } }, { updatedAt: 'desc' }]);
+  assert.deepEqual(itemOrderBy('nope', 'asc'), [{ updatedAt: 'desc' }, { createdAt: 'desc' }]);
 });
 
 test('buildAutoItemName prefers brand + model, then type, then the asset tag', async () => {

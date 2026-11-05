@@ -50,7 +50,7 @@ function normalizePage(page) {
 }
 
 // Table sort keys -> Prisma orderBy. Relation name columns sort by the related
-// row's name; unknown keys fall back to newest first.
+// row's name; unknown keys fall back to most recently updated first.
 const ITEM_SORTS = {
   assetTag: (dir) => ({ assetTag: dir }),
   folio: (dir) => ({ folio: dir }),
@@ -91,8 +91,8 @@ export function itemEventPayload(item) {
 export function itemOrderBy(sortBy, sortDir) {
   const dir = sortDir === 'asc' ? 'asc' : 'desc';
   const build = ITEM_SORTS[sortBy];
-  if (!build) return { createdAt: 'desc' };
-  return [build(dir), { createdAt: 'desc' }].flat();
+  if (!build) return [{ updatedAt: 'desc' }, { createdAt: 'desc' }];
+  return [build(dir), { updatedAt: 'desc' }].flat();
 }
 
 // Name is optional for users: a blank name is generated from what the item
