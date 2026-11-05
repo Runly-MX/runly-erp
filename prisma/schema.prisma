@@ -4382,6 +4382,7 @@ model InvItem {
   vendorName    String?   @db.VarChar(255) @map("vendor_name")
   invoiceNumber String?   @db.VarChar(100) @map("invoice_number")
   acquisitionOrigin String @default("OTHER") @db.VarChar(30) @map("acquisition_origin")
+  receivedAt    DateTime? @db.Date @map("received_at")
   warrantyExpiry DateTime? @db.Date @map("warranty_expiry")
   warrantyNotes  String?   @db.VarChar(500) @map("warranty_notes")
   licenseKey    String?   @db.VarChar(500) @map("license_key")

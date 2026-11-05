@@ -10,7 +10,7 @@ test('detail: purchase order and invoice live in Identificación; one acquisitio
   const sections = INVENTORY_ITEM_DETAIL.schema.sections
   assert.ok(fieldsOf(INVENTORY_ITEM_DETAIL, 'Identificación').includes('purchaseOrderLink'))
   assert.ok(fieldsOf(INVENTORY_ITEM_DETAIL, 'Identificación').includes('purchaseInvoiceLink'))
-  assert.deepEqual(fieldsOf(INVENTORY_ITEM_DETAIL, 'Adquisición y garantía'), ['acquisitionOrigin', 'warrantyExpiry', 'warrantyNotes'])
+  assert.deepEqual(fieldsOf(INVENTORY_ITEM_DETAIL, 'Adquisición y garantía'), ['acquisitionOrigin', 'receivedAt', 'warrantyExpiry', 'warrantyNotes'])
   assert.ok(!labels(INVENTORY_ITEM_DETAIL).includes('Garantía'))
   assert.ok(!fieldsOf(INVENTORY_ITEM_DETAIL, 'Ubicación').includes('acquisitionOrigin'))
   const legacy = sections.find((s) => s.id === 'legacy-purchase')
@@ -39,7 +39,7 @@ test('form: pickers only with Compras access, merged card, files aside after Ide
   assert.ok(!fieldsOf(without, 'Identificación').includes('purchaseOrderId'))
   const form = buildItemFormBlueprint(true, { showPurchaseLinks: true })
   assert.deepEqual(fieldsOf(form, 'Identificación').slice(-2), ['purchaseOrderId', 'purchaseInvoiceId'])
-  assert.deepEqual(fieldsOf(form, 'Adquisición y garantía'), ['acquisitionOrigin', 'warrantyExpiry', 'warrantyNotes'])
+  assert.deepEqual(fieldsOf(form, 'Adquisición y garantía'), ['acquisitionOrigin', 'receivedAt', 'warrantyExpiry', 'warrantyNotes'])
   assert.ok(!labels(form).includes('Garantía') && !labels(form).includes('Origen de adquisición'))
   const files = form.schema.sections.find((s) => s.id === 'attachments')
   assert.equal(files.placement, 'aside')

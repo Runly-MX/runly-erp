@@ -76,6 +76,7 @@ export const INVENTORY_ITEM_DETAIL = {
         columns: 2,
         fields: [
           { field: 'acquisitionOrigin', label: 'Origen de adquisición', type: 'select', options: ACQUISITION_ORIGIN_OPTIONS, icon: 'Receipt' },
+          { field: 'receivedAt', label: 'Fecha de recepción', type: 'date', icon: 'PackageCheck' },
           { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'CalendarDays' },
           { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown', icon: 'FileText' },
         ],

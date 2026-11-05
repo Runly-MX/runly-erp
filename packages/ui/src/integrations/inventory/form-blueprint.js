@@ -127,6 +127,7 @@ export const INVENTORY_ITEM_FORM = {
         defaultCollapsed: true,
         fields: [
           { field: 'acquisitionOrigin', label: 'Origen de adquisición', type: 'select', icon: 'Receipt', options: ACQUISITION_ORIGIN_OPTIONS },
+          { field: 'receivedAt', label: 'Fecha de recepción', type: 'date', icon: 'PackageCheck' },
           { field: 'warrantyExpiry', label: 'Vencimiento de garantía', type: 'date', icon: 'ShieldCheck' },
           { field: 'warrantyNotes', label: 'Notas de garantía', type: 'markdown' },
         ],

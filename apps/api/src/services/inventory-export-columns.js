@@ -60,6 +60,7 @@ export const EXPORT_COLUMNS = [
   { key: 'vendorName', label: 'Proveedor', group: 'purchase', default: true, value: ({ item }) => item.vendorName },
   { key: 'invoiceNumber', label: 'Factura', group: 'purchase', default: true, value: ({ item }) => item.invoiceNumber },
   { key: 'acquisitionOrigin', label: 'Origen de adquisición', group: 'purchase', default: true, value: ({ item }) => ORIGINS[item.acquisitionOrigin] ?? item.acquisitionOrigin },
+  { key: 'receivedAt', label: 'Fecha de recepción', group: 'purchase', default: true, value: ({ item }) => day(item.receivedAt) },
   { key: 'warrantyExpiry', label: 'Vencimiento de garantía', group: 'purchase', default: true, value: ({ item }) => day(item.warrantyExpiry) },
   { key: 'warrantyNotes', label: 'Notas de garantía', group: 'purchase', default: true, value: ({ item }) => item.warrantyNotes },
   { key: 'licenseExpiry', label: 'Vencimiento de licencia', group: 'purchase', default: true, value: ({ item }) => day(item.licenseExpiry) },

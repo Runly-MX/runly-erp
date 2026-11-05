@@ -19,6 +19,7 @@ export const UPDATABLE_FIELDS = [
   { key: 'invoiceNumber', label: 'Número de factura', kind: 'text' },
   { key: 'purchaseDate', label: 'Fecha de compra', kind: 'date' },
   { key: 'purchasePrice', label: 'Precio de compra', kind: 'number' },
+  { key: 'receivedAt', label: 'Fecha de recepción', kind: 'date' },
   { key: 'warrantyExpiry', label: 'Vencimiento de garantía', kind: 'date' },
   { key: 'warrantyNotes', label: 'Notas de garantía', kind: 'text' },
 ];
