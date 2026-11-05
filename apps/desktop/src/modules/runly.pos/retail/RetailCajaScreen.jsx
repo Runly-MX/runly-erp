@@ -23,7 +23,7 @@ import { useRetailOrder } from './hooks/useRetailOrder.js'
 import {usePendingOperations} from './hooks/usePendingOperations.js'
 import {readPending,writePending} from './lib/pendingCommands.js'
 import { classifyPosError } from './lib/retailErrors.js'
-import { activeLines, formatMoney, itemCount } from './lib/retailRules.js'
+import { activeLines, formatMoney, itemCount, quantitiesByProduct } from './lib/retailRules.js'
 
 // Side cart from 1024 px (landscape tablet, terminal, desktop); below that
 // the cart is a bottom PeekSheet. Only one of them is mounted.
@@ -216,6 +216,7 @@ function RetailCajaView() {
             token={token}
             outletId={outlet.id}
             currency={currency}
+            inCart={completed ? {} : quantitiesByProduct(sale.order)}
             disabled={!online || Boolean(sale.pending) || Boolean(completed) || sale.loading || !caps.charge || Boolean(unresolved.length)}
             onAdd={(item) => sale.addItem(item)}
           />

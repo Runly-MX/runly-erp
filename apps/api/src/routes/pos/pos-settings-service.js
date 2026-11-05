@@ -35,10 +35,31 @@ export function createPosSettingsService({ prisma }) {
   async function updateSettings({ companyId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const before = await getSettings({ companyId: scopedCompanyId });
-    const updated = await prisma.posSettings.update({
-      where: { companyId: scopedCompanyId },
-      data: cleanData(data),
-    });
+    const clean = cleanData(data);
+    const modeChanged = Boolean(clean.mode);
+    // A retail-only outlet can no longer charge table accounts: close them first.
+    if (clean.mode === "RETAIL" && before.mode !== "RETAIL") {
+      const openTables = await prisma.posOrder.count({
+        where: {
+          companyId: scopedCompanyId,
+          experience: "RESTAURANT",
+          status: { in: ["DRAFT", "OPEN", "SENT", "PARTIALLY_SERVED", "SERVED"] },
+        },
+      });
+      if (openTables) {
+        throw new PosServiceError(
+          `Hay ${openTables} cuenta(s) de mesa abiertas. Cóbralas o cancélalas antes de cambiar a Tienda.`,
+          409,
+        );
+      }
+    }
+    // The business mode is the only mode the admin edits: every outlet follows it.
+    const [updated] = await prisma.$transaction([
+      prisma.posSettings.update({ where: { companyId: scopedCompanyId }, data: clean }),
+      ...(modeChanged
+        ? [prisma.posOutlet.updateMany({ where: { companyId: scopedCompanyId }, data: { mode: clean.mode } })]
+        : []),
+    ]);
     await writeAudit(prisma, {
       actorId,
       entityType: "PosSettings",
@@ -60,9 +81,11 @@ export function createPosSettingsService({ prisma }) {
 
   async function createOutlet({ companyId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    const { mode } = await getSettings({ companyId: scopedCompanyId });
     const outlet = await prisma.posOutlet.create({
       data: {
         companyId: scopedCompanyId,
+        mode,
         ...cleanData(data),
       },
     });

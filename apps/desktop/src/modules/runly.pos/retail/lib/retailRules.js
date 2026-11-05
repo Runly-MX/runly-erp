@@ -20,6 +20,17 @@ export function formatQuantity(value) {
   return Number.isInteger(n) ? String(n) : n.toLocaleString('es-MX', { maximumFractionDigits: 3 })
 }
 
+// Units of each product already in the sale (all its variants together), for
+// the counter on the product cards.
+export function quantitiesByProduct(order) {
+  const totals = {}
+  for (const line of order?.lines ?? []) {
+    if (line.voided || !line.productId) continue
+    totals[line.productId] = (totals[line.productId] ?? 0) + Number(line.quantity || 0)
+  }
+  return totals
+}
+
 // Contract format for money input: up to 9 integer digits and 2 decimals.
 export function toMoneyString(value) {
   const n = Number(value)

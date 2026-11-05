@@ -34,6 +34,10 @@ export function useUpdatePosSettings() {
       toast.success('Configuración guardada')
       qc.setQueryData(['pos','settings',companyId,token],result)
       qc.invalidateQueries({ queryKey: ['pos', 'settings'] })
+      // The business mode is applied to every outlet: sidebar and register follow it.
+      qc.invalidateQueries({ queryKey: ['pos', 'outlets'] })
+      qc.invalidateQueries({ queryKey: ['pos-nav-modes'] })
+      qc.invalidateQueries({ queryKey: ['pos-retail-context'] })
     },
     onError: (err, __, ctx) => {
       toast.dismiss(ctx?.toastId)

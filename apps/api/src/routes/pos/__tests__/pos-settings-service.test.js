@@ -9,8 +9,11 @@ function makePrisma() {
   const terminals = new Map();
   const audits = [];
 
-  return {
+  const prisma = {
     audits,
+    openTableOrders: 0,
+    $transaction: async (ops) => Promise.all(ops),
+    posOrder: { count: async () => prisma.openTableOrders },
     posSettings: {
       findUnique: async ({ where }) => settings.get(where.companyId) ?? null,
       create: async ({ data }) => {
@@ -41,6 +44,9 @@ function makePrisma() {
         outlets.set(where.id, row);
         return row;
       },
+      updateMany: async ({ where, data }) => {
+        for (const row of outlets.values()) if (row.companyId === where.companyId) Object.assign(row, data);
+      },
     },
     posTerminal: {
       findMany: async ({ where }) =>
@@ -67,6 +73,7 @@ function makePrisma() {
       },
     },
   };
+  return prisma;
 }
 
 describe("createPosSettingsService", () => {
@@ -108,6 +115,31 @@ describe("createPosSettingsService", () => {
     assert.equal(outlet.code, "CENTRO");
     const rows = await svc.listOutlets({ companyId: "company-1" });
     assert.equal(rows.length, 1);
+  });
+
+  it("applies the business mode to every outlet and to new ones", async () => {
+    const prisma = makePrisma();
+    const svc = createPosSettingsService({ prisma });
+    const scope = { companyId: "company-1", actorId: "user-1" };
+    const first = await svc.createOutlet({ ...scope, data: { name: "Centro" } });
+    assert.equal(first.mode, "RESTAURANT");
+
+    await svc.updateSettings({ ...scope, data: { mode: "RETAIL" } });
+    const second = await svc.createOutlet({ ...scope, data: { name: "Norte" } });
+
+    assert.deepEqual((await svc.listOutlets(scope)).map((o) => o.mode), ["RETAIL", "RETAIL"]);
+    assert.equal(second.mode, "RETAIL");
+  });
+
+  it("refuses to switch to retail while table accounts are open", async () => {
+    const prisma = makePrisma();
+    prisma.openTableOrders = 2;
+    const svc = createPosSettingsService({ prisma });
+
+    await assert.rejects(
+      () => svc.updateSettings({ companyId: "company-1", actorId: "user-1", data: { mode: "RETAIL" } }),
+      (err) => err instanceof PosServiceError && err.status === 409,
+    );
   });
 
   it("throws 404 when updating an outlet outside company scope", async () => {

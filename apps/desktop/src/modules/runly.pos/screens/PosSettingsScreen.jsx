@@ -149,7 +149,7 @@ function GeneralTab({ part = 'general' }) {
       <CardContent className="flex flex-col gap-6">
         {part === 'general' && (<>
         <div className="flex flex-col gap-1.5">
-          <SelectField contentClassName={POS_ADMIN_TOUCH} label="Modalidad de negocio" value={currentMode} onChange={setMode} options={MODE_OPTIONS} placeholder="Selecciona la modalidad" />
+          <SelectField contentClassName={POS_ADMIN_TOUCH} label="Modalidad de negocio" value={currentMode} onChange={setMode} options={MODE_OPTIONS} placeholder="Selecciona la modalidad" hint="Se aplica a todas las sucursales. Tienda oculta mesas, Comandero y Cocina." />
         </div>
         <Separator />
         <SwitchField touchTarget

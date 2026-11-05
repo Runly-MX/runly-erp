@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { activeLines, changePreview, itemCount, orderKey, selectionKey, tenderSuggestions, toMoneyString } from '../retailRules.js'
+import { activeLines, changePreview, itemCount, orderKey, quantitiesByProduct, selectionKey, tenderSuggestions, toMoneyString } from '../retailRules.js'
 import { classifyPosError } from '../retailErrors.js'
 
 test('cash preview: owed 100, received 200 → change 100 (applied stays 100)', () => {
@@ -42,4 +42,14 @@ test('POS errors map to the states the cashier sees', () => {
   assert.match(classifyPosError({ status: 409, code: 'REFUND_REQUIRED' }).message, /Devuelve/)
   assert.equal(classifyPosError({ status: 409, code: 'INVALID_TRANSITION', message: 'La sesión de caja está cerrada.' }).message, 'La sesión de caja está cerrada.')
   assert.equal(classifyPosError({ status: 403, code: 'FORBIDDEN' }).kind, 'forbidden')
+})
+
+test('card counter: units per product across variants, voided lines ignored', () => {
+  const order = { lines: [
+    { productId: 'p1', variantId: 'v1', quantity: '2.000' },
+    { productId: 'p1', variantId: 'v2', quantity: '1' },
+    { productId: 'p2', quantity: '3', voided: true },
+  ] }
+  assert.deepEqual(quantitiesByProduct(order), { p1: 3 })
+  assert.deepEqual(quantitiesByProduct(null), {})
 })
