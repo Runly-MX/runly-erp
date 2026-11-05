@@ -5,6 +5,7 @@ import { Lock, Repeat, Settings2, Store, Wifi, WifiOff } from 'lucide-react'
 import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../../company/ActiveCompanyProvider'
 import PosContextGate from '../../retail/components/PosContextGate.jsx'
+import PosNav from '../../components/PosNav.jsx'
 import { useOnline } from '../../retail/components/PosOperationBar.jsx'
 import { useRetailContext } from '../../retail/hooks/useRetailContext.js'
 import { classifyPosError } from '../../retail/lib/retailErrors.js'
@@ -70,11 +71,12 @@ export default function RestaurantShell({ title, requires, nav, children, action
 
   return (
     <div className="flex h-full min-h-0 flex-col bg-[hsl(var(--background))]">
-      <header className="flex min-h-14 flex-wrap items-center gap-x-3 gap-y-1 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
-        <div className="min-w-0">
+      <header className="flex min-h-14 flex-wrap items-center gap-x-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pl-3 pr-2 sm:pl-4 sm:pr-3">
+        <div className="min-w-0 py-2">
           <h1 className="truncate text-base font-bold text-[hsl(var(--foreground))]">{title}{outlet ? ` · ${outlet.name}` : ''}</h1>
           {userProfile?.displayName && <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{userProfile.displayName}</p>}
         </div>
+        <PosNav exit className="order-last w-full self-end border-t border-[hsl(var(--border))] lg:order-none lg:ml-2 lg:w-auto lg:border-t-0" />
         {nav?.map((item) => (
           <Link key={item.to} to={item.to} className="inline-flex h-11 items-center rounded-md border border-[hsl(var(--border))] px-3 text-sm font-semibold text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">{item.label}</Link>
         ))}
