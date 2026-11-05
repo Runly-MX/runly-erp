@@ -124,16 +124,16 @@ export function ModuleSidebar({
             "hover:bg-[hsl(var(--muted))]",
             "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
             isActive
-              ? "text-[hsl(var(--foreground))] font-medium"
+              ? "text-[hsl(var(--foreground))] font-semibold"
               : "text-[hsl(var(--muted-foreground))]",
           )}
           style={
             isActive
               ? {
-                  borderLeft: `2px solid ${module.color}`,
-                  backgroundColor: `${module.color}14`,
+                  borderLeft: `3px solid ${module.color}`,
+                  backgroundColor: `${module.color}2e`,
                 }
-              : { borderLeft: "2px solid transparent" }
+              : { borderLeft: "3px solid transparent" }
           }
         >
           <NavIcon
@@ -186,10 +186,10 @@ export function ModuleSidebar({
           style={
             isGroupActive && (!isOpen || collapsed)
               ? {
-                  borderLeft: `2px solid ${module.color}`,
-                  backgroundColor: `${module.color}14`,
+                  borderLeft: `3px solid ${module.color}`,
+                  backgroundColor: `${module.color}2e`,
                 }
-              : { borderLeft: "2px solid transparent" }
+              : { borderLeft: "3px solid transparent" }
           }
         >
           <NavIcon
@@ -248,7 +248,7 @@ export function ModuleSidebar({
                         "focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]",
                         isChildActive ? "font-medium text-[hsl(var(--foreground))]" : "text-[hsl(var(--muted-foreground))]",
                       )}
-                      style={isChildActive ? { backgroundColor: `${module.color}12` } : {}}
+                      style={isChildActive ? { backgroundColor: `${module.color}24` } : {}}
                     >
                       <span className="truncate">{child.label}</span>
                       {navBadges[child.fullPath] > 0 && (
@@ -294,7 +294,7 @@ export function ModuleSidebar({
                     )}
                     style={
                       isChildActive
-                        ? { backgroundColor: `${module.color}12` }
+                        ? { backgroundColor: `${module.color}24` }
                         : {}
                     }
                   >
