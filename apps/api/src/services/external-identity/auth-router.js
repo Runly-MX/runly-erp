@@ -4,8 +4,10 @@
 import { Hono } from 'hono'
 import { z } from 'zod'
 import { getCookie, setCookie, deleteCookie } from 'hono/cookie'
+import { bodyLimit } from 'hono/body-limit'
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js'
 import { ExternalIdentityError, PASSWORD_MAX, PASSWORD_MIN, publicAccount } from './identity-service.js'
+import { MAX_UPLOAD_BYTES } from './files-service.js'
 
 const email = z.string().trim().email().max(254)
 const password = z.string().min(PASSWORD_MIN).max(PASSWORD_MAX)
@@ -48,12 +50,14 @@ export function requireExternalAccount({ identity, resolveRealm }) {
 }
 
 // verifyHuman({ c, realm, token }) -> boolean, optional (website: Turnstile when the site has a key).
+// files (createExternalFiles) is optional: without it the /files routes are not mounted.
 export function createExternalAuthRouter({
-  identity, resolveRealm, verifyHuman = null,
+  identity, resolveRealm, verifyHuman = null, files = null,
   limiters = {
     login: createTokenBucketLimiter({ capacity: 10, refillPerSecond: 10 / 60 }),
     register: createTokenBucketLimiter({ capacity: 5, refillPerSecond: 5 / 60 }),
     email: createTokenBucketLimiter({ capacity: 3, refillPerSecond: 3 / 60 }),
+    upload: createTokenBucketLimiter({ capacity: 10, refillPerSecond: 10 / 60 }),
   },
 }) {
   const app = new Hono()
@@ -70,7 +74,10 @@ export function createExternalAuthRouter({
     const realm = await resolveRealm(c)
     if (!realm?.enabled) return c.json({ error: 'Recurso no encontrado.', code: 'NOT_FOUND' }, 404)
     if (c.req.method !== 'GET') {
-      if (!c.req.header('content-type')?.includes('application/json')) return c.json({ error: 'Solicitud no válida.', code: 'VALIDATION_ERROR' }, 415)
+      // Raw image bodies (uploads) are not CORS-simple either, so they keep the same guarantee.
+      const type = c.req.header('content-type') ?? ''
+      const upload = c.req.method === 'POST' && c.req.path.endsWith('/files') && type.startsWith('image/')
+      if (!upload && !type.includes('application/json')) return c.json({ error: 'Solicitud no válida.', code: 'VALIDATION_ERROR' }, 415)
       const origin = c.req.header('origin')
       if (origin && new URL(origin).host !== c.req.header('host')) return c.json({ error: 'Origen no permitido.', code: 'FORBIDDEN' }, 403)
     }
@@ -144,6 +151,27 @@ export function createExternalAuthRouter({
     clearSessionCookie(c)
     return c.body(null, 204)
   })
+
+  if (files) {
+    app.get('/files', signedIn, async (c) => c.json({ data: await files.list({ realm: c.get('externalRealm'), account: c.get('externalAccount'), purpose: c.req.query('purpose') || null }) }))
+    const tooLarge = bodyLimit({ maxSize: MAX_UPLOAD_BYTES, onError: (c) => c.json({ error: 'La imagen debe pesar menos de 8 MB.', code: 'FILE_TOO_LARGE' }, 413) })
+    app.post('/files', limit('upload', clientIp), signedIn, tooLarge, async (c) => {
+      const bytes = Buffer.from(await c.req.arrayBuffer())
+      const file = await files.upload({ realm: c.get('externalRealm'), account: c.get('externalAccount'), purpose: c.req.query('purpose') || 'image', bytes })
+      return c.json({ data: file }, 201)
+    })
+    // Served by the realm's own host and only to the owner: private cache, no sniffing, inline image only.
+    app.get('/files/:fileId', signedIn, async (c) => {
+      const { file, bytes } = await files.read({ realm: c.get('externalRealm'), account: c.get('externalAccount'), fileId: c.req.param('fileId') })
+      c.header('Content-Type', file.mimeType); c.header('Cache-Control', 'private, max-age=300'); c.header('X-Content-Type-Options', 'nosniff')
+      c.header('Content-Security-Policy', "default-src 'none'; sandbox")
+      return c.body(bytes)
+    })
+    app.delete('/files/:fileId', signedIn, async (c) => {
+      await files.remove({ realm: c.get('externalRealm'), account: c.get('externalAccount'), fileId: c.req.param('fileId') })
+      return c.body(null, 204)
+    })
+  }
 
   return app
 }

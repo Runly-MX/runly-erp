@@ -78,6 +78,54 @@ All four tables are core Prisma models; ids are UUID v7.
   - Disabling an account signs it out everywhere, and the next request answers 401.
   - Email links are single use: a conditional update stops two concurrent uses from both succeeding.
 
+## Files (private bucket `runly-external`)
+
+External accounts can upload images, kept apart from everything else in Runly:
+
+- **Storage:**
+  - Bytes go to the private bucket `runly-external`, created at API boot with `allowed_mime_types = image/webp` and a 10 MB limit.
+  - Object keys follow `<companyId>/<realmId>/<accountId>/<purpose>-<timestamp>-<random>.webp`.
+  - The bucket is never public, and the browser never talks to Supabase.
+- **Metadata** lives in `external_file` (realm, account, company, purpose, object key, mime, size). It is not stored in `FileAsset`, so these files never show up in runly.files and are never tied to a Runly user.
+- **Re-encoding:**
+  - Every upload is decoded and re-encoded with sharp to WebP, with EXIF orientation applied and metadata stripped, including GPS.
+  - Images are resized to fit the purpose.
+  - SVG and anything that fails to decode are rejected (415).
+  - Bytes a stranger sent are never served as-is.
+- **Purposes** (`FILE_PURPOSES` in `files-service.js`):
+  - `avatar`: 512 px, single. A new avatar replaces the old one and the account's `avatar_file_id` points to it.
+  - `image`: 2048 px, multiple.
+- **Limits:** 8 MB per upload, enforced by Hono `bodyLimit` even without `Content-Length`; 50 MB per account; upload rate limit of 10/min per IP.
+- **Serving:**
+  - `GET /files/:fileId` on the realm's own host, owner only. A file of another account or another realm answers 404.
+  - Response headers: `Cache-Control: private`, `nosniff`, and a sandboxing CSP.
+  - Because images come from the page's own origin, site pages keep `img-src 'self'`.
+
+Routes are mounted only when the consumer passes `files` to `createExternalAuthRouter`:
+
+| Method | Path | Notes |
+|---|---|---|
+| GET | `/files?purpose=` | List the caller's files. |
+| POST | `/files?purpose=avatar\|image` | The raw image is the body (`Content-Type: image/*`). Answers `201 { data }`. |
+| GET | `/files/:fileId` | The bytes, to the owner only. |
+| DELETE | `/files/:fileId` | Removes the row and the object. |
+
+Wiring:
+
+```js
+import { createExternalFiles, supabaseExternalStorage } from '../services/external-identity/index.js'
+
+const files = createExternalFiles({ prisma, storage: supabaseExternalStorage(supabaseAdmin) })
+createExternalAuthRouter({ identity, resolveRealm, files })
+```
+
+`files.purgeAccount({ accountId })` removes an account's objects. Rows cascade when the account is deleted.
+
+Not in v1:
+- Files visible to other visitors, such as review photos. Those need moderation before they are public.
+- Admins viewing customer uploads from the ERP.
+- Non-image documents.
+
 ## Engine API
 
 ```js
@@ -121,7 +169,7 @@ Errors are `ExternalIdentityError` with `status` and `code`: `INVALID_CREDENTIAL
 | POST | `/password/forgot` | `{ email }`. Always answers 204. |
 | POST | `/password/reset` | `{ token, password }` |
 
-`account` is `{ id, email, displayName, phone, emailVerified }`. It never carries the hash, the company or the contact.
+`account` is `{ id, email, displayName, phone, emailVerified, avatarFileId }`. It never carries the hash, the company or the contact.
 
 `requireExternalAccount({ identity, resolveRealm })` is middleware for a module's own visitor routes, for example "my orders" or "my courses". It sets `c.get('externalAccount')`, `c.get('externalSession')` and `c.get('externalRealm')`, and answers 401 otherwise.
 

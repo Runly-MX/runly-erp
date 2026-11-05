@@ -14,6 +14,9 @@ const MESSAGES = {
   INVALID_PASSWORD: 'La contraseña actual no es correcta.',
   CHALLENGE_FAILED: 'No pudimos verificar que eres una persona. Intenta de nuevo.',
   UNAUTHENTICATED: 'Tu sesión terminó. Inicia sesión de nuevo.',
+  FILE_TOO_LARGE: 'La imagen debe pesar menos de 8 MB.',
+  UNSUPPORTED_FILE: 'Usa una imagen JPG, PNG, WebP o GIF.',
+  QUOTA_EXCEEDED: 'Alcanzaste el espacio disponible de tu cuenta.',
 }
 
 export const accountErrorMessage = (error) => MESSAGES[error?.code] ?? 'No se pudo completar la solicitud. Intenta de nuevo.'
@@ -29,4 +32,21 @@ export async function accountApi(path, body) {
   const json = await res.json().catch(() => ({}))
   if (!res.ok) throw Object.assign(new Error(json.error || `HTTP ${res.status}`), { status: res.status, code: json.code })
   return json
+}
+
+// Account files (private bucket on the server; served back only to the owner through this same host).
+export const accountFileUrl = (fileId) => `${readAtlasConfig()?.apiUrl ?? ''}/public/website/account/files/${encodeURIComponent(fileId)}`
+
+export async function uploadAccountFile(file, purpose = 'image') {
+  const res = await fetch(`${readAtlasConfig()?.apiUrl ?? ''}/public/website/account/files?purpose=${encodeURIComponent(purpose)}`, {
+    method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': file.type || 'image/jpeg' }, body: file,
+  })
+  const json = await res.json().catch(() => ({}))
+  if (!res.ok) throw Object.assign(new Error(json.error || `HTTP ${res.status}`), { status: res.status, code: json.code })
+  return json.data
+}
+
+export async function deleteAccountFile(fileId) {
+  const res = await fetch(accountFileUrl(fileId), { method: 'DELETE', credentials: 'same-origin', headers: { 'Content-Type': 'application/json' } })
+  if (!res.ok && res.status !== 204) { const json = await res.json().catch(() => ({})); throw Object.assign(new Error(json.error || `HTTP ${res.status}`), { status: res.status, code: json.code }) }
 }

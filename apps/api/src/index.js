@@ -93,6 +93,7 @@ import { createPublicFormsRouter } from "./routes/website/forms-public-routes.js
 import { createPublicBookingsRouter } from "./routes/website/bookings-routes.js";
 import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js";
 import { createWebsiteAccountsPublicRouter, createWebsiteIdentity } from "./routes/website/accounts-routes.js";
+import { createExternalFiles, supabaseExternalStorage } from "./services/external-identity/index.js";
 import { createStorefrontRouter } from "./routes/storefront/storefront-router.js";
 import { createWebsiteRouter } from "./routes/website/index.js";
 import { createLedgerRouter } from "./routes/ledger/index.js";
@@ -781,6 +782,8 @@ async function ensureBuckets() {
   // Immutable release bytes; website-release-storage refuses to use it unless it is private.
   await ensureBucket("runly-website-releases", { public: false });
   await ensureBucket("runly-chat", { public: false, fileSizeLimit: 52428800 }); // 50 MB
+  // Uploads of external accounts (site customers, future LMS/portal realms); private, served only through the API.
+  await ensureBucket("runly-external", { public: false, fileSizeLimit: 10485760, allowedMimeTypes: ["image/webp"] });
   const { prepareNotesPrivateStorage } = await import('./routes/notes/image-storage.js');
   await prepareNotesPrivateStorage({ prisma, supabaseAdmin });
 }
@@ -2235,7 +2238,7 @@ const publicCheckoutRouter = createPublicCheckoutRouter({ prisma });
 app.route("/public/website", publicCheckoutRouter);
 
 // Customer accounts of published sites (External Identity realm per site); never Runly users.
-app.route("/public/website/account", createWebsiteAccountsPublicRouter({ prisma, gateway: websitePublication.gateway, identity: createWebsiteIdentity({ prisma, supabaseAdmin }) }));
+app.route("/public/website/account", createWebsiteAccountsPublicRouter({ prisma, gateway: websitePublication.gateway, identity: createWebsiteIdentity({ prisma, supabaseAdmin }), files: supabaseAdmin ? createExternalFiles({ prisma, storage: supabaseExternalStorage(supabaseAdmin) }) : null }));
 
 const storefrontRouter = createStorefrontRouter({ prisma, supabaseAdmin, supabaseAnon });
 app.route("/public/storefront", storefrontRouter);

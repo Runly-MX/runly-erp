@@ -15,7 +15,7 @@ export const LOCK_MS = 15 * 60 * 1000
 export const TOKEN_TTL_MS = { verify_email: 24 * 3600 * 1000, reset_password: 3600 * 1000 }
 export const PASSWORD_MIN = 10, PASSWORD_MAX = 128
 
-export const publicAccount = (a) => ({ id: a.id, email: a.email, displayName: a.displayName, phone: a.phone ?? null, emailVerified: Boolean(a.emailVerifiedAt) })
+export const publicAccount = (a) => ({ id: a.id, email: a.email, displayName: a.displayName, phone: a.phone ?? null, emailVerified: Boolean(a.emailVerifiedAt), avatarFileId: a.avatarFileId ?? null })
 
 function assertPassword(password) {
   if (typeof password !== 'string' || password.length < PASSWORD_MIN || password.length > PASSWORD_MAX)

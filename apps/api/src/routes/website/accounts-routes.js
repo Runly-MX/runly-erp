@@ -35,7 +35,7 @@ export function createWebsiteIdentity({ prisma, supabaseAdmin = null, mailer = c
   })
 }
 
-export function createWebsiteAccountsPublicRouter({ prisma, gateway, identity, verifyTurnstile = createTurnstileVerifier() }) {
+export function createWebsiteAccountsPublicRouter({ prisma, gateway, identity, files = null, verifyTurnstile = createTurnstileVerifier() }) {
   // The realm is the site the host resolves to; resolved once per request.
   async function resolveRealm(c) {
     if (c.get('websiteRealm') !== undefined) return c.get('websiteRealm')
@@ -46,7 +46,7 @@ export function createWebsiteAccountsPublicRouter({ prisma, gateway, identity, v
     return scoped
   }
   return createExternalAuthRouter({
-    identity, resolveRealm,
+    identity, resolveRealm, files,
     verifyHuman: async ({ c, token }) => {
       const site = c.get('websiteSite')
       return !site?.turnstileSecretKey || verifyTurnstile({ token, encryptedSecretKey: site.turnstileSecretKey })

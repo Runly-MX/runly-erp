@@ -6690,6 +6690,7 @@ model ExternalAccount {
  emailVerifiedAt DateTime? @db.Timestamptz @map("email_verified_at")
  status String @default("active")
  contactId String? @db.Uuid @map("contact_id")
+ avatarFileId String? @db.Uuid @map("avatar_file_id")
  failedLogins Int @default(0) @map("failed_logins")
  lockedUntil DateTime? @db.Timestamptz @map("locked_until")
  lastLoginAt DateTime? @db.Timestamptz @map("last_login_at")
@@ -6698,6 +6699,7 @@ model ExternalAccount {
  realm ExternalRealm @relation(fields:[realmId],references:[id],onDelete:Cascade)
  sessions ExternalSession[]
  tokens ExternalAccountToken[]
+ files ExternalFile[]
  @@unique([realmId,email])
  @@index([companyId])
  @@map("external_account")
@@ -6728,4 +6730,21 @@ model ExternalAccountToken {
  account ExternalAccount @relation(fields:[accountId],references:[id],onDelete:Cascade)
  @@index([accountId,purpose])
  @@map("external_account_token")
+}
+// Files uploaded by external accounts. Bytes live in the private "runly-external" bucket under
+// <companyId>/<realmId>/<accountId>/; never in FileAsset, so they never reach runly.files.
+model ExternalFile {
+ id String @id @default(dbgenerated("uuidv7()")) @db.Uuid
+ realmId String @db.Uuid @map("realm_id")
+ accountId String @db.Uuid @map("account_id")
+ companyId String @db.Uuid @map("company_id")
+ purpose String
+ objectKey String @unique @map("object_key")
+ mimeType String @map("mime_type")
+ sizeBytes Int @map("size_bytes")
+ createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
+ account ExternalAccount @relation(fields:[accountId],references:[id],onDelete:Cascade)
+ @@index([accountId,purpose])
+ @@index([realmId])
+ @@map("external_file")
 }

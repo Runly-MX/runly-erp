@@ -5,7 +5,7 @@
 import { useEffect, useId, useRef, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { readAtlasConfig } from './catalogPublicClient.js'
-import { accountApi, accountErrorMessage } from './accountPublicClient.js'
+import { accountApi, accountErrorMessage, accountFileUrl, deleteAccountFile, uploadAccountFile } from './accountPublicClient.js'
 import { loadTurnstile } from './ContactFormRenderer.jsx'
 import { ACCENT, INK, LINE, MUTED, PAPER, SANS, SERIF, Styles, button } from './storeUi.jsx'
 
@@ -123,6 +123,17 @@ function AccountPortal() {
   const resend = run(async () => { await accountApi('/verify-email/request', {}); setMessage({ tone: 'success', text: 'Te enviamos un nuevo correo de confirmación.' }) })
   const logout = run(async () => { await accountApi('/logout', {}); setAccount(null); go('login', { tone: 'success', text: 'Cerraste sesión.' }) })
 
+  const fileRef = useRef(null)
+  // Profile photo: uploaded to the site's private account storage; the server re-encodes it.
+  const changePhoto = async (event) => {
+    const file = event.target.files?.[0]; event.target.value = ''
+    if (!file || busy) return
+    setBusy(true); setMessage(null)
+    try { const saved = await uploadAccountFile(file, 'avatar'); setAccount((a) => ({ ...a, avatarFileId: saved.id })) }
+    catch (error) { setMessage({ tone: 'error', text: accountErrorMessage(error) }) } finally { setBusy(false) }
+  }
+  const removePhoto = run(async () => { await deleteAccountFile(account.avatarFileId); setAccount((a) => ({ ...a, avatarFileId: null })) })
+
   const toLink = (target, label) => <button type="button" style={link} onClick={() => go(target)}>{label}</button>
   const passwordHint = `Mínimo ${MIN_PASSWORD} caracteres.`
   let body
@@ -165,7 +176,12 @@ function AccountPortal() {
   else if (view === 'account' && account) body = (
     <>
       <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
-        <div><h1 style={h1}>Mi cuenta</h1><p style={{ ...text, marginTop: 6 }}>{account.email}</p></div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <div aria-hidden="true" style={{ width: 72, height: 72, flex: 'none', borderRadius: '50%', overflow: 'hidden', display: 'grid', placeItems: 'center', background: ACCENT, color: '#fff', fontFamily: SERIF, fontSize: 30 }}>
+            {account.avatarFileId ? <img src={accountFileUrl(account.avatarFileId)} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} /> : (account.displayName || account.email || '?').trim().charAt(0).toUpperCase()}
+          </div>
+          <div><h1 style={h1}>Mi cuenta</h1><p style={{ ...text, marginTop: 6 }}>{account.email}</p></div>
+        </div>
         <form onSubmit={logout}><button type="submit" className="rs-btn" disabled={busy} style={button(false)}>Cerrar sesión</button></form>
       </div>
       <Message {...message}>{message?.text}</Message>
@@ -175,6 +191,11 @@ function AccountPortal() {
           <form onSubmit={resend}><button type="submit" style={link} disabled={busy}>Reenviar correo</button></form>
         </div>
       )}
+      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
+        <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} />
+        <button type="button" style={link} disabled={busy} onClick={() => fileRef.current?.click()}>{account.avatarFileId ? 'Cambiar foto' : 'Agregar foto'}</button>
+        {account.avatarFileId && <form onSubmit={removePhoto}><button type="submit" style={link} disabled={busy}>Quitar foto</button></form>}
+      </div>
       <h2 style={h2}>Tus datos</h2>
       <Form onSubmit={saveProfile} busy={busy} submitLabel="Guardar datos">
         <Field label="Nombre" name="displayName" autoComplete="name" defaultValue={account.displayName ?? ''} />

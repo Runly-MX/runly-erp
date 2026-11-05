@@ -1,11 +1,12 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { randomUUID } from 'node:crypto'
-import { createExternalIdentity, createExternalAuthRouter } from '../index.js'
+import sharp from 'sharp'
+import { createExternalIdentity, createExternalAuthRouter, createExternalFiles } from '../index.js'
 
 // Minimal in-memory stand-in for the four Prisma delegates the engine uses.
 function fakePrisma() {
-  const t = { realm: [], account: [], session: [], token: [] }
+  const t = { realm: [], account: [], session: [], token: [], file: [] }
   const match = (row, where = {}) => Object.entries(where).every(([k, v]) => {
     if (k === 'OR') return v.some((w) => match(row, w))
     if (v && typeof v === 'object' && !(v instanceof Date)) {
@@ -30,6 +31,8 @@ function fakePrisma() {
       },
       update: async ({ where, data }) => Object.assign(rows.find((r) => r.id === where.id), data),
       updateMany: async ({ where, data }) => { const hit = rows.filter((r) => match(r, where)); hit.forEach((r) => Object.assign(r, data)); return { count: hit.length } },
+      deleteMany: async ({ where }) => { const before = rows.length; for (let i = rows.length - 1; i >= 0; i -= 1) if (where.id.in.includes(rows[i].id)) rows.splice(i, 1); return { count: before - rows.length } },
+      aggregate: async ({ where }) => ({ _sum: { sizeBytes: rows.filter((r) => match(r, where)).reduce((n, r) => n + r.sizeBytes, 0) } }),
       upsert: async ({ where, create }) => unique(where) ?? delegate(name, keys).create({ data: create }),
     }
   }
@@ -39,6 +42,7 @@ function fakePrisma() {
     externalAccount: delegate('account', [['realmId', 'email']]),
     externalSession: delegate('session', [['tokenHash']], true),
     externalAccountToken: delegate('token', [['tokenHash']], true),
+    externalFile: delegate('file', [['objectKey']]),
   }
 }
 
@@ -106,4 +110,27 @@ test('disabled account loses its session; cross-site JSON-less posts are refused
   assert.equal((await call('a.test', 'GET', '/me', null, cookieOf(r))).status, 401)
   const form = await call('a.test', 'POST', '/login', null)
   assert.equal(form.status, 415)
+})
+
+test('uploads are re-encoded, private to their owner and the avatar replaces the previous one', async () => {
+  const prisma = fakePrisma(), objects = new Map()
+  const storage = { put: async (k, b) => { objects.set(k, b) }, get: async (k) => objects.get(k), remove: async (ks) => ks.forEach((k) => objects.delete(k)) }
+  const identity = createExternalIdentity({ prisma })
+  const files = createExternalFiles({ prisma, storage })
+  const realm = Object.assign(await identity.ensureRealm({ companyId: randomUUID(), moduleKey: 'runly.website', ownerId: randomUUID() }), { enabled: true, requireEmailVerification: false })
+  const app = createExternalAuthRouter({ identity, resolveRealm: () => realm, files })
+  const reg = async (email) => cookieOf(await app.request('/register', { method: 'POST', headers: { host: 'a.test', 'content-type': 'application/json' }, body: JSON.stringify({ email, password: 'password-1234', displayName: 'X' }) }))
+  const ana = await reg('ana@x.com'), bob = await reg('bob@x.com')
+  const png = await sharp({ create: { width: 900, height: 600, channels: 3, background: '#c33' } }).png().toBuffer()
+  const up = (cookie, body, type = 'image/png') => app.request('/files?purpose=avatar', { method: 'POST', headers: { host: 'a.test', 'content-type': type, cookie }, body })
+  const first = await (await up(ana, png)).json()
+  const meta = await sharp(objects.values().next().value).metadata()
+  assert.equal(meta.format, 'webp'); assert.ok(meta.width <= 512)
+  assert.equal((await app.request(`/files/${first.data.id}`, { headers: { host: 'a.test', cookie: ana } })).status, 200)
+  assert.equal((await app.request(`/files/${first.data.id}`, { headers: { host: 'a.test', cookie: bob } })).status, 404)
+  assert.equal((await up(ana, Buffer.from('<svg onload=alert(1)>'), 'image/svg+xml')).status, 415)
+  const second = await (await up(ana, png)).json()
+  assert.equal(objects.size, 1, 'previous avatar removed')
+  const me = await (await app.request('/me', { headers: { host: 'a.test', cookie: ana } })).json()
+  assert.equal(me.account.avatarFileId, second.data.id)
 })
