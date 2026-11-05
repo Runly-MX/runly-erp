@@ -239,13 +239,9 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     }
   }
 
-  // Site links in the canvas are real <a href="/contacto">; following them leaves the app. Stay put and offer
-  // to open the linked page in the editor instead (no auto-jump: the builder does not warn about unsaved edits).
-  const handleCanvasClick = (event) => {
-    const anchor = event.target.closest?.('a[href]')
-    if (!anchor || anchor.target === '_blank') return
-    event.preventDefault()
-    const href = anchor.getAttribute('href') || ''
+  // The builder keeps canvas links from navigating and reports them here. Offer to open the linked page in the
+  // editor instead of jumping (the builder does not warn about unsaved edits).
+  const handleLinkClick = (href) => {
     if (!href.startsWith('/')) return
     const path = href.split(/[?#]/)[0].replace(/\/+$/, '') || '/'
     const target = (pages.data ?? []).find((page) => ((page.routePath ?? '').replace(/\/+$/, '') || '/') === path)
@@ -302,7 +298,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
           </Alert>
         )}
         {saveError && <div className="m-3"><ErrorNotice error={saveError} /></div>}
-        <div className="relative min-h-0 flex-1" onClickCapture={handleCanvasClick}>
+        <div className="relative min-h-0 flex-1">
           <AtlasWebBuilderEditor
             key={editorKey}
             blocks={blocks}
@@ -314,6 +310,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
             seo={seoContext}
             onSaveDraft={handleSave}
             onPublish={handleBuilderPublish}
+            onLinkClick={handleLinkClick}
             resources={site.data?.siteType === 'ecommerce' ? {
               // Only products marked visible on the web (published) can render publicly.
               products: async ({ categoryId, limit }) => {

@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 
 import { getApiUrl } from '../../lib/runtimeConfig.js'
 
@@ -115,6 +115,7 @@ export default function ContactFormRenderer({
   formId,
   successMessage,
   buttonLabel,
+  ctx,
 }) {
   const uid = useId()
   const [definition, setDefinition] = useState(null)
@@ -123,17 +124,6 @@ export default function ContactFormRenderer({
   const [sending, setSending] = useState(false)
   const turnstileRef = useRef(null)
   const tokenRef = useRef('')
-  // Dropped straight on the page (not inside a newsletter band or section) the form would span the whole viewport:
-  // then it frames itself as a centered section. Inside another block the parent is narrower and it stays bare.
-  const rootRef = useRef(null)
-  const [framed, setFramed] = useState(false)
-  useLayoutEffect(() => {
-    const parent = rootRef.current?.parentElement
-    if (!parent || typeof ResizeObserver === 'undefined') return undefined
-    const observer = new ResizeObserver(() => setFramed(parent.clientWidth >= 900))
-    observer.observe(parent)
-    return () => observer.disconnect()
-  }, [])
 
   useEffect(() => {
     if (!formId) return undefined
@@ -180,11 +170,13 @@ export default function ContactFormRenderer({
   const fields = definition?.fields ?? []
   // A single field (newsletter) reads better as one row: field and button side by side.
   const compact = fields.length === 1 && fields[0].fieldType !== 'checkbox'
-  const box = { width: '100%', boxSizing: 'border-box', ...(framed ? { maxWidth: 768, marginInline: 'auto', padding: 'clamp(40px, 6vw, 80px) 24px' } : null) }
+  // Dropped straight on the page the form would span the whole viewport, so it frames itself as a centered section;
+  // inside another block (newsletter band, section) it stays bare and takes that block's layout.
+  const box = { width: '100%', boxSizing: 'border-box', ...(!ctx?.nested ? { maxWidth: 768, marginInline: 'auto', padding: 'clamp(40px, 6vw, 80px) 24px' } : null) }
 
   if (!formId) {
     return (
-      <div ref={rootRef} style={box}>
+      <div style={box}>
         <div style={{ padding: '24px', border: '1px dashed currentColor', borderRadius: '12px', textAlign: 'center', opacity: 0.6 }}>
           <p style={{ fontSize: '14px', margin: 0 }}>Elige un formulario del sitio en las propiedades del bloque</p>
         </div>
@@ -193,7 +185,7 @@ export default function ContactFormRenderer({
   }
 
   return (
-    <div ref={rootRef} style={box}>
+    <div style={box}>
       <style>{FORM_CSS}</style>
       {failed ? <p role="alert" className="rf-status" data-tone="error">No se pudo cargar el formulario configurado.</p>
         : !definition ? <div className="rf-skeleton" aria-label="Cargando formulario" />
