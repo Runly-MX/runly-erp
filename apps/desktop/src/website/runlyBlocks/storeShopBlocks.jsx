@@ -1,6 +1,7 @@
 // Product detail and cart page blocks. Both run in the visitor's browser against the public catalog and checkout endpoints.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
+import { ImageLightbox, zoomTrigger } from './imageLightbox.jsx'
 import { fetchPublicCatalog, formatCatalogPrice, readAtlasConfig } from './catalogPublicClient.js'
 import { ImageSlot } from './ProductsGridRenderer.jsx'
 import { addToCart, clearCart, removeLine, setQty, startCheckout, useCartLines } from './storeCart.js'
@@ -11,20 +12,14 @@ const wrap = { maxWidth: 1100, marginInline: 'auto' }
 const section = { padding: 'clamp(40px, 6vw, 80px) 24px', background: PAPER }
 const variantLabel = (v) => Object.values(v?.option_values ?? {}).join(' / ') || v?.sku || 'Opción'
 
-// Native <dialog> gives the lightbox Esc-to-close, focus trapping and the top layer without extra code.
 function ZoomableImage({ src, alt }) {
-  const ref = useRef(null)
-  const close = () => ref.current?.close()
+  const [index, setIndex] = useState(null)
   return (
     <>
-      <button type="button" aria-label={`Ampliar imagen: ${alt}`} onClick={() => ref.current?.showModal()} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', padding: 0, border: 0, background: 'none', cursor: 'zoom-in' }}>
+      <button type="button" aria-label={`Ampliar imagen: ${alt}`} onClick={() => setIndex(0)} style={zoomTrigger}>
         <ImageSlot src={src} alt={alt} />
       </button>
-      <dialog ref={ref} className="rs-zoom" aria-label={alt} onClick={(e) => { if (e.target === ref.current) close() }} style={{ padding: 0, border: 0, background: 'transparent', maxWidth: '96vw', maxHeight: '96vh', overflow: 'visible' }}>
-        <img src={src} alt={alt} style={{ display: 'block', maxWidth: '94vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} />
-        <button type="button" aria-label="Cerrar" onClick={close} style={{ position: 'fixed', top: 16, right: 16, width: 44, height: 44, borderRadius: 999, border: 0, background: PAPER, color: INK, fontSize: 24, lineHeight: 1, cursor: 'pointer' }}>×</button>
-      </dialog>
-      <style>{'.rs-zoom::backdrop{background:rgba(15,12,10,.85)}'}</style>
+      <ImageLightbox images={[{ src, alt }]} index={index} onIndex={setIndex} onClose={() => setIndex(null)} />
     </>
   )
 }

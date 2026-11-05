@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
+import { ImageLightbox, zoomTrigger } from './imageLightbox.jsx'
 
 function safeImg(src) {
   return typeof src === 'string' && /^(https?:|\/|data:image\/)/i.test(src) ? src : ''
@@ -19,6 +21,7 @@ export const GalleryBlock = defineBlock({
     caption1: '', caption2: '', caption3: '',
     caption4: '', caption5: '', caption6: '',
     aspectRatio: '4/3',
+    zoom: true,
   },
   fields: {
     eyebrow:     { type: 'text',   label: 'Antetítulo' },
@@ -41,6 +44,7 @@ export const GalleryBlock = defineBlock({
       { value: '16/9', label: 'Panorámico (16:9)' },
       { value: '3/4',  label: 'Retrato (3:4)' },
     ]},
+    zoom:        { type: 'toggle', label: 'Ampliar la imagen al hacer clic' },
     image1: { type: 'image', label: 'Imagen 1' }, caption1: { type: 'text', label: 'Pie de foto 1' },
     image2: { type: 'image', label: 'Imagen 2' }, caption2: { type: 'text', label: 'Pie de foto 2' },
     image3: { type: 'image', label: 'Imagen 3' }, caption3: { type: 'text', label: 'Pie de foto 3' },
@@ -50,10 +54,10 @@ export const GalleryBlock = defineBlock({
   },
   groups: [
     { label: 'Encabezado', fields: ['eyebrow', 'title', 'subtitle'] },
-    { label: 'Diseño',     fields: ['columns', 'gap', 'aspectRatio'] },
+    { label: 'Diseño',     fields: ['columns', 'gap', 'aspectRatio', 'zoom'] },
     { label: 'Imágenes',   fields: ['image1', 'caption1', 'image2', 'caption2', 'image3', 'caption3', 'image4', 'caption4', 'image5', 'caption5', 'image6', 'caption6'] },
   ],
-  render({ eyebrow, title, subtitle, columns, gap, aspectRatio, image1, image2, image3, image4, image5, image6, caption1, caption2, caption3, caption4, caption5, caption6 }) {
+  render({ eyebrow, title, subtitle, columns, gap, aspectRatio, zoom, image1, image2, image3, image4, image5, image6, caption1, caption2, caption3, caption4, caption5, caption6 }) {
     const cols = Number(columns) || 3
     const gapPx = gap === 'none' ? '0' : gap === 'tight' ? '4px' : gap === 'relaxed' ? '24px' : '16px'
     const borderRadius = gap === 'none' ? '0' : '12px'
@@ -105,28 +109,38 @@ export const GalleryBlock = defineBlock({
               ))}
             </div>
           ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${Math.floor(1200 / cols)}px), 1fr))`, gap: gapPx }}>
-              {images.map((img, i) => (
-                <figure key={i} style={{ margin: 0, position: 'relative', overflow: 'hidden', borderRadius }}>
-                  <div style={{ aspectRatio, overflow: 'hidden', borderRadius }}>
-                    <img
-                      src={img.src}
-                      alt={img.caption || `Imagen ${i + 1}`}
-                      loading="lazy"
-                      style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 300ms ease' }}
-                    />
-                  </div>
-                  {img.caption && (
-                    <figcaption style={{ padding: '8px 4px 0', fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: 'var(--runly-color-muted, #64748b)', textAlign: 'center' }}>
-                      {img.caption}
-                    </figcaption>
-                  )}
-                </figure>
-              ))}
-            </div>
+            <GalleryGrid images={images} cols={cols} gapPx={gapPx} borderRadius={borderRadius} aspectRatio={aspectRatio} zoom={zoom !== false} />
           )}
         </div>
       </section>
     )
   },
 })
+
+function GalleryGrid({ images, cols, gapPx, borderRadius, aspectRatio, zoom }) {
+  const [index, setIndex] = useState(null)
+  const slides = images.map((img, i) => ({ src: img.src, alt: img.caption || `Imagen ${i + 1}` }))
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${Math.floor(1200 / cols)}px), 1fr))`, gap: gapPx }}>
+      {slides.map((img, i) => (
+        <figure key={i} style={{ margin: 0, position: 'relative', overflow: 'hidden', borderRadius }}>
+          <div style={{ position: 'relative', aspectRatio, overflow: 'hidden', borderRadius }}>
+            <img
+              src={img.src}
+              alt={img.alt}
+              loading="lazy"
+              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', transition: 'transform 300ms ease' }}
+            />
+            {zoom && <button type="button" aria-label={`Ampliar: ${img.alt}`} onClick={() => setIndex(i)} style={zoomTrigger} />}
+          </div>
+          {images[i].caption && (
+            <figcaption style={{ padding: '8px 4px 0', fontFamily: 'var(--runly-font-sans)', fontSize: '13px', color: 'var(--runly-color-muted, #64748b)', textAlign: 'center' }}>
+              {images[i].caption}
+            </figcaption>
+          )}
+        </figure>
+      ))}
+      {zoom && <ImageLightbox images={slides} index={index} onIndex={setIndex} onClose={() => setIndex(null)} />}
+    </div>
+  )
+}
