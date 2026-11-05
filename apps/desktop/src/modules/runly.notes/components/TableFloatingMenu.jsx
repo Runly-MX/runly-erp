@@ -41,7 +41,7 @@ export function TableFloatingMenu({ bottom }) {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <button
+        <button type="button"
           onClick={onTriggerClick}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
@@ -72,7 +72,7 @@ export function TableFloatingMenu({ bottom }) {
           <div key={section.group}>
             {si > 0 && <div className="my-1 border-t border-border" />}
             {section.items.map((action) => (
-              <button
+              <button type="button"
                 key={action.label}
                 onClick={() => { action.onClick(); setOpen(false) }}
                 className={[

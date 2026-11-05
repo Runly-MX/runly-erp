@@ -324,7 +324,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
               onReplaceImage={replaceWithEdited}
             />
             {canEditImage && (
-              <button
+              <button type="button"
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
                 onClick={() => setEditorOpen(true)}
                 aria-label="Editar imagen"
@@ -335,7 +335,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
               </button>
             )}
             {editable && typeof deleteNode === 'function' && (
-              <button
+              <button type="button"
                 onPointerDown={(e) => { e.preventDefault(); e.stopPropagation() }}
                 onClick={() => setConfirmDeleteOpen(true)}
                 aria-label="Eliminar imagen"
@@ -360,7 +360,7 @@ export function ImageAnnotationOverlay({ node, updateAttributes, editor, getPos,
               { pos: 'bottom-left', posClass: 'left-0 bottom-0', cursor: 'cursor-nesw-resize' },
               { pos: 'bottom-right', posClass: 'right-0 bottom-0', cursor: 'cursor-nwse-resize' },
             ].map(({ pos, posClass, cursor }) => (
-              <button
+              <button type="button"
                 key={pos}
                 aria-label="Cambiar tamaño de la imagen"
                 title="Arrastra para cambiar el tamaño"

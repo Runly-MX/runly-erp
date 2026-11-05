@@ -193,7 +193,7 @@ export default function WebsitePagesScreen() {
                   key={page.id}
                   className="relative rounded-xl border border-border bg-card p-4 hover:border-primary/40 hover:shadow-sm transition-all group"
                 >
-                  <button
+                  <button type="button"
                     onClick={() => navigate(`/app/m/runly.website/pages/${page.id}/editor`)}
                     className="text-left w-full"
                   >

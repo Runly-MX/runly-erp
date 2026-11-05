@@ -43,7 +43,7 @@ export function AppContextMenu({ x, y, moduleKey, onClose }) {
       className="fixed z-[300] bg-[hsl(var(--card))] border border-[hsl(var(--border))] rounded-lg shadow-lg py-1 min-w-[190px]"
       style={{ top: pos.top, left: pos.left }}
     >
-      <button
+      <button type="button"
         onClick={() => {
           toggleFavorite(moduleKey);
           onClose();

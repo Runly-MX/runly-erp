@@ -364,7 +364,7 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context, com
           transition={{ duration: 0.35, delay: 0.3 }}
         >
           {onRetry && (
-            <button
+            <button type="button"
               onClick={onRetry}
               className="flex flex-1 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold transition-all duration-150 hover:brightness-110 active:scale-[0.97]"
               style={{
@@ -381,7 +381,7 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context, com
               Reintentar
             </button>
           )}
-          <button
+          <button type="button"
             onClick={() => window.location.reload()}
             className="flex flex-1 items-center justify-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-medium transition-all duration-150 hover:bg-[hsl(var(--muted))] active:scale-[0.97]"
             style={{
@@ -413,7 +413,7 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context, com
           animate={{ opacity: 1 }}
           transition={{ duration: 0.3, delay: 0.42 }}
         >
-          <button
+          <button type="button"
             onClick={() => setShowDetails((v) => !v)}
             className="flex w-full items-center justify-center gap-1.5 text-xs transition-colors duration-150 hover:opacity-80"
             style={{ color: "hsl(var(--muted-foreground))" }}
@@ -438,7 +438,7 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context, com
                     border: "1px solid hsl(var(--border))",
                   }}
                 >
-                  <button
+                  <button type="button"
                     onClick={copyDetails}
                     className="absolute right-2 top-2 flex items-center gap-1 rounded-md px-1.5 py-1 text-[10px] font-medium transition-colors duration-150 hover:bg-[hsl(var(--background))]"
                     style={{ color: "hsl(var(--muted-foreground))" }}

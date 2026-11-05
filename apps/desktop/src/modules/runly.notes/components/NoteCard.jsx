@@ -85,7 +85,7 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
 
         {onTrash && (
           // List rows carry is_owner; a shared note offers "leave", never delete.
-          <button
+          <button type="button"
             onClick={e => { e.stopPropagation(); onTrash(note) }}
             className="opacity-0 group-hover:opacity-100 shrink-0 mt-0.5 p-1 text-muted-foreground/50 hover:text-destructive hover:bg-destructive/10 rounded-md transition-all"
             title={note.is_owner === false ? 'Salir de la nota' : 'Enviar a papelera'}

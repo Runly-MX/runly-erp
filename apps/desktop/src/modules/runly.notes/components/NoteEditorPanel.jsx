@@ -74,7 +74,7 @@ export function NoteEditorPanel({
       style={isZenMode ? { ...canvasBg, '--shell-footer-height': '0px', paddingTop: 'var(--sat, 0px)', paddingBottom: 'var(--sab, 0px)' } : canvasBg}
     >
       <div className="flex items-center gap-2 px-3 h-11 border-b border-border shrink-0 bg-background/95 backdrop-blur-sm">
-        <button
+        <button type="button"
           className={`${backOnDesktop ? '' : 'lg:hidden '}p-1 [@media(pointer:coarse)]:p-3 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors`}
           onClick={onBack}
           aria-label="Volver a la lista"
@@ -248,7 +248,7 @@ function EmptyEditor({ onCreateNote, isTrash }) {
         </p>
       </div>
       {onCreateNote && (
-        <button
+        <button type="button"
           onClick={onCreateNote}
           className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors shadow-sm"
         >

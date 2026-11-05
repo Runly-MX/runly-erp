@@ -80,7 +80,7 @@ export function SubtaskRow({ task, projectId, onDelete, onOpen }) {
       {statuses.length > 0 && (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button
+            <button type="button"
               className="shrink-0 rounded-full transition-opacity opacity-70 hover:opacity-100"
               title={currentStatus?.name ?? 'Sin estado'}
             >
@@ -137,7 +137,7 @@ export function SubtaskRow({ task, projectId, onDelete, onOpen }) {
           />
         </div>
       ) : (
-        <button
+        <button type="button"
           onClick={(e) => { e.stopPropagation(); setShowAssignPicker(true) }}
           className="shrink-0 opacity-60 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
           tabIndex={-1}
@@ -151,7 +151,7 @@ export function SubtaskRow({ task, projectId, onDelete, onOpen }) {
       )}
 
       {onOpen && (
-        <button
+        <button type="button"
           onClick={() => onOpen(task.id)}
           className="text-muted-foreground hover:text-foreground transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100 shrink-0"
           tabIndex={-1}
@@ -165,7 +165,7 @@ export function SubtaskRow({ task, projectId, onDelete, onOpen }) {
         </button>
       )}
 
-      <button
+      <button type="button"
         onClick={() => onDelete(task.id)}
         className="text-muted-foreground hover:text-destructive transition-colors opacity-60 md:opacity-0 md:group-hover:opacity-100 shrink-0"
         tabIndex={-1}

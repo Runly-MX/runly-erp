@@ -30,7 +30,7 @@ export const BookingFormBlock = defineBlock({
         <input placeholder="Nombre completo" disabled style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', background: '#f8fafc' }} />
         <input placeholder="Email" disabled style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', background: '#f8fafc' }} />
         <input type="date" disabled style={{ padding: '10px', border: '1px solid #e2e8f0', borderRadius: '6px', fontSize: '14px', background: '#f8fafc' }} />
-        <button disabled style={{ padding: '10px 24px', background: 'var(--runly-color-primary, #6D28D9)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', opacity: 0.7 }}>
+        <button type="button" disabled style={{ padding: '10px 24px', background: 'var(--runly-color-primary, #6D28D9)', color: '#fff', border: 'none', borderRadius: '6px', fontSize: '14px', opacity: 0.7 }}>
           {buttonLabel}
         </button>
       </div>

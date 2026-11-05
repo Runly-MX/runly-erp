@@ -50,7 +50,7 @@ export function ImageViewer({ src, alt = "Imagen", fileName, open, onClose, allo
               <Button type="button" variant="secondary" onClick={() => setZoom(1)}>{Math.round(zoom * 100)}%</Button>
               <Button type="button" size="icon" variant="secondary" aria-label="Ampliar imagen" disabled={zoom >= 4} onClick={() => setZoom(value => Math.min(4, value + 0.5))}><ZoomIn className="h-4 w-4" /></Button>
             </>}
-            <button
+            <button type="button"
               onClick={handleDownload}
               aria-label="Descargar imagen"
               title="Descargar"

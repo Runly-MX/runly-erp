@@ -157,7 +157,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
           <div className="flex items-end gap-3">
             <Popover>
               <PopoverTrigger asChild>
-                <button
+                <button type="button"
                   className="w-11 h-11 shrink-0 rounded-xl border border-border bg-muted flex items-center justify-center hover:bg-muted/70 transition-colors"
                   title="Seleccionar icono"
                 >
@@ -235,7 +235,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
                       className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-300"
                     >
                       {tag.name}
-                      <button
+                      <button type="button"
                         onClick={() => handleRemoveTag(tag.id)}
                         className="rounded-full hover:bg-amber-200 dark:hover:bg-amber-800/50 p-0.5 transition-colors"
                         title="Quitar etiqueta"
@@ -267,7 +267,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
                   const swatchColor = bg.swatch ?? null
                   const isActive = activeBg === bg.value
                   return (
-                    <button
+                    <button type="button"
                       key={bg.value ?? 'none'}
                       onClick={() => onUpdate({ backgroundColor: bg.value })}
                       title={bg.label}
@@ -388,7 +388,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
                     <div className="flex-1 text-xs border border-border rounded-lg px-3 py-2.5 bg-muted text-muted-foreground truncate font-mono">
                       {publicUrl}
                     </div>
-                    <button
+                    <button type="button"
                       onClick={handleCopyLink}
                       className={`p-2.5 border rounded-lg transition-all shrink-0 ${
                         copied
@@ -403,7 +403,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
                       }
                     </button>
                   </div>
-                  <button
+                  <button type="button"
                     onClick={onUnpublish}
                     className="text-xs text-destructive hover:underline"
                   >
@@ -411,7 +411,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
                   </button>
                 </div>
               ) : (
-                <button
+                <button type="button"
                   onClick={onPublish}
                   className="text-xs px-3 py-2 bg-amber-500 text-white rounded-lg hover:bg-amber-600 transition-colors font-medium"
                 >
@@ -423,7 +423,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
 
           {/* ── Zona de peligro ──────────────────────────────── */}
           <div className="pt-4 border-t border-border">
-            <button
+            <button type="button"
               onClick={() => setTrashOpen(true)}
               className="w-full text-xs text-destructive hover:bg-destructive/5 py-2.5 rounded-lg border border-destructive/20 transition-colors font-medium"
             >

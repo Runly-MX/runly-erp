@@ -230,7 +230,7 @@ export default function ProjectsScreen() {
             <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
               Proyectos
             </span>
-            <button
+            <button type="button"
               onClick={closeSidebar}
               className="lg:hidden text-muted-foreground hover:text-foreground transition-colors"
             >
@@ -247,7 +247,7 @@ export default function ProjectsScreen() {
               const ProjIcon = getProjectIcon(p.icon);
               const isActive = p.id === effectiveId;
               return (
-                <button
+                <button type="button"
                   key={p.id}
                   onClick={() => {
                     setSelectedId(p.id);
@@ -293,7 +293,7 @@ export default function ProjectsScreen() {
           {!selectedProject ? (
             <div className="relative flex-1 flex flex-col">
               <div className="px-4 py-3 lg:hidden border-b border-border">
-                <button
+                <button type="button"
                   className="text-muted-foreground hover:text-foreground transition-colors"
                   onClick={() => setSidebarOpen(true)}
                 >
@@ -317,7 +317,7 @@ export default function ProjectsScreen() {
               {/* Project header */}
               <div className="flex flex-wrap items-center gap-2 px-4 py-3 border-b border-border shrink-0">
                 {/* Mobile hamburger */}
-                <button
+                <button type="button"
                   className="lg:hidden text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   onClick={() => setSidebarOpen(true)}
                 >
@@ -453,7 +453,7 @@ export default function ProjectsScreen() {
                 {/* View switcher */}
                 <div role="group" aria-label="Vista" className="order-last flex w-full gap-0.5 border border-border rounded-md p-0.5 sm:order-0 sm:w-auto">
                   {VIEWS.map(({ key, label, Icon }) => (
-                    <button
+                    <button type="button"
                       key={key}
                       onClick={() => setActiveView(key)}
                       title={label}

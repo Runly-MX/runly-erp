@@ -154,7 +154,7 @@ export function NoteCoverBanner({ coverUrl, editable, noteId, token, onChange, o
               />
             </label>
           )}
-          <button
+          <button type="button"
             onClick={onRemove}
             className="flex items-center gap-1.5 text-xs font-medium bg-background/90 backdrop-blur-sm border border-border rounded-lg px-2.5 py-1.5 shadow-sm hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-colors"
           >

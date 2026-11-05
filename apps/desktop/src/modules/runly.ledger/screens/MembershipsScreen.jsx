@@ -207,7 +207,7 @@ export default function MembershipsScreen() {
             <div className="space-y-2">
               {groups.map((g) => (
                 <Card key={g.id} variant="solid" className="rounded-xl flex items-center justify-between px-3 py-2">
-                  <button className="flex items-center gap-3 text-left min-w-0" onClick={() => navigate(`/app/m/runly.ledger/groups/${g.id}`)}>
+                  <button type="button" className="flex items-center gap-3 text-left min-w-0" onClick={() => navigate(`/app/m/runly.ledger/groups/${g.id}`)}>
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-(--brand-soft) text-(--brand-primary)">
                       <FolderOpen size={14} />
                     </span>
@@ -235,7 +235,7 @@ export default function MembershipsScreen() {
             <div className="space-y-2">
               {accounts.map((a) => (
                 <Card key={a.id} variant="solid" className="rounded-xl flex items-center justify-between px-3 py-2">
-                  <button className="flex items-center gap-3 text-left min-w-0" onClick={() => navigate(`/app/m/runly.ledger/accounts/${a.id}`)}>
+                  <button type="button" className="flex items-center gap-3 text-left min-w-0" onClick={() => navigate(`/app/m/runly.ledger/accounts/${a.id}`)}>
                     <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
                       <Landmark size={14} />
                     </span>

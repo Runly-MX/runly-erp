@@ -398,7 +398,7 @@ export default function GroupScreen() {
                 <p className="text-sm text-[hsl(var(--muted-foreground))] mb-2">Selecciona una de tus cuentas para agregarla a este grupo:</p>
                 <div className="space-y-2">
                   {assignableAccounts.map((acc) => (
-                    <button
+                    <button type="button"
                       key={acc.id}
                       onClick={() => setAssignTarget(acc)}
                       className={[

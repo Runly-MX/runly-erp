@@ -32,14 +32,14 @@ export function ImageSourceSheet({ open, onOpenChange, onPickFile, accept = "ima
           <SheetTitle>Agregar imagen</SheetTitle>
         </SheetHeader>
         <div className="flex flex-col gap-1">
-          <button
+          <button type="button"
             onClick={() => cameraInputRef.current?.click()}
             className="w-full flex items-center gap-3 text-left px-3 py-3 text-sm rounded-lg text-foreground hover:bg-muted transition-colors"
           >
             <Camera className="w-4 h-4 shrink-0" />
             Tomar foto
           </button>
-          <button
+          <button type="button"
             onClick={() => galleryInputRef.current?.click()}
             className="w-full flex items-center gap-3 text-left px-3 py-3 text-sm rounded-lg text-foreground hover:bg-muted transition-colors"
           >

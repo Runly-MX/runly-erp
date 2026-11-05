@@ -54,13 +54,13 @@ export default function MiniCalendar({ selectedDate, onSelectDate }) {
   return (
     <div className="select-none px-2 pb-2">
       <div className="flex items-center justify-between mb-2 px-1">
-        <button onClick={prevMonth} className="p-1 rounded hover:bg-[hsl(var(--muted))]">
+        <button type="button" onClick={prevMonth} className="p-1 rounded hover:bg-[hsl(var(--muted))]">
           <ChevronLeft size={14} />
         </button>
         <span className="text-xs font-semibold text-[hsl(var(--foreground))]">
           {MONTHS[viewMonth]} {viewYear}
         </span>
-        <button onClick={nextMonth} className="p-1 rounded hover:bg-[hsl(var(--muted))]">
+        <button type="button" onClick={nextMonth} className="p-1 rounded hover:bg-[hsl(var(--muted))]">
           <ChevronRight size={14} />
         </button>
       </div>

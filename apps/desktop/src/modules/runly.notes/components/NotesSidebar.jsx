@@ -12,7 +12,7 @@ const NAV_ITEMS = [
 
 function NavItem({ label, Icon, isActive, onClick, count }) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-all duration-150 ${
         isActive
@@ -72,7 +72,7 @@ export function NotesSidebar({ activeView, onViewChange }) {
         <p className="text-[10px] font-semibold uppercase tracking-widest text-[hsl(var(--muted-foreground))]">
           Carpetas
         </p>
-        <button
+        <button type="button"
           onClick={() => setShowNewFolder(v => !v)}
           className="w-5 h-5 flex items-center justify-center rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
           title="Nueva carpeta"

@@ -134,7 +134,7 @@ function SectionCard({
         </div>
 
         {/* CTA */}
-        <button
+        <button type="button"
           onClick={onClick}
           className="flex items-center gap-1.5 text-xs font-medium transition-colors duration-150 mt-auto pt-1 border-t border-[hsl(var(--border))] self-stretch"
           style={{ color }}
@@ -495,7 +495,7 @@ export default function CompanyOverview() {
                   path: "/app/m/runly.company/company/branding",
                 },
               ].map(({ ok, label, path }) => (
-                <button
+                <button type="button"
                   key={label}
                   onClick={() => navigate(path)}
                   className="flex items-center gap-2 text-xs font-medium transition-colors duration-150 hover:opacity-80 cursor-pointer"

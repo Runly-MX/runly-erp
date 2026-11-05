@@ -44,7 +44,7 @@ export function NotesSidebarSlot() {
         <span className="flex-1 text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]/70">
           Carpetas
         </span>
-        <button
+        <button type="button"
           onClick={startCreating}
           title="Nueva carpeta"
           className="h-5 w-5 flex items-center justify-center rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors"
@@ -73,7 +73,7 @@ export function NotesSidebarSlot() {
         folders.map(folder => {
           const isActive = activeFolderId === folder.id
           return (
-            <button
+            <button type="button"
               key={folder.id}
               onClick={() => handleFolderClick(folder.id)}
               style={isActive

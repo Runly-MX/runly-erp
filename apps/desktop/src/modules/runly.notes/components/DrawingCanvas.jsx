@@ -195,12 +195,12 @@ export function DrawingCanvas({ node, updateAttributes, editor, deleteNode, getP
       <div ref={blockRef} className="border border-[hsl(var(--border))] rounded-xl overflow-hidden shadow-sm">
         {editable && (
           <div className="flex items-center gap-2 px-3 py-2 bg-[hsl(var(--muted))] border-b border-[hsl(var(--border))] flex-wrap">
-            <button onClick={() => setTool('pen')} className={`px-2 py-1 text-xs rounded font-medium ${tool === 'pen' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>Lapiz</button>
-            <button onClick={() => setTool('eraser')} className={`px-2 py-1 text-xs rounded font-medium ${tool === 'eraser' ? 'bg-[hsl(var(--muted-foreground)/0.2)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>Borrador</button>
+            <button type="button" onClick={() => setTool('pen')} className={`px-2 py-1 text-xs rounded font-medium ${tool === 'pen' ? 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>Lapiz</button>
+            <button type="button" onClick={() => setTool('eraser')} className={`px-2 py-1 text-xs rounded font-medium ${tool === 'eraser' ? 'bg-[hsl(var(--muted-foreground)/0.2)]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>Borrador</button>
             <div className="h-4 w-px bg-[hsl(var(--border))]" />
             <div className="flex gap-1">
               {COLORS.map(c => (
-                <button key={c} onClick={() => { setTool('pen'); setColor(c) }}
+                <button type="button" key={c} onClick={() => { setTool('pen'); setColor(c) }}
                   className={`w-5 h-5 rounded-full border-2 ${color === c && tool === 'pen' ? 'border-amber-500 scale-110' : 'border-transparent'}`}
                   style={{ backgroundColor: c === '#ffffff' ? '#f3f4f6' : c }} />
               ))}
@@ -208,7 +208,7 @@ export function DrawingCanvas({ node, updateAttributes, editor, deleteNode, getP
             <div className="h-4 w-px bg-[hsl(var(--border))]" />
             <div className="flex gap-1 items-center">
               {SIZES.map(s => (
-                <button key={s} onClick={() => setSize(s)} className={`flex items-center justify-center w-6 h-6 rounded ${size === s ? 'bg-amber-100 dark:bg-amber-900/40' : 'hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>
+                <button type="button" key={s} onClick={() => setSize(s)} className={`flex items-center justify-center w-6 h-6 rounded ${size === s ? 'bg-amber-100 dark:bg-amber-900/40' : 'hover:bg-[hsl(var(--muted-foreground)/0.1)]'}`}>
                   <div className="rounded-full bg-[hsl(var(--foreground))]" style={{ width: Math.min(s, 14), height: Math.min(s, 14) }} />
                 </button>
               ))}
@@ -217,16 +217,16 @@ export function DrawingCanvas({ node, updateAttributes, editor, deleteNode, getP
             <div className="flex gap-1 items-center">
               <span className="text-[10px] text-[hsl(var(--muted-foreground))]">Fondo</span>
               {BACKGROUNDS.map(bg => (
-                <button key={bg} onClick={() => updateAttributes({ backgroundColor: bg })}
+                <button type="button" key={bg} onClick={() => updateAttributes({ backgroundColor: bg })}
                   aria-label={`Fondo ${bg}`}
                   className={`w-5 h-5 rounded-full border-2 ${node.attrs.backgroundColor === bg ? 'border-amber-500 scale-110' : 'border-[hsl(var(--border))]'}`}
                   style={{ backgroundColor: bg }} />
               ))}
             </div>
             <div className="ml-auto flex gap-1">
-              <button onClick={undoLast} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] rounded disabled:opacity-30">Deshacer</button>
-              <button onClick={clearAll} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded disabled:opacity-30">Limpiar</button>
-              <button onClick={() => setConfirmClose(true)} title="Eliminar lienzo de dibujo" aria-label="Eliminar lienzo de dibujo"
+              <button type="button" onClick={undoLast} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted-foreground)/0.1)] rounded disabled:opacity-30">Deshacer</button>
+              <button type="button" onClick={clearAll} disabled={strokeCount === 0} className="px-2 py-1 text-xs text-red-500 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/30 rounded disabled:opacity-30">Limpiar</button>
+              <button type="button" onClick={() => setConfirmClose(true)} title="Eliminar lienzo de dibujo" aria-label="Eliminar lienzo de dibujo"
                 className="flex items-center justify-center w-6 h-6 text-[hsl(var(--muted-foreground))] hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/30 rounded">
                 <X className="w-3.5 h-3.5" />
               </button>

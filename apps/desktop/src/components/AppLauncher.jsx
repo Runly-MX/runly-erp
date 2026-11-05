@@ -104,14 +104,14 @@ export function AppLauncher() {
                 placeholder="Buscar aplicación..."
                 className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--foreground))]/45 outline-none"
               />
-              <button
+              <button type="button"
                 onClick={handleGoHome}
                 className="h-7 px-2.5 flex items-center gap-1.5 rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer text-xs font-medium"
               >
                 <Home size={13} />
                 Inicio
               </button>
-              <button
+              <button type="button"
                 onClick={() => { closeLauncher(); setQuery(''); }}
                 className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"
               >

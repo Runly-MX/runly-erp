@@ -156,7 +156,7 @@ function AssigneeAdder({ currentAssigneeIds, onAdd, members }) {
 
   if (!open) {
     return (
-      <button
+      <button type="button"
         onClick={() => setOpen(true)}
         className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
       >
@@ -544,7 +544,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                         >
                           <AssigneeAvatar user={u ?? {}} size="sm" />
                           <span className="max-w-22.5 truncate">{name}</span>
-                          <button
+                          <button type="button"
                             onClick={() =>
                               removeAssignee.mutate(
                                 { userId: row.userId ?? u?.id },
@@ -682,7 +682,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                             <span className="flex-1 truncate">
                               {dep.blocker?.title}
                             </span>
-                            <button
+                            <button type="button"
                               onClick={() => removeDependency.mutate(dep.id)}
                               className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                             >
@@ -711,7 +711,7 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                             <span className="flex-1 truncate">
                               {dep.blocked?.title}
                             </span>
-                            <button
+                            <button type="button"
                               onClick={() => removeDependency.mutate(dep.id)}
                               className="text-muted-foreground hover:text-destructive transition-colors shrink-0"
                             >
@@ -1012,13 +1012,13 @@ export default function TaskDetailPanel({ projectId, taskId, onClose, onOpenTask
                           </div>
                           {!isEditing && isAuthor && (
                             <div className="flex gap-1 opacity-30 md:opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity shrink-0">
-                              <button
+                              <button type="button"
                                 onClick={() => handleEditComment(comment)}
                                 className="text-muted-foreground hover:text-foreground text-xs px-1"
                               >
                                 Editar
                               </button>
-                              <button
+                              <button type="button"
                                 onClick={() => setDeleteCommentId(comment.id)}
                                 className="text-muted-foreground hover:text-destructive text-xs px-1"
                               >

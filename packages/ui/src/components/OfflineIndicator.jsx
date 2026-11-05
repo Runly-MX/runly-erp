@@ -5,7 +5,7 @@ export function OfflineIndicator({ pendingCount = 0, isOnline = true, onClick })
   if (isOnline) return null
 
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       className="hidden md:flex items-center gap-1.5 rounded-full border border-[hsl(var(--border))] bg-[hsl(var(--muted))] px-2.5 py-1 text-xs text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--border))] transition-colors duration-150 cursor-pointer"
       title="Sin conexion — ver cambios pendientes"

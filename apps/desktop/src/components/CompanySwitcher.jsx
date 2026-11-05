@@ -97,7 +97,7 @@ export function CompanySwitcher() {
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <button
+          <button type="button"
             title={activeCompany?.name}
             className="flex items-center gap-1.5 h-8 px-2.5 rounded-lg bg-[hsl(var(--muted))] hover:bg-[hsl(var(--border))] text-xs font-medium text-[hsl(var(--foreground))] transition-colors duration-150 cursor-pointer outline-none"
           >

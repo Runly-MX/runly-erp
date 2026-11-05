@@ -100,14 +100,14 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
       {/* Tablet / desktop: single row. */}
       <div className="hidden sm:flex items-center gap-1.5 px-3 py-2">
         <div className="flex items-center gap-0.5 shrink-0">
-          <button
+          <button type="button"
             onClick={navigatePrev}
             aria-label="Anterior"
             className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
           >
             {vertical ? <ChevronUp size={16} /> : <ChevronLeft size={16} />}
           </button>
-          <button
+          <button type="button"
             onClick={navigateNext}
             aria-label="Siguiente"
             className="p-1.5 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]"
@@ -120,7 +120,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
           {formatTitle(activeView, selectedDate)}
         </h2>
 
-        <button
+        <button type="button"
           onClick={navigateToday}
           className="text-xs px-2.5 py-1 rounded border border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] shrink-0"
         >
@@ -131,7 +131,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
 
         <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden shrink-0">
           {VIEWS.map((v) => (
-            <button
+            <button type="button"
               key={v.key}
               onClick={() => setActiveView(v.key)}
               className={[
@@ -146,7 +146,7 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
           ))}
         </div>
 
-        <button
+        <button type="button"
           onClick={onNewEvent}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium shrink-0"
         >

@@ -15,7 +15,7 @@ export function AppViewControls({ className = '' }) {
     <div className={`flex items-center gap-2 ${className}`}>
       {/* Sort mode */}
       <div className="flex bg-[hsl(var(--muted))] rounded-md p-0.5 text-xs">
-        <button
+        <button type="button"
           onClick={() => setSortMode('az')}
           className={`px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
             sortMode === 'az' ? activeToggle : inactiveToggle
@@ -23,7 +23,7 @@ export function AppViewControls({ className = '' }) {
         >
           A-Z
         </button>
-        <button
+        <button type="button"
           onClick={() => setSortMode('groups')}
           className={`px-2.5 py-1 rounded font-medium transition-colors cursor-pointer ${
             sortMode === 'groups' ? activeToggle : inactiveToggle
@@ -35,7 +35,7 @@ export function AppViewControls({ className = '' }) {
 
       {/* View mode */}
       <div className="flex bg-[hsl(var(--muted))] rounded-md p-0.5">
-        <button
+        <button type="button"
           onClick={() => setViewMode('cards')}
           className={`p-1 rounded transition-colors cursor-pointer ${
             viewMode === 'cards' ? activeToggle : inactiveToggle
@@ -44,7 +44,7 @@ export function AppViewControls({ className = '' }) {
         >
           <LayoutGrid size={13} />
         </button>
-        <button
+        <button type="button"
           onClick={() => setViewMode('list')}
           className={`p-1 rounded transition-colors cursor-pointer ${
             viewMode === 'list' ? activeToggle : inactiveToggle
@@ -56,7 +56,7 @@ export function AppViewControls({ className = '' }) {
       </div>
 
       {/* Favorites first */}
-      <button
+      <button type="button"
         onClick={toggleFavoritesFirst}
         className={`flex items-center gap-1 text-xs px-2 py-1 rounded transition-colors cursor-pointer ${
           favoritesFirst

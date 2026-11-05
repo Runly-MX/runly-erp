@@ -171,7 +171,7 @@ export function ModuleSidebar({
     );
 
     const headerButton = (
-        <button
+        <button type="button"
           onClick={collapsed ? undefined : () => toggleGroup(item.uid)}
           title={collapsed ? item.label : undefined}
           className={cn(
@@ -408,7 +408,7 @@ export function ModuleSidebar({
             - Regular mode: desktop-only (lg:flex), sits before the close zone
             - Contained/overlay mode: combined into a single button shown always */}
         {canInstall && !collapsed && (
-          <button
+          <button type="button"
             className={cn(
               "h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
               contained ? "flex" : "hidden lg:flex",
@@ -422,7 +422,7 @@ export function ModuleSidebar({
           </button>
         )}
         {/* Close button: mobile-only for regular sidebar; always visible in overlay (contained) mode */}
-        <button
+        <button type="button"
           className={cn(
             "flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer",
             !contained && "lg:hidden",
@@ -435,7 +435,7 @@ export function ModuleSidebar({
         </button>
         {/* Mobile-only install button (regular mode only — contained mode uses the unified button above) */}
         {canInstall && !contained && (
-          <button
+          <button type="button"
             className="lg:hidden flex h-7 w-7 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors shrink-0 cursor-pointer"
             onClick={onInstall}
             title="Instalar como app"
@@ -498,7 +498,7 @@ export function ModuleSidebar({
         </div>
         {/* Collapse toggle — desktop only, not in overlay (contained) mode */}
         <div className={cn("hidden p-2", !contained && "lg:block")}>
-          <button
+          <button type="button"
             onClick={onCollapse}
             title={
               collapsed ? "Expandir panel lateral" : "Colapsar panel lateral"

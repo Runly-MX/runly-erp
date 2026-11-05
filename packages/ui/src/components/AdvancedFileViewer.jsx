@@ -368,13 +368,13 @@ export function AdvancedFileViewer({
 
             {multi && (
               <div className="flex items-center gap-0.5 shrink-0">
-                <button onClick={() => goTo(activeIndex - 1)} disabled={!canPrev} aria-label="Archivo anterior" title={withShortcut("Anterior", "prev")} className={barBtn}>
+                <button type="button" onClick={() => goTo(activeIndex - 1)} disabled={!canPrev} aria-label="Archivo anterior" title={withShortcut("Anterior", "prev")} className={barBtn}>
                   <ChevronLeft className="h-4 w-4" />
                 </button>
                 <span className="text-[11px] text-[hsl(var(--muted-foreground))]/70 min-w-11 text-center tabular-nums select-none">
                   {activeIndex + 1} / {files.length}
                 </span>
-                <button onClick={() => goTo(activeIndex + 1)} disabled={!canNext} aria-label="Archivo siguiente" title={withShortcut("Siguiente", "next")} className={barBtn}>
+                <button type="button" onClick={() => goTo(activeIndex + 1)} disabled={!canNext} aria-label="Archivo siguiente" title={withShortcut("Siguiente", "next")} className={barBtn}>
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </div>
@@ -387,7 +387,7 @@ export function AdvancedFileViewer({
                   "#EXTM3U..." mislabeled as a video. Download stays: it
                   remuxes HLS to a real .mp4 client-side. */}
               {sidePanel && (
-                <button
+                <button type="button"
                   onClick={() => setSidePanelOpen((v) => !v)}
                   aria-label={sidePanelOpen ? "Ocultar panel lateral" : "Mostrar panel lateral"}
                   aria-pressed={sidePanelOpen}
@@ -398,26 +398,26 @@ export function AdvancedFileViewer({
                 </button>
               )}
               {!isHlsSource && !coarse && (
-                <button onClick={openExternal} disabled={!signedUrl} aria-label="Abrir en pestaña nueva" title={withShortcut("Abrir externo", "open")} className={barBtn}>
+                <button type="button" onClick={openExternal} disabled={!signedUrl} aria-label="Abrir en pestaña nueva" title={withShortcut("Abrir externo", "open")} className={barBtn}>
                   <ExternalLink className="h-3.5 w-3.5" />
                 </button>
               )}
               {kind === "image" && avatarHandler && !coarse && (
-                <button onClick={() => avatarHandler(file, signedUrl)} disabled={!signedUrl} aria-label="Usar como foto de perfil" title="Usar como foto de perfil" className={barBtn}>
+                <button type="button" onClick={() => avatarHandler(file, signedUrl)} disabled={!signedUrl} aria-label="Usar como foto de perfil" title="Usar como foto de perfil" className={barBtn}>
                   <UserRound className="h-3.5 w-3.5" />
                 </button>
               )}
               {showEditImage && !coarse && (
-                <button onClick={editImage} disabled={!signedUrl} aria-label="Editar imagen" title="Editar imagen" className={barBtn}>
+                <button type="button" onClick={editImage} disabled={!signedUrl} aria-label="Editar imagen" title="Editar imagen" className={barBtn}>
                   <Pencil className="h-3.5 w-3.5" />
                 </button>
               )}
               {kind === "image" && !coarse && (
-                <button onClick={copyImage} disabled={!signedUrl} aria-label="Copiar imagen" title={withShortcut("Copiar imagen", "copy")} className={barBtn}>
+                <button type="button" onClick={copyImage} disabled={!signedUrl} aria-label="Copiar imagen" title={withShortcut("Copiar imagen", "copy")} className={barBtn}>
                   <Copy className="h-3.5 w-3.5" />
                 </button>
               )}
-              <button
+              <button type="button"
                 onClick={downloadCurrent}
                 disabled={!signedUrl || hlsDownloading}
                 aria-label={isHlsSource ? "Descargar como MP4" : "Descargar archivo"}
@@ -427,12 +427,12 @@ export function AdvancedFileViewer({
                 {hlsDownloading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
               </button>
               {canShareFiles && !isHlsSource && !coarse && (
-                <button onClick={shareFile} disabled={!signedUrl} aria-label="Compartir archivo" title="Compartir" className={barBtn}>
+                <button type="button" onClick={shareFile} disabled={!signedUrl} aria-label="Compartir archivo" title="Compartir" className={barBtn}>
                   <Share2 className="h-3.5 w-3.5" />
                 </button>
               )}
               {coarse && (
-                <button onClick={() => setActionsOpen(true)} aria-label="Más acciones" title="Más acciones" className={barBtn}>
+                <button type="button" onClick={() => setActionsOpen(true)} aria-label="Más acciones" title="Más acciones" className={barBtn}>
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
               )}
@@ -557,7 +557,7 @@ export function AdvancedFileViewer({
                 {multi && !coarse && (
                   <>
                     {canPrev && (
-                      <button
+                      <button type="button"
                         onClick={() => goTo(activeIndex - 1)}
                         aria-label="Archivo anterior"
                         title={withShortcut("Anterior", "prev")}
@@ -567,7 +567,7 @@ export function AdvancedFileViewer({
                       </button>
                     )}
                     {canNext && (
-                      <button
+                      <button type="button"
                         onClick={() => goTo(activeIndex + 1)}
                         aria-label="Archivo siguiente"
                         title={withShortcut("Siguiente", "next")}

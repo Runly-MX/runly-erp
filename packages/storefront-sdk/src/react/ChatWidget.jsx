@@ -512,18 +512,18 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
         </div>
 
         {isAvailable ? (
-          <button style={styles.optionBtn} onClick={() => setScreen('identify')}>
+          <button type="button" style={styles.optionBtn} onClick={() => setScreen('identify')}>
             <ChatIcon color={accentColor} />
             Hablar con un agente
           </button>
         ) : (
-          <button style={styles.optionBtn} onClick={() => setScreen('identify')}>
+          <button type="button" style={styles.optionBtn} onClick={() => setScreen('identify')}>
             <MailIcon color={accentColor} />
             Dejar un mensaje
           </button>
         )}
 
-        <button
+        <button type="button"
           style={s(styles.ghostBtn, { marginTop: 6, fontSize: 11, color: '#555' })}
           onClick={() => setScreen('resume')}
         >
@@ -536,7 +536,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   function renderResume() {
     return (
       <>
-        <button style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
+        <button type="button" style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
         <div style={{ color: '#ddd', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Retomar conversacion</div>
         <div style={{ color: '#666', fontSize: 11, marginBottom: 14 }}>
           Ingresa tu numero de seguimiento y el correo que usaste al iniciar el chat.
@@ -566,7 +566,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           />
         </div>
 
-        <button
+        <button type="button"
           style={s(styles.primaryBtn, isResuming ? { opacity: 0.6 } : {})}
           onClick={handleResumeByCode}
           disabled={isResuming}
@@ -581,7 +581,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
   function renderIdentify() {
     return (
       <>
-        <button style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
+        <button type="button" style={styles.backBtn} onClick={() => setScreen('welcome')}>← Atras</button>
         <div style={{ color: '#ddd', fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Antes de empezar</div>
         <div style={{ color: '#666', fontSize: 11, marginBottom: 14 }}>
           Tu correo nos permite darte seguimiento si la conversacion se interrumpe.
@@ -611,11 +611,11 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           {emailError && <div style={styles.errorMsg}>{emailError}</div>}
         </div>
 
-        <button style={styles.primaryBtn} onClick={handleStartChat}>
+        <button type="button" style={styles.primaryBtn} onClick={handleStartChat}>
           Iniciar chat
         </button>
         {startError && <div style={styles.errorMsg}>{startError}</div>}
-        <button style={styles.ghostBtn} onClick={() => startSession({}).catch(() => {})}>
+        <button type="button" style={styles.ghostBtn} onClick={() => startSession({}).catch(() => {})}>
           Continuar sin correo
         </button>
       </>
@@ -757,7 +757,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             flexShrink: 0,
           }}>
             Esta conversacion fue cerrada.{' '}
-            <button
+            <button type="button"
               style={{ background: 'none', border: 'none', color: accentColor, fontSize: 11, cursor: 'pointer', padding: 0 }}
               onClick={closeSession}
             >
@@ -810,7 +810,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
             onKeyDown={handleKeyDown}
             rows={1}
           />
-          <button
+          <button type="button"
             style={s(styles.sendBtn, (isSending || isClosed) ? { opacity: 0.5 } : {})}
             onClick={handleSend}
             onMouseDown={(e) => e.preventDefault()}
@@ -845,7 +845,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             {screen === 'chat' && (
-              <button
+              <button type="button"
                 style={s(styles.closeBtn, { fontSize: 11, color: '#555' })}
                 onClick={closeSession}
                 title="Cerrar conversacion"
@@ -853,7 +853,7 @@ export function ChatWidget({ sdk, companyName = 'Chat', accentColor = DEFAULT_AC
                 Cerrar
               </button>
             )}
-            <button style={styles.closeBtn} onClick={() => setOpen(false)} aria-label="Cerrar panel">
+            <button type="button" style={styles.closeBtn} onClick={() => setOpen(false)} aria-label="Cerrar panel">
               ×
             </button>
           </div>

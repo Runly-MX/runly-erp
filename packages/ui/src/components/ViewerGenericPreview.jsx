@@ -25,7 +25,7 @@ export function ViewerGenericPreview({ file, kind, officeOpenable, onOpenOffice,
             : "No hay vista previa disponible para este tipo de archivo."}
         </p>
         {officeOpenable && (
-          <button
+          <button type="button"
             onClick={onOpenOffice}
             className="w-full h-9 mb-2 rounded-lg flex items-center justify-center gap-1.5 text-xs font-medium text-[var(--brand-primary-foreground)] bg-[var(--brand-primary)] hover:opacity-90 transition-opacity"
           >
@@ -34,16 +34,16 @@ export function ViewerGenericPreview({ file, kind, officeOpenable, onOpenOffice,
           </button>
         )}
         <div className="flex gap-2">
-          <button onClick={onDownload} className={secondaryBtn}>
+          <button type="button" onClick={onDownload} className={secondaryBtn}>
             <Download className="h-3.5 w-3.5" />
             Descargar
           </button>
-          <button onClick={onOpen} className={secondaryBtn}>
+          <button type="button" onClick={onOpen} className={secondaryBtn}>
             <ExternalLink className="h-3.5 w-3.5" />
             Abrir
           </button>
           {onShare && (
-            <button onClick={onShare} className={secondaryBtn}>
+            <button type="button" onClick={onShare} className={secondaryBtn}>
               <Share2 className="h-3.5 w-3.5" />
               Compartir
             </button>

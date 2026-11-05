@@ -35,7 +35,7 @@ function SubmissionRow({ sub, onDelete }) {
           {entries.length > 2 && " ..."}
         </span>
         <div className="flex items-center gap-2 shrink-0">
-          <button
+          <button type="button"
             onClick={(e) => {
               e.stopPropagation();
               onDelete(sub.id);

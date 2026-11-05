@@ -32,7 +32,7 @@ export function ViewerFilmstrip({
 
   if (!open) {
     return (
-      <button
+      <button type="button"
         onClick={() => onOpenChange(true)}
         aria-label="Mostrar miniaturas"
         title="Mostrar miniaturas"
@@ -65,7 +65,7 @@ export function ViewerFilmstrip({
           const fKind = getFileKind(f);
           const mediaThumbUrl = mediaThumbUrls[f.id] ?? null;
           return (
-            <button
+            <button type="button"
               key={f.id ?? i}
               ref={(node) => {
                 if (node) thumbRefs.current.set(i, node);
@@ -100,7 +100,7 @@ export function ViewerFilmstrip({
           );
         })}
       </div>
-      <button
+      <button type="button"
         onClick={() => onOpenChange(false)}
         aria-label="Ocultar miniaturas"
         title="Ocultar miniaturas"

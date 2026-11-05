@@ -63,7 +63,7 @@ export function Topbar({
         <div className="flex items-center gap-1.5 min-w-0">
           {/* Fullscreen module menu trigger — always visible on all breakpoints */}
           {onModuleMenuToggle && (
-            <button
+            <button type="button"
               className="h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
               onClick={onModuleMenuToggle}
               aria-label="Abrir navegacion del modulo"
@@ -73,7 +73,7 @@ export function Topbar({
           )}
           {/* Mobile hamburger — only shown when a regular sidebar is active */}
           {onMobileMenuToggle && !onModuleMenuToggle && (
-            <button
+            <button type="button"
               className="lg:hidden h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
               onClick={onMobileMenuToggle}
               aria-label="Abrir menu"
@@ -83,7 +83,7 @@ export function Topbar({
           )}
 
           {/* Logo mark — click to go home */}
-          <button
+          <button type="button"
             onClick={() => navigate("/app/home")}
             title="Inicio"
             className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-80 overflow-hidden"
@@ -103,7 +103,7 @@ export function Topbar({
           </button>
 
           {/* App launcher */}
-          <button
+          <button type="button"
             onClick={onLauncherOpen}
             title="Aplicaciones (Ctrl+.)"
             className="h-9 w-9 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer"
@@ -129,7 +129,7 @@ export function Topbar({
             the element from grid auto-placement entirely, which would push
             the right cluster into this middle column instead of column 3. */}
         <div className="flex items-center justify-center min-w-0 px-2 invisible lg:visible">
-          <button
+          <button type="button"
             onClick={openCommand}
             className="flex h-9 w-64 max-w-full items-center gap-2 px-3 rounded-xl glass-subtle hover:brightness-105 border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))] transition-all duration-150 cursor-pointer"
           >
@@ -147,7 +147,7 @@ export function Topbar({
         <div className="flex items-center gap-1 justify-self-end min-w-0">
           {/* Command-palette trigger (icon) — below lg only; the full centred
               bar takes over at lg+. */}
-          <button
+          <button type="button"
             onClick={openCommand}
             aria-label="Buscar o ejecutar"
             title="Buscar o ejecutar (Ctrl+K)"

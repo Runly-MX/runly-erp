@@ -156,7 +156,7 @@ export function UserMenu({
     <DropdownMenu>
       <PopoverAnchor asChild>
       <DropdownMenuTrigger asChild>
-        <button className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer outline-none">
+        <button type="button" className="flex items-center gap-2 h-9 pl-1 pr-2 rounded-lg hover:bg-[hsl(var(--muted))] transition-colors duration-150 cursor-pointer outline-none">
           <span className="relative">
           <Avatar className="h-7 w-7">
             {userProfile?.avatarUrl && (

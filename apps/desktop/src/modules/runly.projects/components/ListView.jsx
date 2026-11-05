@@ -420,14 +420,14 @@ export default function ListView({
                 { value: "NONE", label: "Normal" },
               ]}
             />
-            <button
+            <button type="button"
               onClick={() => setBulkDeleteOpen(true)}
               className="flex items-center gap-1 text-destructive hover:text-destructive/80 transition-colors px-2 py-1 rounded hover:bg-destructive/10"
             >
               <Trash2 size={13} />
               Eliminar
             </button>
-            <button
+            <button type="button"
               onClick={clearSelection}
               className="text-muted-foreground hover:text-foreground transition-colors"
             >

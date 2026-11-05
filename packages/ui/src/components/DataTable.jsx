@@ -250,7 +250,7 @@ export function DataTable({
                     {...resize.headerProps(header.column.id)}
                   >
                     {header.isPlaceholder ? null : header.column.getCanSort() ? (
-                      <button
+                      <button type="button"
                         onClick={header.column.getToggleSortingHandler()}
                         className="flex cursor-pointer items-center gap-1 hover:text-[hsl(var(--foreground))] transition-colors"
                       >

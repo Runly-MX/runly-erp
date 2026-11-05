@@ -159,7 +159,7 @@ export function AppShell({
           )}
         >
           {onThemeToggle && (
-            <button
+            <button type="button"
               onClick={onThemeToggle}
               className="flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
               title="Toggle theme"
@@ -167,7 +167,7 @@ export function AppShell({
               {isDark ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           )}
-          <button
+          <button type="button"
             onClick={() => setCollapsed((c) => !c)}
             className="flex h-8 w-8 items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] transition-colors"
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}

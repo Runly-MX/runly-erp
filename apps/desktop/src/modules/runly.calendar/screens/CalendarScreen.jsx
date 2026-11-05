@@ -166,7 +166,7 @@ export default function CalendarScreen() {
     <div className="flex flex-col h-full overflow-hidden bg-[hsl(var(--surface-1))]">
       {/* Top toolbar row */}
       <div className="flex items-center gap-1 border-b border-[hsl(var(--border))] shrink-0">
-        <button
+        <button type="button"
           onClick={toggleLeftSidebar}
           className="hidden sm:block p-2 ml-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
           title={
@@ -186,7 +186,7 @@ export default function CalendarScreen() {
           <CalendarToolbar onNewEvent={openNewEvent} onToggleSidebar={toggleLeftSidebar} />
         </div>
 
-        <button
+        <button type="button"
           onClick={toggleRightSidebar}
           className="hidden sm:block p-2 mr-2 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] shrink-0"
           title={

@@ -329,7 +329,7 @@ export default function NotesScreen() {
           {!effectiveListCollapsed && !isTrashView && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <button type="button"
                   disabled={createNote.isPending}
                   className="flex items-center gap-1 px-2.5 py-1.5 text-xs font-semibold bg-amber-500 hover:bg-amber-600 text-white rounded-lg transition-colors disabled:opacity-50 shadow-sm"
                 >
@@ -347,7 +347,7 @@ export default function NotesScreen() {
               </DropdownMenuContent>
             </DropdownMenu>
           )}
-          <button
+          <button type="button"
             onClick={() => {
               const next = !listCollapsed
               setListCollapsed(next)
@@ -359,7 +359,7 @@ export default function NotesScreen() {
             {effectiveListCollapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
           </button>
           {!effectiveListCollapsed && (
-            <button
+            <button type="button"
               onClick={() => changeLayout('home')}
               className="hidden lg:flex p-1.5 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
               title="Vista de tarjetas"
@@ -385,14 +385,14 @@ export default function NotesScreen() {
 
             {isTrashView && selectedNote && (
               <div className="px-3 py-2 border-t border-border flex gap-2 shrink-0">
-                <button
+                <button type="button"
                   onClick={() => { setNoteToAction(selectedNote); setRestoreOpen(true) }}
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-border rounded-lg hover:bg-muted text-foreground transition-colors"
                 >
                   <RotateCcw size={13} />
                   Restaurar
                 </button>
-                <button
+                <button type="button"
                   onClick={() => { setNoteToAction(selectedNote); setDeleteOpen(true) }}
                   className="flex-1 flex items-center justify-center gap-1.5 text-xs font-medium py-2 border border-red-200 dark:border-red-900/50 text-red-500 dark:text-red-400 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 >

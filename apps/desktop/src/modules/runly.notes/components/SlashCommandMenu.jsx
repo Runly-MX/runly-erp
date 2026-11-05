@@ -40,7 +40,7 @@ export function SlashCommandMenu({ items, command, ref }) {
       {items.map((item, index) => {
         const Icon = item.icon
         return (
-          <button
+          <button type="button"
             key={item.title}
             onClick={() => command(item)}
             onMouseEnter={() => setSelected(index)}

@@ -171,13 +171,13 @@ export default function ProjectFieldsSheet({ projectId, open, onOpenChange }) {
                         )}
                       </p>
                     </div>
-                    <button
+                    <button type="button"
                       onClick={() => startEdit(field)}
                       className="text-muted-foreground hover:text-foreground transition-colors p-1"
                     >
                       <Pencil size={13} />
                     </button>
-                    <button
+                    <button type="button"
                       onClick={() => setDeleteId(field.id)}
                       className="text-muted-foreground hover:text-destructive transition-colors p-1"
                     >

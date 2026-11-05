@@ -555,7 +555,7 @@ export default function ModuleCatalog() {
 
           {/* View toggle */}
           <div className="ml-auto flex items-center gap-0.5 rounded-lg border border-[hsl(var(--border))] p-0.5 bg-[hsl(var(--muted))]/40">
-            <button
+            <button type="button"
               aria-label="Vista cuadrícula"
               onClick={() => setViewMode("grid")}
               className={cn(
@@ -567,7 +567,7 @@ export default function ModuleCatalog() {
             >
               <LayoutGrid className="h-3.5 w-3.5" />
             </button>
-            <button
+            <button type="button"
               aria-label="Vista lista"
               onClick={() => setViewMode("list")}
               className={cn(

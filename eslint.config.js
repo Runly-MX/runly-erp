@@ -51,6 +51,13 @@ export default [
           message:
             "toISOString() is UTC. Use toLocalIso() from @runly/core to derive a local date.",
         },
+        {
+          // A <button> without type is a submit inside a form: action buttons would save it.
+          selector:
+            "JSXOpeningElement[name.name='button']:not(:has(JSXAttribute[name.name='type'])):not(:has(JSXSpreadAttribute))",
+          message:
+            'Give every <button> a type: type="button" for actions, type="submit" only for the form\'s save button.',
+        },
       ],
     },
   },

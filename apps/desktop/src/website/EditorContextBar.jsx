@@ -60,7 +60,7 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
 
   return (
     <>
-      <button
+      <button type="button"
         ref={triggerRef}
         onClick={() => setOpen((v) => !v)}
         style={{
@@ -117,7 +117,7 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
               <p style={{ textAlign: 'center', padding: '10px 0', color: '#6b7280', fontSize: 12 }}>Sin resultados</p>
             )}
             {filtered.map((p) => (
-              <button
+              <button type="button"
                 key={p.id}
                 onClick={() => { onNavigate?.(p.routePath); setOpen(false); setSearch('') }}
                 style={{
@@ -139,7 +139,7 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
             ))}
 
             {canCreate && (
-              <button
+              <button type="button"
                 onClick={() => { onCreatePage?.(search.trim()); setOpen(false); setSearch('') }}
                 style={{
                   display: 'flex', alignItems: 'center', gap: 7,
@@ -253,7 +253,7 @@ export function EditorContextBar({
           }} />
 
           {/* Pin */}
-          <button
+          <button type="button"
             onClick={togglePin}
             title={pinned ? 'Desfijar barra' : 'Fijar barra'}
             style={{
@@ -272,7 +272,7 @@ export function EditorContextBar({
           {divider}
 
           {/* Back to ERP */}
-          <button
+          <button type="button"
             onClick={() => navigate('/app')}
             style={{
               display: 'flex', alignItems: 'center', gap: 4,
@@ -313,7 +313,7 @@ export function EditorContextBar({
               { label: 'Vista',  icon: <Eye    size={11} />, active: !editMode, onClick: () => editMode  && onToggleEdit?.() },
               { label: 'Editor', icon: <Pencil size={11} />, active:  editMode, onClick: () => !editMode && onToggleEdit?.() },
             ].map(({ label, icon, active, onClick }) => (
-              <button
+              <button type="button"
                 key={label}
                 onClick={onClick}
                 style={{
@@ -335,7 +335,7 @@ export function EditorContextBar({
           {divider}
 
           {/* Publish / Draft */}
-          <button
+          <button type="button"
             onClick={() => isPublished ? onUnpublishPage?.() : onPublishPage?.()}
             disabled={isPublishing}
             style={{

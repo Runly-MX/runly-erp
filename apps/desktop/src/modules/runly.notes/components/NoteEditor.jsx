@@ -699,7 +699,7 @@ function NoteEditorSurface({ note, readOnly, viewOnly, scrollable, zoom = 100, t
               ) : (
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button
+                    <button type="button"
                       className="w-10 h-10 rounded-xl flex items-center justify-center hover:bg-muted transition-colors"
                       title="Seleccionar icono"
                     >

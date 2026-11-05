@@ -142,7 +142,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
             style={{ height: 28, width: 'auto', display: 'block', objectFit: 'contain' }}
           />
 
-          <button
+          <button type="button"
             onClick={handlePrimaryAction}
             style={{
               display: 'inline-flex', alignItems: 'center', gap: 7,
@@ -286,7 +286,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
             </p>
 
             {/* Secondary CTA */}
-            <button className="_cse" onClick={handlePrimaryAction} style={{
+            <button type="button" className="_cse" onClick={handlePrimaryAction} style={{
               display: 'inline-flex', alignItems: 'center', gap: 10,
               color: 'rgba(17,16,16,.28)',
               fontSize: 10.5, fontWeight: 700,
@@ -542,7 +542,7 @@ function DraftViewScreen({ onOpenEditor, topOffset = 0 }) {
           </p>
 
           {/* CTA */}
-          <button
+          <button type="button"
             className="_dr5"
             onClick={onOpenEditor}
             style={{
@@ -605,7 +605,7 @@ function EditorEmptyRoute({ routePath, onCreatePage, isCreating }) {
           </p>
         </div>
         <div className="flex flex-col items-center gap-3">
-          <button
+          <button type="button"
             onClick={onCreatePage}
             disabled={isCreating}
             className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-sm text-white transition-all hover:shadow-lg hover:-translate-y-0.5 disabled:opacity-50"

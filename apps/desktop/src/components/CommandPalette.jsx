@@ -245,7 +245,7 @@ export function CommandPalette({ activeModule }) {
                 placeholder={scope.moduleKey ? `Buscar en ${scope.label}...` : "Buscar módulos, acciones, páginas..."}
                 className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--muted-foreground))] outline-none"
               />
-              <button
+              <button type="button"
                 onClick={() => {
                   closeCommand();
                   setQuery("");
@@ -333,7 +333,7 @@ export function CommandPalette({ activeModule }) {
                       const idx = runningIndex;
                       const isSelected = idx === selectedIndex;
                       return (
-                        <button
+                        <button type="button"
                           key={item.key}
                           data-cmd-idx={idx}
                           onClick={() => runItem(item)}

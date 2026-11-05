@@ -119,7 +119,7 @@ export default function EventDetailModal({
             <DialogHeader className="mb-0 space-y-1 px-5 pt-4 pb-3 pr-28">
               <div className="absolute right-12 top-4 flex items-center gap-0.5">
                 {canEdit && (
-                  <button
+                  <button type="button"
                     onClick={() => onEdit(event)}
                     className="rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 hover:bg-[hsl(var(--muted))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40"
                     title={event._isRecurrenceInstance ? "Editar serie" : "Editar"}
@@ -128,7 +128,7 @@ export default function EventDetailModal({
                   </button>
                 )}
                 {canDelete && !event.sourceModule && (
-                  <button
+                  <button type="button"
                     onClick={() => setConfirmOpen(true)}
                     disabled={deleteEvent.isPending}
                     className="rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 hover:bg-[hsl(var(--muted))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 disabled:pointer-events-none disabled:opacity-40"

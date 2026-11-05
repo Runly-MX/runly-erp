@@ -101,7 +101,7 @@ export default function MembersPanel({ open, onOpenChange, projectId }) {
                         {badge.label}
                       </Badge>
                       {m.role !== 'OWNER' && (
-                        <button
+                        <button type="button"
                           onClick={() => setRemoveTarget(m)}
                           className="opacity-60 md:opacity-0 md:group-hover:opacity-100 text-muted-foreground hover:text-destructive transition-all"
                           title="Eliminar miembro"

@@ -35,7 +35,7 @@ const HIGHLIGHT_COLORS_DARK = HIGHLIGHT_COLORS_LIGHT
 
 function ToolbarButton({ onClick, active, disabled, title, children }) {
   return (
-    <button
+    <button type="button"
       onMouseDown={e => { e.preventDefault(); onClick?.() }}
       disabled={disabled}
       title={title}
@@ -60,7 +60,7 @@ function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerI
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <button
+        <button type="button"
           onMouseDown={e => e.preventDefault()}
           className={[
             'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-0.5 transition-colors select-none shrink-0',
@@ -77,7 +77,7 @@ function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerI
         <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">{title}</p>
         <div className="grid grid-cols-7 gap-1.5">
           {colors.map(c => (
-            <button
+            <button type="button"
               key={c}
               onMouseDown={e => { e.preventDefault(); onColor(c) }}
               style={{ backgroundColor: c }}
@@ -91,7 +91,7 @@ function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerI
             />
           ))}
         </div>
-        <button
+        <button type="button"
           onMouseDown={e => { e.preventDefault(); onClear() }}
           className="mt-2.5 w-full text-[11px] text-muted-foreground hover:text-foreground text-left px-1 py-1 rounded hover:bg-muted transition-colors"
         >
@@ -104,7 +104,7 @@ function ColorPopover({ title, colors, onColor, onClear, isColorActive, triggerI
 
 function TableMenuItem({ label, onClick, destructive }) {
   return (
-    <button
+    <button type="button"
       onMouseDown={e => { e.preventDefault(); onClick() }}
       className={[
         'w-full text-left px-3 py-1.5 text-sm rounded transition-colors',
@@ -376,7 +376,7 @@ export function NoteToolbar({ noteId, token, bar = false }) {
         if (open) setLinkUrl(editor.getAttributes('link').href ?? '')
       }}>
         <PopoverTrigger asChild>
-          <button
+          <button type="button"
             onMouseDown={e => e.preventDefault()}
             className={[
               'h-8 min-w-8 sm:h-7 sm:min-w-7 px-1.5 rounded flex items-center justify-center gap-1 text-sm transition-colors select-none shrink-0',
@@ -431,7 +431,7 @@ export function NoteToolbar({ noteId, token, bar = false }) {
                 <ExternalLink className="w-3 h-3 shrink-0" />
                 {editor.getAttributes('link').href}
               </a>
-              <button
+              <button type="button"
                 onMouseDown={e => { e.preventDefault(); editor.chain().focus().unsetLink().run(); setLinkOpen(false) }}
                 className="text-xs text-destructive hover:underline flex items-center gap-1 shrink-0"
               >
@@ -449,7 +449,7 @@ export function NoteToolbar({ noteId, token, bar = false }) {
           <Divider />
           <Popover>
             <PopoverTrigger asChild>
-              <button
+              <button type="button"
                 onMouseDown={e => e.preventDefault()}
                 className="h-8 sm:h-7 px-2 rounded flex items-center gap-1 text-xs font-semibold text-muted-foreground hover:bg-muted hover:text-foreground transition-colors select-none shrink-0"
                 title="Opciones de tabla"

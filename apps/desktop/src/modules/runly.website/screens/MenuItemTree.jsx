@@ -52,13 +52,13 @@ function SortableItem({ item, onEdit, onDelete }) {
         </span>
       )}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
+        <button type="button"
           onClick={() => onEdit(item)}
           className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
         >
           <Pencil size={12} />
         </button>
-        <button
+        <button type="button"
           onClick={() => onDelete(item)}
           className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"
         >
@@ -80,13 +80,13 @@ function ChildItem({ item, onEdit, onDelete }) {
         </span>
       )}
       <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button
+        <button type="button"
           onClick={() => onEdit(item)}
           className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]"
         >
           <Pencil size={12} />
         </button>
-        <button
+        <button type="button"
           onClick={() => onDelete(item)}
           className="p-1 rounded hover:bg-[hsl(var(--muted))] text-[hsl(var(--destructive))]"
         >
@@ -167,7 +167,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
           title="Este menú está vacío"
           description="Agrega los enlaces que tus visitantes verán para moverse por tu sitio: Inicio, Servicios, Contacto…"
         />
-        <button
+        <button type="button"
           onClick={() => setAddOpen(true)}
           className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
         >
@@ -204,7 +204,7 @@ export default function MenuItemTree({ menuId, items = [], onReorder, onRefresh 
         </SortableContext>
       </DndContext>
 
-      <button
+      <button type="button"
         onClick={() => setAddOpen(true)}
         className="w-full rounded-lg border border-dashed border-[hsl(var(--border))] py-2 text-sm text-[hsl(var(--muted-foreground))] hover:border-[var(--brand-primary)] hover:text-[var(--brand-primary)] transition-colors"
       >

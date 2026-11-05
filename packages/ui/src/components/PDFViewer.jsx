@@ -34,7 +34,7 @@ function clampZoom(value) {
 // viewers expose the same zoom/rotate/flip controls with identical styling.
 function ToolbarBtn({ children, title, onClick, disabled, active }) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -178,7 +178,7 @@ function CustomPdfViewer({ url }) {
               <p className="text-sm text-[hsl(var(--muted-foreground))]">
                 Error al cargar el PDF.
               </p>
-              <button
+              <button type="button"
                 onClick={() => window.open(url, "_blank")}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium glass text-[hsl(var(--foreground))]"
               >
@@ -240,7 +240,7 @@ function CustomPdfViewer({ url }) {
           >
             <Minus className="h-3.5 w-3.5" />
           </ToolbarBtn>
-          <button
+          <button type="button"
             onClick={() => setZoom(1)}
             title="Restablecer zoom"
             className="h-7 min-w-13 px-2 text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors duration-150 tabular-nums"

@@ -9,7 +9,7 @@ export function TemplatePickerModal({ isOpen, onClose, token, siteId, onHomePage
       <div className="bg-white rounded-lg p-6 max-w-md w-full mx-4">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Seleccionar plantilla</h2>
-          <button
+          <button type="button"
             onClick={onClose}
             className="text-gray-500 hover:text-gray-700"
           >

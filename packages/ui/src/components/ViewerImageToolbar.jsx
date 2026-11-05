@@ -12,7 +12,7 @@ import { withShortcut } from "../hooks/useViewerShortcuts.js";
 
 function ToolbarBtn({ children, title, onClick, disabled, active }) {
   return (
-    <button
+    <button type="button"
       onClick={onClick}
       disabled={disabled}
       title={title}
@@ -47,7 +47,7 @@ export function ViewerImageToolbar({ t }) {
         <ToolbarBtn onClick={() => t.nudgeZoom(-1)} title={withShortcut("Reducir zoom", "zoomout")} disabled={t.zoom <= MIN_ZOOM}>
           <Minus className="h-3.5 w-3.5" />
         </ToolbarBtn>
-        <button
+        <button type="button"
           onClick={t.resetZoom}
           title="Restablecer zoom"
           className="h-7 min-w-13 px-2 text-[11px] text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] transition-colors duration-150 tabular-nums"

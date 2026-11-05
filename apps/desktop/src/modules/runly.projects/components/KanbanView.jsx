@@ -136,7 +136,7 @@ function TaskCard({ task, statusColor, onClick, isDragging, statuses, currentSta
           {otherStatuses.length > 0 && (
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button
+                <button type="button"
                   className="md:hidden flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground p-0.5 rounded transition-colors"
                   onClick={(e) => e.stopPropagation()}
                   aria-label="Mover a columna"
@@ -357,7 +357,7 @@ export default function KanbanView({ projectId, onTaskClick, showSubtasks = fals
                     onDone={() => setQuickCreate(null)}
                   />
                 ) : (
-                  <button
+                  <button type="button"
                     onClick={() => setQuickCreate(status.id)}
                     className="w-full text-left text-xs text-muted-foreground hover:text-foreground py-1 px-1 rounded transition-colors flex items-center gap-1"
                   >
