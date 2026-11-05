@@ -126,6 +126,23 @@ Not in v1:
 - Admins viewing customer uploads from the ERP.
 - Non-image documents.
 
+## Deletion and purge
+
+All data of external accounts is personal data, so it is erased rather than retained. Every removal deletes stored objects first and rows second. If Storage fails, the call answers `STORAGE_UNAVAILABLE` (503), nothing is removed from the database, and a retry still finds every object.
+
+| Trigger | What is erased | How |
+|---|---|---|
+| The customer runs "Eliminar mi cuenta" (`POST /me/delete { password }`) | Account, sessions, email tokens, files (objects and rows) | `identity.closeAccount` re-asks for the password, then `files.purgeAccount` runs. |
+| An admin runs "Eliminar cuenta" (`DELETE /website/sites/:siteId/accounts/:accountId`) | Same as above; audited as `website.account.delete` | `identity.deleteAccount` with `beforeDelete: files.purgeAccount` |
+| The site is deleted for good (`purgeSite`, only after archiving) | The site's whole realm: every account, session, token and file | `files.purgeRealm({ moduleKey, ownerId })`. It runs before the site's tombstone, so a failure leaves the site archived for a retry. The audit entry records `customerAccountsErased`. |
+| The company is deleted | Every realm of the company | Automatic: all `external_*` tables carry `company_id` or hang from one, and `external_file` has `bucket` + `object_key`, so `company-deletion-inventory.js` collects its objects. |
+
+Things that are not erased:
+- The company's linked Contact. It is company data, not part of the account.
+- Data of an *archived* site. Archiving is reversible, so its accounts stay (they just stop resolving because the gateway only serves enabled sites).
+
+`purgeRealm` is idempotent: a missing realm returns `{ accounts: 0 }`. Other modules call it when their realm owner is removed for good.
+
 ## Engine API
 
 ```js
@@ -149,7 +166,8 @@ Both `notify` and `onRegistered` are best effort. If one fails, the error is log
 | `register`, `login`, `logout`, `sessionFromToken` | Sign-up and sessions |
 | `requestEmailVerification`, `verifyEmail`, `requestPasswordReset`, `resetPassword` | Email links |
 | `updateProfile`, `changePassword` | Self service |
-| `listAccounts`, `setAccountStatus`, `revokeSessions` | Admin, always by realm |
+| `listAccounts`, `setAccountStatus`, `revokeSessions`, `deleteAccount` | Admin, always by realm |
+| `closeAccount` | Self-service deletion (re-asks for the password) |
 
 Errors are `ExternalIdentityError` with `status` and `code`: `INVALID_CREDENTIALS`, `LOCKED`, `EMAIL_NOT_VERIFIED`, `SIGNUP_CLOSED`, `EMAIL_TAKEN`, `TOKEN_INVALID`, `VALIDATION_ERROR`, `INVALID_PASSWORD`, `NOT_FOUND`.
 
@@ -164,6 +182,7 @@ Errors are `ExternalIdentityError` with `status` and `code`: `INVALID_CREDENTIAL
 | POST | `/logout` | Answers 204 and clears the cookie. |
 | GET / PATCH | `/me` | Reads the profile, or updates `{ displayName?, phone? }`. |
 | POST | `/me/password` | `{ currentPassword, newPassword }`. |
+| POST | `/me/delete` | `{ password }`. Erases the account and its files, and clears the cookie. |
 | POST | `/verify-email/request` | Signed in only; sends a new verification email. |
 | POST | `/verify-email` | `{ token }` |
 | POST | `/password/forgot` | `{ email }`. Always answers 204. |

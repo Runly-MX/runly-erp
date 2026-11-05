@@ -6824,6 +6824,8 @@ model ExternalFile {
  accountId String @db.Uuid @map("account_id")
  companyId String @db.Uuid @map("company_id")
  purpose String
+ // Named bucket + object_key: company deletion (company-deletion-inventory.js) removes these objects automatically.
+ bucket String @default("runly-external")
  objectKey String @unique @map("object_key")
  mimeType String @map("mime_type")
  sizeBytes Int @map("size_bytes")

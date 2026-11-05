@@ -4,7 +4,7 @@ import {
   Button, ConfirmDialog, DataTable, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   ErrorState, NumberField, SearchInput, Skeleton, StatusPill, SwitchField,
 } from '@runly/ui'
-import { Info, LogOut, MoreHorizontal, UserCheck, UserX, Users } from 'lucide-react'
+import { Info, LogOut, MoreHorizontal, Trash2, UserCheck, UserX, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { useSessionPermission } from '../hooks/useWebsite.js'
@@ -27,7 +27,7 @@ export function SettingsAccountsCard({ siteId, token }) {
   const [form, setForm] = useState(DEFAULTS)
   const [search, setSearch] = useState('')
   const deferredSearch = useDeferredValue(search.trim())
-  const [pending, setPending] = useState(null) // { kind: 'status' | 'revoke', account }
+  const [pending, setPending] = useState(null) // { kind: 'status' | 'revoke' | 'delete', account }
 
   const settingsQuery = useQuery({
     queryKey: ['website-account-settings', siteId],
@@ -51,9 +51,11 @@ export function SettingsAccountsCard({ siteId, token }) {
   const actionMutation = useMutation({
     mutationFn: ({ kind, account }) => (kind === 'revoke'
       ? runly.website.revokeAccountSessions(siteId, account.id, token)
-      : runly.website.setAccountStatus(siteId, account.id, account.status === 'active' ? 'disabled' : 'active', token)),
+      : kind === 'delete'
+        ? runly.website.deleteAccount(siteId, account.id, token)
+        : runly.website.setAccountStatus(siteId, account.id, account.status === 'active' ? 'disabled' : 'active', token)),
     onSuccess: (_res, { kind, account }) => {
-      toast.success(kind === 'revoke' ? 'Sesiones cerradas' : account.status === 'active' ? 'Cuenta desactivada' : 'Cuenta reactivada')
+      toast.success(kind === 'revoke' ? 'Sesiones cerradas' : kind === 'delete' ? 'Cuenta eliminada' : account.status === 'active' ? 'Cuenta desactivada' : 'Cuenta reactivada')
       setPending(null)
       queryClient.invalidateQueries({ queryKey: ['website-accounts', siteId] })
     },
@@ -79,6 +81,7 @@ export function SettingsAccountsCard({ siteId, token }) {
                 {row.original.status === 'active' ? <><UserX className="mr-2 h-4 w-4" />Desactivar</> : <><UserCheck className="mr-2 h-4 w-4" />Reactivar</>}
               </DropdownMenuItem>
               <DropdownMenuItem onSelect={() => setPending({ kind: 'revoke', account: row.original })}><LogOut className="mr-2 h-4 w-4" />Cerrar sesiones</DropdownMenuItem>
+              <DropdownMenuItem className="text-[hsl(var(--destructive))]" onSelect={() => setPending({ kind: 'delete', account: row.original })}><Trash2 className="mr-2 h-4 w-4" />Eliminar cuenta</DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -156,13 +159,15 @@ export function SettingsAccountsCard({ siteId, token }) {
       <ConfirmDialog
         open={Boolean(pending)}
         onOpenChange={(open) => { if (!open) setPending(null) }}
-        title={pending?.kind === 'revoke' ? 'Cerrar sesiones' : disabling ? 'Desactivar cuenta' : 'Reactivar cuenta'}
+        title={pending?.kind === 'revoke' ? 'Cerrar sesiones' : pending?.kind === 'delete' ? 'Eliminar cuenta' : disabling ? 'Desactivar cuenta' : 'Reactivar cuenta'}
         description={pending?.kind === 'revoke'
           ? `Se cerrarán todas las sesiones abiertas de ${pending?.account.email}. Podrá volver a iniciar sesión.`
-          : disabling
+          : pending?.kind === 'delete'
+            ? `Se borrarán para siempre la cuenta de ${pending?.account.email}, sus sesiones y sus archivos. El contacto vinculado se conserva. No se puede deshacer.`
+            : disabling
             ? `${pending?.account.email} no podrá iniciar sesión y se cerrarán sus sesiones abiertas.`
             : `${pending?.account.email} podrá volver a iniciar sesión.`}
-        confirmLabel={pending?.kind === 'revoke' ? 'Cerrar sesiones' : disabling ? 'Desactivar' : 'Reactivar'}
+        confirmLabel={pending?.kind === 'revoke' ? 'Cerrar sesiones' : pending?.kind === 'delete' ? 'Eliminar' : disabling ? 'Desactivar' : 'Reactivar'}
         tone={pending?.kind === 'status' && !disabling ? 'primary' : 'destructive'}
         loading={actionMutation.isPending}
         onConfirm={() => actionMutation.mutate(pending)}

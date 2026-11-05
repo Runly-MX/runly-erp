@@ -19,6 +19,7 @@ export const externalAuthSchemas = {
   profile: z.object({ displayName: name.optional(), phone }).strict(),
   passwordChange: z.object({ currentPassword: z.string().min(1).max(PASSWORD_MAX), newPassword: password }).strict(),
   token: z.object({ token: z.string().min(16).max(200) }).strict(),
+  closeAccount: z.object({ password: z.string().min(1).max(PASSWORD_MAX) }).strict(),
   forgot: z.object({ email }).strict(),
   reset: z.object({ token: z.string().min(16).max(200), password }).strict(),
 }
@@ -132,6 +133,14 @@ export function createExternalAuthRouter({
     c.json({ account: await identity.updateProfile({ account: c.get('externalAccount'), ...c.get('body') }) }))
   app.post('/me/password', signedIn, body(externalAuthSchemas.passwordChange), async (c) => {
     await identity.changePassword({ account: c.get('externalAccount'), session: c.get('externalSession'), ...c.get('body') })
+    return c.body(null, 204)
+  })
+
+  // Deletes the account and its files for good (the company keeps its own records, e.g. a linked Contact).
+  app.post('/me/delete', limit('login', clientIp), signedIn, body(externalAuthSchemas.closeAccount), async (c) => {
+    await identity.closeAccount({ realm: c.get('externalRealm'), account: c.get('externalAccount'), password: c.get('body').password,
+      beforeDelete: (account) => files?.purgeAccount({ accountId: account.id }) })
+    clearSessionCookie(c)
     return c.body(null, 204)
   })
 

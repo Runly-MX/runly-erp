@@ -59,7 +59,7 @@ const statusSchema = z.object({ status: z.enum(['active', 'disabled']) }).strict
 const REALM_DEFAULTS = { enabled: false, allowSignup: true, requireEmailVerification: true, sessionDays: 30 }
 const pickSettings = (r) => ({ enabled: r.enabled, allowSignup: r.allowSignup, requireEmailVerification: r.requireEmailVerification, sessionDays: r.sessionDays })
 
-export function createWebsiteAccountsAdminRouter({ prisma, identity, requirePermission }) {
+export function createWebsiteAccountsAdminRouter({ prisma, identity, requirePermission, files = null }) {
   const app = new Hono()
   const read = requireWebsitePermission(requirePermission, 'website.accounts.read')
   const manage = requireWebsitePermission(requirePermission, 'website.accounts.manage')
@@ -97,6 +97,13 @@ export function createWebsiteAccountsAdminRouter({ prisma, identity, requirePerm
     const { before, after } = await identity.setAccountStatus({ realm: s.realm, accountId: c.req.param('accountId'), status })
     await audit(c, status === 'active' ? 'website.account.enable' : 'website.account.disable', after.id, { status: before.status }, { status: after.status })
     return c.json({ data: { id: after.id, status: after.status } })
+  })
+  // Erases a customer and their files (privacy requests). The linked Contact is company data and stays.
+  app.delete('/sites/:siteId/accounts/:accountId', manage, async (c) => {
+    const s = await scope(c); if (!s?.realm) return notFound(c)
+    const account = await identity.deleteAccount({ realm: s.realm, accountId: c.req.param('accountId'), beforeDelete: (a) => files?.purgeAccount({ accountId: a.id }) })
+    await audit(c, 'website.account.delete', account.id, { email: account.email, displayName: account.displayName }, null)
+    return c.body(null, 204)
   })
   app.post('/sites/:siteId/accounts/:accountId/revoke-sessions', manage, async (c) => {
     const s = await scope(c); if (!s?.realm) return notFound(c)

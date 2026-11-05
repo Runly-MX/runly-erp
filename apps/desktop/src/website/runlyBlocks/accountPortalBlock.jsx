@@ -121,6 +121,10 @@ function AccountPortal() {
     form.reset(); setMessage({ tone: 'success', text: 'Tu contraseña se actualizó.' })
   })
   const resend = run(async () => { await accountApi('/verify-email/request', {}); setMessage({ tone: 'success', text: 'Te enviamos un nuevo correo de confirmación.' }) })
+  const closeAccount = run(async ({ password }) => {
+    await accountApi('/me/delete', { password }); setAccount(null)
+    go('login', { tone: 'success', text: 'Tu cuenta y tus datos se eliminaron.' })
+  })
   const logout = run(async () => { await accountApi('/logout', {}); setAccount(null); go('login', { tone: 'success', text: 'Cerraste sesión.' }) })
 
   const fileRef = useRef(null)
@@ -206,6 +210,15 @@ function AccountPortal() {
         <Field label="Contraseña actual" name="currentPassword" type="password" autoComplete="current-password" />
         <Field label="Nueva contraseña" name="newPassword" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} hint={passwordHint} />
       </Form>
+      <details style={{ borderTop: `1px solid ${LINE}`, paddingTop: 16 }}>
+        <summary style={{ ...link, display: 'flex', alignItems: 'center', color: '#b42318' }}>Eliminar mi cuenta</summary>
+        <div style={{ display: 'grid', gap: 12, marginTop: 12 }}>
+          <p style={text}>Se borrarán para siempre tu cuenta, tu foto y tus archivos en este sitio. No se puede deshacer.</p>
+          <Form onSubmit={closeAccount} busy={busy} submitLabel="Eliminar mi cuenta">
+            <Field label="Confirma con tu contraseña" name="password" type="password" autoComplete="current-password" />
+          </Form>
+        </div>
+      </details>
     </>
   )
   else body = (

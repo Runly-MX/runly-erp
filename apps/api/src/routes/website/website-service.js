@@ -8,7 +8,8 @@ import { invalidateCache, invalidatePrimaryCache } from '../../services/dist-ser
 
 export { WebsiteServiceError }
 
-export function createWebsiteService({ prisma, publicationContext, supabaseAdmin }) {
+// purgeSiteAccounts(siteId): optional, erases the site's customer accounts realm (External Identity) on purge.
+export function createWebsiteService({ prisma, publicationContext, supabaseAdmin, purgeSiteAccounts = null }) {
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const drafts = createWebsiteDraftService({ prisma })
   function publicSite(site) {
@@ -161,11 +162,14 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     if (!site) throw notFound('Sitio')
     if (confirmName !== site.name) throw new WebsiteServiceError('Escribe el nombre exacto del sitio para eliminarlo.', 422, 'confirmation_mismatch')
     const domains = await prisma.websiteDomain.findMany({ where: { companyId, siteId }, select: { hostname: true } })
+    // Customer accounts are personal data, not a retained record: they go before the tombstone, so a storage
+    // failure aborts the deletion and the site stays archived for a retry.
+    const accounts = purgeSiteAccounts ? await purgeSiteAccounts(siteId) : null
     // Names are retired (never deleted or reassigned); registry-held ones are released there first.
     await publication.hostnames.releaseForPurge({ companyId, siteId })
     await prisma.$transaction(async (tx) => {
       await tx.websiteSite.update({ where: { id: siteId, companyId }, data: { lifecycle: 'deleted', domain: null, activeReleaseId: null, stripeSecretKey: null, stripePublishableKey: null, turnstileSecretKey: null, turnstileSiteKey: null } })
-      await tx.auditLog.create({ data: { actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId, action: 'site.delete', before: JSON.stringify(site), after: JSON.stringify({ lifecycle: 'deleted', domains: domains.map((row) => row.hostname) }) } })
+      await tx.auditLog.create({ data: { actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: siteId, action: 'site.delete', before: JSON.stringify(site), after: JSON.stringify({ lifecycle: 'deleted', domains: domains.map((row) => row.hostname), customerAccountsErased: accounts?.accounts ?? 0 }) } })
     })
     invalidateCache(companyId)
     invalidatePrimaryCache()

@@ -174,6 +174,21 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
     return { before, after }
   }
 
+  // Hard delete; sessions, tokens and file rows cascade. beforeDelete purges what lives outside the DB
+  // (stored objects); if it throws, nothing is deleted and the call can be retried.
+  async function deleteAccount({ realm, accountId, beforeDelete = async () => {} }) {
+    const account = await accountInRealm(realm, accountId)
+    await beforeDelete(account)
+    await prisma.externalAccount.delete({ where: { id: account.id } })
+    return account
+  }
+
+  // Self-service "Eliminar mi cuenta": re-asks the password so a stolen open session cannot erase the account.
+  async function closeAccount({ realm, account, password, beforeDelete }) {
+    if (!(await verifyPassword(String(password ?? ''), account.passwordHash))) throw fail('La contraseña no es correcta.', 422, 'INVALID_PASSWORD')
+    return deleteAccount({ realm, accountId: account.id, beforeDelete })
+  }
+
   async function revokeSessions({ realm, accountId }) {
     await revokeAll((await accountInRealm(realm, accountId)).id)
   }
@@ -181,6 +196,6 @@ export function createExternalIdentity({ prisma, notify = async () => {}, onRegi
   return {
     ensureRealm, findRealm, updateRealm, register, login, sessionFromToken, logout,
     requestEmailVerification, verifyEmail, requestPasswordReset, resetPassword, updateProfile, changePassword,
-    listAccounts, setAccountStatus, revokeSessions,
+    listAccounts, setAccountStatus, revokeSessions, deleteAccount, closeAccount,
   }
 }

@@ -12,6 +12,7 @@ export function createWebsiteDomain({ request, withAuthHeaders }) {
     updateAccountSettings:(siteId,data,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/account-settings`,{method:'PUT',headers:withAuthHeaders(token),body:JSON.stringify(data)}),
     listAccounts:(siteId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/accounts?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
     setAccountStatus:(siteId,accountId,status,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/accounts/${encodeURIComponent(accountId)}`,{method:'PATCH',headers:withAuthHeaders(token),body:JSON.stringify({status})}),
+    deleteAccount:(siteId,accountId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/accounts/${encodeURIComponent(accountId)}`,{method:'DELETE',headers:withAuthHeaders(token)}),
     revokeAccountSessions:(siteId,accountId,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/accounts/${encodeURIComponent(accountId)}/revoke-sessions`,{method:'POST',headers:withAuthHeaders(token)}),
     listSiteForms:(siteId,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/forms',{headers:withAuthHeaders(token)}),
     resolveFormScope:(siteId,formId,data,token)=>request('/website/sites/'+encodeURIComponent(siteId)+'/forms/'+encodeURIComponent(formId)+'/scope',{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(data)}),

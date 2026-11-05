@@ -15,6 +15,12 @@ function fakePrisma() {
     }
     return row[k] === v
   })
+  // Mirrors the ON DELETE CASCADE chain realm -> account -> session/token/file.
+  const cascade = (name, id) => {
+    const drop = (table, key, value) => { for (let i = t[table].length - 1; i >= 0; i -= 1) if (t[table][i][key] === value) { const [r] = t[table].splice(i, 1); if (table === 'account') cascade('account', r.id) } }
+    if (name === 'realm') drop('account', 'realmId', id)
+    if (name === 'account') { drop('session', 'accountId', id); drop('token', 'accountId', id); drop('file', 'accountId', id) }
+  }
   const delegate = (name, keys, include) => {
     const rows = t[name]
     const unique = (where) => { const [k, v] = Object.entries(where)[0]; return rows.find((r) => typeof v === 'object' ? match(r, v) : r[k] === v) }
@@ -22,7 +28,8 @@ function fakePrisma() {
     return {
       findUnique: async ({ where }) => withInc(unique(where)) ?? null,
       findFirst: async ({ where }) => rows.find((r) => match(r, where)) ?? null,
-      findMany: async ({ where }) => rows.filter((r) => match(r, where)),
+      findMany: async ({ where, take }) => rows.filter((r) => match(r, where)).slice(0, take ?? Infinity),
+      delete: async ({ where }) => { const i = rows.findIndex((r) => r.id === where.id); const [row] = rows.splice(i, 1); cascade(name, row.id); return row },
       count: async ({ where }) => rows.filter((r) => match(r, where)).length,
       create: async ({ data }) => {
         if (keys.some((ks) => rows.some((r) => ks.every((k) => r[k] === data[k])))) throw Object.assign(new Error('dup'), { code: 'P2002' })
@@ -133,4 +140,48 @@ test('uploads are re-encoded, private to their owner and the avatar replaces the
   assert.equal(objects.size, 1, 'previous avatar removed')
   const me = await (await app.request('/me', { headers: { host: 'a.test', cookie: ana } })).json()
   assert.equal(me.account.avatarFileId, second.data.id)
+})
+
+test('closing an account needs the password and erases its files; purging a realm erases everything under it', async () => {
+  const prisma = fakePrisma(), objects = new Map()
+  const storage = { put: async (k, b) => { objects.set(k, b) }, get: async (k) => objects.get(k), remove: async (ks) => ks.forEach((k) => objects.delete(k)) }
+  const identity = createExternalIdentity({ prisma })
+  const files = createExternalFiles({ prisma, storage })
+  const ownerId = randomUUID()
+  const realm = Object.assign(await identity.ensureRealm({ companyId: randomUUID(), moduleKey: 'runly.website', ownerId }), { enabled: true, requireEmailVerification: false })
+  const app = createExternalAuthRouter({ identity, resolveRealm: () => realm, files })
+  const json = (path, body, cookie) => app.request(path, { method: 'POST', headers: { host: 'a.test', 'content-type': 'application/json', ...(cookie ? { cookie } : {}) }, body: JSON.stringify(body) })
+  const png = await sharp({ create: { width: 64, height: 64, channels: 3, background: '#000' } }).png().toBuffer()
+  const signUp = async (email) => {
+    const cookie = cookieOf(await json('/register', { email, password: 'password-1234', displayName: 'X' }))
+    await app.request('/files?purpose=image', { method: 'POST', headers: { host: 'a.test', 'content-type': 'image/png', cookie }, body: png })
+    return cookie
+  }
+  const ana = await signUp('ana@x.com'); await signUp('bob@x.com')
+  assert.equal(objects.size, 2)
+  assert.equal((await json('/me/delete', { password: 'wrong-password' }, ana)).status, 422)
+  assert.equal((await json('/me/delete', { password: 'password-1234' }, ana)).status, 204)
+  assert.equal(objects.size, 1); assert.equal(prisma.tables.account.length, 1)
+  assert.equal((await app.request('/me', { headers: { host: 'a.test', cookie: ana } })).status, 401)
+  assert.deepEqual(await files.purgeRealm({ moduleKey: 'runly.website', ownerId }), { accounts: 1 })
+  assert.equal(objects.size, 0)
+  for (const table of ['realm', 'account', 'session', 'token', 'file']) assert.equal(prisma.tables[table].length, 0, table)
+  assert.deepEqual(await files.purgeRealm({ moduleKey: 'runly.website', ownerId }), { accounts: 0 }, 'retry is a no-op')
+})
+
+test('a storage failure during a purge keeps the rows so it can be retried', async () => {
+  const prisma = fakePrisma()
+  let failing = true
+  const objects = new Map()
+  const storage = { put: async (k, b) => { objects.set(k, b) }, get: async () => null, remove: async (ks) => { if (failing) throw new Error('down'); ks.forEach((k) => objects.delete(k)) } }
+  const identity = createExternalIdentity({ prisma }), files = createExternalFiles({ prisma, storage })
+  const ownerId = randomUUID()
+  const realm = Object.assign(await identity.ensureRealm({ companyId: randomUUID(), moduleKey: 'runly.website', ownerId }), { requireEmailVerification: false })
+  const { account } = await identity.register({ realm, email: 'f@x.com', password: 'password-1234', displayName: 'F' })
+  await files.upload({ realm, account: prisma.tables.account[0], purpose: 'image', bytes: await sharp({ create: { width: 8, height: 8, channels: 3, background: '#fff' } }).png().toBuffer() })
+  await assert.rejects(files.purgeRealm({ moduleKey: 'runly.website', ownerId }), { code: 'STORAGE_UNAVAILABLE' })
+  assert.equal(prisma.tables.file.length, 1); assert.equal(prisma.tables.realm.length, 1); assert.ok(account.id)
+  failing = false
+  await files.purgeRealm({ moduleKey: 'runly.website', ownerId })
+  assert.equal(objects.size, 0); assert.equal(prisma.tables.realm.length, 0)
 })

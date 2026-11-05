@@ -14,7 +14,8 @@ import { createMenusRouter } from './menus-routes.js'
 import { createBlogRouter } from './blog-routes.js'
 import { createFormsRouter } from './forms-routes.js'
 import { createWebsiteSettingsRouter } from './website-settings-routes.js'
-import { createWebsiteAccountsAdminRouter, createWebsiteIdentity } from './accounts-routes.js'
+import { createWebsiteAccountsAdminRouter, createWebsiteIdentity, WEBSITE_REALM } from './accounts-routes.js'
+import { createExternalFiles, supabaseExternalStorage } from '../../services/external-identity/index.js'
 import { createDistRoutes } from './dist-routes.js'
 import { createSiteSchema, updateSiteSchema } from './validators.js'
 import { WebsiteServiceError } from './service-helpers.js'
@@ -25,7 +26,9 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   app.onError(websiteErrorHandler)
   app.route('/website',createWebsiteDependencyRoutes({prisma,requirePermission,supabaseAdmin}))
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
-  const websiteSvc = createWebsiteService({ prisma, publicationContext: publication })
+  const accountFiles = supabaseAdmin ? createExternalFiles({ prisma, storage: supabaseExternalStorage(supabaseAdmin) }) : null
+  const websiteSvc = createWebsiteService({ prisma, publicationContext: publication,
+    purgeSiteAccounts: accountFiles ? (siteId) => accountFiles.purgeRealm({ moduleKey: WEBSITE_REALM, ownerId: siteId }) : null })
   app.route('/website',createWebsiteReleaseRoutes({...publication,requirePermission}))
   app.route('/website',createWebsiteImportRoutes({...publication,requirePermission}))
   app.route('/website',createWebsitePreviewRoutes({...publication,requirePermission}))
@@ -47,7 +50,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   app.route('/website', createBlogRouter({ websiteSvc, requirePermission }))
   app.route('/website', createFormsRouter({ formsService, requirePermission }))
   app.route('/', createWebsiteSettingsRouter({ prisma, requirePermission, supabaseAdmin }))
-  app.route('/website', createWebsiteAccountsAdminRouter({ prisma, requirePermission, identity: createWebsiteIdentity({ prisma, supabaseAdmin }) }))
+  app.route('/website', createWebsiteAccountsAdminRouter({ prisma, requirePermission, files: accountFiles, identity: createWebsiteIdentity({ prisma, supabaseAdmin }) }))
   app.route('/', createDistRoutes({ prisma, supabaseAdmin, requirePermission, websiteSvc, publicationContext:publication }))
 
   app.get('/website/sites', requirePermission('website.site.read'), async c => {
