@@ -12,7 +12,7 @@ import { CatalogPager, usePagedList } from './CatalogPager.jsx'
 import { ActiveFilterChip, useCatalogUrlFilter } from './CatalogCountLink.jsx'
 import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 import { CustomFieldItemsSheet } from './CustomFieldItemsSheet.jsx'
-import { CustomFieldScopeFields, scopeOf, scopePayload } from './CustomFieldScope.jsx'
+import { CustomFieldScopeFields, scopeLabelOf, scopeOf, scopePayload } from './CustomFieldScope.jsx'
 import { CustomFieldsBulkScopeSheet } from './CustomFieldsBulkScopeSheet.jsx'
 
 const FIELD_TYPES = [
@@ -70,11 +70,10 @@ export function CustomFieldsPanel() {
   }
 
   const fieldTypeLabel = (value) => FIELD_TYPES.find((t) => t.value === value)?.label ?? value
-  const scopeLabel = (row) => {
-    if (row.onDemand) return 'A demanda'
-    const names = (row.categoryIds ?? []).map((id) => typeById.get(id)?.name).filter(Boolean)
-    return names.length ? names.join(', ') : 'Todos los tipos'
-  }
+  const scopeLabel = (row) => scopeLabelOf(row, typeById)
+  // "A demanda (2) · Laptop, Monitor (1)": where the selected fields appear today.
+  const selectionScope = [...selectedRows.reduce((acc, row) => acc.set(scopeLabel(row), (acc.get(scopeLabel(row)) ?? 0) + 1), new Map())]
+    .map(([label, count]) => `${label} (${count})`).join(' · ')
 
   return (
     <CatalogPanel catalogKey="custom-fields" createLabel="Nuevo campo" onCreate={() => open(null)}>
@@ -88,6 +87,7 @@ export function CustomFieldsPanel() {
               <Checkbox className="size-5" checked={allListedSelected} onCheckedChange={(v) => select(listed.map((row) => row.id), Boolean(v))} aria-label="Seleccionar todos los campos" />
               <span className="text-[hsl(var(--muted-foreground))]">{selectedRows.length ? `${selectedRows.length} seleccionados` : 'Seleccionar todos'}</span>
             </label>
+            {selectedRows.length ? <span className="min-w-0 truncate text-xs text-[hsl(var(--muted-foreground))]" title={selectionScope}>Aparecen en: {selectionScope}</span> : null}
             {selectedRows.length ? (
               <div className="ml-auto flex items-center gap-1">
                 <Button type="button" size="sm" className="h-9" onClick={() => setBulkOpen(true)}>Definir dónde aparecen</Button>
@@ -140,7 +140,7 @@ export function CustomFieldsPanel() {
         ) : null}
         <CustomFieldScopeFields value={form} onChange={(next) => setForm((f) => ({ ...f, scope: next.scope, categoryIds: next.categoryIds }))} types={types} />
       </CatalogEditSheet>
-      <CustomFieldsBulkScopeSheet fields={bulkOpen ? selectedRows : []} types={types}
+      <CustomFieldsBulkScopeSheet fields={bulkOpen ? selectedRows : []} types={types} scopeLabel={scopeLabel}
         onOpenChange={(value) => { if (!value) setBulkOpen(false) }} onDone={() => { setBulkOpen(false); setSelectedIds(new Set()) }} />
       <CustomFieldItemsSheet field={itemsOf} types={types} onOpenChange={(value) => { if (!value) setItemsOf(null) }} />
     </CatalogPanel>
