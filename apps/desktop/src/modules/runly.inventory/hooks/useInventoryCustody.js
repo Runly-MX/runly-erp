@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
@@ -18,6 +19,10 @@ function useToken() {
 
 const KEY = ['inventory', 'custodies']
 const TEMPLATES_KEY = ['inventory', 'document-templates']
+// The receiver signs from the public link on another device and nothing pushes
+// that here, so a record awaiting signature is re-read while the tab is visible.
+const awaitingSignature = (custody) => custody?.status === 'PENDING_SIGNATURE'
+const LIVE = { staleTime: 0, refetchOnWindowFocus: true }
 
 // ── Custody records ───────────────────────────────────────────────────────────
 
@@ -27,17 +32,33 @@ export function useCustodies(params = {}, { enabled = true } = {}) {
     queryKey: [...KEY, 'list', params],
     queryFn: async () => parseCustodyList(await runly.inventory.custodies.list(params, token)),
     enabled: Boolean(token) && enabled,
-    staleTime: 30 * 1000,
+    ...LIVE,
+    refetchInterval: (query) => (query.state.data?.items?.some(awaitingSignature) ? 15 * 1000 : false),
   })
 }
 
 export function useCustody(id) {
   const token = useToken()
-  return useQuery({
+  const qc = useQueryClient()
+  const query = useQuery({
     queryKey: [...KEY, 'detail', id],
     queryFn: async () => parseCustody(await runly.inventory.custodies.get(id, token)),
     enabled: Boolean(token) && Boolean(id),
+    ...LIVE,
+    refetchInterval: (q) => (awaitingSignature(q.state.data) ? 5 * 1000 : false),
   })
+  // Signing from the link may complete it, which assigns/returns its items.
+  const status = query.data?.status
+  const lastStatus = useRef(status)
+  useEffect(() => {
+    if (lastStatus.current && status && lastStatus.current !== status) {
+      qc.invalidateQueries({ queryKey: [...KEY, 'list'] })
+      qc.invalidateQueries({ queryKey: ['inventory', 'items'] })
+      qc.invalidateQueries({ queryKey: ['inventory', 'assignments'] })
+    }
+    lastStatus.current = status
+  }, [status, qc])
+  return query
 }
 
 // Every custody mutation returns { custody }; refresh lists, the record and
