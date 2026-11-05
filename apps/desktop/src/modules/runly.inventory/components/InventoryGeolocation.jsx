@@ -128,7 +128,8 @@ export function InventoryDetailGeolocationSection({ data }) {
         <span className="flex items-center gap-1.5 text-sm tabular-nums"><MapPin className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />{formatGeoPoint(latitude, longitude)}</span>
         <OpenInMapsLink latitude={latitude} longitude={longitude} />
       </div>
-      {map.styleUrl ? <GeoPointMap styleUrl={map.styleUrl} latitude={latitude} longitude={longitude} onError={map.onError} /> : null}
+      {map.styleUrl ? <GeoPointMap styleUrl={map.styleUrl} latitude={latitude} longitude={longitude} onError={map.onError}
+        pin={{ color: data.category?.color, icon: data.category?.icon || 'package' }} /> : null}
     </div>
   )
 }

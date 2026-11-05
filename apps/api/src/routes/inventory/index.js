@@ -121,7 +121,9 @@ export function createInventoryRouter({
   router.get("/inventory/map-config", requirePermission("inventory.item.read"), (c) => c.json({ data: geocoder.mapConfig() }));
   router.get("/inventory/map/items", requirePermission("inventory.item.read"), async (c) => {
     try {
-      const { data, truncated } = await listGeoItems(prisma, c.get("companyId"), await scopeOf(c));
+      const query = c.req.query();
+      const mine = query.mine === "true" ? await inventoryScope.mineFromContext(c) : null;
+      const { data, truncated } = await listGeoItems(prisma, c.get("companyId"), await scopeOf(c), query, mine);
       return c.json({ data: { items: data, truncated } });
     } catch {
       return c.json({ error: "No se pudieron cargar los activos del mapa." }, 500);

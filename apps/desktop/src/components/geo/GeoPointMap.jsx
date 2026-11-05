@@ -1,6 +1,17 @@
 import { useEffect, useRef, useState } from 'react'
 import { hasGeoPoint } from '../../lib/geo-point.js'
+import { getIconNode } from '@runly/ui'
 import { loadMaplibre } from './load-maplibre.js'
+import { iconKey, pinSvg } from './pin-image.js'
+
+function pinElement(pin) {
+  const img = document.createElement('img')
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(pinSvg({ color: pin.color, iconNode: getIconNode(iconKey(pin.icon)) }))}`
+  img.width = 40
+  img.height = 50
+  img.alt = ''
+  return img
+}
 
 const POINT_ZOOM = 16
 
@@ -8,7 +19,10 @@ const POINT_ZOOM = 16
 // dragging the marker moves the point. `maplibre-gl` loads lazily so it never
 // enters the main bundle; on a tile/style error it calls `onError` so the
 // caller can fall back to coordinates and an external link.
-export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, className = 'h-56' }) {
+// pin (optional): { color, icon } draws the item type's custom pin instead of the default marker.
+export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, pin = null, className = 'h-56' }) {
+  const pinRef = useRef(pin)
+  pinRef.current = pin
   const containerRef = useRef(null)
   const mapRef = useRef(null)
   const markerRef = useRef(null)
@@ -58,7 +72,7 @@ export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, cl
     if (!located) { markerRef.current?.remove(); markerRef.current = null; return }
     const lngLat = [Number(longitude), Number(latitude)]
     if (!markerRef.current) {
-      markerRef.current = new lib.Marker({ draggable: Boolean(pickRef.current) }).setLngLat(lngLat).addTo(map)
+      markerRef.current = new lib.Marker({ draggable: Boolean(pickRef.current), ...(pinRef.current ? { element: pinElement(pinRef.current), anchor: 'bottom' } : {}) }).setLngLat(lngLat).addTo(map)
       markerRef.current.on('dragend', () => {
         const { lat, lng } = markerRef.current.getLngLat()
         pickRef.current?.(lat, lng)
