@@ -291,7 +291,7 @@ export function RetailCajaView({ device = null }) {
           handle={(
             <span className="flex w-full items-center justify-between gap-3 text-sm font-semibold text-[hsl(var(--foreground))]">
               <span>{completed ? 'Venta cobrada' : (itemCount(sale.order) === 1 ? '1 artículo' : `${itemCount(sale.order)} artículos`)}</span>
-              <span className="rounded-sm bg-(--pos-band) px-2.5 py-1 text-lg font-bold text-(--pos-band-foreground)">{completed ? formatMoney(completed.order.totalAmount, completed.order.currency) : formatMoney(sale.order?.remainingAmount ?? 0, sale.order?.currency ?? currency)}</span>
+              <span className="inline-flex items-baseline gap-2 rounded-sm bg-(--pos-band) px-3 py-1.5 text-lg font-bold text-(--pos-band-foreground)"><span className="text-xs uppercase tracking-wide text-(--pos-band-accent)">{completed ? 'Cobrado' : 'Total'}</span>{completed ? formatMoney(completed.order.totalAmount, completed.order.currency) : formatMoney(sale.order?.remainingAmount ?? 0, sale.order?.currency ?? currency)}</span>
             </span>
           )}
           bodyClassName="p-0"
@@ -316,18 +316,17 @@ export function RetailCajaView({ device = null }) {
           capabilities={caps}
           saleInProgress={saleInProgress}
           nav={!device}
+          onExit={device ? undefined : () => navigate('/app/home')}
+          modeSwitch={mixed ? (
+            <SegmentedControl ariaLabel="Mostrador o mesas" className="order-1 w-48 sm:order-none" value={tablesView ? 'mesas' : 'mostrador'} onChange={(v) => setView(v === 'mesas' ? 'mesas' : 'mostrador')}
+              options={[{ value: 'mostrador', label: 'Mostrador' }, { value: 'mesas', label: 'Mesas' }]} />
+          ) : null}
           onCashIn={() => setDialog({ kind: 'cash', type: 'IN' })}
           onCashOut={() => setDialog({ kind: 'cash', type: 'OUT' })}
           onClose={() => setDialog({ kind: 'close' })}
           onChangeCaja={device ? undefined : () => { setCompleted(null); ctx.changeCaja() }}
           onSignOut={device?.onSignOut}
         />
-      )}
-      {ready && mixed && (
-        <div className="border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 py-2 sm:px-4">
-          <SegmentedControl size="lg" ariaLabel="Mostrador o mesas" className="w-full sm:w-72" value={tablesView ? 'mesas' : 'mostrador'} onChange={(v) => setView(v === 'mesas' ? 'mesas' : 'mostrador')}
-            options={[{ value: 'mostrador', label: 'Mostrador' }, { value: 'mesas', label: 'Mesas' }]} />
-        </div>
       )}
       {cita && (
         <Alert className="mx-3 mt-3 w-auto">
