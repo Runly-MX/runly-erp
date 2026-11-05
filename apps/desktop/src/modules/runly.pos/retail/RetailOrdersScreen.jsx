@@ -69,7 +69,7 @@ function RetailOrdersView() {
 
   return (
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
-      <PageHeader eyebrow="Punto de venta" title={retailOnly ? 'Órdenes de tienda' : 'Órdenes'} description={retailOnly ? 'Ventas de mostrador: consulta, comprobantes, cancelaciones y devoluciones.' : 'Ventas de mostrador y cuentas de restaurante: consulta, comprobantes, cancelaciones y devoluciones.'} />
+      <PageHeader title={retailOnly ? 'Órdenes de tienda' : 'Órdenes'} description={retailOnly ? 'Ventas de mostrador: consulta, comprobantes, cancelaciones y devoluciones.' : 'Ventas de mostrador y cuentas de restaurante: consulta, comprobantes, cancelaciones y devoluciones.'} />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
         <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Folio de venta o comprobante" aria-label="Buscar por folio de venta o de comprobante" inputMode="numeric" />
@@ -99,7 +99,7 @@ function RetailOrdersView() {
                   <button type="button" onClick={() => setOpenId(o.id)} className="flex min-h-16 w-full flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-left hover:bg-[hsl(var(--muted))]/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))]">
                     <span className="min-w-0 flex-1">
                       <span className="block font-semibold text-[hsl(var(--foreground))]">{o.experience === 'RESTAURANT' ? `${o.orderLabel ?? 'Cuenta'} · cuenta #${o.orderNumber}` : `Venta #${o.orderNumber}`}{o.receiptNumber ? ` · comprobante #${o.receiptNumber}` : ''}</span>
-                      <span className="block text-xs text-[hsl(var(--muted-foreground))]">{when(o.openedAt)} · {o.lineCount} artículo(s){o.waiterName && o.experience === 'RESTAURANT' ? ` · ${o.waiterName}` : ''}{outlets.length > 1 ? ` · ${outlets.find((x) => x.id === o.outletId)?.name ?? ''}` : ''}</span>
+                      <span className="block text-xs text-[hsl(var(--muted-foreground))]">{when(o.openedAt)} · {o.lineCount === 1 ? '1 artículo' : `${o.lineCount} artículos`}{o.waiterName && o.experience === 'RESTAURANT' ? ` · ${o.waiterName}` : ''}{outlets.length > 1 ? ` · ${outlets.find((x) => x.id === o.outletId)?.name ?? ''}` : ''}</span>
                     </span>
                     <StatusPill size="sm" tone={meta.tone}>{meta.label}</StatusPill>
                     {o.refundStatus && o.refundStatus !== 'NONE' && <StatusPill size="sm" tone="warning">{o.refundStatus === 'FULL' ? 'Devuelta completa' : 'Devolución parcial'}</StatusPill>}
