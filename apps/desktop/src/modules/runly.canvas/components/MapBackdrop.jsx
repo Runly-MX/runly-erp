@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createGeoFrame, mapCamera } from '../lib/geo.js'
+import { loadMaplibre } from '../../../components/geo/load-maplibre.js'
 
 const MIN_ZOOM = 0, MAX_ZOOM = 22
 const clampZoom = (zoom) => Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, zoom))
@@ -24,7 +25,7 @@ export function MapBackdrop({ background, viewport, size, config }) {
     setFailed(false)
     const container = containerRef.current
     const load = async () => {
-      const [maplibregl] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')])
+      const maplibregl = await loadMaplibre()
       if (cancelled) return
       const camera = mapCamera(viewport, size, frame)
       const map = new maplibregl.Map({

@@ -69,19 +69,22 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
 
   return (
     <div data-no-enter-submit="" className="space-y-3">
-      <div className="flex flex-wrap items-end gap-2">
-        <Button type="button" variant="outline" onClick={locateMe} disabled={locating || device.permission === 'insecure' || device.permission === 'unsupported'}>
+      {/* Stacked on phones; one row from sm up. The input row never shrinks below its own width. */}
+      <div className="grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)] sm:items-end">
+        <Button type="button" variant="outline" className="w-full sm:w-auto" onClick={locateMe} disabled={locating || device.permission === 'insecure' || device.permission === 'unsupported'}>
           {locating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <LocateFixed className="mr-1 h-4 w-4" />}
           Usar mi ubicación
         </Button>
-        <div className="min-w-0 flex-1 sm:min-w-64">
-          <TextField label="Pegar coordenadas o enlace" icon={MapPin} value={text} autoComplete="off"
-            placeholder="19.432608, -99.133209"
-            onChange={(e) => setText(e.target.value)}
-            onPaste={(e) => { if (apply(e.clipboardData.getData('text'))) e.preventDefault() }}
-            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) apply(text) } }} />
+        <div className="flex items-end gap-2">
+          <div className="min-w-0 flex-1">
+            <TextField label={located ? 'Cambiar: pega coordenadas o enlace' : 'Pegar coordenadas o enlace'} icon={MapPin} value={text} autoComplete="off"
+              placeholder={located ? formatGeoPoint(latitude, longitude) : '19.432608, -99.133209'}
+              onChange={(e) => setText(e.target.value)}
+              onPaste={(e) => { if (apply(e.clipboardData.getData('text'))) e.preventDefault() }}
+              onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) apply(text) } }} />
+          </div>
+          <Button type="button" variant="outline" className="shrink-0" onClick={() => apply(text)} disabled={!text.trim()}>Aplicar</Button>
         </div>
-        <Button type="button" variant="outline" onClick={() => apply(text)} disabled={!text.trim()}>Aplicar</Button>
       </div>
       {blocked ? <LocationPermissionHelp permission={device.permission} locating={locating} onRetry={locateMe} /> : null}
       {message || device.message || errors.latitude || errors.longitude ? (

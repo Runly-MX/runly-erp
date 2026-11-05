@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { hasGeoPoint } from '../../lib/geo-point.js'
+import { loadMaplibre } from './load-maplibre.js'
 
 const POINT_ZOOM = 16
 
@@ -21,7 +22,7 @@ export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, cl
     if (!containerRef.current || !styleUrl) return undefined
     let cancelled = false
     const load = async () => {
-      const [maplibregl] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')])
+      const maplibregl = await loadMaplibre()
       if (cancelled) return
       libRef.current = maplibregl
       const map = new maplibregl.Map({

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MapPin, MapPinned, X } from 'lucide-react'
@@ -35,15 +35,32 @@ function ExternalMapLink({ item }) {
   )
 }
 
+// Serial and asset numbers first: they are how people find a physical asset.
+function Identifiers({ item }) {
+  return (
+    <dl className="grid min-w-0 grid-cols-2 gap-x-3 gap-y-0.5">
+      <div className="min-w-0">
+        <dt className="text-[11px] text-[hsl(var(--muted-foreground))]">Número de serie</dt>
+        <dd className="truncate font-mono text-sm font-semibold">{item.serialNumber || '—'}</dd>
+      </div>
+      <div className="min-w-0">
+        <dt className="text-[11px] text-[hsl(var(--muted-foreground))]">Número de activo</dt>
+        <dd className="truncate font-mono text-sm font-semibold">{item.assetTag || '—'}</dd>
+      </div>
+    </dl>
+  )
+}
+
 function SelectedCard({ item, onClose, onOpen }) {
   return (
-    <div className="absolute inset-x-3 bottom-3 z-10 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg sm:right-auto sm:w-80">
+    <div className="absolute inset-x-2 bottom-2 z-10 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg sm:inset-x-auto sm:left-3 sm:bottom-3 sm:w-80">
       <div className="flex items-start gap-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{item.name}</p>
+          <Identifiers item={item} />
+          <p className="mt-1 truncate text-sm">{item.name}</p>
           <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.folio, item.categoryName].filter(Boolean).join(' · ') || 'Sin folio'}</p>
         </div>
-        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label="Cerrar"><X className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose} aria-label="Cerrar"><X className="h-4 w-4" /></Button>
       </div>
       <div className="mt-2 space-y-1 text-xs">
         <InventoryStatusBadge status={item.status} />
@@ -66,6 +83,8 @@ export default function InventoryMapScreen() {
   const [mapFailed, setMapFailed] = useState(false)
   const [search, setSearch] = useState('')
   const [selectedId, setSelectedId] = useState(null)
+  const mapBoxRef = useRef(null)
+  const pickFromList = (id) => { setSelectedId(id); mapBoxRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) }
   const styleUrl = config?.enabled && !mapFailed ? config.styleUrl : null
 
   const all = query.data?.items
@@ -95,16 +114,18 @@ export default function InventoryMapScreen() {
       {header}
       {query.data?.truncated ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Se muestran los {all.length} activos actualizados más recientemente.</p> : null}
       {!styleUrl ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{config?.enabled === false ? 'Los mapas están desactivados en esta instancia.' : config ? 'No se pudo cargar el mapa.' : ''} Puedes abrir cada activo en Google Maps.</p> : null}
-      <div className={cn('grid gap-4', styleUrl && 'lg:grid-cols-[20rem_minmax(0,1fr)]')}>
-        <div className="flex min-h-0 flex-col gap-2">
-          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar activo, folio o ubicación..." />
+      {/* Phones: map on top, list below. lg: list on the left of the map. */}
+      <div className={cn('grid min-w-0 gap-4', styleUrl && 'lg:grid-cols-[22rem_minmax(0,1fr)]')}>
+        <div className="flex min-h-0 min-w-0 flex-col gap-2">
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar por serie, número de activo, nombre..." />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">{items.length} de {all.length} activos</p>
-          <ul className={cn('divide-y divide-[hsl(var(--border))] overflow-y-auto rounded-lg border border-[hsl(var(--border))]', styleUrl && 'lg:max-h-[calc(70vh-4.5rem)]')}>
+          <ul className={cn('divide-y divide-[hsl(var(--border))] overflow-y-auto rounded-lg border border-[hsl(var(--border))]', styleUrl && 'max-h-[50vh] lg:max-h-[calc(70vh-4.5rem)]')}>
             {items.map((item) => (
-              <li key={item.id} className={cn('flex items-start gap-2 px-3 py-2', item.id === selectedId && 'bg-[hsl(var(--muted))]')}>
-                <MapPin className="mt-0.5 h-4 w-4 shrink-0" style={{ color: STATUS_COLOR[item.status] }} aria-hidden="true" />
-                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => (styleUrl ? setSelectedId(item.id) : navigate(detailPath(item.id)))}>
-                  <span className="block truncate text-sm font-medium">{item.name}</span>
+              <li key={item.id} className={cn('flex items-start gap-2 px-3 py-2.5', item.id === selectedId && 'bg-[hsl(var(--muted))]')}>
+                <MapPin className="mt-1 h-4 w-4 shrink-0" style={{ color: STATUS_COLOR[item.status] }} aria-hidden="true" />
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => (styleUrl ? pickFromList(item.id) : navigate(detailPath(item.id)))}>
+                  <Identifiers item={item} />
+                  <span className="mt-1 block truncate text-sm">{item.name}</span>
                   <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.folio, item.locationName].filter(Boolean).join(' · ') || formatGeoPoint(item.latitude, item.longitude)}</span>
                 </button>
                 {!styleUrl ? <ExternalMapLink item={item} /> : null}
@@ -113,8 +134,8 @@ export default function InventoryMapScreen() {
           </ul>
         </div>
         {styleUrl ? (
-          <div className="relative">
-            <GeoItemsMap styleUrl={styleUrl} points={points} selectedId={selectedId} onSelect={setSelectedId} onError={() => setMapFailed(true)} />
+          <div ref={mapBoxRef} className="relative order-first min-w-0 scroll-mt-20 lg:order-none">
+            <GeoItemsMap styleUrl={styleUrl} points={points} selectedId={selectedId} onSelect={setSelectedId} onError={() => setMapFailed(true)} className="h-[55vh] lg:h-[70vh]" />
             {selected ? <SelectedCard item={selected} onClose={() => setSelectedId(null)} onOpen={() => navigate(detailPath(selected.id))} /> : null}
           </div>
         ) : null}

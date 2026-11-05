@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { loadMaplibre } from './load-maplibre.js'
 
 const SOURCE = 'geo-items'
 const POINT_ZOOM = 16
@@ -37,7 +38,7 @@ export function GeoItemsMap({ styleUrl, points, selectedId, onSelect, onError, c
     let cancelled = false
     let loaded = false
     const load = async () => {
-      const [maplibregl] = await Promise.all([import('maplibre-gl'), import('maplibre-gl/dist/maplibre-gl.css')])
+      const maplibregl = await loadMaplibre()
       if (cancelled) return
       const map = new maplibregl.Map({ container: containerRef.current, style: styleUrl, attributionControl: { compact: true }, center: [-99.13, 19.43], zoom: 3 })
       mapRef.current = map
