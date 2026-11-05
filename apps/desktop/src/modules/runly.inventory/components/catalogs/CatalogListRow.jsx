@@ -1,11 +1,12 @@
-import { cn } from '@runly/ui'
+import { Checkbox, cn } from '@runly/ui'
 import { GripVertical } from 'lucide-react'
 import { CatalogRowActions } from './CatalogRowActions.jsx'
 import { CatalogCountLink } from './CatalogCountLink.jsx'
 
-export function CatalogListRow({ icon: Icon, color = '#7c3aed', title, subtitle, badges = [], actions = null, dragHandleProps, isDragging, onEdit, onDelete }) {
+export function CatalogListRow({ icon: Icon, color = '#7c3aed', title, subtitle, badges = [], actions = null, selected, onSelect, dragHandleProps, isDragging, onEdit, onDelete }) {
   return (
-    <div className={cn('flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--background))] px-3 py-2.5', isDragging && 'opacity-50 shadow-lg')}>
+    <div className={cn('flex items-center gap-3 rounded-xl border border-[hsl(var(--border))] px-3 py-2.5', selected ? 'bg-(--brand-soft)' : 'bg-[hsl(var(--background))]', isDragging && 'opacity-50 shadow-lg')}>
+      {onSelect ? <Checkbox className="size-5 shrink-0" checked={Boolean(selected)} onCheckedChange={(v) => onSelect(Boolean(v))} aria-label={`Seleccionar ${title}`} /> : null}
       {dragHandleProps ? (
         <button {...dragHandleProps} type="button" aria-label="Arrastrar para reordenar" className="shrink-0 cursor-grab touch-none text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]">
           <GripVertical className="h-4 w-4" />

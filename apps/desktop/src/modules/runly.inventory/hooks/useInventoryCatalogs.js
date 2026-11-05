@@ -256,6 +256,20 @@ export function useDeleteInventoryCustomField() {
   })
 }
 
+// Same change on several fields at once (Catálogos > Campos selection): [{ id, ...data }].
+export function useBulkUpdateInventoryCustomFields() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (rows) => Promise.all(rows.map(({ id, ...data }) => runly.inventory.updateCustomField(id, data, token))),
+    ...loadingMutation('Guardando campos personalizados...'),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: ['inventory', 'custom-fields'] })
+      qc.invalidateQueries({ queryKey: ['inventory', 'categories'] })
+    },
+  })
+}
+
 // Ids of the items that carry a field (bulk "Activos" sheet in Catálogos).
 export function useInventoryCustomFieldItems(fieldId) {
   const token = useToken()

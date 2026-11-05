@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { Button, CheckboxField, EmptyState, LoadingState, SelectField, SortableList, TextField, resolveLucideIcon } from '@runly/ui'
-import { PackageCheck, SlidersHorizontal } from 'lucide-react'
+import { Button, Checkbox, EmptyState, LoadingState, SelectField, SortableList, TextField, resolveLucideIcon } from '@runly/ui'
+import { PackageCheck, SlidersHorizontal, X } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   useInventoryCustomFields, useCreateInventoryCustomField, useUpdateInventoryCustomField, useDeleteInventoryCustomField, useReorderInventoryCustomFields,
@@ -12,26 +12,16 @@ import { CatalogPager, usePagedList } from './CatalogPager.jsx'
 import { ActiveFilterChip, useCatalogUrlFilter } from './CatalogCountLink.jsx'
 import { CatalogEditSheet } from './CatalogEditSheet.jsx'
 import { CustomFieldItemsSheet } from './CustomFieldItemsSheet.jsx'
+import { CustomFieldScopeFields, scopeOf, scopePayload } from './CustomFieldScope.jsx'
+import { CustomFieldsBulkScopeSheet } from './CustomFieldsBulkScopeSheet.jsx'
 
 const FIELD_TYPES = [
   { value: 'text', label: 'Texto' }, { value: 'textarea', label: 'Texto largo' }, { value: 'number', label: 'Número' },
   { value: 'date', label: 'Fecha' }, { value: 'boolean', label: 'Sí/No' }, { value: 'select', label: 'Lista de opciones' },
   { value: 'url', label: 'URL' }, { value: 'email', label: 'Email' },
 ]
-// Where a field shows up: only on the assets it is added to (default), on every type, or on the chosen types.
-const SCOPES = [
-  { value: 'onDemand', label: 'Solo en los activos seleccionados' },
-  { value: 'all', label: 'En todos los tipos' },
-  { value: 'types', label: 'En los tipos que elijas' },
-]
-const SCOPE_HINTS = {
-  onDemand: 'No se pide automáticamente. Agrégalo a cada activo desde su formulario o en grupo con el botón Activos.',
-  all: 'Se pide al registrar cualquier activo.',
-  types: 'Se pide al registrar activos de los tipos marcados.',
-}
 const EMPTY = { label: '', fieldKey: '', fieldType: 'text', scope: 'onDemand', categoryIds: [], optionsText: '' }
 const toOptionsText = (options) => (Array.isArray(options) ? options.map((o) => (typeof o === 'string' ? o : o?.label ?? o?.value)).join(', ') : '')
-const scopeOf = (row) => (row.onDemand ? 'onDemand' : row.categoryIds?.length ? 'types' : 'all')
 
 export function CustomFieldsPanel() {
   const { data, isLoading } = useInventoryCustomFields('all')
@@ -45,11 +35,20 @@ export function CustomFieldsPanel() {
   const [order, setOrder] = useState(null)
   const [editing, setEditing] = useState(null)
   const [itemsOf, setItemsOf] = useState(null)
+  const [selectedIds, setSelectedIds] = useState(() => new Set())
+  const [bulkOpen, setBulkOpen] = useState(false)
   const [form, setForm] = useState(EMPTY)
   useEffect(() => { setOrder(null) }, [data])
   const [typeFilter, clearTypeFilter] = useCatalogUrlFilter('typeId')
   const listed = typeFilter ? rows.filter((row) => row.categoryIds?.includes(typeFilter)) : (order ?? rows)
   const paged = usePagedList(listed)
+  const selectedRows = rows.filter((row) => selectedIds.has(row.id))
+  const allListedSelected = listed.length > 0 && listed.every((row) => selectedIds.has(row.id))
+  const select = (ids, on) => setSelectedIds((prev) => {
+    const next = new Set(prev)
+    for (const id of ids) { if (on) next.add(id); else next.delete(id) }
+    return next
+  })
 
   function open(row) {
     setEditing(row ?? {})
@@ -58,7 +57,7 @@ export function CustomFieldsPanel() {
   async function save() {
     const { optionsText, scope, categoryIds, ...rest } = form
     const options = optionsText.split(/[,\n]/).map((o) => o.trim()).filter(Boolean)
-    const payload = { ...rest, onDemand: scope === 'onDemand', categoryIds: scope === 'types' ? categoryIds : [], ...(form.fieldType === 'select' ? { options } : {}) }
+    const payload = { ...rest, ...scopePayload({ scope, categoryIds }), ...(form.fieldType === 'select' ? { options } : {}) }
     try {
       if (editing?.id) { await update.mutateAsync({ id: editing.id, ...payload }); toast.success('Campo actualizado') }
       else { await create.mutateAsync(payload); toast.success('Campo creado') }
@@ -69,7 +68,6 @@ export function CustomFieldsPanel() {
     setOrder(next)
     reorder.mutate(next.map((row, index) => ({ id: row.id, sortOrder: index * 10 })))
   }
-  const toggleType = (id, on) => setForm((f) => ({ ...f, categoryIds: on ? [...new Set([...f.categoryIds, id])] : f.categoryIds.filter((v) => v !== id) }))
 
   const fieldTypeLabel = (value) => FIELD_TYPES.find((t) => t.value === value)?.label ?? value
   const scopeLabel = (row) => {
@@ -85,6 +83,20 @@ export function CustomFieldsPanel() {
       ) : (
         <div className="space-y-1.5">
           {typeFilter ? <ActiveFilterChip label={`Tipo: ${typeById.get(typeFilter)?.name ?? '...'}`} onClear={clearTypeFilter} /> : null}
+          <div className="flex min-h-11 flex-wrap items-center gap-x-3 gap-y-2 rounded-md bg-[hsl(var(--muted)/0.35)] px-3 py-1.5 text-sm">
+            <label className="flex min-h-9 cursor-pointer items-center gap-2.5">
+              <Checkbox className="size-5" checked={allListedSelected} onCheckedChange={(v) => select(listed.map((row) => row.id), Boolean(v))} aria-label="Seleccionar todos los campos" />
+              <span className="text-[hsl(var(--muted-foreground))]">{selectedRows.length ? `${selectedRows.length} seleccionados` : 'Seleccionar todos'}</span>
+            </label>
+            {selectedRows.length ? (
+              <div className="ml-auto flex items-center gap-1">
+                <Button type="button" size="sm" className="h-9" onClick={() => setBulkOpen(true)}>Definir dónde aparecen</Button>
+                <Button type="button" variant="ghost" size="icon" className="h-9 w-9" aria-label="Quitar selección" onClick={() => setSelectedIds(new Set())}>
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : null}
+          </div>
           <SortableList
             items={paged.pageItems}
             onReorder={(next) => { if (!typeFilter) handleReorder(paged.replacePage(next)) }}
@@ -102,6 +114,8 @@ export function CustomFieldsPanel() {
                       <PackageCheck className="h-3.5 w-3.5 sm:mr-1.5" /><span className="hidden sm:inline">Activos</span>
                     </Button>
                   )}
+                  selected={selectedIds.has(row.id)}
+                  onSelect={(on) => select([row.id], on)}
                   dragHandleProps={dragHandleProps}
                   isDragging={isDragging}
                   onEdit={() => open(row)}
@@ -124,16 +138,10 @@ export function CustomFieldsPanel() {
           <TextField label="Opciones" required value={form.optionsText} placeholder="8 GB, 16 GB, 32 GB" hint="Sepáralas con comas."
             onChange={(e) => setForm((f) => ({ ...f, optionsText: e.target.value }))} />
         ) : null}
-        <SelectField label="Dónde aparece" value={form.scope} onValueChange={(scope) => setForm((f) => ({ ...f, scope }))} hint={SCOPE_HINTS[form.scope]} options={SCOPES} />
-        {form.scope === 'types' ? (
-          <fieldset className="space-y-1 rounded-md border border-[hsl(var(--border))] p-3">
-            <legend className="px-1 text-xs font-medium text-[hsl(var(--muted-foreground))]">Tipos ({form.categoryIds.length})</legend>
-            {types.map((type) => (
-              <CheckboxField key={type.id} label={type.name} checked={form.categoryIds.includes(type.id)} onChange={(e) => toggleType(type.id, e.target.checked)} />
-            ))}
-          </fieldset>
-        ) : null}
+        <CustomFieldScopeFields value={form} onChange={(next) => setForm((f) => ({ ...f, scope: next.scope, categoryIds: next.categoryIds }))} types={types} />
       </CatalogEditSheet>
+      <CustomFieldsBulkScopeSheet fields={bulkOpen ? selectedRows : []} types={types}
+        onOpenChange={(value) => { if (!value) setBulkOpen(false) }} onDone={() => { setBulkOpen(false); setSelectedIds(new Set()) }} />
       <CustomFieldItemsSheet field={itemsOf} types={types} onOpenChange={(value) => { if (!value) setItemsOf(null) }} />
     </CatalogPanel>
   )
