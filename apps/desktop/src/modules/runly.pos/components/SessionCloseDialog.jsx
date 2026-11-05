@@ -1,3 +1,4 @@
+import { LockKeyhole } from 'lucide-react'
 import { useState } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -28,8 +29,8 @@ export default function SessionCloseDialog({ open, onOpenChange, session, onSucc
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
+      <DialogContent size="md">
+        <DialogHeader icon={LockKeyhole}>
           <DialogTitle>Cerrar caja</DialogTitle>
           <DialogDescription>
             Registra el conteo físico de efectivo para cerrar el turno.

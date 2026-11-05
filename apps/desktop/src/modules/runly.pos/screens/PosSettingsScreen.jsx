@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Pencil, LayoutGrid } from 'lucide-react'
+import { ChefHat, CreditCard, LayoutGrid, MonitorSmartphone, Pencil, Store } from 'lucide-react'
 import {
   PageHeader, Card, CardContent, CardHeader, CardTitle, CardDescription,
   Button, EmptyState, ErrorState, Skeleton, Separator, StatusPill as UiStatusPill,
@@ -440,8 +440,8 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Create outlet dialog */}
       <Dialog open={outletDialog} onOpenChange={setOutletDialog}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={Store}>
             <DialogTitle>Nueva sucursal</DialogTitle>
             <DialogDescription>Registra una ubicación física para el punto de venta.</DialogDescription>
           </DialogHeader>
@@ -471,8 +471,8 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Edit outlet dialog */}
       <Dialog open={Boolean(editingOutlet)} onOpenChange={(v) => !v && setEditingOutlet(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={Store}>
             <DialogTitle>Editar sucursal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la sucursal.</DialogDescription>
           </DialogHeader>
@@ -514,8 +514,8 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Create terminal dialog */}
       <Dialog open={terminalDialog} onOpenChange={setTerminalDialog}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={MonitorSmartphone}>
             <DialogTitle>Nueva terminal</DialogTitle>
             <DialogDescription>Asigna una terminal a la sucursal correspondiente.</DialogDescription>
           </DialogHeader>
@@ -554,8 +554,8 @@ function OutletsTab({ section = 'both' }) {
 
       {/* Edit terminal dialog */}
       <Dialog open={Boolean(editingTerminal)} onOpenChange={(v) => !v && setEditingTerminal(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={MonitorSmartphone}>
             <DialogTitle>Editar terminal</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la terminal.</DialogDescription>
           </DialogHeader>
@@ -685,8 +685,8 @@ function PaymentMethodsTab() {
 
       {/* Create dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={CreditCard}>
             <DialogTitle>Nuevo método de pago</DialogTitle>
             <DialogDescription>Define cómo los clientes pueden pagar en esta sucursal.</DialogDescription>
           </DialogHeader>
@@ -721,8 +721,8 @@ function PaymentMethodsTab() {
 
       {/* Edit dialog */}
       <Dialog open={Boolean(editingMethod)} onOpenChange={(v) => !v && setEditingMethod(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={CreditCard}>
             <DialogTitle>Editar método de pago</DialogTitle>
             <DialogDescription>Modifica el nombre, tipo o estado del método.</DialogDescription>
           </DialogHeader>
@@ -857,8 +857,8 @@ function StationsTab() {
 
       {/* Create station dialog */}
       <Dialog open={dialog} onOpenChange={setDialog}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={ChefHat}>
             <DialogTitle>Nueva estación</DialogTitle>
             <DialogDescription>Define un área de preparación que recibirá comandas.</DialogDescription>
           </DialogHeader>
@@ -889,8 +889,8 @@ function StationsTab() {
 
       {/* Edit station dialog */}
       <Dialog open={Boolean(editingStation)} onOpenChange={(v) => !v && setEditingStation(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={ChefHat}>
             <DialogTitle>Editar estación</DialogTitle>
             <DialogDescription>Modifica el nombre, código o estado de la estación.</DialogDescription>
           </DialogHeader>

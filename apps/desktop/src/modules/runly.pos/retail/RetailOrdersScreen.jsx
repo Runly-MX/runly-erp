@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import {useSearchParams} from 'react-router-dom'
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
-import { Button, DateField, EmptyState, ErrorState, PageHeader, SearchInput, SelectField, Skeleton, StatusPill } from '@runly/ui'
+import { Button, EmptyState, ErrorState, FilterBar, MobileFiltersSheet, PageHeader, SearchInput, Skeleton, StatusPill } from '@runly/ui'
 import { ChevronLeft, ChevronRight, Lock, ReceiptText } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -12,7 +12,9 @@ import { classifyPosError } from './lib/retailErrors.js'
 import { ORDER_STATUS_META, formatMoney } from './lib/retailRules.js'
 
 const PAGE_SIZE = 25
-const ALL = '__all__'
+const NO_FILTERS = { outletId: '', experience: '', status: '', from: '', to: '' }
+const STATUS_OPTIONS = [{ value: 'OPEN', label: 'En curso' }, { value: 'SENT', label: 'Enviadas a cocina' }, { value: 'PAID', label: 'Pagadas' }, { value: 'CANCELLED', label: 'Canceladas' }, { value: 'REFUNDED', label: 'Devueltas' }]
+const EXPERIENCE_OPTIONS = [{ value: 'RETAIL', label: 'Tienda' }, { value: 'RESTAURANT', label: 'Restaurante' }]
 
 function when(value) {
   try { return new Date(value).toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }) } catch { return '' }
@@ -24,13 +26,11 @@ function RetailOrdersView() {
   const { session, userProfile } = useAuth()
   const token = session?.access_token
   const { activeCompanyId } = useActiveCompany()
-  const [outletId, setOutletId] = useState(ALL)
-  const [status, setStatus] = useState(ALL)
-  const [experience, setExperience] = useState(ALL)
+  const [filters, setFiltersState] = useState(NO_FILTERS)
+  const { outletId, experience, status, from, to } = filters
+  const setFilters = (next) => { setFiltersState(next); setPage(1) }
   const [text, setText] = useState('')
   const [search, setSearch] = useState('')
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
   const [page, setPage] = useState(1)
   const [params,setParams]=useSearchParams()
   const requested=params.get('order')
@@ -47,9 +47,9 @@ function RetailOrdersView() {
   const outlets = context.data?.data?.outlets ?? []
   const retailOnly = outlets.length > 0 && outlets.every((o) => o.mode === 'RETAIL')
   const query = {
-    ...(experience !== ALL ? { experience } : {}),
-    ...(outletId !== ALL ? { outletId } : {}),
-    ...(status !== ALL ? { status } : {}),
+    ...(experience ? { experience } : {}),
+    ...(outletId ? { outletId } : {}),
+    ...(status ? { status } : {}),
     ...(validSearch ? { search: validSearch } : {}),
     ...(from ? { from } : {}),
     ...(to ? { to } : {}),
@@ -66,18 +66,26 @@ function RetailOrdersView() {
   const pagination = list.data?.pagination
   const totalPages = pagination ? Math.max(1, Math.ceil(pagination.total / PAGE_SIZE)) : 1
   const error = list.error ? classifyPosError(list.error) : null
+  const activeFilters = Object.values(filters).filter(Boolean).length
+  const filterDefs = [
+    { key: 'dates', label: 'Fecha', type: 'daterange', fromKey: 'from', toKey: 'to' },
+    ...(outlets.length > 1 ? [{ key: 'outletId', label: 'Sucursal', type: 'select', options: outlets.map((o) => ({ value: o.id, label: o.name })) }] : []),
+    ...(!retailOnly ? [{ key: 'experience', label: 'Tipo', type: 'select', options: EXPERIENCE_OPTIONS }] : []),
+    { key: 'status', label: 'Estado', type: 'select', options: STATUS_OPTIONS },
+  ]
 
   return (
     <div className="min-h-dvh space-y-5 p-4 md:p-6">
       <PageHeader title={retailOnly ? 'Órdenes de tienda' : 'Órdenes'} description={retailOnly ? 'Ventas de mostrador: consulta, comprobantes, cancelaciones y devoluciones.' : 'Ventas de mostrador y cuentas de restaurante: consulta, comprobantes, cancelaciones y devoluciones.'} />
 
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-        <SearchInput value={text} onChange={(e) => setText(e.target.value)} placeholder="Folio de venta o comprobante" aria-label="Buscar por folio de venta o de comprobante" inputMode="numeric" />
-        <SelectField aria-label="Sucursal" value={outletId} onValueChange={(v) => { setOutletId(v); setPage(1) }} options={[{ value: ALL, label: 'Todas las sucursales' }, ...outlets.map((o) => ({ value: o.id, label: o.name }))]} />
-        {!retailOnly && <SelectField aria-label="Tipo de orden" value={experience} onValueChange={(v) => { setExperience(v); setPage(1) }} options={[{ value: ALL, label: 'Tienda y restaurante' }, { value: 'RETAIL', label: 'Tienda' }, { value: 'RESTAURANT', label: 'Restaurante' }]} />}
-        <SelectField aria-label="Estado" value={status} onValueChange={(v) => { setStatus(v); setPage(1) }} options={[{ value: ALL, label: 'Todos los estados' }, { value: 'OPEN', label: 'En curso' }, { value: 'SENT', label: 'Enviadas a cocina' }, { value: 'PAID', label: 'Pagadas' }, { value: 'CANCELLED', label: 'Canceladas' }, { value: 'REFUNDED', label: 'Devueltas' }]} />
-        <DateField aria-label="Desde" label="Desde" value={from} onChange={(e) => { setFrom(e?.target?.value ?? e ?? ''); setPage(1) }} />
-        <DateField aria-label="Hasta" label="Hasta" value={to} onChange={(e) => { setTo(e?.target?.value ?? e ?? ''); setPage(1) }} />
+      <div className="flex flex-wrap items-center gap-2">
+        <SearchInput value={text} onChange={(e) => setText(e.target.value)} onClear={() => setText('')} placeholder="Folio de venta o comprobante" aria-label="Buscar por folio de venta o de comprobante" inputMode="numeric" className="min-w-48 flex-1" />
+        <div className="hidden items-center gap-2 md:flex">
+          <FilterBar filters={filterDefs} value={filters} onChange={setFilters} />
+        </div>
+        <MobileFiltersSheet activeCount={activeFilters} onClear={() => setFilters(NO_FILTERS)}>
+          <FilterBar filters={filterDefs} value={filters} onChange={setFilters} />
+        </MobileFiltersSheet>
       </div>
       {search && !validSearch && <p className="text-sm text-amber-900 dark:text-amber-300">El folio es numérico, por ejemplo 125 o #125.</p>}
 

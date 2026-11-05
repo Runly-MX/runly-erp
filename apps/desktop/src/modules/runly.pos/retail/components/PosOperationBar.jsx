@@ -1,8 +1,10 @@
 // apps/desktop/src/modules/runly.pos/retail/components/PosOperationBar.jsx
 import { useEffect, useState } from 'react'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger, StatusPill } from '@runly/ui'
-import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, LockKeyhole, LogOut, Menu, Receipt, Repeat, Store, Wifi, WifiOff } from 'lucide-react'
+import { ArrowDownToLine, ArrowUpFromLine, CircleCheck, CircleSlash, Link2, LockKeyhole, LogOut, Menu, Receipt, Repeat, Store, Wifi, WifiOff } from 'lucide-react'
 import PosNav from '../../components/PosNav.jsx'
+import { PosViewToggle, usePosView } from '../../components/PosThemeScope.jsx'
+import { useAuth } from '../../../../auth/AuthProvider.jsx'
 
 export function useOnline() {
   const [online, setOnline] = useState(() => (typeof navigator === 'undefined' ? true : navigator.onLine))
@@ -24,6 +26,10 @@ function openedAt(session) {
 // operator and connection; the POS navigation (full-screen screens have no ERP
 // side menu); register operations in one "Más" menu.
 export default function PosOperationBar({ outletName, terminalName, session, cashier, online, capabilities, onCashIn, onCashOut, onClose, onOrders, onChangeCaja, onSignOut, saleInProgress, nav = false, modeSwitch = null, onExit }) {
+  const view = usePosView()
+  const { userProfile } = useAuth()
+  // Registers by link are managed here too, for whoever administers the POS.
+  const canLinks = Boolean(view) && (Boolean(userProfile?.isAdmin) || Boolean(userProfile?.permissions?.includes('pos.admin.update')))
   return (
     <header className="flex min-h-14 flex-wrap items-center gap-x-3 border-b border-[hsl(var(--border))] bg-[hsl(var(--card))] pl-3 pr-2 sm:pl-4 sm:pr-3">
       <span className="hidden h-9 w-9 shrink-0 items-center justify-center rounded-md bg-(--pos-band) text-(--pos-band-accent) sm:flex"><Store className="h-5 w-5" aria-hidden="true" /></span>
@@ -42,6 +48,7 @@ export default function PosOperationBar({ outletName, terminalName, session, cas
       {online
         ? <span className="hidden items-center gap-1.5 text-sm font-medium text-[hsl(var(--muted-foreground))] sm:inline-flex"><Wifi className="h-4 w-4" aria-hidden="true" />En línea</span>
         : <StatusPill tone="danger" icon={WifiOff}>Sin conexión</StatusPill>}
+      <PosViewToggle />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="lg" className="h-11 gap-2" aria-label="Más operaciones de caja">
@@ -60,6 +67,12 @@ export default function PosOperationBar({ outletName, terminalName, session, cas
             <DropdownMenuItem onSelect={onClose} disabled={saleInProgress} className="min-h-11">
               <LockKeyhole className="mr-2 h-4 w-4" aria-hidden="true" />{saleInProgress ? 'Cerrar caja (termina la venta)' : 'Cerrar caja'}
             </DropdownMenuItem>
+          )}
+          {canLinks && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onSelect={view.openLinks} className="min-h-11"><Link2 className="mr-2 h-4 w-4" aria-hidden="true" />Cajas por enlace</DropdownMenuItem>
+            </>
           )}
           {onChangeCaja && (
             <>

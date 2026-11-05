@@ -1,3 +1,4 @@
+import { HandCoins } from 'lucide-react'
 import { useState } from 'react'
 import {
   Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription,
@@ -105,8 +106,8 @@ export default function WaiterShiftsPanel({ open, onOpenChange, outletId, sessio
       </Sheet>
 
       <Dialog open={Boolean(receiveTarget)} onOpenChange={(v) => !v && handleCloseReceive()}>
-        <DialogContent size="sm">
-          <DialogHeader>
+        <DialogContent size="md">
+          <DialogHeader icon={HandCoins}>
             <DialogTitle>Recibir corte — {shortWaiter(receiveTarget?.waiterId)}</DialogTitle>
             <DialogDescription>
               Registra el efectivo entregado por el mesero para este turno.

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { Pencil, LayoutGrid, Settings2 } from 'lucide-react'
+import { LayoutGrid, Pencil, Settings2 } from 'lucide-react'
 import {
   Button, SelectField, Badge,
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -522,8 +522,8 @@ export default function PosFloorPlannerScreen() {
       </Sheet>
 
       <Dialog open={newFloorDialog} onOpenChange={(v) => { setNewFloorDialog(v); if (!v) setNewFloorName('') }}>
-        <DialogContent size="sm">
-          <DialogHeader>
+        <DialogContent size="md">
+          <DialogHeader icon={LayoutGrid}>
             <DialogTitle>Nuevo plano</DialogTitle>
             <DialogDescription>Dale un nombre al plano de esta sucursal.</DialogDescription>
           </DialogHeader>
@@ -549,8 +549,8 @@ export default function PosFloorPlannerScreen() {
       </Dialog>
 
       <Dialog open={editFloorDialog} onOpenChange={setEditFloorDialog}>
-        <DialogContent size="sm">
-          <DialogHeader>
+        <DialogContent size="md">
+          <DialogHeader icon={LayoutGrid}>
             <DialogTitle>Renombrar plano</DialogTitle>
             <DialogDescription>Cambia el nombre de "{activeFloor?.name}".</DialogDescription>
           </DialogHeader>

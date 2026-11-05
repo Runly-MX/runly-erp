@@ -1,3 +1,4 @@
+import { CalendarClock } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter,
@@ -56,8 +57,8 @@ export function ReservationFormDialog({ open, onOpenChange, tableName, tableId, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm" aria-describedby={undefined}>
-        <DialogHeader>
+      <DialogContent size="md" aria-describedby={undefined}>
+        <DialogHeader icon={CalendarClock}>
           <DialogTitle>Reservar {tableName}</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-3 pt-1">

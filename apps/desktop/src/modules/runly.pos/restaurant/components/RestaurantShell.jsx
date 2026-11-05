@@ -6,6 +6,7 @@ import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../../company/ActiveCompanyProvider'
 import PosContextGate from '../../retail/components/PosContextGate.jsx'
 import PosNav from '../../components/PosNav.jsx'
+import { PosViewToggle } from '../../components/PosThemeScope.jsx'
 import { useOnline } from '../../retail/components/PosOperationBar.jsx'
 import { useRetailContext } from '../../retail/hooks/useRetailContext.js'
 import { classifyPosError } from '../../retail/lib/retailErrors.js'
@@ -93,6 +94,7 @@ export default function RestaurantShell({ title, requires, nav, children, action
             <Repeat className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Sucursal</span>
           </Button>
         )}
+        <PosViewToggle />
       </header>
       {!online && context && (
         <p role="alert" className="border-b border-[hsl(var(--border))] bg-red-50 px-4 py-2 text-sm font-semibold text-red-900 dark:bg-red-950 dark:text-red-200">

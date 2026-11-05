@@ -1,3 +1,4 @@
+import { LockKeyholeOpen } from 'lucide-react'
 import { useState, useEffect } from 'react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription,
@@ -35,8 +36,8 @@ export default function SessionOpenDialog({ open, onOpenChange, onSuccess, defau
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="sm">
-        <DialogHeader>
+      <DialogContent size="md">
+        <DialogHeader icon={LockKeyholeOpen}>
           <DialogTitle>Abrir caja</DialogTitle>
           <DialogDescription>
             Ingresa el efectivo inicial antes de comenzar las operaciones del día.

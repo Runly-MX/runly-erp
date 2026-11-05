@@ -261,7 +261,7 @@ export function RunlyApp() {
           style={shellViewportStyle}
           data-shell-footer={showFooter ? 'true' : 'false'}
         >
-      {!posFullscreen && <TopbarWithNetworkStatus
+      <TopbarWithNetworkStatus
         onLauncherOpen={openLauncher}
         onMobileMenuToggle={showSidebar ? () => setMobileOpen((o) => !o) : undefined}
         onModuleMenuToggle={
@@ -273,7 +273,7 @@ export function RunlyApp() {
         canInstall={canInstall}
         manualInstallReady={manualInstallReady}
         onInstall={install}
-      />}
+      />
 
       {/* Mobile backdrop */}
       {showSidebar && mobileOpen && (
@@ -286,7 +286,7 @@ export function RunlyApp() {
       )}
 
       {/* Body: sidebar + scrollable main, fills viewport below the topbar */}
-      <div className={posFullscreen ? "flex flex-col h-full pt-[var(--sat)]" : "flex flex-col h-full pt-topbar"}>
+      <div className="flex flex-col h-full pt-topbar">
         <div className="flex flex-1 min-h-0">
           {showSidebar &&
             (sidebarLoading ? (

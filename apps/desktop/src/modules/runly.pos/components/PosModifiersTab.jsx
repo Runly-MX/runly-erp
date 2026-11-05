@@ -1,6 +1,6 @@
 import { POS_ADMIN_TOUCH } from './adminTouch.js'
 import { useMemo, useState } from 'react'
-import { Pencil, Plus } from 'lucide-react'
+import { ListPlus, Pencil, Plus } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   Card, CardContent, CardHeader, CardTitle, CardDescription,
@@ -262,8 +262,8 @@ export default function PosModifiersTab() {
 
       {/* Nuevo grupo */}
       <Dialog open={groupDialog} onOpenChange={setGroupDialog}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={ListPlus}>
             <DialogTitle>Nuevo grupo</DialogTitle>
             <DialogDescription>Define un grupo de modificadores para {selectedProduct?.name}.</DialogDescription>
           </DialogHeader>
@@ -310,8 +310,8 @@ export default function PosModifiersTab() {
 
       {/* Editar grupo */}
       <Dialog open={Boolean(editingGroup)} onOpenChange={(v) => !v && setEditingGroup(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={ListPlus}>
             <DialogTitle>Editar grupo</DialogTitle>
             <DialogDescription>Modifica el nombre, límites o estado del grupo.</DialogDescription>
           </DialogHeader>
@@ -364,8 +364,8 @@ export default function PosModifiersTab() {
 
       {/* Nueva opción */}
       <Dialog open={Boolean(optionGroup)} onOpenChange={(v) => !v && setOptionGroup(null)}>
-        <DialogContent size="sm" className={POS_ADMIN_TOUCH}>
-          <DialogHeader>
+        <DialogContent size="md" className={POS_ADMIN_TOUCH}>
+          <DialogHeader icon={ListPlus}>
             <DialogTitle>Nueva opción</DialogTitle>
             <DialogDescription>Agrega una opción al grupo {optionGroup?.name}.</DialogDescription>
           </DialogHeader>
