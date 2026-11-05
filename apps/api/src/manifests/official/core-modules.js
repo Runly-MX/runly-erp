@@ -1403,6 +1403,13 @@ export const inventoryMap = createModuleManifest({
       permissionKey: 'inventory.item.read',
     },
     {
+      label: 'Mapa',
+      path: '/inventory/map',
+      icon: 'MapPinned',
+      layout: 'main',
+      permissionKey: 'inventory.item.read',
+    },
+    {
       label: 'Custodia',
       icon: 'UserCheck',
       layout: 'main',

@@ -1,0 +1,124 @@
+import { useMemo, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { useQuery } from '@tanstack/react-query'
+import { MapPin, MapPinned, X } from 'lucide-react'
+import { Button, EmptyState, ErrorState, PageHeader, SearchInput, Skeleton, cn } from '@runly/ui'
+import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { formatGeoPoint, googleMapsUrl } from '../../../lib/geo-point.js'
+import { GeoItemsMap } from '../../../components/geo/GeoItemsMap.jsx'
+import { ITEM_STATUSES } from '../lib/inventory-constants.js'
+import { intakeRequest } from '../lib/intake.js'
+import { InventoryStatusBadge } from '../components/InventoryStatusBadge.jsx'
+import { useInventoryMapConfig } from '../components/InventoryGeolocation.jsx'
+
+const STATUS_COLOR = Object.fromEntries(ITEM_STATUSES.map((s) => [s.value, s.color]))
+const detailPath = (id) => `/app/m/runly.inventory/inventory/${id}`
+const haystack = (item) => [item.name, item.folio, item.assetTag, item.serialNumber, item.locationName, item.categoryName, item.assignedToName].filter(Boolean).join(' ').toLowerCase()
+
+function useGeoItems() {
+  const token = useAuth().session?.access_token
+  const { activeCompanyId } = useActiveCompany()
+  return useQuery({
+    queryKey: ['inventory', 'map-items', activeCompanyId],
+    queryFn: () => intakeRequest({ apiBaseUrl: getApiUrl(), token, companyId: activeCompanyId, path: '/inventory/map/items' }),
+    enabled: Boolean(token && activeCompanyId),
+    staleTime: 60 * 1000,
+  })
+}
+
+function ExternalMapLink({ item }) {
+  return (
+    <a href={googleMapsUrl(item.latitude, item.longitude)} target="_blank" rel="noopener noreferrer"
+      className="text-xs text-[var(--brand-primary)] underline-offset-2 hover:underline">Abrir en Google Maps</a>
+  )
+}
+
+function SelectedCard({ item, onClose, onOpen }) {
+  return (
+    <div className="absolute inset-x-3 bottom-3 z-10 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-3 shadow-lg sm:right-auto sm:w-80">
+      <div className="flex items-start gap-2">
+        <div className="min-w-0 flex-1">
+          <p className="truncate text-sm font-semibold">{item.name}</p>
+          <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.folio, item.categoryName].filter(Boolean).join(' · ') || 'Sin folio'}</p>
+        </div>
+        <Button type="button" variant="ghost" size="icon" className="h-7 w-7" onClick={onClose} aria-label="Cerrar"><X className="h-4 w-4" /></Button>
+      </div>
+      <div className="mt-2 space-y-1 text-xs">
+        <InventoryStatusBadge status={item.status} />
+        {item.locationName ? <p>Ubicación: {item.locationName}</p> : null}
+        {item.assignedToName ? <p>Asignado a: {item.assignedToName}</p> : null}
+        <p className="tabular-nums text-[hsl(var(--muted-foreground))]">{formatGeoPoint(item.latitude, item.longitude)}</p>
+      </div>
+      <div className="mt-3 flex items-center gap-3">
+        <Button type="button" size="sm" onClick={onOpen}>Ver activo</Button>
+        <ExternalMapLink item={item} />
+      </div>
+    </div>
+  )
+}
+
+export default function InventoryMapScreen() {
+  const navigate = useNavigate()
+  const query = useGeoItems()
+  const config = useInventoryMapConfig().data
+  const [mapFailed, setMapFailed] = useState(false)
+  const [search, setSearch] = useState('')
+  const [selectedId, setSelectedId] = useState(null)
+  const styleUrl = config?.enabled && !mapFailed ? config.styleUrl : null
+
+  const all = query.data?.items
+  const items = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return (all ?? []).filter((item) => !q || haystack(item).includes(q))
+  }, [all, search])
+  const points = useMemo(() => items.map((item) => ({ ...item, color: STATUS_COLOR[item.status] })), [items])
+  const selected = items.find((item) => item.id === selectedId) ?? null
+
+  const header = <PageHeader eyebrow="Inventario" title="Mapa" description="Dónde están los activos que tienen geolocalización." />
+  if (query.isError) return <div className="space-y-6 p-4 md:p-6">{header}<ErrorState title="No se pudo cargar el mapa" description={query.error?.message} onRetry={() => query.refetch()} /></div>
+  if (query.isLoading) return <div className="space-y-6 p-4 md:p-6">{header}<Skeleton className="h-[70vh] w-full rounded-lg" /></div>
+  if (!all?.length) {
+    return (
+      <div className="space-y-6 p-4 md:p-6">
+        {header}
+        <EmptyState icon={MapPinned} title="Ningún activo tiene geolocalización"
+          description="Abre un activo, edítalo y en «Geolocalización» usa tu ubicación, pega coordenadas o marca el punto en el mapa."
+          action={{ label: 'Ir al inventario', onClick: () => navigate('/app/m/runly.inventory/inventory') }} />
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4 p-4 md:p-6">
+      {header}
+      {query.data?.truncated ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Se muestran los {all.length} activos actualizados más recientemente.</p> : null}
+      {!styleUrl ? <p className="text-xs text-[hsl(var(--muted-foreground))]">{config?.enabled === false ? 'Los mapas están desactivados en esta instancia.' : config ? 'No se pudo cargar el mapa.' : ''} Puedes abrir cada activo en Google Maps.</p> : null}
+      <div className={cn('grid gap-4', styleUrl && 'lg:grid-cols-[20rem_minmax(0,1fr)]')}>
+        <div className="flex min-h-0 flex-col gap-2">
+          <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar activo, folio o ubicación..." />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">{items.length} de {all.length} activos</p>
+          <ul className={cn('divide-y divide-[hsl(var(--border))] overflow-y-auto rounded-lg border border-[hsl(var(--border))]', styleUrl && 'lg:max-h-[calc(70vh-4.5rem)]')}>
+            {items.map((item) => (
+              <li key={item.id} className={cn('flex items-start gap-2 px-3 py-2', item.id === selectedId && 'bg-[hsl(var(--muted))]')}>
+                <MapPin className="mt-0.5 h-4 w-4 shrink-0" style={{ color: STATUS_COLOR[item.status] }} aria-hidden="true" />
+                <button type="button" className="min-w-0 flex-1 text-left" onClick={() => (styleUrl ? setSelectedId(item.id) : navigate(detailPath(item.id)))}>
+                  <span className="block truncate text-sm font-medium">{item.name}</span>
+                  <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{[item.folio, item.locationName].filter(Boolean).join(' · ') || formatGeoPoint(item.latitude, item.longitude)}</span>
+                </button>
+                {!styleUrl ? <ExternalMapLink item={item} /> : null}
+              </li>
+            ))}
+          </ul>
+        </div>
+        {styleUrl ? (
+          <div className="relative">
+            <GeoItemsMap styleUrl={styleUrl} points={points} selectedId={selectedId} onSelect={setSelectedId} onError={() => setMapFailed(true)} />
+            {selected ? <SelectedCard item={selected} onClose={() => setSelectedId(null)} onOpen={() => navigate(detailPath(selected.id))} /> : null}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  )
+}

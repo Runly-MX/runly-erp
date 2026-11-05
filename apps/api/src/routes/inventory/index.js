@@ -33,6 +33,7 @@ import { createInventoryGuestService } from '../../services/inventory-guest-serv
 import { createInventoryProposalRouter } from './proposal-routes.js';
 import { createInventoryProposalService } from '../../services/inventory-proposal-service.js';
 import { createGeocoder } from '../canvas/canvas-geocoder.js';
+import { listGeoItems } from '../../services/inventory-geo-items.js';
 
 export function createInventoryRouter({
   prisma,
@@ -118,6 +119,14 @@ export function createInventoryRouter({
   // Map tiles for the item geolocation (same instance config as canvas; no API key by default).
   const geocoder = createGeocoder();
   router.get("/inventory/map-config", requirePermission("inventory.item.read"), (c) => c.json({ data: geocoder.mapConfig() }));
+  router.get("/inventory/map/items", requirePermission("inventory.item.read"), async (c) => {
+    try {
+      const { data, truncated } = await listGeoItems(prisma, c.get("companyId"), await scopeOf(c));
+      return c.json({ data: { items: data, truncated } });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los activos del mapa." }, 500);
+    }
+  });
   // Live duplicate check for the forms: which ACTIVE item already uses this serial / asset number.
   router.get("/inventory/items/check-identifiers", requirePermission("inventory.item.read"), async (c) => {
     try {

@@ -7,18 +7,15 @@ import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
 import { formatGeoPoint, googleMapsUrl, hasGeoPoint, parseCoordinates } from '../../../lib/geo-point.js'
 import { GeoPointMap } from '../../../components/geo/GeoPointMap.jsx'
+import { LocationPermissionHelp } from '../../../components/geo/LocationPermissionHelp.jsx'
+import { useDeviceLocation } from '../../../components/geo/useDeviceLocation.js'
 import { intakeRequest } from '../lib/intake.js'
 
-const GEO_ERRORS = {
-  1: 'No diste permiso para usar tu ubicación. Pega las coordenadas o marca el punto en el mapa.',
-  2: 'No se pudo determinar tu ubicación. Pega las coordenadas o marca el punto en el mapa.',
-  3: 'La ubicación tardó demasiado. Intenta de nuevo.',
-}
 const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6
 
 // Map tiles come from the instance (OpenFreeMap by default, no API key);
 // `enabled: false` or a failing style leaves coordinates + external link only.
-function useInventoryMapConfig() {
+export function useInventoryMapConfig() {
   const token = useAuth().session?.access_token
   const { activeCompanyId } = useActiveCompany()
   return useQuery({
@@ -52,18 +49,16 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
   const map = useMapStyle()
   const [text, setText] = useState('')
   const [message, setMessage] = useState('')
-  const [locating, setLocating] = useState(false)
+  const device = useDeviceLocation()
+  const locating = device.locating
   const setPoint = (lat, lng, note = '') => { onChange({ latitude: round6(lat), longitude: round6(lng) }); setMessage(note) }
 
-  function useMyLocation() {
-    if (!navigator.geolocation) { setMessage('Este dispositivo no permite obtener la ubicación.'); return }
-    setLocating(true); setMessage('')
-    navigator.geolocation.getCurrentPosition(
-      (pos) => { setLocating(false); setPoint(pos.coords.latitude, pos.coords.longitude, `Precisión aproximada: ${Math.round(pos.coords.accuracy)} m`) },
-      (err) => { setLocating(false); setMessage(GEO_ERRORS[err.code] ?? GEO_ERRORS[2]) },
-      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
-    )
+  async function locateMe() {
+    setMessage('')
+    const pos = await device.locate()
+    if (pos) setPoint(pos.latitude, pos.longitude, `Precisión aproximada: ${Math.round(pos.accuracy)} m`)
   }
+  const blocked = ['denied', 'insecure', 'unsupported'].includes(device.permission)
 
   function apply(raw) {
     const point = parseCoordinates(raw)
@@ -75,7 +70,7 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
   return (
     <div data-no-enter-submit="" className="space-y-3">
       <div className="flex flex-wrap items-end gap-2">
-        <Button type="button" variant="outline" onClick={useMyLocation} disabled={locating}>
+        <Button type="button" variant="outline" onClick={locateMe} disabled={locating || device.permission === 'insecure' || device.permission === 'unsupported'}>
           {locating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <LocateFixed className="mr-1 h-4 w-4" />}
           Usar mi ubicación
         </Button>
@@ -88,8 +83,9 @@ export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
         </div>
         <Button type="button" variant="outline" onClick={() => apply(text)} disabled={!text.trim()}>Aplicar</Button>
       </div>
-      {message || errors.latitude || errors.longitude ? (
-        <p className="text-xs text-[hsl(var(--muted-foreground))]" role="status">{errors.latitude || errors.longitude || message}</p>
+      {blocked ? <LocationPermissionHelp permission={device.permission} locating={locating} onRetry={locateMe} /> : null}
+      {message || device.message || errors.latitude || errors.longitude ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))]" role="status">{errors.latitude || errors.longitude || message || device.message}</p>
       ) : null}
       {located ? (
         <div className="flex flex-wrap items-center gap-2">
