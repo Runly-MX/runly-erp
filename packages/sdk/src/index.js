@@ -562,6 +562,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       workMentions: (token) => request("/work/mentions", { headers: withAuthHeaders(token) }),
       homeWidgets: (token) => request("/home-widgets", { headers: withAuthHeaders(token) }),
       homeWidgetData: (moduleKey, widgetKey, token) => request(`/home-widgets/${encodeURIComponent(moduleKey)}/${encodeURIComponent(widgetKey)}`, { headers: withAuthHeaders(token) }),
+      // Company custom detail views (DetailViewDesigner).
+      detailView: (viewKey, token) => request(`/detail-views/${encodeURIComponent(viewKey)}`, { headers: withAuthHeaders(token) }),
+      saveDetailView: (viewKey, schema, token) => request(`/detail-views/${encodeURIComponent(viewKey)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ schema }) }),
+      resetDetailView: (viewKey, token) => request(`/detail-views/${encodeURIComponent(viewKey)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
       systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),
       createSystemAutomation: (input, token) =>
         request("/automations", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(input) }),

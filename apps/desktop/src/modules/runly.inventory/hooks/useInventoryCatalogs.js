@@ -207,12 +207,12 @@ export function useReorderInventoryLocations() {
 
 // ── Custom fields ─────────────────────────────────────────────────────────────
 
-export function useInventoryCustomFields(categoryId) {
+export function useInventoryCustomFields(categoryId, { enabled = true } = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'custom-fields', categoryId ?? 'global'],
     queryFn: () => runly.inventory.listCustomFields({ categoryId }, token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && enabled,
     staleTime: 5 * 60 * 1000,
   })
 }

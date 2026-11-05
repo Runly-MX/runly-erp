@@ -672,8 +672,26 @@ model Company {
   invPublicTokens   InvPublicToken[]   @relation("CompanyInvPublicTokens")
   invItems        InvItem[]        @relation("CompanyInvItems")
   invCustomFields InvCustomField[] @relation("CompanyInvCustomFields")
+  detailViews     CompanyDetailView[]
 
   @@map("company")
+}
+
+// Per-company arrangement of a blueprint-driven detail screen (cards, field
+// order, hidden fields). See docs/superpowers/specs/2026-11-05-custom-detail-views-design.md.
+model CompanyDetailView {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  companyId   String   @db.Uuid @map("company_id")
+  viewKey     String   @db.VarChar(100) @map("view_key")
+  schema      Json
+  updatedById String?  @db.Uuid @map("updated_by_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@unique([companyId, viewKey])
+  @@map("company_detail_view")
 }
 
 model UserProfile {

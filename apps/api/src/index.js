@@ -83,6 +83,7 @@ import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
 import { createAutomationsRouter } from "./routes/automations-routes.js";
 import { createHomeWidgetsRouter } from "./routes/home-widgets-routes.js";
+import { createDetailViewsRouter } from "./routes/detail-views-routes.js";
 import { createWorkRouter } from "./routes/work-routes.js";
 import { createStatusRouter } from "./routes/status-routes.js";
 import { createAutomationWebhookPublicRouter } from "./routes/automation-webhook-public.js";
@@ -2554,6 +2555,7 @@ function mountWithAuth(baseApp, router) {
 mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermission, cacheDel }));
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
+mountWithAuth(app, createDetailViewsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createWorkRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany, broadcaster }));
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));

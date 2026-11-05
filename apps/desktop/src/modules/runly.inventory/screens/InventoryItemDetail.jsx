@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useNavigate, useParams } from 'react-router-dom'
-import { ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent, isNewTabClick, openInNewTab, NotFoundState } from '@runly/ui'
-import { InventoryItemPresentation } from '@runly/ui/integrations'
-import { ArrowLeft, FolderInput, Plus, PowerOff, Sparkles } from 'lucide-react'
+import { ConfirmDialog, RecordHeader, DetailSkeleton, Tooltip, TooltipTrigger, TooltipContent, isNewTabClick, openInNewTab, NotFoundState, DetailViewDesigner, applyDetailView, placedFieldKeys } from '@runly/ui'
+import { InventoryItemPresentation, inventoryPresentationBlueprint } from '@runly/ui/integrations'
+import { ArrowLeft, FolderInput, LayoutDashboard, Plus, PowerOff, Sparkles } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -19,8 +19,17 @@ import { ConnectionSections } from '../../../shell/connections/ConnectionSection
 import { CustodyRelatedCard } from '../components/custody/CustodyRelatedList.jsx'
 import { useMiraiRecordContext, openMiraiSidebar } from '../../runly.chat/lib/miraiPageContext.js'
 import { RecordTasks } from '../../../components/RecordTasks.jsx'
+import { useDetailView } from '../../../hooks/useDetailView.js'
+import { useInventoryCustomFields } from '../hooks/useInventoryCatalogs.js'
+import { formatCustomValue } from '../components/InventoryDetailCustomFieldsSection.jsx'
+import { hasCustomFieldValue } from '../lib/custom-values.js'
 
 const API_BASE = getApiUrl()
+const VIEW_KEY = 'inventory.item.detail'
+const BASE_BLUEPRINT = inventoryPresentationBlueprint('DETAIL')
+
+// Custom field defs placeable in the company's detail view cards (custom:<fieldId>).
+const customFieldDef = (field) => ({ field: `custom:${field.id}`, label: field.label, icon: 'SlidersHorizontal', ...(field.fieldType === 'textarea' ? { type: 'markdown' } : {}) })
 
 export default function InventoryItemDetail() {
   const { '*': wildcard } = useParams()
@@ -38,14 +47,37 @@ export default function InventoryItemDetail() {
   const deleteItem = useDeleteInventoryItem()
   const item = data?.data ?? data
   // The "Etiqueta / QR" section is shown only with inventory.label.read.
-  const canReadLabels = useInventoryCan()('inventory.label.read')
+  const can = useInventoryCan()
+  const canReadLabels = can('inventory.label.read')
+  const canDesignView = can('inventory.customfield.manage')
+  const [designOpen, setDesignOpen] = useState(false)
+  const detailView = useDetailView(VIEW_KEY)
+  // All of the company's custom fields, only while the designer is open.
+  const { data: companyCustomFields } = useInventoryCustomFields('all', { enabled: designOpen })
+  const itemCustomDefs = useMemo(() => (item?.customValues ?? []).filter((cv) => cv?.field).map((cv) => customFieldDef({ ...cv.field, id: cv.fieldId ?? cv.field.id })), [item?.customValues])
+  const designerFields = useMemo(() => {
+    const list = companyCustomFields?.data ?? companyCustomFields ?? []
+    const defs = (Array.isArray(list) ? list : []).filter((field) => !field.onDemand).map(customFieldDef)
+    return [...defs, ...itemCustomDefs.filter((def) => !defs.some((d) => d.field === def.field))]
+  }, [companyCustomFields, itemCustomDefs])
+  const blueprint = useMemo(() => applyDetailView(BASE_BLUEPRINT, detailView.view, itemCustomDefs), [detailView.view, itemCustomDefs])
   // The "Área" field of Identificación only exists once the company uses areas.
   const detailData = useMemo(() => {
     if (!item) return item
     const hasAreas = areas.length > 0
     const areaPath = item.areaId ? (areaPathLabel(areas, item.areaId) || 'Área sin acceso') : 'General'
-    return { ...item, canReadLabels, hasAreas, areaPath, areaFilterValue: item.areaId || AREA_NONE }
-  }, [item, canReadLabels, areas])
+    const placed = placedFieldKeys(detailView.view)
+    const custom = {}
+    const placedCustomFieldIds = new Set()
+    for (const cv of item.customValues ?? []) {
+      const fieldId = cv?.fieldId ?? cv?.field?.id
+      if (!fieldId || !placed.has(`custom:${fieldId}`)) continue
+      placedCustomFieldIds.add(fieldId)
+      if (hasCustomFieldValue(cv)) custom[`custom:${fieldId}`] = formatCustomValue(cv.field, cv.value)
+    }
+    const hasCustomValues = Boolean(item.hasCustomValues) && (item.customValues ?? []).some((cv) => hasCustomFieldValue(cv) && !placedCustomFieldIds.has(cv.fieldId ?? cv.field.id))
+    return { ...item, ...custom, placedCustomFieldIds, hasCustomValues, canReadLabels, hasAreas, areaPath, areaFilterValue: item.areaId || AREA_NONE }
+  }, [item, canReadLabels, areas, detailView.view])
   useMiraiRecordContext({ recordType: 'item', recordId: id, label: item?.name })
 
   if (isLoading) {
@@ -101,12 +133,14 @@ export default function InventoryItemDetail() {
         actions={[
           { key: 'back', label: 'Volver', icon: <ArrowLeft className="h-4 w-4" />, placement: 'collapse', onClick: () => navigate('/app/m/runly.inventory/inventory') },
           { key: 'ai', label: 'Consultar con IA', icon: <Sparkles className="h-4 w-4" />, placement: 'menu', onClick: () => openMiraiSidebar() },
+          { key: 'design', label: 'Personalizar vista', icon: <LayoutDashboard className="h-4 w-4" />, placement: 'menu', hidden: !canDesignView, onClick: () => setDesignOpen(true) },
           { key: 'new', label: 'Nuevo inventario', icon: <Plus className="h-4 w-4" />, placement: 'menu', onClick: () => navigate('/app/m/runly.inventory/inventory/new') },
           { key: 'deactivate', label: 'Desactivar', icon: <PowerOff className="h-4 w-4" />, placement: 'menu', destructive: true, onClick: () => setDeleteOpen(true) },
           { key: 'edit', label: 'Editar', variant: 'default', hidden: readOnly, onClick: () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`) },
         ]}
       />
       <InventoryItemPresentation
+        blueprint={blueprint}
         data={detailData}
         token={token}
         companyId={activeCompanyId}
@@ -124,6 +158,18 @@ export default function InventoryItemDetail() {
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />
+      {canDesignView ? (
+        <DetailViewDesigner
+          open={designOpen}
+          onOpenChange={setDesignOpen}
+          blueprint={BASE_BLUEPRINT}
+          view={detailView.view}
+          extraFields={designerFields}
+          saving={detailView.save.isPending || detailView.reset.isPending}
+          onSave={(view) => detailView.save.mutate(view, { onSuccess: () => setDesignOpen(false) })}
+          onReset={() => detailView.reset.mutateAsync().then(() => setDesignOpen(false)).catch(() => null)}
+        />
+      ) : null}
       <AreaMoveDialog open={moveOpen} onOpenChange={setMoveOpen} itemIds={[id]} options={writeOptions} />
       <ConfirmDialog
         open={deleteOpen}

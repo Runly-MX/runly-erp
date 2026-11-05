@@ -7,7 +7,7 @@ import { customFieldFilterUrl } from '../lib/custom-field-filter.js'
 
 const YES_NO = { true: 'Sí', false: 'No' }
 
-function formatValue(field, value) {
+export function formatCustomValue(field, value) {
   if (field?.fieldType === 'boolean') return YES_NO[String(value)] ?? value
   if (field?.fieldType === 'date' && /^\d{4}-\d{2}-\d{2}/.test(value)) {
     const [y, m, d] = String(value).slice(0, 10).split('-')
@@ -18,12 +18,14 @@ function formatValue(field, value) {
 
 export default function InventoryDetailCustomFieldsSection({ data }) {
   const navigate = useNavigate()
-  const entries = filledCustomValues(data?.customValues)
+  // Values the company's custom view already shows in its own cards are skipped.
+  const placed = data?.placedCustomFieldIds
+  const entries = filledCustomValues(data?.customValues).filter((cv) => !placed?.has(cv.fieldId ?? cv.field.id))
   if (!entries.length) return null
   return (
     <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
       {entries.map((cv) => {
-        const value = formatValue(cv.field, cv.value)
+        const value = formatCustomValue(cv.field, cv.value)
         const isLink = cv.field.fieldType === 'url'
         const filterable = cv.field.fieldType !== 'textarea' && !isLink
         return (
