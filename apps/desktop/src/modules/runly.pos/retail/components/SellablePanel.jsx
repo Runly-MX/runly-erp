@@ -39,9 +39,6 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
     staleTime: 15_000,
   })
   const items = list.data?.pages.flatMap((p) => p.data ?? []) ?? []
-  // A catalog with photos sells by sight: every card then gets the same photo
-  // area (initials where a product has none). Without photos, compact cards.
-  const visual = items.some((i) => i.imageUrl)
   const total = list.data?.pages[0]?.pagination?.total ?? 0
 
   function pick(item) {
@@ -136,7 +133,7 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
       <div className="min-h-0 flex-1 overflow-y-auto pb-24 lg:pb-2" aria-busy={list.isFetching}>
         {list.isPending ? (
           <div className={GRID} aria-label="Cargando productos">
-            {Array.from({ length: 8 }).map((_, i) => <div key={i} className={CELL}><Skeleton className="m-3 h-36 rounded-md" /></div>)}
+            {Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-56 rounded-lg" />)}
           </div>
         ) : list.isError ? (
           <ErrorState title="No se pudieron cargar los productos" description={classifyPosError(list.error).message} onRetry={list.refetch} />
@@ -155,7 +152,7 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
                 <li className={CELL}><QuickSaleTile disabled={disabled} onClick={onQuickSale} /></li>
               )}
               {items.map((item) => (
-                <li key={item.id} className={CELL}><SellableCard item={item} currency={currency} visual={visual} quantity={inCart[item.productId] ?? 0} disabled={disabled} onPick={() => pick(item)} /></li>
+                <li key={item.id} className={CELL}><SellableCard item={item} currency={currency} quantity={inCart[item.productId] ?? 0} disabled={disabled} onPick={() => pick(item)} /></li>
               ))}
             </ul>
             <div className="mt-3 flex flex-col items-center gap-1 text-sm text-[hsl(var(--muted-foreground))]">
@@ -182,28 +179,33 @@ export default function SellablePanel({ token, outletId, currency, inCart = {}, 
   )
 }
 
-// Ruled product grid: cells share 1px rules, so an unfilled last row stays clean.
-const GRID = 'grid grid-cols-2 border-l border-t border-[hsl(var(--border))] sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5'
-const CELL = 'border-b border-r border-[hsl(var(--border))] bg-[hsl(var(--card))]'
+// Product cards: image-led, separated by a gutter; columns grow with the width.
+const GRID = 'grid grid-cols-2 gap-3 sm:grid-cols-[repeat(auto-fill,minmax(176px,1fr))]'
+const CELL = 'min-w-0'
+const CARD = 'group relative flex h-full w-full flex-col overflow-hidden rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--card))] text-left shadow-[0_1px_2px_rgba(11,21,48,0.06)] transition-[box-shadow,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] focus-visible:ring-offset-2 disabled:cursor-not-allowed'
+
+// Deep, quiet tones for products without a photo: one per category, so a
+// shelf reads by colour; white initials keep AA on every one of them.
+const TILE_TONES = ['#1E3A5F', '#1F4E4A', '#3D3B6B', '#5B2C3B', '#2E4A2E', '#33415C', '#4A3B2F', '#264653']
+function tileTone(key) {
+  let h = 0
+  for (const ch of String(key ?? '')) h = (h * 31 + ch.charCodeAt(0)) >>> 0
+  return TILE_TONES[h % TILE_TONES.length]
+}
 
 function QuickSaleTile({ disabled, onClick }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className="flex h-full min-h-32 w-full flex-col items-start justify-between gap-3 p-3 text-left transition-colors hover:bg-[hsl(var(--surface-2))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed disabled:opacity-60"
-    >
-      <span className="flex h-10 w-10 items-center justify-center rounded-md bg-(--brand-primary) text-(--brand-primary-foreground)"><Zap className="h-5 w-5" aria-hidden="true" /></span>
-      <span>
-        <span className="block text-base font-bold text-[hsl(var(--foreground))]">Venta rápida</span>
-        <span className="block text-sm text-[hsl(var(--muted-foreground))]">Cobra un monto libre</span>
+    <button type="button" onClick={onClick} disabled={disabled} className={cn(CARD, 'hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(11,21,48,0.25)]')}>
+      <span className="flex aspect-[4/3] w-full items-center justify-center bg-(--brand-primary) text-(--brand-primary-foreground)"><Zap className="h-10 w-10" aria-hidden="true" /></span>
+      <span className="flex flex-1 flex-col gap-0.5 p-3">
+        <span className="text-sm font-bold text-[hsl(var(--foreground))]">Venta rápida</span>
+        <span className="text-sm text-[hsl(var(--muted-foreground))]">Cobra un monto libre</span>
       </span>
     </button>
   )
 }
 
-function SellableCard({ item, currency, visual, quantity, disabled, onPick }) {
+function SellableCard({ item, currency, quantity, disabled, onPick }) {
   const off = !item.available && !item.requiresVariant
   const price = grossPrice(item.price, item.tax?.rate, item.tax?.included)
   const low = item.trackStock && item.available && item.stock != null && item.stock > 0 && item.stock <= 5
@@ -214,30 +216,32 @@ function SellableCard({ item, currency, visual, quantity, disabled, onPick }) {
       disabled={disabled}
       aria-label={`${item.name}, ${item.requiresVariant ? `desde ${formatMoney(price, item.currency ?? currency)}, elegir opción` : formatMoney(price, item.currency ?? currency)}${quantity ? `, ${formatQuantity(quantity)} en la venta` : ''}${off ? `, no disponible: ${item.unavailableMessage ?? ''}` : ''}`}
       className={cn(
-        'group relative flex h-full w-full flex-col gap-2 p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[hsl(var(--ring))] disabled:cursor-not-allowed',
-        off ? 'opacity-55' : 'hover:bg-[hsl(var(--surface-2))] active:bg-[hsl(var(--surface-3))]',
-        quantity > 0 && 'shadow-[inset_0_0_0_2px_var(--brand-primary)]',
+        CARD,
+        off ? 'opacity-55' : 'hover:-translate-y-0.5 hover:shadow-[0_8px_20px_-8px_rgba(11,21,48,0.25)] active:translate-y-0',
+        quantity > 0 && 'border-(--brand-primary) shadow-[0_0_0_1px_var(--brand-primary)]',
       )}
     >
-      {item.imageUrl ? (
-        <img src={item.imageUrl} alt="" className="aspect-[4/3] w-full rounded-md object-cover" loading="lazy" />
-      ) : visual ? (
-        <span aria-hidden="true" className="flex aspect-[4/3] w-full items-center justify-center rounded-md bg-[hsl(var(--muted))] text-3xl font-bold tracking-tight text-[hsl(var(--muted-foreground))]">{productInitials(item.name)}</span>
-      ) : (
-        <span aria-hidden="true" className="flex h-10 w-10 items-center justify-center rounded-md bg-[hsl(var(--muted))] text-sm font-bold text-[hsl(var(--muted-foreground))]">{productInitials(item.name)}</span>
-      )}
-      {item.requiresVariant && <span className={cn(visual ? "left-5 top-5" : "left-14 top-4", "absolute inline-flex items-center gap-1 rounded-sm bg-[hsl(var(--card))] px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--foreground))] shadow-sm")}><Layers className="h-3.5 w-3.5" aria-hidden="true" />Opciones</span>}
-      {quantity > 0 && <span className="absolute right-3 top-3 inline-flex h-7 min-w-7 items-center justify-center rounded-sm bg-(--pos-band) px-1.5 text-sm font-bold text-(--pos-band-foreground)" aria-hidden="true">{formatQuantity(quantity)}</span>}
-      <span className="line-clamp-2 text-sm font-semibold text-[hsl(var(--foreground))]">{item.name}</span>
-      <span className="mt-auto flex items-end justify-between gap-2">
-        <span className="text-lg font-bold text-[hsl(var(--foreground))]">
-          {item.requiresVariant && item.price ? <span className="text-xs font-medium text-[hsl(var(--muted-foreground))]">Desde </span> : null}
-          {item.price ? formatMoney(price, item.currency ?? currency) : '—'}
-        </span>
-        {!off && <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-(--brand-primary) text-(--brand-primary-foreground)" aria-hidden="true"><Plus className="h-5 w-5" /></span>}
+      <span className="relative block aspect-[4/3] w-full overflow-hidden">
+        {item.imageUrl ? (
+          <img src={item.imageUrl} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" loading="lazy" />
+        ) : (
+          <span aria-hidden="true" style={{ backgroundColor: tileTone(item.categoryId ?? item.name) }} className="flex h-full w-full items-center justify-center text-3xl font-bold tracking-tight text-white/90">{productInitials(item.name)}</span>
+        )}
+        {item.requiresVariant && <span className="absolute left-2 top-2 inline-flex items-center gap-1 rounded-sm bg-[hsl(var(--card))] px-1.5 py-0.5 text-xs font-semibold text-[hsl(var(--foreground))] shadow-sm"><Layers className="h-3.5 w-3.5" aria-hidden="true" />Opciones</span>}
+        {quantity > 0 && <span className="absolute right-2 top-2 inline-flex h-7 min-w-7 items-center justify-center rounded-sm bg-(--brand-primary) px-1.5 text-sm font-bold text-(--brand-primary-foreground) shadow-sm" aria-hidden="true">{formatQuantity(quantity)}</span>}
+        {off && <span className="absolute inset-x-2 bottom-2"><StatusPill size="sm" tone={item.unavailableReason === 'OUT_OF_STOCK_AT_OUTLET' ? 'danger' : 'neutral'} className="bg-[hsl(var(--card))]">{item.unavailableReason === 'OUT_OF_STOCK_AT_OUTLET' ? 'Agotado' : 'No disponible'}</StatusPill></span>}
       </span>
-      {off && <StatusPill size="sm" tone={item.unavailableReason === 'OUT_OF_STOCK_AT_OUTLET' ? 'danger' : 'neutral'} className="self-start">{item.unavailableReason === 'OUT_OF_STOCK_AT_OUTLET' ? 'Agotado' : 'No disponible'}</StatusPill>}
-      {low && <span className="text-xs font-semibold text-amber-900 dark:text-amber-300">Quedan {item.stock}</span>}
+      <span className="flex flex-1 flex-col gap-2 p-3">
+        <span className="line-clamp-2 text-sm font-semibold leading-snug text-[hsl(var(--foreground))]">{item.name}</span>
+        <span className="mt-auto flex items-end justify-between gap-2">
+          <span className="text-lg font-bold leading-none text-[hsl(var(--foreground))]">
+            {item.requiresVariant && item.price ? <span className="mr-1 text-xs font-medium text-[hsl(var(--muted-foreground))]">Desde</span> : null}
+            {item.price ? formatMoney(price, item.currency ?? currency) : '—'}
+          </span>
+          {!off && <span className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-(--brand-primary) text-(--brand-primary-foreground)" aria-hidden="true"><Plus className="h-5 w-5" /></span>}
+        </span>
+        {low && <span className="text-xs font-semibold text-amber-900 dark:text-amber-300">Quedan {item.stock}</span>}
+      </span>
     </button>
   )
 }
