@@ -1,7 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, EmptyState, ErrorState, Skeleton, StatusPill } from '@runly/ui'
-import { Lock, Repeat, Settings2, Store, Wifi, WifiOff } from 'lucide-react'
+import { Lock, LogOut, Repeat, Settings2, Store, Wifi, WifiOff } from 'lucide-react'
 import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../../company/ActiveCompanyProvider'
 import PosContextGate from '../../retail/components/PosContextGate.jsx'
@@ -85,6 +85,9 @@ export default function RestaurantShell({ title, requires, nav, children, action
         {online
           ? <span className="hidden items-center gap-1.5 text-sm font-medium text-[hsl(var(--muted-foreground))] sm:inline-flex"><Wifi className="h-4 w-4" aria-hidden="true" />En línea</span>
           : <StatusPill tone="danger" icon={WifiOff}>Sin conexión</StatusPill>}
+        <Button variant="ghost" size="icon" className="h-11 w-11 lg:hidden" onClick={() => navigate('/app/home')} aria-label="Salir del POS" title="Salir del POS">
+          <LogOut className="h-5 w-5" aria-hidden="true" />
+        </Button>
         {outlet && (
           <Button variant="outline" size="lg" className="h-11 gap-2" onClick={() => { ctx.changeCaja(); queryClient.invalidateQueries({ queryKey: ['pos-restaurant-tables'] }) }} aria-label="Cambiar de sucursal">
             <Repeat className="h-4 w-4" aria-hidden="true" /><span className="hidden sm:inline">Sucursal</span>
