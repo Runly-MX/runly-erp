@@ -10,9 +10,9 @@ const FIELDS = [
   { key: 'showPhoto', label: 'Foto', hint: 'Imagen de portada del equipo.' },
   { key: 'showStatus', label: 'Estado y disponibilidad', hint: 'Alta o baja, y si está disponible o asignado.' },
   { key: 'showLocation', label: 'Ubicación', hint: 'Dónde se encuentra el equipo.' },
-  { key: 'showSerial', label: 'Número de serie', hint: 'Oculto por defecto.' },
+  { key: 'showSerial', label: 'Número de activo y de serie', hint: 'Identificadores del equipo.' },
+  { key: 'showSpecs', label: 'Tipo, marca y modelo', hint: 'Qué equipo es.' },
   { key: 'showHolder', label: 'Responsable asignado', hint: 'Persona que tiene el equipo. Oculto por defecto.' },
-  { key: 'showCosts', label: 'Costo de compra', hint: 'Oculto por defecto.' },
 ]
 
 // Company setting for the anonymous page opened from the QR (always shows

@@ -9,7 +9,6 @@ import { InventoryStatusBadge } from '../components/InventoryStatusBadge.jsx'
 import { StatusPanel, muted } from '../components/custody/PublicCustodyParts.jsx'
 
 const ITEM_PATH = '/app/m/runly.inventory/inventory'
-const money = (value) => (value == null ? null : Number(value).toLocaleString('es-MX', { style: 'currency', currency: 'MXN' }))
 
 function Brand({ item, loading }) {
   return (
@@ -68,11 +67,17 @@ export default function PublicInventoryItemScreen() {
     )
   }
 
+  // Empty values are skipped so the page stays short; only the holder says "Sin asignar".
+  const mono = (value) => <span className="font-mono">{value}</span>
   const rows = item ? [
-    item.locationName !== undefined && ['Ubicación', item.locationName ? <span key="l" className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{item.locationName}</span> : '—'],
-    item.serialNumber !== undefined && ['Número de serie', <span key="s" className="font-mono">{item.serialNumber || '—'}</span>],
+    item.folio && ['Folio', mono(item.folio)],
+    item.assetTag && ['Número de activo', mono(item.assetTag)],
+    item.serialNumber && ['Número de serie', mono(item.serialNumber)],
+    item.itemType && ['Tipo', item.itemType],
+    item.brandName && ['Marca', item.brandName],
+    item.modelName && ['Modelo', item.modelName],
+    item.locationName && ['Ubicación', <span className="inline-flex items-center gap-1"><MapPin className="h-3.5 w-3.5" />{item.locationName}</span>],
     item.holderName !== undefined && ['Responsable', item.holderName || 'Sin asignar'],
-    item.purchasePrice !== undefined && ['Costo de compra', money(item.purchasePrice) ?? '—'],
   ].filter(Boolean) : []
 
   return (
@@ -99,7 +104,6 @@ export default function PublicInventoryItemScreen() {
               </div>
             ) : null}
             <section className="space-y-2">
-              {item.folio ? <p className="font-mono text-xs font-medium uppercase tracking-wider text-[hsl(var(--muted-foreground))]">{item.folio}</p> : null}
               <h1 className="text-2xl font-semibold leading-tight tracking-tight">{item.name}</h1>
               {item.status !== undefined || item.adminStatus !== undefined ? (
                 <div className="flex flex-wrap items-center gap-2">

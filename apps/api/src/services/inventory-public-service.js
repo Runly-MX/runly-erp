@@ -9,7 +9,7 @@ import { signedUrlWithVariant } from '../lib/image-variants.js';
 import { createCompanyBrandService } from './company-brand-service.js';
 
 export const PUBLIC_PAGE_DEFAULTS = Object.freeze({
-  showPhoto: true, showStatus: true, showLocation: true, showCosts: false, showHolder: false, showSerial: false,
+  showPhoto: true, showStatus: true, showLocation: true, showSerial: true, showSpecs: true, showHolder: false,
 });
 const SETTING_KEYS = Object.keys(PUBLIC_PAGE_DEFAULTS);
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
@@ -122,8 +122,10 @@ export function createInventoryPublicService({
     const item = await prisma.invItem.findFirst({
       where: { id: row.itemId, companyId: row.companyId, enabled: true },
       select: {
-        id: true, folio: true, name: true, status: true, adminStatus: true, serialNumber: true, purchasePrice: true,
+        id: true, folio: true, name: true, status: true, adminStatus: true, serialNumber: true, assetTag: true, itemType: true, model: true,
         location: { select: { name: true } },
+        brand: { select: { name: true } },
+        catalogModel: { select: { name: true } },
         assignedTo: { select: { firstName: true, lastName: true } },
       },
     });
@@ -144,8 +146,12 @@ export function createInventoryPublicService({
     if (settings.showPhoto) data.photoUrl = photoUrl;
     if (settings.showStatus) { data.status = item.status; data.adminStatus = item.adminStatus; }
     if (settings.showLocation) data.locationName = item.location?.name ?? null;
-    if (settings.showSerial) data.serialNumber = item.serialNumber ?? null;
-    if (settings.showCosts) data.purchasePrice = item.purchasePrice == null ? null : String(item.purchasePrice);
+    if (settings.showSerial) { data.assetTag = item.assetTag ?? null; data.serialNumber = item.serialNumber ?? null; }
+    if (settings.showSpecs) {
+      data.itemType = item.itemType ?? null;
+      data.brandName = item.brand?.name ?? null;
+      data.modelName = item.catalogModel?.name ?? item.model ?? null;
+    }
     if (settings.showHolder) {
       data.holderName = item.assignedTo ? [item.assignedTo.firstName, item.assignedTo.lastName].filter(Boolean).join(' ') || null : null;
     }

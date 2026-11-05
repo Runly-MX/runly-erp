@@ -21,7 +21,7 @@ function fakePrisma() {
   const tokens = [];
   const config = [];
   const items = [
-    { id: 'i1', companyId: A, enabled: true, folio: 'LAP-1', name: 'Laptop', status: 'available', adminStatus: 'registered', serialNumber: 'SN1', purchasePrice: '999.5', location: { name: 'Oficina' }, assignedTo: { firstName: 'Ana', lastName: 'Ruiz' } },
+    { id: 'i1', companyId: A, enabled: true, folio: 'LAP-1', name: 'Laptop', status: 'available', adminStatus: 'registered', serialNumber: 'SN1', assetTag: 'AT-7', itemType: 'Laptop', model: 'old text', purchasePrice: '999.5', location: { name: 'Oficina' }, brand: { name: 'Dell' }, catalogModel: { name: 'Latitude 5440' }, assignedTo: { firstName: 'Ana', lastName: 'Ruiz' } },
     { id: 'i2', companyId: B, enabled: true, folio: 'LAP-2', name: 'Otra', status: 'available', adminStatus: 'registered', location: null, assignedTo: null },
   ];
   return {
@@ -98,30 +98,32 @@ describe('inventory public tokens', () => {
 });
 
 describe('inventory public page fields', () => {
-  it('defaults hide costs, holder and serial', async () => {
+  it('defaults show identifiers and specs, hide the holder and never the cost', async () => {
     const { svc } = make();
     const data = await svc.resolve(await svc.ensureToken(A, 'i1'));
-    assert.deepEqual(Object.keys(data).sort(), ['adminStatus', 'companyLogoUrl', 'companyName', 'folio', 'itemId', 'locationName', 'name', 'photoUrl', 'status'].sort());
+    assert.deepEqual(Object.keys(data).sort(), [
+      'adminStatus', 'assetTag', 'brandName', 'companyLogoUrl', 'companyName', 'folio', 'itemId', 'itemType', 'locationName', 'modelName', 'name', 'photoUrl', 'serialNumber', 'status',
+    ].sort());
+    assert.equal(data.brandName, 'Dell');
+    assert.equal(data.modelName, 'Latitude 5440');
     assert.equal(data.companyName, 'Acme');
   });
 
   it('settings toggle each extra field', async () => {
     const { svc } = make();
     const token = await svc.ensureToken(A, 'i1');
-    await svc.updateSettings(A, { showCosts: true, showHolder: true, showSerial: true, showLocation: false, showPhoto: false, showStatus: false });
+    await svc.updateSettings(A, { showHolder: true, showSerial: false, showSpecs: false, showLocation: false, showPhoto: false, showStatus: false });
     const data = await svc.resolve(token);
-    assert.equal(data.purchasePrice, '999.5');
     assert.equal(data.holderName, 'Ana Ruiz');
-    assert.equal(data.serialNumber, 'SN1');
-    for (const key of ['locationName', 'photoUrl', 'status', 'adminStatus']) assert.ok(!(key in data));
+    for (const key of ['locationName', 'photoUrl', 'status', 'adminStatus', 'serialNumber', 'assetTag', 'itemType', 'brandName', 'modelName', 'purchasePrice']) assert.ok(!(key in data));
     assert.equal(data.folio, 'LAP-1');
   });
 
   it('settings are per company and reject non-booleans', async () => {
     const { svc } = make();
-    await svc.updateSettings(A, { showSerial: true });
-    assert.equal((await svc.getSettings(B)).showSerial, false);
-    await assert.rejects(svc.updateSettings(A, { showCosts: 'yes' }), { status: 400 });
+    await svc.updateSettings(A, { showSerial: false });
+    assert.equal((await svc.getSettings(B)).showSerial, true);
+    await assert.rejects(svc.updateSettings(A, { showSpecs: 'yes' }), { status: 400 });
   });
 });
 
