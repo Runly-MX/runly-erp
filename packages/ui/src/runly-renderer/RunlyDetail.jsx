@@ -504,11 +504,14 @@ function sectionCopyText(section, fieldMap, data) {
   return lines.length ? lines.join("\n") : null;
 }
 
+// Columns follow the card's own width (container queries), not the viewport:
+// a wide card shows two values per row even when set to 1 column, a narrow
+// side card stays at one.
 function gridClass(columns) {
-  if (columns === 1) return "grid grid-cols-1 gap-4";
-  if (columns === 2) return "grid grid-cols-1 gap-4 md:grid-cols-2";
-  if (columns === 3) return "grid grid-cols-1 gap-4 md:grid-cols-3";
-  return "grid grid-cols-1 gap-4 lg:grid-cols-2";
+  if (columns === 1) return "grid grid-cols-1 gap-4 @3xl:grid-cols-2";
+  if (columns === 2) return "grid grid-cols-1 gap-4 @md:grid-cols-2";
+  if (columns === 3) return "grid grid-cols-1 gap-4 @md:grid-cols-2 @3xl:grid-cols-3";
+  return "grid grid-cols-1 gap-4 @xl:grid-cols-2";
 }
 
 
@@ -747,7 +750,7 @@ export function RunlyDetail({
       })() : null}
 
       {section.type === "fields" ? (
-        <div className="space-y-4">
+        <div className="@container space-y-4">
           <dl className={gridClass(section.columns)}>
             {section.fields.map((fieldName) => {
               const field = fieldMap.get(fieldName);

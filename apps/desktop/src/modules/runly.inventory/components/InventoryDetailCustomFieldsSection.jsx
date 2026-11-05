@@ -23,37 +23,39 @@ export default function InventoryDetailCustomFieldsSection({ data }) {
   const entries = filledCustomValues(data?.customValues).filter((cv) => !placed?.has(cv.fieldId ?? cv.field.id))
   if (!entries.length) return null
   return (
-    <dl className="grid grid-cols-1 gap-4 md:grid-cols-2">
-      {entries.map((cv) => {
-        const value = formatCustomValue(cv.field, cv.value)
-        const isLink = cv.field.fieldType === 'url'
-        const filterable = cv.field.fieldType !== 'textarea' && !isLink
-        return (
-          <div key={cv.fieldId ?? cv.field.id} className={cv.field.fieldType === 'textarea' ? 'min-w-0 col-span-full space-y-1.5' : 'min-w-0 space-y-1.5'}>
-            <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-              {cv.field.label}
-              {cv.field.onDemand ? <span className="ml-1.5 normal-case tracking-normal text-[10px] text-[hsl(var(--muted-foreground))]">(de este activo)</span> : null}
-            </dt>
-            <dd className="flex items-start gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
-              <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
-                {isLink ? <a href={value} target="_blank" rel="noreferrer" className="text-(--brand-primary) hover:underline">{value}</a> : value}
-              </span>
-              {filterable ? (
-                <FilterByValueButton
-                  className="ml-auto"
-                  label={cv.field.label}
-                  value={value}
-                  onClick={(event) => {
-                    const url = customFieldFilterUrl(cv.field, cv.value)
-                    if (isNewTabClick(event)) openInNewTab(url)
-                    else navigate(url)
-                  }}
-                />
-              ) : null}
-            </dd>
-          </div>
-        )
-      })}
-    </dl>
+    <div className="@container">
+      <dl className="grid grid-cols-1 gap-4 @md:grid-cols-2">
+        {entries.map((cv) => {
+          const value = formatCustomValue(cv.field, cv.value)
+          const isLink = cv.field.fieldType === 'url'
+          const filterable = cv.field.fieldType !== 'textarea' && !isLink
+          return (
+            <div key={cv.fieldId ?? cv.field.id} className={cv.field.fieldType === 'textarea' ? 'min-w-0 col-span-full space-y-1.5' : 'min-w-0 space-y-1.5'}>
+              <dt className="text-xs font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+                {cv.field.label}
+                {cv.field.onDemand ? <span className="ml-1.5 normal-case tracking-normal text-[10px] text-[hsl(var(--muted-foreground))]">(de este activo)</span> : null}
+              </dt>
+              <dd className="flex items-start gap-2 text-sm font-semibold text-[hsl(var(--foreground))]">
+                <span className="min-w-0 flex-1 whitespace-pre-wrap break-words">
+                  {isLink ? <a href={value} target="_blank" rel="noreferrer" className="text-(--brand-primary) hover:underline">{value}</a> : value}
+                </span>
+                {filterable ? (
+                  <FilterByValueButton
+                    className="ml-auto"
+                    label={cv.field.label}
+                    value={value}
+                    onClick={(event) => {
+                      const url = customFieldFilterUrl(cv.field, cv.value)
+                      if (isNewTabClick(event)) openInNewTab(url)
+                      else navigate(url)
+                    }}
+                  />
+                ) : null}
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+    </div>
   )
 }
