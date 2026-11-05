@@ -15,7 +15,7 @@ export function createFilesWorkspace({
 
   // Resolves each user's avatar file to a short-lived signed URL and returns a
   // trimmed payload ({ id, displayName, email, avatarUrl }). Batched by bucket.
-  async function attachAvatarUrls(users) {
+  async function attachAvatarUrls(users, companyId = null) {
     const list = users.filter(Boolean);
     const fileIds = [...new Set(list.map((u) => u.avatarFileId).filter(Boolean))];
     const urlByFileId = new Map();
@@ -41,12 +41,33 @@ export function createFilesWorkspace({
         }),
       );
     }
+    const subtitles = companyId ? await workSubtitles(companyId, list.map((u) => u.id)) : new Map();
     return list.map((u) => ({
       id: u.id,
       displayName: u.displayName,
       email: u.email,
       avatarUrl: u.avatarFileId ? (urlByFileId.get(u.avatarFileId) ?? null) : null,
+      subtitle: subtitles.get(u.id) ?? null,
     }));
+  }
+
+  // "Puesto · Departamento" from the linked HR record, else the company role,
+  // so people with similar names can be told apart.
+  async function workSubtitles(companyId, ids) {
+    if (!ids.length) return new Map();
+    const [employees, memberships] = await Promise.all([
+      prisma.hrEmployee.findMany({
+        where: { companyId, userProfileId: { in: ids }, enabled: true },
+        select: { userProfileId: true, jobTitle: true, department: true, jobTitleRef: { select: { name: true } }, departmentRef: { select: { name: true } } },
+      }),
+      prisma.membership.findMany({ where: { companyId, userId: { in: ids }, enabled: true }, select: { userId: true, role: { select: { name: true } } } }),
+    ]);
+    const out = new Map(memberships.map((m) => [m.userId, m.role?.name ?? null]));
+    for (const e of employees) {
+      const text = [e.jobTitleRef?.name ?? e.jobTitle, e.departmentRef?.name ?? e.department].filter(Boolean).join(" · ");
+      if (text) out.set(e.userProfileId, text);
+    }
+    return out;
   }
   function shareUrl(fileId) {
     try {
@@ -241,7 +262,7 @@ export function createFilesWorkspace({
       where: { id: { in: ids } },
       select: userSelect,
     });
-    const users = await attachAvatarUrls(rawUsers);
+    const users = await attachAvatarUrls(rawUsers, context.companyId);
     return {
       scope: file.accessScope,
       shareUrl: shareUrl(file.id),
@@ -292,7 +313,7 @@ export function createFilesWorkspace({
       orderBy: { user: { displayName: "asc" } },
       take: 30,
     });
-    return attachAvatarUrls(rows.map((m) => m.user));
+    return attachAvatarUrls(rows.map((m) => m.user), context.companyId);
   }
   async function changeSharing({
     authUserId,

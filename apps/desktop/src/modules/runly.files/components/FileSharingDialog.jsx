@@ -292,9 +292,12 @@ export function FileSharingDialog({
               {data.owner && (
                 <div className="flex items-center gap-2 text-sm">
                   <UserAvatar user={data.owner} size="sm" />
-                  <span className="min-w-0 flex-1 truncate">
-                    {data.owner.displayName}
-                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate">{data.owner.displayName}</p>
+                    <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
+                      {[data.owner.email, data.owner.subtitle].filter(Boolean).join(" · ")}
+                    </p>
+                  </div>
                   <Badge variant="secondary">Propietario</Badge>
                 </div>
               )}
@@ -313,6 +316,9 @@ export function FileSharingDialog({
                         <div className="min-w-0 flex-1">
                           <p className="truncate text-sm font-medium">
                             {share.user?.displayName ?? "Usuario"}
+                          </p>
+                          <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
+                            {[share.user?.email, share.user?.subtitle].filter(Boolean).join(" · ")}
                           </p>
                           <p className="text-xs text-[hsl(var(--muted-foreground))]">
                             {share.status === "ACCEPTED"

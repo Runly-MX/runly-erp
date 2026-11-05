@@ -87,7 +87,10 @@ export function FolderMembersPanel({ folder, token }) {
           {members.data.map((m) => (
             <li key={m.userId} className="flex items-center gap-2 border-t pt-2">
               <UserAvatar user={m.user ?? { displayName: "Usuario" }} size="sm" />
-              <span className="min-w-0 flex-1 truncate text-sm">{m.user?.displayName ?? "Usuario"}</span>
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium">{m.user?.displayName ?? "Usuario"}</p>
+                <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{[m.user?.email, m.user?.subtitle].filter(Boolean).join(" · ")}</p>
+              </div>
               <Button variant="ghost" size="sm" disabled={remove.isPending} onClick={() => remove.mutate(m.userId)}>
                 Quitar
               </Button>

@@ -147,6 +147,7 @@ export function createFilesFolders({ prisma, filesService, people, notifications
     const rows = await prisma.fileFolderMember.findMany({ where: { folderId: folder.id }, orderBy: { createdAt: "asc" } });
     const users = await people.attachAvatarUrls(
       await prisma.userProfile.findMany({ where: { id: { in: rows.map((r) => r.userId) } }, select: { id: true, displayName: true, email: true, avatarFileId: true } }),
+      context.companyId,
     );
     return rows.map((r) => ({ userId: r.userId, createdAt: r.createdAt, user: users.find((u) => u.id === r.userId) ?? null }));
   }
