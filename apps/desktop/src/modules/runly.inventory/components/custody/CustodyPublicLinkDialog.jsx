@@ -33,7 +33,8 @@ export function CustodyPublicLinkDialog({ open, onOpenChange, custody }) {
   }
 
   function copy() {
-    navigator.clipboard.writeText(link.url)
+    const expiry = link.expiresAt ? `\n\nEste enlace vence el ${formatDateTime(link.expiresAt)}.` : ''
+    navigator.clipboard.writeText(`Firma del resguardo ${custody.folio ?? ''}:\n${link.url}${expiry}`)
       .then(() => toast.success('Enlace copiado'))
       .catch(() => toast.error('Selecciona y copia el enlace'))
   }

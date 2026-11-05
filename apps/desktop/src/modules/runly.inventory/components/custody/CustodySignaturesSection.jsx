@@ -154,6 +154,8 @@ function SignatureSlot({ custody, role, title, person, signed, signedAt, imageUr
 export function CustodySignaturesSection({ custody }) {
   const editable = isCustodyEditable(custody)
   const [linkOpen, setLinkOpen] = useState(false)
+  const awaitingLink = editable && !custody.receiverSigned && custody.tokenExpiresAt
+  const linkExpired = awaitingLink && !custody.hasPublicLink
 
   return (
     <Card className="space-y-4 p-4">
@@ -161,10 +163,15 @@ export function CustodySignaturesSection({ custody }) {
         <div>
           <h3 className="text-sm font-semibold">Firmas</h3>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">
-            {custody.hasPublicLink && !custody.receiverSigned && editable
-              ? 'Hay un enlace de firma activo para el colaborador.'
+            {awaitingLink && !linkExpired
+              ? `Hay un enlace de firma activo para el colaborador; vence el ${formatDateTime(custody.tokenExpiresAt)}.`
               : 'Firma aquí o envía un enlace para que el colaborador firme desde su teléfono.'}
           </p>
+          {linkExpired ? (
+            <p className="mt-1 rounded-md bg-amber-500/10 px-2 py-1 text-xs text-amber-700 dark:text-amber-400">
+              El enlace de firma venció el {formatDateTime(custody.tokenExpiresAt)}. Genera uno nuevo para que el colaborador pueda firmar.
+            </p>
+          ) : null}
         </div>
         {editable && !custody.receiverSigned ? (
           <Button type="button" variant="outline" size="sm" onClick={() => setLinkOpen(true)}>
