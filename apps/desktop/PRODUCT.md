@@ -37,7 +37,7 @@ The POS lives inside Runly ERP: catalog, stock per outlet, contacts, calendar an
 
 ## Brand Commitments
 
-The owner wants the POS to carry its own identity, independent from the ERP, friendly and soft rather than harsh, with both a light and a dark theme. Working name of the sub-brand in explorations: "caja". The ERP edition name comes only from `RUNLY_EDITION_NAME`.
+The owner wants the POS to carry its own identity, independent from the ERP: enterprise and squared, not pastel or childish, in the Runly logo colors (light theme: orange with dark navy; dark theme: grey-white with orange), with both a light and a dark theme (confirmed 2026-11-04). Working name of the sub-brand in explorations: "caja". The ERP edition name comes only from `RUNLY_EDITION_NAME`.
 
 ## Evidence on Hand
 
