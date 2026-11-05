@@ -28,13 +28,13 @@ export function AppLauncher() {
   } = useModuleLauncher(availableModules);
 
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     if (!q) return null;
     return availableModules.filter(
       (m) =>
-        m.name.toLowerCase().includes(q) ||
-        (m.summary ?? '').toLowerCase().includes(q) ||
-        m.key.toLowerCase().includes(q),
+        m.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) ||
+        (m.summary ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) ||
+        m.key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q),
     );
   }, [query, availableModules]);
 

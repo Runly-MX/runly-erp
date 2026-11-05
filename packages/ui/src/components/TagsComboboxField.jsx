@@ -29,7 +29,7 @@ export function TagsComboboxField({
     () =>
       suggestions
         .filter((tag) => !taken.has(tag.toLowerCase()))
-        .filter((tag) => !trimmed || tag.toLowerCase().includes(trimmed.toLowerCase()))
+        .filter((tag) => !trimmed || tag.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(trimmed.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()))
         .slice(0, 8),
     [suggestions, taken, trimmed],
   );

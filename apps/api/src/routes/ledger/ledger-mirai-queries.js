@@ -157,7 +157,7 @@ export function createLedgerMiraiQueries({ prisma, ledgerService, categoriesServ
           AND t.enabled = true
           AND (${from}::date IS NULL OR t.fecha >= ${from}::date)
           AND (${to}::date   IS NULL OR t.fecha <= ${to}::date)
-          AND (${type}::text IS NULL OR tt.code ILIKE ${type} OR tt.name ILIKE '%' || ${type} || '%')
+          AND (${type}::text IS NULL OR atlas_unaccent(tt.code) ILIKE atlas_unaccent(${type}) OR tt.name ILIKE '%' || ${type} || '%')
           AND (${categoryId}::uuid IS NULL OR t.category_id = ${categoryId}::uuid)
           AND (${categoryName}::text IS NULL OR c.name ILIKE '%' || ${categoryName} || '%')
           AND (${search}::text IS NULL OR t.nombre ILIKE '%' || ${search} || '%' OR t.referencia ILIKE '%' || ${search} || '%' OR t.concepto ILIKE '%' || ${search} || '%')
@@ -178,7 +178,7 @@ export function createLedgerMiraiQueries({ prisma, ledgerService, categoriesServ
           AND t.enabled = true
           AND (${from}::date IS NULL OR t.fecha >= ${from}::date)
           AND (${to}::date   IS NULL OR t.fecha <= ${to}::date)
-          AND (${type}::text IS NULL OR tt.code ILIKE ${type} OR tt.name ILIKE '%' || ${type} || '%')
+          AND (${type}::text IS NULL OR atlas_unaccent(tt.code) ILIKE atlas_unaccent(${type}) OR tt.name ILIKE '%' || ${type} || '%')
           AND (${categoryId}::uuid IS NULL OR t.category_id = ${categoryId}::uuid)
           AND (${categoryName}::text IS NULL OR c.name ILIKE '%' || ${categoryName} || '%')
           AND (${search}::text IS NULL OR t.nombre ILIKE '%' || ${search} || '%' OR t.referencia ILIKE '%' || ${search} || '%' OR t.concepto ILIKE '%' || ${search} || '%')

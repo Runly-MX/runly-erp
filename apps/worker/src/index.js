@@ -4,6 +4,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 import pkg from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { withAccentInsensitiveSearch } from '../../api/src/lib/prisma-accent-search.js'
 import pg from 'pg'
 import { createNotificationDeliveryWorker, resolveAppBaseUrl } from '../../api/src/services/notification-delivery-worker.js'
 import { createNotificationDigestService } from '../../api/src/services/notification-digest-service.js'
@@ -83,7 +84,7 @@ const pgPool = new pg.Pool({
   keepAliveInitialDelayMillis: 10000,
 })
 const prismaAdapter = new PrismaPg(pgPool)
-const prisma = new PrismaClient({ adapter: prismaAdapter })
+const prisma = withAccentInsensitiveSearch(new PrismaClient({ adapter: prismaAdapter }))
 const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
 const companyDeletionService = createCompanyDeletionService({ prisma, supabaseAdmin: workerSupabaseAdmin,
   resources: createCompanyDeletionResources({ supabaseAdmin: workerSupabaseAdmin }),

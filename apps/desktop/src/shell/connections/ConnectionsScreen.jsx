@@ -161,8 +161,8 @@ export function ConnectionsScreen({ targetType, title = 'Conexiones', descriptio
   })
 
   const visible = useMemo(() => {
-    const term = search.trim().toLowerCase()
-    return term ? data.filter((c) => `${c.label} ${c.moduleName}`.toLowerCase().includes(term)) : data
+    const term = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    return term ? data.filter((c) => `${c.label} ${c.moduleName}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(term)) : data
   }, [data, search])
   const activeCount = data.filter((c) => c.status === 'active').length
   const pendingCount = data.filter((c) => c.status === 'pending').length

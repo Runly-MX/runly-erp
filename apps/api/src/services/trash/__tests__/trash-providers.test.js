@@ -33,7 +33,7 @@ test('generic provider scopes every query to the company and disabled rows; FK e
   const ctx = { prisma, companyId: 'c1' }
   const listed = await provider.list(ctx, { search: 'aju' })
   assert.equal(listed.total, 1)
-  assert.match(calls[0].sql, /company_id = \$1::uuid AND enabled = false AND "detalle"::text ILIKE \$2/)
+  assert.match(calls[0].sql, /company_id = \$1::uuid AND enabled = false AND atlas_unaccent\("detalle"::text\) ILIKE atlas_unaccent\(\$2\)/)
   assert.deepEqual(calls[0].params, ['c1', '%aju%'])
   await provider.restore(ctx, ID)
   assert.match(calls.at(-1).sql, /^UPDATE "e2emant_mantenimiento" SET enabled = true/)

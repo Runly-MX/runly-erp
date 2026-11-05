@@ -29,9 +29,9 @@ export function TypesPanel({ onImport }) {
   useEffect(() => { setOrder(null) }, [data])
 
   const byId = new Map(rows.map((row) => [row.id, row]))
-  const term = search.trim().toLowerCase()
+  const term = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const items = order ?? rows
-  const visible = term ? items.filter((row) => `${row.name} ${row.description ?? ''}`.toLowerCase().includes(term)) : items
+  const visible = term ? items.filter((row) => `${row.name} ${row.description ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(term)) : items
   const paged = usePagedList(visible)
 
   function open(row) {

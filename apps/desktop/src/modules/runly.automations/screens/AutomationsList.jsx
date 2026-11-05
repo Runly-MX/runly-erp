@@ -6,7 +6,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ActionMenu, Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField } from "@runly/ui";
+import { ActionMenu, Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField, matchesSearch } from "@runly/ui";
 import { Copy, Download, Plug, Plus, Search, SearchX, Upload, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
@@ -101,7 +101,7 @@ export default function SystemAutomations() {
     enabled: Boolean(token) && canRead,
   });
   const items = query.data ?? [];
-  const visible = items.filter((item) => (filter === "all" || (filter === "active") === item.enabled) && (!search.trim() || `${item.label} ${item.key}`.toLowerCase().includes(search.trim().toLowerCase())));
+  const visible = items.filter((item) => (filter === "all" || (filter === "active") === item.enabled) && (!search.trim() || matchesSearch(`${item.label} ${item.key}`, search)));
 
   const toggle = useMutation({
     mutationFn: async (item) => {

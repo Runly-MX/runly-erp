@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import {
-  cn, Input, ConfirmDialog,
+  cn, Input, ConfirmDialog, matchesSearch,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator,
 } from "@runly/ui";
 import { Check, Hand, Link2, MicOff, MoreVertical, Phone, PhoneCall, Pin, PinOff, Search, UserPlus, UserX, X } from "lucide-react";
@@ -30,8 +30,7 @@ function PersonRow({ avatar, name, subtitle, trailing, highlight = false }) {
 }
 
 function matches(query, name) {
-  if (!query) return true;
-  return name.toLocaleLowerCase("es").includes(query.toLocaleLowerCase("es"));
+  return matchesSearch(name, query);
 }
 
 // The meeting roster (Teams/Meet "Personas"): lobby, who's in, who's missing.

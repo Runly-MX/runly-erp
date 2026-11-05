@@ -99,7 +99,7 @@ export function matchesFilters(summary, values) {
 }
 
 export function matchesSearch(summary, query) {
-  const needle = query.trim().toLowerCase();
+  const needle = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   if (!needle) return true;
-  return [summary.name, summary.moduleKey, summary.description].some((value) => value?.toLowerCase().includes(needle));
+  return [summary.name, summary.moduleKey, summary.description].some((value) => value?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle));
 }

@@ -59,8 +59,8 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [sectionToDelete, setSectionToDelete] = useState(null);
   const { people, onlineCount } = useCompanyPeople();
   const { start: startDirectChat, startingId } = useStartDirectChat(onCreated);
-  const searchText = search.trim().toLowerCase();
-  const peopleMatch = Boolean(searchText) && people.some((p) => p.displayName?.toLowerCase().includes(searchText) || p.email?.toLowerCase().includes(searchText));
+  const searchText = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const peopleMatch = Boolean(searchText) && people.some((p) => p.displayName?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchText) || p.email?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchText));
 
   const { data: archivedData, isLoading: archivedLoading } = useArchivedConversations();
   const archivedConversations = archivedData?.data ?? [];
@@ -69,7 +69,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
     .filter((c) => {
       if (!search.trim()) return true;
       const displayName = getConversationDisplayName(c, userProfile?.id) ?? "";
-      return displayName.toLowerCase().includes(search.toLowerCase());
+      return displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
     })
     // Pinned conversations float to the top; the server already returns them
     // first, this keeps the order stable during optimistic pin/unpin.
@@ -79,7 +79,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const filteredArchived = archivedConversations.filter((c) => {
     if (!search.trim()) return true;
     const displayName = getConversationDisplayName(c, userProfile?.id) ?? "";
-    return displayName.toLowerCase().includes(search.toLowerCase());
+    return displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
   });
 
   const statusByUser = useStatusLookup((conversations ?? []).filter((c) => c.type === "direct").map((c) => (c.members ?? []).find((m) => m.userId !== userProfile?.id)?.userId));

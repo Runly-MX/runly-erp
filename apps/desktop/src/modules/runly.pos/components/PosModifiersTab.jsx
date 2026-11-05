@@ -25,9 +25,9 @@ function ProductPicker({ selectedId, onSelect }) {
   const { data: products = [], isLoading } = usePosCatalogProducts()
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase()
+    const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     if (!q) return products
-    return products.filter((p) => p.name?.toLowerCase().includes(q))
+    return products.filter((p) => p.name?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q))
   }, [products, search])
 
   return (

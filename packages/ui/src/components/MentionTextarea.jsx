@@ -367,10 +367,10 @@ const MentionTextarea = forwardRef(function MentionTextarea({
     ? (slash.phase === 'source' ? slashSourceRows(slashSources, slash.query, slash.start === 0) : slashRows)
     : query
     ? members.filter((m) => {
-        const q = query.toLowerCase()
+        const q = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
         return (
-          m.displayName.toLowerCase().includes(q) ||
-          (m.email && m.email.toLowerCase().includes(q))
+          m.displayName.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) ||
+          (m.email && m.email.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q))
         )
       })
     : members

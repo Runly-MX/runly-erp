@@ -26,8 +26,8 @@ export function ChatTemplatePopover({ onSelect, vars = {} }) {
   const filtered = search
     ? templates.filter(
         (t) =>
-          t.title.toLowerCase().includes(search.toLowerCase()) ||
-          t.body.toLowerCase().includes(search.toLowerCase()),
+          t.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) ||
+          t.body.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
       )
     : templates;
 

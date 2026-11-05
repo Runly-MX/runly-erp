@@ -50,7 +50,7 @@ export function createHomeWidgetsRouter({ prisma, requireActiveCompany }) {
       const name = column(condition.field);
       if (!name) return c.json({ error: "El widget usa un campo que ya no existe." }, 409);
       if (condition.op === "filled") where.push(`(${name} IS NOT NULL AND ${name}::text <> '')`);
-      else if (condition.op === "contains") { params.push(`%${String(condition.value).replace(/[\\%_]/g, "\\$&")}%`); where.push(`${name}::text ILIKE $${params.length}`); }
+      else if (condition.op === "contains") { params.push(`%${String(condition.value).replace(/[\\%_]/g, "\\$&")}%`); where.push(`atlas_unaccent(${name}::text) ILIKE atlas_unaccent($${params.length})`); }
       else if (OPS[condition.op]) {
         params.push(typeof condition.value === "boolean" ? String(condition.value) : condition.value);
         // Both sides as text keep one comparison for every column type; gt/lt need numbers.

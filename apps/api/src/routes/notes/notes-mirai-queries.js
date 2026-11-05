@@ -35,7 +35,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
           SELECT id FROM note_folders
           WHERE owner_user_id = ${userId}::uuid
             AND (company_id = ${companyId ?? null}::uuid OR company_id IS NULL)
-            AND name ILIKE ${args.folder}
+            AND atlas_unaccent(name) ILIKE atlas_unaccent(${args.folder})
           LIMIT 1
         `;
         if (!folder) return { error: `No encontre la carpeta "${args.folder}".` };
@@ -47,7 +47,7 @@ export function createNotesMiraiQueries({ prisma, notesSvc, restrictCompany = fa
           SELECT id FROM note_tags
           WHERE owner_user_id = ${userId}::uuid
             AND (company_id = ${companyId ?? null}::uuid OR company_id IS NULL)
-            AND name ILIKE ${args.tag}
+            AND atlas_unaccent(name) ILIKE atlas_unaccent(${args.tag})
           LIMIT 1
         `;
         if (!tag) return { error: `No encontre la etiqueta "${args.tag}".` };

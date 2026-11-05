@@ -8,7 +8,7 @@ export function createChatTemplateService({ prisma }) {
       FROM chat_message_templates
       WHERE company_id = ${companyId}::uuid
         AND enabled = true
-        ${search ? Prisma.sql`AND (title ILIKE ${'%' + search + '%'} OR body ILIKE ${'%' + search + '%'})` : Prisma.empty}
+        ${search ? Prisma.sql`AND (atlas_unaccent(title) ILIKE atlas_unaccent(${'%' + search + '%'}) OR atlas_unaccent(body) ILIKE atlas_unaccent(${'%' + search + '%'}))` : Prisma.empty}
       ORDER BY usage_count DESC, title ASC
     `;
     return rows;

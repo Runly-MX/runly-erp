@@ -148,7 +148,7 @@ export function createDriversRouter({
          FROM hr_employee
          WHERE company_id = $1
            AND enabled = true
-           AND ($2::text IS NULL OR first_name ILIKE $2 OR last_name ILIKE $2 OR employee_code ILIKE $2 OR work_email ILIKE $2)
+           AND ($2::text IS NULL OR atlas_unaccent(first_name) ILIKE atlas_unaccent($2) OR atlas_unaccent(last_name) ILIKE atlas_unaccent($2) OR atlas_unaccent(employee_code) ILIKE atlas_unaccent($2) OR atlas_unaccent(work_email) ILIKE atlas_unaccent($2))
          ORDER BY last_name ASC, first_name ASC
          LIMIT $3`,
           companyId,

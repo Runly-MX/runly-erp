@@ -108,12 +108,12 @@ export function createCatalogService({ prisma }) {
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const data = await prisma.$queryRaw`
         SELECT * FROM fleet_vehicle_type WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue} OR description ILIKE ${likeValue})
+          AND (${likeValue}::text IS NULL OR atlas_unaccent(name) ILIKE atlas_unaccent(${likeValue}) OR atlas_unaccent(description) ILIKE atlas_unaccent(${likeValue}))
         ORDER BY name ASC LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
       `
       const count = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total FROM fleet_vehicle_type WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue} OR description ILIKE ${likeValue})
+          AND (${likeValue}::text IS NULL OR atlas_unaccent(name) ILIKE atlas_unaccent(${likeValue}) OR atlas_unaccent(description) ILIKE atlas_unaccent(${likeValue}))
       `
       return [data, count]
     })
@@ -206,12 +206,12 @@ export function createCatalogService({ prisma }) {
     const [rows, totalRows] = await withDbErrorMapping(async () => {
       const data = await prisma.$queryRaw`
         SELECT * FROM fleet_vehicle_brand WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue})
+          AND (${likeValue}::text IS NULL OR atlas_unaccent(name) ILIKE atlas_unaccent(${likeValue}))
         ORDER BY name ASC LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
       `
       const count = await prisma.$queryRaw`
         SELECT COUNT(*)::bigint AS total FROM fleet_vehicle_brand WHERE company_id = ${safeCompanyId} AND enabled = true
-          AND (${likeValue}::text IS NULL OR name ILIKE ${likeValue})
+          AND (${likeValue}::text IS NULL OR atlas_unaccent(name) ILIKE atlas_unaccent(${likeValue}))
       `
       return [data, count]
     })
@@ -324,9 +324,9 @@ export function createCatalogService({ prisma }) {
           AND (${safeTypeId}::uuid IS NULL OR vm.type_id = ${safeTypeId}::uuid)
           AND (
             ${likeValue}::text IS NULL
-            OR vm.name ILIKE ${likeValue}
-            OR vb.name ILIKE ${likeValue}
-            OR vt.name ILIKE ${likeValue}
+            OR atlas_unaccent(vm.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vb.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vt.name) ILIKE atlas_unaccent(${likeValue})
           )
         ORDER BY vb.name ASC, vm.name ASC, vm.year DESC
         LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}
@@ -342,9 +342,9 @@ export function createCatalogService({ prisma }) {
           AND (${safeTypeId}::uuid IS NULL OR vm.type_id = ${safeTypeId}::uuid)
           AND (
             ${likeValue}::text IS NULL
-            OR vm.name ILIKE ${likeValue}
-            OR vb.name ILIKE ${likeValue}
-            OR vt.name ILIKE ${likeValue}
+            OR atlas_unaccent(vm.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vb.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vt.name) ILIKE atlas_unaccent(${likeValue})
           )
       `
       return [data, count]

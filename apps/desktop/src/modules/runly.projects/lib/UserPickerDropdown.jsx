@@ -39,8 +39,8 @@ export function UserPickerDropdown({
 
   const filtered = query.trim()
     ? users.filter((u) => {
-        const q = query.toLowerCase()
-        return getDisplayName(u).toLowerCase().includes(q) || u?.email?.toLowerCase().includes(q)
+        const q = query.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+        return getDisplayName(u).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) || u?.email?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
       })
     : users
 

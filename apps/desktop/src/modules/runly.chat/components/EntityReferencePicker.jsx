@@ -114,8 +114,8 @@ function FilePickerGrid({ options, isLoading, search, maxSelect, onConfirm }) {
 
   const filtered = useMemo(() => {
     if (!search.trim()) return options;
-    const q = search.toLowerCase();
-    return options.filter((o) => o.label?.toLowerCase().includes(q));
+    const q = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return options.filter((o) => o.label?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q));
   }, [options, search]);
 
   const atCap = maxSelect != null && selected.length >= maxSelect;

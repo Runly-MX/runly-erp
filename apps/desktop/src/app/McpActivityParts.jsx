@@ -39,8 +39,8 @@ export function ActivityList({ items, companies, empty }) {
   const [filter, setFilter] = useState('all'), [query, setQuery] = useState('');
   const names = useMemo(() => new Map(companies.map(c => [c.id, c.name])), [companies]);
   if (!items.length) return <EmptyState title={empty.title} description={empty.description} />;
-  const needle = query.trim().toLowerCase();
-  const visible = items.filter(entry => matches(entry, filter) && `${describe(entry)} ${entry.clientName ?? ''} ${names.get(entry.companyId) ?? ''}`.toLowerCase().includes(needle));
+  const needle = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  const visible = items.filter(entry => matches(entry, filter) && `${describe(entry)} ${entry.clientName ?? ''} ${names.get(entry.companyId) ?? ''}`.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle));
   return <div className="space-y-3">
     <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
       <div className="flex flex-wrap gap-1.5" role="group" aria-label="Filtrar actividad">{FILTERS.map(([key, label]) => <button key={key} type="button" aria-pressed={filter === key} onClick={() => setFilter(key)} className={`min-h-9 rounded-md border px-3 text-sm transition-colors ${filter === key ? 'border-primary bg-primary/10 font-medium' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]'}`}>{label}</button>)}</div>

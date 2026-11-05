@@ -18,7 +18,7 @@ export function createStudioCollaboration({ prisma, access, broadcaster, supabas
     await access.owner(companyId, actorId, id)
     const search = `%${String(q).slice(0,80)}%`
     return prisma.$queryRaw`SELECT u.id,u.display_name AS name FROM user_profile u WHERE u.id<>${actorId}::uuid
-      AND u.display_name ILIKE ${search} AND runly_studio.member_active(${companyId}::uuid,u.id,'studio.view')
+      AND atlas_unaccent(u.display_name) ILIKE atlas_unaccent(${search}) AND runly_studio.member_active(${companyId}::uuid,u.id,'studio.view')
       ORDER BY u.display_name,u.id LIMIT 20`
   }
   async function share(companyId, actorId, id, input) {

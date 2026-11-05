@@ -62,7 +62,7 @@ function buildListFn(pascal, table, entity, companyScoped, softDelete, firstText
   const enabledFilter = softDelete ? '\n      AND t.enabled = true' : ''
   const companyFilter = companyScoped ? '\n      WHERE t.company_id = ${safeCompanyId}' : '\n      WHERE 1=1'
   const searchFilter = firstTextField
-    ? '\n      AND (${likeValue}::text IS NULL OR t.' + firstTextField.name + ' ILIKE ${likeValue})'
+    ? '\n      AND (${likeValue}::text IS NULL OR atlas_unaccent(t.' + firstTextField.name + ') ILIKE atlas_unaccent(${likeValue}))'
     : ''
   const fieldFilters = selectFields
     .map((f) => '\n      AND (${' + f.name + 'Filter}::text IS NULL OR t.' + f.name + ' = ${' + f.name + 'Filter})')

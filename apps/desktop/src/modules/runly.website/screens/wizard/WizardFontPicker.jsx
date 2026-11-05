@@ -28,8 +28,8 @@ export function WizardFontPicker({ headingFont, bodyFont, onChange }) {
 
   const visible = useMemo(() => {
     const test = FONT_GROUPS.find((item) => item.id === group)?.test ?? (() => true)
-    const needle = query.trim().toLowerCase()
-    return SITE_FONTS.filter((font) => test(font) && (!needle || font.family.toLowerCase().includes(needle)))
+    const needle = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    return SITE_FONTS.filter((font) => test(font) && (!needle || font.family.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle)))
   }, [group, query])
   const families = useMemo(() => [...new Set([headingFont, bodyFont, ...FONT_PAIRINGS.flatMap((p) => [p.heading, p.body]), ...visible.map((font) => font.family)])], [headingFont, bodyFont, visible])
   const ready = useFontsReady(families)

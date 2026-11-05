@@ -60,7 +60,7 @@ export function createChatMediaService({ prisma }) {
         LEFT JOIN user_profile up ON up.id = m.sender_user_id
         WHERE m.deleted_at IS NULL AND m.body ~* 'https?://'
           AND public.runly_chat_user_access(m.conversation_id, ${profileId}::uuid)
-          ${search ? Prisma.sql`AND m.body ILIKE ${`%${search}%`}` : Prisma.empty}
+          ${search ? Prisma.sql`AND atlas_unaccent(m.body) ILIKE atlas_unaccent(${`%${search}%`})` : Prisma.empty}
           ${after ? Prisma.sql`AND (m.created_at, m.id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
         ORDER BY m.created_at DESC, m.id DESC
         LIMIT ${take + 1}
@@ -78,7 +78,7 @@ export function createChatMediaService({ prisma }) {
         LEFT JOIN user_profile up ON up.id = m.sender_user_id
         WHERE ${mimeFilter(type)}
           AND public.runly_chat_user_access(a.conversation_id, ${profileId}::uuid)
-          ${search ? Prisma.sql`AND a.file_name ILIKE ${`%${search}%`}` : Prisma.empty}
+          ${search ? Prisma.sql`AND atlas_unaccent(a.file_name) ILIKE atlas_unaccent(${`%${search}%`})` : Prisma.empty}
           ${after ? Prisma.sql`AND (a.created_at, a.id) < (${after.at}, ${after.id}::uuid)` : Prisma.empty}
         ORDER BY a.created_at DESC, a.id DESC
         LIMIT ${take + 1}

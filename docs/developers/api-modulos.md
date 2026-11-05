@@ -59,7 +59,7 @@ GET /visitas/visitas?page=1&pageSize=20&search=ana&estado=PROGRAMADA&sucursal=01
 |---|---|
 | `page` | Página, desde 1 (por defecto 1) |
 | `pageSize` | Registros por página, de 1 a 100 (por defecto 20) |
-| `search` | Busca texto parcial, sin distinguir mayúsculas, en el **primer** campo `text`, `email` o `phone` de la entidad. Si la entidad no tiene ninguno, se ignora |
+| `search` | Busca texto parcial, sin distinguir mayúsculas ni acentos, en el **primer** campo `text`, `email` o `phone` de la entidad. Si la entidad no tiene ninguno, se ignora |
 | `<campo select>` | Valor exacto de la opción: `?estado=PROGRAMADA` |
 | `<campo relation del mismo módulo>` | `id` del registro relacionado: `?sucursal=<uuid>`. Un valor que no es UUID se ignora |
 

@@ -24,7 +24,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
          AND p.enabled = true
          AND p.published = true
          AND ($2::text IS NULL OR c.slug = $2)
-         AND ($3::text IS NULL OR p.name ILIKE $3)
+         AND ($3::text IS NULL OR atlas_unaccent(p.name) ILIKE atlas_unaccent($3))
          AND ${selection('$6')}
        ORDER BY p.created_at DESC
        LIMIT $4 OFFSET $5`,
@@ -39,7 +39,7 @@ export function createCatalogPublicService({ prisma, supabaseAdmin = null }) {
          AND p.enabled = true
          AND p.published = true
          AND ($2::text IS NULL OR c.slug = $2)
-         AND ($3::text IS NULL OR p.name ILIKE $3)
+         AND ($3::text IS NULL OR atlas_unaccent(p.name) ILIKE atlas_unaccent($3))
          AND ${selection('$4')}`,
       companyId, catSlug, likeSearch, siteId,
     )

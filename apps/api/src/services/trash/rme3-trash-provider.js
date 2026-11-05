@@ -64,7 +64,7 @@ export function createRme3TrashProvider({ moduleKey, moduleName, manifest, model
 
     async list({ prisma, companyId }, { search = '', page = 1, pageSize = 25 } = {}) {
       const term = String(search ?? '').trim()
-      const filter = term && labelColumn ? ` AND "${labelColumn}"::text ILIKE $2` : ''
+      const filter = term && labelColumn ? ` AND atlas_unaccent("${labelColumn}"::text) ILIKE atlas_unaccent($2)` : ''
       const params = term && labelColumn ? [companyId, `%${term}%`] : [companyId]
       const offset = (Math.max(1, Number(page) || 1) - 1) * pageSize
       const rows = await prisma.$queryRawUnsafe(

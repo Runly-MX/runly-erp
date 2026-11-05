@@ -350,7 +350,7 @@ export function createDriverService({ prisma }) {
          WHERE fd.company_id = $1
            AND fd.enabled = true
            AND ($2::text IS NULL OR fd.status = $2)
-           AND ($3::text IS NULL OR fd.first_name ILIKE $3 OR fd.last_name ILIKE $3 OR fd.license_number ILIKE $3 OR fd.phone ILIKE $3)
+           AND ($3::text IS NULL OR atlas_unaccent(fd.first_name) ILIKE atlas_unaccent($3) OR atlas_unaccent(fd.last_name) ILIKE atlas_unaccent($3) OR atlas_unaccent(fd.license_number) ILIKE atlas_unaccent($3) OR atlas_unaccent(fd.phone) ILIKE atlas_unaccent($3))
          ORDER BY ${sortCol} ${sortDirection}
          LIMIT $4 OFFSET $5`,
         safeCompanyId,
@@ -365,7 +365,7 @@ export function createDriverService({ prisma }) {
          WHERE company_id = $1
            AND enabled = true
            AND ($2::text IS NULL OR status = $2)
-           AND ($3::text IS NULL OR first_name ILIKE $3 OR last_name ILIKE $3 OR license_number ILIKE $3 OR phone ILIKE $3)`,
+           AND ($3::text IS NULL OR atlas_unaccent(first_name) ILIKE atlas_unaccent($3) OR atlas_unaccent(last_name) ILIKE atlas_unaccent($3) OR atlas_unaccent(license_number) ILIKE atlas_unaccent($3) OR atlas_unaccent(phone) ILIKE atlas_unaccent($3))`,
         safeCompanyId,
         normalizedStatus,
         likeValue,

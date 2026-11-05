@@ -173,8 +173,8 @@ export async function fetchEntityOptions(entityType, token, q = "") {
 // filtering behaves identically no matter which one is active.
 export function matchesConnectorSearch(opt, query) {
   if (!query?.trim()) return true;
-  const q = query.trim().toLowerCase();
-  return [opt.label, opt.subtitle].filter(Boolean).some((v) => v.toLowerCase().includes(q));
+  const q = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  return [opt.label, opt.subtitle].filter(Boolean).some((v) => v.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q));
 }
 
 export const entityTypeColor = (entityType) => SLASH_SOURCES.find((s) => s.key === entityType)?.color ?? "#64748b";

@@ -93,8 +93,8 @@ export default function ListView({
   const filtered = useMemo(() => {
     let list = tasks;
     if (search) {
-      const q = search.toLowerCase();
-      list = list.filter((t) => t.title.toLowerCase().includes(q));
+      const q = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      list = list.filter((t) => t.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q));
     }
     if (filterStatus && filterStatus !== "__all__")
       list = list.filter((t) => t.statusId === filterStatus);

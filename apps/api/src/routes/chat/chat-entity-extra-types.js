@@ -68,7 +68,7 @@ export function createChatExtraEntityTypes({ prisma }) {
       WHERE n.deleted_at IS NULL AND n.is_trashed IS NOT TRUE
         AND (n.company_id = ${companyId}::uuid OR n.company_id IS NULL)
         AND (${recordId}::uuid IS NULL OR n.id = ${recordId}::uuid)
-        AND (${pattern} = '%%' OR n.title ILIKE ${pattern} OR n.content_text ILIKE ${pattern})
+        AND (${pattern} = '%%' OR atlas_unaccent(n.title) ILIKE atlas_unaccent(${pattern}) OR atlas_unaccent(n.content_text) ILIKE atlas_unaccent(${pattern}))
         AND public.runly_note_user_access(n.id, ${profileId}::uuid, false)
       ORDER BY n.updated_at DESC
       LIMIT ${take}

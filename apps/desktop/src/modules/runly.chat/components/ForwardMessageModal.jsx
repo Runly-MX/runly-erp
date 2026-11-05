@@ -155,7 +155,7 @@ export function ForwardMessageModal({ open, onClose, messageIds = [], sourceMess
   const filtered = (conversations ?? []).filter((c) => {
     if (!search.trim()) return true;
     const name = getConversationDisplayName(c, userProfile?.id);
-    return name.toLowerCase().includes(search.toLowerCase());
+    return name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase());
   });
 
   function toggleConv(id) {

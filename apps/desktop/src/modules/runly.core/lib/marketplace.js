@@ -86,9 +86,9 @@ export function availableAction(entry, { canManage, blocked, freshness = "fresh"
 }
 
 export function filterModules(modules, { query = "", trust = "all" } = {}) {
-  const needle = query.trim().toLowerCase();
+  const needle = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   return modules.filter((m) => (trust === "all" || m.trust === trust)
-    && (!needle || [m.key, m.name, m.description, m.publisher?.displayName ?? (m.official ? "Runly" : "")].some((value) => String(value ?? "").toLowerCase().includes(needle))));
+    && (!needle || [m.key, m.name, m.description, m.publisher?.displayName ?? (m.official ? "Runly" : "")].some((value) => String(value ?? "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(needle))));
 }
 
 export const SCOPE_TEXT = "Se instala una vez para toda la instancia y queda habilitado para todas las empresas. Cada empresa puede deshabilitarlo después desde Módulos.";

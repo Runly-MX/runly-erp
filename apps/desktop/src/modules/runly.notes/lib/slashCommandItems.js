@@ -52,9 +52,9 @@ export function buildSlashItems({ noteId, token, getToken, openReferencePicker, 
 // buildSlashItems so it's testable without a TipTap editor instance.
 export function filterSlashItems(items, { query, inTable }) {
   const pool = inTable ? items.filter((item) => item.allowedInTable === true) : items
-  const q = (query || '').toLowerCase()
+  const q = (query || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   if (!q) return pool
   return pool.filter(
-    (item) => item.title.toLowerCase().includes(q) || item.keywords.some((k) => k.includes(q)),
+    (item) => item.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) || item.keywords.some((k) => k.includes(q)),
   )
 }

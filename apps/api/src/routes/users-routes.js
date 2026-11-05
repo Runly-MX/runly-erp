@@ -33,8 +33,8 @@ export function createUsersRouter({ prisma, requirePermission, requireAnyPermiss
           AND p.is_bot = false
           AND (
             ${pattern}::text IS NULL
-            OR p.display_name ILIKE ${pattern}
-            OR p.email ILIKE ${pattern}
+            OR atlas_unaccent(p.display_name) ILIKE atlas_unaccent(${pattern})
+            OR atlas_unaccent(p.email) ILIKE atlas_unaccent(${pattern})
           )
         ORDER BY p.display_name
         LIMIT ${effectiveLimit}

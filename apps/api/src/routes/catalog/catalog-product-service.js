@@ -126,7 +126,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
        FROM catalog_category c
        LEFT JOIN catalog_category p ON p.id = c.parent_id
        WHERE c.company_id = $1::uuid AND c.enabled = true
-         AND ($2::text IS NULL OR c.name ILIKE $2 OR c.slug ILIKE $2)
+         AND ($2::text IS NULL OR atlas_unaccent(c.name) ILIKE atlas_unaccent($2) OR atlas_unaccent(c.slug) ILIKE atlas_unaccent($2))
        ORDER BY c.${safeSort} ${safeOrder}
        LIMIT $3 OFFSET $4`,
       companyId, likeSearch, safeLimit, safeOffset,
@@ -136,7 +136,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
       `SELECT COUNT(*)::int AS total
        FROM catalog_category c
        WHERE c.company_id = $1::uuid AND c.enabled = true
-         AND ($2::text IS NULL OR c.name ILIKE $2 OR c.slug ILIKE $2)`,
+         AND ($2::text IS NULL OR atlas_unaccent(c.name) ILIKE atlas_unaccent($2) OR atlas_unaccent(c.slug) ILIKE atlas_unaccent($2))`,
       companyId, likeSearch,
     )
 
@@ -261,7 +261,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
          AND ($2::uuid IS NULL OR p.category_id = $2::uuid)
          AND ($3::text IS NULL OR p.product_type = $3)
          AND ($4::boolean IS NULL OR p.published = $4)
-         AND ($5::text IS NULL OR p.name ILIKE $5 OR p.sku ILIKE $5 OR p.barcode ILIKE $5 OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (v.sku ILIKE $5 OR v.barcode ILIKE $5)))
+         AND ($5::text IS NULL OR atlas_unaccent(p.name) ILIKE atlas_unaccent($5) OR atlas_unaccent(p.sku) ILIKE atlas_unaccent($5) OR atlas_unaccent(p.barcode) ILIKE atlas_unaccent($5) OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (atlas_unaccent(v.sku) ILIKE atlas_unaccent($5) OR atlas_unaccent(v.barcode) ILIKE atlas_unaccent($5))))
          AND ${stockStatusClause(6)}
          AND ${availabilityClause(9,10)}
        ORDER BY p.created_at DESC
@@ -277,7 +277,7 @@ export function createCatalogProductService({ prisma, supabaseAdmin }) {
          AND ($2::uuid IS NULL OR p.category_id = $2::uuid)
          AND ($3::text IS NULL OR p.product_type = $3)
          AND ($4::boolean IS NULL OR p.published = $4)
-         AND ($5::text IS NULL OR p.name ILIKE $5 OR p.sku ILIKE $5 OR p.barcode ILIKE $5 OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (v.sku ILIKE $5 OR v.barcode ILIKE $5)))
+         AND ($5::text IS NULL OR atlas_unaccent(p.name) ILIKE atlas_unaccent($5) OR atlas_unaccent(p.sku) ILIKE atlas_unaccent($5) OR atlas_unaccent(p.barcode) ILIKE atlas_unaccent($5) OR EXISTS(SELECT 1 FROM catalog_product_variant v WHERE v.product_id=p.id AND v.company_id=p.company_id AND v.enabled=true AND (atlas_unaccent(v.sku) ILIKE atlas_unaccent($5) OR atlas_unaccent(v.barcode) ILIKE atlas_unaccent($5))))
          AND ${stockStatusClause(6)}
          AND ${availabilityClause(7,8)}`,
       companyId, catId, prodType, pubFilter, likeSearch, stockParam, outletId ?? null, posAvailable ?? null,

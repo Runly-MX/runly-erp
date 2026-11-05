@@ -21,11 +21,11 @@ export function RecordingsTab({ search, nameOf, onOpenConversation }) {
 
   const recordings = useMemo(() => (data?.pages ?? []).flatMap((p) => p?.data ?? []), [data]);
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     if (!q) return recordings;
     return recordings.filter((r) =>
       [r.title, nameOf(r.conversationId), r.startedBy?.displayName, formatRecordingDateTime(r.startedAt)]
-        .some((v) => String(v ?? "").toLowerCase().includes(q)));
+        .some((v) => String(v ?? "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)));
   }, [recordings, search, nameOf]);
 
   const loadMore = useCallback(() => fetchNextPage(), [fetchNextPage]);

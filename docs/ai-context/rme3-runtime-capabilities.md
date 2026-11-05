@@ -786,6 +786,14 @@ Use this instruction before generating module code:
 
 Animan entrada y salida por defecto (utilidades `animate-in` / `slide-in-from-*` definidas en `packages/ui/src/tailwind-theme.css`). Enter en un input de texto dispara el botón principal del pie (`data-dialog-footer`); opt-out con `submitOnEnter={false}` o `data-no-enter-submit`.
 
+## Accent-insensitive search everywhere
+
+Every search in Runly ignores case and accents ("telefono" finds "Teléfono"):
+
+- Prisma: the API and worker clients are wrapped by `withAccentInsensitiveSearch` (`apps/api/src/lib/prisma-accent-search.js`), so any read with `{ contains, mode: 'insensitive' }` on a String column (also inside AND/OR/NOT and relation filters) already matches without accents. Keep writing plain `contains` + `mode: 'insensitive'`.
+- Raw SQL: compare `atlas_unaccent(column) ILIKE atlas_unaccent($param)`, never a bare `ILIKE`.
+- Frontend lists filtered in memory: `matchesSearch(text, query)` / `normalizeSearchText` from `@runly/ui`, never `toLowerCase().includes()`. `ComboboxField`, `CreatableComboboxField` and `FilterMenu` already do this.
+
 ## Multi-source list search (`lib/search-tokens.js`)
 
 Reusable backend helper for list searches that must find a record by text in its own columns or in related records (Inventory is the reference: `services/inventory-search-service.js`).

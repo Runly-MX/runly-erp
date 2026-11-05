@@ -89,7 +89,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     const [count] = scope === 'runly' ? [{ total: 0 }] : await prisma.$queryRaw`SELECT count(*)::int AS total FROM studio_template t
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${category}='all' OR t.category=${category})
-      AND concat_ws(' ',t.name,t.category,t.description) ILIKE ${search}`
+      AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})`
     const offset = (page-1)*size, builtinPage = builtins.slice(offset, offset+size)
     const remaining = size-builtinPage.length, storedOffset = Math.max(0,offset-builtins.length)
     const stored = !remaining || scope === 'runly' ? [] : await prisma.$queryRaw`SELECT t.id,t.name,t.category,t.description,t.scope,t.source,t.revision,
@@ -104,7 +104,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       FROM studio_template t JOIN user_profile u ON u.id=t.owner_id
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${category}='all' OR t.category=${category})
-      AND concat_ws(' ',t.name,t.category,t.description) ILIKE ${search}
+      AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})
       ORDER BY t.updated_at DESC,t.id LIMIT ${remaining} OFFSET ${storedOffset}`
     const categories = await prisma.$queryRaw`SELECT DISTINCT category FROM studio_template WHERE company_id=${companyId}::uuid
       AND enabled AND (scope='company' OR owner_id=${actorId}::uuid) LIMIT 100`

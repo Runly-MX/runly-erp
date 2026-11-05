@@ -91,7 +91,7 @@ export function createPurchaseEconomicMode({ prisma }) {
     if (!search || !(await available())) return []
     const pattern = `%${search.replace(/[\\%_]/g, '\\$&')}%`
     const rows = await prisma.$queryRaw`SELECT document_id FROM purchase_documentary_reference
-      WHERE company_id = ${companyId}::uuid AND document_type = ${type} AND reference ILIKE ${pattern} LIMIT 1000`
+      WHERE company_id = ${companyId}::uuid AND document_type = ${type} AND atlas_unaccent(reference) ILIKE atlas_unaccent(${pattern}) LIMIT 1000`
     return rows.map(row => row.document_id)
   }
   return { available, requireAvailable, companyMode, setMode, metadata, references, projectMany, matchingIds }

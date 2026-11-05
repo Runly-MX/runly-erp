@@ -62,9 +62,9 @@ export function InventoryExportDialog({ open, onOpenChange, context }) {
   useEffect(() => { if (open && catalog) setSelected(loadSelection(catalog)) }, [open, catalog])
 
   const grouped = useMemo(() => {
-    const term = filter.trim().toLowerCase()
+    const term = filter.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     return (catalog?.groups ?? [])
-      .map((group) => ({ ...group, columns: catalog.columns.filter((c) => c.group === group.key && (!term || c.label.toLowerCase().includes(term))) }))
+      .map((group) => ({ ...group, columns: catalog.columns.filter((c) => c.group === group.key && (!term || c.label.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().includes(term))) }))
       .filter((group) => group.columns.length)
   }, [catalog, filter])
 

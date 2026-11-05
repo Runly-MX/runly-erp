@@ -49,9 +49,9 @@ function PageCombobox({ pages = [], currentPage, onNavigate, onCreatePage }) {
     return () => document.removeEventListener('mousedown', onDown)
   }, [open])
 
-  const q        = search.trim().toLowerCase()
+  const q        = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
   const filtered = q
-    ? pages.filter((p) => p.title.toLowerCase().includes(q) || p.routePath.toLowerCase().includes(q))
+    ? pages.filter((p) => p.title.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) || p.routePath.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q))
     : pages
 
   const canCreate = q && !filtered.find((p) => p.title.toLowerCase() === q)

@@ -63,7 +63,7 @@ function ConstrainedIconField({ value, onChange, label, placeholder, disabled, i
   const [search, setSearch] = useState("");
 
   const filtered = icons.filter((i) =>
-    i.name.toLowerCase().includes(search.toLowerCase()),
+    i.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()),
   );
 
   const SelectedIcon = icons.find((i) => i.name === value)?.component ?? null;

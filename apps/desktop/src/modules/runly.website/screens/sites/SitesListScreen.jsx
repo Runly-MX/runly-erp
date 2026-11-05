@@ -94,8 +94,8 @@ export default function SitesListScreen() {
   }
   const visible = useMemo(() => {
     const rows = (sites.data ?? []).filter((site) => site.lifecycle !== 'archived')
-    const term = query.trim().toLowerCase()
-    return term ? rows.filter((site) => (site.name ?? '').toLowerCase().includes(term)) : rows
+    const term = query.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    return term ? rows.filter((site) => (site.name ?? '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(term)) : rows
   }, [sites.data, query])
 
   const create = (

@@ -291,12 +291,12 @@ export function createFleetService({ prisma, activityBridge }) {
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
           AND (
             ${likeValue}::text IS NULL
-            OR fv.plate ILIKE ${likeValue}
-            OR fv.brand ILIKE ${likeValue}
-            OR fv.model_name ILIKE ${likeValue}
-            OR vm.name ILIKE ${likeValue}
-            OR vb_m.name ILIKE ${likeValue}
-            OR fv.economic_individual_number ILIKE ${likeValue}
+            OR atlas_unaccent(fv.plate) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.brand) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.model_name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vm.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vb_m.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.economic_individual_number) ILIKE atlas_unaccent(${likeValue})
             OR (
               CASE
                 WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
@@ -323,7 +323,7 @@ export function createFleetService({ prisma, activityBridge }) {
                 ELSE NULL
               END
             ) ILIKE ${likeValue}
-            OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
+            OR atlas_unaccent(COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE atlas_unaccent(${likeValue})
           )
         ORDER BY fv.created_at DESC
         LIMIT ${pagination.pageSize}
@@ -343,12 +343,12 @@ export function createFleetService({ prisma, activityBridge }) {
           AND (${normalizedStatus}::text IS NULL OR fv.status = ${normalizedStatus})
           AND (
             ${likeValue}::text IS NULL
-            OR fv.plate ILIKE ${likeValue}
-            OR fv.brand ILIKE ${likeValue}
-            OR fv.model_name ILIKE ${likeValue}
-            OR vm.name ILIKE ${likeValue}
-            OR vb_m.name ILIKE ${likeValue}
-            OR fv.economic_individual_number ILIKE ${likeValue}
+            OR atlas_unaccent(fv.plate) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.brand) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.model_name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vm.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(vb_m.name) ILIKE atlas_unaccent(${likeValue})
+            OR atlas_unaccent(fv.economic_individual_number) ILIKE atlas_unaccent(${likeValue})
             OR (
               CASE
                 WHEN COALESCE(vt_m.economic_group_number, vt.economic_group_number, fv.economic_group_number) IS NOT NULL
@@ -375,7 +375,7 @@ export function createFleetService({ prisma, activityBridge }) {
                 ELSE NULL
               END
             ) ILIKE ${likeValue}
-            OR (COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE ${likeValue}
+            OR atlas_unaccent(COALESCE(fd.first_name, '') || ' ' || COALESCE(fd.last_name, '')) ILIKE atlas_unaccent(${likeValue})
           )
       `;
       return [dataRows, countRows];

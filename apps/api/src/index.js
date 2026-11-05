@@ -22,6 +22,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import pkg from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { withAccentInsensitiveSearch } from "./lib/prisma-accent-search.js";
 import pg from "pg";
 const { PrismaClient } = pkg;
 import { createClient } from "@supabase/supabase-js";
@@ -213,7 +214,8 @@ pgPool.on("error", (err) => {
   console.error("[pg-pool] client error (pool will recover):", err?.message ?? err);
 });
 const prismaAdapter = new PrismaPg(pgPool);
-const prisma = new PrismaClient({ adapter: prismaAdapter });
+// Every `contains` + mode insensitive also ignores accents ("telefono" finds "Teléfono").
+const prisma = withAccentInsensitiveSearch(new PrismaClient({ adapter: prismaAdapter }));
 
 const getAllActivePermissionKeys = createPermissionKeysCache({
   prisma,

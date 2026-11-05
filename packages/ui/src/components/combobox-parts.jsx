@@ -5,11 +5,13 @@
 // Tab/Shift+Tab, Home/End, Enter, Escape). Visual pieces live in
 // combobox-rows.jsx.
 import { useEffect, useRef, useState } from "react";
+import { matchesSearch } from "../lib/search-text.js";
 
 // Every search word must appear in the option label, description, hint or
 // its optional `keywords` string, so "dell 2023" matches "XPS 15 · Dell · 2023".
+// Case and accents are ignored ("telefono" matches "Teléfono").
 export function optionMatchesSearch(option, search) {
-  const haystack = [
+  const parts = [
     option.label,
     option.keywords,
     option.description,
@@ -17,11 +19,8 @@ export function optionMatchesSearch(option, search) {
     option.meta?.title,
     option.meta?.subtitle,
     option.meta?.badge,
-  ]
-    .filter((part) => typeof part === "string" || typeof part === "number")
-    .join(" ")
-    .toLowerCase();
-  return search.toLowerCase().split(/\s+/).filter(Boolean).every((word) => haystack.includes(word));
+  ].filter((part) => typeof part === "string" || typeof part === "number");
+  return matchesSearch(parts, search);
 }
 
 // True when the typed text should offer a "Crear" row: non-empty and not an

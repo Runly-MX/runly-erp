@@ -37,7 +37,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       JOIN user_profile u ON u.id=d.owner_id LEFT JOIN studio_collaborator c ON c.design_id=d.id AND c.user_id=${actorId}::uuid
       WHERE d.company_id=${companyId}::uuid AND d.enabled AND runly_studio.can_access(d.id,${actorId}::uuid,false)
         AND (${shared}='all' OR (${shared}='mine' AND d.owner_id=${actorId}::uuid) OR (${shared}='shared' AND d.owner_id<>${actorId}::uuid))
-        AND d.name ILIKE ${search}
+        AND atlas_unaccent(d.name) ILIKE atlas_unaccent(${search})
       ORDER BY d.updated_at DESC,d.id LIMIT 24 OFFSET ${offset}`
   }
   async function get(companyId, actorId, id, db = prisma) {

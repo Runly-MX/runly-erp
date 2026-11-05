@@ -173,8 +173,8 @@ export function LibraryPanel({ open, onOpenChange, onInsert, docked = false }) {
     return map
   }, [rows, imageUrlQueries])
 
-  const query = search.trim().toLowerCase()
-  const matchesQuery = (item) => !query || item.name.toLowerCase().includes(query)
+  const query = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  const matchesQuery = (item) => !query || item.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(query)
   const searching = query.length > 0
   const matchingIds = searching ? rows.filter((library) => (itemsByLibrary.get(library.id)?.data ?? []).some(matchesQuery)).map((library) => library.id) : null
   const visibleRows = searching ? rows.filter((library) => matchingIds.includes(library.id)) : rows

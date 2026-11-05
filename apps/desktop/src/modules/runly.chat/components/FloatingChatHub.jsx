@@ -136,19 +136,19 @@ function ConversationPanel({ conversations, externalConversations, isLoading, ed
 
   const filteredConversations = useMemo(() => {
     if (!search.trim()) return conversations;
-    const q = search.toLowerCase();
+    const q = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return conversations.filter((c) => {
-      const name = getConversationDisplayName(c, currentUserId).toLowerCase();
-      return name.includes(q) || c.last_message?.body?.toLowerCase().includes(q);
+      const name = getConversationDisplayName(c, currentUserId).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      return name.includes(q) || c.last_message?.body?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q);
     });
   }, [conversations, search, currentUserId]);
 
   const filteredExternal = useMemo(() => {
     if (!search.trim()) return externalConversations;
-    const q = search.toLowerCase();
+    const q = search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return externalConversations.filter((c) => {
-      const name = (c.guest_name ?? c.guest_email ?? "").toLowerCase();
-      return name.includes(q) || c.last_message?.body?.toLowerCase().includes(q) || (c.tracking_code ?? "").toLowerCase().includes(q);
+      const name = (c.guest_name ?? c.guest_email ?? "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+      return name.includes(q) || c.last_message?.body?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) || (c.tracking_code ?? "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q);
     });
   }, [externalConversations, search]);
 

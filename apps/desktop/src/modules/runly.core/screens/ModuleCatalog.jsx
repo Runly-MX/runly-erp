@@ -385,13 +385,13 @@ export default function ModuleCatalog() {
   );
 
   const filteredModules = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
     return sortedModules.filter((m) => {
       if (
         q &&
-        !m.name.toLowerCase().includes(q) &&
-        !m.key.toLowerCase().includes(q) &&
-        !(m.summary ?? "").toLowerCase().includes(q)
+        !m.name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) &&
+        !m.key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) &&
+        !(m.summary ?? "").normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
       )
         return false;
       if (activeTab !== "all") {

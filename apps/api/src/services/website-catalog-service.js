@@ -25,7 +25,7 @@ export function createWebsiteCatalogService({prisma,supabaseAdmin}) {
       WHERE p.company_id=${a.companyId}::uuid AND p.enabled=true
         AND (${a.published===undefined?null:a.published==='true'}::boolean IS NULL OR p.published=${a.published==='true'})
         AND (${a.categoryId??null}::text IS NULL OR p.category_id::text=${a.categoryId??null})
-        AND (${a.search??null}::text IS NULL OR p.name ILIKE ${'%'+(a.search??'')+'%'})
+        AND (${a.search??null}::text IS NULL OR atlas_unaccent(p.name) ILIKE atlas_unaccent(${'%'+(a.search??'')+'%'}))
       ORDER BY p.id LIMIT ${limit+1} OFFSET ${offset}`
     const publicSite=site.status==='published'&&site.sourceType!=='none'&&(!site.releaseManaged||Boolean(site.activeReleaseId))
     const products=await images.resolveImageUrls(rows.slice(0,limit),{companyId:a.companyId})

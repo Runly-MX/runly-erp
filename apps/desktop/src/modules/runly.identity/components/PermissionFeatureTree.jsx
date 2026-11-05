@@ -367,7 +367,7 @@ export default function PermissionFeatureTree({
 
   // Filtered module tree based on search + filter
   const filteredModules = useMemo(() => {
-    const q = search.trim().toLowerCase();
+    const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
 
     return modules
       .map((mod) => ({
@@ -382,7 +382,7 @@ export default function PermissionFeatureTree({
                 if (
                   !label.includes(q) &&
                   !desc.includes(q) &&
-                  !item.key.toLowerCase().includes(q)
+                  !item.key.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)
                 )
                   return false;
               }

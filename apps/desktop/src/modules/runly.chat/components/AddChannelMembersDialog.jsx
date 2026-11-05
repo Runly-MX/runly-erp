@@ -44,8 +44,8 @@ export function AddChannelMembersDialog({ open, onClose, conversationId, existin
     (u) =>
       !existingIds.has(u.id) &&
       (!search ||
-        u.displayName?.toLowerCase().includes(search.toLowerCase()) ||
-        u.email?.toLowerCase().includes(search.toLowerCase())),
+        u.displayName?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()) ||
+        u.email?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(search.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase())),
   );
 
   function toggleUser(u) {

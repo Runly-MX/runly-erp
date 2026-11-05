@@ -60,9 +60,9 @@ export function PeopleStrip({ people, onlineCount, startingId, onStart, onSeeAll
 // People matching the sidebar search, so typing a coworker's name finds them
 // even before there is any conversation with them.
 export function PeopleSearchResults({ people, search, startingId, onStart }) {
-  const q = search.trim().toLowerCase();
+  const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const matches = q
-    ? people.filter((p) => p.displayName?.toLowerCase().includes(q) || p.email?.toLowerCase().includes(q)).slice(0, 6)
+    ? people.filter((p) => p.displayName?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q) || p.email?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)).slice(0, 6)
     : [];
   if (!matches.length) return null;
   return (

@@ -361,7 +361,7 @@ export function createContactsService({ prisma, supabaseAdmin = null, storageBuc
       const needle = `%${String(query ?? "").trim()}%`;
       const rows = await prisma.$queryRaw`
         SELECT DISTINCT tag FROM contact, unnest(tags) AS tag
-        WHERE company_id = ${companyId}::uuid AND tag ILIKE ${needle}
+        WHERE company_id = ${companyId}::uuid AND atlas_unaccent(tag) ILIKE atlas_unaccent(${needle})
         ORDER BY tag LIMIT 50`;
       return rows.map((row) => row.tag);
     },

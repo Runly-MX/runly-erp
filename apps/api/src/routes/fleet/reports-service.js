@@ -374,7 +374,7 @@ export function createReportsService({ prisma }) {
            AND r.enabled = true
            AND r.report_type = $2
            AND ($3::text IS NULL OR r.status = $3)
-           AND ($4::text IS NULL OR r.title ILIKE $4 OR r.folio ILIKE $4 OR v.plate ILIKE $4 OR r.workshop_name ILIKE $4)
+           AND ($4::text IS NULL OR atlas_unaccent(r.title) ILIKE atlas_unaccent($4) OR atlas_unaccent(r.folio) ILIKE atlas_unaccent($4) OR atlas_unaccent(v.plate) ILIKE atlas_unaccent($4) OR atlas_unaccent(r.workshop_name) ILIKE atlas_unaccent($4))
          ORDER BY r.created_at DESC
          LIMIT $5 OFFSET $6`,
         safeCompanyId,
@@ -392,7 +392,7 @@ export function createReportsService({ prisma }) {
            AND r.enabled = true
            AND r.report_type = $2
            AND ($3::text IS NULL OR r.status = $3)
-           AND ($4::text IS NULL OR r.title ILIKE $4 OR r.folio ILIKE $4 OR v.plate ILIKE $4 OR r.workshop_name ILIKE $4)`,
+           AND ($4::text IS NULL OR atlas_unaccent(r.title) ILIKE atlas_unaccent($4) OR atlas_unaccent(r.folio) ILIKE atlas_unaccent($4) OR atlas_unaccent(v.plate) ILIKE atlas_unaccent($4) OR atlas_unaccent(r.workshop_name) ILIKE atlas_unaccent($4))`,
         safeCompanyId,
         safeType,
         normalizedStatus,
@@ -441,7 +441,7 @@ export function createReportsService({ prisma }) {
          WHERE r.company_id = $1
            AND r.enabled = true
            AND ($2::text IS NULL OR r.status = $2)
-           AND ($3::text IS NULL OR r.title ILIKE $3 OR r.folio ILIKE $3 OR v.plate ILIKE $3 OR r.workshop_name ILIKE $3)
+           AND ($3::text IS NULL OR atlas_unaccent(r.title) ILIKE atlas_unaccent($3) OR atlas_unaccent(r.folio) ILIKE atlas_unaccent($3) OR atlas_unaccent(v.plate) ILIKE atlas_unaccent($3) OR atlas_unaccent(r.workshop_name) ILIKE atlas_unaccent($3))
          ORDER BY r.created_at DESC
          LIMIT $4 OFFSET $5`,
         safeCompanyId,
@@ -457,7 +457,7 @@ export function createReportsService({ prisma }) {
          WHERE r.company_id = $1
            AND r.enabled = true
            AND ($2::text IS NULL OR r.status = $2)
-           AND ($3::text IS NULL OR r.title ILIKE $3 OR r.folio ILIKE $3 OR v.plate ILIKE $3 OR r.workshop_name ILIKE $3)`,
+           AND ($3::text IS NULL OR atlas_unaccent(r.title) ILIKE atlas_unaccent($3) OR atlas_unaccent(r.folio) ILIKE atlas_unaccent($3) OR atlas_unaccent(v.plate) ILIKE atlas_unaccent($3) OR atlas_unaccent(r.workshop_name) ILIKE atlas_unaccent($3))`,
         safeCompanyId,
         normalizedStatus,
         likeValue,

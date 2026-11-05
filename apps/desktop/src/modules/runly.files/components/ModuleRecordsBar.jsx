@@ -21,8 +21,8 @@ export function ModuleRecordsBar({ token, userId, moduleKey, record, onOpen }) {
   const groups = useMemo(() => query.data?.data ?? [], [query.data]);
   const current = groups.find((g) => g.record === record);
   const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return q ? groups.filter((g) => g.label.toLowerCase().includes(q)) : groups;
+    const q = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+    return q ? groups.filter((g) => g.label.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(q)) : groups;
   }, [groups, search]);
 
   return (

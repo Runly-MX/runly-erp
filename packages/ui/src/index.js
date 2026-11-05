@@ -230,6 +230,7 @@ export { FilterByValueButton } from "./components/FilterByValueButton.jsx";
 export { isNewTabClick, openInNewTab } from "./runly-renderer/row-open.js";
 export { useCopyValue } from "./hooks/useCopyValue.js";
 export { copyText } from "./lib/copy-text.js";
+export { matchesSearch, normalizeSearchText } from "./lib/search-text.js";
 export { DetailHero } from "./components/DetailHero.jsx";
 export { AddressFieldsSection } from "./components/AddressFieldsSection.jsx";
 export { useGeoData, loadGeoRegions, loadGeoCities } from "./lib/geoData.js";

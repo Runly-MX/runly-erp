@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { MapPinned, X } from 'lucide-react'
-import { Button, EmptyState, ErrorState, FilterToolbar, IconGlyph, PageHeader, SearchInput, Skeleton, cn } from '@runly/ui'
+import { Button, EmptyState, ErrorState, FilterToolbar, IconGlyph, PageHeader, SearchInput, Skeleton, cn, matchesSearch } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
@@ -15,7 +15,7 @@ import { useInventoryMapConfig } from '../components/InventoryGeolocation.jsx'
 import { filtersQuery, useInventoryMapFilters } from '../hooks/useInventoryMapFilters.js'
 
 const detailPath = (id) => `/app/m/runly.inventory/inventory/${id}`
-const haystack = (item) => [item.name, item.folio, item.assetTag, item.serialNumber, item.locationName, item.categoryName, item.assignedToName].filter(Boolean).join(' ').toLowerCase()
+const haystack = (item) => [item.name, item.folio, item.assetTag, item.serialNumber, item.locationName, item.categoryName, item.assignedToName]
 // The pin of an item: its type's color and icon (Catálogos > Tipos).
 const pinOf = (item) => ({ color: item.categoryColor, icon: item.categoryIcon || 'package' })
 
@@ -106,8 +106,7 @@ export default function InventoryMapScreen() {
 
   const all = query.data?.items
   const items = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return (all ?? []).filter((item) => !q || haystack(item).includes(q))
+    return (all ?? []).filter((item) => matchesSearch(haystack(item), search))
   }, [all, search])
   const points = useMemo(() => items.map((item) => ({ ...item, pin: pinOf(item) })), [items])
   const selected = items.find((item) => item.id === selectedId) ?? null
