@@ -4,6 +4,14 @@ export const LEGACY_PURCHASE_SECTION_ID = 'legacy-purchase'
 // Purchase order / invoice pickers (custom controls, registry key below).
 export const PURCHASE_LINK_FIELDS = ['purchaseOrderId', 'purchaseInvoiceId']
 export const PURCHASE_LINK_COMPONENT = 'inventory.purchase-link'
+export const DIRECT_ASSIGNMENT_COMPONENT = 'inventory.direct-assignment'
+const DIRECT_ASSIGNMENT_SECTION = {
+  id: 'direct-assignment',
+  label: 'Asignación',
+  icon: 'UserCheck',
+  collapsible: true,
+  fields: [{ field: 'directAssigneeId', label: 'Asignar directamente a', type: 'custom', component: DIRECT_ASSIGNMENT_COMPONENT, icon: 'UserCheck' }],
+}
 
 const STATUS_OPTIONS = ITEM_STATUSES.map((s) => ({ value: s.value, label: s.label }))
 // On create an item can only start available or in maintenance.
@@ -210,8 +218,13 @@ export const INVENTORY_ITEM_FORM = {
 // Legacy purchase fields only appear when `showLegacyPurchase` (edit of an
 // item that already has them); the order / invoice pickers when
 // `showPurchaseLinks` (the user can read Compras).
-export function buildItemFormBlueprint(isEdit, { showLegacyPurchase = false, showPurchaseLinks = false } = {}) {
-  const sections = INVENTORY_ITEM_FORM.schema.sections
+// `showDirectAssignment` adds the "Asignación" section (assign without a
+// resguardo); its control is resolved by the inventory app's registry.
+export function buildItemFormBlueprint(isEdit, { showLegacyPurchase = false, showPurchaseLinks = false, showDirectAssignment = false } = {}) {
+  const base = INVENTORY_ITEM_FORM.schema.sections
+  const at = base.findIndex((section) => section.id === 'custom-fields')
+  const withAssignment = showDirectAssignment ? [...base.slice(0, at), DIRECT_ASSIGNMENT_SECTION, ...base.slice(at)] : base
+  const sections = withAssignment
     .filter((section) => showLegacyPurchase || section.id !== LEGACY_PURCHASE_SECTION_ID)
     .map((section) => {
       if (!section.fields) return section

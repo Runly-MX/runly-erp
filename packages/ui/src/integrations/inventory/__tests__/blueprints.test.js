@@ -50,3 +50,9 @@ test('form: legacy purchase inputs only when the item already has them', () => {
   assert.ok(!labels(buildItemFormBlueprint(true)).includes('Datos de compra heredados'))
   assert.ok(labels(buildItemFormBlueprint(true, { showLegacyPurchase: true })).includes('Datos de compra heredados'))
 })
+
+test('form: Asignación section only when asked, right before custom fields', () => {
+  assert.ok(!labels(buildItemFormBlueprint(false)).includes('Asignación'))
+  const shown = labels(buildItemFormBlueprint(false, { showDirectAssignment: true }))
+  assert.equal(shown[shown.indexOf('Asignación') + 1], 'Campos personalizados')
+})

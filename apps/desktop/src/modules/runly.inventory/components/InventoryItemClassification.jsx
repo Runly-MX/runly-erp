@@ -6,6 +6,7 @@ import { useInventoryData } from '../hooks/inventoryData.js'
 import { InventoryBrandPicker, InventoryTypePicker, typeOptions } from './InventoryCatalogPickers.jsx'
 import { InventoryModelDialog } from './InventoryModelDialog.jsx'
 import { InventoryPurchaseLinkField } from './InventoryPurchaseLinkField.jsx'
+import { InventoryDirectAssignmentField } from './InventoryDirectAssignmentField.jsx'
 import { InventoryAreaField } from './areas/InventoryAreaField.jsx'
 
 const LEGACY = '__legacy__'
@@ -100,6 +101,7 @@ export const inventoryFormComponents = {
   resolve: (key) => {
     if (key === 'inventory.item-classification') return InventoryItemClassification
     if (key === 'inventory.purchase-link') return InventoryPurchaseLinkField
+    if (key === 'inventory.direct-assignment') return InventoryDirectAssignmentField
     return null
   },
 }

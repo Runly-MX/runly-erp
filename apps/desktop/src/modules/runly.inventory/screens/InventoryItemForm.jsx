@@ -7,7 +7,8 @@ import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { getApiUrl } from '../../../lib/runtimeConfig.js'
-import { useInventoryItem, useDeleteInventoryItem } from '../hooks/useInventoryItems.js'
+import { useInventoryItem, useDeleteInventoryItem, useAssignInventoryItem } from '../hooks/useInventoryItems.js'
+import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import { buildItemFormBlueprint } from '../blueprints/inventory-item-form.blueprint.js'
 import { inventoryFormComponents } from '../components/InventoryItemClassification.jsx'
 import { InventoryFormHeader, INVENTORY_FORM_ID } from '../components/InventoryFormHeader.jsx'
@@ -96,8 +97,14 @@ export default function InventoryItemForm() {
   const showLegacyPurchase = Boolean(isEdit && editItem?.hasLegacyPurchaseData)
   // Order / invoice pickers need to read Compras; saving them needs manage (checked server side too).
   const showPurchaseLinks = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('purchases.relation.read'))
-  const blueprint = useMemo(() => buildItemFormBlueprint(isEdit, { showLegacyPurchase, showPurchaseLinks }), [isEdit, showLegacyPurchase, showPurchaseLinks])
+  // Direct assignment (no resguardo); not offered for a bulk capture by serial.
+  const showDirectAssignment = useInventoryCan()('inventory.assignment.manage') && (isEdit || !settings.multi)
+  const blueprint = useMemo(
+    () => buildItemFormBlueprint(isEdit, { showLegacyPurchase, showPurchaseLinks, showDirectAssignment }),
+    [isEdit, showLegacyPurchase, showPurchaseLinks, showDirectAssignment],
+  )
   const deleteItem = useDeleteInventoryItem()
+  const assignItem = useAssignInventoryItem()
 
   const [typedIds, setTypedIds] = useState({ serialNumber: '', assetTag: '' })
   const [serverConflict, setServerConflict] = useState(null)
@@ -190,7 +197,13 @@ export default function InventoryItemForm() {
           companyId={activeCompanyId}
           apiBaseUrl={API_BASE}
           componentRegistry={inventoryFormComponents}
-          onSuccess={(result) => {
+          onSuccess={async (result) => {
+            const assigneeId = formValuesRef.current?.directAssigneeId
+            if (!isEdit && !result?.bulk && assigneeId && result?.data?.id) {
+              // The item is already saved: a failed assignment only warns.
+              await assignItem.mutateAsync({ itemId: result.data.id, employeeId: assigneeId })
+                .catch((err) => toast.error(err?.message ?? 'El activo se creó, pero no se pudo asignar'))
+            }
             if (!isEdit && (result?.bulk || settings.continuous)) {
               const count = result?.data?.items?.length
               toast.success(result?.bulk ? `${count} activos creados` : (result?.data?.assetTag ? `Activo ${result.data.assetTag} creado` : 'Activo creado'))

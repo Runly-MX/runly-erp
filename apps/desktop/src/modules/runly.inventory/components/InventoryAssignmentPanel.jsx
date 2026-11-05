@@ -6,14 +6,14 @@ import { useInventoryItemAssignments } from '../hooks/useInventoryItems.js'
 import { useInventoryCan } from '../hooks/useInventoryAdmin.js'
 import { buildNewCustodyPath } from '../lib/custody-links.js'
 
-function formatDate(str) {
+export function formatDate(str) {
   if (!str) return '—'
   return new Date(str).toLocaleDateString('es-PE', {
     day: '2-digit', month: 'short', year: 'numeric',
   })
 }
 
-function AssignmentHistoryRow({ record }) {
+export function AssignmentHistoryRow({ record }) {
   const active = !record.returnedAt
   const name = [record.employee?.firstName, record.employee?.lastName].filter(Boolean).join(' ') || record.employeeName || '—'
   return (
@@ -37,7 +37,7 @@ function AssignmentHistoryRow({ record }) {
 }
 
 // Who holds the item + history. Changing the holder always goes through a
-// resguardo (formal document); the direct assign/return endpoints are internal.
+// resguardo (formal document); direct assignment lives in the item form.
 export function InventoryAssignmentPanel({ item }) {
   const navigate = useNavigate()
   const can = useInventoryCan()
