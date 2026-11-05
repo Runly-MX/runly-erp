@@ -4431,6 +4431,9 @@ model InvItem {
   deregistrationReason String?   @db.VarChar(40) @map("deregistration_reason")
   conditionId          String?   @db.Uuid @map("condition_id")
   areaId        String?   @db.Uuid @map("area_id")
+  // Optional GPS point (WGS84); both set or both null.
+  latitude      Decimal?  @db.Decimal(9, 6)
+  longitude     Decimal?  @db.Decimal(9, 6)
   enabled       Boolean   @default(true)
   createdById   String?   @db.Uuid @map("created_by_id")
   createdAt     DateTime  @default(now()) @map("created_at")

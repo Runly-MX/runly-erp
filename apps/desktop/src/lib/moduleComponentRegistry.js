@@ -21,6 +21,7 @@ import InventoryDetailHistorySection from "../modules/runly.inventory/components
 import InventoryDetailCustomFieldsSection from "../modules/runly.inventory/components/InventoryDetailCustomFieldsSection.jsx";
 import InventoryDetailAdminSection from "../modules/runly.inventory/components/InventoryDetailAdminSection.jsx";
 import InventoryDetailLabelSection from "../modules/runly.inventory/components/labels/InventoryDetailLabelSection.jsx";
+import { InventoryDetailGeolocationSection } from "../modules/runly.inventory/components/InventoryGeolocation.jsx";
 import LabelStateCell from "../modules/runly.inventory/components/labels/LabelStateBadge.jsx";
 import InventoryPurchaseSection from "../modules/runly.purchases/components/InventoryPurchaseSection.jsx";
 
@@ -96,6 +97,10 @@ componentRegistry.register(
 componentRegistry.register(
   "runly.inventory:CustomFieldsSection",
   InventoryDetailCustomFieldsSection,
+);
+componentRegistry.register(
+  "runly.inventory:GeolocationSection",
+  InventoryDetailGeolocationSection,
 );
 componentRegistry.register(
   "runly.inventory:AdminSection",

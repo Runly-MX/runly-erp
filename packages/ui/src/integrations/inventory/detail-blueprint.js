@@ -70,6 +70,14 @@ export const INVENTORY_ITEM_DETAIL = {
         ],
       },
       {
+        id: 'geolocation',
+        type: 'component',
+        label: 'Geolocalización',
+        icon: 'LocateFixed',
+        column: 'main',
+        component: 'runly.inventory:GeolocationSection',
+      },
+      {
         label: 'Adquisición y garantía',
         icon: 'ShieldCheck',
         column: 'main',

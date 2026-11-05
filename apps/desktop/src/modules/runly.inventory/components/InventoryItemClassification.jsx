@@ -7,6 +7,7 @@ import { InventoryBrandPicker, InventoryTypePicker, typeOptions } from './Invent
 import { InventoryModelDialog } from './InventoryModelDialog.jsx'
 import { InventoryPurchaseLinkField } from './InventoryPurchaseLinkField.jsx'
 import { InventoryDirectAssignmentField } from './InventoryDirectAssignmentField.jsx'
+import { InventoryGeolocationSection } from './InventoryGeolocation.jsx'
 import { InventoryAreaField } from './areas/InventoryAreaField.jsx'
 
 const LEGACY = '__legacy__'
@@ -102,6 +103,7 @@ export const inventoryFormComponents = {
     if (key === 'inventory.item-classification') return InventoryItemClassification
     if (key === 'inventory.purchase-link') return InventoryPurchaseLinkField
     if (key === 'inventory.direct-assignment') return InventoryDirectAssignmentField
+    if (key === 'inventory.item-geolocation') return InventoryGeolocationSection
     return null
   },
 }

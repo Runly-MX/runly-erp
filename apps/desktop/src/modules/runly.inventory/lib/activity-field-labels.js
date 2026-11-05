@@ -34,5 +34,6 @@ export const INVENTORY_ACTIVITY_FIELD_LABELS = {
   acquisitionOrigin: { label: 'Origen de adquisición', type: 'select', options: ACQUISITION_ORIGIN_OPTIONS },
   warrantyExpiry: { label: 'Vencimiento de garantía', type: 'date' },
   warrantyNotes: { label: 'Notas de garantía', type: 'markdown' },
+  geolocation: { label: 'Geolocalización', type: 'text' },
   notes: { label: 'Notas', type: 'markdown' },
 }

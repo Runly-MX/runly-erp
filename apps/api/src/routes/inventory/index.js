@@ -32,6 +32,7 @@ import { createInventoryGuestInviteRouter } from './guest-invite-routes.js';
 import { createInventoryGuestService } from '../../services/inventory-guest-service.js';
 import { createInventoryProposalRouter } from './proposal-routes.js';
 import { createInventoryProposalService } from '../../services/inventory-proposal-service.js';
+import { createGeocoder } from '../canvas/canvas-geocoder.js';
 
 export function createInventoryRouter({
   prisma,
@@ -114,6 +115,9 @@ export function createInventoryRouter({
   }
 
   // ── Items ────────────────────────────────────────────────────────────────
+  // Map tiles for the item geolocation (same instance config as canvas; no API key by default).
+  const geocoder = createGeocoder();
+  router.get("/inventory/map-config", requirePermission("inventory.item.read"), (c) => c.json({ data: geocoder.mapConfig() }));
   // Live duplicate check for the forms: which ACTIVE item already uses this serial / asset number.
   router.get("/inventory/items/check-identifiers", requirePermission("inventory.item.read"), async (c) => {
     try {

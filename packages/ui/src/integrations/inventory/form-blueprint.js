@@ -129,6 +129,20 @@ export const INVENTORY_ITEM_FORM = {
         ],
       },
       {
+        // GPS point: device location, pasted coordinates/link or a map click
+        // (InventoryGeolocationSection; the map is optional per instance).
+        id: 'geolocation',
+        type: 'component',
+        component: 'inventory.item-geolocation',
+        label: 'Geolocalización',
+        icon: 'LocateFixed',
+        collapsible: true,
+        fields: [
+          { field: 'latitude', label: 'Latitud', type: 'number' },
+          { field: 'longitude', label: 'Longitud', type: 'number' },
+        ],
+      },
+      {
         label: 'Adquisición y garantía',
         icon: 'ShieldCheck',
         collapsible: true,

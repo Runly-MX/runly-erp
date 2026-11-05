@@ -1,0 +1,130 @@
+import { useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { ExternalLink, Loader2, LocateFixed, MapPin, X } from 'lucide-react'
+import { Button, TextField } from '@runly/ui'
+import { useAuth } from '../../../auth/AuthProvider'
+import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
+import { getApiUrl } from '../../../lib/runtimeConfig.js'
+import { formatGeoPoint, googleMapsUrl, hasGeoPoint, parseCoordinates } from '../../../lib/geo-point.js'
+import { GeoPointMap } from '../../../components/geo/GeoPointMap.jsx'
+import { intakeRequest } from '../lib/intake.js'
+
+const GEO_ERRORS = {
+  1: 'No diste permiso para usar tu ubicación. Pega las coordenadas o marca el punto en el mapa.',
+  2: 'No se pudo determinar tu ubicación. Pega las coordenadas o marca el punto en el mapa.',
+  3: 'La ubicación tardó demasiado. Intenta de nuevo.',
+}
+const round6 = (n) => Math.round(Number(n) * 1e6) / 1e6
+
+// Map tiles come from the instance (OpenFreeMap by default, no API key);
+// `enabled: false` or a failing style leaves coordinates + external link only.
+function useInventoryMapConfig() {
+  const token = useAuth().session?.access_token
+  const { activeCompanyId } = useActiveCompany()
+  return useQuery({
+    queryKey: ['inventory', 'map-config'],
+    queryFn: () => intakeRequest({ apiBaseUrl: getApiUrl(), token, companyId: activeCompanyId, path: '/inventory/map-config' }),
+    enabled: Boolean(token && activeCompanyId),
+    staleTime: Infinity,
+  })
+}
+
+function useMapStyle() {
+  const config = useInventoryMapConfig().data
+  const [failed, setFailed] = useState(false)
+  return { styleUrl: config?.enabled && !failed ? config.styleUrl : null, onError: () => setFailed(true) }
+}
+
+function OpenInMapsLink({ latitude, longitude }) {
+  return (
+    <a href={googleMapsUrl(latitude, longitude)} target="_blank" rel="noopener noreferrer"
+      className="inline-flex items-center gap-1 text-sm text-[var(--brand-primary)] underline-offset-2 hover:underline">
+      Abrir en Google Maps<ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
+    </a>
+  )
+}
+
+// Item form section "Geolocalización" (fields latitude / longitude): current
+// position from the device, pasted coordinates or map link, or a click on the map.
+export function InventoryGeolocationSection({ value, onChange, errors = {} }) {
+  const { latitude, longitude } = value ?? {}
+  const located = hasGeoPoint(latitude, longitude)
+  const map = useMapStyle()
+  const [text, setText] = useState('')
+  const [message, setMessage] = useState('')
+  const [locating, setLocating] = useState(false)
+  const setPoint = (lat, lng, note = '') => { onChange({ latitude: round6(lat), longitude: round6(lng) }); setMessage(note) }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) { setMessage('Este dispositivo no permite obtener la ubicación.'); return }
+    setLocating(true); setMessage('')
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { setLocating(false); setPoint(pos.coords.latitude, pos.coords.longitude, `Precisión aproximada: ${Math.round(pos.coords.accuracy)} m`) },
+      (err) => { setLocating(false); setMessage(GEO_ERRORS[err.code] ?? GEO_ERRORS[2]) },
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 0 },
+    )
+  }
+
+  function apply(raw) {
+    const point = parseCoordinates(raw)
+    if (!point) { setMessage('No reconocí las coordenadas. Usa el formato «19.432608, -99.133209» o pega un enlace de Google Maps.'); return false }
+    setPoint(point.latitude, point.longitude); setText('')
+    return true
+  }
+
+  return (
+    <div data-no-enter-submit="" className="space-y-3">
+      <div className="flex flex-wrap items-end gap-2">
+        <Button type="button" variant="outline" onClick={useMyLocation} disabled={locating}>
+          {locating ? <Loader2 className="mr-1 h-4 w-4 animate-spin" /> : <LocateFixed className="mr-1 h-4 w-4" />}
+          Usar mi ubicación
+        </Button>
+        <div className="min-w-0 flex-1 sm:min-w-64">
+          <TextField label="Pegar coordenadas o enlace" icon={MapPin} value={text} autoComplete="off"
+            placeholder="19.432608, -99.133209"
+            onChange={(e) => setText(e.target.value)}
+            onPaste={(e) => { if (apply(e.clipboardData.getData('text'))) e.preventDefault() }}
+            onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); if (text.trim()) apply(text) } }} />
+        </div>
+        <Button type="button" variant="outline" onClick={() => apply(text)} disabled={!text.trim()}>Aplicar</Button>
+      </div>
+      {message || errors.latitude || errors.longitude ? (
+        <p className="text-xs text-[hsl(var(--muted-foreground))]" role="status">{errors.latitude || errors.longitude || message}</p>
+      ) : null}
+      {located ? (
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="flex items-center gap-1.5 text-sm tabular-nums"><MapPin className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />{formatGeoPoint(latitude, longitude)}</span>
+          <OpenInMapsLink latitude={latitude} longitude={longitude} />
+          <Button type="button" variant="ghost" size="sm" className="ml-auto" onClick={() => { onChange({ latitude: null, longitude: null }); setMessage('') }}>
+            <X className="mr-1 h-4 w-4" />Quitar
+          </Button>
+        </div>
+      ) : null}
+      {map.styleUrl ? (
+        <>
+          <GeoPointMap styleUrl={map.styleUrl} latitude={latitude} longitude={longitude} onError={map.onError}
+            onPick={(lat, lng) => setPoint(lat, lng)} />
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">Haz clic en el mapa o arrastra el marcador para ajustar el punto.</p>
+        </>
+      ) : null}
+    </div>
+  )
+}
+
+// Item detail section (registry key runly.inventory:GeolocationSection).
+export function InventoryDetailGeolocationSection({ data }) {
+  const { latitude, longitude } = data ?? {}
+  const map = useMapStyle()
+  if (!hasGeoPoint(latitude, longitude)) {
+    return <p className="text-sm text-[hsl(var(--muted-foreground))]">Sin geolocalización. Puedes agregarla al editar el activo.</p>
+  }
+  return (
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="flex items-center gap-1.5 text-sm tabular-nums"><MapPin className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />{formatGeoPoint(latitude, longitude)}</span>
+        <OpenInMapsLink latitude={latitude} longitude={longitude} />
+      </div>
+      {map.styleUrl ? <GeoPointMap styleUrl={map.styleUrl} latitude={latitude} longitude={longitude} onError={map.onError} /> : null}
+    </div>
+  )
+}

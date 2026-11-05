@@ -12,6 +12,11 @@ import { assertNoActiveDuplicates, cleanIdentifier } from './inventory-identifie
 import { publishDomainEvent } from './domain-events/events.js';
 import { FOLIO_MAX, createFolioAllocator, normalizeFolio } from './inventory-folio.js';
 import { assignItemTx, returnItemTx } from './inventory-assignment-tx.js';
+import { normalizeGeoPoint } from '../lib/geo-point.js';
+
+function geoPointOf(data) {
+  try { return normalizeGeoPoint(data.latitude, data.longitude); } catch (err) { throw new InventoryServiceError(err.message, 400); }
+}
 
 // Operational statuses a user can set by hand; `assigned` only comes from
 // the assign/return flow, bajas from the administrative transitions.
@@ -317,6 +322,7 @@ export function createInventoryService({ prisma, activityBridge }) {
       receivedAt: item.receivedAt ?? null,
       warrantyExpiry: item.warrantyExpiry ?? null,
       warrantyNotes: item.warrantyNotes ?? null,
+      geolocation: item.latitude != null && item.longitude != null ? `${Number(item.latitude)}, ${Number(item.longitude)}` : null,
       notes: item.notes ?? null,
       ...customValueSnapshot(item),
     }
@@ -414,6 +420,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     // The asset number is optional and only what the user typed; it is never generated.
     const assetTag = cleanIdentifier(data.assetTag);
     const folio = await resolveCreateFolio(data, companyId);
+    const geo = geoPointOf(data);
 
     const {
       name,
@@ -472,6 +479,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (licenseExpiry !== undefined) itemData.licenseExpiry = licenseExpiry ? new Date(licenseExpiry) : null;
     if (licenseSeats !== undefined) itemData.licenseSeats = licenseSeats;
     if (notes !== undefined) itemData.notes = notes;
+    if (geo) Object.assign(itemData, geo);
 
     if (customValues && Array.isArray(customValues) && customValues.length > 0) {
       const created = await prisma.$transaction(async (tx) => {
@@ -673,6 +681,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     if (licenseExpiry !== undefined) updateData.licenseExpiry = licenseExpiry ? new Date(licenseExpiry) : null;
     if (licenseSeats !== undefined) updateData.licenseSeats = licenseSeats;
     if (notes !== undefined) updateData.notes = notes;
+    const geo = geoPointOf(data);
+    if (geo) Object.assign(updateData, geo);
 
     // Fields detached from this item (form's "Quitar"): drop their values.
     const removedIds = Array.isArray(removedCustomFieldIds) ? removedCustomFieldIds.filter((v) => typeof v === 'string') : [];
