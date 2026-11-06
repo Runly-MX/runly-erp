@@ -3,9 +3,9 @@
 # Adapted from the official supabase/supabase self-hosting reference at tag
 # v1.26.08 (docker/docker-compose.yml) — see VENDORED_FROM.md for exactly
 # what was vendored and what changed. Trimmed to the services Runly actually
-# uses (Postgres, Auth, REST, Realtime, Storage, Meta, Studio, Kong).
-# Supavisor pooling, Edge Functions, imgproxy image transforms, and the
-# Logs/Analytics stack are dropped: nothing in Runly consumes them, and
+# uses (Postgres, Auth, REST, Realtime, Storage + imgproxy, Meta, Studio,
+# Kong). Supavisor pooling, Edge Functions, and the Logs/Analytics stack are
+# dropped: nothing in Runly consumes them, and
 # every Runly-side service (api/worker, migrate/seed) already reaches
 # Postgres directly over the Compose network, so a connection pooler buys
 # nothing at Runly's single-VM scale.
@@ -189,6 +189,8 @@ services:
         condition: service_healthy
       supabase-rest:
         condition: service_started
+      supabase-imgproxy:
+        condition: service_started
     healthcheck:
       # Uses the service's own Docker-DNS name, not "localhost": storage-api
       # only binds its IPv4 addresses, and busybox wget's "localhost" tries
@@ -221,12 +223,34 @@ services:
       REGION: ${REGION:-local}
       S3_PROTOCOL_ACCESS_KEY_ID: ${S3_PROTOCOL_ACCESS_KEY_ID}
       S3_PROTOCOL_ACCESS_KEY_SECRET: ${S3_PROTOCOL_ACCESS_KEY_SECRET}
-      # No imgproxy sidecar — Runly generates its own image variants
-      # (apps/api/src/lib/image-variants.js) instead of using Storage's
-      # on-the-fly transform feature.
-      ENABLE_IMAGE_TRANSFORMATION: "false"
+      # /render/image/ thumbnails (apps/api/src/lib/image-variants.js presets).
+      # Without it every list thumbnail was the multi-MB original.
+      ENABLE_IMAGE_TRANSFORMATION: "true"
+      IMGPROXY_URL: http://supabase-imgproxy:5001
     volumes:
       - supabase-storage-data:/var/lib/storage
+
+  # Same image and settings as upstream's self-hosting reference. Reads the
+  # originals straight from the Storage volume (file backend, same path);
+  # read-only, never published to the host.
+  supabase-imgproxy:
+    image: darthsim/imgproxy:v3.8.0
+    container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-supabase-imgproxy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "imgproxy", "health"]
+      timeout: 5s
+      interval: 5s
+      retries: 3
+    environment:
+      IMGPROXY_BIND: ":5001"
+      IMGPROXY_LOCAL_FILESYSTEM_ROOT: /
+      IMGPROXY_USE_ETAG: "true"
+      IMGPROXY_ENABLE_WEBP_DETECTION: "true"
+      # Phone photos reach 50 MP; the 16.8 MP default would reject them.
+      IMGPROXY_MAX_SRC_RESOLUTION: "60"
+    volumes:
+      - supabase-storage-data:/var/lib/storage:ro
 
   supabase-meta:
     image: supabase/postgres-meta:v0.96.6

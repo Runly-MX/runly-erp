@@ -25,9 +25,10 @@ Files adapted (not verbatim — see inline comments in each for the diff):
 - `docker-compose.supabase.yml` — hand-written for Runly, not a copy of
   upstream's `docker-compose.yml`. Same service set minus `supavisor`
   (pooling isn't needed — every internal Runly service reaches
-  `supabase-db:5432` directly on the Compose network), `imgproxy`/
-  `ENABLE_IMAGE_TRANSFORMATION` (Runly generates its own image variants),
-  and `functions` (no Edge Functions usage). Container names, ports, and
+  `supabase-db:5432` directly on the Compose network) and `functions` (no
+  Edge Functions usage). `imgproxy` is kept (renamed `supabase-imgproxy`,
+  Storage volume mounted read-only, `IMGPROXY_MAX_SRC_RESOLUTION` raised for
+  phone photos): Runly's list thumbnails are Storage transforms. Container names, ports, and
   bind addresses are wired to Runly's per-instance identity
   (`lib/instance-identity.mjs`) and security posture requirements instead
   of upstream's fixed `supabase-*` names and `${KONG_HTTP_PORT}` defaults.

@@ -126,11 +126,13 @@ const SELF_HOSTED_SUPABASE_IMAGES = [
   "supabase/postgres-meta:v0.96.6",
   "supabase/studio:2026.08.03-sha-022b374",
   "kong:3.9.3",
+  "darthsim/imgproxy:v3.8.0",
 ];
 // Everything the app actually needs at runtime — migrate/seed and the
 // Runly profile must wait for these before proceeding.
 const SELF_HOSTED_SUPABASE_REQUIRED_SERVICES = [
   "supabase-db", "supabase-auth", "supabase-rest", "supabase-realtime", "supabase-storage", "supabase-kong",
+  "supabase-imgproxy",
 ];
 // Admin-only (Studio needs Meta); slow to start and never blocks the app.
 const SELF_HOSTED_SUPABASE_BEST_EFFORT_SERVICES = ["supabase-meta", "supabase-studio"];
@@ -1048,8 +1050,9 @@ SUPABASE_S3_ACCESS_KEY_ID=${supabaseS3AccessKeyId}
 SUPABASE_S3_SECRET_ACCESS_KEY=${supabaseS3SecretKey}
 SUPABASE_S3_REGION=${supabaseS3Region}
 # Image thumbnails via Storage transforms (imgproxy). The self-hosted stack
-# ships without imgproxy, so Runly signs the original images there ("off").
-SUPABASE_IMAGE_TRANSFORMS=${fromLocalEnv("SUPABASE_IMAGE_TRANSFORMS") || (supabase.mode === "selfhosted" ? "off" : "")}
+# ships supabase-imgproxy, so transforms are always on there (this also drops
+# the "off" older installers wrote); "off" signs the original images instead.
+SUPABASE_IMAGE_TRANSFORMS=${supabase.mode === "selfhosted" ? "" : fromLocalEnv("SUPABASE_IMAGE_TRANSFORMS")}
 
 # ── Runly Calls / LiveKit ──────────────────────────────────────────────────
 LIVEKIT_MODE=${liveKit.mode}
