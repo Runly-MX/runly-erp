@@ -17,10 +17,18 @@ import {createStudioPrintJobs} from './studio-print-jobs.js'
 import {documentPages, pageDocument} from '../../../../shared/studio/pages.js'
 import { randomBytes } from 'node:crypto'
 import { parseStudioDataFile } from './studio-data-source.js'
+import { createStudioDataProviders } from './studio-data-providers.js'
+import { createInventoryService } from '../../services/inventory-service.js'
+import { createInventoryScope } from '../../services/inventory-scope.js'
+import { createInventoryPublicService } from '../../services/inventory-public-service.js'
+import { appBaseUrlFromEnv } from '../../services/inventory-label-service.js'
+import { createFleetService } from '../fleet/fleet-service.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
-  templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }) }) {
+  templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }),
+  dataProviders = createStudioDataProviders({ prisma, inventory: createInventoryService({ prisma, activityBridge: null }), inventoryScope: createInventoryScope({ prisma }),
+    inventoryPublic: createInventoryPublicService({ prisma, supabaseAdmin }), publicBaseUrl: appBaseUrlFromEnv(), fleet: createFleetService({ prisma, activityBridge: null }) }) }) {
   const app = new Hono()
   app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission }))
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
@@ -154,6 +162,9 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     if (!(body.file instanceof Blob)) throw new StudioError('Falta el archivo de datos.')
     return c.json({ data: await parseStudioDataFile(Buffer.from(await body.file.arrayBuffer()), body.file.name) })
   })
+  // Module data sources: read live with the caller's module permissions and scope.
+  app.get('/studio/data-sources', requirePermission('studio.view'), async c => c.json({ data: await dataProviders.list(c) }))
+  app.post('/studio/data-sources/:key/rows', requirePermission('studio.view'), async c => c.json({ data: await dataProviders.rows(c, c.req.param('key'), await c.req.json()) }))
   app.post('/studio/designs/:id/export/print-pdf', requirePermission('studio.view'), async c => {
     const signal=c.req.raw.signal;checkAbort(signal)
     const before=await service.access.get(...context(c), c.req.param('id'))

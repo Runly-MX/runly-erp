@@ -319,7 +319,7 @@ export function createStudioCatalog({prisma,access,filesService,supabaseAdmin,ne
     const {ids}=await access.assets(prisma,companyId,actorId,document,designId,context)
     const rows=ids.length?await prisma.$queryRaw`SELECT metadata->'studioSource' AS source FROM file_asset WHERE id=ANY(${ids}::uuid[]) AND entity_id=${companyId}::uuid AND enabled`:[]
     await access.get(companyId,actorId,designId)
-    return [...document.objects.filter(o=>o.type==='vector').map(o=>o.svgName?{provider:'local-svg',id:o.id,title:o.svgName,license:'Licencia no declarada',licenseUrl:null,sourceUrl:null,attributionRequired:true}:iconSource(o.iconId)),
+    return [...document.objects.filter(o=>o.type==='vector'&&!o.code).map(o=>o.svgName?{provider:'local-svg',id:o.id,title:o.svgName,license:'Licencia no declarada',licenseUrl:null,sourceUrl:null,attributionRequired:true}:iconSource(o.iconId)),
       ...rows.map(row=>row.source).filter(row=>typeof row?.id==='string'&&Object.hasOwn(adapters,row.provider)&&adapters[row.provider].idPattern.test(row.id))]
   }
   // Availability for the UI: configuration and circuit state only. It never contacts a provider.

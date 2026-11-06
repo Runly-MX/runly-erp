@@ -173,6 +173,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   // Bulk create ("Datos para varias versiones" in Descargar).
   const readFields = useCallback(() => designFields(editorRef.current?.snapshot()), [])
   const bulkData = useMemo(() => ({ readFields, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
+    sources: async () => unwrap(await runly.studio.dataSources(token)), moduleRows: async (key, filters) => unwrap(await runly.studio.dataSourceRows(key, filters, token)),
     insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready])
   // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
   async function exportImage(options, reviewedScene) {

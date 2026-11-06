@@ -1,4 +1,4 @@
-import { BadgeCheck, Clapperboard, CreditCard, FileImage, GalleryVerticalEnd, Image, Megaphone, MonitorPlay, PanelTop, Presentation, Sparkles, Smartphone } from 'lucide-react'
+import { BadgeCheck, Clapperboard, CreditCard, FileImage, GalleryVerticalEnd, Image, Megaphone, MonitorPlay, PanelTop, Presentation, Sparkles, Smartphone, Tag } from 'lucide-react'
 
 // Starting formats for the Studio home. Sizes are pixels (the document unit);
 // they are screen presets, not print measures.
@@ -9,7 +9,10 @@ export const FORMAT_CATEGORIES = Object.freeze([
   { value: 'slides', label: 'Presentaciones', icon: Presentation },
   { value: 'web', label: 'Web y video', icon: MonitorPlay },
   { value: 'brand', label: 'Marca', icon: BadgeCheck },
+  { value: 'labels', label: 'Etiquetas', icon: Tag },
 ])
+
+const labelPx = mm => Math.round(mm / 25.4 * 300)
 
 export const STUDIO_FORMATS = Object.freeze([
   { key: 'post', label: 'Publicación cuadrada', width: 1080, height: 1080, ratio: '1:1', category: 'social', icon: Image, tone: 'from-fuchsia-500 to-violet-600' },
@@ -22,6 +25,9 @@ export const STUDIO_FORMATS = Object.freeze([
   { key: 'thumbnail', label: 'Portada de video', width: 1280, height: 720, ratio: '16:9', category: 'web', icon: Clapperboard, tone: 'from-orange-500 to-pink-500' },
   { key: 'logo', label: 'Logotipo', width: 800, height: 800, ratio: '1:1', category: 'brand', icon: BadgeCheck, tone: 'from-emerald-500 to-teal-500' },
   { key: 'card', label: 'Tarjeta de presentación', width: 1050, height: 600, ratio: 'Horizontal', category: 'brand', icon: CreditCard, tone: 'from-slate-600 to-slate-900' },
+  // Labels are print sizes at 300 ppp (page.ppi), so PDF exports keep the millimetres.
+  ...[['label-50x25', '50 × 25 mm', 50, 25], ['label-62x29', '62 × 29 mm', 62, 29], ['label-100x50', '100 × 50 mm', 100, 50], ['label-2x1', '2 × 1 pulg.', 50.8, 25.4], ['label-4x6', 'Envío 4 × 6 pulg.', 101.6, 152.4]]
+    .map(([key, label, w, h]) => ({ key, label: `Etiqueta ${label}`, width: labelPx(w), height: labelPx(h), ppi: 300, ratio: label, category: 'labels', icon: Tag, tone: 'from-amber-500 to-orange-600' })),
 ])
 
 export function formatsFor(category) {
@@ -29,7 +35,8 @@ export function formatsFor(category) {
 }
 
 export function sizeLabel(page) {
-  return page ? `${page.width} × ${page.height} px` : ''
+  if (!page) return ''
+  return page.ppi ? `${Math.round(page.width / page.ppi * 254) / 10} × ${Math.round(page.height / page.ppi * 254) / 10} mm` : `${page.width} × ${page.height} px`
 }
 
 const relative = new Intl.RelativeTimeFormat('es', { numeric: 'auto' })

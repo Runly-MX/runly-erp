@@ -27,6 +27,8 @@ function validateScene(input) {
     !finite(page.width, 32, STUDIO_LIMITS.side) || !finite(page.height, 32, STUDIO_LIMITS.side) || !isColor(page.background)) fail()
   if (!Array.isArray(input.objects) || input.objects.length > STUDIO_LIMITS.objects) fail()
   let backgroundPaint
+  // Optional print resolution (labels): keeps physical size in PDF/ZPL exports.
+  if(page.ppi!==undefined&&![72,96,150,300].includes(page.ppi))fail()
   if(page.backgroundPaint!==undefined){if(input.schemaVersion<6)fail();try{backgroundPaint=gradientPaint(page.backgroundPaint)}catch{fail()}}
   const ids = new Set()
   const objects = input.objects.map((object) => {
@@ -76,6 +78,12 @@ function validateScene(input) {
       if(object.svgName!==undefined){if(input.schemaVersion<4||typeof object.svgName!=='string'||!object.svgName||object.svgName.length>120||object.iconId!==undefined)fail();clean.svgName=object.svgName}
       else {if(!iconSource(object.iconId))fail();clean.iconId=object.iconId}
       try { clean.geometry = validateGeometry(object.geometry) } catch { fail() }
+      // QR / Code 128: the geometry is generated in the editor from `value` (may hold {{campo}}).
+      if (object.code !== undefined) {
+        const code = object.code
+        if (!code || !['qr', 'code128'].includes(code.kind) || typeof code.value !== 'string' || code.value.length > 300 || clean.svgName === undefined) fail()
+        clean.code = { kind: code.kind, value: code.value }
+      }
     }
     if(object.fillPaint!==undefined){
       if(input.schemaVersion<5||!SHAPE_TYPES.includes(object.type))fail()
@@ -92,7 +100,7 @@ function validateScene(input) {
     return clean
   })
   // Explicit allowlist: viewport, signed URLs and Fabric internals never persist.
-  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: page.id ?? 'page-1', ...(page.name !== undefined ? {name: page.name} : {}), width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}) }, objects }
+  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: page.id ?? 'page-1', ...(page.name !== undefined ? {name: page.name} : {}), width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}), ...(page.ppi!==undefined?{ppi:page.ppi}:{}) }, objects }
 }
 
 export function validateDocument(input) {

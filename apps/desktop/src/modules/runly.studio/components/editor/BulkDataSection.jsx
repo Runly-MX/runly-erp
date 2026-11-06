@@ -1,14 +1,15 @@
 import { useState } from 'react'
-import { Button, DistDropZone, SelectField } from '@runly/ui'
-import { FileSpreadsheet, Info, Plus, X } from 'lucide-react'
+import { Button, DistDropZone, SegmentedControl, SelectField } from '@runly/ui'
+import { Database, FileSpreadsheet, Info, Plus, X } from 'lucide-react'
 import { autoMapping } from '../../lib/studio-bulk.js'
+import { ModuleSourcePicker } from './ModuleSourcePicker.jsx'
 
 const NONE = '__none'
 
 // "Datos para varias versiones": a CSV/XLSX fills the design's {{campo}} text
 // placeholders, one version per row. value: null or { fileName, headers, rows, total, truncated, mapping }.
-export function BulkDataSection({ fields, value, onChange, onParse, onInsertField }) {
-  const [busy, setBusy] = useState(false), [error, setError] = useState(null)
+export function BulkDataSection({ fields, value, onChange, onParse, onInsertField, loadSources, loadRows }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [origin, setOrigin] = useState('file')
   async function load(file) {
     setBusy(true); setError(null)
     try {
@@ -18,22 +19,27 @@ export function BulkDataSection({ fields, value, onChange, onParse, onInsertFiel
   }
   const mapping = value ? { ...autoMapping(fields, value.headers), ...value.mapping } : {}
   const hint = <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
-    <span>Escribe campos como <strong>{'{{nombre}}'}</strong> en tus textos; cada fila del archivo crea una versión con sus valores. El diseño guardado no cambia.</span></p>
+    <span>Escribe campos como <strong>{'{{Nombre}}'}</strong> en textos, códigos QR o de barras; cada fila o registro crea una versión con sus valores. El diseño guardado no cambia.</span></p>
   if (!value) return (
     <div className="space-y-2">
       {hint}
-      <DistDropZone variant="compact" accept=".csv,.xlsx" maxSizeMB={2} isUploading={busy} onFile={load} error={error}
-        emptyLabel="Sube un CSV o Excel" emptyHint="Primera fila con los nombres de columna, hasta 500 filas" dragActiveLabel="Suelta el archivo aquí" />
+      {loadSources ? <SegmentedControl ariaLabel="Origen de los datos" value={origin} onChange={setOrigin} className="w-full [&_button]:min-w-0"
+        options={[{ value: 'file', label: 'Archivo' }, { value: 'module', label: 'Desde un módulo' }]} /> : null}
+      {origin === 'module' && loadSources
+        ? <ModuleSourcePicker loadSources={loadSources} loadRows={loadRows}
+          onLoaded={(source, parsed) => onChange({ fileName: source.label, module: true, ...parsed, mapping: autoMapping(fields, parsed.headers) })} />
+        : <DistDropZone variant="compact" accept=".csv,.xlsx" maxSizeMB={2} isUploading={busy} onFile={load} error={error}
+          emptyLabel="Sube un CSV o Excel" emptyHint="Primera fila con los nombres de columna, hasta 500 filas" dragActiveLabel="Suelta el archivo aquí" />}
     </div>
   )
   const first = value.rows[0] ?? {}
   return (
     <div className="space-y-3">
       <div className="flex items-center gap-2 rounded-md border border-[hsl(var(--border))] px-2.5 py-2 text-sm">
-        <FileSpreadsheet className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
+        {value.module ? <Database className="h-4 w-4 shrink-0 text-sky-600" aria-hidden /> : <FileSpreadsheet className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />}
         <span className="min-w-0 flex-1 truncate font-medium">{value.fileName}</span>
         <span className="shrink-0 text-xs text-[hsl(var(--muted-foreground))]">{value.rows.length} {value.rows.length === 1 ? 'fila' : 'filas'}{value.truncated ? ` de ${value.total}` : ''}</span>
-        <Button type="button" variant="ghost" size="icon" aria-label="Quitar archivo" className="h-7 w-7" onClick={() => onChange(null)}><X className="h-4 w-4" /></Button>
+        <Button type="button" variant="ghost" size="icon" aria-label={value.module ? 'Quitar datos' : 'Quitar archivo'} className="h-7 w-7" onClick={() => onChange(null)}><X className="h-4 w-4" /></Button>
       </div>
       {value.truncated ? <p className="text-xs text-amber-700 dark:text-amber-300">Solo se usan las primeras {value.rows.length} filas.</p> : null}
       {fields.length ? (

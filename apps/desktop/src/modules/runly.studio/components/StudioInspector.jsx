@@ -11,6 +11,7 @@ import { FillPicker } from './editor/paint/FillControls.jsx'
 import { canHoldPhoto, isShape } from '../lib/photo-target.js'
 import { paintCss } from '../lib/paint.js'
 import { OBJECT_META } from './editor/LayersPanel.jsx'
+import { CodeContentField } from './editor/CodeContentField.jsx'
 
 const ALIGN = [
   ['left', 'Alinear a la izquierda', AlignStartVertical], ['center', 'Centrar horizontalmente', AlignCenterVertical], ['right', 'Alinear a la derecha', AlignEndVertical],
@@ -145,6 +146,11 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
         <Section title="Texto">
           <Textarea aria-label="Texto del elemento" rows={3} disabled={editable} value={selection.text} onChange={event => onPatch({ text: event.target.value })} />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Fuente, estilo, tamaño, color, alineación y espaciado están en la barra del lienzo.</p>
+        </Section>
+      ) : null}
+      {selection.code ? (
+        <Section title="Contenido">
+          <CodeContentField key={`${selection.id}:${selection.code.value}`} selection={selection} disabled={editable} onPatch={onPatch} />
         </Section>
       ) : null}
       {selection.type !== 'image' && selection.type !== 'text' && !(shapeTools && isShape(selection)) ? (

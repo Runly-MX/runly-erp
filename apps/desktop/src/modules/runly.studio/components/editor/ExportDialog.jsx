@@ -131,7 +131,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           {!native && bulkData ? (
             <section aria-label="Datos para varias versiones" className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
               <p className="text-sm font-semibold">Datos para varias versiones</p>
-              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} />
+              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} loadSources={bulkData.sources} loadRows={bulkData.moduleRows} />
             </section>
           ) : null}
           {native ? (

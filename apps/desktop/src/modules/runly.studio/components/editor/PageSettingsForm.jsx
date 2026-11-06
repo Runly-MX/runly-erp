@@ -12,7 +12,7 @@ const PRESETS = STUDIO_FORMATS.filter((format, index, all) => all.findIndex(othe
 export function PageSettingsForm({ page, onApply, creating = false, disabled = false, onDone, background }) {
   const [draft, setDraft] = useState(page), [scale, setScale] = useState(false)
   const [error, setError] = useState(''), [busy, setBusy] = useState(false)
-  const changed = draft.width !== page.width || draft.height !== page.height || draft.background !== page.background
+  const changed = draft.width !== page.width || draft.height !== page.height || draft.background !== page.background || draft.ppi !== page.ppi
   async function apply() {
     try { setBusy(true); setError(''); await onApply(draft, scale); onDone?.() }
     catch (error) { setError(error.message) } finally { setBusy(false) }
@@ -26,11 +26,11 @@ export function PageSettingsForm({ page, onApply, creating = false, disabled = f
             const active = draft.width === format.width && draft.height === format.height
             return (
               <button key={format.key} type="button" disabled={disabled} aria-pressed={active}
-                onClick={() => setDraft(current => ({ ...current, width: format.width, height: format.height }))}
+                onClick={() => setDraft(current => ({ ...current, width: format.width, height: format.height, ppi: format.ppi }))}
                 className={cn('min-h-11 rounded-md border px-2.5 py-2 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:opacity-50',
                   active ? 'border-transparent bg-fuchsia-600 text-white' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}>
                 <span className="block truncate text-xs font-semibold">{format.label}</span>
-                <span className={cn('block text-[11px] tabular-nums', active ? 'text-white/80' : 'text-[hsl(var(--muted-foreground))]')}>{format.width} × {format.height}</span>
+                <span className={cn('block text-[11px] tabular-nums', active ? 'text-white/80' : 'text-[hsl(var(--muted-foreground))]')}>{format.ppi ? format.ratio : `${format.width} × ${format.height}`}</span>
               </button>
             )
           })}

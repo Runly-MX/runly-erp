@@ -19,7 +19,8 @@ const unwrap = response => response?.data ?? response
 function draftFor(kind, value) {
   if (kind === 'copy') return value
   if (kind === 'custom') return { name: 'Diseño sin título', document: validateDocument({ ...blankDocument(), page: value }) }
-  return { name: value.label ? `${value.label} sin título` : 'Diseño sin título', document: blankDocument(value.width, value.height) }
+  const blank = blankDocument(value.width, value.height)
+  return { name: value.label ? `${value.label} sin título` : 'Diseño sin título', document: value.ppi ? validateDocument({ ...blank, page: { ...blank.page, ppi: value.ppi } }) : blank }
 }
 
 function EditorSkeleton() {

@@ -140,9 +140,9 @@ export async function createStudioEditor(element, options) {
       writable()
       return enqueue(() => { writable(); return show(validateDocument(applyOps(current, checkOps(ops)))) })
     },
-    addPage({id, width = current.page.width, height = current.page.height, background = '#ffffff', name, afterId = active} = {}) {
+    addPage({id, width = current.page.width, height = current.page.height, background = '#ffffff', name, afterId = active, ppi = current.page.ppi} = {}) {
       if (!id) throw Error('Proporciona una identidad estable para la página.')
-      return methods.applyPageOperations([{type: 'addPage', afterId, scene: {page: {id, width, height, background, ...(name ? {name} : {})}, objects: []}}])
+      return methods.applyPageOperations([{type: 'addPage', afterId, scene: {page: {id, width, height, background, ...(name ? {name} : {}), ...(ppi ? {ppi} : {})}, objects: []}}])
     },
     duplicatePage(id, newId) { return methods.applyPageOperations([{type: 'duplicatePage', pageId: id, newId}]) },
     removePage(id) {
@@ -779,7 +779,9 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       if (original.locked && Object.keys(patch).some(key => !['locked', 'hidden'].includes(key))) return
       const next = validateCandidate({ ...snapshot(), objects: snapshot().objects.map(item => item.id === object.studioId ? mergePatch(item,patch) : item) })
       let item = next.objects.find(item => item.id === object.studioId)
-      if(SHAPE_TYPES.includes(item.type)&&(item.fillPaint||item.shape||original.fillPaint||original.shape))return enqueue(async()=>{
+      // A QR/barcode content change regenerates the geometry, so the vector is rebuilt too.
+      const regenerated=item.type==='vector'&&JSON.stringify(item.geometry)!==JSON.stringify(original.geometry)
+      if(SHAPE_TYPES.includes(item.type)&&(regenerated||item.fillPaint||item.shape||original.fillPaint||original.shape))return enqueue(async()=>{
         writable()
         object=canvas.getObjects().find(o=>o.studioId===original.id)
         if(!object)throw Error('La forma ya no existe.')
