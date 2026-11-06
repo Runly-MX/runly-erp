@@ -203,23 +203,23 @@ export default function InventoryScreen() {
         { key: 'adminStatus', label: 'Estado', type: 'select', icon: ShieldCheck, options: ADMIN_FILTER_OPTIONS.map(o => ({ ...o, color: ADMIN_COLORS[o.value] })) },
         { key: 'status',     label: 'Disponibilidad', type: 'select', icon: Activity, options: STATUS_OPTIONS },
         { key: 'conditionId', label: 'Condición', type: 'multiselect', icon: Wrench, options: conditionOptions },
-        { key: 'categoryId', label: 'Tipo', type: 'select', icon: Boxes, options: categoryOptions },
-        { key: 'brandId',    label: 'Marca',     type: 'select', icon: Tag, options: brandOptions },
-        { key: 'locationId', label: 'Ubicación', type: 'select', icon: MapPin, options: locationOptions },
+        { key: 'categoryId', label: 'Tipo', type: 'select', column: 'categoryName', icon: Boxes, options: categoryOptions },
+        { key: 'brandId',    label: 'Marca',     type: 'select', column: 'brandName', icon: Tag, options: brandOptions },
+        { key: 'locationId', label: 'Ubicación', type: 'select', column: 'locationName', icon: MapPin, options: locationOptions },
         // -> areaId=<uuid>|__none__ (General); only when the user has areas to filter by.
-        ...(areaChoices.filterOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', icon: FolderTree, options: areaChoices.filterOptions }] : []),
+        ...(areaChoices.filterOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', column: 'areaName', icon: FolderTree, options: areaChoices.filterOptions }] : []),
         // -> mine=true: items I created or that are assigned to me (the API resolves who I am).
         { key: 'mine',       label: 'Míos', type: 'select', icon: UserCheck, options: MINE_OPTIONS },
-        // -> labeled=false|true on /inventory/items (print log based).
-        { key: 'labeled',    label: 'Etiqueta', type: 'select', icon: QrCode, options: LABELED_OPTIONS },
+        // -> labeled=false|true on /inventory/items (print log based). Filters with `column` show only while that column is visible.
+        { key: 'labeled',    label: 'Etiqueta', type: 'select', column: 'labelPrintCount', icon: QrCode, options: LABELED_OPTIONS },
         ...Object.entries(TEXT_FILTER_LABELS)
           .filter(([key]) => initialFilters[key])
           .map(([key, label]) => ({ key, label, type: 'select', options: [{ value: initialFilters[key], label: initialFilters[key] }] })),
         ...(initialFilters.customField ? [{ key: 'customField', label: searchParams.get('customFieldLabel') || 'Campo personalizado', type: 'select', options: [{ value: initialFilters.customField, label: customFieldValueLabel(initialFilters.customField) }] }] : []),
         ...(initialFilters.modelId ? [{ key: 'modelId', label: 'Modelo', type: 'select', options: modelOptions }] : []),
         // -> createdFrom/createdTo and purchaseFrom/purchaseTo on /inventory/items.
-        { key: 'created',    label: 'Fecha de alta',   type: 'daterange', icon: CalendarPlus },
-        { key: 'purchase',   label: 'Fecha de compra', type: 'daterange', icon: ShoppingCart },
+        { key: 'created',    label: 'Fecha de alta',   type: 'daterange', column: 'createdAt', icon: CalendarPlus },
+        { key: 'purchase',   label: 'Fecha de compra', type: 'daterange', column: 'purchaseDate', icon: ShoppingCart },
       ],
       emptyState: { message: 'No hay activos registrados.' },
     },

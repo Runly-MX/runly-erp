@@ -268,6 +268,7 @@ export function normalizeToFilterMenuSpecs(normalizedFilters) {
     .map((f) => {
       const spec = { key: f.key, label: f.label };
       if (f.icon) spec.icon = f.icon;
+      if (f.column) spec.column = f.column;
       if (f.type === "daterange") return { ...spec, type: "daterange", fromKey: f.fromKey, toKey: f.toKey };
       return {
         ...spec,

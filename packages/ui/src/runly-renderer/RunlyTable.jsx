@@ -36,7 +36,7 @@ import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
 import { isNewTabClick, rowOpenProps } from "./row-open.js";
 import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
-import { clearAllPatch } from "../components/filter-menu-helpers.js";
+import { clearAllPatch, isFilterActive } from "../components/filter-menu-helpers.js";
 import { toggleWithRange } from "./selection-range.js";
 
 // Rows before the first load: the selection effect skips it so a restored selection survives until real rows arrive.
@@ -285,6 +285,11 @@ export function RunlyTable({
   });
   const filterValuesRef = useRef(filterValues);
   filterValuesRef.current = filterValues;
+  // A filter tied to a column (`column: <field>`) shows only while that column is visible, or while it is set.
+  const menuFilters = useMemo(() => {
+    const visibleKeys = new Set(visibleColumns.map((c) => c.key));
+    return filterBarFilters.filter((f) => !f.column || visibleKeys.has(f.column) || isFilterActive(f, filterValues));
+  }, [filterBarFilters, visibleColumns, filterValues]);
   const externalFiltersKey = externalFilters ? JSON.stringify(externalFilters) : "";
   const externalFiltersSeenRef = useRef(false);
   useEffect(() => {
@@ -948,7 +953,7 @@ export function RunlyTable({
           search={searchable ? searchInput : ""}
           onSearchChange={searchable ? setSearchInput : undefined}
           searchPlaceholder={schema?.searchPlaceholder ?? "Buscar..."}
-          filterBarFilters={filterBarFilters}
+          filterBarFilters={menuFilters}
           filterValues={filterValues}
           onFilterChange={(next) => {
             setPage(1);

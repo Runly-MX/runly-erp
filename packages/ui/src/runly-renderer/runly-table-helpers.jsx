@@ -189,6 +189,7 @@ export function normalizeFilters(schema) {
             fromKey: entry.fromKey ?? `${key}From`,
             toKey: entry.toKey ?? `${key}To`,
             icon: entry.icon,
+            column: entry.column,
             options: [],
           };
         }
@@ -197,9 +198,10 @@ export function normalizeFilters(schema) {
           label: normalizeSpanishLabel(
             entry.label ?? entry.title ?? String(key),
           ),
-          type: entry.type === "select" ? "select" : "text",
+          type: entry.type === "select" || entry.type === "multiselect" ? "select" : "text",
           icon: entry.icon,
-          multi: entry.multi === true,
+          column: entry.column,
+          multi: entry.multi === true || entry.type === "multiselect",
           options: Array.isArray(entry.options) ? entry.options : [],
         };
       })
