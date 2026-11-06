@@ -63,6 +63,8 @@ function validateScene(input) {
       if (typeof object.fileAssetId !== 'string' || !FILE_ID.test(object.fileAssetId)) fail()
       clean.fileAssetId = object.fileAssetId.toLowerCase()
       if(object.image!==undefined){if(input.schemaVersion<4)fail();try{clean.image=imageProperties(object.image)}catch{fail()}}
+      // Bulk create: the photo of each row replaces this image (field name without braces; '' clears it).
+      if(object.imageField!==undefined&&object.imageField!==''){if(typeof object.imageField!=='string'||object.imageField.length>60||/[{}]/.test(object.imageField))fail();clean.imageField=object.imageField}
     }
     if(object.type==='line'){
       if(input.schemaVersion<4)fail()

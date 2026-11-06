@@ -133,7 +133,7 @@ export function compactOps(ops) {
   return result
 }
 
-const OBJECT_KEYS=new Set('x y width height rotation fill opacity groupId locked hidden text fontSize fontFamily fontVariant scaleX scaleY textAlign lineHeight charSpacing underline linethrough fileAssetId image points strokeWidth dash startArrow endArrow startCap endCap geometry svgName iconId code fillPaint shape'.split(' '))
+const OBJECT_KEYS=new Set('x y width height rotation fill opacity groupId locked hidden text fontSize fontFamily fontVariant scaleX scaleY textAlign lineHeight charSpacing underline linethrough fileAssetId image points strokeWidth dash startArrow endArrow startCap endCap geometry svgName iconId code imageField fillPaint shape'.split(' '))
 const PAGE_KEYS=new Set(['width','height','background','backgroundPaint','name','ppi'])
 const validId=id=>typeof id==='string'&&/^[a-zA-Z0-9_-]{1,64}$/.test(id)
 function propertyDiff(before,after){

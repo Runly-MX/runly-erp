@@ -1,5 +1,6 @@
 import { documentPages } from '../../../../../shared/studio/pages.js'
 import { codeGeometry } from './studio-codes.js'
+import { FILE_ID } from '../../../../../shared/studio/document.js'
 
 // Bulk create: text boxes carry {{campo}} placeholders; each spreadsheet row
 // fills them in a copy of the document. The saved design is never touched.
@@ -11,6 +12,7 @@ export const fieldKey = value => String(value ?? '').normalize('NFD').replace(/\
 export function designFields(document) {
   const seen = new Map()
   for (const scene of document ? documentPages(document) : []) for (const object of scene.objects) {
+    if (object.imageField && !seen.has(fieldKey(object.imageField))) seen.set(fieldKey(object.imageField), object.imageField)
     const source = object.type === 'text' ? object.text : object.code?.value
     if (typeof source !== 'string') continue
     for (const [, name] of source.matchAll(FIELD)) if (!seen.has(fieldKey(name))) seen.set(fieldKey(name), name)
@@ -22,6 +24,8 @@ const fill = (source, values) => source.replace(FIELD, (_, name) => values[field
 // Codes regenerate their geometry from the filled value (a too-long value fails that row's export).
 const fillObject = (object, values) => {
   if (object.type === 'text') return { ...object, text: fill(object.text, values) }
+  // A row without a photo keeps the design's placeholder image.
+  if (object.imageField) { const id = values[fieldKey(object.imageField)]; return FILE_ID.test(id ?? '') ? { ...object, fileAssetId: id.toLowerCase() } : object }
   if (!object.code?.value.includes('{{')) return object
   const value = fill(object.code.value, values)
   return { ...object, code: { ...object.code, value }, geometry: codeGeometry(object.code.kind, value) }
@@ -41,4 +45,14 @@ export function autoMapping(fields, headers) {
 
 export function rowValues(row, mapping) {
   return Object.fromEntries(Object.entries(mapping).map(([field, header]) => [fieldKey(field), header ? String(row[header] ?? '') : '']))
+}
+
+// Labels per letter sheet (laser printers): 10 mm margins, 3 mm gaps. null when one does not fit.
+export const LETTER_MM = { width: 215.9, height: 279.4 }
+export function sheetGrid(label, { margin = 10, gap = 3 } = {}) {
+  const fit = (sheet, size) => Math.floor((sheet - 2 * margin + gap) / (size + gap))
+  const columns = fit(LETTER_MM.width, label.width), rows = fit(LETTER_MM.height, label.height)
+  if (columns < 1 || rows < 1) return null
+  const cell = index => ({ page: Math.floor(index / (columns * rows)), x: margin + (index % columns) * (label.width + gap), y: margin + Math.floor((index % (columns * rows)) / columns) * (label.height + gap) })
+  return { columns, rows, perSheet: columns * rows, cell }
 }

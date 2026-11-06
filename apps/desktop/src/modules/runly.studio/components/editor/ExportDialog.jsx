@@ -5,7 +5,7 @@ import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages, planScreenExport } from '../../lib/studio-export-plan.js'
 import { ZplOptions } from './ZplOptions.jsx'
 import { parsePageRange } from '../../lib/studio-pages.js'
-import { BULK_PDF_PAGES, autoMapping } from '../../lib/studio-bulk.js'
+import { BULK_PDF_PAGES, autoMapping, sheetGrid } from '../../lib/studio-bulk.js'
 import { BulkDataSection } from './BulkDataSection.jsx'
 
 const KEY = 'runly.studio.export-options'
@@ -41,7 +41,7 @@ function Result({ options, plan, versions = 0 }) {
     <div role="status" aria-live="polite" className={cn('rounded-lg border px-3 py-2 text-xs sm:text-sm', plan.error ? 'border-[hsl(var(--destructive)/0.5)] bg-[hsl(var(--destructive)/0.06)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]')}>
       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
         {plan.error ? <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" aria-hidden /> : null}Se generará {versions
-          ? options.type === 'pdf' ? `un PDF con ${versions * plan.items.length} páginas (${versions} versiones)` : options.type === 'zpl' ? `un ZPL con ${versions} etiquetas` : `un ZIP con ${versions} ${options.type.toUpperCase()}`
+          ? options.type === 'pdf' ? plan.sheets ? `un PDF con ${plan.sheets} ${plan.sheets === 1 ? 'hoja carta' : 'hojas carta'} (${plan.perSheet} etiquetas por hoja)` : `un PDF con ${versions * plan.items.length} páginas (${versions} versiones)` : options.type === 'zpl' ? `un ZPL con ${versions} etiquetas` : `un ZIP con ${versions} ${options.type.toUpperCase()}`
           : options.type === 'pdf' ? 'un PDF' : `un ${options.type.toUpperCase()}`}
       </p>
       <dl className="space-y-0.5">
@@ -87,8 +87,11 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     // Batch PDFs are built in the browser: RGB, no bleed or crop marks.
     const base = planPdfPages(selected, versions ? { ...options, bleed: false, cropMarks: false } : options)
     if (scope === 'range' && parsed?.error) return { ...base, error: parsed.error, items: [] }
-    return !base.error && versions * base.items.length > BULK_PDF_PAGES
-      ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${versions * base.items.length}). Usa menos filas o páginas.` } : base
+    const labels = versions * base.items.length, grid = versions && options.sheet && base.items[0] ? sheetGrid(base.items[0].plan.trim) : null
+    if (versions && options.sheet && !base.error && !grid) return { ...base, error: 'La etiqueta no cabe en una hoja carta con márgenes de 10 mm.' }
+    const sheets = grid ? Math.ceil(labels / grid.perSheet) : null
+    return !base.error && (sheets ?? labels) > BULK_PDF_PAGES
+      ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${sheets ?? labels}). Usa menos filas o páginas.` } : { ...base, sheets, perSheet: grid?.perSheet }
   }, [page, options, ppi, selected, scope, parsed, native, versions])
   function submit() {
     if (plan.error || exporting || (native && !acknowledged)) return
@@ -97,7 +100,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
       ...(options.type === 'zpl' ? { printer: printers.find(item => item.id === options.printerId) ?? null } : {}),
-      ...(versions ? { bulk: { rows: bulk.rows, mapping, source: bulk.source ?? null, ids: bulk.ids ?? null } } : {}) })
+      ...(versions ? { bulk: { rows: bulk.rows, mapping, source: bulk.source ?? null, ids: bulk.ids ?? null, images: bulk.images ?? null } } : {}) })
   }
   function arrows(event) {
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
@@ -135,7 +138,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           {!native && bulkData ? (
             <section aria-label="Datos para varias versiones" className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
               <p className="text-sm font-semibold">Datos para varias versiones</p>
-              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} loadSources={bulkData.sources} loadRows={bulkData.moduleRows} />
+              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} loadSources={bulkData.sources} loadRows={bulkData.moduleRows} rememberKey={bulkData.rememberKey} />
             </section>
           ) : null}
           {native ? (
@@ -196,6 +199,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                   options={[...(multiple ? [{ value: 'auto', label: 'Según el tamaño de cada página' }] : []), ...SOURCE_PPI.map(value => ({ value: String(value), label: `${value} ppp` }))]} />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Cuántos píxeles del diseño caben en una pulgada: define la medida impresa. Si no coincide con tu impreso, cambia las medidas del diseño.</p>
               </div>
+              {versions ? <CheckboxField label="Varias etiquetas por hoja carta" checked={Boolean(options.sheet)} onChange={event => set({ sheet: event.target.checked })}
+                hint="Para impresoras láser con hojas de etiquetas: acomoda las versiones en filas y columnas con márgenes de 10 mm." /> : null}
               {versions ? (
                 <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
                   <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

@@ -23,12 +23,15 @@ import { createInventoryScope } from '../../services/inventory-scope.js'
 import { createInventoryPublicService } from '../../services/inventory-public-service.js'
 import { appBaseUrlFromEnv } from '../../services/inventory-label-service.js'
 import { createFleetService } from '../fleet/fleet-service.js'
+import { createHrService } from '../../services/hr-service.js'
+import { signedUrlWithVariant } from '../../lib/image-variants.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
   templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }),
   dataProviders = createStudioDataProviders({ prisma, inventory: createInventoryService({ prisma, activityBridge: null }), inventoryScope: createInventoryScope({ prisma }),
-    inventoryPublic: createInventoryPublicService({ prisma, supabaseAdmin }), publicBaseUrl: appBaseUrlFromEnv(), fleet: createFleetService({ prisma, activityBridge: null }) }) }) {
+    inventoryPublic: createInventoryPublicService({ prisma, supabaseAdmin }), publicBaseUrl: appBaseUrlFromEnv(), fleet: createFleetService({ prisma, activityBridge: null }), hr: createHrService({ prisma, activityBridge: null }),
+    signFile: file => signedUrlWithVariant(supabaseAdmin, file.bucket, file.objectKey, 'full') }) }) {
   const app = new Hono()
   app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission }))
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })

@@ -28,8 +28,21 @@ const table = (headers, records, total, toRow) => {
   return { headers, rows, ids: records.map(record => record.id ?? null), total, truncated: total > rows.length }
 }
 
-export function createStudioDataProviders({ prisma, inventory, inventoryScope, inventoryPublic, publicBaseUrl, fleet }) {
+export function createStudioDataProviders({ prisma, inventory, inventoryScope, inventoryPublic, publicBaseUrl, fleet, hr, signFile }) {
   const can = (c, permission) => Boolean(c.get('userContext')?.isAdmin || c.get('userContext')?.permissionSet?.has(permission))
+  // Photo per row: { fileId: signedUrl } for this company's enabled files only (a 'Foto' column holds the id).
+  async function photos(companyId, ids) {
+    const wanted = [...new Set(ids.filter(id => UUID.test(id ?? '')))]
+    if (!wanted.length || !signFile) return {}
+    const files = await prisma.fileAsset.findMany({ where: { id: { in: wanted }, entityId: companyId, enabled: true, mimeType: { startsWith: 'image/' } }, select: { id: true, bucket: true, objectKey: true } })
+    const signed = await Promise.all(files.map(async file => [file.id, await signFile(file).catch(() => null)]))
+    return Object.fromEntries(signed.filter(([, url]) => url))
+  }
+  const withPhotos = async (c, result, records, idOf) => {
+    const images = await photos(c.get('companyId'), records.map(idOf))
+    result.rows.forEach((row, i) => { row.Foto = images[idOf(records[i])] ? idOf(records[i]) : '' })
+    return { ...result, headers: [...result.headers, 'Foto'], images }
+  }
   const providers = [
     {
       key: 'inventory', label: 'Inventario', permission: 'inventory.item.read',
@@ -51,9 +64,9 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
         // The public link is what the inventory QR labels encode; issuing it needs the print permission.
         const links = can(c, 'inventory.label.print') ? await inventoryPublic.ensureTokens(companyId, items.map(item => item.id)) : null
         const headers = ['Nombre', 'Número de activo', 'Folio', 'Modelo', 'Marca', 'Categoría', 'Número de serie', 'Número de parte', 'Ubicación', 'Área', 'Responsable', 'Estado', ...(links ? ['Enlace público'] : [])]
-        return table(headers, items, total, item => [item.name, item.assetTag, item.folio, item.model, item.brandName, item.categoryName, item.serialNumber, item.partNumber,
+        return withPhotos(c, table(headers, items, total, item => [item.name, item.assetTag, item.folio, item.model, item.brandName, item.categoryName, item.serialNumber, item.partNumber,
           item.locationName, item.areaName, item.assignedToName, ITEM_STATUS[item.status] ?? item.status,
-          ...(links ? [links.has(item.id) ? inventoryPublic.urlFor(publicBaseUrl, links.get(item.id)) : ''] : [])])
+          ...(links ? [links.has(item.id) ? inventoryPublic.urlFor(publicBaseUrl, links.get(item.id)) : ''] : [])]), items, item => item.coverImageFileId)
       },
     },
     {
@@ -65,8 +78,42 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
           return { data: result.data, total: result.pagination.total }
         }, 100)
         const headers = ['Placa', 'Número económico', 'Marca', 'Modelo', 'Tipo', 'Año', 'Color', 'Estado', 'Conductor']
-        return table(headers, vehicles, total, row => [row.plate, row.economic_number, row.vehicle_brand_name ?? row.brand, row.vehicle_model_name ?? row.model_name,
-          row.vehicle_type_name, row.year ?? row.vehicle_model_year, row.color, VEHICLE_STATUS[row.status] ?? row.status, row.driver_name])
+        return withPhotos(c, table(headers, vehicles, total, row => [row.plate, row.economic_number, row.vehicle_brand_name ?? row.brand, row.vehicle_model_name ?? row.model_name,
+          row.vehicle_type_name, row.year ?? row.vehicle_model_year, row.color, VEHICLE_STATUS[row.status] ?? row.status, row.driver_name]), vehicles, row => row.cover_image_file_asset_id)
+      },
+    },
+    {
+      // Badges: work data only; personal email, emergency contacts and payroll data are never offered.
+      key: 'hr', label: 'Recursos humanos', permission: 'hr.employee.read',
+      filters: async () => [{ key: 'search', label: 'Buscar', type: 'text' }],
+      async rows(c, filters) {
+        const { rows: people, total } = await collect(async (page, pageSize) => {
+          const result = await hr.listEmployees({ authUserId: c.get('authUserId'), companyId: c.get('companyId'), page, pageSize, enabled: true, search: filters.search || undefined, sortBy: 'full_name' })
+          return { data: result.rows, total: result.total }
+        }, 200)
+        const headers = ['Nombre completo', 'Nombre', 'Apellidos', 'Número de empleado', 'Puesto', 'Departamento', 'Correo de trabajo', 'Teléfono', 'Ubicación', 'Jefe directo', 'Fecha de ingreso']
+        return withPhotos(c, table(headers, people, total, row => [row.full_name, row.first_name, row.last_name, row.employee_code, row.job_title, row.department,
+          row.work_email, row.phone, row.work_location, row.manager_name, row.hire_date]), people, row => row.photo_file_id)
+      },
+    },
+    {
+      // Shipping labels: the contact's default (or first) address.
+      key: 'contacts', label: 'Contactos', permission: 'contacts.contacts.read',
+      filters: async () => [{ key: 'search', label: 'Buscar', type: 'text' }],
+      async rows(c, filters) {
+        const term = filters.search?.trim()
+        const where = { companyId: c.get('companyId'), enabled: true, ...(term ? { OR: ['name', 'legalName', 'email', 'phone'].map(field => ({ [field]: { contains: term, mode: 'insensitive' } })) } : {}) }
+        const [contacts, total] = await Promise.all([
+          prisma.contact.findMany({ where, orderBy: { name: 'asc' }, take: STUDIO_DATA_LIMITS.rows,
+            include: { addresses: { orderBy: [{ isDefault: 'desc' }, { sortOrder: 'asc' }], take: 1 } } }),
+          prisma.contact.count({ where }),
+        ])
+        const headers = ['Nombre', 'Razón social', 'Correo', 'Teléfono', 'Calle', 'Número exterior', 'Número interior', 'Colonia', 'Código postal', 'Ciudad', 'Estado', 'País', 'Dirección completa']
+        return withPhotos(c, table(headers, contacts, total, contact => {
+          const a = contact.addresses[0] ?? {}
+          const line = [[a.street, a.extNumber, a.intNumber ? `int. ${a.intNumber}` : null].filter(Boolean).join(' '), a.neighborhood, [a.postalCode, a.city].filter(Boolean).join(' '), a.state].filter(Boolean).join(', ')
+          return [contact.name, contact.legalName, contact.email, contact.phone, a.street, a.extNumber, a.intNumber, a.neighborhood, a.postalCode, a.city, a.state, a.country, line]
+        }), contacts, contact => contact.avatarFileId)
       },
     },
   ]

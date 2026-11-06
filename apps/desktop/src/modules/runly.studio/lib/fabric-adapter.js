@@ -105,7 +105,9 @@ export async function createStudioEditor(element, options) {
     if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
   }
   // verify=false renders a derived document (bulk create) instead of the live page.
-  async function renderPage(id, scene, task, signal, verify = true) {
+  // Row photos arrive pre-signed by the bulk data source (company files the user may read).
+  const rowResolver = images => (images ? (assetId, signal) => (images[assetId] ? Promise.resolve(images[assetId]) : options.resolveImage(assetId, signal)) : options.resolveImage)
+  async function renderPage(id, scene, task, signal, verify = true, resolve = options.resolveImage) {
     const canonical = validateDocument(scene)
     checkAbort(signal)
     await options.authorizePage?.(id, signal)
@@ -113,10 +115,10 @@ export async function createStudioEditor(element, options) {
     const canvas = element.ownerDocument.createElement('canvas')
     let renderer
     try {
-      renderer = await createPageEditor(canvas, {document: pageDocument(canonical, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true, loadSignal: signal})
+      renderer = await createPageEditor(canvas, {document: pageDocument(canonical, id), resolveImage: assetId => resolve(assetId, signal), readOnly: true, loadSignal: signal})
       checkAbort(signal)
       const result = await task(renderer)
-      for(const assetId of documentAssetIds(pageDocument(canonical,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
+      for(const assetId of documentAssetIds(pageDocument(canonical,id))) { await resolve(assetId,signal); checkAbort(signal) }
       await options.authorizePage?.(id, signal)
       checkAbort(signal)
       if (verify && JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(canonical, id))) throw Error('La página cambió durante la exportación.')
@@ -181,7 +183,7 @@ export async function createStudioEditor(element, options) {
     // Bulk create: `reviewed` is the credited scene, `variant` the same scene with filled text.
     async exportVariant(id, reviewed, variant, format = 'png', quality = 1, settings = {}) {
       assertReviewed(reviewed)
-      const result = await auxiliary(() => renderPage(id, variant, renderer => renderer.exportImage(format, quality, undefined, settings), settings.signal, false))
+      const result = await auxiliary(() => renderPage(id, variant, renderer => renderer.exportImage(format, quality, undefined, settings), settings.signal, false, rowResolver(settings.images)))
       assertReviewed(reviewed)
       return result
     },

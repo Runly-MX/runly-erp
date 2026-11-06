@@ -175,11 +175,11 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   }
   // Bulk create ("Datos para varias versiones" in Descargar).
   const readFields = useCallback(() => designFields(editorRef.current?.snapshot()), [])
-  const bulkData = useMemo(() => ({ readFields, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
+  const bulkData = useMemo(() => ({ readFields, rememberKey: `runly.studio.bulk-source.${record.id}`, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
     sources: async () => unwrap(await runly.studio.dataSources(token)), moduleRows: async (key, filters) => unwrap(await runly.studio.dataSourceRows(key, filters, token)),
     // Inventory label printers (ZPL); without inventory.label.read the list is simply empty.
     printers: async () => { try { return unwrap(await runly.inventory.labels.listPrinters(token)) ?? [] } catch { return [] } },
-    insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready])
+    insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready, record.id])
   const bluetooth = useBluetoothPrinting()
   // Inventory-sourced PDF/ZPL batches count as printed labels, like the Etiquetas screen.
   async function logInventoryPrints(options, printed) {

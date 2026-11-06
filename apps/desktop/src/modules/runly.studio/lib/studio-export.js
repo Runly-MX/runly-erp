@@ -3,7 +3,7 @@ import { ZPL_DPI, graphicField, nativeCodes, zplLabel } from './studio-zpl.js'
 import { runly } from '../../../lib/runly.js'
 import { exportDimensions,STUDIO_EXPORT_LIMITS } from '../../../../../shared/studio/export-limits.js'
 import { checkAbort } from '../../../../../shared/studio/abort.js'
-import { BULK_PDF_PAGES, BULK_ROWS, fillDocument, rowValues } from './studio-bulk.js'
+import { BULK_PDF_PAGES, BULK_ROWS, fillDocument, rowValues, sheetGrid } from './studio-bulk.js'
 
 // Export presets. Screen formats render in the browser; the print PDF renders
 // at 300 ppp in the browser and the API builds the PDF (RGB or CMYK, bleed,
@@ -25,15 +25,21 @@ export function safeScale(page, wanted, bleed = 0) {
 // Bulk create: one image per row (ZIP) or every row's pages in one RGB PDF built
 // in the browser (the CMYK print job is capped at 24 pages).
 export async function exportBulk({ editor, options, scene, signal, onProgress }) {
-  const { rows, mapping } = options.bulk, active = editor.activePageId()
+  const { rows, mapping } = options.bulk, active = editor.activePageId(), images = options.bulk?.images ?? null
   const pageIds = options.type === 'pdf' ? options.pageIds : [active]
   if (!rows?.length || rows.length > BULK_ROWS) throw Error(`El lote admite de 1 a ${BULK_ROWS} filas.`)
   if (!pageIds?.length || pageIds.some(id => !findPage(scene, id))) throw Error('Rango de páginas no válido.')
-  if (options.type === 'pdf' && rows.length * pageIds.length > BULK_PDF_PAGES) throw Error(`El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas; usa menos filas o páginas.`)
+  if (options.type === 'pdf' && !options.sheet && rows.length * pageIds.length > BULK_PDF_PAGES) throw Error(`El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas; usa menos filas o páginas.`)
   const firstField = Object.entries(mapping).find(([, header]) => header)?.[1]
   const zip = options.type === 'pdf' ? null : new (await import('jszip')).default()
   const { jsPDF } = options.type === 'pdf' ? await import('jspdf') : {}
-  let pdf = null
+  let pdf = null, placed = 0
+  // Several labels per letter sheet: every selected page must share one size.
+  const sizes = options.sheet ? pageIds.map(id => { const page = findPage(scene, id).page; return printSizeMm(page, options.ppi ?? defaultPpi(page)) }) : null
+  if (sizes && sizes.some(size => size.width !== sizes[0].width || size.height !== sizes[0].height)) throw Error('Para varias etiquetas por hoja, todas las páginas deben medir lo mismo.')
+  const grid = sizes ? sheetGrid(sizes[0]) : null
+  if (sizes && !grid) throw Error('La etiqueta no cabe en una hoja carta.')
+  if (grid && rows.length * pageIds.length > BULK_PDF_PAGES * grid.perSheet) throw Error(`Se admiten hasta ${BULK_PDF_PAGES * grid.perSheet} etiquetas por PDF.`)
   for (const [index, row] of rows.entries()) {
     checkAbort(signal)
     const variant = fillDocument(scene, rowValues(row, mapping))
@@ -41,7 +47,7 @@ export async function exportBulk({ editor, options, scene, signal, onProgress })
       const page = findPage(scene, id).page
       if (zip) {
         const blob = await editor.exportVariant(id, scene, variant, options.type, options.type === 'jpg' ? options.quality : 1,
-          { scale: safeScale(page, options.scale), transparent: options.type === 'png' && options.transparent, signal })
+          { scale: safeScale(page, options.scale), transparent: options.type === 'png' && options.transparent, signal, images })
         const label = String(row[firstField] ?? '').replace(/[^\p{L}\p{N} _-]/gu, '').trim().slice(0, 60)
         zip.file(`${String(index + 1).padStart(3, '0')}${label ? `-${label}` : ''}.${options.type}`, blob)
         continue
@@ -49,11 +55,19 @@ export async function exportBulk({ editor, options, scene, signal, onProgress })
       const ppi = options.ppi ?? defaultPpi(page), size = printSizeMm(page, ppi), scale = safeScale(page, PRINT_PPI / ppi)
       const pixels = exportDimensions(page, scale)
       if (pixels.width * pixels.height > STUDIO_EXPORT_LIMITS.printPixels) throw Error('Una página supera 32 megapíxeles a 300 ppp.')
-      const blob = await editor.exportVariant(id, scene, variant, 'jpg', 0.92, { scale, signal })
+      const blob = await editor.exportVariant(id, scene, variant, 'jpg', 0.92, { scale, signal, images })
+      const bytes = new Uint8Array(await blob.arrayBuffer())
+      if (grid) {
+        const cell = grid.cell(placed++)
+        if (!pdf) pdf = new jsPDF({ unit: 'mm', format: 'letter', orientation: 'portrait', compress: true })
+        else if (cell.page >= pdf.getNumberOfPages()) pdf.addPage('letter', 'portrait')
+        pdf.addImage(bytes, 'JPEG', cell.x, cell.y, size.width, size.height)
+        continue
+      }
       const orientation = size.width > size.height ? 'landscape' : 'portrait'
       if (pdf) pdf.addPage([size.width, size.height], orientation)
       else pdf = new jsPDF({ unit: 'mm', format: [size.width, size.height], orientation, compress: true })
-      pdf.addImage(new Uint8Array(await blob.arrayBuffer()), 'JPEG', 0, 0, size.width, size.height)
+      pdf.addImage(bytes, 'JPEG', 0, 0, size.width, size.height)
     }
     onProgress?.(index + 1, rows.length)
   }
@@ -77,14 +91,14 @@ export async function exportZpl({ editor, options, scene, signal }) {
   const id = editor.activePageId(), page = findPage(scene, id).page, rows = options.bulk?.rows ?? [null]
   if (!ZPL_DPI.includes(options.dpi)) throw Error('Elige la resolución de la impresora.')
   if (rows.length > BULK_ROWS) throw Error(`El lote admite hasta ${BULK_ROWS} filas.`)
-  const scale = safeScale(page, options.dpi / defaultPpi(page)), labels = []
+  const scale = safeScale(page, options.dpi / defaultPpi(page)), labels = [], images = options.bulk?.images ?? null
   for (const row of rows) {
     checkAbort(signal)
     const variant = row ? fillDocument(scene, rowValues(row, options.bulk.mapping)) : scene, current = findPage(variant, id)
     const { commands, ids } = nativeCodes(current.objects, scale)
     // Native codes are hidden from the raster so they print once, crisp.
     const raster = replacePage(variant, { ...current, objects: current.objects.map(object => (ids.has(object.id) ? { ...object, hidden: true } : object)) })
-    const { data, width, height } = await pixelsOf(await editor.exportVariant(id, scene, raster, 'png', 1, { scale, signal }))
+    const { data, width, height } = await pixelsOf(await editor.exportVariant(id, scene, raster, 'png', 1, { scale, signal, images }))
     labels.push(zplLabel({ width, height, graphic: graphicField(data, width, height), codes: commands }))
   }
   checkAbort(signal)

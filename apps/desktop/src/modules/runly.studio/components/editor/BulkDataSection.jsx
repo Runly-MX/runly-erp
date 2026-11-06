@@ -2,14 +2,14 @@ import { useState } from 'react'
 import { Button, DistDropZone, SegmentedControl, SelectField } from '@runly/ui'
 import { Database, FileSpreadsheet, Info, Plus, X } from 'lucide-react'
 import { autoMapping } from '../../lib/studio-bulk.js'
-import { ModuleSourcePicker } from './ModuleSourcePicker.jsx'
+import { ModuleSourcePicker, rememberedSource } from './ModuleSourcePicker.jsx'
 
 const NONE = '__none'
 
 // "Datos para varias versiones": a CSV/XLSX fills the design's {{campo}} text
 // placeholders, one version per row. value: null or { fileName, headers, rows, total, truncated, mapping }.
-export function BulkDataSection({ fields, value, onChange, onParse, onInsertField, loadSources, loadRows }) {
-  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [origin, setOrigin] = useState('file')
+export function BulkDataSection({ fields, value, onChange, onParse, onInsertField, loadSources, loadRows, rememberKey }) {
+  const [busy, setBusy] = useState(false), [error, setError] = useState(null), [origin, setOrigin] = useState(() => (rememberedSource(rememberKey) ? 'module' : 'file'))
   async function load(file) {
     setBusy(true); setError(null)
     try {
@@ -26,7 +26,7 @@ export function BulkDataSection({ fields, value, onChange, onParse, onInsertFiel
       {loadSources ? <SegmentedControl ariaLabel="Origen de los datos" value={origin} onChange={setOrigin} className="w-full [&_button]:min-w-0"
         options={[{ value: 'file', label: 'Archivo' }, { value: 'module', label: 'Desde un módulo' }]} /> : null}
       {origin === 'module' && loadSources
-        ? <ModuleSourcePicker loadSources={loadSources} loadRows={loadRows}
+        ? <ModuleSourcePicker loadSources={loadSources} loadRows={loadRows} rememberKey={rememberKey}
           onLoaded={(source, parsed) => onChange({ fileName: source.label, module: true, source: source.key, ...parsed, mapping: autoMapping(fields, parsed.headers) })} />
         : <DistDropZone variant="compact" accept=".csv,.xlsx" maxSizeMB={2} isUploading={busy} onFile={load} error={error}
           emptyLabel="Sube un CSV o Excel" emptyHint="Primera fila con los nombres de columna, hasta 500 filas" dragActiveLabel="Suelta el archivo aquí" />}
