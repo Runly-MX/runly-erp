@@ -20,3 +20,7 @@ test('grouping by record sorts by label; none keeps a single unlabeled group', (
   assert.equal(flat.length, 1)
   assert.equal(flat[0].label, null)
 })
+
+test('grouping by date ascending puts the oldest day first', () => {
+  assert.deepEqual(groupMedia(items, 'date', 'asc').map((g) => g.id), ['2026-10-01', '2026-10-03'])
+})

@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Columns3, Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, LayoutGrid, Music, ZoomIn, ZoomOut } from "lucide-react";
+import { ArrowDownWideNarrow, ArrowUpNarrowWide, Columns3, Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, LayoutGrid, Music, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { useGridZoom } from "../hooks/useGridZoom.js";
 import { cachedUrl, createUrlBatcher, forgetUrl, useNearViewport } from "../lib/lazy-media.js";
 import { groupMedia } from "../lib/media-grouping.js";
 import { AdvancedFileViewer } from "./AdvancedFileViewer.jsx";
+import { getKindIcon } from "./FileVisual.jsx";
+import { getFileKind, getKindAccent } from "../lib/file-kind.js";
 import { Button } from "./Button.jsx";
 import { Checkbox } from "./Checkbox.jsx";
 import { EmptyState } from "./EmptyState.jsx";
@@ -65,6 +67,27 @@ const dayKey = (value) => String(value ?? "").slice(0, 10);
 // and takes the real ratio once the image loads; ratios are remembered so a
 // remount does not jump.
 const ratioCache = new Map();
+
+// Grid tile for a non-image file: tinted with its kind color (Word blue, PDF red...),
+// the kind icon, the extension and the file name.
+function FileTile({ item, className, compact }) {
+  const kind = getFileKind({ mimeType: item.mimeType, name: item.name });
+  const Icon = getKindIcon(kind);
+  const accent = getKindAccent(kind);
+  const ext = /\.([a-z0-9]{1,5})$/i.exec(String(item.name ?? ""))?.[1]?.toUpperCase();
+  return (
+    <div
+      className={cn("relative flex flex-col items-center justify-center gap-1.5 overflow-hidden p-2", className)}
+      style={{ color: accent, backgroundColor: `color-mix(in srgb, ${accent} 14%, hsl(var(--muted)))` }}
+    >
+      <Icon className={compact ? "h-1/3 w-1/3 min-h-4 min-w-4" : "h-10 w-10 sm:h-12 sm:w-12"} strokeWidth={1.5} aria-hidden="true" />
+      {ext ? <span className="rounded px-1.5 py-0.5 text-[10px] font-semibold tracking-wide" style={{ backgroundColor: `color-mix(in srgb, ${accent} 22%, transparent)` }}>{ext}</span> : null}
+      {compact ? null : (
+        <span className="absolute inset-x-0 bottom-0 truncate bg-[hsl(var(--background))]/70 px-2 py-1.5 text-center text-xs text-[hsl(var(--foreground))] backdrop-blur" title={item.name}>{item.name}</span>
+      )}
+    </div>
+  );
+}
 
 function MediaThumb({ item, resolveSignedUrl, variant = "card", className, fit = false }) {
   const [ref, near] = useNearViewport();
@@ -187,8 +210,9 @@ function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onTo
         onClick={(e) => { if (!press.consumed()) onOpen(e); }}
         className={cn("block w-full select-none overflow-hidden border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", dense ? "rounded-md" : "rounded-xl", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
       >
-        <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant={fit ? "tilefit" : "tile"} fit={fit} className={fit ? "w-full" : "aspect-square w-full"} />
-        {!isImage(item) && !dense ? <span className="block truncate px-2 py-1.5 text-xs">{item.name}</span> : null}
+        {isImage(item)
+          ? <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant={fit ? "tilefit" : "tile"} fit={fit} className={fit ? "w-full" : "aspect-square w-full"} />
+          : <FileTile item={item} compact={dense} className="aspect-square w-full" />}
       </button>
       <SelectBox
         shiftHeld={shiftHeld}
@@ -241,6 +265,9 @@ export function MediaGallery({
   selectionActions = null,
   onOpenItem = null,
   resolveSignedUrls = null,
+  // "desc" | "asc" by date; the toggle shows only with onSortDirChange (the caller re-queries).
+  sortDir = "desc",
+  onSortDirChange = null,
 }) {
   const thumbResolver = useMemo(
     () => (resolveSignedUrls ? createUrlBatcher(resolveSignedUrls) : resolveSignedUrl),
@@ -277,7 +304,7 @@ export function MediaGallery({
     () => items.filter((item) => kind === "all" || (kind === "image") === isImage(item)),
     [items, kind],
   );
-  const groups = useMemo(() => groupMedia(visible, grouping), [visible, grouping]);
+  const groups = useMemo(() => groupMedia(visible, grouping, sortDir), [visible, grouping, sortDir]);
   // Viewer sequence = what the user sees, group after group.
   const sequence = useMemo(() => groups.flatMap((group) => group.items), [groups]);
   const indexById = useMemo(() => new Map(sequence.map((item, i) => [item.id, i])), [sequence]);
@@ -474,6 +501,12 @@ export function MediaGallery({
         <div className="-mx-4 flex max-w-[calc(100%+2rem)] items-center gap-2 overflow-x-auto px-4 sm:mx-0 sm:max-w-full sm:flex-wrap sm:overflow-visible sm:px-0 max-sm:basis-full">
           {showKindFilter ? segmented(KINDS, kind, (next) => { setKind(next); onKindChange?.(next); }) : null}
           {segmented(groupingOptions, grouping, (next) => { setGrouping(next); write("grouping", next); })}
+          {onSortDirChange ? (
+            <Button variant="outline" size="sm" className="shrink-0" onClick={() => onSortDirChange(sortDir === "asc" ? "desc" : "asc")} title="Cambiar el orden por fecha">
+              {sortDir === "asc" ? <ArrowUpNarrowWide className="h-4 w-4 sm:mr-1.5" /> : <ArrowDownWideNarrow className="h-4 w-4 sm:mr-1.5" />}
+              <span className="max-sm:sr-only">{sortDir === "asc" ? "Más antiguos" : "Más recientes"}</span>
+            </Button>
+          ) : null}
         </div>
         <div className="ml-auto flex items-center gap-2">
           {selected.size ? <Button variant="ghost" size="sm" onClick={() => setSelected(new Set())}>Quitar ({selected.size})</Button> : null}

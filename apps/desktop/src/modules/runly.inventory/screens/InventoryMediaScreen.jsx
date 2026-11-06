@@ -17,6 +17,7 @@ export default function InventoryMediaScreen() {
   const [search, setSearch] = useState('')
   const [debounced, setDebounced] = useState('')
   const [kind, setKind] = useState('all')
+  const [sort, setSort] = useState('desc')
 
   useEffect(() => {
     const timer = setTimeout(() => setDebounced(search.trim()), 300)
@@ -24,8 +25,8 @@ export default function InventoryMediaScreen() {
   }, [search])
 
   const query = useInfiniteQuery({
-    queryKey: ['inventory', 'media', debounced, kind],
-    queryFn: ({ pageParam }) => runly.inventory.listMedia({ page: pageParam, pageSize: PAGE_SIZE, search: debounced || undefined, kind: kind === 'all' ? undefined : kind }, token),
+    queryKey: ['inventory', 'media', debounced, kind, sort],
+    queryFn: ({ pageParam }) => runly.inventory.listMedia({ page: pageParam, pageSize: PAGE_SIZE, search: debounced || undefined, kind: kind === 'all' ? undefined : kind, sort }, token),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.pagination.page * last.pagination.pageSize < last.pagination.total ? last.pagination.page + 1 : undefined),
     enabled: Boolean(token),
@@ -106,6 +107,8 @@ export default function InventoryMediaScreen() {
           openGroupLabel="Ver activo"
           storageKey="inventory"
           onKindChange={setKind}
+          sortDir={sort}
+          onSortDirChange={setSort}
           emptyDescription="Aquí aparecen las fotos y documentos que adjuntes a los activos."
           toolbarStart={<SearchInput value={search} onChange={(e) => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar por archivo, activo o número..." className="w-full sm:w-72" />}
         />

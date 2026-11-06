@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { getFileKind, getKindAccent } from "../lib/file-kind";
 
-function getKindIcon(kind) {
+export function getKindIcon(kind) {
   if (kind === "image") return FileImage;
   if (kind === "video") return FileVideo;
   if (kind === "audio") return FileAudio;
