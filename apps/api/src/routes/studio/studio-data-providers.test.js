@@ -24,6 +24,7 @@ test('inventory rows carry the public link only with the print permission', asyn
   const plain = await providers.rows(context(['inventory.item.read']), 'inventory', { filters: { search: 'lap' } })
   assert.equal(plain.rows[0]['Número de activo'], 'A-1')
   assert.equal(plain.rows[0].Estado, 'Disponible')
+  assert.deepEqual(plain.ids, ['i1'])
   assert.ok(!plain.headers.includes('Enlace público'))
   const linked = await providers.rows(context(['inventory.item.read', 'inventory.label.print']), 'inventory', {})
   assert.equal(linked.rows[0]['Enlace público'], 'https://app.example.com/app/p/inv/tok')

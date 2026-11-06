@@ -24,7 +24,8 @@ async function collect(fetchPage, pageSize, max = STUDIO_DATA_LIMITS.rows) {
 
 const table = (headers, records, total, toRow) => {
   const rows = records.map(record => Object.fromEntries(toRow(record).map((value, i) => [headers[i], text(value).slice(0, STUDIO_DATA_LIMITS.cell)])))
-  return { headers, rows, total, truncated: total > rows.length }
+  // ids (not a column) let Studio log the printed labels in the module's own history.
+  return { headers, rows, ids: records.map(record => record.id ?? null), total, truncated: total > rows.length }
 }
 
 export function createStudioDataProviders({ prisma, inventory, inventoryScope, inventoryPublic, publicBaseUrl, fleet }) {

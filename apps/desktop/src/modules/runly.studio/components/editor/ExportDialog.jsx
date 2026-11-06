@@ -1,8 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
-import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer } from 'lucide-react'
+import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
-import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages } from '../../lib/studio-export-plan.js'
+import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages, planScreenExport } from '../../lib/studio-export-plan.js'
+import { ZplOptions } from './ZplOptions.jsx'
 import { parsePageRange } from '../../lib/studio-pages.js'
 import { BULK_PDF_PAGES, autoMapping } from '../../lib/studio-bulk.js'
 import { BulkDataSection } from './BulkDataSection.jsx'
@@ -12,6 +13,7 @@ const TYPES = [
   { value: 'png', label: 'PNG', purpose: 'Gráficos y logotipos', hint: 'Sin pérdida de calidad. Admite fondo transparente.', icon: ImageIcon },
   { value: 'jpg', label: 'JPG', purpose: 'Fotografías', hint: 'Archivo ligero con calidad ajustable. Sin transparencia.', icon: Images },
   { value: 'pdf', label: 'PDF para imprimir', purpose: 'Imprenta', hint: `Medidas en mm, ${PRINT_PPI} ppp, sangrado y marcas de corte.`, icon: Printer },
+  { value: 'zpl', label: 'ZPL (Zebra)', purpose: 'Impresoras de etiquetas', hint: 'Archivo .zpl o envío a tu impresora Zebra, con QR y códigos nativos.', icon: Tag },
 ]
 // Only offered when the API publishes the package contract (packageExport).
 const PACKAGE_TYPE = { value: 'runlystudio', label: 'Proyecto Studio', purpose: 'Editable en Studio', hint: 'Paquete .runlystudio: conserva páginas, texto y formas para seguir editando.', icon: PackageOpen }
@@ -34,12 +36,12 @@ function Result({ options, plan, versions = 0 }) {
   const rows = plan.kind === 'print-pages'
     ? [...(multi ? [['Páginas', `${plan.items.length} en orden del diseño`]] : []), ...(uniform || plan.items.length === 1 ? printRows(plan.items[0].plan) : []),
       ...(multi && plan.total ? [['Total a procesar', `${(plan.total / 1e6).toLocaleString('es-MX', { maximumFractionDigits: 1 })} MP a ${PRINT_PPI} ppp`]] : [])]
-    : plan.size ? [['Tamaño final', `${pixels(plan.size)} · ${megapixels(plan.size)}`]] : []
+    : plan.size ? [[options.type === 'zpl' ? 'Puntos de impresión' : 'Tamaño final', options.type === 'zpl' ? `${pixels(plan.size).replace(' px', '')} a ${options.dpi} dpi` : `${pixels(plan.size)} · ${megapixels(plan.size)}`]] : []
   return (
     <div role="status" aria-live="polite" className={cn('rounded-lg border px-3 py-2 text-xs sm:text-sm', plan.error ? 'border-[hsl(var(--destructive)/0.5)] bg-[hsl(var(--destructive)/0.06)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]')}>
       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
         {plan.error ? <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" aria-hidden /> : null}Se generará {versions
-          ? options.type === 'pdf' ? `un PDF con ${versions * plan.items.length} páginas (${versions} versiones)` : `un ZIP con ${versions} ${options.type.toUpperCase()}`
+          ? options.type === 'pdf' ? `un PDF con ${versions * plan.items.length} páginas (${versions} versiones)` : options.type === 'zpl' ? `un ZPL con ${versions} etiquetas` : `un ZIP con ${versions} ${options.type.toUpperCase()}`
           : options.type === 'pdf' ? 'un PDF' : `un ${options.type.toUpperCase()}`}
       </p>
       <dl className="space-y-0.5">
@@ -61,7 +63,7 @@ function Result({ options, plan, versions = 0 }) {
 export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null }) {
   const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
   // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
-  const [bulk, setBulk] = useState(null), [fields, setFields] = useState([])
+  const [bulk, setBulk] = useState(null), [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
   const readFields = bulkData?.readFields
   useEffect(() => { if (open && readFields) setFields(readFields()) }, [open, readFields])
   const insertField = bulkData?.insertField ? async header => { await bulkData.insertField(header); setFields(bulkData.readFields()) } : null
@@ -80,6 +82,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const versions = !native && bulk && fields.length ? bulk.rows.length : 0
   const plan = useMemo(() => {
     if (native) return { kind: 'package' }
+    if (options.type === 'zpl') return planScreenExport(page, { type: 'zpl', scale: options.dpi / defaultPpi(page) })
     if (options.type !== 'pdf') return planExport(page, { ...options, ppi })
     // Batch PDFs are built in the browser: RGB, no bleed or crop marks.
     const base = planPdfPages(selected, versions ? { ...options, bleed: false, cropMarks: false } : options)
@@ -93,7 +96,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
-      ...(versions ? { bulk: { rows: bulk.rows, mapping } } : {}) })
+      ...(options.type === 'zpl' ? { printer: printers.find(item => item.id === options.printerId) ?? null } : {}),
+      ...(versions ? { bulk: { rows: bulk.rows, mapping, source: bulk.source ?? null, ids: bulk.ids ?? null } } : {}) })
   }
   function arrows(event) {
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
@@ -111,7 +115,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           <DialogDescription>Elige el formato según el uso del archivo.{multiple ? ` Este diseño tiene ${pageCount} páginas.` : ''}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-5 overflow-y-auto pr-1">
-          <div ref={group} role="radiogroup" aria-label="Tipo de archivo" onKeyDown={arrows} className={cn('grid gap-2', packageExport ? 'sm:grid-cols-2' : 'sm:grid-cols-3')}>
+          <div ref={group} role="radiogroup" aria-label="Tipo de archivo" onKeyDown={arrows} className="grid gap-2 sm:grid-cols-2">
             {types.map(type => {
               const active = options.type === type.value, Icon = type.icon
               return (
@@ -147,6 +151,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               <CheckboxField label={packageExport.imageCount ? 'Entiendo que el paquete incluye copias completas de las imágenes originales, también las ocultas o recortadas.' : 'Entiendo que el paquete incluye el texto del diseño y puede contener información personal.'}
                 checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />
             </div>
+          ) : options.type === 'zpl' ? (
+            <ZplOptions page={page} options={options} set={set} loadPrinters={bulkData?.printers} onPrinters={setPrinters} />
           ) : options.type !== 'pdf' ? (
             <div className="space-y-4">
               {multiple ? <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />

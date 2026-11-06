@@ -11,9 +11,9 @@ const TEXT = {
 
 export function DownloadNotice({ download, onCancel, onClose }) {
   if (!download) return null
-  const { phase, format, file, message } = download, active = phase in TEXT
+  const { phase, format, file, message, done } = download, active = phase in TEXT
   const Icon = phase === 'error' ? AlertTriangle : phase === 'done' ? Check : phase === 'cancelled' ? X : active ? Loader2 : Download
-  const text = active ? TEXT[phase] : phase === 'done' ? `Se descargó ${file}.` : phase === 'cancelled' ? 'Descarga cancelada. No se guardó ningún archivo.' : message
+  const text = active ? TEXT[phase] : phase === 'done' ? done ?? `Se descargó ${file}.` : phase === 'cancelled' ? 'Descarga cancelada. No se guardó ningún archivo.' : message
   return (
     <div role={phase === 'error' ? 'alert' : 'status'} aria-live={phase === 'error' ? 'assertive' : 'polite'}
       className={cn('pointer-events-auto flex max-w-lg items-center gap-2.5 rounded-lg border bg-[hsl(var(--card))] px-3 py-2 text-sm shadow-lg', phase === 'error' ? 'border-[hsl(var(--destructive)/0.5)]' : 'border-[hsl(var(--border))]')}>

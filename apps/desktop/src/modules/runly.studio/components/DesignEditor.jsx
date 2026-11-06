@@ -3,6 +3,7 @@ import {validateDocument} from '../../../../../shared/studio/document.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog } from '@runly/ui'
 import { AlertTriangle, Eye, History } from 'lucide-react'
+import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { StudioWorkspace } from './StudioWorkspace.jsx'
 import { createDraftStorage, recoverDraftDocument, createDraftArchive, sameDraft } from '../lib/draft-storage.js'
@@ -15,7 +16,9 @@ import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
-import { exportBulk, exportDesign } from '../lib/studio-export.js'
+import { exportBulk, exportDesign, exportZpl } from '../lib/studio-export.js'
+import { useBluetoothPrinting } from '../../runly.inventory/hooks/useBluetoothPrinting.js'
+import { createBrowserEnv, labelTransports, resolvePrintPlan, runPrintPlan } from '../../runly.inventory/lib/label-transports.js'
 import { designFields } from '../lib/studio-bulk.js'
 import { useInterchangeContract } from '../hooks/useInterchangeContract.js'
 import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
@@ -174,12 +177,23 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const readFields = useCallback(() => designFields(editorRef.current?.snapshot()), [])
   const bulkData = useMemo(() => ({ readFields, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
     sources: async () => unwrap(await runly.studio.dataSources(token)), moduleRows: async (key, filters) => unwrap(await runly.studio.dataSourceRows(key, filters, token)),
+    // Inventory label printers (ZPL); without inventory.label.read the list is simply empty.
+    printers: async () => { try { return unwrap(await runly.inventory.labels.listPrinters(token)) ?? [] } catch { return [] } },
     insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready])
+  const bluetooth = useBluetoothPrinting()
+  // Inventory-sourced PDF/ZPL batches count as printed labels, like the Etiquetas screen.
+  async function logInventoryPrints(options, printed) {
+    if (options.bulk?.source !== 'inventory' || !['pdf', 'zpl'].includes(options.type)) return
+    const items = (options.bulk.ids ?? []).filter(Boolean).map(itemId => ({ itemId, quantity: 1 }))
+    if (!items.length) return
+    try { await runly.inventory.labels.registerPrints({ items, printerId: printed ? options.printer?.id : undefined }, token) }
+    catch (error) { toast.warning('Las etiquetas se generaron, pero no se registró la impresión en Inventario', { description: sanitizeExportError(error) }) }
+  }
   // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
   async function exportImage(options, reviewedScene) {
     const editor = editorRef.current
     if (!editor || job.current) return
-    const current = job.current = { controller:new AbortController() }, format = options.bulk && options.type !== 'pdf' ? 'ZIP' : options.type === 'pdf' ? 'PDF' : options.type === 'runlystudio' ? 'paquete .runlystudio' : options.type.toUpperCase(),signal=current.controller.signal
+    const current = job.current = { controller:new AbortController() }, format = options.type === 'zpl' ? 'ZPL' : options.bulk && options.type !== 'pdf' ? 'ZIP' : options.type === 'pdf' ? 'PDF' : options.type === 'runlystudio' ? 'paquete .runlystudio' : options.type.toUpperCase(),signal=current.controller.signal
     const phase = (value, extra) => { if (!signal.aborted&&job.current===current) setDownload({ phase: value, format, ...extra }) }
     phase('preparing')
     // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
@@ -193,14 +207,26 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
       // Fabric measures text boxes at render time. Compare persisted documents
       // here; exportImage separately verifies the exact reviewed canvas snapshot.
       if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
-      const { blob, extension } = options.bulk ? await exportBulk({ editor: observed, options, scene: reviewedScene, signal })
+      const { blob, extension } = options.type === 'zpl' ? await exportZpl({ editor: observed, options, scene: reviewedScene, signal })
+        : options.bulk ? await exportBulk({ editor: observed, options, scene: reviewedScene, signal })
         : await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal })
       const authorized=unwrap(await runly.studio.getDesign(record.id,token,signal));checkAbort(signal)
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
       phase('downloading'); await nextPaint();checkAbort(signal)
-      const file = downloadName(name, extension), url = URL.createObjectURL(blob)
-      Object.assign(document.createElement('a'), { href: url, download: file }).click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
-      const completed={phase:'done',format,file};setDownload(completed);setTimeout(()=>setDownload(now=>now===completed?null:now),6000)
+      const file = downloadName(name, extension)
+      // A Bluetooth ZPL printer receives the file from the Android app; everything else downloads.
+      const plan = options.type === 'zpl' && options.printer ? resolvePrintPlan(options.printer, labelTransports, { bluetooth }) : null
+      let done = null
+      if (plan?.transportId === 'bluetooth') {
+        const sent = await runPrintPlan(plan, { blob, printer: options.printer }, labelTransports, { ...createBrowserEnv(), bluetooth })
+        if (!sent.ok) throw Error(sent.message ?? 'No se pudo enviar a la impresora.')
+        done = `Se envió a ${options.printer.name}.`
+      } else {
+        const url = URL.createObjectURL(blob)
+        Object.assign(document.createElement('a'), { href: url, download: file }).click(); setTimeout(() => URL.revokeObjectURL(url), 1000)
+      }
+      await logInventoryPrints(options, Boolean(done))
+      const completed={phase:'done',format,file,done};setDownload(completed);setTimeout(()=>setDownload(now=>now===completed?null:now),6000)
     } catch (error) { phase('error', { message: sanitizeExportError(error) }) } finally { if (job.current === current) job.current = null }
   }
   // Abort I/O and later stages; synchronous canvas/native CPU work ends at its

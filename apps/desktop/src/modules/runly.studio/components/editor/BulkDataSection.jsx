@@ -27,7 +27,7 @@ export function BulkDataSection({ fields, value, onChange, onParse, onInsertFiel
         options={[{ value: 'file', label: 'Archivo' }, { value: 'module', label: 'Desde un módulo' }]} /> : null}
       {origin === 'module' && loadSources
         ? <ModuleSourcePicker loadSources={loadSources} loadRows={loadRows}
-          onLoaded={(source, parsed) => onChange({ fileName: source.label, module: true, ...parsed, mapping: autoMapping(fields, parsed.headers) })} />
+          onLoaded={(source, parsed) => onChange({ fileName: source.label, module: true, source: source.key, ...parsed, mapping: autoMapping(fields, parsed.headers) })} />
         : <DistDropZone variant="compact" accept=".csv,.xlsx" maxSizeMB={2} isUploading={busy} onFile={load} error={error}
           emptyLabel="Sube un CSV o Excel" emptyHint="Primera fila con los nombres de columna, hasta 500 filas" dragActiveLabel="Suelta el archivo aquí" />}
     </div>

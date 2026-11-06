@@ -1,4 +1,5 @@
-import {documentPages, findPage} from '../../../../../shared/studio/pages.js'
+import {documentPages, findPage, replacePage} from '../../../../../shared/studio/pages.js'
+import { ZPL_DPI, graphicField, nativeCodes, zplLabel } from './studio-zpl.js'
 import { runly } from '../../../lib/runly.js'
 import { exportDimensions,STUDIO_EXPORT_LIMITS } from '../../../../../shared/studio/export-limits.js'
 import { checkAbort } from '../../../../../shared/studio/abort.js'
@@ -11,7 +12,7 @@ export const PRINT_PPI = 300
 export const BLEED_MM = 3
 export const SOURCE_PPI = [72, 96, 150, 300]
 
-export const DEFAULT_EXPORT = { type: 'png', scale: 1, transparent: false, quality: 0.9, profile: 'cmyk', ppi: null, bleed: true, cropMarks: false }
+export const DEFAULT_EXPORT = { type: 'png', scale: 1, transparent: false, quality: 0.9, profile: 'cmyk', ppi: null, bleed: true, cropMarks: false, dpi: 203, printerId: null }
 // Pixel presets are screen sizes; large ones (flyers, posters) are print sizes at 150 ppp.
 export const defaultPpi = page => page.ppi ?? (Math.max(page.width, page.height) >= 1500 ? 150 : 96)
 export const printSizeMm = (page, ppi) => ({ width: Math.round(page.width / ppi * 25.4 * 10) / 10, height: Math.round(page.height / ppi * 25.4 * 10) / 10 })
@@ -59,6 +60,35 @@ export async function exportBulk({ editor, options, scene, signal, onProgress })
   checkAbort(signal)
   if (pdf) return { blob: pdf.output('blob'), extension: 'pdf' }
   return { blob: await zip.generateAsync({ type: 'blob' }), extension: 'zip' }
+}
+
+async function pixelsOf(blob) {
+  const bitmap = await createImageBitmap(blob), canvas = document.createElement('canvas')
+  try {
+    canvas.width = bitmap.width; canvas.height = bitmap.height
+    const context = canvas.getContext('2d', { willReadFrequently: true })
+    context.drawImage(bitmap, 0, 0)
+    return { data: context.getImageData(0, 0, bitmap.width, bitmap.height).data, width: bitmap.width, height: bitmap.height }
+  } finally { bitmap.close(); canvas.width = canvas.height = 0 }
+}
+
+// ZPL for the active page: one label per row (or one without data) at options.dpi.
+export async function exportZpl({ editor, options, scene, signal }) {
+  const id = editor.activePageId(), page = findPage(scene, id).page, rows = options.bulk?.rows ?? [null]
+  if (!ZPL_DPI.includes(options.dpi)) throw Error('Elige la resolución de la impresora.')
+  if (rows.length > BULK_ROWS) throw Error(`El lote admite hasta ${BULK_ROWS} filas.`)
+  const scale = safeScale(page, options.dpi / defaultPpi(page)), labels = []
+  for (const row of rows) {
+    checkAbort(signal)
+    const variant = row ? fillDocument(scene, rowValues(row, options.bulk.mapping)) : scene, current = findPage(variant, id)
+    const { commands, ids } = nativeCodes(current.objects, scale)
+    // Native codes are hidden from the raster so they print once, crisp.
+    const raster = replacePage(variant, { ...current, objects: current.objects.map(object => (ids.has(object.id) ? { ...object, hidden: true } : object)) })
+    const { data, width, height } = await pixelsOf(await editor.exportVariant(id, scene, raster, 'png', 1, { scale, signal }))
+    labels.push(zplLabel({ width, height, graphic: graphicField(data, width, height), codes: commands }))
+  }
+  checkAbort(signal)
+  return { blob: new Blob([labels.join('\n')], { type: 'text/plain' }), extension: 'zpl', count: labels.length }
 }
 
 export async function exportDesign({ editor, options, scene, designId, token, name,revision,signal }) {
