@@ -17,9 +17,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuSub,
-  DropdownMenuSubTrigger,
-  DropdownMenuSubContent,
   Popover,
   PopoverAnchor,
   PopoverContent,
@@ -83,6 +80,7 @@ export function UserMenu({
   const [companyModalOpen, setCompanyModalOpen] = useState(false);
   const [openingNativeSettings, setOpeningNativeSettings] = useState(false);
   const [statusOpen, setStatusOpen] = useState(false);
+  const [dndExpanded, setDndExpanded] = useState(false);
   const { data: miraiStatus } = useMiraiStatus();
   const miraiTabHidden = useMiraiTabHidden();
   const miraiAvailable = Boolean(miraiStatus?.available) && miraiStatus?.forbidden !== true;
@@ -202,19 +200,21 @@ export function UserMenu({
           {status?.emoji ? <span aria-hidden className="w-3.5 text-center text-sm leading-none">{status.emoji}</span> : <SmilePlus size={14} />}
           <span className="min-w-0 flex-1 truncate">{status?.text || "Establecer estado"}</span>
         </DropdownMenuItem>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger className="gap-2 cursor-pointer">
-            <MoonIcon size={14} />
-            <span className="min-w-0 flex-1 truncate">{dndOn ? `No molestar ${untilText(dnd?.until)}`.trim() : "No molestar"}</span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent>
+        {/* Inline accordion, not a flyout submenu: on phones the menu fills the width and a side flyout leaves the screen. */}
+        <DropdownMenuItem onSelect={(event) => { event.preventDefault(); setDndExpanded((value) => !value); }} aria-expanded={dndExpanded} className="gap-2 cursor-pointer">
+          <MoonIcon size={14} />
+          <span className="min-w-0 flex-1 truncate">{dndOn ? `No molestar ${untilText(dnd?.until)}`.trim() : "No molestar"}</span>
+          <ChevronDown size={14} className={`shrink-0 transition-transform ${dndExpanded ? "rotate-180" : ""}`} aria-hidden />
+        </DropdownMenuItem>
+        {dndExpanded && (
+          <div className="pl-6">
             {DND_DURATIONS.map((item) => (
               <DropdownMenuItem key={item.value} onClick={() => saveDnd.mutate({ ...dnd, until: durationFor(item.value, DND_DURATIONS) })} className="cursor-pointer">{item.label}</DropdownMenuItem>
             ))}
             <DropdownMenuItem onClick={() => navigate("/app/m/runly.notifications/settings")} className="cursor-pointer">Horario silencioso...</DropdownMenuItem>
-            {dndOn && <><DropdownMenuSeparator /><DropdownMenuItem onClick={() => saveDnd.mutate({ ...dnd, until: null })} className="cursor-pointer">Desactivar</DropdownMenuItem></>}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
+            {dndOn && <DropdownMenuItem onClick={() => saveDnd.mutate({ ...dnd, until: null })} className="cursor-pointer">Desactivar</DropdownMenuItem>}
+          </div>
+        )}
         <DropdownMenuSeparator />
         <DropdownMenuItem
           onClick={() => navigate("/app/profile")}
