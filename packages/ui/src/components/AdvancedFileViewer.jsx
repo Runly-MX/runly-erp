@@ -350,7 +350,27 @@ export function AdvancedFileViewer({
   // copy so the original isn't fetched first, and swap the original in on zoom.
   const contentUrl = file?.id && !localUrls[file.id] ? variantUrls.content[file.id] : null;
   const displayPending = kind === "image" && Boolean(onResolveImageVariant) && contentUrl === undefined;
-  const imageSrc = (t.zoom <= 1 && contentUrl) || signedUrl;
+  // On the first zoom the original is decoded off-screen, then swapped in together
+  // with its natural size so the fit-relative scale keeps the same on-screen size
+  // (swapping src directly painted it at full size for a frame). It stays after that.
+  const [originalShown, setOriginalShown] = useState(null);
+  const wantsOriginal = Boolean(contentUrl) && t.zoom > 1 && Boolean(signedUrl);
+  const { setNaturalSize } = t;
+  useEffect(() => {
+    if (!wantsOriginal || originalShown === signedUrl) return undefined;
+    let cancelled = false;
+    const img = new Image();
+    img.src = signedUrl;
+    img.decode()
+      .then(() => {
+        if (cancelled) return;
+        setNaturalSize({ w: img.naturalWidth, h: img.naturalHeight });
+        setOriginalShown(signedUrl);
+      })
+      .catch(() => {}); // keeps the medium copy if the original fails
+    return () => { cancelled = true; };
+  }, [wantsOriginal, signedUrl, originalShown, setNaturalSize]);
+  const imageSrc = contentUrl && originalShown !== signedUrl ? contentUrl : signedUrl;
   const sidePanel = kind === "video" && renderSidePanel ? renderSidePanel(file, { getMedia }) : null;
   const hasInlinePreview = ["image", "pdf", "video", "audio", "xml"].includes(kind) || (kind === "archive" && isZipFile(file));
   const focusPanel = (e) => {
