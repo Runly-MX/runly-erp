@@ -1,9 +1,11 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
 import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages } from '../../lib/studio-export-plan.js'
 import { parsePageRange } from '../../lib/studio-pages.js'
+import { BULK_PDF_PAGES, autoMapping } from '../../lib/studio-bulk.js'
+import { BulkDataSection } from './BulkDataSection.jsx'
 
 const KEY = 'runly.studio.export-options'
 const TYPES = [
@@ -26,7 +28,7 @@ function printRows(plan) {
     ...(plan.size ? [['Imagen incrustada', `${pixels(plan.size)} a ${plan.ppi} ppp`]] : [])]
 }
 
-function Result({ options, plan }) {
+function Result({ options, plan, versions = 0 }) {
   const multi = plan.kind === 'print-pages' && plan.items.length > 1
   const uniform = plan.kind === 'print-pages' && plan.items.length > 0 && sameSheet(plan.items)
   const rows = plan.kind === 'print-pages'
@@ -36,7 +38,9 @@ function Result({ options, plan }) {
   return (
     <div role="status" aria-live="polite" className={cn('rounded-lg border px-3 py-2 text-xs sm:text-sm', plan.error ? 'border-[hsl(var(--destructive)/0.5)] bg-[hsl(var(--destructive)/0.06)]' : 'border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.5)]')}>
       <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
-        {plan.error ? <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" aria-hidden /> : null}Se generará {options.type === 'pdf' ? 'un PDF' : `un ${options.type.toUpperCase()}`}
+        {plan.error ? <AlertTriangle className="h-3.5 w-3.5 text-[hsl(var(--destructive))]" aria-hidden /> : null}Se generará {versions
+          ? options.type === 'pdf' ? `un PDF con ${versions * plan.items.length} páginas (${versions} versiones)` : `un ZIP con ${versions} ${options.type.toUpperCase()}`
+          : options.type === 'pdf' ? 'un PDF' : `un ${options.type.toUpperCase()}`}
       </p>
       <dl className="space-y-0.5">
         {rows.map(([term, value]) => <div key={term} className="flex flex-wrap justify-between gap-x-3"><dt className="text-[hsl(var(--muted-foreground))]">{term}</dt><dd className="font-medium tabular-nums">{value}</dd></div>)}
@@ -54,8 +58,13 @@ function Result({ options, plan }) {
 // "Descargar": screen (PNG/JPG: size, transparency, quality) or print (PDF at
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
-export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null }) {
+export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null }) {
   const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
+  // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
+  const [bulk, setBulk] = useState(null), [fields, setFields] = useState([])
+  const readFields = bulkData?.readFields
+  useEffect(() => { if (open && readFields) setFields(readFields()) }, [open, readFields])
+  const insertField = bulkData?.insertField ? async header => { await bulkData.insertField(header); setFields(bulkData.readFields()) } : null
   const types = useMemo(() => (packageExport ? [...TYPES, PACKAGE_TYPE] : TYPES), [packageExport])
   // A remembered or stale choice that is no longer offered falls back to PNG.
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
@@ -68,17 +77,23 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   // The consent is per download: choosing another type always asks again.
   const set = patch => { if (patch.type) setAcknowledged(false); setOptions(current => ({ ...current, ...patch })) }
   const ppi = options.ppi ?? defaultPpi(page)
+  const versions = !native && bulk && fields.length ? bulk.rows.length : 0
   const plan = useMemo(() => {
     if (native) return { kind: 'package' }
     if (options.type !== 'pdf') return planExport(page, { ...options, ppi })
-    const base = planPdfPages(selected, options)
-    return scope === 'range' && parsed?.error ? { ...base, error: parsed.error, items: [] } : base
-  }, [page, options, ppi, selected, scope, parsed, native])
+    // Batch PDFs are built in the browser: RGB, no bleed or crop marks.
+    const base = planPdfPages(selected, versions ? { ...options, bleed: false, cropMarks: false } : options)
+    if (scope === 'range' && parsed?.error) return { ...base, error: parsed.error, items: [] }
+    return !base.error && versions * base.items.length > BULK_PDF_PAGES
+      ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${versions * base.items.length}). Usa menos filas o páginas.` } : base
+  }, [page, options, ppi, selected, scope, parsed, native, versions])
   function submit() {
     if (plan.error || exporting || (native && !acknowledged)) return
     if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
-    onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}) })
+    const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
+    onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
+      ...(versions ? { bulk: { rows: bulk.rows, mapping } } : {}) })
   }
   function arrows(event) {
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
@@ -113,6 +128,12 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               )
             })}
           </div>
+          {!native && bulkData ? (
+            <section aria-label="Datos para varias versiones" className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
+              <p className="text-sm font-semibold">Datos para varias versiones</p>
+              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} />
+            </section>
+          ) : null}
           {native ? (
             <div className="space-y-4">
               <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
@@ -154,6 +175,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">{scope === 'current' ? `Solo ${entries.find(item => item.active)?.label}.` : scope === 'all' ? 'Todas las páginas, cada una con sus propias medidas.' : 'Solo las páginas del rango.'}</p>
                 </div>
               ) : null}
+              {versions ? null : <>
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Perfil de color</p>
                 <SegmentedControl ariaLabel="Perfil de color" value={options.profile} onChange={profile => set({ profile })} className="w-full [&_button]:min-w-0"
@@ -162,11 +184,18 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                   ? 'Usa una conversión genérica de RGB a CMYK, no el perfil ICC de tu imprenta. Los colores muy brillantes pueden verse más apagados. Si tu imprenta pide un perfil ICC concreto, descarga en RGB y conviértelo con el suyo.'
                   : 'Conserva los colores de pantalla. Úsalo para impresión digital o si tu imprenta convierte los colores.'}</p>
               </div>
+              </>}
               <div className="space-y-1.5">
                 <SelectField label="Resolución del diseño" value={options.ppi == null && multiple ? 'auto' : String(ppi)} onValueChange={value => set({ ppi: value === 'auto' ? null : Number(value) })}
                   options={[...(multiple ? [{ value: 'auto', label: 'Según el tamaño de cada página' }] : []), ...SOURCE_PPI.map(value => ({ value: String(value), label: `${value} ppp` }))]} />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">Cuántos píxeles del diseño caben en una pulgada: define la medida impresa. Si no coincide con tu impreso, cambia las medidas del diseño.</p>
               </div>
+              {versions ? (
+                <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]">
+                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
+                  <span>En lote, cada fila agrega {selected.length === 1 ? 'una página' : `${selected.length} páginas`} a {PRINT_PPI} ppp en RGB, sin sangrado ni marcas de corte. Para CMYK descarga sin datos.</span>
+                </p>
+              ) : <>
               <CheckboxField label="Sangrado de 3 mm" checked={options.bleed} onChange={event => set({ bleed: event.target.checked })}
                 hint="Extiende el fondo y lo que toca los bordes 3 mm por fuera del corte, para que no queden filos blancos." />
               <CheckboxField label="Marcas de corte" checked={options.cropMarks} onChange={event => set({ cropMarks: event.target.checked })}
@@ -175,10 +204,11 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                 <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />
                 <span>El diseño se incrusta como imagen de {PRINT_PPI} ppp con TrimBox y BleedBox. No es un PDF vectorial ni cumple PDF/X.</span>
               </p>
+              </>}
             </div>
           )}
         </div>
-        {native ? null : <div className="shrink-0"><Result options={options} plan={plan} /></div>}
+        {native ? null : <div className="shrink-0"><Result options={options} plan={plan} versions={versions} /></div>}
         <DialogFooter className="sm:justify-between">
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">

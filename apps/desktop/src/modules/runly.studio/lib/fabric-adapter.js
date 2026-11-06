@@ -104,7 +104,8 @@ export async function createStudioEditor(element, options) {
   function assertReviewed(reviewed) {
     if (reviewed && JSON.stringify(validateDocument(reviewed)) !== JSON.stringify(snapshot())) throw Error('El diseño cambió. Vuelve a descargar para revisar los créditos actualizados.')
   }
-  async function renderPage(id, scene, task, signal) {
+  // verify=false renders a derived document (bulk create) instead of the live page.
+  async function renderPage(id, scene, task, signal, verify = true) {
     const canonical = validateDocument(scene)
     checkAbort(signal)
     await options.authorizePage?.(id, signal)
@@ -118,7 +119,7 @@ export async function createStudioEditor(element, options) {
       for(const assetId of documentAssetIds(pageDocument(canonical,id))) { await options.resolveImage(assetId,signal); checkAbort(signal) }
       await options.authorizePage?.(id, signal)
       checkAbort(signal)
-      if (JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(canonical, id))) throw Error('La página cambió durante la exportación.')
+      if (verify && JSON.stringify(findPage(snapshot(), id)) !== JSON.stringify(findPage(canonical, id))) throw Error('La página cambió durante la exportación.')
       return result
     } finally { await renderer?.destroy(); canvas.width = canvas.height = 0; canvas.remove() }
   }
@@ -174,6 +175,13 @@ export async function createStudioEditor(element, options) {
       if (id === active) return methods.exportImage(format, quality, reviewed, settings)
       assertReviewed(reviewed)
       const result = await auxiliary(() => renderPage(id, reviewed, renderer => renderer.exportImage(format, quality, pageDocument(reviewed, id), settings), settings.signal))
+      assertReviewed(reviewed)
+      return result
+    },
+    // Bulk create: `reviewed` is the credited scene, `variant` the same scene with filled text.
+    async exportVariant(id, reviewed, variant, format = 'png', quality = 1, settings = {}) {
+      assertReviewed(reviewed)
+      const result = await auxiliary(() => renderPage(id, variant, renderer => renderer.exportImage(format, quality, undefined, settings), settings.signal, false))
       assertReviewed(reviewed)
       return result
     },

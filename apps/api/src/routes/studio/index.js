@@ -16,6 +16,7 @@ import {checkAbort} from '../../../../shared/studio/abort.js'
 import {createStudioPrintJobs} from './studio-print-jobs.js'
 import {documentPages, pageDocument} from '../../../../shared/studio/pages.js'
 import { randomBytes } from 'node:crypto'
+import { parseStudioDataFile } from './studio-data-source.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
@@ -146,6 +147,13 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   })
   app.delete('/studio/designs/:id/export/jobs/:jobId',requirePermission('studio.view'),async c =>
     c.json({data:await printJobs.cancel(...context(c),c.req.param('id'),c.req.param('jobId'))}))
+  // Bulk create: the spreadsheet is parsed and returned, never stored.
+  app.post('/studio/data-sources/parse', requirePermission('studio.view'), async c => {
+    await service.access.member(...context(c))
+    const body = await c.req.parseBody()
+    if (!(body.file instanceof Blob)) throw new StudioError('Falta el archivo de datos.')
+    return c.json({ data: await parseStudioDataFile(Buffer.from(await body.file.arrayBuffer()), body.file.name) })
+  })
   app.post('/studio/designs/:id/export/print-pdf', requirePermission('studio.view'), async c => {
     const signal=c.req.raw.signal;checkAbort(signal)
     const before=await service.access.get(...context(c), c.req.param('id'))

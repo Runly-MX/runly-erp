@@ -44,6 +44,10 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
       for (const [key, value] of Object.entries(params)) body.set(key, String(value))
       return requestBlob(`${path(id)}/export/print-pdf`, { method: 'POST', headers: withAuthHeaders(token), body, signal, onlineOnly: true })
     },
+    parseDataSource: (file, token, signal) => {
+      const body = new FormData(); body.set('file', file, file.name)
+      return request('/studio/data-sources/parse', { method: 'POST', headers: withAuthHeaders(token), body, signal, onlineOnly: true })
+    },
     catalogStatus: (token, signal) => catalogRequest('/studio/catalog/status', { ...options(token), signal }),
     catalogSearch: (provider, token, query = {}, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/search${toQueryString(query)}`, { ...options(token), signal }),
     catalogDetails: (provider, id, token, signal) => catalogRequest(`/studio/catalog/${encodeURIComponent(provider)}/${encodeURIComponent(id)}`, { ...options(token), signal }),

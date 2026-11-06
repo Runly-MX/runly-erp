@@ -15,7 +15,8 @@ import { createScopedClipboard } from '../lib/scoped-clipboard.js'
 import { useStudioNavigation } from '../hooks/useStudioNavigation.js'
 import { useStudioImageEditing } from '../hooks/useStudioImageEditing.jsx'
 import { useSaveAsTemplate, useTemplateEditing } from './templates/useTemplateEditing.jsx'
-import { exportDesign } from '../lib/studio-export.js'
+import { exportBulk, exportDesign } from '../lib/studio-export.js'
+import { designFields } from '../lib/studio-bulk.js'
 import { useInterchangeContract } from '../hooks/useInterchangeContract.js'
 import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
 import { AccessLost } from './editor/collaboration/AccessLost.jsx'
@@ -169,15 +170,19 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     try {await ensureSaved();await editor.flush();if(editorRef.current===editor)setCredits({scene:editor.snapshot(),action})}
     catch(error){setDownload({ phase: 'error', message: sanitizeExportError(error) })}
   }
+  // Bulk create ("Datos para varias versiones" in Descargar).
+  const readFields = useCallback(() => designFields(editorRef.current?.snapshot()), [])
+  const bulkData = useMemo(() => ({ readFields, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
+    insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready])
   // Screen (PNG/JPG) or print PDF (RGB/CMYK, bleed, crop marks) from ExportDialog.
   async function exportImage(options, reviewedScene) {
     const editor = editorRef.current
     if (!editor || job.current) return
-    const current = job.current = { controller:new AbortController() }, format = options.type === 'pdf' ? 'PDF' : options.type === 'runlystudio' ? 'paquete .runlystudio' : options.type.toUpperCase(),signal=current.controller.signal
+    const current = job.current = { controller:new AbortController() }, format = options.bulk && options.type !== 'pdf' ? 'ZIP' : options.type === 'pdf' ? 'PDF' : options.type === 'runlystudio' ? 'paquete .runlystudio' : options.type.toUpperCase(),signal=current.controller.signal
     const phase = (value, extra) => { if (!signal.aborted&&job.current===current) setDownload({ phase: value, format, ...extra }) }
     phase('preparing')
     // The render is synchronous work: paint the notice first, and tell the flow when the browser render is over (a PDF is then built on the server).
-    const observed = new Proxy(editor, { get: (target, key) => ['exportImage','exportPage'].includes(key)
+    const observed = new Proxy(editor, { get: (target, key) => ['exportImage','exportPage','exportVariant'].includes(key)
       ? async (...args) => { const blob = await target[key](...args); phase('processing'); return blob }
       : typeof target[key] === 'function' ? target[key].bind(target) : target[key] })
     try {
@@ -187,7 +192,8 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
       // Fabric measures text boxes at render time. Compare persisted documents
       // here; exportImage separately verifies the exact reviewed canvas snapshot.
       if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
-      const { blob, extension } = await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal })
+      const { blob, extension } = options.bulk ? await exportBulk({ editor: observed, options, scene: reviewedScene, signal })
+        : await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal })
       const authorized=unwrap(await runly.studio.getDesign(record.id,token,signal));checkAbort(signal)
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
       phase('downloading'); await nextPaint();checkAbort(signal)
@@ -225,6 +231,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     packageExport: interchange.data?.exportNotice ? { notice: interchange.data.exportNotice, imageCount: documentAssetIds(sync.state().document).length } : null,
     syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
+    bulkData,
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
