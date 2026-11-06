@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { ConfirmDialog } from "@runly/ui";
 import { Trash2 } from "lucide-react";
 import { FolderExplorerBar } from "./FolderExplorerBar";
@@ -7,24 +6,24 @@ import { ROOT_FOLDER } from "../lib/folders";
 
 // Folder browsing UI for "Mis carpetas" plus every folder/file-move dialog.
 // `moveFileIds` is set by the screen when files are sent to a folder.
+// `dialog` is owned by the screen so the sidebar tree's context menu can open
+// the same dialogs ({ type: "create" | "rename" | "move" | "share" | "delete", folder, parentId }).
 export function FilesFolderManager({
   api,
   token,
   folder,
   showBar,
   canCreate,
-  canUpdate,
-  canDelete,
-  profileId,
-  isCompanyAdmin,
+  canManage,
+  dialog,
+  setDialog,
   moveFileIds,
   onMoveFilesClose,
   onOpen,
 }) {
-  const [dialog, setDialog] = useState(null);
   const { folders } = api;
   const current = folder && folder !== ROOT_FOLDER ? folders.find((f) => f.id === folder) : null;
-  const manageable = (f) => Boolean(isCompanyAdmin || f.createdById === profileId);
+  const createParentId = dialog?.parentId !== undefined ? dialog.parentId : current?.id ?? null;
   const close = () => setDialog(null);
 
   return (
@@ -34,12 +33,12 @@ export function FilesFolderManager({
           folders={folders}
           folder={folder}
           canCreate={canCreate}
-          canManage={(f) => manageable(f) && (canUpdate || canDelete)}
+          canManage={canManage}
           onOpen={onOpen}
           onCreate={() => setDialog({ type: "create" })}
           onRename={(f) => setDialog({ type: "rename", folder: f })}
           onMove={(f) => setDialog({ type: "move", folder: f })}
-          onShare={(f) => setDialog({ type: "share", folderId: f.id })}
+          onShare={(f) => setDialog({ type: "share", folder: f })}
           onDelete={(f) => setDialog({ type: "delete", folder: f })}
         />
       )}
@@ -47,10 +46,10 @@ export function FilesFolderManager({
       {dialog?.type === "create" && (
         <FolderNameDialog
           open
-          parentShared={current?.scope === "COMPANY"}
+          parentShared={folders.find((f) => f.id === createParentId)?.scope === "COMPANY"}
           onOpenChange={(open) => !open && close()}
           onSubmit={async ({ name, scope }) => {
-            const created = await api.createFolder({ name, scope, parentId: current?.id ?? null });
+            const created = await api.createFolder({ name, scope, parentId: createParentId });
             if (created) close();
           }}
         />
@@ -92,12 +91,12 @@ export function FilesFolderManager({
           }}
         />
       )}
-      {dialog?.type === "share" && folders.some((f) => f.id === dialog.folderId) && (
+      {dialog?.type === "share" && folders.some((f) => f.id === dialog.folder.id) && (
         <FolderShareDialog
-          folder={folders.find((f) => f.id === dialog.folderId)}
+          folder={folders.find((f) => f.id === dialog.folder.id)}
           token={token}
           onOpenChange={(open) => !open && close()}
-          onChangeScope={(scope) => api.updateFolder(dialog.folderId, { scope })}
+          onChangeScope={(scope) => api.updateFolder(dialog.folder.id, { scope })}
         />
       )}
       <ConfirmDialog

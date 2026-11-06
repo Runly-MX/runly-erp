@@ -136,6 +136,14 @@ export default function FilesScreen() {
   const folderApi = useFilesFolders({ token, userId: session?.user?.id, enabled: canReadFiles });
   const currentFolder = inFolders && folder !== ROOT_FOLDER ? folderApi.folders.find((f) => f.id === folder) : null;
   const dropTarget = inFolders ? (currentFolder ? `«${currentFolder.name}»` : "Mis carpetas") : "Mis archivos";
+  const [folderDialog, setFolderDialog] = useState(null);
+  const folderActions = {
+    canCreate: canUploadFiles,
+    canManage: (f) =>
+      Boolean(userProfile?.isAdmin || f.createdById === userProfile?.id) &&
+      (hasPermission("files.assets.update") || hasPermission("files.assets.delete")),
+    open: setFolderDialog,
+  };
   const selectView = ({ workspace: next, folder: nextFolder = "", moduleKey = "", record = "" }) =>
     changeQuery({ workspace: next, folder: nextFolder, moduleKey, record, q: "", kind: "", enabled: "" });
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -663,6 +671,7 @@ export default function FilesScreen() {
             folders={folderApi.folders}
             modules={folderApi.modules}
             isCompanyAdmin={Boolean(userProfile?.isAdmin)}
+            folderActions={folderActions}
             onSelect={selectView}
           />
           <div className="min-w-0 flex-1 space-y-6">
@@ -673,6 +682,22 @@ export default function FilesScreen() {
             onRetry={() => routeQuery.refetch()}
           />
         )}
+        <FilesFolderManager
+          api={folderApi}
+          token={token}
+          folder={folder}
+          showBar={inFolders}
+          canCreate={folderActions.canCreate}
+          canManage={folderActions.canManage}
+          dialog={folderDialog}
+          setDialog={setFolderDialog}
+          moveFileIds={moveFileIds}
+          onMoveFilesClose={(moved) => {
+            setMoveFileIds(null);
+            if (moved) resetSelection([]);
+          }}
+          onOpen={(id) => selectView({ workspace: "folders", folder: id })}
+        />
         {workspace === "invitations" ? (
           <FileInvitations
             token={token}
@@ -681,23 +706,6 @@ export default function FilesScreen() {
           />
         ) : (
           <>
-            <FilesFolderManager
-              api={folderApi}
-              token={token}
-              folder={folder}
-              showBar={inFolders}
-              canCreate={canUploadFiles}
-              canUpdate={hasPermission("files.assets.update")}
-              canDelete={hasPermission("files.assets.delete")}
-              profileId={userProfile?.id}
-              isCompanyAdmin={Boolean(userProfile?.isAdmin)}
-              moveFileIds={moveFileIds}
-              onMoveFilesClose={(moved) => {
-                setMoveFileIds(null);
-                if (moved) resetSelection([]);
-              }}
-              onOpen={(id) => selectView({ workspace: "folders", folder: id })}
-            />
             {workspace === "modules" && queryParams.moduleKey && (
               <ModuleRecordsBar
                 token={token}

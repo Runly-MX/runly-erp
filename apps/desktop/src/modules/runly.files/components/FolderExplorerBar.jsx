@@ -1,5 +1,5 @@
 import { ActionMenu, Button, cn } from "@runly/ui";
-import { ChevronRight, Folder, FolderPlus, FolderSymlink, Link2, Pencil, Trash2, Users } from "lucide-react";
+import { ChevronRight, Folder, FolderPlus, FolderSymlink, Link2, Pencil, Share2, Trash2, Users } from "lucide-react";
 import { ROOT_FOLDER, childrenOf, folderPath } from "../lib/folders";
 
 // Breadcrumb + subfolder cards shown above the files while browsing "Mis
@@ -7,6 +7,13 @@ import { ROOT_FOLDER, childrenOf, folderPath } from "../lib/folders";
 export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpen, onCreate, onRename, onMove, onShare, onDelete }) {
   const path = folder === ROOT_FOLDER ? [] : folderPath(folders, folder);
   const subfolders = childrenOf(folders, folder === ROOT_FOLDER ? null : folder);
+  const current = path[path.length - 1];
+  const menuItems = (item) => [
+    { label: "Compartir", icon: Link2, onClick: () => onShare(item) },
+    { label: "Renombrar", icon: Pencil, onClick: () => onRename(item) },
+    { label: "Mover a...", icon: FolderSymlink, onClick: () => onMove(item) },
+    { label: "Eliminar", icon: Trash2, variant: "destructive", onClick: () => onDelete(item) },
+  ];
   return (
     <section aria-label="Carpetas" className="grid gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -28,12 +35,23 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
             </span>
           ))}
         </nav>
-        {canCreate && (
-          <Button variant="outline" size="sm" aria-label="Nueva carpeta" onClick={onCreate}>
-            <FolderPlus className="h-4 w-4" />
-            <span className="max-sm:sr-only">Nueva carpeta</span>
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {current && canManage(current) && (
+            <>
+              <Button variant="outline" size="sm" aria-label={`Compartir ${current.name}`} onClick={() => onShare(current)}>
+                <Share2 className="h-4 w-4" />
+                <span className="max-sm:sr-only">Compartir</span>
+              </Button>
+              <ActionMenu label={`Acciones de ${current.name}`} items={menuItems(current).slice(1)} />
+            </>
+          )}
+          {canCreate && (
+            <Button variant="outline" size="sm" aria-label="Nueva carpeta" onClick={onCreate}>
+              <FolderPlus className="h-4 w-4" />
+              <span className="max-sm:sr-only">Nueva carpeta</span>
+            </Button>
+          )}
+        </div>
       </div>
       {subfolders.length > 0 && (
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-[repeat(auto-fill,minmax(210px,1fr))]">
@@ -53,15 +71,7 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
                 </span>
               </button>
               {canManage(item) && (
-                <ActionMenu
-                  label={`Acciones de ${item.name}`}
-                  items={[
-                    { label: "Compartir", icon: Link2, onClick: () => onShare(item) },
-                    { label: "Renombrar", icon: Pencil, onClick: () => onRename(item) },
-                    { label: "Mover a...", icon: FolderSymlink, onClick: () => onMove(item) },
-                    { label: "Eliminar", icon: Trash2, variant: "destructive", onClick: () => onDelete(item) },
-                  ]}
-                />
+                <ActionMenu label={`Acciones de ${item.name}`} items={menuItems(item)} />
               )}
             </div>
           ))}

@@ -1,15 +1,19 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { cn } from "@runly/ui";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger, cn } from "@runly/ui";
 import {
   Building2,
   ChevronRight,
   Clock,
   Folder,
   FolderOpen,
+  FolderPlus,
+  FolderSymlink,
   FolderTree,
   Mail,
+  Pencil,
   Share2,
+  Trash2,
   Users,
 } from "lucide-react";
 import { runly } from "../../../lib/runly";
@@ -129,7 +133,9 @@ function ModuleRecordRows({ moduleKey, record, guides, onSelect, onOpenModule })
 // carpetas (user folders, nested), Compartidos conmigo, per-module folders
 // (virtual: where each module's attachments live, with one folder per record)
 // and invitations.
-export function FilesSidebar({ workspace, folder, moduleKey, record, folders, modules, isCompanyAdmin, onSelect }) {
+// `folderActions` ({ canCreate, canManage(folder), open(dialog) }) adds the
+// right-click menu on user folders; the dialogs live in FilesFolderManager.
+export function FilesSidebar({ workspace, folder, moduleKey, record, folders, modules, isCompanyAdmin, folderActions, onSelect }) {
   const [open, setOpen] = useState(() => new Set(["folders", "modules"]));
   const toggle = (key) =>
     setOpen((prev) => {
@@ -159,19 +165,67 @@ export function FilesSidebar({ workspace, folder, moduleKey, record, folders, mo
       const kids = childrenOf(folders, f.id);
       const isOpen = open.has(f.id);
       const last = index === list.length - 1;
+      const row = (
+        <Row
+          guides={[...guides, true]}
+          isLast={last}
+          icon={f.scope === "COMPANY" ? Users : f.memberCount ? Share2 : isOpen && kids.length ? FolderOpen : Folder}
+          label={f.name}
+          active={workspace === "folders" && folder === f.id}
+          expandable={kids.length > 0}
+          expanded={isOpen}
+          onToggle={() => toggle(f.id)}
+          onClick={() => onSelect({ workspace: "folders", folder: f.id })}
+        />
+      );
       return (
         <div key={f.id}>
-          <Row
-            guides={[...guides, true]}
-            isLast={last}
-            icon={f.scope === "COMPANY" ? Users : f.memberCount ? Share2 : isOpen && kids.length ? FolderOpen : Folder}
-            label={f.name}
-            active={workspace === "folders" && folder === f.id}
-            expandable={kids.length > 0}
-            expanded={isOpen}
-            onToggle={() => toggle(f.id)}
-            onClick={() => onSelect({ workspace: "folders", folder: f.id })}
-          />
+          {folderActions ? (
+            <ContextMenu>
+              <ContextMenuTrigger asChild>
+                <div>{row}</div>
+              </ContextMenuTrigger>
+              <ContextMenuContent className="w-52">
+                <ContextMenuItem onSelect={() => onSelect({ workspace: "folders", folder: f.id })}>
+                  <FolderOpen />
+                  Abrir
+                </ContextMenuItem>
+                {folderActions.canCreate && (
+                  <ContextMenuItem onSelect={() => folderActions.open({ type: "create", parentId: f.id })}>
+                    <FolderPlus />
+                    Nueva subcarpeta
+                  </ContextMenuItem>
+                )}
+                {folderActions.canManage(f) && (
+                  <>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem onSelect={() => folderActions.open({ type: "share", folder: f })}>
+                      <Share2 />
+                      Compartir
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => folderActions.open({ type: "rename", folder: f })}>
+                      <Pencil />
+                      Renombrar
+                    </ContextMenuItem>
+                    <ContextMenuItem onSelect={() => folderActions.open({ type: "move", folder: f })}>
+                      <FolderSymlink />
+                      Mover a...
+                    </ContextMenuItem>
+                    <ContextMenuSeparator />
+                    <ContextMenuItem
+                      onSelect={() => folderActions.open({ type: "delete", folder: f })}
+                      className="text-destructive focus:bg-destructive/10 focus:text-destructive"
+                    >
+                      <Trash2 />
+                      Eliminar
+                    </ContextMenuItem>
+                  </>
+                )}
+              </ContextMenuContent>
+            </ContextMenu>
+          ) : (
+            row
+          )}
           {isOpen && renderFolders(f.id, [...guides, !last])}
         </div>
       );
