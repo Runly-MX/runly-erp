@@ -992,6 +992,8 @@ export function RunlyTable({
           onPageChange={setPage}
           onPageSizeChange={handlePageSizeChange}
         />
+        {/* Room for the floating BulkActionBar so it never covers the last rows or the pager. */}
+        {selectedIds.size > 0 ? <div aria-hidden="true" className="h-16 shrink-0" /> : null}
       </div>
 
       <ColumnConfigPanel

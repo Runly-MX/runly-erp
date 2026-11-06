@@ -522,7 +522,8 @@ export function InventoryGroupedView({
         />
       )}
 
-      {/* Bulk action bar */}
+      {/* Bulk action bar; the spacer keeps it from covering the last rows. */}
+      {selectedIds.size > 0 ? <div aria-hidden="true" className="h-16 shrink-0" /> : null}
       <BulkActionBar
         selectedCount={selectedIds.size}
         selectedRows={selectedItems}

@@ -70,7 +70,7 @@ export function BulkActionBar({
     .filter((action) => action && action.hidden !== true);
 
   return (
-    <div className="fixed bottom-6 left-1/2 z-50 -translate-x-1/2 max-w-[calc(100vw-1rem)]">
+    <div className="fixed bottom-[calc(1.5rem+var(--sab,0px))] left-1/2 z-50 -translate-x-1/2 max-w-[calc(100vw-1rem)]">
       <div className="flex items-center gap-1 overflow-x-auto whitespace-nowrap rounded-lg border border-border bg-background px-3 py-2 shadow-lg">
         <span className="mr-2 text-sm font-medium text-foreground whitespace-nowrap">
           <span className="hidden sm:inline">
