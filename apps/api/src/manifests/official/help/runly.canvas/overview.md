@@ -63,9 +63,9 @@ Con el boton de insertar (o la tecla I) subes una imagen o un PDF. De un PDF con
 
 La plantilla **Mapa de sitio** (o "Fondo de mapa..." en el menu de escala) pone un mapa de OpenStreetMap detras de la pagina. Busca una direccion o lugar y el mapa se movera y hara zoom junto con el lienzo. En una pagina con mapa las medidas salen en metros sin calibrar. El mapa no aparece en exportaciones, miniaturas ni enlaces publicos.
 
-### Planos DXF
+### Planos DXF y DWG
 
-Puedes insertar un archivo **DXF** de AutoCAD con el boton de insertar. Canvas lo dibuja como imagen en la capa de fondo y, si el archivo declara sus unidades (milimetros, centimetros, metros, pulgadas o pies), la pagina queda calibrada automaticamente.
+Puedes insertar un plano de AutoCAD en **DXF** o **DWG** con el boton de insertar. Un DWG se convierte una sola vez al insertarlo (abrir el tablero despues no lo vuelve a convertir); si la instancia no tiene el convertidor de DWG instalado, Runly te pide exportar el plano a DXF desde AutoCAD. Los planos son de solo consulta: no se editan sus lineas dentro de Canvas. Canvas lo dibuja como imagen en la capa de fondo y, si el archivo declara sus unidades (milimetros, centimetros, metros, pulgadas o pies), la pagina queda calibrada automaticamente.
 
 ### Escala y medidas
 

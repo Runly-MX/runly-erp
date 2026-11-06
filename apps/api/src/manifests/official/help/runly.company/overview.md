@@ -15,3 +15,7 @@ Runly Empresa administra la informacion propia de tu compania dentro de esta ins
 - Si tu instancia maneja varias companias, cada una tiene su propio perfil, direccion, marca y lista de miembros independientes — cambiar una no afecta a las demas.
 - Cambiar la marca visual aqui puede afectar como se ve el sistema para todos los miembros de esa compania.
 - Agregar o quitar un miembro aqui es sobre su membresia a esta compania, no sobre su cuenta de usuario en si; la cuenta se administra en el modulo de Identidad.
+
+### Eliminar la empresa
+
+En la **Zona de peligro** de la configuracion de la empresa, un administrador puede programar su eliminacion escribiendo el nombre exacto de la empresa y confirmando su contraseña. Opcionalmente, Runly avisa por correo a los miembros con la fecha limite para que respalden su informacion. La empresa se elimina 72 horas despues; mientras tanto sigue disponible, con un aviso en todas las pantallas y en el selector de empresas, y la eliminacion se puede cancelar.

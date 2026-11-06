@@ -1,10 +1,10 @@
 ---
 viewKey: /app/m/runly.pos/pos/orders
 title: Ordenes
-summary: Historial de ordenes ya tomadas o cerradas.
+summary: Historial de ventas, comprobantes y devoluciones.
 ---
-Consulta las ordenes anteriores, su estado y sus detalles.
+Consulta las ventas anteriores con su estado (en curso, cobrada, cancelada, devuelta...) y sus detalles.
 
-- Filtra por fecha, estado o mesa para encontrar una orden especifica sin recorrer todo el historial.
-- Cada orden muestra los productos vendidos, cantidades, forma de pago y a que turno de caja pertenece.
-- Util para resolver dudas de un cliente ("¿que compre el martes pasado?") o para reconciliar ventas al cierre del dia.
+- Busca por folio de venta o de comprobante y filtra por estado y fecha.
+- Cada orden muestra los articulos, los pagos, la caja y el comprobante, con su estado de impresion.
+- **Devolver**: elige los articulos a devolver (todo o una parte) con el motivo; el total a devolver se calcula solo y la devolucion queda registrada en la orden.

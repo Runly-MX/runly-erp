@@ -28,9 +28,10 @@ PNG, JPG o WebP, o insertar imágenes tuyas o de la empresa sin volver a subirla
 **Capas** (seleccionar, mostrar u ocultar y bloquear) y **Página** (tamaño y fondo).
 
 Dentro de **Imágenes**, **Archivos** reúne tus archivos y los de la empresa;
-**Fotos** e **Ilustraciones** buscan categorías distintas de Openverse. **Iconos**
-incluye ocho iconos básicos que funcionan sin internet; cambia la colección para
-buscar en Tabler o Lucide de Iconify. Abre un recurso para revisar autor,
+**Fotos** e **Ilustraciones** buscan en Openverse, Wikimedia Commons y Pixabay (si la instancia lo tiene configurado), además
+de las **Colecciones Runly** (CC0, incluidas en la instalación, sin conexión a terceros).
+**Iconos** incluye las colecciones Tabler y Lucide dentro de Runly, así que funcionan sin
+internet. Abre un recurso para revisar autor,
 licencia y origen. Insertar una fotografía guarda su original en Files; insertar
 un icono conserva geometría editable dentro del diseño. Puedes cambiar su color,
 tamaño, rotación y orden como con las formas. La biblioteca consulta páginas bajo
@@ -59,20 +60,29 @@ y **Mover la vista**; también funcionan Ctrl/Cmd + rueda y Espacio + arrastre. 
 botón de vista despejada y pantalla completa está junto a Propiedades. Atajos:
 Ctrl+Z / Ctrl+Y, Ctrl+C / Ctrl+V, Ctrl+D y Supr (pide confirmación).
 
-**Guardar** conserva el documento editable. **Compartir** permite al propietario invitar
-lectores o editores de la misma empresa y cambiar o quitar su acceso. Verás quién está
-conectado, sus cursores y cambios confirmados. Si hay una revisión más reciente, tu
-borrador se conserva; revisa la versión del servidor o guarda una copia.
+No hay botón Guardar: cada cambio se envía solo y la barra superior muestra el estado
+(**Sincronizando…**, **Sincronizado**, **Reconectando** o **Sin conexión**). Sin conexión,
+los cambios esperan y se envían al volver. **Compartir** permite al propietario invitar
+lectores o editores de la misma empresa y cambiar o quitar su acceso. Varias personas
+editan a la vez: ves quién está conectado, sus cursores y sus cambios al momento, sin
+conflictos de versiones. **Deshacer** y **Rehacer** solo afectan tus propios cambios,
+nunca los de otra persona.
 Si el propietario retira un diseño abierto, el editor deja de aceptar cambios
 y muestra que ya no está disponible. Si quedaron cambios sin enviar, puedes
 descargar el borrador local en JSON; no incluye los bytes de imágenes ni restaura
 el acceso al diseño.
 
-**Descargar** ofrece PNG y JPG al 100, 90 o 70 %. Ambos usan las dimensiones exactas de
-la página y los originales autorizados, no miniaturas.
+**Descargar** ofrece **PNG** (sin pérdida, admite fondo transparente), **JPG** (ligero, con
+calidad ajustable) y **PDF para imprimir** (medidas en milímetros, sangrado de 3 mm y marcas
+de corte; con varias páginas, cada una conserva sus medidas). Usan los originales
+autorizados, no miniaturas. El **paquete .runlystudio** conserva páginas, texto y formas
+para seguir editando; desde el inicio puedes importar un
+.runlystudio o un .svg arrastrándolo.
+
+**Guardar como plantilla** convierte un diseño en plantilla personal o de tu empresa.
 
 Antes de descargar o compartir se muestran los **Créditos del diseño**: puedes
-copiarlos o descargar un TXT. Las fotos admitidas son CC0, dominio público o CC BY;
+copiarlos o descargar un TXT. Las fotos admitidas son CC0, dominio público, CC BY o la licencia de Pixabay;
 los recursos con licencias no compatibles se excluyen. Conserva las atribuciones
 que correspondan al publicar. Los créditos se entregan por separado de los píxeles
 del PNG/JPG. La exportación espera las fuentes, sin sustituirlas silenciosamente.

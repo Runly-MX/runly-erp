@@ -65,6 +65,8 @@ En una lección de tipo **Tarea** escribes las instrucciones y eliges si se entr
 
 ### Revisión
 
+Al calificar, la hoja muestra los archivos entregados con vista previa, para descargarlos o abrirlos en Office (si la instancia tiene Collabora). Revisión también guarda el historial de lo ya calificado. Todos los archivos del curso (lecciones, entregas, recursos) se abren en el visor de archivos de Runly.
+
 **Revisión** muestra, de la más antigua a la más reciente, las entregas de tareas y los exámenes con respuestas abiertas que esperan calificación; puedes filtrar por curso. Al calificar, el alumno recibe una notificación, y quien creó el curso recibe otra cada vez que llega algo por revisar.
 
 ### Preguntas
@@ -94,6 +96,7 @@ En **Certificados** creas plantillas con un título, un texto, quién firma (nom
 - Cada alumno descarga sus certificados desde **Mis cursos** y al terminar el curso en el reproductor.
 - El PDF incluye un código QR que abre una página pública de verificación, sin iniciar sesión, con el folio, el nombre, el curso, la fecha y si el certificado es válido o fue revocado. Un certificado revocado sigue apareciendo, marcado como **Revocado**.
 - Una plantilla que algún curso usa no se puede desactivar; primero quítala de esos cursos.
+- Además del diseño integrado, puedes usar tu propio formato de certificado (Word, PowerPoint o PDF) como plantilla de Documentos de tipo certificado, junto al diseño integrado. Runly sugiere las etiquetas al subirlo, y también puedes subirlo desde ChatGPT o Claude conectados por MCP.
 
 ### Lecciones gratis y video de presentación
 

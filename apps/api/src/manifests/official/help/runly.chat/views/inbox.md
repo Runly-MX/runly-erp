@@ -11,6 +11,9 @@ Aqui ves todas tus conversaciones activas, agrupadas en secciones.
 - Las llamadas de voz/video se inician desde una conversacion; si tienes permiso, puedes grabarlas y pedir su transcripcion despues.
 - La conversacion con **MirAI** siempre aparece en tu lista; si la instancia no tiene IA configurada, el cuadro de escritura de esa conversacion muestra "no configurado" en vez de bloquearse por completo.
 - Puedes fijar mensajes importantes y reenviar mensajes entre conversaciones.
+- Arriba de la lista, la tira de **personas** muestra quien esta en la empresa y quien esta en linea; toca a alguien para abrir su chat directo.
+- En el telefono, manten presionado un mensaje: arriba aparecen las reacciones y abajo las acciones (responder, reenviar, guardar...).
+- Para citar una nota de Runly Notas en un mensaje usa el **+** del cuadro de escritura o escribe `/notas` y eligela; se ve como tarjeta y abre la nota (si quien la recibe tiene acceso a ella).
 
 ## Secciones y filtros
 

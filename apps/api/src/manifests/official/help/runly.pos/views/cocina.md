@@ -1,11 +1,10 @@
 ---
 viewKey: /app/m/runly.pos/pos/cocina
 title: Cocina
-summary: Pantalla para que el personal de cocina vea y marque los pedidos.
+summary: Las comandas de cada estacion, en tiempo real.
 ---
-Muestra los pedidos entrantes en tiempo real para que cocina los prepare y marque cuando estan listos.
+Cocina es la pantalla de preparacion. Elige la sucursal y la estacion (Cocina, Barra, Postres...) para ver solo sus tickets.
 
-- Cada pedido nuevo del Comandero aparece aqui automaticamente, sin que nadie tenga que avisarle a cocina a mano.
-- Muestra la mesa, los productos pedidos y cualquier nota especial que capturo el mesero (por ejemplo, "sin cebolla").
-- Marca un pedido como en preparacion o listo para que el mesero sepa cuando pasar a recogerlo.
-- Pensada para verse en una pantalla dedicada dentro de la cocina, separada de donde se cobra.
+- Cada comanda enviada desde el Comandero aparece al momento, con la mesa, los productos, sus modificadores y las notas del mesero.
+- Marca cada ticket conforme avanza la preparacion para que el mesero sepa cuando pasar por el.
+- Esta pensada para una pantalla dedicada dentro de la cocina. Las estaciones se crean en **Administracion > Restaurante**, y en cada producto eliges que estacion lo prepara.

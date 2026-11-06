@@ -1,12 +1,12 @@
 ---
 viewKey: /app/m/runly.pos/pos/comandero
 title: Comandero
-summary: Toma pedidos por mesa antes de cobrar.
+summary: Las mesas del restaurante; abre cuentas, captura el consumo y envialo a cocina.
 ---
-Selecciona una mesa y captura lo que pidieron los clientes; el pedido se manda a cocina automaticamente.
+El Comandero muestra las mesas de la sucursal con su estado, en lista o en el plano del salon si dibujaste uno.
 
-- El plano de mesas refleja la distribucion configurada en Administracion, con el estado de cada mesa (libre u ocupada).
-- Agrega productos del Catalogo a la mesa y anota indicaciones especiales por producto (por ejemplo, "sin cebolla" o "termino medio").
-- Puedes seguir agregando productos a una mesa ya abierta conforme los clientes van pidiendo mas, sin perder lo que ya se registro.
-- En cuanto guardas el pedido, aparece de inmediato en la pantalla de Cocina — no hace falta avisar por separado.
-- Cuando la mesa esta lista para pagar, se cierra desde Caja, donde ya aparece la cuenta armada con todo lo pedido.
+- Toca una mesa para abrir su cuenta con el numero de comensales y agrega productos del catalogo con sus modificadores y notas (por ejemplo "sin cebolla").
+- Al enviar, la comanda llega a la estacion que prepara cada producto (Cocina, Barra...). Puedes seguir agregando productos a una cuenta abierta.
+- La cuenta se cobra en **Caja** (o en la mesa, si la sucursal lo permite). La mesa se libera cuando el cobro queda confirmado.
+- Las mesas se crean con nombre y capacidad; no necesitas un plano. Una mesa deshabilitada deja de estar disponible para abrir cuentas y conserva su historial.
+- Al terminar su turno, el mesero entrega su efectivo y la caja lo recibe.

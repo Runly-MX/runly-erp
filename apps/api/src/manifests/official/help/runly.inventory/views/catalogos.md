@@ -10,3 +10,5 @@ Administra los catalogos que despues eliges al registrar un activo. Elige el cat
 - **Importar**: descarga la plantilla, llenala y subela. La vista previa marca cada fila como nueva, ya existente (se omite) o con error; en Modelos puedes crear en el mismo paso los tipos y marcas que falten.
 - No puedes eliminar un tipo o una marca mientras tenga modelos activos; muevelos o desactivalos primero.
 - Estos catalogos son los que ve la IA de Registro con IA para sugerir el tipo correcto al identificar una foto.
+- **Campos personalizados**: al crear un campo eliges donde aparece: **Solo en los activos seleccionados** (por defecto; no se pide automaticamente, se agrega a cada activo desde su formulario o en grupo con el boton **Activos**), **En todos los tipos**, o **En los tipos que elijas** (varios a la vez). La lista muestra el alcance de cada campo.
+- Selecciona varios campos personalizados para asignarles los mismos tipos de una sola vez.

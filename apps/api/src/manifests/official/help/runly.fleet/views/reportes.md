@@ -8,3 +8,4 @@ Registra eventos del historial de cada vehiculo: mantenimiento programado, servi
 - Cada reporte queda ligado al vehiculo (y opcionalmente al chofer) al que corresponde, para ver el historial completo desde la ficha del vehiculo.
 - Util para decidir cuando toca el proximo mantenimiento o para justificar un gasto de reparacion.
 - Filtra por tipo de evento o por vehiculo para revisar el historial de una unidad especifica.
+- El detalle de un reporte se abre como pagina completa, con sus indicadores principales arriba, y su PDF incluye un resumen.

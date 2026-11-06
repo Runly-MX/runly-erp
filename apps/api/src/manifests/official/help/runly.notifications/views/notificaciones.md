@@ -8,3 +8,4 @@ Aqui ves tus notificaciones, mas recientes primero, marcadas por prioridad. Pued
 - Filtra por prioridad o por leidas/no leidas para enfocarte en lo mas urgente primero.
 - Da clic en una notificacion para ir directo al registro que la genero, sin tener que buscarlo tu mismo en el modulo correspondiente.
 - Marca varias como leidas a la vez cuando ya revisaste todo lo pendiente.
+- La campana separa **General** y **Mensajes** (los mensajes nuevos de chat). Cada aviso muestra el modulo y quien lo genero; desde el panel puedes silenciar el sonido de las notificaciones.

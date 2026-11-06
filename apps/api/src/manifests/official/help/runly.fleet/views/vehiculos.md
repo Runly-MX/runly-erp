@@ -8,3 +8,4 @@ Aqui esta el catalogo de vehiculos de la empresa, con sus datos y estado actual 
 - Busca y filtra por marca, modelo o estado para encontrar un vehiculo especifico entre toda la flota.
 - La ficha de cada vehiculo concentra su informacion (placas, marca, modelo, chofer asignado) junto con sus seguros y reportes relacionados.
 - Cambiar el estado a "en mantenimiento" ayuda a que el resto del equipo sepa que ese vehiculo no esta disponible por ahora.
+- Cambia entre lista y **cuadricula**: la cuadricula muestra cada vehiculo con su foto de portada. El PDF del vehiculo resume sus datos, seguros y reportes.

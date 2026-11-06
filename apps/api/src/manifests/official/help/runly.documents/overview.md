@@ -2,9 +2,11 @@
 title: Documentos
 summary: Sube tus propios formatos de Word, Excel, PowerPoint o PDF y llenalos con datos de los modulos.
 ---
-Runly Documentos guarda las plantillas de documento de toda la empresa y las llena automaticamente con los datos reales de cada modulo (resguardos de inventario, certificados, leads de Growth, etc.).
+Runly Documentos guarda las plantillas de documento de toda la empresa y las llena automaticamente con los datos reales de cada modulo (resguardos de inventario, certificados de cursos, empleados, contactos, vehiculos, ordenes de compra, leads de Growth, etc.). Tambien acepta documentos generales que no dependen de un modulo.
 
 - **Plantillas**: subes tu propio documento (Word, Excel, PowerPoint o PDF) o creas uno en blanco. Runly detecta los campos, tu confirmas que dato va en cada uno y publicas la plantilla. Las plantillas solo se crean cuando tu lo haces.
+- Cada plantilla es **Personal** (solo tu la ves y la usas) o compartida con la empresa. Usa **Compartir con la empresa** cuando este lista; solo una plantilla compartida puede ser la predeterminada de su tipo.
+- Desde cualquier modulo con documentos, MirAI o ChatGPT/Claude conectados por MCP pueden generar un documento a partir de una plantilla publicada.
 - **Generados**: el historial de documentos ya generados, listos para consultar o descargar de nuevo.
 
 ### Alcances y limites

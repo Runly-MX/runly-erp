@@ -12,7 +12,7 @@ Las órdenes de compra registran lo que pediste a un proveedor.
 - El detalle de una orden muestra arriba el proveedor, las fechas y las condiciones; a un lado, el "Siguiente paso" (qué falta y quién lo hace, según el estado, tus permisos y la política), la política de compras, el avance de recepción y facturación, los documentos relacionados y qué se puede corregir.
 - Pestañas: Partidas (pedido, recibido y pendiente por partida; los servicios no se reciben), Recepciones, Inventario, Archivos e Historial (correcciones y actividad).
 - La tarjeta de política solo se pone en rojo cuando bloquea la siguiente acción del documento; si no, aparece cerrada y dice qué bloquea cada requisito.
-- En la pestaña Inventario relacionas activos existentes o creas activos nuevos a partir de un concepto.
+- En la pestaña Inventario relacionas activos existentes o creas activos nuevos a partir de un concepto. Ahi mismo puedes capturar o corregir el número de activo de cada uno; los que no lo tienen aparecen como "Sin número de activo". La búsqueda de órdenes y facturas también encuentra por número de activo o serie.
 - Si falta una etapa obligatoria (por ejemplo, tres cotizaciones), Runly te muestra qué falta antes de emitir.
 - Desde la ficha de un activo, "Crear orden" abre este editor con el activo ya relacionado.
 - El folio de la orden lo escribes tú: puedes usar el formato de tu empresa o capturar el folio de una orden pasada (la fecha también puede ser anterior). Si lo dejas vacío, Runly lo genera con el formato configurado.

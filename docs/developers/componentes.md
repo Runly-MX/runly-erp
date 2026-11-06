@@ -604,6 +604,19 @@ Tabla basada en el blueprint de una entidad del módulo (la misma que usan las v
 | `description` | string | Detalle |
 | `onRetry` | función | Muestra "Reintentar" |
 
+### NotFoundState
+
+Pantalla completa de "no encontrado" (404) para un registro, pantalla o módulo que no existe. Usa el color de la marca y no es destructiva: úsala en lugar de `ErrorState` cuando el problema es que el registro no existe, no que falló la carga.
+
+| Prop | Tipo | Qué hace |
+|---|---|---|
+| `title` | string | Título |
+| `description` | string | Explicación |
+| `detail` | string | Clave o identificador que se muestra en monoespaciado |
+| `back` / `home` | `{ label, onClick }` o un elemento | Acciones para volver |
+| `icon` | componente lucide | Icono |
+| `code` | string | Código que se muestra (por defecto 404) |
+
 ### Skeleton
 
 Bloque animado mientras carga. Dale tamaño con `className` (`h-32 w-full`).
