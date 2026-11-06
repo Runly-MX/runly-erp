@@ -142,6 +142,15 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
     }
   }, [fileAssetId, avatarUserId, column?.imagesApiPath, row?.id, apiBaseUrl, token, companyId]);
 
+  // Stable, so a table re-render while the viewer is open doesn't re-sign (and re-download) the image.
+  const resolveViewerUrl = useCallback(
+    (item) =>
+      item?.avatarUserId
+        ? fetchUserAvatarSignedUrl(apiBaseUrl, token, item.avatarUserId, companyId, "full")
+        : resolveSignedUrl(item?.fileAssetId),
+    [apiBaseUrl, token, companyId, resolveSignedUrl],
+  );
+
   const avatarLabel = column?.avatarLabelField ? row?.[column.avatarLabelField] : null;
 
   if (!fileAssetId && !avatarUserId && !avatarLabel && variant === "thumb") {
@@ -186,11 +195,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         files={viewerFiles}
         activeIndex={activeIndex}
         onIndexChange={setActiveIndex}
-        onResolveSignedUrl={(item) =>
-          item?.avatarUserId
-            ? fetchUserAvatarSignedUrl(apiBaseUrl, token, item.avatarUserId, companyId, "full")
-            : resolveSignedUrl(item?.fileAssetId)
-        }
+        onResolveSignedUrl={resolveViewerUrl}
       />
     </>
   );

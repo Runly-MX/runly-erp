@@ -181,6 +181,9 @@ export function AdvancedFileViewer({
         setLoading(true);
         const url = await onResolveSignedUrl(file);
         if (active) setSignedUrl(url || null);
+        // Share it with the filmstrip so it never signs a second URL (a new
+        // token = a second full download that blanks the image mid-load).
+        if (url) setMediaThumbUrls((prev) => (prev[file.id] ? prev : { ...prev, [file.id]: url }));
       } finally {
         if (active) setLoading(false);
       }
@@ -196,7 +199,8 @@ export function AdvancedFileViewer({
     const end = Math.min(files.length - 1, activeIndex + THUMB_WINDOW);
     for (let i = start; i <= end; i++) {
       const f = files[i];
-      if (!f) continue;
+      // The active file is resolved (and shared back) by the effect above.
+      if (!f || i === activeIndex) continue;
       const fKind = getFileKind(f);
       if (fKind !== "video" && fKind !== "image") continue;
       // Images that already carry a pre-built thumbnailUrl never need this
