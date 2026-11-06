@@ -84,6 +84,10 @@ NFC lee el identificador y tecnologías de una etiqueta en primer plano, con
 cancelación y timeout de 30 segundos; no implementa pagos ni escritura de etiquetas.
 No se añaden permisos de telefonía celular para las llamadas VoIP de Runly.
 
+`ACCESS_COARSE_LOCATION`/`ACCESS_FINE_LOCATION` (desde 1.2.6) permiten
+`navigator.geolocation` en el WebView (geolocalización de inventario, checada de
+asistencia); sin declararlos Android niega la ubicación sin mostrar el diálogo.
+
 Producción Android es universal por defecto. Para QA con origen fijo usar
 `--pinned`; staging/development conservan su configuración de build. El wrapper
 elimina las variables de origen heredadas antes de compilar en modo universal.

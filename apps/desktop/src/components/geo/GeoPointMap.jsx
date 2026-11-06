@@ -29,6 +29,8 @@ export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, pi
   const libRef = useRef(null)
   const pickRef = useRef(onPick)
   pickRef.current = onPick
+  // A point picked on the map itself is already in view: don't recenter/zoom (it fought every tap and drag on touch).
+  const pickedRef = useRef(false)
   const [ready, setReady] = useState(false)
   const located = hasGeoPoint(latitude, longitude)
 
@@ -48,8 +50,11 @@ export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, pi
         cooperativeGestures: true,
       })
       map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right')
-      map.on('error', () => onError?.())
-      map.on('click', (event) => pickRef.current?.(event.lngLat.lat, event.lngLat.lng))
+      // Only a style that never loads falls back; a single failed tile on a flaky phone network must not hide the map.
+      let styleLoaded = false
+      map.once('load', () => { styleLoaded = true })
+      map.on('error', () => { if (!styleLoaded) onError?.() })
+      map.on('click', (event) => { pickedRef.current = true; pickRef.current?.(event.lngLat.lat, event.lngLat.lng) })
       mapRef.current = map
       setReady(true)
     }
@@ -75,11 +80,13 @@ export function GeoPointMap({ styleUrl, latitude, longitude, onPick, onError, pi
       markerRef.current = new lib.Marker({ draggable: Boolean(pickRef.current), ...(pinRef.current ? { element: pinElement(pinRef.current), anchor: 'bottom' } : {}) }).setLngLat(lngLat).addTo(map)
       markerRef.current.on('dragend', () => {
         const { lat, lng } = markerRef.current.getLngLat()
+        pickedRef.current = true
         pickRef.current?.(lat, lng)
       })
     } else {
       markerRef.current.setLngLat(lngLat)
     }
+    if (pickedRef.current) { pickedRef.current = false; return }
     map.easeTo({ center: lngLat, zoom: Math.max(map.getZoom(), POINT_ZOOM) })
   }, [ready, located, latitude, longitude])
 
