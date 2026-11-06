@@ -1037,7 +1037,7 @@ CANVAS_GEOCODER_URL=${canvasGeocoderUrl}
 # ── Reportar bug (opcional) ───────────────────────────────────────────────────
 # Destino del boton "Reportar bug". Se envia por el SMTP de plataforma
 # configurado en Ajustes -> SMTP (o el de la empresa activa si el de
-# plataforma no esta configurado). Vacio deshabilita el boton en esta instancia.
+# plataforma no esta configurado). Vacio envia los reportes a hola@runly.mx.
 RUNLY_SUPPORT_EMAIL=${supportEmail}
 
 # ── LiveKit Egress → Supabase Storage (call recordings, optional) ───────────
