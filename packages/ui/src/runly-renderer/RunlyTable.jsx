@@ -39,6 +39,9 @@ import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
 import { clearAllPatch } from "../components/filter-menu-helpers.js";
 import { toggleWithRange } from "./selection-range.js";
 
+// Rows before the first load: the selection effect skips it so a restored selection survives until real rows arrive.
+const INITIAL_ROWS = [];
+
 // Select value as a tinted pill: stable color per option (or option.color).
 function SelectBadge({ label, color }) {
   return (
@@ -300,10 +303,7 @@ export function RunlyTable({
   }, [externalFiltersKey, restored]);
   const [sortBy, setSortBy] = useState(restored?.sortBy ?? "");
   const [sortDir, setSortDir] = useState(restored?.sortDir === "desc" ? "desc" : "asc");
-  useEffect(() => {
-    saveTableViewState(viewScope, { page, search, filters: filterValues, sortBy, sortDir });
-  }, [viewScope, page, search, filterValues, sortBy, sortDir]);
-  const [rows, setRows] = useState([]);
+  const [rows, setRows] = useState(INITIAL_ROWS);
   const [pagination, setPagination] = useState({
     page: 1,
     pageSize: defaultPageSize,
@@ -316,7 +316,12 @@ export function RunlyTable({
   const [view, setView] = useState(() =>
     getStoredViewMode(storageKey, schema.defaultViewMode ?? "table"),
   );
-  const [selectedIds, setSelectedIds] = useState(new Set());
+  // A reload keeps the selection: it is restored once, for the rows of the first load.
+  const pendingSelectionRef = useRef(Array.isArray(restored?.selectedIds) ? restored.selectedIds : null);
+  const [selectedIds, setSelectedIds] = useState(() => new Set(pendingSelectionRef.current ?? []));
+  useEffect(() => {
+    saveTableViewState(viewScope, { page, search, filters: filterValues, sortBy, sortDir, selectedIds: [...selectedIds] });
+  }, [viewScope, page, search, filterValues, sortBy, sortDir, selectedIds]);
 
   const selectedRows = useMemo(
     () => rows.filter((row, i) => selectedIds.has(getRowId(row, i))),
@@ -419,7 +424,11 @@ export function RunlyTable({
   ]);
 
   useEffect(() => {
-    setSelectedIds(new Set());
+    if (rows === INITIAL_ROWS) return;
+    const pending = pendingSelectionRef.current;
+    pendingSelectionRef.current = null;
+    const loadedIds = new Set(rows.map((row, i) => getRowId(row, i)));
+    setSelectedIds(new Set((pending ?? []).filter((id) => loadedIds.has(id))));
     anchorRef.current = null;
   }, [rows]);
 

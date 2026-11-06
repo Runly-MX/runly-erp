@@ -17,10 +17,10 @@ export function PageNumbers({ pageIndex, pageCount, siblings, onPageChange, clas
               aria-current={item === pageIndex + 1 ? 'page' : undefined}
               onClick={() => item !== pageIndex + 1 && onPageChange(item - 1)}
               className={cn(
-                'flex h-9 min-w-9 items-center justify-center rounded-lg px-2 text-xs tabular-nums transition-colors sm:h-8 sm:min-w-8',
+                'flex h-9 min-w-9 items-center justify-center rounded-full px-2 text-xs tabular-nums transition-colors sm:h-8 sm:min-w-8',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
                 item === pageIndex + 1
-                  ? 'bg-[hsl(var(--primary))] font-semibold text-[hsl(var(--primary-foreground))]'
+                  ? 'bg-[var(--brand-primary)] font-semibold text-[var(--brand-primary-foreground)]'
                   : 'hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]',
               )}
             >
