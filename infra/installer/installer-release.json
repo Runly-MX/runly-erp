@@ -4,7 +4,7 @@
   "version": "2026.11.03.1",
   "files": {
     ".env.local.example": {
-      "sha256": "c49dbb2336c087f9f757b47ed3592b887e3a35f93190904180c02dbf5e44176a",
+      "sha256": "9543c4171e2e33e921bdc6c0cac5f63ebc7ff0336fe2efc8815b378497cec0d8",
       "modes": [
         "local"
       ],
@@ -25,6 +25,7 @@
         "55e16b7769a186e3b7a81d9bbad758c4e6b1d3ca",
         "60c1c6ffdc4ac2d781bb06fd8e497e19979b1ca8",
         "701ba2cefe3c01c3fbe96a9342be44e8dbca3504",
+        "759f941c647bd894079f52f4a715742a938114c5",
         "79073d2675e344f0a84e764ba27390f62ba0b2a4",
         "84fcde5e2bb015f62cb4ee154958a5d768ff4d6d",
         "8833234853f4a4c44f618a9bd345edcf5c0e0b91",
@@ -373,7 +374,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "9cb56233e50e0493569e5f899a9f86d61b5f3562333105a7bad849f8cedfefa0",
+      "sha256": "7241d5602e94f73eb88b466b8ba113998a36970432d70e30fd0639959dedb076",
       "modes": [
         "local"
       ],
@@ -386,6 +387,7 @@
         "1371df7aac8648b00b7cfb1fa316694ad5ce73fe",
         "172bda3a6439f0165a4fcfa39e49540550ed0fa5",
         "178fab964aef8fd308ddbb4e3a8171e8ba22ea4d",
+        "1a70bfd74523b3077e269c38beb0f7c943a58069",
         "1fe1e24cd27d60b76bf64ba3b5b0814ad1891e90",
         "22f84b4ee6d5de92ce01edfeb93fc5fcad9f0b67",
         "275f439522bbc66aee4acc9037b646291e40ff5c",
@@ -405,6 +407,7 @@
         "784c49f962989e31c172065cfe21d10854505aa6",
         "7d19cc80cf8952817dbffdabb9b7e13811c75020",
         "7d369893e1195ba8a98dda11ea1e6033a2bbf9cc",
+        "7f2b0ee100aa52828217cdd1ef224dced6899819",
         "8137b143603118dc95e5fef95a71e58be878c292",
         "83b6c77a47bea70c5f1b9b166a478a2b694de97e",
         "88fc35e925c1d0049b69923bc633dd05fc9e2198",
@@ -502,11 +505,12 @@
       ]
     },
     "supabase/docker-compose.supabase.yml": {
-      "sha256": "791442e8369452195feec8cab60687ebce235a15b64db0a643e6ed5018765542",
+      "sha256": "51a7811f41456e27ac6057f2202e3fe752668a45aca9c483da3d4c9f8542a9bb",
       "modes": [
         "local"
       ],
       "legacyGitBlobs": [
+        "04e3805b214c85e856cad9f27c8314aa58869230",
         "ec80a1e0e62b98c5b8924a1f15eb00d71439b9ba",
         "ee763a22b988b647b64e86b503a3874ad7fb0295"
       ]
@@ -600,7 +604,7 @@
       ]
     },
     ".env.external.example": {
-      "sha256": "40e3997822b0bb8a117a0fbe59f6b00cfa32c6e6e528e8dbbe8bdb130a2da03f",
+      "sha256": "faf13857b943991cded09d379ac6377319d3d8d3aced1817a6c1490c9b35d909",
       "modes": [
         "external"
       ],
@@ -625,6 +629,7 @@
         "60ff657208e0fd9578629d7e67b9a6152c131e65",
         "6ac5e5988c30b616c96dbfafd42444c201bbf7af",
         "7d066af75fd3bb99771d43a48444c21ec8a6f32a",
+        "7f4d1bfac6def282e8d3deec8de79523141d4ce9",
         "a8928a882573b4cfe2ebc83438740f2ce044aa58",
         "bd0aa8a4b8a15a468a5f63a44889b00ac7c10408",
         "c6e30a92ccb9c51e1c5d858025a3202eb104f9ee",
@@ -640,7 +645,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "5437e39f7f7bcec14ae5408c26a160ebca5715ccf57013342566933bde059bae",
+      "sha256": "3ca78350fa40ffd40d42916ca32459ecb598cad351e03ae41ab7ed7ce904a0a2",
       "modes": [
         "external"
       ],
@@ -659,6 +664,7 @@
         "2ebbcd568768e93954daca10fa3d164ba50e5b4a",
         "3c1ecd4ae23f3d850c46a530cab134e923d840b0",
         "4a5785aeb08bb006f502729026c898759b813933",
+        "4e2850dcb8c5d0368cf4d1597bd3ae15c371866a",
         "4f6f1428813c6f27c3f40bfe97f09c2f71e6e7a5",
         "4fd273d5fd2d1635f2d9249cf1f674df6d86d99c",
         "5f4fe99fc2b4f5972750b20096ce622c1e040dd1",
