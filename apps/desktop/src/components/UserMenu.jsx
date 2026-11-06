@@ -41,6 +41,8 @@ function getDevicePlatform() {
   if (/iPhone|iPod/i.test(ua)) return "ios";
   if (/iPad/i.test(ua) || (/Mac/i.test(ua) && navigator.maxTouchPoints > 1)) return "ios";
   if (/Android/i.test(ua)) return "android";
+  // Chrome on Android tablets (and "Sitio de escritorio") sends a desktop Linux UA.
+  if (navigator.userAgentData?.platform === "Android" || (/Linux/i.test(ua) && navigator.maxTouchPoints > 1)) return "android";
   if (/webOS|BlackBerry|IEMobile|Opera Mini/i.test(ua)) return "mobile";
   if (/Windows NT/i.test(ua)) return "windows";
   return "desktop";
@@ -144,7 +146,8 @@ export function UserMenu({
 
   // Module PWA installation and the Android APK are independent actions.
   const showMobileInstall = mobileInstallMode !== null && !native.isRemoteHost();
-  const showAndroidDownload = platform === "android" && !nativeMobile;
+  // Offered on desktop too (download and pass to the phone); never inside the APK or on iOS.
+  const showAndroidDownload = platform !== "ios" && !nativeMobile;
   const showWindowsApp = isWindows;
   // The install group above already covers the module install on mobile.
   const showModuleInstallItem = !standalone && !showMobileInstall;
