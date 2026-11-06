@@ -35,6 +35,7 @@ import { FilesNavigation } from "../components/FilesNavigation";
 import { FilesFolderManager } from "../components/FilesFolderManager";
 import { FilesUploadQueue } from "../components/FilesUploadQueue";
 import { useFilesFolders } from "../hooks/useFilesFolders";
+import { useAreaTreeDock } from "../../runly.inventory/hooks/useAreaTreeDock.js";
 import { ROOT_FOLDER, moduleLabel } from "../lib/folders";
 
 function useFileIdFromPath(pathname) {
@@ -120,6 +121,7 @@ export default function FilesScreen() {
     );
   }
   const isMobile = useIsMobile();
+  const dock = useAreaTreeDock("runly.files.folderTree");
   // Two modes: table, and the shared MediaGallery ("gallery"). Phones default
   // to the gallery; the old cards/grid choices fold into it.
   const [storedView, setStoredView] = useState(() => {
@@ -634,6 +636,7 @@ export default function FilesScreen() {
     <div className="files-workspace flex flex-col min-h-full">
       <div className="flex-1 p-4 md:p-6 space-y-6">
         <FilesWorkspaceHeader
+          dock={dock}
           onCreate={setNewFormat}
           onUpload={() => setShowUpload(true)}
           canCreate={canUploadFiles && hasPermission("files.assets.update")}
@@ -650,11 +653,13 @@ export default function FilesScreen() {
           shareWithCompany={shareWithCompany}
           onShareWithCompanyChange={setShareWithCompany}
         />
-        <div className="flex flex-col gap-4 md:flex-row md:items-start">
+        <div ref={dock.containerRef} className="flex flex-col gap-4 lg:flex-row lg:items-start lg:gap-0">
           <FilesNavigation
+            dock={dock}
             workspace={workspace}
             folder={folder}
             moduleKey={queryParams.moduleKey}
+            record={queryParams.record}
             folders={folderApi.folders}
             modules={folderApi.modules}
             isCompanyAdmin={Boolean(userProfile?.isAdmin)}

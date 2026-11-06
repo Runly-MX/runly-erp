@@ -91,7 +91,8 @@ function ResizeHandle({ width, min, max, onPreview, onCommit, onDraggingChange }
 
 // Docked, animated, resizable folder sidebar. The column animates its width (toggle only; never while dragging)
 // while the inner panel keeps a fixed width so the tree does not reflow. The panel pushes the table.
-export function AreaTreeDock({ dock, areas, value, onSelect, loading }) {
+// `children` replaces the area tree (runly.files docks its own folder tree here).
+export function AreaTreeDock({ dock, areas, value, onSelect, loading, children }) {
   const wrapperRef = useRef(null)
   const [dragging, setDragging] = useState(false)
   const { dockOpen, width, maxWidth, setWidth } = dock
@@ -123,7 +124,7 @@ export function AreaTreeDock({ dock, areas, value, onSelect, loading }) {
           dockOpen ? 'translate-x-0 opacity-100 duration-240' : '-translate-x-3 opacity-0 duration-180',
         )}
       >
-        <AreaTreePanel areas={areas} value={value} onSelect={onSelect} loading={loading} onCollapse={dock.toggle} />
+        {children ?? <AreaTreePanel areas={areas} value={value} onSelect={onSelect} loading={loading} onCollapse={dock.toggle} />}
       </aside>
       {dockOpen ? (
         <ResizeHandle

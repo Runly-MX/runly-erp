@@ -14,6 +14,8 @@ import {
   FileSpreadsheet,
   Presentation,
   ArrowUpRight,
+  PanelLeft,
+  PanelLeftClose,
 } from "lucide-react";
 import "./FilesWorkspace.css";
 
@@ -38,6 +40,7 @@ const TYPES = [
   },
 ];
 export function FilesWorkspaceHeader({
+  dock,
   onCreate,
   onUpload,
   canCreate,
@@ -51,6 +54,18 @@ export function FilesWorkspaceHeader({
         title="Archivos"
         actions={
           <div className="flex flex-wrap gap-2">
+            {dock?.isDesktop && (
+              <Button
+                variant={dock.dockOpen ? "secondary" : "outline"}
+                size="icon"
+                aria-label={dock.dockOpen ? "Ocultar carpetas" : "Mostrar carpetas"}
+                title={dock.dockOpen ? "Ocultar carpetas" : "Mostrar carpetas"}
+                aria-pressed={dock.dockOpen}
+                onClick={dock.toggle}
+              >
+                {dock.dockOpen ? <PanelLeftClose className="h-4 w-4" /> : <PanelLeft className="h-4 w-4" />}
+              </Button>
+            )}
             <Button
               variant="outline"
               aria-label="Subir archivos"

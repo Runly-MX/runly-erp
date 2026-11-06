@@ -1,28 +1,29 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { clampTreeWidth, maxTreeWidth, TREE_DEFAULT } from '../lib/area-tree-resize.js'
 
-const STORAGE_KEY = 'runly.inventory.areaTree.open'
-const WIDTH_KEY = 'runly.inventory.areaTree.width'
 const QUERY = '(min-width: 1024px)'
 
-function readOpen() {
-  try { return window.localStorage.getItem(STORAGE_KEY) !== 'false' } catch { return true }
+function readOpen(key) {
+  try { return window.localStorage.getItem(key) !== 'false' } catch { return true }
 }
 
-function readWidth() {
+function readWidth(key) {
   try {
-    const raw = window.localStorage.getItem(WIDTH_KEY)
+    const raw = window.localStorage.getItem(key)
     return raw == null ? TREE_DEFAULT : clampTreeWidth(Number(raw))
   } catch { return TREE_DEFAULT }
 }
 
 // lg+ => docked panel whose collapsed state and width are remembered; below lg => modal sheet.
 // `containerRef` goes on the flex row holding dock + table so the max width can leave the table its minimum.
-export function useAreaTreeDock() {
+// `storagePrefix` keeps each screen's open state and width apart.
+export function useAreaTreeDock(storagePrefix = 'runly.inventory.areaTree') {
+  const STORAGE_KEY = `${storagePrefix}.open`
+  const WIDTH_KEY = `${storagePrefix}.width`
   const [isDesktop, setIsDesktop] = useState(() => typeof window !== 'undefined' && window.matchMedia(QUERY).matches)
-  const [dockOpen, setDockOpen] = useState(readOpen)
+  const [dockOpen, setDockOpen] = useState(() => readOpen(STORAGE_KEY))
   const [sheetOpen, setSheetOpen] = useState(false)
-  const [storedWidth, setStoredWidth] = useState(readWidth)
+  const [storedWidth, setStoredWidth] = useState(() => readWidth(WIDTH_KEY))
   const [containerEl, containerRef] = useState(null)
   const [containerWidth, setContainerWidth] = useState(0)
 

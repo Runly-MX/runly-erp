@@ -1,7 +1,8 @@
 import { useState } from "react";
-import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@runly/ui";
-import { ChevronDown, FolderTree } from "lucide-react";
+import { Button, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@runly/ui";
+import { ChevronDown, FolderTree, PanelLeftClose } from "lucide-react";
 import { FilesSidebar } from "./FilesSidebar";
+import { AreaTreeDock } from "../../runly.inventory/components/areas/AreaTreeDock.jsx";
 import { ROOT_FOLDER, folderPath, moduleLabel } from "../lib/folders";
 
 const WORKSPACE_LABELS = {
@@ -21,23 +22,37 @@ function locationLabel({ workspace, folder, moduleKey, folders }) {
   return WORKSPACE_LABELS[workspace] ?? "Archivos";
 }
 
-// Folder tree: a fixed column on md+, and on phones a "where am I" bar that
-// opens the same tree in a sheet (a draggable bottom sheet on phones).
-export function FilesNavigation({ onSelect, ...tree }) {
+// Folder tree: on lg+ the same docked, collapsible and resizable panel as the
+// inventory areas (state from useAreaTreeDock); below lg a "where am I" bar
+// that opens the same tree in a sheet.
+export function FilesNavigation({ dock, onSelect, ...tree }) {
   const [open, setOpen] = useState(false);
   const select = (target) => {
     setOpen(false);
     onSelect(target);
   };
+  if (dock.isDesktop) {
+    return (
+      <AreaTreeDock dock={dock}>
+        <div className="mb-1.5 flex items-center justify-between gap-2 border-b border-[hsl(var(--border))] pb-2 pl-1">
+          <h2 className="flex items-center gap-2 text-sm font-semibold">
+            <FolderTree className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+            Carpetas
+          </h2>
+          <Button type="button" variant="ghost" size="icon" className="h-7 w-7 rounded-md" aria-label="Ocultar carpetas" title="Ocultar carpetas" onClick={dock.toggle}>
+            <PanelLeftClose className="h-4 w-4" />
+          </Button>
+        </div>
+        <FilesSidebar {...tree} onSelect={onSelect} />
+      </AreaTreeDock>
+    );
+  }
   return (
     <>
-      <aside className="hidden md:sticky md:top-4 md:block md:w-52 md:shrink-0">
-        <FilesSidebar {...tree} onSelect={onSelect} />
-      </aside>
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-11 w-full items-center gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 text-left text-sm md:hidden"
+        className="flex h-11 w-full items-center gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--card))] px-3 text-left text-sm"
         aria-haspopup="dialog"
       >
         <FolderTree className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
@@ -45,7 +60,7 @@ export function FilesNavigation({ onSelect, ...tree }) {
         <ChevronDown className="h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" />
       </button>
       <Sheet open={open} onOpenChange={setOpen}>
-        <SheetContent side="left" className="md:hidden">
+        <SheetContent side="left">
           <SheetHeader>
             <SheetTitle>Carpetas</SheetTitle>
             <SheetDescription>Elige dónde buscar tus archivos.</SheetDescription>
