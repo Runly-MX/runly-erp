@@ -12,6 +12,8 @@ export function ViewerFilmstrip({
   activeIndex,
   onIndexChange,
   mediaThumbUrls,
+  // Card-size image thumbnails; when set, images never fall back to the original.
+  imageThumbUrls = null,
   open,
   onOpenChange,
   raised,
@@ -92,7 +94,7 @@ export function ViewerFilmstrip({
               ) : (
                 <FileVisual
                   file={f}
-                  previewUrl={fKind === "image" ? (f.thumbnailUrl ?? mediaThumbUrl) : null}
+                  previewUrl={fKind === "image" ? (f.thumbnailUrl ?? (imageThumbUrls ? imageThumbUrls[f.id] ?? null : mediaThumbUrl)) : null}
                   className="h-12 w-12 object-cover"
                 />
               )}

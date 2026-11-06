@@ -78,6 +78,10 @@ export function AdvancedFileViewer({
   activeIndex,
   onIndexChange,
   onResolveSignedUrl,
+  // Optional (file, "content" | "card") => url. When given, images show a
+  // ~1600px copy and card-size filmstrip thumbnails; the original
+  // (onResolveSignedUrl) only loads on zoom, download, copy or edit.
+  onResolveImageVariant = null,
   zIndex = 50,
   onOpenInOffice = null,
   canOpenInOffice = null,
@@ -115,6 +119,8 @@ export function AdvancedFileViewer({
   const [loading, setLoading] = useState(false);
   const [filmstripOpen, setFilmstripOpen] = useState(true);
   const [mediaThumbUrls, setMediaThumbUrls] = useState({});
+  const [variantUrls, setVariantUrls] = useState({ content: {}, card: {} });
+  const variantFetching = useRef(new Set());
   const [actionsOpen, setActionsOpen] = useState(false);
   const [chromeHidden, setChromeHidden] = useState(false);
   const [hlsDownloading, setHlsDownloading] = useState(false);
@@ -225,6 +231,29 @@ export function AdvancedFileViewer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, activeIndex, files, filmstripOpen, onResolveSignedUrl]);
 
+  useEffect(() => {
+    if (!open || !onResolveImageVariant) return;
+    const wanted = [];
+    if (file && kind === "image") wanted.push([file, "content"]);
+    if (multi && filmstripOpen) {
+      const end = Math.min(files.length - 1, activeIndex + THUMB_WINDOW);
+      for (let i = Math.max(0, activeIndex - THUMB_WINDOW); i <= end; i++) {
+        if (files[i] && getFileKind(files[i]) === "image" && !files[i].thumbnailUrl) wanted.push([files[i], "card"]);
+      }
+    }
+    for (const [f, variant] of wanted) {
+      const key = `${variant}:${f.id}`;
+      if (f.id in variantUrls[variant] || variantFetching.current.has(key)) continue;
+      variantFetching.current.add(key);
+      Promise.resolve(onResolveImageVariant(f, variant))
+        .catch(() => null)
+        .then((url) => setVariantUrls((prev) => ({ ...prev, [variant]: { ...prev[variant], [f.id]: url || null } })))
+        .finally(() => variantFetching.current.delete(key));
+    }
+    // variantUrls omitted like mediaThumbUrls above: only an already-fetched guard.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, file, kind, multi, filmstripOpen, activeIndex, files, onResolveImageVariant]);
+
   // Latest transform state for the imperative Touch Events handlers —
   // a ref so per-frame reads never force the hook to re-bind its listeners.
   const liveRef = useRef({});
@@ -317,6 +346,11 @@ export function AdvancedFileViewer({
   useViewerShortcuts({ enabled: open, containerRef: contentRef, actions });
 
   const ready = !loading && Boolean(signedUrl);
+  // Edited blobs (localUrls) are already local; otherwise wait for the medium
+  // copy so the original isn't fetched first, and swap the original in on zoom.
+  const contentUrl = file?.id && !localUrls[file.id] ? variantUrls.content[file.id] : null;
+  const displayPending = kind === "image" && Boolean(onResolveImageVariant) && contentUrl === undefined;
+  const imageSrc = (t.zoom <= 1 && contentUrl) || signedUrl;
   const sidePanel = kind === "video" && renderSidePanel ? renderSidePanel(file, { getMedia }) : null;
   const hasInlinePreview = ["image", "pdf", "video", "audio", "xml"].includes(kind) || (kind === "archive" && isZipFile(file));
   const focusPanel = (e) => {
@@ -459,7 +493,7 @@ export function AdvancedFileViewer({
               >
                 {/* Everything that moves with a swipe (prev/next, swipe-down close). */}
                 <div ref={slideRef} className="absolute inset-0 will-change-transform">
-                  {loading && (
+                  {(loading || (ready && displayPending)) && (
                     <div className="absolute inset-0 flex items-center justify-center">
                       <Loader2 className="h-7 w-7 animate-spin text-[hsl(var(--muted-foreground))]/50" />
                     </div>
@@ -474,7 +508,7 @@ export function AdvancedFileViewer({
                     </div>
                   )}
 
-                  {ready && kind === "image" && (
+                  {ready && kind === "image" && !displayPending && (
                     <div
                       ref={t.containerRef}
                       className={`h-full w-full overflow-hidden flex items-center justify-center touch-none select-none ${
@@ -488,7 +522,7 @@ export function AdvancedFileViewer({
                             visible area). Hidden until measured to avoid a
                             one-frame full-resolution flash. */}
                         <img
-                          src={signedUrl}
+                          src={imageSrc}
                           alt={file?.originalName ?? "Archivo"}
                           draggable={false}
                           onLoad={(e) => t.setNaturalSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
@@ -589,6 +623,7 @@ export function AdvancedFileViewer({
                     activeIndex={activeIndex}
                     onIndexChange={onIndexChange}
                     mediaThumbUrls={mediaThumbUrls}
+                    imageThumbUrls={onResolveImageVariant ? variantUrls.card : null}
                     open={filmstripOpen}
                     onOpenChange={setFilmstripOpen}
                     raised={kind === "pdf"}

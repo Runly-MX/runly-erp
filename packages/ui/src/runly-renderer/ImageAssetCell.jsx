@@ -150,6 +150,11 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         : resolveSignedUrl(item?.fileAssetId),
     [apiBaseUrl, token, companyId, resolveSignedUrl],
   );
+  // Avatars return null and keep showing their full-size photo.
+  const resolveViewerVariant = useCallback(
+    (item, variant) => (item?.fileAssetId ? resolveSignedUrl(item.fileAssetId, variant) : null),
+    [resolveSignedUrl],
+  );
 
   const avatarLabel = column?.avatarLabelField ? row?.[column.avatarLabelField] : null;
 
@@ -196,6 +201,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         activeIndex={activeIndex}
         onIndexChange={setActiveIndex}
         onResolveSignedUrl={resolveViewerUrl}
+        onResolveImageVariant={resolveViewerVariant}
       />
     </>
   );
