@@ -224,7 +224,14 @@ export function useViewerImageTransform({ resetKey }) {
   }
 
   const gestureActive = dragging || pinching;
-  const transition = gestureActive ? "none" : "transform 120ms ease";
+  // A new natural size (the original replacing the medium copy) changes the
+  // box instantly and the scale by the inverse; animating only the scale made
+  // the photo balloon and shrink back. Skip the transition on that render.
+  const sizeKey = naturalSize ? `${naturalSize.w}x${naturalSize.h}` : "";
+  const lastSizeKey = useRef(sizeKey);
+  const sizeChanged = lastSizeKey.current !== sizeKey;
+  useEffect(() => { lastSizeKey.current = sizeKey; });
+  const transition = gestureActive || sizeChanged ? "none" : "transform 120ms ease";
 
   return {
     rotation, setRotation, flipX, setFlipX, flipY, setFlipY,
