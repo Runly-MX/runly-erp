@@ -478,7 +478,7 @@ function renderValue(field, value, record = {}) {
 
 // Plain text of a displayed value, for the card "copy all" button.
 function plainValue(field, value, record) {
-  if (field?.type === "document-link") return value?.number ?? "";
+  if (field?.type === "document-link") return value?.reference || value?.number || "";
   if (field?.type === "file-asset") return "";
   if (field?.type === "select" && Array.isArray(field?.options)) {
     const found = normalizeSelectOptions(field.options).find((o) => String(o.value) === String(value));

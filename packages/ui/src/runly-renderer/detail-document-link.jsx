@@ -6,6 +6,8 @@ export function DocumentLinkValue({ value, emptyLabel = "Sin documento", hrefPre
   if (!value || typeof value !== "object" || !value.number) {
     return <span className="font-normal text-[hsl(var(--muted-foreground))]">{emptyLabel}</span>;
   }
+  // Documentary references are known by their own reference, not the internal folio.
+  const number = value.reference || value.number;
   const href = value.href ?? (value.path ? `${hrefPrefix}${value.path}` : null);
   const sublabel = value.sublabel ?? value.supplierName ?? null;
   const label = value.statusLabel ?? null;
@@ -13,9 +15,9 @@ export function DocumentLinkValue({ value, emptyLabel = "Sin documento", hrefPre
     <div className="space-y-0.5">
       <div className="flex flex-wrap items-center gap-1.5">
         {href ? (
-          <a href={href} className="font-mono text-[13px] font-semibold text-(--brand-primary) hover:underline">{value.number}</a>
+          <a href={href} className="font-mono text-[13px] font-semibold text-(--brand-primary) hover:underline">{number}</a>
         ) : (
-          <span className="font-mono text-[13px] font-semibold">{value.number}</span>
+          <span className="font-mono text-[13px] font-semibold">{number}</span>
         )}
         {label ? (
           <span className="rounded-full bg-[hsl(var(--muted))] px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))]">{label}</span>
