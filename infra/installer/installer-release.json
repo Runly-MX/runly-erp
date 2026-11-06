@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.03.1",
+  "version": "2026.11.05.1",
   "files": {
     ".env.local.example": {
       "sha256": "9543c4171e2e33e921bdc6c0cac5f63ebc7ff0336fe2efc8815b378497cec0d8",
