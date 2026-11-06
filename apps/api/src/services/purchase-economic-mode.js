@@ -10,7 +10,7 @@ export const DOCUMENTARY_PROFILE = {
 }
 export const isDocumentary = doc => doc?.total === null
 export const economicModeOf = doc => isDocumentary(doc) ? 'DOCUMENTARY' : 'FINANCIAL'
-export const DOCUMENTARY_FIELDS = ['reference', 'description', 'supplierId', 'issueDate', 'expectedDate', 'notes', 'fiscalUuid']
+export const DOCUMENTARY_FIELDS = ['number', 'reference','description', 'supplierId', 'issueDate', 'expectedDate', 'notes', 'fiscalUuid']
 
 export function assertFinancialDocument(doc) {
   if (isDocumentary(doc)) throw new PurchasesServiceError('Un documento documental no admite operaciones financieras ni conversión implícita.', 409, 'DOCUMENTARY_OPERATION_BLOCKED')

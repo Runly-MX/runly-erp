@@ -2,13 +2,16 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { documentaryDefaults, documentaryPayload, documentarySchema } from '../documentary-form.js'
 
-test('only the reference is required; nothing economic, no assumed date', () => {
-  const values = { ...documentaryDefaults(), reference: '  OC-2485 ' }
+test('the folio or a name is required; nothing economic, no assumed date', () => {
+  const values = { ...documentaryDefaults(), reference: '  Adaptadores ' }
   assert.equal(documentarySchema('orders').safeParse(values).success, true)
-  assert.deepEqual(documentaryPayload('orders', values), { reference: 'OC-2485' })
+  assert.deepEqual(documentaryPayload('orders', values), { reference: 'Adaptadores' })
+  const folio = { ...documentaryDefaults(), number: ' ADP-OC-0003532 ' }
+  assert.equal(documentarySchema('orders').safeParse(folio).success, true)
+  assert.deepEqual(documentaryPayload('orders', folio), { number: 'ADP-OC-0003532' })
   assert.equal(documentaryDefaults().issueDate, '')
   const empty = documentarySchema('invoices').safeParse(documentaryDefaults())
-  assert.equal(empty.success, false); assert.equal(empty.error.issues[0].path[0], 'reference')
+  assert.equal(empty.success, false); assert.equal(empty.error.issues[0].path[0], 'number')
 })
 
 test('optional data travels only when captured; lines never carry prices', () => {

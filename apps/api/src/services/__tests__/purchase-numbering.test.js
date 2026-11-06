@@ -30,6 +30,10 @@ test('a typed folio is kept as-is; the internal sequence still advances', async 
   assert.deepEqual(result, { sequence: 5, number: 'OC-2019-88' })
 })
 
+test('a typed folio already in use is rejected instead of failing on the unique index', async () => {
+  await assert.rejects(allocateNumber(fakeTx({ taken: ['ADP-OC-1'] }), { companyId: 'c', kind: 'orders', number: 'ADP-OC-1' }), { code: 'DUPLICATE_NUMBER' })
+})
+
 test('a generated folio skips values a user already typed by hand', async () => {
   const result = await allocateNumber(fakeTx({ maxSequence: 4, taken: ['OC-000005'] }), { companyId: 'c', kind: 'orders' })
   assert.deepEqual(result, { sequence: 5, number: 'OC-000006' })

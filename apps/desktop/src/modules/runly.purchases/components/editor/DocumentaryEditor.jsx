@@ -8,7 +8,7 @@ import { AttachmentsPanel, Button, ConfirmDialog, DateField, EmptyState, PageHea
 import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { useActiveCompany } from '../../../../company/ActiveCompanyProvider.jsx'
 import { getApiUrl } from '../../../../lib/runtimeConfig.js'
-import { errorText, newOperationKey, useSaveDocument } from '../../hooks/usePurchases.js'
+import { errorText, newOperationKey, useNextNumber, useSaveDocument } from '../../hooks/usePurchases.js'
 import { attachmentsConfig } from '../../lib/attachments.js'
 import { ROOT } from '../../lib/purchases-constants.js'
 import { documentaryDefaults, documentaryPayload, documentarySchema, emptyDocumentaryLine } from '../../lib/documentary-form.js'
@@ -56,6 +56,7 @@ export function DocumentaryEditor({ kind, meta, can, caps, inventoryIds = [], so
   const showInventory = caps.has('inventoryRelations') && canRelate && can('inventory.item.read')
   const canFiles = can('files.assets.read')
   const label = kind === 'orders' ? 'Registrar orden' : 'Registrar factura'
+  const suggested = useNextNumber(kind, undefined, kind === 'orders')
 
   const submit = handleSubmit(async (values) => {
     let saved
@@ -73,7 +74,7 @@ export function DocumentaryEditor({ kind, meta, can, caps, inventoryIds = [], so
     }
     toast.success(kind === 'orders' ? 'Orden registrada' : 'Factura registrada')
     navigate(`${ROOT}/${kind}/${saved.id}`, { replace: true })
-  }, () => toast.error('Escribe el nombre o la referencia del documento'))
+  }, () => toast.error('Escribe el folio o un nombre para el documento'))
 
   const leave = () => (isDirty ? setConfirmLeave(true) : navigate(backTo))
   const text = (name, fieldLabel, props = {}) => (
@@ -90,14 +91,16 @@ export function DocumentaryEditor({ kind, meta, can, caps, inventoryIds = [], so
   return (
     <div className="min-h-dvh space-y-5 p-4 pb-24 md:p-6 md:pb-24">
       <PageHeader eyebrow={`${meta.singular} · Control documental`} title={kind === 'orders' ? 'Registrar orden de compra' : 'Registrar factura'} onBack={leave}
-        description="Solo la referencia es obligatoria. Lo demás es opcional y se puede completar después." />
+        description="Solo el folio o un nombre es obligatorio. Lo demás es opcional y se puede completar después." />
 
       <form onSubmit={(e) => { e.preventDefault(); submit() }} className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_20rem] lg:items-start">
         <div className="min-w-0 space-y-5">
           <Section id="section-main" title="Referencia">
             <div className="space-y-4">
-              {text('reference', 'Nombre, código o referencia', { required: true, autoFocus: true, placeholder: kind === 'orders' ? 'OC-2485' : 'F-008721',
-                hint: 'Como aparece en el documento o como lo conoces. Runly asigna además su folio interno.' })}
+              {text('number', 'Folio', { autoFocus: true, placeholder: suggested.data?.number ?? (kind === 'orders' ? 'OC-2485' : 'F-008721'),
+                hint: kind === 'orders' ? 'El número real de la orden, tal como aparece en el documento. Si lo dejas vacío se asigna el siguiente según el formato de Configuración.' : 'El folio de la factura del proveedor. Si lo dejas vacío se asigna el siguiente según el formato de Configuración.' })}
+              {text('reference', 'Nombre (opcional)', { placeholder: kind === 'orders' ? 'Adaptadores de red de soporte' : 'Factura de adaptadores',
+                hint: 'Cómo lo conoces, si es distinto del folio. Vacío: se muestra el folio.' })}
               <Controller control={control} name="description" render={({ field }) => (
                 <TextareaField id="doc-description" label="Descripción (opcional)" rows={2} maxLength={2000} placeholder="Adaptadores de red para el área de soporte" {...field} value={field.value ?? ''} />
               )} />

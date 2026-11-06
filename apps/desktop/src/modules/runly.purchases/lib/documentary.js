@@ -8,6 +8,7 @@ export const isDocumentaryDoc = (doc) => doc?.economicMode === 'DOCUMENTARY'
 // Labels and inputs for the documentary fields the API allows to correct
 // (doc.correction.fields only carries { field, value }).
 export const DOCUMENTARY_FIELD_META = {
+  number: { label: 'Folio', type: 'text', max: 40, note: 'El número real del documento. Debe ser único.' },
   reference: { label: 'Nombre o referencia', type: 'text', max: 255 },
   description: { label: 'Descripción', type: 'textarea', max: 2000 },
   supplierId: { label: 'Proveedor', type: 'supplier' },

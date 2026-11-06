@@ -97,8 +97,9 @@ export function createPurchaseCorrectionsService({ prisma, broadcaster, workflow
     const changes = {}
     for (const [field, raw] of Object.entries(input)) {
       if (!allowed.includes(field)) throw new PurchasesServiceError('Campo no corregible en este documento.', 422, 'FIELD_NOT_CORRECTABLE', { field })
-      let value = cleanText(raw, field === 'reference' ? 255 : ['notes', 'description'].includes(field) ? 2000 : 100)
+      let value = cleanText(raw, field === 'reference' ? 255 : ['notes', 'description'].includes(field) ? 2000 : field === 'number' && kind === 'orders' ? 40 : 100)
       if (field === 'reference' && !value) throw new PurchasesServiceError('La referencia es obligatoria.', 422, 'VALIDATION')
+      if (field === 'number' && !value) throw new PurchasesServiceError('El folio no puede quedar vacío.', 422, 'VALIDATION', { field })
       if (field === 'supplierId') { value = raw || null; await assertSupplier(tx, doc.companyId, value) }
       if (field === 'issueDate' || field === 'expectedDate') value = asDate(raw)
       const before = ['reference', 'description'].includes(field) ? metadata.get(doc.id)?.[field] ?? null : doc[field] ?? null

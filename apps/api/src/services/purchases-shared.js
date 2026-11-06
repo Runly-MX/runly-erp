@@ -242,12 +242,17 @@ async function nextSequence(client, companyId, kind) {
 // Allocates { sequence, number } inside a transaction, guarded by an advisory
 // lock per company and kind. A generated folio that a user already typed by
 // hand is skipped forward so it never collides.
-export async function allocateNumber(tx, { companyId, kind, number, date }) {
+export async function allocateNumber(tx, { companyId, kind, number, date, supplierId }) {
   const lockKey = `${companyId}:${kind}`
   await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtext(${lockKey}))::text AS locked`
   const sequence = await nextSequence(tx, companyId, kind)
   const typed = cleanText(number, FOLIO_MAX[kind] ?? 40)
-  if (typed) return { sequence, number: typed }
+  if (typed) {
+    // Invoices are unique per supplier; every other kind per company.
+    const taken = await tx[KINDS[kind].model].findFirst({ where: { companyId, number: typed, ...(kind === 'invoices' ? { supplierId: supplierId ?? null } : {}) }, select: { id: true } })
+    if (taken) throw new PurchasesServiceError(kind === 'invoices' ? 'Ese proveedor ya tiene otra factura con ese folio.' : 'Ya existe otro documento con ese folio.', 409, 'DUPLICATE_NUMBER', { field: 'number' })
+    return { sequence, number: typed }
+  }
   const template = await numberingTemplate(tx, companyId, kind)
   const when = date ? new Date(date) : new Date()
   for (let offset = 0; offset < 50; offset += 1) {

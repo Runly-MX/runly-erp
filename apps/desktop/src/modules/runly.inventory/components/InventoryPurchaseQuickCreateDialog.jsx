@@ -42,11 +42,11 @@ export function InventoryPurchaseQuickCreateDialog({ open, onOpenChange, kind, i
   }, [open, initialNumber])
 
   async function createReference() {
-    const reference = number.trim()
     setBusy(true)
     try {
+      // What the user types is the document's folio; the API also names it with it.
       const res = await runly.purchases.createReference(copy.kind, {
-        reference, ...(supplier.id ? { supplierId: supplier.id } : {}), ...(issueDate ? { issueDate } : {}), idempotencyKey: operationKey.current,
+        number: number.trim(), ...(supplier.id ? { supplierId: supplier.id } : {}), ...(issueDate ? { issueDate } : {}), idempotencyKey: operationKey.current,
       }, session?.access_token)
       const doc = res?.data ?? res
       toast.success(`${kind === 'order' ? 'Orden' : 'Factura'} ${labelOf(doc)} registrada`)
@@ -71,7 +71,7 @@ export function InventoryPurchaseQuickCreateDialog({ open, onOpenChange, kind, i
       }
       return
     }
-    if (!number.trim()) { setError('Escribe el nombre, código o referencia.'); return }
+    if (!number.trim()) { setError('Escribe el folio.'); return }
     if (similar) return createReference()
     // Look for similar references first; the user decides (no automatic merge).
     setBusy(true)
@@ -100,14 +100,14 @@ export function InventoryPurchaseQuickCreateDialog({ open, onOpenChange, kind, i
         <div className="space-y-4 pt-4">
           <TextField
             id="quick-reference"
-            label={documentary ? 'Nombre, código o referencia' : 'Folio'}
+            label="Folio"
             required
             value={number}
             onChange={(event) => { setNumber(event.target.value); setError(''); setSimilar(null) }}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); void submit() } }}
             error={error}
             placeholder={documentary ? (kind === 'order' ? 'OC-2485' : 'F-008721') : 'Ej. PVR-0001'}
-            maxLength={documentary ? 255 : kind === 'order' ? 40 : 100}
+            maxLength={kind === 'order' ? 40 : 100}
           />
           {similar ? (
             <div role="alert" className="rounded-xl border border-amber-500/40 bg-amber-500/[0.08] p-3 text-sm">

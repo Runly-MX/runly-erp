@@ -223,8 +223,9 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
     const documentary = (workflow.economicMode ?? 'FINANCIAL') === 'DOCUMENTARY'
     if (!documentary && ('economicMode' in input || 'reference' in input)) throw new PurchasesServiceError('Selecciona Control documental en la configuración de la empresa.', 409, 'DOCUMENTARY_MODE_REQUIRED')
     if (documentary) { await economics.requireAvailable(); assertDocumentaryInput(input) }
-    const reference = documentary ? cleanText(input.reference, 255) : null
-    if (documentary && !reference) throw new PurchasesServiceError('Captura el nombre o referencia del documento.', 422, 'VALIDATION', { field: 'reference' })
+    // The typed folio is the document's real number; without a name it also names it.
+    const reference = documentary ? cleanText(input.reference, 255) ?? cleanText(input.number, 100) : null
+    if (documentary && !reference) throw new PurchasesServiceError('Captura el folio o la referencia del documento.', 422, 'VALIDATION', { field: 'reference' })
     await assertSupplier(prisma, companyId, input.supplierId)
     const lines = (Array.isArray(input.lines) ? input.lines : []).map((line, index) => documentary ? documentaryLine(line, index) : normalizeLine(line, index)).filter(Boolean)
     await assertLineCategories(prisma, companyId, lines)
@@ -261,7 +262,7 @@ export function createPurchaseDocumentsService({ prisma, broadcaster, workflowSe
           return { ...await findDoc(kind, companyId, previous.document_id, tx), replayed: true }
         }
       }
-      const { sequence, number } = await allocateNumber(tx, { companyId, kind, number: input.number, date: input.issueDate })
+      const { sequence, number } = await allocateNumber(tx, { companyId, kind, number: input.number, date: input.issueDate, supplierId: input.supplierId })
       const purchaseCase = caseRow ?? await createCase(tx, {
         companyId, actorId, workflowId: workflow.id, title: (kind === 'orders' ? 'Orden ' : 'Factura ') + (reference ?? number),
         currency: input.currency, estimatedTotal: totals.total, supplierId: input.supplierId,
