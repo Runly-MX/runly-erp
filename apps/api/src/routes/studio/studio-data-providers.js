@@ -66,7 +66,7 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
         const headers = ['Nombre', 'Número de activo', 'Folio', 'Modelo', 'Marca', 'Categoría', 'Número de serie', 'Número de parte', 'Ubicación', 'Área', 'Responsable', 'Estado', ...(links ? ['Enlace público'] : [])]
         return withPhotos(c, table(headers, items, total, item => [item.name, item.assetTag, item.folio, item.model, item.brandName, item.categoryName, item.serialNumber, item.partNumber,
           item.locationName, item.areaName, item.assignedToName, ITEM_STATUS[item.status] ?? item.status,
-          ...(links ? [links.has(item.id) ? inventoryPublic.urlFor(publicBaseUrl, links.get(item.id)) : ''] : [])]), items, item => item.coverImageFileId)
+          ...(links ? [links.has(item.id) ? inventoryPublic.urlFor(publicBaseUrl || new URL(c.req.url).origin, links.get(item.id)) : ''] : [])]), items, item => item.coverImageFileId)
       },
     },
     {
