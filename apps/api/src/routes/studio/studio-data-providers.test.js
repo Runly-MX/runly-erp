@@ -48,3 +48,12 @@ test('HR rows carry signed photos; contacts carry the full address', async () =>
   assert.equal(contacts.rows[0]['Dirección completa'], 'Reforma 10, 06600 CDMX, CDMX')
   assert.equal(contacts.rows[0].Foto, '')
 })
+
+test('preview skips public links; ids keep only the chosen records; empty preview is not an error', async () => {
+  const perms = context(['inventory.item.read', 'inventory.label.print'])
+  const preview = await providers.rows(perms, 'inventory', { filters: { preview: true } })
+  assert.ok(!preview.headers.includes('Enlace público'))
+  const none = await providers.rows(perms, 'inventory', { filters: { preview: true, ids: ['0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'] } })
+  assert.deepEqual(none.rows, [])
+  await assert.rejects(providers.rows(perms, 'inventory', { filters: { ids: ['0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'] } }), /No hay registros/)
+})

@@ -56,13 +56,15 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
       },
       async rows(c, filters) {
         const companyId = c.get('companyId'), scope = await inventoryScope.fromContext(c)
-        const { rows: items, total } = await collect(async (page, limit) => {
+        const { rows: listed, total } = await collect(async (page, limit) => {
           const result = await inventory.listItems({ companyId, scope, page, limit, search: filters.search || undefined,
             locationId: filters.locationId || undefined, labeled: filters.unlabeled === true ? 'false' : undefined })
           return { data: result.data, total: result.total }
         }, 200)
+        // The picker previews with `preview` and only the chosen `ids` are used, so public links are issued just for those.
+        const items = filters.ids?.length ? listed.filter(item => filters.ids.includes(item.id)) : listed
         // The public link is what the inventory QR labels encode; issuing it needs the print permission.
-        const links = can(c, 'inventory.label.print') ? await inventoryPublic.ensureTokens(companyId, items.map(item => item.id)) : null
+        const links = can(c, 'inventory.label.print') && !filters.preview ? await inventoryPublic.ensureTokens(companyId, items.map(item => item.id)) : null
         const headers = ['Nombre', 'Número de activo', 'Folio', 'Modelo', 'Marca', 'Categoría', 'Número de serie', 'Número de parte', 'Ubicación', 'Área', 'Responsable', 'Estado', ...(links ? ['Enlace público'] : [])]
         return withPhotos(c, table(headers, items, total, item => [item.name, item.assetTag, item.folio, item.model, item.brandName, item.categoryName, item.serialNumber, item.partNumber,
           item.locationName, item.areaName, item.assignedToName, ITEM_STATUS[item.status] ?? item.status,
@@ -130,8 +132,14 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
     async rows(c, key, input) {
       const provider = find(c, key), raw = input?.filters
       const filters = raw && typeof raw === 'object' ? { search: typeof raw.search === 'string' ? raw.search.slice(0, 200) : '',
-        locationId: UUID.test(raw.locationId ?? '') ? raw.locationId : '', unlabeled: raw.unlabeled === true } : {}
-      const result = await provider.rows(c, filters)
+        locationId: UUID.test(raw.locationId ?? '') ? raw.locationId : '', unlabeled: raw.unlabeled === true, preview: raw.preview === true,
+        ids: Array.isArray(raw.ids) ? raw.ids.filter(id => UUID.test(id ?? '')).slice(0, STUDIO_DATA_LIMITS.rows) : [] } : {}
+      let result = await provider.rows(c, filters)
+      if (filters.ids?.length) {
+        const keep = result.ids.map(id => filters.ids.includes(id))
+        result = { ...result, rows: result.rows.filter((_, i) => keep[i]), ids: result.ids.filter((_, i) => keep[i]), truncated: false }
+      }
+      if (!result.rows.length && filters.preview) return result
       if (!result.rows.length) throw new StudioError('No hay registros con esos filtros.', 404)
       return result
     },

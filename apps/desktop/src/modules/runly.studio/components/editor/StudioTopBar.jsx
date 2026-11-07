@@ -62,18 +62,20 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <PresenceStack people={people} objects={objects} />
-      {onSaveTemplate ? (
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="outline" onClick={onSaveTemplate} className="h-9 shrink-0 gap-1.5 px-3"><LayoutTemplate className="h-4 w-4" /><span className="max-xl:sr-only">Guardar como plantilla</span></Button>
-          </TooltipTrigger>
-          <TooltipContent side="bottom">Guardar como plantilla personal o de tu empresa</TooltipContent>
-        </Tooltip>
-      ) : null}
-      <Button variant="outline" onClick={onShare} className="h-9 shrink-0 gap-1.5 px-3"><Share2 className="h-4 w-4" /><span className="max-md:sr-only">Compartir</span></Button>
-      <Button variant="outline" disabled={exportDisabled || exporting} onClick={() => setExportOpen(true)} className="h-9 shrink-0 gap-1.5 px-3">
-        {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-md:sr-only">Descargar</span>
+      <Button variant="outline" onClick={onShare} className="h-9 shrink-0 gap-1.5 px-3"><Share2 className="h-4 w-4" /><span className="max-xl:sr-only">Compartir</span></Button>
+      <Button disabled={exportDisabled || exporting} onClick={() => setExportOpen(true)} className="h-9 shrink-0 gap-1.5 px-3">
+        {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-xl:sr-only">Descargar</span>
       </Button>
+      <DropdownMenu>
+        <Tooltip>
+          <TooltipTrigger asChild><DropdownMenuTrigger asChild><Button variant="ghost" size="icon" aria-label="Más acciones" className="h-9 w-9 shrink-0"><MoreVertical className="h-4 w-4" /></Button></DropdownMenuTrigger></TooltipTrigger>
+          <TooltipContent side="bottom">Más acciones</TooltipContent>
+        </Tooltip>
+        <DropdownMenuContent align="end" className="min-w-60">
+          {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
+          <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
       {exportDialog}
       <div className="flex items-center">
         {inspectorToggle ? <ToolButton label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
