@@ -6,7 +6,7 @@ import {
 } from 'lucide-react'
 import {
   COMPOSITION_PRESETS, QR_SCALE, SPACING_MM, TEXT_ALIGN_OPTIONS, TEXT_VALIGN_OPTIONS, activeCompositionPreset, applyCompositionPreset,
-  applyLayout, effectiveQrAlign, qrAlignOptions,
+  applyLayout, effectiveQrAlign, isQrOnlyLayout, qrAlignOptions,
 } from '../../lib/label-layout.js'
 import { FieldHint, SegmentTabs } from './studio-ui.jsx'
 
@@ -40,7 +40,8 @@ function Stepper({ label, value, onChange, disabled, ...limits }) {
 export function LabelCompositionSection({ draft, onChange, layoutCards, disabled }) {
   const [fine, setFine] = useState(false)
   const fineId = useId()
-  const hasText = draft.layout !== 'qr-only' && draft.fields.length > 0
+  const hasText = !isQrOnlyLayout(draft.layout) && draft.fields.length > 0
+  const double = draft.layout === 'qr-double'
   const hasQr = draft.layout !== 'text-only'
   const sideBySide = draft.layout === 'qr-left' || draft.layout === 'qr-top'
   const text = draft.textOptions ?? {}
@@ -52,7 +53,7 @@ export function LabelCompositionSection({ draft, onChange, layoutCards, disabled
 
   return (
     <div className="space-y-4">
-      <ChoiceCardGroup columns={4} ariaLabel="Distribución" options={layoutCards} value={draft.layout} disabled={disabled}
+      <ChoiceCardGroup columns={3} ariaLabel="Distribución" options={layoutCards} value={draft.layout} disabled={disabled}
         onChange={(layout) => onChange(applyLayout(draft, layout))} />
 
       {hasText || qrAligns.length ? (
@@ -110,8 +111,8 @@ export function LabelCompositionSection({ draft, onChange, layoutCards, disabled
               <div className="divide-y divide-[hsl(var(--border)/0.6)]">
                 <Stepper label="Margen interior (mm)" value={Number(text.marginMm ?? 1.5)} min={SPACING_MM.min} max={SPACING_MM.max}
                   step={SPACING_MM.step} precision={1} disabled={disabled} onChange={(marginMm) => setText({ marginMm })} />
-                {sideBySide && hasText ? (
-                  <Stepper label="Separación QR y texto (mm)" value={Number(text.gapMm ?? 1.5)} min={SPACING_MM.min} max={SPACING_MM.max}
+                {(sideBySide && hasText) || double ? (
+                  <Stepper label={double ? 'Separación entre QR (mm)' : 'Separación QR y texto (mm)'} value={Number(text.gapMm ?? 1.5)} min={SPACING_MM.min} max={SPACING_MM.max}
                     step={SPACING_MM.step} precision={1} disabled={disabled} onChange={(gapMm) => setText({ gapMm })} />
                 ) : null}
               </div>

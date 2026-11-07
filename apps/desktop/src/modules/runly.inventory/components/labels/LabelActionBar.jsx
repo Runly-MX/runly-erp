@@ -4,7 +4,7 @@ import { plural } from './studio-ui.jsx'
 
 const DOWNLOADS = [
   { format: 'pdf', label: 'PDF', hint: 'una por página' },
-  { format: 'pdf-sheet', label: 'PDF hoja carta', hint: 'varias por hoja, con márgenes' },
+  { format: 'pdf-sheet', label: 'PDF en hoja', hint: 'varias por hoja, del tamaño elegido en Salida' },
   { format: 'zpl', label: 'ZPL', hint: 'para Zebra' },
   { format: 'png', label: 'PNG', hint: 'imágenes (ZIP si son varias)' },
 ]

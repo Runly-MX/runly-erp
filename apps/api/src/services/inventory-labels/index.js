@@ -20,6 +20,7 @@ export function buildLabel(layout, item, { companyName, resolveItemQrUrl }) {
   const content = layout.layout === 'text-only' ? null : qrContent(item, layout.qrOptions, resolveItemQrUrl);
   const geometry = computeGeometry(layout, lines, content);
   if (geometry.qr) geometry.qr.content = content;
+  if (geometry.qr2) geometry.qr2.content = content;
   return geometry;
 }
 

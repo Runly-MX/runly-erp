@@ -11,15 +11,24 @@ export class LabelLayoutError extends Error {
   }
 }
 
-export const LAYOUTS = ['qr-left', 'qr-top', 'qr-only', 'text-only'];
+// qr-double: two identical codes side by side (along the longer edge), no text.
+export const LAYOUTS = ['qr-left', 'qr-top', 'qr-only', 'qr-double', 'text-only'];
+export const QR_ONLY_LAYOUTS = ['qr-only', 'qr-double'];
 export const LABEL_FIELDS = ['folio', 'name', 'serial', 'model', 'location', 'company', 'assetTag', 'brand', 'category', 'assignee'];
 // Printed name of each field when textOptions.showFieldNames is on.
 export const FIELD_NAMES = {
   folio: 'Folio', name: 'Nombre', serial: 'Serie', model: 'Modelo', location: 'Ubicación', company: 'Empresa',
   assetTag: 'Activo', brand: 'Marca', category: 'Tipo', assignee: 'Asignado a',
 };
-// US Letter in millimetres (sheet output).
-export const LETTER = { widthMm: 215.9, heightMm: 279.4 };
+// Sheet papers in millimetres (sheet output); oficio is the Mexican 21.6 × 34 cm.
+export const PAPERS = {
+  letter: { label: 'Carta', widthMm: 215.9, heightMm: 279.4 },
+  oficio: { label: 'Oficio', widthMm: 215.9, heightMm: 340.4 },
+  legal: { label: 'Legal', widthMm: 215.9, heightMm: 355.6 },
+  a4: { label: 'A4', widthMm: 210, heightMm: 297 },
+};
+export const LETTER = PAPERS.letter;
+export const paperOf = (key) => PAPERS[key] ?? PAPERS.letter;
 export const FORMATS = ['zpl', 'pdf', 'png'];
 // Printer transports. There is no network (IP) printing: legacy 'network' rows
 // (migrated by 20261029000000_inv_label_printer_drop_network) read as 'file' for
@@ -126,19 +135,22 @@ export function withNewTemplateDefaults(input = {}) {
   };
 }
 
-// Letter sheet grid for PDF output; null means one label per page (roll).
-// The grid is centred horizontally and starts at the top margin.
+// Sheet grid for PDF output (paper: PAPERS key, letter by default); null means
+// one label per page (roll). The grid is centred horizontally and starts at the top margin.
 export function normalizeSheet(raw, { widthMm, heightMm }) {
   if (!raw || typeof raw !== 'object') return null;
+  const paper = blank(raw.paper) ? 'letter' : oneOf(raw.paper, Object.keys(PAPERS), 'Tamaño de hoja no válido.');
+  const page = PAPERS[paper];
   const columns = Math.round(num(raw.columns, 'Las columnas', 1, 20));
   const rows = Math.round(num(raw.rows, 'Las filas', 1, 40));
   const gapMm = num(raw.gapMm ?? 0, 'La separación', 0, 30);
   const marginMm = num(raw.marginMm ?? 0, 'El margen', 0, 50);
   const usedW = columns * widthMm + (columns - 1) * gapMm + 2 * marginMm;
   const usedH = rows * heightMm + (rows - 1) * gapMm + 2 * marginMm;
-  if (usedW > LETTER.widthMm + 0.01) throw fail('Las etiquetas no caben a lo ancho de la hoja carta.');
-  if (usedH > LETTER.heightMm + 0.01) throw fail('Las etiquetas no caben a lo alto de la hoja carta.');
-  return { columns, rows, gapMm, marginMm, guides: Boolean(raw.guides) };
+  const name = page.label.toLowerCase();
+  if (usedW > page.widthMm + 0.01) throw fail(`Las etiquetas no caben a lo ancho de la hoja ${name}.`);
+  if (usedH > page.heightMm + 0.01) throw fail(`Las etiquetas no caben a lo alto de la hoja ${name}.`);
+  return { paper, columns, rows, gapMm, marginMm, guides: Boolean(raw.guides) };
 }
 
 // Validates and completes a template-shaped object ({ widthMm, heightMm, ... }).
@@ -182,9 +194,9 @@ const RAW_KEYS = { serial: 'serialNumber', assetTag: 'assetTag' };
 
 // Ordered, non-empty [{ key, text }] lines for one item.
 // With textOptions.showFieldNames each line reads "Serie: ABC" instead of "S/N ABC".
-// qr-only labels print no text.
+// qr-only and qr-double labels print no text.
 export function selectLines(layout, item, ctx) {
-  if (layout.layout === 'qr-only') return [];
+  if (QR_ONLY_LAYOUTS.includes(layout.layout)) return [];
   const values = fieldValues(item, ctx);
   const named = Boolean(layout.textOptions?.showFieldNames);
   return layout.fields.map((key) => {

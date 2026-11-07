@@ -118,6 +118,33 @@ describe('studio options (text, qr-only, sheet)', () => {
     assert.ok(Math.abs(g.qr.x + g.qr.size / 2 - 25) < 0.01);
   });
 
+  it('qr-double places two equal codes in the halves without overlap, and ZPL prints both', async () => {
+    const layout = normalizeLayout({ preset: '50x25', layout: 'qr-double', fields: ['folio'], textOptions: { marginMm: 1, gapMm: 2 } });
+    assert.deepEqual(selectLines(layout, item('1'), {}), []);
+    const g = computeGeometry(layout, [], 'https://x');
+    assert.equal(g.text.length, 0);
+    assert.equal(g.qr.size, g.qr2.size);
+    assert.equal(g.qr.y, g.qr2.y);
+    assert.ok(g.qr.x + g.qr.size + 2 <= g.qr2.x + 1e-9);
+    assert.ok(g.qr2.x + g.qr2.size <= 49 + 1e-9);
+    const tall = computeGeometry(normalizeLayout({ widthMm: 25, heightMm: 50, layout: 'qr-double' }), [], 'https://x');
+    assert.equal(tall.qr.x, tall.qr2.x);
+    const out = await renderLabels({ layout, items: [item('1')], resolveItemQrUrl, format: 'zpl', rows: [{ itemId: '1' }] });
+    assert.equal((out.body.match(/\^BQN/g) ?? []).length, 2);
+  });
+
+  it('validates the sheet paper size', async () => {
+    const legal = normalizeSheet({ paper: 'oficio', columns: 3, rows: 7, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 });
+    assert.equal(legal.paper, 'oficio');
+    assert.throws(() => normalizeSheet({ columns: 3, rows: 7, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 }), /alto de la hoja carta/);
+    assert.throws(() => normalizeSheet({ paper: 'a3', columns: 1, rows: 1 }, { widthMm: 60, heightMm: 40 }), /hoja no válido/);
+    const a4 = normalizeSheet({ paper: 'a4', columns: 3, rows: 6, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 });
+    assert.ok(Math.abs(sheetCells(a4, 60, 40)[0].x - (210 - 186) / 2) < 0.001);
+    const layout = normalizeLayout({ preset: '60x40', fields: ['folio'] });
+    const pdf = await renderLabels({ layout, items: [item('1')], resolveItemQrUrl, format: 'pdf', rows: [{ itemId: '1' }], sheet: { paper: 'a4', columns: 3, rows: 6, gapMm: 3, marginMm: 8 } });
+    assert.match(pdf.body.toString('latin1'), /\/MediaBox \[0 0 595\.27/);
+  });
+
   it('validates the letter sheet and lays the grid centred from the top margin', () => {
     assert.equal(normalizeSheet(null, { widthMm: 60, heightMm: 40 }), null);
     const sheet = normalizeSheet({ columns: 3, rows: 6, gapMm: 3, marginMm: 8 }, { widthMm: 60, heightMm: 40 });

@@ -15,8 +15,7 @@ export function renderLabelZpl(geometry, dpi, quantity = 1, errorCorrection = 'M
     `^LL${dots(geometry.heightMm, dpi)}`,
     '^LH0,0',
   ];
-  if (geometry.qr) {
-    const { qr } = geometry;
+  for (const qr of [geometry.qr, geometry.qr2].filter(Boolean)) {
     // ^BQ magnification is an integer number of dots per module (1-10).
     const magnification = Math.max(1, Math.min(10, Math.floor((qr.moduleMm * dpi) / 25.4)));
     out.push(`^FO${dots(qr.x + qr.quiet, dpi)},${dots(qr.y + qr.quiet, dpi)}`);

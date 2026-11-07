@@ -2,14 +2,13 @@
 // so any printer driver prints it without scaling. The QR is drawn from the
 // same module matrix as the other renderers.
 import PDFDocument from 'pdfkit';
-import { LETTER } from './layout.js';
+import { paperOf } from './layout.js';
 
 const PT_PER_MM = 72 / 25.4;
 const pt = (mm) => mm * PT_PER_MM;
 
 function drawLabel(doc, geometry) {
-  const { qr } = geometry;
-  if (qr) {
+  for (const qr of [geometry.qr, geometry.qr2].filter(Boolean)) {
     const origin = { x: qr.x + qr.quiet, y: qr.y + qr.quiet };
     const { count, isDark } = qr.matrix;
     doc.fillColor('black');
@@ -28,11 +27,11 @@ function drawLabel(doc, geometry) {
   }
 }
 
-// Top-left corner (mm) of each cell of a letter sheet; the grid is centred
+// Top-left corner (mm) of each cell of the sheet; the grid is centred
 // horizontally and starts at the top margin (same rule as the client preview).
 export function sheetCells(sheet, widthMm, heightMm) {
   const gridW = sheet.columns * widthMm + (sheet.columns - 1) * sheet.gapMm;
-  const x0 = (LETTER.widthMm - gridW) / 2;
+  const x0 = (paperOf(sheet.paper).widthMm - gridW) / 2;
   const cells = [];
   for (let row = 0; row < sheet.rows; row += 1) {
     for (let col = 0; col < sheet.columns; col += 1) {
@@ -57,7 +56,8 @@ function collect(doc) {
 export function renderPdf(geometries, title = 'Etiquetas', sheet = null) {
   const first = geometries[0];
   if (sheet) {
-    const size = [pt(LETTER.widthMm), pt(LETTER.heightMm)];
+    const paper = paperOf(sheet.paper);
+    const size = [pt(paper.widthMm), pt(paper.heightMm)];
     const doc = new PDFDocument({ size, margin: 0, autoFirstPage: false, info: { Title: title } });
     const done = collect(doc);
     const cells = sheetCells(sheet, first.widthMm, first.heightMm);

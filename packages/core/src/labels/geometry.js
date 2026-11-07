@@ -31,6 +31,19 @@ function placeQr(layout, lineCount, m, gap) {
     const size = (Math.min(w, h) - 2 * m) * (scale ?? 1);
     return { qr: { x: (w - size) / 2, y: (h - size) / 2, size }, area: { x: 0, y: 0, w: 0, h: 0 } };
   }
+  if (layout.layout === 'qr-double') {
+    // Two halves along the longer edge, separated by gap; each code centred in its half.
+    const across = w >= h;
+    const long = across ? w : h;
+    const short = across ? h : w;
+    const half = (long - 2 * m - gap) / 2;
+    const size = Math.min(short - 2 * m, half) * (scale ?? 1);
+    const a = m + (half - size) / 2;
+    const b = m + half + gap + (half - size) / 2;
+    const c = (short - size) / 2;
+    const box = (along) => (across ? { x: along, y: c, size } : { x: c, y: along, size });
+    return { qr: box(a), qr2: box(b), area: { x: 0, y: 0, w: 0, h: 0 } };
+  }
   if (layout.layout === 'qr-left') {
     const auto = Math.min(h - 2 * m, w * 0.45);
     const zone = scale == null ? auto : Math.min(h - 2 * m, (w - 2 * m - gap) * 0.6);
@@ -134,6 +147,7 @@ export function computeGeometry(layout, lines, content, { qrMatrix } = {}) {
   const m = Math.min(opts.marginMm, Math.min(w, h) / 4);
   const gap = Math.min(opts.gapMm, Math.min(w, h) / 4);
   let qr = null;
+  let qr2 = null;
   let area = { x: m, y: m, w: w - 2 * m, h: h - 2 * m };
   if (layout.layout !== 'text-only' && content != null) {
     if (typeof qrMatrix !== 'function') throw new Error('computeGeometry needs a qrMatrix function to place a QR.');
@@ -143,6 +157,7 @@ export function computeGeometry(layout, lines, content, { qrMatrix } = {}) {
     const size = Math.max(1, placed.qr.size);
     const quiet = Math.min(qrOptions.quietZoneMm, size / 4);
     qr = { ...placed.qr, size, quiet, matrix, moduleMm: (size - 2 * quiet) / matrix.count };
+    if (placed.qr2) qr2 = { ...qr, x: placed.qr2.x, y: placed.qr2.y };
   }
   const text = [];
   // overflow: text rows clipped because the block does not fit even at the floor size.
@@ -176,5 +191,5 @@ export function computeGeometry(layout, lines, content, { qrMatrix } = {}) {
       });
     });
   }
-  return { widthMm: w, heightMm: h, qr, text, overflow };
+  return { widthMm: w, heightMm: h, qr, ...(qr2 ? { qr2 } : {}), text, overflow };
 }

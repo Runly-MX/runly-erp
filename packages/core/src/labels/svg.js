@@ -11,8 +11,7 @@ export function renderLabelSvg(geometry, dpi, { fluid = false } = {}) {
     `<svg xmlns="http://www.w3.org/2000/svg" ${size} viewBox="0 0 ${px(geometry.widthMm)} ${px(geometry.heightMm)}">`,
     '<rect width="100%" height="100%" fill="white"/>',
   ];
-  const { qr } = geometry;
-  if (qr) {
+  for (const qr of [geometry.qr, geometry.qr2].filter(Boolean)) {
     const { count, isDark } = qr.matrix;
     const module = px(qr.moduleMm);
     const ox = px(qr.x + qr.quiet);

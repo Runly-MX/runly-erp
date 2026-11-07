@@ -2,8 +2,9 @@ import { useState } from 'react'
 import { ChoiceCardGroup, NumberField, SelectField } from '@runly/ui'
 import { FileOutput, LayoutPanelLeft, QrCode, Ruler, Type } from 'lucide-react'
 import {
-  CONTENT_MODE_OPTIONS, DPI_OPTIONS, ERROR_CORRECTION_OPTIONS, FIELD_OPTIONS, LAYOUT_OPTIONS, SIZE_PRESETS, presetFor,
+  CONTENT_MODE_OPTIONS, DPI_OPTIONS, ERROR_CORRECTION_OPTIONS, FIELD_OPTIONS, LAYOUT_OPTIONS, SIZE_PRESETS, isQrOnlyLayout, presetFor,
 } from '../../lib/label-layout.js'
+import { paperOf } from '../../lib/label-sheet.js'
 import { LabelCompositionSection } from './LabelCompositionSection.jsx'
 import { LabelContentSection } from './LabelContentSection.jsx'
 import { LabelOutputSection } from './LabelOutputSection.jsx'
@@ -23,6 +24,7 @@ const LAYOUT_PREVIEWS = {
   'qr-left': <span className={`${FRAME} items-center gap-1.5 p-1.5`} aria-hidden="true"><span className={QR} />{LINES}</span>,
   'qr-top': <span className={`${FRAME} flex-col items-center gap-1 p-1`} aria-hidden="true"><span className="h-4 w-4 rounded-[2px] bg-current" /><span className="h-1 w-8 rounded-full bg-current opacity-60" /></span>,
   'qr-only': <span className={`${FRAME} items-center justify-center p-1`} aria-hidden="true"><span className="h-6 w-6 rounded-[2px] bg-current" /></span>,
+  'qr-double': <span className={`${FRAME} items-center justify-center gap-1.5 p-1`} aria-hidden="true"><span className={QR} /><span className={QR} /></span>,
   'text-only': <span className={`${FRAME} items-center p-1.5`} aria-hidden="true">{LINES}</span>,
 }
 const LAYOUT_CARDS = LAYOUT_OPTIONS.map((o) => ({ value: o.value, label: o.label, preview: LAYOUT_PREVIEWS[o.value] }))
@@ -44,8 +46,8 @@ export function LabelDesignPanel({
   const setQr = (patch) => onDraftChange({ ...draft, qrOptions: { ...draft.qrOptions, ...patch } })
   const layoutLabel = LAYOUT_OPTIONS.find((o) => o.value === draft.layout)?.label
   const alignLabel = ALIGN_SUMMARY[draft.textOptions?.align]
-  const compositionSummary = draft.layout === 'qr-only' || !alignLabel ? layoutLabel : `${layoutLabel} · texto ${alignLabel}`
-  const hasText = draft.layout !== 'qr-only'
+  const hasText = !isQrOnlyLayout(draft.layout)
+  const compositionSummary = !hasText || !alignLabel ? layoutLabel : `${layoutLabel} · texto ${alignLabel}`
   const hasQr = draft.layout !== 'text-only'
 
   return (
@@ -85,7 +87,7 @@ export function LabelDesignPanel({
             </StudioSection>
           ) : null}
 
-          <StudioSection className="order-5 @[54rem]:order-none" title="Salida" icon={FileOutput} summary={output.mode === 'sheet' ? `Hoja carta ${output.sheet.columns} × ${output.sheet.rows}` : 'Rollo, una por etiqueta'}>
+          <StudioSection className="order-5 @[54rem]:order-none" title="Salida" icon={FileOutput} summary={output.mode === 'sheet' ? `Hoja ${paperOf(output.sheet.paper).label.toLowerCase()} ${output.sheet.columns} × ${output.sheet.rows}` : 'Rollo, una por etiqueta'}>
             <LabelOutputSection output={output} onChange={onOutputChange} draft={draft} labelCount={labelCount} plan={plan} disabled={busy} />
           </StudioSection>
         </div>

@@ -14,7 +14,7 @@ import {
 import { useLabelOutput } from '../hooks/useLabelOutput.js'
 import { MAX_LABELS, labeledRows, parseLabelsParams, queueReducer, statsAfterPrint, totalLabels } from '../lib/label-queue.js'
 import { draftError, draftToLayout, isDraftDirty, templateToDraft } from '../lib/label-layout.js'
-import { DEFAULT_SHEET, autoSheet, clampSheet, sheetFit, sheetPages } from '../lib/label-sheet.js'
+import { DEFAULT_SHEET, autoSheet, clampSheet, paperOf, sheetFit, sheetPages } from '../lib/label-sheet.js'
 import { loadDesign, saveDesign } from '../lib/label-design-store.js'
 import { buildLabelPreview } from '../lib/label-preview.js'
 import { reprintItems } from '../lib/label-history.js'
@@ -50,7 +50,7 @@ function StudioSummary({ assets, labels, templateName, dirty, printerName, outpu
         {row('Etiquetas', labels)}
         {row('Plantilla', `${templateName ?? '—'}${dirty ? ' (modificada)' : ''}`)}
         {row('Impresora', printerName)}
-        {row('Salida', output.mode === 'sheet' ? `Hoja carta ${output.sheet.columns} × ${output.sheet.rows}${pages ? ` · ${plural(pages, 'hoja', 'hojas')}` : ''}` : 'Rollo')}
+        {row('Salida', output.mode === 'sheet' ? `Hoja ${paperOf(output.sheet.paper).label.toLowerCase()} ${output.sheet.columns} × ${output.sheet.rows}${pages ? ` · ${plural(pages, 'hoja', 'hojas')}` : ''}` : 'Rollo')}
       </dl>
       {reprinted.length ? (
         <p className="rounded-md bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">

@@ -1,5 +1,8 @@
 // Template editor model for the Etiquetas screen. Values mirror the API layout
 // model (apps/api/src/services/inventory-labels/layout.js); the API validates.
+// Layouts that print no text (only QR codes).
+export const isQrOnlyLayout = (layout) => layout === 'qr-only' || layout === 'qr-double'
+
 // Common thermal rolls; hint names typical printers/media for each size.
 export const SIZE_PRESETS = [
   { value: '50x25', label: '50 × 25 mm', hint: 'Rollo 2 × 1 in · Zebra ZD220/ZD420', widthMm: 50, heightMm: 25 },
@@ -14,6 +17,7 @@ export const LAYOUT_OPTIONS = [
   { value: 'qr-left', label: 'QR a la izquierda', description: 'Código y texto lado a lado' },
   { value: 'qr-top', label: 'QR arriba', description: 'Código centrado, texto debajo' },
   { value: 'qr-only', label: 'Solo QR', description: 'Código grande, sin texto' },
+  { value: 'qr-double', label: '2 QR', description: 'Dos códigos iguales, sin texto' },
   { value: 'text-only', label: 'Solo texto', description: 'Sin código QR' },
 ]
 

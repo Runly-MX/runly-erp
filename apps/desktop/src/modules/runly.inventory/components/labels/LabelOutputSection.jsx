@@ -1,22 +1,23 @@
-import { Button, NumberStepper, SwitchField } from '@runly/ui'
+import { Button, NumberStepper, SelectField, SwitchField } from '@runly/ui'
 import { FileText, Maximize2, ScrollText } from 'lucide-react'
-import { LETTER, SHEET_LIMITS, autoSheet, sheetCells, sheetFit, sheetPages } from '../../lib/label-sheet.js'
+import { PAPER_OPTIONS, SHEET_LIMITS, autoSheet, paperOf, sheetCells, sheetFit, sheetPages } from '../../lib/label-sheet.js'
 import { FieldHint, SegmentTabs, plural } from './studio-ui.jsx'
 
 const MODES = [
   { value: 'roll', label: 'Rollo', icon: ScrollText },
-  { value: 'sheet', label: 'Hoja carta', icon: FileText },
+  { value: 'sheet', label: 'Hoja', icon: FileText },
 ]
 
-// Letter page drawn to scale with the grid of labels (first page of the run).
+// Page drawn to scale with the grid of labels (first page of the run).
 function SheetPreview({ sheet, widthMm, heightMm, labelCount }) {
+  const page = paperOf(sheet.paper)
   const cells = sheetCells(sheet, widthMm, heightMm)
   const used = Math.min(cells.length, Math.max(labelCount, 0))
   return (
-    <svg viewBox={`0 0 ${LETTER.widthMm} ${LETTER.heightMm}`} role="img"
-      aria-label={`Hoja carta con ${cells.length} etiquetas por página`}
+    <svg viewBox={`0 0 ${page.widthMm} ${page.heightMm}`} role="img"
+      aria-label={`Hoja ${page.label.toLowerCase()} con ${cells.length} etiquetas por página`}
       className="h-auto w-28 shrink-0 rounded-[3px] bg-white shadow-sm ring-1 ring-black/10">
-      <rect x={sheet.marginMm} y={sheet.marginMm} width={LETTER.widthMm - 2 * sheet.marginMm} height={LETTER.heightMm - 2 * sheet.marginMm}
+      <rect x={sheet.marginMm} y={sheet.marginMm} width={page.widthMm - 2 * sheet.marginMm} height={page.heightMm - 2 * sheet.marginMm}
         fill="none" stroke="#94a3b8" strokeWidth="0.8" strokeDasharray="3 3" />
       {cells.map((cell, i) => (
         <rect key={i} x={cell.x} y={cell.y} width={widthMm} height={heightMm} rx="1"
@@ -35,7 +36,7 @@ function Stepper({ label, value, onChange, limits, disabled, suffix }) {
   )
 }
 
-// Salida: roll (one label per page/label) or a letter sheet grid (PDF only).
+// Salida: roll (one label per page/label) or a sheet grid on the chosen paper (PDF only).
 export function LabelOutputSection({ output, onChange, draft, labelCount, plan, disabled }) {
   const w = Number(draft.widthMm)
   const h = Number(draft.heightMm)
@@ -53,8 +54,11 @@ export function LabelOutputSection({ output, onChange, draft, labelCount, plan, 
       ) : (
         <>
           {!pdfOutput ? (
-            <FieldHint tone="warning">La hoja carta solo aplica al PDF. Con esta impresora ({plan.format.toUpperCase()}) se imprime en rollo; elige «Navegador (PDF)» o descarga el PDF.</FieldHint>
+            <FieldHint tone="warning">La hoja solo aplica al PDF. Con esta impresora ({plan.format.toUpperCase()}) se imprime en rollo; elige «Navegador (PDF)» o descarga el PDF.</FieldHint>
           ) : null}
+          {/* A new paper refills the grid so the labels fit it without being cut. */}
+          <SelectField label="Tamaño de la hoja" options={PAPER_OPTIONS} value={sheet.paper ?? 'letter'} disabled={disabled}
+            onValueChange={(paper) => onChange({ ...output, sheet: autoSheet({ ...sheet, paper }, w, h) })} />
           <div className="flex gap-4">
             <SheetPreview sheet={sheet} widthMm={w} heightMm={h} labelCount={labelCount} />
             <div className="grid min-w-0 flex-1 grid-cols-2 content-start gap-3">
