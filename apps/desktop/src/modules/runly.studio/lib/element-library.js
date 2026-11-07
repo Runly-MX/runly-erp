@@ -104,3 +104,12 @@ export function matches(label, query) {
 export function normalizeQuery(value) {
   return value.trim().toLocaleLowerCase('es').normalize('NFD').replace(/\p{M}/gu, '')
 }
+
+// Dynamic codes: {{campo}} is filled per record when a dataset is connected (Datos panel).
+export const CODE_PRESETS = [
+  { key: 'qr-link', kind: 'qr', label: 'QR del enlace público', value: '{{Enlace público}}' },
+  { key: 'qr-tag', kind: 'qr', label: 'QR del número de activo', value: '{{Número de activo}}' },
+  { key: 'qr-serial', kind: 'qr', label: 'QR del número de serie', value: '{{Número de serie}}' },
+  { key: 'bar-tag', kind: 'code128', label: 'Barras del número de activo', value: '{{Número de activo}}' },
+  { key: 'bar-folio', kind: 'code128', label: 'Barras del folio', value: '{{Folio}}' },
+]

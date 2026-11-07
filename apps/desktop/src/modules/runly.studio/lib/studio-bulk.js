@@ -56,3 +56,14 @@ export function sheetGrid(label, { margin = 10, gap = 3 } = {}) {
   const cell = index => ({ page: Math.floor(index / (columns * rows)), x: margin + (index % columns) * (label.width + gap), y: margin + Math.floor((index % (columns * rows)) / columns) * (label.height + gap) })
   return { columns, rows, perSheet: columns * rows, cell }
 }
+
+// Record editing (Registros dialog). `ids` (inventory print log) stay aligned with `rows`.
+export const removeRow = (data, index) => ({ ...data, rows: data.rows.filter((_, i) => i !== index), ids: data.ids ? data.ids.filter((_, i) => i !== index) : data.ids })
+export const addRow = data => data.rows.length >= BULK_ROWS ? data
+  : { ...data, rows: [...data.rows, Object.fromEntries(data.headers.map(header => [header, '']))], ids: data.ids ? [...data.ids, null] : data.ids }
+export const setCell = (data, index, header, value) => ({ ...data, rows: data.rows.map((row, i) => (i === index ? { ...row, [header]: value } : row)) })
+// Indexes (into data.rows) of the rows containing the query in any cell.
+export function searchRows(data, query) {
+  const needle = fieldKey(query)
+  return data.rows.flatMap((row, index) => (!needle || Object.values(row).some(cell => fieldKey(cell).includes(needle)) ? [index] : []))
+}

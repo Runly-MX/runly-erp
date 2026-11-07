@@ -175,11 +175,13 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   }
   // Bulk create ("Datos para varias versiones" in Descargar).
   const readFields = useCallback(() => designFields(editorRef.current?.snapshot()), [])
+  // Dataset for "Datos para varias versiones": lives here so it survives closing Descargar or switching panels; never saved in the design.
+  const [dataset, setDataset] = useState(null)
   const bulkData = useMemo(() => ({ readFields, rememberKey: `runly.studio.bulk-source.${record.id}`, parse: async file => unwrap(await runly.studio.parseDataSource(file, token)),
     sources: async () => unwrap(await runly.studio.dataSources(token)), moduleRows: async (key, filters) => unwrap(await runly.studio.dataSourceRows(key, filters, token)),
     // Inventory label printers (ZPL); without inventory.label.read the list is simply empty.
     printers: async () => { try { return unwrap(await runly.inventory.labels.listPrinters(token)) ?? [] } catch { return [] } },
-    insertField: canEdit && ready ? header => editorRef.current.add('text', { text: `{{${header}}}` }) : null }), [readFields, token, canEdit, ready, record.id])
+  }), [readFields, token, record.id])
   const bluetooth = useBluetoothPrinting()
   // Inventory-sourced PDF/ZPL batches count as printed labels, like the Etiquetas screen.
   async function logInventoryPrints(options, printed) {
@@ -258,7 +260,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     packageExport: interchange.data?.exportNotice ? { notice: interchange.data.exportNotice, imageCount: documentAssetIds(sync.state().document).length } : null,
     syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
-    bulkData,
+    bulkData, dataset, onDataset: setDataset,
     onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
   }
   return <>

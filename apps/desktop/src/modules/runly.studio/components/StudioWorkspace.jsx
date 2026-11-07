@@ -9,6 +9,8 @@ import { useStudioViewport } from '../hooks/useStudioViewport.js'
 import { StudioTopBar } from './editor/StudioTopBar.jsx'
 import { RAIL_ITEMS, StudioRail } from './editor/StudioRail.jsx'
 import { TextPanel } from './editor/InsertPanels.jsx'
+import { DataPanel } from './editor/DataPanel.jsx'
+import { codeObject } from '../lib/studio-codes.js'
 import { ElementsLibrary } from './editor/elements/ElementsLibrary.jsx'
 import { LayersPanel } from './editor/LayersPanel.jsx'
 import { PageSettingsForm } from './editor/PageSettingsForm.jsx'
@@ -170,6 +172,11 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     attempt(() => editorRef.current.add(type, point || extra?.x === undefined ? centered(extra, point) : extra))
     if (phone) setPanel(null)
   }
+  // Datos panel: a dataset column dropped on the page as text, QR or barcode.
+  const dataFields = useMemo(() => chrome.bulkData.readFields(), [objects, chrome.bulkData])
+  const insertData = (as, header) => (as === 'text'
+    ? add('text', { text: `{{${header}}}`, fontSize: 32, width: 560, height: 39, fill: '#0f172a', fontFamily: 'sans-serif' })
+    : add('vector', codeObject(as, `{{${header}}}`)))
   // Combined block: its parts are added, then grouped, as one undo step.
   async function addBlock(block, accent, point = null) {
     const editor = editorRef.current, origin = centered({ width: block.width, height: block.height }, point), parts = block.parts(accent)
@@ -242,7 +249,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const drop = useCanvasDrop({ editorRef, canvasRef, objects, readOnly: readOnly || !ready, attempt })
   const uploader = <FileUploader accept="image/png,image/jpeg,image/webp" maxSizeMB={10} disabled={blocked} emptyLabel="Subir imagen" hint="PNG, JPG o WebP. Se conserva el original." onUpload={upload} />
   const panels = {
-    elements: <ElementsLibrary disabled={blocked} onFrame={imageKit.tools.frame} loadThumbnail={catalog?.thumbnail}
+    elements: <ElementsLibrary disabled={blocked} columns={chrome.dataset?.headers} onAddCode={(kind, value, point) => add('vector', codeObject(kind, value), point)} onFrame={imageKit.tools.frame} loadThumbnail={catalog?.thumbnail}
       onAddPrimitive={(type, props, point) => add(type, props, point)} onAddLine={(props, point) => add('line', props, point)}
       onAddFigure={(id, fill, point) => attempt(async () => {
         const object = await catalog.importIcon(id), ratio = object.height && object.width ? object.height / object.width : 1
@@ -258,6 +265,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     })} />,
     image: <ImagePanel selection={selection} imageUrl={imageKit.tools.imageUrl} tab={imageTab} onTab={setImageTab} disabled={readOnly || !ready} api={imageKit.tools} />,
     text: <TextPanel disabled={blocked} onAdd={add} />,
+    data: <DataPanel value={chrome.dataset} onChange={chrome.onDataset} fields={dataFields} source={chrome.bulkData} disabled={blocked} onInsert={insertData} />,
     images: resourcePanel ? resourcePanel({ disabled: blocked, uploader }) : uploader,
     layers: <LayersPanel objects={objects} selectedIds={selectedIds} remoteSelections={remoteSelections} disabled={!ready || busy}
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
@@ -292,7 +300,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     <EyedropperContext.Provider value={colorContext}>
     <div role="application" aria-label="Editor gráfico de Studio" tabIndex={-1} onKeyDown={shortcut}
       className={cn('flex min-h-0 flex-col overflow-hidden bg-[hsl(var(--background))] text-[hsl(var(--foreground))] outline-none', viewMode.isImmersive ? 'fixed inset-0 z-50 h-dvh' : 'h-full')}>
-      <StudioTopBar phone={phone} {...chrome} page={page} pages={pageList} pageCount={pageCount} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
+      <StudioTopBar phone={phone} {...chrome} onOpenData={() => setPanel('data')} page={page} pages={pageList} pageCount={pageCount} canEdit={!readOnly} history={history} people={people.filter(person => !person.isSelf)} objects={objects}
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}

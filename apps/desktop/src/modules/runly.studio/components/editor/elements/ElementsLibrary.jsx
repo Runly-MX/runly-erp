@@ -4,7 +4,8 @@ import { ChevronDown, FileUp, Pipette, Shapes } from 'lucide-react'
 import { useEyedropper, useRecentColors } from '../../../lib/studio-colors.js'
 import { draggable } from '../../../lib/studio-drag.js'
 import { scheduled } from '../../../lib/resource-queue.js'
-import { BASIC_SHAPES, BLOCKS, ELEMENT_COLORS, FIGURES, FIGURE_GROUPS, LINE_BODIES, LINE_DASHES, LINE_ENDS, LINE_WEIGHTS, matches, normalizeQuery } from '../../../lib/element-library.js'
+import { BASIC_SHAPES, BLOCKS, CODE_PRESETS, ELEMENT_COLORS, FIGURES, FIGURE_GROUPS, LINE_BODIES, LINE_DASHES, LINE_ENDS, LINE_WEIGHTS, matches, normalizeQuery } from '../../../lib/element-library.js'
+import { DynamicCodes } from './DynamicCodes.jsx'
 import { FramesGrid } from '../image/FramesGrid.jsx'
 import { FRAMES } from '../../../lib/frame-shapes.js'
 
@@ -120,7 +121,7 @@ function BlockPreview({ block, color }) {
 }
 
 // "Elementos": searchable library with one color for new elements.
-export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLine, onAddBlock, onFrame, onImportSvg, loadThumbnail }) {
+export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLine, onAddBlock, onFrame, onImportSvg, loadThumbnail, onAddCode, columns }) {
   const [search, setSearch] = useState(''), [color, setColor] = useState(ELEMENT_COLORS[0])
   const recent = useRecentColors(), dropper = useEyedropper()
   const [dash, setDash] = useState('solid'), [ends, setEnds] = useState('none'), [weight, setWeight] = useState(8)
@@ -130,8 +131,9 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
   const figures = FIGURES.filter(item => matches(item.label, query))
   const lines = LINE_BODIES.filter(item => matches(item.label, query))
   const blocks = BLOCKS.filter(item => matches(item.label, query))
+  const codes = CODE_PRESETS.filter(item => matches(`${item.label} código qr barras dinámico`, query)), rule = !query || matches('regla personalizada código dinámico', query)
   const frames = query ? FRAMES.filter(item => matches(item.label, query)) : FRAMES
-  const nothing = query && !basics.length && !figures.length && !lines.length && !blocks.length && !frames.length
+  const nothing = query && !basics.length && !figures.length && !lines.length && !blocks.length && !codes.length && !frames.length
   return (
     <div className="space-y-5">
       <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar formas, líneas, bloques…" aria-label="Buscar elementos" maxLength={60} />
@@ -219,6 +221,10 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
           ))}
         </div>
       )} />
+
+      {onAddCode && (codes.length || rule) ? (
+        <Section title="Códigos dinámicos" count={1}><DynamicCodes presets={codes} showRule={rule} disabled={disabled} columns={columns} onAddCode={onAddCode} /></Section>
+      ) : null}
 
       {onFrame && frames.length ? (
         <section className="space-y-2">

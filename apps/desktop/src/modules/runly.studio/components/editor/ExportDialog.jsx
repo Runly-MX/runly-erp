@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
-import { AlertTriangle, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag } from 'lucide-react'
+import { AlertTriangle, Database, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages, planScreenExport } from '../../lib/studio-export-plan.js'
 import { ZplOptions } from './ZplOptions.jsx'
 import { parsePageRange } from '../../lib/studio-pages.js'
 import { BULK_PDF_PAGES, autoMapping, sheetGrid } from '../../lib/studio-bulk.js'
-import { BulkDataSection } from './BulkDataSection.jsx'
 
 const KEY = 'runly.studio.export-options'
 const TYPES = [
@@ -60,13 +59,12 @@ function Result({ options, plan, versions = 0 }) {
 // "Descargar": screen (PNG/JPG: size, transparency, quality) or print (PDF at
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
-export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null }) {
+export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null, dataset: bulk = null, onOpenData }) {
   const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
   // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
-  const [bulk, setBulk] = useState(null), [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
+  const [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
   const readFields = bulkData?.readFields
   useEffect(() => { if (open && readFields) setFields(readFields()) }, [open, readFields])
-  const insertField = bulkData?.insertField ? async header => { await bulkData.insertField(header); setFields(bulkData.readFields()) } : null
   const types = useMemo(() => (packageExport ? [...TYPES, PACKAGE_TYPE] : TYPES), [packageExport])
   // A remembered or stale choice that is no longer offered falls back to PNG.
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
@@ -80,6 +78,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const set = patch => { if (patch.type) setAcknowledged(false); setOptions(current => ({ ...current, ...patch })) }
   const ppi = options.ppi ?? defaultPpi(page)
   const versions = !native && bulk && fields.length ? bulk.rows.length : 0
+  const unmapped = bulk ? fields.filter(field => !{ ...autoMapping(fields, bulk.headers), ...bulk.mapping }[field]) : []
   const plan = useMemo(() => {
     if (native) return { kind: 'package' }
     if (options.type === 'zpl') return planScreenExport(page, { type: 'zpl', scale: options.dpi / defaultPpi(page) })
@@ -112,7 +111,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   }
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent size="md" className="flex max-h-[90dvh] flex-col">
+      <DialogContent size="lg" className="flex max-h-[90dvh] flex-col">
         <DialogHeader icon={Download}>
           <DialogTitle>Descargar</DialogTitle>
           <DialogDescription>Elige el formato según el uso del archivo.{multiple ? ` Este diseño tiene ${pageCount} páginas.` : ''}</DialogDescription>
@@ -136,9 +135,19 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
             })}
           </div>
           {!native && bulkData ? (
-            <section aria-label="Datos para varias versiones" className="space-y-2 rounded-lg border border-[hsl(var(--border))] p-3">
-              <p className="text-sm font-semibold">Datos para varias versiones</p>
-              <BulkDataSection fields={fields} value={bulk} onChange={setBulk} onParse={bulkData.parse} onInsertField={insertField} loadSources={bulkData.sources} loadRows={bulkData.moduleRows} rememberKey={bulkData.rememberKey} />
+            <section aria-label="Datos para varias versiones" className="flex items-start gap-3 rounded-lg border border-[hsl(var(--border))] p-3">
+              <Database className="mt-0.5 h-4 w-4 shrink-0 text-sky-600" aria-hidden />
+              <div className="min-w-0 flex-1 space-y-1 text-sm">
+                {bulk ? <>
+                  <p className="font-semibold">{bulk.rows.length} {bulk.rows.length === 1 ? 'versión' : 'versiones'} desde {bulk.fileName}</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{versions ? 'Cada registro crea su propia versión del diseño.' : 'El diseño no tiene campos {{Nombre}}: se descargará una sola versión.'}</p>
+                  {unmapped.length ? <p className="flex gap-1.5 text-xs text-amber-700 dark:text-amber-300"><AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden />{unmapped.length === 1 ? `«${unmapped[0]}» no tiene columna y saldrá vacío.` : `${unmapped.length} campos sin columna saldrán vacíos.`}</p> : null}
+                </> : <>
+                  <p className="font-semibold">Una sola versión</p>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">Para generar una versión por registro conecta un Excel, CSV o un módulo en el panel Datos.</p>
+                </>}
+              </div>
+              <Button type="button" variant="outline" size="sm" className="shrink-0" onClick={onOpenData}>{bulk ? 'Editar datos' : 'Conectar datos'}</Button>
             </section>
           ) : null}
           {native ? (

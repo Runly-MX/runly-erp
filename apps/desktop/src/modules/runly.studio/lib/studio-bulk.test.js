@@ -37,3 +37,13 @@ test('an image with a photo field takes the row photo, or keeps the placeholder'
   assert.equal(fillDocument(page, { foto: '0190A1B2-C3D4-7E5F-8A9B-0C1D2E3F4A5C' }).objects[0].fileAssetId, '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5c')
   assert.equal(fillDocument(page, { foto: '' }).objects[0].fileAssetId, photo.fileAssetId)
 })
+
+import { addRow, removeRow, searchRows, setCell } from './studio-bulk.js'
+test('record editing keeps ids aligned', () => {
+  const data = { headers: ['A', 'B'], rows: [{ A: 'x', B: 'Ñu' }, { A: 'y', B: '' }], ids: ['1', '2'] }
+  assert.deepEqual(removeRow(data, 0).ids, ['2'])
+  assert.deepEqual(addRow(data).ids, ['1', '2', null])
+  assert.equal(setCell(data, 1, 'B', 'z').rows[1].B, 'z')
+  assert.deepEqual(searchRows(data, 'nu'), [0])
+  assert.deepEqual(searchRows(data, ''), [0, 1])
+})
