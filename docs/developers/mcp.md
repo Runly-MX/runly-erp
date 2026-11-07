@@ -20,7 +20,8 @@ El servidor **no puede firmar, publicar, aprobar reviews ni moderar**. Esas acci
 | `runly_revision_get`, `runly_revision_create` | Leer o guardar la definición | Leer / guardar revisiones | No |
 | `runly_validate` | Validar una definición sin guardarla | Ejecutar validaciones | No |
 | `runly_build` | Encolar un build | `hub:build:run` | **Sí** |
-| `runly_job_status` | Estado y reporte de jobs build, inspect o custom existentes | `hub:projects:read` | No |
+| `runly_custom_compile` | Compilar las pantallas React (CUSTOM) de una revisión guardada para el Playground | `hub:build:run` | No |
+| `runly_job_status` | Estado y reporte de jobs build, inspect o custom; en custom incluye los diagnósticos de compilación con archivo y línea | `hub:projects:read` | No |
 | `runly_artifacts_list`, `runly_artifact_metadata` | ZIP privados: digest y tamaño | Leer artifacts | No |
 | `runly_artifact_download` | Descargar un ZIP privado (máx. 4 MiB) | Leer artifacts | **Sí** |
 | `runly_version_create`, `runly_releases_list` | Registrar versiones y ver releases | Preparar / leer releases | No |
@@ -80,4 +81,4 @@ En **Configuración > Aplicaciones conectadas** pulsa **Revocar**. Se eliminan l
 
 El MCP público de Runly Developer está disponible en **https://mcp.devs.runly.mx/**, con OAuth y acceso limitado a los espacios autorizados. El portal de consentimiento y aprobaciones está en **https://devs.runly.mx**. La disponibilidad de un paquete/plugin en ChatGPT y su review por OpenAI son pasos separados.
 
-Las 20 herramientas anuncian annotations, el scope OAuth exacto y un outputSchema para sus respuestas estructuradas. `approval_required` es una respuesta de éxito pendiente de intervención humana; un error usa `isError=true` y queda fuera del schema de éxito. Search/get y los Resources de documentación requieren `hub:docs:read`; todavía no hay tools de importación/CUSTOM ni cancelación de jobs.
+Las 22 herramientas anuncian annotations, el scope OAuth exacto y un outputSchema para sus respuestas estructuradas. `approval_required` es una respuesta de éxito pendiente de intervención humana; un error usa `isError=true` y queda fuera del schema de éxito. Search/get y los Resources de documentación requieren `hub:docs:read`; las pantallas CUSTOM se guardan en `definition.extensions` con `runly_revision_create` y se compilan con `runly_custom_compile`; todavía no hay tools de importación de ZIP ni de cancelación de jobs.
