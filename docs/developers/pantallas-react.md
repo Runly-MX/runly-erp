@@ -92,6 +92,8 @@ Usa siempre `buildApiHeaders(token, companyId)` en tus `fetch`: sin el encabezad
 
 ## Reglas de diseño de Runly
 
+Guía completa (composición, responsivo, gestos, cámara y ubicación en Android, dibujo con `<canvas>`): **[Diseño de pantallas y móvil](/documentacion/desarrolladores/diseno-de-pantallas)**.
+
 - Primero `@runly/ui`: props y ejemplos de cada componente en **[Componentes de @runly/ui](/documentacion/desarrolladores/componentes)**. `SelectField`/`ComboboxField` en lugar de `<select>`, `TextField`/`TextareaField` en lugar de inputs, `CheckboxField`/`SwitchField`, `DatePickerField`, `DataTable`/`RunlyTable`, `Dialog`/`Sheet`, y `ConfirmDialog` en lugar de `window.confirm/alert/prompt` (prohibidos).
 - Toda pantalla empieza con `PageHeader`; `Skeleton` al cargar, `EmptyState` si no hay datos, `ErrorState` si algo falla.
 - Iconos de `lucide-react` en títulos de sección, botones, indicadores y estados vacíos: lista por uso en **[Iconos](/documentacion/desarrolladores/iconos)**. Textos en español y sin emojis.

@@ -45,6 +45,7 @@ a instalación, firma, aprobación o publicación oficial.
 
 - [**Flujo con ZIP y modos de edición**](/documentacion/desarrolladores/flujo-zip): descargar el paquete, modo visual, modo mixto y modo desarrollador, revisión y vista previa antes de aplicar, volver al modo visual.
 - [**Pantallas React**](/documentacion/desarrolladores/pantallas-react): vistas `CUSTOM`, registro de componentes, props, llamadas a la API y reglas de diseño.
+- [**Diseño de pantallas y móvil**](/documentacion/desarrolladores/diseno-de-pantallas): cuándo hacer una pantalla React, composición, diseño responsivo, gestos táctiles, cámara, QR, ubicación y micrófono en la app de Android, y dibujo con `<canvas>` sin librerías.
 - [**Componentes de @runly/ui**](/documentacion/desarrolladores/componentes): props, valores y ejemplos de cada componente que usan tus pantallas, y patrones de formulario e indicadores responsivos.
 - [**Iconos**](/documentacion/desarrolladores/iconos): iconos de lucide recomendados por uso, con su nombre en español, y la lista completa.
 - [**API de los módulos**](/documentacion/desarrolladores/api-modulos): endpoints que genera el Constructor para cada entidad, formatos de respuesta, filtros, errores y archivos.
