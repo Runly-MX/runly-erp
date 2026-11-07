@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Activity, Boxes, CalendarPlus, FolderTree, MapPin, ShieldCheck, Tag, UserCheck, Wrench } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, FolderTree, MapPin, QrCode, ShieldCheck, ShoppingCart, Tag, UserCheck, Wrench } from 'lucide-react'
 import { ITEM_STATUSES } from '../lib/inventory-constants.js'
 import { ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admin-status.js'
 import { useInventoryBrands, useInventoryCategories, useInventoryLocations } from './useInventoryCatalogs.js'
@@ -41,4 +41,13 @@ export function filtersQuery(value) {
   }
   const text = params.toString()
   return text ? `?${text}` : ''
+}
+
+// The item list's own filter menu (same keys as GET /inventory/items) for pickers outside Inventario, e.g. Studio.
+export function useInventoryPickerFilters() {
+  const base = useInventoryMapFilters()
+  return useMemo(() => [...base,
+    { key: 'labeled', label: 'Etiqueta', type: 'select', icon: QrCode, options: [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }] },
+    { key: 'purchase', label: 'Fecha de compra', type: 'daterange', icon: ShoppingCart, fromKey: 'purchaseFrom', toKey: 'purchaseTo' },
+  ], [base])
 }

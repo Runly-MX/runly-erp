@@ -7,6 +7,19 @@ import { STUDIO_DATA_LIMITS } from './studio-data-source.js'
 const ITEM_STATUS = { available: 'Disponible', maintenance: 'En mantenimiento', assigned: 'Asignado', in_use: 'En uso', retired: 'Baja', lost: 'Extraviado' }
 const VEHICLE_STATUS = { active: 'Activo', inactive: 'Inactivo', maintenance: 'En mantenimiento', retired: 'Dado de baja' }
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+// Native inventory list filters (same keys as GET /inventory/items) the picker may send; ids must be UUIDs (areaId may be '__none__').
+const INVENTORY_FILTER_KEYS = ['categoryId', 'brandId', 'locationId', 'conditionId', 'areaId', 'status', 'adminStatus', 'labeled', 'mine', 'createdFrom', 'createdTo', 'purchaseFrom', 'purchaseTo']
+function inventoryFilters(raw) {
+  const out = {}
+  for (const key of INVENTORY_FILTER_KEYS) {
+    const value = (Array.isArray(raw[key]) ? raw[key].join(',') : raw[key] === true ? 'true' : raw[key]) ?? ''
+    if (typeof value !== 'string' || !value) continue
+    if (/Id$/.test(key) && !value.split(',').every(part => UUID.test(part) || (key === 'areaId' && part === '__none__'))) continue
+    out[key] = value.slice(0, 200)
+  }
+  if (raw.unlabeled === true && !out.labeled) out.labeled = 'false'
+  return out
+}
 const text = value => (value == null ? '' : String(value))
 
 // Pages through a module list until `max` rows or the end of the data.
@@ -57,8 +70,9 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
       async rows(c, filters) {
         const companyId = c.get('companyId'), scope = await inventoryScope.fromContext(c)
         const { rows: listed, total } = await collect(async (page, limit) => {
-          const result = await inventory.listItems({ companyId, scope, page, limit, search: filters.search || undefined,
-            locationId: filters.locationId || undefined, labeled: filters.unlabeled === true ? 'false' : undefined })
+          const { mine, ...native } = filters.native ?? {}
+          const result = await inventory.listItems({ companyId, scope, page, limit, search: filters.search || undefined, ...native,
+            mine: mine === 'true' ? await inventoryScope.mineFromContext(c) : null })
           return { data: result.data, total: result.total }
         }, 200)
         // The picker previews with `preview` and only the chosen `ids` are used, so public links are issued just for those.
@@ -132,7 +146,7 @@ export function createStudioDataProviders({ prisma, inventory, inventoryScope, i
     async rows(c, key, input) {
       const provider = find(c, key), raw = input?.filters
       const filters = raw && typeof raw === 'object' ? { search: typeof raw.search === 'string' ? raw.search.slice(0, 200) : '',
-        locationId: UUID.test(raw.locationId ?? '') ? raw.locationId : '', unlabeled: raw.unlabeled === true, preview: raw.preview === true,
+        native: inventoryFilters(raw), preview: raw.preview === true,
         ids: Array.isArray(raw.ids) ? raw.ids.filter(id => UUID.test(id ?? '')).slice(0, STUDIO_DATA_LIMITS.rows) : [] } : {}
       let result = await provider.rows(c, filters)
       if (filters.ids?.length) {

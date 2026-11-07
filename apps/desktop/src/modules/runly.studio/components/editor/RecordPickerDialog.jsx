@@ -1,9 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, Checkbox, CheckboxField, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, SearchInput, SelectField, cn } from '@runly/ui'
+import { Button, Checkbox, CheckboxField, Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, FilterToolbar, SearchInput, cn } from '@runly/ui'
 import { Database, Loader2 } from 'lucide-react'
 import { describeRecord } from '../../lib/studio-records.js'
+import { useInventoryPickerFilters } from '../../../runly.inventory/hooks/useInventoryMapFilters.js'
 
-const ALL = '__all'
+const PLACEHOLDER = { inventory: 'Buscar por activo, serie, nombre, marca, modelo…', fleet: 'Buscar por placa, marca, modelo…', hr: 'Buscar por nombre o número de empleado…', contacts: 'Buscar por nombre, correo o teléfono…' }
+
+// Search + the module's own filter menu (Inventario: the same one as its list). `filters` holds search and the menu values together.
+function Toolbar({ source, filters, setFilters, specs }) {
+  const { search = '', ...menu } = filters
+  const box = <SearchInput value={search} onChange={event => setFilters({ ...filters, search: event.target.value })} onClear={() => setFilters({ ...filters, search: '' })}
+    placeholder={PLACEHOLDER[source.key] ?? 'Buscar…'} aria-label="Buscar registros" maxLength={80} />
+  return <FilterToolbar search={box} filterSpecs={specs} filterValue={menu} onFilterChange={next => setFilters({ search, ...next })} className="shrink-0" />
+}
+function InventoryToolbar(props) { return <Toolbar {...props} specs={useInventoryPickerFilters()} /> }
 
 // "Elegir registros": live search over the module's records the user may read,
 // then check the ones that become versions. Public links are only issued for the chosen ones.
@@ -25,7 +35,6 @@ export function RecordPickerDialog({ open, onOpenChange, source, loadRows, initi
     return () => clearTimeout(timer)
     // filters are compared by value through filterKey
   }, [open, source.key, filterKey, loadRows]) // eslint-disable-line react-hooks/exhaustive-deps
-  const set = (name, value) => setFilters(current => ({ ...current, [name]: value }))
   const rows = result?.rows ?? [], ids = result?.ids ?? [], idAt = index => ids[index] ?? null
   const selectable = rows.map((_, index) => idAt(index)).filter(Boolean), allPicked = selectable.length > 0 && selectable.every(id => picked.has(id))
   const toggle = id => setPicked(current => { const next = new Set(current); if (next.has(id)) next.delete(id); else next.add(id); return next })
@@ -41,13 +50,7 @@ export function RecordPickerDialog({ open, onOpenChange, source, loadRows, initi
           <DialogTitle>Elegir registros de {source.label}</DialogTitle>
           <DialogDescription>Solo ves lo que tu rol permite leer. Marca los que quieres convertir en versiones.</DialogDescription>
         </DialogHeader>
-        <div className="flex flex-wrap items-end gap-2">
-          {source.filters.map(filter => filter.type === 'text'
-            ? <SearchInput key={filter.key} value={filters[filter.key] ?? ''} onChange={event => set(filter.key, event.target.value)} onClear={() => set(filter.key, '')} placeholder={source.key === 'inventory' ? 'Buscar por activo, serie, nombre, marca, modelo…' : 'Buscar…'} aria-label={filter.label} maxLength={80} className="min-w-52 flex-1" />
-            : filter.type === 'select'
-              ? <div key={filter.key} className="w-48"><SelectField label={filter.label} value={filters[filter.key] || ALL} onValueChange={value => set(filter.key, value === ALL ? '' : value)} options={[{ value: ALL, label: 'Todas' }, ...filter.options]} /></div>
-              : <div key={filter.key} className="pb-2"><CheckboxField label={filter.label} checked={filters[filter.key] === true} onChange={event => set(filter.key, event.target.checked)} /></div>)}
-        </div>
+        {source.key === 'inventory' ? <InventoryToolbar source={source} filters={filters} setFilters={setFilters} /> : <Toolbar source={source} filters={filters} setFilters={setFilters} specs={null} />}
         <div className="flex items-center justify-between gap-3 text-xs text-[hsl(var(--muted-foreground))]">
           <CheckboxField label={`Seleccionar los ${selectable.length} mostrados`} checked={allPicked} disabled={!selectable.length}
             onChange={event => setPicked(current => { const next = new Set(current); selectable.forEach(id => (event.target.checked ? next.add(id) : next.delete(id))); return next })} />

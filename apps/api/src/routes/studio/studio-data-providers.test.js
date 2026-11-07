@@ -57,3 +57,14 @@ test('preview skips public links; ids keep only the chosen records; empty previe
   assert.deepEqual(none.rows, [])
   await assert.rejects(providers.rows(perms, 'inventory', { filters: { ids: ['0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'] } }), /No hay registros/)
 })
+
+test('inventory forwards only whitelisted native filters, with valid ids', async () => {
+  let seen
+  const custom = createStudioDataProviders({ prisma: { invLocation: { findMany: async () => [] }, fileAsset: { findMany: async () => [] } }, signFile: null,
+    inventory: { listItems: async args => { seen = args; return { data: [], total: 0 } } }, inventoryScope: { fromContext: async () => null, mineFromContext: async () => ({ userId: 'u' }) },
+    inventoryPublic: { ensureTokens: async () => new Map(), urlFor: () => '' }, publicBaseUrl: 'https://app.example.com', fleet: {}, hr: {} })
+  const good = '0190a1b2-c3d4-7e5f-8a9b-0c1d2e3f4a5b'
+  await custom.rows(context(['inventory.item.read']), 'inventory', { filters: { preview: true, search: 'hp', categoryId: good, brandId: 'nope', conditionId: [good, good], labeled: 'false', mine: 'true', purchaseFrom: '2025-01-01', companyId: 'evil' } })
+  assert.equal(seen.categoryId, good); assert.equal(seen.brandId, undefined); assert.equal(seen.conditionId, `${good},${good}`)
+  assert.equal(seen.labeled, 'false'); assert.deepEqual(seen.mine, { userId: 'u' }); assert.equal(seen.purchaseFrom, '2025-01-01'); assert.equal(seen.companyId, 'c1')
+})
