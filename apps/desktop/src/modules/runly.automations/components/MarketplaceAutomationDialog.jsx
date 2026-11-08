@@ -88,9 +88,12 @@ export function MarketplaceAutomationDialog({ open, onOpenChange, token, onOpenA
   const [inspection, setInspection] = useState(null), [prepared, setPrepared] = useState(null), [result, setResult] = useState(null)
   const [servicesAccepted, setServicesAccepted] = useState(false), [risksAccepted, setRisksAccepted] = useState(false)
   const pending = useRef(null), confirming = useRef(false)
+  // Bumped on close, restart and unmount: an answer that arrives later belongs to a dialog that no longer exists.
+  const generation = useRef(0)
 
   // An unconfirmed preparation is released when the dialog closes or the person starts over.
-  const release = () => { const id = pending.current; pending.current = null; if (id) runly.modules.cancelMarketplaceAutomationImport(id, token).catch(() => {}) }
+  const cancelPrepared = (id) => { if (id) runly.modules.cancelMarketplaceAutomationImport(id, token).catch(() => {}) }
+  const release = () => { generation.current += 1; const id = pending.current; pending.current = null; cancelPrepared(id) }
   const restart = () => { release(); setStep('choose'); setBusy(null); setState(null); setInspection(null); setPrepared(null); setResult(null); setServicesAccepted(false); setRisksAccepted(false) }
   useEffect(() => { if (!open) { restart(); setResource(null); setAcknowledged(false) } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => release(), []) // eslint-disable-line react-hooks/exhaustive-deps
@@ -101,18 +104,23 @@ export function MarketplaceAutomationDialog({ open, onOpenChange, token, onOpenA
     return null
   }
   async function inspect() {
+    const started = generation.current
     const failed = await run('inspecting', async () => {
       const data = unwrap(await runly.modules.inspectMarketplaceAutomation(releaseRef(resource, acknowledged), token))
+      if (started !== generation.current) return
       setInspection(data); setStep('review')
     })
-    if (failed) { setState(failed); setStep('choose') }
+    if (failed && started === generation.current) { setState(failed); setStep('choose') }
   }
   async function prepare() {
+    const started = generation.current
     const failed = await run('preparing', async () => {
       const data = unwrap(await runly.modules.prepareMarketplaceAutomationImport(releaseRef(resource, acknowledged), token))
+      // Closed or restarted while the server was preparing: release it at once instead of leaving it to expire.
+      if (started !== generation.current) { cancelPrepared(data.id); return }
       pending.current = data.id; setPrepared(data); setServicesAccepted(false); setRisksAccepted(false); setStep('consent')
     })
-    if (failed) {
+    if (failed && started === generation.current) {
       if (failed.details?.report) setInspection((current) => ({ ...current, report: failed.details.report, blocked: true }))
       setState(failed)
     }

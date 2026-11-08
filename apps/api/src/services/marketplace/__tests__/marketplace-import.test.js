@@ -53,3 +53,13 @@ test('the consent digest is stable across key order and changes with any content
   assert.equal(definitionDigest(a), definitionDigest(b))
   assert.notEqual(definitionDigest(a), definitionDigest({ ...a, label: 'Y' }))
 })
+
+test('literal values typed into HTTP steps are counted (never echoed) so the importer can warn about credentials', async () => {
+  const { httpLiteralCount } = await import('../automation-import-service.js')
+  const definition = { label: 'x', trigger: { type: 'webhook', fields: [] }, steps: [
+    { type: 'http', method: 'POST', url: 'https://api.example.test/hook?key=abc&v=2', body: { token: { from: 'value', value: 'sk_live_x' }, auth: { from: 'template', template: 'Bearer abc' }, name: { from: 'template', template: 'Hola {{name}}' }, total: { from: 'field', field: 'total' }, empty: { from: 'value', value: '' } } },
+    { service: 'runly.notifications:notifications.send', args: { title: { from: 'template', template: 'Fijo' } } },
+  ] }
+  assert.equal(httpLiteralCount(definition), 4)
+  assert.equal(httpLiteralCount({ steps: [{ type: 'http', method: 'GET', url: 'https://api.example.test/x', body: { a: { from: 'field', field: 'id' } } }] }), 0)
+})

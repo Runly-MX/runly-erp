@@ -12,6 +12,7 @@ import { createHash, randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { parseAutomationFile, riskSummary } from '@runly/module-compiler/automation-file'
 import { normalizeAutomations, serviceStepsOf, validateSystemAutomation } from '@runly/module-compiler'
+import { isHttpStep, stepsOf } from '@runly/module-compiler/browser'
 import { createAutomationHttpService } from '../automation-http-service.js'
 import { SYSTEM_MODULE_KEY, MAX_SYSTEM_AUTOMATIONS } from '../system-automations-service.js'
 import { MarketplaceImportError } from './marketplace-import-gate.js'
@@ -37,6 +38,21 @@ const sameList = (a, b) => a.length === b.length && [...a].sort().every((v, i) =
 
 const fail = (code, message, status = 409, details = null) => { throw new MarketplaceImportError(code, message, status, details) }
 
+// Literal values inside HTTP steps: body entries that are fixed values or templates without any variable, and
+// query parameters written into the URL.
+export function httpLiteralCount(definition) {
+  let count = 0
+  for (const step of stepsOf(definition)) {
+    if (!isHttpStep(step)) continue
+    for (const source of Object.values(step.body ?? {})) {
+      if (source?.from === 'value' && source.value !== undefined && source.value !== null && source.value !== '') count++
+      else if (source?.from === 'template' && typeof source.template === 'string' && source.template.trim() && !/\{\{/.test(source.template)) count++
+    }
+    try { count += [...new URL(String(step.url)).searchParams.keys()].length } catch { /* malformed URLs are reported by the validator */ }
+  }
+  return count
+}
+
 export function createAutomationImportService({ prisma, gate, http = createAutomationHttpService({ prisma }), now = () => new Date() }) {
   // Validation of a cleaned definition against THIS instance (services, HTTP allowlist).
   async function analyzeDefinition(definition) {
@@ -49,9 +65,13 @@ export function createAutomationImportService({ prisma, gate, http = createAutom
     const services = [...new Set(serviceStepsOf(definition).map((s) => s.service).filter(Boolean))].sort()
     const trigger = definition.trigger?.type ?? null
     const notes = []
+    // Text typed by the author into HTTP calls (body literals, URL query) may hold credentials the cleanup cannot
+    // recognize. Only counted, never echoed; the automation stays paused and the host must already be allowed.
+    const httpLiterals = httpLiteralCount(definition)
+    if (httpLiterals) notes.push({ code: 'http_literal_values', message: `Hay ${httpLiterals} ${httpLiterals === 1 ? 'valor escrito' : 'valores escritos'} a mano en llamadas HTTP (cuerpo o parámetros de la URL). Revísalos en el editor antes de activarla: podrían ser credenciales del autor.` })
     if (trigger === 'webhook') notes.push({ code: 'webhook_url_on_activation', message: 'La URL secreta del webhook se crea en esta empresa al activarla; no se importa ninguna.' })
     if (trigger === 'schedule' || trigger === 'date') notes.push({ code: 'schedule_on_activation', message: 'No se programa nada hasta que alguien la active.' })
-    return { errors, needsConfiguration, services, httpHosts, trigger, notes }
+    return { errors, needsConfiguration, services, httpHosts, httpLiterals, trigger, notes }
   }
 
   // Bytes of the authentic package -> cleaned definition + risk report. Saves nothing.
