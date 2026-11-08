@@ -236,6 +236,24 @@ try {
   assert.notEqual(copy.key, auto.key); assert.equal((await q('SELECT enabled FROM system_automation WHERE id=$1', [copy.id]))[0].enabled, false)
   ok('Automation: no run, job, schedule or webhook delivery for the paused import; an existing key is never overwritten, a second import is a new paused copy')
 
+  // ================= Hub unreachable at confirmation: never confirm on an older copy =================
+  {
+    const pendingStudio = unpack(await owner.studio.prepareMarketplaceTemplateImport({ ...ref(studioLab), target: 'personal', name: 'Sin conexión' }, owner.token))
+    const pendingAuto = unpack(await owner.auto.prepareMarketplaceAutomationImport(ref(automationLab), owner.token))
+    const counts = async () => [await count('studio_template'), await count('system_automation'), await count('file_asset')]
+    const before = await counts()
+    await rm(join(feedDir, 'index.json'))
+    await rejects(owner.studio.confirmPackageImport(pendingStudio.id, { digest: pendingStudio.digest, acceptWarnings: true }, owner.token), { status: 503, code: 'RESOURCE_FEED_UNVERIFIED' })
+    await rejects(owner.auto.confirmMarketplaceAutomationImport(pendingAuto.id, { definitionDigest: pendingAuto.definitionDigest, services: pendingAuto.services, acceptRisks: true }, owner.token), { status: 503, code: 'RESOURCE_FEED_UNVERIFIED' })
+    assert.deepEqual(await counts(), before, 'nothing is created while the feed cannot be verified')
+    assert.equal((await q('SELECT state FROM studio_interchange_job WHERE id=$1', [pendingStudio.id]))[0].state, 'ready', 'the preparation stays recoverable')
+    assert.equal((await q('SELECT state FROM marketplace_automation_import WHERE id=$1', [pendingAuto.id]))[0].state, 'prepared')
+    await serveFeed(published, await labPackages())
+    assert.ok(unpack(await owner.studio.confirmPackageImport(pendingStudio.id, { digest: pendingStudio.digest, acceptWarnings: true }, owner.token)).id)
+    assert.equal(unpack(await owner.auto.confirmMarketplaceAutomationImport(pendingAuto.id, { definitionDigest: pendingAuto.definitionDigest, services: pendingAuto.services, acceptRisks: true }, owner.token)).enabled, false)
+    ok('Hub unreachable at confirmation: Studio and automation confirmations refuse with a retryable 503, create nothing and keep the preparation; after restoring the feed the same confirmations succeed')
+  }
+
   // ================= Revocation after preparation (real H4 seq 4) =================
   const pendingStudio = unpack(await owner.studio.prepareMarketplaceTemplateImport({ ...ref(studioLab), target: 'personal', name: 'Antes de retirar' }, owner.token))
   const pendingAuto = unpack(await owner.auto.prepareMarketplaceAutomationImport(ref(automationLab), owner.token))

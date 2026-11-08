@@ -24,6 +24,7 @@ const MESSAGES = {
   RESOURCE_NOT_FOUND: 'El recurso no existe en el catálogo verificado.',
   RESOURCE_FEED_NOT_CONFIGURED: 'El catálogo de recursos no está configurado en esta instancia.',
   RESOURCE_FEED_UNAVAILABLE: 'No hay una copia verificada del catálogo de recursos.',
+  RESOURCE_FEED_UNVERIFIED: 'No se pudo comprobar ahora en el catálogo que la publicación sigue vigente. No se creó nada; vuelve a intentarlo.',
   RESOURCE_KEY_UNTRUSTED: 'La firma del recurso no es de una clave de confianza.',
   RESOURCE_REVOKED: 'El recurso fue revocado.',
   RESOURCE_WITHDRAWN: 'El recurso fue retirado por su autor.',
@@ -98,10 +99,14 @@ export function createMarketplaceImportGate({ catalog, now = () => Date.now() })
     return { bytes: pkg.bytes, resource, source, inspection }
   }
 
-  // Before creating anything: the same release must still be eligible in the verified feed.
-  // The feed is re-read first so a revocation published after the preparation is seen.
+  // Before creating anything: the same release must still be eligible in a feed verified RIGHT NOW. A copy kept
+  // from earlier (Hub unreachable, transport rejected, rollback or chain alert) never proves that the release was
+  // not revoked meanwhile: the confirmation is refused with a retryable 503 and nothing is created.
   async function recheck(source) {
-    const { resource } = await resolve({ resourceKey: source.resourceKey, version: source.version, releaseId: source.releaseId, acknowledgeStale: source.acknowledgedStale === true }, source.type, { refresh: 'force' })
+    let fresh
+    try { fresh = await catalog.refresh() } catch (error) { throw new MarketplaceImportError('RESOURCE_FEED_UNVERIFIED', MESSAGES.RESOURCE_FEED_UNVERIFIED, 503, { reason: error?.code ?? 'unreachable' }) }
+    if (fresh?.status !== 'ok' || fresh.alert || fresh.offline) throw new MarketplaceImportError('RESOURCE_FEED_UNVERIFIED', MESSAGES.RESOURCE_FEED_UNVERIFIED, 503, { reason: fresh?.alert ?? (fresh?.offline ? 'offline' : fresh?.status ?? 'unverified') })
+    const { resource } = await resolve({ resourceKey: source.resourceKey, version: source.version, releaseId: source.releaseId, acknowledgeStale: source.acknowledgedStale === true }, source.type, { refresh: false })
     if (resource.sha256 !== source.sha256) throw new MarketplaceImportError('RESOURCE_PACKAGE_MISMATCH', MESSAGES.RESOURCE_PACKAGE_MISMATCH, 409)
     return resource
   }

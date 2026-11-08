@@ -12,7 +12,7 @@ function fakeCatalog({ described = resource(), bytes = Buffer.from('abc') } = {}
   return {
     calls,
     status: async () => ({ configured: true, verified: true, fetchedAt: new Date(0).toISOString() }),
-    refresh: async () => { calls.refresh++ },
+    refresh: async () => { calls.refresh++; return { status: 'ok', alert: null, offline: false } },
     inspect: async () => ({ resource: typeof described === 'function' ? described() : described, catalog: { sequence: 7 } }),
     downloadPackage: async () => { calls.download++; return { bytes, sha256: 'a'.repeat(64), size: bytes.length, resource: resource() } },
   }
@@ -39,6 +39,19 @@ test('download binds provenance to the exact verified release and never download
   const missing = { ...fakeCatalog(), inspect: async () => { throw Object.assign(new ResourceFeedError('RESOURCE_NOT_FOUND'), { status: 404 }) } }
   await assert.rejects(createMarketplaceImportGate({ catalog: missing }).resolve(ref, 'automation'), (e) => e.code === 'RESOURCE_NOT_FOUND' && e.status === 404)
   await assert.rejects(createMarketplaceImportGate({ catalog }).resolve({ ...ref, url: 'https://evil.example/x' }, 'automation'))
+})
+
+test('confirm-time recheck requires a feed verified now: unreachable, cached, offline or alerted feeds refuse with a retryable 503', async () => {
+  const source = { ...ref, type: 'automation', sha256: 'a'.repeat(64) }
+  for (const refresh of [
+    async () => { throw new ResourceFeedError('RESOURCE_FEED_UNREACHABLE') },
+    async () => ({ status: 'cached', alert: null, offline: true }),
+    async () => ({ status: 'cached', alert: 'RESOURCE_FEED_ROLLBACK', offline: false }),
+    async () => ({ status: 'not_configured', alert: null }),
+  ]) {
+    const catalog = { ...fakeCatalog(), refresh, inspect: async () => assert.fail('a stale copy must not be consulted') }
+    await assert.rejects(createMarketplaceImportGate({ catalog }).recheck(source), (e) => e.code === 'RESOURCE_FEED_UNVERIFIED' && e.status === 503)
+  }
 })
 
 test('recheck refuses a release whose content changed after preparation', async () => {

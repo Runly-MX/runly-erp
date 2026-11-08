@@ -84,6 +84,7 @@ import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
 import { createAutomationsRouter } from "./routes/automations-routes.js";
 import { createResourceCatalogService } from "./services/catalog/resource-catalog-service.js";
+import { resourceTrustFromEnv } from "./services/catalog/catalog-resource-staging-trust.js";
 import { createMarketplaceImportGate } from "./services/marketplace/marketplace-import-gate.js";
 import { createMarketplaceInstallClientFromEnvSafe } from "./services/marketplace/marketplace-install-client.js";
 import { createMarketplaceInstallationRouter } from "./routes/marketplace-installation-routes.js";
@@ -2566,7 +2567,8 @@ mountWithAuth(app, createWorkRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany, broadcaster }));
 // Marketplace imports (E3a): one verified resource feed consumer (E2) shared by Studio and Automations.
 // Default trust only: no resource keys are pinned in this build, so nothing imports until one is.
-const marketplaceGate = createMarketplaceImportGate({ catalog: createResourceCatalogService({ prisma }) });
+// Trust: release pins only; an explicitly non-production staging may add a mounted resource key file (never in production).
+const marketplaceGate = createMarketplaceImportGate({ catalog: createResourceCatalogService({ prisma, trust: resourceTrustFromEnv(process.env) }) });
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices, marketplace: marketplaceGate }));
 // Optional signed installations channel (E4): null without configuration; the public Marketplace never uses it.
 mountWithAuth(app, createMarketplaceInstallationRouter({ prisma, requirePermission, client: createMarketplaceInstallClientFromEnvSafe(process.env) }));

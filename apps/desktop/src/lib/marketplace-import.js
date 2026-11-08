@@ -7,6 +7,7 @@ const ERRORS = {
   RESOURCE_FEED_NOT_CONFIGURED: { kind: 'not_configured', title: 'Marketplace no configurado', message: 'Esta instancia todavía no tiene un catálogo de recursos. Pide a un administrador que lo configure.' },
   RESOURCE_FEED_UNAVAILABLE: { kind: 'unavailable', title: 'Marketplace no disponible', message: 'No hay una copia verificada del catálogo. Vuelve a intentarlo en unos minutos.', retryable: true },
   RESOURCE_FEED_UNREACHABLE: { kind: 'unavailable', title: 'Marketplace no disponible', message: 'No se pudo conectar con el catálogo. Vuelve a intentarlo en unos minutos.', retryable: true },
+  RESOURCE_FEED_UNVERIFIED: { kind: 'unavailable', title: 'No se pudo confirmar la vigencia', message: 'No se pudo comprobar ahora en el catálogo que la publicación sigue vigente. No se creó nada; vuelve a intentarlo cuando haya conexión.', retryable: true },
   RESOURCE_FEED_EXPIRED: { kind: 'expired', title: 'Catálogo caducado', message: 'La copia verificada del catálogo caducó. No se puede importar hasta que se actualice.', retryable: true },
   RESOURCE_FEED_STALE: { kind: 'expired', title: 'Catálogo demasiado antiguo', message: 'La copia del catálogo es demasiado antigua para importar.', retryable: true },
   RESOURCE_ACKNOWLEDGEMENT_REQUIRED: { kind: 'stale', title: 'El catálogo no está al día', message: 'La copia verificada del catálogo tiene más de un día. Puedes continuar con ella si lo aceptas explícitamente.', acknowledge: true },
