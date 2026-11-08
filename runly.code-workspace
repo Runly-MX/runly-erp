@@ -1,0 +1,13 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../runly-developer-hub"
+		},
+		{
+			"path": "../runly-web"
+		}
+	]
+}
