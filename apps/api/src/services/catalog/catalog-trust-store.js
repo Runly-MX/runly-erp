@@ -1,7 +1,9 @@
-// Catalog trust store (Phase 7 + Catalog Distribution). Three categories that never mix:
+// Catalog trust store (Phase 7 + Catalog Distribution + Marketplace resources). Four categories that never mix:
 //   official  — Runly official key(s) pinned in catalog-public-key.js (v1 payload + official snapshot)
 //   community — Runly community key(s) pinned here (domain-separated v2 statements)
 //   managed   — keys an instance admin configured for a private/managed catalog
+//   resource  — Runly keys that sign the Marketplace RESOURCE feed (studio/automation/website/solution).
+//               Pinned in catalog-resource-public-key.js (none yet), never shared with module keys
 // Only `official` can ever yield `official: true`. A key may belong to exactly
 // one category; overlaps are rejected at load and when admins add keys.
 //
@@ -17,6 +19,8 @@ import { OFFICIAL_CATALOG_PUBLIC_KEYS } from './catalog-public-key.js'
 import { releaseStatementBytes, snapshotStatementBytes, keyIdOf } from './catalog-v2-contract.js'
 import { officialSnapshotBytes } from './catalog-official-contract.js'
 import { signedPayload } from './catalog-crypto.js'
+import { RESOURCE_CATALOG_PUBLIC_KEYS } from './catalog-resource-public-key.js'
+import { resourceReleaseBytes, resourceSnapshotBytes } from './catalog-resource-contract.js'
 
 // The production community key has not been generated yet. Until it is
 // provisioned and pinned here (with a Runly release), community trust only
@@ -43,16 +47,18 @@ export function normalizePin(value, domain) {
   return { ...pin, domain, keyId: keyIdOf(pin.publicKey) }
 }
 
-export function createTrustStore({ official = OFFICIAL_CATALOG_PUBLIC_KEYS, community = COMMUNITY_CATALOG_PUBLIC_KEYS, managed = [], localRevokedKeyIds = [] } = {}) {
+export function createTrustStore({ official = OFFICIAL_CATALOG_PUBLIC_KEYS, community = COMMUNITY_CATALOG_PUBLIC_KEYS, resource = RESOURCE_CATALOG_PUBLIC_KEYS, managed = [], localRevokedKeyIds = [] } = {}) {
   const load = (values, domain) => new Map(values.map((value) => normalizePin(value, domain)).map((pin) => [pin.keyId, pin]))
-  const sets = { official: load(official, 'official'), community: load(community, 'community') }
+  const sets = { official: load(official, 'official'), community: load(community, 'community'), resource: load(resource, 'resource') }
   for (const id of sets.community.keys()) if (sets.official.has(id)) throw new CatalogTrustError('COMMUNITY_KEY_OVERLAPS_OFFICIAL')
+  // A resource key is its own identity: it can never be (or be mistaken for) a module key.
+  for (const id of sets.resource.keys()) if (sets.official.has(id) || sets.community.has(id)) throw new CatalogTrustError('RESOURCE_KEY_OVERLAPS_MODULE_KEY')
   // A managed copy of a pinned key stays in its pinned category only. Invalid
   // admin-provided keys are rejected when saved; at load they simply never verify.
   const managedPins = managed.flatMap((value) => { try { return [normalizePin(value, 'managed')] } catch { return [] } })
-  sets.managed = new Map(managedPins.filter((pin) => !sets.official.has(pin.keyId) && !sets.community.has(pin.keyId)).map((pin) => [pin.keyId, pin]))
+  sets.managed = new Map(managedPins.filter((pin) => !sets.official.has(pin.keyId) && !sets.community.has(pin.keyId) && !sets.resource.has(pin.keyId)).map((pin) => [pin.keyId, pin]))
   const locallyRevoked = new Set(localRevokedKeyIds)
-  const categoryOf = (keyId) => sets.official.has(keyId) ? 'official' : sets.community.has(keyId) ? 'community' : sets.managed.has(keyId) ? 'managed' : null
+  const categoryOf = (keyId) => sets.official.has(keyId) ? 'official' : sets.community.has(keyId) ? 'community' : sets.resource.has(keyId) ? 'resource' : sets.managed.has(keyId) ? 'managed' : null
   const pinOf = (keyId) => sets[categoryOf(keyId)]?.get(keyId) ?? null
   const stateOf = (pin) => locallyRevoked.has(pin.keyId) ? 'revoked' : pin.state
   // `at` is the signed date of the content (snapshot generatedAt or release publishedAt).
@@ -107,8 +113,34 @@ export function createTrustStore({ official = OFFICIAL_CATALOG_PUBLIC_KEYS, comm
     return { trust: publisher?.verified && publisher.state === 'active' ? 'community-verified' : 'community', official: false }
   }
 
-  // Administrator view: key ids, domains and lifecycle. Public data only.
-  const describeKeys = () => ['official', 'community', 'managed'].flatMap((domain) => [...sets[domain].values()].map((pin) => ({ keyId: pin.keyId, domain, state: stateOf(pin), notAfter: pin.notAfter, source: domain === 'managed' ? 'instance' : 'runly-release', locallyRevoked: locallyRevoked.has(pin.keyId) })))
+  // Resource feed (Marketplace): ONLY a pinned, usable `resource` key verifies it. Keys that merely
+  // appear in the feed never count; a feed key can only restrict (revoke/retire), never extend trust.
+  function verifyResourceSnapshot(envelope, { revokedKeyIds = new Set() } = {}) {
+    const signed = envelope.signed
+    for (const signature of envelope.signatures) {
+      if (categoryOf(signature.keyId) !== 'resource' || revokedKeyIds.has(signature.keyId)) continue
+      const pin = pinOf(signature.keyId)
+      if (!usable(pin, signed.generatedAt)) continue
+      const announced = signed.trust.keys.find((key) => key.keyId === signature.keyId)
+      if (announced && (announced.state === 'revoked' || (announced.state === 'retired' && announced.until && Date.parse(announced.until) < Date.parse(signed.generatedAt)))) continue
+      if (verifySafely(resourceSnapshotBytes(signed), pin.publicKey, signature.signature)) return { category: 'resource', keyId: signature.keyId }
+    }
+    throw new CatalogTrustError('RESOURCE_SIGNATURE_INVALID')
+  }
+  // Release signature of one feed entry. Returns { trusted:true } or { trusted:false, reason } for keys that are
+  // not (or no longer) trusted; throws RESOURCE_SIGNATURE_INVALID when a trusted key's signature does not verify.
+  function classifyResourceEntry(entry, signed, { revokedKeyIds = new Set() } = {}) {
+    if (categoryOf(entry.keyId) !== 'resource') return { trusted: false, reason: 'unknown_signing_key' }
+    const pin = pinOf(entry.keyId)
+    const announced = signed.trust.keys.find((key) => key.keyId === entry.keyId)
+    if (revokedKeyIds.has(entry.keyId) || announced?.state === 'revoked' || stateOf(pin) === 'revoked') return { trusted: false, reason: 'signing_key_revoked' }
+    if ((announced?.state === 'retired' && announced.until && Date.parse(entry.publishedAt) > Date.parse(announced.until)) || !usable(pin, entry.publishedAt)) return { trusted: false, reason: 'signing_key_retired' }
+    if (!verifySafely(resourceReleaseBytes(entry), pin.publicKey, entry.signature)) throw new CatalogTrustError('RESOURCE_SIGNATURE_INVALID')
+    return { trusted: true, category: 'resource' }
+  }
 
-  return { categoryOf, verifySnapshot, verifyOfficialSnapshot, officialEntrySigned, classifyEntry, describeKeys, keys: { official: [...sets.official.keys()], community: [...sets.community.keys()], managed: [...sets.managed.keys()] } }
+  // Administrator view: key ids, domains and lifecycle. Public data only.
+  const describeKeys = () => ['official', 'community', 'resource', 'managed'].flatMap((domain) => [...sets[domain].values()].map((pin) => ({ keyId: pin.keyId, domain, state: stateOf(pin), notAfter: pin.notAfter, source: domain === 'managed' ? 'instance' : 'runly-release', locallyRevoked: locallyRevoked.has(pin.keyId) })))
+
+  return { categoryOf, verifySnapshot, verifyOfficialSnapshot, verifyResourceSnapshot, classifyResourceEntry, officialEntrySigned, classifyEntry, describeKeys, keys: { official: [...sets.official.keys()], community: [...sets.community.keys()], resource: [...sets.resource.keys()], managed: [...sets.managed.keys()] } }
 }

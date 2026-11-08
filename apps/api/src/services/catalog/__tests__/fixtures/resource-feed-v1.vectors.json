@@ -1,0 +1,400 @@
+{
+  "warning": "TEST VECTORS ONLY. The key seed is public; never trust or reuse this key.",
+  "domains": {
+    "release": "runly.catalog.resources.v1.release\n",
+    "snapshot": "runly.catalog.resources.v1.snapshot\n"
+  },
+  "testKey": {
+    "seedDerivation": "sha256(\"runly-resource-feed-v1 TEST VECTORS ONLY - not a production key\")",
+    "publicKey": "MCowBQYDK2VwAyEA1hhXrm5qnXHTWDhzUWITEZJaA69I/wKlP4SQkfQYQc8=",
+    "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d"
+  },
+  "packages": {
+    "studio": {
+      "utf8": "TEST-PACKAGE-BYTES studio_template v1",
+      "sha256": "33b5023b1684269387cb7312ba6a4bb9f2b756daa5d473fef57d87294dce7e6a"
+    },
+    "automation": {
+      "utf8": "{\"format\":\"runly.automation\",\"version\":1,\"automation\":{\"label\":\"TEST\",\"enabled\":false}}",
+      "sha256": "d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633"
+    }
+  },
+  "releaseStatementSha256": {
+    "studio": "a36481df2840df55e8b5283c023a9a832b18970492f5de03bbd15cc88fc5b9b7",
+    "automation": "97944f195d89d79544bf0dcc765599c9a49d4de2cd5feda2b0efff928cf55370"
+  },
+  "definitions": {
+    "releaseStatementDigest": "sha256(RELEASE_DOMAIN || canonicalBytes(releaseStatement(entry)))  -- with domain; the signature is over those bytes, not over this digest",
+    "snapshotDigest": "sha256(canonicalBytes(signed))  -- without domain; used in previous.sha256 and in the signed string SNAPSHOT_DOMAIN + sequence + \":\" + snapshotDigest",
+    "maxBytes": {
+      "studio_template": 26214400,
+      "automation": 204800,
+      "website_template": 26214400,
+      "solution": 262144
+    }
+  },
+  "snapshot1": {
+    "digest": "5cf175df3c438314ea9eb99e8970e3c03e2646574f38ecc986a1c33092b3fa89",
+    "statementUtf8": "runly.catalog.resources.v1.snapshot\n1:5cf175df3c438314ea9eb99e8970e3c03e2646574f38ecc986a1c33092b3fa89",
+    "envelope": {
+      "signed": {
+        "schemaVersion": 1,
+        "catalog": "runly-resources-v1",
+        "sequence": 1,
+        "generatedAt": "2026-11-08T12:10:00.000Z",
+        "validUntil": "2026-11-15T12:10:00.000Z",
+        "previous": null,
+        "trust": {
+          "keys": [
+            {
+              "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+              "publicKey": "MCowBQYDK2VwAyEA1hhXrm5qnXHTWDhzUWITEZJaA69I/wKlP4SQkfQYQc8=",
+              "role": "resource",
+              "state": "active",
+              "since": "2026-11-08T00:00:00.000Z",
+              "until": null,
+              "reason": null
+            }
+          ]
+        },
+        "publishers": [
+          {
+            "handle": "acme-labs",
+            "displayName": "Acme Labs",
+            "verified": true,
+            "state": "active",
+            "reason": null,
+            "revokedAt": null
+          }
+        ],
+        "entries": [
+          {
+            "access": "public",
+            "listed": true,
+            "status": "published",
+            "locale": "es",
+            "publisher": "acme-labs",
+            "provenance": {
+              "evidenceSha256": "5e659f92935444e66c3e22c18aedfed0e2775eff17b7ccd6826d45ce56953ede",
+              "validatorId": "fa43b85cc47eeee95714bff6917aed22eed6b04c36f72ca5623145606abcb801"
+            },
+            "resourceKey": "studio.menu-restaurante",
+            "type": "studio_template",
+            "version": "1.0.0",
+            "releaseId": "11111111-1111-4111-8111-111111111111",
+            "sha256": "33b5023b1684269387cb7312ba6a4bb9f2b756daa5d473fef57d87294dce7e6a",
+            "size": 37,
+            "packageUrl": "packages/33b5023b1684269387cb7312ba6a4bb9f2b756daa5d473fef57d87294dce7e6a",
+            "publishedAt": "2026-11-08T12:00:00.000Z",
+            "title": "Menú de restaurante",
+            "description": "Plantilla de menú de una página (vector de prueba).",
+            "license": "CC-BY-4.0",
+            "compatibility": {
+              "runly": {
+                "min": "1.0.0",
+                "max": null
+              },
+              "format": {
+                "name": "studio",
+                "version": 1
+              }
+            },
+            "requirements": {
+              "modules": [],
+              "fonts": [
+                "Inter"
+              ],
+              "permissions": [
+                "studio.templates.manage"
+              ],
+              "services": [],
+              "builder": null
+            },
+            "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+            "signature": "2ar4amAVssQpwue0EMV+HmHL+ola06yIQsx8oYoBr1q9kFiJ1PDhxBIDJ9naJ6YSa1C7GOf10wDsJAjPlt/sBA=="
+          },
+          {
+            "access": "public",
+            "listed": true,
+            "status": "published",
+            "locale": "es",
+            "publisher": "acme-labs",
+            "provenance": {
+              "evidenceSha256": "5e659f92935444e66c3e22c18aedfed0e2775eff17b7ccd6826d45ce56953ede",
+              "validatorId": "fa43b85cc47eeee95714bff6917aed22eed6b04c36f72ca5623145606abcb801"
+            },
+            "resourceKey": "automation.aviso-lead",
+            "type": "automation",
+            "version": "1.2.0",
+            "releaseId": "22222222-2222-4222-8222-222222222222",
+            "sha256": "d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633",
+            "size": 87,
+            "packageUrl": "packages/d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633",
+            "publishedAt": "2026-11-08T12:05:00.000Z",
+            "title": "Aviso de nuevo lead",
+            "description": "Automatización pausada que avisa de un lead (vector de prueba).",
+            "license": "MIT",
+            "compatibility": {
+              "runly": {
+                "min": "1.0.0",
+                "max": "2.0.0"
+              },
+              "format": {
+                "name": "automation",
+                "version": 1
+              }
+            },
+            "requirements": {
+              "modules": [],
+              "fonts": [],
+              "permissions": [
+                "automations.manage"
+              ],
+              "services": [
+                "runly.crm:contacts.read"
+              ],
+              "builder": null
+            },
+            "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+            "signature": "h/bkp6iL3gIA4bLmTz5REEBgvGguf29EbaibWn4Yj/ohhgkk75GB705Wgv0DFO5J2kc7NzH2h2uY7YbhaXBBDg=="
+          }
+        ],
+        "revocations": []
+      },
+      "signatures": [
+        {
+          "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+          "signature": "KspA7lhzGD/o9Y+4/XpgKfqPXJrTceVsNDsWBRGNwb+xL9tqlqyImjephuSwn1I3DWYj3t+PhWHdss3Hs80gDA=="
+        }
+      ]
+    }
+  },
+  "snapshot2": {
+    "digest": "9723ab27ad13ed6aa118f389853af4478e1c39a130f3db07e632ff907d7d768c",
+    "statementUtf8": "runly.catalog.resources.v1.snapshot\n2:9723ab27ad13ed6aa118f389853af4478e1c39a130f3db07e632ff907d7d768c",
+    "envelope": {
+      "signed": {
+        "schemaVersion": 1,
+        "catalog": "runly-resources-v1",
+        "sequence": 2,
+        "generatedAt": "2026-11-09T09:00:00.000Z",
+        "validUntil": "2026-11-16T09:00:00.000Z",
+        "previous": {
+          "sequence": 1,
+          "sha256": "5cf175df3c438314ea9eb99e8970e3c03e2646574f38ecc986a1c33092b3fa89"
+        },
+        "trust": {
+          "keys": [
+            {
+              "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+              "publicKey": "MCowBQYDK2VwAyEA1hhXrm5qnXHTWDhzUWITEZJaA69I/wKlP4SQkfQYQc8=",
+              "role": "resource",
+              "state": "active",
+              "since": "2026-11-08T00:00:00.000Z",
+              "until": null,
+              "reason": null
+            }
+          ]
+        },
+        "publishers": [
+          {
+            "handle": "acme-labs",
+            "displayName": "Acme Labs",
+            "verified": true,
+            "state": "active",
+            "reason": null,
+            "revokedAt": null
+          }
+        ],
+        "entries": [
+          {
+            "access": "public",
+            "listed": true,
+            "status": "published",
+            "locale": "es",
+            "publisher": "acme-labs",
+            "provenance": {
+              "evidenceSha256": "5e659f92935444e66c3e22c18aedfed0e2775eff17b7ccd6826d45ce56953ede",
+              "validatorId": "fa43b85cc47eeee95714bff6917aed22eed6b04c36f72ca5623145606abcb801"
+            },
+            "resourceKey": "studio.menu-restaurante",
+            "type": "studio_template",
+            "version": "1.0.0",
+            "releaseId": "11111111-1111-4111-8111-111111111111",
+            "sha256": "33b5023b1684269387cb7312ba6a4bb9f2b756daa5d473fef57d87294dce7e6a",
+            "size": 37,
+            "packageUrl": "packages/33b5023b1684269387cb7312ba6a4bb9f2b756daa5d473fef57d87294dce7e6a",
+            "publishedAt": "2026-11-08T12:00:00.000Z",
+            "title": "Menú de restaurante",
+            "description": "Plantilla de menú de una página (vector de prueba).",
+            "license": "CC-BY-4.0",
+            "compatibility": {
+              "runly": {
+                "min": "1.0.0",
+                "max": null
+              },
+              "format": {
+                "name": "studio",
+                "version": 1
+              }
+            },
+            "requirements": {
+              "modules": [],
+              "fonts": [
+                "Inter"
+              ],
+              "permissions": [
+                "studio.templates.manage"
+              ],
+              "services": [],
+              "builder": null
+            },
+            "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+            "signature": "2ar4amAVssQpwue0EMV+HmHL+ola06yIQsx8oYoBr1q9kFiJ1PDhxBIDJ9naJ6YSa1C7GOf10wDsJAjPlt/sBA=="
+          },
+          {
+            "access": "public",
+            "listed": true,
+            "status": "published",
+            "locale": "es",
+            "publisher": "acme-labs",
+            "provenance": {
+              "evidenceSha256": "5e659f92935444e66c3e22c18aedfed0e2775eff17b7ccd6826d45ce56953ede",
+              "validatorId": "fa43b85cc47eeee95714bff6917aed22eed6b04c36f72ca5623145606abcb801"
+            },
+            "resourceKey": "automation.aviso-lead",
+            "type": "automation",
+            "version": "1.2.0",
+            "releaseId": "22222222-2222-4222-8222-222222222222",
+            "sha256": "d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633",
+            "size": 87,
+            "packageUrl": "packages/d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633",
+            "publishedAt": "2026-11-08T12:05:00.000Z",
+            "title": "Aviso de nuevo lead",
+            "description": "Automatización pausada que avisa de un lead (vector de prueba).",
+            "license": "MIT",
+            "compatibility": {
+              "runly": {
+                "min": "1.0.0",
+                "max": "2.0.0"
+              },
+              "format": {
+                "name": "automation",
+                "version": 1
+              }
+            },
+            "requirements": {
+              "modules": [],
+              "fonts": [],
+              "permissions": [
+                "automations.manage"
+              ],
+              "services": [
+                "runly.crm:contacts.read"
+              ],
+              "builder": null
+            },
+            "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+            "signature": "h/bkp6iL3gIA4bLmTz5REEBgvGguf29EbaibWn4Yj/ohhgkk75GB705Wgv0DFO5J2kc7NzH2h2uY7YbhaXBBDg=="
+          }
+        ],
+        "revocations": [
+          {
+            "type": "release",
+            "target": {
+              "resourceKey": "automation.aviso-lead",
+              "version": "1.2.0",
+              "sha256": "d251c81f49f10331fbd74234870d5e9a51438a18ee6b9657bf03b0938c66b633"
+            },
+            "reason": "Vector de prueba: revocación",
+            "revokedAt": "2026-11-09T08:55:00.000Z",
+            "sequence": 2,
+            "replacement": null
+          }
+        ]
+      },
+      "signatures": [
+        {
+          "keyId": "0ca84dafa585f0ae951f968ef43a04ee2029b39ab26ad4f5259c0e7a684b3e4d",
+          "signature": "UIvQcj77BQZuT9q/DiUMMO2bU8Nly86DWricJJLxh+j6zntJ6mJMZm3ZQmXCBdaCVJWSKFhFtesFU3GyJMrHAA=="
+        }
+      ]
+    }
+  },
+  "negative": [
+    {
+      "id": "N1",
+      "mutate": "envelope.signed.entries[0].extra = 1",
+      "expect": "RESOURCE_FEED_INVALID (unknown key at any level)"
+    },
+    {
+      "id": "N2",
+      "mutate": "entries[0].resourceKey = \"custom.menu\"",
+      "expect": "RESOURCE_FEED_INVALID (namespace custom is module-only)"
+    },
+    {
+      "id": "N3",
+      "mutate": "entries[0].type = \"automation\" while resourceKey is studio.*",
+      "expect": "RESOURCE_FEED_INVALID (namespace/type mismatch)"
+    },
+    {
+      "id": "N4",
+      "mutate": "entries[0].packageUrl = \"packages/<another sha256>\"",
+      "expect": "RESOURCE_FEED_INVALID"
+    },
+    {
+      "id": "N5",
+      "mutate": "entries[0].publisher = \"other-publisher\" (signature untouched)",
+      "expect": "RESOURCE_SIGNATURE_INVALID"
+    },
+    {
+      "id": "N6",
+      "mutate": "trust.keys[0].role = \"community\"",
+      "expect": "RESOURCE_FEED_INVALID (role must be resource)"
+    },
+    {
+      "id": "N7",
+      "mutate": "verify a catalog-v2 community release signature as a resources release",
+      "expect": "RESOURCE_SIGNATURE_INVALID (domain separation)"
+    },
+    {
+      "id": "N8",
+      "mutate": "snapshot2.previous.sha256 altered",
+      "expect": "RESOURCE_FEED_CHAIN_INVALID"
+    },
+    {
+      "id": "N9",
+      "mutate": "validUntil <= generatedAt",
+      "expect": "RESOURCE_FEED_INVALID"
+    },
+    {
+      "id": "N10",
+      "mutate": "entries[0].size = 26214401",
+      "expect": "RESOURCE_FEED_INVALID"
+    },
+    {
+      "id": "N11",
+      "mutate": "entries[1].size = 204801 (automation over its type maximum; still within 25 MiB)",
+      "expect": "RESOURCE_FEED_INVALID (size > maxBytes(type), feed 4/9, A-1)"
+    },
+    {
+      "id": "N12",
+      "mutate": "entries[1].sha256 = entries[0].sha256 with entries[1].size left different",
+      "expect": "RESOURCE_FEED_INVALID (same sha256 must have same size, feed 3, A-6)"
+    },
+    {
+      "id": "N13",
+      "mutate": "entries[0].access = \"installation\", packageUrl = null",
+      "expect": "RESOURCE_FEED_INVALID (v1 admits only access \"public\", feed 8, A-4)"
+    },
+    {
+      "id": "N14",
+      "mutate": "compare releaseStatementSha256 against sha256(canonicalBytes(releaseStatement)) WITHOUT RELEASE_DOMAIN",
+      "expect": "mismatch",
+      "observedWithoutDomain": {
+        "studio": "09086355b1a3dd59a0f2f2e03697c38fead9695220b730e83fe3074b6b2129e4",
+        "automation": "2de037e53f45aa37462ce912099856d153414b9348e0cc5227afaf59c551c9c6"
+      }
+    }
+  ]
+}
