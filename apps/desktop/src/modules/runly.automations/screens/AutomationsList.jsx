@@ -7,7 +7,7 @@ import { useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ActionMenu, Badge, Button, EmptyState, ErrorState, PageHeader, Skeleton, Switch, Tabs, TabsContent, TabsList, TabsTrigger, TextField, matchesSearch } from "@runly/ui";
-import { Copy, Download, Plug, Plus, Search, SearchX, Upload, Zap } from "lucide-react";
+import { Copy, Download, Plug, Plus, Search, SearchX, Store, Upload, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { automationEvents } from "@runly/module-compiler/browser";
 import { useAuth } from "../../../auth/AuthProvider";
@@ -18,6 +18,7 @@ import { AutomationConnectionsDialog } from "../../runly.core/components/builder
 import { AutomationMiniFlow } from "../../runly.core/components/builder/AutomationMiniFlow";
 import { AutomationRunsPanel } from "../../runly.core/components/builder/AutomationRunsPanel";
 import { NewAutomationDialog } from "../../runly.core/components/builder/NewAutomationDialog";
+import { MarketplaceAutomationDialog } from "../components/MarketplaceAutomationDialog";
 
 const SYSTEM_MODULE_KEY = "system.automations";
 const EDITOR_PATH = "/app/m/runly.automations";
@@ -94,6 +95,7 @@ export default function SystemAutomations() {
   const [tab, setTab] = useState("flows");
   const [newOpen, setNewOpen] = useState(false);
   const [connectionsOpen, setConnectionsOpen] = useState(false);
+  const [marketplaceOpen, setMarketplaceOpen] = useState(false);
 
   const query = useQuery({
     queryKey: ["system-automations", token],
@@ -146,6 +148,7 @@ export default function SystemAutomations() {
               <div className="flex flex-wrap items-center gap-2">
                 <Button variant="outline" onClick={() => setConnectionsOpen(true)}><Plug className="mr-1.5 h-4 w-4" /> Conexiones</Button>
                 <Button variant="outline" onClick={() => fileInput.current?.click()}><Upload className="mr-1.5 h-4 w-4" /> Importar</Button>
+                <Button variant="outline" onClick={() => setMarketplaceOpen(true)}><Store className="mr-1.5 h-4 w-4" /> Importar desde Marketplace</Button>
                 <input ref={fileInput} type="file" accept=".json,application/json" className="sr-only" tabIndex={-1} aria-label="Archivo de automatización" onChange={importFile} />
                 <Button onClick={() => setNewOpen(true)}><Plus className="mr-1.5 h-4 w-4" /> Nueva automatización</Button>
               </div>
@@ -200,6 +203,7 @@ export default function SystemAutomations() {
       </div>
       <NewAutomationDialog open={newOpen} onOpenChange={setNewOpen} takenKeys={new Set(items.map((item) => item.key))} onCreate={create} />
       <AutomationConnectionsDialog scope="automations" open={connectionsOpen} onOpenChange={setConnectionsOpen} />
+      {canManage ? <MarketplaceAutomationDialog open={marketplaceOpen} onOpenChange={setMarketplaceOpen} token={token} onOpenAutomation={(result) => { setMarketplaceOpen(false); navigate(`${EDITOR_PATH}/${result.key}`); }} /> : null}
     </div>
   );
 }

@@ -120,6 +120,19 @@ untrusted key, altered bytes, incompatible version, consent mismatch, external r
 forbidden HTTP host, >200 KiB file, newer file version, existing key, no runs/jobs/schedules, grants only on
 consent, local key revocation persisted across restart). Unit: `apps/api/src/services/marketplace/__tests__`.
 
+## UI (E3a-UI)
+
+- Studio: `StudioImportDialog` offers "Desde mi equipo" / "Desde Marketplace" (local file flow unchanged).
+  Marketplace: picker (`components/marketplace/MarketplaceResourcePicker.jsx`) -> inspect -> `ImportReport` +
+  `MarketplaceSource` -> destination/name -> prepare -> explicit "copia nueva" acceptance (never auto-confirmed)
+  -> existing `confirmPackageImport`.
+- Automations: "Importar desde Marketplace" next to the JSON import opens `MarketplaceAutomationDialog`
+  (Elegir -> Riesgos -> Consentimiento -> Resultado "Pausada"). The consent sent is the server's
+  `definitionDigest` + `services`; both checkboxes start unchecked. It never calls the regular save or activation.
+  The risk report shows hosts, counts and labels only, never argument values, URL paths or bodies.
+- Error codes are mapped in `apps/desktop/src/lib/marketplace-import.js`; security/compatibility verdicts are
+  terminal (no "continue anyway", no retry).
+
 ## Risks and dependencies
 
 - Production imports nothing until a resource public key is pinned (`catalog-resource-public-key.js`) and
