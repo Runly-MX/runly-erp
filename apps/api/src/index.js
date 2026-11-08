@@ -83,6 +83,8 @@ import { createModulePublicLinksService } from "./services/module-public-links-s
 import { createBuilderRouter } from "./routes/builder-routes.js";
 import { createAutomationApprovalsRouter } from "./routes/automation-approvals-routes.js";
 import { createAutomationsRouter } from "./routes/automations-routes.js";
+import { createResourceCatalogService } from "./services/catalog/resource-catalog-service.js";
+import { createMarketplaceImportGate } from "./services/marketplace/marketplace-import-gate.js";
 import { createHomeWidgetsRouter } from "./routes/home-widgets-routes.js";
 import { createDetailViewsRouter } from "./routes/detail-views-routes.js";
 import { createWorkRouter } from "./routes/work-routes.js";
@@ -2560,7 +2562,10 @@ mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createDetailViewsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createWorkRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany, broadcaster }));
-mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices }));
+// Marketplace imports (E3a): one verified resource feed consumer (E2) shared by Studio and Automations.
+// Default trust only: no resource keys are pinned in this build, so nothing imports until one is.
+const marketplaceGate = createMarketplaceImportGate({ catalog: createResourceCatalogService({ prisma }) });
+mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices, marketplace: marketplaceGate }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createContactsRouter({ prisma, requirePermission, supabaseAdmin, storageBucket: STORAGE_BUCKET_NAME }));
@@ -2592,7 +2597,7 @@ mountWithAuth(app, createPosRouter({ prisma, requirePermission, requireAnyPermis
 mountWithAuth(app, createCalendarRouter({ prisma, requirePermission, broadcaster, supabaseAdmin }));
 mountWithAuth(app, createProjectsRouter({ prisma, requirePermission, notificationService, enrichFileAssets: filesService.enrichFileAssets.bind(filesService), broadcaster, relationTargets }));
 mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, entityResolver: resolveCanvasEntityLink, dataSources: createCanvasDataSources({ prisma, relationTargets }), removeFiles: createCanvasFileRemover({ prisma, supabaseAdmin }) }));
-mountWithAuth(app, createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin }));
+mountWithAuth(app, createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin, marketplace: marketplaceGate }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 mountWithAuth(app, createLmsRouter({ prisma, requirePermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));

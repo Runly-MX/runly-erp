@@ -55,6 +55,8 @@ export async function createStudioStack({apiImage='runly-studio-test:api-local',
     service.restart = 'no'; service.pull_policy = 'never'
     // Compose config expands default networks to project-specific names; use only ours.
     service.networks = { default: null }
+    // Optional installer services (e.g. imgproxy for thumbnails) are not part of the disposable stack.
+    if (service.depends_on) for (const dependency of Object.keys(service.depends_on)) if (!allowed.includes(dependency)) delete service.depends_on[dependency]
   }
   services['supabase-db'].ports = [{ target: 5432, published: String(ports.db), host_ip: '127.0.0.1' }]
   services['supabase-auth'].environment.GOTRUE_SMTP_HOST = ''

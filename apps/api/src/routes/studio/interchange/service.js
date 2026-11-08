@@ -10,7 +10,8 @@ const optionsSchema = z.strictObject({ target: z.enum(['design','personal','comp
 const confirmationSchema = z.strictObject({ digest: z.string().regex(/^[a-f0-9]{64}$/), acceptWarnings: z.boolean().default(false) })
 const unknownLicense = { id: 'unspecified', author: '', notice: '', redistribution: 'unknown' }
 
-export function createStudioInterchange({ prisma, filesService, supabaseAdmin, designs, templates }) {
+// `verifySource(source)`: re-checks a Marketplace origin before anything is created (E3a).
+export function createStudioInterchange({ prisma, filesService, supabaseAdmin, designs, templates, verifySource = null }) {
   const access = designs.access
   const missing = () => { throw new StudioError('Importación no encontrada.', 404) }
   let sweeping = false, timer, processing = 0
@@ -45,7 +46,7 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
     try { const data = await decode(bytes, mime); return { ...data.report, digest: data.digest, ...(mime === 'image/svg+xml' ? { adapter: 'svg-subset-v1' } : {}) } }
     catch (error) { if (error instanceof StudioError) return { pages: [], resources: [], fonts: [], warnings: [], preview: null, blockingErrors: [error.message], ...(error.details ?? {}) }; throw error }
   }
-  const report = row => ({ id: row.id, state: row.state, target: row.target, name: row.name, digest: row.digest, expiresAt: row.expires_at, resources: row.manifest.manifest.resources, notices: row.manifest.manifest.notices, ...row.manifest.report, ...(row.result ? { result: row.result } : {}) })
+  const report = row => ({ id: row.id, state: row.state, target: row.target, name: row.name, digest: row.digest, expiresAt: row.expires_at, resources: row.manifest.manifest.resources, notices: row.manifest.manifest.notices, ...row.manifest.report, ...(row.source ? { source: row.source } : {}), ...(row.result ? { result: row.result } : {}) })
 
   // Compensation uses only keys journaled by the trusted Files hook, never
   // caller-supplied paths. No FileAsset exists before the final DB transaction.
@@ -70,7 +71,7 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
     } finally { sweeping = false }
   }
   function startCleanup() { if (!timer) { timer = setInterval(() => { void recoverExpired().catch(() => {}) }, 60000); timer.unref?.() } }
-  async function prepare(companyId, actorId, bytes, mime, input, context, signal) {
+  async function prepare(companyId, actorId, bytes, mime, input, context, signal, source = null) {
     const options = optionsSchema.parse(input); await authorize(companyId, actorId, options.target)
     const data = await decode(bytes, mime); checkAbort(signal)
     const resources = data.manifest.resources, reserved = resources.reduce((n, r) => n + r.bytes, 0)
@@ -90,8 +91,8 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
         FROM studio_interchange_job WHERE company_id=${companyId}::uuid AND
         (state IN ('preparing','ready','cleanup') OR (actor_id=${actorId}::uuid AND created_at>now()-interval '1 hour'))`
       if (quota.active >= 4 || quota.own >= 2 || Number(quota.bytes) + reserved > 128 * 1024 * 1024 || quota.rate >= 20) throw new StudioError('Se alcanzó la cuota de importaciones. Confirma o cancela las pendientes.', 429, 'STUDIO_IMPORT_QUOTA')
-      const [job] = await db.$queryRaw`INSERT INTO studio_interchange_job(company_id,actor_id,target,name,digest,reserved_bytes,document,manifest)
-        VALUES(${companyId}::uuid,${actorId}::uuid,${options.target},${options.name},${data.digest},${reserved},${JSON.stringify(data.portable)}::jsonb,${JSON.stringify(meta)}::jsonb) RETURNING *`
+      const [job] = await db.$queryRaw`INSERT INTO studio_interchange_job(company_id,actor_id,target,name,digest,reserved_bytes,document,manifest,source)
+        VALUES(${companyId}::uuid,${actorId}::uuid,${options.target},${options.name},${data.digest},${reserved},${JSON.stringify(data.portable)}::jsonb,${JSON.stringify(meta)}::jsonb,${source ? JSON.stringify(source) : null}::jsonb) RETURNING *`
       return job
     })
     const staged = []
@@ -139,6 +140,13 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
     checkAbort(signal)
     const prepared = await find(companyId, actorId, id)
     await authorize(companyId, actorId, prepared.target)
+    // A Marketplace release revoked, withdrawn or no longer trusted after the preparation is
+    // never materialized: the staged copies are discarded instead.
+    if (prepared.source?.kind === 'marketplace' && prepared.state === 'ready') {
+      if (prepared.digest !== confirmation.digest) throw new StudioError('La inspección no corresponde a este archivo.', 409)
+      if (!verifySource) throw new StudioError('El catálogo de recursos no está disponible.', 503)
+      try { await verifySource(prepared.source) } catch (error) { if (error?.status === 409) await compensate(prepared.id).catch(() => {}); throw error }
+    }
     if (prepared.state === 'ready') for (const asset of prepared.staged) {
       checkAbort(signal)
       const { data, error } = await supabaseAdmin.storage.from(asset.bucket).download(asset.objectKey)
@@ -221,5 +229,5 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
       } })
     await fresh(); return bytes
   }
-  return { inspect, prepare, confirm, status, previewAsset, cancel, recover, recoverExpired, startCleanup, exportPackage, withCapacity, close: () => clearInterval(timer) }
+  return { authorize, inspect, prepare, confirm, status, previewAsset, cancel, recover, recoverExpired, startCleanup, exportPackage, withCapacity, close: () => clearInterval(timer) }
 }

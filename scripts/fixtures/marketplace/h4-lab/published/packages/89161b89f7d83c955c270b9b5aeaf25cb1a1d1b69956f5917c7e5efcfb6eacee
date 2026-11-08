@@ -1,0 +1,1 @@
+{"format":"runly.automation","version":1,"exportedAt":"2026-11-10T12:00:00.000Z","automation":{"label":"Aviso de pago","trigger":{"type":"webhook","fields":[]},"steps":[{"service":"runly.notifications:notifications.send","args":{"title":{"from":"template","template":"Pago recibido"}}}],"enabled":false}}

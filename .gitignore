@@ -136,6 +136,7 @@ infra/installer/.runly-installer/
 .artifacts/website-integration/
 .artifacts/releases/
 .artifacts/website-multi/
+.artifacts/marketplace/
 apps/api/public/website-runtime/
 
 # Impeccable design skill (vendored by its installer, includes binaries; reinstall per machine)

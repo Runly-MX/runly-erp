@@ -23,6 +23,10 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     packageImportAsset: (id, resourceId, token, signal) => requestBlob(`${interchange}/imports/${encodeURIComponent(id)}/assets/${encodeURIComponent(resourceId)}`, { ...options(token), signal }),
     confirmPackageImport: (id, data, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}/confirm`, { ...options(token, 'POST', data), signal }),
     cancelPackageImport: (id, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}`, { ...options(token, 'DELETE'), signal }),
+    // Marketplace (E3a): the server downloads and verifies the release; confirm with confirmPackageImport.
+    marketplaceTemplates: (params = {}, token, signal) => request(`${interchange}/marketplace/resources${toQueryString(params)}`, { ...options(token), signal }),
+    inspectMarketplaceTemplate: (ref, token, signal) => request(`${interchange}/marketplace/inspect`, { ...options(token, 'POST', ref), signal }),
+    prepareMarketplaceTemplateImport: (data, token, signal) => request(`${interchange}/marketplace/imports`, { ...options(token, 'POST', data), signal }),
     recoverPackageImports: (token, signal) => request(`${interchange}/recover`, { ...options(token, 'POST'), signal }),
     exportPackage: (kind, id, data, token, signal) => requestBlob(`${interchange}/${kind === 'template' ? 'templates' : 'designs'}/${encodeURIComponent(id)}/export`, { ...options(token, 'POST', data), signal }),
     listPages: (id,token,signal) => request(`${path(id)}/pages`,{...options(token),signal}),

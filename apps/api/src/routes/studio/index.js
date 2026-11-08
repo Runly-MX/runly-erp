@@ -26,14 +26,14 @@ import { createFleetService } from '../fleet/fleet-service.js'
 import { createHrService } from '../../services/hr-service.js'
 import { signedUrlWithVariant } from '../../lib/image-variants.js'
 
-export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin,printBuilder=buildPrintPdf,
+export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin, marketplace = null, printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
   templates = createStudioTemplatesService({ prisma, filesService, supabaseAdmin, designService: service }),
   dataProviders = createStudioDataProviders({ prisma, inventory: createInventoryService({ prisma, activityBridge: null }), inventoryScope: createInventoryScope({ prisma }),
     inventoryPublic: createInventoryPublicService({ prisma, supabaseAdmin }), publicBaseUrl: appBaseUrlFromEnv(), fleet: createFleetService({ prisma, activityBridge: null }), hr: createHrService({ prisma, activityBridge: null }),
     signFile: file => signedUrlWithVariant(supabaseAdmin, file.bucket, file.objectKey, 'full') }) }) {
   const app = new Hono()
-  app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission }))
+  app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission, marketplace }))
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
   const catalog = createStudioCatalog({ prisma, access: service.access, filesService, supabaseAdmin })

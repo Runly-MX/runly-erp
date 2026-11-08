@@ -567,6 +567,13 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       saveDetailView: (viewKey, schema, token) => request(`/detail-views/${encodeURIComponent(viewKey)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify({ schema }) }),
       resetDetailView: (viewKey, token) => request(`/detail-views/${encodeURIComponent(viewKey)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
       systemAutomations: (token) => request("/automations", { headers: withAuthHeaders(token) }),
+      // Marketplace (E3a): inspect -> prepare -> confirm with consent -> paused automation.
+      marketplaceAutomations: (params = {}, token) => request(`/automations/marketplace/resources${toQueryString(params)}`, { headers: withAuthHeaders(token) }),
+      inspectMarketplaceAutomation: (ref, token) => request("/automations/marketplace/inspect", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(ref), onlineOnly: true }),
+      prepareMarketplaceAutomationImport: (ref, token) => request("/automations/marketplace/imports", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(ref), onlineOnly: true }),
+      marketplaceAutomationImport: (id, token) => request(`/automations/marketplace/imports/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
+      confirmMarketplaceAutomationImport: (id, consent, token) => request(`/automations/marketplace/imports/${encodeURIComponent(id)}/confirm`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(consent), onlineOnly: true }),
+      cancelMarketplaceAutomationImport: (id, token) => request(`/automations/marketplace/imports/${encodeURIComponent(id)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
       createSystemAutomation: (input, token) =>
         request("/automations", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(input) }),
       saveSystemAutomation: (key, input, token) =>

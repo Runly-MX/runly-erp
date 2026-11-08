@@ -6,8 +6,11 @@ import { StudioError } from '../../../../../shared/studio/document.js'
 import { createStudioInterchange } from './service.js'
 import { PACKAGE_LIMITS, PACKAGE_MIME } from './zip.js'
 import { manifestSchema } from './package.js'
+import { inspectStudioPackage } from '@runly/studio-interchange/inspect'
+import { MarketplaceImportError } from '../../../services/marketplace/marketplace-import-gate.js'
 
-export function createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service: designs, templates, requirePermission, onInternalError, interchange = createStudioInterchange({ prisma, filesService, supabaseAdmin, designs, templates }) }) {
+export function createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service: designs, templates, requirePermission, onInternalError, marketplace = null,
+  interchange = createStudioInterchange({ prisma, filesService, supabaseAdmin, designs, templates, verifySource: marketplace?.recheck }) }) {
   const app = new Hono(), prefix = '/studio/interchange'
   const actor = c => [c.get('companyId'), c.get('userContext')?.profile?.id]
   const files = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c) })
@@ -15,6 +18,7 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
     if (error.name === 'AbortError') return c.body(null, 499)
     if (error instanceof z.ZodError || error instanceof SyntaxError) return c.json({ error: 'La solicitud de intercambio no es válida.' }, 400)
     if (error instanceof StudioError) return c.json({ error: error.message, code: error.code }, error.status)
+    if (error instanceof MarketplaceImportError) return c.json({ error: error.message, code: error.code, ...(error.details ? { details: error.details } : {}) }, error.status)
     onInternalError?.(error)
     return c.json({ error: 'No se pudo procesar el intercambio de Studio.' }, 500)
   })
@@ -43,6 +47,30 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
   app.post(`${prefix}/imports`, async c => {
     const input = await upload(c), options = JSON.parse(input.body.options ?? '{}')
     return c.json({ data: await interchange.prepare(...actor(c), input.bytes, input.mime, options, files(c), c.req.raw.signal) }, 201)
+  })
+  // Marketplace (E3a): the package is downloaded and verified HERE from the signed resource feed;
+  // the request only names the exact release. Confirmation goes through /imports/:id/confirm.
+  const feed = () => { if (!marketplace) throw new MarketplaceImportError('RESOURCE_FEED_NOT_CONFIGURED', 'El catálogo de recursos no está disponible.', 503); return marketplace }
+  const marketplaceInput = z.object({ target: z.enum(['design','personal','company']).optional(), name: z.string().trim().min(1).max(160).optional() }).passthrough()
+  async function fromMarketplace(c) {
+    const { target, name, ...ref } = marketplaceInput.parse(await c.req.json())
+    const [companyId, actorId] = actor(c)
+    if (target) await interchange.authorize(companyId, actorId, target)
+    const download = await feed().download(ref, 'studio_template', { companyId, actorId })
+    return { ...download, target, name, diagnostics: await inspectStudioPackage(download.bytes) }
+  }
+  const diagnosticsOf = d => ({ ok: d.ok, errors: d.errors, warnings: d.warnings, licenses: d.report?.licenses ?? [], fonts: d.report?.fonts ?? [], personalData: d.report?.personalData ?? [], losses: d.report?.losses ?? [] })
+  app.get(`${prefix}/marketplace/resources`, async c => c.json({ data: await feed().list('studio_template', { query: c.req.query('q') ?? '', acknowledgeStale: c.req.query('acknowledgeStale') === 'true' }) }))
+  app.post(`${prefix}/marketplace/inspect`, async c => {
+    const { bytes, resource, source, diagnostics } = await fromMarketplace(c)
+    return c.json({ data: { resource, source, diagnostics: diagnosticsOf(diagnostics), package: await interchange.inspect(bytes, PACKAGE_MIME) } })
+  })
+  app.post(`${prefix}/marketplace/imports`, async c => {
+    const { bytes, resource, source, diagnostics, target, name } = await fromMarketplace(c)
+    if (!target) throw new StudioError('Elige dónde crear la copia.', 400)
+    if (!diagnostics.ok) throw new MarketplaceImportError('STUDIO_PACKAGE_BLOCKED', diagnostics.errors[0]?.message ?? 'El paquete no se puede importar.', 422, { diagnostics: diagnosticsOf(diagnostics) })
+    const prepared = await interchange.prepare(...actor(c), bytes, PACKAGE_MIME, { target, name: name ?? resource.title.slice(0, 160) }, files(c), c.req.raw.signal, source)
+    return c.json({ data: { ...prepared, diagnostics: diagnosticsOf(diagnostics) } }, 201)
   })
   app.post(`${prefix}/recover`, async c => c.json({ data: await interchange.recover(...actor(c)) }))
   app.get(`${prefix}/imports/:id`, async c => c.json({ data: await interchange.status(...actor(c), c.req.param('id')) }))
