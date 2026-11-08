@@ -85,6 +85,8 @@ import { createAutomationApprovalsRouter } from "./routes/automation-approvals-r
 import { createAutomationsRouter } from "./routes/automations-routes.js";
 import { createResourceCatalogService } from "./services/catalog/resource-catalog-service.js";
 import { createMarketplaceImportGate } from "./services/marketplace/marketplace-import-gate.js";
+import { createMarketplaceInstallClientFromEnvSafe } from "./services/marketplace/marketplace-install-client.js";
+import { createMarketplaceInstallationRouter } from "./routes/marketplace-installation-routes.js";
 import { createHomeWidgetsRouter } from "./routes/home-widgets-routes.js";
 import { createDetailViewsRouter } from "./routes/detail-views-routes.js";
 import { createWorkRouter } from "./routes/work-routes.js";
@@ -2566,6 +2568,8 @@ mountWithAuth(app, createStatusRouter({ prisma, requireActiveCompany, broadcaste
 // Default trust only: no resource keys are pinned in this build, so nothing imports until one is.
 const marketplaceGate = createMarketplaceImportGate({ catalog: createResourceCatalogService({ prisma }) });
 mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleServices, marketplace: marketplaceGate }));
+// Optional signed installations channel (E4): null without configuration; the public Marketplace never uses it.
+mountWithAuth(app, createMarketplaceInstallationRouter({ prisma, requirePermission, client: createMarketplaceInstallClientFromEnvSafe(process.env) }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));
 mountWithAuth(app, createContactsRouter({ prisma, requirePermission, supabaseAdmin, storageBucket: STORAGE_BUCKET_NAME }));

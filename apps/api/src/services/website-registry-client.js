@@ -1,40 +1,28 @@
-import { createHash, createPrivateKey, randomBytes, sign } from 'node:crypto'
-import { readFileSync } from 'node:fs'
-import { HEADERS, REGISTRY_BASE, signingString } from './website-registry-contract.js'
+import { randomBytes } from 'node:crypto'
+import { REGISTRY_BASE } from './website-registry-contract.js'
+import { createSignedTransport, readInstallationIdentity, sha256 } from './installation-signer.js'
 
 // Signed client for the global subdomain registry (Runly Developer Hub). The installation holds an Ed25519
 // private key; the registry holds the public key it enrolled. Nothing here decides uniqueness.
+// Signing and transport are shared with the Marketplace installations channel (installation-signer.js).
 export class RegistryUnavailableError extends Error {
   constructor(reason) { super('REGISTRY_UNAVAILABLE'); this.reason = reason }
 }
 export class RegistryError extends Error {
   constructor(status, code) { super(code); this.status = status; this.code = code }
 }
-const PKCS8_ED25519_PREFIX = Buffer.from('302e020100300506032b657004220420', 'hex')
-const sha256 = (value) => createHash('sha256').update(value).digest('hex')
 
 export function createRegistryClient({ baseUrl, installationId, privateKey, fetchImpl = fetch, timeoutMs = 8000, now = () => Date.now() }) {
-  const seed = Buffer.from(privateKey, 'base64url')
-  if (seed.length !== 32) throw new Error('REGISTRY_PRIVATE_KEY_INVALID')
-  const key = createPrivateKey({ key: Buffer.concat([PKCS8_ED25519_PREFIX, seed]), format: 'der', type: 'pkcs8' })
-  const root = baseUrl.replace(/\/+$/, '')
+  const transport = createSignedTransport({ baseUrl, installationId, privateKey, fetchImpl, timeoutMs, now })
   // Opaque references: the registry never sees company or site identifiers of the ERP.
   const ref = (kind, id) => sha256(`${installationId}:${kind}:${id}`)
 
   async function call(method, path, payload, idempotencyKey = '') {
     const body = payload === undefined ? '' : JSON.stringify(payload)
-    const timestamp = Math.floor(now() / 1000), nonce = randomBytes(16).toString('base64url')
-    const message = signingString({ method, path, timestamp, nonce, bodySha256: sha256(body), idempotencyKey })
-    const headers = {
-      [HEADERS.installation]: installationId, [HEADERS.timestamp]: String(timestamp), [HEADERS.nonce]: nonce,
-      [HEADERS.signature]: sign(null, Buffer.from(message), key).toString('base64url'),
-    }
-    if (idempotencyKey) headers[HEADERS.idempotency] = idempotencyKey
-    if (body) headers['content-type'] = 'application/json'
     let response
     try {
-      response = await fetchImpl(root + path, { method, headers, body: body || undefined, signal: AbortSignal.timeout(timeoutMs) })
-    } catch (error) { throw new RegistryUnavailableError(error?.name ?? 'network') }
+      response = await transport.send(method, path, { body, idempotencyKey })
+    } catch (error) { throw new RegistryUnavailableError(error?.reason ?? 'network') }
     if (response.status >= 500) throw new RegistryUnavailableError(`http_${response.status}`)
     let json = null
     try { json = await response.json() } catch { json = null }
@@ -71,11 +59,9 @@ export function createRegistryClient({ baseUrl, installationId, privateKey, fetc
 
 // Returns null when the installation has no registry configuration (hostnames are then local-only).
 export function createRegistryClientFromEnv(env = process.env, options = {}) {
-  // A key file (0600, e.g. a mounted secret) is preferred so the key does not sit in the container environment.
-  const baseUrl = env.RUNLY_REGISTRY_URL, installationId = env.RUNLY_INSTALLATION_ID
-  const privateKey = env.RUNLY_INSTALLATION_PRIVATE_KEY_FILE ? readFileSync(env.RUNLY_INSTALLATION_PRIVATE_KEY_FILE, 'utf8').trim() : env.RUNLY_INSTALLATION_PRIVATE_KEY
-  if (!baseUrl || !installationId || !privateKey) return null
-  return createRegistryClient({ baseUrl, installationId, privateKey, ...options })
+  const baseUrl = env.RUNLY_REGISTRY_URL, identity = baseUrl ? readInstallationIdentity(env) : null
+  if (!baseUrl || !identity) return null
+  return createRegistryClient({ baseUrl, ...identity, ...options })
 }
 
 // A misconfigured registry (bad key, unreadable key file) must not stop the ERP from booting: it is reported without any
