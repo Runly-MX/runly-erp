@@ -21,6 +21,7 @@
     "@runly/module-compiler": "workspace:*",
     "@runly/module-engine": "workspace:*",
     "@runly/preview-runtime": "workspace:*",
+    "@runly/studio-interchange": "workspace:*",
     "@runly/validators": "workspace:*",
     "@supabase/supabase-js": "^2.105.1",
     "@tabler/icons": "3.50.0",

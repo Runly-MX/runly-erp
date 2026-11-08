@@ -86,3 +86,7 @@ The ephemeral-registry lock is test evidence, not a production Hub lockfile.
 GitHub Packages retrieval/access and actual Hub adoption remain separate checks;
 the command neither publishes nor changes the consumer. Local evidence and limits:
 `docs/architecture/2026-10-12-shared-consumer-verification.md`.
+
+## Seventh package (E1b, staged)
+
+`@runly/studio-interchange` (pure Studio/Website-template inspection) is listed in `shared-packages.release.json` and in `PACKAGES`, so a release would pack seven packages. Nothing is published, and the Developer Hub lock keeps its six-package allowlist until Marketplace H3 adopts the seventh. See `docs/architecture/2026-11-09-erp-e1b-shared-validators.md`.

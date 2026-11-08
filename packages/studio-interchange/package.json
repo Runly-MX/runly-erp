@@ -1,0 +1,34 @@
+{
+  "name": "@runly/studio-interchange",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "description": "Pure inspection and writing of the portable Studio package and the Website template (no Prisma, Storage, network or persistence).",
+  "exports": {
+    ".": "./src/index.js",
+    "./inspect": "./src/inspect.js",
+    "./write": "./src/write.js",
+    "./website-template": "./src/website-template.js",
+    "./studio/document": "./src/studio/document.js",
+    "./studio/pages": "./src/studio/pages.js",
+    "./studio/fonts": "./src/studio/fonts.js"
+  },
+  "dependencies": {
+    "jszip": "3.10.1",
+    "sharp": "^0.35.5",
+    "yauzl": "^3.4.0",
+    "zod": "^4.4.3"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test src/__tests__/*.test.js"
+  },
+  "license": "UNLICENSED",
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com",
+    "access": "restricted",
+    "tag": "source"
+  }
+}

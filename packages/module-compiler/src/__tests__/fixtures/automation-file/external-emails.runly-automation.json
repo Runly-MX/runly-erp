@@ -1,0 +1,75 @@
+{
+  "format": "runly.automation",
+  "version": 1,
+  "exportedAt": "2026-11-01T12:00:00.000Z",
+  "automation": {
+    "label": "Avisos a correos externos",
+    "trigger": {
+      "type": "webhook",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Nombre"
+        },
+        {
+          "key": "email",
+          "label": "Correo"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "service": "runly.notifications:email.send",
+        "args": {
+          "to": {
+            "from": "value",
+            "value": "Uno@Externo.example"
+          },
+          "subject": {
+            "from": "template",
+            "template": "Lead {{name}}"
+          },
+          "body": {
+            "from": "template",
+            "template": "Hola"
+          }
+        }
+      },
+      {
+        "service": "runly.notifications:email.send",
+        "args": {
+          "to": {
+            "from": "value",
+            "value": "uno@externo.example"
+          },
+          "subject": {
+            "from": "template",
+            "template": "Recordatorio {{name}}"
+          },
+          "body": {
+            "from": "template",
+            "template": "Hola"
+          }
+        }
+      },
+      {
+        "service": "runly.notifications:email.send",
+        "args": {
+          "to": {
+            "from": "value",
+            "value": "dos@externo.example"
+          },
+          "subject": {
+            "from": "template",
+            "template": "Lead {{name}}"
+          },
+          "body": {
+            "from": "template",
+            "template": "Hola"
+          }
+        }
+      }
+    ],
+    "enabled": false
+  }
+}

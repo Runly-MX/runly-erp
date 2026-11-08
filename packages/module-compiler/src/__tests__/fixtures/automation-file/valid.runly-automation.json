@@ -1,0 +1,65 @@
+{
+  "format": "runly.automation",
+  "version": 1,
+  "exportedAt": "2026-11-01T12:00:00.000Z",
+  "automation": {
+    "label": "Registrar lead y avisar al sistema externo",
+    "trigger": {
+      "type": "webhook",
+      "fields": [
+        {
+          "key": "name",
+          "label": "Nombre"
+        },
+        {
+          "key": "email",
+          "label": "Correo"
+        }
+      ]
+    },
+    "steps": [
+      {
+        "service": "runly.contacts:contacts.create",
+        "args": {
+          "name": {
+            "from": "field",
+            "field": "name"
+          },
+          "email": {
+            "from": "field",
+            "field": "email"
+          },
+          "type": {
+            "from": "value",
+            "value": "customer"
+          }
+        }
+      },
+      {
+        "type": "http",
+        "method": "POST",
+        "url": "https://hooks.example.com/lead",
+        "body": {
+          "nombre": {
+            "from": "field",
+            "field": "name"
+          }
+        }
+      },
+      {
+        "service": "runly.contacts:contacts.create",
+        "args": {
+          "name": {
+            "from": "template",
+            "template": "Seguimiento {{name}}"
+          },
+          "type": {
+            "from": "value",
+            "value": "person"
+          }
+        }
+      }
+    ],
+    "enabled": false
+  }
+}

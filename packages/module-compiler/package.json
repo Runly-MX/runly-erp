@@ -11,7 +11,8 @@
     "./contracts": "./src/contracts.js",
     "./inspection": "./src/inspection/index.js",
     "./compile": "./src/compiler.js",
-    "./archive": "./src/archive.js"
+    "./archive": "./src/archive.js",
+    "./automation-file": "./src/automation-file.js"
   },
   "dependencies": {
     "@runly/module-engine": "workspace:*",

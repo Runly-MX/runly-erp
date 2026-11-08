@@ -3,7 +3,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 export const REGISTRY = 'https://npm.pkg.github.com';
-export const PACKAGES = ['core', 'module-engine', 'module-compiler', 'ui', 'sdk', 'preview-runtime'];
+// studio-interchange (E1b) is the 7th shared package: Developer Hub adds it to its lock in H3.
+export const PACKAGES = ['core', 'module-engine', 'module-compiler', 'ui', 'sdk', 'preview-runtime', 'studio-interchange'];
 export const registryName = logical => {
   if (!PACKAGES.some(name => logical === `@runly/${name}`)) throw Error('UNKNOWN_LOGICAL_PACKAGE');
   return logical.replace('@runly/', '@runly-mx/');

@@ -1,0 +1,181 @@
+{
+  "websiteBuilder": "0.3.5",
+  "cases": {
+    "studio/valid.runlystudio": {
+      "ok": true,
+      "codes": []
+    },
+    "studio/unknown-font.runlystudio": {
+      "ok": false,
+      "codes": [
+        "font_unavailable"
+      ]
+    },
+    "studio/forbidden-license.runlystudio": {
+      "ok": false,
+      "codes": [
+        "license_forbidden"
+      ]
+    },
+    "studio/zip-bomb.runlystudio": {
+      "ok": false,
+      "codes": [
+        "zip_limit_exceeded"
+      ]
+    },
+    "studio/symlink-entry.runlystudio": {
+      "ok": false,
+      "codes": [
+        "zip_unsafe_entry"
+      ]
+    },
+    "studio/path-traversal.runlystudio": {
+      "ok": false,
+      "codes": [
+        "zip_unsafe_entry"
+      ]
+    },
+    "studio/data-descriptor.runlystudio": {
+      "ok": false,
+      "codes": [
+        "zip_unsafe_entry"
+      ]
+    },
+    "studio/newer-format.runlystudio": {
+      "ok": false,
+      "codes": [
+        "format_unsupported"
+      ]
+    },
+    "studio/newer-document-schema.runlystudio": {
+      "ok": false,
+      "codes": [
+        "format_unsupported"
+      ]
+    },
+    "studio/tampered-document.runlystudio": {
+      "ok": false,
+      "codes": [
+        "checksum_mismatch"
+      ]
+    },
+    "studio/undeclared-entry.runlystudio": {
+      "ok": false,
+      "codes": [
+        "undeclared_entry"
+      ]
+    },
+    "studio/page-count-mismatch.runlystudio": {
+      "ok": false,
+      "codes": [
+        "page_count_mismatch"
+      ]
+    },
+    "studio/image-size-lie.runlystudio": {
+      "ok": false,
+      "codes": [
+        "image_invalid"
+      ]
+    },
+    "website/valid.zip": {
+      "ok": true,
+      "codes": []
+    },
+    "website/unknown-block.zip": {
+      "ok": false,
+      "codes": [
+        "block_unknown"
+      ]
+    },
+    "website/excluded-embed-block.zip": {
+      "ok": false,
+      "codes": [
+        "block_unknown"
+      ]
+    },
+    "website/dangerous-property.zip": {
+      "ok": false,
+      "codes": [
+        "prop_unknown"
+      ]
+    },
+    "website/html-in-text.zip": {
+      "ok": false,
+      "codes": [
+        "prop_invalid"
+      ]
+    },
+    "website/rich-text-script.zip": {
+      "ok": false,
+      "codes": [
+        "rich_text_unsafe"
+      ]
+    },
+    "website/unsafe-href.zip": {
+      "ok": false,
+      "codes": [
+        "href_unsafe"
+      ]
+    },
+    "website/external-form-destination.zip": {
+      "ok": false,
+      "codes": [
+        "prop_invalid"
+      ]
+    },
+    "website/unknown-form-marker.zip": {
+      "ok": false,
+      "codes": [
+        "form_marker_unknown"
+      ]
+    },
+    "website/assets-not-allowed.zip": {
+      "ok": false,
+      "codes": [
+        "asset_limit"
+      ]
+    },
+    "website/external-image.zip": {
+      "ok": false,
+      "codes": [
+        "prop_invalid"
+      ]
+    },
+    "website/builder-incompatible.zip": {
+      "ok": false,
+      "codes": [
+        "builder_unsupported"
+      ]
+    },
+    "website/catalog-mismatch.zip": {
+      "ok": false,
+      "codes": [
+        "catalog_digest_mismatch"
+      ]
+    },
+    "website/no-home.zip": {
+      "ok": false,
+      "codes": [
+        "home_missing"
+      ]
+    },
+    "website/bad-theme.zip": {
+      "ok": false,
+      "codes": [
+        "theme_invalid"
+      ]
+    },
+    "website/newer-format.zip": {
+      "ok": false,
+      "codes": [
+        "format_unsupported"
+      ]
+    },
+    "website/undeclared-entry.zip": {
+      "ok": false,
+      "codes": [
+        "undeclared_entry"
+      ]
+    }
+  }
+}
