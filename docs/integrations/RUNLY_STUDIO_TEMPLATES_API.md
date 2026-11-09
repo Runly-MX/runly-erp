@@ -54,9 +54,9 @@ Los permisos se registran mediante el manifest y el catálogo. Seed y sincroniza
 
 ## Listado y compatibilidad
 
-`GET /studio/templates?scope=all&q=&category=all&page=1`
+`GET /studio/templates?scope=all&q=&category=all&page=1&order=featured`
 
-Scopes: all, runly, personal, company. Respuesta conserva el envelope anterior: `response.data.data` contiene las tarjetas; `response.data.pagination` y `response.data.categories` contienen paginación/categorías. Doce tarjetas por página; primero catálogo Runly, luego persistidas por actualización e ID. Se pueden pedir páginas específicas de cada scope.
+Scopes: all, runly, personal, company, marketplace. `marketplace` devuelve solo las plantillas persistidas importadas desde el Marketplace (`source=marketplace`) que el usuario puede ver: sus personales y las de empresa de la empresa activa; nunca las de otra empresa ni las personales ajenas. Un scope fuera de esa lista responde 400. `scope=marketplace` solo existe en la API HTTP: las capacidades de MirAI (`studio_templates`) y del MCP conservan el enum `all|runly|personal|company` a propósito. No es una incompatibilidad: una plantilla importada del Marketplace es una plantilla `personal` o `company` normal que esos scopes siguen devolviendo (con `source=marketplace` en la tarjeta); el scope solo es un filtro de la interfaz. Ampliar ese enum cambia un contrato publicado (esquema estricto, catálogo MCP y pruebas), así que solo debe hacerse cuando un consumidor lo necesite. Respuesta conserva el envelope anterior: `response.data.data` contiene las tarjetas; `response.data.pagination` y `response.data.categories` contienen paginación/categorías. Doce tarjetas por página en una secuencia continua entre páginas, sin repetir tarjetas. El parámetro opcional `order` fija el orden: `featured` (por defecto, el contrato anterior: primero el catálogo Runly, luego las persistidas por actualización reciente y ID; lo usan la portada de Studio, MirAI, MCP y clientes antiguos) o `recent` (primero las persistidas, la más recientemente actualizada primero con desempate por ID, y después el catálogo Runly; lo usa el explorador de plantillas). Otro valor responde 400. Se pueden pedir páginas específicas de cada scope.
 
 ```json
 {
@@ -94,7 +94,7 @@ Content-Type: application/json
 {"name":"Campaña de otoño","category":"Redes sociales","description":"Texto editable","designId":"01900000-0000-7000-8000-000000000003"}
 ```
 
-Crear desde documento: reemplazar designId por `document` completo del editor; exactamente uno de los dos. Scope omitido significa personal. Para crear empresarial, indicar `"scope":"company"` y tener publish. No enviar source/ownerId/companyId; se rechazan. El origen HTTP siempre es user; los documentos pasan por el validador canónico, sin fijar versión en este contrato de API. Obtener versión, fuentes y ejemplo mediante studio_composition_guide.
+Crear desde documento: reemplazar designId por `document` completo del editor; exactamente uno de los dos. Scope omitido significa personal. Para crear empresarial, indicar `"scope":"company"` y tener publish. No enviar source/ownerId/companyId; se rechazan. El origen HTTP siempre es user (valores de `source` en tarjetas: `user`, `ai`, `marketplace`, `runly`; `marketplace` lo asigna solo la importación verificada del Marketplace, nunca el cliente); los documentos pasan por el validador canónico, sin fijar versión en este contrato de API. Obtener versión, fuentes y ejemplo mediante studio_composition_guide.
 
 Publicar una personal propia:
 

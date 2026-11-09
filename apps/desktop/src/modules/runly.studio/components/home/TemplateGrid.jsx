@@ -45,8 +45,8 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
   const [search, setSearch] = useState(''), [q, setQ] = useState(''), [category, setCategory] = useState('all'), [scope, setScope] = useState('all')
   const [preview, setPreview] = useState(null), sentinel = useRef(null)
   useEffect(() => { const timer = setTimeout(() => setQ(search), 300); return () => clearTimeout(timer) }, [search])
-  const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
-    queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam }, signal)).data,
+  const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category, limit ? 'featured' : 'recent'], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
+    queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam, ...(limit ? {} : { order: 'recent' }) }, signal)).data,
     getNextPageParam: last => last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined, enabled: Boolean(token), retry: false })
   const result = useMemo(() => {
     if (!catalog.data) return undefined
@@ -75,15 +75,15 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
   const filtered = Boolean(q) || category !== 'all'
   return <div className="space-y-4">
     {limit ? null : <>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar plantillas" aria-label="Buscar plantillas" maxLength={80} className="sm:max-w-sm sm:flex-1" />
-        <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex">
+      <div className="flex flex-col gap-2 lg:flex-row lg:items-center">
+        <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar plantillas" aria-label="Buscar plantillas" maxLength={80} className="lg:max-w-sm lg:flex-1" />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:ml-auto lg:flex">
           <Select value={scope} onValueChange={value => { setScope(value); setCategory('all') }}>
-            <SelectTrigger aria-label="Origen de las plantillas" className="sm:w-52"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Origen de las plantillas" className="min-w-0 lg:w-52"><SelectValue /></SelectTrigger>
             <SelectContent>{SCOPES.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
           </Select>
           <Select value={category} onValueChange={setCategory}>
-            <SelectTrigger aria-label="Categoría de las plantillas" className="sm:w-52"><SelectValue /></SelectTrigger>
+            <SelectTrigger aria-label="Categoría de las plantillas" className="min-w-0 lg:w-52"><SelectValue /></SelectTrigger>
             <SelectContent>{['all', ...(result?.categories ?? [])].map(value => <SelectItem key={value} value={value}>{value === 'all' ? 'Todas las categorías' : value}</SelectItem>)}</SelectContent>
           </Select>
         </div>

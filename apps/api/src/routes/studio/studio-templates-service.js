@@ -80,6 +80,8 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     const p = await permissions(prisma, companyId, actorId)
     const scope = query.scope ?? 'all', page = Math.max(1, Math.min(1000, parseInt(query.page,10) || 1)), size = 12
     if (!['all','runly','personal','company','marketplace'].includes(scope)) throw new StudioError('Alcance inválido.')
+    const order = query.order ?? 'featured'
+    if (!['featured','recent'].includes(order)) throw new StudioError('Orden inválido.')
     const q = String(query.q ?? '').trim().slice(0,80), category = String(query.category ?? 'all').slice(0,80)
     const fold = value => String(value).toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'')
     const builtins = ['all','runly'].includes(scope) ? STUDIO_TEMPLATES.filter(r => (category === 'all' || r.category === category) && fold(`${r.name} ${r.category} ${r.description}`).includes(fold(q))) : []
@@ -90,11 +92,17 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${whereSource}='' OR t.source=${whereSource}) AND (${category}='all' OR t.category=${category})
       AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})`
-    // Newest first: stored templates (ordered by updated_at DESC) precede the built-in Runly ones.
+    // Explicit order. featured (default, legacy contract for MirAI/MCP/old clients and the Studio home):
+    // the Runly catalog first, then stored templates newest first. recent (template explorer): stored
+    // templates newest first, then the Runly catalog. Both are one continuous sequence across pages.
     const offset = (page-1)*size, storedCount = scope === 'runly' ? 0 : count.total
-    const storedLimit = Math.max(0, Math.min(size, storedCount-offset)), builtinOffset = Math.max(0, offset-storedCount)
-    const builtinPage = builtins.slice(builtinOffset, builtinOffset+size-storedLimit)
-    const remaining = storedLimit, storedOffset = offset
+    let builtinPage, remaining, storedOffset
+    if (order === 'recent') {
+      remaining = Math.max(0, Math.min(size, storedCount-offset)); storedOffset = offset
+      const builtinOffset = Math.max(0, offset-storedCount); builtinPage = builtins.slice(builtinOffset, builtinOffset+size-remaining)
+    } else {
+      builtinPage = builtins.slice(offset, offset+size); remaining = size-builtinPage.length; storedOffset = Math.max(0, offset-builtins.length)
+    }
     const stored = !remaining || scope === 'runly' ? [] : await prisma.$queryRaw`SELECT t.id,t.name,t.category,t.description,t.scope,t.source,t.revision,
       t.owner_id AS "ownerId",u.display_name AS "ownerName",t.updated_at AS "updatedAt",
       (t.document->'page'->>'width')::int AS width,(t.document->'page'->>'height')::int AS height,
@@ -113,8 +121,9 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       AND enabled AND (scope='company' OR owner_id=${actorId}::uuid) LIMIT 100`
     const total = builtins.length+count.total
     // Old clients render document and select key. document is a preview alias.
-    return { data: [...stored.map(r => ({ ...r,key:r.id,document:r.preview, ...flags(r,actorId,p) })),
-      ...builtinPage.map(r => { const { document, ...card } = system(r.key); return {...card,document:card.preview} })],
+    const storedCards = stored.map(r => ({ ...r,key:r.id,document:r.preview, ...flags(r,actorId,p) }))
+    const builtinCards = builtinPage.map(r => { const { document, ...card } = system(r.key); return {...card,document:card.preview} })
+    return { data: order === 'recent' ? [...storedCards,...builtinCards] : [...builtinCards,...storedCards],
       pagination: { page, pageSize:size,total,totalPages:Math.max(1,Math.ceil(total/size)) },
       categories:[...new Set([...STUDIO_TEMPLATES.map(r=>r.category),...categories.map(r=>r.category)])].filter(Boolean) }
   }
