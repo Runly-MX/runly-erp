@@ -124,7 +124,8 @@ test('negative vector N14: digests carry the release domain; a statement signed 
 })
 
 test('trust: only PINNED resource keys count; a key present in the feed is never accepted on its own', async () => {
-  assert.deepEqual([...RESOURCE_CATALOG_PUBLIC_KEYS], [], 'no production key is pinned yet')
+  assert.equal(RESOURCE_CATALOG_PUBLIC_KEYS.length, 1)
+  assert.equal(keyIdOf(RESOURCE_CATALOG_PUBLIC_KEYS[0].publicKey), "8d0c6dd35b7589a13198f0c92810b0a74915a1e5a5741e157d6a47eaef65969d")
   await rejects(fixture({ trust: {} }).service.refresh(), 'RESOURCE_SIGNATURE_INVALID')
   // The same key pinned in a MODULE category (or managed) does not make it a resource key.
   for (const category of ['official', 'community', 'managed']) {
