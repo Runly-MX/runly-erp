@@ -4,7 +4,8 @@
 // revoke a key locally (never re-trust or promote it). No private keys exist here.
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, Skeleton, Switch, ErrorState, Badge, Textarea } from "@runly/ui";
+import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, SegmentedControl, Skeleton, Switch, ErrorState, Badge, Textarea } from "@runly/ui";
+import { ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { runly } from "../../../lib/runly";
 import { SOURCE_MODES } from "../lib/marketplace";
@@ -37,9 +38,9 @@ function SourceForm({ source, token, onDone }) {
   return (
     <>
       <div className="-mx-6 min-h-0 flex-1 space-y-4 overflow-y-auto px-6">
-        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Origen">
-          {SOURCE_MODES.map((option) => <Button key={option.id} size="sm" variant={mode === option.id ? "default" : "outline"} aria-pressed={mode === option.id} onClick={() => setMode(option.id)}>{option.label}</Button>)}
-        </div>
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold">Origen</h3>
+          <SegmentedControl ariaLabel="Origen" value={mode} onChange={setMode} options={SOURCE_MODES.map((option) => ({ value: option.id, label: option.label }))} className="[&_button]:min-w-0" />
         {mode === "runly" && <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">Se usan los feeds firmados de Runly Developer Hub: {source.defaults.officialUrl} y {source.defaults.communityUrl}.</p>}
         {mode === "disabled" && <p className="text-xs text-[hsl(var(--muted-foreground))]">El Marketplace no consulta ningún catálogo. Los módulos instalados siguen funcionando.</p>}
         {mode === "custom" && <>
@@ -53,30 +54,32 @@ function SourceForm({ source, token, onDone }) {
         </div>
         <p className="text-xs text-[hsl(var(--muted-foreground))]">Sólo HTTPS o un archivo local explícito (file://). Un catálogo cuya firma no corresponde a una clave de confianza no se usa.</p>
         </>}
-        <div className="space-y-2 rounded-xl border border-[hsl(var(--border))] p-3">
+        </section>
+        <section className="space-y-3 rounded-xl border border-[hsl(var(--border))] p-4">
+          <h3 className="text-sm font-semibold">Copia local y política de instalación</h3>
           <label className="flex items-center justify-between gap-3 text-sm"><span>Mostrar la última copia verificada si el catálogo no responde</span><Switch checked={allowCachedView} onCheckedChange={setAllowCachedView} aria-label="Mostrar copia verificada sin conexión" /></label>
-          <div className="flex items-center gap-2 text-sm"><Label htmlFor="catalog-max-age">Antigüedad máxima de esa copia (días)</Label><Input id="catalog-max-age" className="w-20" inputMode="numeric" value={maxCacheAgeDays} onChange={(e) => setMaxCacheAgeDays(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
-          <div className="flex flex-wrap items-center gap-2 text-sm"><Label htmlFor="catalog-fresh-hours">Instalar sin confirmación hasta (horas)</Label><Input id="catalog-fresh-hours" className="w-20" inputMode="numeric" value={installFreshHours} onChange={(e) => setInstallFreshHours(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
-          <div className="flex flex-wrap items-center gap-2 text-sm"><Label htmlFor="catalog-max-hours">No instalar con copias de más de (horas)</Label><Input id="catalog-max-hours" className="w-20" inputMode="numeric" value={installMaxAgeHours} onChange={(e) => setInstallMaxAgeHours(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
+          <div className="flex items-center justify-between gap-3 text-sm"><Label htmlFor="catalog-max-age">Antigüedad máxima de esa copia (días)</Label><Input id="catalog-max-age" className="w-24 text-center" inputMode="numeric" value={maxCacheAgeDays} onChange={(e) => setMaxCacheAgeDays(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
+          <div className="flex items-center justify-between gap-3 text-sm"><Label htmlFor="catalog-fresh-hours">Instalar sin confirmación hasta (horas)</Label><Input id="catalog-fresh-hours" className="w-24 text-center" inputMode="numeric" value={installFreshHours} onChange={(e) => setInstallFreshHours(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
+          <div className="flex items-center justify-between gap-3 text-sm"><Label htmlFor="catalog-max-hours">No instalar con copias de más de (horas)</Label><Input id="catalog-max-hours" className="w-24 text-center" inputMode="numeric" value={installMaxAgeHours} onChange={(e) => setInstallMaxAgeHours(e.target.value.replace(/\D/g, "").slice(0, 3))} /></div>
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Si el catálogo no responde, la última copia verificada permite instalar mientras sea reciente; después pide confirmación y, pasado el límite, sólo se puede consultar. Los paquetes siempre se descargan y verifican.</p>
-        </div>
-        <div className="space-y-1">
+        </section>
+        <section className="space-y-1.5">
           <Label htmlFor="catalog-managed-keys">Claves de catálogos administrados (una por línea, Ed25519 SPKI base64)</Label>
           <Textarea id="catalog-managed-keys" className="min-h-20 font-mono text-xs" value={managedKeys} onChange={(e) => setManagedKeys(e.target.value)} />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Una clave administrada nunca convierte un módulo en «Oficial Runly».</p>
-        </div>
-        <div className="space-y-1">
-          <p className="text-sm font-medium">Trust store</p>
-          <ul className="divide-y divide-[hsl(var(--border))] text-sm">
+        </section>
+        <section className="space-y-2">
+          <h3 className="text-sm font-semibold">Claves de confianza (trust store)</h3>
+          <ul className="divide-y divide-[hsl(var(--border))] rounded-xl border border-[hsl(var(--border))] px-3 text-sm">
             {source.trust.map((key) => (
               <li key={key.keyId} className="flex flex-wrap items-center justify-between gap-2 py-1.5">
                 <span className="min-w-0"><code className="text-xs">{key.keyId.slice(0, 16)}…</code> <Badge variant="outline">{DOMAIN_LABELS[key.domain]}</Badge> <Badge variant={key.state === "revoked" ? "destructive" : "secondary"}>{STATE_LABELS[key.state]}</Badge>{key.notAfter && <span className="text-xs text-[hsl(var(--muted-foreground))]"> hasta {new Date(key.notAfter).toLocaleDateString()}</span>}</span>
-                {key.state !== "revoked" && <Button size="sm" variant="ghost" onClick={() => setRevoking(key)}>Revocar aquí</Button>}
+                {key.state !== "revoked" && <Button size="sm" variant="outline" className="border-red-300 text-red-700 hover:bg-red-50 hover:text-red-800 dark:border-red-900 dark:text-red-400 dark:hover:bg-red-950/40" onClick={() => setRevoking(key)}><ShieldOff className="mr-1.5 h-3.5 w-3.5" aria-hidden />Revocar en esta instancia</Button>}
               </li>
             ))}
             {!source.trust.length && <li className="py-1.5 text-xs text-[hsl(var(--muted-foreground))]">Sin claves configuradas.</li>}
           </ul>
-        </div>
+        </section>
       </div>
       <DialogFooter className="shrink-0">
         <Button variant="outline" onClick={onDone}>Cancelar</Button>
@@ -99,7 +102,7 @@ export function MarketplaceSourceDialog({ token, onOpenChange }) {
   const source = useQuery({ queryKey: ["module-catalog-v2-source", token], queryFn: async () => (await runly.moduleCatalog.sourceV2(token)).data, enabled: Boolean(token), retry: false });
   return (
     <Dialog open onOpenChange={onOpenChange}>
-      <DialogContent className="flex max-h-[90dvh] flex-col sm:max-w-xl">
+      <DialogContent className="flex max-h-[90dvh] flex-col sm:max-w-3xl">
         <DialogHeader className="shrink-0">
           <DialogTitle>Origen del catálogo</DialogTitle>
           <DialogDescription>Fuente del Marketplace para toda la instancia. Las claves privadas nunca se configuran en Runly.</DialogDescription>

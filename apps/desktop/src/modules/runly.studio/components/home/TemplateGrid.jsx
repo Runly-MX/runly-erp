@@ -1,18 +1,17 @@
-import { useEffect, useState } from 'react'
-import { useQuery } from '@tanstack/react-query'
-import { ActionMenu, Button, EmptyState, ErrorState, PageFooter, SearchInput, SegmentedControl, Skeleton, cn } from '@runly/ui'
-import { Building2, LayoutTemplate, SearchX, Sparkles, User } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { useInfiniteQuery } from '@tanstack/react-query'
+import { ActionMenu, Button, EmptyState, ErrorState, SearchInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, cn } from '@runly/ui'
+import { Building2, LayoutTemplate, SearchX, Sparkles, Store, User } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
 import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { editedAgo, sizeLabel } from '../../lib/formats.js'
 import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 import { useTemplateActions } from '../templates/useTemplateActions.jsx'
 
-// Short labels on phones so the four filters fit in one row.
-const label = (short, full) => <><span className="sm:hidden">{short}</span><span className="max-sm:hidden">{full}</span></>
-const SCOPES = [{ value: 'all', label: 'Todas' }, { value: 'runly', label: label('Runly', 'De Runly') }, { value: 'personal', label: label('Mías', 'Mis plantillas') }, { value: 'company', label: label('Empresa', 'De mi empresa') }]
+const SCOPES = [{ value: 'all', label: 'Todas las plantillas' }, { value: 'runly', label: 'De Runly' }, { value: 'marketplace', label: 'Del Marketplace' }, { value: 'personal', label: 'Mis plantillas' }, { value: 'company', label: 'De mi empresa' }]
 const EMPTY = {
   personal: { title: 'Aún no tienes plantillas', description: 'Abre un diseño y usa «Guardar como plantilla» para reutilizarlo cuando quieras.' },
+  marketplace: { title: 'Aún no has importado plantillas', description: 'Las plantillas que importes desde el Marketplace aparecerán aquí.' },
   company: { title: 'Tu empresa aún no comparte plantillas', description: 'Quien tenga permiso de publicación puede compartir una plantilla con todo el equipo.' },
 }
 
@@ -21,6 +20,7 @@ function ScopeMark({ template }) {
   const marks = [
     template.scope === 'company' ? { icon: Building2, label: 'Empresa' } : null,
     template.scope === 'personal' ? { icon: User, label: 'Mía' } : null,
+    template.source === 'marketplace' ? { icon: Store, label: 'Marketplace' } : null,
     template.source === 'ai' ? { icon: Sparkles, label: 'IA', title: 'Creada con un asistente de IA' } : null,
   ].filter(Boolean)
   if (!marks.length) return null
@@ -43,11 +43,26 @@ function metaLine(template) {
 // `limit` = compact teaser (no search, filters or pagination).
 export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, limit }) {
   const [search, setSearch] = useState(''), [q, setQ] = useState(''), [category, setCategory] = useState('all'), [scope, setScope] = useState('all')
-  const [page, setPage] = useState(1), [preview, setPreview] = useState(null)
-  useEffect(() => { const timer = setTimeout(() => { setQ(search); setPage(1) }, 300); return () => clearTimeout(timer) }, [search])
-  const catalog = useQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category, page], gcTime: 60000, staleTime: 60000,
-    queryFn: async ({ signal }) => (await runly.studio.templates(token, { scope, q, category, page }, signal)).data, enabled: Boolean(token), retry: false })
-  const result = catalog.data && limit ? { ...catalog.data, data: catalog.data.data.slice(0, limit), pagination: { ...catalog.data.pagination, totalPages: 1 } } : catalog.data
+  const [preview, setPreview] = useState(null), sentinel = useRef(null)
+  useEffect(() => { const timer = setTimeout(() => setQ(search), 300); return () => clearTimeout(timer) }, [search])
+  const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
+    queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam }, signal)).data,
+    getNextPageParam: last => last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined, enabled: Boolean(token), retry: false })
+  const result = useMemo(() => {
+    if (!catalog.data) return undefined
+    const first = catalog.data.pages[0]
+    const data = catalog.data.pages.flatMap(item => item.data)
+    return limit ? { ...first, data: data.slice(0, limit) } : { ...first, data }
+  }, [catalog.data, limit])
+  const hasMore = !limit && Boolean(catalog.hasNextPage)
+  // Infinite scroll: load the next page when the end of the grid approaches.
+  useEffect(() => {
+    const node = sentinel.current
+    if (!node || !hasMore) return undefined
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting && !catalog.isFetchingNextPage) catalog.fetchNextPage() }, { rootMargin: '400px' })
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [hasMore, catalog.isFetchingNextPage, catalog.fetchNextPage]) // eslint-disable-line react-hooks/exhaustive-deps
   const actions = useTemplateActions({ token, scopeKey, categories: result?.categories ?? [], onUse, onEditContent })
   // Keep the open viewer in sync after an edit/publish (fresh revision and flags).
   useEffect(() => {
@@ -60,14 +75,18 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
   const filtered = Boolean(q) || category !== 'all'
   return <div className="space-y-4">
     {limit ? null : <>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar plantillas" aria-label="Buscar plantillas" maxLength={80} className="lg:max-w-sm lg:flex-1" />
-        <SegmentedControl ariaLabel="Origen de las plantillas" options={SCOPES} value={scope} onChange={value => { setScope(value); setCategory('all'); setPage(1) }}
-          className="w-full flex-nowrap lg:ml-auto lg:w-auto [&_button]:min-w-0 [&_button]:px-2 [&_button]:max-sm:text-xs lg:[&_button]:px-3.5" />
-      </div>
-      <div className="flex gap-2 overflow-x-auto pb-1 [scrollbar-width:none]" role="group" aria-label="Categorías de plantillas">
-        {['all', ...(result?.categories ?? [])].map(value => <Button key={value} size="sm" variant={category === value ? 'secondary' : 'ghost'} aria-pressed={category === value}
-          className="shrink-0" onClick={() => { setCategory(value); setPage(1) }}>{value === 'all' ? 'Todas las categorías' : value}</Button>)}
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar plantillas" aria-label="Buscar plantillas" maxLength={80} className="sm:max-w-sm sm:flex-1" />
+        <div className="grid grid-cols-2 gap-2 sm:ml-auto sm:flex">
+          <Select value={scope} onValueChange={value => { setScope(value); setCategory('all') }}>
+            <SelectTrigger aria-label="Origen de las plantillas" className="sm:w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>{SCOPES.map(item => <SelectItem key={item.value} value={item.value}>{item.label}</SelectItem>)}</SelectContent>
+          </Select>
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger aria-label="Categoría de las plantillas" className="sm:w-52"><SelectValue /></SelectTrigger>
+            <SelectContent>{['all', ...(result?.categories ?? [])].map(value => <SelectItem key={value} value={value}>{value === 'all' ? 'Todas las categorías' : value}</SelectItem>)}</SelectContent>
+          </Select>
+        </div>
       </div>
     </>}
     {catalog.isPending ? <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6" aria-label="Cargando plantillas" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="aspect-[4/5]" />)}</div> : null}
@@ -99,8 +118,9 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
         )
       })}
     </ul>
-    {!limit && result?.pagination.totalPages > 1 ? <PageFooter total={result.pagination.total} pageIndex={page - 1} pageCount={result.pagination.totalPages} pageSize={result.pagination.pageSize}
-      canPrevious={page > 1} canNext={page < result.pagination.totalPages} onPrevious={() => setPage(value => value - 1)} onNext={() => setPage(value => value + 1)} onPageChange={index => setPage(index + 1)} /> : null}
+    {hasMore ? <div ref={sentinel} className="flex justify-center py-2">
+      <Button type="button" variant="outline" disabled={catalog.isFetchingNextPage} onClick={() => catalog.fetchNextPage()}>{catalog.isFetchingNextPage ? 'Cargando...' : 'Cargar más plantillas'}</Button>
+    </div> : null}
     <TemplatePreviewDialog templates={result?.data ?? []} template={preview} onChange={setPreview} onUse={onUse} creating={creating} actions={preview ? actions.items(preview) : []} />
     {actions.dialogs}
   </div>

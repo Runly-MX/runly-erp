@@ -176,7 +176,7 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
       const noticeIdMap = Object.fromEntries(originalIds.map((key, i) => [key, currentIds[i]]))
       checkAbort(signal)
       const saved = row.target === 'design' ? await designs.create(companyId, actorId, { name: row.name, document }, context, db)
-        : await templates.create(companyId, actorId, { name: row.name, document, scope: row.target }, context, 'user', db)
+        : await templates.create(companyId, actorId, { name: row.name, document, scope: row.target }, context, row.source?.kind === 'marketplace' ? 'marketplace' : 'user', db)
       const output = { id: saved.id, kind: row.target === 'design' ? 'design' : 'template', scope: row.target, revision: saved.revision }
       await db.$queryRaw`UPDATE studio_interchange_job SET state='committed',result=${JSON.stringify(output)}::jsonb,manifest=${JSON.stringify({ ...row.manifest, noticeIdMap })}::jsonb,document=NULL,next_cleanup_at=NULL WHERE id=${id}::uuid RETURNING id`
       return output

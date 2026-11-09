@@ -79,19 +79,22 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
   async function list(companyId, actorId, query = {}) {
     const p = await permissions(prisma, companyId, actorId)
     const scope = query.scope ?? 'all', page = Math.max(1, Math.min(1000, parseInt(query.page,10) || 1)), size = 12
-    if (!['all','runly','personal','company'].includes(scope)) throw new StudioError('Alcance inválido.')
+    if (!['all','runly','personal','company','marketplace'].includes(scope)) throw new StudioError('Alcance inválido.')
     const q = String(query.q ?? '').trim().slice(0,80), category = String(query.category ?? 'all').slice(0,80)
     const fold = value => String(value).toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'')
     const builtins = ['all','runly'].includes(scope) ? STUDIO_TEMPLATES.filter(r => (category === 'all' || r.category === category) && fold(`${r.name} ${r.category} ${r.description}`).includes(fold(q))) : []
     // Projection happens in PostgreSQL: no full document is transferred for cards.
     const search = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`
-    const whereScope = scope === 'all' ? '' : scope
+    const whereScope = ['all','marketplace'].includes(scope) ? '' : scope, whereSource = scope === 'marketplace' ? 'marketplace' : ''
     const [count] = scope === 'runly' ? [{ total: 0 }] : await prisma.$queryRaw`SELECT count(*)::int AS total FROM studio_template t
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
-      AND (${whereScope}='' OR t.scope=${whereScope}) AND (${category}='all' OR t.category=${category})
+      AND (${whereScope}='' OR t.scope=${whereScope}) AND (${whereSource}='' OR t.source=${whereSource}) AND (${category}='all' OR t.category=${category})
       AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})`
-    const offset = (page-1)*size, builtinPage = builtins.slice(offset, offset+size)
-    const remaining = size-builtinPage.length, storedOffset = Math.max(0,offset-builtins.length)
+    // Newest first: stored templates (ordered by updated_at DESC) precede the built-in Runly ones.
+    const offset = (page-1)*size, storedCount = scope === 'runly' ? 0 : count.total
+    const storedLimit = Math.max(0, Math.min(size, storedCount-offset)), builtinOffset = Math.max(0, offset-storedCount)
+    const builtinPage = builtins.slice(builtinOffset, builtinOffset+size-storedLimit)
+    const remaining = storedLimit, storedOffset = offset
     const stored = !remaining || scope === 'runly' ? [] : await prisma.$queryRaw`SELECT t.id,t.name,t.category,t.description,t.scope,t.source,t.revision,
       t.owner_id AS "ownerId",u.display_name AS "ownerName",t.updated_at AS "updatedAt",
       (t.document->'page'->>'width')::int AS width,(t.document->'page'->>'height')::int AS height,
@@ -103,15 +106,15 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
         'text',left(o->>'text',120)) ORDER BY n) FROM jsonb_array_elements(t.document->'objects') WITH ORDINALITY a(o,n) WHERE n<=500),'[]'::jsonb)) AS preview
       FROM studio_template t JOIN user_profile u ON u.id=t.owner_id
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
-      AND (${whereScope}='' OR t.scope=${whereScope}) AND (${category}='all' OR t.category=${category})
+      AND (${whereScope}='' OR t.scope=${whereScope}) AND (${whereSource}='' OR t.source=${whereSource}) AND (${category}='all' OR t.category=${category})
       AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})
       ORDER BY t.updated_at DESC,t.id LIMIT ${remaining} OFFSET ${storedOffset}`
     const categories = await prisma.$queryRaw`SELECT DISTINCT category FROM studio_template WHERE company_id=${companyId}::uuid
       AND enabled AND (scope='company' OR owner_id=${actorId}::uuid) LIMIT 100`
     const total = builtins.length+count.total
     // Old clients render document and select key. document is a preview alias.
-    return { data: [...builtinPage.map(r => { const { document, ...card } = system(r.key); return {...card,document:card.preview} }),
-      ...stored.map(r => ({ ...r,key:r.id,document:r.preview, ...flags(r,actorId,p) }))],
+    return { data: [...stored.map(r => ({ ...r,key:r.id,document:r.preview, ...flags(r,actorId,p) })),
+      ...builtinPage.map(r => { const { document, ...card } = system(r.key); return {...card,document:card.preview} })],
       pagination: { page, pageSize:size,total,totalPages:Math.max(1,Math.ceil(total/size)) },
       categories:[...new Set([...STUDIO_TEMPLATES.map(r=>r.category),...categories.map(r=>r.category)])].filter(Boolean) }
   }
@@ -175,7 +178,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       let saved
       if (operation === 'create') {
         ;[saved] = await db.$queryRaw`INSERT INTO studio_template(company_id,owner_id,scope,name,category,description,document,source,source_design_id)
-          VALUES(${companyId}::uuid,${actorId}::uuid,${scope},${name},${category},${description},${JSON.stringify(document)}::jsonb,${origin === 'ai' ? 'ai' : 'user'},${sourceDesignId}::uuid)
+          VALUES(${companyId}::uuid,${actorId}::uuid,${scope},${name},${category},${description},${JSON.stringify(document)}::jsonb,${['ai','marketplace'].includes(origin) ? origin : 'user'},${sourceDesignId}::uuid)
           RETURNING id,revision,name,scope`
       } else {
         ;[saved] = await db.$queryRaw`UPDATE studio_template SET name=${name},category=${category},description=${description},scope=${scope},

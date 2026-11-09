@@ -506,7 +506,7 @@ export default function ModuleCatalog() {
         )}
 
         {/* Status tabs */}
-        <div className="overflow-x-auto -mx-4 px-4 md:mx-0 md:px-0 pb-0.5">
+        <div className="overflow-x-auto overflow-y-hidden -mx-4 px-4 md:mx-0 md:px-0 [scrollbar-width:none]">
           <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="h-9 gap-0.5">
               {STATUS_TABS.map((tab) => (
@@ -516,7 +516,7 @@ export default function ModuleCatalog() {
                   className="text-xs gap-1.5"
                 >
                   {tab.label}
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-[10px] font-medium px-1 tabular-nums">
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[10px] font-medium px-1 tabular-nums [[data-state=active]_&]:bg-white [[data-state=active]_&]:text-[hsl(var(--primary))]">
                     {counts[tab.value] ?? 0}
                   </span>
                 </TabsTrigger>

@@ -15,8 +15,9 @@ const buttonVariants = cva(
           "bg-(--brand-primary) text-(--brand-primary-foreground) shadow-sm hover:bg-(--brand-primary-hover) active:scale-[0.98]",
         secondary:
           "bg-[hsl(var(--muted))] text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/80 active:scale-[0.98]",
+        // Resting tint so text ghost buttons read as buttons; icon sizes stay bare (compoundVariants below).
         ghost:
-          "hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-[0.98]",
+          "bg-[hsl(var(--muted))]/60 text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] active:scale-[0.98]",
         destructive:
           "bg-red-500 text-white shadow-sm hover:bg-red-600 active:scale-[0.98]",
         outline:
@@ -37,6 +38,9 @@ const buttonVariants = cva(
         "icon-sm": "h-7 w-7 rounded-lg",
       },
     },
+    compoundVariants: [
+      { variant: "ghost", size: ["icon", "icon-sm"], className: "bg-transparent text-inherit hover:bg-[hsl(var(--muted))]" },
+    ],
     defaultVariants: {
       variant: "default",
       size: "default",
