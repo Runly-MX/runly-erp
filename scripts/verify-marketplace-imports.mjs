@@ -15,12 +15,15 @@ import { Hono } from 'hono'
 import prismaPackage from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { createStudioStack, command } from './fixtures/studio/supabase-stack.mjs'
+import { isolatedEnv } from './fixtures/studio/isolated-env.mjs'
 import { seedStudioScenario } from './fixtures/studio/supabase-data.mjs'
 import { createStudioService } from '../apps/api/src/routes/studio/studio-service.js'
 import { createStudioTemplatesService } from '../apps/api/src/routes/studio/studio-templates-service.js'
 import { createFilesService } from '../apps/api/src/services/files-service.js'
 import { createStudioInterchange } from '../apps/api/src/routes/studio/interchange/service.js'
 import { createStudioInterchangeRouter } from '../apps/api/src/routes/studio/interchange/router.js'
+import { createStudioRouter } from '../apps/api/src/routes/studio/index.js'
+import { appendObject, blankDocument } from '../apps/shared/studio/document.js'
 import { createAutomationsRouter } from '../apps/api/src/routes/automations-routes.js'
 import { createSystemAutomationsService } from '../apps/api/src/services/system-automations-service.js'
 import { WEBHOOK_EVENT } from '../apps/api/src/services/automation-webhooks-service.js'
@@ -86,7 +89,7 @@ try {
   await stack.compose(['up', '-d', '--wait', '--wait-timeout', '180', 'supabase-db', 'supabase-auth', 'supabase-rest', 'supabase-realtime', 'supabase-storage', 'supabase-kong'], { log: join(stack.directory, 'startup.log') })
   await stack.verifyTarget()
   const dbUrl = `postgresql://postgres:${stack.secret.SUPABASE_POSTGRES_PASSWORD}@127.0.0.1:${stack.ports.db}/postgres`
-  const env = { ...process.env, DIRECT_URL: dbUrl, DATABASE_URL: dbUrl }
+  const env = isolatedEnv({ DIRECT_URL: dbUrl, DATABASE_URL: dbUrl, SUPABASE_URL: stack.urls.kong })
   await command(process.execPath, [createRequire(resolve('package.json')).resolve('prisma/build/index.js'), 'migrate', 'deploy'], { env, log: join(stack.directory, 'migrate.log') })
   await command(process.execPath, [resolve('prisma/seed.js')], { env, log: join(stack.directory, 'seed.log') })
   const q = async (sql, params) => (await stack.pool.query(sql, params)).rows
@@ -131,6 +134,8 @@ try {
     await next()
   }
   app.route('/', createStudioInterchangeRouter({ prisma, filesService: files, supabaseAdmin: storage, service: designs, templates, requirePermission, marketplace: gate, interchange, onInternalError: (e) => console.error(e) }))
+  // Real Studio router (GET /studio/templates): reached only for routes the interchange router above does not own.
+  app.route('/', createStudioRouter({ prisma, requirePermission, filesService: files, supabaseAdmin: storage, service: designs, templates }))
   app.route('/', createAutomationsRouter({ prisma, requirePermission, marketplace: gate }))
   server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }); await new Promise((r) => server.once('listening', r))
   const url = `http://127.0.0.1:${server.address().port}`
@@ -180,6 +185,74 @@ try {
   await templates.get(companies[1].id, users[3].id, inBResult.id)
   await rejects(templates.get(companies[0].id, users[0].id, inBResult.id))
   ok('Studio: server-side download + E1b inspection, no persistence on inspect, provenance on the job, digest/actor/company bound confirm, idempotent double confirm, every import a new copy, two companies isolated')
+
+  // ---- Template origin: provenance, filters and isolation (real routes, disposable DB) ----
+  const [importedRow] = await q('SELECT source,scope,owner_id,company_id FROM studio_template WHERE id=$1', [confirmed.id])
+  assert.deepEqual([importedRow.source, importedRow.scope, importedRow.owner_id, importedRow.company_id], ['marketplace', 'personal', users[0].id, companies[0].id])
+  assert.equal((await q('SELECT source FROM studio_template WHERE id=$1', [again.id]))[0].source, 'marketplace')
+  assert.equal((await q('SELECT source FROM studio_template WHERE id=$1', [inBResult.id]))[0].source, 'marketplace')
+  assert.ok(template.document.objects.length > 0, 'imported document stays editable')
+  const assetIds = [...new Set(JSON.stringify(template.document).match(/"fileAssetId":"[0-9a-f-]{36}"/g) ?? [])].map((x) => x.slice(15, -1))
+  for (const id of assetIds) assert.equal(await count('studio_template_asset', 'template_id=$1 AND file_id=$2', [confirmed.id, id]), 1, 'image bound to the imported template')
+  assert.equal((await q("SELECT source->>'releaseId' AS r FROM studio_interchange_job WHERE state='committed' AND result->>'id'=$1", [confirmed.id]))[0].r, studioLab.releaseId, 'provenance kept on the committed job')
+  const doc = appendObject(blankDocument(), 'text', { text: 'Propia' })
+  const mine = await templates.create(companies[0].id, users[0].id, { name: 'Propia personal', document: doc, scope: 'personal' }, {})
+  const shared = await templates.create(companies[0].id, users[0].id, { name: 'Propia empresa', document: doc, scope: 'company' }, {})
+  const peerOwn = await templates.create(companies[0].id, users[2].id, { name: 'Del par', document: doc, scope: 'personal' }, {})
+  assert.equal(mine.source, 'user')
+  const list = async (client, scope, order = 'recent') => { const out = []; let total; for (let page = 1; page < 20; page++) { const r = unpack(await client.studio.templates(client.token, { scope, page, order }, undefined)); total = r.pagination.total; out.push(...r.data); if (page >= r.pagination.totalPages) break } assert.equal(new Set(out.map((t) => t.id ?? t.key)).size, out.length, 'no duplicates across pages'); assert.equal(out.length, total); return out }
+  const stored2 = (items) => items.filter((t) => t.scope !== 'runly').map((t) => t.id).sort()
+  const ids = (...x) => x.map((t) => t.id ?? t).sort()
+  const allOwner = await list(owner, 'all')
+  assert.deepEqual(stored2(allOwner), ids(confirmed.id, again.id, mine, shared))
+  const firstRunly = allOwner.findIndex((t) => t.scope === 'runly')
+  assert.ok(firstRunly > 0 && allOwner.slice(0, firstRunly).every((t) => t.scope !== 'runly') && allOwner.slice(firstRunly).every((t) => t.scope === 'runly'), 'stored first, Runly after')
+  const dates = allOwner.slice(0, firstRunly).map((t) => Date.parse(t.updatedAt)); assert.deepEqual(dates, [...dates].sort((a, b) => b - a), 'newest first')
+  const featured = await list(owner, 'all', 'featured'), lastRunly = featured.map((t) => t.scope).lastIndexOf('runly')
+  assert.ok(featured.slice(0, lastRunly + 1).every((t) => t.scope === 'runly') && featured.slice(lastRunly + 1).every((t) => t.scope !== 'runly'), 'featured: Runly catalog first')
+  assert.deepEqual(stored2(featured), stored2(allOwner)); assert.equal(featured.length, allOwner.length)
+  const legacy = unpack(await owner.studio.templates(owner.token, {}, undefined)); assert.equal(legacy.data[0].scope, 'runly', 'no order param keeps the legacy Runly-first contract')
+  await rejects(owner.studio.templates(owner.token, { order: 'bogus' }), { status: 400 })
+  const runlyOnly = await list(owner, 'runly'); assert.ok(runlyOnly.length > 0 && runlyOnly.every((t) => t.scope === 'runly'))
+  assert.equal(runlyOnly.length, allOwner.length - 4)
+  const market = await list(owner, 'marketplace'); assert.deepEqual(ids(...market), ids(confirmed.id, again.id)); assert.ok(market.every((t) => t.source === 'marketplace' && t.scope !== 'runly'))
+  assert.deepEqual(ids(...(await list(owner, 'personal'))), ids(confirmed.id, again.id, mine))
+  assert.deepEqual(ids(...(await list(owner, 'company'))), ids(shared))
+  assert.deepEqual(stored2(await list(peer, 'all')), ids(shared, peerOwn)); assert.deepEqual(await list(peer, 'marketplace'), [])
+  assert.deepEqual(ids(...(await list(peer, 'personal'))), ids(peerOwn)); assert.deepEqual(ids(...(await list(peer, 'company'))), ids(shared))
+  assert.deepEqual(stored2(await list(foreign, 'all')), ids(inBResult.id)); assert.deepEqual(ids(...(await list(foreign, 'marketplace'))), ids(inBResult.id))
+  assert.deepEqual(stored2(await list(ownerInB, 'all')), ids(inBResult.id), 'company A templates never appear in company B')
+  await rejects(denied.studio.templates(denied.token, { scope: 'marketplace' }), { status: 403 })
+  await rejects(owner.studio.templates(owner.token, { scope: 'bogus' }), { status: 400 })
+  // ---- Backfill audit: only a confirmed marketplace job for the same template, company and actor ----
+  const aiTemplate = await templates.create(companies[0].id, users[0].id, { name: 'Hecha por IA', document: doc, scope: 'personal' }, {}, 'ai')
+  const [jobOf] = await q("SELECT id FROM studio_interchange_job WHERE state='committed' AND result->>'id'=$1", [confirmed.id])
+  const dupJob = async (resultId, overrides = '') => (await q(`INSERT INTO studio_interchange_job(company_id,actor_id,target,name,digest,reserved_bytes,document,manifest,source,state,result)
+    SELECT company_id,actor_id,target,name,digest,reserved_bytes,document,manifest,source,state,jsonb_set(result,'{id}',to_jsonb($2::text))${overrides} FROM studio_interchange_job WHERE id=$1 RETURNING id`, [jobOf.id, resultId]))[0]
+  await dupJob(confirmed.id)                                              // second job for the same template
+  await dupJob(peerOwn.id)                                                // actor mismatch (owner is the peer)
+  await q("UPDATE studio_interchange_job SET company_id=$1 WHERE id=$2", [companies[1].id, (await dupJob(mine.id)).id]) // company mismatch
+  await q("UPDATE studio_interchange_job SET result=jsonb_set(result,'{kind}','\"design\"') WHERE id=$1", [(await dupJob(shared.id)).id]) // a design import, not a template
+  await q("UPDATE studio_template SET source='user' WHERE id IN ($1,$2)", [confirmed.id, again.id])
+  const snapshot = () => q(`SELECT t.id,t.scope,t.owner_id,t.company_id,t.revision,t.updated_at,t.enabled,md5(t.document::text) AS document,
+    (SELECT count(*) FROM studio_template_asset a WHERE a.template_id=t.id) AS assets,
+    (SELECT string_agg(a.file_id::text,',' ORDER BY a.file_id) FROM studio_template_asset a WHERE a.template_id=t.id) AS bound FROM studio_template t ORDER BY t.id`)
+  const sources = async () => Object.fromEntries((await q('SELECT id,source FROM studio_template')).map((r) => [r.id, r.source]))
+  const before = await snapshot(), beforeSources = await sources()
+  assert.equal(beforeSources[confirmed.id], 'user'); assert.equal(beforeSources[aiTemplate.id], 'ai')
+  const dry = await q(await readFile('scripts/studio-marketplace-backfill-dry-run.sql', 'utf8'))
+  assert.deepEqual(dry.map((r) => r.template_id).sort(), ids(confirmed.id, again.id), 'dry run lists exactly the evidenced templates')
+  assert.equal(Number(dry.find((r) => r.template_id === confirmed.id).matching_jobs), 2, 'dry run counts the duplicate job without duplicating the row')
+  assert.deepEqual(await sources(), beforeSources, 'dry run changes nothing')
+  const migration = await readFile('prisma/migrations/20261230110000_studio_template_marketplace_backfill/migration.sql', 'utf8')
+  const first = await stack.pool.query(migration); assert.equal(first.rowCount, 2, 'migration updates exactly the two evidenced rows (a duplicate job does not double-update)')
+  const after = await sources()
+  for (const [id, source] of Object.entries(after)) assert.equal(source, [confirmed.id, again.id].includes(id) ? 'marketplace' : beforeSources[id], `source of ${id}`)
+  assert.equal(after[aiTemplate.id], 'ai'); assert.equal(after[mine.id], 'user'); assert.equal(after[shared.id], 'user'); assert.equal(after[peerOwn.id], 'user')
+  assert.deepEqual(await snapshot(), before, 'documents, images, revisions and updated_at (list order) untouched')
+  assert.equal((await stack.pool.query(migration)).rowCount, 0, 'idempotent: a second run changes nothing')
+  assert.deepEqual(await q(await readFile('scripts/studio-marketplace-backfill-dry-run.sql', 'utf8')), [], 'nothing left to reclassify')
+  ok('Studio origin: imports stored as marketplace with images/document/provenance, filters exact per user and company, stored-first newest-first without duplicates across pages, backfill audited (evidence-only, idempotent, no collateral changes)')
 
   await q("DELETE FROM role_permission WHERE role_id=$1 AND permission_id IN (SELECT id FROM permission WHERE key='studio.templates.publish')", [companies[0].roleId])
   await rejects(owner.studio.prepareMarketplaceTemplateImport({ ...ref(studioLab), target: 'company', name: 'Sin permiso' }, owner.token), { status: 403 })
