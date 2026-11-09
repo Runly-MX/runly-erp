@@ -137,6 +137,8 @@ infra/installer/.runly-installer/
 .artifacts/releases/
 .artifacts/website-multi/
 .artifacts/marketplace/
+# Private evidence of the integrated Marketplace lab (reports, screenshots, timer drafts).
+/.artifacts/mklab/
 apps/api/public/website-runtime/
 
 # Impeccable design skill (vendored by its installer, includes binaries; reinstall per machine)
