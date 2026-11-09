@@ -14,6 +14,10 @@ export default [
       "apps/api/bundles/**",
       "modules/custom/.previews/**",
       ".artifacts/**",
+      // .e2e/ is git-ignored local scratch (baseline source copies, fixtures, screenshots). The one file
+      // force-added to Git there stays linted: keep this list in sync with `git ls-files .e2e`.
+      ".e2e/*",
+      "!.e2e/purchases-unlink-ui.mjs",
     ],
   },
   {
