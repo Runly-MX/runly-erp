@@ -21,6 +21,7 @@ COPY packages/offline/package.json packages/offline/package.json
 COPY packages/preview-runtime/package.json packages/preview-runtime/package.json
 COPY packages/sdk/package.json packages/sdk/package.json
 COPY packages/storefront-sdk/package.json packages/storefront-sdk/package.json
+COPY packages/studio-interchange/package.json packages/studio-interchange/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/validators/package.json packages/validators/package.json
 # Install depends only on the manifests above, so it stays cached across
