@@ -29,7 +29,7 @@ import {
   toRecent,
 } from "../lib/commandQuery";
 import { useCommandSearch } from "../lib/useCommandSearch";
-import { useQuickNoteStore } from "../modules/runly.notes/quick/quickNoteStore";
+import { QUICK_ACTIONS } from "../lib/quickActionRegistry";
 import { toast } from "sonner";
 import { buildPaletteCommands } from "../lib/paletteCommands";
 import { glassTileStyle, itemAccent } from "../lib/paletteAccent";
@@ -95,6 +95,7 @@ export function CommandPalette({ activeModule }) {
       mode,
       recents,
       commands,
+      quickActions: QUICK_ACTIONS,
     });
     const extras = buildSearchExtras({ scope, response, searching: searchActive });
     const all = [...extras.top, ...base.sections, ...extras.bottom];
@@ -149,7 +150,7 @@ export function CommandPalette({ activeModule }) {
       setRecents(next);
       saveRecents(next);
     }
-    if (item.action === "quick-note") useQuickNoteStore.getState().open();
+    if (item.run) item.run({ navigate });
     else navigate(item.target);
     closeCommand();
     setQuery("");

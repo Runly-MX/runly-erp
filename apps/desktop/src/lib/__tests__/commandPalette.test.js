@@ -341,3 +341,17 @@ test("help search group is placed after modules, tools and pages", () => {
   assert.equal(ids[0], "modules");
   assert.ok(ids.includes("search:contacts"));
 });
+
+test("buildCommandItems: quick actions only for available modules and searchable", () => {
+  const run = () => {};
+  const quickActions = [
+    { id: "a", moduleKey: "atlas.contacts", title: "Llamar a una persona", keywords: ["llamar"], run },
+    { id: "b", moduleKey: "atlas.ledger", title: "Otra", keywords: [], run },
+  ];
+  const { sections } = buildCommandItems({ availableModules: [contacts], quickActions });
+  const items = sections.find((s) => s.id === "actions").items;
+  assert.deepEqual(items.map((i) => i.key), ["quick:atlas.contacts:a"]);
+  assert.equal(items[0].run, run);
+  const hit = buildCommandItems({ availableModules: [contacts], quickActions, query: "llamar" });
+  assert.equal(hit.flat.some((i) => i.key === "quick:atlas.contacts:a"), true);
+});

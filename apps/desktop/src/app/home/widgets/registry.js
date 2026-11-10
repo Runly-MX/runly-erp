@@ -3,6 +3,7 @@ import { PfmWidget } from "./PfmWidget";
 import { LedgerWidget } from "./LedgerWidget";
 import { InventoryWidget } from "./InventoryWidget";
 import { OnlineUsersWidget } from "./OnlineUsersWidget";
+import { CallsWidget } from "./CallsWidget";
 import { ActivityWidget } from "./ActivityWidget";
 import { AttendanceWidget } from "./AttendanceWidget";
 import { MyTasksWidget } from "./MyTasksWidget";
@@ -20,6 +21,7 @@ export const HOME_WIDGETS = [
   { id: "ledger", title: "Cuentas", description: "Saldos de tus cuentas", moduleKey: "runly.ledger", Component: LedgerWidget },
   { id: "inventory", title: "Inventario", description: "Activos, asignaciones y garantías", moduleKey: "runly.inventory", Component: InventoryWidget },
   { id: "attendance", title: "Asistencia", description: "Presentes ahora y cuotas de contratistas", moduleKey: "runly.attendance", Component: AttendanceWidget },
-  { id: "online", title: "En línea", description: "Quién está conectado ahora", moduleKey: "runly.chat", Component: OnlineUsersWidget },
+  { id: "calls", title: "Llamadas", description: "Iniciar llamada, reunión, presencial o programada", moduleKey: "runly.chat", Component: CallsWidget },
+  { id: "online",title: "En línea", description: "Quién está conectado ahora", moduleKey: "runly.chat", Component: OnlineUsersWidget },
   { id: "activity", title: "Actividad reciente", description: "Lo último que pasó en la empresa", moduleKey: "runly.activity", Component: ActivityWidget },
 ];

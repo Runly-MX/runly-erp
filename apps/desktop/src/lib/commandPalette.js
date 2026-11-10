@@ -213,6 +213,7 @@ export function buildCommandItems({
   mode = null,
   recents = [],
   commands = [],
+  quickActions = [],
 } = {}) {
   const isBlocked = makeBlocked(isOnline, offlineModuleKeys);
   const q = normalizeText(query);
@@ -247,25 +248,25 @@ export function buildCommandItems({
     );
   rawSections.push({ id: "tools", title: "Herramientas", items: toolItems });
 
-  if (availableModules.some((m) => m.key === "runly.notes")) {
-    rawSections.push({
-      id: "actions",
-      title: "Acciones rápidas",
-      items: [
-        {
-          key: "action:quick-note",
-          kind: "action",
-          action: "quick-note",
-          title: "Nota rápida",
-          subtitle: "Abre el bloc flotante de notas (Ctrl+Alt+N)",
-          keywords: ["nota", "notas", "apunte", "rapida", "bloc"],
-          icon: "NotebookPen",
-          color: undefined,
-          target: null,
-          blocked: false,
-        },
-      ],
-    });
+  // Module-contributed quick actions (lib/quickActionRegistry.js), only for
+  // modules the user has. They run code, so they need the network like any
+  // other non-offline module.
+  const quickItems = quickActions
+    .filter((qa) => availableModules.some((m) => m.key === qa.moduleKey))
+    .map((qa) => ({
+      key: `quick:${qa.moduleKey}:${qa.id}`,
+      kind: "action",
+      title: qa.title,
+      subtitle: qa.subtitle ?? null,
+      keywords: qa.keywords ?? [],
+      icon: qa.icon,
+      color: qa.color,
+      run: qa.run,
+      target: null,
+      blocked: isBlocked(qa.moduleKey),
+    }));
+  if (quickItems.length > 0) {
+    rawSections.push({ id: "actions", title: "Acciones rápidas", items: quickItems });
   }
 
   if (commands.length > 0) rawSections.push({ id: "commands", title: "Comandos", items: commands });

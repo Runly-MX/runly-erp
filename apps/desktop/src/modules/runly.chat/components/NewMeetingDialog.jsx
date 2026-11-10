@@ -153,7 +153,7 @@ function ModeDetails({ mode, children }) {
 //                  invites are sent only when the event is saved.
 //  - Presencial -> audio-only meeting that records (and transcribes) by
 //                  itself, for in-person meetings around one device.
-export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = null }) {
+export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = null, initialMode = "now" }) {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
   const { data } = useChatConversations();
@@ -178,7 +178,7 @@ export function NewMeetingDialog({ open, onOpenChange, defaultConversationId = n
 
   useEffect(() => {
     if (!open) return;
-    setMode("now"); setEmails([]); setError(null); setScheduled(null); setAccessMode("LOBBY");
+    setMode(initialMode ?? "now"); setEmails([]); setError(null); setScheduled(null); setAccessMode("LOBBY");
     setConversationId(conversations.some((c) => c.id === defaultConversationId) ? defaultConversationId : NEW_ROOM);
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
