@@ -1,3 +1,4 @@
+import { officialResourceMatches, officialResourceText } from './resource-official-contract.js'
 // Catalog trust store (Phase 7 + Catalog Distribution + Marketplace resources). Four categories that never mix:
 //   official  — Runly official key(s) pinned in catalog-public-key.js (v1 payload + official snapshot)
 //   community — Runly community key(s) pinned here (domain-separated v2 statements)
@@ -139,8 +140,14 @@ export function createTrustStore({ official = OFFICIAL_CATALOG_PUBLIC_KEYS, comm
     return { trusted: true, category: 'resource' }
   }
 
+  function verifyOfficialResourceProof(proof,entry,{revokedKeyIds=new Set()}={}) {
+    if (!officialResourceMatches(proof,entry) || categoryOf(proof.keyId) !== 'resource' || revokedKeyIds.has(proof.keyId)) return false
+    const pin = pinOf(proof.keyId)
+    return usable(pin,entry.publishedAt) && verifySafely(Buffer.from(officialResourceText(proof.statement)),pin.publicKey,proof.signature)
+  }
+
   // Administrator view: key ids, domains and lifecycle. Public data only.
   const describeKeys = () => ['official', 'community', 'resource', 'managed'].flatMap((domain) => [...sets[domain].values()].map((pin) => ({ keyId: pin.keyId, domain, state: stateOf(pin), notAfter: pin.notAfter, source: domain === 'managed' ? 'instance' : 'runly-release', locallyRevoked: locallyRevoked.has(pin.keyId) })))
 
-  return { categoryOf, verifySnapshot, verifyOfficialSnapshot, verifyResourceSnapshot, classifyResourceEntry, officialEntrySigned, classifyEntry, describeKeys, keys: { official: [...sets.official.keys()], community: [...sets.community.keys()], resource: [...sets.resource.keys()], managed: [...sets.managed.keys()] } }
+  return { categoryOf, verifySnapshot, verifyOfficialSnapshot, verifyResourceSnapshot, classifyResourceEntry, verifyOfficialResourceProof, officialEntrySigned, classifyEntry, describeKeys, keys: { official: [...sets.official.keys()], community: [...sets.community.keys()], resource: [...sets.resource.keys()], managed: [...sets.managed.keys()] } }
 }

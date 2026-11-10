@@ -7,7 +7,7 @@
 // package, never validates package content (that is @runly/studio-interchange and the importers) and
 // has no UI. Everything fails closed: on any verification failure the last good, previously verified
 // snapshot is kept, and nothing expired or stale is ever offered for installation.
-//   catalog.resources.url   envelope URL (https, or an explicit local file:// catalog). No default.
+//   catalog.resources.url overrides the resource feed; Runly source mode uses its pinned public catalog by default.
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 import { readCatalogBytes, CatalogDownloadError } from './catalog-download.js'
@@ -15,6 +15,7 @@ import { sha256Of } from './catalog-crypto.js'
 import { createTrustStore, CatalogTrustError } from './catalog-trust-store.js'
 import { createHighWaterStore, domainKey, sequenceDecision } from './catalog-sequence.js'
 import { compareVersions } from './catalog-service.js'
+import { CONFIG_KEYS, RUNLY_CATALOG_SOURCE } from './catalog-v2-service.js'
 import { RESOURCE_CATALOG_ID, RESOURCE_TRUST_DOMAIN, MAX_SNAPSHOT_BYTES, TYPE_MAX_BYTES, FORMAT_NAME, ResourceFeedError, resourceSnapshotDigest, validateResourceEnvelope } from './catalog-resource-contract.js'
 import rootPackage from '../../../../../package.json' with { type: 'json' }
 
@@ -81,7 +82,12 @@ export function createResourceCatalogService({ prisma, readBytes = readCatalogBy
     return { freshness, installable: false, requiresAcknowledgement: false, reason: 'RESOURCE_FEED_STALE' }
   }
 
-  async function sourceUrl() { return (await config(RESOURCE_CONFIG_KEYS.url)) || null }
+  async function sourceUrl() {
+    const explicit = await config(RESOURCE_CONFIG_KEYS.url)
+    if (explicit !== null) return explicit || null
+    const mode = (await config(CONFIG_KEYS.sourceMode)) || 'runly'
+    return mode === 'runly' ? new URL('resources/index.json', RUNLY_CATALOG_SOURCE.officialUrl).href : null
+  }
 
   // Last verified copy still inside the 30-day view window; re-verified on every read (a tampered cache is not trusted).
   async function cached(url, store) {
@@ -133,8 +139,16 @@ export function createResourceCatalogService({ prisma, readBytes = readCatalogBy
     const sha256 = resourceSnapshotDigest(signed)
     const decision = sequenceDecision(await highWater.get(domain), { sequence: signed.sequence, sha256, previous: signed.previous, generatedAt: signed.generatedAt })
     if (decision) return lastGood(DECISION_CODES[decision] ?? 'RESOURCE_FEED_ROLLBACK')
+    let officialAttestations = []
+    try {
+      const companionUrl = new URL('official.json',url).href
+      const {buffer:bytes} = await readBytes(companionUrl,{maxBytes:MAX_SNAPSHOT_BYTES,localRoot:new URL(url).protocol === 'file:' ? dirname(fileURLToPath(url)) : null})
+      const evidence = JSON.parse(bytes.toString('utf8'))
+      if (evidence.schemaVersion === 1 && evidence.feed?.sequence === signed.sequence && evidence.feed?.sha256 === sha256 && Array.isArray(evidence.attestations) && evidence.attestations.length <= 2000)
+        officialAttestations = evidence.attestations
+    } catch { /* Older Hubs have no institutional companion: keep resource integrity without an official badge. */ }
     const all = keysRevokedBy(signed, [...revokedKeyIds])
-    const state = { url, domain, sequence: signed.sequence, sha256, generatedAt: signed.generatedAt, validUntil: signed.validUntil, fetchedAt: new Date(now()).toISOString(), signer: signer.category, keyId: signer.keyId, revokedKeyIds: [...all] }
+    const state = { url, domain, sequence: signed.sequence, sha256, generatedAt: signed.generatedAt, validUntil: signed.validUntil, fetchedAt: new Date(now()).toISOString(), signer: signer.category, keyId: signer.keyId, officialAttestations, revokedKeyIds: [...all] }
     await prisma.moduleCatalogCache.upsert({ where: { url }, update: { payload: envelope, etag: sha256, fetchedAt: new Date(now()) }, create: { url, payload: envelope, etag: sha256 } })
     await highWater.accept(domain, state)
     await setConfig(RESOURCE_CONFIG_KEYS.state, JSON.stringify(state))
@@ -164,6 +178,8 @@ export function createResourceCatalogService({ prisma, readBytes = readCatalogBy
     const publisher = signed.publishers.find((p) => p.handle === entry.publisher)
     const availability = revocation ? 'revoked' : entry.status === 'withdrawn' ? 'withdrawn' : 'available'
     const catalogGate = gate(state, options)
+    const proof = (state.officialAttestations ?? []).find((p)=>store.verifyOfficialResourceProof(p,entry,{revokedKeyIds}))
+    const official = verdict.trusted && availability === 'available' && catalogGate.installable && !!proof
     const blockedBy = []
     if (!verdict.trusted) blockedBy.push('RESOURCE_KEY_UNTRUSTED')
     if (availability !== 'available') blockedBy.push(availability === 'revoked' ? 'RESOURCE_REVOKED' : 'RESOURCE_WITHDRAWN')
@@ -176,6 +192,7 @@ export function createResourceCatalogService({ prisma, readBytes = readCatalogBy
       title: entry.title, description: entry.description, license: entry.license, locale: entry.locale, listed: entry.listed, status: entry.status, publishedAt: entry.publishedAt,
       compatibility: entry.compatibility, requirements: entry.requirements, provenance: entry.provenance,
       publisher: publisher ? { handle: publisher.handle, displayName: publisher.displayName, verified: publisher.verified && publisher.state === 'active', state: publisher.state } : null,
+      official, officialAttestation: official ? proof : null, institutionalAuthor: official ? 'Runly' : null,
       trust: verdict.trusted ? RESOURCE_TRUST_DOMAIN : 'untrusted', trustReason: verdict.trusted ? null : verdict.reason,
       revocation, availability,
       // `eligible`: could be downloaded for installation right now. Never true for anything stale-unacknowledged, expired, revoked or untrusted.

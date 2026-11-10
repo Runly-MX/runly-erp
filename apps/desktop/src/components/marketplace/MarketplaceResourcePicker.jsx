@@ -78,6 +78,7 @@ export function MarketplaceResourcePicker({ type, token, value, onChange, acknow
                 {item.description ? <span className="mt-1 line-clamp-2 block text-sm text-[hsl(var(--muted-foreground))]">{item.description}</span> : null}
                 <span className="mt-2 flex flex-wrap gap-1.5">
                   <Badge variant="outline">{item.license}</Badge>
+                  {item.official === true && <Badge variant="outline"><BadgeCheck className="mr-1 h-3.5 w-3.5"/>Oficial Runly</Badge>}
                   <Badge variant="outline">{compatibilityLabel(item)}</Badge>
                   {block ? <Badge variant="destructive">{block.title}</Badge> : null}
                 </span>

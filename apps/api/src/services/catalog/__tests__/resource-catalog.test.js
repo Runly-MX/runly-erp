@@ -268,8 +268,13 @@ test('offline and transport failures keep the verified copy; security rejections
   const unsafe = fixture(); unsafe.configs.set(RESOURCE_CONFIG_KEYS.url, 'http://catalog.example/index.json')
   await rejects(unsafe.service.refresh(), 'RESOURCE_FEED_URL_REJECTED')
   const unconfigured = fixture(); unconfigured.configs.delete(RESOURCE_CONFIG_KEYS.url)
+  unconfigured.configs.set('catalog.source.mode', 'disabled')
   assert.deepEqual(await unconfigured.service.refresh(), { status: 'not_configured', alert: null })
   assert.deepEqual(await unconfigured.service.status(), { configured: false })
+  const runlyDefault = fixture(); runlyDefault.configs.delete(RESOURCE_CONFIG_KEYS.url)
+  assert.equal((await runlyDefault.service.status()).configured, true)
+  runlyDefault.configs.set('catalog.source.mode', 'custom')
+  assert.equal((await runlyDefault.service.status()).configured, false)
   // The real transport refuses private addresses before connecting (no network is touched).
   const real = fixture(); real.configs.set(RESOURCE_CONFIG_KEYS.url, 'https://127.0.0.1/resources/index.json')
   const svc = createResourceCatalogService({ prisma: real.prisma, trust: { resource: [PUBLIC] }, now: () => T0 })
