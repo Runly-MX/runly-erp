@@ -2,7 +2,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Phone } from "lucide-react";
 import {
-  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, ComboboxField, Button,
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, ComboboxField, Button, personSelectOption,
 } from "@runly/ui";
 import { useQuickActionStore } from "../../../lib/quickActionStore";
 import { NewMeetingDialog } from "./NewMeetingDialog";
@@ -41,12 +41,7 @@ function CallPersonDialog({ open, onClose }) {
               placeholder="Buscar persona..."
               value={personId}
               onValueChange={setPersonId}
-              options={people.map((p) => ({
-                value: p.id,
-                label: p.displayName,
-                description: p.online ? "En línea" : undefined,
-                keywords: [p.email].filter(Boolean),
-              }))}
+              options={people.map((p) => personSelectOption(p))}
             />
             {activeCall && (
               <p className="text-sm text-[hsl(var(--muted-foreground))]">Ya tienes una llamada en curso.</p>

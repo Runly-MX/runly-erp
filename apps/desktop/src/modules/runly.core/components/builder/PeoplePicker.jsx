@@ -2,7 +2,7 @@
 // recipients, approvers): each one shown with their profile photo, plus a picker
 // to add more. Shares the `builder-people` query with the rest of the editor.
 import { useQuery } from "@tanstack/react-query";
-import { PersonAvatar, SelectField } from "@runly/ui";
+import { PersonAvatar, SelectField, personSelectOption } from "@runly/ui";
 import { X } from "lucide-react";
 import { useAuth } from "../../../../auth/AuthProvider";
 import { runly } from "../../../../lib/runly";
@@ -18,7 +18,7 @@ export function PeoplePicker({ label, value, onChange, readOnly = false, max = 1
   });
   const list = people.data ?? [];
   const personOf = (id) => list.find((person) => person.id === id) ?? null;
-  const options = list.filter((person) => !value.includes(person.id)).map((person) => ({ value: person.id, label: person.name }));
+  const options = list.filter((person) => !value.includes(person.id)).map((person) => personSelectOption(person));
   return (
     <div className="space-y-2">
       {label && <p className="text-sm font-medium">{label}</p>}

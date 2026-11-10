@@ -16,6 +16,7 @@ import {
   DialogHeader,
   DialogTitle,
   Skeleton,
+  personSelectOption,
 } from "@runly/ui";
 import { Crown, ShieldAlert, UserRound } from "lucide-react";
 import { toast } from "sonner";
@@ -50,7 +51,7 @@ function TransferOwnerDialog({ open, onOpenChange, currentOwnerId }) {
   const options = useMemo(
     () => (candidatesQuery.data?.data ?? [])
       .filter((user) => user.id !== currentOwnerId)
-      .map((user) => ({ value: user.id, label: user.displayName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() })),
+      .map((user) => personSelectOption(user)),
     [candidatesQuery.data, currentOwnerId],
   );
   const selectedLabel = options.find((option) => option.value === profileId)?.label ?? "";

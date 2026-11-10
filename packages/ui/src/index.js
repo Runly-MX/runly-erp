@@ -24,7 +24,7 @@ export { StarRating } from "./components/StarRating.jsx";
 export { LoadingState } from "./components/LoadingState.jsx";
 export { Avatar, AvatarImage, AvatarFallback } from "./components/Avatar.jsx";
 export { PersonAvatar, personInitials } from "./components/PersonAvatar.jsx";
-export { PersonOption, personName } from "./components/PersonOption.jsx";
+export { PersonOption, personName, personSelectOption } from "./components/PersonOption.jsx";
 export { AuthAtmosphere } from "./components/AuthAtmosphere.jsx";
 
 // Forms

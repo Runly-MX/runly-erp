@@ -43,4 +43,20 @@ export function PersonOption({ user, selected = false, onSelect, secondary, trai
   )
 }
 
+
+// Option for SelectField / ComboboxField / CreatableComboboxField whose items are
+// people: photo (initials fallback), name and email (or `secondary`), searchable
+// by both. Use it for every single-person selector instead of a bare name.
+export function personSelectOption(user, { secondary } = {}) {
+  const name = user?.name && !user?.displayName ? user.name : personName(user)
+  const description = secondary === undefined ? (user?.online ? 'En línea' : user?.email) : secondary
+  return {
+    value: user.id,
+    label: name,
+    description: description || undefined,
+    keywords: [user?.email].filter(Boolean),
+    icon: <PersonAvatar name={name} src={user?.avatarUrl ?? null} size="md" />,
+  }
+}
+
 export default PersonOption
