@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { bulkUnitName, loadCapture, parseSerials, pinnedValues, saveCapture, DEFAULT_CAPTURE } from '../capture.js'
+import { appendSerial, bulkUnitName, loadCapture, parseSerials, pinnedValues, saveCapture, DEFAULT_CAPTURE } from '../capture.js'
 
 test('parseSerials splits on commas, spaces, semicolons and new lines and reports repeats', () => {
   assert.deepEqual(parseSerials('A1, A2;A3\nA4  A2,,A1'), { serials: ['A1', 'A2', 'A3', 'A4'], repeated: ['A2', 'A1'] })
@@ -23,7 +23,17 @@ test('capture settings round-trip and tolerate broken storage', () => {
   const memory = new Map()
   const storage = { getItem: (k) => memory.get(k) ?? null, setItem: (k, v) => memory.set(k, v) }
   saveCapture('k', { pinned: ['locationId'], values: { locationId: 'l1' }, continuous: true, multi: false, pinMode: false }, storage)
-  assert.deepEqual(loadCapture('k', storage), { pinned: ['locationId'], values: { locationId: 'l1' }, continuous: true, multi: false, pinMode: false })
+  assert.deepEqual(loadCapture('k', storage), { pinned: ['locationId'], values: { locationId: 'l1' }, continuous: true, multi: false, pinMode: false, separator: 'comma' })
   assert.deepEqual(loadCapture('k', { getItem: () => { throw new Error('blocked') } }), DEFAULT_CAPTURE)
   assert.deepEqual(loadCapture(null, storage), DEFAULT_CAPTURE)
+})
+
+test('appendSerial adds with the chosen separator and skips repeats', () => {
+  let r = appendSerial('', 'A1')
+  assert.deepEqual(r, { text: 'A1, ', added: true })
+  r = appendSerial(r.text, 'B2')
+  assert.equal(r.text, 'A1, B2, ')
+  assert.equal(appendSerial(r.text, 'A1').added, false)
+  assert.equal(appendSerial('A1\n', 'B2', 'newline').text, 'A1\nB2\n')
+  assert.equal(appendSerial('x', '  ').added, false)
 })

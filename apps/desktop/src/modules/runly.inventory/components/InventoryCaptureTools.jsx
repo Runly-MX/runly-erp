@@ -1,7 +1,8 @@
 import { useEffect } from 'react'
-import { Button, Popover, PopoverContent, PopoverTrigger, SwitchField, TextareaField, cn } from '@runly/ui'
+import { Button, Popover, PopoverContent, PopoverTrigger, SelectField, SwitchField, TextareaField, cn } from '@runly/ui'
 import { Pin, Rows3, SlidersHorizontal, Square } from 'lucide-react'
-import { MAX_BULK_SERIALS, parseSerials, pinnedValues, saveCapture } from '../lib/capture.js'
+import { MAX_BULK_SERIALS, SERIAL_SEPARATORS, parseSerials, pinnedValues, saveCapture } from '../lib/capture.js'
+import { SerialScanner } from './SerialScanner.jsx'
 
 const MODES = [
   { multi: false, label: 'Un equipo', icon: Square },
@@ -72,6 +73,12 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Los campos fijados conservan su valor al guardar, para capturar equipos parecidos.</p>
             </div>
             <div className="space-y-1.5">
+              <SelectField label="Separador al escanear" value={settings.separator ?? 'comma'}
+                onValueChange={(separator) => update({ separator })}
+                options={Object.entries(SERIAL_SEPARATORS).map(([value, { label }]) => ({ value, label }))} />
+              <p className="text-xs text-[hsl(var(--muted-foreground))]">Se pone después de cada serie leída con lector o cámara.</p>
+            </div>
+            <div className="space-y-1.5">
               <SwitchField label="Captura continua" checked={settings.continuous}
                 onChange={(continuous) => update({ continuous: Boolean(continuous) })} />
               <p className="text-xs text-[hsl(var(--muted-foreground))]">Después de guardar, se abre otro formulario en blanco en lugar de ir al detalle.</p>
@@ -88,13 +95,14 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
 
       {settings.multi ? (
         <div className="glass-shell-flat space-y-1.5 rounded-2xl p-4">
+          <SerialScanner serialsText={serialsText} setSerialsText={setSerialsText} separator={settings.separator} disabled={disabled} />
           <TextareaField
             label="Números de serie"
             rows={4}
             value={serialsText}
             disabled={disabled}
             placeholder="ABC123, ABC124, ABC125 o uno por línea"
-            hint="Sepáralos con coma, espacio, punto y coma o salto de línea. Se crea un activo por serie con los datos de abajo, nombrado «Nombre · serie»."
+            hint="Lo que escanees se agrega solo con el separador de Opciones de captura; también puedes pegar o escribir con coma, espacio, punto y coma o salto de línea. Se crea un activo por serie con los datos de abajo, nombrado «Nombre · serie»."
             onChange={(e) => setSerialsText(e.target.value)}
           />
           <p className={cn('text-sm', overLimit ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]')}>
