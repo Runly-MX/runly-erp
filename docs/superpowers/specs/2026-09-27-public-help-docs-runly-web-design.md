@@ -171,3 +171,13 @@ Sin cambios en esta fase (non-goal #3).
   `pnpm test`.
 - Inspección manual de 2-3 archivos generados en `dist/` (una página de
   documentación, un endpoint JSON) para confirmar contenido correcto.
+
+## Addendum 2026-11-09: capabilities.json
+
+`apps/api/src/manifests/official/help/capabilities.json` holds, per module key, the
+scannable "Lo que puedes hacer" highlights (`icon` as a lucide name, `title`, `text`)
+and optional `compat` chips (formats, integrations). It is the source of truth for the
+public docs cards in runly-web, copied by `scripts/sync-help-content.mjs` to
+`src/data/module-capabilities.json`. Add or update an entry whenever a module gains or
+changes a feature, and keep every claim consistent with that module's overview.md;
+`help-capabilities.test.js` enforces one entry per help module.

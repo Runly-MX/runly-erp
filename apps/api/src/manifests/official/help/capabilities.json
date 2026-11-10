@@ -1,0 +1,1123 @@
+{
+  "runly.core": {
+    "highlights": [
+      {
+        "icon": "Blocks",
+        "title": "Catálogo de módulos",
+        "text": "Instala, habilita, deshabilita y actualiza módulos de tu instancia sin tocar código."
+      },
+      {
+        "icon": "Hammer",
+        "title": "Constructor de módulos",
+        "text": "Crea tus propios módulos sin programar: datos y campos, relaciones, pantallas, enlaces públicos, automatizaciones y publicación."
+      },
+      {
+        "icon": "ScrollText",
+        "title": "Bitácora de auditoría",
+        "text": "Quién hizo qué y cuándo, en cualquier parte del sistema."
+      },
+      {
+        "icon": "House",
+        "title": "Pantalla de inicio",
+        "text": "Accesos directos a los módulos instalados y widgets configurables."
+      },
+      {
+        "icon": "Settings",
+        "title": "Configuración de la instancia",
+        "text": "Ajustes generales que aplican a todas las empresas de la instancia."
+      }
+    ],
+    "compat": [
+      "Módulos de la comunidad",
+      "Paquetes ZIP",
+      "Runly Developer"
+    ]
+  },
+  "runly.identity": {
+    "highlights": [
+      {
+        "icon": "Users",
+        "title": "Usuarios",
+        "text": "Nombre, correo, teléfono, avatar y estado; invitación para fijar contraseña."
+      },
+      {
+        "icon": "ShieldCheck",
+        "title": "Roles con permisos finos",
+        "text": "Módulo por módulo y acción por acción; el cambio surte efecto al instante."
+      },
+      {
+        "icon": "Lock",
+        "title": "Roles de sistema protegidos",
+        "text": "Siempre existe un rol con acceso total."
+      },
+      {
+        "icon": "Building",
+        "title": "Membresías por empresa",
+        "text": "Administrador en una empresa y Ventas en otra con la misma cuenta."
+      },
+      {
+        "icon": "ScrollText",
+        "title": "Bitácora por usuario",
+        "text": "Qué ha hecho cada persona en el sistema."
+      },
+      {
+        "icon": "UserX",
+        "title": "Baja sin perder historial",
+        "text": "Desactivar impide entrar pero conserva todo lo que creó."
+      },
+      {
+        "icon": "Flag",
+        "title": "Moderación del chat",
+        "text": "Revisa mensajes reportados, descarta o actúa."
+      }
+    ]
+  },
+  "runly.files": {
+    "highlights": [
+      {
+        "icon": "Upload",
+        "title": "Carga múltiple",
+        "text": "Sube uno o varios archivos arrastrándolos o seleccionándolos."
+      },
+      {
+        "icon": "FolderTree",
+        "title": "Carpetas y subcarpetas",
+        "text": "Árbol lateral; cada módulo tiene una subcarpeta por registro (proyecto, colaborador, vehículo…)."
+      },
+      {
+        "icon": "Users",
+        "title": "Carpetas compartidas",
+        "text": "Comparte una carpeta con personas específicas; reciben una notificación."
+      },
+      {
+        "icon": "Link2",
+        "title": "Enlaces firmados y públicos",
+        "text": "Comparte un archivo privado por tiempo limitado, o una carpeta con enlace público sin cuenta."
+      },
+      {
+        "icon": "Filter",
+        "title": "Búsqueda y filtros",
+        "text": "Por nombre, estado, tipo de archivo y módulo de origen."
+      },
+      {
+        "icon": "Download",
+        "title": "Descarga masiva",
+        "text": "Baja varios archivos seleccionados de una vez."
+      },
+      {
+        "icon": "Lock",
+        "title": "Privado o público",
+        "text": "Cada archivo es privado por defecto; desactivarlo lo oculta sin borrarlo de inmediato."
+      },
+      {
+        "icon": "Blocks",
+        "title": "Base de todos los módulos",
+        "text": "Adjuntos de contactos, RH, chat, Documentos, Studio y Canvas viven aquí."
+      }
+    ],
+    "compat": [
+      "Cualquier tipo de archivo",
+      "Almacenamiento en la nube gestionado",
+      "Enlaces firmados"
+    ]
+  },
+  "runly.company": {
+    "highlights": [
+      {
+        "icon": "ClipboardCheck",
+        "title": "Resumen con progreso",
+        "text": "Barra que indica qué secciones faltan antes de empezar a operar."
+      },
+      {
+        "icon": "Building2",
+        "title": "Perfil fiscal",
+        "text": "Razón social, tipo de identificador fiscal, correo y teléfono."
+      },
+      {
+        "icon": "MapPin",
+        "title": "Dirección completa",
+        "text": "Calle, número, colonia, ciudad, estado, código postal y país; se usa en documentos generados."
+      },
+      {
+        "icon": "Palette",
+        "title": "Marca visual",
+        "text": "Logotipo y color principal que ven todos los miembros de la empresa."
+      },
+      {
+        "icon": "UserPlus",
+        "title": "Miembros y roles",
+        "text": "Agrega o quita membresías y cambia el rol sin tocar la cuenta de usuario."
+      },
+      {
+        "icon": "Copy",
+        "title": "Varias empresas independientes",
+        "text": "Cada empresa tiene su propio perfil, dirección, marca y miembros."
+      },
+      {
+        "icon": "Trash2",
+        "title": "Eliminación programada",
+        "text": "Zona de peligro con nombre exacto y contraseña; se elimina a las 72 horas y avisa por correo si lo eliges."
+      }
+    ]
+  },
+  "runly.contacts": {
+    "highlights": [
+      {
+        "icon": "ContactRound",
+        "title": "Un directorio único",
+        "text": "Clientes, proveedores, personas y empresas, dados de alta una sola vez."
+      },
+      {
+        "icon": "IdCard",
+        "title": "Datos fiscales",
+        "text": "RFC, régimen fiscal, razón social, giro y sitio web."
+      },
+      {
+        "icon": "Search",
+        "title": "Búsqueda y filtros",
+        "text": "Por nombre, correo, teléfono, RFC, etiqueta o persona de contacto."
+      },
+      {
+        "icon": "LayoutGrid",
+        "title": "Tabla, lista o cuadrícula",
+        "text": "Con foto o iniciales y columnas a tu gusto."
+      },
+      {
+        "icon": "FileText",
+        "title": "Observaciones enriquecidas",
+        "text": "Notas con formato en cada ficha."
+      },
+      {
+        "icon": "Link",
+        "title": "Dónde aparece",
+        "text": "El detalle muestra órdenes de POS, documentos y otros registros ligados."
+      },
+      {
+        "icon": "PlugZap",
+        "title": "Conexiones de módulos",
+        "text": "Módulos propios agregan campos o registros relacionados a la ficha."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Busca, crea y actualiza contactos conversando, con confirmación."
+      }
+    ],
+    "compat": [
+      "POS",
+      "Chat",
+      "Growth",
+      "Compras",
+      "Libro de cuentas",
+      "Módulos personalizados"
+    ]
+  },
+  "runly.hr": {
+    "highlights": [
+      {
+        "icon": "IdCard",
+        "title": "Expediente digital",
+        "text": "Datos personales, laborales, contacto de emergencia y archivos de cada colaborador."
+      },
+      {
+        "icon": "Network",
+        "title": "Organigrama automático",
+        "text": "Quién reporta a quién, calculado a partir del jefe directo."
+      },
+      {
+        "icon": "ListTree",
+        "title": "Departamentos y puestos",
+        "text": "Catálogos reutilizables para mantener los datos consistentes."
+      },
+      {
+        "icon": "Link",
+        "title": "Vínculo con Asistencia",
+        "text": "El mismo colaborador checa, tiene turnos y reportes de horas."
+      }
+    ]
+  },
+  "runly.fleet": {
+    "highlights": [
+      {
+        "icon": "Gauge",
+        "title": "Tablero de la flota",
+        "text": "Estado general y alertas inteligentes, como mantenimientos vencidos."
+      },
+      {
+        "icon": "Car",
+        "title": "Vehículos y catálogos",
+        "text": "Tipos, marcas y modelos reutilizables al dar de alta."
+      },
+      {
+        "icon": "Wrench",
+        "title": "Reportes de mantenimiento",
+        "text": "Servicio, reparación y otros eventos por vehículo."
+      },
+      {
+        "icon": "Shield",
+        "title": "Seguros",
+        "text": "Pólizas asociadas a cada vehículo."
+      },
+      {
+        "icon": "UserCheck",
+        "title": "Choferes",
+        "text": "Personas asignadas a manejar, con su licencia."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Consulta la flota y registra eventos conversando."
+      }
+    ],
+    "compat": [
+      "Canvas (vehículos en planos)",
+      "Calendario",
+      "Notificaciones"
+    ]
+  },
+  "runly.inventory": {
+    "highlights": [
+      {
+        "icon": "Camera",
+        "title": "Registro con IA",
+        "text": "Da de alta un activo tomándole una foto; la IA ayuda a llenar los datos."
+      },
+      {
+        "icon": "QrCode",
+        "title": "Etiquetas y escaneo",
+        "text": "Diseña e imprime etiquetas con QR y consulta un activo al escanearlo."
+      },
+      {
+        "icon": "UserRoundCheck",
+        "title": "Asignaciones con historial",
+        "text": "A qué colaborador o área está asignado cada activo y quién lo tuvo antes."
+      },
+      {
+        "icon": "Map",
+        "title": "Mapa de activos",
+        "text": "Ubica en un mapa los activos con geolocalización."
+      },
+      {
+        "icon": "FileSignature",
+        "title": "Bajas con acta firmada",
+        "text": "Motivo de salida y acta para cada activo dado de baja."
+      },
+      {
+        "icon": "FolderTree",
+        "title": "Áreas con acceso por proveedor",
+        "text": "Organiza en carpetas y decide quién ve cada una, incluyendo proveedores invitados."
+      }
+    ],
+    "compat": [
+      "Etiquetas QR",
+      "Canvas (hotspots)",
+      "Compras",
+      "Studio (etiquetas masivas)"
+    ]
+  },
+  "runly.ledger": {
+    "highlights": [
+      {
+        "icon": "Landmark",
+        "title": "Cuentas bancarias y de efectivo",
+        "text": "Saldo corriente y movimientos como en una hoja de cálculo."
+      },
+      {
+        "icon": "Layers",
+        "title": "Grupos de cuentas",
+        "text": "Agrupa cuentas relacionadas, por ejemplo por sucursal."
+      },
+      {
+        "icon": "Tags",
+        "title": "Categorías y tipos",
+        "text": "Clasifica cada movimiento para ver en qué se va el dinero."
+      },
+      {
+        "icon": "KeyRound",
+        "title": "Membresías por cuenta",
+        "text": "Quien solo consulta y quien puede capturar, cuenta por cuenta."
+      },
+      {
+        "icon": "FileUp",
+        "title": "Importar y exportar",
+        "text": "Carga movimientos desde un estado de cuenta y descárgalos."
+      }
+    ],
+    "compat": [
+      "CSV",
+      "Estados de cuenta escaneados (con IA)",
+      "MirAI"
+    ]
+  },
+  "runly.pfm": {
+    "highlights": [
+      {
+        "icon": "Wallet",
+        "title": "Carteras",
+        "text": "Banco, efectivo y tarjeta de crédito en un solo lugar."
+      },
+      {
+        "icon": "Repeat",
+        "title": "Recurrencias",
+        "text": "Renta, suscripciones y nómina que se repiten cada mes."
+      },
+      {
+        "icon": "PieChart",
+        "title": "Presupuestos por categoría",
+        "text": "Cuánto planeas gastar y cuánto llevas."
+      },
+      {
+        "icon": "ScanLine",
+        "title": "Tickets con IA",
+        "text": "Sube la foto de un recibo y el gasto se registra solo (requiere IA configurada)."
+      }
+    ]
+  },
+  "runly.catalog": {
+    "highlights": [
+      {
+        "icon": "ShoppingBag",
+        "title": "Productos y variantes",
+        "text": "Nombre, precio, código, variantes y si está publicado."
+      },
+      {
+        "icon": "Tags",
+        "title": "Categorías",
+        "text": "Organiza el catálogo para Runly, el POS y tu sitio web."
+      },
+      {
+        "icon": "Boxes",
+        "title": "Existencias",
+        "text": "Cuánto tienes de cada producto que rastrea inventario."
+      },
+      {
+        "icon": "Globe",
+        "title": "Una fuente para vender",
+        "text": "El mismo catálogo alimenta POS y Sitio web."
+      }
+    ],
+    "compat": [
+      "POS",
+      "Sitio web",
+      "Compras"
+    ]
+  },
+  "runly.pos": {
+    "highlights": [
+      {
+        "icon": "ScanBarcode",
+        "title": "Caja",
+        "text": "Escanea o toca productos, aplica descuentos, divide el pago y emite comprobante."
+      },
+      {
+        "icon": "UtensilsCrossed",
+        "title": "Comandero y mesas",
+        "text": "El mesero abre la cuenta, captura el consumo y lo envía a cocina."
+      },
+      {
+        "icon": "ChefHat",
+        "title": "Cocina en tiempo real",
+        "text": "Comandas por estación: cocina, barra, postres."
+      },
+      {
+        "icon": "CalendarClock",
+        "title": "Citas cobrables",
+        "text": "Agenda servicios y cóbralos desde la caja; aparecen en el Calendario."
+      },
+      {
+        "icon": "Link",
+        "title": "Cajas por enlace",
+        "text": "Una caja o comandero que se abre desde un enlace, sin instalar nada."
+      },
+      {
+        "icon": "Undo2",
+        "title": "Órdenes y devoluciones",
+        "text": "Historial de ventas, comprobantes y devoluciones."
+      }
+    ],
+    "compat": [
+      "Catálogo",
+      "Calendario",
+      "Canvas (mesas en el plano)",
+      "Tienda, restaurante o mixto"
+    ]
+  },
+  "runly.growth": {
+    "highlights": [
+      {
+        "icon": "ChartLine",
+        "title": "Analítica web",
+        "text": "Visitantes, sesiones, rebote y conversión, con adquisición y contenido."
+      },
+      {
+        "icon": "UserSearch",
+        "title": "Leads",
+        "text": "Personas interesadas capturadas desde los formularios de tu sitio."
+      },
+      {
+        "icon": "FileText",
+        "title": "Formularios",
+        "text": "Cuáles funcionan mejor."
+      },
+      {
+        "icon": "Globe",
+        "title": "Sitios conectados",
+        "text": "Qué sitios envían datos a Growth."
+      }
+    ],
+    "compat": [
+      "Sitio web de Runly",
+      "Sitios externos conectados"
+    ]
+  },
+  "runly.website": {
+    "highlights": [
+      {
+        "icon": "PanelsTopLeft",
+        "title": "Páginas y blog por bloques",
+        "text": "Borrador y publicación con historial para volver a una versión anterior."
+      },
+      {
+        "icon": "ShoppingBag",
+        "title": "Catálogo y pagos en línea",
+        "text": "Muestra productos de tu Catálogo y cobra en el sitio."
+      },
+      {
+        "icon": "Mail",
+        "title": "Formularios que crean leads",
+        "text": "Cada envío puede registrarse como lead en Growth."
+      },
+      {
+        "icon": "Palette",
+        "title": "Temas y plantillas",
+        "text": "Colores, tipografía, menús y plantillas listas, como tienda en línea."
+      },
+      {
+        "icon": "Globe",
+        "title": "Dominios propios",
+        "text": "Comprueba si el nombre está libre y conéctalo."
+      },
+      {
+        "icon": "Archive",
+        "title": "Importar sitio ZIP",
+        "text": "Sube un sitio estático ya compilado y actívalo tras verificarlo."
+      },
+      {
+        "icon": "UserCircle",
+        "title": "Cuentas de clientes",
+        "text": "Tus visitantes pueden tener cuenta en el sitio."
+      }
+    ],
+    "compat": [
+      "Plantillas del Marketplace",
+      "ZIP estático",
+      "SMTP propio",
+      "Sitios creados con tu propia IA vía MCP"
+    ]
+  },
+  "runly.activity": {
+    "highlights": [
+      {
+        "icon": "Activity",
+        "title": "Un solo feed cronológico",
+        "text": "Qué pasó mientras no estabas, sin entrar módulo por módulo."
+      },
+      {
+        "icon": "MessageSquareText",
+        "title": "Lenguaje simple",
+        "text": "«Juan creó el contacto Acme S.A.» en vez de un log técnico."
+      },
+      {
+        "icon": "ExternalLink",
+        "title": "Enlace al registro",
+        "text": "Cada tarjeta abre el contacto, tarea o colaborador que la originó."
+      },
+      {
+        "icon": "Filter",
+        "title": "Filtro por módulo",
+        "text": "Solo RH, solo Contactos, solo lo que te interesa."
+      },
+      {
+        "icon": "ShieldCheck",
+        "title": "Respeta tus permisos",
+        "text": "Solo ves eventos de módulos y empresas a los que tienes acceso."
+      },
+      {
+        "icon": "RefreshCw",
+        "title": "Se actualiza solo",
+        "text": "Déjalo abierto para estar al tanto de la actividad reciente."
+      }
+    ]
+  },
+  "runly.notifications": {
+    "highlights": [
+      {
+        "icon": "Bell",
+        "title": "Bandeja con prioridad",
+        "text": "Más recientes primero, marcadas por urgencia, con filtros de leídas y no leídas."
+      },
+      {
+        "icon": "ExternalLink",
+        "title": "Ir directo al origen",
+        "text": "Un clic lleva a la tarea, mensaje o documento que la generó."
+      },
+      {
+        "icon": "BellRing",
+        "title": "General y Mensajes",
+        "text": "La campana separa avisos del sistema y mensajes nuevos del chat."
+      },
+      {
+        "icon": "SlidersHorizontal",
+        "title": "Canales por tipo",
+        "text": "Dentro de Runly, correo, navegador y teléfono; solo lo urgente por correo si quieres."
+      },
+      {
+        "icon": "MailCheck",
+        "title": "Resumen por correo",
+        "text": "Cada día o cada semana, a la hora que prefieras."
+      },
+      {
+        "icon": "Send",
+        "title": "Probar entrega",
+        "text": "Envía una prueba por cada canal y te dice cuál llegó y por qué falló."
+      },
+      {
+        "icon": "VolumeX",
+        "title": "Silenciar sonido",
+        "text": "Controla el ruido desde el panel."
+      },
+      {
+        "icon": "Zap",
+        "title": "Desde automatizaciones",
+        "text": "Cualquier flujo puede avisar a quien corresponda."
+      }
+    ],
+    "compat": [
+      "Correo",
+      "Notificaciones del navegador",
+      "Notificaciones del teléfono"
+    ]
+  },
+  "runly.calendar": {
+    "highlights": [
+      {
+        "icon": "CalendarRange",
+        "title": "Día, semana, mes y agenda",
+        "text": "Cuatro vistas para organizar tu tiempo."
+      },
+      {
+        "icon": "Layers",
+        "title": "Varios calendarios",
+        "text": "Uno personal y otros compartidos; actívalos o apágalos sin borrarlos."
+      },
+      {
+        "icon": "Users",
+        "title": "Invitados",
+        "text": "Invita a otros usuarios; el evento aparece en su propio calendario."
+      },
+      {
+        "icon": "Bell",
+        "title": "Recordatorios",
+        "text": "Con la anticipación que elijas al crear el evento."
+      },
+      {
+        "icon": "CalendarDays",
+        "title": "Eventos de varios días",
+        "text": "Barra continua en la vista de mes, útil para tareas con inicio y fin."
+      },
+      {
+        "icon": "RefreshCw",
+        "title": "Google Calendar",
+        "text": "Si la instancia lo tiene configurado, ve y crea eventos sin duplicar tu agenda."
+      },
+      {
+        "icon": "MousePointerClick",
+        "title": "Creación rápida",
+        "text": "Un clic en un día vacío crea un evento en esa fecha."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Pregunta por huecos libres, horas de reuniones o pide mover un evento."
+      }
+    ],
+    "compat": [
+      "Google Calendar",
+      "POS (citas)",
+      "Proyectos (fechas de tareas)",
+      "MirAI"
+    ]
+  },
+  "runly.projects": {
+    "highlights": [
+      {
+        "icon": "SquareKanban",
+        "title": "Kanban, lista y semana",
+        "text": "El mismo trabajo visto como tablero, lista o calendario semanal."
+      },
+      {
+        "icon": "GanttChart",
+        "title": "Gantt y carga de trabajo",
+        "text": "Planifica fechas y detecta quién está saturado."
+      },
+      {
+        "icon": "Timer",
+        "title": "Estimación y tiempo",
+        "text": "Horas estimadas y tiempo trabajado, a mano o con cronómetro."
+      },
+      {
+        "icon": "ListTodo",
+        "title": "Mis tareas",
+        "text": "Tu proyecto personal, sin equipo."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Crea y consulta tareas conversando."
+      }
+    ],
+    "compat": [
+      "Calendario",
+      "Canvas (proyectos en hotspots)"
+    ]
+  },
+  "runly.documents": {
+    "highlights": [
+      {
+        "icon": "FileUp",
+        "title": "Tus propios formatos",
+        "text": "Sube Word, Excel, PowerPoint o PDF, o crea uno en blanco; Runly detecta los campos a llenar."
+      },
+      {
+        "icon": "FileCog",
+        "title": "Se llenan con datos de los módulos",
+        "text": "Contratos, cartas y reportes con la información real."
+      },
+      {
+        "icon": "History",
+        "title": "Plantillas versionadas",
+        "text": "Cambia una plantilla sin perder lo ya generado."
+      },
+      {
+        "icon": "Files",
+        "title": "Historial de generados",
+        "text": "Consulta o descarga de nuevo cualquier documento."
+      }
+    ],
+    "compat": [
+      "Word (.docx)",
+      "Excel (.xlsx)",
+      "PowerPoint (.pptx)",
+      "PDF"
+    ]
+  },
+  "runly.notes": {
+    "highlights": [
+      {
+        "icon": "NotebookPen",
+        "title": "Editor enriquecido",
+        "text": "Texto con formato y comando / para insertar bloques."
+      },
+      {
+        "icon": "Users",
+        "title": "Colaboración en tiempo real",
+        "text": "Varias personas escriben a la vez."
+      },
+      {
+        "icon": "ListTree",
+        "title": "Subpáginas y contenido",
+        "text": "Hasta 3 niveles, con panel de títulos que resalta dónde estás."
+      },
+      {
+        "icon": "LayoutPanelTop",
+        "title": "Vista por páginas",
+        "text": "Muestra una nota como páginas de tamaño fijo."
+      },
+      {
+        "icon": "Link",
+        "title": "Registros vivos",
+        "text": "Inserta una referencia a un contacto, tarea u otro registro."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Consulta y trabaja tus notas conversando."
+      }
+    ],
+    "compat": [
+      "Carpetas y etiquetas",
+      "Referencias a otros módulos"
+    ]
+  },
+  "runly.chat": {
+    "highlights": [
+      {
+        "icon": "MessageSquare",
+        "title": "Chats, grupos y canales",
+        "text": "Mensajería interna en tiempo real."
+      },
+      {
+        "icon": "Video",
+        "title": "Llamadas y videollamadas",
+        "text": "Llamadas y videollamadas desde el mismo chat."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "MirAI",
+        "text": "Asistente de IA que responde, busca datos del ERP y prepara acciones con tu confirmación."
+      },
+      {
+        "icon": "Paperclip",
+        "title": "Adjuntos para la IA",
+        "text": "Hasta 5 archivos: imágenes, PDF, Word, Excel, texto, CSV o Markdown."
+      },
+      {
+        "icon": "Headset",
+        "title": "Bandeja de soporte externa",
+        "text": "Atiende a los visitantes del sitio web desde el mismo lugar."
+      },
+      {
+        "icon": "MessageSquareText",
+        "title": "Plantillas de respuesta",
+        "text": "Respuestas rápidas para agilizar la atención."
+      }
+    ],
+    "compat": [
+      "Sitio web (chat de visitantes)",
+      "Automatizaciones (respuesta automática)",
+      "Minutas de llamada (Automatizaciones)"
+    ]
+  },
+  "runly.canvas": {
+    "highlights": [
+      {
+        "icon": "Ruler",
+        "title": "Planos con escala real",
+        "text": "Calibra sobre una medida conocida y mide en metros, centímetros o pies con la herramienta Medir."
+      },
+      {
+        "icon": "DraftingCompass",
+        "title": "AutoCAD DXF y DWG",
+        "text": "Inserta planos de AutoCAD. Un DWG se convierte una sola vez al insertarlo; abrir el tablero después no vuelve a convertirlo."
+      },
+      {
+        "icon": "MapPinned",
+        "title": "Mapas reales",
+        "text": "Fondo de OpenStreetMap con búsqueda de direcciones; las medidas salen en metros."
+      },
+      {
+        "icon": "FileText",
+        "title": "PDF multipágina",
+        "text": "Elige qué páginas colocar y anota encima con formas, textos y hotspots."
+      },
+      {
+        "icon": "MapPin",
+        "title": "Hotspots con ficha",
+        "text": "Pines con título, estado, color, icono y archivos, vinculados a registros."
+      },
+      {
+        "icon": "Database",
+        "title": "Conectado a datos en vivo",
+        "text": "Una forma muestra el nombre, resumen y estado de un artículo, vehículo, colaborador, proyecto o mesa de POS, y se actualiza sola."
+      },
+      {
+        "icon": "Layers",
+        "title": "Páginas y capas",
+        "text": "Cada plantilla trae sus capas; muestra, oculta, bloquea y reordena."
+      },
+      {
+        "icon": "Workflow",
+        "title": "Diagramas con conectores",
+        "text": "Las flechas siguen a las formas cuando las mueves."
+      },
+      {
+        "icon": "Users",
+        "title": "Edición en vivo",
+        "text": "Cursores con nombre y cambios al instante, sin recargar."
+      },
+      {
+        "icon": "History",
+        "title": "Versiones",
+        "text": "Guarda el estado completo y restáuralo cuando quieras."
+      },
+      {
+        "icon": "Share2",
+        "title": "Compartir con roles",
+        "text": "Editor, comentarista o lector, además de enlaces públicos."
+      },
+      {
+        "icon": "Download",
+        "title": "Exportar",
+        "text": "PNG o PDF listo para imprimir con nombre, fecha y escala."
+      },
+      {
+        "icon": "Library",
+        "title": "Bibliotecas",
+        "text": "Elementos reutilizables personales o de empresa; importa .excalidrawlib."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Consulta y crea boards conversando."
+      }
+    ],
+    "compat": [
+      "AutoCAD DXF",
+      "AutoCAD DWG (solo vista)",
+      "PDF",
+      "PNG, JPG y SVG",
+      "OpenStreetMap",
+      ".excalidrawlib",
+      "Inventario, Flota, RH, Proyectos, POS"
+    ]
+  },
+  "runly.studio": {
+    "highlights": [
+      {
+        "icon": "Palette",
+        "title": "Editor visual completo",
+        "text": "Formas, líneas, texto, imágenes e iconos con capas, propiedades y alineación."
+      },
+      {
+        "icon": "Images",
+        "title": "Bibliotecas de recursos",
+        "text": "Fotos e ilustraciones de Openverse, Wikimedia Commons y Pixabay, colecciones Runly CC0 y archivos de tu empresa."
+      },
+      {
+        "icon": "Shapes",
+        "title": "Iconos sin internet",
+        "text": "Colecciones Tabler y Lucide incluidas, con geometría editable."
+      },
+      {
+        "icon": "Type",
+        "title": "Fuentes locales",
+        "text": "Lato, Playfair Display, Bebas Neue, Pacifico, Oswald y Space Mono."
+      },
+      {
+        "icon": "Printer",
+        "title": "PDF de imprenta",
+        "text": "Medidas en milímetros, sangrado de 3 mm y marcas de corte."
+      },
+      {
+        "icon": "FileDown",
+        "title": "PNG, JPG y paquete editable",
+        "text": "PNG con fondo transparente, JPG con calidad ajustable y .runlystudio para seguir editando."
+      },
+      {
+        "icon": "Users",
+        "title": "Colaboración en vivo",
+        "text": "Cursores, cambios al momento, sin botón Guardar y con deshacer propio."
+      },
+      {
+        "icon": "LayoutTemplate",
+        "title": "Plantillas",
+        "text": "Usa plantillas o convierte un diseño en plantilla personal o de empresa."
+      },
+      {
+        "icon": "Copyright",
+        "title": "Créditos de diseño",
+        "text": "Atribuciones y licencias de cada recurso, listas para copiar o descargar."
+      }
+    ],
+    "compat": [
+      "PNG",
+      "JPG",
+      "PDF para imprimir",
+      "SVG (importar)",
+      ".runlystudio",
+      "Plantillas del Marketplace"
+    ]
+  },
+  "runly.automations": {
+    "highlights": [
+      {
+        "icon": "Zap",
+        "title": "Disparadores",
+        "text": "Eventos de otros módulos, horarios, fechas y avisos recibidos por webhook."
+      },
+      {
+        "icon": "GitBranch",
+        "title": "Condiciones Sí / No",
+        "text": "El flujo se divide en dos caminos que se juntan después."
+      },
+      {
+        "icon": "Repeat",
+        "title": "Para cada uno",
+        "text": "Recorre artículos, contactos, colaboradores o vehículos."
+      },
+      {
+        "icon": "Send",
+        "title": "Acciones en otros módulos",
+        "text": "Crea o actualiza contactos, notifica, envía correos y genera reportes CSV."
+      },
+      {
+        "icon": "Webhook",
+        "title": "Llamar a una URL",
+        "text": "Conecta con otros sistemas, con listas de orígenes y destinos permitidos."
+      },
+      {
+        "icon": "RefreshCcw",
+        "title": "Reintentos y fallos",
+        "text": "Qué pasa si algo falla, sin perder el flujo."
+      },
+      {
+        "icon": "Mic",
+        "title": "Plantillas listas",
+        "text": "Minuta de videollamadas, respuesta automática del chat del sitio web y de vacaciones."
+      },
+      {
+        "icon": "Sparkles",
+        "title": "Con MirAI",
+        "text": "Describe lo que quieres y MirAI prepara el flujo."
+      }
+    ],
+    "compat": [
+      "Webhooks",
+      "Correo",
+      "CSV",
+      "Chat y videollamadas",
+      "Plantillas del Marketplace"
+    ]
+  },
+  "runly.attendance": {
+    "highlights": [
+      {
+        "icon": "Tablet",
+        "title": "Kioskos sin conexión",
+        "text": "Pantallas públicas que siguen funcionando sin internet y sincronizan después."
+      },
+      {
+        "icon": "KeyRound",
+        "title": "Formas de checar",
+        "text": "PIN, tarjeta o llavero NFC, código QR y llave de teléfono con la app Checador."
+      },
+      {
+        "icon": "CalendarClock",
+        "title": "Turnos y horas extra",
+        "text": "Retardos, faltas y horas extra calculadas por turno."
+      },
+      {
+        "icon": "HardHat",
+        "title": "Cuotas de contratistas",
+        "text": "Cuántas personas de cada contratista deben estar presentes."
+      },
+      {
+        "icon": "Camera",
+        "title": "Evidencia y ubicación",
+        "text": "Foto y ubicación opcionales, con política de retención."
+      },
+      {
+        "icon": "FilePen",
+        "title": "Solicitudes",
+        "text": "El personal pide desde su teléfono checadas olvidadas, para aprobar o rechazar."
+      },
+      {
+        "icon": "FileUp",
+        "title": "Importar personal",
+        "text": "Carga el padrón desde un archivo."
+      },
+      {
+        "icon": "BarChart3",
+        "title": "Reportes y exportación",
+        "text": "Asistencia diaria, horas trabajadas y cumplimiento de cuotas."
+      }
+    ],
+    "compat": [
+      "RH",
+      "NFC",
+      "QR",
+      "App Checador (Android)",
+      "CSV"
+    ]
+  },
+  "runly.lms": {
+    "highlights": [
+      {
+        "icon": "Video",
+        "title": "Lecciones de todo tipo",
+        "text": "Video (hasta 50 MB), enlace de YouTube o Vimeo, texto, archivo, examen y tarea."
+      },
+      {
+        "icon": "ListChecks",
+        "title": "Exámenes calificados",
+        "text": "Opción única y múltiple, verdadero o falso y respuesta corta, con preguntas aleatorias por intento."
+      },
+      {
+        "icon": "ClipboardCheck",
+        "title": "Tareas con revisión",
+        "text": "El alumno entrega texto o archivos y alguien los revisa."
+      },
+      {
+        "icon": "CalendarDays",
+        "title": "Asignación con fecha límite",
+        "text": "Asigna cursos al personal y sigue su avance por lección."
+      },
+      {
+        "icon": "Award",
+        "title": "Certificados verificables",
+        "text": "Plantillas de certificado con verificación."
+      },
+      {
+        "icon": "MessageCircleQuestion",
+        "title": "Preguntas, reseñas y anuncios",
+        "text": "Comunicación dentro de cada curso."
+      },
+      {
+        "icon": "Share2",
+        "title": "Compartir con externos",
+        "text": "Lecciones gratis y video de presentación para quien aún no es alumno."
+      },
+      {
+        "icon": "PlayCircle",
+        "title": "Reproductor a pantalla completa",
+        "text": "Recuerda en qué minuto te quedaste."
+      }
+    ],
+    "compat": [
+      "YouTube y Vimeo",
+      "PDF y presentaciones",
+      "Certificados con QR",
+      "CSV"
+    ]
+  },
+  "runly.purchases": {
+    "highlights": [
+      {
+        "icon": "ShoppingCart",
+        "title": "Expedientes de compra",
+        "text": "Solicitudes, órdenes, recepciones, facturas y pagos en un proceso."
+      },
+      {
+        "icon": "SlidersHorizontal",
+        "title": "Proceso a tu medida",
+        "text": "Cada empresa ajusta etapas y aprobaciones."
+      },
+      {
+        "icon": "Hash",
+        "title": "Folios por empresa",
+        "text": "Numeración propia de cada documento."
+      },
+      {
+        "icon": "Truck",
+        "title": "Proveedores con historial",
+        "text": "Gasto y documentos por proveedor."
+      },
+      {
+        "icon": "ShieldCheck",
+        "title": "Control documental",
+        "text": "Valida que lo pedido, recibido y facturado coincida."
+      },
+      {
+        "icon": "Boxes",
+        "title": "Con Inventario",
+        "text": "Lo recibido puede darse de alta como activo."
+      }
+    ],
+    "compat": [
+      "Inventario",
+      "Contactos (proveedores)",
+      "MirAI",
+      "Comprobantes fiscales (UUID)"
+    ]
+  }
+}
