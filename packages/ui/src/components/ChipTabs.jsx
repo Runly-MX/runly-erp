@@ -143,7 +143,7 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
             </button>
           </>
         ) : null}
-        <div ref={scrollerRef} className="-mx-1 min-w-0 overflow-x-auto scroll-smooth px-1 py-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        <div ref={scrollerRef} className="-mx-1 min-w-0 overflow-x-auto overflow-y-hidden scroll-smooth px-1 py-1[scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           <div
             ref={listRef}
             role="tablist"

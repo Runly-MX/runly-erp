@@ -15,7 +15,6 @@ import { toast } from "sonner";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
   DialogTitle,
   MarkdownViewer,
   ConfirmDialog,
@@ -29,20 +28,115 @@ import {
 import { MeetingJoinButton } from "../../runly.chat/calls/MeetingJoinButton";
 import ProjectTaskCard from "./ProjectTaskCard";
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const FULL_DATE = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
+const SHORT_DATE = { weekday: "short", day: "numeric", month: "short" };
+const TIME = { hour: "2-digit", minute: "2-digit", hour12: false };
+
 // All-day events are stored as UTC midnight with an inclusive endAt: read them in UTC,
 // or a Mexico viewer sees the day before.
-function formatAllDayRange(event) {
-  const fmt = (value, opts) => new Date(value).toLocaleDateString("es-MX", { timeZone: "UTC", ...opts });
-  const full = { weekday: "long", day: "numeric", month: "long", year: "numeric" };
-  if (!event.endAt || fmt(event.endAt, {}) === fmt(event.startAt, {})) return fmt(event.startAt, full);
-  return `${fmt(event.startAt, { weekday: "short", day: "numeric", month: "short" })} – ${fmt(event.endAt, full)}`;
+function describeWhen(event) {
+  const start = new Date(event.startAt);
+  const end = event.endAt ? new Date(event.endAt) : null;
+
+  if (event.allDay) {
+    const fmt = (d, opts) => d.toLocaleDateString("es-MX", { timeZone: "UTC", ...opts });
+    const days = end ? Math.round((Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate()) - Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) / DAY_MS) + 1 : 1;
+    if (days <= 1) return { primary: fmt(start, FULL_DATE), secondary: "Todo el día" };
+    return {
+      primary: `${fmt(start, SHORT_DATE)} – ${fmt(end, FULL_DATE)}`,
+      secondary: `Todo el día · ${days} días`,
+    };
+  }
+
+  const date = (d, opts) => d.toLocaleDateString("es-MX", opts);
+  const time = (d) => d.toLocaleTimeString("es-MX", TIME);
+  if (end && date(end, {}) !== date(start, {})) {
+    return {
+      primary: `${date(start, SHORT_DATE)}, ${time(start)}`,
+      secondary: `hasta ${date(end, SHORT_DATE)}, ${time(end)}`,
+    };
+  }
+  return {
+    primary: date(start, FULL_DATE),
+    secondary: end ? `${time(start)} – ${time(end)}` : time(start),
+  };
 }
+
+// Where "today" sits relative to the event: upcoming / in progress (day k of n) / finished.
+function describeProgress(event) {
+  const start = new Date(event.startAt);
+  const end = event.endAt ? new Date(event.endAt) : start;
+  const now = new Date();
+  const day = (d, utc) =>
+    utc
+      ? Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate())
+      : Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  const s = day(start, event.allDay);
+  const e = day(end, event.allDay);
+  const today = day(now, false);
+  const total = Math.round((e - s) / DAY_MS) + 1;
+  const plural = (n, w) => `${n} ${w}${n === 1 ? "" : "s"}`;
+
+  if (today < s) {
+    const n = Math.round((s - today) / DAY_MS);
+    return { tone: "upcoming", label: n === 1 ? "Empieza mañana" : `Empieza en ${plural(n, "día")}`, total };
+  }
+  if (today > e) return { tone: "past", label: "Finalizado", total };
+  const k = Math.round((today - s) / DAY_MS) + 1;
+  if (total === 1) return { tone: "live", label: "Hoy", total };
+  const left = total - k;
+  return {
+    tone: "live",
+    label: `En curso · Día ${k} de ${total}${left === 0 ? " (último día)" : ` · quedan ${plural(left, "día")}`}`,
+    total,
+  };
+}
+
+function formatDuration(event) {
+  if (event.allDay || !event.endAt) return null;
+  const mins = Math.round((new Date(event.endAt) - new Date(event.startAt)) / 60000);
+  if (mins <= 0 || mins >= 24 * 60) return null;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return [h && `${h} h`, m && `${m} min`].filter(Boolean).join(" ");
+}
+
+const PROGRESS_TONES = {
+  upcoming: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]",
+  live: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
+  past: "bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] opacity-70",
+};
 
 const STATUS_LABELS = {
   PENDING: "Pendiente",
   ACCEPTED: "Aceptado",
   DECLINED: "Rechazado",
 };
+
+const RECURRENCE_LABELS = {
+  DAILY: "Se repite diariamente",
+  WEEKLY: "Se repite semanalmente",
+  MONTHLY: "Se repite mensualmente",
+  YEARLY: "Se repite anualmente",
+};
+
+function InfoRow({ icon: Icon, label, children }) {
+  return (
+    <div className="flex items-start gap-3 px-3.5 py-3">
+      <Icon size={16} className="mt-0.5 shrink-0 text-[hsl(var(--muted-foreground))]" />
+      <div className="min-w-0 flex-1">
+        <div className="text-[11px] font-medium uppercase tracking-wide text-[hsl(var(--muted-foreground))]">
+          {label}
+        </div>
+        <div className="mt-0.5 break-words text-sm text-[hsl(var(--foreground))]">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+const ACTION_BTN =
+  "rounded-md p-2 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 disabled:pointer-events-none disabled:opacity-40";
 
 export default function EventDetailModal({
   event,
@@ -59,10 +153,9 @@ export default function EventDetailModal({
   if (event._isLoading) {
     return (
       <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-        <DialogContent size="lg" className="px-0 pt-0 pb-0 md:p-0 gap-0 overflow-hidden">
+        <DialogContent size="lg">
           <DialogTitle className="sr-only">Cargando evento</DialogTitle>
-          <div className="h-1.5 bg-[hsl(var(--muted))]" />
-          <div className="px-5 pt-4 pb-5 space-y-3">
+          <div className="space-y-3">
             <Skeleton className="h-6 w-3/4" />
             <Skeleton className="h-4 w-1/2" />
             <Skeleton className="h-4 w-2/3" />
@@ -77,12 +170,16 @@ export default function EventDetailModal({
   const reminderMinutes = getPrimaryReminderMinutes(event);
   const reminderClock = formatReminderClock(event, reminderMinutes);
   const isChatMeeting = event.sourceModule === "runly.chat" && Boolean(event.sourceEntityId);
-  const deleteTitle = event._isRecurrenceInstance
-    ? "Eliminar serie"
-    : "Eliminar evento";
+  const deleteTitle = event._isRecurrenceInstance ? "Eliminar serie" : "Eliminar evento";
   const deleteDescription = event._isRecurrenceInstance
     ? "¿Eliminar todos los eventos de esta serie?"
     : "¿Eliminar este evento?";
+  const when = describeWhen(event);
+  const progress = describeProgress(event);
+  const duration = formatDuration(event);
+  const accepted = event.attendees?.filter((a) => a.status === "ACCEPTED").length ?? 0;
+  const pending = event.attendees?.filter((a) => a.status === "PENDING").length ?? 0;
+  const showDelete = canDelete && !event.sourceModule;
 
   async function doDelete() {
     try {
@@ -98,55 +195,53 @@ export default function EventDetailModal({
   return (
     <>
       <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-        <DialogContent
-          size="lg"
-          scrollable={false}
-          className="px-0 pt-0 pb-0 md:p-0 gap-0 overflow-hidden"
-        >
-          {/* Sticky header — color bar and title stay pinned while the
-              section below scrolls. DialogContent itself is the scroll
-              container (native overflow-y-auto), so `sticky` (not a
-              flex/overflow-hidden split) is what actually pins this against
-              its own base scroll classes. Needs an opaque-ish background
-              since .glass-strong is translucent — otherwise scrolled content
-              would show through. Edit/delete sit to the left of the
-              dialog's own close (X), which is `z-20` (see Dialog.jsx) so it
-              always paints above this `z-10` header instead of being hidden
-              under it. */}
-          <div className="sticky top-0 z-10 bg-[hsl(var(--card))]/95 backdrop-blur-sm rounded-t-2xl">
-            <div className="h-1.5 rounded-t-2xl" style={{ backgroundColor: calColor }} />
-
-            <DialogHeader className="mb-0 space-y-1 px-5 pt-4 pb-3 pr-28">
-              <div className="absolute right-12 top-4 flex items-center gap-0.5">
-                {canEdit && (
-                  <button type="button"
-                    onClick={() => onEdit(event)}
-                    className="rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 hover:bg-[hsl(var(--muted))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40"
-                    title={event._isRecurrenceInstance ? "Editar serie" : "Editar"}
-                  >
-                    <Edit2 size={15} />
-                  </button>
-                )}
-                {canDelete && !event.sourceModule && (
-                  <button type="button"
-                    onClick={() => setConfirmOpen(true)}
-                    disabled={deleteEvent.isPending}
-                    className="rounded-lg p-1.5 text-[hsl(var(--muted-foreground))] opacity-70 transition-opacity hover:opacity-100 hover:bg-[hsl(var(--muted))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 disabled:pointer-events-none disabled:opacity-40"
-                    title={
-                      event._isRecurrenceInstance ? "Eliminar serie" : "Eliminar"
-                    }
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                )}
+        <DialogContent size="lg">
+          <div className="space-y-4">
+            {/* Header: calendar chip + actions on one row, then the title.
+                Actions keep clear of the dialog's close (X) on desktop (md:pr-8);
+                on the phone sheet there is no X so they sit flush right. */}
+            <div className="space-y-2 md:pr-8">
+              <div className="flex items-center gap-2">
+                <span
+                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+                  style={{ backgroundColor: `${calColor}22`, color: calColor }}
+                >
+                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calColor }} />
+                  <span className="truncate">{event.calendar?.name ?? "Evento"}</span>
+                </span>
+                <div className="ml-auto flex items-center gap-0.5">
+                  {canEdit && (
+                    <button type="button" onClick={() => onEdit(event)} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Editar serie" : "Editar"}>
+                      <Edit2 size={16} />
+                    </button>
+                  )}
+                  {showDelete && (
+                    <button type="button" onClick={() => setConfirmOpen(true)} disabled={deleteEvent.isPending} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Eliminar serie" : "Eliminar"}>
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
               </div>
-              <DialogTitle className="text-lg font-semibold leading-snug">
+              <DialogTitle className="text-xl font-semibold leading-snug break-words">
                 {event.title}
               </DialogTitle>
-            </DialogHeader>
-          </div>
+            </div>
 
-          <div className="px-5 pb-5 space-y-3">
+            {/* When: the key fact, shown prominently with the calendar colour. */}
+            <div className="flex items-start gap-3">
+              <Clock size={18} className="mt-0.5 shrink-0" style={{ color: calColor }} />
+              <div className="min-w-0">
+                <div className="text-sm font-semibold first-letter:uppercase break-words">{when.primary}</div>
+                <div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+                  {when.secondary}
+                  {duration ? ` · ${duration}` : ""}
+                </div>
+                <span className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${PROGRESS_TONES[progress.tone]}`}>
+                  {progress.label}
+                </span>
+              </div>
+            </div>
+
             {isChatMeeting && (
               <MeetingJoinButton
                 conversationId={event.sourceEntityId}
@@ -162,139 +257,52 @@ export default function EventDetailModal({
             )}
 
             {event.description && (
-              <MarkdownViewer
-                value={event.description}
-                accentColor={calColor}
-              />
+              <MarkdownViewer value={event.description} accentColor={calColor} />
             )}
 
-            <div className="space-y-2.5">
-              <div className="flex items-start gap-2.5">
-                <Clock
-                  size={14}
-                  className="text-[hsl(var(--muted-foreground))] mt-0.5 shrink-0"
-                />
-                <div className="text-sm text-[hsl(var(--foreground))]">
-                  {event.allDay ? (
-                    formatAllDayRange(event)
-                  ) : (
-                    <>
-                      <div>
-                        {new Date(event.startAt).toLocaleDateString("es-MX", {
-                          weekday: "long",
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}
-                      </div>
-                      <div className="text-[hsl(var(--muted-foreground))] text-xs mt-0.5">
-                        {new Date(event.startAt).toLocaleTimeString("es-MX", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                          hour12: false,
-                        })}
-                        {event.endAt &&
-                          ` – ${new Date(event.endAt).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit", hour12: false })}`}
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {event.location && (
-                <div className="flex items-center gap-2.5">
-                  <MapPin
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] shrink-0"
-                  />
-                  <span className="text-sm text-[hsl(var(--foreground))]">
-                    {event.location}
-                  </span>
-                </div>
-              )}
+            <div className="divide-y divide-[hsl(var(--border))] overflow-hidden rounded-xl border border-[hsl(var(--border))]">
+              {event.location && <InfoRow icon={MapPin} label="Ubicación">{event.location}</InfoRow>}
 
               {event.videoUrl && (
-                <div className="flex items-center gap-2.5">
-                  <Video
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] shrink-0"
-                  />
-                  <a
-                    href={event.videoUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-sm text-violet-500 hover:underline truncate"
-                  >
+                <InfoRow icon={Video} label="Videollamada">
+                  <a href={event.videoUrl} target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:underline">
                     {isChatMeeting ? "Enlace para invitados externos" : "Unirse a la videollamada"}
                   </a>
-                </div>
+                </InfoRow>
               )}
 
-              {event.calendar && (
-                <div className="flex items-center gap-2.5">
-                  <Calendar
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] shrink-0"
-                  />
-                  <span className="text-sm text-[hsl(var(--foreground))]">
-                    {event.calendar.name}
-                  </span>
-                </div>
-              )}
+              {event.calendar && <InfoRow icon={Calendar} label="Calendario">{event.calendar.name}</InfoRow>}
 
               {event.recurrenceRule && (
-                <div className="flex items-center gap-2.5">
-                  <Repeat
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] shrink-0"
-                  />
-                  <span className="text-sm text-[hsl(var(--muted-foreground))]">
-                    {event.recurrenceRule.freq === "DAILY" &&
-                      "Se repite diariamente"}
-                    {event.recurrenceRule.freq === "WEEKLY" &&
-                      "Se repite semanalmente"}
-                    {event.recurrenceRule.freq === "MONTHLY" &&
-                      "Se repite mensualmente"}
-                    {event.recurrenceRule.freq === "YEARLY" &&
-                      "Se repite anualmente"}
-                    {event.recurrenceRule.interval > 1 &&
-                      ` cada ${event.recurrenceRule.interval}`}
-                  </span>
-                </div>
+                <InfoRow icon={Repeat} label="Repetición">
+                  {RECURRENCE_LABELS[event.recurrenceRule.freq]}
+                  {event.recurrenceRule.interval > 1 && ` cada ${event.recurrenceRule.interval}`}
+                </InfoRow>
               )}
 
               {reminderMinutes !== null && (
-                <div className="flex items-center gap-2.5">
-                  <BellRing
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] shrink-0"
-                  />
-                  <span className="text-sm text-[hsl(var(--muted-foreground))]">
-                    {formatReminderLead(reminderMinutes)}
-                    {reminderClock ? ` (${reminderClock})` : ""}
-                  </span>
-                </div>
+                <InfoRow icon={BellRing} label="Recordatorio">
+                  {formatReminderLead(reminderMinutes)}
+                  {reminderClock ? ` (${reminderClock})` : ""}
+                </InfoRow>
               )}
 
               {event.attendees?.length > 0 && (
-                <div className="flex items-start gap-2.5">
-                  <Users
-                    size={14}
-                    className="text-[hsl(var(--muted-foreground))] mt-0.5 shrink-0"
-                  />
-                  <div className="space-y-0.5">
+                <InfoRow icon={Users} label={`Invitados (${event.attendees.length})`}>
+                  <div className="mb-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+                    {accepted} aceptado{accepted === 1 ? "" : "s"} · {pending} pendiente{pending === 1 ? "" : "s"}
+                  </div>
+                  <div className="space-y-1.5">
                     {event.attendees.map((att) => (
-                      <div key={att.id} className="flex items-center gap-2">
-                        <span className="text-sm text-[hsl(var(--foreground))]">
-                          {att.user?.firstName} {att.user?.lastName}
-                        </span>
-                        <span className="text-[10px] text-[hsl(var(--muted-foreground))] bg-[hsl(var(--muted))] px-1.5 py-0.5 rounded">
+                      <div key={att.id} className="flex items-center justify-between gap-2">
+                        <span className="truncate">{att.user?.firstName} {att.user?.lastName}</span>
+                        <span className="shrink-0 rounded bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">
                           {STATUS_LABELS[att.status] ?? att.status}
                         </span>
                       </div>
                     ))}
                   </div>
-                </div>
+                </InfoRow>
               )}
             </div>
           </div>

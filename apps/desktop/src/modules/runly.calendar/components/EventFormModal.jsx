@@ -86,18 +86,27 @@ function buildDefaultForm(defaultDate, defaultCalendarId, allCalendars, defaultV
   };
 }
 
+// All-day events are stored as UTC midnight with an inclusive endAt, so read the
+// calendar day in UTC (local would show the day before for Mexico).
+function utcDay(isoStr) {
+  return new Date(isoStr).toISOString().slice(0, 10); // eslint-disable-line no-restricted-syntax -- deliberate UTC
+}
+
 function buildEditForm(event) {
   const firstReminder = Array.isArray(event?.reminders)
     ? event.reminders[0]
     : null;
+  const allDay = event.allDay ?? false;
   return {
     title: event.title ?? "",
     description: event.description ?? "",
     // prefer direct FK field; fall back to the included relation
     calendarId: event.calendarId ?? event.calendar?.id ?? "",
-    startAt: toLocalDatetime(event.startAt),
-    endAt: toLocalDatetime(event.endAt),
-    allDay: event.allDay ?? false,
+    startAt: allDay ? `${utcDay(event.startAt)}T09:00` : toLocalDatetime(event.startAt),
+    endAt: allDay
+      ? `${utcDay(event.endAt ?? event.startAt)}T23:59`
+      : toLocalDatetime(event.endAt),
+    allDay,
     location: event.location ?? "",
     videoUrl: event.videoUrl ?? "",
     reminderMinutes: firstReminder
@@ -213,12 +222,20 @@ export default function EventFormModal({
 
     const toISO = (v) => (v ? new Date(v).toISOString() : null);
 
+    // All-day: UTC-midnight instants, inclusive end day (same as the other modules' bridges).
+    const startDay = form.startAt.slice(0, 10);
+    const endDay = form.endAt?.slice(0, 10) || startDay;
+    if (form.allDay ? endDay < startDay : form.endAt && form.endAt < form.startAt) {
+      toast.error("La fecha de fin no puede ser anterior al inicio");
+      return;
+    }
+
     const payload = {
       calendarId: form.calendarId,
       title: form.title.trim(),
       description: form.description?.trim() || null,
-      startAt: toISO(form.startAt),
-      endAt: form.allDay ? null : toISO(form.endAt),
+      startAt: form.allDay ? `${startDay}T00:00:00.000Z` : toISO(form.startAt),
+      endAt: form.allDay ? `${endDay}T00:00:00.000Z` : toISO(form.endAt),
       allDay: form.allDay,
       location: form.location.trim() || null,
       videoUrl: form.videoUrl.trim() || null,
@@ -325,15 +342,13 @@ export default function EventFormModal({
                 const dateOnly =
                   f.startAt?.slice(0, 10) ??
                   toLocalIso();
+                // Keep the chosen day range both ways; leaving all-day gives a 1h slot.
+                const endDay = f.endAt?.slice(0, 10) || dateOnly;
                 return {
                   ...f,
                   allDay: v,
-                  startAt: v ? `${dateOnly}T09:00` : f.startAt,
-                  endAt: v
-                    ? f.endAt?.slice(0, 10)
-                      ? `${f.endAt.slice(0, 10)}T23:59`
-                      : null
-                    : f.endAt,
+                  startAt: `${dateOnly}T09:00`,
+                  endAt: v ? `${endDay}T23:59` : `${dateOnly}T10:00`,
                 };
               });
             }}
@@ -346,7 +361,14 @@ export default function EventFormModal({
                   label="Inicio"
                   required
                   value={form.startAt?.slice(0, 10) ?? ""}
-                  onChange={(val) => set("startAt", val ? `${val}T09:00` : "")}
+                  onChange={(val) =>
+                    setForm((f) => ({
+                      ...f,
+                      startAt: val ? `${val}T09:00` : "",
+                      // Keep the end from falling before the new start.
+                      endAt: val && (f.endAt?.slice(0, 10) ?? "") < val ? `${val}T23:59` : f.endAt,
+                    }))
+                  }
                 />
                 <DatePickerField
                   label="Fin"

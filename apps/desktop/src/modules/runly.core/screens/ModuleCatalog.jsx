@@ -516,7 +516,7 @@ export default function ModuleCatalog() {
                   className="text-xs gap-1.5"
                 >
                   {tab.label}
-                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[10px] font-medium px-1 tabular-nums [[data-state=active]_&]:bg-white [[data-state=active]_&]:text-[hsl(var(--primary))]">
+                  <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] text-[10px] font-medium px-1 tabular-nums [[data-state=active]_&]:bg-white/25 [[data-state=active]_&]:text-white">
                     {counts[tab.value] ?? 0}
                   </span>
                 </TabsTrigger>

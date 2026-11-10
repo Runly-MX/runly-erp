@@ -176,8 +176,9 @@ export function createCalendarEventService({ prisma }) {
     const result = []
     for (const event of events) {
       if (!event.recurrenceRule) {
-        // Non-recurring: include only if startAt is within [start, end]
-        if (new Date(event.startAt).getTime() >= rangeStartMs) {
+        // Non-recurring: include if it overlaps [start, end]; a multi-day event that
+        // began before the visible range must still show on its remaining days.
+        if (new Date(event.endAt ?? event.startAt).getTime() >= rangeStartMs) {
           result.push(event)
         }
       } else {

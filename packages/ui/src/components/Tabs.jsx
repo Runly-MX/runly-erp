@@ -64,7 +64,7 @@ const TabsList = forwardRef(function TabsList({ className, tone = 'brand', child
       <TabsPrimitive.List
         ref={setRefs}
         className={cn(
-          'relative inline-flex max-w-full items-center gap-1 overflow-x-auto rounded-2xl p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
+          'relative inline-flex max-w-full items-center gap-1 overflow-x-auto overflow-y-hidden rounded-2xl p-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
           'border border-[hsl(var(--border))] bg-[hsl(var(--muted))]/60 text-[hsl(var(--muted-foreground))]',
           className,
         )}
