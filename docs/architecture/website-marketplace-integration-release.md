@@ -2,29 +2,31 @@
 
 ## Revisión definitiva de los tres bloqueos — 2026-11-11
 
-Se volvió a verificar el registro a las `22:29:19 UTC` y la configuración de permisos a las `22:30:22 UTC`. Las **ocho versiones** `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` siguen ausentes: siete paquetes existentes responden 200 sin esa versión y `website-blocks` responde 404 con la credencial autenticada. Las siete versiones históricas son controles positivos con integrity coincidente. Los SHA-256, inventarios y procedencia de los ocho TGZ se verificaron otra vez; no cambiaron y siguen en la tabla de distribución de este informe.
+Se volvió a verificar el registro a las `23:01:15 UTC` y la configuración de permisos a las `22:30:22 UTC`. Las **ocho versiones** `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` están ausentes: siete paquetes existentes responden 200 sin esa versión y `website-blocks` responde 404 con la credencial autenticada. Las siete versiones históricas son controles positivos con integrity coincidente. Los nuevos SHA-256, inventarios y procedencia de los ocho TGZ se verificaron y se fijan en la tabla de distribución de este informe.
 
 El permiso de administración/push del repositorio y la membresía administrativa de la organización se comprobaron por lectura. El publicador previsto es el `GITHUB_TOKEN` del job, con `contents:read`, `packages:write` y habilitación explícita del entorno. Esto acredita la configuración, **no una escritura efectiva** ni los permisos de lectura futuros de Actions/VPS sobre el paquete nuevo. No se probó publicación con la credencial local ni se crearon versiones de prueba.
 
 El listado completo de paquetes de la organización y sus siete fichas respondieron 200: todos son privados, pertenecen a Runly-MX y están asociados a `Runly-MX/runly-erp`. El nuevo `website-blocks` no aparece en ese listado. No se infiere que el token lector local tenga permiso de publicación por poder consultar estas fichas.
 
-### Procedencia de los cinco paquetes sin `license`
+### Licencias de los cinco paquetes corregidos
 
-La clasificación distingue fuente mantenida por Runly, dependencias instaladas separadamente y posibles adaptaciones de código. El historial Git acredita trazabilidad técnica, no contratos de cesión de derechos. Los cinco manifiestos actuales tienen `private:true`; no hay LICENSE raíz que permita atribuirles automáticamente MIT u otra licencia.
+El titular confirmó expresamente `UNLICENSED` exclusivamente para las partes propias de Runly, sin conceder redistribución ni alterar licencias de terceros. Se aplicó a `core`, `ui`, `sdk`, `preview-runtime` y `website-blocks`; los otros tres ya lo declaraban. Los cinco manifiestos fuente conservan `private:true`. La clasificación distingue fuente mantenida por Runly, dependencias instaladas separadamente y adaptaciones de código; no atribuye automáticamente MIT a los paquetes.
 
-| Paquete lógico | Evidencia del código distribuido | Terceros y decisión pendiente |
+| Paquete lógico | Evidencia del código distribuido | Terceros y alcance confirmado |
 | --- | --- | --- |
-| `@runly/core` | 16 archivos fuente; procede del baseline `b682bbacc`; utilidades y contratos Runly | No aparecen imports de paquetes externos ni payload binario en su inventario. Confirmar la política propietaria de las partes propias antes de declarar `UNLICENSED`. |
-| `@runly/sdk` | 22 archivos fuente; procede del mismo baseline; cliente y transporte Runly | No aparecen imports externos ni payload binario. Misma decisión sobre las partes propias. |
-| `@runly/preview-runtime` | 11 archivos fuente y README; extracción del shell ERP en `21268d9b9`, documentada en su README | Importa UI, React y TanStack Query; no incluye sus distribuciones en el TGZ. Misma decisión sobre la fuente propia; no relicenciar dependencias. |
-| `@runly/website-blocks` | 87 archivos fuente; extracción de los bloques ERP en `ce9d6939f` | Importa React y Atlas 0.3.5 por dependencia. No empaqueta el código del builder ni las 16 imágenes de Elevate; no hereda automáticamente MIT de Atlas. Misma decisión sobre las partes propias. |
-| `@runly/ui` | 353 archivos fuente; baseline y evolución Runly; wrappers Radix y patrón shadcn en Button/Select/Accordion y utilidades `cn` | No debe certificarse como exclusivamente original. La configuración de diseño menciona shadcn; revisar/confirmar las adaptaciones y conservar los avisos que correspondan antes de atribuir una licencia al conjunto. Sus dependencias se resuelven aparte y conservan sus licencias. |
+| `@runly/core` | 16 archivos fuente; procede del baseline `b682bbacc`; utilidades y contratos Runly | Sin imports de paquetes externos ni payload binario en el inventario. `UNLICENSED` para código propio. |
+| `@runly/sdk` | 22 archivos fuente; procede del mismo baseline; cliente y transporte Runly | Sin imports externos ni payload binario. `UNLICENSED` para código propio. |
+| `@runly/preview-runtime` | 11 archivos fuente y README; extracción del shell ERP en `21268d9b9`, documentada en su README | Importa UI, React y TanStack Query; no incluye sus distribuciones en el TGZ. `UNLICENSED` para fuente propia; no relicencia dependencias. |
+| `@runly/website-blocks` | 87 archivos fuente; extracción de los bloques ERP en `ce9d6939f` | Importa React y Atlas 0.3.5 por dependencia. No empaqueta el código del builder ni las 16 imágenes de Elevate. `UNLICENSED` para código propio; no hereda MIT de Atlas. |
+| `@runly/ui` | 353 archivos fuente; baseline y evolución Runly; wrappers Radix y patrón shadcn en Button/Select/Accordion y utilidades `cn` | `UNLICENSED` sólo para partes propias. Incluye `LICENSE.shadcn.txt` original y README de alcance; dependencias, atribuciones y obligaciones de terceros permanecen separadas. |
 
-Las cinco distribuciones contienen fuente, CSS y, en preview, README; no contienen `node_modules`, fuentes tipográficas, imágenes raster ni binarios FFmpeg. UI sí contiene código que carga el core FFmpeg servido por la aplicación: la licencia de ese binario no se determina a partir de la del wrapper y no se concede mediante los metadatos de UI. No se incorporó ni modificó ese binario para distribuir estos paquetes.
+Las cinco distribuciones contienen fuente, CSS y los avisos/README indicados; no contienen `node_modules`, fuentes tipográficas, imágenes raster ni binarios FFmpeg. UI sí contiene código que carga el core FFmpeg servido por la aplicación: la licencia de ese binario no se determina a partir de la del wrapper y no se concede mediante los metadatos de UI. No se incorporó ni modificó ese binario para distribuir estos paquetes.
 
 La [documentación de npm](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#license) contempla `UNLICENSED` para código privado sin una concesión de licencia; no es `Unlicense`, MIT ni una autorización de redistribución pública. La [licencia de shadcn](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md) es MIT y exige conservar sus avisos cuando se redistribuyen sus partes. Las similitudes de componentes no se convierten por sí solas en una certificación de titularidad o en una atribución de toda UI a shadcn.
 
-**Decisión solicitada al titular:** confirmar que las partes propias de los cinco paquetes conservan política propietaria de uso interno (`UNLICENSED`), preservando por separado derechos y avisos de terceros. Hasta recibir esa decisión no se alteran los cinco manifiestos ni se inventa una licencia. Si la confirmación permite corregir metadatos o avisos, se hace en fuente y se prepara otra revisión completa de ocho versiones; se sustituyen los hashes/comandos de este informe antes de publicar, nunca se editan TGZ de `db6deb300…` bajo su misma identidad.
+**Decisión aplicada:** código propio propietario `UNLICENSED`; ninguna autorización de redistribución pública. El aviso shadcn se conserva íntegro desde su fuente oficial fijada a `6ea6856f5a1082d4d9c231559b6bc3ee73827493`, sin modificar la licencia MIT ni atribuirla al conjunto Runly. README y aviso se verificaron dentro del TGZ de UI. Los avisos anteriores de Studio se conservaron byte por byte. No se cambiaron las licencias ni los manifiestos instalados de terceros.
+
+La corrección está en el commit fuente `3a071090875b9f3803f895e00d78fc25a047e829`. Se preparó un conjunto nuevo de ocho versiones; los artefactos anteriores `db6deb300f0835df6d74c6d46198ded1b2a375a2` permanecen intactos en `.artifacts/website-integration/shared-final/` y quedan sustituidos como candidato a publicar. Los comandos y hashes de este informe apuntan exclusivamente al nuevo conjunto. Todos los archivos de implementación y avisos preexistentes de los ocho paquetes conservan sus SHA-256: sólo cambian metadatos/identidades y se añaden README/aviso de UI.
 
 Este punto es independiente de Elevate: `license_unknown` describe los derechos no acreditados de su contenido visual. No lo corrige la licencia de los paquetes internos ni bloquea por sí solo la distribución de funcionalidad Website. Elevate permanece fuera de cualquier publicación pública.
 
@@ -32,13 +34,13 @@ Este punto es independiente de Elevate: `license_unknown` describe los derechos 
 
 El runbook inferior conserva el flujo existente: push autorizado → preparación Actions `publish=false` → comparación de manifiesto/TGZ → publicación inmutable autorizada → `shared:adopt --check-only` → adopción → commit local de todos los locks/derivados → `shared:clean` → push autorizado del commit de adopción y workflow limpio → lectura del VPS ejecutada por el operador. **`shared:clean` debe correr después del commit local:** usa `git archive HEAD`, por lo que ejecutarlo antes comprobaría los locks históricos. La adopción ya prueba su candidato aislado antes de escribirlo.
 
-No se repiten pruebas funcionales W1–W3. Para dar por cerrado el bloqueo de instalación hacen falta el pase desde el registro real con stores vacíos, los tres locks frozen y build, seguido de `published-candidate`, `ok:true`, `packages:8` desde el VPS. No se certifica ninguno antes de publicar. No se ha identificado otro cambio funcional necesario; las decisiones de derechos y los resultados efectivos de publicación/lectura/instalación siguen siendo condiciones de liberación.
+No se repiten pruebas funcionales W1–W3. Para dar por cerrado el bloqueo de instalación hacen falta el pase desde el registro real con stores vacíos, los tres locks frozen y build, seguido de `published-candidate`, `ok:true`, `packages:8` desde el VPS. No se certifica ninguno antes de publicar. No se ha identificado otro cambio funcional necesario. La decisión de metadatos internos está aplicada; quedan autorización y resultados efectivos de publicación/lectura/instalación. Elevate conserva su bloqueo independiente.
 
-Evidencia privada adicional: `.artifacts/website-integration/distribution-license-provenance.json`, `distribution-permissions-final.json` y `distribution-registry-associations.json`. No incluyen credenciales ni se publican como atestaciones legales o criptográficas.
+Evidencia privada adicional: `.artifacts/website-integration/distribution-license-provenance.json` (diagnóstico previo), `distribution-permissions-final.json`, `distribution-registry-associations.json`, `distribution-license-only-diff.json` y `distribution-shadcn-license-source.json`. Se ejecutaron cinco pruebas de publicación/empaquetado (5/5), el empaquetador existente con compilación de cada módulo distribuido y la inspección segura de los ocho TGZ nuevos. No incluyen credenciales ni se publican como atestaciones legales o criptográficas.
 
 ## Preparación final de distribución — 2026-11-11
 
-**Preparación local verificada; publicación, adopción e instalación limpia del candidato todavía pendientes de autorización.** No se ejecutó ningún push, workflow remoto, publicación de paquetes, modificación de servicios externos ni despliegue. El manifiesto aprobado sigue fijado a `db6deb300f0835df6d74c6d46198ded1b2a375a2`; no se generó otra versión ni se cambiaron los bytes de los ocho paquetes.
+**Preparación local verificada; publicación, adopción e instalación limpia del candidato todavía pendientes de autorización.** No se ejecutó ningún push, workflow remoto, publicación de paquetes, modificación de servicios externos ni despliegue. El manifiesto nuevo está fijado a `3a071090875b9f3803f895e00d78fc25a047e829`, posterior a la confirmación de licencias; no se sobrescribieron los artefactos anteriores.
 
 | Comprobación nueva | Resultado y alcance |
 | --- | --- |
@@ -47,9 +49,9 @@ Evidencia privada adicional: `.artifacts/website-integration/distribution-licens
 | Catálogo/contratos | ERP y Hub: Atlas 0.3.5, 148 bloques, mismo digest; Website Template v2 y entrypoints nativos presentes |
 | Lectura local autenticada del registro | Las siete versiones históricas `7d945e…` son legibles y coinciden con sus integridades: control positivo de acceso |
 | Versiones candidatas | Las siete versiones nuevas no figuran en la metadata HTTP 200 de sus paquetes; `website-blocks` devuelve 404 autenticado. El listado autenticado de GitHub devuelve siete paquetes, sin `website-blocks`. No se observó contenido previo en conflicto; repetir la comprobación con la identidad del publicador antes de escribir |
-| Commits remotos | Los commits ERP `db6deb300…` / `645fb83a8`, Hub `fe0f363` y Web `ca22e40` aún no están disponibles en GitHub. Se comprobaron `origin` y la posibilidad de push fast-forward, sin realizarlo |
+| Commits remotos | Los commits ERP `3a0710908…` / `645fb83a8`, Hub `fe0f363` y Web `ca22e40` aún no están disponibles en GitHub. Se comprobaron `origin` y la posibilidad de push fast-forward, sin realizarlo |
 | Workflow compartido | Los cuatro refs de Actions usados existen. `RUNLY_SHARED_PUBLISH_ENABLED=true`; el entorno `shared-packages` tiene **cero revisores requeridos**. El nombre del entorno no constituye una segunda aprobación humana: ejecutar primero `publish=false` y autorizar expresamente el paso posterior |
-| Adopción `--check-only` | Se detuvo en `SHARED_REGISTRY_UNAVAILABLE_OR_UNAUTHORIZED`, antes de instalar o modificar locks. La lectura independiente identifica versiones ausentes; no se interpretó el error genérico como una instalación aprobada |
+| Adopción `--check-only` | El intento del candidato anterior se detuvo en `SHARED_REGISTRY_UNAVAILABLE_OR_UNAUTHORIZED`, antes de instalar o modificar locks. No se repite contra versiones nuevas ausentes; tampoco se interpreta ese error como una instalación aprobada |
 | Instalación limpia del candidato desde registro | **No realizada**: faltan las versiones. No se sustituyó por tarballs locales, un registro loopback ni una instalación histórica |
 | Lectura desde producción | **Pendiente de ejecución por el operador.** El usuario indicó que la comprobación del VPS debe hacerse mediante comandos que él ejecutará. Las consultas locales y los intentos SSH no acreditan acceso al registro desde el Hub productivo |
 | Plugin dev.11 | 26 pruebas dirigidas aprobadas: empaquetado ChatGPT/Claude, contratos MCP y distribución/consentimientos. Grants anteriores de recursos y Studio no adquieren permisos Website |
@@ -61,18 +63,18 @@ Las consultas al registro son una fotografía temporal, no una reserva de versio
 | Paquetes | Declaración en los tarballs |
 | --- | --- |
 | `module-engine`, `module-compiler`, `studio-interchange` | `UNLICENSED` |
-| `core`, `ui`, `sdk`, `preview-runtime`, `website-blocks` | Sin campo `license` |
+| `core`, `ui`, `sdk`, `preview-runtime`, `website-blocks` | `UNLICENSED` exclusivamente para código propio; UI incluye aviso shadcn MIT y README de alcance |
 | Atlas Web Builder 0.3.5 independiente | `MIT` en su manifiesto; no convierte el código Runly en MIT |
 
-Los ocho artefactos están preparados para **distribución privada restringida**, no para distribución pública con una licencia abierta. No hay LICENSE raíz en ERP. Los avisos internos de Studio se conservan; no se inventaron permisos ni se añadieron declaraciones SPDX a cinco paquetes sin licencia declarada. La aprobación de publicación debe reconocer estos metadatos o resolverlos antes de publicar. Si se decide cambiar licencias, dependencias o fuentes, se necesita otro commit/versión/manifiesto; no se parchean estos TGZ ni se reutiliza su versión con bytes diferentes.
+Los ocho artefactos están preparados para **distribución privada restringida** entre servicios autorizados de Runly, no para distribución pública con una licencia abierta. No hay LICENSE raíz en ERP. `UNLICENSED` no concede redistribución ni sustituye obligaciones de terceros. Se conservan los avisos internos de Studio y el aviso MIT de shadcn. Cualquier cambio posterior de licencias, dependencias o fuentes requiere otro commit/versión/manifiesto; no se parchean estos TGZ ni se reutiliza su versión con bytes diferentes.
 
 Las dependencias compartidas son exactas, pero varias dependencias externas de UI y los peers conservan rangos o `latest`. No se alteraron para reabrir el candidato. La reproducibilidad del árbol completo deberá fijarse mediante los **tres locks pnpm generados por la adopción real**, seguida de instalaciones frozen con stores vacíos. El manifiesto por sí solo no fija todo el árbol externo ni sustituye una revisión de licencias transitivas.
 
 ### Evidencia de esta preparación
 
-En ERP, bajo `.artifacts/website-integration/`: `distribution-local-audit.json`, `distribution-registry-read.json`, `distribution-package-list-read.json`, `distribution-github-read.json`, `distribution-remote-commits.json` y `distribution-push-preflight.json`. En Hub: `.artifacts/website-distribution-directed.log` (26/26). Son evidencia privada de lectura/auditoría, no releases, atestaciones H7 ni una certificación productiva. No contienen tokens y no se incorporan al repositorio público.
+En ERP, bajo `.artifacts/website-integration/`: `distribution-licensed-audit.json`, `distribution-licensed-registry-read.json`, `distribution-package-list-read.json`, `distribution-github-read.json`, `distribution-remote-commits.json` y `distribution-push-preflight.json`. En Hub: `.artifacts/website-distribution-directed.log` (26/26). Son evidencia privada de lectura/auditoría, no releases, atestaciones H7 ni una certificación productiva. No contienen tokens y no se incorporan al repositorio público.
 
-Se reutiliza la evidencia funcional W1–W3 y del cierre anterior; no se repitieron esas suites. No se ejecutó la instalación desde el registro que aún no existe ni se afirmó acceso productivo. El único cambio versionado de esta preparación es este informe.
+Se reutiliza la evidencia funcional W1–W3 y del cierre anterior; no se repitieron esas suites. No se ejecutó la instalación de versiones ausentes del registro ni se afirmó acceso productivo. Esta corrección sólo cambia cinco metadatos `license`, añade aviso/README de UI y actualiza este informe. No cambia implementación ni contratos.
 
 ### Comprobación que ejecutará el operador en el VPS
 
@@ -94,7 +96,7 @@ try {
     const lock = validateRegistryManifest(JSON.parse(readFileSync(file, 'utf8')));
     if (label === 'published-candidate' &&
         (lock.packages.length !== 8 || lock.revision !==
-          'db6deb300f0835df6d74c6d46198ded1b2a375a2')) throw Error();
+          '3a071090875b9f3803f895e00d78fc25a047e829')) throw Error();
     probeRegistry(lock, {env});
     console.log(JSON.stringify({check: label, ok: true,
       packages: lock.packages.length, revision: lock.revision}));
@@ -126,7 +128,7 @@ Elevate sigue bloqueada para distribución pública por `license_unknown`. Esta 
 | Corrección Docker de los manifiestos workspace | `42c138dd2` |
 | ERP: preparación de distribución y contratos | `ac41e2574` |
 | ERP: verificación de exports comodín acotados | `b55857082` |
-| Fuente exacta de los ocho paquetes finales | `db6deb300f0835df6d74c6d46198ded1b2a375a2` |
+| Fuente exacta de los ocho paquetes finales | `3a071090875b9f3803f895e00d78fc25a047e829` |
 | ERP: corrección visual nativa y fallback | `c003b53ce8b8804a3db27d0e80be0fb578b27b25` |
 | ERP: candidato de integración antes de este informe | `645fb83a8d0d8d4446664e59d219964205b6b033` |
 | Hub: cierre funcional, institucional y MCP | `fe0f363b7e4472bcce4ce26e1987a86f2e27e7af` |
@@ -138,20 +140,20 @@ El commit de este documento es posterior a los commits funcionales; no altera el
 
 ## Distribución, locks y digests
 
-Los ocho paquetes usan la versión exacta `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2`, nombres físicos `@runly-mx/*` y aliases lógicos `@runly/*`. El registro sigue siendo GitHub Packages; no se cambian versiones publicadas. `website-blocks` se incorpora al conjunto completo y conserva su dependencia exacta de Atlas 0.3.5.
+Los ocho paquetes usan la versión exacta `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829`, nombres físicos `@runly-mx/*` y aliases lógicos `@runly/*`. El registro sigue siendo GitHub Packages; no se cambian versiones publicadas. `website-blocks` se incorpora al conjunto completo y conserva su dependencia exacta de Atlas 0.3.5.
 
-Manifiesto final: `.artifacts/website-integration/shared-final/manifest.json` en ERP. SHA-256: `1f4bb3912436bc38431277af36b5edd84697caa6dc83c5e113dd793424c04893`. Contiene SHA-256 de cada tarball, integrity SHA-512, inventario por archivo, contentDigest, sourceRevision y contrato de preview.
+Manifiesto final: `.artifacts/website-integration/shared-licensed-final/manifest.json` en ERP. SHA-256: `99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03`. Contiene SHA-256 de cada tarball, integrity SHA-512, inventario por archivo, contentDigest, sourceRevision y contrato de preview.
 
 | Paquete en el registro | Versión exacta | SHA-256 tarball | contentDigest |
 | --- | --- | --- | --- |
-| `@runly-mx/core` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `50354129c360900a05c3b75e900f707b365eea05c788f8102fc5ee57e542ebe9` | `2828ecd676d9bf4d8556dac2d8300177417740301c96de09ca5833edb49345ad` |
-| `@runly-mx/module-engine` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `93632bb34465ba1f029fca58f9e97d5969fddbda4f8e6f1ff0dd61ce23eb1739` | `13aab7a3b004b308bb602d2f1187b4dbe843ea9c1e782f86a7b7a96d60f004a9` |
-| `@runly-mx/module-compiler` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `9f90ade1939ed81f770fb81cc2526da0b889f54d8a776d99f0053925b0257072` | `c42fe4d3eea84a7dde5518b7d8ca28da026a482c1f8e11e95afcd782ae951166` |
-| `@runly-mx/ui` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `efd44d0769dacc245b67bfc8d6a67fc2f854a404a2cde5079c4dc3e2806a0f82` | `1648703f6b689eee03f4d6b3bcbf0b960cc55420a808790056f304994104649a` |
-| `@runly-mx/sdk` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `1018ecbbeddd20f60aaa176f2591330ae4115b387751b887e41a1a5b5f18c9a2` | `2a131df2685ebbb6d4f68d04bb86c5ff23b64d9a03f4c39a8ec5d2cecccff9f1` |
-| `@runly-mx/preview-runtime` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `cfc62322724516c0364e886e32d7de3fe5fdcfff56ed3aa964c9411892f20093` | `66999d79b9eff7cd76a30f30db85701efa7ee2356ca919e5f692da25d7e46fc2` |
-| `@runly-mx/studio-interchange` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `38dfaba4c767e681fe095a409f7d891455ca7f6917cabfbe372076cd2c2542e6` | `8447085ce8c0ed3c29eceeea2817752146f44e72018a673c264f77d92685a96f` |
-| `@runly-mx/website-blocks` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `f9ce749c81921977eac57d20367ab78edec871f4d352171f4a250b96d6ab91aa` | `6ecb8980a7eabfd413d84af952973fcb37fef28d96d03be9cb80744b45054cbc` |
+| `@runly-mx/core` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `d9e10463108397e4c1b5e227d862723ea4951aee4388ba220f01c7ea1b39c8b8` | `3bb7df78d6b708b9c8e90c669e9e02864293e05dfa07ee3031f61a278433090d` |
+| `@runly-mx/module-engine` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `18e0712a986ca9c4a50e2aa4bde2251b1425765d25b98885a6baa503ae7297ef` | `790b62994a64d6bb3e655632955cd966488184526fbbc33e95d8d109cf075358` |
+| `@runly-mx/module-compiler` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `0a0e588285b6c0f0cbea4737a025498eddfdb2fb501ce46b9eba2784315685d7` | `af730436856656cd0cdbaed1cd39f6b19ea62ae11fa45be5e274a749bf29812b` |
+| `@runly-mx/ui` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `09c91b16f57e0ad34eb8c0565631dbc40facd64e6d638e4b6628c904ace8cf02` | `1f0c1a192c0685e52f10d9d39abde999c25906a696801c0f756d56bd0489852f` |
+| `@runly-mx/sdk` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `88b1c814f8321625f41ded13412c45955289784738395dfb5ffec0f2bf549ef4` | `96138625a47ebfdcd732c41c2acc63828c2c0262d80a912a51f69e5e6d4a6fb6` |
+| `@runly-mx/preview-runtime` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `f8ffaa94cc2a2db6ffce654d52814c8457783e5a622adc6100318d2294c486b5` | `7f2c388dc90301da6496d07cd937fada4caadbcd378bd5e6eeaa683c7d039340` |
+| `@runly-mx/studio-interchange` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `3f4e9f5e1fe46c2ece5bbbeb804c9641aaf2bf30af29277e12fe864da611283d` | `bf05a4b9f11a0c0795a161a226be9a57e52cf34e543a33fac23a4b81e08ce3ff` |
+| `@runly-mx/website-blocks` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `9ed9c4f8e5287d0f8eff85b5f0e89595bfca40e4a30df93b9ee492c0360f7814` | `4164e0addc6b9b9e2a6886dc5a07f597d938ebaf1e7cfc29fb16c1acfacaa2e2` |
 
 El catálogo Atlas continúa con 148 bloques, versión 0.3.5 y digest canónico `0e6f77787d7351448f05dc87af8b1f2bb701170a1077eacc76633d548216d248`. No se introdujeron tipos ni propiedades sin renderer. ERP conserva sus workspaces propios; Hub adopta aliases exactos del mismo código mediante su flujo de registro. El validador productivo mantiene la comprobación de identidad, contenido instalado, dependencias fijadas y catálogos; no acepta `local-candidate` como distribución productiva.
 
@@ -242,7 +244,7 @@ git -C ../runly-developer-hub push origin main
 git -C ../runly-web push origin main
 ```
 
-No usar force-push. Estos push no constituyen autorización para desplegar. La publicación depende de que `db6deb300f0835df6d74c6d46198ded1b2a375a2` sea accesible y ancestro de `main`; el workflow lo comprueba. No ejecutar el workflow con otra revisión ni con HEAD como sustituto de esa fuente.
+No usar force-push. Estos push no constituyen autorización para desplegar. La publicación depende de que `3a071090875b9f3803f895e00d78fc25a047e829` sea accesible y ancestro de `main`; el workflow lo comprueba. No ejecutar el workflow con otra revisión ni con HEAD como sustituto de esa fuente.
 
 ### 1. ERP: preparar en Actions, comparar y autorizar la publicación
 
@@ -250,7 +252,7 @@ Primero, con autorización para crear una ejecución remota, ejecutar **sólo pr
 
 ```bash
 gh workflow run shared-packages.yml --repo Runly-MX/runly-erp --ref main \
-  -f revision=db6deb300f0835df6d74c6d46198ded1b2a375a2 -f publish=false
+  -f revision=3a071090875b9f3803f895e00d78fc25a047e829 -f publish=false
 gh run watch "$SHARED_PREPARE_RUN_ID" --repo Runly-MX/runly-erp --exit-status
 gh run download "$SHARED_PREPARE_RUN_ID" --repo Runly-MX/runly-erp \
   --name shared-package-manifest-and-tarballs --dir "$SHARED_PREPARE_DIR"
@@ -265,7 +267,7 @@ import {createHash} from 'node:crypto';
 import {readConsumerArtifacts} from './scripts/lib/shared-consumer-registry.mjs';
 const path = process.argv[2];
 const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
-if (sha256 !== '1f4bb3912436bc38431277af36b5edd84697caa6dc83c5e113dd793424c04893')
+if (sha256 !== '99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03')
   throw Error('REVIEWED_MANIFEST_MISMATCH');
 const {artifacts} = readConsumerArtifacts(path);
 console.log(JSON.stringify({ok: true, packages: artifacts.length, sha256}));
@@ -278,7 +280,7 @@ Si difieren el manifiesto o cualquier tarball, detenerse antes de publicar y rev
 
 ```bash
 gh workflow run shared-packages.yml --repo Runly-MX/runly-erp --ref main \
-  -f revision=db6deb300f0835df6d74c6d46198ded1b2a375a2 -f publish=true
+  -f revision=3a071090875b9f3803f895e00d78fc25a047e829 -f publish=true
 gh run watch "$SHARED_PUBLISH_RUN_ID" --repo Runly-MX/runly-erp --exit-status
 gh run download "$SHARED_PUBLISH_RUN_ID" --repo Runly-MX/runly-erp \
   --name published-shared-package-manifest --dir "$SHARED_MANIFEST_DIR"
