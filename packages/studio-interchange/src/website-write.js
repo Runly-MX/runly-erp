@@ -8,7 +8,20 @@ import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_LIMITS, catalogDigest, 
 export async function exportWebsiteTemplate({ title, summary = '', locale = 'en', siteKind = 'website', pages, theme, assets = [], licenses = [], catalog, builderVersion = '0.3.5' }) {
   const entries = new Map(), records = []
   const sha = data => createHash('sha256').update(data).digest('hex')
-  for (const [index, page] of pages.entries()) entries.set(`pages/page-${index + 1}.json`, Buffer.from(JSON.stringify(page.sections)))
+  const definitions = new Map(catalog.blocks.map(block => [block.type, block]))
+  function portableDefaults(sections) {
+    return sections.map(section => {
+      const definition = definitions.get(section.type), props = { ...section.props }
+      // Atlas initializes optional selects to ''. Omission restores that exact
+      // renderer default without admitting an unsupported explicit option in v2.
+      for (const [key, value] of Object.entries(props)) {
+        const field = definition?.fields[key]
+        if (value === '' && definition?.defaultProps?.[key] === '' && field?.type === 'select' && !field.options?.includes('')) delete props[key]
+      }
+      return { ...section, props, ...(section.children ? { children: Object.fromEntries(Object.entries(section.children).map(([slot, nodes]) => [slot, portableDefaults(nodes)])) } : {}) }
+    })
+  }
+  for (const [index, page] of pages.entries()) entries.set(`pages/page-${index + 1}.json`, Buffer.from(JSON.stringify(portableDefaults(page.sections))))
   if (theme) entries.set('theme.json', Buffer.from(JSON.stringify(theme)))
   for (const asset of assets) {
     const data = Buffer.from(asset.data), sha256 = sha(data), size = await validateImage(data, asset.mime)

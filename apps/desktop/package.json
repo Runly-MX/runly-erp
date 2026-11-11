@@ -100,7 +100,8 @@
     "yjs": "^13.6.31",
     "zustand": "latest",
     "@runly/preview-runtime": "workspace:*",
-    "fabric": "6.9.1"
+    "fabric": "6.9.1",
+    "@runly/website-blocks": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",

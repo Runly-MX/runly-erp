@@ -284,7 +284,7 @@ async function validateCore(input, options) {
     formatVersion: manifest.formatVersion, assetPolicy: manifest.assetPolicy ?? null, limitsVersion: WEBSITE_LIMITS_VERSION,
     licenses: manifest.licenses.map(l => ({ id: l.id, redistribution: l.redistribution })),
   }
-  return { manifest, report, errors, warnings, content: { pages, theme, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })) } }
+  return { manifest, report, errors, warnings, content: { pages, theme, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })), licenses: manifest.licenses.map(l => ({ ...l, notice: new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) })) } }
 }
 
 // Contract API (Annex B): never throws on hostile input; `digest` is always the sha256 of the bytes.

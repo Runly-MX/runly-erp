@@ -41,8 +41,20 @@ test('W1: PNG/JPEG/WebP v2 inspection keeps editable content, theme and exact by
     assert.equal(inspected.ok, true)
     assert.equal(sha(inspected.content.assets[0].data), inspected.manifest.assets[0].sha256)
     assert.equal(inspected.content.theme.colors.bg, '#efebea')
+    assert.deepEqual(inspected.content.licenses, [{ id: 'original', path: 'licenses/original.txt', redistribution: 'allowed', notice: 'Imagen sintética de prueba. Redistribución permitida por su autor.' }])
     assert.equal(inspected.content.pages[0].sections[0].children.children[1].props.text, 'Texto editable')
   }
+})
+
+test('W2: new Atlas blocks export optional empty selects through exact renderer defaults', async () => {
+  const catalog = blockCatalog(), heading = catalog.blocks.find(b => b.type === 'HeadingBlock')
+  const { bytes } = await exportWebsiteTemplate({ title: 'Nuevo bloque Atlas', catalog, pages: [{ path: '/', title: 'Inicio', isHome: true, sections: [{ type: heading.type, props: heading.defaultProps }] }] })
+  const inspected = await inspectWebsiteTemplate(bytes, { builderCatalogs: builderCatalogs() })
+  assert.equal(inspected.ok, true, JSON.stringify(inspected.errors))
+  const props = inspected.content.pages[0].sections[0].props
+  assert.deepEqual({ ...heading.defaultProps, ...props }, heading.defaultProps)
+  assert.equal(Object.hasOwn(props, 'size'), false)
+  await assert.rejects(exportWebsiteTemplate({ title: 'Invalid', catalog, pages: [{ path: '/', title: 'Inicio', isHome: true, sections: [{ type: heading.type, props: { ...heading.defaultProps, size: 'inventado' } }] }] }), e => e.reason === 'prop_invalid')
 })
 
 test('W1: hostile asset identity, MIME, dimensions, license and references fail closed', async () => {
