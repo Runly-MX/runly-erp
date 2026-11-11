@@ -23,7 +23,8 @@ export const RESOURCE_CONFIG_KEYS = Object.freeze({ url: 'catalog.resources.url'
 // Feed section 7 (normative, not configurable): freshness is measured from the last successful verification.
 export const RESOURCE_FRESHNESS = Object.freeze({ installFreshHours: 24, installMaxAgeHours: 72, maxCacheAgeDays: 30 })
 // Content-format versions this Runly can read per type; a newer feed entry reads "update Runly".
-export const SUPPORTED_FORMAT_VERSIONS = Object.freeze({ studio_template: 1, automation: 1, website_template: 1, solution: 1 })
+// Website v2 can be inspected/prepared (W1); this does not enable its Marketplace installer.
+export const SUPPORTED_FORMAT_VERSIONS = Object.freeze({ studio_template: 1, automation: 1, website_template: 2, solution: 1 })
 const DAY = 86400000, HOUR = 3600000
 const HEX64 = /^[a-f0-9]{64}$/
 const PACKAGE_PATH = /^packages\/[a-f0-9]{64}$/

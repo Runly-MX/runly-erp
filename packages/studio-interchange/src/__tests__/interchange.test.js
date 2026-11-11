@@ -128,14 +128,13 @@ test('a valid template yields a deterministic report with blocks, forms and exte
   assert.equal(a.report.blockTypes.NavbarBlock, 2)
 })
 
-test('Website policy: assets stay closed by default, can be opened by limit, and defaults are explicit', async () => {
-  assert.equal(WEBSITE_LIMITS.assets, 0)
+test('Website policy: v1 stays closed even if a caller permits W1 assets', async () => {
+  assert.equal(WEBSITE_LIMITS.assets, 100)
   assert.equal(resolveWebsiteLimits({ assets: 1000 }).assets, 100, 'never above the format ceiling')
   assert.throws(() => resolveWebsiteLimits({ nope: 1 }), TypeError)
   const { bytes } = (await websiteCorpus())['website/assets-not-allowed.zip']
   const open = await validateWebsiteTemplate(bytes, { builderCatalogs: builderCatalogs(), limits: { assets: 10 } })
-  assert.deepEqual(codes(open), [], 'with the cap opened the same archive is valid')
-  assert.deepEqual(open.warnings.map((w) => w.code), ['asset_unreferenced'])
+  assert.deepEqual(codes(open), ['asset_limit'], 'legacy readers never silently gain asset capabilities')
 })
 
 test('Website: the validator needs the catalogs and a known builder; a changed catalog is detected', async () => {

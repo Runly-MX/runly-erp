@@ -121,7 +121,7 @@ export async function websiteCorpus() {
     'website/catalog-mismatch.zip': { bytes: await websiteTemplate({ manifest: { builder: { name: WEBSITE_TEMPLATE.builder, min: BUILDER, catalogDigest: 'b'.repeat(64) } } }), expect: { ok: false, codes: ['catalog_digest_mismatch'] } },
     'website/no-home.zip': { bytes: await websiteTemplate({ manifest: { pages: [{ path: '/', file: 'pages/home.json', title: 'Inicio', isHome: false }, { path: '/contacto', file: 'pages/contact.json', title: 'Contacto', isHome: false }] } }), expect: { ok: false, codes: ['home_missing'] } },
     'website/bad-theme.zip': { bytes: await websiteTemplate({ theme: { colors: { primary: 'url(https://evil.example/x)' } } }), expect: { ok: false, codes: ['theme_invalid'] } },
-    'website/newer-format.zip': { bytes: await websiteTemplate({ manifest: { formatVersion: 2 } }), expect: { ok: false, codes: ['format_unsupported'] } },
+    'website/newer-format.zip': { bytes: await websiteTemplate({ manifest: { formatVersion: 3 } }), expect: { ok: false, codes: ['format_unsupported'] } },
     'website/undeclared-entry.zip': { bytes: await addEntry(valid, 'previews/extra.png', Buffer.from('no declarado')), expect: { ok: false, codes: ['undeclared_entry'] } },
   }
 }

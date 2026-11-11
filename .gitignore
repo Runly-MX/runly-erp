@@ -153,3 +153,5 @@ apps/api/public/website-runtime/
 **/.impeccable/build/
 **/.impeccable/critique/
 **/.impeccable/hook.cache.json
+# Local Website acceptance packages contain user-supplied assets and notices.
+/.artifacts/website-w1/

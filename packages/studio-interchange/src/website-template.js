@@ -6,17 +6,19 @@ import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 import { validateImage } from './inspect.js'
 
-// Website template v1 (ERP E1a Annex B): a DECLARATIVE ZIP. Only data: nothing is evaluated,
+// Website template (ERP E1a Annex B + W1): a DECLARATIVE ZIP. Only data: nothing is evaluated,
 // imported or executed, no network is touched, no script/HTML/CSS/SVG/iframe is admitted and
 // forms are markers, never destinations. Pure and safe on hostile bytes (never throws on input).
 export const WEBSITE_TEMPLATE = Object.freeze({
-  format: 'runly.website-template', formatVersion: 1, minReaderVersion: 1,
+  format: 'runly.website-template', formatVersion: 2, minReaderVersion: 2,
   mime: 'application/vnd.runly.website-template+zip', builder: '@raulbellosom/atlas-web-builder',
 })
 const MiB = 1024 * 1024
-// Format ceilings; `assets` ships closed (0) until D-E5 is decided and callers opt in with limits.assets.
+// W1 is an explicit reader/policy revision. Legacy v1 remains image-free.
+export const WEBSITE_ASSET_POLICY = Object.freeze({ name: 'packaged-raster-v1', version: 1 })
+export const WEBSITE_LIMITS_VERSION = 2
 export const WEBSITE_LIMITS_CEILING = Object.freeze({ compressed: 25 * MiB, expanded: 128 * MiB, entry: 10 * MiB, entries: 256, ratio: 200, folders: 32, depth: 3, pages: 24, blocksPerPage: 300, blocksTotal: 1500, blockDepth: 6, assets: 100, assetBytes: 64 * MiB, jsonBytes: 4 * MiB, previews: 6, previewBytes: MiB, previewSide: 1920 })
-export const WEBSITE_LIMITS = Object.freeze({ ...WEBSITE_LIMITS_CEILING, assets: 0 })
+export const WEBSITE_LIMITS = WEBSITE_LIMITS_CEILING
 export function resolveWebsiteLimits(overrides = {}) {
   if (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides)) throw new TypeError('INVALID_LIMITS')
   const limits = { ...WEBSITE_LIMITS }
@@ -49,7 +51,7 @@ const ASSET_REF = /^asset:([a-f0-9]{64})$/
 const digest = z.string().regex(shaPattern)
 const inventory = z.strictObject({ path: z.string().max(160), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest })
 const asset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), width: z.number().int().positive().max(8192), height: z.number().int().positive().max(8192), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest, license: z.string().max(120) })
-export const websiteManifestSchema = z.strictObject({
+const manifestV1 = z.strictObject({
   format: z.literal('runly.website-template'), formatVersion: z.literal(1), minReaderVersion: z.literal(1),
   builder: z.strictObject({ name: z.literal(WEBSITE_TEMPLATE.builder), min: z.string().regex(SEMVER), catalogDigest: digest }),
   siteKind: z.enum(['website', 'landing', 'blog', 'ecommerce', 'bookings', 'restaurant']),
@@ -60,6 +62,9 @@ export const websiteManifestSchema = z.strictObject({
   document: z.strictObject({ files: z.array(inventory).max(256) }),
   licenses: z.array(z.strictObject({ id: z.string().regex(/^[a-z0-9_-]{1,60}$/), path: z.string().regex(/^licenses\/[a-z0-9_-]+\.txt$/), redistribution: z.enum(['allowed', 'unknown', 'forbidden']) })).max(100),
 })
+const manifestV2 = manifestV1.extend({ formatVersion: z.literal(2), minReaderVersion: z.literal(2), assetPolicy: z.literal(WEBSITE_ASSET_POLICY.name) })
+export const WEBSITE_MANIFEST_READERS = Object.freeze({ 1: manifestV1, 2: manifestV2 })
+export const websiteManifestSchema = z.discriminatedUnion('formatVersion', [manifestV1, manifestV2])
 const hexColor = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/
 const themeSchema = z.strictObject({
   colors: z.record(z.string().regex(/^[a-zA-Z][\w-]{0,40}$/), z.string().regex(hexColor)).default({}),
@@ -150,10 +155,10 @@ function checkBlock(section, path, depth, ctx, page) {
   else for (const [key, value] of Object.entries(props)) {
     const field = definition.fields[key], at = `${path}.props.${key}`
     if (!field) { ctx.error('prop_unknown', `${at}: no existe en ${definition.type}`, at); continue }
-    if (value === null || value === undefined || JSON.stringify(value) === JSON.stringify(definition.defaultProps[key])) continue
+    if (ctx.version === 1 && (value === null || value === undefined || JSON.stringify(value) === JSON.stringify(definition.defaultProps[key]))) continue
     // Forms are markers, calendars are bound by the ERP: a template never carries a destination.
     if (key === 'formId') { if (!FORM_MARKERS.includes(value) && value !== '') ctx.error(typeof value === 'string' && value.startsWith('@') ? 'form_marker_unknown' : 'prop_invalid', `${at}: usa @contact o @newsletter`, at); else if (value) ctx.forms.add(value); continue }
-    if (key === 'calendarId') { ctx.error('prop_invalid', `${at}: el calendario lo enlaza Runly al aplicar la plantilla`, at); continue }
+    if (key === 'calendarId') { if (value !== '') ctx.error('prop_invalid', `${at}: el calendario lo enlaza Runly al aplicar la plantilla`, at); continue }
     checkProp(field, value, at, ctx)
   }
   const children = section.children ?? {}
@@ -167,14 +172,16 @@ function checkBlock(section, path, depth, ctx, page) {
 }
 
 async function validateCore(input, options) {
-  const limits = resolveWebsiteLimits(options.limits)
+  let limits = resolveWebsiteLimits(options.limits)
   const files = await readZip(input, { mimetype: WEBSITE_TEMPLATE.mime, folders: ['assets', 'previews', 'licenses', 'pages'], limits: Object.fromEntries(['compressed', 'expanded', 'entry', 'entries', 'ratio', 'folders', 'depth'].map((key) => [key, Math.min(limits[key], PACKAGE_LIMITS[key])])) })
   const raw = parseJson(files.get('manifest.json'), limits.jsonBytes, 'manifest_invalid')
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.format !== WEBSITE_TEMPLATE.format) throw packageError('manifest_invalid', 'El manifiesto no es de una plantilla Website.')
   if (!Number.isInteger(raw.formatVersion) || raw.formatVersion < 1) throw packageError('manifest_invalid', 'Versión de formato no válida.')
   if (raw.formatVersion > WEBSITE_TEMPLATE.formatVersion || raw.minReaderVersion > WEBSITE_TEMPLATE.formatVersion) throw packageError('format_unsupported', 'La plantilla es de una versión más nueva de Runly. Actualiza Runly para usarla.', { manifest: { format: raw.format, formatVersion: raw.formatVersion, minReaderVersion: raw.minReaderVersion } })
+  if (raw.formatVersion === 2 && raw.assetPolicy !== WEBSITE_ASSET_POLICY.name) throw packageError('format_unsupported', 'La política de imágenes de esta plantilla no está soportada.')
   let manifest
   try { manifest = websiteManifestSchema.parse(raw) } catch { throw packageError('manifest_invalid', 'El manifiesto de la plantilla no es válido.') }
+  if (manifest.formatVersion === 1) limits = { ...limits, assets: 0 }
 
   const catalogs = options.builderCatalogs
   if (!catalogs || typeof catalogs !== 'object') throw new TypeError('BUILDER_CATALOGS_REQUIRED')
@@ -193,7 +200,7 @@ async function validateCore(input, options) {
   if (files.size !== declared.size + 2) throw packageError('undeclared_entry', 'La plantilla contiene entradas no declaradas.')
 
   const errors = [], warnings = []
-  const ctxBase = { errors, warnings, limits, blocks: indexOf(catalog), groups: new Set(['base', 'universal', ...SITE_GROUPS[manifest.siteKind]]), types: {}, forms: new Set(), links: new Set(), refs: new Set() }
+  const ctxBase = { errors, warnings, limits, version: manifest.formatVersion, blocks: indexOf(catalog), groups: new Set(['base', 'universal', ...SITE_GROUPS[manifest.siteKind]]), types: {}, forms: new Set(), links: new Set(), refs: new Set() }
   const assetsById = new Map(manifest.assets.map((a) => [a.sha256, a]))
   const ctx = {
     ...ctxBase,
@@ -217,11 +224,18 @@ async function validateCore(input, options) {
   for (const file of pageFiles) if (!declared.has(file)) throw packageError('checksum_mismatch', 'Una página del manifiesto no está en el inventario.')
 
   if (manifest.assets.length > limits.assets) throw packageError('asset_limit', limits.assets === 0 ? 'Esta versión no admite imágenes en plantillas.' : 'La plantilla supera el máximo de activos.')
+  for (const key of ['id', 'path', 'sha256']) if (new Set(manifest.assets.map(a => a[key])).size !== manifest.assets.length) throw packageError('manifest_invalid', 'El manifiesto repite un activo.')
+  for (const key of ['id', 'path']) if (new Set(manifest.licenses.map(l => l[key])).size !== manifest.licenses.length) throw packageError('manifest_invalid', 'El manifiesto repite una licencia.')
+  const licensesById = new Map(manifest.licenses.map(l => [l.id, l]))
   let assetBytes = 0
   for (const a of manifest.assets) {
     const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[a.mime]
     if (a.id !== `asset-${a.sha256}` || a.path !== `assets/${a.sha256}.${ext}` || !declared.has(a.path)) throw packageError('asset_missing', 'Un activo no coincide con su identificador o ruta.')
-    assetBytes += a.bytes
+    const record = declared.get(a.path), bytes = files.get(a.path)
+    if (record.sha256 !== a.sha256 || record.bytes !== a.bytes || bytes.length !== a.bytes || sha(bytes) !== a.sha256) throw packageError('checksum_mismatch', 'El inventario del activo no coincide con sus bytes.')
+    if (!licensesById.has(a.license)) ctx.error('license_missing', 'El activo debe referenciar una licencia declarada.', a.path)
+    assetBytes += bytes.length
+    if (assetBytes > limits.assetBytes) throw packageError('zip_limit_exceeded', 'Los activos superan el límite.')
     const size = await validateImage(files.get(a.path), a.mime, { ...PACKAGE_LIMITS })
     if (size.width !== a.width || size.height !== a.height) throw packageError('image_invalid', 'Las dimensiones declaradas no coinciden.')
   }
@@ -235,20 +249,25 @@ async function validateCore(input, options) {
   }
   for (const l of manifest.licenses) {
     if (!declared.has(l.path)) throw packageError('checksum_mismatch', 'Una licencia del manifiesto no está en el inventario.')
-    try { new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) } catch { throw packageError('manifest_invalid', 'El texto de licencia no es UTF-8 válido.') }
+    let notice
+    try { notice = new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) } catch { throw packageError('manifest_invalid', 'El texto de licencia no es UTF-8 válido.') }
+    if (manifest.formatVersion === 2 && (!notice.trim() || files.get(l.path).length > 32000)) ctx.error('license_missing', 'La licencia necesita un aviso de hasta 32000 bytes.', l.path)
     if (l.redistribution === 'forbidden') ctx.error('license_forbidden', 'Una licencia impide redistribuir la plantilla.', l.path)
+    if (l.redistribution === 'unknown') warnings.push({ code: 'license_unknown', message: 'Derechos de redistribución pendientes de revisión humana.', path: l.path })
   }
+  let theme = null
   if (declared.has('theme.json')) {
-    const theme = parseJson(files.get('theme.json'), limits.jsonBytes, 'theme_invalid')
+    theme = parseJson(files.get('theme.json'), limits.jsonBytes, 'theme_invalid')
     const parsed = themeSchema.safeParse(theme)
     if (!parsed.success) ctx.error('theme_invalid', 'theme.json no es válido: solo tokens de color #rrggbb, fuentes de la lista cerrada, radio y espaciado numéricos.', 'theme.json')
     else for (const family of Object.values(parsed.data.fonts)) if (!STUDIO_FONTS.some((f) => f.family === family)) ctx.error('theme_invalid', `theme.json: la fuente "${family}" no está en la lista permitida.`, 'theme.json')
   }
 
-  const reportPages = []
+  const reportPages = [], pages = []
   let total = 0
   for (const page of manifest.pages) {
     const content = parseJson(files.get(page.file), limits.jsonBytes, 'prop_invalid')
+    pages.push({ ...page, sections: content })
     const state = { blocks: 0, file: page.file }
     if (!Array.isArray(content) || !content.length) ctx.error('prop_invalid', `${page.file}: se espera una lista de secciones`, page.file)
     else content.forEach((section, index) => checkBlock(section, `${page.file}[${index}]`, 1, ctx, state))
@@ -262,21 +281,29 @@ async function validateCore(input, options) {
     pages: reportPages, blockTypes: Object.fromEntries(Object.keys(ctx.types).sort().map((k) => [k, ctx.types[k]])),
     assets: manifest.assets.map((a) => ({ id: a.id, path: a.path, mime: a.mime, width: a.width, height: a.height, bytes: a.bytes })),
     forms: [...manifest.forms].sort(), externalLinks: [...ctxBase.links].sort(), siteKind: manifest.siteKind, builder: { name: manifest.builder.name, min: manifest.builder.min },
+    formatVersion: manifest.formatVersion, assetPolicy: manifest.assetPolicy ?? null, limitsVersion: WEBSITE_LIMITS_VERSION,
+    licenses: manifest.licenses.map(l => ({ id: l.id, redistribution: l.redistribution })),
   }
-  return { manifest, report, errors, warnings }
+  return { manifest, report, errors, warnings, content: { pages, theme, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })) } }
 }
 
 // Contract API (Annex B): never throws on hostile input; `digest` is always the sha256 of the bytes.
-export async function validateWebsiteTemplate(bytes, options = {}) {
+export async function inspectWebsiteTemplate(bytes, options = {}) {
   if (!(bytes instanceof Uint8Array)) throw new TypeError('BYTES_MUST_BE_UINT8ARRAY')
   resolveWebsiteLimits(options.limits)
   const digestOfBytes = sha(bytes)
   try {
     const result = await validateCore(bytes, options)
-    return { ok: result.errors.length === 0, errors: result.errors, warnings: result.warnings, manifest: result.manifest, report: result.report, digest: digestOfBytes }
+    return { ok: result.errors.length === 0, errors: result.errors, warnings: result.warnings, manifest: result.manifest, report: result.report, digest: digestOfBytes, ...(result.errors.length ? {} : { content: result.content }) }
   } catch (error) {
     if (error instanceof TypeError && /^(INVALID_LIMITS|BYTES_MUST|BUILDER_CATALOGS)/.test(error.message)) throw error
     const reason = error instanceof PackageError ? error.reason : 'zip_invalid'
     return { ok: false, errors: [{ code: reason, message: error instanceof PackageError ? error.message : 'La plantilla no se pudo leer de forma segura.' }], warnings: [], manifest: error?.manifest ?? null, report: null, digest: digestOfBytes }
   }
+}
+
+// Validation evidence never includes page content or asset bytes.
+export async function validateWebsiteTemplate(bytes, options = {}) {
+  const { content: _content, ...validation } = await inspectWebsiteTemplate(bytes, options)
+  return validation
 }

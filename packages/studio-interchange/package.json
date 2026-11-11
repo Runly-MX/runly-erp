@@ -9,6 +9,8 @@
     "./inspect": "./src/inspect.js",
     "./write": "./src/write.js",
     "./website-template": "./src/website-template.js",
+    "./website-document": "./src/website-document.js",
+    "./website-write": "./src/website-write.js",
     "./studio/document": "./src/studio/document.js",
     "./studio/pages": "./src/studio/pages.js",
     "./studio/fonts": "./src/studio/fonts.js"
