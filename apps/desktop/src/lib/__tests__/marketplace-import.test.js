@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { catalogState, isTerminal, marketplaceError, releaseRef, resourceBlock } from '../marketplace-import.js'
+import { catalogState, isTerminal, marketplaceError, publisherLabel, releaseRef, resourceBlock } from '../marketplace-import.js'
 
 const sdkError = (status, code, details) => Object.assign(new Error('x'), { status, code, details: { error: 'x', code, ...(details ? { details } : {}) } })
 
@@ -29,4 +29,8 @@ test('a listed release shows the server reason and the request names only the ex
   const item = { resourceKey: 'studio.menu', version: '1.0.0', releaseId: 'r', title: 'x', sha256: 'y', packageUrl: 'z' }
   assert.deepEqual(releaseRef(item), { resourceKey: 'studio.menu', version: '1.0.0', releaseId: 'r' })
   assert.deepEqual(releaseRef(item, true), { resourceKey: 'studio.menu', version: '1.0.0', releaseId: 'r', acknowledgeStale: true })
+})
+
+test('institutional origin never replaces the registered publisher', () => {
+  assert.equal(publisherLabel({ official: true, publisher: { displayName: 'Example Publisher', handle: 'example-publisher' } }), 'Example Publisher')
 })

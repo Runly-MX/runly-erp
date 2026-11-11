@@ -150,6 +150,13 @@ try {
   const count = async (table, where = 'true', params = []) => Number((await q(`SELECT count(*) n FROM ${table} WHERE ${where}`, params))[0].n)
   const grants = (companyId) => q("SELECT service_key FROM module_service_grant WHERE module_key='system.automations' AND company_id=$1 ORDER BY 1", [companyId])
 
+  if (process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL) {
+    const { verifyLiveStudio } = await import('./fixtures/marketplace/live-studio-acceptance.mjs')
+    const result = await verifyLiveStudio({ url: process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL,
+      resourceKey: process.env.RUNLY_MARKETPLACE_ACCEPTANCE_RESOURCE, prisma, files, storage, designs, templates, users, companies })
+    ok(`Live Studio download, import and edit: ${JSON.stringify(result)}`)
+    passed = true
+  } else {
   // ================= Catalog: real H4 feed =================
   await serveFeed(published, await labPackages()); lastSigned = published.signed
   const studioList = unpack(await owner.studio.marketplaceTemplates({}, owner.token))
@@ -418,6 +425,7 @@ try {
 
   assert.equal((await q("SELECT has_table_privilege('authenticated','marketplace_automation_import','SELECT') ok"))[0].ok, false)
   passed = true
+  }
 } finally {
   interchange?.close(); server?.closeAllConnections?.()
   if (server) await new Promise((r) => server.close(r))

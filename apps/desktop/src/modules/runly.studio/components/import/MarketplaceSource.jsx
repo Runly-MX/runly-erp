@@ -15,7 +15,7 @@ export function MarketplaceSource({ resource, diagnostics }) {
             {publisherLabel(resource)}{resource.publisher?.verified ? <BadgeCheck className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" aria-label="Publicador verificado" /> : null}
             <span aria-hidden>·</span><span className="tabular-nums">v{resource.version}</span>
           </p>
-          <div className="mt-2 flex flex-wrap gap-1.5"><Badge variant="outline">{resource.license}</Badge><Badge variant="outline">{compatibilityLabel(resource)}</Badge>{resource.trust === 'resource' ? <Badge variant="outline" className="border-emerald-600/40 text-emerald-800 dark:border-emerald-400/40 dark:text-emerald-300">Firma verificada</Badge> : null}</div>
+          <div className="mt-2 flex flex-wrap gap-1.5"><Badge variant="outline">{resource.license}</Badge>{resource.official === true ? <Badge variant="outline">Oficial Runly · Organización: Runly</Badge> : null}<Badge variant="outline">{compatibilityLabel(resource)}</Badge>{resource.trust === 'resource' ? <Badge variant="outline" className="border-emerald-600/40 text-emerald-800 dark:border-emerald-400/40 dark:text-emerald-300">Firma verificada</Badge> : null}</div>
         </div>
       </div>
       <p className="flex items-start gap-2 text-sm text-[hsl(var(--muted-foreground))]"><Copy className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />Se crea una copia nueva en esta empresa. La publicación original del Marketplace no cambia y las copias anteriores no se sobrescriben.</p>

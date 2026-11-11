@@ -77,5 +77,5 @@ export function compatibilityLabel(item) {
   if (!runly) return 'Compatibilidad no declarada'
   return runly.max ? `Runly ${runly.min} a ${runly.max}` : `Runly ${runly.min} o superior`
 }
-export const publisherLabel = (item) => item?.official === true ? 'Runly' : item?.publisher?.displayName || item?.publisher?.handle || 'Publicador desconocido'
+export const publisherLabel = (item) => item?.publisher?.displayName || item?.publisher?.handle || 'Publicador desconocido'
 export const releaseRef = (item, acknowledgeStale = false) => ({ resourceKey: item.resourceKey, version: item.version, releaseId: item.releaseId, ...(acknowledgeStale ? { acknowledgeStale: true } : {}) })
