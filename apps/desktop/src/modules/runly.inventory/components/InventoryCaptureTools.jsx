@@ -29,7 +29,7 @@ export function InventoryCaptureTools({ values, patchValues, disabled, settings,
 
   return (
     <section className="mb-4 space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-2 px-4">
         <div role="radiogroup" aria-label="Modo de captura" className="inline-flex rounded-lg bg-[hsl(var(--muted))]/60 p-0.5">
           {MODES.map(({ multi, label, icon: Icon }) => {
             const active = settings.multi === multi
