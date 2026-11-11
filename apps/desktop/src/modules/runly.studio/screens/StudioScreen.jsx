@@ -10,6 +10,7 @@ import { DesignEditor } from '../components/DesignEditor.jsx'
 import { DesignUnavailable, isDesignUnavailable } from '../components/editor/collaboration/DesignUnavailable.jsx'
 import { StudioHome } from '../components/home/StudioHome.jsx'
 import { StudioImportDialog } from '../components/import/StudioImportDialog.jsx'
+import { MarketplaceUseDialog } from '../components/market/MarketplaceUseDialog.jsx'
 import { blankDocument, validateDocument } from '../../../../../shared/studio/document.js'
 import { forgetWorkingDesign, rememberWorkingDesign, workingDesignFor } from '../components/templates/template-work.js'
 
@@ -36,9 +37,9 @@ export default function StudioScreen() {
   const { session, profileCompanyId, userProfile } = useAuth(), token = session?.access_token
   const [params, setParams] = useSearchParams(), id = params.get('design')
   // Home view survives opening a design and coming back (?view=designs|templates).
-  const view = ['designs', 'templates'].includes(params.get('view')) ? params.get('view') : 'home'
+  const view = ['designs', 'templates', 'market'].includes(params.get('view')) ? params.get('view') : 'home'
   const withView = extra => ({ ...(view === 'home' ? {} : { view }), ...extra })
-  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null), [importing, setImporting] = useState(false), [importResource, setImportResource] = useState(null), [importDirect, setImportDirect] = useState(false)
+  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null), [importing, setImporting] = useState(false), [marketUse, setMarketUse] = useState(null)
   // One creation at a time: repeated clicks never create duplicate designs.
   const starting = useRef(false)
   const queryClient = useQueryClient()
@@ -96,8 +97,9 @@ export default function StudioScreen() {
     else { toast.success(result.scope === 'company' ? 'Plantilla de la empresa guardada.' : 'Plantilla personal guardada.'); setParams({ view: 'templates' }) }
   }
   return <>
-    <StudioImportDialog open={importing} onOpenChange={setImporting} token={token} onImported={imported} initialResource={importResource} direct={importDirect} />
-    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onImport={() => { setImportResource(null); setImportDirect(false); setImporting(true) }} onImportDirect={resource => { setImportResource(resource); setImportDirect(true); setImporting(true) }} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
+    <StudioImportDialog open={importing} onOpenChange={setImporting} token={token} onImported={imported} />
+    <MarketplaceUseDialog item={marketUse?.item ?? null} acknowledged={marketUse?.acknowledged ?? false} token={token} onClose={() => setMarketUse(null)} onImported={result => { setMarketUse(null); imported(result) }} />
+    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onImport={() => setImporting(true)} onUseMarketplace={(item, acknowledged = false) => setMarketUse({ item, acknowledged })} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
       view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
     <Dialog open={Boolean(resume)} onOpenChange={open => { if (!open) setResume(null) }}>
       <DialogContent size="md">

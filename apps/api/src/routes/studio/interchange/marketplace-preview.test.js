@@ -14,9 +14,10 @@ test('a package without a shipped PNG previews as the declarative page with its 
   const preview = await buildPreview(bytes)
   assert.equal(preview.png, null)
   assert.ok(preview.document?.page)
+  assert.equal(preview.pages.length, 1)
   assert.match(Object.values(preview.images)[0], /^data:image\/png;base64,/)
 })
 
 test('unreadable bytes give an empty preview instead of an error', async () => {
-  assert.deepEqual(await buildPreview(Buffer.from('not a zip')), { png: null, document: null, images: {} })
+  assert.deepEqual(await buildPreview(Buffer.from('not a zip')), { png: null, document: null, pages: [], images: {} })
 })

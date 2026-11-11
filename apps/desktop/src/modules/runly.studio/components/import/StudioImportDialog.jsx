@@ -1,23 +1,18 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, FileUploader, TextField, cn } from '@runly/ui'
-import { AlertTriangle, FileUp, HardDrive, Loader2, ShieldCheck, Store } from 'lucide-react'
+import { AlertTriangle, FileUp, Loader2, ShieldCheck } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
 import { classifyImport, importErrorMessage, importTargets, validateImportFile } from '../../lib/studio-import.js'
 import { useTemplatePermissions } from '../templates/template-access.js'
 import { ImportReport } from './ImportReport.jsx'
 import { MarketplaceSource, marketplaceReport } from './MarketplaceSource.jsx'
 import { MarketplaceState } from '../../../../components/marketplace/MarketplaceResourcePicker.jsx'
-import { MarketplaceCatalog } from '../market/MarketplaceCatalog.jsx'
 import { isTerminal, marketplaceError, releaseRef } from '../../../../lib/marketplace-import.js'
 
 const unwrap = response => response?.data ?? response
 const baseName = file => file.name.replace(/\.(runlystudio|svg)$/i, '').trim().slice(0, 160)
 const PROGRESS = { inspecting: 'Revisando el archivo…', preparing: 'Preparando la importación…', confirming: 'Guardando…' }
 const MARKET_PROGRESS = { inspecting: 'Descargando y verificando en el servidor…', preparing: 'Preparando la copia…', confirming: 'Guardando la copia…' }
-const ORIGINS = [
-  { value: 'file', label: 'Desde mi equipo', hint: 'Un paquete .runlystudio o un SVG.', icon: HardDrive },
-  { value: 'marketplace', label: 'Desde Marketplace', hint: 'Plantillas publicadas y verificadas.', icon: Store },
-]
 
 function RadioCards({ label, options, value, onChange, locked, columns }) {
   const arrows = event => {
@@ -58,15 +53,14 @@ function TargetPicker({ targets, value, onChange, locked }) {
 // prepare (staged, nothing visible) -> review again with real images -> confirm.
 // Every step calls the real interchange endpoints; nothing is simulated. A Marketplace release is
 // downloaded and verified by the server: the browser never receives the package.
-export function StudioImportDialog({ open, onOpenChange, token, onImported, initialResource, direct }) {
+export function StudioImportDialog({ open, onOpenChange, token, onImported, initialResource }) {
   const permissions = useTemplatePermissions(), targets = importTargets(permissions)
   const [phase, setPhase] = useState('choose')
   const [file, setFile] = useState(null), [report, setReport] = useState(null), [prepared, setPrepared] = useState(null), [images, setImages] = useState({})
   const [name, setName] = useState(''), [target, setTarget] = useState(''), [accepted, setAccepted] = useState(false), [error, setError] = useState('')
   const [origin, setOrigin] = useState('file'), [resource, setResource] = useState(null), [market, setMarket] = useState(null), [marketState, setMarketState] = useState(null)
   const [acknowledged, setAcknowledged] = useState(false), [copyAccepted, setCopyAccepted] = useState(false)
-  const [auto, setAuto] = useState(false)
-  const job = useRef(null), staged = useRef(null), urls = useRef([]), confirming = useRef(false), started = useRef(false)
+  const job = useRef(null), staged = useRef(null), urls = useRef([]), confirming = useRef(false)
   const fromMarket = origin === 'marketplace'
 
   const revokeImages = useCallback(() => { for (const url of urls.current) URL.revokeObjectURL(url); urls.current = []; setImages({}) }, [])
@@ -78,16 +72,12 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
   }, [token])
   const reset = useCallback(() => {
     release(); revokeImages(); setPhase('choose'); setFile(null); setReport(null); setPrepared(null); setName(''); setAccepted(false); setError('')
-    setMarket(null); setMarketState(null); setCopyAccepted(false); setAuto(false); started.current = false
+    setMarket(null); setMarketState(null); setCopyAccepted(false)
   }, [release, revokeImages])
   const close = useCallback(() => { reset(); setOrigin('file'); setResource(null); setAcknowledged(false) }, [reset])
   useEffect(() => { if (!open) close() }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
   // Opened from a Marketplace card: start on the Marketplace origin with that release selected.
   useEffect(() => { if (open && initialResource) { setOrigin('marketplace'); setResource(initialResource) } }, [open, initialResource])
-  // Opened from a card with `direct`: the click already is the decision, so it runs straight through.
-  useEffect(() => {
-    if (open && direct && origin === 'marketplace' && resource && phase === 'choose' && targets.length && !started.current) { started.current = true; void runDirect(resource, acknowledged) }
-  }) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => () => { release(); for (const url of urls.current) URL.revokeObjectURL(url) }, [release])
   useEffect(() => { if (!target && targets.length) setTarget(targets[0].value) }, [target, targets])
 
@@ -171,32 +161,6 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
     }
   }
 
-  // Inspect -> prepare -> confirm without stops when nothing needs a decision (no losses, notices or licence
-  // warnings to accept). Anything that does falls back to the normal review screen, so no consent is skipped.
-  async function runDirect(item, acknowledge) {
-    setAuto(true); setError(''); setMarketState(null); setPhase('inspecting')
-    const sig = signal()
-    try {
-      const ref = releaseRef(item, acknowledge), info = unwrap(await runly.studio.inspectMarketplaceTemplate(ref, token, sig))
-      if (aborted(sig)) return
-      const title = String(info.resource?.title ?? item.title ?? '').trim().slice(0, 160), seen = marketplaceReport(info.package, info.diagnostics), tgt = targets.find(row => row.value === 'design')?.value ?? targets[0].value
-      setMarket({ resource: info.resource, diagnostics: info.diagnostics }); setReport(seen); setName(title); setTarget(tgt)
-      if (classifyImport(seen).cannotImport) { setAuto(false); setPhase('review'); return }
-      setPhase('preparing')
-      const data = unwrap(await runly.studio.prepareMarketplaceTemplateImport({ ...ref, target: tgt, name: title }, token, sig))
-      if (aborted(sig)) { runly.studio.cancelPackageImport(data.id, token).catch(() => {}); return }
-      staged.current = data.id; const ready = marketplaceReport(data, data.diagnostics); setPrepared(ready)
-      if (classifyImport(ready).needsAcceptance) { setAuto(false); setPhase('prepared'); loadImages(data, sig); return }
-      await confirm(data.id, data.digest, false)
-    } catch (failure) {
-      if (aborted(sig)) return
-      setAuto(false)
-      const state = marketplaceError(failure), diagnostics = state.details?.diagnostics
-      if (diagnostics) { setMarket(current => ({ ...current, diagnostics })); setReport(current => marketplaceReport(current, diagnostics)) }
-      setMarketState(state); setPhase(isTerminal(state) && !diagnostics ? 'blocked' : 'choose')
-    }
-  }
-
   // Cancel while a request runs: back to a clear state, with the reason visible.
   function cancelRunning() { release(); revokeImages(); setPrepared(null); setAccepted(false); setCopyAccepted(false); setPhase('cancelled') }
   function retryMarket() { reset(); void inspectMarket() }
@@ -214,16 +178,12 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
       <DialogContent size="2xl" className="flex max-h-[90dvh] flex-col">
         <DialogHeader icon={FileUp}>
           <DialogTitle>Importar diseño o plantilla</DialogTitle>
-          <DialogDescription>{fromMarket ? 'Elige una plantilla del Marketplace: Runly la descarga, la verifica y se abre tu copia para editar. Si algo requiere tu decisión, te lo mostramos antes de guardar.' : 'Abre un paquete .runlystudio o un SVG. Antes de guardar verás qué se conserva y qué cambia.'}</DialogDescription>
+          <DialogDescription>{fromMarket ? 'Elige una plantilla del Marketplace. Runly la descarga y la verifica; antes de guardar verás qué se conserva y qué cambia.' : 'Abre un paquete .runlystudio o un SVG. Antes de guardar verás qué se conserva y qué cambia.'}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1" aria-busy={busy}>
           {error ? <Alert variant="destructive"><AlertTriangle className="h-4 w-4" aria-hidden /><div><AlertTitle>No se pudo importar</AlertTitle><AlertDescription>{error}</AlertDescription></div></Alert> : null}
           {marketState ? <MarketplaceState state={marketState} onRetry={retry} /> : null}
           {!targets.length ? <Alert variant="warning" role="status"><ShieldCheck className="h-4 w-4" aria-hidden /><div><AlertTitle>Sin permiso para importar</AlertTitle><AlertDescription>Pide a un administrador permiso para crear diseños o plantillas.</AlertDescription></div></Alert> : null}
-          {phase === 'choose' && targets.length ? <RadioCards label="Origen" options={ORIGINS} value={origin} onChange={next => { setOrigin(next); setError(''); setMarketState(null) }} columns="sm:grid-cols-2" /> : null}
-          {phase === 'choose' && fromMarket && targets.length ? (
-            <MarketplaceCatalog token={token} columns="grid-cols-2 gap-3 sm:grid-cols-3" onUse={(item, acknowledge) => { setAcknowledged(acknowledge); setResource(item); started.current = true; void runDirect(item, acknowledge) }} />
-          ) : null}
           {phase === 'choose' && !fromMarket ? (
             <div className="space-y-3">
               <FileUploader accept=".runlystudio,.svg" maxSizeMB={64} disabled={!targets.length} emptyLabel="Elegir archivo" hint="Arrastra aquí un .runlystudio o un .svg, o búscalo en tu equipo." onChange={chosen => chosen && pick(chosen)} />
@@ -244,8 +204,8 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
               <p className="mt-0.5 text-[hsl(var(--muted-foreground))]">Los archivos preparados se descartaron. Elige otro recurso.</p>
             </div>
           ) : null}
-          {busy && (!shown || auto) ? <p role="status" className="flex items-center gap-2 py-8 text-sm text-[hsl(var(--muted-foreground))]"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />{progress}</p> : null}
-          {shown && assess && ['review', 'preparing', 'prepared', 'confirming'].includes(phase) && !(auto && busy) ? (
+          {busy && !shown ? <p role="status" className="flex items-center gap-2 py-8 text-sm text-[hsl(var(--muted-foreground))]"><Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden />{progress}</p> : null}
+          {shown && assess && ['review', 'preparing', 'prepared', 'confirming'].includes(phase) ? (
             <>
               {fromMarket && market?.resource ? <MarketplaceSource resource={market.resource} diagnostics={market.diagnostics} /> : null}
               <ImportReport report={shown} assess={assess} images={images} pending={phase === 'review'} />

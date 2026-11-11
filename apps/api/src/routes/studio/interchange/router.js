@@ -72,7 +72,7 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
     const [companyId, actorId] = actor(c)
     const download = await feed().download(ref, 'studio_template', { companyId, actorId })
     const value = await buildPreview(download.bytes)
-    if (previewCache.size >= 60) previewCache.delete(previewCache.keys().next().value)
+    if (previewCache.size >= 24) previewCache.delete(previewCache.keys().next().value)
     previewCache.set(download.resource.releaseId, { value, expires: Date.now() + PREVIEW_TTL })
     return c.json({ data: value })
   })

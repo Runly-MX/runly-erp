@@ -5,15 +5,15 @@ const fold = value => String(value ?? '').toLocaleLowerCase('es').normalize('NFD
 
 // [month, day] windows; a window may wrap over the new year.
 const SHELVES = [
-  { id: 'navidad', title: 'Se acerca Navidad y Año Nuevo', subtitle: 'Invitaciones, cartas y cenas para cerrar el año.', rule: /navidad|posada|ano nuevo|fin de ano|nochebuena|reyes|rosca|cena de|brindis/, window: [[11, 1], [1, 10]] },
+  { id: 'navidad', title: 'Se acerca Navidad y Año Nuevo', short: 'Navidad y Año Nuevo', subtitle: 'Invitaciones, cartas y cenas para cerrar el año.', rule: /navidad|posada|ano nuevo|fin de ano|nochebuena|reyes|rosca|cena de|brindis/, window: [[11, 1], [1, 10]] },
   { id: 'buenfin', title: 'Buen Fin y ofertas', subtitle: 'Promociones y descuentos listos para publicar.', rule: /buen fin|oferta|descuento|promocion|black friday|rebaja/, window: [[11, 5], [11, 30]] },
   { id: 'muertos', title: 'Día de muertos', subtitle: 'Ofrendas, calaveras y celebraciones.', rule: /muerto|ofrenda|catrina|calavera|cempasuchil/, window: [[10, 10], [11, 3]] },
   { id: 'patrias', title: 'Fiestas patrias', subtitle: 'Menús, programas y flyers para el mes patrio.', rule: /patri|mexican|independencia|viva mexico|grito/, window: [[8, 20], [9, 20]] },
   { id: 'valentin', title: 'San Valentín', subtitle: 'Mensajes y diseños para el 14 de febrero.', rule: /valentin|amor|corazon|enamorad/, window: [[1, 25], [2, 14]] },
   { id: 'madres', title: 'Día de las madres', subtitle: 'Felicitaciones y detalles para mamá.', rule: /madre|mama/, window: [[4, 25], [5, 10]] },
-  { id: 'festividades', title: 'Para festividades', subtitle: 'Invitaciones, cartas y felicitaciones para cualquier celebración.', rule: /invitacion|carta|felicit|fiesta|celebr|cumplean|boda|festiv|evento|noche especial/ },
-  { id: 'negocio', title: 'Para tu negocio', subtitle: 'Menús, promociones, tarjetas y folletos.', rule: /menu|promocion|oferta|tarjeta|folleto|catalogo|anuncio|mercado/ },
-  { id: 'redes', title: 'Para tus redes sociales', subtitle: 'Publicaciones e historias con buen ritmo visual.', rule: /redes|historia|publicacion|post|story/ },
+  { id: 'festividades', title: 'Para festividades', short: 'Festividades', subtitle: 'Invitaciones, cartas y felicitaciones para cualquier celebración.', rule: /invitacion|carta|felicit|fiesta|celebr|cumplean|boda|festiv|evento|noche especial/ },
+  { id: 'negocio', title: 'Para tu negocio', short: 'Negocio', subtitle: 'Menús, promociones, tarjetas y folletos.', rule: /menu|promocion|oferta|tarjeta|folleto|catalogo|anuncio|mercado/ },
+  { id: 'redes', title: 'Para tus redes sociales', short: 'Redes sociales', subtitle: 'Publicaciones e historias con buen ritmo visual.', rule: /redes|historia|publicacion|post|story/ },
 ]
 
 const stamp = ([month, day]) => month * 100 + day
@@ -37,3 +37,7 @@ export function shelvesFor(pool, { date = new Date(), maxShelves = 4, minItems =
   }
   return result
 }
+
+// Shelves that apply today (seasonal ones only in their window), for filter chips.
+export const shelfChips = (date = new Date()) => SHELVES.filter(shelf => inWindow(shelf.window, date)).map(({ id, title, short }) => ({ id, title: short ?? title }))
+export const matchesShelf = (id, text) => SHELVES.find(shelf => shelf.id === id)?.rule.test(fold(text)) ?? false
