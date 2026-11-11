@@ -84,14 +84,16 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     if (!['featured','recent'].includes(order)) throw new StudioError('Orden inválido.')
     const q = String(query.q ?? '').trim().slice(0,80), category = String(query.category ?? 'all').slice(0,80)
     const fold = value => String(value).toLocaleLowerCase('es').normalize('NFD').replace(/\p{Diacritic}/gu,'')
-    const builtins = ['all','runly'].includes(scope) ? STUDIO_TEMPLATES.filter(r => (category === 'all' || r.category === category) && fold(`${r.name} ${r.category} ${r.description}`).includes(fold(q))) : []
+    const collectionId = query.collectionId ?? null, inCollection = new Set(query.builtinKeys ?? [])
+    const builtins = ['all','runly'].includes(scope) ? STUDIO_TEMPLATES.filter(r => (category === 'all' || r.category === category) && (!collectionId || inCollection.has(r.key)) && fold(`${r.name} ${r.category} ${r.description}`).includes(fold(q))) : []
     // Projection happens in PostgreSQL: no full document is transferred for cards.
     const search = `%${q.replace(/[\\%_]/g, c => `\\${c}`)}%`
     const whereScope = ['all','marketplace'].includes(scope) ? '' : scope, whereSource = scope === 'marketplace' ? 'marketplace' : ''
     const [count] = scope === 'runly' ? [{ total: 0 }] : await prisma.$queryRaw`SELECT count(*)::int AS total FROM studio_template t
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${whereSource}='' OR t.source=${whereSource}) AND (${category}='all' OR t.category=${category})
-      AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})`
+      AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})
+      AND (${collectionId}::uuid IS NULL OR EXISTS(SELECT 1 FROM studio_collection_item ci WHERE ci.collection_id=${collectionId}::uuid AND ci.template_id=t.id))`
     // Explicit order. featured (default, legacy contract for MirAI/MCP/old clients and the Studio home):
     // the Runly catalog first, then stored templates newest first. recent (template explorer): stored
     // templates newest first, then the Runly catalog. Both are one continuous sequence across pages.
@@ -116,6 +118,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
       WHERE t.company_id=${companyId}::uuid AND t.enabled AND (t.scope='company' OR t.owner_id=${actorId}::uuid)
       AND (${whereScope}='' OR t.scope=${whereScope}) AND (${whereSource}='' OR t.source=${whereSource}) AND (${category}='all' OR t.category=${category})
       AND atlas_unaccent(concat_ws(' ',t.name,t.category,t.description)) ILIKE atlas_unaccent(${search})
+      AND (${collectionId}::uuid IS NULL OR EXISTS(SELECT 1 FROM studio_collection_item ci WHERE ci.collection_id=${collectionId}::uuid AND ci.template_id=t.id))
       ORDER BY t.updated_at DESC,t.id LIMIT ${remaining} OFFSET ${storedOffset}`
     const categories = await prisma.$queryRaw`SELECT DISTINCT category FROM studio_template WHERE company_id=${companyId}::uuid
       AND enabled AND (scope='company' OR owner_id=${actorId}::uuid) LIMIT 100`

@@ -19,7 +19,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     const receipt=await findReceipt(prisma,companyId,actorId,id,input.clientId,input.batchId)
     return receipt?{clientId:input.clientId,batchId:input.batchId,revision:receipt.result.revision}:null
   }
-  async function list(companyId, actorId, { page = 1, shared = 'all', q = '' } = {}) {
+  async function list(companyId, actorId, { page = 1, shared = 'all', q = '', collectionId = null } = {}) {
     await access.member(companyId, actorId)
     const offset = (Math.max(1, Math.min(10000, Number.parseInt(page, 10) || 1)) - 1) * 24
     const search = `%${String(q ?? '').trim().slice(0, 80).replace(/[\\%_]/g, character => `\\${character}`)}%`
@@ -38,6 +38,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       WHERE d.company_id=${companyId}::uuid AND d.enabled AND runly_studio.can_access(d.id,${actorId}::uuid,false)
         AND (${shared}='all' OR (${shared}='mine' AND d.owner_id=${actorId}::uuid) OR (${shared}='shared' AND d.owner_id<>${actorId}::uuid))
         AND atlas_unaccent(d.name) ILIKE atlas_unaccent(${search})
+        AND (${collectionId}::uuid IS NULL OR EXISTS(SELECT 1 FROM studio_collection_item ci WHERE ci.collection_id=${collectionId}::uuid AND ci.design_id=d.id))
       ORDER BY d.updated_at DESC,d.id LIMIT 24 OFFSET ${offset}`
   }
   async function get(companyId, actorId, id, db = prisma) {

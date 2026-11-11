@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useInfiniteQuery } from '@tanstack/react-query'
 import { ActionMenu, Button, EmptyState, ErrorState, SearchInput, Select, SelectContent, SelectItem, SelectTrigger, SelectValue, Skeleton, cn } from '@runly/ui'
-import { Building2, LayoutTemplate, SearchX, Sparkles, Store, User } from 'lucide-react'
+import { Building2, FolderMinus, FolderPlus, LayoutTemplate, SearchX, Sparkles, Store, User } from 'lucide-react'
 import { runly } from '../../../../lib/runly.js'
 import { StudioTemplateThumbnail } from '../StudioTemplateThumbnail.jsx'
 import { editedAgo, sizeLabel } from '../../lib/formats.js'
 import { TemplatePreviewDialog } from './TemplatePreviewDialog.jsx'
 import { useTemplateActions } from '../templates/useTemplateActions.jsx'
+import { FavoriteButton } from './FavoriteButton.jsx'
+import { itemRef, useCollections } from './CollectionsProvider.jsx'
 
 const SCOPES = [{ value: 'all', label: 'Todas las plantillas' }, { value: 'runly', label: 'De Runly' }, { value: 'marketplace', label: 'Del Marketplace' }, { value: 'personal', label: 'Mis plantillas' }, { value: 'company', label: 'De mi empresa' }]
 const EMPTY = {
@@ -41,13 +43,13 @@ function metaLine(template) {
 }
 
 // `limit` = compact teaser (no search, filters or pagination).
-export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, limit, query }) {
+export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, limit, query, collection, hideEmpty, heading }) {
   const [search, setSearch] = useState(''), [typed, setQ] = useState(''), [category, setCategory] = useState('all'), [scope, setScope] = useState('all')
-  const [preview, setPreview] = useState(null), sentinel = useRef(null)
+  const [preview, setPreview] = useState(null), sentinel = useRef(null), api = useCollections()
   useEffect(() => { const timer = setTimeout(() => setQ(search), 300); return () => clearTimeout(timer) }, [search])
   const q = query ?? typed
-  const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category, limit ? 'featured' : 'recent'], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
-    queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam, ...(limit ? {} : { order: 'recent' }) }, signal)).data,
+  const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category, collection ?? '', limit ? 'featured' : 'recent'], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
+    queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam, ...(collection ? { collection } : {}), ...(limit ? {} : { order: 'recent' }) }, signal)).data,
     getNextPageParam: last => last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined, enabled: Boolean(token), retry: false })
   const result = useMemo(() => {
     if (!catalog.data) return undefined
@@ -90,15 +92,19 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
         </div>
       </div>
     </>}
+    {heading && result?.data.length ? <h2 className="mb-3 text-lg font-semibold">{heading}</h2> : null}
     {catalog.isPending ? <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6" aria-label="Cargando plantillas" aria-busy="true">{Array.from({ length: 6 }, (_, i) => <Skeleton key={i} className="aspect-[4/5]" />)}</div> : null}
     {catalog.error ? <ErrorState title="No se pudieron cargar las plantillas" description={catalog.error.message} onRetry={catalog.refetch} /> : null}
-    {empty ? (filtered || !EMPTY[scope]
+    {empty && !hideEmpty ? (filtered || !EMPTY[scope]
       ? <EmptyState icon={SearchX} title="Sin plantillas con estos filtros" description="Prueba otra búsqueda o categoría." />
       : <EmptyState icon={LayoutTemplate} title={EMPTY[scope].title} description={EMPTY[scope].description} />) : null}
     <ul className={limit ? '-mx-4 flex snap-x snap-mandatory scroll-px-4 gap-3 overflow-x-auto px-4 pb-2 [scrollbar-width:none] sm:mx-0 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:px-0 sm:pb-0 xl:grid-cols-6' : 'grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 xl:grid-cols-6'}
       aria-busy={catalog.isFetching}>
       {result?.data.map(template => {
-        const items = limit ? [] : actions.items(template)
+        const ref = itemRef('template', template)
+        const collect = api ? [{ label: 'Agregar a colección', icon: FolderPlus, onClick: () => api.pick(ref) },
+          ...(collection ? [{ label: 'Quitar de la colección', icon: FolderMinus, onClick: () => (collection === 'favorites' ? api.toggleFavorite(ref) : api.removeItem(collection, ref)) }] : [])] : []
+        const items = limit ? [] : [...actions.items(template), ...collect]
         return (
           <li key={template.id ?? template.key} className={cn('group/card relative', limit && 'w-[42%] shrink-0 snap-start sm:w-auto')}>
             <button type="button" onClick={() => setPreview(template)} aria-label={`Ver plantilla ${template.name}`} className="group w-full rounded-2xl text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
@@ -110,6 +116,7 @@ export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, 
               <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{template.category}{template.scope === 'runly' ? '' : ` · ${sizeLabel(template)}`}</p>
               <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">{metaLine(template)}</p>
             </button>
+            <FavoriteButton item={ref} name={template.name} className="right-2 top-2" />
             {items.length ? (
               <div className="absolute right-0 top-[calc(100%-3.6rem)] opacity-0 transition-opacity focus-within:opacity-100 group-hover/card:opacity-100 [@media(hover:none)]:opacity-100">
                 <ActionMenu label={`Opciones de ${template.name}`} items={[actions.useItem(template), ...items].filter(Boolean)} />

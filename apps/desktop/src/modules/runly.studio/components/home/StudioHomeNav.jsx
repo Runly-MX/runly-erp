@@ -2,6 +2,7 @@ import { useLayoutEffect, useRef, useState } from 'react'
 import { Button, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger, cn } from '@runly/ui'
 import { FileUp, FolderOpen, House, LayoutTemplate, Plus, Ruler } from 'lucide-react'
 import { STUDIO_FORMATS, sizeLabel } from '../../lib/formats.js'
+import { CollectionsNav } from './CollectionsNav.jsx'
 
 export const HOME_VIEWS = [
   { value: 'home', label: 'Inicio', icon: House },
@@ -44,7 +45,8 @@ function useIndicator(view) {
     if (!node) return undefined
     const measure = () => {
       const active = node.querySelector(`[data-view="${view}"]`)
-      if (active && active.offsetWidth) setBox({ x: active.offsetLeft, y: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight })
+      if (!active) setBox(null)
+      else if (active.offsetWidth) setBox({ x: active.offsetLeft, y: active.offsetTop, width: active.offsetWidth, height: active.offsetHeight })
     }
     measure()
     const observer = new ResizeObserver(measure)
@@ -57,7 +59,7 @@ function useIndicator(view) {
 const SLIDE = 'pointer-events-none absolute left-0 top-0 transition-[transform,width,height,opacity] duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none'
 
 // Desktop (lg+): sticky side navigation with the create menu.
-export function StudioHomeSidebar({ view, onView, creating, onCreate, onCustom, onImport }) {
+export function StudioHomeSidebar({ view, onView, creating, onCreate, onCustom, onImport, collection, onCollection }) {
   const [list, box] = useIndicator(view)
   return (
     <aside className="sticky top-6 hidden w-56 shrink-0 self-start lg:block">
@@ -77,6 +79,7 @@ export function StudioHomeSidebar({ view, onView, creating, onCreate, onCustom, 
           )
         })}
       </nav>
+      <CollectionsNav selected={collection} onSelect={onCollection} />
     </aside>
   )
 }

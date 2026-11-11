@@ -7,6 +7,7 @@ import { createStudioCollaboration } from './studio-collaboration.js'
 import { tenantActiveContext } from '../../lib/active-context.js'
 import { createStudioResources } from './studio-resources.js'
 import { createStudioTemplatesService } from './studio-templates-service.js'
+import { createStudioCollectionsService } from './studio-collections-service.js'
 import { createStudioCatalog } from './catalog/service.js'
 import { createStudioImageCopies } from './studio-image-copies.js'
 import { buildPrintPdf } from './studio-print.js'
@@ -34,6 +35,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     signFile: file => signedUrlWithVariant(supabaseAdmin, file.bucket, file.objectKey, 'full') }) }) {
   const app = new Hono()
   app.route('/', createStudioInterchangeRouter({ prisma, filesService, supabaseAdmin, service, templates, requirePermission, marketplace }))
+  const collections = createStudioCollectionsService({ prisma, access: service.access })
   const collaboration = createStudioCollaboration({ prisma, access: service.access, broadcaster, supabaseAdmin })
   const resources = createStudioResources({ access: service.access, filesService, supabaseAdmin })
   const catalog = createStudioCatalog({ prisma, access: service.access, filesService, supabaseAdmin })
@@ -66,7 +68,23 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     if (error instanceof SyntaxError) return c.json({ error: 'El diseño no contiene JSON válido.' }, 400)
     return c.json({ error: 'No se pudo procesar el diseño.' }, 500)
   })
-  app.get('/studio/designs', requirePermission('studio.view'), async c => c.json({ data: await service.list(...context(c), c.req.query()) }))
+  // `collection` (an id or "favorites") narrows the home lists; ownership is verified before it reaches SQL.
+  const withCollection = async c => {
+    const { collection, collectionId: _ignored, builtinKeys: _keys, ...query } = c.req.query()
+    const id = await collections.filterId(...context(c), collection)
+    return { ...query, collectionId: id, builtinKeys: id ? await collections.builtinKeys(id) : [] }
+  }
+  app.get('/studio/designs', requirePermission('studio.view'), async c => c.json({ data: await service.list(...context(c), await withCollection(c)) }))
+  const body = async c => c.req.json().catch(() => ({}))
+  app.get('/studio/collections', requirePermission('studio.view'), async c => { c.header('Cache-Control', 'private, no-store'); return c.json({ data: await collections.list(...context(c)) }) })
+  app.post('/studio/collections', requirePermission('studio.view'), async c => c.json({ data: await collections.create(...context(c), await body(c)) }, 201))
+  app.patch('/studio/collections/:id', requirePermission('studio.view'), async c => c.json({ data: await collections.rename(...context(c), c.req.param('id'), await body(c)) }))
+  app.delete('/studio/collections/:id', requirePermission('studio.view'), async c => c.json({ data: await collections.remove(...context(c), c.req.param('id')) }))
+  app.put('/studio/collections/:id/items', requirePermission('studio.view'), async c => c.json({ data: await collections.addItem(...context(c), c.req.param('id'), await body(c)) }))
+  app.delete('/studio/collections/:id/items', requirePermission('studio.view'), async c => c.json({ data: await collections.removeItem(...context(c), c.req.param('id'), await body(c)) }))
+  app.get('/studio/favorites', requirePermission('studio.view'), async c => { c.header('Cache-Control', 'private, no-store'); return c.json({ data: await collections.favorites(...context(c)) }) })
+  app.put('/studio/favorites', requirePermission('studio.view'), async c => c.json({ data: await collections.favorite(...context(c), await body(c)) }))
+  app.delete('/studio/favorites', requirePermission('studio.view'), async c => c.json({ data: await collections.unfavorite(...context(c), await body(c)) }))
   app.get('/studio/protocol',requirePermission('studio.view'),async c=>{await service.access.member(...context(c));c.header('Cache-Control','no-store');return c.json({data:{version:STUDIO_PROTOCOL_VERSION,schemaVersion:7}})})
   app.use('/studio/designs/:id',async(c,next)=>{if(c.req.method==='PUT'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
   app.use('/studio/designs/:id/changes',async(c,next)=>{if(c.req.method==='POST'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
@@ -100,7 +118,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   })
   app.get('/studio/templates', requirePermission('studio.view'), async c => {
     c.header('Cache-Control', 'private, no-store')
-    return c.json({ data: await templates.list(...context(c), c.req.query()) })
+    return c.json({ data: await templates.list(...context(c), await withCollection(c)) })
   })
   app.get('/studio/templates/:id/assets/:fileId/signed-url', requirePermission('studio.view'), async c => {
     c.header('Cache-Control','private, no-store')

@@ -14,16 +14,16 @@ const RECENT_GRID = 'grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4'
 
 // Designs grid. `limit` = "recent" teaser on the Inicio view: first page only,
 // no pagination, and nothing at all when there are no designs yet.
-export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, creating, onCreate, onOpen, onClearSearch }) {
+export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, creating, onCreate, onOpen, onClearSearch, collection, hideEmpty, heading }) {
   const queryClient = useQueryClient()
   const [removing, setRemoving] = useState(null)
   const [deleting, setDeleting] = useState(false), deletingRef = useRef(false)
-  const filterKey=JSON.stringify([q,shared])
+  const filterKey=JSON.stringify([q,shared,collection])
   const [pagination,setPagination]=useState({filterKey,page:1})
   const page=pagination.filterKey===filterKey?pagination.page:1
   const designs = useQuery({
-    queryKey: ['studio', ...scopeKey, 'designs', page, shared, q],
-    queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page, shared, ...(q ? { q } : {}) })),
+    queryKey: ['studio', ...scopeKey, 'designs', page, shared, q, collection ?? ''],
+    queryFn: async () => unwrap(await runly.studio.listDesigns(token, { page, shared, ...(q ? { q } : {}), ...(collection ? { collection } : {}) })),
     enabled: Boolean(token), placeholderData: previous => previous,
     refetchInterval: 30000,
   })
@@ -51,7 +51,7 @@ export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, cr
   if (designs.isPending) return <div className={limit ? RECENT_GRID : GRID} aria-busy="true" aria-label="Cargando diseños">{Array.from({ length: limit ?? 8 }, (_, index) => <DesignCardSkeleton key={index} />)}</div>
   if (designs.isError) return <ErrorState title="No se pudieron cargar tus diseños" description={designs.error?.message} onRetry={() => designs.refetch()} />
   if (!list.length && page === 1) {
-    if (limit) return null
+    if (limit || hideEmpty) return null
     return q || shared !== 'all'
       ? <EmptyState icon={SearchX} title="Sin resultados" description={q ? `Ningún diseño coincide con «${q}».` : 'No hay diseños en esta vista.'}
         action={q && onClearSearch ? <Button variant="outline" onClick={onClearSearch}>Limpiar búsqueda</Button> : null} />
@@ -60,8 +60,9 @@ export function DesignsList({ token, scopeKey, q = '', shared = 'all', limit, cr
   }
   return (
     <>
+      {heading ? <h2 className="mb-3 text-lg font-semibold">{heading}</h2> : null}
       <ul className={limit ? RECENT_GRID : GRID} aria-busy={designs.isFetching}>
-        {list.map(design => <li key={design.id} className="flex"><DesignCard design={design} onOpen={() => onOpen(design.id)} onDuplicate={() => duplicate(design)} onDelete={() => setRemoving(design)} /></li>)}
+        {list.map(design => <li key={design.id} className="flex"><DesignCard collection={collection} design={design} onOpen={() => onOpen(design.id)} onDuplicate={() => duplicate(design)} onDelete={() => setRemoving(design)} /></li>)}
       </ul>
       <ConfirmDialog open={Boolean(removing)} loading={deleting} onOpenChange={open => { if (!open && !deletingRef.current) setRemoving(null) }} title="Eliminar diseño"
         description={removing ? `«${removing.name}» dejará de estar disponible para ti y sus colaboradores. Las plantillas y los archivos originales se conservarán.` : ''}

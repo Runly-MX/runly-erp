@@ -9,6 +9,9 @@ import { DesignsList, useHasDesigns } from './DesignsList.jsx'
 import { StudioHomeSidebar, StudioHomeTabs } from './StudioHomeNav.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
 import { StudioPageDialog } from '../StudioPageDialog.jsx'
+import { CollectionsProvider } from './CollectionsProvider.jsx'
+import { CollectionsNav } from './CollectionsNav.jsx'
+import { CollectionView } from './CollectionView.jsx'
 import { FORMAT_CATEGORIES } from '../../lib/formats.js'
 
 const VIEW_ORDER = ['home', 'designs', 'templates']
@@ -43,9 +46,9 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
   const [designQuery, setDesignQuery] = useState(''), [shared, setShared] = useState('all'), [sizeOpen, setSizeOpen] = useState(false)
   const heroQ = useDebounced(heroQuery.trim()), designQ = useDebounced(designQuery.trim())
   const hasDesigns = useHasDesigns({ token, scopeKey })
-  const top = useRef(null)
+  const top = useRef(null), [collection, setCollection] = useState(null)
   // Switching views starts at the top, like a page change.
-  const changeView = next => { onView(next); top.current?.scrollIntoView({ block: 'start' }) }
+  const changeView = next => { setCollection(null); onView(next); top.current?.scrollIntoView({ block: 'start' }) }
   // The new view slides in from the side of the tab it comes from.
   const [shown, setShown] = useState({ view, from: 'below' })
   if (shown.view !== view) setShown({ view, from: VIEW_ORDER.indexOf(view) > VIEW_ORDER.indexOf(shown.view) ? 'right' : 'left' })
@@ -111,13 +114,18 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
     ),
   }
   return (
+    <CollectionsProvider token={token} scopeKey={scopeKey}>
     <div ref={top} className="mx-auto w-full max-w-[1600px] px-4 pb-10 sm:px-6 lg:flex lg:gap-8 lg:px-8 lg:pt-6">
-      <StudioHomeSidebar view={view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} onImport={onImport} />
+      <StudioHomeSidebar view={collection ? null : view} onView={changeView} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} onImport={onImport} collection={collection} onCollection={id => { setCollection(id); top.current?.scrollIntoView({ block: 'start' }) }} />
       <div className="min-w-0 flex-1 overflow-x-clip">
-        <StudioHomeTabs view={view} onView={changeView} />
-        <FadeSwap data-studio-view={view} contentKey={view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">{views[view] ?? views.home}</FadeSwap>
+        <StudioHomeTabs view={collection ? null : view} onView={changeView} />
+        <div className="pt-3 lg:hidden"><CollectionsNav layout="chips" selected={collection} onSelect={setCollection} /></div>
+        <FadeSwap data-studio-view={collection ?? view} contentKey={collection ?? view} from={shown.from} className="pt-4 sm:pt-6 lg:pt-0">
+          {collection ? <CollectionView id={collection} token={token} scopeKey={scopeKey} creating={creating} onCreate={onCreate} onOpen={onOpen} onUseTemplate={template => onCreate('template', template)} onEditTemplateContent={onEditTemplateContent} onGone={() => setCollection(null)} /> : (views[view] ?? views.home)}
+        </FadeSwap>
       </div>
       {sizeOpen ? <StudioPageDialog open creating page={{ width: 1080, height: 1080, background: '#ffffff' }} onClose={() => setSizeOpen(false)} onApply={page => onCreate('custom', page, true)} /> : null}
     </div>
+    </CollectionsProvider>
   )
 }
