@@ -41,7 +41,7 @@ export function createStudioCollectionsService({ prisma, access }) {
     await access.member(companyId, actorId)
     const rows = await prisma.$queryRaw`SELECT c.id,c.name,c.is_favorites AS "isFavorites",count(i.id)::int AS "itemCount"
       FROM studio_collection c LEFT JOIN studio_collection_item i ON i.collection_id=c.id
-      WHERE c.company_id=${companyId}::uuid AND c.owner_id=${actorId}::uuid GROUP BY c.id ORDER BY c.is_favorites DESC,c.created_at,c.id`
+      WHERE c.company_id=${companyId}::uuid AND c.owner_id=${actorId}::uuid GROUP BY c.id ORDER BY c.is_favorites DESC,c.created_at DESC,c.id DESC`
     return rows[0]?.isFavorites ? rows : [{ id: null, name: 'Favoritos', isFavorites: true, itemCount: 0 }, ...rows]
   }
   async function create(companyId, actorId, input) {

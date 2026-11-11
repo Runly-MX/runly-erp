@@ -4,12 +4,14 @@ import { Badge, Button, Skeleton } from '@runly/ui'
 import { runly } from '../../../../lib/runly.js'
 import { publisherLabel, resourceBlock } from '../../../../lib/marketplace-import.js'
 
+const newestFirst = (a, b) => String(b.publishedAt ?? '').localeCompare(String(a.publishedAt ?? ''))
+
 // Discovery strip of verified Marketplace templates. Same query key as the import picker, so the
 // list is fetched once. Hidden when the catalog is not configured or empty: Inicio never shows an error for it.
 export function MarketplaceRow({ token, onUse, onSeeAll }) {
   const query = useQuery({ queryKey: ['marketplace-resources', 'studio_template', false, token], enabled: Boolean(token), retry: false, staleTime: 30_000,
     queryFn: async () => (await runly.studio.marketplaceTemplates({}, token))?.data })
-  const items = (query.data?.items ?? []).filter(item => !resourceBlock(item)).slice(0, 8)
+  const items = (query.data?.items ?? []).filter(item => !resourceBlock(item)).sort(newestFirst).slice(0, 8)
   if (query.isError || (!query.isLoading && !items.length)) return null
   return (
     <section aria-labelledby="studio-market-title">

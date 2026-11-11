@@ -35,7 +35,7 @@ export function MarketplaceResourcePicker({ type, token, value, onChange, acknow
   })
   if (query.isLoading) return <div className="space-y-2" role="status" aria-label="Cargando el catálogo">{[0, 1, 2].map((i) => <Skeleton key={i} className="h-20 rounded-lg" />)}</div>
   if (query.isError) return <MarketplaceState state={marketplaceError(query.error)} onRetry={() => query.refetch()} />
-  const catalog = catalogState(query.data?.catalog), items = query.data?.items ?? []
+  const catalog = catalogState(query.data?.catalog), items = [...(query.data?.items ?? [])].sort((a, b) => String(b.publishedAt ?? '').localeCompare(String(a.publishedAt ?? '')))
   const visible = items.filter((item) => !search.trim() || matchesSearch(`${item.title} ${publisherLabel(item)} ${item.description ?? ''}`, search))
   const arrows = (event) => {
     const delta = { ArrowDown: 1, ArrowRight: 1, ArrowUp: -1, ArrowLeft: -1 }[event.key]

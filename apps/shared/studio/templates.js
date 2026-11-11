@@ -118,7 +118,8 @@ const DEFINITIONS = [
   ...HOLIDAYS_E,
 ]
 
-export const STUDIO_TEMPLATES = Object.freeze(DEFINITIONS.map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,
+// Newest first: DEFINITIONS grows by appending, so reversing it lists the latest additions at the top.
+export const STUDIO_TEMPLATES = Object.freeze([...DEFINITIONS].reverse().map(({ key, name, width, height,category,description,objects }) => Object.freeze({ key, name, width, height,
   category:category??({square:'Redes sociales',poster:'Flyers',story:'Historias',slides:'Presentaciones',certificate:'Certificados',banner:'Banners'}[key]),
   description:description??'Composición original con texto y formas completamente editables.',version:1,creator:'Runly',source:'original',
   licenses:[...new Set(objects.flatMap(object=>object.type==='vector'?[iconSource(object.iconId)?.license].filter(Boolean):object.fontFamily&&object.fontFamily!=='sans-serif'?['OFL-1.1']:[]))],
