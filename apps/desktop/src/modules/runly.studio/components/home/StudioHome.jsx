@@ -1,13 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
-import { Button, SearchInput, SegmentedControl } from '@runly/ui'
+import { Button, ChipTabs, SearchInput, SegmentedControl } from '@runly/ui'
 import { ArrowRight, FileUp } from 'lucide-react'
 import { StudioHero } from './StudioHero.jsx'
 import { FormatGrid } from './FormatGrid.jsx'
+import { MarketplaceRow } from './MarketplaceRow.jsx'
 import { TemplateGrid } from './TemplateGrid.jsx'
 import { DesignsList, useHasDesigns } from './DesignsList.jsx'
 import { StudioHomeSidebar, StudioHomeTabs } from './StudioHomeNav.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
 import { StudioPageDialog } from '../StudioPageDialog.jsx'
+import { FORMAT_CATEGORIES } from '../../lib/formats.js'
 
 const VIEW_ORDER = ['home', 'designs', 'templates']
 const SHARED = [{ value: 'all', label: 'Todos' }, { value: 'mine', label: 'Míos' }, { value: 'shared', label: 'Compartidos' }]
@@ -52,20 +54,20 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
   const views = {
     home: (
       <div className="space-y-10">
-        <StudioHero query={heroQuery} onQuery={setHeroQuery} category={category} onCategory={setCategory} />
+        <StudioHero query={heroQuery} onQuery={setHeroQuery} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} onImport={onImport} />
         {heroQ ? (
-          <section aria-labelledby="studio-search-title">
-            <SectionTitle id="studio-search-title" title={`Resultados para «${heroQ}»`} />
-            {list({ q: heroQ, onClearSearch: () => setHeroQuery('') })}
-          </section>
+          <>
+            <section aria-labelledby="studio-search-title">
+              <SectionTitle id="studio-search-title" title={`Tus diseños con «${heroQ}»`} />
+              {list({ q: heroQ, onClearSearch: () => setHeroQuery('') })}
+            </section>
+            <section aria-labelledby="studio-search-templates-title">
+              <SectionTitle id="studio-search-templates-title" title={`Plantillas con «${heroQ}»`} />
+              <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} query={heroQ} limit={6} />
+            </section>
+          </>
         ) : (
           <>
-            <section aria-labelledby="studio-formats-title">
-              <SectionTitle id="studio-formats-title" title="Empieza con un formato" description="Un lienzo con la medida justa, listo para crear.">
-                {onImport ? <Button variant="outline" size="sm" disabled={Boolean(creating)} onClick={onImport} className="gap-1.5 self-start sm:self-auto lg:hidden"><FileUp />Importar diseño o plantilla</Button> : null}
-              </SectionTitle>
-              <FormatGrid category={category} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
-            </section>
             {hasDesigns ? (
               <section aria-labelledby="studio-recent-title">
                 <SectionTitle id="studio-recent-title" title="Recientes" description="Continúa donde lo dejaste.">
@@ -79,6 +81,12 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
                 <SeeAll label="Ver todas" onClick={() => changeView('templates')} />
               </SectionTitle>
               <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} limit={6} />
+            </section>
+            <MarketplaceRow token={token} onUse={item => onImport?.(item)} onSeeAll={() => onImport?.()} />
+            <section aria-labelledby="studio-formats-title">
+              <SectionTitle id="studio-formats-title" title="Todos los formatos" description="Un lienzo con la medida justa, listo para crear." />
+              <div className="mb-4 overflow-x-auto [scrollbar-width:none]"><ChipTabs tabs={FORMAT_CATEGORIES} value={category} onChange={setCategory} tone="brand" ariaLabel="Tipos de formato" showDescription={false} /></div>
+              <FormatGrid category={category} creating={creating} onCreate={createFormat} onCustom={() => setSizeOpen(true)} />
             </section>
           </>
         )}

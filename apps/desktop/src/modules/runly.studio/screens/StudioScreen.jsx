@@ -38,7 +38,7 @@ export default function StudioScreen() {
   // Home view survives opening a design and coming back (?view=designs|templates).
   const view = ['designs', 'templates'].includes(params.get('view')) ? params.get('view') : 'home'
   const withView = extra => ({ ...(view === 'home' ? {} : { view }), ...extra })
-  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null), [importing, setImporting] = useState(false)
+  const [creating, setCreating] = useState(null), [resume, setResume] = useState(null), [importing, setImporting] = useState(false), [importResource, setImportResource] = useState(null)
   // One creation at a time: repeated clicks never create duplicate designs.
   const starting = useRef(false)
   const queryClient = useQueryClient()
@@ -96,8 +96,8 @@ export default function StudioScreen() {
     else { toast.success(result.scope === 'company' ? 'Plantilla de la empresa guardada.' : 'Plantilla personal guardada.'); setParams({ view: 'templates' }) }
   }
   return <>
-    <StudioImportDialog open={importing} onOpenChange={setImporting} token={token} onImported={imported} />
-    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onImport={() => setImporting(true)} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
+    <StudioImportDialog open={importing} onOpenChange={setImporting} token={token} onImported={imported} initialResource={importResource} />
+    <StudioHome token={token} scopeKey={scopeKey} creating={creating} onImport={resource => { setImportResource(resource?.releaseId ? resource : null); setImporting(true) }} onCreate={create} onEditTemplateContent={template => editTemplateContent(template)} onOpen={designId => setParams(withView({ design: designId }))}
       view={view} onView={next => setParams(next === 'home' ? {} : { view: next })} />
     <Dialog open={Boolean(resume)} onOpenChange={open => { if (!open) setResume(null) }}>
       <DialogContent size="md">

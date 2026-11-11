@@ -41,10 +41,11 @@ function metaLine(template) {
 }
 
 // `limit` = compact teaser (no search, filters or pagination).
-export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, limit }) {
-  const [search, setSearch] = useState(''), [q, setQ] = useState(''), [category, setCategory] = useState('all'), [scope, setScope] = useState('all')
+export function TemplateGrid({ token, scopeKey, creating, onUse, onEditContent, limit, query }) {
+  const [search, setSearch] = useState(''), [typed, setQ] = useState(''), [category, setCategory] = useState('all'), [scope, setScope] = useState('all')
   const [preview, setPreview] = useState(null), sentinel = useRef(null)
   useEffect(() => { const timer = setTimeout(() => setQ(search), 300); return () => clearTimeout(timer) }, [search])
+  const q = query ?? typed
   const catalog = useInfiniteQuery({ queryKey: ['studio', ...scopeKey, 'templates', scope, q, category, limit ? 'featured' : 'recent'], gcTime: 60000, staleTime: 60000, initialPageParam: 1,
     queryFn: async ({ signal, pageParam }) => (await runly.studio.templates(token, { scope, q, category, page: pageParam, ...(limit ? {} : { order: 'recent' }) }, signal)).data,
     getNextPageParam: last => last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined, enabled: Boolean(token), retry: false })

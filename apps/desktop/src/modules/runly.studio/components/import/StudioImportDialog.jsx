@@ -57,7 +57,7 @@ function TargetPicker({ targets, value, onChange, locked }) {
 // prepare (staged, nothing visible) -> review again with real images -> confirm.
 // Every step calls the real interchange endpoints; nothing is simulated. A Marketplace release is
 // downloaded and verified by the server: the browser never receives the package.
-export function StudioImportDialog({ open, onOpenChange, token, onImported }) {
+export function StudioImportDialog({ open, onOpenChange, token, onImported, initialResource }) {
   const permissions = useTemplatePermissions(), targets = importTargets(permissions)
   const [phase, setPhase] = useState('choose')
   const [file, setFile] = useState(null), [report, setReport] = useState(null), [prepared, setPrepared] = useState(null), [images, setImages] = useState({})
@@ -80,6 +80,8 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported }) {
   }, [release, revokeImages])
   const close = useCallback(() => { reset(); setOrigin('file'); setResource(null); setAcknowledged(false) }, [reset])
   useEffect(() => { if (!open) close() }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  // Opened from a Marketplace card: start on the Marketplace origin with that release selected.
+  useEffect(() => { if (open && initialResource) { setOrigin('marketplace'); setResource(initialResource) } }, [open, initialResource])
   useEffect(() => () => { release(); for (const url of urls.current) URL.revokeObjectURL(url) }, [release])
   useEffect(() => { if (!target && targets.length) setTarget(targets[0].value) }, [target, targets])
 
