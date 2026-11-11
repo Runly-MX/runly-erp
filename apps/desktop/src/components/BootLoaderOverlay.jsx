@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useBootLoaderStore } from "../stores/bootLoader";
 import { AppLoader } from "./AppLoader";
 
@@ -14,6 +14,19 @@ export function BootLoaderOverlay() {
     return undefined;
   }, [reasons]);
 
-  if (reasons.size === 0) return null;
+  const active = reasons.size > 0;
+  // Gates hand off with a one-render gap where no reason is active; hiding
+  // immediately would unmount the loader and restart its animation.
+  const [visible, setVisible] = useState(active);
+  useEffect(() => {
+    if (active) {
+      setVisible(true);
+      return undefined;
+    }
+    const t = setTimeout(() => setVisible(false), 250);
+    return () => clearTimeout(t);
+  }, [active]);
+
+  if (!active && !visible) return null;
   return <AppLoader message={message} />;
 }

@@ -68,8 +68,6 @@ export function AppLoader({ message = "Iniciando Runly ERP..." }) {
 
   useEffect(() => {
     if (!content) return undefined;
-    const msgEl = document.getElementById("rl3-msg");
-    if (msgEl) msgEl.textContent = message;
 
     function sync() {
       const t = document.timeline.currentTime;
@@ -86,6 +84,12 @@ export function AppLoader({ message = "Iniciando Runly ERP..." }) {
     if (document.fonts?.ready) document.fonts.ready.then(sync);
     const timer = setTimeout(sync, 60);
     return () => clearTimeout(timer);
+  }, [content]);
+
+  // Separate from the sync effect: a message change must not restart the animation.
+  useEffect(() => {
+    const msgEl = document.getElementById("rl3-msg");
+    if (msgEl) msgEl.textContent = message;
   }, [content, message]);
 
   return (
