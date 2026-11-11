@@ -6,5 +6,5 @@
   "logicalScope": "@runly",
   "registryScope": "@runly-mx",
   "versionConvention": "<base>-source.<full-git-sha>",
-  "packages": ["core", "module-engine", "module-compiler", "ui", "sdk", "preview-runtime", "studio-interchange"]
+  "packages": ["core", "module-engine", "module-compiler", "ui", "sdk", "preview-runtime", "studio-interchange", "website-blocks"]
 }

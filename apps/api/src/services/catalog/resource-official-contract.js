@@ -10,7 +10,7 @@ const exact = (v, keys) => v && typeof v === 'object' && !Array.isArray(v) && Ob
 
 export function validOfficialResourceStatement(s) {
   return !!(exact(s,KEYS) && s.schemaVersion === 1 && s.issuer === 'runly' && s.channel === 'institutional'
-    && s.type === 'studio_template' && /^studio\.[a-z][a-z0-9-]{1,46}[a-z0-9]$/.test(s.resourceKey) && !s.resourceKey.includes('--')
+    && ['studio_template','website_template'].includes(s.type) && new RegExp('^'+(s.type==='studio_template'?'studio':'website')+'\\.[a-z][a-z0-9-]{1,46}[a-z0-9]$').test(s.resourceKey) && !s.resourceKey.includes('--')
     && /^\d{1,9}\.\d{1,9}\.\d{1,9}$/.test(s.version) && /^[a-z][a-z0-9-]{2,38}[a-z0-9]$/.test(s.publisher)
     && ['authorityId','organizationId','publisherId','reviewId','fileId','releaseId'].every((k) => UUID.test(s[k]))
     && ['sha256','evidenceSha256','validatorId','grantedBySha256','reviewerSha256','requesterSha256'].every((k) => HEX.test(s[k])) && Number.isSafeInteger(s.draftRevision) && s.draftRevision > 0
