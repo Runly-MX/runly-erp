@@ -39,12 +39,12 @@ test('W1 preparation preserves unbound assets and only emits verified file IDs, 
   assert.deepEqual(bound.assetBindings,[{sha256:f.hash,fileId,contentRevision:1}])
 })
 
-test('W1 preparation names unsupported background materialization instead of claiming runtime readiness',async()=>{
+test('W3 preparation accepts verified backgrounds supported by the release materializer',async()=>{
   const f=await fixture(true)
   const r=await f.service.prepare({bytes:f.bytes,companyId,siteId,access:f.access,bindings:{[f.hash]:fileId}})
   assert.equal(r.validation.ok,true)
-  assert.equal(r.readyForDraft,false)
-  assert.deepEqual(r.requiredCapabilities,['background-file-binding'])
+  assert.equal(r.readyForDraft,true)
+  assert.deepEqual(r.requiredCapabilities,[])
 })
 
 test('W1 preparation rejects forged access, foreign sites/assets, changed bytes and stale content',async()=>{

@@ -33,6 +33,7 @@ export const siteDraftIdentitySchema = z.object({
 }).strict()
 export const pageDraftMetadataSchema = updatePageSchema.omit({ status: true, seo: true }).strict()
 export const revisionedDraftSchema = z.object({
+  themeTokens:z.record(z.string(),z.unknown()).optional(), expectedSiteRevision:z.number().int().nonnegative().optional(),
   document: z.record(z.unknown()), seo: z.record(z.unknown()).optional(),
   metadata: pageDraftMetadataSchema.optional(), expectedRevision: z.number().int().nonnegative(),
 }).strict()

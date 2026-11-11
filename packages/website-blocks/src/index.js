@@ -241,3 +241,4 @@ export function buildRunlyTemplates(siteType) {
   if (siteType === 'restaurant') return [restauranteTemplate, ...base]
   return [restauranteTemplate, spaTemplate, agenciaTemplate, negocioTemplate, habitiaTemplate]
 }
+import './typography.css'

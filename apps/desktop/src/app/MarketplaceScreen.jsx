@@ -12,6 +12,7 @@ import { MarketplacePanel } from '../modules/runly.core/components/MarketplacePa
 import { MarketplaceSourceDialog } from '../modules/runly.core/components/MarketplaceSourceDialog.jsx'
 import { StudioImportDialog } from '../modules/runly.studio/components/import/StudioImportDialog.jsx'
 import { MarketplaceAutomationDialog } from '../modules/runly.automations/components/MarketplaceAutomationDialog.jsx'
+import {MarketplaceWebsiteDialog} from '../website/MarketplaceWebsiteDialog.jsx'
 
 const TYPES = [
   { value: 'module', label: 'Módulos', permission: 'core.modules.read' },
@@ -29,7 +30,7 @@ function ResourceCatalog({ type, token, can, moduleAvailable }) {
   if (query.isError) { const error = marketplaceError(query.error); return <MarketplaceState state={{ ...error, title: `Recursos: ${error.title}` }} onRetry={() => query.refetch()} /> }
   const catalog = catalogState(query.data.catalog), items = query.data.items ?? []
   const visible = items.filter(item => `${item.title} ${item.description} ${publisherLabel(item)}`.toLocaleLowerCase().includes(search.toLocaleLowerCase().trim()))
-  const canImport = type === 'studio_template' ? moduleAvailable('studio') && can('studio.view') && ['studio.create', 'studio.templates.manage', 'studio.templates.publish'].some(can) : type === 'automation' && moduleAvailable('automations') && can('automations.manage')
+  const canImport = type === 'studio_template' ? moduleAvailable('studio') && can('studio.view') && ['studio.create', 'studio.templates.manage', 'studio.templates.publish'].some(can) : type === 'website_template'?moduleAvailable('website')&&can('website.pages.create'):type === 'automation' && moduleAvailable('automations') && can('automations.manage')
   return <div className="space-y-4">
     <p className="text-sm text-[hsl(var(--muted-foreground))]">Recursos: {query.data.catalog.verified ? 'copia verificada' : 'sin copia verificada'} · {query.data.catalog.freshness ?? 'sin sincronización'}. Este feed es independiente del catálogo de módulos.</p>
     {query.data.catalog.alert || query.data.catalog.offline ? <Alert variant="warning"><AlertDescription>No se pudo verificar una actualización del feed de recursos ({query.data.catalog.alert ?? 'sin conexión'}). Se muestra la última copia verificada; confirmar una importación requiere verificar de nuevo.</AlertDescription></Alert> : null}
@@ -42,11 +43,12 @@ function ResourceCatalog({ type, token, can, moduleAvailable }) {
         <div className="flex flex-wrap gap-1"><Badge variant="outline">{item.official ? 'Oficial Runly' : item.publisher?.verified ? 'Comunidad verificada' : 'Comunidad'}</Badge><Badge variant="outline">{item.license}</Badge><Badge variant="outline">{compatibilityLabel(item)}</Badge></div>
         <p className="flex-1 text-sm text-[hsl(var(--muted-foreground))]">{item.description}</p>
         {block ? <p role="status" className="text-sm text-amber-700">{block.message}</p> : null}
-        {canImport ? <Button disabled={Boolean(block) || catalog.blocking} onClick={() => setSelected(item)}>{type === 'studio_template' ? 'Importar copia editable' : 'Revisar importación'}</Button> : <p className="text-sm text-[hsl(var(--muted-foreground))]">{['website_template', 'solution'].includes(type) ? 'Descubrimiento disponible. Este tipo todavía no tiene un importador integrado habilitado.' : 'Necesitas el módulo disponible y permiso para importar en esta empresa.'}</p>}
+        {canImport ? <Button disabled={Boolean(block) || catalog.blocking} onClick={() => setSelected(item)}>{type==='website_template'?'Usar en Website':type === 'studio_template' ? 'Importar copia editable' : 'Revisar importación'}</Button> : <p className="text-sm text-[hsl(var(--muted-foreground))]">{type==='solution' ? 'Descubrimiento disponible. Este tipo todavía no tiene un importador integrado habilitado.' : 'Necesitas el módulo disponible y permiso para importar en esta empresa.'}</p>}
       </CardContent></Card>
     })}</div>}
     {selected && type === 'studio_template' ? <StudioImportDialog open onOpenChange={open => !open && setSelected(null)} initialResource={selected} token={token} onImported={result => { setSelected(null); navigate(`/app/m/runly.studio?${result.kind === 'design' ? `design=${encodeURIComponent(result.id)}` : 'view=templates'}`) }} /> : null}
     {selected && type === 'automation' ? <MarketplaceAutomationDialog open onOpenChange={open => !open && setSelected(null)} initialResource={selected} token={token} onOpenAutomation={result => { setSelected(null); navigate(`/app/m/runly.automations/${encodeURIComponent(result.key)}`) }} /> : null}
+    {selected&&type==='website_template'?<MarketplaceWebsiteDialog open token={token} initialResource={selected} onOpenChange={value=>{if(!value)setSelected(null)}} onInstalled={result=>{setSelected(null);navigate(`/app/m/runly.website/pages/${result.firstPageId}/editor?draft=1`)}}/>:null}
   </div>
 }
 

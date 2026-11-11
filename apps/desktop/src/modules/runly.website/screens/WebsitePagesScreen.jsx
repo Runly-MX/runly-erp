@@ -13,6 +13,7 @@ import { Globe, FileText, Pencil, Plus, LayoutTemplate } from 'lucide-react'
 import { toast } from 'sonner'
 import WebsiteNewPageDialog from './WebsiteNewPageDialog.jsx'
 import { TemplatePickerModal } from '../../../website/TemplatePickerModal.jsx'
+import {MarketplaceWebsiteDialog} from '../../../website/MarketplaceWebsiteDialog.jsx'
 
 async function apiFetch(path, token, options = {}) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -36,6 +37,7 @@ export default function WebsitePagesScreen() {
 
   const [newPageOpen,      setNewPageOpen]      = useState(false)
   const [templateOpen,     setTemplateOpen]     = useState(false)
+  const [marketplaceOpen,setMarketplaceOpen]=useState(false)
   const [confirmDelete,    setConfirmDelete]    = useState(null) // page object | null
 
   const siteQuery = useQuery({
@@ -143,6 +145,7 @@ export default function WebsitePagesScreen() {
           actions={
             siteId && (
               <div className="flex flex-wrap items-center gap-2">
+                <Button variant="outline" size="sm" onClick={()=>setMarketplaceOpen(true)}>Usar en Website</Button>
                 <Button variant="outline" size="sm" onClick={() => setTemplateOpen(true)}>
                   <LayoutTemplate className="h-4 w-4 mr-1.5" />
                   Desde plantilla
@@ -234,6 +237,7 @@ export default function WebsitePagesScreen() {
         onCreated={() => queryClient.invalidateQueries({ queryKey: ['website-pages', siteId] })}
       />
 
+      {marketplaceOpen&&<MarketplaceWebsiteDialog open token={token} siteId={siteId} onOpenChange={setMarketplaceOpen} onInstalled={result=>{setMarketplaceOpen(false);navigate(`/app/m/runly.website/pages/${result.firstPageId}/editor?draft=1`)}}/>}
       <TemplatePickerModal
         isOpen={templateOpen}
         onClose={() => setTemplateOpen(false)}

@@ -27,9 +27,13 @@ export function createWebsiteTemplateService({prisma}) {
       if(!file||!/^image\/(?:png|jpeg|webp|gif|avif)$/.test(file.mimeType??''))throw fail('validation_failed')
     }
     const pages=template.pages.filter(p=>a.pageIds.includes(p.id)).map(p=>({...p,document:applyTemplateBranding(conformTemplateDocument(normalizeWebsiteDocument(structuredClone(p.page),{strict:true})),branding??{})}))
-    return prisma.$transaction(async tx=>{
+    return applyResolved(a,template,pages)
+  }
+  async function applyResolved(a,template,pages,{tx:provided,formMode='local',allowDropForms=true}={}) {
+    const branding=a.branding??null
+    const execute=async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
-      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),replaceExisting:Boolean(a.replaceExisting),branding,expectedRevision:a.expectedRevision},async()=>{
+      return drafts.receipt(tx,{...a,actorId:a.access.actorId},`template.apply:${a.siteId}`,{templateId:a.templateId??template.id,pageIds:[...a.pageIds].sort(),includeTheme:Boolean(a.includeTheme),replaceExisting:Boolean(a.replaceExisting),branding,expectedRevision:a.expectedRevision,...(!allowDropForms?{formMode}:{})},async()=>{
         const site=await tx.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}})
         if(!site)throw notFound('Recurso');drafts.expected(site.draftRevision,a.expectedRevision)
         const existing=await tx.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{id:true,enabled:true,routePath:true,draftMetadata:true}})
@@ -45,8 +49,12 @@ export function createWebsiteTemplateService({prisma}) {
           let canCreate=true
           try{assertWebsiteAccess(a.access,a.companyId,'website.forms.create')}catch{canCreate=false}
           const forms={}
-          for(const placeholder of new Set(pages.flatMap(p=>placeholdersIn(p.document))))forms[placeholder]=canCreate?await ensureTemplateForm({tx,companyId:a.companyId,siteId:a.siteId,placeholder}):null
-          for(const p of pages)bindContactForm(p.document,forms)
+          if(!allowDropForms&&formMode==='local'&&!canCreate)throw fail('permission_denied',403)
+          for(const placeholder of new Set(pages.flatMap(p=>placeholdersIn(p.document))))forms[placeholder]=canCreate&&formMode==='local'?await ensureTemplateForm({tx,companyId:a.companyId,siteId:a.siteId,placeholder,createsLead:allowDropForms}):null
+          for(const p of pages) {
+            if(allowDropForms)bindContactForm(p.document,forms)
+            else for(const block of Object.values(p.document.blocks))if(block.type==='ContactFormBlock'&&Object.hasOwn(forms,block.props?.formId)&&forms[block.props.formId])block.props.formId=forms[block.props.formId]
+          }
         }
         const created=[]
         for(const page of pages){
@@ -54,6 +62,10 @@ export function createWebsiteTemplateService({prisma}) {
           const metadata={title:page.label,slug,routePath:page.routePath,visibility:'public'}
           const row=await tx.websitePage.create({data:{companyId:a.companyId,siteId:a.siteId,...metadata,pageType:'page',status:'draft',draftMetadata:metadata,draftBuilderData:page.document,draftSeo:page.document.seo??{},seo:{},createdById:a.access.actorId,updatedById:a.access.actorId}})
           created.push({id:row.id,title:row.title,routePath:row.routePath})
+        }
+        if(!allowDropForms&&created.some(p=>p.routePath==='/')){
+          const current=await tx.websiteSite.findUnique({where:{id:a.siteId}})
+          await tx.websiteSite.update({where:{id:a.siteId},data:{draftIdentity:{...(current.draftIdentity??{name:current.name,siteType:current.siteType,settings:current.settings??{},seoDefaults:current.seoDefaults??{},themeId:current.themeId}),homepagePageId:created.find(p=>p.routePath==='/').id},draftRevision:{increment:1}}})
         }
         if(a.includeTheme&&template.themeTokens){
           const tokens=defineTheme({...defaultTheme,id:'site-theme',name:template.label,tokens:mergeTemplateTokens(defaultTheme.tokens,template.themeTokens)}).tokens
@@ -65,7 +77,15 @@ export function createWebsiteTemplateService({prisma}) {
         const final=await tx.websiteSite.findUnique({where:{id:a.siteId}})
         return {siteId:a.siteId,pages:created,replaced:clashes.length,firstPageId:created[0].id,draftRevision:final.draftRevision,publicReleaseUnchanged:true}
       })
-    },{timeout:30000})
+    }
+    return provided?execute(provided):prisma.$transaction(execute,{timeout:30000})
   }
-  return {apply}
+  async function applyBundle(a,bundle,tx) {
+    for(const permission of ['website.site.read','website.pages.create'])assertWebsiteAccess(a.access,a.companyId,permission)
+    if(a.includeTheme)for(const permission of ['website.site.update','website.theme.update'])assertWebsiteAccess(a.access,a.companyId,permission)
+    if(bundle.pages.some(p=>p.routePath==='/'))assertWebsiteAccess(a.access,a.companyId,'website.site.update')
+    if(a.replaceExisting)for(const permission of ['website.pages.update','website.pages.delete'])assertWebsiteAccess(a.access,a.companyId,permission)
+    return applyResolved(a,{id:bundle.source.releaseId,label:bundle.title,themeTokens:bundle.themeTokens},bundle.pages,{tx,formMode:a.formMode,allowDropForms:false})
+  }
+  return {apply,applyBundle}
 }

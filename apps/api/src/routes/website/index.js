@@ -1,4 +1,5 @@
 import { createWebsitePublicationContext } from '../../services/website-publication-context.js'
+import {createWebsiteMarketplaceRoutes} from './marketplace-routes.js'
 import {createWebsiteDependencyRoutes} from './dependency-routes.js'
 import { createWebsiteReleaseRoutes } from './releases-routes.js'
 import { createWebsiteImportRoutes } from './import-routes.js'
@@ -20,10 +21,11 @@ import { createDistRoutes } from './dist-routes.js'
 import { createSiteSchema, updateSiteSchema } from './validators.js'
 import { WebsiteServiceError } from './service-helpers.js'
 
-export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, publicationContext }) {
+export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, publicationContext, marketplace, filesService }) {
   const app = new Hono()
   app.use('*',async(c,next)=>{c.header('Cache-Control','no-store');return next()})
   app.onError(websiteErrorHandler)
+  if(marketplace&&filesService)app.route('/website',createWebsiteMarketplaceRoutes({prisma,requirePermission,supabaseAdmin,marketplace,filesService}))
   app.route('/website',createWebsiteDependencyRoutes({prisma,requirePermission,supabaseAdmin}))
   const publication = publicationContext ?? createWebsitePublicationContext({ prisma, supabaseAdmin })
   const accountFiles = supabaseAdmin ? createExternalFiles({ prisma, storage: supabaseExternalStorage(supabaseAdmin) }) : null

@@ -45,11 +45,11 @@ export function bindContactForm(document, forms) {
 }
 
 // Must run inside the apply transaction (`tx`), so a failed apply leaves no orphan form.
-export async function ensureTemplateForm({ tx, companyId, siteId, placeholder = CONTACT_FORM_PLACEHOLDER }) {
+export async function ensureTemplateForm({ tx, companyId, siteId, placeholder = CONTACT_FORM_PLACEHOLDER, createsLead = true }) {
   const def = FORM_PLACEHOLDERS[placeholder]
-  const existing = await tx.websiteForm.findFirst({ where: { companyId, siteId, name: def.name, enabled: true }, select: { id: true } })
+  const existing = createsLead ? await tx.websiteForm.findFirst({ where: { companyId, siteId, name: def.name, enabled: true }, select: { id: true } }) : null
   if (existing) return existing.id
-  const form = await tx.websiteForm.create({ data: { companyId, siteId, name: def.name, submitLabel: def.submitLabel, successMessage: def.successMessage, createsLead: true, honeypotEnabled: true, turnstileRequired: false, wizardMode: false } })
+  const form = await tx.websiteForm.create({ data: { companyId, siteId, name: def.name, submitLabel: def.submitLabel, successMessage: def.successMessage, createsLead, honeypotEnabled: true, turnstileRequired: false, wizardMode: false } })
   await createWebsiteFormScopeService({ prisma: tx }).provision({ companyId, formId: form.id, ownerKind: 'website', ownerId: siteId, allowAmbiguous: true, newForm: true, db: tx })
   await tx.websiteFormField.createMany({ data: def.fields.map((f, index) => ({ companyId, formId: form.id, ...f, options: null, sortOrder: index, stepNumber: 1, stepTitle: null })) })
   return form.id

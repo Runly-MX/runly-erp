@@ -149,7 +149,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         if(/<\s*\/?\s*(?:script|iframe|object|embed|style|link|meta|form|base|svg|math)\b|\bon[a-z]+\s*=/i.test(value)||/javascript:|vbscript:|data:text\/html|expression\(/i.test(value.replace(/[\x00-\x20]/g,'')))throw failure('unsafe_content',422)
         if(field==='siteId'&&value&&value!==a.siteId)throw notFound('Recurso')
         if(field==='calendarId'&&value)throw failure('dynamic_binding_unavailable',422)
-        if((/^(?:fileId|imageFileId|logoFileId|faviconFileId|coverAssetId)$/i.test(field)||(/image|src|poster|avatar|logo/i.test(field)&&value.startsWith('file:')))&&value) {
+        if((/^(?:fileId|imageFileId|logoFileId|faviconFileId|coverAssetId)$/i.test(field)||(/image|src|poster|avatar|logo|^url$/i.test(field)&&value.startsWith('file:')))&&value) {
           const fileId=value.startsWith('file:')?value.slice(5):value
           const file=await prisma.fileAsset.findFirst({where:{id:fileId,entityId:{in:[a.companyId,a.siteId]},enabled:true}})
           if(!file)throw notFound('Recurso')
@@ -198,7 +198,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
               const definition=definitions.get(block.type)
               if(!definition)throw failure('unknown_block_type',422)
               // BookingFormBlock has no executable public booking contract, even with an empty ID.
-              if(block.type==='ContactFormBlock'&&!block.props?.formId)throw failure('form_not_found',422)
+              if(block.type==='ContactFormBlock'&&!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(block.props?.formId??''))throw failure('form_not_found',422)
               if(block.type==='BookingFormBlock')throw failure('dynamic_binding_unavailable',422)
               for(const [name,value]of Object.entries(block.props??{})) {
                 const field=definition.fields[name]

@@ -101,7 +101,8 @@
     "zustand": "latest",
     "@runly/preview-runtime": "workspace:*",
     "fabric": "6.9.1",
-    "@runly/website-blocks": "workspace:*"
+    "@runly/website-blocks": "workspace:*",
+    "@runly/studio-interchange": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.2.4",

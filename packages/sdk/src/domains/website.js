@@ -1,5 +1,8 @@
 export function createWebsiteDomain({ request, withAuthHeaders }) {
   return {
+    marketplaceTemplates:(options,token)=>request(`/website/marketplace/resources?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
+    inspectMarketplaceTemplate:(siteId,ref,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/marketplace/inspect`,{method:'POST',headers:withAuthHeaders(token),body:JSON.stringify(ref)}),
+    installMarketplaceTemplate:(siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/marketplace/install`,{method:'POST',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
     listSiteCatalogProducts:(siteId,options,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products?${new URLSearchParams(options??{})}`,{headers:withAuthHeaders(token)}),
     setSiteCatalogProduct:(siteId,productId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/products/${encodeURIComponent(productId)}`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),
     setSiteCatalogSelection:(siteId,data,key,token)=>request(`/website/sites/${encodeURIComponent(siteId)}/catalog/selection`,{method:'PUT',headers:{...withAuthHeaders(token),'Idempotency-Key':key},body:JSON.stringify(data)}),

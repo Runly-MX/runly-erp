@@ -1,6 +1,6 @@
 import { companyFetch } from '../../../lib/companyFetch.js'
-import { useEffect } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useEffect, useRef, useMemo } from "react";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { LoadingState } from "@runly/ui";
 import {
@@ -10,6 +10,7 @@ import {
   parsePage,
   defaultTheme,
   defineTheme,
+  useEditorStoreInstance,
 } from "@raulbellosom/atlas-web-builder";
 import "@raulbellosom/atlas-web-builder/styles";
 import "../../../website/runlySite.css";
@@ -20,6 +21,13 @@ import {
   buildRunlyTemplates,
 } from "../../../website/runlyBlocks/index.js";
 import { toast } from "sonner";
+import {usePrivateWebsiteAssets} from '../../../website/usePrivateWebsiteAssets.js';
+
+function AtlasThemeBridge({themeRef}) {
+  const store=useEditorStoreInstance();
+  useEffect(()=>{themeRef.current=()=>store.getState().theme.tokens;return ()=>{themeRef.current=null;};},[store,themeRef]);
+  return <span>Runly Website</span>;
+}
 
 async function apiFetch(path, token, options = {}) {
   const res = await companyFetch(`${getApiUrl()}${path}`, {
@@ -100,13 +108,14 @@ export default function WebsitePageEditorScreen({
 } = {}) {
   const { "*": wildcard } = useParams();
   const navigate = useNavigate();
+  const location=useLocation(),themeRef=useRef(null);
   const pageId =
     pageIdProp ?? wildcard?.match(/^pages\/([^/]+)\/editor$/)?.[1] ?? null;
 
   // When accessed directly from the AppShell route (pageIdProp is null),
   // redirect to the public website URL with ?edit=1 so the editor runs
   // in PublicWebsiteEntry context (correct z-index, EditorContextBar, publish button, etc.)
-  const isInAppShell = pageIdProp === undefined || pageIdProp === null;
+  const isInAppShell = (pageIdProp === undefined || pageIdProp === null)&&new URLSearchParams(location.search).get('draft')!=='1';
 
   const { session } = useAuth();
   const token = session?.access_token;
@@ -120,6 +129,9 @@ export default function WebsitePageEditorScreen({
 
   // Theme and site type belong to the page's own site, not to the company's default one.
   const pageSiteId = pageQuery.data?.data?.siteId ?? pageQuery.data?.siteId ?? null;
+  const blockDefinitions=useMemo(()=>[...baseBlocks,...buildRunlyBlocks('website'),...buildRunlyBlocks('ecommerce'),...buildRunlyBlocks('bookings'),...buildRunlyBlocks('restaurant')],[]);
+  const privateAssets=usePrivateWebsiteAssets({token,siteId:pageSiteId,blocks:blockDefinitions});
+  const toPrivateAssetView=privateAssets.toView;
   const siteQuery = useQuery({
     queryKey: ["website-site", pageSiteId, token],
     queryFn: () => apiFetch(pageSiteId ? `/website/sites/${pageSiteId}` : "/website/site", token),
@@ -136,12 +148,15 @@ export default function WebsitePageEditorScreen({
 
   const saveDraftMutation = useMutation({
     mutationFn: (page) =>
-      apiFetch(`/website/pages/${pageId}/draft`, token, {
-        method: "POST",
-        body: JSON.stringify({ draft_builder_data: serializePage(page) }),
+      apiFetch(`/website/sites/${pageSiteId}/pages/${pageId}/draft`, token, {
+        method: "PUT",
+        headers:{'Idempotency-Key':crypto.randomUUID()},
+        body: JSON.stringify({ document: privateAssets.toStored(page),expectedRevision:pageQuery.data.data.revision,...(JSON.stringify(themeRef.current?.())!==JSON.stringify(resolvedTheme.tokens)?{themeTokens:themeRef.current?.(),expectedSiteRevision:siteQuery.data?.data?.draftRevision}:{}) }),
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["website-page", pageId] });
+      queryClient.invalidateQueries({ queryKey: ["website-theme", pageSiteId] });
+      queryClient.invalidateQueries({ queryKey: ["website-site", pageSiteId] });
       toast.success("Borrador guardado");
     },
     onError: (err) => toast.error(err.message),
@@ -171,15 +186,16 @@ export default function WebsitePageEditorScreen({
   const pageData = pageQuery.data?.data ?? null;
   const themeData = themeQuery.data?.data ?? null;
 
-  const resolvedTheme = themeData?.tokens
+  const resolvedTheme = useMemo(()=>themeData?.tokens
     ? defineTheme({
         ...defaultTheme,
         id: "atlas-site",
         name: "Site Theme",
         tokens: { ...defaultTheme.tokens, ...themeData.tokens },
       })
-    : defaultTheme;
+    : defaultTheme,[themeData]);
 
+  const initialPage=useMemo(()=>{
   let initialPage = null;
   if (pageData?.draftBuilderData) {
     try {
@@ -191,7 +207,6 @@ export default function WebsitePageEditorScreen({
       initialPage = null;
     }
   }
-
   if (!initialPage && pageData) {
     initialPage = {
       schemaVersion: 1,
@@ -210,7 +225,11 @@ export default function WebsitePageEditorScreen({
       updatedAt: new Date().toISOString(),
     };
   }
+  return initialPage?toPrivateAssetView(initialPage):null;
+  },[pageData,toPrivateAssetView]);
 
+  if (privateAssets.query.isError) return <div role="alert">No se pudieron resolver las imágenes privadas. Vuelve a abrir el editor.</div>;
+  if (privateAssets.query.isPending&&pageSiteId) return <LoadingState variant="page" message="Resolviendo imágenes privadas..." />;
   if (pageQuery.isError) {
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-3 text-sm">
@@ -243,14 +262,15 @@ export default function WebsitePageEditorScreen({
       }}
     >
       <AtlasWebBuilderEditor
-        blocks={[...baseBlocks, ...buildRunlyBlocks(siteType)]}
+        blocks={[...baseBlocks, ...buildRunlyBlocks(siteType)].map(b=>({...b,fields:Object.fromEntries(Object.entries(b.fields??{}).map(([k,f])=>[k,f.type==='image'?{...f,withAssetMeta:false}:f]))}))}
         templates={buildRunlyTemplates(siteType)}
         initialPage={initialPage}
         theme={resolvedTheme}
-        assets={createAssetSource(token)}
+        assets={privateAssets.query.data?.length?privateAssets.source:createAssetSource(token)}
+        brandLogo={<AtlasThemeBridge themeRef={themeRef}/>}
         brandName="Runly ERP"
         onSaveDraft={(page) => saveDraftMutation.mutate(page)}
-        onPublish={(page) => publishMutation.mutate(page)}
+        onPublish={new URLSearchParams(location.search).get('draft')==='1'?undefined:(page) => publishMutation.mutate(privateAssets.toStored(page))}
         resources={
           siteType === "ecommerce"
             ? {

@@ -2592,7 +2592,7 @@ mountWithAuth(app, createIdentityRouter({
 }));
 mountWithAuth(app, createSettingsRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createPlatformOwnerRouter({ prisma, requirePermission, cacheDelByPrefix }));
-mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin }));
+mountWithAuth(app, createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, marketplace: marketplaceGate, filesService }));
 mountWithAuth(app, createLedgerRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createPfmRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, filesService, notificationService }));
 mountWithAuth(app, createUsersRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin }));

@@ -91,6 +91,12 @@ export async function inventoryCompany(db, companyId) {
     if (pass === tables.length) throw new Error('INVENTORY_DID_NOT_CONVERGE')
   }
   // Current objects AND Office recovery versions. Persist before metadata dies.
+  // Files staged by Website may not have FileAsset rows yet; retain their exact intents too.
+  if (byName.has('website_template_job')) await db.$executeRawUnsafe(`INSERT INTO runly_lifecycle.deletion_object(company_id,bucket,object_key)
+    SELECT $1::uuid, item->>'bucket', item->>'objectKey'
+    FROM public.website_template_job j CROSS JOIN LATERAL jsonb_array_elements(j.staged) item
+    WHERE j.company_id=$1::uuid AND item->>'bucket' IS NOT NULL AND item->>'objectKey' IS NOT NULL
+    ON CONFLICT DO NOTHING`, companyId)
   for (const table of tables.filter(t => t.columns.includes('bucket') && t.columns.includes('object_key'))) {
     const name = table.name
     await db.$executeRawUnsafe(`INSERT INTO runly_lifecycle.deletion_object(company_id, bucket, object_key)

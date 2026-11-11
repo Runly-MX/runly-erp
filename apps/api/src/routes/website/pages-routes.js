@@ -193,8 +193,8 @@ export function createPagesRouter({ websiteSvc, requirePermission }) {
     return c.json({ data: { pageId: page.id, siteId: page.siteId, revision: page.revision, document, documentHash: websiteDocumentHash(document), metadata: page.draftMetadata, seo: page.draftSeo, issues } })
   })
   app.put('/sites/:siteId/pages/:pageId/draft', requirePermission('website.pages.update'), zValidator('json', revisionedDraftSchema), async c => {
-    const { document, seo, metadata, expectedRevision } = c.req.valid('json')
-    const result = await websiteSvc.saveDraft({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), siteId: c.req.param('siteId'), pageId: c.req.param('pageId'), builderData: document, seo, metadata, expectedRevision, strictDocument: true, idempotencyKey: c.req.header('Idempotency-Key') })
+    const { document, seo, metadata, expectedRevision, themeTokens, expectedSiteRevision } = c.req.valid('json')
+    const result = await websiteSvc.saveDraft({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), siteId: c.req.param('siteId'), pageId: c.req.param('pageId'), builderData: document, seo, metadata, expectedRevision, themeTokens, expectedSiteRevision, strictDocument: true, idempotencyKey: c.req.header('Idempotency-Key') })
     return c.json({ data: { pageId: result.id, siteId: result.siteId, revision: result.revision, document: result.draftBuilderData, documentHash: result.documentHash, metadata: result.draftMetadata, seo: result.draftSeo } })
   })
   return app

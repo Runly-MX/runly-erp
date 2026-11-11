@@ -1,0 +1,4 @@
+/* Shared by ERP and Hub: consume the portable heading token without embedding CSS in a template. */
+[data-atlas-page] :is(h1,h2,h3,h4,h5,h6) {
+  font-family: var(--atlas-font-heading,var(--atlas-font-sans,system-ui)) !important;
+}

@@ -32,12 +32,10 @@ export function createWebsiteTemplatePreparationService({ prisma, files, readFil
       mapped.set(`asset:${asset.sha256}`, `file:${file.id}`)
       assetBindings.push({ sha256: asset.sha256, fileId: file.id, contentRevision: file.contentRevision })
     }
-    const catalog = builderCatalogs[inspected.manifest.builder.min], requiredCapabilities = new Set()
+    const catalog = builderCatalogs[inspected.manifest.builder.min]
     const pages = content.pages.map(page => ({ path: page.path, title: page.title, isHome: page.isHome, document: normalizeWebsiteDocument(mapWebsiteImages(sectionsToAtlasPage(page), catalog, ref => mapped.get(ref) ?? ref), { strict: true }) }))
-    // The existing release visitor resolves src/image fields, but not background.url yet (W3).
-    for (const page of pages) for (const block of Object.values(page.document.blocks)) for (const value of Object.values(block.props ?? {})) if (value?.kind === 'image' && value.url?.startsWith('file:')) requiredCapabilities.add('background-file-binding')
-    if (content.theme?.fonts?.heading && content.theme.fonts.heading !== content.theme.fonts.body) requiredCapabilities.add('heading-font-rendering')
-    return { validation, pages, portableTheme: content.theme, themeTokens: websiteThemeToAtlasTokens(content.theme ?? {}), assets: inspected.manifest.assets, assetBindings, missingAssets, requiredForms: inspected.manifest.forms, requiredCapabilities: [...requiredCapabilities], readyForDraft: missingAssets.length === 0 && inspected.manifest.forms.length === 0 && requiredCapabilities.size === 0, expectedRevision: site.draftRevision }
+    // W3 pins background.url in releases and consumes font.heading in the trusted renderer stylesheet.
+    return { validation, pages, portableTheme: content.theme, themeTokens: websiteThemeToAtlasTokens(content.theme ?? {}), assets: inspected.manifest.assets, assetBindings, missingAssets, requiredForms: inspected.manifest.forms, requiredCapabilities: [], readyForDraft: missingAssets.length === 0 && inspected.manifest.forms.length === 0, expectedRevision: site.draftRevision }
   }
   return { prepare }
 }

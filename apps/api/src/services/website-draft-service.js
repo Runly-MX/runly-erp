@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import {assertWebsiteAccess} from './website-authorization-service.js'
 import { WebsiteServiceError, notFound } from '../routes/website/service-helpers.js'
 
 const fail = (message, code = 'validation_failed', status = 422) => new WebsiteServiceError(message, status, code)
@@ -68,6 +69,11 @@ export function createWebsiteDraftService({ prisma }) {
     return json
   }
   async function save(args, kind = 'page') {
+    if(args.themeTokens!==undefined){
+      assertWebsiteAccess(args.access,args.companyId,'website.theme.update')
+      assertWebsiteAccess(args.access,args.companyId,'website.site.update')
+      if(!plain(args.themeTokens)||Buffer.byteLength(JSON.stringify(args.themeTokens))>65536||!Number.isSafeInteger(args.expectedSiteRevision))throw fail('Tema o revisión de sitio inválidos.')
+    }
     const model = kind === 'page' ? 'websitePage' : 'websiteBlogPost'
     const id = kind === 'page' ? args.pageId : args.postId
     const initial = await prisma[model].findFirst({ where: { id, companyId: args.companyId, enabled: true } })
@@ -83,8 +89,13 @@ export function createWebsiteDraftService({ prisma }) {
       await lockSite(tx, args.companyId, initial.siteId)
       const current = await tx[model].findFirst({ where: { id, companyId: args.companyId, siteId: initial.siteId, enabled: true } })
       if (!current) throw notFound('Recurso')
-      return receipt(tx, args, `${kind}.draft:${id}`, { document, seo: args.seo, metadata: args.metadata, expectedRevision: args.expectedRevision }, async () => {
+      return receipt(tx, args, `${kind}.draft:${id}`, { document, seo: args.seo, metadata: args.metadata, expectedRevision: args.expectedRevision,themeTokens:args.themeTokens,expectedSiteRevision:args.expectedSiteRevision }, async () => {
         expected(current.revision, args.expectedRevision)
+        if(args.themeTokens!==undefined){
+          const site=await tx.websiteSite.findUnique({where:{id:initial.siteId}});expected(site.draftRevision,args.expectedSiteRevision)
+          const theme=await tx.websiteTheme.create({data:{companyId:args.companyId,siteId:site.id,name:'Tema del borrador Atlas',tokens:args.themeTokens}})
+          await tx.websiteSite.update({where:{id:site.id},data:{draftIdentity:{...(site.draftIdentity??{name:site.name,siteType:site.siteType,settings:site.settings??{},seoDefaults:site.seoDefaults??{},homepagePageId:site.homepagePageId}),themeId:theme.id},draftRevision:{increment:1}}})
+        }
         if (kind === 'page' && args.metadata?.routePath) {
           const others = await tx.websitePage.findMany({ where: { companyId: args.companyId, siteId: current.siteId, id: { not: id } }, select: { routePath: true, draftMetadata: true } })
           if (others.some(row => row.routePath === args.metadata.routePath || row.draftMetadata?.routePath === args.metadata.routePath)) throw fail('La ruta está reservada por otra página.', 'route_conflict', 409)

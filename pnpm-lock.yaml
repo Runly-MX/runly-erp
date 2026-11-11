@@ -332,6 +332,9 @@ importers:
       '@runly/sdk':
         specifier: workspace:*
         version: link:../../packages/sdk
+      '@runly/studio-interchange':
+        specifier: workspace:*
+        version: link:../../packages/studio-interchange
       '@runly/ui':
         specifier: workspace:*
         version: link:../../packages/ui

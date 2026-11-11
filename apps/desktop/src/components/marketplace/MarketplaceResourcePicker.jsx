@@ -6,6 +6,7 @@ import { runly } from '../../lib/runly.js'
 import { catalogState, compatibilityLabel, marketplaceError, publisherLabel, resourceBlock } from '../../lib/marketplace-import.js'
 
 const LIST = {
+  website_template: (params,token)=>runly.website.marketplaceTemplates(params,token),
   studio_template: (params, token) => runly.studio.marketplaceTemplates(params, token),
   automation: (params, token) => runly.modules.marketplaceAutomations(params, token),
 }
