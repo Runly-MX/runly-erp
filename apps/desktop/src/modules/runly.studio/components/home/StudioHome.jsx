@@ -5,6 +5,8 @@ import { StudioHero } from './StudioHero.jsx'
 import { FormatGrid } from './FormatGrid.jsx'
 import { MarketplaceRow } from './MarketplaceRow.jsx'
 import { TemplateGrid } from './TemplateGrid.jsx'
+import { ThemedShelves } from './ThemedShelves.jsx'
+import { MarketplaceCatalog } from '../market/MarketplaceCatalog.jsx'
 import { DesignsList, useHasDesigns } from './DesignsList.jsx'
 import { StudioHomeSidebar, StudioHomeTabs } from './StudioHomeNav.jsx'
 import { FadeSwap } from '../editor/SidePanel.jsx'
@@ -15,6 +17,7 @@ import { CollectionView } from './CollectionView.jsx'
 import { FORMAT_CATEGORIES } from '../../lib/formats.js'
 
 const VIEW_ORDER = ['home', 'designs', 'templates']
+const TEMPLATE_TABS = [{ value: 'installed', label: 'Instaladas' }, { value: 'market', label: 'Catálogo del Marketplace' }]
 const SHARED = [{ value: 'all', label: 'Todos' }, { value: 'mine', label: 'Míos' }, { value: 'shared', label: 'Compartidos' }]
 
 function SectionTitle({ id, as: Heading = 'h2', title, description, children }) {
@@ -41,12 +44,12 @@ function useDebounced(value, delay = 300) {
 
 // Three views (URL ?view=): Inicio (overview), Mis diseños (full list) and
 // Plantillas (full catalog). Desktop uses a side nav, phones sticky top tabs.
-export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEditTemplateContent, onImport, view = 'home', onView }) {
+export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEditTemplateContent, onImport, onImportDirect, view = 'home', onView }) {
   const [heroQuery, setHeroQuery] = useState(''), [category, setCategory] = useState('all')
   const [designQuery, setDesignQuery] = useState(''), [shared, setShared] = useState('all'), [sizeOpen, setSizeOpen] = useState(false)
   const heroQ = useDebounced(heroQuery.trim()), designQ = useDebounced(designQuery.trim())
   const hasDesigns = useHasDesigns({ token, scopeKey })
-  const top = useRef(null), [collection, setCollection] = useState(null)
+  const top = useRef(null), [collection, setCollection] = useState(null), [templateTab, setTemplateTab] = useState('installed')
   // Switching views starts at the top, like a page change.
   const changeView = next => { setCollection(null); onView(next); top.current?.scrollIntoView({ block: 'start' }) }
   // The new view slides in from the side of the tab it comes from.
@@ -79,13 +82,14 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
                 {list({ limit: 4 })}
               </section>
             ) : null}
+            <ThemedShelves token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} onImportDirect={item => onImportDirect?.(item)} />
             <section aria-labelledby="studio-templates-title">
               <SectionTitle id="studio-templates-title" title="Plantillas para inspirarte" description="Todo es editable: cambia textos, colores, formas e imágenes.">
                 <SeeAll label="Ver todas" onClick={() => changeView('templates')} />
               </SectionTitle>
               <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} limit={6} />
             </section>
-            <MarketplaceRow token={token} onUse={item => onImport?.(item)} onSeeAll={() => onImport?.()} />
+            <MarketplaceRow token={token} onUse={item => onImportDirect?.(item)} onSeeAll={() => { setTemplateTab('market'); changeView('templates') }} />
             <section aria-labelledby="studio-formats-title">
               <SectionTitle id="studio-formats-title" title="Todos los formatos" description="Un lienzo con la medida justa, listo para crear." />
               <div className="mb-4 overflow-x-auto [scrollbar-width:none]"><ChipTabs tabs={FORMAT_CATEGORIES} value={category} onChange={setCategory} tone="brand" ariaLabel="Tipos de formato" showDescription={false} /></div>
@@ -108,8 +112,11 @@ export function StudioHome({ token, scopeKey, creating, onCreate, onOpen, onEdit
     ),
     templates: (
       <section aria-labelledby="studio-templates-page-title">
-        <SectionTitle id="studio-templates-page-title" as="h1" title="Plantillas" description="Diseños originales listos para adaptar: todo es editable." />
-        <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} onEditContent={onEditTemplateContent} />
+        <SectionTitle id="studio-templates-page-title" as="h1" title="Plantillas" description={templateTab === 'market' ? 'Catálogo verificado de Runly y la comunidad. Al elegir una se crea tu copia y se abre para editar.' : 'Las que ya tienes: las de Runly, las de tu empresa y las que guardaste o importaste.'} />
+        <SegmentedControl options={TEMPLATE_TABS} value={templateTab} onChange={setTemplateTab} ariaLabel="Origen de las plantillas" className="mb-5 w-full sm:w-[26rem]" />
+        {templateTab === 'market'
+          ? <MarketplaceCatalog token={token} onUse={item => onImportDirect?.(item)} />
+          : <TemplateGrid token={token} scopeKey={scopeKey} creating={creating} onUse={template => onCreate('template', template)} onEditContent={onEditTemplateContent} />}
       </section>
     ),
   }

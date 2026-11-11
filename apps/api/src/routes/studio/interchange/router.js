@@ -6,6 +6,7 @@ import { StudioError } from '../../../../../shared/studio/document.js'
 import { createStudioInterchange } from './service.js'
 import { PACKAGE_LIMITS, PACKAGE_MIME } from './zip.js'
 import { manifestSchema } from './package.js'
+import { buildPreview } from './marketplace-preview.js'
 import { inspectStudioPackage } from '@runly/studio-interchange/inspect'
 import { MarketplaceImportError } from '../../../services/marketplace/marketplace-import-gate.js'
 
@@ -61,6 +62,20 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
   }
   const diagnosticsOf = d => ({ ok: d.ok, errors: d.errors, warnings: d.warnings, licenses: d.report?.licenses ?? [], fonts: d.report?.fonts ?? [], personalData: d.report?.personalData ?? [], losses: d.report?.losses ?? [] })
   app.get(`${prefix}/marketplace/resources`, async c => c.json({ data: await feed().list('studio_template', { query: c.req.query('q') ?? '', acknowledgeStale: c.req.query('acknowledgeStale') === 'true' }) }))
+  // Cached per release for a few minutes so a row of cards downloads each package once.
+  const previewCache = new Map(), PREVIEW_TTL = 10 * 60_000
+  app.get(`${prefix}/marketplace/preview`, async c => {
+    const ref = { resourceKey: c.req.query('resourceKey'), version: c.req.query('version'), releaseId: c.req.query('releaseId') }
+    const hit = previewCache.get(ref.releaseId)
+    c.header('Cache-Control', 'private, max-age=600')
+    if (hit && hit.expires > Date.now()) return c.json({ data: hit.value })
+    const [companyId, actorId] = actor(c)
+    const download = await feed().download(ref, 'studio_template', { companyId, actorId })
+    const value = await buildPreview(download.bytes)
+    if (previewCache.size >= 60) previewCache.delete(previewCache.keys().next().value)
+    previewCache.set(download.resource.releaseId, { value, expires: Date.now() + PREVIEW_TTL })
+    return c.json({ data: value })
+  })
   app.post(`${prefix}/marketplace/inspect`, async c => {
     const { bytes, resource, source, diagnostics } = await fromMarketplace(c)
     return c.json({ data: { resource, source, diagnostics: diagnosticsOf(diagnostics), package: await interchange.inspect(bytes, PACKAGE_MIME) } })

@@ -25,6 +25,7 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
     cancelPackageImport: (id, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}`, { ...options(token, 'DELETE'), signal }),
     // Marketplace (E3a): the server downloads and verifies the release; confirm with confirmPackageImport.
     marketplaceTemplates: (params = {}, token, signal) => request(`${interchange}/marketplace/resources${toQueryString(params)}`, { ...options(token), signal }),
+    marketplaceTemplatePreview: (ref, token, signal) => request(`${interchange}/marketplace/preview${toQueryString(ref)}`, { ...options(token), signal }),
     inspectMarketplaceTemplate: (ref, token, signal) => request(`${interchange}/marketplace/inspect`, { ...options(token, 'POST', ref), signal }),
     prepareMarketplaceTemplateImport: (data, token, signal) => request(`${interchange}/marketplace/imports`, { ...options(token, 'POST', data), signal }),
     recoverPackageImports: (token, signal) => request(`${interchange}/recover`, { ...options(token, 'POST'), signal }),
