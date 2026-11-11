@@ -24,6 +24,7 @@ COPY packages/storefront-sdk/package.json packages/storefront-sdk/package.json
 COPY packages/studio-interchange/package.json packages/studio-interchange/package.json
 COPY packages/ui/package.json packages/ui/package.json
 COPY packages/validators/package.json packages/validators/package.json
+COPY packages/website-blocks/package.json packages/website-blocks/package.json
 # Install depends only on the manifests above, so it stays cached across
 # schema changes and new migrations (which land on almost every feature).
 RUN corepack install && pnpm install --frozen-lockfile

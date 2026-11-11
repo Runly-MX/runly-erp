@@ -13,7 +13,9 @@ test('all package workspace manifests are present before frozen installation in 
     .map(entry => `packages/${entry.name}/package.json`);
   for (const image of ['api', 'web', 'worker']) {
     const source = readFileSync(join(root, `infra/docker/${image}.Dockerfile`), 'utf8');
-    const beforeInstall = source.split('RUN pnpm install --frozen-lockfile')[0];
+    const install = source.indexOf('pnpm install --frozen-lockfile');
+    assert.notEqual(install, -1, `${image} must use frozen workspace installation`);
+    const beforeInstall = source.slice(0, install);
     for (const manifest of manifests) assert.ok(beforeInstall.includes(`COPY ${manifest} ${manifest}`), `${image} is missing ${manifest} during workspace installation`);
   }
 });
