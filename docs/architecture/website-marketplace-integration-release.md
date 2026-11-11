@@ -1,5 +1,41 @@
 # Website Marketplace: informe final de distribución controlada
 
+## Revisión definitiva de los tres bloqueos — 2026-11-11
+
+Se volvió a verificar el registro a las `22:29:19 UTC` y la configuración de permisos a las `22:30:22 UTC`. Las **ocho versiones** `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` siguen ausentes: siete paquetes existentes responden 200 sin esa versión y `website-blocks` responde 404 con la credencial autenticada. Las siete versiones históricas son controles positivos con integrity coincidente. Los SHA-256, inventarios y procedencia de los ocho TGZ se verificaron otra vez; no cambiaron y siguen en la tabla de distribución de este informe.
+
+El permiso de administración/push del repositorio y la membresía administrativa de la organización se comprobaron por lectura. El publicador previsto es el `GITHUB_TOKEN` del job, con `contents:read`, `packages:write` y habilitación explícita del entorno. Esto acredita la configuración, **no una escritura efectiva** ni los permisos de lectura futuros de Actions/VPS sobre el paquete nuevo. No se probó publicación con la credencial local ni se crearon versiones de prueba.
+
+El listado completo de paquetes de la organización y sus siete fichas respondieron 200: todos son privados, pertenecen a Runly-MX y están asociados a `Runly-MX/runly-erp`. El nuevo `website-blocks` no aparece en ese listado. No se infiere que el token lector local tenga permiso de publicación por poder consultar estas fichas.
+
+### Procedencia de los cinco paquetes sin `license`
+
+La clasificación distingue fuente mantenida por Runly, dependencias instaladas separadamente y posibles adaptaciones de código. El historial Git acredita trazabilidad técnica, no contratos de cesión de derechos. Los cinco manifiestos actuales tienen `private:true`; no hay LICENSE raíz que permita atribuirles automáticamente MIT u otra licencia.
+
+| Paquete lógico | Evidencia del código distribuido | Terceros y decisión pendiente |
+| --- | --- | --- |
+| `@runly/core` | 16 archivos fuente; procede del baseline `b682bbacc`; utilidades y contratos Runly | No aparecen imports de paquetes externos ni payload binario en su inventario. Confirmar la política propietaria de las partes propias antes de declarar `UNLICENSED`. |
+| `@runly/sdk` | 22 archivos fuente; procede del mismo baseline; cliente y transporte Runly | No aparecen imports externos ni payload binario. Misma decisión sobre las partes propias. |
+| `@runly/preview-runtime` | 11 archivos fuente y README; extracción del shell ERP en `21268d9b9`, documentada en su README | Importa UI, React y TanStack Query; no incluye sus distribuciones en el TGZ. Misma decisión sobre la fuente propia; no relicenciar dependencias. |
+| `@runly/website-blocks` | 87 archivos fuente; extracción de los bloques ERP en `ce9d6939f` | Importa React y Atlas 0.3.5 por dependencia. No empaqueta el código del builder ni las 16 imágenes de Elevate; no hereda automáticamente MIT de Atlas. Misma decisión sobre las partes propias. |
+| `@runly/ui` | 353 archivos fuente; baseline y evolución Runly; wrappers Radix y patrón shadcn en Button/Select/Accordion y utilidades `cn` | No debe certificarse como exclusivamente original. La configuración de diseño menciona shadcn; revisar/confirmar las adaptaciones y conservar los avisos que correspondan antes de atribuir una licencia al conjunto. Sus dependencias se resuelven aparte y conservan sus licencias. |
+
+Las cinco distribuciones contienen fuente, CSS y, en preview, README; no contienen `node_modules`, fuentes tipográficas, imágenes raster ni binarios FFmpeg. UI sí contiene código que carga el core FFmpeg servido por la aplicación: la licencia de ese binario no se determina a partir de la del wrapper y no se concede mediante los metadatos de UI. No se incorporó ni modificó ese binario para distribuir estos paquetes.
+
+La [documentación de npm](https://docs.npmjs.com/cli/v11/configuring-npm/package-json/#license) contempla `UNLICENSED` para código privado sin una concesión de licencia; no es `Unlicense`, MIT ni una autorización de redistribución pública. La [licencia de shadcn](https://github.com/shadcn-ui/ui/blob/main/LICENSE.md) es MIT y exige conservar sus avisos cuando se redistribuyen sus partes. Las similitudes de componentes no se convierten por sí solas en una certificación de titularidad o en una atribución de toda UI a shadcn.
+
+**Decisión solicitada al titular:** confirmar que las partes propias de los cinco paquetes conservan política propietaria de uso interno (`UNLICENSED`), preservando por separado derechos y avisos de terceros. Hasta recibir esa decisión no se alteran los cinco manifiestos ni se inventa una licencia. Si la confirmación permite corregir metadatos o avisos, se hace en fuente y se prepara otra revisión completa de ocho versiones; se sustituyen los hashes/comandos de este informe antes de publicar, nunca se editan TGZ de `db6deb300…` bajo su misma identidad.
+
+Este punto es independiente de Elevate: `license_unknown` describe los derechos no acreditados de su contenido visual. No lo corrige la licencia de los paquetes internos ni bloquea por sí solo la distribución de funcionalidad Website. Elevate permanece fuera de cualquier publicación pública.
+
+### Instalación limpia y autorización pendiente
+
+El runbook inferior conserva el flujo existente: push autorizado → preparación Actions `publish=false` → comparación de manifiesto/TGZ → publicación inmutable autorizada → `shared:adopt --check-only` → adopción → commit local de todos los locks/derivados → `shared:clean` → push autorizado del commit de adopción y workflow limpio → lectura del VPS ejecutada por el operador. **`shared:clean` debe correr después del commit local:** usa `git archive HEAD`, por lo que ejecutarlo antes comprobaría los locks históricos. La adopción ya prueba su candidato aislado antes de escribirlo.
+
+No se repiten pruebas funcionales W1–W3. Para dar por cerrado el bloqueo de instalación hacen falta el pase desde el registro real con stores vacíos, los tres locks frozen y build, seguido de `published-candidate`, `ok:true`, `packages:8` desde el VPS. No se certifica ninguno antes de publicar. No se ha identificado otro cambio funcional necesario; las decisiones de derechos y los resultados efectivos de publicación/lectura/instalación siguen siendo condiciones de liberación.
+
+Evidencia privada adicional: `.artifacts/website-integration/distribution-license-provenance.json`, `distribution-permissions-final.json` y `distribution-registry-associations.json`. No incluyen credenciales ni se publican como atestaciones legales o criptográficas.
+
 ## Preparación final de distribución — 2026-11-11
 
 **Preparación local verificada; publicación, adopción e instalación limpia del candidato todavía pendientes de autorización.** No se ejecutó ningún push, workflow remoto, publicación de paquetes, modificación de servicios externos ni despliegue. El manifiesto aprobado sigue fijado a `db6deb300f0835df6d74c6d46198ded1b2a375a2`; no se generó otra versión ni se cambiaron los bytes de los ocho paquetes.
@@ -262,7 +298,6 @@ pnpm shared:adopt --manifest "$PUBLISHED_SHARED_MANIFEST"
 git diff -- shared-packages.lock.json package.json pnpm-lock.yaml \
   apps/api/package.json apps/api/pnpm-lock.yaml \
   apps/worker/package.json apps/worker/pnpm-lock.yaml
-pnpm shared:clean
 ```
 
 La adopción resuelve contra el registro, verifica inventarios, los tres installs frozen y el build; sólo entonces escribe los locks y derivados. Revisar y crear un commit local de adopción, incluyendo también los derivados que informe el script. Publicarlo únicamente con autorización. Ese commit adicional es el `$HUB_APPROVED_SHA` del despliegue: no se puede inventar su hash antes de resolver las versiones publicadas. No usar el root de laboratorio ni copiar fuentes manualmente a producción.
@@ -283,6 +318,7 @@ git add shared-packages.lock.json .npmrc package.json pnpm-lock.yaml \
 # Añadir también sólo los Compose modificados que informe shared:adopt.
 git diff --cached --check
 git commit -m "chore(packages): adopt verified Website shared release"
+pnpm shared:clean
 # Push sólo con autorización para este commit de adopción:
 git push origin main
 gh workflow run shared-packages-clean.yml --repo Runly-MX/runly-developer-hub --ref main
