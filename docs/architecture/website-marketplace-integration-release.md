@@ -1,5 +1,61 @@
 # Website Marketplace: informe final de distribución controlada
 
+## Ejecución autorizada y bloqueo de bytes — 2026-11-11
+
+Se ejecutó `git fetch origin` en los tres repositorios, con árboles limpios y `main` como rama. Los commits requeridos W1/W2/W3 y del cierre son ancestros de las revisiones publicadas. Los tres pushes fueron normales y fast-forward; no se reescribió historia:
+
+| Repositorio | SHA remoto del push funcional |
+| --- | --- |
+| ERP | `e641756d04b798d0bb27bd023554b3eda8bb69ea` |
+| Developer Hub | `fe0f363b7e4472bcce4ce26e1987a86f2e27e7af` |
+| Runly Web | `ca22e40fd7cb33921b3c5663b91a768c698ddfa9` |
+
+El commit documental de este resultado es posterior al push funcional ERP. No modifica paquetes, código ni locks. La revisión fuente de paquetes continúa siendo `3a071090875b9f3803f895e00d78fc25a047e829`.
+
+**Paquetes publicados: 0/8. Locks adoptados: ninguno. Instalación limpia desde el registro: pendiente. Producción: sin intervención.** Se detuvo la publicación al fallar la comparación SHA-256 exigida por este runbook; no se ejecutó `publish=true`, no se concedieron accesos y no se actualizaron plugins ni recursos Marketplace.
+
+La [preparación Actions 43121932322](https://github.com/Runly-MX/runly-erp/actions/runs/43121932322) terminó correctamente: revisión fuente, instalación frozen, pruebas dirigidas y compilación/inspección de cada módulo distribuido. El guard local de comparación con el manifiesto autorizado **falló**, antes de publicar. El manifiesto Linux tiene SHA-256 `a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf`, diferente del local autorizado `99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03`.
+
+### Diagnóstico concreto y candidato Linux pendiente de aprobación
+
+La inspección segura de ambos conjuntos verifica mismos nombres, versiones, dependencias, manifiestos internos, licencias, paths, modos, uid/gid y mtime de archivos. El byte de plataforma gzip es 10 en Windows y 3 en Linux. En seis CSS y `LICENSE.shadcn.txt`, Git convierte CRLF/LF según plataforma: `.gitattributes` fija LF para JS/JSON/Markdown, pero no para CSS/TXT. Normalizando sólo CRLF a LF, todos los contenidos de ambos conjuntos coinciden. Los inventarios/contentDigest de seis paquetes coinciden sin normalizar; UI y website-blocks difieren por esos finales de línea. El aviso shadcn conserva el mismo texto y obligaciones. No es un conflicto de una versión publicada ni un cambio de comportamiento, pero **los bytes e integridades son distintos y no se aceptan automáticamente**.
+
+Los ocho artefactos de Actions fueron inspeccionados con `readConsumerArtifacts`: inventarios, SHA-256, SHA-512, identidades y licencias válidos. El candidato Linux usa para los ocho la versión exacta `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` y propone los siguientes SHA-256, **todavía no autorizados en sustitución de los locales**:
+
+| Paquete físico | SHA-256 tarball Linux |
+| --- | --- |
+| `@runly-mx/core` | `262ad4cc7588b69267301aab5e5d5bdad88e59614814676756ef4664766855fb` |
+| `@runly-mx/module-engine` | `80c9fbdfbe072b51f1b119f4644ca4320ac1c1531ef0e258098000578acb09ee` |
+| `@runly-mx/module-compiler` | `fb26f66de5c7b2f6c6afa8c2e7259325969de049b682e6a7fbf3da1da4a41186` |
+| `@runly-mx/ui` | `1d3b5ef7dddf60ba69607994328895194019d63c6a4d343b3740afe6716baf00` |
+| `@runly-mx/sdk` | `092db2f04ffe99e9b8a13210eea39701dc822ad39b1d1abb4e6a5b2d4157d144` |
+| `@runly-mx/preview-runtime` | `198d2335a5689a5426c7b010737b8f636ada656c30b2afee523963ea93adf314` |
+| `@runly-mx/studio-interchange` | `c74770d92a1866023ab9fd0d57aec797983a473a9ba0c971d412d294e7045aef` |
+| `@runly-mx/website-blocks` | `66688ff4113cb8898c0d77452608fb625c61daf2c6a65b01fbf6c922fddcafc0` |
+
+Los originales locales permanecen intactos. El artefacto Linux está en `.artifacts/website-integration/actions-43121932322/3a071090875b9f3803f895e00d78fc25a047e829/manifest.json`, junto a los ocho TGZ. Evidencia adicional privada: `authorized-push-preflight.json`, `actions-preparation-mismatch.json`, `actions-preparation-byte-diagnosis.json` y `authorized-actions-preparation.json` bajo `.artifacts/website-integration/`.
+
+Para continuar hace falta aceptar expresamente este manifiesto Linux como candidato canónico, con los ocho hashes de esta tabla, conservando nombres/versiones y el publicador existente. Antes de ejecutar `publish=true`, actualizar el hash esperado del guard y el manifiesto de adopción a ese conjunto; no conservar los hashes locales como si coincidieran. La nueva ejecución Linux debe regenerar exactamente este manifiesto, y cualquier diferencia debe detener la publicación de nuevo. No se modifica H7, no se publica Elevate y no se instala una versión distinta de las ocho aprobadas.
+
+### Comandos VPS: preparados, no ejecutados
+
+El bloque de lectura del registro de este informe sigue siendo válido; después de publicar deberá recibir el manifiesto Linux aceptado. Todavía no puede obtener `published-candidate`, `ok:true`, `packages:8`. No ejecutar despliegue hasta completar publicación, adopción/commit de locks y prueba limpia. Los comandos ERP/Hub inferiores son únicamente para la autorización posterior del operador.
+
+Runly Web usa el flujo de runtime/estático emparejado existente, no una copia de `dist/client`. Para un servidor ya preparado según `runly-web/docs/MARKETPLACE_HOSTING.md`, con checkout limpio fijado a `ca22e40fd7cb33921b3c5663b91a768c698ddfa9`, y variables de rutas/origen reales configuradas fuera del repositorio, los comandos posteriores son:
+
+```bash
+cd "$WEB_CHECKOUT"
+test "$(git rev-parse HEAD)" = ca22e40fd7cb33921b3c5663b91a768c698ddfa9
+corepack pnpm install --frozen-lockfile
+sudo /usr/bin/node scripts/deploy-marketplace.mjs prepare --release "$WEB_RELEASE_ID" --target "$WEB_TARGET"
+sudo /usr/bin/node scripts/deploy-marketplace.mjs deploy --release "$WEB_RELEASE_ID" --target "$WEB_TARGET" --health-url "$WEB_HEALTH_URL" --dry-run
+# Sólo con autorización posterior de despliegue:
+sudo /usr/bin/node scripts/deploy-marketplace.mjs deploy --release "$WEB_RELEASE_ID" --target "$WEB_TARGET" --health-url "$WEB_HEALTH_URL"
+sudo systemctl status runly-web-marketplace.service --no-pager
+```
+
+Si el host no está preparado, detenerse y revisar los requisitos del documento de hosting; no inventar un destino ni modificar Nginx/systemd durante esta entrega. `WEB_RELEASE_ID` debe ser nuevo. La recuperación utiliza `sudo /usr/bin/node scripts/deploy-marketplace.mjs rollback --target "$WEB_TARGET"`, preservando el par y sus diarios. Ninguno de estos comandos se ejecutó en el VPS.
+
 ## Revisión definitiva de los tres bloqueos — 2026-11-11
 
 Se volvió a verificar el registro a las `23:01:15 UTC` y la configuración de permisos a las `22:30:22 UTC`. Las **ocho versiones** `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` están ausentes: siete paquetes existentes responden 200 sin esa versión y `website-blocks` responde 404 con la credencial autenticada. Las siete versiones históricas son controles positivos con integrity coincidente. Los nuevos SHA-256, inventarios y procedencia de los ocho TGZ se verificaron y se fijan en la tabla de distribución de este informe.
