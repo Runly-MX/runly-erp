@@ -95,6 +95,7 @@ export function createPurchaseInventoryBridge({ prisma, broadcaster, workflowSer
         { name: { contains: search, mode: 'insensitive' } },
         { assetTag: { contains: search, mode: 'insensitive' } },
         { serialNumber: { contains: search, mode: 'insensitive' } },
+        { customValues: { some: { value: { contains: search, mode: 'insensitive' }, field: { enabled: true } } } },
       ] } : {}),
     }
     const [rows, total] = await Promise.all([
