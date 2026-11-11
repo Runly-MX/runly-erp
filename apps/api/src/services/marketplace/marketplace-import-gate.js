@@ -56,7 +56,7 @@ export function createMarketplaceImportGate({ catalog, now = () => Date.now() })
     const status = await catalog.status()
     if (!status.configured) throw toImportError(new ResourceFeedError('RESOURCE_FEED_NOT_CONFIGURED'))
     if (!force && status.verified && now() - Date.parse(status.fetchedAt) < REFRESH_AFTER_MS) return
-    await catalog.refresh().catch(() => {})
+    return catalog.refresh().catch(error => ({ alert: error?.code ?? 'RESOURCE_FEED_UNREACHABLE', offline: true }))
   }
 
   function check(inspection, ref, type) {
@@ -69,8 +69,9 @@ export function createMarketplaceImportGate({ catalog, now = () => Date.now() })
 
   async function list(type, { query = '', acknowledgeStale = false } = {}) {
     try {
-      await ensureFresh()
-      return { catalog: await catalog.status({ acknowledgeStale }), items: await catalog.list({ type, query, acknowledgeStale }) }
+      const refreshed = await ensureFresh()
+      const status = await catalog.status({ acknowledgeStale })
+      return { catalog: { ...status, alert: refreshed?.alert ?? status.alert ?? null, offline: refreshed?.offline ?? status.offline ?? false }, items: await catalog.list({ type, query, acknowledgeStale }) }
     } catch (error) { throw toImportError(error) }
   }
 

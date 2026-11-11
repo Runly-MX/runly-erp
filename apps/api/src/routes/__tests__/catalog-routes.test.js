@@ -8,6 +8,7 @@ import { createCatalogRouter } from '../catalog-routes.js'
 const ROLES = {
   viewer: { permissions: ['core.modules.read'], isAdmin: false, isSystemAdmin: false },
   custom: { permissions: ['core.modules.read', 'core.modules.manage'], isAdmin: false, isSystemAdmin: false },
+  studio: { permissions: ['studio.view'], isAdmin: false, isSystemAdmin: false },
   companyAdmin: { permissions: [], isAdmin: true, isSystemAdmin: false },
   systemAdmin: { permissions: [], isAdmin: false, isSystemAdmin: true },
 }
@@ -25,7 +26,7 @@ function app() {
   const calls = []
   const record = (name) => async (args) => { calls.push([name, args]); return { ok: true } }
   const catalogV2Service = { list: record('list'), install: record('install'), update: record('update'), preflight: record('preflight'), source: record('source'), configureSource: record('configureSource') }
-  return { router: createCatalogRouter({ prisma: {}, requirePermission, catalogV2Service }), calls }
+  return { router: createCatalogRouter({ prisma: {}, requirePermission, catalogV2Service, marketplace: { list: record('resources') } }), calls }
 }
 const send = (router, role, method, path, body) => router.request(path, { method, headers: { 'x-role': role, 'content-type': 'application/json' }, body: body ? JSON.stringify(body) : undefined })
 
@@ -40,6 +41,16 @@ test('reading the Marketplace never grants install, update, preflight or source 
     if (method !== 'GET' || path.endsWith('source')) assert.equal((await custom.json()).error, 'instance_authority_required')
   }
   assert.deepEqual(calls.map(([name]) => name), ['list'], 'no mutation reached the service')
+})
+
+test('resource discovery has type-specific permissions and is independent of the module list', async () => {
+  const { router, calls } = app()
+  assert.equal((await send(router, 'studio', 'GET', '/marketplace/resources?type=studio_template')).status, 200)
+  assert.equal((await send(router, 'studio', 'GET', '/module-catalog/v2')).status, 403)
+  for (const type of ['automation', 'solution', 'website_template']) assert.equal((await send(router, 'studio', 'GET', `/marketplace/resources?type=${type}`)).status, 403)
+  assert.equal((await send(router, 'viewer', 'GET', '/marketplace/resources?type=studio_template')).status, 403)
+  assert.equal((await send(router, 'companyAdmin', 'GET', '/marketplace/resources?type=unknown')).status, 422)
+  assert.equal(calls[0][0], 'resources')
 })
 
 test('instance administrators can operate; source updates accept only known fields', async () => {

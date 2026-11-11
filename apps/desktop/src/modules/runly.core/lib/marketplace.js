@@ -104,7 +104,7 @@ export const FRESHNESS_TEXT = {
   expired: "El catálogo no responde y la última copia verificada es demasiado antigua: se puede consultar, pero no instalar ni actualizar.",
 };
 export const SOURCE_MODES = [
-  { id: "runly", label: "Catálogo de Runly" },
+  { id: "runly", label: "Marketplace de Runly" },
   { id: "custom", label: "Personalizado" },
   { id: "disabled", label: "Desactivado" },
 ];

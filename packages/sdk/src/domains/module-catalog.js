@@ -16,6 +16,7 @@ export function createModuleCatalogDomain({ request, withAuthHeaders }) {
     install: (key, { grants = [], decisions } = {}, token) => send('POST', `/module-catalog/${id(key)}/install`, { grants, decisions }, token),
     update: (key, { grants = [], decisions } = {}, token) => send('POST', `/module-catalog/${id(key)}/update`, { grants, decisions }, token),
     listV2: (token, { key } = {}) => send('GET', `/module-catalog/v2${key ? `?key=${id(key)}` : ''}`, undefined, token),
+    resources: (type, token) => send('GET', `/marketplace/resources?type=${id(type)}`, undefined, token),
     installV2: (key, payload, token) => send('POST', `/module-catalog/v2/${id(key)}/install`, v2Payload(payload), token),
     updateV2: (key, payload, token) => send('POST', `/module-catalog/v2/${id(key)}/update`, v2Payload(payload), token),
     // Marketplace: verification without installing, and the catalog source/trust view.

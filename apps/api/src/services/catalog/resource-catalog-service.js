@@ -15,7 +15,7 @@ import { sha256Of } from './catalog-crypto.js'
 import { createTrustStore, CatalogTrustError } from './catalog-trust-store.js'
 import { createHighWaterStore, domainKey, sequenceDecision } from './catalog-sequence.js'
 import { compareVersions } from './catalog-service.js'
-import { CONFIG_KEYS, RUNLY_CATALOG_SOURCE } from './catalog-v2-service.js'
+import { CONFIG_KEYS, RUNLY_RESOURCE_CATALOG_URL } from './catalog-v2-service.js'
 import { RESOURCE_CATALOG_ID, RESOURCE_TRUST_DOMAIN, MAX_SNAPSHOT_BYTES, TYPE_MAX_BYTES, FORMAT_NAME, ResourceFeedError, resourceSnapshotDigest, validateResourceEnvelope } from './catalog-resource-contract.js'
 import rootPackage from '../../../../../package.json' with { type: 'json' }
 
@@ -86,7 +86,7 @@ export function createResourceCatalogService({ prisma, readBytes = readCatalogBy
     const explicit = await config(RESOURCE_CONFIG_KEYS.url)
     if (explicit !== null) return explicit || null
     const mode = (await config(CONFIG_KEYS.sourceMode)) || 'runly'
-    return mode === 'runly' ? new URL('resources/index.json', RUNLY_CATALOG_SOURCE.officialUrl).href : null
+    return mode === 'runly' ? RUNLY_RESOURCE_CATALOG_URL : null
   }
 
   // Last verified copy still inside the 30-day view window; re-verified on every read (a tampered cache is not trusted).

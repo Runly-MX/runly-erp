@@ -23,11 +23,13 @@ import { createFilesService } from '../apps/api/src/services/files-service.js'
 import { createStudioInterchange } from '../apps/api/src/routes/studio/interchange/service.js'
 import { createStudioInterchangeRouter } from '../apps/api/src/routes/studio/interchange/router.js'
 import { createStudioRouter } from '../apps/api/src/routes/studio/index.js'
+import { createCatalogRouter as createModuleCatalogRouter } from '../apps/api/src/routes/catalog-routes.js'
 import { appendObject, blankDocument } from '../apps/shared/studio/document.js'
 import { createAutomationsRouter } from '../apps/api/src/routes/automations-routes.js'
 import { createSystemAutomationsService } from '../apps/api/src/services/system-automations-service.js'
 import { WEBHOOK_EVENT } from '../apps/api/src/services/automation-webhooks-service.js'
 import { createResourceCatalogService, RESOURCE_CONFIG_KEYS } from '../apps/api/src/services/catalog/resource-catalog-service.js'
+import { createCatalogV2Service } from '../apps/api/src/services/catalog/catalog-v2-service.js'
 import { resourceReleaseBytes, resourceSnapshotBytes, resourceSnapshotDigest } from '../apps/api/src/services/catalog/catalog-resource-contract.js'
 import { keyIdOf } from '../apps/api/src/services/catalog/catalog-v2-contract.js'
 import { createMarketplaceImportGate } from '../apps/api/src/services/marketplace/marketplace-import-gate.js'
@@ -59,7 +61,7 @@ const strangerId = keyIdOf(stranger.publicKey.export({ type: 'spki', format: 'de
 const studioLab = published.signed.entries.find((e) => e.type === 'studio_template'), automationLab = published.signed.entries.find((e) => e.type === 'automation')
 const ref = (e) => ({ resourceKey: e.resourceKey, version: e.version, releaseId: e.releaseId })
 
-let clock = Date.parse(published.signed.generatedAt) + 3_600_000, lastSigned = null, feedDir
+let clock = process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL ? Date.now() : Date.parse(published.signed.generatedAt) + 3_600_000, lastSigned = null, feedDir
 async function serveFeed(envelope, packages) {
   await rm(feedDir, { recursive: true, force: true }); await mkdir(join(feedDir, 'packages'), { recursive: true })
   await writeFile(join(feedDir, 'index.json'), JSON.stringify(envelope))
@@ -111,8 +113,8 @@ try {
   const designs = createStudioService({ prisma, filesService: files })
   const templates = createStudioTemplatesService({ prisma, filesService: files, supabaseAdmin: storage, designService: designs })
   feedDir = join(stack.directory, 'feed')
-  await q(`INSERT INTO instance_config(key,value,updated_at) VALUES ($1,$2,now())`, [RESOURCE_CONFIG_KEYS.url, pathToFileURL(join(feedDir, 'index.json')).href])
-  const trust = { resource: [LAB_KEY, VECTOR.publicKey] }
+  if (!process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL) await q(`INSERT INTO instance_config(key,value,updated_at) VALUES ($1,$2,now())`, [RESOURCE_CONFIG_KEYS.url, pathToFileURL(join(feedDir, 'index.json')).href])
+  const trust = process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL ? {} : { resource: [LAB_KEY, VECTOR.publicKey] }
   const makeCatalog = () => createResourceCatalogService({ prisma, trust, now: () => clock })
   const gate = createMarketplaceImportGate({ catalog: makeCatalog(), now: () => clock })
   interchange = createStudioInterchange({ prisma, filesService: files, supabaseAdmin: storage, designs, templates, verifySource: gate.recheck })
@@ -137,6 +139,7 @@ try {
   // Real Studio router (GET /studio/templates): reached only for routes the interchange router above does not own.
   app.route('/', createStudioRouter({ prisma, requirePermission, filesService: files, supabaseAdmin: storage, service: designs, templates }))
   app.route('/', createAutomationsRouter({ prisma, requirePermission, marketplace: gate }))
+  app.route('/', createModuleCatalogRouter({ prisma, requirePermission, marketplace: gate }))
   server = serve({ fetch: app.fetch, port: 0, hostname: '127.0.0.1' }); await new Promise((r) => server.once('listening', r))
   const url = `http://127.0.0.1:${server.address().port}`
   const tokens = []
@@ -145,12 +148,29 @@ try {
     const session = await auth.auth.signInWithPassword({ email: user.email, password: user.password }); assert.ok(!session.error)
     tokens.push(session.data.session.access_token)
   }
-  const as = (actor, company = 0) => { const client = createRunlyClient({ baseUrl: url, getActiveCompanyId: () => companies[company].id }); return { studio: client.studio, auto: client.modules, token: tokens[actor] } }
+  const as = (actor, company = 0) => { const client = createRunlyClient({ baseUrl: url, getActiveCompanyId: () => companies[company].id }); return { studio: client.studio, auto: client.modules, catalog: client.moduleCatalog, token: tokens[actor] } }
   const owner = as(0), foreign = as(3, 1), peer = as(2), denied = as(1), ownerInB = as(0, 1)
   const count = async (table, where = 'true', params = []) => Number((await q(`SELECT count(*) n FROM ${table} WHERE ${where}`, params))[0].n)
   const grants = (companyId) => q("SELECT service_key FROM module_service_grant WHERE module_key='system.automations' AND company_id=$1 ORDER BY 1", [companyId])
 
   if (process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL) {
+    const moduleCatalog = createCatalogV2Service({ prisma })
+    await moduleCatalog.configureSource({ mode: 'runly' }) // administrator opt-in, in the disposable instance only
+    const modules = await moduleCatalog.list()
+    assert.equal(modules.status, 'not_published')
+    await q(`INSERT INTO role_permission(id,role_id,permission_id) SELECT uuidv7(),$1,id FROM permission WHERE key='core.modules.read' ON CONFLICT DO NOTHING`, [companies[0].roleId])
+    assert.equal(unpack(await owner.catalog.listV2(owner.token)).status, 'not_published', 'the authenticated module endpoint returns a safe state, not HTTP 502')
+    assert.equal(await prisma.instanceConfig.findUnique({ where: { key: RESOURCE_CONFIG_KEYS.url } }), null, 'resource default is effective without an override')
+    const studio = unpack(await owner.studio.marketplaceTemplates({}, owner.token))
+    const cumbre = studio.items.find(item => item.resourceKey === process.env.RUNLY_MARKETPLACE_ACCEPTANCE_RESOURCE)
+    assert.ok(cumbre?.eligible && cumbre.official && cumbre.trust === 'resource')
+    assert.equal(cumbre.version, '1.0.0')
+    const discovery = unpack(await owner.catalog.resources('studio_template', owner.token))
+    assert.equal(discovery.items.find(item => item.resourceKey === cumbre.resourceKey)?.releaseId, cumbre.releaseId)
+    assert.equal(studio.catalog.freshness, 'fresh')
+    assert.equal(studio.catalog.url, process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL)
+    await rejects(denied.studio.marketplaceTemplates({}, denied.token), { status: 403 })
+    ok('GET /studio/interchange/marketplace/resources authenticated: default resource URL, shipped resource key, fresh verified Cumbre; unpublished module feeds are independent; unauthorized member refused')
     const { verifyLiveStudio } = await import('./fixtures/marketplace/live-studio-acceptance.mjs')
     const result = await verifyLiveStudio({ url: process.env.RUNLY_MARKETPLACE_ACCEPTANCE_URL,
       resourceKey: process.env.RUNLY_MARKETPLACE_ACCEPTANCE_RESOURCE, prisma, files, storage, designs, templates, users, companies })

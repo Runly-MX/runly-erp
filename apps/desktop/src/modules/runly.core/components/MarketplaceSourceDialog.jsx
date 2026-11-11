@@ -4,13 +4,13 @@
 // revoke a key locally (never re-trust or promote it). No private keys exist here.
 import { useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, SegmentedControl, Skeleton, Switch, ErrorState, Badge, Textarea } from "@runly/ui";
+import { Button, CheckboxField, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, Input, Label, SegmentedControl, Skeleton, Switch, ErrorState, Badge, Textarea } from "@runly/ui";
 import { ShieldOff } from "lucide-react";
 import { toast } from "sonner";
 import { runly } from "../../../lib/runly";
 import { SOURCE_MODES } from "../lib/marketplace";
 
-const DOMAIN_LABELS = { official: "Oficial Runly", community: "Comunidad", managed: "Administrado" };
+const DOMAIN_LABELS = { official: "Oficial Runly", community: "Comunidad", resource: "Recursos", managed: "Administrado" };
 const STATE_LABELS = { active: "Activa", retiring: "En retiro", revoked: "Revocada" };
 
 function SourceForm({ source, token, onDone }) {
@@ -18,15 +18,17 @@ function SourceForm({ source, token, onDone }) {
   const [mode, setMode] = useState(source.mode ?? "runly");
   const [officialUrl, setOfficialUrl] = useState(source.officialUrl ?? "");
   const [communityUrl, setCommunityUrl] = useState(source.communityUrl ?? "");
+  const [changeResources, setChangeResources] = useState(false);
+  const [resourcesUrl, setResourcesUrl] = useState(source.resourcesUrl ?? source.effective.resourcesUrl ?? '');
   const [managedKeys, setManagedKeys] = useState((source.managedKeys ?? []).map((k) => (typeof k === "string" ? k : k.publicKey)).join("\n"));
   const [allowCachedView, setAllowCachedView] = useState(source.policy.allowCachedView);
   const [maxCacheAgeDays, setMaxCacheAgeDays] = useState(String(source.policy.maxCacheAgeDays));
   const [installFreshHours, setInstallFreshHours] = useState(String(source.policy.installFreshHours));
   const [installMaxAgeHours, setInstallMaxAgeHours] = useState(String(source.policy.installMaxAgeHours));
   const [revoking, setRevoking] = useState(null);
-  const refresh = () => ["module-catalog-v2", "module-catalog-v2-source"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
+  const refresh = () => ["module-catalog-v2", "module-catalog-v2-source", "marketplace-resources"].forEach((key) => queryClient.invalidateQueries({ queryKey: [key] }));
   const save = useMutation({
-    mutationFn: () => runly.moduleCatalog.configureSourceV2({ mode, ...(mode === "custom" ? { officialUrl: officialUrl.trim(), communityUrl: communityUrl.trim() } : {}), managedKeys: managedKeys.split("\n").map((k) => k.trim()).filter(Boolean), policy: { allowCachedView, maxCacheAgeDays: Number(maxCacheAgeDays), installFreshHours: Number(installFreshHours), installMaxAgeHours: Number(installMaxAgeHours) } }, token),
+    mutationFn: () => runly.moduleCatalog.configureSourceV2({ mode, ...(mode === "custom" ? { officialUrl: officialUrl.trim(), communityUrl: communityUrl.trim() } : {}), ...(changeResources ? { resourcesUrl: mode === 'runly' ? source.defaults.resourcesUrl : mode === 'disabled' ? null : resourcesUrl.trim() } : {}), managedKeys: managedKeys.split("\n").map((k) => k.trim()).filter(Boolean), policy: { allowCachedView, maxCacheAgeDays: Number(maxCacheAgeDays), installFreshHours: Number(installFreshHours), installMaxAgeHours: Number(installMaxAgeHours) } }, token),
     onSuccess: () => { toast.success("Origen del catálogo guardado"); refresh(); onDone(); },
     onError: (error) => toast.error("No se pudo guardar", { description: error.details?.message ?? error.message }),
   });
@@ -42,7 +44,11 @@ function SourceForm({ source, token, onDone }) {
           <h3 className="text-sm font-semibold">Origen</h3>
           <SegmentedControl ariaLabel="Origen" value={mode} onChange={setMode} options={SOURCE_MODES.map((option) => ({ value: option.id, label: option.label }))} className="[&_button]:min-w-0" />
         {mode === "runly" && <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">Se usan los feeds firmados de Runly Developer Hub: {source.defaults.officialUrl} y {source.defaults.communityUrl}.</p>}
-        {mode === "disabled" && <p className="text-xs text-[hsl(var(--muted-foreground))]">El Marketplace no consulta ningún catálogo. Los módulos instalados siguen funcionando.</p>}
+        {mode === "disabled" && <p className="text-xs text-[hsl(var(--muted-foreground))]">Se desactiva la consulta de módulos. Los recursos conservan su origen salvo que autorices cambiarlo abajo. Los módulos instalados siguen funcionando.</p>}
+        <p className="break-all text-xs text-[hsl(var(--muted-foreground))]">Origen efectivo de recursos: {source.effective.resourcesUrl ?? 'Sin configurar'}. Las firmas de recursos usan sus propias claves ancladas.</p>
+        <CheckboxField label="Autorizar también el cambio de origen de recursos" checked={changeResources} onChange={event => setChangeResources(event.target.checked)} />
+        {changeResources && mode === 'runly' ? <p className="text-sm">Al guardar se usarán los tres feeds oficiales de Marketplace de Runly con las claves públicas incluidas en esta versión. No se importa ni se instala nada automáticamente.</p> : null}
+        {changeResources && mode === 'custom' ? <div className="space-y-1"><Label htmlFor="catalog-resources-url">Feed de recursos firmado (avanzado)</Label><Input id="catalog-resources-url" value={resourcesUrl} onChange={event => setResourcesUrl(event.target.value)} maxLength={2048} placeholder="https://catalog.example.test/resources/index.json" /><p className="text-xs">Sólo se aceptan las firmas de recursos ancladas en Runly. Las claves administradas de módulos no autorizan recursos.</p></div> : null}
         {mode === "custom" && <>
         <div className="space-y-1">
           <Label htmlFor="catalog-official-url">Catálogo oficial (snapshot firmado)</Label>
@@ -104,7 +110,7 @@ export function MarketplaceSourceDialog({ token, onOpenChange }) {
     <Dialog open onOpenChange={onOpenChange}>
       <DialogContent className="flex max-h-[90dvh] flex-col sm:max-w-3xl">
         <DialogHeader className="shrink-0">
-          <DialogTitle>Origen del catálogo</DialogTitle>
+          <DialogTitle>Configurar Marketplace</DialogTitle>
           <DialogDescription>Fuente del Marketplace para toda la instancia. Las claves privadas nunca se configuran en Runly.</DialogDescription>
         </DialogHeader>
         {source.isLoading ? <Skeleton className="h-48 rounded-xl" /> : source.isError ? <ErrorState title="No se pudo leer la configuración" description={source.error?.details?.message ?? source.error?.message} onRetry={() => source.refetch()} /> : <SourceForm source={source.data} token={token} onDone={() => onOpenChange(false)} />}

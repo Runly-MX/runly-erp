@@ -81,7 +81,7 @@ function ResourceLine({ resource }) {
   )
 }
 
-export function MarketplaceAutomationDialog({ open, onOpenChange, token, onOpenAutomation }) {
+export function MarketplaceAutomationDialog({ open, onOpenChange, token, onOpenAutomation, initialResource }) {
   const queryClient = useQueryClient()
   const [step, setStep] = useState('choose'), [busy, setBusy] = useState(null), [state, setState] = useState(null)
   const [resource, setResource] = useState(null), [acknowledged, setAcknowledged] = useState(false)
@@ -96,6 +96,7 @@ export function MarketplaceAutomationDialog({ open, onOpenChange, token, onOpenA
   const release = () => { generation.current += 1; const id = pending.current; pending.current = null; cancelPrepared(id) }
   const restart = () => { release(); setStep('choose'); setBusy(null); setState(null); setInspection(null); setPrepared(null); setResult(null); setServicesAccepted(false); setRisksAccepted(false) }
   useEffect(() => { if (!open) { restart(); setResource(null); setAcknowledged(false) } }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (open && initialResource) setResource(initialResource) }, [open, initialResource])
   useEffect(() => () => release(), []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function run(kind, task) {

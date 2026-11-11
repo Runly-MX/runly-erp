@@ -2573,7 +2573,7 @@ mountWithAuth(app, createAutomationsRouter({ prisma, requirePermission, moduleSe
 // Optional signed installations channel (E4): null without configuration; the public Marketplace never uses it.
 mountWithAuth(app, createMarketplaceInstallationRouter({ prisma, requirePermission, client: createMarketplaceInstallClientFromEnvSafe(process.env) }));
 mountWithAuth(app, createBuilderRouter({ prisma, requirePermission, requireAnyPermission, supabaseAdmin, bundlerSvc: bundlerService, routeLoader, cacheDel }));
-mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel }));
+mountWithAuth(app, createModuleCatalogRouter({ prisma, requirePermission, bundlerSvc: bundlerService, routeLoader, cacheDel, marketplace: marketplaceGate }));
 mountWithAuth(app, createContactsRouter({ prisma, requirePermission, supabaseAdmin, storageBucket: STORAGE_BUCKET_NAME }));
 mountWithAuth(app, createHrRouter({ prisma, supabaseAdmin, requirePermission }));
 mountWithAuth(app, createHelpRouter({ prisma, requirePermission }));

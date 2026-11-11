@@ -17,12 +17,24 @@ function fail(c, error, fallback) {
   return c.json({ error: "catalog_error", message: fallback }, 500);
 }
 
-export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = null, routeLoader = null, cacheDel = () => {}, catalogV2Service = null }) {
+export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = null, routeLoader = null, cacheDel = () => {}, catalogV2Service = null, marketplace = null }) {
   const app = new Hono();
   const catalog = createCatalogService({ prisma, bundlerSvc, routeLoader, cacheDel });
   // Marketplace: signed official snapshot + community v2 feeds. v1 routes above are unchanged.
   const catalogV2 = catalogV2Service ?? createCatalogV2Service({ prisma, bundlerSvc, routeLoader, cacheDel });
   const actor = (c) => c.get("userContext")?.profile?.id ?? null;
+  const resourcePermissions = { studio_template: 'studio.view', automation: 'automations.manage', website_template: 'website.site.read', solution: 'core.modules.read' };
+  app.get('/marketplace/resources', async (c, next) => {
+    const type = c.req.query('type');
+    const permission = Object.hasOwn(resourcePermissions, type) ? resourcePermissions[type] : null;
+    if (!permission) return c.json({ error: 'RESOURCE_TYPE_INVALID', message: 'Selecciona un tipo de recurso válido.' }, 422);
+    return requirePermission(permission)(c, next);
+  }, async (c) => {
+    try {
+      if (!marketplace) return c.json({ error: 'RESOURCE_FEED_NOT_CONFIGURED', message: 'El feed de recursos no está configurado.' }, 503);
+      return c.json({ data: await marketplace.list(c.req.query('type'), { query: c.req.query('q') ?? '', acknowledgeStale: c.req.query('acknowledgeStale') === 'true' }) });
+    } catch (error) { return fail(c, error, 'No se pudo consultar el feed de recursos.'); }
+  });
   const body = async (c) => {
     const data = await c.req.json().catch(() => ({}));
     return {
@@ -115,7 +127,7 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
     try {
       const data = await c.req.json().catch(() => null);
       if (!data || typeof data !== "object" || Array.isArray(data)) return c.json({ error: "catalog_source_invalid", message: "Configuración inválida." }, 422);
-      const allowed = ["mode", "communityUrl", "officialUrl", "policy", "managedKeys", "revokeKeyIds"];
+      const allowed = ["mode", "communityUrl", "officialUrl", "resourcesUrl", "policy", "managedKeys", "revokeKeyIds"];
       return c.json({ data: await catalogV2.configureSource(Object.fromEntries(Object.entries(data).filter(([key]) => allowed.includes(key)))) });
     } catch (error) {
       return fail(c, error, "No se pudo guardar la configuración del catálogo.");

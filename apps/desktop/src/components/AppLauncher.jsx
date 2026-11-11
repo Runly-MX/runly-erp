@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, X, Home } from 'lucide-react';
+import { Search, X, Home, Store } from 'lucide-react';
+import { Button } from '@runly/ui';
 import { useLauncherStore } from '../stores/launcher';
 import { getModuleLaunchPath } from '../lib/runtimeModules';
 import { useRuntimeModules } from '../app/useRuntimeModules';
@@ -102,7 +103,7 @@ export function AppLauncher() {
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Buscar aplicación..."
-                className="flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--foreground))]/45 outline-none"
+                className="min-w-0 flex-1 bg-transparent text-sm text-[hsl(var(--foreground))] placeholder:text-[hsl(var(--foreground))]/45 outline-none"
               />
               <button type="button"
                 onClick={handleGoHome}
@@ -111,6 +112,7 @@ export function AppLauncher() {
                 <Home size={13} />
                 Inicio
               </button>
+              <Button size="sm" variant="ghost" onClick={() => { navigate('/app/marketplace'); closeLauncher(); setQuery(''); }}><Store size={13} className="mr-1" />Marketplace</Button>
               <button type="button"
                 onClick={() => { closeLauncher(); setQuery(''); }}
                 className="h-7 w-7 flex items-center justify-center rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] transition-colors cursor-pointer"

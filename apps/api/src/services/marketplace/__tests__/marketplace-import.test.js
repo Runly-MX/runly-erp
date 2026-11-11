@@ -19,6 +19,17 @@ function fakeCatalog({ described = resource(), bytes = Buffer.from('abc') } = {}
 }
 const ref = { resourceKey: 'automation.aviso-de-pago', version: '1.0.0', releaseId: RELEASE }
 
+test('resource discovery reports refresh diagnostics independently of its verified cached copy', async () => {
+  const catalog = { ...fakeCatalog(), refresh: async () => ({ status: 'cached', alert: 'RESOURCE_FEED_ROLLBACK', offline: false }), list: async () => [resource()] }
+  const gate = createMarketplaceImportGate({ catalog, now: () => 2 * 3_600_000 })
+  const listed = await gate.list('automation')
+  assert.equal(listed.catalog.verified, true)
+  assert.equal(listed.catalog.alert, 'RESOURCE_FEED_ROLLBACK')
+  assert.equal(listed.items.length, 1)
+  catalog.refresh = async () => { throw new ResourceFeedError('RESOURCE_FEED_UNREACHABLE') }
+  assert.equal((await gate.list('automation')).catalog.offline, true)
+})
+
 test('download binds provenance to the exact verified release and never downloads a blocked one', async () => {
   const catalog = fakeCatalog()
   const gate = createMarketplaceImportGate({ catalog, now: () => 2 * 3_600_000 })

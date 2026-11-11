@@ -23,6 +23,7 @@ import { RunlyApp } from "./RunlyApp";
 import { HomeScreen } from "./HomeScreen";
 import { HelpCenterScreen } from "./HelpCenterScreen";
 import WorkScreen from "./WorkScreen";
+const MarketplaceScreen = lazy(() => import('./MarketplaceScreen.jsx'));
 import { ModuleOutlet } from "./ModuleOutlet";
 import { ProfileScreen } from "./ProfileScreen";
 import { LegacyPublicRedirect } from "./LegacyPublicRedirect.jsx";
@@ -237,6 +238,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     >
                       <Route index element={<Navigate to="home" replace />} />
                       <Route path="home" element={<HomeScreen />} />
+                      <Route path="marketplace" element={<Suspense fallback={null}><MarketplaceScreen /></Suspense>} />
                       <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
                       <Route path="profile" element={<ProfileScreen />} />
                       <Route path="help" element={<HelpCenterScreen />} />

@@ -44,6 +44,7 @@ export const SOURCE_MODES = Object.freeze(['runly', 'custom', 'disabled'])
 // Future default source. Never enabled implicitly: an administrator opts in, and
 // until production keys are pinned in a Runly release these feeds fail closed.
 export const RUNLY_CATALOG_SOURCE = Object.freeze({ officialUrl: 'https://devs.runly.mx/api/v1/marketplace/catalog/official', communityUrl: 'https://devs.runly.mx/api/v1/marketplace/catalog/community' })
+export const RUNLY_RESOURCE_CATALOG_URL = new URL('resources/index.json', RUNLY_CATALOG_SOURCE.officialUrl).href
 export const INSTALL_PHASES = Object.freeze(['downloading', 'verifying', 'preflight', 'installing', 'enabled'])
 const canonical = (value) => Array.isArray(value) ? value.map(canonical) : value && typeof value === 'object' ? Object.fromEntries(Object.keys(value).sort().map((key) => [key, canonical(value[key])])) : value
 const same = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b))
@@ -106,25 +107,27 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
     let state = await jsonConfig(stateKey, null)
     if (state?.url !== url) state = null
     const cached = await prisma.moduleCatalogCache.findUnique({ where: { url } })
-    const lastGood = (alert, offline = false) => {
+    const lastGood = (alert, offline = false, diagnostic = null) => {
       const tooOld = state && Date.parse(state.fetchedAt) + rules.maxCacheAgeDays * DAY < now()
       if (!cached || !state || !rules.allowCachedView || tooOld) {
         if (alert) throw new CatalogError('El catálogo no superó la verificación y no hay una copia confiable previa.', 422, alert)
-        throw new CatalogError('No se pudo conectar con el catálogo.', 502, 'catalog_unreachable')
+        throw new CatalogError(diagnostic?.code === 'catalog_not_published' ? 'El origen de Runly no ofrece este feed de módulos (HTTP 404).' : 'No hay una copia verificada disponible del catálogo de módulos.', 502, diagnostic?.code ?? 'catalog_unreachable', diagnostic)
       }
       const age = now() - Date.parse(state.fetchedAt)
       const freshness = age < rules.installFreshHours * 3600000 ? 'fresh' : age < rules.installMaxAgeHours * 3600000 ? 'stale' : 'expired'
-      return { url, envelope: cached.payload, state, offline, alert, cachedView: true, freshness }
+      return { url, envelope: cached.payload, state, offline, alert, cachedView: true, freshness, diagnostic: diagnostic ? { ...diagnostic, verifiedCopy: true } : null }
     }
     const urlProblem = catalogUrlProblem(url)
     if (urlProblem) throw new CatalogError('La URL del catálogo no es de un origen permitido (HTTPS o archivo local).', 422, urlProblem)
     let buffer, envelope
     try { ({ buffer } = await getBytes(url, url, 4 * 1024 * 1024)) }
     catch (error) {
+      const runlyFeed = Object.values(RUNLY_CATALOG_SOURCE).includes(url)
+      const diagnostic = { code: runlyFeed && error.httpStatus === 404 ? 'catalog_not_published' : 'catalog_unreachable', httpStatus: error.httpStatus ?? null, cause: error.cause?.code ?? error.code ?? null, verifiedCopy: false }
       // Security rejections (private address, redirects, size) are alerts; any
       // other transport failure means offline: keep showing the last good sync.
       if (error instanceof CatalogDownloadError && error.code !== 'CATALOG_UNREACHABLE') return lastGood(`${prefix}_transport_rejected`)
-      return lastGood(null, true)
+      return lastGood(null, true, diagnostic)
     }
     try { envelope = validate(JSON.parse(buffer.toString('utf8'))) }
     catch (error) {
@@ -269,14 +272,23 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
     if (snapshots.community) for (const e of snapshots.community.envelope.signed.entries) add({ ...e, source: 'community', feedUrl: snapshots.community.url })
     return byKey
   }
-  const domainStatus = (domain, error) => domain ? { configured: true, sequence: domain.state.sequence, sha256: domain.state.sha256, generatedAt: domain.state.generatedAt, validUntil: domain.state.validUntil, lastSync: domain.state.fetchedAt, offline: domain.offline, alert: domain.alert, cachedView: domain.cachedView, freshness: domain.freshness, verifiedAt: domain.state.fetchedAt, stale: stale(domain), signer: domain.state.signer } : error ? { configured: true, error: error.code, message: error.message } : { configured: false }
+  const domainStatus = (domain, error) => domain ? { configured: true, verified: true, sequence: domain.state.sequence, sha256: domain.state.sha256, generatedAt: domain.state.generatedAt, validUntil: domain.state.validUntil, lastSync: domain.state.fetchedAt, offline: domain.offline, alert: domain.alert, diagnostic: domain.diagnostic ?? null, cachedView: domain.cachedView, freshness: domain.freshness, verifiedAt: domain.state.fetchedAt, stale: stale(domain), signer: domain.state.signer } : error ? { configured: true, verified: false, error: error.code, message: error.message, diagnostic: error.details ?? null } : { configured: false }
 
   async function list({ key = null } = {}) {
     const source = await sourceUrls()
     if (!source.communityUrl && !source.officialUrl) return { enabled: false, sourceMode: source.mode, modules: [] }
     const snapshots = await loadSnapshots()
     // Without any verified data there is nothing safe to show; surface the error.
-    if (!snapshots.community && !snapshots.official) throw snapshots.errors.community ?? snapshots.errors.official
+    if (!snapshots.community && !snapshots.official) {
+      const errors = Object.values(snapshots.errors).filter(Boolean)
+      if (errors.length && errors.every(error => error.code === 'catalog_not_published')) return {
+        enabled: true, sourceMode: source.mode, status: 'not_published', verified: false, modules: [],
+        catalogs: { community: domainStatus(null, snapshots.errors.community), official: domainStatus(null, snapshots.errors.official) },
+      }
+      const error = errors.find(error => error.code !== 'catalog_not_published') ?? errors[0]
+      error.details = { ...error.details, catalogs: { community: domainStatus(null, snapshots.errors.community), official: domainStatus(null, snapshots.errors.official) } }
+      throw error
+    }
     const byKey = candidates(snapshots)
     const catalogKeys = new Set(byKey.keys())
     const revokedReleaseKeys = [...(snapshots.community?.envelope.signed.revocations.filter((r) => r.type === 'release').map((r) => r.target.key) ?? []), ...(snapshots.official?.envelope.signed.revocations.map((r) => r.key) ?? [])]
@@ -421,22 +433,27 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
   }
 
   // ---- Catalog source configuration (instance administrators) ----
+  async function effectiveResourcesUrl() {
+    const explicit = await config('catalog.resources.url')
+    if (explicit !== null) return explicit || null
+    return ((await config(CONFIG_KEYS.sourceMode)) || 'runly') === 'runly' ? RUNLY_RESOURCE_CATALOG_URL : null
+  }
   async function source() {
     const [store, rules, communityUrl, officialUrl, marks] = await Promise.all([trustStore(), policy(), config(CONFIG_KEYS.communityUrl), config(CONFIG_KEYS.officialUrl), highWater.read()])
     const managed = await jsonConfig(CONFIG_KEYS.managedKeys, [])
-    const effective = await sourceUrls()
-    return { mode: effective.mode, effective: { communityUrl: effective.communityUrl, officialUrl: effective.officialUrl }, communityUrl: communityUrl || null, officialUrl: officialUrl || null, policy: rules, defaults: RUNLY_CATALOG_SOURCE, managedKeys: Array.isArray(managed) ? managed : [], trust: store.describeKeys(), highWater: marks }
+    const effective = await sourceUrls(), resourcesUrl = await config('catalog.resources.url')
+    return { mode: effective.mode, effective: { communityUrl: effective.communityUrl, officialUrl: effective.officialUrl, resourcesUrl: await effectiveResourcesUrl() }, resourcesUrl, communityUrl: communityUrl || null, officialUrl: officialUrl || null, policy: rules, defaults: { ...RUNLY_CATALOG_SOURCE, resourcesUrl: RUNLY_RESOURCE_CATALOG_URL }, managedKeys: Array.isArray(managed) ? managed : [], trust: store.describeKeys(), highWater: marks }
   }
   async function configureSource(input = {}) {
     const fail = (code, message) => { throw new CatalogError(message, 422, code) }
     const updates = []
-    for (const field of ['communityUrl', 'officialUrl']) {
+    for (const field of ['communityUrl', 'officialUrl', 'resourcesUrl']) {
       if (!(field in input)) continue
       const value = input[field] === null ? '' : input[field]
       if (typeof value !== 'string' || value.length > 2048) fail('catalog_url_invalid', 'URL inválida.')
       const problem = catalogUrlProblem(value)
       if (problem) fail(problem, 'Sólo se admiten catálogos HTTPS o un archivo local explícito (file://).')
-      updates.push([CONFIG_KEYS[field], value])
+      updates.push([field === 'resourcesUrl' ? 'catalog.resources.url' : CONFIG_KEYS[field], value])
     }
     // Mode: 'runly' (default Runly catalog), 'disabled', or 'custom' implied by explicit URLs.
     if ('mode' in input) {
@@ -457,7 +474,7 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
         let pin
         try { pin = normalizePin(value, 'managed') } catch { fail('catalog_key_invalid', 'Cada clave debe ser una clave pública Ed25519 (SPKI DER en base64).') }
         // An instance can never re-label a Runly official/community key as its own.
-        if (pinned.official.includes(pin.keyId) || pinned.community.includes(pin.keyId)) fail('catalog_key_overlaps_pinned', 'Esa clave ya pertenece a un dominio de confianza de Runly.')
+        if (pinned.official.includes(pin.keyId) || pinned.community.includes(pin.keyId) || pinned.resource.includes(pin.keyId)) fail('catalog_key_overlaps_pinned', 'Esa clave ya pertenece a un dominio de confianza de Runly.')
       }
       updates.push([CONFIG_KEYS.managedKeys, JSON.stringify(input.managedKeys)])
     }
@@ -468,6 +485,10 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
       if (input.revokeKeyIds.some((id) => !known.has(id))) fail('catalog_key_unknown', 'La clave no está en el trust store.')
       const current = await jsonConfig(CONFIG_KEYS.revokedKeyIds, [])
       updates.push([CONFIG_KEYS.revokedKeyIds, JSON.stringify([...new Set([...(Array.isArray(current) ? current : []), ...input.revokeKeyIds])])])
+    }
+    const nextMode = updates.find(([key]) => key === CONFIG_KEYS.sourceMode)?.[1]
+    if (nextMode && nextMode !== ((await config(CONFIG_KEYS.sourceMode)) || 'runly') && !('resourcesUrl' in input) && (await config('catalog.resources.url')) === null) {
+      updates.push(['catalog.resources.url', (await effectiveResourcesUrl()) ?? ''])
     }
     for (const [key, value] of updates) await setConfig(key, value)
     return source()

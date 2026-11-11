@@ -281,7 +281,7 @@ test('trust store: official/community separation, rotation windows and local rev
   assert.ok(store.verifyOfficialSnapshot(officialEnvelope({ modules: [officialModule(billing, { key: nextOfficial })], signer: nextOfficial, generatedAt: at(2000) })))
   // Community/managed keys can never sign an official snapshot.
   assert.throws(() => createTrustStore({ official: [official.publicKey], managed: [managed.publicKey] }).verifyOfficialSnapshot(officialEnvelope({ modules: [], signer: managed })), /CATALOG_OFFICIAL_SIGNATURE_UNTRUSTED/)
-  assert.deepEqual(store.describeKeys().map((k) => [k.domain, k.state]), [['official', 'retiring'], ['official', 'active'], ['community', 'active'], ['managed', 'active']])
+  assert.deepEqual(store.describeKeys().map((k) => [k.domain, k.state]), [['official', 'retiring'], ['official', 'active'], ['community', 'active'], ['resource', 'active'], ['managed', 'active']])
 
   // Administrators may revoke a pin locally (never re-trust or promote it).
   const f = fixture({ urls: { 'catalog.official.url': OFFICIAL_URL } })
@@ -370,4 +370,22 @@ test('default source: new installations use the Runly catalog; existing ones kee
   assert.equal((await custom.service.configureSource({ officialUrl: OFFICIAL_URL })).mode, 'custom')
   await assert.rejects(custom.service.configureSource({ mode: 'anything' }), (e) => e.code === 'catalog_source_invalid')
   await assert.rejects(custom.service.configureSource({ policy: { installFreshHours: 80, installMaxAgeHours: 24 } }), (e) => e.code === 'catalog_policy_invalid')
+})
+
+test('module source changes preserve resource preferences unless an administrator explicitly changes them', async () => {
+  const disabled = fixture({ urls: { 'catalog.source.mode': 'disabled' } })
+  assert.equal((await disabled.service.source()).effective.resourcesUrl, null)
+  const modulesOnly = await disabled.service.configureSource({ mode: 'runly' })
+  assert.equal(modulesOnly.effective.resourcesUrl, null, 'no implicit resource activation')
+  const enabled = await disabled.service.configureSource({ mode: 'runly', resourcesUrl: 'https://catalog.example.test/resources/index.json' })
+  assert.equal(enabled.effective.resourcesUrl, 'https://catalog.example.test/resources/index.json')
+  assert.equal((await disabled.service.configureSource({ mode: 'disabled' })).effective.resourcesUrl, enabled.effective.resourcesUrl)
+  const fresh = fixture({ urls: {} })
+  assert.equal((await fresh.service.source()).effective.resourcesUrl, 'https://devs.runly.mx/api/v1/marketplace/catalog/resources/index.json')
+  assert.equal((await fresh.service.configureSource({ mode: 'disabled' })).effective.resourcesUrl, 'https://devs.runly.mx/api/v1/marketplace/catalog/resources/index.json', 'resource default is preserved explicitly when module mode changes')
+  const legacy = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL } })
+  const resourceDefault = (await legacy.service.source()).effective.resourcesUrl
+  assert.equal(resourceDefault, 'https://devs.runly.mx/api/v1/marketplace/catalog/resources/index.json', 'effective resource source follows its consumer even when module URLs imply custom mode')
+  assert.equal((await legacy.service.configureSource({ mode: 'custom' })).effective.resourcesUrl, resourceDefault)
+  await assert.rejects(fresh.service.configureSource({ resourcesUrl: 'http://catalog.example.test/index.json' }), error => error.code === 'catalog_url_rejected')
 })
