@@ -81,10 +81,11 @@ export function validatePackage(root, manifest, versions) {
       }
     }
   }
-  for (const target of [...targets(manifest.exports), manifest.main, manifest.types].filter(Boolean)) {
-    if (target.includes('..') || !existsSync(resolve(root, target))) throw Error(`PACKAGE_EXPORT_MISSING:${target}`);
-  }
   const files = inventory(root);
+  for (const target of [...targets(manifest.exports), manifest.main, manifest.types].filter(Boolean)) {
+    const found=target==='./src/*'?files.some(f=>f.path.startsWith('src/')):!target.includes('*')&&existsSync(resolve(root,target));
+    if (target.includes('..') || !found) throw Error(`PACKAGE_EXPORT_MISSING:${target}`);
+  }
   for (const { path } of files) {
     if (path !== 'package.json' && !path.startsWith('src/') && !/^(LICENSE|README)/i.test(path)) throw Error(`PACKAGE_UNEXPECTED_FILE:${path}`);
     if (/(^|\/)(?:__tests__|node_modules|\.env|\.npmrc|\.git)(?:\/|$)|\.(?:test|spec)\.[cm]?[jt]sx?$|\.(?:pem|key|p12|pfx|tgz)$/i.test(path)) throw Error(`PACKAGE_FORBIDDEN_FILE:${path}`);

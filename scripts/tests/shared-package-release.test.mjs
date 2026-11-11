@@ -28,6 +28,8 @@ test('packed exports, internal ranges and forbidden contents fail closed', () =>
     const manifest = rewriteManifest({ name: '@runly/core', exports: { '.': './src/index.js' } }, versions, revision, 'Runly-MX/runly-erp');
     writeFileSync(join(root, 'package.json'), JSON.stringify(manifest));
     assert.equal(validatePackage(root, manifest, versions).length, 2);
+    assert.equal(validatePackage(root,{...manifest,exports:{'./*':'./src/*'}},versions).length,2);
+    assert.throws(()=>validatePackage(root,{...manifest,exports:{'./*':'./missing/*'}},versions),/EXPORT_MISSING/);
     assert.throws(() => validatePackage(root, { ...manifest, exports: { '.': './missing.js' } }, versions), /EXPORT_MISSING/);
     assert.throws(() => validatePackage(root, { ...manifest, dependencies: { '@runly/core': '^' + version } }, versions), /NONEXACT/);
     assert.throws(() => validatePackage(root, { ...manifest, dependencies: { x: 'file:../x' } }, versions), /LOCAL_PACKAGE/);
