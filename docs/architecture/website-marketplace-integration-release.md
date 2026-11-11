@@ -1,4 +1,76 @@
-# Website Marketplace: candidato de integración
+# Website Marketplace: informe final de distribución controlada
+
+## Preparación final de distribución — 2026-11-11
+
+**Preparación local verificada; publicación, adopción e instalación limpia del candidato todavía pendientes de autorización.** No se ejecutó ningún push, workflow remoto, publicación de paquetes, modificación de servicios externos ni despliegue. El manifiesto aprobado sigue fijado a `db6deb300f0835df6d74c6d46198ded1b2a375a2`; no se generó otra versión ni se cambiaron los bytes de los ocho paquetes.
+
+| Comprobación nueva | Resultado y alcance |
+| --- | --- |
+| Ocho tarballs locales | SHA-256, integrity SHA-512, contentDigest e inventario por archivo coincidentes con el manifiesto; extracción segura sin ejecutar scripts |
+| Identidad y dependencias internas | Nombres físicos `@runly-mx/*`, aliases `@runly/*`, versión/sourceRevision exactos, registro `https://npm.pkg.github.com`, acceso `restricted`; sin dependencias internas `file:`, `link:` o `workspace:` |
+| Catálogo/contratos | ERP y Hub: Atlas 0.3.5, 148 bloques, mismo digest; Website Template v2 y entrypoints nativos presentes |
+| Lectura local autenticada del registro | Las siete versiones históricas `7d945e…` son legibles y coinciden con sus integridades: control positivo de acceso |
+| Versiones candidatas | Las siete versiones nuevas no figuran en la metadata HTTP 200 de sus paquetes; `website-blocks` devuelve 404 autenticado. El listado autenticado de GitHub devuelve siete paquetes, sin `website-blocks`. No se observó contenido previo en conflicto; repetir la comprobación con la identidad del publicador antes de escribir |
+| Commits remotos | Los commits ERP `db6deb300…` / `645fb83a8`, Hub `fe0f363` y Web `ca22e40` aún no están disponibles en GitHub. Se comprobaron `origin` y la posibilidad de push fast-forward, sin realizarlo |
+| Workflow compartido | Los cuatro refs de Actions usados existen. `RUNLY_SHARED_PUBLISH_ENABLED=true`; el entorno `shared-packages` tiene **cero revisores requeridos**. El nombre del entorno no constituye una segunda aprobación humana: ejecutar primero `publish=false` y autorizar expresamente el paso posterior |
+| Adopción `--check-only` | Se detuvo en `SHARED_REGISTRY_UNAVAILABLE_OR_UNAUTHORIZED`, antes de instalar o modificar locks. La lectura independiente identifica versiones ausentes; no se interpretó el error genérico como una instalación aprobada |
+| Instalación limpia del candidato desde registro | **No realizada**: faltan las versiones. No se sustituyó por tarballs locales, un registro loopback ni una instalación histórica |
+| Lectura desde producción | **Pendiente de ejecución por el operador.** El usuario indicó que la comprobación del VPS debe hacerse mediante comandos que él ejecutará. Las consultas locales y los intentos SSH no acreditan acceso al registro desde el Hub productivo |
+| Plugin dev.11 | 26 pruebas dirigidas aprobadas: empaquetado ChatGPT/Claude, contratos MCP y distribución/consentimientos. Grants anteriores de recursos y Studio no adquieren permisos Website |
+
+Las consultas al registro son una fotografía temporal, no una reserva de versiones. El publicador existente vuelve a consultar las ocho antes del primer `publish`: sólo un E404 explícito se trata como ausencia, otros fallos detienen el flujo, y una versión existente con integrity diferente produce conflicto inmutable. Después de publicar vuelve a verificar el registro. La publicación de ocho paquetes no es una transacción atómica; el procedimiento de recuperación de publicaciones parciales se detalla más abajo.
+
+### Licencias inspeccionadas
+
+| Paquetes | Declaración en los tarballs |
+| --- | --- |
+| `module-engine`, `module-compiler`, `studio-interchange` | `UNLICENSED` |
+| `core`, `ui`, `sdk`, `preview-runtime`, `website-blocks` | Sin campo `license` |
+| Atlas Web Builder 0.3.5 independiente | `MIT` en su manifiesto; no convierte el código Runly en MIT |
+
+Los ocho artefactos están preparados para **distribución privada restringida**, no para distribución pública con una licencia abierta. No hay LICENSE raíz en ERP. Los avisos internos de Studio se conservan; no se inventaron permisos ni se añadieron declaraciones SPDX a cinco paquetes sin licencia declarada. La aprobación de publicación debe reconocer estos metadatos o resolverlos antes de publicar. Si se decide cambiar licencias, dependencias o fuentes, se necesita otro commit/versión/manifiesto; no se parchean estos TGZ ni se reutiliza su versión con bytes diferentes.
+
+Las dependencias compartidas son exactas, pero varias dependencias externas de UI y los peers conservan rangos o `latest`. No se alteraron para reabrir el candidato. La reproducibilidad del árbol completo deberá fijarse mediante los **tres locks pnpm generados por la adopción real**, seguida de instalaciones frozen con stores vacíos. El manifiesto por sí solo no fija todo el árbol externo ni sustituye una revisión de licencias transitivas.
+
+### Evidencia de esta preparación
+
+En ERP, bajo `.artifacts/website-integration/`: `distribution-local-audit.json`, `distribution-registry-read.json`, `distribution-package-list-read.json`, `distribution-github-read.json`, `distribution-remote-commits.json` y `distribution-push-preflight.json`. En Hub: `.artifacts/website-distribution-directed.log` (26/26). Son evidencia privada de lectura/auditoría, no releases, atestaciones H7 ni una certificación productiva. No contienen tokens y no se incorporan al repositorio público.
+
+Se reutiliza la evidencia funcional W1–W3 y del cierre anterior; no se repitieron esas suites. No se ejecutó la instalación desde el registro que aún no existe ni se afirmó acceso productivo. El único cambio versionado de esta preparación es este informe.
+
+### Comprobación que ejecutará el operador en el VPS
+
+Usar el checkout del Hub que incluya `fe0f363` y las rutas reales del servidor. `HUB_CURRENT_LOCK` debe apuntar al lock de la release **activa**, no al candidato local. `PUBLISHED_SHARED_MANIFEST` se deja vacío antes de publicar y se fija al manifiesto publicado para comprobar después los ocho. La credencial existente sigue fuera del checkout y no se imprime, copia ni pasa en argumentos.
+
+```bash
+cd "$HUB_CHECKOUT"
+sudo pnpm exec node --input-type=module - "$HUB_CURRENT_LOCK" "${PUBLISHED_SHARED_MANIFEST:-}" <<'NODE'
+import {readFileSync} from 'node:fs';
+try {
+  const {registryAuthEnvironment, validateRegistryManifest, probeRegistry} =
+    await import('./scripts/lib/shared-registry.mjs');
+  const env = registryAuthEnvironment(process.cwd());
+  for (const [label, file] of [
+    ['production-current', process.argv[2]],
+    ['published-candidate', process.argv[3]],
+  ]) {
+    if (!file) continue;
+    const lock = validateRegistryManifest(JSON.parse(readFileSync(file, 'utf8')));
+    if (label === 'published-candidate' &&
+        (lock.packages.length !== 8 || lock.revision !==
+          'db6deb300f0835df6d74c6d46198ded1b2a375a2')) throw Error();
+    probeRegistry(lock, {env});
+    console.log(JSON.stringify({check: label, ok: true,
+      packages: lock.packages.length, revision: lock.revision}));
+  }
+} catch (error) {
+  console.log(JSON.stringify({ok: false, code: error.code ?? 'REGISTRY_CHECK_FAILED'}));
+  process.exitCode = 1;
+}
+NODE
+```
+
+Este comando usa el mecanismo existente de permisos del archivo privado y consultas de metadata/integrity; no instala, publica ni reinicia servicios. El resultado necesario tras publicar es `published-candidate`, `ok: true`, `packages: 8`. Un error no autoriza a mostrar `.npmrc`, tokens o variables del servidor ni a desactivar permisos. La lectura con la credencial local, con la credencial productiva y con el `GITHUB_TOKEN` de Actions del Hub son tres comprobaciones distintas.
 
 ## Estado del candidato
 
@@ -20,6 +92,7 @@ Elevate sigue bloqueada para distribución pública por `license_unknown`. Esta 
 | ERP: verificación de exports comodín acotados | `b55857082` |
 | Fuente exacta de los ocho paquetes finales | `db6deb300f0835df6d74c6d46198ded1b2a375a2` |
 | ERP: corrección visual nativa y fallback | `c003b53ce8b8804a3db27d0e80be0fb578b27b25` |
+| ERP: candidato de integración antes de este informe | `645fb83a8d0d8d4446664e59d219964205b6b033` |
 | Hub: cierre funcional, institucional y MCP | `fe0f363b7e4472bcce4ce26e1987a86f2e27e7af` |
 | runly-web: documentación sincronizada y contrato institucional | `ca22e40fd7cb33921b3c5663b91a768c698ddfa9` (incluye `2eec678` y `cbcf4d4`) |
 | Atlas independiente | `0.3.5`, checkout `dc30666923a6b4d19919a0e154bb4eb2cdd65e2f`; sin cambios en este cierre |
@@ -33,16 +106,16 @@ Los ocho paquetes usan la versión exacta `0.1.0-source.db6deb300f0835df6d74c6d4
 
 Manifiesto final: `.artifacts/website-integration/shared-final/manifest.json` en ERP. SHA-256: `1f4bb3912436bc38431277af36b5edd84697caa6dc83c5e113dd793424c04893`. Contiene SHA-256 de cada tarball, integrity SHA-512, inventario por archivo, contentDigest, sourceRevision y contrato de preview.
 
-| Paquete | SHA-256 tarball | contentDigest |
-| --- | --- | --- |
-| `@runly/core` | `50354129c360900a05c3b75e900f707b365eea05c788f8102fc5ee57e542ebe9` | `2828ecd676d9bf4d8556dac2d8300177417740301c96de09ca5833edb49345ad` |
-| `@runly/module-engine` | `93632bb34465ba1f029fca58f9e97d5969fddbda4f8e6f1ff0dd61ce23eb1739` | `13aab7a3b004b308bb602d2f1187b4dbe843ea9c1e782f86a7b7a96d60f004a9` |
-| `@runly/module-compiler` | `9f90ade1939ed81f770fb81cc2526da0b889f54d8a776d99f0053925b0257072` | `c42fe4d3eea84a7dde5518b7d8ca28da026a482c1f8e11e95afcd782ae951166` |
-| `@runly/ui` | `efd44d0769dacc245b67bfc8d6a67fc2f854a404a2cde5079c4dc3e2806a0f82` | `1648703f6b689eee03f4d6b3bcbf0b960cc55420a808790056f304994104649a` |
-| `@runly/sdk` | `1018ecbbeddd20f60aaa176f2591330ae4115b387751b887e41a1a5b5f18c9a2` | `2a131df2685ebbb6d4f68d04bb86c5ff23b64d9a03f4c39a8ec5d2cecccff9f1` |
-| `@runly/preview-runtime` | `cfc62322724516c0364e886e32d7de3fe5fdcfff56ed3aa964c9411892f20093` | `66999d79b9eff7cd76a30f30db85701efa7ee2356ca919e5f692da25d7e46fc2` |
-| `@runly/studio-interchange` | `38dfaba4c767e681fe095a409f7d891455ca7f6917cabfbe372076cd2c2542e6` | `8447085ce8c0ed3c29eceeea2817752146f44e72018a673c264f77d92685a96f` |
-| `@runly/website-blocks` | `f9ce749c81921977eac57d20367ab78edec871f4d352171f4a250b96d6ab91aa` | `6ecb8980a7eabfd413d84af952973fcb37fef28d96d03be9cb80744b45054cbc` |
+| Paquete en el registro | Versión exacta | SHA-256 tarball | contentDigest |
+| --- | --- | --- | --- |
+| `@runly-mx/core` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `50354129c360900a05c3b75e900f707b365eea05c788f8102fc5ee57e542ebe9` | `2828ecd676d9bf4d8556dac2d8300177417740301c96de09ca5833edb49345ad` |
+| `@runly-mx/module-engine` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `93632bb34465ba1f029fca58f9e97d5969fddbda4f8e6f1ff0dd61ce23eb1739` | `13aab7a3b004b308bb602d2f1187b4dbe843ea9c1e782f86a7b7a96d60f004a9` |
+| `@runly-mx/module-compiler` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `9f90ade1939ed81f770fb81cc2526da0b889f54d8a776d99f0053925b0257072` | `c42fe4d3eea84a7dde5518b7d8ca28da026a482c1f8e11e95afcd782ae951166` |
+| `@runly-mx/ui` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `efd44d0769dacc245b67bfc8d6a67fc2f854a404a2cde5079c4dc3e2806a0f82` | `1648703f6b689eee03f4d6b3bcbf0b960cc55420a808790056f304994104649a` |
+| `@runly-mx/sdk` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `1018ecbbeddd20f60aaa176f2591330ae4115b387751b887e41a1a5b5f18c9a2` | `2a131df2685ebbb6d4f68d04bb86c5ff23b64d9a03f4c39a8ec5d2cecccff9f1` |
+| `@runly-mx/preview-runtime` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `cfc62322724516c0364e886e32d7de3fe5fdcfff56ed3aa964c9411892f20093` | `66999d79b9eff7cd76a30f30db85701efa7ee2356ca919e5f692da25d7e46fc2` |
+| `@runly-mx/studio-interchange` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `38dfaba4c767e681fe095a409f7d891455ca7f6917cabfbe372076cd2c2542e6` | `8447085ce8c0ed3c29eceeea2817752146f44e72018a673c264f77d92685a96f` |
+| `@runly-mx/website-blocks` | `0.1.0-source.db6deb300f0835df6d74c6d46198ded1b2a375a2` | `f9ce749c81921977eac57d20367ab78edec871f4d352171f4a250b96d6ab91aa` | `6ecb8980a7eabfd413d84af952973fcb37fef28d96d03be9cb80744b45054cbc` |
 
 El catálogo Atlas continúa con 148 bloques, versión 0.3.5 y digest canónico `0e6f77787d7351448f05dc87af8b1f2bb701170a1077eacc76633d548216d248`. No se introdujeron tipos ni propiedades sin renderer. ERP conserva sus workspaces propios; Hub adopta aliases exactos del mismo código mediante su flujo de registro. El validador productivo mantiene la comprobación de identidad, contenido instalado, dependencias fijadas y catálogos; no acepta `local-candidate` como distribución productiva.
 
@@ -123,24 +196,68 @@ Privacidad global ERP: 72 hallazgos heredados, sin ampliar excepciones. Los arch
 
 Los comandos siguientes son un runbook, **no acciones ejecutadas**. Primero revisar/aprobar commits y push. La publicación de paquetes, adopción de locks, despliegue, concesión institucional y subida de plugin son autorizaciones distintas. No publicar Elevate mientras sus derechos sigan desconocidos.
 
-### 1. ERP: publicar artefactos compartidos
+### 0. Autorizar y hacer push del código, sin desplegar
 
-Desde el checkout aprobado y accesible en GitHub, usar el workflow existente, con aprobación del entorno protegido:
+Los commits fuente no están aún en el remoto. Desde ERP, después de autorizar los tres push y volver a comprobar fast-forward:
+
+```bash
+git push origin main
+git -C ../runly-developer-hub push origin main
+git -C ../runly-web push origin main
+```
+
+No usar force-push. Estos push no constituyen autorización para desplegar. La publicación depende de que `db6deb300f0835df6d74c6d46198ded1b2a375a2` sea accesible y ancestro de `main`; el workflow lo comprueba. No ejecutar el workflow con otra revisión ni con HEAD como sustituto de esa fuente.
+
+### 1. ERP: preparar en Actions, comparar y autorizar la publicación
+
+Primero, con autorización para crear una ejecución remota, ejecutar **sólo preparación**:
+
+```bash
+gh workflow run shared-packages.yml --repo Runly-MX/runly-erp --ref main \
+  -f revision=db6deb300f0835df6d74c6d46198ded1b2a375a2 -f publish=false
+gh run watch "$SHARED_PREPARE_RUN_ID" --repo Runly-MX/runly-erp --exit-status
+gh run download "$SHARED_PREPARE_RUN_ID" --repo Runly-MX/runly-erp \
+  --name shared-package-manifest-and-tarballs --dir "$SHARED_PREPARE_DIR"
+```
+
+Asignar `SHARED_PREPARE_RUN_ID` a esa ejecución y `SHARED_PREPARED_MANIFEST` al `manifest.json` descargado junto a sus ocho TGZ. Desde ERP, comprobar el mismo manifiesto y archivos con el lector existente, sin instalar esos tarballs:
+
+```bash
+node --input-type=module - "$SHARED_PREPARED_MANIFEST" <<'NODE'
+import {readFileSync} from 'node:fs';
+import {createHash} from 'node:crypto';
+import {readConsumerArtifacts} from './scripts/lib/shared-consumer-registry.mjs';
+const path = process.argv[2];
+const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
+if (sha256 !== '1f4bb3912436bc38431277af36b5edd84697caa6dc83c5e113dd793424c04893')
+  throw Error('REVIEWED_MANIFEST_MISMATCH');
+const {artifacts} = readConsumerArtifacts(path);
+console.log(JSON.stringify({ok: true, packages: artifacts.length, sha256}));
+NODE
+```
+
+Si difieren el manifiesto o cualquier tarball, detenerse antes de publicar y revisar la diferencia de fuente/empaquetado; no cambiar el informe para simular coincidencia. El primer workflow no publica paquetes, pero sí modifica el estado de Actions, por lo que tampoco se ejecutó sin autorización.
+
+**Después de revisar el resultado y autorizar expresamente la publicación privada de los ocho paquetes**, ejecutar:
 
 ```bash
 gh workflow run shared-packages.yml --repo Runly-MX/runly-erp --ref main \
   -f revision=db6deb300f0835df6d74c6d46198ded1b2a375a2 -f publish=true
+gh run watch "$SHARED_PUBLISH_RUN_ID" --repo Runly-MX/runly-erp --exit-status
 gh run download "$SHARED_PUBLISH_RUN_ID" --repo Runly-MX/runly-erp \
   --name published-shared-package-manifest --dir "$SHARED_MANIFEST_DIR"
 ```
 
-Comprobar los ocho artefactos, revisión, SHA-256, integrity y contenido contra este manifiesto. El workflow consulta versiones existentes y rechaza contenido diferente; no sobrescribe versiones históricas. Para reproducir sólo el empaquetado, en un checkout limpio de esa revisión: `pnpm release:shared --output .artifacts/shared-release-candidate` (sin `--publish`).
+Repetir la comprobación anterior sobre `PUBLISHED_SHARED_MANIFEST`. El workflow consulta versiones existentes y rechaza contenido diferente; no sobrescribe versiones históricas. No se depende de una segunda aprobación del entorno, porque actualmente no tiene revisores requeridos. Cambiar esa configuración sería otra operación externa autorizada, no un cambio ya realizado en esta preparación.
+
+`website-blocks` será un paquete nuevo. Tras publicarlo, comprobar la lectura con el `GITHUB_TOKEN` del repositorio Hub y con la credencial del VPS. Si no hereda el acceso esperado, conceder únicamente la lectura necesaria mediante la configuración autorizada de GitHub Packages; no copiar la credencial de publicación al VPS ni introducir tokens en `.npmrc` versionados.
 
 ### 2. Hub: adoptar desde el registro y fijar otra revisión de despliegue
 
 Credenciales de lectura del registro fuera del repositorio, con su mecanismo existente. Desde un Hub limpio que incluya el cierre:
 
 ```bash
+pnpm shared:adopt --manifest "$PUBLISHED_SHARED_MANIFEST" --check-only
 pnpm shared:adopt --manifest "$PUBLISHED_SHARED_MANIFEST"
 git diff -- shared-packages.lock.json package.json pnpm-lock.yaml \
   apps/api/package.json apps/api/pnpm-lock.yaml \
@@ -149,6 +266,32 @@ pnpm shared:clean
 ```
 
 La adopción resuelve contra el registro, verifica inventarios, los tres installs frozen y el build; sólo entonces escribe los locks y derivados. Revisar y crear un commit local de adopción, incluyendo también los derivados que informe el script. Publicarlo únicamente con autorización. Ese commit adicional es el `$HUB_APPROVED_SHA` del despliegue: no se puede inventar su hash antes de resolver las versiones publicadas. No usar el root de laboratorio ni copiar fuentes manualmente a producción.
+
+Locks/derivados que deben revisarse y conservarse como una unidad:
+
+- Hub: `shared-packages.lock.json`; `package.json` y `pnpm-lock.yaml` raíz; los pares `apps/api/package.json` / `apps/api/pnpm-lock.yaml` y `apps/worker/package.json` / `apps/worker/pnpm-lock.yaml`; `.npmrc` sin credenciales; `apps/playground/generated-fixture.json` y los Compose que realmente cambie el mecanismo de adopción.
+- ERP: conserva `pnpm-lock.yaml` del monorepo y sus workspaces `@runly/*` de la revisión aprobada. Es el productor del código, no debe reemplazar sus workspaces por sus propios aliases publicados. La fuente de los ocho directorios de paquetes coincide con la revisión del manifiesto; no hay un segundo lock de consumo que inventar en ERP.
+- Atlas: continúa fijado a 0.3.5, sin publicar otra versión del builder ni regenerar otro catálogo.
+
+Después de la adopción local aprobada, desde Hub:
+
+```bash
+git add shared-packages.lock.json .npmrc package.json pnpm-lock.yaml \
+  apps/api/package.json apps/api/pnpm-lock.yaml \
+  apps/worker/package.json apps/worker/pnpm-lock.yaml \
+  apps/playground/generated-fixture.json
+# Añadir también sólo los Compose modificados que informe shared:adopt.
+git diff --cached --check
+git commit -m "chore(packages): adopt verified Website shared release"
+# Push sólo con autorización para este commit de adopción:
+git push origin main
+gh workflow run shared-packages-clean.yml --repo Runly-MX/runly-developer-hub --ref main
+gh run watch "$HUB_CLEAN_RUN_ID" --repo Runly-MX/runly-developer-hub --exit-status
+```
+
+Ese workflow usa `GITHUB_TOKEN` nativo con `packages:read`, sin sibling ERP ni tarballs locales, y ejecuta instalaciones frozen con stores vacíos, contratos y build. No confundir un pase local con una lectura correcta desde Actions o VPS. Obtener el resultado `packages: 8` del comando del VPS incluido arriba antes de desplegar.
+
+**Orden completo:** push inicial aprobado de ERP/Hub/Web → preparación Actions sin publicación → comparación de manifiesto/TGZ → autorización y publicación inmutable de los ocho → comprobación de lectura del conjunto completo → adopción y pase limpio desde registro → commit/push de adopción aprobado → pase limpio Actions del Hub → comprobación VPS por el operador → autorización de imágenes/respaldos/despliegue coordinado. Ningún paso pendiente se marca como ya ejecutado. Publicar paquetes no autoriza publicar Elevate ni actualizar el plugin remoto.
 
 ### 3. Preparación coordinada, respaldos y migraciones
 
@@ -188,6 +331,10 @@ El flujo normal prepara imágenes/validador y verifica antes de activar. Mantene
 Puede desplegarse primero ERP compatible y después Hub con el nuevo validador; no habilitar distribución nueva antes de comprobar ambos. No cambiar claves H7 ni hacer grants institucionales como parte del deploy. Sólo tras smoke aprobado se puede autorizar aparte la actualización del plugin remoto.
 
 ## Recuperación y smoke posterior
+
+Si la publicación se interrumpe tras algunos paquetes, no adoptar el conjunto parcial. Conservar las versiones ya publicadas, volver a comprobar las ocho identidades y reejecutar el publicador con la misma revisión: omite las existentes cuya integrity coincide y publica sólo las ausentes. Si hay contenido diferente, detenerse; no sobrescribir, borrar ni republicar una versión histórica. Una corrección de contenido requiere otra fuente y versión completa. Los paquetes publicados pueden permanecer privados sin activar ninguna release de aplicaciones.
+
+Si falla la adopción o la instalación limpia, conservar el commit y los locks anteriores como unidad. El intento `--check-only` de esta preparación terminó antes de escribirlos. No combinar código nuevo del Hub con el conjunto antiguo de siete para eludir el bloqueo de build. Antes del despliegue, la recuperación consiste en no activar el nuevo commit; después, se aplican los controles de compatibilidad y datos que siguen.
 
 Detener la activación si falla la descarga/integridad, falta un paquete, difiere el catálogo, las migraciones quedan incompletas o no está listo el origen aislado. La preparación de Hub conserva el root anterior y no reemplaza un root existente con contenido diferente. Reintentar una fase interrumpida con su misma revisión y diario, no borrar estados para forzar el avance.
 
