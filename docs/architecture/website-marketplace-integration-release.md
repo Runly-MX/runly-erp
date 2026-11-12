@@ -1,6 +1,42 @@
 # Website Marketplace: informe final de distribución controlada
 
-## Ejecución autorizada y bloqueo de bytes — 2026-11-11
+## Resultado de publicación y adopción — 2026-11-11
+
+**Ocho paquetes publicados e inspeccionados desde el registro real; adopción y comprobación limpia local aprobadas.** Producción, H7, plugins remotos y Elevate no se modificaron. Los ocho paquetes conservan acceso privado. Las imágenes de Elevate mantienen `license_unknown`.
+
+| Operación ejecutada | Resultado |
+| --- | --- |
+| Publicación Actions | [43140266451](https://github.com/Runly-MX/runly-erp/actions/runs/43140266451): `prepare` y `publish` aprobados; ninguna versión histórica sobrescrita |
+| Manifiesto publicado | SHA-256 `a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf`, idéntico al Linux autorizado |
+| Descarga real del registro | Ocho TGZ descargados de GitHub Packages; SHA-256 y SHA-512 coincidentes con la tabla canónica de este informe. Las siete versiones históricas de control conservan su integrity |
+| Adopción Hub | `pnpm shared:adopt --manifest ...`: tres instalaciones frozen con stores vacíos, contratos compartidos y build, antes de escribir los resultados |
+| Commit Hub publicado | `3d3576cc8c6ee337eb45761cd8fa477aef4a4bfd`, push normal de `main` |
+| Prueba del commit Hub | `pnpm shared:clean`: PASS; archivo de HEAD sin sibling ERP, sin artefactos compartidos ni node_modules; tres instalaciones frozen desde registro con stores vacíos, contratos y build |
+| Prueba Actions del Hub | [43140880935](https://github.com/Runly-MX/runly-developer-hub/actions/runs/43140880935): fallo `ERR_PNPM_FETCH_403` para `@runly-mx/website-blocks` usando `GITHUB_TOKEN`; `shared:clean` no llegó a ejecutarse en ese runner |
+| Lectura VPS | Pendiente de los comandos del operador. No se intentó SSH ni se certifica lectura desde producción |
+
+**Bloqueo específico pendiente:** el paquete privado nuevo `website-blocks`, asociado al ERP, todavía no permite la descarga al `GITHUB_TOKEN` del repositorio Hub. El workflow ya declara `packages:read` y recibió su token nativo. El pase local con la credencial del operador no acredita ese acceso de Actions. Se solicitó autorización independiente para conceder únicamente Read al repositorio Hub; no se cambió el ACL, la visibilidad ni una credencial para compensar el fallo.
+
+La operación concreta se configura en [website-blocks](https://github.com/orgs/Runly-MX/packages/npm/package/website-blocks) → Package settings → Manage Actions access → Add repository `Runly-MX/runly-developer-hub` → Read, conservando el paquete privado y el acceso del publicador ERP. Es el [control específico de acceso de workflows documentado por GitHub](https://docs.github.com/en/packages/learn-github-packages/configuring-a-packages-access-control-and-visibility#ensuring-workflow-access-to-your-package). Sólo después de autorizar/aplicar esa concesión, repetir el job fallido:
+
+```bash
+gh run rerun 43140880935 --repo Runly-MX/runly-developer-hub --failed
+gh run watch 43140880935 --repo Runly-MX/runly-developer-hub --exit-status
+```
+
+No hacer público el paquete, sustituir el token por el del publicador, conceder Write/Admin al Hub ni repetir la publicación para arreglar una lectura. El manifiesto y las versiones ya publicadas son inmutables.
+
+Locks confirmados juntos en Hub: `shared-packages.lock.json`, `package.json`/`pnpm-lock.yaml` raíz, los pares correspondientes de `apps/api` y `apps/worker`, y `apps/playground/generated-fixture.json`. `.npmrc` no cambió. El serializador de adopción sólo quitaba comentarios de Compose sin cambiar su estructura; se conservaron esos comentarios y no se incluyó un cambio de Compose. ERP conserva sus workspaces y lock propios; Web no cambió dependencias. No cambió código de autorización, scopes, renderer ni contratos.
+
+Evidencia privada: en ERP, `.artifacts/website-integration/authorized-publication.json`, `published-linux-registry-read.json`, `published-registry-downloads.json` y los artefactos Actions descargados; en Hub, `.artifacts/website-registry-adoption.log`, `website-registry-clean.log` y `website-actions-clean-failed.log`. No se suben credenciales ni logs productivos. No se repitieron W1/W2/W3, E2E generales ni empaquetados de plugins sin cambios. Se reutilizan sus pruebas aprobadas; los nuevos pases son de publicación y distribución. Se omitió repetir `shared:adopt --check-only`, porque la adopción autorizada ya hace la prueba aislada completa antes de escribir.
+
+Para el VPS, usar el checkout operador limpio del Hub en `3d3576cc8c6ee337eb45761cd8fa477aef4a4bfd`. Fijar `PUBLISHED_SHARED_MANIFEST` al `shared-packages.lock.json` de ese commit y `HUB_CURRENT_LOCK` al de la release activa. El bloque de lectura inferior comprueba los ocho con la credencial privada existente; su éxito sigue pendiente. Los comandos de actualización de servicios inferiores son únicamente para una autorización de despliegue posterior: **no ejecutarlos como parte de este cierre**.
+
+## Aceptación del manifiesto Linux
+
+El usuario autorizó expresamente sustituir el manifiesto local por el Linux SHA-256 `a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf` y publicar las mismas ocho versiones verificadas. El candidato canónico está en `.artifacts/website-integration/shared-canonical-linux/manifest.json`. El guard y la tabla de distribución inferiores usan estos hashes; los originales locales se conservan como evidencia. Los apartados sobre la pausa inicial documentan el estado previo a esta aceptación. No se autoriza desplegar servicios, modificar H7, ampliar permisos, actualizar plugins ni publicar Elevate.
+
+## Historial: ejecución autorizada y pausa inicial por bytes
 
 Se ejecutó `git fetch origin` en los tres repositorios, con árboles limpios y `main` como rama. Los commits requeridos W1/W2/W3 y del cierre son ancestros de las revisiones publicadas. Los tres pushes fueron normales y fast-forward; no se reescribió historia:
 
@@ -12,15 +48,15 @@ Se ejecutó `git fetch origin` en los tres repositorios, con árboles limpios y 
 
 El commit documental de este resultado es posterior al push funcional ERP. No modifica paquetes, código ni locks. La revisión fuente de paquetes continúa siendo `3a071090875b9f3803f895e00d78fc25a047e829`.
 
-**Paquetes publicados: 0/8. Locks adoptados: ninguno. Instalación limpia desde el registro: pendiente. Producción: sin intervención.** Se detuvo la publicación al fallar la comparación SHA-256 exigida por este runbook; no se ejecutó `publish=true`, no se concedieron accesos y no se actualizaron plugins ni recursos Marketplace.
+**Estado en aquella pausa, superado tras la aceptación Linux: 0/8 paquetes y sin locks adoptados.** Se detuvo la publicación al fallar la comparación SHA-256 exigida por este runbook. El resultado vigente está al principio del informe.
 
 La [preparación Actions 43121932322](https://github.com/Runly-MX/runly-erp/actions/runs/43121932322) terminó correctamente: revisión fuente, instalación frozen, pruebas dirigidas y compilación/inspección de cada módulo distribuido. El guard local de comparación con el manifiesto autorizado **falló**, antes de publicar. El manifiesto Linux tiene SHA-256 `a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf`, diferente del local autorizado `99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03`.
 
-### Diagnóstico concreto y candidato Linux pendiente de aprobación
+### Diagnóstico del candidato Linux posteriormente aprobado
 
 La inspección segura de ambos conjuntos verifica mismos nombres, versiones, dependencias, manifiestos internos, licencias, paths, modos, uid/gid y mtime de archivos. El byte de plataforma gzip es 10 en Windows y 3 en Linux. En seis CSS y `LICENSE.shadcn.txt`, Git convierte CRLF/LF según plataforma: `.gitattributes` fija LF para JS/JSON/Markdown, pero no para CSS/TXT. Normalizando sólo CRLF a LF, todos los contenidos de ambos conjuntos coinciden. Los inventarios/contentDigest de seis paquetes coinciden sin normalizar; UI y website-blocks difieren por esos finales de línea. El aviso shadcn conserva el mismo texto y obligaciones. No es un conflicto de una versión publicada ni un cambio de comportamiento, pero **los bytes e integridades son distintos y no se aceptan automáticamente**.
 
-Los ocho artefactos de Actions fueron inspeccionados con `readConsumerArtifacts`: inventarios, SHA-256, SHA-512, identidades y licencias válidos. El candidato Linux usa para los ocho la versión exacta `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` y propone los siguientes SHA-256, **todavía no autorizados en sustitución de los locales**:
+Los ocho artefactos de Actions fueron inspeccionados con `readConsumerArtifacts`: inventarios, SHA-256, SHA-512, identidades y licencias válidos. El candidato Linux usa para los ocho la versión exacta `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829`; los SHA-256 siguientes fueron posteriormente autorizados y coinciden con los publicados:
 
 | Paquete físico | SHA-256 tarball Linux |
 | --- | --- |
@@ -35,7 +71,7 @@ Los ocho artefactos de Actions fueron inspeccionados con `readConsumerArtifacts`
 
 Los originales locales permanecen intactos. El artefacto Linux está en `.artifacts/website-integration/actions-43121932322/3a071090875b9f3803f895e00d78fc25a047e829/manifest.json`, junto a los ocho TGZ. Evidencia adicional privada: `authorized-push-preflight.json`, `actions-preparation-mismatch.json`, `actions-preparation-byte-diagnosis.json` y `authorized-actions-preparation.json` bajo `.artifacts/website-integration/`.
 
-Para continuar hace falta aceptar expresamente este manifiesto Linux como candidato canónico, con los ocho hashes de esta tabla, conservando nombres/versiones y el publicador existente. Antes de ejecutar `publish=true`, actualizar el hash esperado del guard y el manifiesto de adopción a ese conjunto; no conservar los hashes locales como si coincidieran. La nueva ejecución Linux debe regenerar exactamente este manifiesto, y cualquier diferencia debe detener la publicación de nuevo. No se modifica H7, no se publica Elevate y no se instala una versión distinta de las ocho aprobadas.
+Se recibió la aceptación expresa y se actualizaron el guard y el manifiesto de adopción. La segunda preparación Linux y el artefacto de publicación reprodujeron exactamente ese manifiesto. Se conservan nombres/versiones y el publicador existente; no se modifica H7 ni se publica Elevate.
 
 ### Comandos VPS: preparados, no ejecutados
 
@@ -56,7 +92,7 @@ sudo systemctl status runly-web-marketplace.service --no-pager
 
 Si el host no está preparado, detenerse y revisar los requisitos del documento de hosting; no inventar un destino ni modificar Nginx/systemd durante esta entrega. `WEB_RELEASE_ID` debe ser nuevo. La recuperación utiliza `sudo /usr/bin/node scripts/deploy-marketplace.mjs rollback --target "$WEB_TARGET"`, preservando el par y sus diarios. Ninguno de estos comandos se ejecutó en el VPS.
 
-## Revisión definitiva de los tres bloqueos — 2026-11-11
+## Historial: revisión de los tres bloqueos antes de publicar
 
 Se volvió a verificar el registro a las `23:01:15 UTC` y la configuración de permisos a las `22:30:22 UTC`. Las **ocho versiones** `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` están ausentes: siete paquetes existentes responden 200 sin esa versión y `website-blocks` responde 404 con la credencial autenticada. Las siete versiones históricas son controles positivos con integrity coincidente. Los nuevos SHA-256, inventarios y procedencia de los ocho TGZ se verificaron y se fijan en la tabla de distribución de este informe.
 
@@ -94,7 +130,7 @@ No se repiten pruebas funcionales W1–W3. Para dar por cerrado el bloqueo de in
 
 Evidencia privada adicional: `.artifacts/website-integration/distribution-license-provenance.json` (diagnóstico previo), `distribution-permissions-final.json`, `distribution-registry-associations.json`, `distribution-license-only-diff.json` y `distribution-shadcn-license-source.json`. Se ejecutaron cinco pruebas de publicación/empaquetado (5/5), el empaquetador existente con compilación de cada módulo distribuido y la inspección segura de los ocho TGZ nuevos. No incluyen credenciales ni se publican como atestaciones legales o criptográficas.
 
-## Preparación final de distribución — 2026-11-11
+## Historial: preparación local anterior a la autorización
 
 **Preparación local verificada; publicación, adopción e instalación limpia del candidato todavía pendientes de autorización.** No se ejecutó ningún push, workflow remoto, publicación de paquetes, modificación de servicios externos ni despliegue. El manifiesto nuevo está fijado a `3a071090875b9f3803f895e00d78fc25a047e829`, posterior a la confirmación de licencias; no se sobrescribieron los artefactos anteriores.
 
@@ -168,9 +204,9 @@ Este comando usa el mecanismo existente de permisos del archivo privado y consul
 
 ## Estado del candidato
 
-La integración general está implementada y comprobada localmente. Se conservan W1, W2 y W3: contrato Website v2, edición Atlas en Hub e instalación ERP como borrador con imágenes privadas. Este cierre añade distribución verificable del renderer, herramientas MCP Website y revisión institucional con alcance explícito por tipo. No publica paquetes, recursos o plugins ni despliega servicios.
+La integración general está implementada y comprobada localmente. Se conservan W1, W2 y W3: contrato Website v2, edición Atlas en Hub e instalación ERP como borrador con imágenes privadas. Este cierre distribuye los paquetes del renderer, herramientas MCP Website y revisión institucional con alcance explícito por tipo. No publica recursos o plugins ni despliega servicios.
 
-**La activación exige publicar y adoptar los paquetes desde el registro con autorización.** Los tarballs están preparados; el lock activo del Hub permanece en su versión histórica publicada. No se apuntó producción a tarballs locales ni se fabricó una resolución de versiones aún no publicadas. El build productivo del Hub falla con `WEBSITE_REGISTRY_ADOPTION_REQUIRED` hasta completar esa adopción. El desarrollo con snapshots W2 sigue siendo local y no sustituye este paso.
+**Publicación y adopción autorizadas completadas.** Los ocho paquetes están en el registro real y los locks del Hub están confirmados en `3d3576cc8c6ee337eb45761cd8fa477aef4a4bfd`. El build de producción pasó dentro de ambas verificaciones limpias locales. No se apuntó producción a tarballs ni snapshots locales. Faltan la concesión explícita de lectura Actions sobre el paquete nuevo, su pase Linux y la comprobación del VPS por el operador antes de autorizar despliegue.
 
 Elevate sigue bloqueada para distribución pública por `license_unknown`. Esta limitación no impide distribuir la funcionalidad general Website ni editar el recurso privado. La fidelidad exacta al prototipo no está certificada.
 
@@ -188,32 +224,33 @@ Elevate sigue bloqueada para distribución pública por `license_unknown`. Esta 
 | ERP: corrección visual nativa y fallback | `c003b53ce8b8804a3db27d0e80be0fb578b27b25` |
 | ERP: candidato de integración antes de este informe | `645fb83a8d0d8d4446664e59d219964205b6b033` |
 | Hub: cierre funcional, institucional y MCP | `fe0f363b7e4472bcce4ce26e1987a86f2e27e7af` |
+| Hub: adopción publicada y pase limpio local | `3d3576cc8c6ee337eb45761cd8fa477aef4a4bfd` |
 | runly-web: documentación sincronizada y contrato institucional | `ca22e40fd7cb33921b3c5663b91a768c698ddfa9` (incluye `2eec678` y `cbcf4d4`) |
 | Atlas independiente | `0.3.5`, checkout `dc30666923a6b4d19919a0e154bb4eb2cdd65e2f`; sin cambios en este cierre |
 | Plugin ChatGPT y Claude | `0.1.0-dev.11`; `dev.9` permanece intacto |
 
-El commit de este documento es posterior a los commits funcionales; no altera el contenido de los paquetes fijados arriba. La fuente incluye la documentación canónica y sus copias generadas con revisión/digest. Los commits son locales; no se hizo push.
+El commit de este documento es posterior a los commits funcionales; no altera el contenido de los paquetes fijados arriba. La fuente incluye la documentación canónica y sus copias generadas con revisión/digest. Las revisiones funcionales de los tres repositorios y el commit de adopción Hub ya están publicados mediante push normal.
 
 ## Distribución, locks y digests
 
 Los ocho paquetes usan la versión exacta `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829`, nombres físicos `@runly-mx/*` y aliases lógicos `@runly/*`. El registro sigue siendo GitHub Packages; no se cambian versiones publicadas. `website-blocks` se incorpora al conjunto completo y conserva su dependencia exacta de Atlas 0.3.5.
 
-Manifiesto final: `.artifacts/website-integration/shared-licensed-final/manifest.json` en ERP. SHA-256: `99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03`. Contiene SHA-256 de cada tarball, integrity SHA-512, inventario por archivo, contentDigest, sourceRevision y contrato de preview.
+Manifiesto final canónico Linux: `.artifacts/website-integration/shared-canonical-linux/manifest.json` en ERP. SHA-256: `a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf`. Contiene SHA-256 de cada tarball, integrity SHA-512, inventario por archivo, contentDigest, sourceRevision y contrato de preview.
 
 | Paquete en el registro | Versión exacta | SHA-256 tarball | contentDigest |
 | --- | --- | --- | --- |
-| `@runly-mx/core` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `d9e10463108397e4c1b5e227d862723ea4951aee4388ba220f01c7ea1b39c8b8` | `3bb7df78d6b708b9c8e90c669e9e02864293e05dfa07ee3031f61a278433090d` |
-| `@runly-mx/module-engine` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `18e0712a986ca9c4a50e2aa4bde2251b1425765d25b98885a6baa503ae7297ef` | `790b62994a64d6bb3e655632955cd966488184526fbbc33e95d8d109cf075358` |
-| `@runly-mx/module-compiler` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `0a0e588285b6c0f0cbea4737a025498eddfdb2fb501ce46b9eba2784315685d7` | `af730436856656cd0cdbaed1cd39f6b19ea62ae11fa45be5e274a749bf29812b` |
-| `@runly-mx/ui` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `09c91b16f57e0ad34eb8c0565631dbc40facd64e6d638e4b6628c904ace8cf02` | `1f0c1a192c0685e52f10d9d39abde999c25906a696801c0f756d56bd0489852f` |
-| `@runly-mx/sdk` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `88b1c814f8321625f41ded13412c45955289784738395dfb5ffec0f2bf549ef4` | `96138625a47ebfdcd732c41c2acc63828c2c0262d80a912a51f69e5e6d4a6fb6` |
-| `@runly-mx/preview-runtime` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `f8ffaa94cc2a2db6ffce654d52814c8457783e5a622adc6100318d2294c486b5` | `7f2c388dc90301da6496d07cd937fada4caadbcd378bd5e6eeaa683c7d039340` |
-| `@runly-mx/studio-interchange` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `3f4e9f5e1fe46c2ece5bbbeb804c9641aaf2bf30af29277e12fe864da611283d` | `bf05a4b9f11a0c0795a161a226be9a57e52cf34e543a33fac23a4b81e08ce3ff` |
-| `@runly-mx/website-blocks` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `9ed9c4f8e5287d0f8eff85b5f0e89595bfca40e4a30df93b9ee492c0360f7814` | `4164e0addc6b9b9e2a6886dc5a07f597d938ebaf1e7cfc29fb16c1acfacaa2e2` |
+| `@runly-mx/core` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `262ad4cc7588b69267301aab5e5d5bdad88e59614814676756ef4664766855fb` | `3bb7df78d6b708b9c8e90c669e9e02864293e05dfa07ee3031f61a278433090d` |
+| `@runly-mx/module-engine` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `80c9fbdfbe072b51f1b119f4644ca4320ac1c1531ef0e258098000578acb09ee` | `790b62994a64d6bb3e655632955cd966488184526fbbc33e95d8d109cf075358` |
+| `@runly-mx/module-compiler` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `fb26f66de5c7b2f6c6afa8c2e7259325969de049b682e6a7fbf3da1da4a41186` | `af730436856656cd0cdbaed1cd39f6b19ea62ae11fa45be5e274a749bf29812b` |
+| `@runly-mx/ui` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `1d3b5ef7dddf60ba69607994328895194019d63c6a4d343b3740afe6716baf00` | `cb2ac19bd5f5e9f86e5c0a3b6d761a2fb5a1e92c5060a08d01078f3f6f93f00f` |
+| `@runly-mx/sdk` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `092db2f04ffe99e9b8a13210eea39701dc822ad39b1d1abb4e6a5b2d4157d144` | `96138625a47ebfdcd732c41c2acc63828c2c0262d80a912a51f69e5e6d4a6fb6` |
+| `@runly-mx/preview-runtime` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `198d2335a5689a5426c7b010737b8f636ada656c30b2afee523963ea93adf314` | `7f2c388dc90301da6496d07cd937fada4caadbcd378bd5e6eeaa683c7d039340` |
+| `@runly-mx/studio-interchange` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `c74770d92a1866023ab9fd0d57aec797983a473a9ba0c971d412d294e7045aef` | `bf05a4b9f11a0c0795a161a226be9a57e52cf34e543a33fac23a4b81e08ce3ff` |
+| `@runly-mx/website-blocks` | `0.1.0-source.3a071090875b9f3803f895e00d78fc25a047e829` | `66688ff4113cb8898c0d77452608fb625c61daf2c6a65b01fbf6c922fddcafc0` | `7de9354fb15e3577df056c9e63efa5d7e8b27a15fda41d019a00df58feb97ddd` |
 
 El catálogo Atlas continúa con 148 bloques, versión 0.3.5 y digest canónico `0e6f77787d7351448f05dc87af8b1f2bb701170a1077eacc76633d548216d248`. No se introdujeron tipos ni propiedades sin renderer. ERP conserva sus workspaces propios; Hub adopta aliases exactos del mismo código mediante su flujo de registro. El validador productivo mantiene la comprobación de identidad, contenido instalado, dependencias fijadas y catálogos; no acepta `local-candidate` como distribución productiva.
 
-El lock activo del Hub todavía apunta a `7d945e3f3fcc720863eb0c2dc158d76870d255fc` y al conjunto de siete paquetes. Se preparó el consumidor para admitir conjuntos históricos completos de seis/siete y el nuevo de ocho, rechazando mezclas y conjuntos parciales. Se actualizaron también el instalador, la preparación del validador, el montaje por revisión y la adopción limpia. No basta con cambiar una longitud en un solo punto.
+El lock del repositorio Hub apunta a `3a071090875b9f3803f895e00d78fc25a047e829` y al conjunto completo de ocho paquetes. El de producción no se inspeccionó ni se modificó en esta ejecución. Se conserva el conjunto histórico `7d945e3f3fcc720863eb0c2dc158d76870d255fc` para recuperación. El consumidor admite conjuntos históricos completos de seis/siete y el nuevo de ocho, rechazando mezclas y conjuntos parciales; instalador, validador y montaje por revisión usan el mismo contrato.
 
 Vite consume `website-blocks` y `studio-interchange/website-document` instalados desde el registro y comprueba sus inventarios/digests. No usa `.website-editor` en ningún build; ese snapshot queda reservado al servidor de desarrollo. El flujo `shared:adopt` añade ambos paquetes al manifiesto raíz, resuelve las versiones, comprueba los tres locks, instala en un checkout aislado desde el registro y compila antes de escribir los resultados. No se ejecutó contra versiones remotas inexistentes.
 
@@ -282,7 +319,7 @@ En este cierre: cinco pruebas ERP de release compartida; 39 pruebas Hub de MCP, 
 
 El runner usa el validador preparado en `.artifacts/website-integration-validator-final` como laboratorio fuera de producción; no modifica locks productivos. Se aplicaron únicamente las migraciones nuevas a la base local de pruebas. Las pruebas institucionales se revierten y no llaman al firmador ni publican una release.
 
-El pase limpio descargando las versiones finales del registro, build completo del Hub adoptado y smoke VPS/DNS/TLS quedan pendientes de publicación/adopción y despliegue autorizados. No se certifican como ejecutados. No se ejecutaron suites generales ni se repitió la certificación H7 de criptografía sin cambios.
+El pase limpio local descargando las versiones finales del registro y el build completo del Hub adoptado están aprobados. El intento Actions falló por acceso 403 al nuevo paquete privado; no acredita un pase Linux del Hub. Smoke VPS/DNS/TLS y lectura con credencial productiva siguen pendientes del operador. No se ejecutaron suites generales ni se repitió la certificación H7 de criptografía sin cambios.
 
 Privacidad global ERP: 72 hallazgos heredados, sin ampliar excepciones. Los archivos ERP/runly-web del cierre no añaden hallazgos. En los archivos Hub cambiados hay tres avisos preexistentes (dos de infraestructura en el instalador y un marcador sintético de clave en la prueba del ZIP), comparados con HEAD: cero avisos nuevos. No se copiaron valores privados al documento.
 
@@ -323,7 +360,7 @@ import {createHash} from 'node:crypto';
 import {readConsumerArtifacts} from './scripts/lib/shared-consumer-registry.mjs';
 const path = process.argv[2];
 const sha256 = createHash('sha256').update(readFileSync(path)).digest('hex');
-if (sha256 !== '99245bf43ac8622cb765f8333a2e4a7cfe6aa3a5264fd804235f99be1281ac03')
+if (sha256 !== 'a8b87a051de59663cda395e87b5e86d952f52c2d8f3b57f8d7ed9dab4d25cadf')
   throw Error('REVIEWED_MANIFEST_MISMATCH');
 const {artifacts} = readConsumerArtifacts(path);
 console.log(JSON.stringify({ok: true, packages: artifacts.length, sha256}));
