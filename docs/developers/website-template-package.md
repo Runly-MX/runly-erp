@@ -1,6 +1,6 @@
 ---
 title: Website Template v2 y Atlas
-description: Contrato declarativo, imágenes privadas y edición Website desde Developer Hub y MCP.
+summary: Contrato declarativo, imágenes privadas y edición Website desde Developer Hub y MCP.
 order: 22
 ---
 
