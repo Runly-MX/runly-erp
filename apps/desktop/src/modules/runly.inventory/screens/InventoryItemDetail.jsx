@@ -155,7 +155,7 @@ export default function InventoryItemDetail() {
         }}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         fieldActions={fieldActions}
-        mainExtra={<><ComponentsCard itemId={id} /><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}
+        mainExtra={<><ComponentsCard itemId={id} itemName={item.name} readOnly={readOnly} /><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />
