@@ -58,6 +58,7 @@ import { ViewerImageToolbar } from "./ViewerImageToolbar.jsx";
 import { ViewerGenericPreview } from "./ViewerGenericPreview.jsx";
 import { ImageEditorDialog } from "./ImageEditorDialog.jsx";
 import { ViewerImageEditingContext } from "../lib/viewer-image-editing.js";
+import { ViewerSharingContext } from "../lib/viewer-sharing.js";
 import { useCoarsePointer } from "../hooks/usePointerCapabilities.js";
 import { useViewerTouchGestures } from "../hooks/useViewerTouchGestures.js";
 import { MAX_ZOOM, MIN_ZOOM, useViewerImageTransform } from "../hooks/useViewerImageTransform.js";
@@ -104,6 +105,7 @@ export function AdvancedFileViewer({
   renderSidePanel = null,
 }) {
   const editing = useContext(ViewerImageEditingContext);
+  const sharing = useContext(ViewerSharingContext);
   const saveCopyHandler = onSaveEditedImage ?? editing?.saveCopy ?? null;
   const replaceHandler = onReplaceEditedImage ?? editing?.replace ?? null;
   // (sourceFile, signedUrl) => void: opens the profile-photo framing for this image.
@@ -307,7 +309,11 @@ export function AdvancedFileViewer({
     }
   }
   const copyImage = () => signedUrl && kind === "image" && copyViewerImage(signedUrl);
-  const copyLink = () => signedUrl && copyViewerLink(signedUrl);
+  const canChooseLink = Boolean(sharing?.shareLink) && /^[0-9a-f-]{36}$/i.test(String(file?.id ?? ""));
+  const copyLink = () => {
+    if (canChooseLink) sharing.shareLink(file);
+    else if (signedUrl) copyViewerLink(signedUrl, file);
+  };
   const shareFile = () => signedUrl && file && shareViewerFile({ signedUrl, file });
   const openExternal = () => signedUrl && window.open(signedUrl, "_blank");
   const getMedia = () => (isHlsSource ? hlsVideoRef.current : mediaRef.current);
@@ -324,7 +330,7 @@ export function AdvancedFileViewer({
     kind === "image" && { key: "copy", shortcut: "copy", group: "file", label: "Copiar imagen", icon: Copy, onSelect: copyImage, disabled: !signedUrl },
     { key: "download", shortcut: "download", group: "file", label: isHlsSource ? "Descargar MP4" : "Descargar", icon: Download, onSelect: downloadCurrent, disabled: !signedUrl || hlsDownloading },
     canShareFiles && !isHlsSource && { key: "share", group: "file", label: "Compartir", icon: Share2, onSelect: shareFile, disabled: !signedUrl },
-    !isHlsSource && { key: "link", shortcut: "link", group: "file", label: "Copiar enlace", icon: Link2, onSelect: copyLink, disabled: !signedUrl },
+    !isHlsSource && { key: "link", shortcut: "link", group: "file", label: canChooseLink ? "Compartir enlace" : "Copiar enlace", icon: Link2, onSelect: copyLink, disabled: !signedUrl },
     !isHlsSource && { key: "open", shortcut: "open", group: "file", label: "Abrir en pestaña nueva", icon: ExternalLink, onSelect: openExternal, disabled: !signedUrl },
     kind === "image" && avatarHandler && { key: "avatar", group: "image", label: "Usar como foto de perfil", icon: UserRound, onSelect: () => avatarHandler(file, signedUrl), disabled: !signedUrl },
     kind === "image" && showEditImage && { key: "edit", group: "image", label: "Editar imagen", icon: Pencil, onSelect: editImage, disabled: !signedUrl },

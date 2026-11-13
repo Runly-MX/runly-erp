@@ -33,13 +33,13 @@ const SCOPES = [
   { value: "RESTRICTED", label: "Privado: solo personas invitadas" },
   { value: "COMPANY", label: "Toda la empresa" },
 ];
-const LINK_MODES = [
+export const LINK_MODES = [
   { value: "view", label: "Solo ver" },
   { value: "download", label: "Ver y descargar" },
 ];
 
 // Public page path inside the SPA (honours VITE_BASE_PATH, e.g. /app/).
-function publicFilePath(linkToken) {
+export function publicFilePath(linkToken) {
   const base = String(import.meta.env?.BASE_URL || "/").replace(/\/?$/, "/");
   return `${base}p/files/${linkToken}`;
 }

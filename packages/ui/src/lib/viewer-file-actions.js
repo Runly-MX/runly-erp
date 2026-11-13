@@ -93,11 +93,20 @@ export async function copyViewerImage(signedUrl) {
   }
 }
 
-// Signed URLs expire (~1h), so this is a "paste it somewhere in the next
-// hour" convenience, not a permanent link.
-export async function copyViewerLink(signedUrl) {
+// Signed URLs point at the storage host and expire (~1h), so links meant to be
+// pasted or shared use the stable app URL (same one runly.files copies).
+// shortcut: signedUrl fallback for non-UUID ids and Tauri (no web origin), where
+// the link still expires; upgrade by reading shareUrl from files.getAccess.
+export function viewerShareLink({ signedUrl, file }) {
+  const id = String(file?.id ?? "");
+  const native = window.location.protocol === "tauri:" || window.location.hostname === "tauri.localhost";
+  if (native || !/^[0-9a-f-]{36}$/i.test(id)) return signedUrl;
+  return new URL(`/app/m/runly.files/files/${encodeURIComponent(id)}`, window.location.origin).href;
+}
+
+export async function copyViewerLink(signedUrl, file) {
   try {
-    await navigator.clipboard.writeText(signedUrl);
+    await navigator.clipboard.writeText(viewerShareLink({ signedUrl, file }));
     toast.success("Enlace copiado al portapapeles");
   } catch (err) {
     console.warn("[files] copy link to clipboard failed", err);
@@ -128,7 +137,7 @@ export async function shareViewerFile({ signedUrl, file }) {
     console.warn("[files] share as file failed, falling back to link", err);
   }
   try {
-    await navigator.share({ url: signedUrl, title: filename });
+    await navigator.share({ url: viewerShareLink({ signedUrl, file }), title: filename });
   } catch (err) {
     if (err?.name === "AbortError") return;
     console.warn("[files] share link failed", err);
