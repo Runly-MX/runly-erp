@@ -1,0 +1,33 @@
+--- a/apps/api/package.json
++++ b/apps/api/package.json
+@@ -16,7 +16,7 @@
+     "@hono/zod-validator": "^0.8.0",
+     "@modelcontextprotocol/sdk": "^1.32.1",
+     "@prisma/client": "^7.8.0",
+-    "@raulbellosom/atlas-web-builder": "0.3.5",
++    "@raulbellosom/atlas-web-builder": "0.4.0",
+     "@runly/core": "workspace:^",
+     "@runly/module-compiler": "workspace:*",
+     "@runly/module-engine": "workspace:*",
+--- a/apps/desktop/package.json
++++ b/apps/desktop/package.json
+@@ -37,7 +37,7 @@
+     "@ffmpeg/core": "^0.12.10",
+     "@hookform/resolvers": "^5.4.0",
+     "@radix-ui/react-dialog": "^1.1.15",
+-    "@raulbellosom/atlas-web-builder": "0.3.5",
++    "@raulbellosom/atlas-web-builder": "0.4.0",
+     "@runly/core": "workspace:*",
+     "@runly/module-compiler": "workspace:*",
+     "@runly/offline": "workspace:*",
+--- a/packages/website-blocks/package.json
++++ b/packages/website-blocks/package.json
+@@ -12,7 +12,7 @@
+     "src"
+   ],
+   "dependencies": {
+-    "@raulbellosom/atlas-web-builder": "0.3.5"
++    "@raulbellosom/atlas-web-builder": "0.4.0"
+   },
+   "peerDependencies": {
+     "react": ">=18",
