@@ -14,3 +14,14 @@ test("Enter on the row itself opens it; Enter from a child does not", () => {
   props.onKeyDown({ key: "Enter", target: {}, currentTarget: row, preventDefault() {} });
   assert.deepEqual(opened, ["a"]);
 });
+
+test("double click from a portaled child (outside the row DOM) does not open the row", () => {
+  const opened = [];
+  const props = rowOpenProps((row) => opened.push(row.id), { id: "a" });
+  const inside = {};
+  const row = { contains: (n) => n === inside };
+  globalThis.window ??= { getSelection: () => null };
+  props.onDoubleClick({ target: inside, currentTarget: row });
+  props.onDoubleClick({ target: {}, currentTarget: row });
+  assert.deepEqual(opened, ["a"]);
+});

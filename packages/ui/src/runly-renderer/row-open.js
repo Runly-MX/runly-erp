@@ -3,6 +3,12 @@
 // (links, buttons, checkboxes, inputs, menus) are ignored.
 const INTERACTIVE = "a,button,input,textarea,select,label,[role='button'],[role='checkbox'],[role='menuitem'],[contenteditable='true']";
 
+// Portaled children (an image viewer, a dialog opened from a cell) bubble their
+// events up the React tree to the row even though they are outside its DOM.
+export function isOutsideRow(event) {
+  return !event.currentTarget?.contains?.(event.target);
+}
+
 export function isInteractiveTarget(target) {
   return typeof Element !== "undefined" && target instanceof Element && Boolean(target.closest(INTERACTIVE));
 }
@@ -24,19 +30,19 @@ export function rowOpenProps(onRowOpen, row, href = null) {
     tabIndex: 0,
     ...(href ? {
       onClick: (event) => {
-        if (!isNewTabClick(event) || isInteractiveTarget(event.target)) return;
+        if (isOutsideRow(event) || !isNewTabClick(event) || isInteractiveTarget(event.target)) return;
         event.preventDefault();
         window.getSelection?.()?.removeAllRanges();
         openInNewTab(href);
       },
       onAuxClick: (event) => {
-        if (event.button !== 1 || isInteractiveTarget(event.target)) return;
+        if (isOutsideRow(event) || event.button !== 1 || isInteractiveTarget(event.target)) return;
         event.preventDefault();
         openInNewTab(href);
       },
     } : {}),
     onDoubleClick: (event) => {
-      if (isInteractiveTarget(event.target)) return;
+      if (isOutsideRow(event) || isInteractiveTarget(event.target)) return;
       window.getSelection?.()?.removeAllRanges();
       onRowOpen(row);
     },

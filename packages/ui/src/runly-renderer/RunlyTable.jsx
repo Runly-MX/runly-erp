@@ -35,6 +35,7 @@ import {
 import { resolveColorHex } from "./runly-form-utils.js";
 import { accentFor } from "./records-view-format.js";
 import { isNewTabClick, rowOpenProps } from "./row-open.js";
+import { ImageUrlCell } from "./ImageUrlCell.jsx";
 import { loadTableViewState, saveTableViewState } from "./table-view-state.js";
 import { clearAllPatch, isFilterActive } from "../components/filter-menu-helpers.js";
 import { toggleWithRange } from "./selection-range.js";
@@ -790,11 +791,7 @@ export function RunlyTable({
                       );
                     } else if (col.type === "image") {
                       cellContent = value ? (
-                        <img
-                          src={value}
-                          alt=""
-                          className="h-8 w-8 rounded-lg object-cover"
-                        />
+                        <ImageUrlCell src={value} />
                       ) : (
                         <span className="text-xs text-[hsl(var(--muted-foreground))]">—</span>
                       );

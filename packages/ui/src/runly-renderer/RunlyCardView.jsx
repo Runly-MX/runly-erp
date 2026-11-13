@@ -5,6 +5,7 @@ import { Checkbox } from "../components/Checkbox.jsx";
 import { ActionMenu } from "../components/ActionMenu.jsx";
 import { ImageAssetCell } from "./ImageAssetCell.jsx";
 import { rowOpenProps } from "./row-open.js";
+import { ImageUrlCell } from "./ImageUrlCell.jsx";
 import { formatCellText, getByPath, pickCardColumns } from "./table-card-columns.js";
 
 function CardAvatar({ url, title, tint }) {
@@ -111,7 +112,7 @@ export function RunlyCardView({
                     companyId={companyId}
                   />
                 ) : imageUrl ? (
-                  <img src={imageUrl} alt={title} className="aspect-4/3 w-full object-cover" />
+                  <ImageUrlCell src={imageUrl} alt={title} className="aspect-4/3 w-full object-cover" buttonClassName="w-full" />
                 ) : (
                   <div className="flex aspect-4/3 w-full items-center justify-center bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]">
                     <ImageIcon className="h-8 w-8 opacity-40" aria-hidden="true" />

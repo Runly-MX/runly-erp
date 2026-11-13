@@ -118,6 +118,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
   }, [fileAssetId, avatarUserId, resolveSignedUrl, apiBaseUrl, token, companyId, variant, inView]);
 
   const handleOpen = useCallback(async () => {
+    if (viewerLoading) return;
     if (!fileAssetId) {
       if (!avatarUserId) return;
       setViewerFiles([{ id: `user-avatar-${avatarUserId}`, avatarUserId, originalName: "Foto de perfil", mimeType: "image/*" }]);
@@ -140,7 +141,7 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
     } finally {
       setViewerLoading(false);
     }
-  }, [fileAssetId, avatarUserId, column?.imagesApiPath, row?.id, apiBaseUrl, token, companyId]);
+  }, [viewerLoading, fileAssetId, avatarUserId, column?.imagesApiPath, row?.id, apiBaseUrl, token, companyId]);
 
   // Stable, so a table re-render while the viewer is open doesn't re-sign (and re-download) the image.
   const resolveViewerUrl = useCallback(
@@ -172,7 +173,8 @@ export function ImageAssetCell({ value, row, token, apiBaseUrl, companyId, colum
         ref={viewRef}
         type="button"
         onClick={handleOpen}
-        disabled={viewerLoading || !clickable}
+        disabled={!clickable}
+        aria-busy={viewerLoading || undefined}
         className={`relative inline-flex items-center justify-center overflow-hidden bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))] enabled:hover:border-[hsl(var(--ring))] ${VARIANT_CLS[variant] ?? VARIANT_CLS.thumb}`}
         aria-label="Ver imagen"
       >
