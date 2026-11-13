@@ -34,6 +34,34 @@ export function useUpdateNoteFolder() {
   })
 }
 
+export function useFolderShares(folderId) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['notes', 'folders', folderId, 'shares'],
+    queryFn: () => runly.notes.listFolderShares(folderId, token),
+    enabled: Boolean(token) && Boolean(folderId),
+  })
+}
+
+// Folder shares fan out to every note in the folder, so notes refetch too.
+function useFolderShareMutation(fn) {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (vars) => fn(vars, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['notes'] }),
+  })
+}
+
+export const useShareFolder = () =>
+  useFolderShareMutation(({ folderId, targetUserId, permission }, t) =>
+    runly.notes.shareFolder(folderId, { targetUserId, permission }, t))
+export const useUpdateFolderShare = () =>
+  useFolderShareMutation(({ folderId, shareId, permission }, t) =>
+    runly.notes.updateFolderShare(folderId, shareId, { permission }, t))
+export const useRevokeFolderShare = () =>
+  useFolderShareMutation(({ folderId, shareId }, t) => runly.notes.revokeFolderShare(folderId, shareId, t))
+
 export function useDeleteNoteFolder() {
   const token = useToken()
   const qc = useQueryClient()

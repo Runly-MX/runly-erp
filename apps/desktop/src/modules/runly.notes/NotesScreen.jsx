@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useLocation, useSearchParams } from 'react-router-dom'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -73,7 +73,7 @@ export default function NotesScreen() {
   const [viewingNoteId, setViewingNoteId] = useState(null)
   const viewOnly = viewingNoteId === selectedNote?.id
   const [settingsOpen, setSettingsOpen] = useState(false)
-  const [shareOpen, setShareOpen]       = useState(false)
+  const [shareTarget, setShareTarget]   = useState(null)
   const [restoreOpen, setRestoreOpen]   = useState(false)
   const [deleteOpen, setDeleteOpen]     = useState(false)
   const [noteToAction, setNoteToAction] = useState(null)
@@ -218,6 +218,17 @@ export default function NotesScreen() {
     setMobileView('list')
   }
 
+  // Switching tab or folder closes the open note (not on first render: that
+  // would drop the note restored from the URL).
+  const viewKey = `${activeView}|${folderId ?? ''}`
+  const prevViewKey = useRef(viewKey)
+  useEffect(() => {
+    if (prevViewKey.current === viewKey) return
+    prevViewKey.current = viewKey
+    clearSelection()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [viewKey])
+
   function changeLayout(next) {
     // Leaving the split view for the grid closes any open note first.
     if (next === 'home') clearSelection()
@@ -301,6 +312,7 @@ export default function NotesScreen() {
             onOpen={selectNote}
             onCreateCanvas={() => handleCreateNote('canvas')}
             onTrash={setRemoveTarget}
+            onShare={setShareTarget}
             onBulkTrash={(list, done) => setBulkTrash({ notes: list, done })}
             onToggleLayout={() => changeLayout('split')}
             canLoadMore={canLoadMore}
@@ -377,6 +389,7 @@ export default function NotesScreen() {
               selectedNoteId={selectedNote?.id}
               onSelect={selectNote}
               onTrash={!isTrashView ? setRemoveTarget : undefined}
+              onShare={!isTrashView ? setShareTarget : undefined}
               isLoading={isLoading}
               showTrash={isTrashView}
               search={search}
@@ -421,7 +434,7 @@ export default function NotesScreen() {
             onZoomChange={setZoom}
             settingsOpen={settingsOpen}
             onOpenSettings={() => setSettingsOpen(true)}
-            onOpenShare={() => setShareOpen(true)}
+            onOpenShare={() => setShareTarget(selectedNote)}
             onUpdate={handleUpdateNote}
             onBack={isHome ? clearSelection : () => setMobileView('list')}
             backOnDesktop={isHome}
@@ -438,8 +451,8 @@ export default function NotesScreen() {
         </div>
       )}
 
-      {selectedNote && (
-        <NoteShareModal note={selectedNote} open={shareOpen} onOpenChange={setShareOpen} />
+      {shareTarget && (
+        <NoteShareModal note={shareTarget} open onOpenChange={(o) => { if (!o) setShareTarget(null) }} />
       )}
 
       {selectedNote && (

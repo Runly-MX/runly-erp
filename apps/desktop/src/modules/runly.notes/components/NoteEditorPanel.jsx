@@ -17,6 +17,8 @@ import { SaveStatusBadge } from './SaveStatusBadge.jsx'
 import { NoteBreadcrumb } from './NoteBreadcrumb.jsx'
 import { SubpagesStrip } from './SubpagesStrip.jsx'
 import { useNoteAncestors } from '../hooks/useSubpages.js'
+import { useNote } from '../hooks/useNote.js'
+import { absoluteDate } from '../lib/noteDates.js'
 import { canCreateSubpageAtDepth, canEditNote, MAX_DEPTH_HINT } from '../lib/subpages.js'
 
 // Lazy so the Excalidraw bundle only loads when a canvas note is opened.
@@ -222,10 +224,31 @@ export function NoteEditorPanel({
         />
       )}
 
+      {note && !isTrashView && !(coarse && !viewOnly) && <NoteMetaFooter noteId={note.id} fallback={note} />}
+
       {/* Touch editing: pinch zooms, and the floating control would sit on
           top of the formatting bar. */}
       {!isTrashView && !isCanvasNote && note && !(coarse && !viewOnly) && (
         <ZoomControl zoom={zoom} onZoomChange={onZoomChange} onReset={() => onZoomChange(100)} />
+      )}
+    </div>
+  )
+}
+
+// Reads the live query (the selected-note copy deliberately ignores
+// updated_at/content churn) so the dates follow each save.
+function NoteMetaFooter({ noteId, fallback }) {
+  const { data } = useNote(noteId)
+  const n = data?.note ?? fallback
+  const editor = n.last_edited_by_name
+  return (
+    <div className="flex shrink-0 flex-wrap items-center gap-x-4 gap-y-0.5 border-t border-border bg-background/95 px-4 py-1.5 text-[11px] text-muted-foreground">
+      {n.created_at && <span>Creada: {absoluteDate(n.created_at)}</span>}
+      {n.updated_at && (
+        <span>
+          Ultima modificacion: {absoluteDate(n.updated_at)}
+          {editor && <> por {editor}</>}
+        </span>
       )}
     </div>
   )

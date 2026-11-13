@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Copy, Check, NotebookPen, X, FileDown, Printer } from 'lucide-react'
+import { Copy, Check, NotebookPen, FileDown, Printer } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { runly } from '../../../lib/runly'
@@ -51,10 +51,7 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
     ...folders.map(f => ({ value: f.id, label: f.name })),
   ]
 
-  // Only show tags not already assigned, so the combobox is an "add" action
-  const unassignedTagOptions = allTags
-    .filter(t => !noteTagIds.includes(t.id))
-    .map(t => ({ value: t.id, label: t.name }))
+  const tagOptions = allTags.map(t => ({ value: t.id, label: t.name }))
 
   const publicUrl = note?.public_slug
     ? `${window.location.origin}/app/p/notes/${note.public_slug}`
@@ -110,15 +107,6 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
     },
     [note?.id, note?.title, session?.access_token, exporting],
   )
-
-  function handleAddTag(tagId) {
-    if (!tagId || noteTagIds.includes(tagId)) return
-    setNoteTags.mutate({ noteId: note.id, tagIds: [...noteTagIds, tagId] })
-  }
-
-  function handleRemoveTag(tagId) {
-    setNoteTags.mutate({ noteId: note.id, tagIds: noteTagIds.filter(id => id !== tagId) })
-  }
 
   function handleCreateTag(name) {
     createTag.mutate({ name: name.trim() }, {
@@ -227,29 +215,11 @@ export function NoteSettingsPanel({ open, onOpenChange, note, onUpdate, onPublis
             />
 
             <Section label="Etiquetas">
-              {noteTags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {noteTags.map(tag => (
-                    <span
-                      key={tag.id}
-                      className="inline-flex items-center gap-1 pl-2.5 pr-1.5 py-0.5 rounded-full text-xs font-medium bg-amber-100 border border-amber-300 text-amber-800 dark:bg-amber-900/30 dark:border-amber-600 dark:text-amber-300"
-                    >
-                      {tag.name}
-                      <button type="button"
-                        onClick={() => handleRemoveTag(tag.id)}
-                        className="rounded-full hover:bg-amber-200 dark:hover:bg-amber-800/50 p-0.5 transition-colors"
-                        title="Quitar etiqueta"
-                      >
-                        <X className="w-2.5 h-2.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              )}
               <CreatableComboboxField
-                options={unassignedTagOptions}
-                value=""
-                onChange={handleAddTag}
+                multiple
+                options={tagOptions}
+                value={noteTagIds}
+                onChange={ids => setNoteTags.mutate({ noteId: note.id, tagIds: ids })}
                 onCreate={handleCreateTag}
                 isCreating={createTag.isPending}
                 placeholder="Agregar etiqueta..."

@@ -22,11 +22,19 @@ export function createFoldersService({ prisma }) {
 
   async function listFolders({ userId, companyId }) {
     const rows = await prisma.$queryRaw`
-      SELECT *
-      FROM note_folders
-      WHERE owner_user_id = ${userId}
-        AND (company_id = ${companyId ?? null}::uuid OR company_id IS NULL)
-      ORDER BY sort_order ASC, name ASC
+      SELECT f.*, FALSE AS is_shared_with_me, NULL::text AS my_permission, NULL::text AS owner_display_name,
+        EXISTS (SELECT 1 FROM note_folder_shares s WHERE s.folder_id = f.id) AS is_shared
+      FROM note_folders f
+      WHERE f.owner_user_id = ${userId}
+        AND (f.company_id = ${companyId ?? null}::uuid OR f.company_id IS NULL)
+      UNION ALL
+      SELECT f.*, TRUE, fs.permission, up.display_name, TRUE
+      FROM note_folder_shares fs
+      JOIN note_folders f ON f.id = fs.folder_id
+      JOIN user_profile up ON up.id = f.owner_user_id
+      WHERE fs.shared_with_user_id = ${userId}
+        AND (f.company_id = ${companyId ?? null}::uuid OR f.company_id IS NULL)
+      ORDER BY is_shared_with_me, sort_order ASC, name ASC
     `;
     return rows;
   }

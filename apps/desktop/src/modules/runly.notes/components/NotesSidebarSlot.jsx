@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Plus, FolderOpen } from 'lucide-react'
+import { Plus, FolderOpen, Share2, Users } from 'lucide-react'
 import { useNoteFolders, useCreateNoteFolder } from '../hooks/useNoteFolders.js'
+import { NoteShareModal } from './NoteShareModal.jsx'
 
 export function NotesSidebarSlot() {
   const navigate    = useNavigate()
@@ -12,6 +13,7 @@ export function NotesSidebarSlot() {
   const folders = data?.folders ?? []
 
   const createFolder = useCreateNoteFolder()
+  const [shareFolder, setShareFolder] = useState(null)
   const [creating, setCreating] = useState(false)
   const [newName, setNewName]   = useState('')
   const inputRef = useRef(null)
@@ -73,24 +75,44 @@ export function NotesSidebarSlot() {
         folders.map(folder => {
           const isActive = activeFolderId === folder.id
           return (
-            <button type="button"
+            <div
               key={folder.id}
-              onClick={() => handleFolderClick(folder.id)}
               style={isActive
                 ? { backgroundColor: '#f59e0b14', borderLeft: '2px solid #f59e0b' }
                 : { borderLeft: '2px solid transparent' }
               }
-              className={`w-full flex items-center gap-2 px-2 h-8 rounded-lg transition-colors text-left ${
+              className={`group flex items-center rounded-lg transition-colors ${
                 isActive
                   ? 'text-[hsl(var(--foreground))] font-medium'
                   : 'text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]'
               }`}
             >
-              <FolderOpen size={13} className="shrink-0 text-amber-500/70" />
-              <span className="truncate text-xs">{folder.name}</span>
-            </button>
+              <button type="button"
+                onClick={() => handleFolderClick(folder.id)}
+                title={folder.is_shared_with_me ? `Compartida por ${folder.owner_display_name}` : undefined}
+                className="flex min-w-0 flex-1 items-center gap-2 px-2 h-8 text-left"
+              >
+                <FolderOpen size={13} className="shrink-0 text-amber-500/70" />
+                <span className="truncate text-xs">{folder.name}</span>
+                {folder.is_shared && <Users size={11} className="shrink-0 opacity-60" aria-label="Compartida" />}
+              </button>
+              {!folder.is_shared_with_me && (
+                <button type="button"
+                  onClick={() => setShareFolder(folder)}
+                  title="Compartir carpeta"
+                  aria-label="Compartir carpeta"
+                  className="mr-1 flex h-6 w-6 shrink-0 items-center justify-center rounded opacity-0 transition-opacity hover:bg-[hsl(var(--background))] focus-visible:opacity-100 group-hover:opacity-100 [@media(pointer:coarse)]:opacity-100"
+                >
+                  <Share2 size={12} />
+                </button>
+              )}
+            </div>
           )
         })
+      )}
+
+      {shareFolder && (
+        <NoteShareModal folder={shareFolder} open onOpenChange={(o) => { if (!o) setShareFolder(null) }} />
       )}
     </div>
   )

@@ -1,4 +1,5 @@
 import { createFoldersService } from './folders-service.js';
+import { createFolderSharesService } from './folder-shares-service.js';
 import { createNoteReferencesService } from './references-service.js';
 import * as Y from 'yjs';
 import { createYDocService } from './ydoc-service.js';
@@ -59,6 +60,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
     },
   });
   const folders = createFoldersService({ prisma });
+  const folderShares = createFolderSharesService({ prisma });
   const references = createNoteReferencesService({ prisma });
   // ------------------------------------------------------------------
   // Internal helpers
@@ -165,12 +167,12 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
       // The child must be as visible as its parent: same collaborators, plus the
       // parent's owner when somebody else (an editor) creates the page.
       await tx.$executeRaw`
-        INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission, external_access)
-        SELECT ${child.id}::uuid, s.shared_with_user_id, s.shared_by_user_id, s.permission, s.external_access
+        INSERT INTO note_shares (note_id, shared_with_user_id, shared_by_user_id, permission, external_access, source_folder_id)
+        SELECT ${child.id}::uuid, s.shared_with_user_id, s.shared_by_user_id, s.permission, s.external_access, s.source_folder_id
         FROM note_shares s
         WHERE s.note_id = ${parentId}::uuid AND s.shared_with_user_id <> ${userId}::uuid
         UNION ALL
-        SELECT ${child.id}::uuid, ${access.ownerId}::uuid, ${userId}::uuid, 'edit', FALSE
+        SELECT ${child.id}::uuid, ${access.ownerId}::uuid, ${userId}::uuid, 'edit', FALSE, NULL::uuid
         WHERE ${access.ownerId}::uuid <> ${userId}::uuid
         ON CONFLICT (note_id, shared_with_user_id) DO NOTHING
       `;
@@ -210,7 +212,9 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
       await createNoteImageService({ prisma: db, supabaseAdmin }).bindManyUploaded(rows[0].id, imageRefs);
       return rows[0];
     };
-    return imageRefs.length ? prisma.$transaction(insert) : insert(prisma);
+    const note = await (imageRefs.length ? prisma.$transaction(insert) : insert(prisma));
+    if (folderId) await folderShares.syncNoteFolder(note.id);
+    return note;
   }
 
   // ------------------------------------------------------------------
@@ -225,6 +229,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
         n.*,
         up.display_name      AS owner_display_name,
         up.avatar_file_id    AS owner_avatar_file_id,
+        (SELECT display_name FROM user_profile WHERE id = n.last_edited_by) AS last_edited_by_name,
         COALESCE(
           json_agg(
             DISTINCT jsonb_build_object(
@@ -462,6 +467,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
         a.created_at,
         a.updated_at,
         a.is_owner,
+        a.last_edited_by,
         a.my_share_permission
       ORDER BY a.is_pinned DESC, a.updated_at DESC
       LIMIT ${pageSize}
@@ -573,6 +579,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
                                  THEN ${data.wordCount ?? null}::integer
                                  ELSE word_count
                                END,
+        last_edited_by       = CASE WHEN ${changed}::boolean THEN ${userId}::uuid ELSE last_edited_by END,
         updated_at           = CASE WHEN ${changed}::boolean THEN NOW() ELSE updated_at END
       WHERE id = ${noteId}
         AND deleted_at IS NULL
@@ -583,6 +590,7 @@ export function createNotesService({ prisma, broadcaster = null, supabaseAdmin =
       throw new NotesServiceError("Nota no encontrada.", 404);
     }
     if (!changed) return rows[0];
+    if (data.folderId !== undefined) await folderShares.syncNoteFolder(noteId);
 
     // Archiving a page archives its sub-pages too (owner's descendants only,
     // same company); un-archiving restores every archived descendant.

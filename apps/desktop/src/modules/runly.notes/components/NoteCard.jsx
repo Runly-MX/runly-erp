@@ -1,9 +1,10 @@
 import { formatDistanceToNow } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { Trash2, LogOut, Shapes, FileText } from 'lucide-react'
+import { Trash2, LogOut, Shapes, FileText, Share2 } from 'lucide-react'
+import { ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem, ContextMenuSeparator } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 
-export function NoteCard({ note, isSelected, onClick, onTrash }) {
+export function NoteCard({ note, isSelected, onClick, onTrash, onShare }) {
   const excerpt = (() => {
     if (!note.content || typeof note.content !== 'string') return ''
     // Block tags become spaces so text from separate lines doesn't glue together
@@ -22,7 +23,8 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
     ? formatDistanceToNow(new Date(note.updated_at), { addSuffix: true, locale: es })
     : ''
 
-  return (
+  const isOwner = note.is_owner !== false
+  const card = (
     <div
       onClick={onClick}
       className={[
@@ -97,5 +99,28 @@ export function NoteCard({ note, isSelected, onClick, onTrash }) {
         )}
       </div>
     </div>
+  )
+
+  if (!onShare && !onTrash) return card
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild>{card}</ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        {onShare && isOwner && (
+          <ContextMenuItem onSelect={() => onShare(note)}>
+            <Share2 size={14} className="mr-2" /> Compartir
+          </ContextMenuItem>
+        )}
+        {onTrash && (
+          <>
+            {onShare && isOwner && <ContextMenuSeparator />}
+            <ContextMenuItem onSelect={() => onTrash(note)} className="text-destructive">
+              {isOwner ? <Trash2 size={14} className="mr-2" /> : <LogOut size={14} className="mr-2" />}
+              {isOwner ? 'Enviar a papelera' : 'Salir de la nota'}
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

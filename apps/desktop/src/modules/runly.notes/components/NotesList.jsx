@@ -2,7 +2,7 @@ import { NoteCard } from './NoteCard.jsx'
 import { EmptyState, SearchInput } from '@runly/ui'
 
 export function NotesList({
-  notes = [], selectedNoteId, onSelect, onTrash, isLoading, showTrash = false,
+  notes = [], selectedNoteId, onSelect, onTrash, onShare, isLoading, showTrash = false,
   search = '', onSearchChange,
 }) {
   return (
@@ -43,6 +43,7 @@ export function NotesList({
               isSelected={note.id === selectedNoteId}
               onClick={() => onSelect(note)}
               onTrash={!showTrash ? onTrash : undefined}
+              onShare={!showTrash ? onShare : undefined}
             />
           ))
         )}

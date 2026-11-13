@@ -5,6 +5,8 @@ const EDITOR_RELEVANT = ['id', 'title', 'icon', 'cover_url', 'background_color',
 
 export function nextSelectedNote(prev, incoming) {
   if (!prev || prev.id !== incoming.id) return incoming
-  const same = EDITOR_RELEVANT.every((k) => prev[k] === incoming[k])
+  const same = EDITOR_RELEVANT.every((k) => prev[k] === incoming[k]) && tagKey(prev) === tagKey(incoming)
   return same ? prev : incoming
 }
+
+const tagKey = (n) => (n.tags ?? []).map((t) => t.id).join(',')

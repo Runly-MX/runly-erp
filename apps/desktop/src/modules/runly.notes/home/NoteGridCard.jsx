@@ -1,64 +1,101 @@
-import { useMemo, useRef } from 'react'
-import { MoreVertical, Pin, PinOff, Archive, ArchiveRestore, Trash2, LogOut, Shapes, Users, Check, Layers } from 'lucide-react'
+import { useMemo } from 'react'
+import { MoreVertical, Pin, PinOff, Archive, ArchiveRestore, Trash2, LogOut, Shapes, Users, Check, Layers, Share2, CheckSquare } from 'lucide-react'
 import {
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
   DropdownMenuLabel, DropdownMenuSeparator,
+  ContextMenu, ContextMenuTrigger, ContextMenuContent, ContextMenuItem,
+  ContextMenuLabel, ContextMenuSeparator,
 } from '@runly/ui'
 import { NoteIcon } from '../noteIcons.jsx'
 import { extractPreview } from '../lib/notePreview.js'
 import { useNoteImage } from '../hooks/useNoteImage.js'
+import { absoluteDate, relativeEdit } from '../lib/noteDates.js'
 import { NOTE_BACKGROUND_COLORS, DARK_BG_MAP, noteAccentColor } from '../lib/noteColors.js'
-
-const LONG_PRESS_MS = 500
-const MOVE_TOLERANCE_PX = 8
 
 // Keep-style note card. Display only: the preview comes from the list row's
 // HTML snapshot, so checklist rows are not interactive here.
 export function NoteGridCard({
   note, selected = false, selectMode = false, isDark = false, readOnly = false,
-  onOpen, onToggleSelect, onPin, onArchive, onTrash, onColor,
+  onOpen, onToggleSelect, onPin, onArchive, onTrash, onColor, onShare,
 }) {
   const preview = useMemo(() => extractPreview(note.content, note.title), [note.content, note.title])
   const imageSrc = useNoteImage(preview.firstImage, { noteId: note.id })
-  const press = useRef(null)
-  const longPressed = useRef(false)
-
   const raw = note.background_color ?? null
   const bg = raw ? (isDark ? (DARK_BG_MAP[raw] ?? raw) : raw) : undefined
   const isOwner = note.is_owner !== false
   const isShared = !isOwner || Boolean(note.my_share_permission)
 
-  function clearPress() {
-    if (press.current?.timer) clearTimeout(press.current.timer)
-    press.current = null
-  }
-
-  function onPointerDown(e) {
-    longPressed.current = false
-    if (e.pointerType === 'mouse' || !onToggleSelect) return
-    const timer = setTimeout(() => {
-      longPressed.current = true
-      onToggleSelect(note)
-    }, LONG_PRESS_MS)
-    press.current = { x: e.clientX, y: e.clientY, timer }
-  }
-
-  function onPointerMove(e) {
-    const p = press.current
-    if (!p) return
-    if (Math.hypot(e.clientX - p.x, e.clientY - p.y) > MOVE_TOLERANCE_PX) clearPress()
-  }
-
   function handleClick() {
-    if (longPressed.current) { longPressed.current = false; return }
     if (selectMode) onToggleSelect?.(note)
     else onOpen?.(note)
   }
 
   const tags = note.tags ?? []
-  const showMenu = !selectMode && (onPin || onArchive || onTrash || onColor)
+  const showMenu = !selectMode && (onPin || onArchive || onTrash || onColor || onShare)
 
-  return (
+  const canShare = Boolean(onShare) && isOwner && !selectMode
+  const hasActions = showMenu || canShare || Boolean(onToggleSelect)
+  // Same actions for the "..." button and the right-click / long-press menu.
+  const renderItems = ({ Item, Label, Separator }) => (
+    <>
+      {canShare && (
+        <Item onSelect={() => onShare(note)}>
+          <Share2 size={14} className="mr-2" /> Compartir
+        </Item>
+      )}
+      {onToggleSelect && (
+        <Item onSelect={() => onToggleSelect(note)}>
+          <CheckSquare size={14} className="mr-2" /> {selected ? 'Quitar de la seleccion' : 'Seleccionar'}
+        </Item>
+      )}
+      {onPin && !readOnly && (
+        <Item onSelect={() => onPin(note)}>
+          {note.is_pinned ? <PinOff size={14} className="mr-2" /> : <Pin size={14} className="mr-2" />}
+          {note.is_pinned ? 'Desfijar' : 'Fijar'}
+        </Item>
+      )}
+      {onArchive && !readOnly && isOwner && (
+        <Item onSelect={() => onArchive(note)}>
+          {note.is_archived ? <ArchiveRestore size={14} className="mr-2" /> : <Archive size={14} className="mr-2" />}
+          {note.is_archived ? 'Desarchivar' : 'Archivar'}
+        </Item>
+      )}
+      {onColor && !readOnly && isOwner && (
+        <>
+          <Separator />
+          <Label className="text-xs text-muted-foreground">Color</Label>
+          <div className="flex flex-wrap gap-1.5 px-2 pb-2">
+            {NOTE_BACKGROUND_COLORS.map((c) => (
+              <button
+                key={c.label}
+                type="button"
+                title={c.label}
+                aria-label={c.label}
+                onClick={() => onColor(note, c.value)}
+                style={c.swatch ? { backgroundColor: c.swatch } : undefined}
+                className={[
+                  'h-6 w-6 rounded-md border [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9',
+                  c.swatch ? '' : 'bg-card',
+                  (note.background_color ?? null) === c.value ? 'border-2 border-foreground/70' : 'border-border',
+                ].join(' ')}
+              />
+            ))}
+          </div>
+        </>
+      )}
+      {onTrash && (
+        <>
+          <Separator />
+          <Item onSelect={() => onTrash(note)} className="text-destructive">
+            {isOwner ? <Trash2 size={14} className="mr-2" /> : <LogOut size={14} className="mr-2" />}
+            {isOwner ? 'Mover a papelera' : 'Salir de la nota'}
+          </Item>
+        </>
+      )}
+    </>
+  )
+
+  const card = (
     <div
       role="button"
       tabIndex={0}
@@ -69,12 +106,6 @@ export function NoteGridCard({
         if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleClick() }
       }}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={clearPress}
-      onPointerCancel={clearPress}
-      onPointerLeave={clearPress}
-      onContextMenu={(e) => { if (longPressed.current) e.preventDefault() }}
       style={bg ? { backgroundColor: bg } : undefined}
       className={[
         'group relative cursor-pointer overflow-hidden rounded-md border transition-colors select-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
@@ -142,6 +173,13 @@ export function NoteGridCard({
           </div>
         )}
 
+        {note.updated_at && (
+          <p className="mt-2 text-[10px] leading-snug text-muted-foreground" title={`Creada ${absoluteDate(note.created_at)}`}>
+            Editada {relativeEdit(note.updated_at)}
+            {note.created_at && <> · Creada {absoluteDate(note.created_at).split(',')[0]}</>}
+          </p>
+        )}
+
         {(isShared || note.child_count > 0) && (
           <div className="mt-2 flex items-center gap-3 text-[11px] text-muted-foreground">
             {isShared && <span className="flex items-center gap-1"><Users size={11} /> Compartida</span>}
@@ -171,54 +209,21 @@ export function NoteGridCard({
               </button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end" className="w-52">
-              {onPin && !readOnly && (
-                <DropdownMenuItem onSelect={() => onPin(note)}>
-                  {note.is_pinned ? <PinOff size={14} className="mr-2" /> : <Pin size={14} className="mr-2" />}
-                  {note.is_pinned ? 'Desfijar' : 'Fijar'}
-                </DropdownMenuItem>
-              )}
-              {onArchive && !readOnly && isOwner && (
-                <DropdownMenuItem onSelect={() => onArchive(note)}>
-                  {note.is_archived ? <ArchiveRestore size={14} className="mr-2" /> : <Archive size={14} className="mr-2" />}
-                  {note.is_archived ? 'Desarchivar' : 'Archivar'}
-                </DropdownMenuItem>
-              )}
-              {onColor && !readOnly && isOwner && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuLabel className="text-xs text-muted-foreground">Color</DropdownMenuLabel>
-                  <div className="flex flex-wrap gap-1.5 px-2 pb-2">
-                    {NOTE_BACKGROUND_COLORS.map((c) => (
-                      <button
-                        key={c.label}
-                        type="button"
-                        title={c.label}
-                        aria-label={c.label}
-                        onClick={() => onColor(note, c.value)}
-                        style={c.swatch ? { backgroundColor: c.swatch } : undefined}
-                        className={[
-                          'h-6 w-6 rounded-md border [@media(pointer:coarse)]:h-9 [@media(pointer:coarse)]:w-9',
-                          c.swatch ? '' : 'bg-card',
-                          (note.background_color ?? null) === c.value ? 'border-2 border-foreground/70' : 'border-border',
-                        ].join(' ')}
-                      />
-                    ))}
-                  </div>
-                </>
-              )}
-              {onTrash && (
-                <>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onSelect={() => onTrash(note)} className="text-destructive">
-                    {isOwner ? <Trash2 size={14} className="mr-2" /> : <LogOut size={14} className="mr-2" />}
-                    {isOwner ? 'Mover a papelera' : 'Salir de la nota'}
-                  </DropdownMenuItem>
-                </>
-              )}
+              {renderItems({ Item: DropdownMenuItem, Label: DropdownMenuLabel, Separator: DropdownMenuSeparator })}
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
       )}
     </div>
+  )
+
+  if (!hasActions) return card
+  return (
+    <ContextMenu modal={false}>
+      <ContextMenuTrigger asChild>{card}</ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        {renderItems({ Item: ContextMenuItem, Label: ContextMenuLabel, Separator: ContextMenuSeparator })}
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }

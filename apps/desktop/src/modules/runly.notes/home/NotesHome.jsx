@@ -38,7 +38,7 @@ function GridSkeleton() {
 
 export function NotesHome({
   notes, isLoading, isError = false, onRetry, view, folderActive = false, search, onSearchChange,
-  onOpen, onCreateCanvas, onTrash, onBulkTrash, onToggleLayout,
+  onOpen, onCreateCanvas, onTrash, onShare, onBulkTrash, onToggleLayout,
   canLoadMore = false, loadingMore = false, onLoadMore, isDark = false,
 }) {
   const toggleFlag = useToggleNoteFlag()
@@ -94,6 +94,7 @@ export function NotesHome({
         onArchive={canMutate ? (n) => patchOne(n, { isArchived: !n.is_archived }) : undefined}
         onColor={canMutate ? (n, hex) => patchOne(n, { backgroundColor: hex }) : undefined}
         onTrash={canMutate ? onTrash : undefined}
+        onShare={canMutate ? onShare : undefined}
       />
     )
   }

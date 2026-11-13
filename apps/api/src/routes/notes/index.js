@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import { createNotesService } from './notes-service.js'
 import { createFoldersService } from './folders-service.js'
+import { createFolderSharesService } from './folder-shares-service.js'
 import { createTagsService } from './tags-service.js'
 import { createSharesService } from './shares-service.js'
 import { createYDocService } from './ydoc-service.js'
@@ -17,6 +18,7 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
   const app = new Hono()
   const notes = createNotesService({ prisma, broadcaster })
   const folders = createFoldersService({ prisma })
+  const folderShares = createFolderSharesService({ prisma })
   const tags = createTagsService({ prisma })
   const shares = createSharesService({ prisma, broadcaster, notificationService })
   const ydoc = createYDocService({ prisma })
@@ -121,6 +123,32 @@ export function createNotesRouter({ prisma, supabaseAdmin, authMiddleware, requi
       return c.json({ error: e.message }, e.status ?? 500)
     }
   })
+
+  // Folder shares (owner only; materialized as note shares in the service)
+  const folderShareRoute = (method, path, permission, handler) =>
+    internal[method](path, requirePermission(permission), async (c) => {
+      try {
+        const { userId } = getAuth(c)
+        const { status = 200, body } = await handler(c, userId)
+        return c.json(body, status)
+      } catch (e) {
+        return c.json({ error: e.message }, e.status ?? 500)
+      }
+    })
+  folderShareRoute('get', '/folders/:id/shares', 'notes.shares.read', async (c, userId) => ({
+    body: { shares: await folderShares.listShares(c.req.param('id'), userId) },
+  }))
+  folderShareRoute('post', '/folders/:id/shares', 'notes.shares.create', async (c, userId) => {
+    const { targetUserId, permission } = await c.req.json()
+    return { status: 201, body: { share: await folderShares.shareFolder(c.req.param('id'), userId, { targetUserId, permission }) } }
+  })
+  folderShareRoute('patch', '/folders/:id/shares/:shareId', 'notes.shares.update', async (c, userId) => {
+    const { permission } = await c.req.json()
+    return { body: { share: await folderShares.updateShare(c.req.param('id'), c.req.param('shareId'), userId, { permission }) } }
+  })
+  folderShareRoute('delete', '/folders/:id/shares/:shareId', 'notes.shares.delete', async (c, userId) => ({
+    body: await folderShares.revokeShare(c.req.param('id'), c.req.param('shareId'), userId),
+  }))
 
   // ==============================================================
   // TAGS — register BEFORE /:id to avoid "tags" matching :id

@@ -3168,6 +3168,27 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           method: "DELETE",
           headers: withAuthHeaders(token),
         }),
+      listFolderShares: (id, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}/shares`, {
+          headers: withAuthHeaders(token),
+        }),
+      shareFolder: (id, data, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}/shares`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      updateFolderShare: (id, shareId, data, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}/shares/${encodeURIComponent(shareId)}`, {
+          method: "PATCH",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify(data),
+        }),
+      revokeFolderShare: (id, shareId, token) =>
+        request(`/notes/folders/${encodeURIComponent(id)}/shares/${encodeURIComponent(shareId)}`, {
+          method: "DELETE",
+          headers: withAuthHeaders(token),
+        }),
       listTags: (token) =>
         request("/notes/tags", {
           headers: withAuthHeaders(token),
