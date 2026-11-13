@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Button, DatePickerField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle,
-  FileUploader, SelectField, TextareaField,
+  CheckboxField, FileUploader, SelectField, TextareaField,
 } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -27,9 +28,19 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
   const transition = useInventoryAdminTransition()
   const [values, setValues] = useState(emptyValues)
   const [errors, setErrors] = useState({})
+  // Components of the chosen items that are in the state this action starts from: offered to go along.
+  const baseIds = useMemo(() => ids ?? (itemId ? [itemId] : []), [ids, itemId])
+  const related = useQuery({
+    queryKey: ['inventory', 'items', 'components-of', baseIds],
+    queryFn: async () => (await runly.inventory.componentsOfItems(baseIds, token))?.data ?? [],
+    enabled: Boolean(open && token && config && baseIds.length),
+    staleTime: 0,
+  })
+  const extraIds = useMemo(() => (related.data ?? []).filter((row) => row.adminStatus === config?.from && !baseIds.includes(row.id)).map((row) => row.id), [related.data, baseIds, config?.from])
+  const [withComponents, setWithComponents] = useState(true)
 
   useEffect(() => {
-    if (open) { setValues(emptyValues()); setErrors({}) }
+    if (open) { setValues(emptyValues()); setErrors({}); setWithComponents(true) }
   }, [open, action])
 
   if (!config) return null
@@ -55,14 +66,15 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
       ...(values.file?.id ? { fileId: values.file.id } : {}),
     }
     try {
-      const result = await transition.mutateAsync(ids ? { ids, ...body } : { id: itemId, ...body })
-      if (ids) {
+      const allIds = withComponents && extraIds.length ? [...baseIds, ...extraIds] : null
+      const result = await transition.mutateAsync(ids || allIds ? { ids: allIds ?? ids, ...body } : { id: itemId, ...body })
+      if (ids || allIds) {
         if (result.failed) toast.warning(`${result.applied} aplicados, ${result.failed} no: ${result.results.find((r) => !r.ok)?.error ?? ''}`)
         else toast.success(`${config.label}: ${result.applied} activos`)
       } else {
         toast.success(result?.act?.folio ? `${config.label}: acta ${result.act.folio} generada` : `${config.label}: listo`)
       }
-      if (fields.signature && !result?.act && !(ids && result?.failed === ids.length)) toast.warning('La baja se autorizó, pero el acta no se pudo generar. Genérala desde la pantalla de Bajas.')
+      if (fields.signature && !result?.act && !((ids || allIds) && result?.failed === (allIds ?? ids).length)) toast.warning('La baja se autorizó, pero el acta no se pudo generar. Genérala desde la pantalla de Bajas.')
       onDone?.(result)
       onOpenChange(false)
     } catch (err) { toast.error(err?.message ?? 'No se pudo aplicar la acción.') }
@@ -93,6 +105,10 @@ export function InventoryAdminTransitionDialog({ action, itemId = null, ids = nu
           ) : null}
           {fields.effectiveDate ? (
             <DatePickerField label="Fecha efectiva" required value={values.effectiveDate} onChange={(v) => set('effectiveDate', v ?? '')} error={errors.effectiveDate} />
+          ) : null}
+          {extraIds.length ? (
+            <CheckboxField label={`Incluir sus ${extraIds.length} ${extraIds.length === 1 ? 'componente' : 'componentes'}`} hint="Los componentes vinculados a estos activos reciben el mismo cambio."
+              checked={withComponents} onChange={(event) => setWithComponents(event.target.checked)} />
           ) : null}
           <TextareaField label={fields.comment === 'required' ? 'Comentario' : 'Comentario (opcional)'} required={fields.comment === 'required'}
             value={values.comment} maxLength={2000} onChange={(e) => set('comment', e.target.value)} error={errors.comment} />

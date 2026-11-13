@@ -137,6 +137,7 @@ export function createInventoryExportService({ prisma, supabaseAdmin = null }) {
         orderBy: { id: 'asc' }, take: CHUNK,
         include: {
           category: { select: { name: true } }, brand: { select: { name: true } }, location: { select: { name: true } },
+          parent: { select: { name: true, folio: true } },
           ...CONDITIONS_INCLUDE, catalogModel: { select: { name: true } },
           assignedTo: { select: { firstName: true, lastName: true, employeeCode: true, workEmail: true } },
           createdBy: { select: { displayName: true, firstName: true, lastName: true } },

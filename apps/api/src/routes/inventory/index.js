@@ -22,6 +22,7 @@ import { attachUserAvatarUrls } from '../../lib/attach-user-avatars.js';
 import { findActiveDuplicates } from '../../services/inventory-identifiers.js';
 import { listInventoryMedia } from '../../services/inventory-media.js';
 import { createInventorySearch } from '../../services/inventory-search-service.js';
+import { prepareParentLink, withoutParentField, loadComponents, attachComponentInfo, linkComponents, componentsOf } from '../../services/inventory-item-components.js';
 import { preparePurchaseLinks, withoutPurchaseLinkFields, composeAfterWrite, loadPurchaseLinks, loadPurchaseNumbersForItems, purchaseLinkFields } from '../../services/inventory-purchase-links.js';
 import { publishActivityFromContext, getActivityContext } from '../../services/activity-publisher.js';
 import { createInventoryScope, canWriteArea } from '../../services/inventory-scope.js';
@@ -107,12 +108,13 @@ export function createInventoryRouter({
   // invoice links (purchaseOrderId / purchaseInvoiceId), all in one transaction.
   async function prepareItemWrite(c, itemId = null) {
     const raw = await c.req.json();
+    const parent = await prepareParentLink({ prisma, companyId: c.get("companyId"), itemId, body: raw, fail: (message, status) => new InventoryServiceError(message, status) });
     const links = await preparePurchaseLinks({
       prisma, companyId: c.get("companyId"), actorId: c.get("userContext")?.profile?.id ?? null, itemId, body: raw,
       canManage: hasPerm(c, "purchases.relation.manage"), fail: (message, status) => new InventoryServiceError(message, status),
     });
-    const { data, afterWrite } = await itemConnections.prepare(c, withoutPurchaseLinkFields(raw), itemId ?? undefined);
-    return { body: data, afterWrite: composeAfterWrite(afterWrite, links.afterWrite) };
+    const { data, afterWrite } = await itemConnections.prepare(c, withoutParentField(withoutPurchaseLinkFields(raw)), itemId ?? undefined);
+    return { body: data, afterWrite: composeAfterWrite(afterWrite, links.afterWrite, parent.afterWrite) };
   }
 
   // ── Items ────────────────────────────────────────────────────────────────
@@ -142,9 +144,10 @@ export function createInventoryRouter({
   router.get("/inventory/items", requirePermission("inventory.item.read"), async (c) => {
     try {
       const companyId = c.get("companyId");
-      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, customField, mine, page, limit, pageSize, sortBy, sortDir } = c.req.query();
+      const { search, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, link, areaId, customField, mine, page, limit, pageSize, sortBy, sortDir } = c.req.query();
       const connectionMatchIds = await itemConnections.searchIds(c, search);
-      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, customField, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50, scope: await scopeOf(c), mine: mine === "true" ? await inventoryScope.mineFromContext(c) : null });
+      const result = await inventoryService.listItems({ companyId, search, connectionMatchIds, categoryId, brandId, locationId, conditionId, adminStatus, status, assignedToId, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, link, areaId, customField, sortBy, sortDir, page: Number(page) || 1, limit: Number(pageSize ?? limit) || 50, scope: await scopeOf(c), mine: mine === "true" ? await inventoryScope.mineFromContext(c) : null });
+      result.data = await attachComponentInfo(prisma, companyId, result.data);
       if (hasPerm(c, "inventory.label.read")) {
         const stats = await labelService.statsForItems(companyId, result.data.map((item) => item.id));
         result.data = result.data.map((item) => ({ ...item, labelPrintedAt: stats.get(item.id)?.labelPrintedAt ?? null, labelPrintCount: stats.get(item.id)?.labelPrintCount ?? 0 }));
@@ -158,6 +161,40 @@ export function createInventoryRouter({
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudieron cargar los items." }, 500);
+    }
+  });
+
+  // Main item / components / sibling components of one item, for the detail card.
+  router.get("/inventory/items/:id/components", requirePermission("inventory.item.read"), async (c) => {
+    try {
+      const result = await loadComponents(prisma, c.get("companyId"), c.req.param("id"), await scopeOf(c));
+      if (!result) return c.json({ error: "Item not found" }, 404);
+      return c.json({ data: result });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los componentes." }, 500);
+    }
+  });
+
+  // Components of a set of items (to offer them in bulk bajas).
+  router.post("/inventory/items/components-of", requirePermission("inventory.item.read"), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const ids = (Array.isArray(body.itemIds) ? body.itemIds : []).slice(0, 500);
+      return c.json({ data: await componentsOf(prisma, c.get("companyId"), ids, await scopeOf(c)) });
+    } catch {
+      return c.json({ error: "No se pudieron cargar los componentes." }, 500);
+    }
+  });
+
+  // Bulk "Vincular como componentes de..." (parentItemId null = desvincular).
+  router.post("/inventory/items/link-components", requirePermission("inventory.item.update"), async (c) => {
+    try {
+      const body = await c.req.json().catch(() => ({}));
+      const data = await linkComponents({ prisma, companyId: c.get("companyId"), parentId: body.parentItemId || null, itemIds: Array.isArray(body.itemIds) ? body.itemIds : [], scope: await scopeOf(c), fail: (message, status) => new InventoryServiceError(message, status) });
+      return c.json({ data });
+    } catch (err) {
+      if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
+      return c.json({ error: "No se pudieron vincular los activos." }, 500);
     }
   });
 
@@ -205,7 +242,8 @@ export function createInventoryRouter({
       // Inherited purchase data shows in the Compras section (tier 3) for users
       // who see it; the standalone inventory section is for everyone else.
       const showLegacyPurchaseSection = Boolean(item.hasLegacyPurchaseData && !canReadPurchases);
-      return c.json({ data: { ...item, ...links, canUpdate: hasPerm(c, "inventory.item.update") && canWriteArea(scope, item.areaId) && item.adminStatus !== 'deregistered', canReadPurchases, showLegacyPurchaseSection, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
+      const parentItem = item.parentItemId ? (await loadComponents(prisma, companyId, id, scope))?.parent ?? null : null;
+      return c.json({ data: { ...item, ...links, parentItem, canUpdate: hasPerm(c, "inventory.item.update") && canWriteArea(scope, item.areaId) && item.adminStatus !== 'deregistered', canReadPurchases, showLegacyPurchaseSection, canManagePurchases: hasPerm(c, "purchases.relation.manage") } });
     } catch (err) {
       if (isInvErr(err)) return c.json(invErrorBody(err), err.status);
       return c.json({ error: "No se pudo cargar el item." }, 500);

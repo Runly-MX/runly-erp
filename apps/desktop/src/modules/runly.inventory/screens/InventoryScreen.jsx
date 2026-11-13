@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Activity, Boxes, CalendarPlus, Download, FolderInput, GitPullRequestArrow, FolderOpen, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
+import { Activity, Boxes, CalendarPlus, Download, FolderInput, GitPullRequestArrow, FolderOpen, Link2, FolderTree, MapPin, PanelLeft, PanelLeftClose, Plus, QrCode, ShieldCheck, ShoppingCart, Sparkles, Tag, Upload, UserCheck, Wrench } from 'lucide-react'
 import { RunlyTable, Badge, Button, ConfirmDialog, EmptyState, PageHeader, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@runly/ui'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
@@ -20,6 +20,7 @@ import { useInventoryCan, useInventoryConditions, useInventorySummary } from '..
 import { ADMIN_ACTIONS, ADMIN_FILTER_OPTIONS, ADMIN_STATUSES } from '../lib/admin-status.js'
 import { buildLabelsPath } from '../lib/label-queue.js'
 import { useAreaChoices } from '../hooks/useAreaChoices.js'
+import { ComponentLinkDialog } from '../components/ComponentLinkDialog.jsx'
 import { AreaMoveDialog } from '../components/areas/AreaMoveDialog.jsx'
 import { AreaTreeDock } from '../components/areas/AreaTreeDock.jsx'
 import { AreaTreePanel } from '../components/areas/AreaTreePanel.jsx'
@@ -35,9 +36,10 @@ const STATUS_OPTIONS = ITEM_STATUSES.map(s => ({ value: s.value, label: s.label 
 // Deep links from Catálogos (e.g. ?categoryId=...) open the list pre-filtered.
 // Exact-match text filters opened from the detail view magnifier (?serialNumber=...).
 const TEXT_FILTER_LABELS = { model: 'Modelo', folio: 'Folio', assetTag: 'N.º de activo', serialNumber: 'No. Serie', partNumber: 'N.º de parte' }
-const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'areaId', 'mine', 'customField', ...Object.keys(TEXT_FILTER_LABELS)]
+const URL_FILTERS = ['status', 'adminStatus', 'conditionId', 'categoryId', 'brandId', 'locationId', 'modelId', 'createdFrom', 'createdTo', 'labeled', 'link', 'areaId', 'mine', 'customField', ...Object.keys(TEXT_FILTER_LABELS)]
 const MINE_OPTIONS = [{ value: 'true', label: 'Solo mis items' }]
 const LABELED_OPTIONS = [{ value: 'false', label: 'Sin etiquetar' }, { value: 'true', label: 'Etiquetados' }]
+const LINK_OPTIONS = [{ value: 'parent', label: 'Principales (con componentes)' }, { value: 'child', label: 'Componentes de otro activo' }, { value: 'linked', label: 'Con algún vínculo' }, { value: 'standalone', label: 'Sin vínculos' }]
 const ADMIN_OPTIONS = ADMIN_STATUSES.map(s => ({ value: s.value, label: s.label }))
 
 export default function InventoryScreen() {
@@ -69,6 +71,7 @@ export default function InventoryScreen() {
   const [refreshSignal, setRefreshSignal] = useState(0)
   const [bulk, setBulk] = useState(null)
   const [moveIds, setMoveIds] = useState(null)
+  const [linkIds, setLinkIds] = useState(null)
   const areaChoices = useAreaChoices()
   const dock = useAreaTreeDock()
   const showTree = !areaChoices.noAccess && areaChoices.areas.length > 0
@@ -142,6 +145,11 @@ export default function InventoryScreen() {
       icon: QrCode,
       onClick: (selected) => navigate(buildLabelsPath({ itemIds: selected.map(r => r.id) }), { state: { labelItems: selected } }),
     } : null)] : []),
+    ...(can('inventory.item.update') ? [(rows) => (rows.length ? {
+      label: 'Vincular como componentes',
+      icon: Link2,
+      onClick: (selected) => setLinkIds(selected.map(r => r.id)),
+    } : null)] : []),
     ...(can('inventory.item.update') && areaChoices.writeOptions.length > 0 ? [(rows) => (rows.length ? {
       label: 'Mover a área',
       icon: FolderInput,
@@ -187,6 +195,7 @@ export default function InventoryScreen() {
         },
         { field: 'adminStatus',    label: 'Estado',      sortable: true,  type: 'select', options: ADMIN_OPTIONS },
         { field: 'assignedToName', label: 'Responsable', sortable: true  },
+        { field: 'componentLabel', label: 'Vínculo', sortable: false },
         { field: 'purchaseInvoiceNumber', label: 'Factura', sortable: false },
         { field: 'purchaseOrderNumber', label: 'Orden de compra', sortable: false },
         ...(canReadLabels ? [{ field: 'labelPrintCount', label: 'Etiqueta', sortable: false, component: 'runly.inventory:LabelStateCell' }] : []),
@@ -210,6 +219,8 @@ export default function InventoryScreen() {
         ...(areaChoices.filterOptions.length ? [{ key: 'areaId', label: 'Área', type: 'select', column: 'areaName', icon: FolderTree, options: areaChoices.filterOptions }] : []),
         // -> mine=true: items I created or that are assigned to me (the API resolves who I am).
         { key: 'mine',       label: 'Míos', type: 'select', icon: UserCheck, options: MINE_OPTIONS },
+        // -> link=parent|child|linked|standalone: main items, components, either, or neither.
+        { key: 'link',       label: 'Vínculo', type: 'select', icon: Link2, options: LINK_OPTIONS },
         // -> labeled=false|true on /inventory/items (print log based). Filters with `column` show only while that column is visible.
         { key: 'labeled',    label: 'Etiqueta', type: 'select', column: 'labelPrintCount', icon: QrCode, options: LABELED_OPTIONS },
         ...Object.entries(TEXT_FILTER_LABELS)
@@ -372,6 +383,7 @@ export default function InventoryScreen() {
         onDone={() => setRefreshSignal(s => s + 1)}
       />
 
+      <ComponentLinkDialog open={Boolean(linkIds)} onOpenChange={(open) => { if (!open) setLinkIds(null) }} itemIds={linkIds ?? []} onDone={() => setRefreshSignal(s => s + 1)} />
       <AreaMoveDialog
         open={Boolean(moveIds)}
         onOpenChange={(open) => { if (!open) setMoveIds(null) }}

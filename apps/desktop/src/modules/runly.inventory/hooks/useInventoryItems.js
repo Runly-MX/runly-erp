@@ -18,12 +18,12 @@ function useToken() {
 
 // ── Items list ────────────────────────────────────────────────────────────────
 
-export function useInventoryItems(params = {}) {
+export function useInventoryItems(params = {}, { enabled = true } = {}) {
   const token = useToken()
   return useQuery({
     queryKey: ['inventory', 'items', params],
     queryFn: () => runly.inventory.listItems(params, token),
-    enabled: Boolean(token),
+    enabled: Boolean(token) && enabled,
     staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
   })
@@ -38,6 +38,25 @@ export function useInventoryItem(id) {
     queryFn: () => runly.inventory.getItem(id, token),
     enabled: Boolean(token) && Boolean(id),
     staleTime: 5 * 60 * 1000,
+  })
+}
+
+export function useInventoryItemComponents(id) {
+  const token = useToken()
+  return useQuery({
+    queryKey: ['inventory', 'items', id, 'components'],
+    queryFn: () => runly.inventory.getItemComponents(id, token),
+    enabled: Boolean(token) && Boolean(id),
+    staleTime: 0,
+  })
+}
+
+export function useLinkInventoryComponents() {
+  const token = useToken()
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: ({ itemIds, parentItemId }) => runly.inventory.linkItemComponents(itemIds, parentItemId, token),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['inventory', 'items'] }),
   })
 }
 

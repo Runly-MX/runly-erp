@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { itemLabel } from '../lib/item-label.js'
 import { useQueryClient } from '@tanstack/react-query'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { ErrorState, ConfirmDialog, FormSkeleton } from '@runly/ui'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
@@ -59,7 +59,10 @@ export default function InventoryItemForm() {
   const [serialsText, setSerialsText] = useState('')
   useEffect(() => { setSettings(loadCapture(storageKey)); setFormKey((k) => k + 1) }, [storageKey])
   // Re-read on every new blank form so the latest pinned values prefill it.
-  const createInitial = useMemo(() => loadCapture(storageKey).values, [storageKey, formKey]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ?parentItemId=<id> (Agregar componente in the detail) opens the form linked to that main item.
+  const [searchParams] = useSearchParams()
+  const parentParam = searchParams.get('parentItemId')
+  const createInitial = useMemo(() => ({ ...loadCapture(storageKey).values, ...(parentParam ? { parentItemId: parentParam } : {}) }), [storageKey, formKey, parentParam])  // eslint-disable-line react-hooks/exhaustive-deps
 
   async function submitBulk({ payload }) {
     const { serials } = parseSerials(serialsText)

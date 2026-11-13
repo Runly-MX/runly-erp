@@ -193,6 +193,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     purchaseFrom,
     purchaseTo,
     labeled,
+    link,
     areaId,
     customField,
     mine = null,
@@ -210,7 +211,7 @@ export function createInventoryService({ prisma, activityBridge }) {
     // A text search looks through bajas too (their notes and actas are searchable); only the plain list hides them.
     const defaultAdminStatuses = term ? undefined : DEFAULT_LISTED_ADMIN_STATUSES;
     const filters = {
-      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, areaId, customField, mine: mine ? true : undefined,
+      categoryId, brandId, locationId, conditionId, status, assignedToId, unassigned, modelId, model, folio, assetTag, serialNumber, partNumber, createdFrom, createdTo, purchaseFrom, purchaseTo, labeled, link, areaId, customField, mine: mine ? true : undefined,
       adminStatus: adminStatus === 'all' ? undefined : (adminStatus || defaultAdminStatuses),
     };
     let where;
@@ -772,6 +773,8 @@ export function createInventoryService({ prisma, activityBridge }) {
     const existing = await prisma.invItem.findFirst({ where: { id, companyId, enabled: true } });
     if (!existing) throw new InventoryServiceError('Item not found', 404);
     const updated = await prisma.invItem.update({ where: { id }, data: { enabled: false } });
+    // Its components become independent items again (a deactivated main item cannot keep them).
+    await prisma.invItem.updateMany({ where: { companyId, parentItemId: id }, data: { parentItemId: null } });
     await bridge.logAndPublish({
       auditEntry: {
         actorId: actorProfileId ?? null,

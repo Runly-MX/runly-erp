@@ -424,6 +424,7 @@ describe('deleteItem', () => {
       invItem: {
         findFirst: async () => ({ id: ITEM_ID, companyId: COMPANY_ID, enabled: true, name: 'Laptop XPS' }),
         update: async (args) => ({ id: args.where.id, enabled: false, name: 'Laptop XPS' }),
+        updateMany: async () => ({ count: 0 }),
       },
     })
     const activityBridge = {

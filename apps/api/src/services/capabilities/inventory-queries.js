@@ -18,7 +18,7 @@ const filterParameters = {
   properties: Object.fromEntries(
     ['search', 'categoryId', 'brandId', 'locationId', 'status', 'model', 'modelId', 'createdFrom', 'createdTo']
       .map((k) => [k, { type: 'string' }])
-      .concat([['missingSerial', { type: 'boolean' }]]),
+      .concat([['missingSerial', { type: 'boolean' }], ['link', { type: 'string', enum: ['parent', 'child', 'standalone', 'linked'], description: 'parent: equipos principales con componentes; child: componentes de otro equipo; standalone: sin vinculos' }]]),
   ),
 };
 const queryToolParameters = {
@@ -124,13 +124,14 @@ export function createInventoryMiraiQueries({ prisma, publicLookup }) {
             description: true, notes: true, purchaseDate: true, warrantyExpiry: true,
             brandId: true, categoryId: true, brand: { select: { name: true } }, category: { select: { name: true } }, location: { select: { name: true } },
             customValues: { take: 20, select: { value: true, field: { select: { label: true } } } },
+            parent: { select: { id: true, name: true } }, _count: { select: { components: { where: { enabled: true } } } },
           },
         }),
       ]);
       return {
         total, returned: items.length, truncated: total > items.length, customFieldsLimit: 20,
-        items: items.map((item) => ({
-          ...item, itemId: item.id,
+        items: items.map(({ parent, _count, ...item }) => ({
+          ...item, itemId: item.id, componentOf: parent ? { itemId: parent.id, name: parent.name } : null, componentCount: _count?.components ?? 0,
           description: item.description?.slice(0, 600) ?? null, notes: item.notes?.slice(0, 1000) ?? null,
           detailsTruncated: (item.description?.length ?? 0) > 600 || (item.notes?.length ?? 0) > 1000 || (item.customValues ?? []).some((value) => (value.value?.length ?? 0) > 300),
           customValues: (item.customValues ?? []).map((value) => ({ ...value, value: value.value?.slice(0, 300) ?? null })),

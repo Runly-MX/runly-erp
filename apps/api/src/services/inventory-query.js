@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { getConfiguredTimeZone } from '@runly/core';
 import { scopeWhere, mineWhere } from './inventory-scope.js';
 import { conditionFilterIds } from './inventory-conditions.js';
+import { componentLinkWhere } from './inventory-item-components.js';
 
 export function inventoryDayStart(value, dayOffset = 0, timeZone = getConfiguredTimeZone()) {
   const [year, month, day] = value.split('-').map(Number);
@@ -32,6 +33,8 @@ export const inventoryFiltersSchema = z.object({
   unassigned: z.boolean().optional(),
   purchaseFrom: z.iso.date().optional(), purchaseTo: z.iso.date().optional(),
   labeled: z.enum(['true', 'false']).optional(),
+  // Component links: has components / is a component / neither / either (see inventory-item-components.js).
+  link: z.enum(['parent', 'child', 'standalone', 'linked']).optional(),
   // '<custom field id>::<value>': items whose custom field holds exactly that value (detail magnifier).
   customField: z.string().max(2100).optional(),
   // 'Mios': created by me or assigned to me. The identity is never read from filters (see buildInventoryWhere).
@@ -77,6 +80,8 @@ export function buildInventoryWhere(companyId, filters = {}, scope = null, mine 
   // labeled=false -> never printed; labeled=true -> printed at least once (inv_label_print).
   const labeled = filters.labeled === true || filters.labeled === 'true' ? true : (filters.labeled === false || filters.labeled === 'false' ? false : null);
   if (labeled !== null) where.labelPrints = labeled ? { some: {} } : { none: {} };
+  const linkWhere = componentLinkWhere(filters.link);
+  if (linkWhere) where.AND = [...(where.AND ?? []), linkWhere];
   const createdFrom = ISO_DAY.test(String(filters.createdFrom ?? '')) ? filters.createdFrom : null;
   const createdTo = ISO_DAY.test(String(filters.createdTo ?? '')) ? filters.createdTo : null;
   if (createdFrom || createdTo) where.createdAt = {

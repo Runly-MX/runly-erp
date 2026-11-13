@@ -43,6 +43,7 @@ export const EXPORT_COLUMNS = [
   { key: 'model', label: 'Modelo', group: 'identity', default: true, value: ({ item }) => item.catalogModel?.name ?? item.model },
   { key: 'serialNumber', label: 'Número de serie', group: 'identity', default: true, value: ({ item }) => item.serialNumber },
   { key: 'partNumber', label: 'Número de parte', group: 'identity', default: true, value: ({ item }) => item.partNumber },
+  { key: 'parentItem', label: 'Componente de', group: 'identity', default: false, value: ({ item }) => item.parent ? [item.parent.folio, item.parent.name].filter(Boolean).join(' · ') : '' },
 
   { key: 'adminStatus', label: 'Estado', group: 'status', default: true, value: ({ item }) => ADMIN_STATUS_LABELS[item.adminStatus] ?? item.adminStatus },
   { key: 'status', label: 'Disponibilidad', group: 'status', default: true, value: ({ item }) => OPERATIONAL[item.status] ?? item.status },

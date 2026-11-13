@@ -4442,6 +4442,8 @@ model InvItem {
   deregisteredAt       DateTime? @db.Date @map("deregistered_at")
   deregistrationReason String?   @db.VarChar(40) @map("deregistration_reason")
   areaId       String?   @db.Uuid @map("area_id")
+  // Main item this one is a component of (e.g. condenser/evaporator unit of an AC). One level only, enforced by the API.
+  parentItemId String?   @db.Uuid @map("parent_item_id")
   // Optional GPS point (WGS84); both set or both null.
   latitude      Decimal?  @db.Decimal(9, 6)
   longitude     Decimal?  @db.Decimal(9, 6)
@@ -4451,6 +4453,8 @@ model InvItem {
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
   area         InvArea?       @relation(fields: [areaId], references: [id], onDelete: SetNull)
+  parent       InvItem?       @relation("InvItemComponents", fields: [parentItemId], references: [id], onDelete: SetNull)
+  components   InvItem[]      @relation("InvItemComponents")
   company      Company        @relation("CompanyInvItems", fields: [companyId], references: [id])
   conditions   InvItemCondition[]
   adminEvents  InvItemAdminEvent[]
@@ -4475,6 +4479,7 @@ model InvItem {
   @@index([assignedToId])
   @@index([modelId])
   @@index([companyId, areaId])
+  @@index([parentItemId])
   @@map("inv_item")
 }
 

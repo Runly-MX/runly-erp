@@ -2768,6 +2768,22 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/inventory/items/${encodeURIComponent(id)}`, {
           headers: withAuthHeaders(token),
         }),
+      componentsOfItems: (itemIds, token) =>
+        request("/inventory/items/components-of", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ itemIds }),
+        }),
+      linkItemComponents: (itemIds, parentItemId, token) =>
+        request("/inventory/items/link-components", {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ itemIds, parentItemId: parentItemId || null }),
+        }),
+      getItemComponents: (id, token) =>
+        request(`/inventory/items/${encodeURIComponent(id)}/components`, {
+          headers: withAuthHeaders(token),
+        }),
       createItem: (data, token) =>
         request("/inventory/items", {
           method: "POST",

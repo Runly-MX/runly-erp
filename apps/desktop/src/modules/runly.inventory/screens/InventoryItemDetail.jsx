@@ -16,6 +16,7 @@ import { AREA_NONE, areaPathLabel } from '../lib/area-tree.js'
 import { componentRegistry } from '../../../lib/moduleComponentRegistry.js'
 import { CanvasReferences } from '../../runly.canvas/components/CanvasReferences.jsx'
 import { ConnectionSections } from '../../../shell/connections/ConnectionSections.jsx'
+import { ComponentsCard } from '../components/ComponentsCard.jsx'
 import { CustodyRelatedCard } from '../components/custody/CustodyRelatedList.jsx'
 import { useMiraiRecordContext, openMiraiSidebar } from '../../runly.chat/lib/miraiPageContext.js'
 import { RecordTasks } from '../../../components/RecordTasks.jsx'
@@ -154,7 +155,7 @@ export default function InventoryItemDetail() {
         }}
         onEdit={readOnly ? undefined : () => navigate(`/app/m/runly.inventory/inventory/${id}/edit`)}
         fieldActions={fieldActions}
-        mainExtra={<><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}
+        mainExtra={<><ComponentsCard itemId={id} /><CustodyRelatedCard itemId={id} /><ConnectionSections targetType="inventory_item" targetId={id} /><RecordTasks type="inventory_item" id={id} /></>}
         asideExtra={<CanvasReferences moduleKey="runly.inventory" entityType="inventory_item" entityId={id} />}
         heroActions={false}
       />

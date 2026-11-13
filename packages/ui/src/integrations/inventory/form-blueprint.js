@@ -4,6 +4,7 @@ export const LEGACY_PURCHASE_SECTION_ID = 'legacy-purchase'
 // Purchase order / invoice pickers (custom controls, registry key below).
 export const PURCHASE_LINK_FIELDS = ['purchaseOrderId', 'purchaseInvoiceId']
 export const PURCHASE_LINK_COMPONENT = 'inventory.purchase-link'
+export const PARENT_LINK_COMPONENT = 'inventory.parent-link'
 export const DIRECT_ASSIGNMENT_COMPONENT = 'inventory.direct-assignment'
 const DIRECT_ASSIGNMENT_SECTION = {
   id: 'direct-assignment',
@@ -75,6 +76,8 @@ export const INVENTORY_ITEM_FORM = {
           { field: 'name', label: 'Nombre', type: 'text', icon: 'Package', hint: 'Si lo dejas vacío se genera con tipo, marca y modelo (p. ej. «Dell XPS 15»).' },
           { field: 'partNumber', label: 'Número de parte', type: 'text', icon: 'ScanLine' },
           // Searchable Compras documents; saved as relations with the item (shown only with Compras access).
+          // Checkbox + searchable main item; saved as parent_item_id with the item.
+          { field: 'parentItemId', label: 'Componente de otro activo', type: 'custom', component: PARENT_LINK_COMPONENT, icon: 'Link2', hiddenWhen: { field: '__multi', truthy: true } },
           { field: 'purchaseOrderId', label: 'Orden de compra', type: 'custom', component: PURCHASE_LINK_COMPONENT, icon: 'ClipboardList' },
           { field: 'purchaseInvoiceId', label: 'Factura', type: 'custom', component: PURCHASE_LINK_COMPONENT, icon: 'ReceiptText' },
         ],
