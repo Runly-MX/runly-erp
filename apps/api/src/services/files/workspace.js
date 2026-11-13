@@ -4,6 +4,7 @@ import { OFFICE_FORMATS } from "@runly/core";
 import { signedUrlsWithVariant } from "../../lib/image-variants.js";
 import { createFileAccess, FileAccessError } from "./access.js";
 import { attachPersonSubtitles } from "../../lib/person-subtitles.js";
+import { folderVisibleWhere } from "./visibility.js";
 
 export function createFilesWorkspace({
   prisma,
@@ -121,7 +122,7 @@ export function createFilesWorkspace({
       },
     });
   }
-  async function create({ authUserId, activeContext, name, format, requestKey }) {
+  async function create({ authUserId, activeContext, name, format, requestKey, folderId: requestedFolderId = null }) {
     const context = await contextFor(authUserId, activeContext);
     requireCapability(context, "files.assets.create");
     requireCapability(context, "files.assets.update");
@@ -160,6 +161,15 @@ export function createFilesWorkspace({
       return file;
     }
     if (existing) return checkReplay(existing);
+    // A document created inside a folder follows that folder's visibility, like an upload.
+    let folder = null;
+    if (requestedFolderId) {
+      folder = await prisma.fileFolder.findFirst({
+        where: { id: requestedFolderId, ...(await folderVisibleWhere(prisma, context)) },
+        select: { id: true, scope: true },
+      });
+      if (!folder) throw new FileAccessError("Carpeta no encontrada.", 404);
+    }
     const bytes = await readFile(
       new URL(`./templates/blank.${format}`, import.meta.url),
     );
@@ -189,7 +199,8 @@ export function createFilesWorkspace({
             entityType: "AtlasFile",
             entityId: context.companyId,
             uploadedById: context.profileId,
-            accessScope: "RESTRICTED",
+            accessScope: folder?.scope === "COMPANY" ? "COMPANY" : "RESTRICTED",
+            folderId: folder?.id ?? null,
             creationKey: requestKey,
             visibility: "PRIVATE",
           },

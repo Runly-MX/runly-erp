@@ -23,7 +23,7 @@ export function FilesUploadQueue({ isDragOver, queue, onClear, dropTarget }) {
       )}
 
       {queue.length > 0 && (
-        <div className="fixed bottom-6 right-6 z-40 w-80 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 backdrop-blur-sm shadow-2xl overflow-hidden">
+        <div className="fixed bottom-20 right-3 left-3 sm:left-auto sm:bottom-6 sm:right-6 z-40 sm:w-80 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))]/95 backdrop-blur-sm shadow-2xl overflow-hidden">
           <div className="flex items-center gap-2 px-4 py-3 border-b border-[hsl(var(--border))]">
             {busy ? (
               <Loader2 className="h-4 w-4 animate-spin text-[hsl(var(--muted-foreground))] shrink-0" />
@@ -53,12 +53,15 @@ export function FilesUploadQueue({ isDragOver, queue, onClear, dropTarget }) {
                   <p className="text-xs truncate text-[hsl(var(--foreground))]">{item.name}</p>
                   {item.status === "uploading" && (
                     <div className="mt-1 h-1 rounded-full bg-[hsl(var(--muted))]">
-                      <div className="h-1 w-1/2 rounded-full bg-[var(--brand-primary)] animate-pulse" />
+                      <div
+                        className={`h-1 rounded-full bg-[var(--brand-primary)] transition-[width] ${item.progress == null ? "w-1/2 animate-pulse" : ""}`}
+                        style={item.progress == null ? undefined : { width: `${Math.round(item.progress * 100)}%` }}
+                      />
                     </div>
                   )}
                   <p className="text-[10px] text-[hsl(var(--muted-foreground))] mt-0.5">
                     {item.status === "pending" && "En cola..."}
-                    {item.status === "uploading" && "Subiendo..."}
+                    {item.status === "uploading" && `Subiendo... ${item.progress == null ? "" : Math.round(item.progress * 100) + "%"}`}
                     {item.status === "done" && "Listo"}
                     {item.status === "error" && "Error al subir"}
                   </p>

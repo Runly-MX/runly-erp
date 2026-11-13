@@ -1,6 +1,6 @@
 // Pure math for the resizable folder-tree sidebar (docked mode).
 export const TREE_MIN = 200
-export const TREE_MAX = 420
+export const TREE_MAX = 560
 export const TREE_DEFAULT = 256
 export const TABLE_MIN = 480
 export const TREE_GAP = 16

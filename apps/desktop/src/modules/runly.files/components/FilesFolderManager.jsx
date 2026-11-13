@@ -1,7 +1,7 @@
 import { ConfirmDialog } from "@runly/ui";
 import { Trash2 } from "lucide-react";
 import { FolderExplorerBar } from "./FolderExplorerBar";
-import { FolderNameDialog, FolderPickerDialog, FolderShareDialog } from "./FolderDialogs";
+import { FolderNameDialog, FolderPickerDialog, FolderPropertiesDialog, FolderShareDialog } from "./FolderDialogs";
 import { ROOT_FOLDER } from "../lib/folders";
 
 // Folder browsing UI for "Mis carpetas" plus every folder/file-move dialog.
@@ -18,8 +18,12 @@ export function FilesFolderManager({
   dialog,
   setDialog,
   moveFileIds,
+  moveFolderIds = [],
+  onMoveItems,
   onMoveFilesClose,
   onOpen,
+  onDropItems,
+  hideSubfolders,
 }) {
   const { folders } = api;
   const current = folder && folder !== ROOT_FOLDER ? folders.find((f) => f.id === folder) : null;
@@ -35,6 +39,8 @@ export function FilesFolderManager({
           canCreate={canCreate}
           canManage={canManage}
           onOpen={onOpen}
+          onDropItems={onDropItems}
+          hideSubfolders={hideSubfolders}
           onCreate={() => setDialog({ type: "create" })}
           onRename={(f) => setDialog({ type: "rename", folder: f })}
           onMove={(f) => setDialog({ type: "move", folder: f })}
@@ -78,18 +84,22 @@ export function FilesFolderManager({
           }}
         />
       )}
-      {moveFileIds?.length > 0 && (
+      {(moveFileIds?.length > 0 || moveFolderIds.length > 0) && (
         <FolderPickerDialog
           open
-          title={moveFileIds.length === 1 ? "Mover archivo" : `Mover ${moveFileIds.length} archivos`}
-          description="Solo se pueden mover documentos de Archivos que hayas subido tú."
+          title={moveFileIds?.length + moveFolderIds.length === 1 ? "Mover elemento" : `Mover ${(moveFileIds?.length ?? 0) + moveFolderIds.length} elementos`}
+          description="Solo se pueden mover documentos de Archivos que hayas subido tú y carpetas que administres."
           folders={folders}
           current={current?.id ?? null}
           onOpenChange={(open) => !open && onMoveFilesClose(false)}
           onSubmit={async (folderId) => {
-            if (await api.moveFiles(moveFileIds, folderId)) onMoveFilesClose(true);
+            await onMoveItems(folderId);
+            onMoveFilesClose(true);
           }}
         />
+      )}
+      {dialog?.type === "properties" && (
+        <FolderPropertiesDialog folder={folders.find((f) => f.id === dialog.folder.id) ?? dialog.folder} folders={folders} onOpenChange={(open) => !open && close()} />
       )}
       {dialog?.type === "share" && folders.some((f) => f.id === dialog.folder.id) && (
         <FolderShareDialog

@@ -19,6 +19,7 @@ import {
 import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 import { ROOT_FOLDER, childrenOf, folderPath, moduleLabel } from "../lib/folders";
+import { useItemDropTarget } from "../lib/dnd";
 
 export const FILES_WORKSPACES = ["mine", "folders", "shared", "modules", "invitations", "all"];
 
@@ -43,21 +44,26 @@ function GuideCell({ continues, elbow, isLast }) {
 }
 
 // `guides`: one boolean per ancestor level (does that level's line continue below?).
-function Row({ active, guides = [], isLast, icon: Icon, label, count, expandable, expanded, onToggle, onClick, title }) {
+function Row({ active, guides = [], isLast, icon: Icon, label, count, expandable, expanded, onToggle, onClick, title, onDropItems, dropId, onSpring }) {
+  const drop = useItemDropTarget(onDropItems, onSpring);
   return (
     <div className="flex items-stretch">
       {guides.map((continues, column) => (
         <GuideCell key={column} continues={continues} elbow={column === guides.length - 1} isLast={isLast} />
       ))}
       <div
+        {...drop.props}
+        data-drop-id={onDropItems ? dropId : undefined}
         className={cn(
           "relative my-px flex min-h-8 min-w-0 flex-1 items-center gap-1 rounded-md pr-2 text-sm transition-colors duration-150",
+          drop.isOver && "bg-[var(--brand-primary)]/20 ring-1 ring-[var(--brand-primary)]",
+          "[&[data-drop-hover=true]]:bg-[var(--brand-primary)]/20",
           active
-            ? "bg-[hsl(var(--primary))]/12 font-medium text-[hsl(var(--primary))]"
+            ? "bg-[var(--brand-primary)]/12 font-medium text-[var(--brand-primary)]"
             : "text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))]/60",
         )}
       >
-        {active && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[hsl(var(--primary))]" />}
+        {active && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-0.5 rounded-full bg-[var(--brand-primary)]" />}
         {expandable ? (
           <button
             type="button"
@@ -77,7 +83,7 @@ function Row({ active, guides = [], isLast, icon: Icon, label, count, expandable
           aria-current={active ? "page" : undefined}
           className="flex min-w-0 flex-1 items-center gap-2 py-1 text-left"
         >
-          <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[hsl(var(--primary))]" : "text-[hsl(var(--muted-foreground))]")} />
+          <Icon className={cn("h-4 w-4 shrink-0", active ? "text-[var(--brand-primary)]" : "text-[hsl(var(--muted-foreground))]")} />
           <span className="min-w-0 flex-1 truncate">{label}</span>
           {count > 0 && (
             <span className="ml-1 shrink-0 rounded-md bg-[hsl(var(--muted))]/70 px-1.5 text-xs tabular-nums text-[hsl(var(--muted-foreground))]">
@@ -135,7 +141,7 @@ function ModuleRecordRows({ moduleKey, record, guides, onSelect, onOpenModule })
 // and invitations.
 // `folderActions` ({ canCreate, canManage(folder), open(dialog) }) adds the
 // right-click menu on user folders; the dialogs live in FilesFolderManager.
-export function FilesSidebar({ workspace, folder, moduleKey, record, folders, modules, isCompanyAdmin, folderActions, onSelect }) {
+export function FilesSidebar({ workspace, folder, moduleKey, record, folders, modules, isCompanyAdmin, folderActions, onSelect, onDropItems }) {
   const [open, setOpen] = useState(() => new Set(["folders", "modules"]));
   const toggle = (key) =>
     setOpen((prev) => {
@@ -144,6 +150,8 @@ export function FilesSidebar({ workspace, folder, moduleKey, record, folders, mo
       else next.add(key);
       return next;
     });
+
+  const expand = (key) => setOpen((prev) => (prev.has(key) ? prev : new Set([...prev, key])));
 
   // Reveal the active folder by opening its ancestors.
   useEffect(() => {
@@ -176,6 +184,9 @@ export function FilesSidebar({ workspace, folder, moduleKey, record, folders, mo
           expanded={isOpen}
           onToggle={() => toggle(f.id)}
           onClick={() => onSelect({ workspace: "folders", folder: f.id })}
+          dropId={f.id}
+          onSpring={kids.length && !isOpen ? () => expand(f.id) : undefined}
+          onDropItems={onDropItems && ((payload) => onDropItems(payload, f.id))}
         />
       );
       return (
@@ -233,7 +244,7 @@ export function FilesSidebar({ workspace, folder, moduleKey, record, folders, mo
   }
 
   return (
-    <nav aria-label="Carpetas" className="grid content-start">
+    <nav aria-label="Carpetas" className="grid content-start" onContextMenu={(e) => e.preventDefault()}>
       <Row icon={Clock} label="Recientes" active={workspace === "mine"} onClick={() => onSelect({ workspace: "mine" })} />
       <Row icon={Share2} label="Compartidos conmigo" active={workspace === "shared"} onClick={() => onSelect({ workspace: "shared" })} />
       <Row icon={Mail} label="Invitaciones" active={workspace === "invitations"} onClick={() => onSelect({ workspace: "invitations" })} />
@@ -247,11 +258,15 @@ export function FilesSidebar({ workspace, folder, moduleKey, record, folders, mo
         expanded={open.has("folders")}
         onToggle={() => toggle("folders")}
         onClick={() => onSelect({ workspace: "folders", folder: ROOT_FOLDER })}
+        dropId={ROOT_FOLDER}
+        onSpring={folders.length && !open.has("folders") ? () => expand("folders") : undefined}
+        onDropItems={onDropItems && ((payload) => onDropItems(payload, null))}
       />
       {open.has("folders") && renderFolders(null, [])}
       <Row
         icon={Building2}
-        label="Módulos"
+        label="Del sistema"
+        title="Carpetas que generan los módulos (Proyectos, Inventario...). Se consultan aquí; su contenido lo administra cada módulo."
         active={workspace === "modules" && !moduleKey}
         expandable={modules.length > 0}
         expanded={open.has("modules")}

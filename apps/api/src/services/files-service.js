@@ -171,7 +171,7 @@ function parseMetadata(raw) {
 }
 
 function isAllowedSort(sortBy) {
-  return ["createdAt", "updatedAt", "sizeBytes", "originalName"].includes(sortBy);
+  return ["createdAt", "updatedAt", "sizeBytes", "originalName", "mimeType"].includes(sortBy);
 }
 
 function isAllowedMimeType(mimeType, fileName = "") {

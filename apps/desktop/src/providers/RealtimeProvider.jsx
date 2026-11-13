@@ -19,6 +19,7 @@ import { runly } from '../lib/runly'
 import { isCommentsQuery } from '../lib/createCommentHooks'
 
 const RealtimeContext = createContext(null)
+const FILES_QUERY_KEYS = ['files-list', 'files-folders', 'file-invitations']
 
 // Open in a floating chat window, on its inbox route, or as the visible MirAI
 // conversation. Callers add the document.hidden check where it matters.
@@ -414,9 +415,15 @@ export function RealtimeProvider({ children }) {
         queryClient.invalidateQueries({ queryKey: ['attendance'] })
         dispatch('attendance.changed', payload)
       })
+      .on('broadcast', { event: 'files.changed' }, () => {
+        for (const key of FILES_QUERY_KEYS) queryClient.invalidateQueries({ queryKey: [key] })
+      })
       // A reconnect may have skipped broadcasts: refetch whatever the screens show.
       .subscribe((status) => {
-        if (status === 'SUBSCRIBED') queryClient.invalidateQueries({ queryKey: ['attendance'] })
+        if (status === 'SUBSCRIBED') {
+          queryClient.invalidateQueries({ queryKey: ['attendance'] })
+          for (const key of FILES_QUERY_KEYS) queryClient.invalidateQueries({ queryKey: [key] })
+        }
       })
     return () => { client.removeChannel(channel) }
   }, [userProfile?.id, activeCompanyId, queryClient])

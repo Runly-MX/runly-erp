@@ -9,8 +9,16 @@ import { getActivityContext, publishActivityFromContext } from "../services/acti
 import { tenantActiveContext } from "../lib/active-context.js";
 import { IMAGE_VARIANTS, publicUrlWithVariant, signedUrlWithVariant } from "../lib/image-variants.js";
 
-export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }) {
+export function createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission, broadcaster = null }) {
   const app = new Hono();
+  // Any successful write under /files tells the company's open Files screens to refetch.
+  // The payload carries no data; each client re-reads through its own authorized queries.
+  app.use("/files/*", async (c, next) => {
+    await next();
+    if (c.req.method === "GET" || c.res.status >= 300) return;
+    const companyId = c.get("companyId");
+    if (companyId) Promise.resolve(broadcaster?.broadcastToCompany?.(companyId, "files.changed", {})).catch(() => {});
+  });
   app.route('/', createFilesWorkspaceRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
   app.route('/', createFilesFoldersRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
   const WEBSITE_BUCKET_NAME = "runly-website";

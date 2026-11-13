@@ -2,7 +2,7 @@ import { Button } from "@runly/ui";
 import { Archive, Download, FolderSymlink, X } from "lucide-react";
 
 // Floating bar shown while rows are selected (thumb-reachable on phones).
-export function FilesSelectionBar({ count, loading, onClear, onDownload, onZip, onMove }) {
+export function FilesSelectionBar({ count, hasFiles = true, loading, onClear, onDownload, onZip, onMove }) {
   if (!count) return null;
   return (
     <div
@@ -23,14 +23,18 @@ export function FilesSelectionBar({ count, loading, onClear, onDownload, onZip, 
           <span className="max-sm:sr-only">Mover</span>
         </Button>
       )}
-      <Button variant="outline" size="sm" aria-label="Descargar seleccionados" onClick={onDownload} disabled={loading}>
-        <Download className="h-4 w-4" />
-        <span className="max-sm:sr-only">Descargar</span>
-      </Button>
-      <Button size="sm" aria-label="Descargar ZIP" onClick={onZip} disabled={loading}>
-        <Archive className="h-4 w-4" />
-        ZIP
-      </Button>
+      {hasFiles && (
+        <>
+          <Button variant="outline" size="sm" aria-label="Descargar seleccionados" onClick={onDownload} disabled={loading}>
+            <Download className="h-4 w-4" />
+            <span className="max-sm:sr-only">Descargar</span>
+          </Button>
+          <Button size="sm" aria-label="Descargar ZIP" onClick={onZip} disabled={loading}>
+            <Archive className="h-4 w-4" />
+            ZIP
+          </Button>
+        </>
+      )}
     </div>
   );
 }

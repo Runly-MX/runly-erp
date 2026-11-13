@@ -1,29 +1,30 @@
 ﻿import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
+  Button,
   ConfirmDialog,
   EmptyState,
   ErrorState,
-  PageFooter,
   PageHeader,
-  useIsMobile,
   useOfficeActions,
 } from "@runly/ui";
 import { getOfficeFormat } from "@runly/core";
-import { FolderOpen, Loader2, SearchX } from "lucide-react";
+import { FolderOpen, FolderPlus, Loader2, SearchX, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { runly } from "../../../lib/runly";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useFilesExplorer } from "../hooks/useFilesExplorer";
 import { FilesToolbar } from "../components/FilesToolbar";
-import { FilesWorkspaceTable } from "../components/FilesWorkspaceTable";
+import { FilesExplorer } from "../components/FilesExplorer";
+import { FilesPreviewPane } from "../components/FilesPreviewPane";
+import { useFilesViewPrefs } from "../hooks/useFilesViewPrefs";
+import { FilesLoadMore } from "../components/FilesLoadMore";
 import { FilesWorkspaceHeader } from "../components/FilesWorkspaceHeader";
 import { CreateDocumentDialog } from "../components/CreateDocumentDialog";
 import { FileSharingDialog } from "../components/FileSharingDialog";
 import { FileInvitations } from "../components/FileInvitations";
-import { FilesGalleryView } from "../components/FilesGalleryView";
 import { FilesSelectionBar } from "../components/FilesSelectionBar";
 import { AdvancedFileViewer, getFileKind } from "@runly/ui";
 import { FileDetailPanel } from "../components/FileDetailPanel";
@@ -34,9 +35,11 @@ import { ModuleRecordsBar } from "../components/ModuleRecordsBar";
 import { FilesNavigation } from "../components/FilesNavigation";
 import { FilesFolderManager } from "../components/FilesFolderManager";
 import { FilesUploadQueue } from "../components/FilesUploadQueue";
+import { buildItemMenu } from "../lib/buildItemMenu";
+import { useFilesUpload } from "../hooks/useFilesUpload";
 import { useFilesFolders } from "../hooks/useFilesFolders";
 import { useAreaTreeDock } from "../../runly.inventory/hooks/useAreaTreeDock.js";
-import { ROOT_FOLDER, moduleLabel } from "../lib/folders";
+import { ROOT_FOLDER, childrenOf, descendantIds, folderPath, moduleLabel } from "../lib/folders";
 
 function useFileIdFromPath(pathname) {
   return useMemo(() => {
@@ -50,7 +53,7 @@ function useFileIdFromPath(pathname) {
   }, [pathname]);
 }
 
-const PAGE_SIZES = [20, 50, 100];
+const PAGE_SIZE = 50; // rows per request; further pages load while scrolling
 
 export default function FilesScreen() {
   const office = useOfficeActions();
@@ -76,13 +79,6 @@ export default function FilesScreen() {
   const [shareWithCompany, setShareWithCompany] = useState(false);
   const [newFormat, setNewFormat] = useState(null);
   const [shareFile, setShareFile] = useState(null);
-  const page = Math.max(
-    1,
-    Math.min(100000, Number.parseInt(searchParams.get("page"), 10) || 1),
-  );
-  const pageSize = PAGE_SIZES.includes(Number(searchParams.get("pageSize")))
-    ? Number(searchParams.get("pageSize"))
-    : 20;
   const requestedWorkspace = searchParams.get("workspace");
   const workspace =
     FILES_WORKSPACES.includes(requestedWorkspace) &&
@@ -94,8 +90,6 @@ export default function FilesScreen() {
   const inFolders = workspace === "folders";
   const folder = inFolders ? searchParams.get("folder") || ROOT_FOLDER : null;
   const queryParams = {
-    page,
-    pageSize,
     workspace: inFolders ? "" : workspace,
     folderId: folder ?? "",
     q: searchParams.get("q") || "",
@@ -106,7 +100,7 @@ export default function FilesScreen() {
     sortBy: searchParams.get("sortBy") || "updatedAt",
     sortDir: searchParams.get("sortDir") || "desc",
   };
-  function changeQuery(changes, resetPage = true) {
+  function changeQuery(changes) {
     setSearchParams(
       (previous) => {
         const next = new URLSearchParams(previous);
@@ -114,25 +108,21 @@ export default function FilesScreen() {
           if (value === "" || value == null) next.delete(key);
           else next.set(key, String(value));
         }
-        if (resetPage) next.delete("page");
+        next.delete("page");
         return next;
       },
       { replace: true },
     );
   }
-  const isMobile = useIsMobile();
   const dock = useAreaTreeDock("runly.files.folderTree");
-  // Two modes: table, and the shared MediaGallery ("gallery"). Phones default
-  // to the gallery; the old cards/grid choices fold into it.
-  const [storedView, setStoredView] = useState(() => {
-    try {
-      return localStorage.getItem("runly-view-mode-files");
-    } catch {
-      return null;
-    }
-  });
-  const viewMode = storedView === "table" ? "table" : storedView ? "gallery" : isMobile ? "gallery" : "table";
+  const { viewMode, changeView, tileSize, setTileSize, previewOpen, setPreviewOpen } = useFilesViewPrefs();
   const [moveFileIds, setMoveFileIds] = useState(null);
+  const [moveFolderIds, setMoveFolderIds] = useState([]);
+  const [folderSelIds, setFolderSelIds] = useState([]);
+  const moveItems = ({ fileIds = [], folderIds = [] }) => {
+    setMoveFileIds(fileIds);
+    setMoveFolderIds(folderIds);
+  };
   const folderApi = useFilesFolders({ token, userId: session?.user?.id, enabled: canReadFiles });
   const currentFolder = inFolders && folder !== ROOT_FOLDER ? folderApi.folders.find((f) => f.id === folder) : null;
   const dropTarget = inFolders ? (currentFolder ? `«${currentFolder.name}»` : "Mis carpetas") : "Mis archivos";
@@ -159,8 +149,6 @@ export default function FilesScreen() {
   // full-resolution cache that opening/downloading a file uses.
   const thumbUrlCacheRef = useRef(new Map());
   const previewFetchPendingRef = useRef(new Set());
-  const [isDragOver, setIsDragOver] = useState(false);
-  const [uploadQueue, setUploadQueue] = useState([]);
 
   function getApiErrorMessage(error, fallback) {
     try {
@@ -170,24 +158,23 @@ export default function FilesScreen() {
     }
   }
 
-  const filesQuery = useQuery({
+  const filesQuery = useInfiniteQuery({
     queryKey: ["files-list", session?.user?.id, queryParams],
-    queryFn: () => runly.files.list(queryParams, token),
+    queryFn: ({ pageParam }) => runly.files.list({ ...queryParams, page: pageParam, pageSize: PAGE_SIZE }, token),
+    initialPageParam: 1,
+    getNextPageParam: (last) =>
+      last?.pagination && last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined,
     enabled: Boolean(token) && canReadFiles && workspace !== "invitations",
+    // Kept fresh by the files.changed push (RealtimeProvider), not by polling.
   });
-  const files = useMemo(() => filesQuery.data?.data ?? [], [filesQuery.data]);
-  const pagination = filesQuery.data?.pagination;
-  useEffect(() => {
-    if (pagination && page > pagination.totalPages)
-      setSearchParams(
-        (previous) => {
-          const next = new URLSearchParams(previous);
-          next.set("page", String(Math.max(1, pagination.totalPages)));
-          return next;
-        },
-        { replace: true },
-      );
-  }, [pagination, page, setSearchParams]);
+  // Pages can shift while others upload; keep each file once.
+  const files = useMemo(() => {
+    const seen = new Set();
+    return (filesQuery.data?.pages ?? [])
+      .flatMap((p) => p?.data ?? [])
+      .filter((f) => !seen.has(f.id) && seen.add(f.id));
+  }, [filesQuery.data]);
+  const total = filesQuery.data?.pages?.[0]?.pagination?.total ?? 0;
   const moduleOptions = [
     "files",
     "company",
@@ -253,6 +240,7 @@ export default function FilesScreen() {
   const queryIdentity = searchParams.toString();
   useEffect(() => {
     resetSelection([]);
+    setFolderSelIds([]);
   }, [queryIdentity, resetSelection]);
   const routeQuery = useQuery({
     queryKey: ["file-detail", session?.user?.id, routeFileId],
@@ -277,92 +265,12 @@ export default function FilesScreen() {
     },
   });
 
-  const handleUploadFiles = useCallback(
-    async (filesToUpload) => {
-      if (!token || !canUploadFiles || !filesToUpload?.length) return;
-      const files = Array.from(filesToUpload);
-      const newItems = files.map((file, i) => ({
-        id: `${Date.now()}-${i}-${Math.random().toString(36).slice(2)}`,
-        name: file.name,
-        size: file.size,
-        status: "pending",
-        _file: file,
-      }));
-      setUploadQueue((prev) => [...prev, ...newItems]);
-
-      for (const item of newItems) {
-        setUploadQueue((prev) =>
-          prev.map((q) =>
-            q.id === item.id ? { ...q, status: "uploading" } : q,
-          ),
-        );
-        try {
-          const formData = new FormData();
-          formData.append("file", item._file);
-          formData.append("moduleKey", "runly.files");
-          formData.append("entityType", "AtlasFile");
-          if (shareWithCompany) formData.append("shareWithCompany", "true");
-          if (currentFolder) formData.append("folderId", currentFolder.id);
-          await runly.files.upload(formData, token);
-          setUploadQueue((prev) =>
-            prev.map((q) => (q.id === item.id ? { ...q, status: "done" } : q)),
-          );
-        } catch {
-          setUploadQueue((prev) =>
-            prev.map((q) => (q.id === item.id ? { ...q, status: "error" } : q)),
-          );
-        }
-      }
-
-      await queryClient.invalidateQueries({ queryKey: ["files-list"] });
-      queryClient.invalidateQueries({ queryKey: ["files-folders"] });
-
-      setTimeout(() => {
-        setUploadQueue((prev) => prev.filter((q) => q.status === "error"));
-      }, 3500);
-    },
-    [token, queryClient, canUploadFiles, shareWithCompany, currentFolder],
-  );
-
-  useEffect(() => {
-    if (!token) return;
-    let counter = 0;
-
-    function onDragEnter(e) {
-      if (!e.dataTransfer?.types?.includes("Files")) return;
-      counter++;
-      setIsDragOver(true);
-    }
-
-    function onDragLeave() {
-      counter = Math.max(0, counter - 1);
-      if (counter === 0) setIsDragOver(false);
-    }
-
-    function onDrop(e) {
-      e.preventDefault();
-      counter = 0;
-      setIsDragOver(false);
-      const droppedFiles = Array.from(e.dataTransfer?.files || []);
-      if (droppedFiles.length) handleUploadFiles(droppedFiles);
-    }
-
-    function onDragOver(e) {
-      e.preventDefault();
-    }
-
-    window.addEventListener("dragenter", onDragEnter);
-    window.addEventListener("dragleave", onDragLeave);
-    window.addEventListener("drop", onDrop);
-    window.addEventListener("dragover", onDragOver);
-
-    return () => {
-      window.removeEventListener("dragenter", onDragEnter);
-      window.removeEventListener("dragleave", onDragLeave);
-      window.removeEventListener("drop", onDrop);
-      window.removeEventListener("dragover", onDragOver);
-    };
-  }, [token, handleUploadFiles]);
+  const { uploadQueue, setUploadQueue, isDragOver, handleUploadFiles } = useFilesUpload({
+    token,
+    canUploadFiles,
+    shareWithCompany,
+    currentFolder,
+  });
 
   const renameMutation = useMutation({
     mutationFn: ({ id, originalName }) =>
@@ -375,10 +283,10 @@ export default function FilesScreen() {
   });
 
   const bulkDownloadMutation = useMutation({
-    mutationFn: ({ mode }) =>
+    mutationFn: ({ mode, fileIds }) =>
       runly.files.bulkDownload(
         {
-          fileIds: explorer.selectedIds,
+          fileIds: fileIds ?? explorer.selectedIds,
           mode,
         },
         token,
@@ -494,15 +402,6 @@ export default function FilesScreen() {
     }
   }, [routeQuery.data]);
 
-  // The gallery owns its viewer; Office documents still open in the editor.
-  function openGalleryFile(file) {
-    if (office?.enabled && file.enabled !== false && getOfficeFormat(file)) {
-      office.open(file.id);
-      return true;
-    }
-    return false;
-  }
-
   function openViewer(file) {
     if (office?.enabled && file.enabled !== false && getOfficeFormat(file)) {
       office.open(file.id);
@@ -603,10 +502,11 @@ export default function FilesScreen() {
     }
   }
 
-  async function handleBulkZip() {
+  // `ids` lets menus zip a selection that lives outside `explorer` (the gallery keeps its own).
+  async function handleBulkZip(ids) {
     try {
       const response = await toast.promise(
-        bulkDownloadMutation.mutateAsync({ mode: "zip" }),
+        bulkDownloadMutation.mutateAsync({ mode: "zip", fileIds: Array.isArray(ids) ? ids : undefined }),
         {
           loading: "Construyendo ZIP...",
           success: "ZIP preparado",
@@ -640,18 +540,96 @@ export default function FilesScreen() {
     );
   }
 
+  const officeAvailable = Boolean(office?.enabled && office?.available !== false);
+  const canCreateDocs = canUploadFiles && hasPermission("files.assets.update");
+  // Where uploads and new documents/folders land: the open folder, else the root.
+  const destination = inFolders
+    ? currentFolder
+      ? ["Mis carpetas", ...folderPath(folderApi.folders, currentFolder.id).map((f) => f.name)].join(" / ")
+      : "Mis carpetas"
+    : "Mis archivos";
+
+  // What the preview pane shows: the selected files and folders, as explorer items.
+  const previewSelection = [
+    ...folderApi.folders.filter((f) => folderSelIds.includes(f.id)).map((data) => ({ id: data.id, type: "folder", data })),
+    ...explorer.filteredFiles.filter((f) => explorer.selectedSet.has(f.id)).map((data) => ({ id: data.id, type: "file", data })),
+  ];
+
+  // Lazy thumbnails for every tile/row (the explorer batches the ids it needs).
+  const resolveThumbs = useCallback(
+    async (ids, variant) => {
+      if (!token) return {};
+      try {
+        return (await runly.files.batchSignedUrls(ids, token, { variant }))?.data ?? {};
+      } catch {
+        return {};
+      }
+    },
+    [token],
+  );
+  const backgroundMenu = [
+    ...(canUploadFiles ? [{ label: "Subir archivos aquí", icon: Upload, onClick: () => setShowUpload(true) }] : []),
+    ...(folderActions.canCreate ? [{ label: "Nueva carpeta", icon: FolderPlus, onClick: () => setFolderDialog({ type: "create" }) }] : []),
+  ];
+
+  // Subfolders sit in the explorer with the files, in every view.
+  const subfolders =
+    inFolders && !queryParams.q
+      ? childrenOf(folderApi.folders, folder === ROOT_FOLDER ? null : folder)
+      : [];
+  const canMoveFile = (file) =>
+    hasPermission("files.assets.update") &&
+    file.entityType === "AtlasFile" &&
+    Boolean(userProfile?.isAdmin || file.uploadedById === userProfile?.id);
+
+  async function dropItems({ fileIds = [], folderIds = [] }, targetId) {
+    const target = targetId === ROOT_FOLDER ? null : targetId;
+    const validFolders = folderIds.filter(
+      (id) => id !== target && !(target && descendantIds(folderApi.folders, id).has(target)),
+    );
+    if (fileIds.length) await folderApi.moveFiles(fileIds, target);
+    for (const id of validFolders) await folderApi.updateFolder(id, { parentId: target });
+    resetSelection([]);
+    setFolderSelIds([]);
+  }
+
+  function openItem(item) {
+    if (item.type === "folder") selectView({ workspace: "folders", folder: item.id });
+    else openViewer(item.data);
+  }
+  function renameItem(item) {
+    if (item.type === "folder") {
+      if (folderActions.canManage(item.data)) setFolderDialog({ type: "rename", folder: item.data });
+    } else if (hasPermission("files.assets.update")) {
+      setRenameTarget(item.data);
+      setRenameValue(item.data.originalName || "");
+    }
+  }
+  function deleteItem(item) {
+    if (item.type === "folder") {
+      if (folderActions.canManage(item.data)) setFolderDialog({ type: "delete", folder: item.data });
+    } else if (hasPermission("files.assets.delete")) setDeleteTarget(item.data);
+  }
+  const buildMenu = (item, group) =>
+    buildItemMenu(item, group, {
+      hasPermission, folderActions, isAdmin: userProfile?.isAdmin, profileId: userProfile?.id, canMoveFile,
+      openItem, renameItem, deleteItem, openViewer, downloadFile, copyLink, openDetail, handleBulkZip,
+      moveItems, setFolderDialog, setShareFile, setToggleTarget,
+    });
+
   return (
     <div className="files-workspace flex flex-col min-h-full">
       <div className="flex-1 p-4 md:p-6 space-y-6">
         <FilesWorkspaceHeader
           dock={dock}
+          destination={destination}
           onCreate={setNewFormat}
           onUpload={() => setShowUpload(true)}
-          canCreate={canUploadFiles && hasPermission("files.assets.update")}
+          onNewFolder={() => setFolderDialog({ type: "create" })}
+          canCreate={canCreateDocs}
           canUpload={canUploadFiles}
-          officeAvailable={Boolean(
-            office?.enabled && office?.available !== false,
-          )}
+          canCreateFolder={folderActions.canCreate}
+          officeAvailable={officeAvailable}
         />
         <FilesUploadDialog
           open={showUpload}
@@ -673,6 +651,7 @@ export default function FilesScreen() {
             isCompanyAdmin={Boolean(userProfile?.isAdmin)}
             folderActions={folderActions}
             onSelect={selectView}
+            onDropItems={dropItems}
           />
           <div className="min-w-0 flex-1 space-y-6">
         {routeQuery.isError && (
@@ -692,11 +671,18 @@ export default function FilesScreen() {
           dialog={folderDialog}
           setDialog={setFolderDialog}
           moveFileIds={moveFileIds}
+          moveFolderIds={moveFolderIds}
+          onMoveItems={(target) => dropItems({ fileIds: moveFileIds ?? [], folderIds: moveFolderIds }, target)}
           onMoveFilesClose={(moved) => {
-            setMoveFileIds(null);
-            if (moved) resetSelection([]);
+            moveItems({});
+            if (moved) {
+              resetSelection([]);
+              setFolderSelIds([]);
+            }
           }}
           onOpen={(id) => selectView({ workspace: "folders", folder: id })}
+          onDropItems={dropItems}
+          hideSubfolders
         />
         {workspace === "invitations" ? (
           <FileInvitations
@@ -721,7 +707,11 @@ export default function FilesScreen() {
               filters={explorer.filters}
               onFiltersChange={explorer.setFilters}
               viewMode={viewMode}
-              onViewModeChange={setStoredView}
+              onViewModeChange={changeView}
+              tileSize={tileSize}
+              onTileSizeChange={setTileSize}
+              previewOpen={previewOpen}
+              onPreviewToggle={() => setPreviewOpen(!previewOpen)}
               onSelectVisible={explorer.selectVisible}
               sort={explorer.sort}
               onSortChange={explorer.setSort}
@@ -738,80 +728,78 @@ export default function FilesScreen() {
                 message="Reintenta la carga para continuar."
                 onRetry={() => filesQuery.refetch()}
               />
-            ) : explorer.filteredFiles.length === 0 && inFolders && !queryParams.q ? (
+            ) : explorer.filteredFiles.length === 0 && subfolders.length === 0 && inFolders && !queryParams.q ? (
               <EmptyState
                 icon={FolderOpen}
                 title={currentFolder ? "Esta carpeta está vacía" : "No hay archivos sueltos aquí"}
                 description="Sube archivos o arrástralos a esta pantalla; también puedes mover archivos existentes desde su menú."
+                action={canUploadFiles ? (
+                  <Button onClick={() => setShowUpload(true)}>
+                    <Upload className="h-4 w-4" />
+                    Subir archivos aquí
+                  </Button>
+                ) : undefined}
               />
-            ) : explorer.filteredFiles.length === 0 ? (
+            ) : explorer.filteredFiles.length === 0 && subfolders.length === 0 ? (
               <EmptyState
                 icon={SearchX}
                 title="Sin resultados"
                 description="No hay archivos que coincidan con los filtros actuales."
               />
-            ) : viewMode === "table" ? (
-              <FilesWorkspaceTable
-                files={explorer.filteredFiles}
-                selectedSet={explorer.selectedSet}
-                onToggleSelect={explorer.toggleSelect}
-                onRangeSelect={explorer.rangeSelect}
-                onSelectVisible={explorer.selectVisible}
-                onClearSelection={explorer.clearSelection}
-                onShare={setShareFile}
-                onPreview={openViewer}
-                onDownload={downloadFile}
-                onCopyLink={copyLink}
-                onRename={(file) => {
-                  setRenameTarget(file);
-                  setRenameValue(file.originalName || "");
-                }}
-                onDetail={(file) => openDetail(file, true)}
-                onToggleEnabled={(file) =>
-                  setToggleTarget({
-                    id: file.id,
-                    enabled: !file.enabled,
-                    name: file.originalName,
-                  })
-                }
-                onDelete={(file) => setDeleteTarget(file)}
-                onMove={hasPermission("files.assets.update") ? (file) => setMoveFileIds([file.id]) : null}
-                canUpdate={hasPermission("files.assets.update")}
-                canDelete={hasPermission("files.assets.delete")}
-                profileId={userProfile?.id}
-                isCompanyAdmin={userProfile?.isAdmin}
-                isAdmin={isAdmin}
-                previewMap={previewMap}
-              />
             ) : (
-              <FilesGalleryView
+              <FilesExplorer
+                view={viewMode}
+                tileSize={tileSize}
+                folders={subfolders}
                 files={explorer.filteredFiles}
-                token={token}
-                onOpenFile={openGalleryFile}
-                onMove={hasPermission("files.assets.update") ? (ids) => setMoveFileIds(ids) : null}
+                selectedFileIds={explorer.selectedIds}
+                onSelectFiles={resetSelection}
+                selectedFolderIds={folderSelIds}
+                onSelectFolders={setFolderSelIds}
+                resolveThumbs={resolveThumbs}
+                sort={explorer.sort}
+                onSortChange={explorer.setSort}
+                canMoveFile={canMoveFile}
+                canManageFolder={folderActions.canManage}
+                buildMenu={buildMenu}
+                backgroundMenu={backgroundMenu}
+                onOpen={openItem}
+                onRename={renameItem}
+                onDelete={deleteItem}
+                onDropItems={dropItems}
+                onSpringOpen={(id) => selectView({ workspace: "folders", folder: id })}
               />
             )}
-            <PageFooter
-              total={pagination?.total ?? 0}
-              pageIndex={page - 1}
-              pageCount={pagination?.totalPages ?? 1}
-              pageSize={pageSize}
-              pageSizeOptions={PAGE_SIZES}
-              canPrevious={page > 1 && !filesQuery.isFetching}
-              canNext={page < (pagination?.totalPages ?? 1) && !filesQuery.isFetching}
-              onPrevious={() => changeQuery({ page: page - 1 }, false)}
-              onNext={() => changeQuery({ page: page + 1 }, false)}
-              onPageChange={(index) => changeQuery({ page: index + 1 }, false)}
-              onPageSizeChange={(size) => changeQuery({ pageSize: size })}
-            />
+            {filesQuery.hasNextPage && (
+              <FilesLoadMore onLoadMore={() => filesQuery.fetchNextPage()} loading={filesQuery.isFetchingNextPage} />
+            )}
+            <p className="text-center text-xs text-[hsl(var(--muted-foreground))]">
+              {files.length < total ? `${files.length} de ${total} archivos` : `${total} ${total === 1 ? "archivo" : "archivos"}`}
+            </p>
           </>
         )}
           </div>
+          {previewOpen && workspace !== "invitations" && (
+            <div className="hidden xl:ml-4 xl:block xl:self-stretch">
+              <FilesPreviewPane
+                selection={previewSelection}
+                folders={folderApi.folders}
+                resolveUrl={resolveSignedUrl}
+                onOpen={openItem}
+                onDownload={downloadFile}
+                onShare={setShareFile}
+                onDetails={(file) => openDetail(file, true)}
+                onClose={() => setPreviewOpen(false)}
+              />
+            </div>
+          )}
         </div>
         {newFormat && (
           <CreateDocumentDialog
             key={newFormat}
             format={newFormat}
+            folder={currentFolder ? { id: currentFolder.id } : null}
+            destination={destination}
             token={token}
             onClose={() => setNewFormat(null)}
             onCreated={(file) => {
@@ -834,14 +822,18 @@ export default function FilesScreen() {
         )}
       </div>
 
-      {viewMode === "table" && (
+      {(
         <FilesSelectionBar
-          count={explorer.selectedCount}
+          count={explorer.selectedCount + folderSelIds.length}
+          hasFiles={explorer.selectedCount > 0}
           loading={bulkDownloadMutation.isPending}
-          onClear={explorer.clearSelection}
+          onClear={() => {
+            explorer.clearSelection();
+            setFolderSelIds([]);
+          }}
           onDownload={handleBulkDirect}
           onZip={handleBulkZip}
-          onMove={hasPermission("files.assets.update") ? () => setMoveFileIds(explorer.selectedIds) : null}
+          onMove={hasPermission("files.assets.update") ? () => moveItems({ fileIds: explorer.selectedIds, folderIds: folderSelIds.filter((id) => folderApi.folders.some((f) => f.id === id && folderActions.canManage(f))) }) : null}
         />
       )}
       <FilesUploadQueue isDragOver={isDragOver} queue={uploadQueue} onClear={() => setUploadQueue([])} dropTarget={dropTarget} />

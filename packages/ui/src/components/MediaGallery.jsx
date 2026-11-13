@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDownWideNarrow, ArrowUpNarrowWide, Columns3, Download, File as FileIcon, FileText, Film, Image as ImageIcon, Images, LayoutGrid, Music, ZoomIn, ZoomOut } from "lucide-react";
 import { cn } from "../lib/utils.js";
 import { useGridZoom } from "../hooks/useGridZoom.js";
@@ -8,6 +8,7 @@ import { AdvancedFileViewer } from "./AdvancedFileViewer.jsx";
 import { getKindIcon } from "./FileVisual.jsx";
 import { getFileKind, getKindAccent } from "../lib/file-kind.js";
 import { Button } from "./Button.jsx";
+import { ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger } from "./ContextMenu.jsx";
 import { Checkbox } from "./Checkbox.jsx";
 import { EmptyState } from "./EmptyState.jsx";
 import { Skeleton } from "./Skeleton.jsx";
@@ -15,6 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from ".
 import { ViewModeSwitch } from "./ViewModeSwitch.jsx";
 import { ColumnResizeHandle } from "./ColumnResizeHandle.jsx";
 import { useColumnResize } from "../hooks/useColumnResize.js";
+import { useMarqueeSelect } from "../hooks/useMarqueeSelect.jsx";
 
 // Reusable multimedia gallery: photos and documents from any record set, with
 // Cuadrícula / Tarjetas / Tabla views, kind filter (todo / imágenes / archivos),
@@ -30,6 +32,9 @@ import { useColumnResize } from "../hooks/useColumnResize.js";
 // resolveSignedUrls(ids, variant) -> Promise<{ [id]: url }>: batch lookup for thumbnails (far fewer requests; preferred over one resolveSignedUrl call per tile).
 // resolveSignedUrls(ids, variant) -> Promise<{ [id]: url }>: batched thumbnail lookup (one request per ~50 tiles instead of one each).
 // onOpenItem(item) -> true when the host opened the item itself (e.g. an Office editor).
+// contextMenu(item, group) -> [{ label, icon?, onClick, variant? }]: right-click / long-press menu of a tile, card or row
+// (group = the whole selection when the item is part of it, else [item]). Without it, long-press selects.
+// onItemsDragStart(event, items): makes SELECTED tiles draggable (e.g. into a folder); the host fills event.dataTransfer.
 // Touch: long-press a tile to start selecting; while a selection exists a tap toggles instead of opening.
 
 const KINDS = [
@@ -70,7 +75,7 @@ const ratioCache = new Map();
 
 // Grid tile for a non-image file: tinted with its kind color (Word blue, PDF red...),
 // the kind icon, the extension and the file name.
-function FileTile({ item, className, compact }) {
+export function FileTile({ item, className, compact }) {
   const kind = getFileKind({ mimeType: item.mimeType, name: item.name });
   const Icon = getKindIcon(kind);
   const accent = getKindAccent(kind);
@@ -89,7 +94,7 @@ function FileTile({ item, className, compact }) {
   );
 }
 
-function MediaThumb({ item, resolveSignedUrl, variant = "card", className, fit = false }) {
+export function MediaThumb({ item, resolveSignedUrl, variant = "card", className, fit = false }) {
   const [ref, near] = useNearViewport();
   const [url, setUrl] = useState(null);
   const [ready, setReady] = useState(false);
@@ -169,6 +174,60 @@ function useLongPress(onLongPress, ms = 450) {
   };
 }
 
+// Loads the next page by itself when scrolled near; the button stays as a fallback.
+function LoadMore({ onLoadMore, loading }) {
+  const ref = useRef(null);
+  const latest = useRef({ onLoadMore, loading });
+  latest.current = { onLoadMore, loading };
+  useEffect(() => {
+    const el = ref.current;
+    if (!el || typeof IntersectionObserver === "undefined") return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting && !latest.current.loading) latest.current.onLoadMore?.(); },
+      { rootMargin: "600px 0px" },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading]);
+  return (
+    <div ref={ref} className="flex justify-center">
+      <Button variant="outline" onClick={onLoadMore} loading={loading}>Cargar más</Button>
+    </div>
+  );
+}
+
+// Entries are computed only while the menu is open (the content mounts on open).
+function MenuEntries({ build }) {
+  return build().map((entry, index) => {
+    const Icon = entry.icon;
+    return (
+      <div key={index}>
+        {entry.variant === "destructive" && <ContextMenuSeparator />}
+        <ContextMenuItem
+          // A dialog opened in the tick a Radix menu closes leaves the page unclickable.
+          onSelect={() => setTimeout(entry.onClick, 80)}
+          className={entry.variant === "destructive" ? "text-destructive focus:bg-destructive/10 focus:text-destructive" : undefined}
+        >
+          {Icon && <Icon />}
+          {entry.label}
+        </ContextMenuItem>
+      </div>
+    );
+  });
+}
+
+function ItemContextMenu({ build, onOpen, children }) {
+  if (!build) return children;
+  return (
+    <ContextMenu onOpenChange={(open) => open && onOpen?.()}>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <MenuEntries build={build} />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
 function ZoomButton({ Icon, label, onClick, disabled, active }) {
   return (
     <button
@@ -200,15 +259,16 @@ function SelectBox({ checked, onChange, label, className, shiftHeld }) {
   );
 }
 
-function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle, shiftHeld, fit = false, dense = false }) {
-  const press = useLongPress(onToggle);
+function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onToggle, shiftHeld, onDragStart, hasMenu, fit = false, dense = false }) {
+  const press = useLongPress(hasMenu ? () => {} : onToggle);
   return (
-    <div className="group relative">
+    <div className="group relative" data-media-id={item.id} data-selected={isSelected} draggable={Boolean(onDragStart && isSelected)} onDragStart={onDragStart}>
+      {item.disabled ? <span className="pointer-events-none absolute right-1.5 top-1.5 z-10 rounded-md bg-[hsl(var(--background))]/85 px-1.5 py-0.5 text-[10px] font-medium text-[hsl(var(--muted-foreground))] backdrop-blur">Deshabilitado</span> : null}
       <button
         type="button"
         {...press.handlers}
         onClick={(e) => { if (!press.consumed()) onOpen(e); }}
-        className={cn("block w-full select-none overflow-hidden border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", dense ? "rounded-md" : "rounded-xl", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
+        className={cn(item.disabled && "opacity-50", "block w-full select-none overflow-hidden border text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]/40 [-webkit-touch-callout:none]", dense ? "rounded-md" : "rounded-xl", isSelected ? "border-(--brand-primary) ring-2 ring-(--brand-primary)/40" : "border-[hsl(var(--border))]")}
       >
         {isImage(item)
           ? <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} variant={fit ? "tilefit" : "tile"} fit={fit} className={fit ? "w-full" : "aspect-square w-full"} />
@@ -225,10 +285,10 @@ function MediaTile({ item, isSelected, selecting, resolveSignedUrl, onOpen, onTo
   );
 }
 
-function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpenGroup, openGroupLabel, shiftHeld }) {
-  const press = useLongPress(onToggle);
+function MediaCard({ item, isSelected, resolveSignedUrl, onOpen, onToggle, onOpenGroup, openGroupLabel, shiftHeld, onDragStart, hasMenu }) {
+  const press = useLongPress(hasMenu ? () => {} : onToggle);
   return (
-    <div className={cn("group relative flex items-center gap-3 rounded-xl border bg-[hsl(var(--card))] p-2.5", isSelected ? "border-(--brand-primary)" : "border-[hsl(var(--border))]")}>
+    <div data-media-id={item.id} data-selected={isSelected} draggable={Boolean(onDragStart && isSelected)} onDragStart={onDragStart} className={cn("group relative flex items-center gap-3 rounded-xl border bg-[hsl(var(--card))] p-2.5", isSelected ? "border-(--brand-primary)" : "border-[hsl(var(--border))]")}>
       <button type="button" {...press.handlers} onClick={(e) => { if (!press.consumed()) onOpen(e); }} className="shrink-0 select-none overflow-hidden rounded-lg [-webkit-touch-callout:none]">
         <MediaThumb item={item} resolveSignedUrl={resolveSignedUrl} className="h-16 w-16" />
       </button>
@@ -268,6 +328,8 @@ export function MediaGallery({
   // "desc" | "asc" by date; the toggle shows only with onSortDirChange (the caller re-queries).
   sortDir = "desc",
   onSortDirChange = null,
+  contextMenu = null,
+  onItemsDragStart = null,
 }) {
   const thumbResolver = useMemo(
     () => (resolveSignedUrls ? createUrlBatcher(resolveSignedUrls) : resolveSignedUrl),
@@ -310,6 +372,22 @@ export function MediaGallery({
   const indexById = useMemo(() => new Map(sequence.map((item, i) => [item.id, i])), [sequence]);
 
   const selectedItems = sequence.filter((item) => selected.has(item.id));
+  // Drag an area to select tiles (mouse); from any point, including on a tile.
+  const marquee = useMarqueeSelect({
+    itemSelector: "[data-media-id]",
+    idAttr: "mediaId",
+    ignoreSelector: "[role=checkbox],input,a,header button,[data-media-id][data-selected=true]",
+    getSelectedIds: () => [...selected],
+    onSelect: (ids) => setSelected(new Set(ids)),
+  });
+  // The zoom (pinch) hook and the marquee both need the body element and its pointer events.
+  const { ref: zoomRef, onPointerDown: zoomPointerDown, ...zoomRest } = zoom.containerProps;
+  const zoomRefLatest = useRef(zoomRef);
+  zoomRefLatest.current = zoomRef;
+  const setBody = useCallback((node) => {
+    marquee.containerRef.current = node;
+    zoomRefLatest.current?.(node);
+  }, [marquee.containerRef]);
   // Shift+click selects the range from the last toggled item (Google Photos style).
   const anchor = useRef(null);
   const shiftHeld = useRef(false);
@@ -378,9 +456,21 @@ export function MediaGallery({
     onOpen: (event) => open(item, event),
     onToggle: () => pick(item),
     shiftHeld,
+    hasMenu: Boolean(contextMenu),
+    onDragStart: onItemsDragStart
+      ? (event) => onItemsDragStart(event, selected.has(item.id) ? selectedItems : [item])
+      : null,
   });
+  // Right-click / long-press: the item joins the selection first (alone, unless it already belongs to it).
+  const menuFor = (item) => (contextMenu ? () => contextMenu(item, selected.has(item.id) ? selectedItems : [item]) : null);
+  // `contents` wrapper: the tile/card components do not forward the trigger's props to a DOM node.
+  const withMenu = (item, node, wrap = true) => (
+    <ItemContextMenu key={item.id} build={menuFor(item)} onOpen={() => !selected.has(item.id) && setSelected(new Set([item.id]))}>
+      {wrap ? <div className="contents">{node}</div> : node}
+    </ItemContextMenu>
+  );
   const dense = zoom.columns >= 7;
-  const renderTile = (item, fit = false) => <MediaTile key={item.id} {...tileProps(item)} fit={fit} dense={dense} />;
+  const renderTile = (item, fit = false) => withMenu(item, <MediaTile {...tileProps(item)} fit={fit} dense={dense} />);
   const gap = dense ? 4 : 8;
   // Mosaic: each tile is assigned to a column once (the shortest at that moment) and
   // never moves afterwards, so late-loading photos only grow in place instead of
@@ -410,7 +500,7 @@ export function MediaGallery({
   ) : (
     <div className="grid" style={{ gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))`, gap }}>{list.map((item) => renderTile(item))}</div>
   ));
-  const renderCard = (item) => <MediaCard key={item.id} {...tileProps(item)} onOpenGroup={onOpenGroup} openGroupLabel={openGroupLabel} />;
+  const renderCard = (item) => withMenu(item, <MediaCard {...tileProps(item)} onOpenGroup={onOpenGroup} openGroupLabel={openGroupLabel} />);
 
   const renderTable = (list) => (
     <div className="overflow-clip rounded-2xl surface-card">
@@ -434,14 +524,14 @@ export function MediaGallery({
         </TableHeader>
         <TableBody>
           {list.map((item) => (
-            <TableRow key={item.id} className="cursor-pointer" onClick={(e) => open(item, e)}>
+            withMenu(item, <TableRow data-media-id={item.id} className="cursor-pointer" onClick={(e) => open(item, e)}>
               <TableCell onClickCapture={(e) => { shiftHeld.current = e.shiftKey; }} onClick={(e) => e.stopPropagation()}><Checkbox checked={selected.has(item.id)} onCheckedChange={() => pick(item)} aria-label={`Seleccionar ${item.name}`} /></TableCell>
               <TableCell><MediaThumb item={item} resolveSignedUrl={thumbResolver} className="h-10 w-10 rounded-lg" /></TableCell>
               <TableCell className="max-w-64 truncate font-medium">{item.name}</TableCell>
               <TableCell className="max-w-48 truncate text-[hsl(var(--muted-foreground))]">{item.groupLabel ?? ""}</TableCell>
               <TableCell className="tabular-nums text-[hsl(var(--muted-foreground))]">{formatBytes(item.sizeBytes)}</TableCell>
               <TableCell className="tabular-nums text-[hsl(var(--muted-foreground))]">{dayKey(item.date).split("-").reverse().join("/")}</TableCell>
-            </TableRow>
+            </TableRow>, false)
           ))}
         </TableBody>
       </Table>
@@ -454,7 +544,16 @@ export function MediaGallery({
     }
     if (!visible.length) return <EmptyState icon={Images} title={emptyTitle} description={emptyDescription} />;
     return (
-      <div className={cn("space-y-6", view === "grid" && "touch-pan-y")} {...zoom.containerProps}>
+      <div
+        {...zoomRest}
+        ref={setBody}
+        onPointerDown={(e) => {
+          zoomPointerDown?.(e);
+          marquee.onPointerDown(e);
+        }}
+        className={cn("relative space-y-6", view === "grid" && "touch-pan-y")}
+      >
+        {marquee.marqueeNode}
         {groups.map((group) => (
           <section key={group.id} className="space-y-3">
             {group.label ? (
@@ -485,11 +584,7 @@ export function MediaGallery({
             {view === "grid" ? renderGrid(group.items) : null}
           </section>
         ))}
-        {hasMore ? (
-          <div className="flex justify-center">
-            <Button variant="outline" onClick={onLoadMore} loading={loadingMore}>Cargar más</Button>
-          </div>
-        ) : null}
+        {hasMore ? <LoadMore onLoadMore={onLoadMore} loading={loadingMore} /> : null}
       </div>
     );
   };
@@ -529,7 +624,7 @@ export function MediaGallery({
               </div>
             </>
           ) : null}
-          <ViewModeSwitch modes={views} value={views.includes(view) ? view : views[0]} onChange={(mode) => { setView(mode); write("view", mode); }} />
+          {views.length > 1 ? <ViewModeSwitch modes={views} value={views.includes(view) ? view : views[0]} onChange={(mode) => { setView(mode); write("view", mode); }} /> : null}
         </div>
       </div>
       {body()}

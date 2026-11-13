@@ -21,6 +21,7 @@ export function createFilesWorkspaceRouter({
     name: z.string().min(1).max(180),
     format: z.enum(["docx", "xlsx", "pptx"]),
     requestKey: z.string().regex(/^[a-zA-Z0-9_-]{20,100}$/),
+    folderId: z.uuid().nullish(),
   });
   const accessSchema = z.union([
     z.strictObject({ scope: z.enum(["COMPANY", "RESTRICTED"]) }),

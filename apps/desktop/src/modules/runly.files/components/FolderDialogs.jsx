@@ -14,7 +14,7 @@ import {
 } from "@runly/ui";
 import { ChevronRight, Folder, FolderPen, FolderPlus, FolderSymlink, FolderTree, Share2, Users } from "lucide-react";
 import { runly } from "../../../lib/runly";
-import { ROOT_FOLDER, childrenOf, descendantIds, publicFolderPath } from "../lib/folders";
+import { ROOT_FOLDER, childrenOf, descendantIds, folderPath, publicFolderPath } from "../lib/folders";
 import { FolderMembersPanel } from "./FolderMembersPanel";
 
 const SCOPES = [
@@ -175,6 +175,43 @@ export function FolderShareDialog({ folder, token, pending, onChangeScope, onOpe
             </p>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function PropRow({ label, value }) {
+  return (
+    <div className="flex items-start justify-between gap-3 border-b border-[hsl(var(--border))]/60 py-1.5">
+      <span className="text-xs text-[hsl(var(--muted-foreground))]">{label}</span>
+      <span className="break-all text-right text-sm">{value || "—"}</span>
+    </div>
+  );
+}
+
+// "Propiedades" of a folder: where it lives, what it holds and who sees it.
+export function FolderPropertiesDialog({ folder, folders, onOpenChange }) {
+  const path = ["Mis carpetas", ...folderPath(folders, folder.id).map((f) => f.name)].join(" / ");
+  const subfolders = childrenOf(folders, folder.id).length;
+  const date = (v) => (v ? new Date(v).toLocaleString("es-MX") : null);
+  return (
+    <Dialog open onOpenChange={onOpenChange}>
+      <DialogContent size="md">
+        <DialogHeader icon={Folder}>
+          <DialogTitle>Propiedades</DialogTitle>
+          <DialogDescription>{folder.name}</DialogDescription>
+        </DialogHeader>
+        <div>
+          <PropRow label="Nombre" value={folder.name} />
+          <PropRow label="Ubicación" value={path} />
+          <PropRow label="Contiene" value={`${folder.fileCount ?? 0} archivos, ${subfolders} subcarpetas`} />
+          <PropRow label="Quién la ve" value={folder.scope === "COMPANY" ? "Toda la empresa" : folder.memberCount ? `Privada, compartida con ${folder.memberCount} personas` : "Privada"} />
+          <PropRow label="Creada" value={date(folder.createdAt)} />
+          <PropRow label="Modificada" value={date(folder.updatedAt)} />
+        </div>
+        <DialogFooter>
+          <Button type="button" onClick={() => onOpenChange(false)}>Cerrar</Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

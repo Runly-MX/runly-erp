@@ -1,6 +1,6 @@
 import { createWebsitePublicationContext } from './services/website-publication-context.js';
 import { runlyWebsiteManifest } from './manifests/official/feature-modules.js';
-import { runlyPosManifest } from './manifests/official/core-modules.js';
+import { runlyPosManifest, filesMap } from './manifests/official/core-modules.js';
 import { createWebsitePreviewHandler } from './routes/website/preview-routes.js';
 import { createWebsiteOriginGuard } from './services/website-origin-guard.js';
 import { createRealtimeAccessService } from './services/realtime-access-service.js';
@@ -672,6 +672,10 @@ function filterModuleNavigation(moduleRow, permissionSet, isAdmin) {
     ...storedManifest,
     routePermissions: runlyWebsiteManifest.routePermissions,
     fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...runlyWebsiteManifest.fullscreenPaths])],
+  } : moduleRow?.key === 'runly.files' ? {
+    // Same for Files: installations synced earlier pick up the full-screen layout.
+    ...storedManifest,
+    fullscreenPaths: [...new Set([...(storedManifest.fullscreenPaths ?? []), ...filesMap.fullscreenPaths])],
   } : moduleRow?.key === 'runly.pos' ? {
     // The POS identity (color, full-screen operating screens, labels) ships
     // with the code; an installation synced earlier keeps its own nav entries.
@@ -1926,7 +1930,7 @@ app.put(
 // Office access is decided per file (office/access.js): runly.files permissions
 // for files, LMS permissions for course submissions and certificate templates.
 app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess: requireAnyPermission(["files.assets.read", "lms.access", "lms.grade", "lms.course.manage", "inventory.template.manage", "documents.templates.update"]) }));
-app.route("/", createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission }));
+app.route("/", createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission, broadcaster }));
 app.route("/", createIdentitySessionsRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 
 

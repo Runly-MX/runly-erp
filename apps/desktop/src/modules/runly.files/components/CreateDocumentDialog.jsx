@@ -24,7 +24,7 @@ const TYPES = {
   pptx: { label: "Presentación", Icon: Presentation },
 };
 
-export function CreateDocumentDialog({ format, token, onClose, onCreated }) {
+export function CreateDocumentDialog({ format, token, folder = null, destination = "Mis archivos", onClose, onCreated }) {
   const { label, Icon } = TYPES[format];
   const [name, setName] = useState(`${label} sin título`);
   const request = useRef(null);
@@ -39,7 +39,7 @@ export function CreateDocumentDialog({ format, token, onClose, onCreated }) {
           ).join(""),
         };
       return runly.files.createDocument(
-        { format, name, requestKey: request.current.key },
+        { format, name, requestKey: request.current.key, ...(folder ? { folderId: folder.id } : {}) },
         token,
       );
     },
@@ -62,7 +62,7 @@ export function CreateDocumentDialog({ format, token, onClose, onCreated }) {
             Crear {label.toLowerCase()}
           </DialogTitle>
           <DialogDescription>
-            Empieza en blanco y trabaja con tu equipo desde Runly.
+            Empieza en blanco y trabaja con tu equipo desde Runly. Se creará en <strong className="font-medium text-[hsl(var(--foreground))]">{destination}</strong>.
           </DialogDescription>
         </DialogHeader>
         <form

@@ -1093,12 +1093,29 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       createOfficeSession: (id, mode = 'auto', token) => request(`/files/${encodeURIComponent(id)}/office/session`, {
         method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ mode }), onlineOnly: true,
       }),
-      upload: (formData, token) =>
-        request("/files/upload", {
-          method: "POST",
-          headers: withAuthHeaders(token),
-          body: formData,
-        }),
+      upload: (formData, token, { onProgress } = {}) => {
+        if (!onProgress || typeof XMLHttpRequest === "undefined") {
+          return request("/files/upload", { method: "POST", headers: withAuthHeaders(token), body: formData });
+        }
+        // fetch has no upload progress events; XHR does.
+        return new Promise((resolve, reject) => {
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", `${baseUrl}/files/upload`);
+          for (const [k, v] of Object.entries(withAuthHeaders(token) ?? {})) xhr.setRequestHeader(k, v);
+          xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
+          xhr.onerror = () => reject(new Error("Error de red al subir el archivo"));
+          xhr.onload = () => {
+            let body = null;
+            try { body = xhr.responseText ? JSON.parse(xhr.responseText) : null; } catch {}
+            if (xhr.status >= 200 && xhr.status < 300) return resolve(body);
+            const err = new Error(body?.error?.message ?? body?.error ?? xhr.responseText ?? `Runly API error ${xhr.status}`);
+            err.status = xhr.status;
+            err.details = body;
+            reject(err);
+          };
+          xhr.send(formData);
+        });
+      },
       replaceImage: (id, file, token) => postImageEdit("replace", id, file, token),
       copyImage: (id, file, token) => postImageEdit("copy", id, file, token),
       list: (params = {}, token) => {

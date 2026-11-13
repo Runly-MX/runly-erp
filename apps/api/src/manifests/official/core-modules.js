@@ -290,6 +290,8 @@ export const filesMap = createModuleManifest({
   pwa: { shortName: "Archivos", startPath: "/files" },
   category: "sistema",
   summary: "Gestion de archivos y almacenamiento",
+  // No fixed module sidebar: the explorer needs the width (menu opens as an overlay).
+  fullscreenPaths: ["/files", "/files/:id"],
   dependencies: [{ key: "runly.core" }],
   navigation: [
     {

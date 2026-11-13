@@ -162,7 +162,8 @@ export {
   TableCaption,
 } from "./components/Table.jsx";
 export { DataTable } from "./components/DataTable.jsx";
-export { MediaGallery } from "./components/MediaGallery.jsx";
+export { MediaGallery, MediaThumb, FileTile } from "./components/MediaGallery.jsx";
+export { createUrlBatcher } from "./lib/lazy-media.js";
 export { groupMedia } from "./lib/media-grouping.js";
 export {
   Pagination,
@@ -356,6 +357,8 @@ export {
 export { useCoarsePointer, useHasHover } from "./hooks/usePointerCapabilities.js";
 export { useIsolatedScroll } from "./hooks/useIsolatedScroll.js";
 export { useLongPress, createLongPressController } from "./hooks/useLongPress.js";
+export { useMarqueeSelect } from "./hooks/useMarqueeSelect.jsx";
+export { createAutoScroller } from "./lib/autoscroll.js";
 export { useDayDrag } from "./hooks/useDayDrag.js";
 export { useSwipeToReply, createSwipeController } from "./hooks/useSwipeToReply.js";
 
