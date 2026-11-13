@@ -63,7 +63,7 @@ GET /visitas/visitas?page=1&pageSize=20&search=ana&estado=PROGRAMADA&sucursal=01
 | `<campo select>` | Valor exacto de la opción: `?estado=PROGRAMADA` |
 | `<campo relation del mismo módulo>` | `id` del registro relacionado: `?sucursal=<uuid>`. Un valor que no es UUID se ignora |
 
-Otros parámetros se ignoran. No se puede filtrar por `multiselect`, fechas, números ni relaciones con módulos del sistema, y el orden es fijo: más recientes primero (`created_at` descendente). Si necesitas otro filtro u orden, pide páginas de hasta 100 y filtra en tu pantalla.
+Otros parámetros se ignoran. No se puede filtrar por `multiselect`, fechas, números ni relaciones con módulos del sistema, y el orden es fijo: el de `list.defaultSort` de la entidad o, si no lo define, más recientes primero (`created_at` descendente). Si necesitas otro filtro u orden, pide páginas de hasta 100 y filtra en tu pantalla.
 
 Respuesta `200`:
 

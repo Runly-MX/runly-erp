@@ -2,6 +2,7 @@ import { FIELD_TYPES, KANBAN_GROUP_FIELD_TYPES, KANBAN_MAX_COLUMNS, RESERVED_NAM
 import { moduleSlug, permKey, toKebab } from './templates/helpers.js'
 import { isRecordsViewKind, normalizeRecordsView, validateRecordsView } from './records-views.js'
 import { validateEntityLayout, validateFileFieldOptions } from './layout.js'
+import { validateEntityList } from './list-config.js'
 import { validateRelations } from './relations.js'
 import { validateExtensions } from './extensions.js'
 import { validatePublicLinks } from './public-links.js'
@@ -104,6 +105,7 @@ export function validateModuleDefinition(definition) {
       validateFileFieldOptions(field, fieldPath, errors)
     }
     validateEntityLayout(entity, base, errors, warnings, definition.entities)
+    validateEntityList(entity, base, errors)
   })
   definition.entities.forEach((entity, entityIndex) => {
     for (const [fieldIndex, field] of (entity.fields ?? []).entries()) {
@@ -194,6 +196,7 @@ export function normalizeModuleDefinition(input) {
       companyScoped: entity.companyScoped !== false,
       softDelete: entity.softDelete !== false,
       ...(entity.layout ? { layout: entity.layout } : {}),
+      ...(entity.list ? { list: entity.list } : {}),
       fields: (entity.fields ?? []).map((field) => ({
         ...field,
         key: field.key ?? field.name,

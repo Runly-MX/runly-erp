@@ -2,6 +2,7 @@ import { moduleSlug, permKey, toKebab } from './helpers.js'
 import { entityFilePaths, fileFieldProps, generateLayoutDetailView, generateLayoutFormView, getDetailTypeHint, mapFormFieldType, relationLabelField } from './layout-views.js'
 import { isSameModuleRelation } from '../relations.js'
 import { isExternalRelation } from '../external-relations.js'
+import { listColumns, listSchemaExtras } from '../list-config.js'
 
 export function generateTableView(config, entity) {
   const slug = moduleSlug(config.key)
@@ -9,18 +10,19 @@ export function generateTableView(config, entity) {
   const viewKey = `${slug}.${entity.name}.table`
   const labelPlural = entity.labelPlural || entity.label + 's'
 
-  const columns = entity.fields
-    .slice(0, 5)
-    .map((f) => {
-      if (isSameModuleRelation(f) || isExternalRelation(f)) return `      { field: '${f.name}__label', label: '${f.label || f.name}', sortable: false },`
-      if (f.type === 'file' && f.accept === 'image') {
-        return `      { field: '${f.name}', label: '${f.label || f.name}', type: 'image-asset', signedUrlPath: '${entityFilePaths(config, entity).signedUrlPath}' },`
-      }
-      const typeHint = getColumnTypeHint(f.type)
-      const base = `      { field: '${f.name}', label: '${f.label || f.name}', sortable: true`
-      return typeHint ? base + `, type: '${typeHint}' },` : base + ' },'
-    })
-    .join('\n')
+  const columnSource = (f, format, list) => {
+    if (isSameModuleRelation(f) || isExternalRelation(f)) return `      { field: '${f.name}__label', label: '${f.label || f.name}', sortable: false${list.primaryField === f.name ? ', primary: true' : ''} },`
+    if (f.type === 'file' && f.accept === 'image') {
+      return `      { field: '${f.name}', label: '${f.label || f.name}', type: 'image-asset', signedUrlPath: '${entityFilePaths(config, entity).signedUrlPath}' },`
+    }
+    // entity.list opts into badges for select fields (RunlyTable colors them).
+    const typeHint = f.type === 'select' && entity.list ? 'select' : format === 'number' ? 'number' : getColumnTypeHint(f.type, format)
+    const options = typeHint === 'select' ? `, options: ${JSON.stringify((f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)))}` : ''
+    const base = `      { field: '${f.name}', label: '${f.label || f.name}', sortable: true${list.primaryField === f.name ? ', primary: true' : ''}`
+    return typeHint ? base + `, type: '${typeHint}'${options} },` : base + ' },'
+  }
+  const columns = listColumns(entity, { column: columnSource }).join('\n')
+  const extras = Object.entries(listSchemaExtras(entity)).map(([key, value]) => `    ${key}: ${JSON.stringify(value)},\n`).join('')
 
   return `import { defineView } from '@runly/module-engine'
 
@@ -34,7 +36,7 @@ export default defineView({
     apiPath: '${apiPath}',
     searchable: true,
     searchPlaceholder: 'Buscar ${entity.label.toLowerCase()}...',
-    columns: [
+${extras}    columns: [
 ${columns}
     ],
     actions: [
@@ -175,7 +177,8 @@ export default definePage({
 `
 }
 
-function getColumnTypeHint(type) {
+function getColumnTypeHint(type, format) {
+  if (format === 'date' || format === 'datetime' || format === 'currency') return format
   const map = { boolean: 'boolean', date: 'date', datetime: 'datetime', decimal: 'currency', number: 'number', color: 'color' }
   return map[type] || null
 }

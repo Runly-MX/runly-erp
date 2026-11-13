@@ -14,6 +14,36 @@ Un módulo de Runly se usa en escritorio, en el navegador del celular y en la ap
 
 Las vistas generadas son correctas pero todas lucen igual. Si el pedido habla de cómo se debe *ver* o *usar* la pantalla, hazla en React. Un módulo puede combinar las dos cosas: las vistas generadas para administrar y una o dos pantallas React como entrada principal del menú.
 
+## Presentación del listado (`entities[].list`)
+
+La tabla que Runly genera para cada entidad se configura con `list`, sin tocar JSON de vistas. Sin `list` se muestran los primeros 5 campos, como siempre.
+
+```json
+"list": {
+  "primaryField": "nombre",
+  "imageField": "foto",
+  "statusField": "estado",
+  "subtitleField": "notas",
+  "defaultView": "cards",
+  "columns": [{ "field": "monto", "format": "currency" }, { "field": "estado" }, { "field": "entrega", "format": "date" }],
+  "filters": ["estado"],
+  "defaultSort": { "field": "entrega", "direction": "asc" }
+}
+```
+
+| Clave | Qué hace | Regla |
+|---|---|---|
+| `primaryField` | Campo destacado que abre el detalle. Siempre se muestra | Cualquier campo menos `file` y `json` |
+| `imageField` | Miniatura al inicio de la fila y en las tarjetas | Campo `file` con `accept: "image"` |
+| `statusField` | Estado en la vista de lista y de tarjetas | Campo `select` |
+| `subtitleField` | Segunda línea en lista y tarjetas | Cualquier campo menos `file` y `json` |
+| `columns` | Columnas visibles, en orden (1 a 8). `format` es opcional | `decimal`/`number`: `currency` o `number`; `date`/`datetime`: `date` o `datetime`. Los `select` se muestran como badge con el color de su opción |
+| `filters` | Filtros rápidos sobre el listado (hasta 4) | Solo campos `select`: es lo que filtra la ruta generada |
+| `defaultSort` | Orden del listado; en empates, más recientes primero | Cualquier campo escalar o `created_at` / `updated_at`; `direction`: `asc` o `desc` |
+| `defaultView` | Vista inicial: `table`, `cards` o `grid` | El usuario puede cambiarla; Runly recuerda su elección |
+
+Un `list` inválido se rechaza al validar con códigos `LIST_*` (por ejemplo `LIST_UNKNOWN_FIELD`, `LIST_INVALID_FORMAT`). El orden aplica a las rutas generadas al instalar o actualizar el módulo.
+
 ## Composición de una buena pantalla
 
 1. **Encabezado**: `ModulePage` o `PageHeader` con título, descripción corta, icono y las acciones principales (la acción primaria es un `Button` con icono).
