@@ -92,7 +92,7 @@ export function listSchemaExtras(entity) {
   if (list.filters?.length) {
     extras.filters = list.filters.map((name) => ({
       field: name, label: fields.get(name).label || name, type: 'select',
-      options: (fields.get(name).options ?? []).map((option) => (typeof option === 'string' ? { value: option, label: option } : option)),
+      options: (fields.get(name).optionDetails ?? fields.get(name).options ?? []).map((option) => (typeof option === 'string' ? { value: option, label: option } : option)),
     }))
   }
   return extras

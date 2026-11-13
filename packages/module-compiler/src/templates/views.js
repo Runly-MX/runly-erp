@@ -17,7 +17,7 @@ export function generateTableView(config, entity) {
     }
     // entity.list opts into badges for select fields (RunlyTable colors them).
     const typeHint = f.type === 'select' && entity.list ? 'select' : format === 'number' ? 'number' : getColumnTypeHint(f.type, format)
-    const options = typeHint === 'select' ? `, options: ${JSON.stringify((f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)))}` : ''
+    const options = typeHint === 'select' ? `, options: ${JSON.stringify((f.optionDetails ?? f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)))}` : ''
     const base = `      { field: '${f.name}', label: '${f.label || f.name}', sortable: true${list.primaryField === f.name ? ', primary: true' : ''}`
     return typeHint ? base + `, type: '${typeHint}'${options} },` : base + ' },'
   }

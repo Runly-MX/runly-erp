@@ -12,7 +12,7 @@ const BASE = {
       { key: 'nombre', type: 'text', label: 'Nombre', required: true },
       { key: 'monto', type: 'decimal', label: 'Monto' },
       { key: 'foto', type: 'file', label: 'Foto', accept: 'image' },
-      { key: 'estado', type: 'select', label: 'Estado', options: ['NEW', 'DONE'] },
+      { key: 'estado', type: 'select', label: 'Estado', options: [{ value: 'NEW', label: 'Nuevo', color: 'blue' }, { value: 'DONE', label: 'Hecho' }] },
       { key: 'entrega', type: 'date', label: 'Entrega' },
       { key: 'notas', type: 'textarea', label: 'Notas' },
       { key: 'extra', type: 'json', label: 'Extra' },
@@ -50,7 +50,7 @@ test('the generated table and list query follow entity.list', () => {
   assert.match(table, /defaultViewMode: "cards"/)
   assert.match(table, /filters: \[\{"field":"estado"/)
   assert.ok(table.indexOf("field: 'foto'") < table.indexOf("field: 'nombre'") && table.indexOf("field: 'nombre'") < table.indexOf("field: 'monto'"))
-  assert.match(table, /field: 'estado'.*type: 'select', options: \[\{"value":"NEW"/)
+  assert.match(table, /field: 'estado'.*type: 'select', options: \[\{"value":"NEW","label":"Nuevo","color":"blue"\}/)
   assert.match(table, /field: 'entrega'.*type: 'datetime'/)
   assert.match(file(LIST, 'orden-service.js'), /ORDER BY t\.entrega ASC NULLS LAST, t\.created_at DESC/)
 })

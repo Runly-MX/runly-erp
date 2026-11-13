@@ -33,6 +33,8 @@ function toTemplateConfig(definition) {
         ...field,
         name: field.key,
         options: field.options?.map((option) => option.value),
+        // Labels and colors, for the table's badges (templates/views.js).
+        optionDetails: field.options,
         relatedModel: field.targetModel ?? (field.targetEntity ? `${definition.key.split('.').pop()}.${field.targetEntity}` : undefined),
       })),
     })),
