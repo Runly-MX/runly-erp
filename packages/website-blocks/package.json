@@ -12,7 +12,7 @@
     "src"
   ],
   "dependencies": {
-    "@raulbellosom/atlas-web-builder": "0.5.0"
+    "@raulbellosom/atlas-web-builder": "0.5.1"
   },
   "peerDependencies": {
     "react": ">=18",

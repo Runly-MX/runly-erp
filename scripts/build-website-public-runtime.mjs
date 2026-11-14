@@ -9,7 +9,7 @@ export async function buildWebsitePublicRuntime(output) {
   const requireDesktop=createRequire(new URL('../apps/desktop/package.json',import.meta.url))
   const packageFile=resolve(dirname(requireDesktop.resolve('@raulbellosom/atlas-web-builder')),'..','package.json')
   const rendererVersion=JSON.parse(await readFile(packageFile,'utf8')).version
-  if(!['0.3.5','0.4.0','0.5.0'].includes(rendererVersion))throw new Error('Builder version requires an explicitly reviewed runtime update')
+  if(!['0.3.5','0.4.0','0.5.0','0.5.1'].includes(rendererVersion))throw new Error('Builder version requires an explicitly reviewed runtime update')
   const result=await build({absWorkingDir:root,entryPoints:['apps/desktop/src/website/public-release-entry.jsx'],bundle:true,write:false,outdir:'runtime',platform:'browser',format:'esm',jsx:'automatic',minify:true,metafile:true,define:{'process.env.NODE_ENV':'"production"','import.meta.env':'{"PROD":true,"DEV":false}'},loader:{'.woff2':'dataurl','.woff':'dataurl','.ttf':'dataurl'}})
   const inputs=Object.keys(result.metafile.inputs)
   if(inputs.some(p=>/AuthProvider|supabaseClient|shell\/|modules\/runly\./.test(p)))throw new Error('Public runtime imports an administrative entry')
