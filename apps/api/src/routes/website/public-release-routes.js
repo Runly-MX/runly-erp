@@ -47,7 +47,7 @@ export async function serveWebsiteRelease(c,gateway,path,runtime,ssr) {
    // Historical JSON is untrusted too. Preserve external legacy images while
    // denying executable markup, workers and administrative shell fallbacks.
    c.header('Content-Security-Policy',`default-src 'self'; script-src 'self'${challenge}; frame-src ${turnstile?'https://challenges.cloudflare.com':"'none'"}; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'; worker-src 'none'`)
-   return c.html(`<!doctype html><html lang="es" data-release="legacy"><head><meta charset="utf-8">${css?`<link rel="stylesheet" href="/public/website/runtime/${css.hash}">`:''}</head><body><div id="runly-public-root"></div><script type="module" src="/public/website/runtime/${js.hash}"></script></body></html>`)
+   return c.html(`<!doctype html><html lang="es" data-release="legacy"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">${css?`<link rel="stylesheet" href="/public/website/runtime/${css.hash}">`:''}</head><body><div id="runly-public-root"></div><script type="module" src="/public/website/runtime/${js.hash}"></script></body></html>`)
  }
  websiteReleasePath(path)
  const data=gateway.response(snapshot,path)
