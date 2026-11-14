@@ -175,7 +175,7 @@ try {
     assert.equal((await B.direct(hostA)).status, 404)
     await assert.rejects(clientA.activate(hostB), (e) => e.status === 404); await assert.rejects(clientA.release(hostB), (e) => e.status === 404)
     assert.equal((await viaEdge(`nunca-${suffix}.${namespace}`, '/', { 'x-forwarded-host': hostA })).status, 404)
-    const spoof = await viaEdge(hostB, '/', { 'x-forwarded-host': hostA, forwarded: `host=${hostA}`, 'x-forwarded-for': '1.2.3.4' })
+    const spoof = await viaEdge(hostB, '/', { 'x-forwarded-host': hostA, forwarded: `host=${hostA}`, 'x-forwarded-for': '192.0.2.4' })
     assert.equal(releaseOf(spoof.body), releaseB1, 'the connection Host decides; B content is never mixed with A')
     assert.equal((await viaEdge(hostA, '/app/login')).status >= 400, true, 'ERP administrative paths are not exposed on site hostnames')
     for (const path of ['/website/sites', '/auth/me', '/modules']) assert.equal((await viaEdge(hostA, path)).status >= 400 || !/"data"/.test((await viaEdge(hostA, path)).body), true, path)

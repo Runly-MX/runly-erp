@@ -1,7 +1,7 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -48,6 +48,37 @@ test('SSRF protocol constants have an exact exception, never arbitrary infrastru
   const inventoryFixture = 'apps/api/src/services/__tests__/inventory-item-import-service.test.js'
   assert.deepEqual(inspectFile(inventoryFixture, reserved), [])
   assert.equal(inspectFile(inventoryFixture, real)[0].rule, 'non-example-ipv4')
+})
+
+test('las excepciones SSRF conservan los casos adversariales sin permitir otros destinos', () => {
+  const files = [
+    'apps/api/src/routes/notes/append-images.js',
+    'apps/api/src/services/automation-http-service.js',
+    'apps/api/src/routes/notes/__tests__/append-images.test.js',
+    'apps/api/src/routes/notes/__tests__/append-to-note.test.js',
+    'apps/api/src/services/__tests__/automation-http-service.test.js',
+    'apps/api/src/services/catalog/__tests__/catalog-security.test.js',
+  ]
+  const unknown = [172, 30, 4, 5].join('.')
+  for (const file of files) {
+    const content = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')
+    assert.deepEqual(inspectFile(file, content), [], file)
+    assert.equal(inspectFile(file, unknown)[0].rule, 'non-example-ipv4', file)
+    assert.equal(inspectFile(file, 'gh' + 'p_' + 'A'.repeat(36))[0].rule, 'credential-pattern', file)
+  }
+  const fixtureAddress = [93, 184, 216, 34].join('.')
+  assert.equal(inspectFile('docs/example.md', fixtureAddress)[0].rule, 'non-example-ipv4')
+  assert.equal(inspectFile(files[0], fixtureAddress)[0].rule, 'non-example-ipv4')
+})
+
+test('la atribución OFL se conserva exactamente y no permite otros correos', () => {
+  const file = 'apps/desktop/public/studio-fonts/raleway-OFL.txt'
+  const content = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')
+  const email = 'someone@' + 'gmail.com'
+  assert.deepEqual(inspectFile(file, content), [])
+  assert.equal(inspectFile('docs/example.md', content)[0].rule, 'personal-email')
+  assert.equal(inspectFile(file, `${content}\n${email}`)[0].rule, 'personal-email')
+  assert.equal(inspectFile(file, content.replace(/\([^)]*\)/, `(${email})`))[0].rule, 'personal-email')
 })
 
 test('la comprobación staged lee el índice, aunque el archivo de trabajo esté limpio', () => {

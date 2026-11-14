@@ -215,13 +215,13 @@ Demostrado en laboratorio local desechable: lógica, permisos, aislamiento entre
 Una instalación puede administrar sus propios subdominios sin registro global. Configuración mínima en el env de la instalación:
 
 ```
-RUNLY_APP_URL=https://erp.ejemplo.com
-RUNLY_WEBSITE_NAMESPACE_ROOT=sitios.ejemplo.com
+RUNLY_APP_URL=https://erp.example.com
+RUNLY_WEBSITE_NAMESPACE_ROOT=sites.example.com
 RUNLY_WEBSITE_CONTENT_ROOT=<dominio registrable distinto del ERP, solo para ZIP>
 RUNLY_WEBSITE_PREVIEW_ROOT=<ídem, para vistas previas>
 ```
 
-- DNS: `*.sitios.ejemplo.com` apunta al servidor de la instalación (con TLS comodín). Ese namespace es exclusivo de esta instalación: dos instalaciones no pueden usar el mismo sin coordinación (para eso existe el registro).
+- DNS: `*.sites.example.com` apunta al servidor de la instalación (con TLS comodín). Ese namespace es exclusivo de esta instalación: dos instalaciones no pueden usar el mismo sin coordinación (para eso existe el registro).
 - No se necesitan `RUNLY_REGISTRY_URL`, `RUNLY_INSTALLATION_ID` ni `RUNLY_INSTALLATION_PRIVATE_KEY`. Si se define `RUNLY_REGISTRY_URL`, el registro decide los nombres; un registro mal configurado nunca cae a decisiones locales.
 - Los nombres se reservan desde Website > Dominios (validación de formato, nombres reservados y colisiones en la base de la instalación). Un nombre liberado o de un sitio eliminado queda retirado y atado a su sitio: no se borra ni se reasigna.
 - La raíz del hostname administrativo (`RUNLY_APP_URL`) redirige a `/app`; los sitios solo se sirven desde hostnames asignados y listos. `localhost` y `127.0.0.1` son siempre el ERP.

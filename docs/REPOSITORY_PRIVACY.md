@@ -68,3 +68,31 @@ No se reescribió el historial ni se publicó esta limpieza automáticamente.
 Si se necesita retirar esos datos del historial, hay que preparar una reescritura
 coordinada de ramas y etiquetas y gestionar las copias externas. Si se identifica
 una credencial real expuesta, revocarla o rotarla antes de limpiar el historial.
+
+## Cierre del gate — 14 de noviembre de 2026
+
+Se corrigieron los 72 hallazgos que bloqueaban la sincronización del ERP:
+los ejemplos de documentación y las fixtures de errores, webhooks y cabeceras
+usan destinos reservados y rutas ficticias. Se retiró una referencia a un
+archivo personal de planificación.
+
+Los rangos de denegación SSRF y sus fixtures adversariales se conservan intactos.
+El escáner reconoce sus constantes mediante excepciones de archivo y dirección
+exactos, sin excluir carpetas ni rangos completos. La atribución original de
+Raleway se conserva por exigencia de su licencia: la excepción solo admite la
+primera línea exacta del archivo OFL, identificada por SHA-256. Otros correos,
+credenciales y destinos no revisados siguen causando hallazgos.
+
+Validación local: privacidad global sin hallazgos, lint dirigido y 19 pruebas de
+privacidad, sanitización de exportación, entorno aislado y webhooks aprobadas.
+Las pruebas comprueban también el rechazo de destinos no autorizados y de
+cambios o añadidos a la atribución legal. No se repitieron las suites de
+interacción táctil ni las suites globales; sus fuentes funcionales no cambiaron.
+No se ejecutó Gitleaks en este cierre; el control de patrones de credenciales
+del escáner de privacidad no equivale a un análisis especializado de secretos.
+
+Este cierre sustituye el bloqueo de privacidad descrito como pendiente en las
+notas históricas de adopción de Atlas 0.4.0 y 0.5.0. No autoriza despliegues,
+migraciones ni actualizaciones de servidores. La auditoría iOS conserva el
+estado **PENDIENTE DE ACEPTACIÓN FÍSICA**; el bloqueo táctil original no se ha
+reproducido ni se considera resuelto.

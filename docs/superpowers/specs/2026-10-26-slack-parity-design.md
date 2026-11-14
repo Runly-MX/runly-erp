@@ -1,6 +1,6 @@
 # Slack parity gaps: integrations, digests, delivery checks and search (Work Platform, phase 6)
 
-Status: draft for approval. Roadmap source: `C:\Users\raulb\.claude\plans\pasted-content-id-468d-creo-que-luminous-waterfall.md`, item 6.
+Status: draft for approval. Roadmap source: the private phase 6 roadmap, item 6.
 
 ## Problem (verified in the code, 2026-10-26)
 

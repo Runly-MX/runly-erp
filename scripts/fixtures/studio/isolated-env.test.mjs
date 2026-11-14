@@ -21,6 +21,6 @@ test('isolated env blanks every name of the .env files, drops the rest of proces
 
 test('isolated env refuses remote or missing destinations', () => {
   assert.throws(() => isolatedEnv({ ...local, DATABASE_URL: 'postgresql://u:p@db.example.com:5432/postgres' }), /REMOTE_DESTINATION_DATABASE_URL/)
-  assert.throws(() => isolatedEnv({ ...local, SUPABASE_URL: 'https://project.supabase.co' }), /REMOTE_DESTINATION_SUPABASE_URL/)
+  assert.throws(() => isolatedEnv({ ...local, SUPABASE_URL: 'https://project.supabase.example' }), /REMOTE_DESTINATION_SUPABASE_URL/)
   assert.throws(() => isolatedEnv({ DIRECT_URL: local.DIRECT_URL }), /DESTINATIONS_REQUIRED/)
 })

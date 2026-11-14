@@ -13,7 +13,7 @@ test('flattenPayload turns nested JSON into safe, flat field names', () => {
 })
 
 test('origins: empty list allows everyone, otherwise IPs and networks', () => {
-  assert.equal(isOriginAllowed('8.8.8.8', []), true)
+  assert.equal(isOriginAllowed('192.0.2.8', []), true)
   assert.equal(isOriginAllowed('203.0.113.7', ['203.0.113.7']), true)
   assert.equal(isOriginAllowed('203.0.113.9', ['203.0.113.7']), false)
   assert.equal(isOriginAllowed('203.0.113.200', ['203.0.113.0/24']), true)
@@ -47,29 +47,29 @@ test('ingest validates the token, origin, size and format, stores the message an
   const prisma = fakePrisma()
   const svc = createAutomationWebhooksService({ prisma })
   const token = prisma.automation.webhookToken
-  const ok = await svc.ingest({ token, bodyText: JSON.stringify({ cliente: { nombre: 'Ana' }, total: 5 }), contentType: 'application/json', ip: '1.2.3.4' })
+  const ok = await svc.ingest({ token, bodyText: JSON.stringify({ cliente: { nombre: 'Ana' }, total: 5 }), contentType: 'application/json', ip: '192.0.2.4' })
   assert.equal(ok.received, 2)
   assert.deepEqual(prisma.outbox[0], { companyId: 'c1', event: 'automations.webhook.received', payload: { automationKey: 'pedido', data: { cliente_nombre: 'Ana', total: 5 } } })
-  assert.equal(prisma.events[0].sourceIp, '1.2.3.4')
+  assert.equal(prisma.events[0].sourceIp, '192.0.2.4')
 
-  await assert.rejects(svc.ingest({ token: 'x'.repeat(32), bodyText: '{}', ip: '1.1.1.1' }), (e) => e.status === 404)
-  await assert.rejects(svc.ingest({ token: 'corto', bodyText: '{}', ip: '1.1.1.1' }), (e) => e.status === 404)
-  await assert.rejects(svc.ingest({ token, bodyText: 'no json', contentType: 'application/json', ip: '1.1.1.1' }), (e) => e.status === 400)
-  await assert.rejects(svc.ingest({ token, bodyText: '5', contentType: 'application/json', ip: '1.1.1.1' }), (e) => e.status === 400)
-  await assert.rejects(svc.ingest({ token, bodyText: '{}', contentType: 'text/plain', ip: '1.1.1.1' }), (e) => e.status === 415)
-  await assert.rejects(svc.ingest({ token, bodyText: JSON.stringify({ x: 'y'.repeat(70000) }), contentType: 'application/json', ip: '1.1.1.1' }), (e) => e.status === 413)
+  await assert.rejects(svc.ingest({ token: 'x'.repeat(32), bodyText: '{}', ip: '192.0.2.1' }), (e) => e.status === 404)
+  await assert.rejects(svc.ingest({ token: 'corto', bodyText: '{}', ip: '192.0.2.1' }), (e) => e.status === 404)
+  await assert.rejects(svc.ingest({ token, bodyText: 'no json', contentType: 'application/json', ip: '192.0.2.1' }), (e) => e.status === 400)
+  await assert.rejects(svc.ingest({ token, bodyText: '5', contentType: 'application/json', ip: '192.0.2.1' }), (e) => e.status === 400)
+  await assert.rejects(svc.ingest({ token, bodyText: '{}', contentType: 'text/plain', ip: '192.0.2.1' }), (e) => e.status === 415)
+  await assert.rejects(svc.ingest({ token, bodyText: JSON.stringify({ x: 'y'.repeat(70000) }), contentType: 'application/json', ip: '192.0.2.1' }), (e) => e.status === 413)
   prisma.automation.enabled = false
-  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '1.1.1.1' }), (e) => e.status === 404)
+  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '192.0.2.1' }), (e) => e.status === 404)
 })
 
 test('a configured origin list blocks other senders; the list is validated', async () => {
   const prisma = fakePrisma()
   const svc = createAutomationWebhooksService({ prisma })
   await assert.rejects(svc.setOrigins(['no es ip']), /no es una dirección IP/)
-  await assert.rejects(svc.setOrigins(['10.0.0.0/99']), /no es una dirección IP/)
+  await assert.rejects(svc.setOrigins(['192.0.2.0/99']), /no es una dirección IP/)
   assert.deepEqual(await svc.setOrigins([' 203.0.113.0/24 ', '203.0.113.0/24', '2001:db8::1']), ['203.0.113.0/24', '2001:db8::1'])
   const token = prisma.automation.webhookToken
-  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '8.8.8.8' }), (e) => e.status === 403)
+  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '192.0.2.8' }), (e) => e.status === 403)
   assert.ok(await svc.ingest({ token, bodyText: '{}', ip: '203.0.113.50' }))
 })
 
@@ -78,11 +78,11 @@ test('only the last 20 messages are kept and the rate limit answers 429', async 
   let clock = 1_000_000
   const svc = createAutomationWebhooksService({ prisma, now: () => new Date(clock) })
   const token = prisma.automation.webhookToken
-  for (let i = 0; i < 60; i += 1) await svc.ingest({ token, bodyText: JSON.stringify({ n: i }), ip: '1.1.1.1' })
+  for (let i = 0; i < 60; i += 1) await svc.ingest({ token, bodyText: JSON.stringify({ n: i }), ip: '192.0.2.1' })
   assert.equal(prisma.events.length, 20)
-  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '1.1.1.1' }), (e) => e.status === 429)
+  await assert.rejects(svc.ingest({ token, bodyText: '{}', ip: '192.0.2.1' }), (e) => e.status === 429)
   clock += 61_000
-  assert.ok(await svc.ingest({ token, bodyText: '{}', ip: '1.1.1.1' }))
+  assert.ok(await svc.ingest({ token, bodyText: '{}', ip: '192.0.2.1' }))
 })
 
 test('a webhook message runs only its automation, with the fields as data', async () => {
