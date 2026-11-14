@@ -32,8 +32,7 @@
       "Read",
       "Edit",
       "Write",
-      "Read(//tmp/**)",
-      "mcp__plugin_runly-developer_runly-developer__runly_resources_list"
+      "Read(//tmp/**)"
     ],
     "deny": [
       "Bash(git reset --hard)",
