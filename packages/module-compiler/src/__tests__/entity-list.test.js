@@ -52,11 +52,20 @@ test('the generated table and list query follow entity.list', () => {
   assert.ok(table.indexOf("field: 'foto'") < table.indexOf("field: 'nombre'") && table.indexOf("field: 'nombre'") < table.indexOf("field: 'monto'"))
   assert.match(table, /field: 'estado'.*type: 'select', options: \[\{"value":"NEW","label":"Nuevo","color":"blue"\}/)
   assert.match(table, /field: 'entrega'.*type: 'datetime'/)
-  assert.match(file(LIST, 'orden-service.js'), /ORDER BY t\.entrega ASC NULLS LAST, t\.created_at DESC/)
+  assert.match(file(LIST, 'orden-service.js'), /t\.entrega ASC NULLS LAST, t\.created_at DESC, t\.id DESC/)
 })
 
 test('without entity.list the table keeps its legacy shape', () => {
   const table = file(undefined, 'orden.table.js')
   assert.doesNotMatch(table, /primaryField|defaultViewMode|filters:/)
-  assert.match(file(undefined, 'orden-service.js'), /ORDER BY t\.created_at DESC\n/)
+  assert.match(file(undefined, 'orden-service.js'), /t\.created_at DESC, t\.id DESC\n/)
+})
+
+test('sort controls match generated request parameters and supported SQL fields', () => {
+  const service = file(LIST, 'orden-service.js')
+  assert.match(file(LIST, 'orden-routes.js'), /sortBy: c.req.query\('sortBy'\)/)
+  assert.match(file(LIST, 'orden-routes.js'), /sortDir: c.req.query\('sortDir'\)/)
+  assert.match(service, /CASE WHEN \$\{sortBy\}::text = 'monto' AND \$\{sortDir\}::text = 'asc' THEN t.monto END ASC NULLS LAST/)
+  assert.doesNotMatch(service, /THEN t\.(foto|extra) END/)
+  assert.doesNotMatch(file(LIST, 'orden.table.js'), /field: 'foto'.*sortable: true/)
 })

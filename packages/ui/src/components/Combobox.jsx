@@ -216,6 +216,8 @@ export const Combobox = forwardRef(function Combobox(
   // ── Actions ────────────────────────────────────────────────────────────────
   function handleOpen() {
     if (disabled) return;
+    // WebKit clicks need an explicit focus origin before entering the portal.
+    if (!open) triggerRef.current?.focus({ preventScroll: true });
     togglePopover(() => {
       if (options.length === 0 && !loading) onSearchChange?.("");
     });

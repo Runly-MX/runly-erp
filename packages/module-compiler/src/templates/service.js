@@ -1,6 +1,6 @@
 import { toPascal, moduleSlug } from './helpers.js'
 import { isSameModuleRelation } from '../relations.js'
-import { listOrderBy } from '../list-config.js'
+import { listOrderBy, listRequestedOrderBy } from '../list-config.js'
 import { hasInboundRules, hasRelationsModule, outboundRelations, relationLabelSql } from './relations.js'
 
 function toPascalSimple(str) {
@@ -73,7 +73,7 @@ function buildListFn(pascal, table, entity, companyScoped, softDelete, firstText
       .join('')
 
   const lines = []
-  lines.push(`async function list${pascal}s({ companyId, page, pageSize${searchParam}${filterParams} }) {`)
+  lines.push(`async function list${pascal}s({ companyId, page, pageSize, sortBy = null, sortDir = 'asc'${searchParam}${filterParams} }) {`)
   lines.push(safeCompany.trimEnd())
   lines.push('  const pagination = normalizePagination({ page, pageSize })')
   if (firstTextField) {
@@ -89,7 +89,7 @@ function buildListFn(pascal, table, entity, companyScoped, softDelete, firstText
   lines.push('  const [rows, totalRows] = await withDbErrorMapping(async () => {')
   lines.push('    const data = await prisma.$queryRaw`')
   lines.push('      SELECT t.*' + rel.sql.select + ' FROM ' + table + ' t' + rel.sql.joins + companyFilter + enabledFilter + searchFilter + fieldFilters)
-  lines.push('      ORDER BY ' + listOrderBy(entity))
+  lines.push('      ORDER BY ' + listRequestedOrderBy(entity) + ',\n        ' + listOrderBy(entity) + ', t.id DESC')
   lines.push('      LIMIT ${pagination.pageSize} OFFSET ${pagination.offset}')
   lines.push('    `')
   lines.push('    const count = await prisma.$queryRaw`')

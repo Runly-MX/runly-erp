@@ -30,6 +30,7 @@ export function generateRoutes(config, entity) {
   const filterServiceParams = selectFields.map((f) => ' ' + f.name + ': ' + f.name + ',').join('')
 
   const listParams = ['page: c.req.query(\'page\')', 'pageSize: c.req.query(\'pageSize\')', 'search: c.req.query(\'search\')']
+  listParams.push("sortBy: c.req.query('sortBy') ?? null", "sortDir: c.req.query('sortDir') ?? 'asc'")
   if (filterServiceParams) listParams.push(filterServiceParams.trim().replace(/,$/, ''))
 
   return `import { Hono } from 'hono'

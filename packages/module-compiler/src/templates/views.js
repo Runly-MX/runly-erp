@@ -2,7 +2,7 @@ import { moduleSlug, permKey, toKebab } from './helpers.js'
 import { entityFilePaths, fileFieldProps, generateLayoutDetailView, generateLayoutFormView, getDetailTypeHint, mapFormFieldType, relationLabelField } from './layout-views.js'
 import { isSameModuleRelation } from '../relations.js'
 import { isExternalRelation } from '../external-relations.js'
-import { listColumns, listSchemaExtras } from '../list-config.js'
+import { listColumns, listSchemaExtras, isListSortableField } from '../list-config.js'
 
 export function generateTableView(config, entity) {
   const slug = moduleSlug(config.key)
@@ -18,7 +18,7 @@ export function generateTableView(config, entity) {
     // entity.list opts into badges for select fields (RunlyTable colors them).
     const typeHint = f.type === 'select' && entity.list ? 'select' : format === 'number' ? 'number' : getColumnTypeHint(f.type, format)
     const options = typeHint === 'select' ? `, options: ${JSON.stringify((f.optionDetails ?? f.options ?? []).map((o) => (typeof o === 'string' ? { value: o, label: o } : o)))}` : ''
-    const base = `      { field: '${f.name}', label: '${f.label || f.name}', sortable: true${list.primaryField === f.name ? ', primary: true' : ''}`
+    const base = `      { field: '${f.name}', label: '${f.label || f.name}', sortable: ${isListSortableField(f)}${list.primaryField === f.name ? ', primary: true' : ''}`
     return typeHint ? base + `, type: '${typeHint}'${options} },` : base + ' },'
   }
   const columns = listColumns(entity, { column: columnSource }).join('\n')

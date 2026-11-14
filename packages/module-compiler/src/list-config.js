@@ -16,6 +16,7 @@ export const LIST_FORMATS = Object.freeze({
   datetime: ['datetime', 'date'],
 })
 const NOT_SORTABLE = new Set(['relation', 'file', 'json', 'multiselect', 'richtext', 'markdown'])
+export const isListSortableField = (field) => !NOT_SORTABLE.has(field.type)
 const NOT_COLUMN = new Set(['json'])
 
 const diagnostic = (path, code, message) => ({ path, code, message, severity: 'error' })
@@ -105,4 +106,13 @@ export function listOrderBy(entity) {
   if (!sort) return 't.created_at DESC'
   const direction = sort.direction === 'asc' ? 'ASC' : 'DESC'
   return `t.${sort.field} ${direction} NULLS LAST, t.created_at DESC`
+}
+
+// Separate CASE expressions preserve each column's SQL type. Request values
+// stay bound parameters; only compiler-validated field names enter SQL.
+export function listRequestedOrderBy(entity) {
+  const fields = [...new Set([...entity.fields.filter(isListSortableField).map(fieldKey), ...LIST_SORT_SYSTEM_FIELDS])]
+  return fields.flatMap((field) => ['asc', 'desc'].map((direction) =>
+    `CASE WHEN \${sortBy}::text = '${field}' AND \${sortDir}::text = '${direction}' THEN t.${field} END ${direction.toUpperCase()} NULLS LAST`,
+  )).join(',\n        ')
 }

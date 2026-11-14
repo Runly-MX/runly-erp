@@ -48,6 +48,7 @@ jobs:
         run: |
           pnpm --filter @runly/core --filter @runly/module-engine test
           node --test packages/module-compiler/src/__tests__/archive.test.js packages/module-compiler/src/__tests__/package-contracts.test.js packages/module-compiler/src/__tests__/static-inspection.test.js
+          node --test packages/module-compiler/src/__tests__/entity-list.test.js packages/module-compiler/src/__tests__/entity-list-integration.test.js
           node --test scripts/tests/shared-package-release.test.mjs
       - name: Build and validate package contents
         env:
