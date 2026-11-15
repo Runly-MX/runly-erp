@@ -1,7 +1,4 @@
-import {
-  COMPANY_ADMIN_ROLE_KEYS,
-  SYSTEM_ADMIN_ROLE_KEYS,
-} from "../lib/tenant-context.js";
+import { resolveGrowthManagerUserIds } from "../lib/growth-managers.js";
 
 const DEFAULT_INACTIVITY_HOURS = 48;
 
@@ -18,31 +15,7 @@ export function createGrowthPropertyHealthWorker({
     process.env.RUNLY_GROWTH_INACTIVITY_HOURS ?? DEFAULT_INACTIVITY_HOURS,
   ),
 }) {
-  async function resolveManagerUserIds(companyId) {
-    const memberships = await prisma.membership.findMany({
-      where: { companyId, enabled: true, company: { enabled: true } },
-      include: {
-        role: {
-          include: {
-            permissions: { include: { permission: { select: { key: true } } } },
-          },
-        },
-      },
-    });
-    const userIds = memberships
-      .filter((membership) => membership.role?.enabled !== false)
-      .filter((membership) => {
-        const roleKey = membership.role?.key;
-        if (COMPANY_ADMIN_ROLE_KEYS.has(roleKey) || SYSTEM_ADMIN_ROLE_KEYS.has(roleKey)) {
-          return true;
-        }
-        return (membership.role?.permissions ?? []).some(
-          (rolePermission) => rolePermission.permission?.key === "growth.properties.manage",
-        );
-      })
-      .map((membership) => membership.userId);
-    return [...new Set(userIds)];
-  }
+  const resolveManagerUserIds = (companyId) => resolveGrowthManagerUserIds(prisma, companyId);
 
   async function lastEventAt(siteId) {
     const lastEvent = await prisma.growthEvent.findFirst({

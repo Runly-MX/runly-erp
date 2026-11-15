@@ -42,6 +42,24 @@ export function createGrowthDomain({
         headers: withAuthHeaders(token),
       }),
 
+    listMonitors: (token, { propertyId } = {}) =>
+      request(`/growth/monitors${toQueryString({ propertyId })}`, { headers: withAuthHeaders(token) }),
+
+    createMonitor: (payload, token) =>
+      request("/growth/monitors", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(payload) }),
+
+    updateMonitor: (monitorId, payload, token) =>
+      request(`/growth/monitors/${encodeURIComponent(monitorId)}`, { method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(payload) }),
+
+    disableMonitor: (monitorId, token) =>
+      request(`/growth/monitors/${encodeURIComponent(monitorId)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
+
+    checkMonitorNow: (monitorId, token) =>
+      request(`/growth/monitors/${encodeURIComponent(monitorId)}/check`, { method: "POST", headers: withAuthHeaders(token) }),
+
+    listMonitorIncidents: (token, { propertyId } = {}) =>
+      request(`/growth/incidents${toQueryString({ propertyId })}`, { headers: withAuthHeaders(token) }),
+
     listForms: (token, { propertyId } = {}) =>
       request(`/growth/forms${toQueryString({ propertyId })}`, {
         headers: withAuthHeaders(token),

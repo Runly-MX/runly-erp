@@ -471,6 +471,13 @@ export const runlyGrowthManifest = createModuleManifest({
       permissionKey: "growth.access",
     },
     {
+      label: "Monitores",
+      path: "/monitors",
+      icon: "Activity",
+      layout: "main",
+      permissionKey: "growth.access",
+    },
+    {
       label: "Formularios",
       path: "/forms",
       icon: "FileText",

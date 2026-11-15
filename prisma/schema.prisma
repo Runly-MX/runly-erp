@@ -1887,6 +1887,58 @@ model GrowthProperty {
   @@map("growth_property")
 }
 
+model GrowthMonitor {
+  id                  String    @id @default(uuid(7)) @db.Uuid
+  companyId           String    @db.Uuid @map("company_id")
+  propertyId          String    @db.Uuid @map("property_id")
+  type                String    @default("http")
+  name                String
+  config              Json
+  intervalSeconds     Int       @default(300) @map("interval_seconds")
+  enabled             Boolean   @default(true)
+  status              String    @default("unknown")
+  consecutiveFailures Int       @default(0) @map("consecutive_failures")
+  lastCheckedAt       DateTime? @map("last_checked_at")
+  lastChangeAt        DateTime? @map("last_change_at")
+  lastError           String?   @map("last_error")
+  createdAt           DateTime  @default(now()) @map("created_at")
+  updatedAt           DateTime  @updatedAt @map("updated_at")
+
+  @@index([enabled, lastCheckedAt])
+  @@index([companyId, propertyId])
+  @@map("growth_monitor")
+}
+
+model GrowthMonitorCheck {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  monitorId  String   @db.Uuid @map("monitor_id")
+  checkedAt  DateTime @default(now()) @map("checked_at")
+  ok         Boolean
+  statusCode Int?     @map("status_code")
+  latencyMs  Int?     @map("latency_ms")
+  error      String?
+  detail     Json?
+
+  @@index([monitorId, checkedAt(sort: Desc)])
+  @@index([checkedAt])
+  @@map("growth_monitor_check")
+}
+
+model GrowthIncident {
+  id             String    @id @default(uuid(7)) @db.Uuid
+  companyId      String    @db.Uuid @map("company_id")
+  monitorId      String    @db.Uuid @map("monitor_id")
+  startedAt      DateTime  @default(now()) @map("started_at")
+  resolvedAt     DateTime? @map("resolved_at")
+  cause          String?
+  lastNotifiedAt DateTime? @map("last_notified_at")
+
+  @@index([companyId, resolvedAt])
+  @@index([monitorId, startedAt(sort: Desc)])
+  @@map("growth_incident")
+}
+
 model EntityComment {
   id         String    @id @default(uuid(7)) @db.Uuid
   companyId  String    @db.Uuid @map("company_id")

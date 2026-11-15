@@ -9,6 +9,9 @@ import { createGrowthLeadRoutes } from "./growth-lead-routes.js";
 import { createGrowthLeadService } from "./growth-lead-service.js";
 import { createGrowthPropertyRoutes } from "./growth-property-routes.js";
 import { createGrowthPropertyService } from "./growth-property-service.js";
+import { createGrowthMonitorRoutes } from "./growth-monitor-routes.js";
+import { createGrowthMonitorService } from "./growth-monitor-service.js";
+import { createGrowthMonitorWorker } from "../../services/growth-monitor-worker.js";
 import { createGrowthFormRoutes } from "./growth-form-routes.js";
 import { createFormsService } from "../../services/forms-service.js";
 
@@ -45,5 +48,10 @@ export function createGrowthRouter({
     "",
     createGrowthFormRoutes({ formsService, growthPropertyService: propertyService, requirePermission }),
   );
+  const monitorService = createGrowthMonitorService({
+    prisma,
+    worker: createGrowthMonitorWorker({ prisma, notificationService }),
+  });
+  app.route("", createGrowthMonitorRoutes({ service: monitorService, requirePermission }));
   return app;
 }
