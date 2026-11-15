@@ -1940,6 +1940,20 @@ model GrowthIncident {
   @@map("growth_incident")
 }
 
+model GrowthStatusPage {
+  id         String   @id @default(uuid(7)) @db.Uuid
+  companyId  String   @db.Uuid @map("company_id")
+  propertyId String   @unique @db.Uuid @map("property_id")
+  slug       String   @unique
+  title      String
+  enabled    Boolean  @default(false)
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  @@index([companyId])
+  @@map("growth_status_page")
+}
+
 model EntityComment {
   id         String    @id @default(uuid(7)) @db.Uuid
   companyId  String    @db.Uuid @map("company_id")

@@ -63,6 +63,16 @@ export function createGrowthDomain({
     setMonitorMaintenance: (monitorId, minutes, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/maintenance`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify({ minutes }) }),
 
+    getPublicStatusPage: (slug) => request(`/public/status/${encodeURIComponent(slug)}`),
+
+    listStatusPages: (token) => request("/growth/status-pages", { headers: withAuthHeaders(token) }),
+
+    saveStatusPage: (propertyId, payload, token) =>
+      request(`/growth/status-pages/${encodeURIComponent(propertyId)}`, { method: "PUT", headers: withAuthHeaders(token), body: JSON.stringify(payload) }),
+
+    regenerateStatusPageLink: (propertyId, token) =>
+      request(`/growth/status-pages/${encodeURIComponent(propertyId)}/slug`, { method: "POST", headers: withAuthHeaders(token) }),
+
     checkMonitorNow: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/check`, { method: "POST", headers: withAuthHeaders(token) }),
 

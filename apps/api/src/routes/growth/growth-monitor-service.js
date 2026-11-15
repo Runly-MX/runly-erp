@@ -103,8 +103,10 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
 
   async function listMonitors({ companyId, propertyId = null }) {
     await ensureDefaultMonitors(companyId);
+    // Monitors of disabled sites stay stored but are not listed.
+    const live = await prisma.growthProperty.findMany({ where: { companyId, enabled: true }, select: { id: true } });
     const monitors = await prisma.growthMonitor.findMany({
-      where: { companyId, ...(propertyId ? { propertyId } : {}) },
+      where: { companyId, propertyId: propertyId ? { equals: propertyId, in: live.map((p) => p.id) } : { in: live.map((p) => p.id) } },
       orderBy: [{ propertyId: "asc" }, { createdAt: "asc" }],
     });
     const at = now();
@@ -217,11 +219,11 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
   }
 
   async function listIncidents({ companyId, propertyId = null, limit = 50 }) {
-    const monitorIds = propertyId
-      ? (await prisma.growthMonitor.findMany({ where: { companyId, propertyId }, select: { id: true } })).map((m) => m.id)
-      : null;
+    // Same visibility rule as the monitor list: incidents of disabled sites are not shown.
+    const live = await prisma.growthProperty.findMany({ where: { companyId, enabled: true, ...(propertyId ? { id: propertyId } : {}) }, select: { id: true } });
+    const monitorIds = (await prisma.growthMonitor.findMany({ where: { companyId, propertyId: { in: live.map((p) => p.id) } }, select: { id: true } })).map((m) => m.id);
     return prisma.growthIncident.findMany({
-      where: { companyId, ...(monitorIds ? { monitorId: { in: monitorIds } } : {}) },
+      where: { companyId, monitorId: { in: monitorIds } },
       orderBy: { startedAt: "desc" },
       take: Math.min(limit, 200),
     });

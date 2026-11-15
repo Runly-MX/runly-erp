@@ -8,7 +8,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Activity, Link2, Pencil, Play, Plus, Search, Trash2, Wrench } from "lucide-react";
+import { Activity, Globe, Link2, Pencil, Play, Plus, Search, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -17,6 +17,7 @@ import { MonitorConnectionDialog } from "../components/MonitorConnectionDialog.j
 import { MonitorDetectDialog } from "../components/MonitorDetectDialog.jsx";
 import { MonitorDialog } from "../components/MonitorDialog.jsx";
 import { MonitorMaintenanceDialog } from "../components/MonitorMaintenanceDialog.jsx";
+import { StatusPageDialog } from "../components/StatusPageDialog.jsx";
 
 const STATUS_LABEL = {
   up: "En linea",
@@ -50,7 +51,9 @@ function formatDateTime(value) {
 }
 
 export default function GrowthMonitorsScreen() {
-  const { token, permissions = [], userProfile } = useAuth();
+  const { session, userProfile } = useAuth();
+  const token = session?.access_token;
+  const permissions = userProfile?.permissions ?? [];
   const canAccess = Boolean(userProfile?.isAdmin || permissions.includes("growth.access"));
   const canManage = Boolean(userProfile?.isAdmin || permissions.includes("growth.properties.manage"));
   const queryClient = useQueryClient();
@@ -59,6 +62,7 @@ export default function GrowthMonitorsScreen() {
   const [checkingId, setCheckingId] = useState(null);
   const [detectOpen, setDetectOpen] = useState(false);
   const [maintenanceTarget, setMaintenanceTarget] = useState(null);
+  const [statusOpen, setStatusOpen] = useState(false);
   const [connection, setConnection] = useState(null);
 
   const monitorsQuery = useQuery({
@@ -77,6 +81,22 @@ export default function GrowthMonitorsScreen() {
     queryFn: () => runly.growth.listMonitorIncidents(token),
     enabled: Boolean(token && canAccess),
     refetchInterval: 60_000,
+  });
+
+  const statusPagesQuery = useQuery({
+    queryKey: ["growth", "status-pages"],
+    queryFn: () => runly.growth.listStatusPages(token),
+    enabled: Boolean(token && canAccess),
+  });
+
+  const statusPageMutation = useMutation({
+    mutationFn: ({ propertyId, payload, regenerate }) =>
+      regenerate ? runly.growth.regenerateStatusPageLink(propertyId, token) : runly.growth.saveStatusPage(propertyId, payload, token),
+    onSuccess: (_res, { regenerate }) => {
+      toast.success(regenerate ? "Enlace nuevo generado" : "Pagina de estado guardada");
+      queryClient.invalidateQueries({ queryKey: ["growth", "status-pages"] });
+    },
+    onError: (err) => toast.error(err?.message || "No se pudo guardar la pagina de estado"),
   });
 
   const refresh = () => {
@@ -186,43 +206,40 @@ export default function GrowthMonitorsScreen() {
           </div>
         ),
       },
-      { id: "uptime", header: "Uptime 24 h / 30 d", cell: ({ row }) => `${pct(row.original.uptime24h)} / ${pct(row.original.uptime30d)}` },
+      { id: "uptime", header: "Uptime", cell: ({ row }) => `${pct(row.original.uptime24h)} / ${pct(row.original.uptime30d)}` },
       {
         id: "metric",
-        header: "Latencia / vencimiento",
+        header: "Latencia",
         cell: ({ row }) =>
           row.original.type === "ssl" || row.original.type === "domain"
             ? row.original.sslDaysLeft == null ? "-" : `${row.original.sslDaysLeft} dias`
             : row.original.latestLatencyMs == null ? "-" : `${row.original.latestLatencyMs} ms`,
       },
-      { id: "checked", header: "Ultima revision", cell: ({ row }) => formatDateTime(row.original.lastCheckedAt) },
+      { id: "checked", header: "Revision", cell: ({ row }) => formatDateTime(row.original.lastCheckedAt) },
       ...(canManage
         ? [
             {
               id: "actions",
               header: "",
               cell: ({ row }) => (
-                <div className="flex justify-end gap-2">
-                  <Button type="button" variant="outline" size="sm" disabled={checkingId === row.original.id} onClick={() => handleCheckNow(row.original)}>
-                    <Play className="mr-1.5 h-3.5 w-3.5" />
-                    {checkingId === row.original.id ? "Probando..." : "Probar ahora"}
+                <div className="flex justify-end gap-1.5">
+                  <Button type="button" variant="outline" size="icon" title="Probar ahora" aria-label="Probar ahora" disabled={checkingId === row.original.id} onClick={() => handleCheckNow(row.original)}>
+                    <Play className="h-4 w-4" />
                   </Button>
                   {row.original.type === "heartbeat" ? (
-                    <Button type="button" variant="outline" size="sm" onClick={() => setConnection({ monitor: row.original, token: null })}>
-                      <Link2 className="mr-1.5 h-3.5 w-3.5" />
-                      Conexion
+                    <Button type="button" variant="outline" size="icon" title="Conexion" aria-label="Conexion" onClick={() => setConnection({ monitor: row.original, token: null })}>
+                      <Link2 className="h-4 w-4" />
                     </Button>
                   ) : null}
-                  <Button type="button" variant="outline" size="sm" aria-label="Mantenimiento" onClick={() => setMaintenanceTarget(row.original)}>
-                    <Wrench className="h-3.5 w-3.5" />
+                  <Button type="button" variant="outline" size="icon" title="Mantenimiento" aria-label="Mantenimiento" onClick={() => setMaintenanceTarget(row.original)}>
+                    <Wrench className="h-4 w-4" />
                   </Button>
-                  <Button type="button" variant="outline" size="sm" onClick={() => setDialogTarget(row.original)}>
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                    Editar
+                  <Button type="button" variant="outline" size="icon" title="Editar" aria-label="Editar" onClick={() => setDialogTarget(row.original)}>
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   {row.original.enabled ? (
-                    <Button type="button" variant="outline" size="sm" aria-label="Desactivar monitor" onClick={() => setDeleteTarget(row.original)}>
-                      <Trash2 className="h-3.5 w-3.5" />
+                    <Button type="button" variant="outline" size="icon" title="Desactivar" aria-label="Desactivar monitor" onClick={() => setDeleteTarget(row.original)}>
+                      <Trash2 className="h-4 w-4" />
                     </Button>
                   ) : null}
                 </div>
@@ -256,6 +273,10 @@ export default function GrowthMonitorsScreen() {
         actions={
           canManage ? (
             <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setStatusOpen(true)}>
+                <Globe className="mr-2 h-4 w-4" />
+                Pagina de estado
+              </Button>
               <Button type="button" variant="outline" onClick={() => setDetectOpen(true)}>
                 <Search className="mr-2 h-4 w-4" />
                 Detectar y crear
@@ -325,6 +346,16 @@ export default function GrowthMonitorsScreen() {
         properties={properties}
         onDetect={(url) => runly.growth.discoverMonitors({ url }, token)}
         onCreate={handleCreateDetected}
+      />
+
+      <StatusPageDialog
+        open={statusOpen}
+        onOpenChange={setStatusOpen}
+        properties={properties}
+        pages={statusPagesQuery.data?.data ?? []}
+        saving={statusPageMutation.isPending}
+        onSave={(propertyId, payload) => statusPageMutation.mutate({ propertyId, payload })}
+        onRegenerate={(propertyId) => statusPageMutation.mutate({ propertyId, regenerate: true })}
       />
 
       <MonitorMaintenanceDialog
