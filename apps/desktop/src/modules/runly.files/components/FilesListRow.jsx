@@ -52,6 +52,7 @@ export function FilesListRow({
   layout,
   widths,
   canDrag,
+  summary,
   thumbResolver,
   menu: rawMenu,
   onClick,
@@ -113,7 +114,7 @@ export function FilesListRow({
             {isFolder && data.scope === "COMPANY" && <Users className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" />}
           </p>
           <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
-            {isFolder ? `${data.fileCount} ${data.fileCount === 1 ? "archivo" : "archivos"}` : formatBytes(data.sizeBytes)}
+            {isFolder ? summary : formatBytes(data.sizeBytes)}
             {layout.compact && <span> · {shortDate(when)}</span>}
             {!isFolder && data.enabled === false && (
               <span className="ml-1.5 rounded bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] font-medium" title="Archivo deshabilitado: no se puede abrir ni compartir hasta que lo habilites">

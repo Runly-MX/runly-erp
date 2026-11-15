@@ -1093,7 +1093,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       createOfficeSession: (id, mode = 'auto', token) => request(`/files/${encodeURIComponent(id)}/office/session`, {
         method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ mode }), onlineOnly: true,
       }),
-      upload: (formData, token, { onProgress } = {}) => {
+      upload: (formData, token, { onProgress, signal } = {}) => {
         if (!onProgress || typeof XMLHttpRequest === "undefined") {
           return request("/files/upload", { method: "POST", headers: withAuthHeaders(token), body: formData });
         }
@@ -1102,6 +1102,10 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           const xhr = new XMLHttpRequest();
           xhr.open("POST", `${baseUrl}/files/upload`);
           for (const [k, v] of Object.entries(withAuthHeaders(token) ?? {})) xhr.setRequestHeader(k, v);
+          const cancelled = () => Object.assign(new Error("Carga cancelada"), { name: "AbortError" });
+          if (signal?.aborted) return reject(cancelled());
+          signal?.addEventListener("abort", () => xhr.abort(), { once: true });
+          xhr.onabort = () => reject(cancelled());
           xhr.upload.onprogress = (e) => e.lengthComputable && onProgress(e.loaded / e.total);
           xhr.onerror = () => reject(new Error("Error de red al subir el archivo"));
           xhr.onload = () => {

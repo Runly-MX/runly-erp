@@ -163,6 +163,7 @@ export {
 } from "./components/Table.jsx";
 export { DataTable } from "./components/DataTable.jsx";
 export { MediaGallery, MediaThumb, FileTile } from "./components/MediaGallery.jsx";
+export { useGridZoom, defaultGridColumns, gridZoomBounds } from "./hooks/useGridZoom.js";
 export { createUrlBatcher } from "./lib/lazy-media.js";
 export { groupMedia } from "./lib/media-grouping.js";
 export {

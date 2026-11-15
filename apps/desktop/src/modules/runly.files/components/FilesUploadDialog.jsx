@@ -38,7 +38,11 @@ export function FilesUploadDialog({
         />
         <FileUploader
           multiple
-          onUploadMany={onUploadMany}
+          // The transfers continue in the progress card: close this dialog right away.
+          onUploadMany={(files) => {
+            onOpenChange(false);
+            onUploadMany(files);
+          }}
           maxSizeMB={10}
           accept="image/*,application/pdf,text/*,.csv,.xlsx,.doc,.docx,.pptx,.md"
           disabled={disabled}

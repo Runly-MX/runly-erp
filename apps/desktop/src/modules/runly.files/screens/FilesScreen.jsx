@@ -115,7 +115,7 @@ export default function FilesScreen() {
     );
   }
   const dock = useAreaTreeDock("runly.files.folderTree");
-  const { viewMode, changeView, tileSize, setTileSize, previewOpen, setPreviewOpen } = useFilesViewPrefs();
+  const { viewMode, changeView, zoom, previewOpen, setPreviewOpen } = useFilesViewPrefs();
   const [moveFileIds, setMoveFileIds] = useState(null);
   const [moveFolderIds, setMoveFolderIds] = useState([]);
   const [folderSelIds, setFolderSelIds] = useState([]);
@@ -265,7 +265,7 @@ export default function FilesScreen() {
     },
   });
 
-  const { uploadQueue, setUploadQueue, isDragOver, handleUploadFiles } = useFilesUpload({
+  const uploads = useFilesUpload({
     token,
     canUploadFiles,
     shareWithCompany,
@@ -634,7 +634,7 @@ export default function FilesScreen() {
         <FilesUploadDialog
           open={showUpload}
           onOpenChange={setShowUpload}
-          onUploadMany={handleUploadFiles}
+          onUploadMany={uploads.handleUploadFiles}
           disabled={!canUploadFiles}
           shareWithCompany={shareWithCompany}
           onShareWithCompanyChange={setShareWithCompany}
@@ -708,8 +708,7 @@ export default function FilesScreen() {
               onFiltersChange={explorer.setFilters}
               viewMode={viewMode}
               onViewModeChange={changeView}
-              tileSize={tileSize}
-              onTileSizeChange={setTileSize}
+              zoom={zoom}
               previewOpen={previewOpen}
               onPreviewToggle={() => setPreviewOpen(!previewOpen)}
               onSelectVisible={explorer.selectVisible}
@@ -749,7 +748,8 @@ export default function FilesScreen() {
             ) : (
               <FilesExplorer
                 view={viewMode}
-                tileSize={tileSize}
+                zoom={zoom}
+                allFolders={folderApi.folders}
                 folders={subfolders}
                 files={explorer.filteredFiles}
                 selectedFileIds={explorer.selectedIds}
@@ -836,7 +836,20 @@ export default function FilesScreen() {
           onMove={hasPermission("files.assets.update") ? () => moveItems({ fileIds: explorer.selectedIds, folderIds: folderSelIds.filter((id) => folderApi.folders.some((f) => f.id === id && folderActions.canManage(f))) }) : null}
         />
       )}
-      <FilesUploadQueue isDragOver={isDragOver} queue={uploadQueue} onClear={() => setUploadQueue([])} dropTarget={dropTarget} />
+      <FilesUploadQueue
+        isDragOver={uploads.isDragOver}
+        queue={uploads.uploadQueue}
+        dropTarget={dropTarget}
+        open={uploads.panelOpen}
+        onOpenChange={uploads.setPanelOpen}
+        collapsed={uploads.collapsed}
+        onCollapsedChange={uploads.setCollapsed}
+        onRemove={uploads.removeItem}
+        onRetry={uploads.retryItem}
+        onClearFinished={uploads.clearFinished}
+        onCancelAll={uploads.cancelAll}
+        canRetry={uploads.canRetry}
+      />
 
       <AdvancedFileViewer
         open={viewerOpen}
@@ -847,7 +860,7 @@ export default function FilesScreen() {
         onResolveSignedUrl={resolveSignedUrl}
         onOpenInOffice={(f) => office?.enabled && office.open(f.id)}
         canOpenInOffice={(f) => f?.enabled !== false}
-        onSaveEditedImage={canUploadFiles ? (edited) => handleUploadFiles([edited]) : null}
+        onSaveEditedImage={canUploadFiles ? (edited) => uploads.handleUploadFiles([edited]) : null}
         onReplaceEditedImage={hasPermission("files.assets.update") ? handleReplaceEditedImage : null}
       />
 

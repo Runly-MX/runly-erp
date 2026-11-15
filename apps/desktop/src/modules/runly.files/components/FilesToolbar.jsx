@@ -10,7 +10,6 @@ import {
 } from "@runly/ui";
 import { ArrowUpDown, Boxes, Check, CheckSquare, Columns3, File, LayoutGrid, List, PanelRight, ToggleRight, ZoomIn, ZoomOut } from "lucide-react";
 
-export const TILE_SIZES = [110, 150, 200, 260];
 
 const VIEWS = [
   { key: "list", label: "Lista", Icon: List },
@@ -86,8 +85,7 @@ export function FilesToolbar({
   onFiltersChange,
   viewMode,
   onViewModeChange,
-  tileSize,
-  onTileSizeChange,
+  zoom,
   previewOpen,
   onPreviewToggle,
   onSelectVisible,
@@ -143,10 +141,10 @@ export function FilesToolbar({
         <div className="flex items-center gap-2">
           {viewMode !== "list" && (
             <div className="inline-flex shrink-0 overflow-hidden rounded-xl border border-[hsl(var(--border))] bg-card [@media(hover:none)]:hidden">
-              <SegButton label="Tiles más pequeños" disabled={tileSize <= TILE_SIZES[0]} onClick={() => onTileSizeChange(TILE_SIZES[Math.max(0, TILE_SIZES.indexOf(tileSize) - 1)])}>
+              <SegButton label="Más columnas (tiles más pequeños)" disabled={!zoom.canZoomOut} onClick={zoom.zoomOut}>
                 <ZoomOut className="h-4 w-4" />
               </SegButton>
-              <SegButton label="Tiles más grandes" disabled={tileSize >= TILE_SIZES[TILE_SIZES.length - 1]} onClick={() => onTileSizeChange(TILE_SIZES[Math.min(TILE_SIZES.length - 1, TILE_SIZES.indexOf(tileSize) + 1)])}>
+              <SegButton label="Menos columnas (tiles más grandes)" disabled={!zoom.canZoomIn} onClick={zoom.zoomIn}>
                 <ZoomIn className="h-4 w-4" />
               </SegButton>
             </div>

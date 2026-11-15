@@ -1,7 +1,7 @@
-import { forwardRef } from "react";
+import { forwardRef, useEffect, useRef } from "react";
 import { ActionMenu, Button, ContextMenu, ContextMenuContent, ContextMenuItem, ContextMenuSeparator, ContextMenuTrigger, cn } from "@runly/ui";
 import { ChevronRight, Folder, FolderPlus, FolderSymlink, Link2, Pencil, Share2, Trash2, Users } from "lucide-react";
-import { ROOT_FOLDER, childrenOf, folderPath } from "../lib/folders";
+import { ROOT_FOLDER, childrenOf, folderPath, folderSummary } from "../lib/folders";
 import { startItemDrag, useItemDropTarget } from "../lib/dnd";
 
 // Folder card: drop target (files/folders dragged onto it move inside), draggable itself
@@ -38,6 +38,11 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
   const path = folder === ROOT_FOLDER ? [] : folderPath(folders, folder);
   const subfolders = childrenOf(folders, folder === ROOT_FOLDER ? null : folder);
   const current = path[path.length - 1];
+  // Long paths scroll inside the trail; keep the current folder in view.
+  const trail = useRef(null);
+  useEffect(() => {
+    if (trail.current) trail.current.scrollLeft = trail.current.scrollWidth;
+  }, [folder]);
   const menuItems = (item) => [
     { label: "Compartir", icon: Link2, onClick: () => onShare(item) },
     { label: "Renombrar", icon: Pencil, onClick: () => onRename(item) },
@@ -46,10 +51,10 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
     // Dialogs opened in the tick a Radix menu closes leave the page unclickable.
   ].map((entry) => ({ ...entry, onClick: () => setTimeout(entry.onClick, 80) }));
   return (
-    <section aria-label="Carpetas" className="grid gap-3">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <nav aria-label="Ruta" className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 text-sm [scrollbar-width:none] sm:flex-initial sm:flex-wrap sm:overflow-visible">
-          <Crumb className={cn("h-7 px-2", path.length === 0 && "font-semibold")} onClick={() => onOpen(ROOT_FOLDER)} dropId={ROOT_FOLDER} onSpring={() => onOpen(ROOT_FOLDER)} onDropItems={onDropItems && ((p) => onDropItems(p, null))}>
+    <section aria-label="Carpetas" className="grid grid-cols-[minmax(0,1fr)] gap-3">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <nav ref={trail} aria-label="Ruta" className="-mx-1 flex min-w-0 flex-1 items-center gap-1 overflow-x-auto px-1 text-sm [scrollbar-width:none]">
+          <Crumb className={cn("h-7 shrink-0 px-2", path.length === 0 && "font-semibold")} onClick={() => onOpen(ROOT_FOLDER)} dropId={ROOT_FOLDER} onSpring={() => onOpen(ROOT_FOLDER)} onDropItems={onDropItems && ((p) => onDropItems(p, null))}>
             Mis carpetas
           </Crumb>
           {path.map((item, index) => (
@@ -67,7 +72,7 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
             </span>
           ))}
         </nav>
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-2">
           {current && canManage(current) && (
             <>
               <Button variant="outline" size="sm" aria-label={`Compartir ${current.name}`} onClick={() => onShare(current)}>
@@ -102,7 +107,7 @@ export function FolderExplorerBar({ folders, folder, canCreate, canManage, onOpe
                       <span className="block truncate text-sm font-medium">{item.name}</span>
                       <span className="flex items-center gap-1 text-xs text-[hsl(var(--muted-foreground))]">
                         {item.scope === "COMPANY" && <Users className="h-3 w-3" />}
-                        {item.fileCount} {item.fileCount === 1 ? "archivo" : "archivos"}
+                        {folderSummary(item.fileCount, childrenOf(folders, item.id).length)}
                       </span>
                     </span>
                   </button>

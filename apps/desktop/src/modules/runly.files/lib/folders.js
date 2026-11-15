@@ -26,6 +26,7 @@ const MODULE_LABELS = {
   storefront: "Tienda",
   catalog: "Catálogo",
   attendance: "Asistencia",
+  lms: "Aprendizaje",
 };
 
 export function moduleLabel(moduleKey) {
@@ -47,6 +48,22 @@ export function folderPath(folders, folderId) {
     path.unshift(cursor);
   }
   return path;
+}
+
+// Number of direct subfolders per folder id ("" key never used; root = null).
+export function subfolderCounts(folders) {
+  const counts = new Map();
+  for (const f of folders) counts.set(f.parentId ?? null, (counts.get(f.parentId ?? null) ?? 0) + 1);
+  return counts;
+}
+
+// "3 carpetas · 12 archivos" for a folder card: counts only the next level, and says
+// "Vacía" instead of "0 archivos" so a folder that only holds subfolders is not misread.
+export function folderSummary(fileCount = 0, subfolders = 0) {
+  const parts = [];
+  if (subfolders) parts.push(`${subfolders} ${subfolders === 1 ? "carpeta" : "carpetas"}`);
+  if (fileCount || !subfolders) parts.push(fileCount ? `${fileCount} ${fileCount === 1 ? "archivo" : "archivos"}` : "Vacía");
+  return parts.join(" · ");
 }
 
 export function descendantIds(folders, folderId) {

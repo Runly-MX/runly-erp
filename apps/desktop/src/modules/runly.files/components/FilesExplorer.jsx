@@ -9,6 +9,7 @@ import {
   useMarqueeSelect,
   cn,
 } from "@runly/ui";
+import { folderSummary, subfolderCounts } from "../lib/folders";
 import { SPRING_MS, startItemDrag } from "../lib/dnd";
 import { columnLayout, useElementWidth, useFilesColumns } from "../hooks/useFilesColumns";
 import { FilesListHeader } from "./FilesListHeader";
@@ -21,11 +22,13 @@ const isCoarse = () => typeof window !== "undefined" && Boolean(window.matchMedi
 // ONE explorer for every view of Files: details list, grid and mosaic share the
 // same items (folders first, then files), selection (click / Ctrl / Shift /
 // marquee / keyboard), context menu, drag-to-move and spring-open folders.
-// `view`: "list" | "grid" | "mosaic". Phones (coarse pointer): tap opens, long-press
+// `view`: "list" | "grid" (squares with captions) | "mosaic" (squares, photos only); `zoom` is
+// the useGridZoom state (columns; pinch / Ctrl+wheel / buttons) shared with the toolbar. Phones (coarse pointer): tap opens, long-press
 // opens the menu, the checkbox / grip handle select and drag.
 export function FilesExplorer({
   view,
-  tileSize = 160,
+  zoom,
+  allFolders = [],
   folders,
   files,
   selectedFileIds,
@@ -55,6 +58,7 @@ export function FilesExplorer({
   const coarse = isCoarse();
   const layout = columnLayout(width, coarse);
   const columns = useFilesColumns();
+  const childCounts = useMemo(() => subfolderCounts(allFolders), [allFolders]);
   const anchor = useRef(null);
   const cursor = useRef(null);
 
@@ -206,6 +210,7 @@ export function FilesExplorer({
 
   const common = (item) => ({
     item,
+    summary: item.type === "folder" ? folderSummary(item.data.fileCount, childCounts.get(item.id) ?? 0) : null,
     selected: isSelected(item),
     canDrag: canDragItem(item),
     thumbResolver,
@@ -225,11 +230,12 @@ export function FilesExplorer({
       items.map((item) => <FilesListRow key={item.id} {...common(item)} layout={layout} widths={columns.widths} />)
     ) : (
       <div
-        className={view === "grid" ? "grid gap-2" : undefined}
-        style={view === "grid" ? { gridTemplateColumns: `repeat(auto-fill, minmax(${tileSize}px, 1fr))` } : { columnWidth: `${tileSize}px`, columnGap: "0.5rem" }}
+        {...zoom.containerProps}
+        className="grid gap-0.5 overflow-hidden rounded-xl [touch-action:pan-y]"
+        style={{ gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))` }}
       >
         {items.map((item) => (
-          <FilesTile key={item.id} {...common(item)} coarse={coarse} selecting={selected.length > 0} mosaic={view === "mosaic"} />
+          <FilesTile key={item.id} {...common(item)} coarse={coarse} selecting={selected.length > 0} captions={view === "grid"} />
         ))}
       </div>
     );
