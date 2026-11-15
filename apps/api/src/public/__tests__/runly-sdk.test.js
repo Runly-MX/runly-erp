@@ -607,3 +607,14 @@ describe('runly-sdk.js renderChat (embeddable guest chat widget)', () => {
     widget.destroy()
   })
 })
+
+describe('runly-sdk.js connection ping', () => {
+  it('says hello once with the tracking state, and not again within the hour', async () => {
+    const harness = await loadSdk({ config: { captureErrors: true } })
+    await new Promise((resolve) => setImmediate(resolve))
+    const pings = harness.calls.filter((call) => call.url.endsWith('/public/storefront/v1/ping'))
+    assert.equal(pings.length, 1)
+    assert.equal(pings[0].options.method, 'POST')
+    assert.equal(JSON.parse(pings[0].options.body).state, 'consent_required')
+  })
+})

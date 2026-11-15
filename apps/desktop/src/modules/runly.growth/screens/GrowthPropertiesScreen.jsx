@@ -14,6 +14,8 @@ import {
 import { Code2, Globe, HelpCircle, Pencil, Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+import { describeVerification } from "../lib/verify-message.js";
+
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider.jsx";
 import { runly } from "../../../lib/runly.js";
@@ -122,13 +124,8 @@ export default function GrowthPropertiesScreen() {
 
   async function handleVerify(propertyId) {
     const result = await verifyMutation.mutateAsync(propertyId);
-    if (result?.verified) {
-      toast.success("Sitio verificado: ya estamos recibiendo datos.");
-    } else {
-      toast.info(
-        "Aun no recibimos eventos de ese sitio. Verifica que el snippet este publicado.",
-      );
-    }
+    const { kind, message } = describeVerification(result);
+    toast[kind](message, { duration: kind === "success" ? 4000 : 12000 });
     return result;
   }
 

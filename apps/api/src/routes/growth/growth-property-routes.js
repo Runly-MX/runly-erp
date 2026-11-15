@@ -84,7 +84,7 @@ export function createGrowthPropertyRoutes({ service, requirePermission }) {
           companyId: companyId(c),
           propertyId: c.req.param("id"),
         });
-        return c.json({ data: publicProperty(result.property), verified: result.verified });
+        return c.json({ data: publicProperty(result.property), verified: result.verified, diagnostic: result.diagnostic ?? null });
       } catch (error) {
         return handleError(c, error);
       }

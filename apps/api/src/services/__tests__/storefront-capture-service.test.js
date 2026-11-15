@@ -450,6 +450,18 @@ describe("createStorefrontCaptureService", () => {
     );
   });
 
+  it("records the SDK hello with the observed origin even when the origin is not allowed", async () => {
+    const saved = [];
+    const prisma = buildPrisma({
+      instanceConfig: { upsert: async ({ create }) => { saved.push(create); return create; } },
+    });
+    const service = createService(prisma);
+    await service.recordSdkPing({ ...requestScope, origin: "https://attacker.example", state: "dnt" });
+    const value = JSON.parse(saved[0].value);
+    assert.equal(saved[0].key, `growth.sdk-ping:${SITE_ID}`);
+    assert.deepEqual({ state: value.state, origin: value.origin, originAllowed: value.originAllowed }, { state: "dnt", origin: "https://attacker.example", originAllowed: false });
+  });
+
   it("enforces DNT and consent policy before writing analytics", async () => {
     const prisma = buildPrisma();
     const service = createService(prisma);

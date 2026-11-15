@@ -9,6 +9,7 @@ const SITE_ID = "22222222-2222-7222-8222-222222222222";
 function createPrismaStub({ growthProperties = [], websiteSites = [], growthEvents = [] } = {}) {
   const properties = [...growthProperties];
   return {
+    instanceConfig: { findUnique: async () => null },
     growthProperty: {
       findFirst: async ({ where }) =>
         properties.find(

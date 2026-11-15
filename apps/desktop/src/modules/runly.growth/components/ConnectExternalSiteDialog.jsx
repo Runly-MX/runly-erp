@@ -10,7 +10,6 @@ import {
   TextField,
 } from "@runly/ui";
 import { Check, Copy } from "lucide-react";
-import { toast } from "sonner";
 
 import { getApiUrl } from "../../../lib/runtimeConfig.js";
 import { getSupabaseClient } from "../../../lib/supabase.js";
@@ -35,23 +34,23 @@ function buildSnippet({ companySlug, propertyId, turnstileSiteKey, captureErrors
   const storageKey = `sb-${projectRef}-auth-token`;
   const sdkUrl = `${apiUrl}/public/site/runly-sdk.js`;
 
-  const config = {
-    company: companySlug,
-    siteId: propertyId,
-    apiUrl,
-    supabaseUrl,
-    supabaseAnonKey,
-    storageKey,
-    ...(turnstileSiteKey ? { turnstileSiteKey } : {}),
-    ...(captureErrors ? { captureErrors: true } : {}),
+  // One <script> tag with data-* attributes: no inline script, so sites with a strict CSP can allow it by origin alone.
+  // analytics-mode is explicit because the SDK only starts analytics on its own when told to; the server still decides the real mode.
+  const attrs = {
+    "data-company": companySlug,
+    "data-site-id": propertyId,
+    "data-api-url": apiUrl,
+    "data-supabase-url": supabaseUrl,
+    "data-supabase-anon-key": supabaseAnonKey,
+    "data-storage-key": storageKey,
+    "data-analytics-mode": "standard",
+    ...(turnstileSiteKey ? { "data-turnstile-site-key": turnstileSiteKey } : {}),
+    ...(captureErrors ? { "data-capture-errors": "true" } : {}),
   };
+  const escape = (value) => String(value).replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+  const lines = Object.entries(attrs).map(([name, value]) => `  ${name}="${escape(value)}"`);
 
-  return [
-    "<script>",
-    `  window.RUNLY_CONFIG = ${JSON.stringify(config, null, 2).replace(/\n/g, "\n  ")};`,
-    "</script>",
-    `<script src="${sdkUrl}" async></script>`,
-  ].join("\n");
+  return ["<script", `  src="${escape(sdkUrl)}"`, ...lines, "  async></script>"].join("\n");
 }
 
 export function ConnectExternalSiteDialog({
@@ -89,14 +88,8 @@ export function ConnectExternalSiteDialog({
 
   async function handleVerify() {
     const result = await onVerify(property.id);
-    if (result?.verified) {
-      setProperty(result.data);
-      toast.success("Sitio verificado: ya estamos recibiendo datos.");
-    } else {
-      toast.info(
-        "Aun no recibimos eventos de ese sitio. Verifica que el snippet este publicado.",
-      );
-    }
+    // The parent screen already shows the explanatory toast (describeVerification).
+    if (result?.verified) setProperty(result.data);
   }
 
   function handleCopy() {
@@ -145,7 +138,7 @@ export function ConnectExternalSiteDialog({
         ) : (
           <div className="space-y-3">
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
-              Pega este fragmento antes de {"</body>"} en tu sitio externo:
+              Pega esta etiqueta en el {"<head>"} de tu sitio externo (es una sola etiqueta, sin codigo en linea). Si tu sitio tiene una politica de seguridad (CSP), permite este servidor en script-src y connect-src:
             </p>
             <CheckboxField
               checked={captureErrors}

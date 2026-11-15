@@ -193,6 +193,17 @@ export function createStorefrontCaptureRoutes({
 }) {
   const app = new Hono();
 
+  app.post("/ping", async (c) => {
+    try {
+      const limited = enforceRateLimit(c, eventLimiter, "ping");
+      if (limited) return limited;
+      const body = await readJsonBody(c, 1024);
+      return c.json({ data: await captureService.recordSdkPing({ ...requestScope(c), state: body.state }) });
+    } catch (error) {
+      return handleError(c, error);
+    }
+  });
+
   app.get("/config", async (c) => {
     try {
       const data = await captureService.getPublicConfig(requestScope(c));

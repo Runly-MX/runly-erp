@@ -806,8 +806,21 @@ export function createStorefrontCaptureService({
     }
   }
 
+  // The SDK says hello (even when tracking is blocked) so Growth can explain a missing connection.
+  async function recordSdkPing({ state, ...scope }) {
+    const { site } = await resolveSite({ ...scope, origin: undefined });
+    let originAllowed = true;
+    try { assertAllowedOrigin(site, scope.origin); } catch { originAllowed = false; }
+    const origin = String(scope.origin ?? "").slice(0, 200);
+    const value = JSON.stringify({ at: now().toISOString(), state: String(state ?? "").slice(0, 30), origin, originAllowed });
+    const key = `growth.sdk-ping:${site.id}`;
+    await prisma.instanceConfig.upsert({ where: { key }, create: { key, value }, update: { value } });
+    return { ok: true };
+  }
+
   return {
     resolveSite,
+    recordSdkPing,
     getPublicConfig,
     captureEvents,
     getPublicForm,

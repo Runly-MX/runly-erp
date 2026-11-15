@@ -3,6 +3,17 @@
 
   // ── Config (injected by Runly into window.RUNLY_CONFIG; window.ATLAS_CONFIG
   // is still read as a fallback for pages generated before this rename) ────────
+  // Config can also come from data-* attributes on the SDK's own <script> tag (no inline script, so strict CSPs allow it).
+  var tag = global.document && global.document.currentScript
+  if (!global.RUNLY_CONFIG && !global.ATLAS_CONFIG && tag && tag.dataset && tag.dataset.company) {
+    var d = tag.dataset
+    global.RUNLY_CONFIG = {
+      company: d.company, siteId: d.siteId, apiUrl: d.apiUrl, supabaseUrl: d.supabaseUrl,
+      supabaseAnonKey: d.supabaseAnonKey, storageKey: d.storageKey,
+      analyticsMode: d.analyticsMode, turnstileSiteKey: d.turnstileSiteKey,
+      captureErrors: d.captureErrors === 'true'
+    }
+  }
   var cfg             = global.RUNLY_CONFIG || global.ATLAS_CONFIG || {}
   var SUPABASE_URL    = (cfg.supabaseUrl    || '').replace(/\/$/, '')
   var SUPABASE_KEY    = cfg.supabaseAnonKey || ''
@@ -1039,10 +1050,25 @@
     }
   }
 
+  // One small hello per hour so Runly can tell "script loaded but tracking is blocked" from "script never loaded".
+  function sendPing() {
+    try {
+      var last = Number(readStorage('ping')) || 0
+      if (Date.now() - last < 3600000) return
+      writeStorage('ping', String(Date.now()))
+      var state = !config ? 'unavailable'
+        : config.analyticsMode === 'off' ? 'off'
+        : dntEnabled() ? 'dnt'
+        : getConsent() === 'denied' ? 'consent_denied'
+        : canTrack() ? 'tracking' : 'consent_required'
+      request('/public/storefront/v1/ping', { method: 'POST', credentials: 'omit', body: JSON.stringify({ state: state }) }).catch(function () {})
+    } catch (e) {}
+  }
+
   installErrorCapture()
   // captureErrors also starts analytics; the property's server-side mode (off, consent_required...) still decides what is sent.
   if ((cfg.analyticsMode && cfg.analyticsMode !== 'off') || cfg.captureErrors) {
-    analytics.start().catch(function () {})
+    analytics.start().then(sendPing).catch(function () {})
   }
   if (global.dispatchEvent && global.CustomEvent) {
     global.dispatchEvent(new global.CustomEvent('runly:ready'))

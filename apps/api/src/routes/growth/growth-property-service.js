@@ -151,12 +151,15 @@ export function createGrowthPropertyService({ prisma, now = () => new Date() }) 
     if (property.status === "active") {
       return { property, verified: true };
     }
+    const ping = await prisma.instanceConfig.findUnique({ where: { key: `growth.sdk-ping:${propertyId}` } });
+    let diagnostic = null;
+    try { diagnostic = ping ? JSON.parse(ping.value) : null; } catch { diagnostic = null; }
     const hasEvent = await prisma.growthEvent.findFirst({
       where: { companyId, siteId: propertyId },
       select: { id: true },
     });
     if (!hasEvent) {
-      return { property, verified: false };
+      return { property, verified: false, diagnostic };
     }
     const updated = await prisma.growthProperty.update({
       where: { id: propertyId },
