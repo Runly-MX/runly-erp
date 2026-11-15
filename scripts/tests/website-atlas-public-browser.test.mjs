@@ -13,7 +13,7 @@ import {buildWebsitePublicRuntime,buildWebsiteSsr} from '../build-website-public
 test('published Atlas 0.6 renders responsive geometry in the real ERP public runtime and SSR',async()=>{
   const output=resolve('.artifacts/atlas-0.6.0-public')
   const files=await buildWebsitePublicRuntime(output)
-  assert.equal(files['entry.js'].rendererVersion,'0.6.2')
+  assert.equal(files['entry.js'].rendererVersion,'0.6.3')
   await buildWebsiteSsr(output,files['entry.js'].hash)
   const {renderPage}=await import(pathToFileURL(resolve(output,'ssr.mjs')))
   const sharp=createRequire(new URL('../../packages/studio-interchange/package.json',import.meta.url))('sharp')
@@ -68,6 +68,6 @@ test('published Atlas 0.6 renders responsive geometry in the real ERP public run
     }
     assert.deepEqual(errors,[])
     await mkdir(output,{recursive:true});await page.screenshot({path:resolve(output,'mobile.png')})
-    await writeFile(resolve(output,'result.json'),JSON.stringify({version:'0.6.2',widths:[1280,900,768,600,375],ssr:true,hydrationErrors:errors,brandIdentity:true,footer:true}))
+    await writeFile(resolve(output,'result.json'),JSON.stringify({version:'0.6.3',widths:[1280,900,768,600,375],ssr:true,hydrationErrors:errors,brandIdentity:true,footer:true}))
   }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
 })

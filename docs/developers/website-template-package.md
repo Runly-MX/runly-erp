@@ -28,6 +28,6 @@ Guardar valida y crea otra revisión privada, sin aprobar ni publicar. Las valid
 
 Los marcadores `@contact` y `@newsletter` no son integraciones. ERP W3 importa como borradores del sitio autorizado, materializa imágenes mediante Files y conserva referencias privadas `file:<id>`. Publicar es otra acción y usa copias inmutables servidas por la release. No se activan agenda, pagos, correo ni automatizaciones al instalar. La apariencia exacta del prototipo y los derechos son requisitos independientes de la compatibilidad técnica.
 
-Atlas 0.6.2 extiende la misma marca con logo a `FooterBlock` y `SiteFooterBlock`: `logoSrc`, `logoAlt`, `logoHeight`, `showBrandName`, `brandDirection`, `brandGap` y `brandHref`. `showBrand` sigue ocultando toda la marca y `tagline` conserva el texto adicional del pie. Para usarlos, el contrato debe anunciar 0.6.2 y se guarda una revisión con ese digest. Los catálogos anteriores permanecen inmutables.
+Atlas 0.6.3 incluye la misma marca con logo a `FooterBlock` y `SiteFooterBlock`: `logoSrc`, `logoAlt`, `logoHeight`, `showBrandName`, `brandDirection`, `brandGap` y `brandHref`. `showBrand` sigue ocultando toda la marca y `tagline` conserva el texto adicional del pie. Para usarlos, el contrato debe anunciar 0.6.3 y se guarda una revisión con ese digest. Los catálogos anteriores permanecen inmutables.
 
 El historial de paquetes guardados no consume el cupo de cinco cargas pendientes sin vincular. Cada revisión retenida sigue contando en la cuota de almacenamiento; un guardado no requiere borrar versiones o assets anteriores.
