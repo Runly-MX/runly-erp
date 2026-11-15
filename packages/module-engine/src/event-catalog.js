@@ -124,6 +124,15 @@ const CALL_FIELDS = (what) => [
   field('participants', 'Participantes', 'number', 'Cuántas personas estuvieron (de la empresa y externas).', '4'),
 ]
 // Local hour and weekday of the instance's time zone, for "out of office hours" conditions.
+const MONITOR_FIELDS = (what) => [
+  ID(what),
+  field('monitorName', 'Monitor', 'text', 'Nombre del monitor.', 'Mi tienda - disponibilidad'),
+  field('siteName', 'Sitio', 'text', 'Sitio conectado al que pertenece el monitor.', 'Mi tienda'),
+  field('monitorType', 'Tipo de revisión', 'text', 'http, ssl, keyword, api, heartbeat, domain, tcp o dns.', 'http'),
+  field('error', 'Detalle', 'text', 'Qué falló o qué advertencia hay; vacío al recuperarse.', 'Respuesta HTTP 503.'),
+  field('daysLeft', 'Días restantes', 'number', 'Días para que venza el certificado o el dominio; vacío en otros tipos.', '14'),
+]
+
 const WHEN_FIELDS = [
   field('localHour', 'Hora local', 'number', 'Hora del mensaje en la zona horaria de la instancia (0 a 23).', '21'),
   field('localWeekday', 'Día de la semana', 'number', '0 = domingo, 1 = lunes ... 6 = sábado.', '6'),
@@ -193,6 +202,9 @@ export const EVENT_CATALOG = Object.freeze({
     field('recipientId', 'A quién le escribieron', 'person', 'Persona que recibió el mensaje.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e57'),
     ...WHEN_FIELDS,
   ] },
+  'growth.monitor.down': { module: 'Growth', label: 'Un sitio o servicio monitoreado dejó de responder', description: 'Cuando un monitor de Growth confirma una caída y abre un incidente. Úsalo para avisar por chat, correo o un webhook.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
+  'growth.monitor.recovered': { module: 'Growth', label: 'Un sitio o servicio monitoreado se recuperó', description: 'Cuando un monitor que estaba caído vuelve a responder y se cierra el incidente.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
+  'growth.monitor.expiring': { module: 'Growth', label: 'Un certificado SSL o dominio está por vencer', description: 'Cuando faltan 60, 30, 14, 7, 3 o 1 días (según el tipo) para que venza. Úsalo para crear una tarea de renovación.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
   // Published by the run log when any automation finishes (chaining). Spec §2.
   'automations.run.finished': { module: 'Automatizaciones', label: 'Terminó de ejecutarse una automatización', description: 'Cuando otra automatización termina, con éxito o con error. Úsalo para encadenar: avisar si una falla o seguir con otro proceso.', fields: [
     field('automationKey', 'Automatización', 'text', 'Clave de la automatización que terminó.', 'avisar_compra'),

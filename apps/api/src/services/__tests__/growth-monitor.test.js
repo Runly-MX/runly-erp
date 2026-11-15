@@ -56,9 +56,11 @@ test("http and ssl evaluators classify results", () => {
 });
 
 function fakePrisma(monitor) {
-  const db = { checks: [], incidents: [], monitor: { ...monitor } };
+  const db = { checks: [], incidents: [], events: [], monitor: { ...monitor } };
   return {
     db,
+    growthProperty: { findUnique: async () => ({ name: "Mi tienda" }) },
+    domainEventOutbox: { create: async ({ data }) => db.events.push(data) },
     membership: {
       findMany: async () => [{ userId: "u1", role: { key: "runly.admin", enabled: true, permissions: [] } }],
     },
@@ -105,6 +107,9 @@ test("monitor opens an incident after repeated failures and closes it on recover
   assert.equal(prisma.db.monitor.status, "up");
   assert.ok(prisma.db.incidents[0].resolvedAt);
   assert.deepEqual(published, ["growth.monitor.down", "growth.monitor.recovered"]);
+  assert.deepEqual(prisma.db.events.map((e) => e.event), ["growth.monitor.down", "growth.monitor.recovered"]);
+  assert.equal(prisma.db.events[0].payload.siteName, "Mi tienda");
+  assert.match(prisma.db.events[0].payload.error, /503/);
 });
 
 test("keyword, api and heartbeat evaluators", async () => {
@@ -206,4 +211,36 @@ test("maintenance window skips checks and incidents", async () => {
   assert.equal(inMaintenance({ config: { maintenanceUntil: "2026-11-14T13:00:00Z" } }, now), true);
   assert.equal(inMaintenance({ config: { maintenanceUntil: "2026-11-14T11:00:00Z" } }, now), false);
   assert.equal(inMaintenance({ config: {} }, now), false);
+});
+
+test("MirAI growth tools summarize monitors and incidents", async () => {
+  const { createGrowthMiraiCapabilities } = await import("../../routes/growth/mirai-capabilities.js");
+  const started = new Date("2026-11-14T10:00:00Z");
+  const prisma = {
+    growthMonitor: {
+      findMany: async ({ where }) => where.companyId === "c1" && where.enabled
+        ? [
+            { id: "m1", propertyId: "p1", name: "Web", type: "http", status: "up", config: {}, lastError: null, lastCheckedAt: started },
+            { id: "m2", propertyId: "p1", name: "API", type: "api", status: "down", config: {}, lastError: "Respuesta HTTP 503.", lastCheckedAt: started },
+            { id: "m3", propertyId: "p1", name: "SSL", type: "ssl", status: "degraded", config: {}, lastError: "vence en 5 dias", lastCheckedAt: started },
+          ]
+        : [{ id: "m2", name: "API" }],
+    },
+    growthProperty: { findMany: async () => [{ id: "p1", name: "Mi tienda" }] },
+    growthIncident: {
+      findMany: async () => [{ id: "i1", monitorId: "m2", startedAt: started, resolvedAt: null, cause: "Respuesta HTTP 503." }],
+      count: async () => 1,
+    },
+  };
+  const cap = createGrowthMiraiCapabilities({ prisma });
+  const status = await cap.tools.find((t) => t.name === "growth_monitors_status").run({}, { companyId: "c1" });
+  assert.equal(status.total, 3);
+  assert.deepEqual([status.up, status.down, status.degraded], [1, 1, 1]);
+  assert.equal(status.monitores[0].estado, "down", "problems first");
+  const onlyProblems = await cap.tools.find((t) => t.name === "growth_monitors_status").run({ onlyProblems: true }, { companyId: "c1" });
+  assert.equal(onlyProblems.monitores.length, 2);
+  const incidents = await cap.tools.find((t) => t.name === "growth_incidents_recent").run({}, { companyId: "c1" });
+  assert.equal(incidents.abiertos, 1);
+  assert.equal(incidents.incidentes[0].monitor, "API");
+  assert.ok(cap.tools.every((t) => t.permission === "growth.access"));
 });

@@ -264,6 +264,9 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `lms.enrollment.completed` | `{ id, courseId, learnerId }` (al completar el último requisito del curso) |
 | `calls.recording.ready` | `{ id, callId, conversationId, title, startedAt, durationMs, participants }` (la grabación de una llamada quedó guardada; `participants` cuenta a quienes estuvieron, de la empresa y externos) |
 | `calls.transcript.ready` | `{ id, callId, conversationId, title, startedAt, durationMs, participants, language }` (`id` es la transcripción) |
+| `growth.monitor.down` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (un monitor de Growth confirmó una caída y abrió un incidente; `id` es el monitor; `daysLeft` va vacío) |
+| `growth.monitor.recovered` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (un monitor caído volvió a responder; `error` va vacío) |
+| `growth.monitor.expiring` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (faltan 60, 30, 14, 7, 3 o 1 días para que venza un certificado SSL o un dominio) |
 | `chat.external.message.received` | `{ conversationId, messageId, guestName, guestEmail, text, first, assignedUserId, localHour, localWeekday }` (un visitante escribió en el chat del sitio; `text` hasta 500 caracteres; `first` en su primer mensaje; hora y día de la semana en la zona de la instancia) |
 | `chat.direct.message.received` | `{ conversationId, messageId, senderId, senderName, recipientId, localHour, localWeekday }` (alguien escribió a otra persona por mensaje directo; **sin el texto**, porque es una conversación privada) |
 

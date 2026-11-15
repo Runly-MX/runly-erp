@@ -164,9 +164,9 @@ everything goes through the global MirAI sidebar and the user's MirAI conversati
 | runly.canvas | `routes/canvas/mirai-capabilities.js` | board types guide, boards search, exact board summary (elements per page, hotspots per status, links), hotspot search with linked records; board create, hotspot update (broadcasts `canvas.changed`). Drawing/moving shapes not exposed |
 | runly.automations | `routes/automations/mirai-capabilities.js` | list with last run, runs per block, catalog of events and actions; create (always paused), activate/pause, delete. The webhook URL is never exposed |
 | runly.attendance | `routes/attendance/mirai-capabilities.js` | who is inside now (by kind/group/category), contractor quota compliance, hours worked per person; read-only, no actions |
+| runly.growth | `routes/growth/mirai-capabilities.js` | site monitors: counts up/down/degraded with problems first, recent incidents (open first); read-only, no actions. Analytics and leads are not exposed yet. Not in the MCP server: its scope string is capped at 500 characters |
 
-Not covered yet: runly.files, runly.documents, runly.pos, runly.website,
-runly.growth, and RME3 custom modules (they keep `moduleContext.ai`).
+Not covered yet: runly.files, runly.documents, runly.pos, runly.website, and RME3 custom modules (they keep `moduleContext.ai`).
 
 Core tools that stay outside modules: chat history/search/files, `describe_image`,
 `read_attachment`, `search_runly` (people/companies across modules),

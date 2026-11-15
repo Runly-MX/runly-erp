@@ -463,6 +463,11 @@
         "icon": "Globe",
         "title": "Sitios conectados",
         "text": "Qué sitios envían datos a Growth."
+      },
+      {
+        "icon": "Activity",
+        "title": "Monitores",
+        "text": "Avisos cuando un sitio cae, su SSL o dominio vence, o un proceso deja de reportar."
       }
     ],
     "compat": [

@@ -1,6 +1,7 @@
 import dns from "node:dns";
 
 import { resolveGrowthManagerUserIds } from "../lib/growth-managers.js";
+import { publishDomainEvent } from "./domain-events/events.js";
 import { decryptPassword } from "./smtp-service.js";
 import {
   createGrowthMonitorProbes,
@@ -109,6 +110,20 @@ export function createGrowthMonitorWorker({
     }
   }
 
+  // Same moments as the notifications, for Automation Studio. Best effort, never blocks a check.
+  async function emit(monitor, event, { error = null, daysLeft = null } = {}) {
+    try {
+      const property = await prisma.growthProperty.findUnique({ where: { id: monitor.propertyId }, select: { name: true } });
+      await publishDomainEvent(prisma, {
+        companyId: monitor.companyId,
+        event,
+        payload: { id: monitor.id, monitorName: monitor.name, siteName: property?.name ?? "", monitorType: monitor.type, error: error ?? "", daysLeft },
+      });
+    } catch (error_) {
+      console.error(`[${event}]`, error_?.message ?? error_);
+    }
+  }
+
   async function openIncident(monitorId) {
     return prisma.growthIncident.findFirst({ where: { monitorId, resolvedAt: null } });
   }
@@ -145,6 +160,7 @@ export function createGrowthMonitorWorker({
           data: { companyId: monitor.companyId, monitorId: monitor.id, startedAt: at, cause: result.error, lastNotifiedAt: at },
         });
         await notify(monitor, "growth.monitor.down", "Sitio caido", `${monitor.name}: ${result.error}`);
+        await emit(monitor, "growth.monitor.down", { error: result.error });
       } else if (previousStatus === "down") {
         const incident = await openIncident(monitor.id);
         if (incident && (!incident.lastNotifiedAt || at - incident.lastNotifiedAt >= REMINDER_MS)) {
@@ -168,6 +184,7 @@ export function createGrowthMonitorWorker({
       const incident = await openIncident(monitor.id);
       if (incident) await prisma.growthIncident.update({ where: { id: incident.id }, data: { resolvedAt: at } });
       await notify(monitor, "growth.monitor.recovered", "Sitio recuperado", `${monitor.name} vuelve a responder.`, "medium");
+      await emit(monitor, "growth.monitor.recovered");
     }
     if (EXPIRY_THRESHOLDS[monitor.type] && result.detail?.daysLeft != null) {
       // The row just written is the newest, so skip it to read the previous one.
@@ -182,6 +199,7 @@ export function createGrowthMonitorWorker({
       if (crossed) {
         const [eventType, title] = EXPIRY_EVENT[monitor.type];
         await notify(monitor, eventType, title, `${monitor.name}: vence en ${result.detail.daysLeft} dias.`);
+        await emit(monitor, "growth.monitor.expiring", { error: result.error, daysLeft: result.detail.daysLeft });
       }
     }
   }
