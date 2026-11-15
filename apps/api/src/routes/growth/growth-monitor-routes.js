@@ -19,6 +19,21 @@ const configSchema = z.object({
   maxLatencyMs: z.number().int().min(100).max(60000).optional(),
   timeoutMs: z.number().int().min(1000).max(30000).optional(),
   warnDays: z.number().int().min(1).max(90).optional(),
+  mustContain: z.string().trim().min(1).max(500).optional(),
+  mustNotContain: z.string().trim().min(1).max(500).optional(),
+  body: z.record(z.string(), z.unknown()).optional(),
+  headers: z
+    .array(
+      z.object({
+        name: z.string().trim().regex(/^[A-Za-z0-9-]{1,64}$/, "Nombre de encabezado invalido."),
+        value: z.string().max(2000).optional(),
+        keep: z.boolean().optional(),
+      }).refine((h) => h.keep || h.value, { message: "Falta el valor del encabezado." }),
+    )
+    .max(5)
+    .optional(),
+  assert: z.object({ path: z.string().trim().min(1).max(200), equals: z.unknown().optional() }).optional(),
+  graceSeconds: z.number().int().min(0).max(86400).optional(),
 });
 
 const intervalSeconds = z.number().int().min(60).max(3600);
@@ -26,15 +41,22 @@ const intervalSeconds = z.number().int().min(60).max(3600);
 export const growthMonitorCreateSchema = z
   .object({
     propertyId: z.string().uuid(),
-    type: z.enum(["http", "ssl"]),
+    type: z.enum(["http", "ssl", "keyword", "api", "heartbeat"]),
     name: z.string().trim().min(1).max(200),
     config: configSchema,
     intervalSeconds: intervalSeconds.optional(),
   })
-  .refine((v) => (v.type === "http" ? Boolean(v.config.url) : Boolean(v.config.host)), {
-    message: "Falta la URL (http) o el host (ssl).",
-    path: ["config"],
-  });
+  .refine(
+    (v) => {
+      if (v.type === "ssl") return Boolean(v.config.host);
+      if (v.type === "heartbeat") return true;
+      if (v.type === "keyword") return Boolean(v.config.url) && Boolean(v.config.mustContain || v.config.mustNotContain);
+      return Boolean(v.config.url);
+    },
+    { message: "Faltan datos del monitor: URL, host o texto a buscar segun el tipo.", path: ["config"] },
+  );
+
+const discoverSchema = z.object({ url: z.string().trim().min(3).max(2000) });
 
 export const growthMonitorUpdateSchema = z
   .object({
@@ -75,6 +97,7 @@ export function createGrowthMonitorRoutes({ service, requirePermission }) {
   const app = new Hono();
   const allowCheckNow = createCheckNowLimiter();
   const companyId = (c) => c.get("companyId") ?? null;
+  const allowDiscover = createCheckNowLimiter({ max: 6 });
   const run = (handler) => async (c) => {
     try {
       return await handler(c);
@@ -102,11 +125,41 @@ export function createGrowthMonitorRoutes({ service, requirePermission }) {
     return c.json({ data: await service.checkNow({ companyId: companyId(c), id: c.req.param("id") }) });
   }));
 
+  app.post("/growth/monitors/discover", requirePermission("growth.properties.manage"), zValidator("json", discoverSchema), run(async (c) => {
+    if (!allowDiscover(companyId(c))) {
+      return c.json({ error: "Demasiadas detecciones seguidas. Intenta en un minuto.", code: "rate_limited" }, 429);
+    }
+    return c.json({ data: await service.discoverSite(c.req.valid("json")) });
+  }));
+
+  app.post("/growth/monitors/:id/token", requirePermission("growth.properties.manage"), run(async (c) =>
+    c.json({ data: await service.regeneratePingToken({ companyId: companyId(c), id: c.req.param("id") }) })));
+
   app.get("/growth/monitors/:id/checks", requirePermission("growth.access"), zValidator("query", checksQuerySchema), run(async (c) =>
     c.json({ data: await service.listChecks({ companyId: companyId(c), id: c.req.param("id"), ...c.req.valid("query") }) })));
 
   app.get("/growth/incidents", requirePermission("growth.access"), zValidator("query", listQuerySchema), run(async (c) =>
     c.json({ data: await service.listIncidents({ companyId: companyId(c), ...c.req.valid("query") }) })));
 
+  return app;
+}
+
+// Public, unauthenticated heartbeat endpoint: the token is the credential. Unknown and
+// known tokens answer identically so tokens cannot be enumerated.
+export function createGrowthMonitorPingRoutes({ service }) {
+  const app = new Hono();
+  const allowPing = createCheckNowLimiter({ max: 60 });
+  const ping = async (c) => {
+    const token = c.req.param("token");
+    if (token.length > 100 || !allowPing(token)) return c.json({ ok: true });
+    try {
+      await service.recordPing(token);
+    } catch (error) {
+      console.error("[runly.growth.monitors.ping]", error?.message ?? error);
+    }
+    return c.json({ ok: true });
+  };
+  app.get("/public/monitor/ping/:token", ping);
+  app.post("/public/monitor/ping/:token", ping);
   return app;
 }

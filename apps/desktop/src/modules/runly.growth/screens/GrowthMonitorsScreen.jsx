@@ -8,11 +8,13 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Activity, Pencil, Play, Plus, Trash2 } from "lucide-react";
+import { Activity, Link2, Pencil, Play, Plus, Search, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { runly } from "../../../lib/runly.js";
+import { MonitorConnectionDialog } from "../components/MonitorConnectionDialog.jsx";
+import { MonitorDetectDialog } from "../components/MonitorDetectDialog.jsx";
 import { MonitorDialog } from "../components/MonitorDialog.jsx";
 
 const STATUS_LABEL = {
@@ -29,7 +31,13 @@ const STATUS_VARIANT = {
   paused: "secondary",
   unknown: "secondary",
 };
-const TYPE_LABEL = { http: "Disponibilidad", ssl: "Certificado SSL" };
+const TYPE_LABEL = {
+  http: "Disponibilidad",
+  ssl: "Certificado SSL",
+  keyword: "Texto en la pagina",
+  api: "API o login",
+  heartbeat: "Senal de proceso",
+};
 
 const pct = (value) => (value == null ? "-" : `${value}%`);
 
@@ -45,6 +53,8 @@ export default function GrowthMonitorsScreen() {
   const [dialogTarget, setDialogTarget] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [checkingId, setCheckingId] = useState(null);
+  const [detectOpen, setDetectOpen] = useState(false);
+  const [connection, setConnection] = useState(null);
 
   const monitorsQuery = useQuery({
     queryKey: ["growth", "monitors"],
@@ -72,9 +82,10 @@ export default function GrowthMonitorsScreen() {
   const saveMutation = useMutation({
     mutationFn: ({ id, payload }) =>
       id ? runly.growth.updateMonitor(id, payload, token) : runly.growth.createMonitor(payload, token),
-    onSuccess: () => {
+    onSuccess: (res) => {
       toast.success("Monitor guardado");
       setDialogTarget(null);
+      if (res?.data?.pingToken) setConnection({ monitor: res.data, token: res.data.pingToken });
       refresh();
     },
     onError: (err) => toast.error(err?.message || "No se pudo guardar el monitor"),
@@ -89,6 +100,30 @@ export default function GrowthMonitorsScreen() {
     },
     onError: (err) => toast.error(err?.message || "No se pudo desactivar el monitor"),
   });
+
+  const regenerateMutation = useMutation({
+    mutationFn: (id) => runly.growth.regenerateMonitorToken(id, token),
+    onSuccess: (res) => {
+      setConnection({ monitor: res.data, token: res.data.pingToken });
+      refresh();
+    },
+    onError: (err) => toast.error(err?.message || "No se pudo generar la direccion"),
+  });
+
+  async function handleCreateDetected(propertyId, suggestions, withHeartbeat) {
+    for (const suggestion of suggestions) {
+      await runly.growth.createMonitor({ propertyId, type: suggestion.type, name: suggestion.name, config: suggestion.config }, token);
+    }
+    if (withHeartbeat) {
+      const { data } = await runly.growth.createMonitor(
+        { propertyId, type: "heartbeat", name: "Proceso interno", config: { graceSeconds: 60 }, intervalSeconds: 300 },
+        token,
+      );
+      setConnection({ monitor: data, token: data.pingToken });
+    }
+    toast.success("Monitores creados");
+    refresh();
+  }
 
   async function handleCheckNow(monitor) {
     setCheckingId(monitor.id);
@@ -153,6 +188,12 @@ export default function GrowthMonitorsScreen() {
                     <Play className="mr-1.5 h-3.5 w-3.5" />
                     {checkingId === row.original.id ? "Probando..." : "Probar ahora"}
                   </Button>
+                  {row.original.type === "heartbeat" ? (
+                    <Button type="button" variant="outline" size="sm" onClick={() => setConnection({ monitor: row.original, token: null })}>
+                      <Link2 className="mr-1.5 h-3.5 w-3.5" />
+                      Conexion
+                    </Button>
+                  ) : null}
                   <Button type="button" variant="outline" size="sm" onClick={() => setDialogTarget(row.original)}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
                     Editar
@@ -192,10 +233,16 @@ export default function GrowthMonitorsScreen() {
         description="Revisiones activas de tus sitios: disponibilidad y certificado SSL. Recibes un aviso cuando un sitio cae, se recupera o su certificado esta por vencer."
         actions={
           canManage ? (
-            <Button type="button" onClick={() => setDialogTarget({})}>
-              <Plus className="mr-2 h-4 w-4" />
-              Nuevo monitor
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setDetectOpen(true)}>
+                <Search className="mr-2 h-4 w-4" />
+                Detectar y crear
+              </Button>
+              <Button type="button" onClick={() => setDialogTarget({})}>
+                <Plus className="mr-2 h-4 w-4" />
+                Nuevo monitor
+              </Button>
+            </div>
           ) : null
         }
       />
@@ -248,6 +295,23 @@ export default function GrowthMonitorsScreen() {
         properties={properties}
         saving={saveMutation.isPending}
         onSave={(payload) => saveMutation.mutate({ id: dialogTarget?.id ?? null, payload })}
+      />
+
+      <MonitorDetectDialog
+        open={detectOpen}
+        onOpenChange={setDetectOpen}
+        properties={properties}
+        onDetect={(url) => runly.growth.discoverMonitors({ url }, token)}
+        onCreate={handleCreateDetected}
+      />
+
+      <MonitorConnectionDialog
+        open={Boolean(connection)}
+        onOpenChange={(open) => { if (!open) setConnection(null); }}
+        monitor={connection?.monitor}
+        pingToken={connection?.token}
+        regenerating={regenerateMutation.isPending}
+        onRegenerate={canManage ? () => regenerateMutation.mutate(connection.monitor.id) : null}
       />
 
       <ConfirmDialog

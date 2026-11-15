@@ -1,4 +1,42 @@
+import { createHash, randomBytes } from "node:crypto";
+
+import { encryptPassword } from "../../services/smtp-service.js";
+import { createGrowthMonitorDiscovery } from "./growth-monitor-discovery.js";
+
 const DAY_MS = 86_400_000;
+
+export const hashPingToken = (token) => createHash("sha256").update(token).digest("hex");
+
+// Secrets never leave the API: header values and the heartbeat token hash are stripped.
+export function publicMonitor(monitor) {
+  if (!monitor) return monitor;
+  const { headers, tokenHash, ...config } = monitor.config ?? {};
+  return {
+    ...monitor,
+    config: {
+      ...config,
+      ...(headers ? { headers: headers.map((h) => ({ name: h.name, set: true })) } : {}),
+      ...(tokenHash ? { hasToken: true } : {}),
+    },
+  };
+}
+
+// Incoming headers are either a new { name, value } or { name, keep: true } to retain the stored secret.
+function buildHeaders(incoming, current = []) {
+  return incoming.map((h) => {
+    if (h.keep) {
+      const stored = current.find((c) => c.name === h.name);
+      if (!stored) throw new GrowthMonitorServiceError(`Falta el valor del encabezado ${h.name}.`, 400, "header_missing");
+      return stored;
+    }
+    return { name: h.name, valueEnc: encryptPassword(h.value) };
+  });
+}
+
+function newPingToken() {
+  const token = randomBytes(32).toString("base64url");
+  return { token, tokenHash: hashPingToken(token) };
+}
 
 export class GrowthMonitorServiceError extends Error {
   constructor(message, status = 400, code = "growth_monitor_error") {
@@ -85,7 +123,7 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
       ),
     );
     return monitors.map((m, index) => ({
-      ...m,
+      ...publicMonitor(m),
       uptime24h: pct(day.get(m.id)),
       uptime30d: pct(month.get(m.id)),
       latestLatencyMs: latest[index]?.latencyMs ?? null,
@@ -96,17 +134,57 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
   async function createMonitor({ companyId, ...input }) {
     const property = await prisma.growthProperty.findFirst({ where: { id: input.propertyId, companyId, enabled: true } });
     if (!property) throw new GrowthMonitorServiceError("Sitio no encontrado.", 404, "property_not_found");
-    return prisma.growthMonitor.create({ data: { companyId, ...input } });
+    const config = { ...input.config };
+    if (config.headers) config.headers = buildHeaders(config.headers);
+    let pingToken = null;
+    if (input.type === "heartbeat") {
+      const generated = newPingToken();
+      pingToken = generated.token;
+      config.tokenHash = generated.tokenHash;
+    }
+    const monitor = await prisma.growthMonitor.create({ data: { companyId, ...input, config } });
+    // The ping token is only ever returned here and on regeneration.
+    return { ...publicMonitor(monitor), ...(pingToken ? { pingToken } : {}) };
   }
 
   async function updateMonitor({ companyId, id, ...patch }) {
     const current = await requireMonitor(companyId, id);
     const data = { ...patch };
-    if (patch.config) data.config = { ...current.config, ...patch.config };
+    if (patch.config) {
+      const config = { ...current.config, ...patch.config };
+      if (patch.config.headers) config.headers = buildHeaders(patch.config.headers, current.config?.headers);
+      data.config = config;
+    }
     // Re-enabling or editing resets the state so the next check starts clean.
     if (patch.config || patch.enabled === true) Object.assign(data, { status: "unknown", consecutiveFailures: 0, lastCheckedAt: null });
-    return prisma.growthMonitor.update({ where: { id }, data });
+    return publicMonitor(await prisma.growthMonitor.update({ where: { id }, data }));
   }
+
+  async function regeneratePingToken({ companyId, id }) {
+    const current = await requireMonitor(companyId, id);
+    if (current.type !== "heartbeat") throw new GrowthMonitorServiceError("Solo los monitores de senal tienen token.", 400, "not_heartbeat");
+    const { token, tokenHash } = newPingToken();
+    const monitor = await prisma.growthMonitor.update({ where: { id }, data: { config: { ...current.config, tokenHash } } });
+    return { ...publicMonitor(monitor), pingToken: token };
+  }
+
+  // Public ping: matches the hash only and touches nothing else. A down monitor is
+  // re-queued so recovery is detected on the next tick, not after a full interval.
+  async function recordPing(token) {
+    const monitor = await prisma.growthMonitor.findFirst({
+      where: { type: "heartbeat", enabled: true, config: { path: ["tokenHash"], equals: hashPingToken(token) } },
+      select: { id: true, status: true },
+    });
+    if (!monitor) return false;
+    await prisma.growthMonitor.update({
+      where: { id: monitor.id },
+      data: { lastPingAt: now(), ...(monitor.status === "down" ? { lastCheckedAt: null } : {}) },
+    });
+    return true;
+  }
+
+  const discovery = createGrowthMonitorDiscovery({ probes: worker.probes });
+  const discoverSite = ({ url }) => discovery.discover(url);
 
   async function disableMonitor({ companyId, id }) {
     await requireMonitor(companyId, id);
@@ -139,5 +217,5 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
     });
   }
 
-  return { listMonitors, createMonitor, updateMonitor, disableMonitor, checkNow, listChecks, listIncidents };
+  return { listMonitors, createMonitor, updateMonitor, disableMonitor, regeneratePingToken, recordPing, discoverSite, checkNow, listChecks, listIncidents };
 }

@@ -54,6 +54,12 @@ export function createGrowthDomain({
     disableMonitor: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}`, { method: "DELETE", headers: withAuthHeaders(token) }),
 
+    discoverMonitors: (payload, token) =>
+      request("/growth/monitors/discover", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(payload) }),
+
+    regenerateMonitorToken: (monitorId, token) =>
+      request(`/growth/monitors/${encodeURIComponent(monitorId)}/token`, { method: "POST", headers: withAuthHeaders(token) }),
+
     checkMonitorNow: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/check`, { method: "POST", headers: withAuthHeaders(token) }),
 

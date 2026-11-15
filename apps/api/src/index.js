@@ -126,7 +126,7 @@ import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
 import { createSettingsRouter } from "./routes/settings-routes.js";
 import { createActivityRouter } from "./routes/activity.js";
 import { createNotificationsRouter } from "./routes/notifications.js";
-import { createGrowthRouter } from "./routes/growth/growth-router.js";
+import { createGrowthPublicRouter, createGrowthRouter } from "./routes/growth/growth-router.js";
 import { createDocumentsRouter } from "./routes/documents/documents-router.js";
 import { createDocumentsHub } from "./routes/documents/documents-hub.js";
 import { createSyncRouter } from "./routes/sync.js";
@@ -1036,6 +1036,7 @@ const _publicNotesCanvas = createNotesCanvasService({ prisma });
 const _publicNotesYDoc = createNotesYDocService({ prisma });
 const { createNoteImageService } = await import('./routes/notes/image-service.js');
 const _notesImages = createNoteImageService({ prisma, supabaseAdmin });
+app.route("", createGrowthPublicRouter({ prisma, notificationService }));
 app.get('/public/notes/:slug/media', async c => {
   try {
     const image = await _notesImages.resolve(c.req.query('src'), { slug: c.req.param('slug') });

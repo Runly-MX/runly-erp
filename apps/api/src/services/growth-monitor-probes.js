@@ -10,6 +10,11 @@ const DEFAULT_TIMEOUT_MS = 10_000;
 
 export class MonitorProbeError extends Error {}
 
+// Custom headers (auth) are only sent to the host the user configured, never to a redirect target.
+function sameOrigin(current, raw) {
+  return new URL(raw).host === current.host;
+}
+
 // Resolve first, refuse non-public addresses, then pin the connection to the
 // vetted IP so a second DNS answer (rebinding) cannot redirect the request.
 // allowPrivate is test-only and ignored when NODE_ENV=production.
@@ -31,16 +36,44 @@ function pinnedLookup(target) {
   };
 }
 
-function defaultRequest({ url, method, timeoutMs, lookup }) {
+const MAX_BODY_BYTES = 256 * 1024;
+const MAX_REQUEST_BODY_BYTES = 8 * 1024;
+const FORBIDDEN_HEADERS = new Set(["host", "content-length", "connection", "transfer-encoding"]);
+
+function safeHeaders(headers = {}) {
+  const out = {};
+  for (const [name, value] of Object.entries(headers)) {
+    if (!FORBIDDEN_HEADERS.has(name.toLowerCase())) out[name] = String(value);
+  }
+  return out;
+}
+
+function defaultRequest({ url, method, timeoutMs, lookup, headers, body, readBody }) {
   return new Promise((resolve, reject) => {
     const client = url.protocol === "https:" ? https : http;
-    const req = client.request(url, { method, lookup, timeout: timeoutMs, headers: { "user-agent": "RunlyMonitor/1.0" } }, (res) => {
-      res.resume();
-      resolve({ statusCode: res.statusCode ?? 0, location: res.headers.location ?? null });
+    const payload = body == null ? null : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
+    if (payload && payload.length > MAX_REQUEST_BODY_BYTES) return reject(new MonitorProbeError("El cuerpo de la peticion es demasiado grande."));
+    const req = client.request(url, {
+      method, lookup, timeout: timeoutMs,
+      headers: { "user-agent": "RunlyMonitor/1.0", ...(payload ? { "content-type": "application/json", "content-length": payload.length } : {}), ...safeHeaders(headers) },
+    }, (res) => {
+      const finish = (text) => resolve({ statusCode: res.statusCode ?? 0, location: res.headers.location ?? null, headers: res.headers, body: text });
+      if (!readBody) { res.resume(); return finish(null); }
+      const chunks = [];
+      let size = 0;
+      res.on("data", (chunk) => {
+        if (size >= MAX_BODY_BYTES) return;
+        chunks.push(chunk);
+        size += chunk.length;
+        if (size >= MAX_BODY_BYTES) res.destroy();
+      });
+      res.on("end", () => finish(Buffer.concat(chunks).toString("utf8")));
+      res.on("close", () => finish(Buffer.concat(chunks).toString("utf8")));
+      res.on("error", () => finish(Buffer.concat(chunks).toString("utf8")));
     });
     req.on("timeout", () => req.destroy(new MonitorProbeError("Tiempo de espera agotado.")));
     req.on("error", reject);
-    req.end();
+    req.end(payload);
   });
 }
 
@@ -50,7 +83,7 @@ export function createGrowthMonitorProbes({
   connectTls = tls.connect,
   allowPrivate = process.env.RUNLY_GROWTH_MONITOR_ALLOW_PRIVATE === "true",
 } = {}) {
-  async function probeHttp({ url: rawUrl, method = "GET", timeoutMs = DEFAULT_TIMEOUT_MS }) {
+  async function probeHttp({ url: rawUrl, method = "GET", timeoutMs = DEFAULT_TIMEOUT_MS, headers, body, readBody = false }) {
     const started = Date.now();
     let url;
     try {
@@ -58,12 +91,12 @@ export function createGrowthMonitorProbes({
       for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
         if (!["http:", "https:"].includes(url.protocol)) throw new MonitorProbeError("Solo se permite http o https.");
         const target = await resolvePinned(url.hostname, { resolveHost, allowPrivate });
-        const res = await request({ url, method, timeoutMs, lookup: pinnedLookup(target) });
+        const res = await request({ url, method, timeoutMs, lookup: pinnedLookup(target), headers: sameOrigin(url, rawUrl) ? headers : undefined, body: hop === 0 ? body : undefined, readBody });
         if (res.statusCode >= 300 && res.statusCode < 400 && res.location && hop < MAX_REDIRECTS) {
           url = new URL(res.location, url);
           continue;
         }
-        return { statusCode: res.statusCode, latencyMs: Date.now() - started, error: null };
+        return { statusCode: res.statusCode, latencyMs: Date.now() - started, error: null, body: res.body ?? null, headers: res.headers ?? null, finalUrl: url.href };
       }
       throw new MonitorProbeError("Demasiadas redirecciones.");
     } catch (error) {
@@ -125,4 +158,48 @@ export function evaluateSslCheck(result, config = {}, now = new Date()) {
     return { ok: true, state: "degraded", error: `El certificado SSL vence en ${daysLeft} dias.`, detail };
   }
   return { ok: true, state: "up", error: null, detail };
+}
+
+export function evaluateKeywordCheck(result, config = {}) {
+  const base = evaluateHttpCheck(result, config);
+  if (!base.ok) return base;
+  const body = String(result.body ?? "").toLowerCase();
+  const must = config.mustContain?.trim().toLowerCase();
+  const mustNot = config.mustNotContain?.trim().toLowerCase();
+  if (must && !body.includes(must)) return { ok: false, state: "down", error: `La pagina no contiene el texto esperado "${config.mustContain}".`, detail: null };
+  if (mustNot && body.includes(mustNot)) return { ok: false, state: "down", error: `La pagina contiene el texto no permitido "${config.mustNotContain}".`, detail: null };
+  return base;
+}
+
+function readPath(value, path) {
+  return path.split(".").reduce((acc, key) => (acc == null ? undefined : acc[key]), value);
+}
+
+export function evaluateApiCheck(result, config = {}) {
+  const base = evaluateHttpCheck(result, config);
+  if (!base.ok) return base;
+  const rule = config.assert;
+  if (!rule?.path) return base;
+  let json;
+  try {
+    json = JSON.parse(result.body ?? "");
+  } catch {
+    return { ok: false, state: "down", error: "La respuesta no es JSON valido.", detail: null };
+  }
+  const actual = readPath(json, rule.path);
+  if ("equals" in rule ? actual !== rule.equals : actual === undefined) {
+    return { ok: false, state: "down", error: `La respuesta no cumple la validacion "${rule.path}".`, detail: null };
+  }
+  return base;
+}
+
+export function evaluateHeartbeat(monitor, now = new Date()) {
+  const graceMs = (monitor.config?.graceSeconds ?? 60) * 1000;
+  const last = monitor.lastPingAt ?? monitor.createdAt;
+  const limit = (monitor.intervalSeconds ?? 300) * 1000 + graceMs;
+  if (now.getTime() - new Date(last).getTime() > limit) {
+    const minutes = Math.round((now.getTime() - new Date(last).getTime()) / 60000);
+    return { ok: false, state: "down", error: `No se recibe senal desde hace ${minutes} min.`, detail: null };
+  }
+  return { ok: true, state: "up", error: null, detail: null };
 }

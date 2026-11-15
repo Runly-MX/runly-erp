@@ -1,12 +1,26 @@
 import dns from "node:dns";
 
 import { resolveGrowthManagerUserIds } from "../lib/growth-managers.js";
-import { createGrowthMonitorProbes, evaluateHttpCheck, evaluateSslCheck } from "./growth-monitor-probes.js";
+import { decryptPassword } from "./smtp-service.js";
+import {
+  createGrowthMonitorProbes,
+  evaluateApiCheck,
+  evaluateHeartbeat,
+  evaluateHttpCheck,
+  evaluateKeywordCheck,
+  evaluateSslCheck,
+} from "./growth-monitor-probes.js";
 
 const CLAIM_LIMIT = 50;
 const CONCURRENCY = 10;
 const SSL_THRESHOLDS = [30, 14, 7, 3, 1];
 const REMINDER_MS = 60 * 60 * 1000;
+
+// Header values are stored encrypted; they are only decrypted to build the request.
+function decryptHeaders(headers) {
+  if (!Array.isArray(headers) || !headers.length) return undefined;
+  return Object.fromEntries(headers.map((h) => [h.name, decryptPassword(h.valueEnc)]));
+}
 
 export function createGrowthMonitorWorker({
   prisma,
@@ -26,13 +40,22 @@ export function createGrowthMonitorWorker({
       const raw = await probes.probeSsl({ host: config.host, port: config.port ?? 443 });
       return { raw, ...evaluateSslCheck(raw, config, now()) };
     }
-    const probeArgs = { url: config.url, method: config.method ?? "GET", timeoutMs: config.timeoutMs };
+    if (monitor.type === "heartbeat") return { raw: null, ...evaluateHeartbeat(monitor, now()) };
+    const evaluate = { keyword: evaluateKeywordCheck, api: evaluateApiCheck }[monitor.type] ?? evaluateHttpCheck;
+    const probeArgs = {
+      url: config.url,
+      method: config.method ?? "GET",
+      timeoutMs: config.timeoutMs,
+      body: config.body,
+      headers: decryptHeaders(config.headers),
+      readBody: monitor.type === "keyword" || monitor.type === "api",
+    };
     let raw = await probes.probeHttp(probeArgs);
-    let evaluated = evaluateHttpCheck(raw, config);
+    let evaluated = evaluate(raw, config);
     if (!evaluated.ok) {
       // One immediate retry filters transient blips before counting a failure.
       raw = await probes.probeHttp(probeArgs);
-      evaluated = evaluateHttpCheck(raw, config);
+      evaluated = evaluate(raw, config);
     }
     return { raw, ...evaluated };
   }
@@ -204,5 +227,5 @@ export function createGrowthMonitorWorker({
     return { checked: results.length, suppressed: 0, pruned };
   }
 
-  return { runOnce, checkMonitor };
+  return { runOnce, checkMonitor, probes };
 }
