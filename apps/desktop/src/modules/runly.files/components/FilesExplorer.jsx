@@ -231,11 +231,11 @@ export function FilesExplorer({
     ) : (
       <div
         {...zoom.containerProps}
-        className="grid gap-0.5 overflow-hidden rounded-xl [touch-action:pan-y]"
-        style={{ gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))` }}
+        className={cn("overflow-hidden rounded-xl [touch-action:pan-y]", view === "grid" && "grid gap-0.5")}
+        style={view === "grid" ? { gridTemplateColumns: `repeat(${zoom.columns}, minmax(0, 1fr))` } : { columnCount: zoom.columns, columnGap: "2px" }}
       >
         {items.map((item) => (
-          <FilesTile key={item.id} {...common(item)} coarse={coarse} selecting={selected.length > 0} captions={view === "grid"} />
+          <FilesTile key={item.id} {...common(item)} coarse={coarse} selecting={selected.length > 0} captions={view === "grid"} mosaic={view === "mosaic"} />
         ))}
       </div>
     );

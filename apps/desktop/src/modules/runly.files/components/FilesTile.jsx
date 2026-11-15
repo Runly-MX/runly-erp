@@ -25,6 +25,7 @@ export function FilesTile({
   selecting,
   coarse,
   captions,
+  mosaic,
   canDrag,
   summary,
   thumbResolver,
@@ -59,7 +60,8 @@ export function FilesTile({
       onDoubleClick={onDoubleClick}
       onContextMenu={onContextMenu}
       className={cn(
-        "group relative aspect-square select-none overflow-hidden bg-[hsl(var(--muted))]/60 [-webkit-touch-callout:none]",
+        "group relative select-none overflow-hidden bg-[hsl(var(--muted))]/60 [-webkit-touch-callout:none]",
+        mosaic ? "mb-0.5 break-inside-avoid" : "aspect-square",
         HOVER,
         drop.isOver && "bg-[var(--brand-primary)]/25 ring-2 ring-inset ring-[var(--brand-primary)]",
         disabled && "opacity-60",
@@ -67,12 +69,13 @@ export function FilesTile({
     >
       <div
         className={cn(
-          "absolute inset-0 overflow-hidden transition-[transform,border-radius] duration-150",
+          "overflow-hidden transition-[transform,border-radius] duration-150",
+          mosaic ? "relative" : "absolute inset-0",
           selected && "scale-[.85] rounded-lg",
         )}
       >
         {isFolder ? (
-          <div className="flex h-full w-full flex-col items-center justify-center gap-1 bg-[hsl(var(--muted))]/70 p-2 text-center">
+          <div className={cn("flex w-full flex-col items-center justify-center gap-1 bg-[hsl(var(--muted))]/70 p-2 text-center", mosaic ? "aspect-square" : "h-full")}>
             <Folder className="h-1/3 w-1/3 min-h-6 min-w-6 text-primary" strokeWidth={1.4} />
             <p className="flex w-full items-center justify-center gap-1 text-xs font-medium" title={name}>
               <span className="truncate">{name}</span>
@@ -86,11 +89,12 @@ export function FilesTile({
               <MediaThumb
                 item={{ fileAssetId: data.id, mimeType: data.mimeType }}
                 resolveSignedUrl={thumbResolver}
-                variant="tile"
-                className="pointer-events-none h-full w-full"
+                variant={mosaic ? "tilefit" : "tile"}
+                fit={mosaic}
+                className={cn("pointer-events-none w-full", !mosaic && "h-full")}
               />
             ) : (
-              <FileTile item={{ name, mimeType: data.mimeType }} compact className="pointer-events-none h-full w-full" />
+              <FileTile item={{ name, mimeType: data.mimeType }} compact className={cn("pointer-events-none w-full", mosaic ? "aspect-square" : "h-full")} />
             )}
             {captions && (
               <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/75 via-black/35 to-transparent px-2 pb-1.5 pt-8 text-white">
