@@ -756,8 +756,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/identity/users/${encodeURIComponent(id)}/avatar/signed-url${toQueryString({ variant: options.variant })}`, {
           headers: withAuthHeaders(token),
         }),
-      listRoles: (token) =>
-        request("/identity/roles", { headers: withAuthHeaders(token) }),
+      listRoles: (token, options = {}) =>
+        request(`/identity/roles${toQueryString({ scope: options.scope })}`, { headers: withAuthHeaders(token) }),
       createRole: (data, token) =>
         request("/identity/roles", {
           method: "POST",

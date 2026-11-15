@@ -74,12 +74,13 @@ export function createIdentityRolesRouter({ prisma, supabaseAdmin, requirePermis
     async (c) => {
       try {
         const tenant = c.get("tenantContext");
-        // Holders of identity.users.update can already view/edit ANY company's
-        // memberships (see docs/superpowers/specs/2026-09-15-identity-module-redesign-design.md
-        // §Non-goal 4) — the role picker they use for that (MembershipsSection)
-        // needs roles from every company, not just their own active one, or
-        // reassigning a membership in another company shows no usable roles.
+        // Only the cross-company membership editor needs the complete catalog.
+        // The role-management screen always uses the active company's catalog.
+        const membershipScope = c.req.query("scope") === "memberships";
         const canManageAnyCompany = tenant.isSystemAdmin || tenant.permissionSet?.has("identity.users.update");
+        if (membershipScope && !canManageAnyCompany) {
+          return c.json({ error: "No tienes permisos para administrar membresías." }, 403);
+        }
         const roles = await prisma.role.findMany({
           // system.admin is a reserved platform role. It's visible to admins
           // (company or system) so they know it exists and can assign it —
@@ -87,7 +88,7 @@ export function createIdentityRolesRouter({ prisma, supabaseAdmin, requirePermis
           // option in a non-admin's role picker.
           where: {
             ...(tenant.isAdmin ? {} : { key: { not: "system.admin" } }),
-            ...(canManageAnyCompany ? {} : { OR: [{ companyId: null }, { companyId: tenant.companyId }] }),
+            ...(membershipScope ? {} : { OR: [{ companyId: null }, ...(tenant.companyId ? [{ companyId: tenant.companyId }] : [])] }),
           },
           include: {
             permissions: {
@@ -97,7 +98,7 @@ export function createIdentityRolesRouter({ prisma, supabaseAdmin, requirePermis
                 },
               },
             },
-            _count: { select: { memberships: { where: { enabled: true, user: { isBot: false } } } } },
+            _count: { select: { memberships: { where: { enabled: true, companyId: tenant.companyId ?? { in: [] }, user: { isBot: false } } } } },
           },
           orderBy: { name: "asc" },
         });

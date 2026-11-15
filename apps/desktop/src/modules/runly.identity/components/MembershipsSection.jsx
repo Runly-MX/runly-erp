@@ -30,8 +30,8 @@ export default function MembershipsSection({ data }) {
   const [savingMembershipId, setSavingMembershipId] = useState(null);
 
   const rolesQuery = useQuery({
-    queryKey: ["identity-roles"],
-    queryFn: () => runly.identity.listRoles(token),
+    queryKey: ["identity-roles", "memberships"],
+    queryFn: () => runly.identity.listRoles(token, { scope: "memberships" }),
     enabled: Boolean(token),
   });
   const companiesQuery = useQuery({

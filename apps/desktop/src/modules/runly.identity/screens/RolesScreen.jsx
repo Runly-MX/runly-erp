@@ -67,7 +67,7 @@ export default function RolesScreen() {
       <PageHeader
         eyebrow="Runly Identity"
         title="Roles y permisos"
-        description="Define roles y asigna permisos para controlar el acceso en tu instancia."
+        description="Define roles y asigna permisos para controlar el acceso en tu empresa."
         actions={
           canCreateRoles && (
             <Button
