@@ -9,6 +9,7 @@ import {createWebsiteReleaseService} from './website-release-service.js'
 import {createWebsiteGatewayService} from './website-gateway-service.js'
 import {createRegistryClientFromEnvSafe} from './website-registry-client.js'
 import {createWebsiteHostnameService} from './website-hostname-service.js'
+import {createWebsiteCustomDomainService} from './website-custom-domain-service.js'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {createWebsiteImportService} from './website-import-service.js'
 import {createWebsiteContentIsolation} from './website-content-isolation.js'
@@ -41,9 +42,10 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
  const gateway=createWebsiteGatewayService({prisma,storage,isolation,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,registryMaxStaleMs:Number(process.env.RUNLY_REGISTRY_MAX_STALE_MS)||undefined,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host).concat('localhost','127.0.0.1'),...options}) // loopback is always the ERP (same rule as /admin-origin-check)
  const registry=options.registry===undefined?createRegistryClientFromEnvSafe(process.env):options.registry
  const hostnames=createWebsiteHostnameService({prisma,registry,registryConfigured:Boolean(process.env.RUNLY_REGISTRY_URL),namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host)})
+ const customDomains=options.customDomains??createWebsiteCustomDomainService({prisma,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,adminHosts:[adminUrl,process.env.RUNLY_API_URL??process.env.ATLAS_API_URL].filter(Boolean).map(url=>new URL(url).host)})
  const staticServing=createWebsiteStaticServing({prisma,storage,isolation})
  gateway.staticContent=staticServing.serve
  const previews=createWebsitePreviewService({prisma,isolation,storage,releases})
  const contracts=createWebsiteAdminContractService({prisma,isolation,readFile,namespaceRoot:process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,...options})
- return {storage,releases,gateway,hostnames,registry,runtime,ssr,imports,isolation,previews,contracts}
+ return {storage,releases,gateway,hostnames,customDomains,registry,runtime,ssr,imports,isolation,previews,contracts}
 }

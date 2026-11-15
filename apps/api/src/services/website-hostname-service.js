@@ -148,6 +148,8 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
     }
     // Local names are retired in place: they stay bound to the deleted site and never serve or get reassigned.
     await prisma.websiteDomain.updateMany({ where: { companyId, siteId, registryManaged: false, kind: 'platform' }, data: { state: 'quarantined', ready: false } })
+    // Customer-owned hostnames stop serving and become claimable again (ownership is proven by DNS, not by history).
+    await prisma.websiteDomain.updateMany({ where: { companyId, siteId, kind: 'custom', state: { not: 'quarantined' } }, data: { state: 'quarantined', ready: false, verificationToken: null, httpsState: null } })
   }
   return { availability, reserve, activate, release, status, sync, releaseForPurge }
 }

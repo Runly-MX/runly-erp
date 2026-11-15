@@ -6873,8 +6873,15 @@ model WebsiteDomain {
  registryVersion Int? @map("registry_version")
  registryRedirectTo String? @map("registry_redirect_to")
  registrySyncedAt DateTime? @db.Timestamptz @map("registry_synced_at")
+ verificationToken String? @map("verification_token")
+ verifiedAt DateTime? @db.Timestamptz @map("verified_at")
+ dnsTarget String? @map("dns_target")
+ httpsState String? @map("https_state")
+ httpsCheckedAt DateTime? @db.Timestamptz @map("https_checked_at")
+ lastError String? @map("last_error")
  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
  @@index([companyId,siteId],map:"website_domain_owner_idx")
+ @@index([kind,state],map:"website_domain_kind_state_idx")
  @@map("website_domain")
 }
 

@@ -2,6 +2,7 @@ import { createWebsitePublicationContext } from '../../services/website-publicat
 import {createWebsiteMarketplaceRoutes} from './marketplace-routes.js'
 import {createWebsiteDependencyRoutes} from './dependency-routes.js'
 import { createWebsiteReleaseRoutes } from './releases-routes.js'
+import { createWebsiteCustomDomainRoutes } from './custom-domains-routes.js'
 import { createWebsiteImportRoutes } from './import-routes.js'
 import { createWebsitePreviewRoutes } from './preview-routes.js'
 import { websiteAccessFromRequest, websiteErrorHandler,requireWebsitePermission } from '../../services/website-authorization-service.js'
@@ -32,6 +33,7 @@ export function createWebsiteRouter({ prisma, requirePermission, supabaseAdmin, 
   const websiteSvc = createWebsiteService({ prisma, publicationContext: publication,
     purgeSiteAccounts: accountFiles ? (siteId) => accountFiles.purgeRealm({ moduleKey: WEBSITE_REALM, ownerId: siteId }) : null })
   app.route('/website',createWebsiteReleaseRoutes({...publication,requirePermission}))
+  if(publication.customDomains)app.route('/website',createWebsiteCustomDomainRoutes({...publication,requirePermission}))
   app.route('/website',createWebsiteImportRoutes({...publication,requirePermission}))
   app.route('/website',createWebsitePreviewRoutes({...publication,requirePermission}))
   const formsService = createFormsService({ prisma })
