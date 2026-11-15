@@ -67,6 +67,10 @@ export function createGrowthMonitorDiscovery({ probes }) {
       suggestions.push({ type: "ssl", name: `${host} - certificado SSL`, config: { host, port: 443, warnDays: 14 }, reason: "Aviso antes de que venza el certificado." });
     }
 
+    if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
+      suggestions.push({ type: "domain", name: `${host} - vencimiento del dominio`, config: { host, warnDays: 30 }, reason: "Aviso antes de que venza el registro del dominio." });
+    }
+
     const paths = [...new Set([...(PLATFORM_PATHS[platform] ?? []), ...GENERIC_PATHS])].slice(0, MAX_PATH_PROBES);
     for (const path of paths) {
       const result = await probes.probeHttp({ url: `${origin}${path}`, timeoutMs: PATH_TIMEOUT_MS });

@@ -60,6 +60,9 @@ export function createGrowthDomain({
     regenerateMonitorToken: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/token`, { method: "POST", headers: withAuthHeaders(token) }),
 
+    setMonitorMaintenance: (monitorId, minutes, token) =>
+      request(`/growth/monitors/${encodeURIComponent(monitorId)}/maintenance`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify({ minutes }) }),
+
     checkMonitorNow: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/check`, { method: "POST", headers: withAuthHeaders(token) }),
 

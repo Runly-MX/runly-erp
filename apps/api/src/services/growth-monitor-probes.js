@@ -1,14 +1,35 @@
 import dns from "node:dns";
 import http from "node:http";
 import https from "node:https";
+import net from "node:net";
 import tls from "node:tls";
 
 import { isPublicAddress } from "./automation-http-service.js";
 
 const MAX_REDIRECTS = 3;
 const DEFAULT_TIMEOUT_MS = 10_000;
+const IANA_RDAP_BOOTSTRAP = "https://data.iana.org/rdap/dns.json";
 
 export class MonitorProbeError extends Error {}
+
+const NETWORK_ERRORS = {
+  ENOTFOUND: "El dominio no existe o no resuelve.",
+  EAI_AGAIN: "No se pudo consultar el DNS del dominio.",
+  ECONNREFUSED: "Conexion rechazada por el servidor.",
+  ECONNRESET: "El servidor cerro la conexion.",
+  ETIMEDOUT: "Tiempo de espera agotado.",
+};
+export const describeNetworkError = (error) => NETWORK_ERRORS[error?.code] ?? error?.message ?? String(error);
+
+const GENERIC_SECOND_LEVEL = new Set(["com", "net", "org", "gob", "edu", "gov", "co", "ac"]);
+// Reduces a hostname to the registrable domain RDAP expects (best effort, no public suffix list).
+export function registrableDomain(host) {
+  const labels = String(host).toLowerCase().replace(/\.$/, "").split(".");
+  if (labels.length <= 2) return labels.join(".");
+  const tld = labels[labels.length - 1];
+  const second = labels[labels.length - 2];
+  return labels.slice(tld.length === 2 && GENERIC_SECOND_LEVEL.has(second) ? -3 : -2).join(".");
+}
 
 // Custom headers (auth) are only sent to the host the user configured, never to a redirect target.
 function sameOrigin(current, raw) {
@@ -81,6 +102,8 @@ export function createGrowthMonitorProbes({
   resolveHost = dns.promises.lookup,
   request = defaultRequest,
   connectTls = tls.connect,
+  resolveDns = (host, type) => dns.promises.resolve(host, type),
+  rdapFetch = fetch,
   allowPrivate = process.env.RUNLY_GROWTH_MONITOR_ALLOW_PRIVATE === "true",
 } = {}) {
   async function probeHttp({ url: rawUrl, method = "GET", timeoutMs = DEFAULT_TIMEOUT_MS, headers, body, readBody = false }) {
@@ -100,7 +123,7 @@ export function createGrowthMonitorProbes({
       }
       throw new MonitorProbeError("Demasiadas redirecciones.");
     } catch (error) {
-      return { statusCode: null, latencyMs: Date.now() - started, error: error?.message || String(error) };
+      return { statusCode: null, latencyMs: Date.now() - started, error: describeNetworkError(error) };
     }
   }
 
@@ -124,11 +147,69 @@ export function createGrowthMonitorProbes({
         socket.on("error", (error) => resolve({ error: error.message }));
       });
     } catch (error) {
-      return { error: error?.message || String(error) };
+      return { error: describeNetworkError(error) };
     }
   }
 
-  return { probeHttp, probeSsl };
+  async function probeTcp({ host, port, timeoutMs = 5000 }) {
+    const started = Date.now();
+    try {
+      const target = await resolvePinned(host, { resolveHost, allowPrivate });
+      return await new Promise((resolve) => {
+        const socket = net.connect({ host: target.address, port, timeout: timeoutMs }, () => {
+          socket.end();
+          resolve({ connected: true, latencyMs: Date.now() - started, error: null });
+        });
+        socket.on("timeout", () => { socket.destroy(); resolve({ connected: false, error: NETWORK_ERRORS.ETIMEDOUT }); });
+        socket.on("error", (error) => resolve({ connected: false, error: describeNetworkError(error) }));
+      });
+    } catch (error) {
+      return { connected: false, error: describeNetworkError(error) };
+    }
+  }
+
+  async function probeDns({ host, recordType = "A" }) {
+    try {
+      const records = await resolveDns(host, recordType);
+      const values = records.map((r) => (typeof r === "string" ? r : Array.isArray(r) ? r.join("") : (r.exchange ?? JSON.stringify(r))));
+      return { values, error: null };
+    } catch (error) {
+      return { values: [], error: describeNetworkError(error) };
+    }
+  }
+
+  // The IANA bootstrap file maps each TLD to its registry's RDAP server. rdap.org blocks
+  // automated clients (403), so we query the registry directly. Cached for a day.
+  let bootstrap = null;
+  async function rdapBaseFor(tld, timeoutMs) {
+    if (!bootstrap || Date.now() - bootstrap.at > 86_400_000) {
+      const res = await rdapFetch(IANA_RDAP_BOOTSTRAP, { signal: AbortSignal.timeout(timeoutMs) });
+      if (!res.ok) throw new MonitorProbeError("No se pudo consultar la lista de registros RDAP.");
+      bootstrap = { at: Date.now(), services: (await res.json()).services ?? [] };
+    }
+    const service = bootstrap.services.find(([tlds]) => tlds.includes(tld));
+    const base = service?.[1]?.find((url) => url.startsWith("https://"));
+    return base ? base.replace(/\/?$/, "/") : null;
+  }
+
+  // Registration expiry through RDAP. Hosts come from IANA's list; only the domain label varies.
+  async function probeDomain({ host, timeoutMs = 8000 }) {
+    const domain = registrableDomain(host);
+    if (!/^[a-z0-9.-]+$/.test(domain)) return { error: "El dominio no es valido." };
+    try {
+      const base = await rdapBaseFor(domain.split(".").pop(), timeoutMs);
+      if (!base) return { domain, expiresAt: null, noData: true };
+      const res = await rdapFetch(`${base}domain/${domain}`, { redirect: "follow", signal: AbortSignal.timeout(timeoutMs), headers: { accept: "application/rdap+json" } });
+      if (!res.ok) return { domain, expiresAt: null, noData: true };
+      const json = await res.json();
+      const event = (json.events ?? []).find((e) => e.eventAction === "expiration");
+      return { domain, expiresAt: event?.eventDate ? new Date(event.eventDate).toISOString() : null, noData: !event };
+    } catch (error) {
+      return { domain, error: describeNetworkError(error) };
+    }
+  }
+
+  return { probeHttp, probeSsl, probeTcp, probeDns, probeDomain };
 }
 
 // Pure evaluators: take a probe result plus config, return the monitor state.
@@ -202,4 +283,33 @@ export function evaluateHeartbeat(monitor, now = new Date()) {
     return { ok: false, state: "down", error: `No se recibe senal desde hace ${minutes} min.`, detail: null };
   }
   return { ok: true, state: "up", error: null, detail: null };
+}
+
+export function evaluateTcpCheck(result) {
+  return result.connected
+    ? { ok: true, state: "up", error: null, detail: null }
+    : { ok: false, state: "down", error: result.error ?? "No se pudo conectar.", detail: null };
+}
+
+export function evaluateDnsCheck(result, config = {}) {
+  if (result.error) return { ok: false, state: "down", error: result.error, detail: null };
+  if (!result.values.length) return { ok: false, state: "down", error: "El dominio no tiene registros de ese tipo.", detail: null };
+  const expected = config.expected?.trim().toLowerCase();
+  if (expected && !result.values.some((value) => String(value).toLowerCase().includes(expected))) {
+    return { ok: false, state: "down", error: `Ningun registro contiene "${config.expected}".`, detail: { values: result.values.slice(0, 5) } };
+  }
+  return { ok: true, state: "up", error: null, detail: { values: result.values.slice(0, 5) } };
+}
+
+export function evaluateDomainCheck(result, config = {}, now = new Date()) {
+  if (result.error) return { ok: false, state: "down", error: result.error, detail: null };
+  if (!result.expiresAt) {
+    // Many registries do not publish RDAP data; that is unknown, not an outage.
+    return { ok: true, state: "unknown", error: "El registro no publica la fecha de vencimiento.", detail: { domain: result.domain, daysLeft: null } };
+  }
+  const daysLeft = Math.floor((new Date(result.expiresAt).getTime() - now.getTime()) / 86_400_000);
+  const detail = { domain: result.domain, daysLeft, validTo: result.expiresAt };
+  if (daysLeft < 0) return { ok: false, state: "down", error: "El dominio esta vencido.", detail };
+  if (daysLeft <= (config.warnDays ?? 30)) return { ok: true, state: "degraded", error: `El dominio vence en ${daysLeft} dias.`, detail };
+  return { ok: true, state: "up", error: null, detail };
 }

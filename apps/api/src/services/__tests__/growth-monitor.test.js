@@ -169,3 +169,41 @@ test("discovery detects the platform and ignores HTML catch-all on API paths", a
   assert.ok(result.suggestions.some((s) => s.type === "ssl"));
   assert.ok(calls <= 13, "request cap");
 });
+
+test("registrable domain, domain/tcp/dns evaluators and Spanish network errors", async () => {
+  const p = await import("../growth-monitor-probes.js");
+  assert.equal(p.registrableDomain("www.tienda.example.com"), "example.com");
+  assert.equal(p.registrableDomain("shop.empresa.com.mx"), "empresa.com.mx");
+  assert.equal(p.registrableDomain("runly.mx"), "runly.mx");
+  assert.match(p.describeNetworkError({ code: "ENOTFOUND" }), /no existe/);
+
+  const now = new Date("2026-11-14T00:00:00Z");
+  const at = (d) => new Date(now.getTime() + d * 86_400_000).toISOString();
+  assert.equal(p.evaluateDomainCheck({ domain: "a.com", expiresAt: at(200) }, {}, now).state, "up");
+  assert.equal(p.evaluateDomainCheck({ domain: "a.com", expiresAt: at(10) }, {}, now).state, "degraded");
+  assert.equal(p.evaluateDomainCheck({ domain: "a.com", expiresAt: at(-2) }, {}, now).ok, false);
+  const unknown = p.evaluateDomainCheck({ domain: "a.mx", expiresAt: null }, {}, now);
+  assert.ok(unknown.ok && unknown.state === "unknown", "no RDAP data is not an outage");
+
+  assert.equal(p.evaluateTcpCheck({ connected: true }).ok, true);
+  assert.equal(p.evaluateTcpCheck({ connected: false, error: "x" }).ok, false);
+  assert.equal(p.evaluateDnsCheck({ values: [] }).ok, false);
+  assert.equal(p.evaluateDnsCheck({ values: ["1.2.3.4"] }, { expected: "1.2.3.4" }).ok, true);
+  assert.equal(p.evaluateDnsCheck({ values: ["1.2.3.4"] }, { expected: "9.9.9.9" }).ok, false);
+
+  const probes = p.createGrowthMonitorProbes({
+    resolveHost: async () => [{ address: "10.0.0.1", family: 4 }],
+    rdapFetch: async (url) => ({ ok: true, json: async () => String(url).includes("iana.org") ? { services: [[["com"], ["https://rdap.example-registry.com/com/v1/"]]] } : { events: [{ eventAction: "expiration", eventDate: at(40) }] } }),
+  });
+  assert.equal((await probes.probeTcp({ host: "x.example", port: 25 })).connected, false, "tcp refuses private addresses");
+  assert.equal((await probes.probeDomain({ host: "www.a.com" })).expiresAt, at(40));
+  assert.equal((await probes.probeDomain({ host: "sitio.zz" })).noData, true, "unknown TLD is no data, not an error");
+});
+
+test("maintenance window skips checks and incidents", async () => {
+  const { inMaintenance } = await import("../growth-monitor-worker.js");
+  const now = new Date("2026-11-14T12:00:00Z");
+  assert.equal(inMaintenance({ config: { maintenanceUntil: "2026-11-14T13:00:00Z" } }, now), true);
+  assert.equal(inMaintenance({ config: { maintenanceUntil: "2026-11-14T11:00:00Z" } }, now), false);
+  assert.equal(inMaintenance({ config: {} }, now), false);
+});

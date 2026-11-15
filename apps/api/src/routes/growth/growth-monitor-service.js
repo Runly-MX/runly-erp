@@ -127,7 +127,7 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
       uptime24h: pct(day.get(m.id)),
       uptime30d: pct(month.get(m.id)),
       latestLatencyMs: latest[index]?.latencyMs ?? null,
-      sslDaysLeft: m.type === "ssl" ? latest[index]?.detail?.daysLeft ?? null : null,
+      sslDaysLeft: m.type === "ssl" || m.type === "domain" ? latest[index]?.detail?.daysLeft ?? null : null,
     }));
   }
 
@@ -152,12 +152,22 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
     const data = { ...patch };
     if (patch.config) {
       const config = { ...current.config, ...patch.config };
+      for (const key of Object.keys(config)) if (config[key] === null) delete config[key];
       if (patch.config.headers) config.headers = buildHeaders(patch.config.headers, current.config?.headers);
       data.config = config;
     }
     // Re-enabling or editing resets the state so the next check starts clean.
     if (patch.config || patch.enabled === true) Object.assign(data, { status: "unknown", consecutiveFailures: 0, lastCheckedAt: null });
     return publicMonitor(await prisma.growthMonitor.update({ where: { id }, data }));
+  }
+
+  // Maintenance only edits config; it must not reset the monitor state or open incident.
+  async function setMaintenance({ companyId, id, minutes }) {
+    const current = await requireMonitor(companyId, id);
+    const config = { ...current.config };
+    if (minutes) config.maintenanceUntil = new Date(now().getTime() + minutes * 60_000).toISOString();
+    else delete config.maintenanceUntil;
+    return publicMonitor(await prisma.growthMonitor.update({ where: { id }, data: { config } }));
   }
 
   async function regeneratePingToken({ companyId, id }) {
@@ -217,5 +227,5 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
     });
   }
 
-  return { listMonitors, createMonitor, updateMonitor, disableMonitor, regeneratePingToken, recordPing, discoverSite, checkNow, listChecks, listIncidents };
+  return { listMonitors, createMonitor, updateMonitor, disableMonitor, setMaintenance, regeneratePingToken, recordPing, discoverSite, checkNow, listChecks, listIncidents };
 }

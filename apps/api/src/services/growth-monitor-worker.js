@@ -5,15 +5,22 @@ import { decryptPassword } from "./smtp-service.js";
 import {
   createGrowthMonitorProbes,
   evaluateApiCheck,
+  evaluateDnsCheck,
+  evaluateDomainCheck,
   evaluateHeartbeat,
   evaluateHttpCheck,
   evaluateKeywordCheck,
   evaluateSslCheck,
+  evaluateTcpCheck,
 } from "./growth-monitor-probes.js";
 
 const CLAIM_LIMIT = 50;
 const CONCURRENCY = 10;
-const SSL_THRESHOLDS = [30, 14, 7, 3, 1];
+const EXPIRY_THRESHOLDS = { ssl: [30, 14, 7, 3, 1], domain: [60, 30, 14, 7] };
+const EXPIRY_EVENT = {
+  ssl: ["growth.monitor.ssl_expiring", "Certificado SSL por vencer"],
+  domain: ["growth.monitor.domain_expiring", "Dominio por vencer"],
+};
 const REMINDER_MS = 60 * 60 * 1000;
 
 // Header values are stored encrypted; they are only decrypted to build the request.
@@ -21,6 +28,10 @@ function decryptHeaders(headers) {
   if (!Array.isArray(headers) || !headers.length) return undefined;
   return Object.fromEntries(headers.map((h) => [h.name, decryptPassword(h.valueEnc)]));
 }
+
+// While a maintenance window is open the monitor is not checked, recorded or alerted.
+export const inMaintenance = (monitor, at = new Date()) =>
+  Boolean(monitor.config?.maintenanceUntil) && new Date(monitor.config.maintenanceUntil) > at;
 
 export function createGrowthMonitorWorker({
   prisma,
@@ -39,6 +50,18 @@ export function createGrowthMonitorWorker({
     if (monitor.type === "ssl") {
       const raw = await probes.probeSsl({ host: config.host, port: config.port ?? 443 });
       return { raw, ...evaluateSslCheck(raw, config, now()) };
+    }
+    if (monitor.type === "tcp") {
+      const raw = await probes.probeTcp({ host: config.host, port: config.port });
+      return { raw, ...evaluateTcpCheck(raw) };
+    }
+    if (monitor.type === "dns") {
+      const raw = await probes.probeDns({ host: config.host, recordType: config.recordType ?? "A" });
+      return { raw, ...evaluateDnsCheck(raw, config) };
+    }
+    if (monitor.type === "domain") {
+      const raw = await probes.probeDomain({ host: config.host });
+      return { raw, ...evaluateDomainCheck(raw, config, now()) };
     }
     if (monitor.type === "heartbeat") return { raw: null, ...evaluateHeartbeat(monitor, now()) };
     const evaluate = { keyword: evaluateKeywordCheck, api: evaluateApiCheck }[monitor.type] ?? evaluateHttpCheck;
@@ -146,7 +169,7 @@ export function createGrowthMonitorWorker({
       if (incident) await prisma.growthIncident.update({ where: { id: incident.id }, data: { resolvedAt: at } });
       await notify(monitor, "growth.monitor.recovered", "Sitio recuperado", `${monitor.name} vuelve a responder.`, "medium");
     }
-    if (monitor.type === "ssl" && result.detail?.daysLeft != null) {
+    if (EXPIRY_THRESHOLDS[monitor.type] && result.detail?.daysLeft != null) {
       // The row just written is the newest, so skip it to read the previous one.
       const previous = await prisma.growthMonitorCheck.findFirst({
         where: { monitorId: monitor.id, ok: true },
@@ -155,9 +178,10 @@ export function createGrowthMonitorWorker({
         select: { detail: true },
       });
       const prevDays = previous?.detail?.daysLeft ?? Infinity;
-      const crossed = SSL_THRESHOLDS.find((t) => prevDays > t && result.detail.daysLeft <= t);
+      const crossed = EXPIRY_THRESHOLDS[monitor.type].find((t) => prevDays > t && result.detail.daysLeft <= t);
       if (crossed) {
-        await notify(monitor, "growth.monitor.ssl_expiring", "Certificado SSL por vencer", `${monitor.name}: vence en ${result.detail.daysLeft} dias.`);
+        const [eventType, title] = EXPIRY_EVENT[monitor.type];
+        await notify(monitor, eventType, title, `${monitor.name}: vence en ${result.detail.daysLeft} dias.`);
       }
     }
   }
@@ -201,7 +225,7 @@ export function createGrowthMonitorWorker({
   }
 
   async function runOnce() {
-    const monitors = await claimDue();
+    const monitors = (await claimDue()).filter((m) => !inMaintenance(m, now()));
     const results = [];
     for (let i = 0; i < monitors.length; i += CONCURRENCY) {
       const chunk = monitors.slice(i, i + CONCURRENCY);

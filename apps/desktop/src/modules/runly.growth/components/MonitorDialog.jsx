@@ -16,17 +16,23 @@ const TYPE_OPTIONS = [
   { value: "keyword", label: "Texto en la pagina" },
   { value: "api", label: "API o login" },
   { value: "heartbeat", label: "Senal de un proceso (cron o worker)" },
+  { value: "domain", label: "Vencimiento del dominio" },
+  { value: "tcp", label: "Puerto o servicio (TCP)" },
+  { value: "dns", label: "Registros DNS" },
 ];
 const INTERVAL_OPTIONS = [
   { value: "60", label: "Cada minuto" },
   { value: "300", label: "Cada 5 minutos" },
   { value: "900", label: "Cada 15 minutos" },
   { value: "3600", label: "Cada hora" },
+  { value: "21600", label: "Cada 6 horas" },
+  { value: "86400", label: "Cada dia" },
 ];
 const EMPTY = {
   propertyId: "", type: "http", name: "", url: "", host: "", intervalSeconds: "300",
   mustContain: "", mustNotContain: "", method: "GET", headerName: "", headerValue: "",
   assertPath: "", assertEquals: "", graceSeconds: "60",
+  port: "", recordType: "A", expected: "",
 };
 
 function parseEquals(raw) {
@@ -62,6 +68,9 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
       assertPath: c.assert?.path ?? "",
       assertEquals: c.assert && "equals" in c.assert ? JSON.stringify(c.assert.equals) : "",
       graceSeconds: String(c.graceSeconds ?? 60),
+      port: c.port ? String(c.port) : "",
+      recordType: c.recordType ?? "A",
+      expected: c.expected ?? "",
     });
   }, [open, monitor]);
 
@@ -70,7 +79,9 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
 
   function buildConfig() {
     const url = form.url.trim();
-    if (form.type === "ssl") return { host: form.host.trim() };
+    if (form.type === "ssl" || form.type === "domain") return { host: form.host.trim() };
+    if (form.type === "tcp") return { host: form.host.trim(), port: Number(form.port) };
+    if (form.type === "dns") return { host: form.host.trim(), recordType: form.recordType, expected: form.expected.trim() || (editing ? null : undefined) };
     if (form.type === "heartbeat") return { graceSeconds: Number(form.graceSeconds) || 60 };
     if (form.type === "keyword") {
       return { url, mustContain: form.mustContain.trim() || undefined, mustNotContain: form.mustNotContain.trim() || undefined };
@@ -87,7 +98,8 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
   }
 
   const missingTarget =
-    form.type === "ssl" ? !form.host.trim()
+    form.type === "tcp" ? !form.host.trim() || !Number(form.port)
+    : ["ssl", "domain", "dns"].includes(form.type) ? !form.host.trim()
     : form.type === "heartbeat" ? false
     : !form.url.trim() || (form.type === "keyword" && !form.mustContain.trim() && !form.mustNotContain.trim());
   const needsHeaderValue = form.headerName.trim() && !form.headerValue && !hasHeaderStored;
@@ -119,13 +131,27 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
                 options={properties.map((p) => ({ value: p.id, label: p.name }))}
                 onValueChange={(value) => set("propertyId", value)}
               />
-              <SelectField label="Tipo de revision" value={form.type} options={TYPE_OPTIONS} onValueChange={(value) => set("type", value)} />
+              <SelectField label="Tipo de revision" value={form.type} options={TYPE_OPTIONS} onValueChange={(value) => setForm((f) => ({ ...f, type: value, intervalSeconds: value === "domain" ? "86400" : f.intervalSeconds === "86400" ? "300" : f.intervalSeconds }))} />
             </>
           ) : null}
           <TextField label="Nombre" value={form.name} onChange={(e) => set("name", e.target.value)} required autoFocus />
 
-          {form.type === "ssl" ? (
-            <TextField label="Dominio del certificado" value={form.host} onChange={(e) => set("host", e.target.value)} placeholder="mitienda.mx" required />
+          {["ssl", "domain", "tcp", "dns"].includes(form.type) ? (
+            <TextField label={form.type === "ssl" ? "Dominio del certificado" : form.type === "tcp" ? "Servidor" : "Dominio"} value={form.host} onChange={(e) => set("host", e.target.value)} placeholder="mitienda.mx" required />
+          ) : null}
+          {form.type === "tcp" ? (
+            <TextField label="Puerto" value={form.port} onChange={(e) => set("port", e.target.value.replace(/\D/g, ""))} placeholder="25" required />
+          ) : null}
+          {form.type === "dns" ? (
+            <>
+              <SelectField
+                label="Tipo de registro"
+                value={form.recordType}
+                options={["A", "AAAA", "CNAME", "MX", "TXT"].map((v) => ({ value: v, label: v }))}
+                onValueChange={(value) => set("recordType", value)}
+              />
+              <TextField label="Debe contener (opcional)" value={form.expected} onChange={(e) => set("expected", e.target.value)} placeholder="76.76.21.21" />
+            </>
           ) : null}
           {["http", "keyword", "api"].includes(form.type) ? (
             <TextField label="URL a revisar" value={form.url} onChange={(e) => set("url", e.target.value)} placeholder="https://mitienda.mx/" required />

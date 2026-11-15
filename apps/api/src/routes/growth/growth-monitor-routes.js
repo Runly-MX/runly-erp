@@ -34,21 +34,34 @@ const configSchema = z.object({
     .optional(),
   assert: z.object({ path: z.string().trim().min(1).max(200), equals: z.unknown().optional() }).optional(),
   graceSeconds: z.number().int().min(0).max(86400).optional(),
+  port: z.number().int().min(1).max(65535).optional(),
+  recordType: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).optional(),
+  expected: z.string().trim().min(1).max(500).optional(),
 });
 
-const intervalSeconds = z.number().int().min(60).max(3600);
+// On update, null clears an optional field (see service).
+const clearable = (schema) => schema.nullable().optional();
+const updateConfigSchema = configSchema.extend({
+  assert: clearable(configSchema.shape.assert.unwrap()),
+  mustContain: clearable(configSchema.shape.mustContain.unwrap()),
+  mustNotContain: clearable(configSchema.shape.mustNotContain.unwrap()),
+  expected: clearable(configSchema.shape.expected.unwrap()),
+});
+
+const intervalSeconds = z.number().int().min(60).max(86400);
 
 export const growthMonitorCreateSchema = z
   .object({
     propertyId: z.string().uuid(),
-    type: z.enum(["http", "ssl", "keyword", "api", "heartbeat"]),
+    type: z.enum(["http", "ssl", "keyword", "api", "heartbeat", "domain", "tcp", "dns"]),
     name: z.string().trim().min(1).max(200),
     config: configSchema,
     intervalSeconds: intervalSeconds.optional(),
   })
   .refine(
     (v) => {
-      if (v.type === "ssl") return Boolean(v.config.host);
+      if (["ssl", "domain", "dns"].includes(v.type)) return Boolean(v.config.host);
+      if (v.type === "tcp") return Boolean(v.config.host && v.config.port);
       if (v.type === "heartbeat") return true;
       if (v.type === "keyword") return Boolean(v.config.url) && Boolean(v.config.mustContain || v.config.mustNotContain);
       return Boolean(v.config.url);
@@ -61,12 +74,13 @@ const discoverSchema = z.object({ url: z.string().trim().min(3).max(2000) });
 export const growthMonitorUpdateSchema = z
   .object({
     name: z.string().trim().min(1).max(200).optional(),
-    config: configSchema.optional(),
+    config: updateConfigSchema.optional(),
     intervalSeconds: intervalSeconds.optional(),
     enabled: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "Sin cambios." });
 
+const maintenanceSchema = z.object({ minutes: z.number().int().min(1).max(1440).nullable() });
 const listQuerySchema = z.object({ propertyId: z.string().uuid().optional() });
 const checksQuerySchema = z.object({
   from: z.coerce.date().optional(),
@@ -131,6 +145,9 @@ export function createGrowthMonitorRoutes({ service, requirePermission }) {
     }
     return c.json({ data: await service.discoverSite(c.req.valid("json")) });
   }));
+
+  app.post("/growth/monitors/:id/maintenance", requirePermission("growth.properties.manage"), zValidator("json", maintenanceSchema), run(async (c) =>
+    c.json({ data: await service.setMaintenance({ companyId: companyId(c), id: c.req.param("id"), ...c.req.valid("json") }) })));
 
   app.post("/growth/monitors/:id/token", requirePermission("growth.properties.manage"), run(async (c) =>
     c.json({ data: await service.regeneratePingToken({ companyId: companyId(c), id: c.req.param("id") }) })));

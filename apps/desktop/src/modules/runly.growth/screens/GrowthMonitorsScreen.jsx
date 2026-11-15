@@ -8,7 +8,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Activity, Link2, Pencil, Play, Plus, Search, Trash2 } from "lucide-react";
+import { Activity, Link2, Pencil, Play, Plus, Search, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -16,6 +16,7 @@ import { runly } from "../../../lib/runly.js";
 import { MonitorConnectionDialog } from "../components/MonitorConnectionDialog.jsx";
 import { MonitorDetectDialog } from "../components/MonitorDetectDialog.jsx";
 import { MonitorDialog } from "../components/MonitorDialog.jsx";
+import { MonitorMaintenanceDialog } from "../components/MonitorMaintenanceDialog.jsx";
 
 const STATUS_LABEL = {
   up: "En linea",
@@ -37,6 +38,9 @@ const TYPE_LABEL = {
   keyword: "Texto en la pagina",
   api: "API o login",
   heartbeat: "Senal de proceso",
+  domain: "Vencimiento del dominio",
+  tcp: "Puerto (TCP)",
+  dns: "Registros DNS",
 };
 
 const pct = (value) => (value == null ? "-" : `${value}%`);
@@ -54,6 +58,7 @@ export default function GrowthMonitorsScreen() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [checkingId, setCheckingId] = useState(null);
   const [detectOpen, setDetectOpen] = useState(false);
+  const [maintenanceTarget, setMaintenanceTarget] = useState(null);
   const [connection, setConnection] = useState(null);
 
   const monitorsQuery = useQuery({
@@ -110,6 +115,16 @@ export default function GrowthMonitorsScreen() {
     onError: (err) => toast.error(err?.message || "No se pudo generar la direccion"),
   });
 
+  const maintenanceMutation = useMutation({
+    mutationFn: ({ id, minutes }) => runly.growth.setMonitorMaintenance(id, minutes, token),
+    onSuccess: (_res, { minutes }) => {
+      toast.success(minutes ? "Mantenimiento activado" : "Mantenimiento terminado");
+      setMaintenanceTarget(null);
+      refresh();
+    },
+    onError: (err) => toast.error(err?.message || "No se pudo cambiar el mantenimiento"),
+  });
+
   async function handleCreateDetected(propertyId, suggestions, withHeartbeat) {
     for (const suggestion of suggestions) {
       await runly.growth.createMonitor({ propertyId, type: suggestion.type, name: suggestion.name, config: suggestion.config }, token);
@@ -156,9 +171,13 @@ export default function GrowthMonitorsScreen() {
         header: "Estado",
         cell: ({ row }) => (
           <div className="space-y-0.5">
-            <Badge variant={STATUS_VARIANT[row.original.status] ?? "secondary"}>
-              {STATUS_LABEL[row.original.status] ?? row.original.status}
-            </Badge>
+            {row.original.config?.maintenanceUntil && new Date(row.original.config.maintenanceUntil) > new Date() ? (
+              <Badge variant="secondary">En mantenimiento</Badge>
+            ) : (
+              <Badge variant={STATUS_VARIANT[row.original.status] ?? "secondary"}>
+                {STATUS_LABEL[row.original.status] ?? row.original.status}
+              </Badge>
+            )}
             {row.original.lastError ? (
               <p className="max-w-64 truncate text-xs text-[hsl(var(--muted-foreground))]" title={row.original.lastError}>
                 {row.original.lastError}
@@ -170,9 +189,9 @@ export default function GrowthMonitorsScreen() {
       { id: "uptime", header: "Uptime 24 h / 30 d", cell: ({ row }) => `${pct(row.original.uptime24h)} / ${pct(row.original.uptime30d)}` },
       {
         id: "metric",
-        header: "Latencia / SSL",
+        header: "Latencia / vencimiento",
         cell: ({ row }) =>
-          row.original.type === "ssl"
+          row.original.type === "ssl" || row.original.type === "domain"
             ? row.original.sslDaysLeft == null ? "-" : `${row.original.sslDaysLeft} dias`
             : row.original.latestLatencyMs == null ? "-" : `${row.original.latestLatencyMs} ms`,
       },
@@ -194,6 +213,9 @@ export default function GrowthMonitorsScreen() {
                       Conexion
                     </Button>
                   ) : null}
+                  <Button type="button" variant="outline" size="sm" aria-label="Mantenimiento" onClick={() => setMaintenanceTarget(row.original)}>
+                    <Wrench className="h-3.5 w-3.5" />
+                  </Button>
                   <Button type="button" variant="outline" size="sm" onClick={() => setDialogTarget(row.original)}>
                     <Pencil className="mr-1.5 h-3.5 w-3.5" />
                     Editar
@@ -303,6 +325,14 @@ export default function GrowthMonitorsScreen() {
         properties={properties}
         onDetect={(url) => runly.growth.discoverMonitors({ url }, token)}
         onCreate={handleCreateDetected}
+      />
+
+      <MonitorMaintenanceDialog
+        open={Boolean(maintenanceTarget)}
+        onOpenChange={(open) => { if (!open) setMaintenanceTarget(null); }}
+        monitor={maintenanceTarget}
+        saving={maintenanceMutation.isPending}
+        onSave={(minutes) => maintenanceMutation.mutate({ id: maintenanceTarget.id, minutes })}
       />
 
       <MonitorConnectionDialog
