@@ -14,7 +14,7 @@ import { readZip } from '../zip-reader.js'
 
 const sha = (bytes) => createHash('sha256').update(bytes).digest('hex')
 const FILE_ID = '00000000-0000-4000-8000-000000000001'
-const catalogUrl = new URL('../../../../apps/api/src/routes/website/block-catalog.json', import.meta.url)
+const catalogUrl = new URL('../../../../apps/api/src/routes/website/builder-catalogs/0.3.5.json', import.meta.url)
 export const BUILDER = '0.3.5'
 export const blockCatalog = () => JSON.parse(readFileSync(catalogUrl, 'utf8'))
 export const builderCatalogs = () => ({ [BUILDER]: blockCatalog() })

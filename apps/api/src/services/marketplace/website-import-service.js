@@ -5,14 +5,14 @@ import {sectionsToAtlasPage,websiteThemeToAtlasTokens} from '@runly/studio-inter
 import {resourceRefSchema} from './marketplace-import-gate.js'
 import {assertWebsiteAccess} from '../website-authorization-service.js'
 import {WebsiteServiceError,notFound} from '../../routes/website/service-helpers.js'
-import {BLOCK_CATALOG} from '../../routes/website/page-document.js'
+import {WEBSITE_BUILDER_CATALOGS} from '../../routes/website/builder-catalogs.js'
 import {createWebsiteDraftService,websiteDocumentHash} from '../website-draft-service.js'
 import {createWebsiteTemplateService} from '../website-template-service.js'
 import {createWebsiteTemplatePreparationService} from '../website-template-preparation-service.js'
 import {createFileAccess} from '../files/access.js'
 import {websiteReleasePath} from '../website-release-service.js'
 
-const catalogs={'0.3.5':BLOCK_CATALOG}, sha=bytes=>createHash('sha256').update(bytes).digest('hex')
+const catalogs=WEBSITE_BUILDER_CATALOGS, sha=bytes=>createHash('sha256').update(bytes).digest('hex')
 const request=z.strictObject({ref:resourceRefSchema,pageIds:z.array(z.string().max(512)).min(1).max(24),expectedRevision:z.number().int().nonnegative(),includeTheme:z.boolean(),replaceExisting:z.boolean().default(false),formMode:z.enum(['disabled','local']).default('disabled'),acceptWarnings:z.literal(true)})
 const messages={import_cancelled:'La instalación se canceló. Revisa de nuevo la plantilla para iniciar otro intento.',import_in_progress:'La instalación sigue en curso o en recuperación. Reintenta con la misma selección más tarde.',idempotency_conflict:'Este intento ya corresponde a otra selección. Revisa de nuevo la plantilla.',cleanup_pending:'La limpieza sigue pendiente. Los borradores no se aplicaron; se reintentará automáticamente.',legacy_public_requires_release:'Sella primero una release del sitio público actual antes de instalar nuevos borradores.'}
 const fail=(code,status=409)=>new WebsiteServiceError(messages[code]??'No se pudo instalar la plantilla. Revisa los conflictos y requisitos.',status,code)

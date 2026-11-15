@@ -13,7 +13,7 @@ if (!arg('source')) throw new Error('Usage: node scripts/prepare-elevate-website
 const source = resolve(arg('source')), output = resolve(arg('output') ?? '.artifacts/website-w1/final')
 const proposal = JSON.parse(await readFile(join(source, 'audit/declarative-proposal.json'), 'utf8'))
 const originalContent = JSON.parse(await readFile(join(source, 'audit/original-content.json'), 'utf8'))
-const catalog = JSON.parse(await readFile(new URL('../apps/api/src/routes/website/block-catalog.json', import.meta.url), 'utf8'))
+const catalog = JSON.parse(await readFile(new URL('../apps/api/src/routes/website/builder-catalogs/0.3.5.json', import.meta.url), 'utf8'))
 const require = createRequire(new URL('../packages/studio-interchange/package.json', import.meta.url))
 const sharp = require('sharp'), assets = [], derivatives = []
 const sha = data => createHash('sha256').update(data).digest('hex')

@@ -10,7 +10,7 @@ import { createWebsiteAccess } from '../website-authorization-service.js'
 const require = createRequire(new URL('../../../../../packages/studio-interchange/package.json', import.meta.url))
 const sharp = require('sharp')
 const companyId='00000000-0000-4000-8000-000000000001',siteId='00000000-0000-4000-8000-000000000002',fileId='00000000-0000-4000-8000-000000000003',actorId='00000000-0000-4000-8000-000000000004'
-const catalog=JSON.parse(readFileSync(new URL('../../routes/website/block-catalog.json',import.meta.url),'utf8'))
+const catalog=JSON.parse(readFileSync(new URL('../../routes/website/builder-catalogs/0.3.5.json',import.meta.url),'utf8'))
 async function fixture(background = false) {
   const data=await sharp({create:{width:10,height:10,channels:3,background:'#17243c'}}).png().toBuffer()
   const hash=createHash('sha256').update(data).digest('hex')

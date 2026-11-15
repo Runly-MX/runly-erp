@@ -6,9 +6,15 @@ order: 22
 
 # Website Template v2, Atlas y Developer Hub
 
-Una plantilla editable usa `runly.website-template` v2 y el catálogo Atlas Web Builder 0.3.5 fijado por el validador. Un ZIP de HTML/CSS/JavaScript es un prototipo visual, no una plantilla instalable. El contrato de lectura v1 sin imágenes sigue admitido. No hay un segundo editor HTML.
+Una plantilla editable usa `runly.website-template` v2 y un catálogo Atlas Web Builder versionado fijado por el validador. La adopción 0.6.0 agrega composición por elementos y conserva el catálogo histórico 0.3.5 con su digest original. Un ZIP de HTML/CSS/JavaScript es un prototipo visual, no una plantilla instalable. El contrato de lectura v1 sin imágenes sigue admitido. No hay un segundo editor HTML.
 
 Consulta `runly_website_contract` para obtener formato, política raster, límites y catálogo reales del validador activo. Descubre publicadores con `runly_resources_list`; crea la identidad `website_template` con `runly_resource_create`. Lee metadata, validaciones y revisiones humanas mediante `runly_resource_get`. `runly_website_get` abre el documento completo y sus revisiones editables; `fileId` selecciona una revisión anterior sin sobrescribirla.
+
+Si el contrato activo anuncia 0.6.0, usa `builderVersion: "0.6.0"` y su `catalogDigest` exacto para composiciones nuevas. Incluye `BoxBlock`, `TextElementBlock`, `ButtonElementBlock`, `LinkElementBlock` e `ImageElementBlock`, además de las secciones anteriores. Un contenedor admite fila, columna, cuadrícula o `layout: "free"`. Las propiedades de diseño son declarativas: colores, tipografía, bordes, espacios, capas y geometría. Consulta campos y opciones reales; no inventes familias de bloques para reproducir cada diseño.
+
+La posición y el tamaño pueden diferir entre escritorio, tableta y móvil: `position`, `anchorX`, `anchorY`, `offsetX`, `offsetY`, `widthMode`, `width`, `widthPercent`, `heightMode`, `height`, `minHeight` y `rotation`. Los ajustes `tabletPosition`, `mobileOffsetX`, etc. heredan por propiedad de escritorio a tableta a móvil. Omitir una clave restaura la herencia. El árbol, el contenido y su orden son compartidos. El movimiento libre ocurre dentro de contenedores; redimensionar un elemento adaptable conserva el flujo. Navbar ofrece apertura, alineación, colapso y presentación del menú según sus campos. Estilos propios guardables y React empaquetado por el autor requieren contratos adicionales; 0.6.0 no ejecuta código recibido de una plantilla.
+
+Una plantilla 0.3.5 mantiene sus campos y su digest al abrir y guardar. Cambiar el paquete del editor no migra automáticamente el documento. Para adoptar 0.6.0, crea una revisión con el catálogo nuevo, conserva páginas/assets/licencias y valida antes de guardarla. El contrato remoto determina la disponibilidad: una publicación npm por sí sola no actualiza el servicio MCP.
 
 `runly_website_document_save` reutiliza el escritor canónico, almacenamiento privado, historial y validador de Creator. Recibe `expectedRevision` y el documento completo de W2: páginas Atlas, tema portable, assets PNG/JPEG/WebP base64, SHA-256 y licencias. Las imágenes permanecen referidas como `asset:<sha256>`. Exige consentimiento explícito `hub:website:write`; grants anteriores de recursos o Studio no conceden este permiso. Ante conflicto, relee y fusiona los cambios.
 

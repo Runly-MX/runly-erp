@@ -3,6 +3,2128 @@
   "schemaVersion": 1,
   "blocks": [
     {
+      "type": "BoxBlock",
+      "label": "Contenedor libre",
+      "category": "elements",
+      "group": "base",
+      "slots": [
+        "children"
+      ],
+      "defaultProps": {
+        "stylePreset": "none",
+        "widthMode": "fill",
+        "layout": "column",
+        "columns": 2,
+        "gap": 16,
+        "mobileLayout": "column",
+        "mobileColumns": 1
+      },
+      "fields": {
+        "layout": {
+          "type": "select",
+          "label": "Distribución",
+          "options": [
+            "row",
+            "column",
+            "grid",
+            "free"
+          ]
+        },
+        "columns": {
+          "type": "number",
+          "label": "Columnas",
+          "min": 1,
+          "max": 12
+        },
+        "gap": {
+          "type": "number",
+          "label": "Separación (px)",
+          "min": 0,
+          "max": 128
+        },
+        "align": {
+          "type": "select",
+          "label": "Alinear elementos",
+          "options": [
+            "start",
+            "center",
+            "end",
+            "stretch"
+          ]
+        },
+        "justify": {
+          "type": "select",
+          "label": "Distribuir espacio",
+          "options": [
+            "start",
+            "center",
+            "end",
+            "space-between",
+            "space-around"
+          ]
+        },
+        "tabletLayout": {
+          "type": "select",
+          "label": "Distribución en tableta",
+          "options": [
+            "inherit",
+            "row",
+            "column",
+            "grid",
+            "free"
+          ]
+        },
+        "tabletColumns": {
+          "type": "number",
+          "label": "Columnas en tableta",
+          "min": 1,
+          "max": 12
+        },
+        "mobileLayout": {
+          "type": "select",
+          "label": "Distribución en móvil",
+          "options": [
+            "inherit",
+            "row",
+            "column",
+            "grid",
+            "free"
+          ]
+        },
+        "mobileColumns": {
+          "type": "number",
+          "label": "Columnas en móvil",
+          "min": 1,
+          "max": 12
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
+      "type": "TextElementBlock",
+      "label": "Texto libre",
+      "category": "elements",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "stylePreset": "none",
+        "widthMode": "auto",
+        "text": "Escribe tu texto",
+        "tag": "p"
+      },
+      "fields": {
+        "text": {
+          "type": "textarea",
+          "label": "Texto"
+        },
+        "tag": {
+          "type": "select",
+          "label": "Etiqueta",
+          "options": [
+            "p",
+            "span",
+            "h1",
+            "h2",
+            "h3",
+            "h4"
+          ]
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Tamaño del texto (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontWeight": {
+          "type": "select",
+          "label": "Peso del texto",
+          "options": [
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900"
+          ]
+        },
+        "lineHeight": {
+          "type": "number",
+          "label": "Interlineado",
+          "min": 0.8,
+          "max": 3,
+          "step": 0.1
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Alineación del texto",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
+      "type": "ButtonElementBlock",
+      "label": "Botón libre",
+      "category": "elements",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "stylePreset": "pill",
+        "widthMode": "auto",
+        "label": "Botón libre",
+        "href": "#"
+      },
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Texto"
+        },
+        "href": {
+          "type": "link",
+          "label": "Destino"
+        },
+        "newTab": {
+          "type": "toggle",
+          "label": "Abrir en otra pestaña"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Tamaño del texto (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontWeight": {
+          "type": "select",
+          "label": "Peso del texto",
+          "options": [
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900"
+          ]
+        },
+        "lineHeight": {
+          "type": "number",
+          "label": "Interlineado",
+          "min": 0.8,
+          "max": 3,
+          "step": 0.1
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Alineación del texto",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
+      "type": "LinkElementBlock",
+      "label": "Enlace",
+      "category": "elements",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "stylePreset": "none",
+        "widthMode": "auto",
+        "label": "Enlace",
+        "href": "#"
+      },
+      "fields": {
+        "label": {
+          "type": "text",
+          "label": "Texto"
+        },
+        "href": {
+          "type": "link",
+          "label": "Destino"
+        },
+        "newTab": {
+          "type": "toggle",
+          "label": "Abrir en otra pestaña"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Tamaño del texto (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontWeight": {
+          "type": "select",
+          "label": "Peso del texto",
+          "options": [
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900"
+          ]
+        },
+        "lineHeight": {
+          "type": "number",
+          "label": "Interlineado",
+          "min": 0.8,
+          "max": 3,
+          "step": 0.1
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Alineación del texto",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
+      "type": "ImageElementBlock",
+      "label": "Imagen libre",
+      "category": "elements",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "stylePreset": "none",
+        "widthMode": "fill",
+        "src": "",
+        "alt": "",
+        "fit": "cover"
+      },
+      "fields": {
+        "src": {
+          "type": "image",
+          "label": "Imagen"
+        },
+        "alt": {
+          "type": "text",
+          "label": "Descripción accesible"
+        },
+        "fit": {
+          "type": "select",
+          "label": "Ajuste de imagen",
+          "options": [
+            "cover",
+            "contain"
+          ]
+        },
+        "imageHeight": {
+          "type": "number",
+          "label": "Alto de imagen (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
       "type": "NavbarBlock",
       "label": "Navbar",
       "category": "navigation",
@@ -22,9 +2144,57 @@
         "paddingX": "24px",
         "sticky": false,
         "showBrandName": true,
-        "mobileBreakpoint": "768px"
+        "mobileBreakpoint": "768px",
+        "submenuTrigger": "hover",
+        "submenuAlignment": "start",
+        "mobileCollapse": "responsive",
+        "mobileMenuStyle": "dropdown",
+        "menuAnimation": "fade"
       },
       "fields": {
+        "submenuTrigger": {
+          "type": "select",
+          "label": "Abrir submenús",
+          "options": [
+            "hover",
+            "click"
+          ]
+        },
+        "submenuAlignment": {
+          "type": "select",
+          "label": "Alinear submenús",
+          "options": [
+            "start",
+            "end"
+          ]
+        },
+        "mobileCollapse": {
+          "type": "select",
+          "label": "Colapsar navegación",
+          "options": [
+            "responsive",
+            "always",
+            "never"
+          ]
+        },
+        "mobileMenuStyle": {
+          "type": "select",
+          "label": "Presentación del menú móvil",
+          "options": [
+            "dropdown",
+            "drawer",
+            "fullscreen"
+          ]
+        },
+        "menuAnimation": {
+          "type": "select",
+          "label": "Transición de submenús",
+          "options": [
+            "none",
+            "fade",
+            "slide"
+          ]
+        },
         "variant": {
           "type": "select",
           "label": "Estilo",
