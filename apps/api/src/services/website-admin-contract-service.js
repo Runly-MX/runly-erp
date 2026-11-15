@@ -4,7 +4,7 @@ import {normalizeWebsiteDocument,websiteDocumentHash as hash} from './website-dr
 import {createWebsiteFormScopeService} from './website-form-scope-service.js'
 import {releaseBytesHash} from './website-release-storage.js'
 
-export function createWebsiteAdminContractService({prisma,isolation,namespaceRoot,readFile}) {
+export function createWebsiteAdminContractService({prisma,isolation,namespaceRoot,readFile,customDomainTarget=process.env.RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET}) {
   const scopes=createWebsiteFormScopeService({prisma})
   const permissions={
     'site.edit':'website.site.update','pages.create':'website.pages.create','pages.update':'website.pages.update',
@@ -28,9 +28,9 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
     const result={}
     for(const [key,p]of Object.entries(permissions)) {
       let reason=!a.access.can(p)?{code:'permission_denied',requiredPermission:p}:null
-      const additional={'site.archive':'website.pages.publish','domains.reserve':'website.site.update','catalog.select':'catalog.products.read','forms.resolveAmbiguous':'growth.forms.update','templates.applyTheme':'website.site.update'}[key]
+      const additional={'site.archive':'website.pages.publish','domains.reserve':'website.site.update','domains.custom':'website.site.update','catalog.select':'catalog.products.read','forms.resolveAmbiguous':'growth.forms.update','templates.applyTheme':'website.site.update'}[key]
       if(!reason&&additional&&!a.access.can(additional))reason={code:'permission_denied',requiredPermission:additional}
-      if(!reason&&['domains.custom','submissions.export','submissions.delete'].includes(key))reason={code:'feature_unavailable'}
+      if(!reason&&(['submissions.export','submissions.delete'].includes(key)||key==='domains.custom'&&!customDomainTarget))reason={code:'feature_unavailable'}
       if(!reason&&key==='domains.reserve'&&!namespaceRoot)reason={code:'namespace_unavailable'}
       if(!reason&&site.lifecycle==='archived')reason={code:'lifecycle_state'}
       if(!reason&&['preview.site','import.zip'].includes(key))try{key==='preview.site'?isolation.previewHost('capability'):isolation.assertContentRoot()}catch{reason={code:'isolation_required'}}

@@ -17,6 +17,7 @@ export const websiteKeys = {
   release: (companyId, siteId, releaseId) => ['website', companyId, 'site', siteId, 'release', releaseId],
   blog: (companyId, siteId) => ['website', companyId, 'site', siteId, 'blog'],
   domains: (companyId, siteId) => ['website', companyId, 'site', siteId, 'domains'],
+  customDomains: (companyId, siteId) => ['website', companyId, 'site', siteId, 'custom-domains'],
   all: (companyId) => ['website', companyId],
 }
 
@@ -110,6 +111,16 @@ export function useBlogPosts(siteId) {
     queryFn: async ({ signal }) => (await api.listBlogPosts(siteId, { signal })).data ?? [],
     enabled: ready && Boolean(siteId),
     staleTime: 10_000,
+  })
+}
+
+export function useCustomDomains(siteId) {
+  const { api, companyId, ready } = useWebsiteScope()
+  return useQuery({
+    queryKey: websiteKeys.customDomains(companyId, siteId),
+    queryFn: async ({ signal }) => (await api.listCustomDomains(siteId, { signal })).data ?? { available: false, items: [] },
+    enabled: ready && Boolean(siteId),
+    staleTime: 15_000,
   })
 }
 

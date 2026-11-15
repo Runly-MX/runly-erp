@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, EmptyState, ErrorState, LoadingState, StatusPill, TextField } from '@runly/ui'
-import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search, Sparkles, XCircle } from 'lucide-react'
+import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search, XCircle } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
 import { validateHostSlug } from '../../lib/pageRoute.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
+import { CustomDomainPanel } from '../../components/CustomDomainPanel.jsx'
 import { SiteAddress } from '../../components/SiteAddress.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
 import { ROW_CARD, SiteIconChip, SitePanel, TOUCH } from '../../components/SitePanel.jsx'
@@ -56,7 +57,8 @@ export default function SiteDomains({ siteId, caps }) {
   }
   const info = serverError ? describeError(serverError) : null
   const fieldError = slugError ?? (info ? `${info.title}. ${info.message}` : undefined)
-  const list = domains.data ?? []
+  // Customer-owned domains have their own panel and lifecycle; only platform addresses are listed here.
+  const list = (domains.data ?? []).filter((domain) => domain.kind !== 'custom')
 
   return (
     <div className="space-y-5 p-4 md:p-6">
@@ -119,16 +121,7 @@ export default function SiteDomains({ siteId, caps }) {
         )}
       </SitePanel>
 
-      <SitePanel
-        id="custom-title"
-        dashed
-        icon={Sparkles}
-        tone="violet"
-        title={<>Dominio propio <StatusPill size="sm" icon={Clock}>Próximamente</StatusPill></>}
-        description="Podrás usar tu propio dominio cuando esté disponible. Por ahora no hay nada que configurar."
-      >
-        <Button variant="outline" disabled>Conectar dominio propio</Button>
-      </SitePanel>
+      <CustomDomainPanel siteId={siteId} caps={caps} />
     </div>
   )
 }
