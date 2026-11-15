@@ -963,7 +963,80 @@
   global.RunlyERP.submitForm = submitForm
   global.AtlasERP = global.RunlyERP
 
-  if (cfg.analyticsMode && cfg.analyticsMode !== 'off') {
+
+  // ── Real-user error capture (opt-in: RUNLY_CONFIG.captureErrors = true) ──────
+  // Reports failed calls (HTTP 5xx or network failure) made by the page to its own
+  // backend as a "client_error" analytics event: host, path without query string
+  // (ids masked), status and kind. Never bodies, headers or query strings. It goes
+  // through track(), so consent and Do Not Track still apply. Own backend means the
+  // page's host, hosts sharing its last two labels, or cfg.captureErrorsHosts.
+  // shortcut: the last-two-labels rule misreads suffixes like .com.mx, list them in
+  // captureErrorsHosts when the API lives on a different domain.
+  var errorCaptureInstalled = false
+  function installErrorCapture() {
+    if (!cfg.captureErrors || errorCaptureInstalled) return
+    errorCaptureInstalled = true
+    var pageHost = (global.location && global.location.hostname) || ''
+    var base = pageHost.split('.').slice(-2).join('.')
+    var extra = Array.isArray(cfg.captureErrorsHosts) ? cfg.captureErrorsHosts : []
+    var supabaseBase = (cfg.supabaseUrl || '').replace(/\/$/, '')
+    var seen = {}
+    var sent = 0
+    var windowStart = Date.now()
+
+    function ownHost(host) {
+      return host === pageHost || (base && host.slice(-(base.length + 1)) === '.' + base) || extra.indexOf(host) !== -1
+    }
+
+    function report(rawUrl, status, kind) {
+      try {
+        var url = new URL(String(rawUrl), global.location && global.location.href)
+        if (API_URL && url.href.indexOf(API_URL) === 0) return
+        if (supabaseBase && url.href.indexOf(supabaseBase) === 0) return
+        if (!ownHost(url.hostname)) return
+        var path = url.pathname
+          .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi, '/:id')
+          .replace(/\/\d+(?=\/|$)/g, '/:id')
+          .slice(0, 120)
+        var now = Date.now()
+        if (now - windowStart > 60000) { windowStart = now; sent = 0; seen = {} }
+        var key = url.host + path + status + kind
+        if (seen[key] || sent >= 20) return
+        seen[key] = true
+        sent += 1
+        track('client_error', { host: url.host, apiPath: path, status: status, kind: kind })
+      } catch (e) {}
+    }
+
+    var originalFetch = global.fetch
+    if (typeof originalFetch === 'function') {
+      global.fetch = function (input) {
+        var target = typeof input === 'string' ? input : (input && input.url) || ''
+        return originalFetch.apply(this, arguments).then(function (res) {
+          if (res && res.status >= 500) report(target, res.status, 'http')
+          return res
+        }, function (err) {
+          if (!err || err.name !== 'AbortError') report(target, 0, 'network')
+          throw err
+        })
+      }
+    }
+
+    var XHR = global.XMLHttpRequest
+    if (XHR && XHR.prototype && XHR.prototype.open) {
+      var originalOpen = XHR.prototype.open
+      XHR.prototype.open = function (method, url) {
+        var xhr = this
+        xhr.addEventListener('load', function () { if (xhr.status >= 500) report(url, xhr.status, 'http') })
+        xhr.addEventListener('error', function () { report(url, 0, 'network') })
+        return originalOpen.apply(this, arguments)
+      }
+    }
+  }
+
+  installErrorCapture()
+  // captureErrors also starts analytics; the property's server-side mode (off, consent_required...) still decides what is sent.
+  if ((cfg.analyticsMode && cfg.analyticsMode !== 'off') || cfg.captureErrors) {
     analytics.start().catch(function () {})
   }
   if (global.dispatchEvent && global.CustomEvent) {

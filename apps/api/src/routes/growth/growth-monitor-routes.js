@@ -82,6 +82,7 @@ export const growthMonitorUpdateSchema = z
 
 const maintenanceSchema = z.object({ minutes: z.number().int().min(1).max(1440).nullable() });
 const listQuerySchema = z.object({ propertyId: z.string().uuid().optional() });
+const realErrorsQuerySchema = z.object({ propertyId: z.string().uuid().optional(), hours: z.coerce.number().int().min(1).max(168).optional() });
 const checksQuerySchema = z.object({
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
@@ -154,6 +155,9 @@ export function createGrowthMonitorRoutes({ service, requirePermission }) {
 
   app.get("/growth/monitors/:id/checks", requirePermission("growth.access"), zValidator("query", checksQuerySchema), run(async (c) =>
     c.json({ data: await service.listChecks({ companyId: companyId(c), id: c.req.param("id"), ...c.req.valid("query") }) })));
+
+  app.get("/growth/real-errors", requirePermission("growth.access"), zValidator("query", realErrorsQuerySchema), run(async (c) =>
+    c.json({ data: await service.realErrors({ companyId: companyId(c), ...c.req.valid("query") }) })));
 
   app.get("/growth/incidents", requirePermission("growth.access"), zValidator("query", listQuerySchema), run(async (c) =>
     c.json({ data: await service.listIncidents({ companyId: companyId(c), ...c.req.valid("query") }) })));

@@ -99,6 +99,13 @@ export default function GrowthMonitorsScreen() {
     onError: (err) => toast.error(err?.message || "No se pudo guardar la pagina de estado"),
   });
 
+  const realErrorsQuery = useQuery({
+    queryKey: ["growth", "real-errors"],
+    queryFn: () => runly.growth.listRealErrors(token),
+    enabled: Boolean(token && canAccess),
+    refetchInterval: 60_000,
+  });
+
   const refresh = () => {
     queryClient.invalidateQueries({ queryKey: ["growth", "monitors"] });
     queryClient.invalidateQueries({ queryKey: ["growth", "incidents"] });
@@ -339,6 +346,35 @@ export default function GrowthMonitorsScreen() {
         saving={saveMutation.isPending}
         onSave={(payload) => saveMutation.mutate({ id: dialogTarget?.id ?? null, payload })}
       />
+
+      <section className="space-y-3">
+        <div>
+          <h2 className="text-base font-semibold">Errores reales de visitantes (ultimas 24 h)</h2>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            Fallas del servidor que vieron personas navegando tu sitio. Se activan al copiar el codigo de Sitios conectados con la opcion de errores reales.
+          </p>
+        </div>
+        <DataTable
+          columns={[
+            { accessorKey: "siteName", header: "Sitio" },
+            { id: "route", header: "Ruta", cell: ({ row }) => `${row.original.host ?? ""}${row.original.path ?? ""}` },
+            {
+              id: "status",
+              header: "Error",
+              cell: ({ row }) => (row.original.kind === "network" ? "Sin conexion" : `HTTP ${row.original.status}`),
+            },
+            { accessorKey: "total", header: "Reportes" },
+            { accessorKey: "sessions", header: "Visitantes" },
+            { id: "last", header: "Ultimo", cell: ({ row }) => formatDateTime(row.original.lastSeen) },
+          ]}
+          data={realErrorsQuery.data?.data ?? []}
+          isLoading={realErrorsQuery.isLoading}
+          emptyIcon={Activity}
+          emptyTitle="Sin errores reportados"
+          emptyDescription="Cuando un visitante encuentre una falla del servidor, aparecera aqui agrupada por ruta."
+          showToolbar={false}
+        />
+      </section>
 
       <MonitorDetectDialog
         open={detectOpen}

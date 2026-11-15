@@ -147,7 +147,7 @@ function createStorage() {
   }
 }
 
-async function loadSdk() {
+async function loadSdk(harnessOptions = {}) {
   const source = await readFile(
     new URL('../runly-sdk.js', import.meta.url),
     'utf8',
@@ -161,6 +161,7 @@ async function loadSdk() {
   window.localStorage = storage
   window.location = {
     pathname: '/contacto',
+    hostname: 'shop.example.com',
     href: 'https://shop.example.com/contacto',
   }
   window.navigator = {
@@ -174,10 +175,13 @@ async function loadSdk() {
     siteId: '01900000-0000-7000-8000-000000000002',
     analyticsMode: 'consent_required',
     turnstileSiteKey: '',
+    ...harnessOptions.config,
   }
 
   const fetch = async (url, options = {}) => {
     calls.push({ url, options })
+    const extra = harnessOptions.fetchExtra?.(url, options)
+    if (extra) return extra
     if (url.endsWith('/public/storefront/v1/config')) {
       return response(200, {
         data: {
@@ -230,6 +234,7 @@ async function loadSdk() {
   }
   window.fetch = fetch
   window.URLSearchParams = URLSearchParams
+  window.URL = URL
   window.setInterval = () => 1
   window.clearInterval = () => {}
   window.setTimeout = (callback) => {
@@ -244,12 +249,14 @@ async function loadSdk() {
     localStorage: storage,
     navigator: window.navigator,
     fetch,
+    URL,
     URLSearchParams,
     Promise,
     JSON,
     Date,
     Math,
     Error,
+    TypeError,
     setInterval: () => 1,
     clearInterval: () => {},
     setTimeout: (callback) => {
@@ -456,6 +463,65 @@ describe('runly-sdk.js public surface', () => {
     assert.ok(eventNames.includes('form_start'))
     assert.ok(eventNames.includes('form_submit'))
     assert.equal(analyticsBodies.includes('ana@example.com'), false)
+  })
+})
+
+describe('runly-sdk.js real-user error capture', () => {
+  const failing = (url) => (url.includes('/api/') || url.includes('thirdparty')
+    ? response(503, { error: 'x' })
+    : url.includes('/boom') ? Promise.reject(new TypeError('Failed to fetch')) : null)
+
+  async function run(config) {
+    const harness = await loadSdk({ config: { ...config }, fetchExtra: failing })
+    const { analytics } = harness.window.RunlyERP
+    analytics.setConsent('granted')
+    await analytics.start()
+    return { harness, analytics }
+  }
+  const sentEvents = (harness) => harness.calls
+    .filter((call) => call.url.includes('/events/batch'))
+    .flatMap((call) => JSON.parse(call.options.body).events)
+    .filter((event) => event.name === 'client_error')
+
+  it('reports failed own-backend calls with masked path, no query and no bodies', async () => {
+    const { harness, analytics } = await run({ captureErrors: true })
+    await harness.window.fetch('https://api.shop.example.com/api/orders/42/items/0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e52?token=secret', { method: 'POST', body: '{"card":"4111"}' })
+    await harness.window.fetch('https://shop.example.com/boom').catch(() => {})
+    await analytics.flush()
+    const events = sentEvents(harness)
+    assert.equal(events.length, 2)
+    assert.deepEqual(
+      { host: events[0].properties.host, apiPath: events[0].properties.apiPath, status: events[0].properties.status, kind: events[0].properties.kind },
+      { host: 'api.shop.example.com', apiPath: '/api/orders/:id/items/:id', status: 503, kind: 'http' },
+    )
+    assert.equal(events[1].properties.kind, 'network')
+    const wire = JSON.stringify(events)
+    assert.equal(/secret|4111|token/.test(wire), false)
+  })
+
+  it('ignores third-party hosts, Runly own calls and repeated identical failures', async () => {
+    const { harness, analytics } = await run({ captureErrors: true })
+    await harness.window.fetch('https://thirdparty.net/api/x')
+    for (let i = 0; i < 5; i += 1) await harness.window.fetch('https://shop.example.com/api/orders')
+    await analytics.flush()
+    const events = sentEvents(harness)
+    assert.equal(events.length, 1, 'duplicates inside a minute collapse')
+    assert.equal(events[0].properties.host, 'shop.example.com')
+  })
+
+  it('does nothing unless captureErrors is enabled, and respects consent', async () => {
+    const off = await run({})
+    await off.harness.window.fetch('https://shop.example.com/api/orders')
+    await off.analytics.flush()
+    assert.equal(sentEvents(off.harness).length, 0)
+
+    const harness = await loadSdk({ config: { captureErrors: true }, fetchExtra: failing })
+    const { analytics } = harness.window.RunlyERP
+    analytics.setConsent('denied')
+    await analytics.start().catch(() => {})
+    await harness.window.fetch('https://shop.example.com/api/orders')
+    await analytics.flush()
+    assert.equal(sentEvents(harness).length, 0, 'denied consent sends nothing')
   })
 })
 

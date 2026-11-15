@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Button,
+  CheckboxField,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -25,7 +26,7 @@ import { getSupabaseClient } from "../../../lib/supabase.js";
 // static window.RUNLY_CONFIG object, never from the live public config
 // endpoint, so a property whose Turnstile keys were added *after* this
 // snippet was first copied needs the snippet re-copied to pick them up.
-function buildSnippet({ companySlug, propertyId, turnstileSiteKey }) {
+function buildSnippet({ companySlug, propertyId, turnstileSiteKey, captureErrors = false }) {
   const apiUrl = getApiUrl();
   const supabase = getSupabaseClient();
   const supabaseUrl = supabase.supabaseUrl;
@@ -42,6 +43,7 @@ function buildSnippet({ companySlug, propertyId, turnstileSiteKey }) {
     supabaseAnonKey,
     storageKey,
     ...(turnstileSiteKey ? { turnstileSiteKey } : {}),
+    ...(captureErrors ? { captureErrors: true } : {}),
   };
 
   return [
@@ -66,6 +68,7 @@ export function ConnectExternalSiteDialog({
   const [domain, setDomain] = useState("");
   const [property, setProperty] = useState(existingProperty);
   const [copied, setCopied] = useState(false);
+  const [captureErrors, setCaptureErrors] = useState(false);
 
   useEffect(() => {
     if (open) setProperty(existingProperty);
@@ -76,6 +79,7 @@ export function ConnectExternalSiteDialog({
     setDomain("");
     setProperty(existingProperty);
     setCopied(false);
+    setCaptureErrors(false);
   }
 
   async function handleCreate() {
@@ -101,6 +105,7 @@ export function ConnectExternalSiteDialog({
         companySlug,
         propertyId: property.id,
         turnstileSiteKey: property.turnstileSiteKey,
+        captureErrors,
       }),
     );
     setCopied(true);
@@ -142,11 +147,18 @@ export function ConnectExternalSiteDialog({
             <p className="text-sm text-[hsl(var(--muted-foreground))]">
               Pega este fragmento antes de {"</body>"} en tu sitio externo:
             </p>
+            <CheckboxField
+              checked={captureErrors}
+              onChange={(event) => setCaptureErrors(event.target.checked)}
+              label="Avisar de errores reales de los visitantes (opcional)"
+              hint="Si el servidor de tu sitio falla al atender a un visitante, lo veras en Monitores. Solo se guarda la direccion sin datos personales, el estado y la hora. Tambien inicia la analitica del sitio, que respeta su configuracion de consentimiento y No rastrear."
+            />
             <pre className="overflow-x-auto rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted))] p-3 text-xs">
               {buildSnippet({
                 companySlug,
                 propertyId: property.id,
                 turnstileSiteKey: property.turnstileSiteKey,
+                captureErrors,
               })}
             </pre>
             {!property.turnstileSiteKey && (

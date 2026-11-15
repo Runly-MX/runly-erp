@@ -229,5 +229,24 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
     });
   }
 
-  return { listMonitors, createMonitor, updateMonitor, disableMonitor, setMaintenance, regeneratePingToken, recordPing, discoverSite, checkNow, listChecks, listIncidents };
+  // Errors reported by the embeddable SDK from real visitors (event "client_error"), grouped.
+  async function realErrors({ companyId, propertyId = null, hours = 24 }) {
+    const live = await prisma.growthProperty.findMany({ where: { companyId, enabled: true, ...(propertyId ? { id: propertyId } : {}) }, select: { id: true, name: true } });
+    if (!live.length) return [];
+    const since = new Date(now().getTime() - hours * 3_600_000);
+    const rows = await prisma.$queryRaw`
+      SELECT site_id, properties->>'host' AS host, properties->>'apiPath' AS path,
+             NULLIF(properties->>'status', '')::int AS status, properties->>'kind' AS kind,
+             count(*)::int AS total, count(DISTINCT session_id)::int AS sessions, max(server_received_at) AS last_seen
+      FROM growth_event
+      WHERE company_id = ${companyId}::uuid AND site_id = ANY(${live.map((p) => p.id)}::uuid[])
+        AND event_name = 'client_error' AND server_received_at >= ${since}
+      GROUP BY site_id, 2, 3, 4, 5
+      ORDER BY total DESC
+      LIMIT 30`;
+    const names = new Map(live.map((p) => [p.id, p.name]));
+    return rows.map((r) => ({ siteName: names.get(r.site_id) ?? null, host: r.host, path: r.path, status: r.status, kind: r.kind, total: r.total, sessions: r.sessions, lastSeen: r.last_seen }));
+  }
+
+  return { realErrors, listMonitors, createMonitor, updateMonitor, disableMonitor, setMaintenance, regeneratePingToken, recordPing, discoverSite, checkNow, listChecks, listIncidents };
 }

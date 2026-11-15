@@ -73,6 +73,9 @@ export function createGrowthDomain({
     regenerateStatusPageLink: (propertyId, token) =>
       request(`/growth/status-pages/${encodeURIComponent(propertyId)}/slug`, { method: "POST", headers: withAuthHeaders(token) }),
 
+    listRealErrors: (token, { propertyId, hours } = {}) =>
+      request(`/growth/real-errors${toQueryString({ propertyId, hours })}`, { headers: withAuthHeaders(token) }),
+
     checkMonitorNow: (monitorId, token) =>
       request(`/growth/monitors/${encodeURIComponent(monitorId)}/check`, { method: "POST", headers: withAuthHeaders(token) }),
 
