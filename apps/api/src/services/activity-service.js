@@ -1,3 +1,4 @@
+import { createFileVisibility } from "./files/visibility.js";
 import { activityPublishSchema, ACTIVITY_CONSTANTS, activityCategory, activityCategoryWhere, activityModule } from "@runly/validators";
 
 export class ActivityServiceError extends Error {
@@ -104,6 +105,26 @@ export function createActivityService({ prisma }) {
     return { companyId: activeCompanyId, actorProfileId: profile.id };
   }
 
+  const fileVisibility = createFileVisibility({ prisma });
+
+  // File uploads are announced company-wide; hide the ones whose file the
+  // viewer cannot read (and per-user attach notices that are not theirs).
+  // Company admins see everything, like in runly.files.
+  async function viewerGuard(viewer, companyId) {
+    if (!viewer?.profileId || viewer.isAdmin) return null;
+    const permissions = viewer.permissionSet instanceof Set ? viewer.permissionSet : new Set(viewer.permissionSet ?? []);
+    const readable = await fileVisibility.listWhere({ profileId: viewer.profileId, companyId, admin: false, permissions });
+    const files = await prisma.fileAsset.findMany({ where: { entityId: companyId, AND: [readable] }, select: { id: true } });
+    return {
+      AND: [
+        { OR: [{ entityType: null }, { entityType: { not: "FileAsset" } }, { entityId: { in: files.map((f) => f.id) } }] },
+        { OR: [{ type: { not: "identity.user.file.attach" } }, { actorId: viewer.profileId }] },
+      ],
+    };
+  }
+
+  const withGuard = (where, guard) => (guard ? { ...where, AND: [...(where.AND ?? []), guard] } : where);
+
   async function isDuplicate({ companyId, type, entityId, actorId }) {
     const since = new Date(Date.now() - DEDUPE_WINDOW_MS);
     const existing = await prisma.activity.findFirst({
@@ -172,11 +193,11 @@ export function createActivityService({ prisma }) {
     });
   }
 
-  async function list({ authUserId, companyId: activeCompanyId, query }) {
+  async function list({ authUserId, companyId: activeCompanyId, query, viewer }) {
     const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 25;
-    const where = buildWhere({ companyId, filters: query });
+    const where = withGuard(buildWhere({ companyId, filters: query }), await viewerGuard(viewer, companyId));
     const sortField = query.sortBy ?? "createdAt";
     const sortDir = query.sortDir === "asc" ? "asc" : "desc";
     const orderBy = { [sortField]: sortDir };
@@ -228,11 +249,11 @@ export function createActivityService({ prisma }) {
     return { data };
   }
 
-  async function recent({ authUserId, companyId: activeCompanyId, limit = 20 }) {
+  async function recent({ authUserId, companyId: activeCompanyId, limit = 20, viewer }) {
     const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const safeLimit = Math.min(Math.max(Number(limit) || 20, 1), 100);
     const items = await prisma.activity.findMany({
-      where: { companyId },
+      where: withGuard({ companyId }, await viewerGuard(viewer, companyId)),
       orderBy: { createdAt: "desc" },
       take: safeLimit,
       include: {
@@ -262,6 +283,7 @@ export function createActivityService({ prisma }) {
     before = null,
     category = null,
     actorId = null,
+    viewer,
   }) {
     const { companyId } = await resolveCompanyContext(authUserId, activeCompanyId);
     const safeLimit = Math.min(Math.max(Number(limit) || 50, 1), 200);
@@ -272,7 +294,7 @@ export function createActivityService({ prisma }) {
     if (categoryWhere) Object.assign(where, categoryWhere);
     if (actorId && /^[0-9a-f-]{36}$/i.test(String(actorId))) where.actorId = actorId;
     const items = await prisma.activity.findMany({
-      where,
+      where: withGuard(where, await viewerGuard(viewer, companyId)),
       orderBy: { createdAt: "desc" },
       take: safeLimit + 1,
       include: {

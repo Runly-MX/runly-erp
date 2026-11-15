@@ -9,6 +9,7 @@ import {
   activityPublishSchema,
   activityListQuerySchema,
 } from "@runly/validators";
+import { tenantActiveContext } from "../lib/active-context.js";
 import { attachUserAvatarUrls } from "../lib/attach-user-avatars.js";
 
 export function createActivityRouter({ prisma, requirePermission, supabaseAdmin = null }) {
@@ -37,7 +38,7 @@ export function createActivityRouter({ prisma, requirePermission, supabaseAdmin 
       const authUserId = c.get("authUserId");
       const raw = Object.fromEntries(new URL(c.req.url).searchParams);
       const query = activityListQuerySchema.parse(raw);
-      const result = await withActorAvatars(await service.list({ authUserId, companyId: c.get("companyId"), query }));
+      const result = await withActorAvatars(await service.list({ authUserId, companyId: c.get("companyId"), query, viewer: tenantActiveContext(c) }));
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "GET /activity");
@@ -57,7 +58,7 @@ export function createActivityRouter({ prisma, requirePermission, supabaseAdmin 
     try {
       const authUserId = c.get("authUserId");
       const limit = Number(c.req.query("limit") ?? 20);
-      const result = await withActorAvatars(await service.recent({ authUserId, companyId: c.get("companyId"), limit }));
+      const result = await withActorAvatars(await service.recent({ authUserId, companyId: c.get("companyId"), limit, viewer: tenantActiveContext(c) }));
       return c.json(result);
     } catch (err) {
       return handleError(c, err, "GET /activity/recent");
@@ -82,6 +83,7 @@ export function createActivityRouter({ prisma, requirePermission, supabaseAdmin 
           before: c.req.query("before") || null,
           category: c.req.query("category") || null,
           actorId: c.req.query("actorId") || null,
+          viewer: tenantActiveContext(c),
         }));
         return c.json(result);
       } catch (err) {
@@ -152,7 +154,7 @@ export function createActivityRouter({ prisma, requirePermission, supabaseAdmin 
             5000,
           ),
         });
-        const result = await withActorAvatars(await service.list({ authUserId, companyId: c.get("companyId"), query }));
+        const result = await withActorAvatars(await service.list({ authUserId, companyId: c.get("companyId"), query, viewer: tenantActiveContext(c) }));
         const rows = result?.data ?? [];
 
         const workbook = new ExcelJS.Workbook();
