@@ -65,6 +65,11 @@ for (const mode of ['local', 'external']) for (const file of catalog.modes[mode]
   if (!files[file]) files[file] = { sha256: hash(text), modes: [], legacyGitBlobs: [...(legacy[file] ?? [])].filter(value => value !== blob).sort() }
   files[file].modes.push(mode)
 }
+// Published payloads are immutable by version. Legacy blob metadata can grow
+// without changing installed bytes, but changed payloads need a new version.
+const previous = JSON.parse(execFileSync('git', ['show', 'HEAD:infra/installer/installer-release.json'], { encoding: 'utf8' }))
+const payload = manifestFiles => JSON.stringify(Object.keys(manifestFiles).sort().map(file => [file, manifestFiles[file].sha256, [...manifestFiles[file].modes].sort()]))
+if (previous.version === catalog.version && payload(previous.files) !== payload(files)) throw Error('INSTALLER_VERSION_REUSED: increment infra/installer/release-files.json version before generating')
 outputs.set('installer-release.json', JSON.stringify({ schema: 1, contract: 'studio-realtime-1', version: catalog.version, files }, null, 2) + '\n')
 for (const [file, text] of outputs) {
   if (check) {

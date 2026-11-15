@@ -15,6 +15,23 @@ function fixture(t) {
 }
 const manifestFor = (files, version = 'test-1') => ({ schema: 1, contract: INSTALLER_CONTRACT, version, files: Object.fromEntries(Object.entries(files).map(([file, content]) => [file, { sha256: sha256(Buffer.from(content)), modes: ['local', 'external'], legacyGitBlobs: [] }])) })
 
+for (const mode of ['local', 'external']) test(`${mode}: upgrades the reused November release without discarding installed state or private configuration`, async t => {
+  const root=fixture(t),previousRef='57a6e8ecb2851ff350cf3fcd12a573b50607cb89'
+  const previous=JSON.parse(execFileSync('git',['show',`${previousRef}:infra/installer/installer-release.json`],{encoding:'utf8'}))
+  const manifest=JSON.parse(fs.readFileSync('infra/installer/installer-release.json','utf8'))
+  assert.notEqual(manifest.version,previous.version)
+  fs.mkdirSync(join(root,'.runly-installer'))
+  fs.writeFileSync(join(root,'.runly-installer/state.json'),JSON.stringify({contract:INSTALLER_CONTRACT,version:previous.version,ref:previousRef,mode,files:Object.fromEntries(Object.entries(previous.files).filter(([,entry])=>entry.modes.includes(mode)).map(([file,entry])=>[file,entry.sha256]))}))
+  const envFile=`.env.${mode}`
+  const example=`${envFile}.example`
+  fs.writeFileSync(join(root,example),execFileSync('git',['show',`${previousRef}:infra/installer/${example}`]))
+  fs.writeFileSync(join(root,envFile),'KEEP_PRIVATE_CONFIG=true\n')
+  await installRelease({root,mode,ref,manifest,readSource:file=>Buffer.from(fs.readFileSync(`infra/installer/${file}`,'utf8').replaceAll('\r\n','\n'))})
+  assert.equal(JSON.parse(fs.readFileSync(join(root,'.runly-installer/state.json'))).version,manifest.version)
+  assert.equal(fs.readFileSync(join(root,envFile),'utf8'),'KEEP_PRIVATE_CONFIG=true\n')
+  assert.equal(sha256(fs.readFileSync(join(root,example))),manifest.files[example].sha256)
+})
+
 test('legacy scripts upgrade together and preserve configuration, data, secrets, selected images and mode', async t => {
   const root = fixture(t)
   const manifest = JSON.parse(fs.readFileSync('infra/installer/installer-release.json'))
