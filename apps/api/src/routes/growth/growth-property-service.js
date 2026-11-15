@@ -1,4 +1,5 @@
 import { encryptPassword } from "../../services/smtp-service.js";
+import { originMatchesDomain } from "../../services/storefront-capture-service.js";
 
 export class GrowthPropertyServiceError extends Error {
   constructor(message, status = 400, code = "growth_property_error") {
@@ -154,6 +155,8 @@ export function createGrowthPropertyService({ prisma, now = () => new Date() }) 
     const ping = await prisma.instanceConfig.findUnique({ where: { key: `growth.sdk-ping:${propertyId}` } });
     let diagnostic = null;
     try { diagnostic = ping ? JSON.parse(ping.value) : null; } catch { diagnostic = null; }
+    // Re-judge the stored origin against today's domain and rules: the flag saved at ping time goes stale after a domain edit or a deploy.
+    if (diagnostic?.origin && property.domain) diagnostic.originAllowed = originMatchesDomain(diagnostic.origin, property.domain);
     const hasEvent = await prisma.growthEvent.findFirst({
       where: { companyId, siteId: propertyId },
       select: { id: true },

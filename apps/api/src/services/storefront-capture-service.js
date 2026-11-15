@@ -39,6 +39,14 @@ function parseDomainOrigin(domain) {
   }
 }
 
+// example.com and www.example.com are the same site for a customer who typed only one of them.
+export function originMatchesDomain(origin, domain) {
+  const configured = parseDomainOrigin(domain);
+  const requested = parseDomainOrigin(origin);
+  if (!configured || !requested) return false;
+  return configured.replace("//www.", "//") === requested.replace("//www.", "//");
+}
+
 function normalizePhone(value) {
   const raw = String(value ?? "").trim();
   if (!raw) return null;
@@ -108,9 +116,7 @@ export function createStorefrontCaptureService({
 
     const configuredOrigin = parseDomainOrigin(site.domain);
     if (!configuredOrigin) return;
-    if (configuredOrigin === requestOrigin) return;
-    // example.com and www.example.com are the same site for a customer who typed only one of them.
-    if (configuredOrigin.replace("//www.", "//") === requestOrigin.replace("//www.", "//")) return;
+    if (originMatchesDomain(requestOrigin, site.domain)) return;
 
     // Also allow submissions from the ERP host itself — the ERP serves
     // the storefront site at ATLAS_APP_URL, so its origin is always trusted.

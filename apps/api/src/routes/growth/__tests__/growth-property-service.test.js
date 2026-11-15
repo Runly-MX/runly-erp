@@ -115,6 +115,19 @@ test("createExternalProperty + verifyProperty happy path", async () => {
   assert.equal(verified.property.status, "active");
 });
 
+test("verifyProperty re-judges a stale ping origin against the current domain", async () => {
+  const property = { id: "p1", companyId: COMPANY_ID, domain: "racoondevs.com", status: "pending_verification", enabled: true };
+  const prisma = createPrismaStub({ growthProperties: [property] });
+  const stale = { at: "2026-11-15T00:00:00Z", state: "ok", origin: "https://www.racoondevs.com", originAllowed: false };
+  prisma.instanceConfig.findUnique = async () => ({ value: JSON.stringify(stale) });
+  const service = createGrowthPropertyService({ prisma });
+  const ok = await service.verifyProperty({ companyId: COMPANY_ID, propertyId: "p1" });
+  assert.equal(ok.diagnostic.originAllowed, true);
+  property.domain = "tienda.racoondevs.com";
+  const other = await service.verifyProperty({ companyId: COMPANY_ID, propertyId: "p1" });
+  assert.equal(other.diagnostic.originAllowed, false);
+});
+
 test("updateProperty encrypts turnstileSecretKey before storing it", async () => {
   process.env.JWT_SECRET = process.env.JWT_SECRET || "test-secret-for-growth-property-service";
   const created = {
