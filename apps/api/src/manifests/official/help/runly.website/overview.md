@@ -12,7 +12,7 @@ Runly Sitio web es un creador de sitios: armas paginas con bloques, publicas un 
 - **Formularios**: contacto, cotizacion o registro; cada envio puede registrarse como lead en Growth.
 - **Apariencia**: **Tema** (colores y tipografia), **Menus** y **Plantillas**. Las plantillas (por ejemplo tienda departamental, marketing digital, app con efecto de vidrio o portafolio de desarrollador) se pueden aplicar sobre un sitio existente: antes de aplicar, Runly te dice que paginas se reemplazan.
 - **Publicaciones**: cada publicacion queda guardada; puedes verla o volver a una anterior sin perder tus borradores. Antes de publicar, un resumen describe los cambios pendientes, incluidas las paginas eliminadas que se retiraran del sitio.
-- **Dominios**: la direccion con la que tus visitantes encuentran el sitio; comprueba si el nombre esta libre y reservalo.
+- **Dominios**: la direccion con la que tus visitantes encuentran el sitio; reserva una direccion de Runly o conecta tu propio dominio (por ejemplo www.mitienda.mx) verificandolo con un registro DNS.
 - **Importar ZIP**: sube un sitio estatico ya compilado (no se ejecuta codigo del servidor) y activalo tras verlo en una vista previa privada.
 - **Configuracion**: identidad (nombre y logotipo, que tambien es el icono de la pestaña del navegador), permisos, **Cuentas de clientes** y archivar el sitio.
 - **Correo y analitica**: el correo (SMTP) es de la empresa y lo comparten sus sitios; la analitica y el antispam son de cada sitio.

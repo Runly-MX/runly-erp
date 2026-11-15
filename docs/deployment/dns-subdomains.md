@@ -61,3 +61,9 @@ misconfiguration — they must match what the browser actually loads (`RUNLY_APP
   `RUNLY_OFFICE_ENABLED=true`.
 - Supabase Studio is admin tooling — many installs never expose it publicly and
   instead reach it over an SSH tunnel or VPN.
+
+## Customer-owned website domains
+
+Customers can attach their own domain to a site. Runly verifies ownership by DNS but does not issue
+certificates: see [custom-domains-https.md](custom-domains-https.md) for the env vars
+(`RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET`, `RUNLY_WEBSITE_CUSTOM_DOMAIN_LIMIT`), the TLS recipes and troubleshooting.

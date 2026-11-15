@@ -1,7 +1,9 @@
 # Website custom domains: connect and DNS from a Runly instance - design
 
 Date: 2026-11-14 (revised 2026-11-15)
-Status: DRAFT for review. Nothing is implemented. Decisions taken with the owner:
+Status: phase 1 implemented (backend, UI, SDK, Growth monitors, docs); phase 2 (Cloudflare) not started.
+Plan: `docs/superpowers/plans/2026-11-15-website-custom-domains-phase1.md`. Operator guide:
+`docs/deployment/custom-domains-https.md`. Decisions taken with the owner:
 scope = connect owned domains **and edit their DNS through a provider API** (no domain
 purchase in v1), and **SSL is not provided by Runly**: whoever operates each instance
 terminates TLS for the custom hostnames. Runly will not ship Caddy or issue certificates
@@ -54,6 +56,15 @@ columns `verification_token`, `verified_at`, `dns_target` (what the customer mus
 `cloudflare`, `zone_id`, `zone_name`, `token_enc`, `created_at`) with the provider credential
 encrypted by the same helper as Turnstile/SMTP secrets (`encryptPassword`); never returned
 by any endpoint and never logged.
+
+**Implementation notes (learned while building phase 1).** `website_domain` is protected by
+database guards that the first design did not know about, so three migrations were needed:
+`kind` CHECK extended with `custom`; the `state` CHECK has no `released`, so a released custom
+host is stored as `quarantined` (already shown as "Liberada") and exposed to clients as
+`released`; and the `website_domain_guard` trigger (names never reassigned or deleted) now
+allows UPDATE of `kind='custom'` rows, because DNS proof replaces the history rule for them.
+Deletes stay forbidden for every row. A pending claim is protected for 1 hour; after that, or
+once released, another company that proves DNS can claim the host.
 
 State machine of a custom domain: `pending_dns` -> `verified` (serving) -> `released`.
 A custom host is served once ownership is verified. Certificates are the operator's concern,
@@ -135,8 +146,11 @@ unverified one. Manual staging pass with a real domain and Cloudflare account be
 
 ## Risks and open questions
 
-- Whether the Developer Hub registry/edge must know about custom hosts (not inspected). This
-  design keeps routing local to the instance; confirm before Phase 1.
+- Developer Hub (inspected 2026-11-15): not involved. Its registry stores only
+  `<slug>.<namespace>` platform names and its edge routes only single-label hosts under served
+  namespaces, so custom hosts are served directly by the installation. The Hub cannot enforce
+  uniqueness across installations; the per-installation TXT token plus the "DNS points here"
+  advisory are the mitigation.
 - Without Runly-provided SSL, support load shifts to operators: the guide and the clear
   `https_state` messages are the mitigation.
 - Customers behind the Cloudflare proxy hit a different path for certificates; document it.
