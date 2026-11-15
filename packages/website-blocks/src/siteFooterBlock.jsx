@@ -1,4 +1,4 @@
-import { defineBlock } from '@raulbellosom/atlas-web-builder'
+import { defineBlock, BrandIdentity, brandIdentityDefaults, brandIdentityFields, brandIdentityHref } from '@raulbellosom/atlas-web-builder'
 
 const STYLE = '.runly-foot a{transition:color 160ms ease,opacity 160ms ease}.runly-foot a:hover,.runly-foot a:focus-visible{opacity:1;text-decoration:underline;text-underline-offset:4px}.runly-foot a:focus-visible{outline:2px solid currentColor;outline-offset:3px;border-radius:2px}'
 const safeHref = (value) => (/^(https?:|mailto:|tel:|\/|#)/i.test(value) ? value : '#')
@@ -27,8 +27,9 @@ export const SiteFooterBlock = defineBlock({
   type: 'SiteFooterBlock',
   label: 'Pie de página con colores del tema',
   category: 'navigation',
-  defaultProps: { tone: 'ink', brand: 'Mi sitio', tagline: '', columns: 'Explorar\nInicio | /\nContacto | /contacto', copyright: '', showBrand: true, backToTop: true },
+  defaultProps: { ...brandIdentityDefaults, tone: 'ink', brand: 'Mi sitio', tagline: '', columns: 'Explorar\nInicio | /\nContacto | /contacto', copyright: '', showBrand: true, backToTop: true },
   fields: {
+    ...brandIdentityFields,
     tone: { type: 'select', label: 'Fondo', options: [{ value: 'ink', label: 'Tinta del tema' }, { value: 'primary', label: 'Color principal' }, { value: 'light', label: 'Claro' }] },
     brand: { type: 'text', label: 'Nombre' },
     tagline: { type: 'text', label: 'Lema' },
@@ -37,8 +38,8 @@ export const SiteFooterBlock = defineBlock({
     showBrand: { type: 'toggle', label: 'Mostrar nombre y lema' },
     backToTop: { type: 'toggle', label: 'Enlace "Volver arriba"' },
   },
-  groups: [{ label: 'Contenido', fields: ['brand', 'tagline', 'columns', 'copyright'] }, { label: 'Estilo', fields: ['tone', 'showBrand', 'backToTop'] }],
-  render({ tone, brand, tagline, columns, copyright, showBrand, backToTop }) {
+  groups: [{ label: 'Marca', fields: Object.keys(brandIdentityFields) }, { label: 'Contenido', fields: ['columns', 'copyright'] }, { label: 'Estilo', fields: ['tone', 'showBrand', 'backToTop'] }],
+  render({ tone, brand, tagline, columns, copyright, showBrand, backToTop, ...identity }) {
     const [bg, fg, muted, line] = TONES[tone] ?? TONES.ink
     const cols = parseColumns(columns)
     return (
@@ -49,7 +50,7 @@ export const SiteFooterBlock = defineBlock({
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px 48px' }}>
             {showBrand && (
               <div style={{ flex: '2 1 260px', minWidth: 0 }}>
-                <div style={{ fontSize: 'clamp(28px, 3.6vw, 40px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}>{brand}</div>
+                <a href={brandIdentityHref(identity.brandHref)} style={{ display: 'inline-block', color: fg, textDecoration: 'none', fontSize: 'clamp(28px, 3.6vw, 40px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}><BrandIdentity {...identity} brand={brand}/></a>
                 {tagline && <p style={{ margin: '14px 0 0', maxWidth: '34ch', color: muted, fontSize: '16px', lineHeight: 1.6 }}>{tagline}</p>}
               </div>
             )}

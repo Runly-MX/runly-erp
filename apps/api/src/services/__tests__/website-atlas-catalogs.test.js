@@ -12,7 +12,8 @@ test('Atlas catalogs preserve old ZIPs and round-trip free responsive elements t
   assert.ok(!catalogs['0.3.5'].blocks.some(b=>b.type==='BoxBlock'))
   const hub=JSON.parse(readFileSync(new URL('../../../../../../runly-developer-hub/packages/contracts/website-builder-catalogs/0.6.0.json',import.meta.url)))
   assert.equal(catalogDigest(catalogs['0.6.0']),catalogDigest(hub))
-  for(const builderVersion of ['0.3.5','0.6.0','0.6.1']){
+  assert.equal(catalogDigest(catalogs['0.6.1']),'49bd05df8c974119eb526c5c4dce1209bc022ed02d323563f5fdf88b5d5780a1')
+  for(const builderVersion of ['0.3.5','0.6.0','0.6.1','0.6.2']){
     const catalog=catalogs[builderVersion]
     const sections=builderVersion==='0.3.5'?[{type:'TextBlock',props:{text:'Legacy'}}]:[
       {type:'BoxBlock',props:{layout:'free',heightMode:'fixed',height:500},children:{children:[
@@ -20,6 +21,7 @@ test('Atlas catalogs preserve old ZIPs and round-trip free responsive elements t
       ]}},
     ]
     if(builderVersion==='0.6.1')sections.push({type:'LogoElementBlock',props:{brand:'Marca',tagline:'Texto adicional',brandHref:'/inicio',brandDirection:'column'}})
+    if(builderVersion==='0.6.2')for(const type of ['FooterBlock','SiteFooterBlock'])sections.push({type,props:{brand:'Marca',showBrandName:false,tagline:'Pie adicional',logoAlt:'Logo del pie',logoHeight:'48',brandHref:'/inicio',brandDirection:'column'}})
     const {bytes}=await exportWebsiteTemplate({title:'Catalog compatibility',builderVersion,catalog,pages:[{path:'/',title:'Inicio',isHome:true,sections}]})
     const opened=await inspectWebsiteTemplate(bytes,{builderCatalogs:catalogs})
     assert.equal(opened.ok,true,JSON.stringify(opened.errors))

@@ -2800,14 +2800,70 @@
       "group": "base",
       "slots": [],
       "defaultProps": {
-        "variant": "dark",
         "brand": "Mi sitio",
+        "logoSrc": "",
+        "logoAlt": "",
+        "logoHeight": "32",
+        "showBrandName": true,
         "tagline": "Construido con pasión.",
+        "brandDirection": "row",
+        "brandGap": 8,
+        "brandHref": "/",
+        "variant": "dark",
         "columns": "Producto | Producto\nCaracterísticas | /features\nPrecios | /pricing\nDocumentación | /docs\n---\nEmpresa | Empresa\nNosotros | /about\nBlog | /blog\nContacto | /contact\n---\nLegal | Legal\nPrivacidad | /privacy\nTérminos | /terms",
         "copyright": "© 2026 Mi sitio. Todos los derechos reservados.",
         "showBrand": true
       },
       "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Imagen del logo"
+        },
+        "logoAlt": {
+          "type": "text",
+          "label": "Descripción del logo"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Tagline"
+        },
+        "brandDirection": {
+          "type": "select",
+          "label": "Distribución de la marca",
+          "options": [
+            "row",
+            "column"
+          ]
+        },
+        "brandGap": {
+          "type": "number",
+          "label": "Separación entre logo y texto",
+          "min": 0,
+          "max": 64
+        },
+        "brandHref": {
+          "type": "link",
+          "label": "Enlace de la marca"
+        },
         "variant": {
           "type": "select",
           "label": "Variante",
@@ -2816,14 +2872,6 @@
             "dark",
             "primary"
           ]
-        },
-        "brand": {
-          "type": "text",
-          "label": "Nombre de marca"
-        },
-        "tagline": {
-          "type": "text",
-          "label": "Tagline"
         },
         "columns": {
           "type": "textarea",
@@ -5659,15 +5707,71 @@
       "group": "universal",
       "slots": [],
       "defaultProps": {
-        "tone": "ink",
         "brand": "Mi sitio",
+        "logoSrc": "",
+        "logoAlt": "",
+        "logoHeight": "32",
+        "showBrandName": true,
         "tagline": "",
+        "brandDirection": "row",
+        "brandGap": 8,
+        "brandHref": "/",
+        "tone": "ink",
         "columns": "Explorar\nInicio | /\nContacto | /contacto",
         "copyright": "",
         "showBrand": true,
         "backToTop": true
       },
       "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Imagen del logo"
+        },
+        "logoAlt": {
+          "type": "text",
+          "label": "Descripción del logo"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Lema"
+        },
+        "brandDirection": {
+          "type": "select",
+          "label": "Distribución de la marca",
+          "options": [
+            "row",
+            "column"
+          ]
+        },
+        "brandGap": {
+          "type": "number",
+          "label": "Separación entre logo y texto",
+          "min": 0,
+          "max": 64
+        },
+        "brandHref": {
+          "type": "link",
+          "label": "Enlace de la marca"
+        },
         "tone": {
           "type": "select",
           "label": "Fondo",
@@ -5676,14 +5780,6 @@
             "primary",
             "light"
           ]
-        },
-        "brand": {
-          "type": "text",
-          "label": "Nombre"
-        },
-        "tagline": {
-          "type": "text",
-          "label": "Lema"
         },
         "columns": {
           "type": "textarea",
