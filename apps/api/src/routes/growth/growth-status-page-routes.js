@@ -38,6 +38,7 @@ export function createGrowthStatusPagePublicRoutes({ service, max = 120, windowM
   const hits = new Map();
   const allowed = (key) => {
     const at = Date.now();
+    if (hits.size > 5000) for (const [k, times] of hits) if (at - times[times.length - 1] >= windowMs) hits.delete(k);
     const recent = (hits.get(key) ?? []).filter((t) => at - t < windowMs);
     if (recent.length >= max) return false;
     hits.set(key, [...recent, at]);

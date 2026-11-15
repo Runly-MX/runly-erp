@@ -33,7 +33,8 @@ export function registrableDomain(host) {
 
 // Custom headers (auth) are only sent to the host the user configured, never to a redirect target.
 function sameOrigin(current, raw) {
-  return new URL(raw).host === current.host;
+  // Origin (scheme + host + port): a redirect from https to http must not re-send credentials in clear.
+  return new URL(raw).origin === current.origin;
 }
 
 // Resolve first, refuse non-public addresses, then pin the connection to the
@@ -70,7 +71,11 @@ function safeHeaders(headers = {}) {
 }
 
 function defaultRequest({ url, method, timeoutMs, lookup, headers, body, readBody }) {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolveRaw, rejectRaw) => {
+    // Hard deadline for the whole hop: the idle timeout resets on every byte, so a slow drip would never end.
+    let deadline = null;
+    const resolve = (value) => { clearTimeout(deadline); resolveRaw(value); };
+    const reject = (error) => { clearTimeout(deadline); rejectRaw(error); };
     const client = url.protocol === "https:" ? https : http;
     const payload = body == null ? null : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
     if (payload && payload.length > MAX_REQUEST_BODY_BYTES) return reject(new MonitorProbeError("El cuerpo de la peticion es demasiado grande."));
@@ -79,7 +84,7 @@ function defaultRequest({ url, method, timeoutMs, lookup, headers, body, readBod
       headers: { "user-agent": "RunlyMonitor/1.0", ...(payload ? { "content-type": "application/json", "content-length": payload.length } : {}), ...safeHeaders(headers) },
     }, (res) => {
       const finish = (text) => resolve({ statusCode: res.statusCode ?? 0, location: res.headers.location ?? null, headers: res.headers, body: text });
-      if (!readBody) { res.resume(); return finish(null); }
+      if (!readBody) { finish(null); res.destroy(); return; }
       const chunks = [];
       let size = 0;
       res.on("data", (chunk) => {
@@ -92,6 +97,7 @@ function defaultRequest({ url, method, timeoutMs, lookup, headers, body, readBod
       res.on("close", () => finish(Buffer.concat(chunks).toString("utf8")));
       res.on("error", () => finish(Buffer.concat(chunks).toString("utf8")));
     });
+    deadline = setTimeout(() => req.destroy(new MonitorProbeError("Tiempo de espera agotado.")), timeoutMs ?? DEFAULT_TIMEOUT_MS);
     req.on("timeout", () => req.destroy(new MonitorProbeError("Tiempo de espera agotado.")));
     req.on("error", reject);
     req.end(payload);
@@ -170,7 +176,9 @@ export function createGrowthMonitorProbes({
 
   async function probeDns({ host, recordType = "A" }) {
     try {
-      const records = await resolveDns(host, recordType);
+      let records = await resolveDns(host, recordType);
+      // A/AAAA answers must be public: otherwise a monitor could be used to read internal DNS (split-horizon, service names).
+      if (recordType === "A" || recordType === "AAAA") records = records.filter((address) => isPublicAddress(address));
       const values = records.map((r) => (typeof r === "string" ? r : Array.isArray(r) ? r.join("") : (r.exchange ?? JSON.stringify(r))));
       return { values, error: null };
     } catch (error) {

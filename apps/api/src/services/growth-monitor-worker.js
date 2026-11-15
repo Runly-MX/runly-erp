@@ -13,10 +13,12 @@ import {
   evaluateKeywordCheck,
   evaluateSslCheck,
   evaluateTcpCheck,
+  describeNetworkError,
 } from "./growth-monitor-probes.js";
 
 const CLAIM_LIMIT = 50;
 const CONCURRENCY = 10;
+const PROBE_DEADLINE_MS = 45_000;
 const EXPIRY_THRESHOLDS = { ssl: [30, 14, 7, 3, 1], domain: [60, 30, 14, 7] };
 const EXPIRY_EVENT = {
   ssl: ["growth.monitor.ssl_expiring", "Certificado SSL por vencer"],
@@ -40,6 +42,7 @@ export function createGrowthMonitorWorker({
   probes = createGrowthMonitorProbes(),
   now = () => new Date(),
   failureThreshold = Number(process.env.RUNLY_GROWTH_MONITOR_FAILURE_THRESHOLD ?? 2),
+  probeDeadlineMs = PROBE_DEADLINE_MS,
   retentionDays = Number(process.env.RUNLY_GROWTH_MONITOR_RETENTION_DAYS ?? 30),
   controlHost = "cloudflare.com",
   resolveHost = dns.promises.lookup,
@@ -204,8 +207,23 @@ export function createGrowthMonitorWorker({
     }
   }
 
+  // A probe that never settles must not freeze the tick for every company: cap it.
+  async function runProbeBounded(monitor) {
+    let timer;
+    const timeout = new Promise((resolve) => {
+      timer = setTimeout(() => resolve({ raw: null, ok: false, state: "down", error: "Tiempo de espera agotado.", detail: null }), probeDeadlineMs);
+    });
+    try {
+      return await Promise.race([runProbe(monitor), timeout]);
+    } catch (error) {
+      return { raw: null, ok: false, state: "down", error: describeNetworkError(error), detail: null };
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
   async function checkMonitor(monitor) {
-    const result = await runProbe(monitor);
+    const result = await runProbeBounded(monitor);
     await applyResult(monitor, result);
     return result;
   }
@@ -247,7 +265,7 @@ export function createGrowthMonitorWorker({
     const results = [];
     for (let i = 0; i < monitors.length; i += CONCURRENCY) {
       const chunk = monitors.slice(i, i + CONCURRENCY);
-      results.push(...(await Promise.all(chunk.map(async (monitor) => ({ monitor, result: await runProbe(monitor) })))));
+      results.push(...(await Promise.all(chunk.map(async (monitor) => ({ monitor, result: await runProbeBounded(monitor) })))));
     }
     // If everything failed and a control lookup also fails, this instance lost
     // connectivity: record nothing instead of alerting about every site.

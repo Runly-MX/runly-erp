@@ -983,6 +983,9 @@
     var seen = {}
     var sent = 0
     var windowStart = Date.now()
+    // Fetches aborted by navigation fail as network errors in some browsers: not a server problem.
+    var unloading = false
+    if (global.addEventListener) global.addEventListener('pagehide', function () { unloading = true })
 
     function ownHost(host) {
       return host === pageHost || (base && host.slice(-(base.length + 1)) === '.' + base) || extra.indexOf(host) !== -1
@@ -994,10 +997,12 @@
         if (API_URL && url.href.indexOf(API_URL) === 0) return
         if (supabaseBase && url.href.indexOf(supabaseBase) === 0) return
         if (!ownHost(url.hostname)) return
-        var path = url.pathname
-          .replace(/\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?=\/|$)/gi, '/:id')
-          .replace(/\/\d+(?=\/|$)/g, '/:id')
-          .slice(0, 120)
+        // Mask anything that looks like an identifier: ids, emails, tokens, codes with digits, long segments.
+        var path = url.pathname.split('/').map(function (segment) {
+          if (!segment) return segment
+          var looksLikeId = segment.indexOf('@') !== -1 || segment.length > 20 || (/\d/.test(segment) && segment.length > 3) || /^\d+$/.test(segment)
+          return looksLikeId ? ':id' : segment
+        }).join('/').slice(0, 120)
         var now = Date.now()
         if (now - windowStart > 60000) { windowStart = now; sent = 0; seen = {} }
         var key = url.host + path + status + kind
@@ -1016,7 +1021,7 @@
           if (res && res.status >= 500) report(target, res.status, 'http')
           return res
         }, function (err) {
-          if (!err || err.name !== 'AbortError') report(target, 0, 'network')
+          if (!unloading && (!err || err.name !== 'AbortError')) report(target, 0, 'network')
           throw err
         })
       }
@@ -1028,7 +1033,7 @@
       XHR.prototype.open = function (method, url) {
         var xhr = this
         xhr.addEventListener('load', function () { if (xhr.status >= 500) report(url, xhr.status, 'http') })
-        xhr.addEventListener('error', function () { report(url, 0, 'network') })
+        xhr.addEventListener('error', function () { if (!unloading) report(url, 0, 'network') })
         return originalOpen.apply(this, arguments)
       }
     }

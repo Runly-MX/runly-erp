@@ -55,6 +55,9 @@ function hostFromDomain(domain) {
 }
 
 export function createGrowthMonitorService({ prisma, worker, now = () => new Date() }) {
+  const closeOpenIncidents = (monitorId) =>
+    prisma.growthIncident.updateMany({ where: { monitorId, resolvedAt: null }, data: { resolvedAt: now() } });
+
   async function requireMonitor(companyId, id) {
     const monitor = await prisma.growthMonitor.findFirst({ where: { id, companyId } });
     if (!monitor) throw new GrowthMonitorServiceError("Monitor no encontrado.", 404, "not_found");
@@ -159,7 +162,11 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
       data.config = config;
     }
     // Re-enabling or editing resets the state so the next check starts clean.
-    if (patch.config || patch.enabled === true) Object.assign(data, { status: "unknown", consecutiveFailures: 0, lastCheckedAt: null });
+    if (patch.config || patch.enabled === true) {
+      // The state machine restarts from unknown, so an open incident would never be closed by a recovery.
+      await closeOpenIncidents(id);
+      Object.assign(data, { status: "unknown", consecutiveFailures: 0, lastCheckedAt: null });
+    }
     return publicMonitor(await prisma.growthMonitor.update({ where: { id }, data }));
   }
 
@@ -183,10 +190,11 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
   // Public ping: matches the hash only and touches nothing else. A down monitor is
   // re-queued so recovery is detected on the next tick, not after a full interval.
   async function recordPing(token) {
-    const monitor = await prisma.growthMonitor.findFirst({
-      where: { type: "heartbeat", enabled: true, config: { path: ["tokenHash"], equals: hashPingToken(token) } },
-      select: { id: true, status: true },
-    });
+    // Raw query so the lookup uses the expression index on config->>'tokenHash'.
+    const [monitor] = await prisma.$queryRaw`
+      SELECT id, status FROM growth_monitor
+      WHERE type = 'heartbeat' AND enabled = true AND config->>'tokenHash' = ${hashPingToken(token)}
+      LIMIT 1`;
     if (!monitor) return false;
     await prisma.growthMonitor.update({
       where: { id: monitor.id },
@@ -200,7 +208,8 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
 
   async function disableMonitor({ companyId, id }) {
     await requireMonitor(companyId, id);
-    return prisma.growthMonitor.update({ where: { id }, data: { enabled: false, status: "paused" } });
+    await closeOpenIncidents(id);
+    return publicMonitor(await prisma.growthMonitor.update({ where: { id }, data: { enabled: false, status: "paused" } }));
   }
 
   async function checkNow({ companyId, id }) {
@@ -236,7 +245,7 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
     const since = new Date(now().getTime() - hours * 3_600_000);
     const rows = await prisma.$queryRaw`
       SELECT site_id, properties->>'host' AS host, properties->>'apiPath' AS path,
-             NULLIF(properties->>'status', '')::int AS status, properties->>'kind' AS kind,
+             CASE WHEN properties->>'status' ~ '^[0-9]{1,3}$' THEN (properties->>'status')::int END AS status, properties->>'kind' AS kind,
              count(*)::int AS total, count(DISTINCT session_id)::int AS sessions, max(server_received_at) AS last_seen
       FROM growth_event
       WHERE company_id = ${companyId}::uuid AND site_id = ANY(${live.map((p) => p.id)}::uuid[])

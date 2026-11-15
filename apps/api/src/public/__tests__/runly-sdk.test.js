@@ -509,6 +509,15 @@ describe('runly-sdk.js real-user error capture', () => {
     assert.equal(events[0].properties.host, 'shop.example.com')
   })
 
+  it('masks identifiers that are not plain numbers or UUIDs (emails, tokens, codes) but keeps version segments', async () => {
+    const { harness, analytics } = await run({ captureErrors: true })
+    await harness.window.fetch('https://shop.example.com/api/v2/users/john@example.com/reset/Xk29aPq81Lm3ZzTt4RrYy8Aa/orders/ABC123')
+    await analytics.flush()
+    const [event] = sentEvents(harness)
+    assert.equal(event.properties.apiPath, '/api/v2/users/:id/reset/:id/orders/:id')
+    assert.equal(JSON.stringify(event).includes('john@example.com'), false)
+  })
+
   it('does nothing unless captureErrors is enabled, and respects consent', async () => {
     const off = await run({})
     await off.harness.window.fetch('https://shop.example.com/api/orders')

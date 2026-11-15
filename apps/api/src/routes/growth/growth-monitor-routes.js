@@ -101,6 +101,8 @@ function handleError(c, error) {
 function createCheckNowLimiter({ max = 10, windowMs = 60_000, now = Date.now } = {}) {
   const hits = new Map();
   return (companyId) => {
+    // Keys can be attacker-chosen (ping tokens): drop stale entries so the map cannot grow without bound.
+    if (hits.size > 5000) for (const [key, times] of hits) if (now() - times[times.length - 1] >= windowMs) hits.delete(key);
     const recent = (hits.get(companyId) ?? []).filter((t) => now() - t < windowMs);
     if (recent.length >= max) return false;
     hits.set(companyId, [...recent, now()]);
@@ -170,9 +172,11 @@ export function createGrowthMonitorRoutes({ service, requirePermission }) {
 export function createGrowthMonitorPingRoutes({ service }) {
   const app = new Hono();
   const allowPing = createCheckNowLimiter({ max: 60 });
+  const allowAnyPing = createCheckNowLimiter({ max: 1200 });
   const ping = async (c) => {
     const token = c.req.param("token");
-    if (token.length > 100 || !allowPing(token)) return c.json({ ok: true });
+    // Global cap first: random tokens would otherwise bypass the per-token limit.
+    if (token.length > 100 || !allowAnyPing("all") || !allowPing(token)) return c.json({ ok: true });
     try {
       await service.recordPing(token);
     } catch (error) {

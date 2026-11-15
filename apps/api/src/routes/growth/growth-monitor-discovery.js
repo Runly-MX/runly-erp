@@ -37,12 +37,12 @@ export const PLATFORM_LABEL = {
 function suggestionForPath(origin, path, host) {
   const url = `${origin}${path}`;
   if (path === "/health" || path === "/api/health" || path === "/healthz") {
-    return { type: "api", name: `${host} - estado del servidor (${path})`, config: { url, method: "GET", expectedMin: 200, expectedMax: 299 }, reason: "El sitio expone una ruta de salud." };
+    return { type: "api", name: `${host} - estado del servidor`, config: { url, method: "GET", expectedMin: 200, expectedMax: 299 }, reason: `El sitio expone la ruta de salud ${path}.` };
   }
   if (path === "/wp-json") return { type: "api", name: `${host} - API de WordPress`, config: { url, method: "GET", expectedMin: 200, expectedMax: 299 }, reason: "API REST de WordPress activa." };
   if (path === "/products.json") return { type: "api", name: `${host} - catalogo de productos`, config: { url, method: "GET", expectedMin: 200, expectedMax: 299 }, reason: "Catalogo publico de la tienda." };
   if (path === "/cart") return { type: "http", name: `${host} - carrito`, config: { url, method: "GET" }, reason: "La pagina del carrito responde." };
-  return { type: "http", name: `${host} - pagina de acceso (${path})`, config: { url, method: "GET" }, reason: "La pagina de acceso carga." };
+  return { type: "http", name: `${host} - pagina de acceso`, config: { url, method: "GET" }, reason: `La pagina de acceso ${path} carga.` };
 }
 
 export function createGrowthMonitorDiscovery({ probes }) {

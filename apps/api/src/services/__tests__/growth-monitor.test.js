@@ -167,10 +167,11 @@ test("discovery detects the platform and ignores HTML catch-all on API paths", a
     },
   });
   const result = await discovery.discover("https://tienda.example");
-  const names = result.suggestions.map((s) => s.name).join("|");
-  assert.match(names, /estado del servidor \(\/health\)/);
-  assert.doesNotMatch(names, /\/api\/health/, "SPA catch-all HTML is not a health route");
-  assert.match(names, /acceso \(\/login\)/);
+  const text = result.suggestions.map((s) => `${s.name} ${s.reason}`).join("|");
+  assert.match(text, /estado del servidor.*ruta de salud \/health\./);
+  assert.doesNotMatch(text, /\/api\/health/, "SPA catch-all HTML is not a health route");
+  assert.match(text, /pagina de acceso.*\/login/);
+  assert.ok(result.suggestions.every((s) => !s.name.includes("(/")), "names are public on status pages: no internal paths");
   assert.ok(result.suggestions.some((s) => s.type === "ssl"));
   assert.ok(calls <= 13, "request cap");
 });
@@ -243,4 +244,68 @@ test("MirAI growth tools summarize monitors and incidents", async () => {
   assert.equal(incidents.abiertos, 1);
   assert.equal(incidents.incidentes[0].monitor, "API");
   assert.ok(cap.tools.every((t) => t.permission === "growth.access"));
+});
+
+test("review fixes: hard deadline against a slow-drip server", async () => {
+  const http = await import("node:http");
+  const server = http.createServer((_req, res) => {
+    res.writeHead(200, { "content-type": "text/plain" });
+    const timer = setInterval(() => res.write("x"), 100); // keeps the idle timeout alive forever
+    res.on("close", () => clearInterval(timer));
+  });
+  await new Promise((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const probes = createGrowthMonitorProbes({ allowPrivate: true });
+  const started = Date.now();
+  const result = await probes.probeHttp({ url: `http://127.0.0.1:${server.address().port}/`, timeoutMs: 600, readBody: true });
+  server.closeAllConnections?.();
+  await new Promise((resolve) => server.close(resolve));
+  assert.ok(Date.now() - started < 3000, "must give up near the deadline, not drip forever");
+  assert.match(result.error, /agotado|aborted|socket/i);
+});
+
+test("review fixes: worker bounds a probe that never settles", async () => {
+  const prisma = fakePrisma({ id: "m1", companyId: "c1", propertyId: "p1", name: "Lento", type: "http", config: { url: "https://x.example/" }, status: "unknown", consecutiveFailures: 0 });
+  const worker = createGrowthMonitorWorker({ prisma, probes: { probeHttp: () => new Promise(() => {}) }, probeDeadlineMs: 50, failureThreshold: 1 });
+  const started = Date.now();
+  const result = await worker.checkMonitor(prisma.db.monitor);
+  assert.ok(Date.now() - started < 2000);
+  assert.equal(result.ok, false);
+  assert.match(result.error, /agotado/);
+});
+
+test("review fixes: custom headers are not re-sent after an https to http redirect", async () => {
+  const seen = [];
+  const probes = createGrowthMonitorProbes({
+    resolveHost: async () => [{ address: "93.184.216.34", family: 4 }],
+    request: async ({ url, headers }) => {
+      seen.push({ proto: url.protocol, headers });
+      return url.protocol === "https:" ? { statusCode: 301, location: "http://a.example/" } : { statusCode: 200, location: null };
+    },
+  });
+  await probes.probeHttp({ url: "https://a.example/", headers: { Authorization: "secret" } });
+  assert.deepEqual(seen.map((s) => s.proto), ["https:", "http:"]);
+  assert.equal(seen[1].headers, undefined);
+});
+
+test("review fixes: DNS monitor never returns private A/AAAA answers", async () => {
+  const probes = createGrowthMonitorProbes({ resolveDns: async () => ["10.0.0.5", "8.8.8.8", "fd00::1"] });
+  assert.deepEqual((await probes.probeDns({ host: "x.example", recordType: "A" })).values, ["8.8.8.8"]);
+  const txt = createGrowthMonitorProbes({ resolveDns: async () => [["v=spf1 -all"]] });
+  assert.deepEqual((await txt.probeDns({ host: "x.example", recordType: "TXT" })).values, ["v=spf1 -all"]);
+});
+
+test("review fixes: editing or disabling a down monitor closes its incident and hides secrets", async () => {
+  const { createGrowthMonitorService } = await import("../../routes/growth/growth-monitor-service.js");
+  const closed = [];
+  const row = { id: "m1", companyId: "c1", propertyId: "p1", type: "api", name: "api", enabled: true, status: "down", config: { url: "https://a.example/", headers: [{ name: "Authorization", valueEnc: "ENC" }], tokenHash: "H" } };
+  const prisma = {
+    growthMonitor: { findFirst: async () => row, update: async ({ data }) => ({ ...row, ...data }) },
+    growthIncident: { updateMany: async (args) => closed.push(args.where.monitorId) },
+  };
+  const service = createGrowthMonitorService({ prisma, worker: { probes: {} } });
+  const disabled = await service.disableMonitor({ companyId: "c1", id: "m1" });
+  assert.equal(JSON.stringify(disabled).includes("ENC"), false, "no encrypted header value in the response");
+  assert.equal(JSON.stringify(disabled).includes("tokenHash"), false);
+  await service.updateMonitor({ companyId: "c1", id: "m1", config: { url: "https://b.example/" } });
+  assert.deepEqual(closed, ["m1", "m1"]);
 });
