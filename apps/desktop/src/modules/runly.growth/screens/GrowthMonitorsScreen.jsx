@@ -154,7 +154,7 @@ export default function GrowthMonitorsScreen() {
 
   async function handleCreateDetected(propertyId, suggestions, withHeartbeat) {
     for (const suggestion of suggestions) {
-      await runly.growth.createMonitor({ propertyId, type: suggestion.type, name: suggestion.name, config: suggestion.config }, token);
+      await runly.growth.createMonitor({ propertyId, type: suggestion.type, name: suggestion.name, config: suggestion.config, ...(suggestion.intervalSeconds ? { intervalSeconds: suggestion.intervalSeconds } : {}) }, token);
     }
     if (withHeartbeat) {
       const { data } = await runly.growth.createMonitor(

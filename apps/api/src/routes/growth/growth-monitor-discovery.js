@@ -68,7 +68,7 @@ export function createGrowthMonitorDiscovery({ probes }) {
     }
 
     if (!/^\d+\.\d+\.\d+\.\d+$/.test(host)) {
-      suggestions.push({ type: "domain", name: `${host} - vencimiento del dominio`, config: { host, warnDays: 30 }, reason: "Aviso antes de que venza el registro del dominio." });
+      suggestions.push({ type: "domain", name: `${host} - vencimiento del dominio`, config: { host, warnDays: 30 }, intervalSeconds: 86400, reason: "Aviso antes de que venza el registro del dominio." });
     }
 
     const paths = [...new Set([...(PLATFORM_PATHS[platform] ?? []), ...GENERIC_PATHS])].slice(0, MAX_PATH_PROBES);
