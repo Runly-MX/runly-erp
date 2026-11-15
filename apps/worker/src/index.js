@@ -47,6 +47,7 @@ import { createInvestmentsService as createPfmInvestmentsService } from '../../a
 import { createVisionService as createPfmVisionService } from '../../api/src/services/vision-service.js'
 import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin.js'
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
+import { createGrowthErrorSpikeWorker } from '../../api/src/services/growth-error-spike-worker.js'
 import { createGrowthMonitorWorker } from '../../api/src/services/growth-monitor-worker.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
@@ -160,6 +161,11 @@ const growthMonitorWorker = createGrowthMonitorWorker({
   prisma,
   notificationService: createNotificationService({ prisma }),
 })
+const growthErrorSpikeWorker = createGrowthErrorSpikeWorker({
+  prisma,
+  notificationService: createNotificationService({ prisma }),
+})
+const GROWTH_ERROR_SPIKE_INTERVAL_MS = Number(process.env.RUNLY_GROWTH_ERROR_SPIKE_INTERVAL_MS ?? 5 * 60 * 1000)
 const GROWTH_MONITOR_TICK_MS = Number(process.env.RUNLY_GROWTH_MONITOR_TICK_MS ?? 30 * 1000)
 const GROWTH_HEALTH_INTERVAL_MS = Number(
   process.env.RUNLY_GROWTH_HEALTH_INTERVAL_MS ?? 60 * 60 * 1000,
@@ -380,6 +386,17 @@ async function runGrowthRetentionTick() {
   }
 }
 
+async function runGrowthErrorSpikeTick() {
+  try {
+    const result = await growthErrorSpikeWorker.runOnce()
+    if (result.alerted > 0) {
+      console.log(`[worker] growth error spikes ${formatLogTimestamp()} spikes=${result.spikes} alerted=${result.alerted}`)
+    }
+  } catch (err) {
+    console.error('[worker] growth error spikes tick failed:', err?.message ?? err)
+  }
+}
+
 let growthMonitorTickRunning = false
 async function runGrowthMonitorTick() {
   if (growthMonitorTickRunning) return
@@ -530,6 +547,10 @@ runGrowthMonitorTick()
 setInterval(() => {
   runGrowthMonitorTick()
 }, GROWTH_MONITOR_TICK_MS)
+runGrowthErrorSpikeTick()
+setInterval(() => {
+  runGrowthErrorSpikeTick()
+}, GROWTH_ERROR_SPIKE_INTERVAL_MS)
 runGoogleImportRecoveryTick()
 setInterval(() => {
   runGoogleImportRecoveryTick()

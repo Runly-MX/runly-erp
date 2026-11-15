@@ -309,3 +309,54 @@ test("review fixes: editing or disabling a down monitor closes its incident and 
   await service.updateMonitor({ companyId: "c1", id: "m1", config: { url: "https://b.example/" } });
   assert.deepEqual(closed, ["m1", "m1"]);
 });
+
+test("domain without RDAP data uses the manual expiry date the owner typed", async () => {
+  const { evaluateDomainCheck } = await import("../growth-monitor-probes.js");
+  const now = new Date("2026-11-14T00:00:00Z");
+  const noData = { domain: "tienda.mx", expiresAt: null, noData: true };
+  assert.equal(evaluateDomainCheck(noData, {}, now).state, "unknown");
+  const manual = evaluateDomainCheck(noData, { manualExpiry: "2027-06-01" }, now);
+  assert.ok(manual.ok && manual.state === "up" && manual.detail.manual === true);
+  assert.equal(evaluateDomainCheck(noData, { manualExpiry: "2026-11-20" }, now).state, "degraded");
+  assert.equal(evaluateDomainCheck(noData, { manualExpiry: "2026-11-01" }, now).ok, false);
+  const withData = evaluateDomainCheck({ domain: "a.com", expiresAt: "2028-01-01T00:00:00Z" }, { manualExpiry: "2026-11-20" }, now);
+  assert.equal(withData.state, "up", "the registry date wins over the manual one");
+});
+
+test("error spike worker alerts once per route per cooldown and only for live sites", async () => {
+  const { createGrowthErrorSpikeWorker } = await import("../growth-error-spike-worker.js");
+  const claimed = new Map();
+  const published = [];
+  const events = [];
+  const spike = { company_id: "c1", site_id: "p1", host: "api.tienda.mx", path: "/api/orders/:id", status: 503, kind: "http", reports: 9, visitors: 4 };
+  const prisma = {
+    $queryRaw: async (strings, ...values) => {
+      const sql = strings.join("?");
+      if (sql.includes("FROM growth_event")) return [spike, { ...spike, site_id: "p2" }];
+      // claim: values = [companyId, siteId, routeKey, at, at, cutoff]
+      const key = `${values[1]}|${values[2]}`;
+      const last = claimed.get(key);
+      if (last && last > values[5]) return [];
+      claimed.set(key, values[3]);
+      return [{ id: "a1" }];
+    },
+    $executeRaw: async () => 0,
+    growthProperty: { findMany: async () => [{ id: "p1", name: "Mi tienda" }] },
+    membership: { findMany: async () => [{ userId: "u1", role: { key: "runly.admin", enabled: true, permissions: [] } }] },
+    domainEventOutbox: { create: async ({ data }) => events.push(data) },
+  };
+  let clock = new Date("2026-11-14T12:00:00Z");
+  const worker = createGrowthErrorSpikeWorker({
+    prisma, now: () => clock, cooldownMinutes: 60,
+    notificationService: { publish: async (e) => published.push(e.input.eventType + ":" + e.input.body) },
+  });
+  const first = await worker.runOnce();
+  assert.deepEqual(first, { spikes: 2, alerted: 1 }, "the disabled site p2 is ignored");
+  assert.match(published[0], /growth.errors.spike:Mi tienda: 4 visitantes tuvieron error 503 en api.tienda.mx\/api\/orders\/:id/);
+  assert.equal(events[0].event, "growth.errors.spike");
+  assert.equal(events[0].payload.visitors, 4);
+  clock = new Date("2026-11-14T12:20:00Z");
+  assert.equal((await worker.runOnce()).alerted, 0, "inside the cooldown");
+  clock = new Date("2026-11-14T13:30:00Z");
+  assert.equal((await worker.runOnce()).alerted, 1, "after the cooldown it alerts again");
+});

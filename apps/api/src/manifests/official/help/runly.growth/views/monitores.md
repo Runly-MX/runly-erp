@@ -19,7 +19,7 @@ Los monitores vigilan tus sitios por ti. Runly los revisa de forma automática y
 | **Texto en la página** | Que aparezca (o no aparezca) un texto, por ejemplo «Agregar al carrito». Detecta páginas que cargan pero están rotas. |
 | **API o login** | Que una dirección de tu servidor responda bien. Puede validar un campo de la respuesta (por ejemplo `data.ok`) y enviar un encabezado como `Authorization`, que se guarda cifrado y nunca se muestra. |
 | **Certificado SSL** | Te avisa antes de que venza el certificado de seguridad del sitio. |
-| **Vencimiento del dominio** | Te avisa antes de que venza el registro del dominio. |
+| **Vencimiento del dominio** | Te avisa antes de que venza el registro del dominio. Si el registro no publica la fecha (como en `.mx`), puedes escribirla tú. |
 | **Puerto o servicio (TCP)** | Que un servicio acepte conexiones, por ejemplo el correo o una base de datos. |
 | **Registros DNS** | Que el dominio resuelva y, si quieres, que contenga un valor esperado. |
 | **Señal de un proceso** | Para tareas que no tienen página, como un cron o un worker: el proceso avisa a Runly que sigue vivo. |
@@ -49,6 +49,8 @@ Un monitor revisa tu sitio desde Runly, pero un visitante puede encontrar una fa
 
 Qué se guarda y qué no: solo la dirección **sin datos personales** (los números, correos y códigos se reemplazan por `:id`), el tipo de error y la hora. Nunca se leen contraseñas, formularios ni encabezados. Solo se envía si el visitante aceptó el rastreo y respeta la opción «No rastrear» del navegador. Una misma falla se cuenta una vez por minuto, por eso la columna se llama **Reportes**. Esta opción activa también la analítica del sitio.
 
+**Aviso automático:** si al menos **3 visitantes distintos** encuentran la misma falla (con 5 o más reportes) en **10 minutos**, Runly te avisa dentro de la app y por correo, y no vuelve a avisar de esa misma ruta durante **una hora**. Una falla que solo ve un visitante no genera aviso, para evitar ruido.
+
 ### Mantenimiento programado
 
 Si vas a actualizar o migrar un sitio, pulsa el botón de la llave inglesa del monitor y elige **1 hora, 4 horas o 24 horas**. Durante ese tiempo Runly no lo revisa ni te avisa. Puedes terminarlo antes en cualquier momento.
@@ -77,8 +79,9 @@ Estos eventos están disponibles en **Automatizaciones** para crear tus propios 
 - **Un sitio o servicio monitoreado dejó de responder**
 - **Un sitio o servicio monitoreado se recuperó**
 - **Un certificado SSL o dominio está por vencer**
+- **Tus visitantes están viendo errores del servidor** (el aviso por picos de errores reales)
 
-Cada uno trae el nombre del monitor, el sitio, el tipo, el detalle del error y los días que faltan.
+Los tres primeros traen el nombre del monitor, el sitio, el tipo, el detalle del error y los días que faltan. El último trae el sitio, el servidor, la ruta, el código de error y cuántos visitantes lo vieron.
 
 ### Pregúntale a MirAI
 
@@ -88,7 +91,7 @@ Puedes preguntar «¿cómo están mis sitios?» o «¿hay algún incidente abier
 
 - Las revisiones se hacen desde **un solo punto** (el servidor de Runly). No indican si un sitio falla solo en una región.
 - Solo se revisan **direcciones públicas**; no se puede vigilar un servidor dentro de una red privada.
-- Algunos registros de dominio, como los **`.mx`**, no publican su fecha de vencimiento: ese monitor muestra **Sin datos**. Anota esa fecha por tu cuenta.
+- Algunos registros de dominio, como los **`.mx`**, no publican su fecha de vencimiento y el monitor muestra **Sin datos**. Para recibir avisos de todos modos, edita el monitor y escribe tú la **fecha de vencimiento**; Runly usa la del registro cuando existe y la tuya cuando no.
 - Los errores reales de visitantes funcionan con el código del sitio de Sitios conectados, no con el paquete npm.
 
 ### Permisos

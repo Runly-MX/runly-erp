@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import {
   Button,
+  DateField,
   Dialog,
   DialogContent,
   DialogFooter,
@@ -32,7 +33,7 @@ const EMPTY = {
   propertyId: "", type: "http", name: "", url: "", host: "", intervalSeconds: "300",
   mustContain: "", mustNotContain: "", method: "GET", headerName: "", headerValue: "",
   assertPath: "", assertEquals: "", graceSeconds: "60",
-  port: "", recordType: "A", expected: "",
+  port: "", recordType: "A", expected: "", manualExpiry: "",
 };
 
 function parseEquals(raw) {
@@ -71,6 +72,7 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
       port: c.port ? String(c.port) : "",
       recordType: c.recordType ?? "A",
       expected: c.expected ?? "",
+      manualExpiry: c.manualExpiry ?? "",
     });
   }, [open, monitor]);
 
@@ -79,7 +81,8 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
 
   function buildConfig() {
     const url = form.url.trim();
-    if (form.type === "ssl" || form.type === "domain") return { host: form.host.trim() };
+    if (form.type === "ssl") return { host: form.host.trim() };
+    if (form.type === "domain") return { host: form.host.trim(), manualExpiry: form.manualExpiry || (editing ? null : undefined) };
     if (form.type === "tcp") return { host: form.host.trim(), port: Number(form.port) };
     if (form.type === "dns") return { host: form.host.trim(), recordType: form.recordType, expected: form.expected.trim() || (editing ? null : undefined) };
     if (form.type === "heartbeat") return { graceSeconds: Number(form.graceSeconds) || 60 };
@@ -138,6 +141,13 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
 
           {["ssl", "domain", "tcp", "dns"].includes(form.type) ? (
             <TextField label={form.type === "ssl" ? "Dominio del certificado" : form.type === "tcp" ? "Servidor" : "Dominio"} value={form.host} onChange={(e) => set("host", e.target.value)} placeholder="mitienda.mx" required />
+          ) : null}
+          {form.type === "domain" ? (
+            <DateField
+              label="Fecha de vencimiento (si el registro no la publica)"
+              value={form.manualExpiry}
+              onChange={(e) => set("manualExpiry", e.target.value)}
+            />
           ) : null}
           {form.type === "tcp" ? (
             <TextField label="Puerto" value={form.port} onChange={(e) => set("port", e.target.value.replace(/\D/g, ""))} placeholder="25" required />

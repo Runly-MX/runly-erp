@@ -267,6 +267,7 @@ Desde un evento solo funcionan los servicios que no necesitan a una persona: not
 | `growth.monitor.down` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (un monitor de Growth confirmó una caída y abrió un incidente; `id` es el monitor; `daysLeft` va vacío) |
 | `growth.monitor.recovered` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (un monitor caído volvió a responder; `error` va vacío) |
 | `growth.monitor.expiring` | `{ id, monitorName, siteName, monitorType, error, daysLeft }` (faltan 60, 30, 14, 7, 3 o 1 días para que venza un certificado SSL o un dominio) |
+| `growth.errors.spike` | `{ id, siteName, host, path, status, reports, visitors, windowMinutes }` (varios visitantes distintos vieron la misma falla del servidor en pocos minutos; `id` es el sitio; `status` va vacío si el servidor no respondió) |
 | `chat.external.message.received` | `{ conversationId, messageId, guestName, guestEmail, text, first, assignedUserId, localHour, localWeekday }` (un visitante escribió en el chat del sitio; `text` hasta 500 caracteres; `first` en su primer mensaje; hora y día de la semana en la zona de la instancia) |
 | `chat.direct.message.received` | `{ conversationId, messageId, senderId, senderName, recipientId, localHour, localWeekday }` (alguien escribió a otra persona por mensaje directo; **sin el texto**, porque es una conversación privada) |
 

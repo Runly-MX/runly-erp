@@ -204,6 +204,16 @@ export const EVENT_CATALOG = Object.freeze({
   ] },
   'growth.monitor.down': { module: 'Growth', label: 'Un sitio o servicio monitoreado dejó de responder', description: 'Cuando un monitor de Growth confirma una caída y abre un incidente. Úsalo para avisar por chat, correo o un webhook.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
   'growth.monitor.recovered': { module: 'Growth', label: 'Un sitio o servicio monitoreado se recuperó', description: 'Cuando un monitor que estaba caído vuelve a responder y se cierra el incidente.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
+  'growth.errors.spike': { module: 'Growth', label: 'Tus visitantes están viendo errores del servidor', description: 'Cuando varios visitantes distintos encuentran la misma falla del servidor en poco tiempo (requiere activar los errores reales en Sitios conectados). Úsalo para avisar al equipo técnico.', link: '/app/m/runly.growth/monitors', fields: [
+    ID('el sitio'),
+    field('siteName', 'Sitio', 'text', 'Sitio conectado donde ocurrieron los errores.', 'Mi tienda'),
+    field('host', 'Servidor', 'text', 'Servidor que falló.', 'api.mitienda.mx'),
+    field('path', 'Ruta', 'text', 'Ruta que falló, con los identificadores reemplazados por :id.', '/api/orders/:id'),
+    field('status', 'Código de error', 'number', 'Código HTTP; vacío si el servidor no respondió.', '503'),
+    field('reports', 'Reportes', 'number', 'Cuántas veces se reportó en la ventana.', '12'),
+    field('visitors', 'Visitantes', 'number', 'Cuántos visitantes distintos la vieron.', '5'),
+    field('windowMinutes', 'Ventana (min)', 'number', 'Minutos que se miran hacia atrás.', '10'),
+  ] },
   'growth.monitor.expiring': { module: 'Growth', label: 'Un certificado SSL o dominio está por vencer', description: 'Cuando faltan 60, 30, 14, 7, 3 o 1 días (según el tipo) para que venza. Úsalo para crear una tarea de renovación.', link: '/app/m/runly.growth/monitors', fields: MONITOR_FIELDS('el monitor') },
   // Published by the run log when any automation finishes (chaining). Spec §2.
   'automations.run.finished': { module: 'Automatizaciones', label: 'Terminó de ejecutarse una automatización', description: 'Cuando otra automatización termina, con éxito o con error. Úsalo para encadenar: avisar si una falla o seguir con otro proceso.', fields: [

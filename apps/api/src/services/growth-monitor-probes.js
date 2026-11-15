@@ -311,12 +311,14 @@ export function evaluateDnsCheck(result, config = {}) {
 
 export function evaluateDomainCheck(result, config = {}, now = new Date()) {
   if (result.error) return { ok: false, state: "down", error: result.error, detail: null };
-  if (!result.expiresAt) {
+  // Registries without RDAP (such as .mx) publish no date: use the one the owner typed in, if any.
+  const expiresAt = result.expiresAt ?? (config.manualExpiry ? new Date(`${config.manualExpiry}T00:00:00Z`).toISOString() : null);
+  if (!expiresAt) {
     // Many registries do not publish RDAP data; that is unknown, not an outage.
     return { ok: true, state: "unknown", error: "El registro no publica la fecha de vencimiento.", detail: { domain: result.domain, daysLeft: null } };
   }
-  const daysLeft = Math.floor((new Date(result.expiresAt).getTime() - now.getTime()) / 86_400_000);
-  const detail = { domain: result.domain, daysLeft, validTo: result.expiresAt };
+  const daysLeft = Math.floor((new Date(expiresAt).getTime() - now.getTime()) / 86_400_000);
+  const detail = { domain: result.domain, daysLeft, validTo: expiresAt, manual: !result.expiresAt };
   if (daysLeft < 0) return { ok: false, state: "down", error: "El dominio esta vencido.", detail };
   if (daysLeft <= (config.warnDays ?? 30)) return { ok: true, state: "degraded", error: `El dominio vence en ${daysLeft} dias.`, detail };
   return { ok: true, state: "up", error: null, detail };

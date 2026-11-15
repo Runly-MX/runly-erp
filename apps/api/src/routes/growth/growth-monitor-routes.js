@@ -37,6 +37,7 @@ const configSchema = z.object({
   port: z.number().int().min(1).max(65535).optional(),
   recordType: z.enum(["A", "AAAA", "CNAME", "MX", "TXT"]).optional(),
   expected: z.string().trim().min(1).max(500).optional(),
+  manualExpiry: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Usa el formato AAAA-MM-DD.").optional(),
 });
 
 // On update, null clears an optional field (see service).
@@ -46,6 +47,7 @@ const updateConfigSchema = configSchema.extend({
   mustContain: clearable(configSchema.shape.mustContain.unwrap()),
   mustNotContain: clearable(configSchema.shape.mustNotContain.unwrap()),
   expected: clearable(configSchema.shape.expected.unwrap()),
+  manualExpiry: clearable(configSchema.shape.manualExpiry.unwrap()),
 });
 
 const intervalSeconds = z.number().int().min(60).max(86400);
