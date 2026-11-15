@@ -450,6 +450,14 @@ describe("createStorefrontCaptureService", () => {
     );
   });
 
+  it("treats the www and bare forms of the configured domain as the same origin", async () => {
+    const saved = [];
+    const prisma = buildPrisma({ instanceConfig: { upsert: async ({ create }) => { saved.push(create); return create; } } });
+    const service = createService(prisma);
+    await service.recordSdkPing({ ...requestScope, origin: "https://www.shop.example.com", state: "tracking" });
+    assert.equal(JSON.parse(saved[0].value).originAllowed, true);
+  });
+
   it("records the SDK hello with the observed origin even when the origin is not allowed", async () => {
     const saved = [];
     const prisma = buildPrisma({
