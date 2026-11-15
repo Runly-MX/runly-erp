@@ -12,13 +12,14 @@ test('Atlas catalogs preserve old ZIPs and round-trip free responsive elements t
   assert.ok(!catalogs['0.3.5'].blocks.some(b=>b.type==='BoxBlock'))
   const hub=JSON.parse(readFileSync(new URL('../../../../../../runly-developer-hub/packages/contracts/website-builder-catalogs/0.6.0.json',import.meta.url)))
   assert.equal(catalogDigest(catalogs['0.6.0']),catalogDigest(hub))
-  for(const builderVersion of ['0.3.5','0.6.0']){
+  for(const builderVersion of ['0.3.5','0.6.0','0.6.1']){
     const catalog=catalogs[builderVersion]
     const sections=builderVersion==='0.3.5'?[{type:'TextBlock',props:{text:'Legacy'}}]:[
       {type:'BoxBlock',props:{layout:'free',heightMode:'fixed',height:500},children:{children:[
         {type:'ButtonElementBlock',props:{label:'Continuar',href:'/servicios',position:'absolute',anchorX:'right',offsetX:20,offsetY:40,widthMode:'fixed',width:220,heightMode:'fixed',height:60,tabletOffsetX:10,mobileAnchorX:'center',mobileOffsetX:0,mobileWidthMode:'percent',mobileWidthPercent:80}},
       ]}},
     ]
+    if(builderVersion==='0.6.1')sections.push({type:'LogoElementBlock',props:{brand:'Marca',tagline:'Texto adicional',brandHref:'/inicio',brandDirection:'column'}})
     const {bytes}=await exportWebsiteTemplate({title:'Catalog compatibility',builderVersion,catalog,pages:[{path:'/',title:'Inicio',isHome:true,sections}]})
     const opened=await inspectWebsiteTemplate(bytes,{builderCatalogs:catalogs})
     assert.equal(opened.ok,true,JSON.stringify(opened.errors))

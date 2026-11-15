@@ -2125,6 +2125,473 @@
       }
     },
     {
+      "type": "LogoElementBlock",
+      "label": "Logo y marca",
+      "category": "elements",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "stylePreset": "none",
+        "widthMode": "auto",
+        "brand": "Mi marca",
+        "logoSrc": "",
+        "logoAlt": "",
+        "logoHeight": "32",
+        "showBrandName": true,
+        "tagline": "",
+        "brandDirection": "row",
+        "brandGap": 8,
+        "brandHref": "/",
+        "fontSize": 24,
+        "fontWeight": "700"
+      },
+      "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Imagen del logo"
+        },
+        "logoAlt": {
+          "type": "text",
+          "label": "Descripción del logo"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Texto adicional (opcional)"
+        },
+        "brandDirection": {
+          "type": "select",
+          "label": "Distribución de la marca",
+          "options": [
+            "row",
+            "column"
+          ]
+        },
+        "brandGap": {
+          "type": "number",
+          "label": "Separación entre logo y texto",
+          "min": 0,
+          "max": 64
+        },
+        "brandHref": {
+          "type": "link",
+          "label": "Enlace de la marca"
+        },
+        "fontSize": {
+          "type": "number",
+          "label": "Tamaño del texto (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontWeight": {
+          "type": "select",
+          "label": "Peso del texto",
+          "options": [
+            "400",
+            "500",
+            "600",
+            "700",
+            "800",
+            "900"
+          ]
+        },
+        "lineHeight": {
+          "type": "number",
+          "label": "Interlineado",
+          "min": 0.8,
+          "max": 3,
+          "step": 0.1
+        },
+        "textAlign": {
+          "type": "select",
+          "label": "Alineación del texto",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "stylePreset": {
+          "type": "select",
+          "label": "Estilo inicial",
+          "options": [
+            "none",
+            "card",
+            "outline",
+            "accent",
+            "dark",
+            "pill"
+          ]
+        },
+        "widthMode": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "widthPercent": {
+          "type": "number",
+          "label": "Ancho (%)",
+          "min": 1,
+          "max": 100
+        },
+        "heightMode": {
+          "type": "select",
+          "label": "Alto",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "height": {
+          "type": "number",
+          "label": "Alto fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "width": {
+          "type": "number",
+          "label": "Ancho fijo (px)",
+          "min": 1,
+          "max": 4000
+        },
+        "maxWidth": {
+          "type": "number",
+          "label": "Ancho máximo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "minHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px)",
+          "min": 0,
+          "max": 4000
+        },
+        "paddingTop": {
+          "type": "number",
+          "label": "Espacio interior superior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingRight": {
+          "type": "number",
+          "label": "Espacio interior derecho",
+          "min": 0,
+          "max": 256
+        },
+        "paddingBottom": {
+          "type": "number",
+          "label": "Espacio interior inferior",
+          "min": 0,
+          "max": 256
+        },
+        "paddingLeft": {
+          "type": "number",
+          "label": "Espacio interior izquierdo",
+          "min": 0,
+          "max": 256
+        },
+        "marginTop": {
+          "type": "number",
+          "label": "Margen superior",
+          "min": -256,
+          "max": 256
+        },
+        "marginRight": {
+          "type": "number",
+          "label": "Margen derecho",
+          "min": -256,
+          "max": 256
+        },
+        "marginBottom": {
+          "type": "number",
+          "label": "Margen inferior",
+          "min": -256,
+          "max": 256
+        },
+        "marginLeft": {
+          "type": "number",
+          "label": "Margen izquierdo",
+          "min": -256,
+          "max": 256
+        },
+        "backgroundColor": {
+          "type": "color",
+          "label": "Color de fondo"
+        },
+        "textColor": {
+          "type": "color",
+          "label": "Color del texto"
+        },
+        "borderColor": {
+          "type": "color",
+          "label": "Color del borde"
+        },
+        "borderWidth": {
+          "type": "number",
+          "label": "Grosor del borde",
+          "min": 0,
+          "max": 16
+        },
+        "cornerRadius": {
+          "type": "number",
+          "label": "Radio de las esquinas",
+          "min": 0,
+          "max": 200
+        },
+        "position": {
+          "type": "select",
+          "label": "Posición",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "anchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "anchorY": {
+          "type": "select",
+          "label": "Anclaje vertical",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "offsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "offsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px)",
+          "min": -2000,
+          "max": 4000
+        },
+        "layer": {
+          "type": "number",
+          "label": "Orden de capa",
+          "min": 0,
+          "max": 100
+        },
+        "rotation": {
+          "type": "number",
+          "label": "Rotación (grados)",
+          "min": -180,
+          "max": 180
+        },
+        "tabletPosition": {
+          "type": "select",
+          "label": "Posición · Tableta",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "tabletAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Tableta",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "tabletAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Tableta",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "tabletOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Tableta",
+          "min": -2000,
+          "max": 4000
+        },
+        "tabletWidthMode": {
+          "type": "select",
+          "label": "Ancho · Tableta",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "tabletWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Tableta",
+          "min": 1,
+          "max": 100
+        },
+        "tabletHeightMode": {
+          "type": "select",
+          "label": "Alto · Tableta",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "tabletHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Tableta",
+          "min": 1,
+          "max": 4000
+        },
+        "tabletMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Tableta",
+          "min": 0,
+          "max": 4000
+        },
+        "tabletRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Tableta",
+          "min": -180,
+          "max": 180
+        },
+        "mobilePosition": {
+          "type": "select",
+          "label": "Posición · Teléfono",
+          "options": [
+            "flow",
+            "relative",
+            "absolute",
+            "sticky"
+          ]
+        },
+        "mobileAnchorX": {
+          "type": "select",
+          "label": "Anclaje horizontal · Teléfono",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "mobileAnchorY": {
+          "type": "select",
+          "label": "Anclaje vertical · Teléfono",
+          "options": [
+            "top",
+            "center",
+            "bottom"
+          ]
+        },
+        "mobileOffsetX": {
+          "type": "number",
+          "label": "Desplazamiento horizontal (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileOffsetY": {
+          "type": "number",
+          "label": "Desplazamiento vertical (px) · Teléfono",
+          "min": -2000,
+          "max": 4000
+        },
+        "mobileWidthMode": {
+          "type": "select",
+          "label": "Ancho · Teléfono",
+          "options": [
+            "auto",
+            "fill",
+            "fixed",
+            "percent"
+          ]
+        },
+        "mobileWidth": {
+          "type": "number",
+          "label": "Ancho fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileWidthPercent": {
+          "type": "number",
+          "label": "Ancho (%) · Teléfono",
+          "min": 1,
+          "max": 100
+        },
+        "mobileHeightMode": {
+          "type": "select",
+          "label": "Alto · Teléfono",
+          "options": [
+            "auto",
+            "fixed"
+          ]
+        },
+        "mobileHeight": {
+          "type": "number",
+          "label": "Alto fijo (px) · Teléfono",
+          "min": 1,
+          "max": 4000
+        },
+        "mobileMinHeight": {
+          "type": "number",
+          "label": "Alto mínimo (px) · Teléfono",
+          "min": 0,
+          "max": 4000
+        },
+        "mobileRotation": {
+          "type": "number",
+          "label": "Rotación (grados) · Teléfono",
+          "min": -180,
+          "max": 180
+        }
+      }
+    },
+    {
       "type": "NavbarBlock",
       "label": "Navbar",
       "category": "navigation",
@@ -2144,6 +2611,11 @@
         "paddingX": "24px",
         "sticky": false,
         "showBrandName": true,
+        "logoAlt": "",
+        "tagline": "",
+        "brandDirection": "row",
+        "brandGap": 8,
+        "brandHref": "/",
         "mobileBreakpoint": "768px",
         "submenuTrigger": "hover",
         "submenuAlignment": "start",
@@ -2152,6 +2624,55 @@
         "menuAnimation": "fade"
       },
       "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Logo (opcional)"
+        },
+        "logoAlt": {
+          "type": "text",
+          "label": "Descripción del logo"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Texto adicional (opcional)"
+        },
+        "brandDirection": {
+          "type": "select",
+          "label": "Distribución de la marca",
+          "options": [
+            "row",
+            "column"
+          ]
+        },
+        "brandGap": {
+          "type": "number",
+          "label": "Separación entre logo y texto",
+          "min": 0,
+          "max": 64
+        },
+        "brandHref": {
+          "type": "link",
+          "label": "Enlace de la marca"
+        },
         "submenuTrigger": {
           "type": "select",
           "label": "Abrir submenús",
@@ -2204,29 +2725,6 @@
             "primary",
             "transparent"
           ]
-        },
-        "brand": {
-          "type": "text",
-          "label": "Nombre de marca"
-        },
-        "logoSrc": {
-          "type": "image",
-          "label": "Logo (opcional)"
-        },
-        "logoHeight": {
-          "type": "select",
-          "label": "Alto del logo",
-          "options": [
-            "24",
-            "32",
-            "40",
-            "48",
-            "64"
-          ]
-        },
-        "showBrandName": {
-          "type": "toggle",
-          "label": "Mostrar nombre de marca"
         },
         "links": {
           "type": "textarea",
@@ -9067,14 +9565,71 @@
       "group": "ecommerce",
       "slots": [],
       "defaultProps": {
-        "variant": "light",
         "brand": "Mi Tienda",
+        "logoSrc": "",
+        "logoAlt": "",
+        "logoHeight": "32",
+        "showBrandName": true,
+        "tagline": "",
+        "brandDirection": "row",
+        "brandGap": 8,
+        "brandHref": "/",
+        "variant": "light",
         "links": "Inicio | /\nTienda | /productos\nNosotros | /nosotros\nContacto | /contacto",
         "cartLabel": "Carrito",
         "cartHref": "/carrito",
         "sticky": true
       },
       "fields": {
+        "brand": {
+          "type": "text",
+          "label": "Nombre de marca"
+        },
+        "logoSrc": {
+          "type": "image",
+          "label": "Imagen del logo"
+        },
+        "logoAlt": {
+          "type": "text",
+          "label": "Descripción del logo"
+        },
+        "logoHeight": {
+          "type": "select",
+          "label": "Alto del logo",
+          "options": [
+            "24",
+            "32",
+            "40",
+            "48",
+            "64"
+          ]
+        },
+        "showBrandName": {
+          "type": "toggle",
+          "label": "Mostrar nombre de marca"
+        },
+        "tagline": {
+          "type": "text",
+          "label": "Texto adicional (opcional)"
+        },
+        "brandDirection": {
+          "type": "select",
+          "label": "Distribución de la marca",
+          "options": [
+            "row",
+            "column"
+          ]
+        },
+        "brandGap": {
+          "type": "number",
+          "label": "Separación entre logo y texto",
+          "min": 0,
+          "max": 64
+        },
+        "brandHref": {
+          "type": "link",
+          "label": "Enlace de la marca"
+        },
         "variant": {
           "type": "select",
           "label": "Estilo",
@@ -9082,10 +9637,6 @@
             "light",
             "dark"
           ]
-        },
-        "brand": {
-          "type": "text",
-          "label": "Nombre de marca"
         },
         "links": {
           "type": "textarea",

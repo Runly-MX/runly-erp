@@ -1,5 +1,17 @@
 # Adopción Atlas 0.6.0
 
+## Extensión de marca 0.6.1
+
+LogoElementBlock ofrece logo, nombre opcional y texto adicional como elemento
+básico. NavbarBlock y StoreNavbarBlock comparten BrandIdentity para presentar
+la misma imagen sin recorte, con separación, distribución y enlace configurables.
+El catálogo 0.6.0 se conserva en un snapshot inmutable; 0.6.1 usa el catálogo
+regenerado. La prueba pública añade imagen sintética con proporción 1:2 y
+comprueba logo y texto del elemento y del navbar de tienda en cinco anchos,
+SSR e hidratación. La distribución del cambio de website-blocks al Hub requiere
+publicar/adoptar el conjunto compartido; editar la fuente del ERP no cambia un
+paquete previamente publicado.
+
 Atlas 0.6.0 agrega composición por elementos, contenedores libres/adaptables,
 geometría heredada entre escritorio/tableta/móvil y controles del navbar. El pin
 exacto se adopta en API, desktop y website-blocks. Page schema 1 no cambia.

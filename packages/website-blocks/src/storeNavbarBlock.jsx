@@ -1,6 +1,6 @@
 // Store navbar: same look as NavbarBlock plus a "Carrito" link with a live item count read from the browser cart.
 import { useEffect, useRef, useState } from 'react'
-import { defineBlock } from '@raulbellosom/atlas-web-builder'
+import { defineBlock, BrandIdentity, brandIdentityDefaults, brandIdentityFields, brandIdentityHref } from '@raulbellosom/atlas-web-builder'
 import { useCartLines } from './storeCart.js'
 import { ACCENT, INK, LINE, PAPER, SANS, SERIF } from './storeUi.jsx'
 
@@ -11,7 +11,7 @@ const CSS = `.sn-bar a,.sn-bar button{outline-offset:2px}.sn-bar a:focus-visible
 @media (max-width:767px){.sn-burger{display:inline-flex}.sn-links{display:none!important}.sn-bar[data-open="true"] .sn-links{display:flex!important;position:absolute;left:0;right:0;top:100%;flex-direction:column;align-items:stretch;gap:0;padding:8px 24px 16px;background:var(--sn-bg);border-bottom:1px solid ${LINE}}.sn-links a{min-height:44px}}
 @media (prefers-reduced-motion:reduce){.sn-link{transition:none}}`
 
-function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky }) {
+function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky, ...identity }) {
   const dark = variant === 'dark'
   const bg = dark ? INK : PAPER
   const fg = dark ? PAPER : INK
@@ -33,7 +33,7 @@ function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky }) {
     <header ref={barRef} className="sn-bar" data-open={open} style={{ '--sn-bg': bg, position: sticky ? 'sticky' : 'relative', top: 0, zIndex: 40, background: bg, color: fg, borderBottom: `1px solid ${dark ? 'rgba(250,247,242,.18)' : LINE}` }}>
       <style>{CSS}</style>
       <nav aria-label="Principal" style={{ maxWidth: 1280, marginInline: 'auto', padding: '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-        <a href="/" style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: fg, textDecoration: 'none' }}>{brand}</a>
+        <a href={brandIdentityHref(identity.brandHref)} style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: fg, textDecoration: 'none', minWidth:0 }}><BrandIdentity {...identity} brand={brand}/></a>
         <div id="sn-links" className="sn-links" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
           {parseLinks(links).map((l) => <a key={l.label + l.href} className="sn-link" href={l.href} style={linkStyle}>{l.label}</a>)}
           <a className="sn-link" href={cartHref || '/carrito'} style={{ ...linkStyle, gap: 8 }} aria-label={count ? `${cartLabel}, ${count} artículos` : cartLabel}>
@@ -53,8 +53,9 @@ export const StoreNavbarBlock = defineBlock({
   type: 'StoreNavbarBlock',
   label: 'Navbar de tienda con carrito',
   category: 'atlas-ecommerce',
-  defaultProps: { variant: 'light', brand: 'Mi Tienda', links: 'Inicio | /\nTienda | /productos\nNosotros | /nosotros\nContacto | /contacto', cartLabel: 'Carrito', cartHref: '/carrito', sticky: true },
+  defaultProps: { ...brandIdentityDefaults, variant: 'light', brand: 'Mi Tienda', links: 'Inicio | /\nTienda | /productos\nNosotros | /nosotros\nContacto | /contacto', cartLabel: 'Carrito', cartHref: '/carrito', sticky: true },
   fields: {
+    ...brandIdentityFields,
     variant: { type: 'select', label: 'Estilo', options: ['light', 'dark'] },
     brand: { type: 'text', label: 'Nombre de marca' },
     links: { type: 'textarea', label: 'Enlace | /ruta (uno por linea)' },
@@ -62,6 +63,6 @@ export const StoreNavbarBlock = defineBlock({
     cartHref: { type: 'link', label: 'Enlace del carrito' },
     sticky: { type: 'toggle', label: 'Pegajoso (sticky)' },
   },
-  groups: [{ label: 'Contenido', fields: ['variant', 'brand', 'links', 'cartLabel', 'cartHref', 'sticky'] }],
+  groups: [{label:'Marca',fields:Object.keys(brandIdentityFields)},{ label: 'Contenido', fields: ['variant', 'links', 'cartLabel', 'cartHref', 'sticky'] }],
   render: (props) => <StoreNavbar {...props} />,
 })
