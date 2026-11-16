@@ -6880,6 +6880,7 @@ model WebsiteDomain {
  httpsCheckedAt DateTime? @db.Timestamptz @map("https_checked_at")
  lastError String? @map("last_error")
  isPrimary Boolean @default(false) @map("is_primary")
+ releasedAt DateTime? @db.Timestamptz @map("released_at")
  createdAt DateTime @default(now()) @db.Timestamptz @map("created_at")
  @@index([companyId,siteId],map:"website_domain_owner_idx")
  @@index([kind,state],map:"website_domain_kind_state_idx")

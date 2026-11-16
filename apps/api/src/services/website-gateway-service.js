@@ -2,6 +2,7 @@ import { WebsiteServiceError,notFound } from '../routes/website/service-helpers.
 import { assertWebsiteAccess } from './website-authorization-service.js'
 import { websiteDocumentHash as hash } from './website-draft-service.js'
 import { releaseBytesHash } from './website-release-storage.js'
+import { domainFreeAt } from './website-hostname-service.js'
 const fail=(code,status=404)=>new WebsiteServiceError('Sitio no disponible.',status,code)
 const reserved=new Set(['admin','api','app','auth','login','public','preview','support','status','www','mail','erp','mcp','runly','atlas','internal','system'])
 export function strictWebsiteHostname(authority) {
@@ -85,7 +86,8 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     assertWebsiteAccess(a.access,a.companyId,'website.site.read')
     if(!a.siteId)throw notFound('Recurso')
     if(!await prisma.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}}))throw notFound('Recurso')
-    return prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true,registryManaged:true,registryVersion:true,registrySyncedAt:true,verifiedAt:true,httpsState:true,lastError:true,isPrimary:true}})
+    const rows=await prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true,registryManaged:true,registryVersion:true,registrySyncedAt:true,verifiedAt:true,httpsState:true,lastError:true,isPrimary:true,releasedAt:true}})
+    return rows.map(row=>({...row,freeAt:domainFreeAt(row)}))
   }
   return {resolve,response,asset,reserve,authority,domains,primaryRedirect}
 }

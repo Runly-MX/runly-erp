@@ -23,6 +23,13 @@ function domainStatus(domain) {
   return { label: domain.state, tone: 'neutral', icon: Globe }
 }
 const NO_PRIMARY = '__none__'
+const formatDate = (value) => { try { return new Intl.DateTimeFormat('es', { dateStyle: 'long' }).format(new Date(value)) } catch { return '' } }
+// The server owns the window (freeAt); this only words it.
+function releaseText(domain) {
+  if (!domain.freeAt) return 'Ya no muestra el sitio. Puedes recuperarla cuando quieras.'
+  if (new Date(domain.freeAt) > new Date()) return `Ya no muestra el sitio. Puedes recuperarla hasta el ${formatDate(domain.freeAt)}; después quedará libre para cualquier sitio.`
+  return 'Liberada por completo: cualquier sitio puede reservarla. Mientras nadie la tome, todavía puedes recuperarla.'
+}
 
 export default function SiteDomains({ siteId, caps }) {
   const queryClient = useQueryClient()
@@ -91,7 +98,7 @@ export default function SiteDomains({ siteId, caps }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusPill tone={status.tone} size="sm" icon={rowIsBusy ? Loader2 : status.icon}>{status.label}</StatusPill>
                         {!domain.ready && domain.state === 'pending' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya. Actívala cuando la infraestructura esté lista.</span>}
-                        {domain.state === 'quarantined' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Ya no muestra el sitio. Sigue apartada para este sitio: nadie más puede usarla y puedes recuperarla cuando quieras.</span>}
+                        {domain.state === 'quarantined' && <span className="text-xs text-[hsl(var(--muted-foreground))]">{releaseText(domain)}</span>}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -122,7 +129,7 @@ export default function SiteDomains({ siteId, caps }) {
         open={Boolean(releasing)}
         onOpenChange={(open) => { if (!open) setReleasing(null) }}
         title="Liberar la dirección"
-        description={`${releasing?.hostname ?? ''} dejará de mostrar el sitio de inmediato. La dirección seguirá apartada para este sitio y podrás recuperarla.`}
+        description={`${releasing?.hostname ?? ''} dejará de mostrar el sitio de inmediato. Podrás recuperarla durante 15 días; después quedará libre y cualquier otro sitio podrá reservarla.`}
         confirmLabel="Liberar"
         onConfirm={async () => { const domain = releasing; setReleasing(null); await act(domain, 'release') }}
       />

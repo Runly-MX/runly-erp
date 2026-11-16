@@ -36,6 +36,11 @@ export const localNamespaceUsable = ({ registry, registryConfigured, namespaceRo
   // The namespace root itself can never be the ERP's own host.
   return !adminHosts.some((host) => host.split(':')[0] === namespaceRoot)
 }
+// Autonomous installations: a released platform name stays bound to its site (which can take it back at any time)
+// for this window, so old links cannot be captured right away; afterwards any site may claim it. The DB guard enforces it too.
+export const RELEASE_WINDOW_MS = 15 * 24 * 3600 * 1000
+export const domainFreeAt = (row) => (row?.releasedAt && !row.registryManaged && row.kind !== 'custom' ? new Date(new Date(row.releasedAt).getTime() + RELEASE_WINDOW_MS) : null)
+const claimableByOthers = (row, at = new Date()) => row.state === 'quarantined' && Boolean(domainFreeAt(row)) && domainFreeAt(row) <= at
 export const localLiveness = (view) => ({ state: view.state, ready: view.state === 'assigned' && Boolean(view.ready) })
 const idemKey = (a, op, ...parts) => a.idempotencyKey && a.idempotencyKey.length >= 16 ? `${a.idempotencyKey}:${op}`.slice(0, 200) : createHash('sha256').update([op, ...parts, Date.now(), Math.random()].join('|')).digest('hex')
 
@@ -58,14 +63,15 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
     return row
   }
   const apply = (hostname, view) => prisma.websiteDomain.update({ where: { hostname }, data: { ...localLiveness(view), registryVersion: view.version, registryRedirectTo: view.redirectTo ?? null, registrySyncedAt: new Date() } })
-  const publicView = (row, extra = {}) => ({ hostname: row.hostname, state: row.state, ready: row.ready, registryManaged: row.registryManaged, ...extra })
+  const publicView = (row, extra = {}) => ({ hostname: row.hostname, state: row.state, ready: row.ready, registryManaged: row.registryManaged, releasedAt: row.releasedAt ?? null, freeAt: domainFreeAt(row), ...extra })
 
   async function availability(a) {
     await guarded(a)
     const slug = String(a.slug ?? '').toLowerCase()
     const problem = slugProblem(slug)
     if (problem) return { available: false, reason: problem }
-    if (await prisma.websiteDomain.findUnique({ where: { hostname: `${slug}.${namespaceRoot}` } })) return { available: false, reason: 'NAME_UNAVAILABLE' }
+    const taken = await prisma.websiteDomain.findUnique({ where: { hostname: `${slug}.${namespaceRoot}` } })
+    if (taken && !(local && !taken.registryManaged && claimableByOthers(taken))) return { available: false, reason: 'NAME_UNAVAILABLE' }
     if (local) return { available: true }
     try { return await requireRegistry().availability(namespaceRoot, slug) } catch (error) { throw mapError(error) }
   }
@@ -78,10 +84,17 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
     if (problem) throw fail(problem === 'SLUG_INVALID' ? 422 : 409, problem.toLowerCase(), MESSAGES[problem])
     const hostname = `${slug}.${namespaceRoot}`
     const existing = await prisma.websiteDomain.findUnique({ where: { hostname } })
+    const sameSite = existing && existing.companyId === a.companyId && existing.siteId === site.id
+    if (local && existing && !sameSite && !existing.registryManaged && claimableByOthers(existing)) {
+      // The release window is over: the name moves to this site as a fresh assignment; a concurrent claim loses.
+      const moved = await prisma.websiteDomain.updateMany({ where: { hostname, state: 'quarantined', releasedAt: existing.releasedAt }, data: { companyId: a.companyId, siteId: site.id, state: 'assigned', ready: true, releasedAt: null, isPrimary: false } })
+      if (!moved.count) throw fail(409, 'name_unavailable', MESSAGES.NAME_UNAVAILABLE)
+      return publicView(await prisma.websiteDomain.findUnique({ where: { hostname } }), { namespaceReady: true })
+    }
     if (existing && !(existing.registryManaged === !local && existing.companyId === a.companyId && existing.siteId === site.id)) throw fail(409, 'name_unavailable', MESSAGES.NAME_UNAVAILABLE)
     if (local) {
       // A released name stays bound to its site and can be taken back by it (names are never deleted nor reassigned).
-      if (existing) return publicView(existing.ready ? existing : await prisma.websiteDomain.update({ where: { hostname }, data: { state: 'assigned', ready: true } }), { namespaceReady: true })
+      if (existing) return publicView(existing.ready ? existing : await prisma.websiteDomain.update({ where: { hostname }, data: { state: 'assigned', ready: true, releasedAt: null } }), { namespaceReady: true })
       // The unique hostname column is the arbiter between concurrent claims.
       try { return publicView(await prisma.websiteDomain.create({ data: { hostname, companyId: a.companyId, siteId: site.id, kind: 'platform', registryManaged: false, state: 'assigned', ready: true } }), { namespaceReady: true }) } catch (error) {
         if (error.code === 'P2002') throw fail(409, 'name_unavailable', MESSAGES.NAME_UNAVAILABLE)
@@ -107,7 +120,7 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
   async function release(a) {
     await guarded(a)
     const row = await owned(a, a.hostname)
-    if (local) return publicView(await prisma.websiteDomain.update({ where: { hostname: row.hostname }, data: { state: 'quarantined', ready: false } }))
+    if (local) return publicView(await prisma.websiteDomain.update({ where: { hostname: row.hostname }, data: { state: 'quarantined', ready: false, isPrimary: false, releasedAt: row.releasedAt ?? new Date() } }))
     try { return publicView(await apply(row.hostname, await requireRegistry().release(row.hostname, idemKey(a, 'release', row.hostname)))) } catch (error) { throw mapError(error) }
   }
   // Status prefers the registry but never fails because of it: the local mirror is always returned.
@@ -147,7 +160,7 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
       try { await apply(row.hostname, await requireRegistry().release(row.hostname, idemKey({}, 'release', row.hostname))) } catch (error) { throw mapError(error) }
     }
     // Local names are retired in place: they stay bound to the deleted site and never serve or get reassigned.
-    await prisma.websiteDomain.updateMany({ where: { companyId, siteId, registryManaged: false, kind: 'platform' }, data: { state: 'quarantined', ready: false } })
+    await prisma.websiteDomain.updateMany({ where: { companyId, siteId, registryManaged: false, kind: 'platform', releasedAt: null }, data: { state: 'quarantined', ready: false, isPrimary: false, releasedAt: new Date() } })
     // Customer-owned hostnames stop serving and become claimable again (ownership is proven by DNS, not by history).
     await prisma.websiteDomain.updateMany({ where: { companyId, siteId, kind: 'custom', state: { not: 'quarantined' } }, data: { state: 'quarantined', ready: false, verificationToken: null, httpsState: null } })
   }
