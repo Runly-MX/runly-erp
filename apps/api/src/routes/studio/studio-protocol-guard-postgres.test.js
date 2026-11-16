@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import { readFile } from 'node:fs/promises'
 import pg from 'pg'
+import { writerProtocol } from '../../../../shared/studio/protocol.js'
 
 const url = process.env.STUDIO_TEST_DATABASE_URL
 const migration = name => readFile(new URL(`../../../../../prisma/migrations/${name}/migration.sql`, import.meta.url), 'utf8')
@@ -19,7 +20,7 @@ test('Studio v8 protocol guard on disposable PostgreSQL', { skip: !url }, async 
       CREATE TABLE studio_design(id int PRIMARY KEY, name text, revision int, document jsonb);
       CREATE TABLE studio_template(id int PRIMARY KEY, name text, revision int, document jsonb);
       CREATE TABLE studio_presence(id int);`)
-    for (const name of ['20261207000000_studio_protocol_guard', '20261208000000_studio_multipage_protocol', '20270107000000_studio_v8_protocol']) await pool.query(await migration(name))
+    for (const name of ['20261207000000_studio_protocol_guard', '20261208000000_studio_multipage_protocol']) await pool.query(await migration(name))
     const write = async (table, from, to, protocol) => {
       const client = await pool.connect()
       try {
@@ -34,7 +35,15 @@ test('Studio v8 protocol guard on disposable PostgreSQL', { skip: !url }, async 
         await client.query('ROLLBACK'); client.release()
       }
     }
+    // Before the v8 migration (an installation not yet migrated): the API's declared
+    // protocol keeps v1–v7 writes working and v8 writes fail closed.
     for (const table of ['studio_design', 'studio_template']) {
+      for (const [from, to, expected] of [[7, 7, 'ok'], [6, 7, 'ok'], [6, 6, 'ok'], [7, 8, 'upgrade'], [8, 8, 'upgrade']])
+        assert.equal(await write(table, from, to, writerProtocol(from, to)), expected, `pre-v8 trigger ${table} v${from}→v${to}`)
+    }
+    await pool.query(await migration('20270107000000_studio_v8_protocol'))
+    for (const table of ['studio_design', 'studio_template']) {
+      for (const [from, to] of [[6, 6], [6, 7], [7, 7], [7, 8], [8, 8]]) assert.equal(await write(table, from, to, writerProtocol(from, to)), 'ok', `API writer ${table} v${from}→v${to}`)
       const cases = [
         [7, 7, '3', 'ok'], [7, 7, '4', 'ok'], [7, 7, '2', 'upgrade'], [7, 7, null, 'upgrade'],
         [7, 8, '3', 'upgrade'], [7, 8, '4', 'ok'], [8, 8, '3', 'upgrade'], [8, 8, '4', 'ok'],

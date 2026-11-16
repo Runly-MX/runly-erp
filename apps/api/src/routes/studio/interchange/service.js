@@ -195,8 +195,8 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
     return { recovered: rows.length }
   }
   async function exportPackage(companyId, actorId, kind, id, input, context, signal) {
-    const options = z.strictObject({ acknowledgeImageCopies: z.literal(true) }).parse(input)
-    void options
+    // acknowledgeMotionLoss: required by the writer only when the design has v8 slide or motion fields.
+    const options = z.strictObject({ acknowledgeImageCopies: z.literal(true), acknowledgeMotionLoss: z.literal(true).optional() }).parse(input)
     const read = () => kind === 'template' ? templates.get(companyId, actorId, id) : designs.get(companyId, actorId, id)
     const initial = await read(), signature = hash(Buffer.from(JSON.stringify(initial.document)))
     const fresh = async () => {
@@ -208,7 +208,7 @@ export function createStudioInterchange({ prisma, filesService, supabaseAdmin, d
     const rows = await prisma.$queryRaw`SELECT manifest FROM studio_interchange_job WHERE company_id=${companyId}::uuid AND state='committed' AND result->>'id'=${id} ORDER BY created_at DESC LIMIT 1`
     const prior = rows[0]?.manifest
     const notices = structuredClone(prior?.manifest?.notices ?? []).map(n => ({ ...n, subject: prior?.noticeIdMap?.[n.subject] ?? n.subject }))
-    const bytes = await exportNativePackage({ document: initial.document, kind, title: initial.name, author: prior?.manifest?.author ?? '', provenance: prior?.manifest?.provenance ?? '', notices, licenseFiles: prior?.licenseFiles ?? {},
+    const bytes = await exportNativePackage({ acknowledgeMotionLoss: options.acknowledgeMotionLoss === true, document: initial.document, kind, title: initial.name, author: prior?.manifest?.author ?? '', provenance: prior?.manifest?.provenance ?? '', notices, licenseFiles: prior?.licenseFiles ?? {},
       readAsset: async fileId => {
         await fresh(); await access.member(companyId, actorId, 'files.assets.read')
         if (!studioAssetIds(initial.document).includes(fileId)) throw new StudioError('Recurso no autorizado.', 403)

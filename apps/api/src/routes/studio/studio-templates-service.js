@@ -2,9 +2,10 @@ import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { FILE_ID, StudioError, validateDocument } from '../../../../shared/studio/document.js'
 import { STUDIO_TEMPLATES, templateDocument } from '../../../../shared/studio/templates.js'
 import { createStudioAccess } from './studio-access.js'
-import { STUDIO_PROTOCOL_VERSION } from '../../../../shared/studio/protocol.js'
+import { writerProtocol } from '../../../../shared/studio/protocol.js'
 
-const API_PROTOCOL = String(STUDIO_PROTOCOL_VERSION)
+// Declares the writer protocol to the SQL guard (require_document_protocol) for this transaction.
+const declareWriter = (db, ...versions) => db.$queryRaw`SELECT set_config('runly.studio.protocol',${writerProtocol(...versions)},true)`
 import { studioAssetIds, studioSummary } from './studio-document-data.js'
 
 export function createStudioTemplatesService({ prisma, filesService, designService, supabaseAdmin }) {
@@ -186,10 +187,10 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     const work = async db => {
       await access.lock(db)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       if (operation !== 'create') { if (!FILE_ID.test(input.id)) missing(); await row(db,companyId,actorId,input.id,true) }
       const prepared = await prepare(companyId,actorId,operation,input,db,fileContext)
       const { name,category,description,scope,document,sourceDesignId } = prepared
+      await declareWriter(db,document.schemaVersion,prepared.current?.document?.schemaVersion)
       let saved
       if (operation === 'create') {
         ;[saved] = await db.$queryRaw`INSERT INTO studio_template(company_id,owner_id,scope,name,category,description,document,source,source_design_id)
@@ -211,9 +212,9 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     return prisma.$transaction(async db => {
       await access.lock(db)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       await access.member(companyId,actorId,'studio.create',db)
       const template = await get(companyId,actorId,id,db)
+      await declareWriter(db,template.document.schemaVersion)
       const designName=name === undefined ? template.name : text(name,160,true)
       const [saved] = await db.$queryRaw`INSERT INTO studio_design(company_id,owner_id,name,document)
         VALUES(${companyId}::uuid,${actorId}::uuid,${designName},${JSON.stringify(template.document)}::jsonb)
