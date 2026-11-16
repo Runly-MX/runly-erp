@@ -1,12 +1,12 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Button, EmptyState, ErrorState, LoadingState, StatusPill, TextField } from '@runly/ui'
-import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search, XCircle } from 'lucide-react'
+import { Button, EmptyState, ErrorState, LoadingState, StatusPill } from '@runly/ui'
+import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
-import { validateHostSlug } from '../../lib/pageRoute.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { CustomDomainPanel } from '../../components/CustomDomainPanel.jsx'
+import { HostnamePicker } from '../../components/HostnamePicker.jsx'
 import { SiteAddress } from '../../components/SiteAddress.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
 import { ROW_CARD, SiteIconChip, SitePanel, TOUCH } from '../../components/SitePanel.jsx'
@@ -21,33 +21,13 @@ function domainStatus(domain) {
   if (domain.state === 'pending' || domain.state === 'reserved' || !domain.state) return { label: 'Reservada · en preparación', tone: 'warning', icon: Clock }
   return { label: domain.state, tone: 'neutral', icon: Globe }
 }
-const AVAILABILITY = {
-  NAME_UNAVAILABLE: 'Ese nombre ya está en uso.', NAME_RESERVED: 'Ese nombre está reservado.', SLUG_INVALID: 'Usa de 3 a 50 letras minúsculas, números o guiones, sin guiones dobles.',
-}
-
 export default function SiteDomains({ siteId, caps }) {
   const queryClient = useQueryClient()
   const { api, companyId } = useWebsiteScope()
   const domains = useDomains(siteId)
-  const [slug, setSlug] = useState('')
-  const [busy, setBusy] = useState(false)
   const [serverError, setServerError] = useState(null)
-  const [availability, setAvailability] = useState(null)
   const [rowBusy, setRowBusy] = useState(null)
-  const slugError = slug ? validateHostSlug(slug) : null
 
-  async function reserve() {
-    setBusy(true); setServerError(null)
-    try {
-      await api.reserveHostname(siteId, slug)
-      setSlug('')
-      await queryClient.invalidateQueries({ queryKey: websiteKeys.domains(companyId, siteId) })
-    } catch (error) { setServerError(error) } finally { setBusy(false) }
-  }
-  async function checkAvailability() {
-    setBusy(true); setServerError(null); setAvailability(null)
-    try { setAvailability((await api.hostnameAvailability(siteId, slug)).data) } catch (error) { setServerError(error) } finally { setBusy(false) }
-  }
   async function act(domain, action) {
     setRowBusy(domain.hostname); setServerError(null)
     try {
@@ -56,7 +36,6 @@ export default function SiteDomains({ siteId, caps }) {
     } catch (error) { setServerError(error) } finally { setRowBusy(null) }
   }
   const info = serverError ? describeError(serverError) : null
-  const fieldError = slugError ?? (info ? `${info.title}. ${info.message}` : undefined)
   // Customer-owned domains have their own panel and lifecycle; only platform addresses are listed here.
   const list = (domains.data ?? []).filter((domain) => domain.kind !== 'custom')
 
@@ -103,23 +82,10 @@ export default function SiteDomains({ siteId, caps }) {
         )}
       </SitePanel>
 
-      <SitePanel id="reserve-title" icon={Search} tone="blue" title="Elegir una dirección" description="Comprueba si el nombre está libre y resérvalo para este sitio.">
-        <div className="flex flex-col gap-3 md:flex-row md:items-start">
-          <div className="min-w-0 flex-1">
-            <TextField label="Nombre de la dirección" value={slug} onChange={(e) => { setSlug(e.target.value.toLowerCase()); setServerError(null); setAvailability(null) }} placeholder="mi-negocio" error={fieldError} hint="3 a 50 caracteres: letras minúsculas, números y guiones." />
-          </div>
-          <div className="flex flex-col gap-2 sm:flex-row md:pt-6">
-            <Button variant="outline" onClick={checkAvailability} disabled={busy || !slug || Boolean(slugError)}><Search className="h-4 w-4" aria-hidden />Comprobar disponibilidad</Button>
-            <CapabilityButton capability={caps.reserveHostname} onClick={reserve} disabled={busy || !slug || Boolean(slugError)}>{busy ? 'Reservando…' : 'Reservar'}</CapabilityButton>
-          </div>
-        </div>
-        {availability && (
-          <p role="status" className={`mt-3 flex items-center gap-2 rounded-xl p-3 text-sm font-medium ${availability.available ? 'bg-emerald-500/10 text-emerald-700 dark:text-emerald-400' : 'bg-[hsl(var(--destructive))]/10 text-[hsl(var(--destructive))]'}`}>
-            {availability.available ? <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden /> : <XCircle className="h-4 w-4 shrink-0" aria-hidden />}
-            {availability.available ? 'Ese nombre está disponible.' : (AVAILABILITY[availability.reason] ?? 'Ese nombre no está disponible.')}
-          </p>
-        )}
+      <SitePanel id="reserve-title" icon={Search} tone="blue" title="Elegir una dirección" description="Escribe un nombre: comprobamos al momento si está libre y lo reservas para este sitio.">
+        <HostnamePicker siteId={siteId} caps={caps} />
       </SitePanel>
+      {info && <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{info.title}. {info.message}</p>}
 
       <CustomDomainPanel siteId={siteId} caps={caps} />
     </div>

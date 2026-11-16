@@ -1,11 +1,14 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { ConfirmDialog, FileUploader, ProgressBar, SelectField, StatusPill } from '@runly/ui'
-import { Check, CheckCircle2, Clock, Eye, FileArchive, FileCode2, Fingerprint, FolderTree, ListChecks, Loader2, PackageCheck, Rocket, ShieldOff, UploadCloud } from 'lucide-react'
+import { Check, CheckCircle2, Clock, ExternalLink, Eye, FileArchive, FileCode2, Fingerprint, FolderTree, Globe, ListChecks, Loader2, PackageCheck, Rocket, ShieldOff, UploadCloud } from 'lucide-react'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
-import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
+import { toast } from 'sonner'
+import { describeError } from '../../lib/websiteErrors.js'
+import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
+import { HostnamePicker } from '../../components/HostnamePicker.jsx'
 import { PreviewDialog } from '../../components/PreviewDialog.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
 import { SiteIconChip, SitePanel } from '../../components/SitePanel.jsx'
@@ -84,6 +87,7 @@ export default function SiteImport({ site, siteId, caps }) {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [activateOpen, setActivateOpen] = useState(false)
   const keys = useRef({})
+  const domains = useDomains(siteId)
 
   async function upload() {
     setError(null); setPhase('uploading')
@@ -135,8 +139,15 @@ export default function SiteImport({ site, siteId, caps }) {
       keys.current.activate = null
       await queryClient.invalidateQueries({ queryKey: websiteKeys.all(companyId) })
       setActivateOpen(false); setPhase('done')
-    } catch (e) { keys.current.activate = null; setError(e); setActivateOpen(false); setPhase('prepared') }
+    } catch (e) {
+      keys.current.activate = null; setError(e); setActivateOpen(false); setPhase('prepared')
+      const info = describeError(e)
+      toast.error(`${info.title}. ${info.message}`)
+      if (e?.code === 'isolation_required') domains.refetch()
+    }
   }
+  const readyDomain = (domains.data ?? []).find((domain) => domain.ready)
+  const needsAddress = domains.isSuccess && !readyDomain
 
   const busy = ['uploading', 'validating', 'preparing', 'activating'].includes(phase)
   const visibleError = error ?? (phase === 'rejected' ? { code: imported?.errorCode ?? imported?.errorCodes?.[0] ?? 'import_rejected', status: 422 } : null)
@@ -197,11 +208,19 @@ export default function SiteImport({ site, siteId, caps }) {
               {phase === 'prepared' && (
                 <>
                   <CapabilityButton capability={caps.previewSite} variant="outline" onClick={() => setPreviewOpen(true)}><Eye className="h-4 w-4" aria-hidden /> Ver vista previa</CapabilityButton>
-                  <CapabilityButton capability={caps.publish} onClick={() => setActivateOpen(true)}><Rocket className="h-4 w-4" aria-hidden /> Activar versión</CapabilityButton>
+                  <CapabilityButton capability={caps.publish} onClick={() => setActivateOpen(true)} disabled={needsAddress}><Rocket className="h-4 w-4" aria-hidden /> Activar versión</CapabilityButton>
                 </>
               )}
               {phase === 'done' && <p className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />La versión está activa. Revisa Publicaciones para ver el historial.</p>}
+              {phase === 'done' && readyDomain && <a className="flex items-center gap-2 rounded-xl bg-[hsl(var(--muted))]/50 p-3 text-sm font-medium hover:underline" href={`https://${readyDomain.hostname}`} target="_blank" rel="noreferrer"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> {readyDomain.hostname} <ExternalLink className="ml-auto h-3.5 w-3.5" aria-hidden /></a>}
             </div>
+            {phase === 'prepared' && needsAddress && (
+              <div className="mt-4 space-y-3 border-t border-[hsl(var(--border))] pt-4">
+                <p className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> Elige la dirección del sitio para poder activarlo</p>
+                <p className="text-sm text-[hsl(var(--muted-foreground))]">Un sitio importado desde ZIP se publica en su propia dirección. Escribe un nombre; comprobamos al momento si está libre.</p>
+                <HostnamePicker siteId={siteId} caps={caps} onReserved={(domain) => { setError(null); if (domain?.ready) setActivateOpen(true) }} />
+              </div>
+            )}
           </SitePanel>
         )}
 
