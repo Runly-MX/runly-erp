@@ -1,9 +1,15 @@
 // Lightweight SQL doubles for the fast renderer/service suite only.
 // Production membership/RBAC/RLS and rotation are tested by the real Supabase suite.
 export async function installMinimalStudioAccess(pool) {
+  // Same wrapper as migration 20260902000000_chat_message_search (Studio list search uses it).
+  // The extension stays in public so dropping a test schema never removes it.
+  await pool.query(`CREATE EXTENSION IF NOT EXISTS unaccent SCHEMA public;
+    CREATE OR REPLACE FUNCTION atlas_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+      SET search_path = public AS $$ SELECT public.unaccent('public.unaccent'::regdictionary, $1) $$;`)
   await pool.query(`ALTER TABLE user_profile ADD COLUMN display_name text DEFAULT 'Fixture';
     CREATE TABLE studio_collaborator(design_id uuid,user_id uuid,role text,granted_by uuid,PRIMARY KEY(design_id,user_id));
     CREATE TABLE studio_design_asset(design_id uuid,file_id uuid,added_by uuid,origin_design_id uuid,PRIMARY KEY(design_id,file_id));
+    CREATE TABLE studio_collection_item(collection_id uuid,design_id uuid);
     CREATE TABLE realtime_authorization_revision(id boolean PRIMARY KEY,revision bigint);
     INSERT INTO realtime_authorization_revision VALUES(true,1);
     CREATE SCHEMA IF NOT EXISTS runly_studio;
