@@ -35,16 +35,31 @@ probada solo en PostgreSQL desechable; **no aplicada** en bases compartidas.
 - [x] Contrato v8, protocolo 4, migración, reproductor y ajustes de diapositiva.
   Verified: 2026-11-16 (node --test 159/159; guard SQL en PostgreSQL 18 desechable; E2E 22/22 en stack Supabase desechable)
 
-Pendientes que pasan a Fase 2:
+Cierre técnico (2026-11-16):
+
+- [x] Prueba reproducible versionada: `node scripts/verify-studio-presentations.mjs --build-api-image`
+  (o `--api-image=<etiqueta>`; `--only=<texto>` ejecuta un paso). Stack Supabase desechable,
+  API construida desde `git archive HEAD`, capturas en `.artifacts/studio/presentations/`.
+  Verified: 2026-11-16 (25/25)
+- [x] Deshacer colaborativo: selectivo entre dos usuarios, conflicto en la misma propiedad
+  (gana el último y el deshacer ajeno no la pisa), deshacer en páginas inactivas y cola sin
+  conexión con deshacer entregada al reconectar. Verified: 2026-11-16 (mismo script)
+- [x] Fixture de PostgreSQL: `atlas_unaccent` y `studio_collection_item` en
+  `scripts/fixtures/studio/minimal-access.mjs`; `studio-postgres.test.js` 11/11.
+  Verified: 2026-11-16 (PostgreSQL 18 desechable)
+- [x] Selección restaurada al salir de Presentar (no se restauran objetos eliminados, ocultos
+  o bloqueados mientras tanto). Verified: 2026-11-16 (mismo script)
+- [x] Transiciones deslizar y acercar comprobadas en pantalla (posición, escala y opacidad
+  durante la transición, con capturas). Verified: 2026-11-16 (mismo script)
+- [x] Protocolo 3/4: 426 para clientes 3 sobre v8 y para protocolo 2; un PUT v8→v7 con
+  protocolo 4 se rechaza (409); las rutas del paquete aceptan 3 y 4. Verified: 2026-11-16 (mismo script)
+
+Pendientes que pasan a Fase 2 o quedan sin verificar:
 
 - `sceneAt` (composición de efectos y keyframes) y su recorte al final de la diapositiva.
 - `resizeDocument` con escala de contenido no escala `x`/`y` absolutos de keyframes.
-- La exportación de una página activa deselecciona el objeto del editor
-  (`discardActiveObject`) al presentar; preservar la selección.
-- `atlas_unaccent` falta en el fixture de `studio-postgres.test.js` (3 subpruebas fallan
-  desde `100b42305`, ajeno a Studio Next).
 - `apps/api/src/mcp/__tests__/official-domains.js` (casos MCP) no se ejecutó.
-- Prueba visual de deslizamiento y acercamiento; prueba en iPhone real y en Tauri/WebView2.
+- iPhone real y Tauri/WebView2 sin probar.
 
 Criterios de cierre:
 

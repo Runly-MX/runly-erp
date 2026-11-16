@@ -128,7 +128,29 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const pageCount = pageList.length, activeIndex = Math.max(0, pageList.findIndex(item => item.active))
   const thumbnails = usePageThumbnails(editorRef, pageList, pagesOpen && ready)
   // Presenting reads the editor's own snapshot (viewers too): pending local changes are flushed first.
-  const present = () => attempt(async () => { await editorRef.current.flush(); setPresenting(editorRef.current.activePageId()) })
+  const presentedSelection = useRef(null)
+  const present = () => attempt(async () => {
+    await editorRef.current.flush()
+    presentedSelection.current = { pageId: editorRef.current.activePageId(), items: objects.filter(object => selectedIds.includes(object.id)) }
+    setPresenting(editorRef.current.activePageId())
+  })
+  // Rendering the active slide clears the canvas selection: restore it by stable IDs,
+  // only for objects that still exist, are visible and kept their lock state.
+  function closePresentation() {
+    setPresenting(null)
+    requestAnimationFrame(() => {
+      document.querySelector('[data-studio-present]')?.focus()
+      const before = presentedSelection.current, editor = editorRef.current
+      presentedSelection.current = null
+      if (!before?.items.length || !editor || editor.activePageId() !== before.pageId) return
+      const live = new Map(editor.activeScene().objects.map(object => [object.id, object]))
+      const kept = before.items.filter(item => live.has(item.id) && !live.get(item.id).hidden && Boolean(live.get(item.id).locked) === Boolean(item.locked)).map(item => item.id)
+      const group = kept.length > 1 && live.get(kept[0]).groupId
+      if (group && kept.every(id => live.get(id).groupId === group)) editor.selectGroup(group)
+      else if (kept.length === 1) editor.select(kept[0])
+      else if (kept.length) editor.selectMany(kept)
+    })
+  }
   const closeBrowsers = () => { setBrowsing(false); if (phone) setPanel(current => (current === 'pages' ? null : current)) }
   const goToPage = id => attempt(async () => { await editorRef.current.selectPage(id); closeBrowsers() })
   const pageActions = {
@@ -424,7 +446,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         </Sheet>
       ) : null}
       {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
-      {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={() => { setPresenting(null); requestAnimationFrame(() => document.querySelector('[data-studio-present]')?.focus()) }} /> : null}
+      {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={closePresentation} /> : null}
       <ConfirmDialog open={Boolean(removing)} onOpenChange={open => { if (!open) setRemoving(null) }} title={`Eliminar ${removing?.label ?? 'página'}`}
         description="Se eliminará la página con sus elementos. Puedes deshacerlo con Ctrl+Z mientras no cierres el editor." confirmLabel="Eliminar página"
         onConfirm={() => { const id = removing.id; setRemoving(null); attempt(() => editorRef.current.removePage(id)) }} />
