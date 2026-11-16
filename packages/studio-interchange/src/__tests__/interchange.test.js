@@ -3,7 +3,7 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { FORMAT, LIMITS_VERSION, PACKAGE_LIMITS, inspectNativePackage, inspectStudioPackage, readPackageZip } from '../inspect.js'
-import { exportStudioPackage, writePackageZip } from '../write.js'
+import { exportStudioPackage, writePackageZip, MOTION_LOSS } from '../write.js'
 import { studioCorpus, studioDocument, studioImage, validStudio, repack } from './corpus.js'
 import { validateWebsiteTemplate, WEBSITE_LIMITS, resolveWebsiteLimits, catalogDigest, richTextProblem } from '../website-template.js'
 import { builderCatalogs, section, websiteCorpus, websiteTemplate } from './corpus.js'
@@ -66,6 +66,21 @@ test('round trip: export, inspect and re-export lose nothing', async () => {
   assert.deepEqual(files.get(inspected.manifest.resources[0].path), image, 'image bytes are untouched')
   assert.equal(inspected.report.pages.length, 2)
   assert.equal(JSON.parse(files.get('document.json')).additionalPages.length, 1)
+})
+
+test('v8 slide and motion fields need an explicit acceptance and are declared as losses', async () => {
+  const doc = await studioDocument()
+  const v8 = { ...doc, page: { ...doc.page, slide: { duration: 3000 } }, objects: doc.objects.map((o, i) => (i ? o : { ...o, enter: { preset: 'fade' } })) }
+  await assert.rejects(validStudio({ document: v8 }), (e) => e.status === 409 && e.code === 'STUDIO_MOTION_LOSS_ACK_REQUIRED')
+  const bytes = await validStudio({ document: v8, acknowledgeMotionLoss: true })
+  const result = await inspectStudioPackage(bytes)
+  assert.equal(result.ok, true)
+  assert.deepEqual(result.report.losses, [MOTION_LOSS])
+  const portable = JSON.parse((await readPackageZip(bytes)).get('document.json'))
+  assert.equal(portable.schemaVersion, 7)
+  assert.equal(portable.page.slide, undefined)
+  assert.equal(portable.objects[0].enter, undefined)
+  assert.deepEqual(await validStudio({ acknowledgeMotionLoss: true }), await validStudio(), 'static designs export identically')
 })
 
 test('limits are clamped to the format, validated, and applied', async () => {

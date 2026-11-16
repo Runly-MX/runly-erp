@@ -1,6 +1,7 @@
 import JSZip from 'jszip'
 import { StudioError, validateDocument } from './studio/document.js'
 import { documentPages } from './studio/pages.js'
+import { projectV7 } from './studio/motion.js'
 import { documentAssetIds } from './studio/shape-properties.js'
 import { iconSource } from './studio/licenses.js'
 import { PACKAGE_LIMITS, FORMAT } from './limits.js'
@@ -16,8 +17,14 @@ export async function writePackageZip(entries, { limit = PACKAGE_LIMITS.compress
   return bytes
 }
 
-export async function exportStudioPackage({ document, title, kind = 'design', readAsset, author = '', provenance = '', notices = [], losses = [], licenseFiles = {} }) {
-  const canonical = validateDocument(document), resources = [], entries = [], mapping = new Map()
+export const MOTION_LOSS = 'Se omitieron duraciones, transiciones y animaciones: el paquete portable v1 todavía no las admite.'
+
+export async function exportStudioPackage({ document, title, kind = 'design', readAsset, author = '', provenance = '', notices = [], losses = [], licenseFiles = {}, acknowledgeMotionLoss = false }) {
+  // Package v1 carries document v7: v8 fields are dropped only after an explicit acceptance, and declared.
+  const projected = projectV7(validateDocument(document))
+  if (projected.lost && acknowledgeMotionLoss !== true) throw new StudioError('El diseño tiene duraciones, transiciones o animaciones que el paquete no conserva. Confirma la pérdida para exportarlo.', 409, 'STUDIO_MOTION_LOSS_ACK_REQUIRED')
+  if (projected.lost) losses = [...losses, MOTION_LOSS]
+  const canonical = validateDocument(projected.document), resources = [], entries = [], mapping = new Map()
   let resourceBytes = 0
   for (const id of documentAssetIds({ objects: documentPages(canonical).flatMap((s) => s.objects) })) {
     const asset = await readAsset(id), bytes = asset.bytes, size = await validateImage(bytes, asset.mime), sha256 = hash(bytes)

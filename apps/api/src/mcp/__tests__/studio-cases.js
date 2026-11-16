@@ -6,7 +6,7 @@ import { createStudioTemplatesService } from '../../routes/studio/studio-templat
 import { createStudioService } from '../../routes/studio/studio-service.js'
 import { createStudioRouter } from '../../routes/studio/index.js'
 import { createStudioMiraiCapabilities } from '../../routes/studio/mirai-capabilities.js'
-import { appendObject,blankDocument,STUDIO_SCHEMA_VERSION } from '../../../../shared/studio/document.js'
+import { appendObject,blankDocument,STUDIO_SCHEMA_VERSION,STUDIO_BASE_SCHEMA_VERSION } from '../../../../shared/studio/document.js'
 import { digest } from '../state.js'
 import {applyOps} from '../../../../shared/studio/operations.js'
 
@@ -117,7 +117,7 @@ export async function studioCases(t,{prisma,company,other,user,role,membership,r
     app.route('/',createStudioRouter({prisma,requirePermission:()=>async(_c,next)=>next()}))
     const post=(path,input,method='POST')=>app.request(path,{method,headers:{'Content-Type':'application/json'},body:JSON.stringify(input)})
     const response=await post('/studio/templates',{name:'HTTP',document});assert.equal(response.status,201)
-    const {data:created}=await response.json();assert.equal(created.document.schemaVersion,STUDIO_SCHEMA_VERSION)
+    const {data:created}=await response.json();assert.equal(created.document.schemaVersion,STUDIO_BASE_SCHEMA_VERSION)
     assert.equal((await post(`/studio/templates/${created.id}`,{name:'Falta revisión'},'PUT')).status,400)
     assert.equal((await post('/studio/templates',{name:'Origen falso',document,source:'ai'})).status,400)
     const listing=await(await app.request('/studio/templates?scope=personal&q=HTTP')).json()

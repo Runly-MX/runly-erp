@@ -5,7 +5,11 @@ import { iconSource } from './licenses.js'
 import { imageProperties } from './image-properties.js'
 import { gradientPaint } from './gradient.js'
 import { fillPaint, shapeStyle, supportsPhotoFill, SHAPE_TYPES, LINE_CAPS } from './shape-properties.js'
-export const STUDIO_SCHEMA_VERSION = 7
+import { validateSlide, validateMotion, usesV8, MOTION_LIMITS } from './motion.js'
+// Highest version this contract reads and writes. New static documents keep the
+// base version: v8 is emitted only once a document uses slide or motion fields.
+export const STUDIO_SCHEMA_VERSION = 8
+export const STUDIO_BASE_SCHEMA_VERSION = 7
 export const STUDIO_LIMITS = Object.freeze({ side: 4096, objects: 500, totalObjects: 2000, pages: 24, assets: 100, bytes: 4_000_000 })
 export const FILE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const COLOR = /^#[0-9a-f]{6}$/i
@@ -21,12 +25,13 @@ const fail = () => { throw new StudioError('El diseño contiene datos no válido
 const finite = (value, min, max) => typeof value === 'number' && Number.isFinite(value) && value >= min && value <= max
 
 function validateScene(input) {
-  if (!input || ![1, 2, 3, 4, 5, 6, STUDIO_SCHEMA_VERSION].includes(input.schemaVersion) || input.unit !== 'px') fail()
+  if (!input || ![1, 2, 3, 4, 5, 6, 7, 8].includes(input.schemaVersion) || input.unit !== 'px') fail()
   const page = input.page
   if (!page || !Number.isInteger(page.width) || !Number.isInteger(page.height) ||
     !finite(page.width, 32, STUDIO_LIMITS.side) || !finite(page.height, 32, STUDIO_LIMITS.side) || !isColor(page.background)) fail()
   if (!Array.isArray(input.objects) || input.objects.length > STUDIO_LIMITS.objects) fail()
-  let backgroundPaint
+  let backgroundPaint, slide
+  if (page.slide !== undefined) { try { slide = validateSlide(page.slide) } catch { fail() } }
   // Optional print resolution (labels): keeps physical size in PDF/ZPL exports.
   if(page.ppi!==undefined&&![72,96,150,300].includes(page.ppi))fail()
   if(page.backgroundPaint!==undefined){if(input.schemaVersion<6)fail();try{backgroundPaint=gradientPaint(page.backgroundPaint)}catch{fail()}}
@@ -99,10 +104,11 @@ function validateScene(input) {
       if(object.type!=='rectangle'&&clean.shape.radius)fail()
       if(object.type==='vector'&&!supportsPhotoFill(clean))fail()
     }
+    try { Object.assign(clean, validateMotion(object)) } catch { fail() }
     return clean
   })
   // Explicit allowlist: viewport, signed URLs and Fabric internals never persist.
-  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: page.id ?? 'page-1', ...(page.name !== undefined ? {name: page.name} : {}), width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}), ...(page.ppi!==undefined?{ppi:page.ppi}:{}) }, objects }
+  return { schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: page.id ?? 'page-1', ...(page.name !== undefined ? {name: page.name} : {}), width: page.width, height: page.height, background: page.background, ...(backgroundPaint?{backgroundPaint}:{}), ...(page.ppi!==undefined?{ppi:page.ppi}:{}), ...(slide && Object.keys(slide).length ? {slide} : {}) }, objects }
 }
 
 export function validateDocument(input) {
@@ -112,7 +118,7 @@ export function validateDocument(input) {
   const scenes = [{page: input.page, objects: input.objects}, ...(input.additionalPages ?? [])]
   if (scenes.length > STUDIO_LIMITS.pages) fail()
   const ids = new Set(), objectIds = new Set(), groups = new Map(), assets = new Set()
-  let count = 0
+  let count = 0, effects = 0, keyframes = 0
   const pages = scenes.map(scene => {
     if (!scene || !scene.page || (input.schemaVersion >= 7 && typeof scene.page.id !== 'string')) fail()
     const clean = validateScene({...scene, schemaVersion: input.schemaVersion, unit: input.unit})
@@ -130,16 +136,20 @@ export function validateDocument(input) {
       const asset = object.fileAssetId ?? (object.fillPaint?.type === 'image' ? object.fillPaint.fileAssetId : undefined)
       if (asset) assets.add(asset)
       count++
+      effects += ['enter', 'exit', 'emphasis'].filter(key => object[key]).length
+      keyframes += object.keyframes?.length ?? 0
     }
     return {page: clean.page, objects: clean.objects}
   })
-  if (count > STUDIO_LIMITS.totalObjects || assets.size > STUDIO_LIMITS.assets) fail()
+  if (count > STUDIO_LIMITS.totalObjects || assets.size > STUDIO_LIMITS.assets || effects > MOTION_LIMITS.effects || keyframes > MOTION_LIMITS.totalKeyframes) fail()
   const [first, ...additionalPages] = pages
-  return {schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', ...first, additionalPages}
+  const result = {unit: 'px', ...first, additionalPages}
+  // Minimum sufficient and monotonic: a v8 document never goes back to v7 (the SQL trigger also denies it).
+  return {schemaVersion: input.schemaVersion >= 8 || usesV8(result) ? 8 : STUDIO_BASE_SCHEMA_VERSION, ...result}
 }
 
 export function blankDocument(width = 1080, height = 1080) {
-  return validateDocument({ schemaVersion: STUDIO_SCHEMA_VERSION, unit: 'px', page: { id: 'page-1', width, height, background: '#ffffff' }, objects: [] })
+  return validateDocument({ schemaVersion: STUDIO_BASE_SCHEMA_VERSION, unit: 'px', page: { id: 'page-1', width, height, background: '#ffffff' }, objects: [] })
 }
 
 export function appendObject(document, type, extra = {}) {
