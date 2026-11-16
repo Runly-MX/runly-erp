@@ -58,7 +58,7 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(!ref)throw notFound('Recurso')
     let bytes;try{bytes=await storage.get(ref.objectKey)}catch{throw fail('dependency_unavailable',503)}
     if(bytes.length!==ref.size||releaseBytesHash(bytes)!==digest)throw fail('integrity_failed',503)
-    return {bytes,mime:ref.mime,kind:previous.manifest.kind,contentMode:previous.manifest.contentMode,staticPolicyVersion:previous.manifest.staticPolicyVersion}
+    return {bytes,mime:ref.mime,kind:previous.manifest.kind,contentMode:previous.manifest.contentMode,staticPolicyVersion:previous.manifest.staticPolicyVersion,sandboxPolicyVersion:previous.manifest.sandboxPolicyVersion}
   }
   async function reserve(a) {
     assertWebsiteAccess(a.access,a.companyId,'website.domains.manage');assertWebsiteAccess(a.access,a.companyId,'website.site.update')

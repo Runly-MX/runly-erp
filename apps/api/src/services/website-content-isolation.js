@@ -1,7 +1,7 @@
 import {getDomain} from 'tldts'
 import {strictWebsiteHostname} from './website-gateway-service.js'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
-import {isStaticWebsiteContent} from './website-static-policy.js'
+import {isStaticWebsiteContent,isSandboxedWebsiteContent} from './website-static-policy.js'
 
 // Configuration is owned by the installation, never accepted from an API body.
 export function createWebsiteContentIsolation({adminOrigin,namespaceRoot,contentRoot,previewRoot,previewProtocol='https:',previewPort='',localLab=false}={}) {
@@ -23,7 +23,7 @@ export function createWebsiteContentIsolation({adminOrigin,namespaceRoot,content
   }
   function publicHost(host,manifest) {
     const h=strictWebsiteHostname(host)
-    if(isStaticWebsiteContent(manifest)&&namespaceRoot) {
+    if((isStaticWebsiteContent(manifest)||isSandboxedWebsiteContent(manifest))&&namespaceRoot) {
       const root=staticRoot()
       if(h!==new URL(adminOrigin).hostname&&h.endsWith('.'+root))return h
     }

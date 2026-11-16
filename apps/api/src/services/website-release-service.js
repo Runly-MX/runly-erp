@@ -9,7 +9,7 @@ import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { createFileAccess } from './files/access.js'
 import { z } from 'zod'
-import {isStaticWebsiteContent,STATIC_CONTENT_POLICY} from './website-static-policy.js'
+import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
 
 const failure=(code,status=409)=>new WebsiteServiceError('No se pudo completar la publicación.',status,code)
 const known=new Set(BLOCK_CATALOG.blocks.map(b=>b.type))
@@ -65,6 +65,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     const imported=await imports.get({...a,importId:a.importId});if(imported.phase!=='ready')throw failure('import_not_ready')
     const manifest={schemaVersion:1,kind:'dist',integrityMode:'sealed',previewOnly:previewCalls.has(input),companyId:a.companyId,siteId:a.siteId,importId:imported.id,routingMode:imported.manifest.routingMode,files:imported.manifest.files,routes:[],assets:Object.fromEntries(imported.manifest.files.map(f=>[f.hash,f])),runtime:{assets:{}},identity:{},theme:null,menus:[],dynamic:[]}
     if(isStaticWebsiteContent(imported.manifest))Object.assign(manifest,{contentMode:'static',staticPolicyVersion:STATIC_CONTENT_POLICY})
+    if(isSandboxedWebsiteContent(imported.manifest))Object.assign(manifest,{contentMode:'sandboxed',sandboxPolicyVersion:SANDBOX_CONTENT_POLICY})
     for(const ref of Object.values(manifest.assets)){const bytes=await storage.get(ref.objectKey);if(bytes.length!==ref.size||releaseBytesHash(bytes)!==ref.hash)throw failure('integrity_failed',422)}
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)

@@ -1,7 +1,7 @@
 import {test} from 'node:test'
 import assert from 'node:assert/strict'
 import {Hono} from 'hono'
-import {validateWebsiteStaticContent,isStaticWebsiteContent,STATIC_CONTENT_POLICY} from '../website-static-policy.js'
+import {validateWebsiteStaticContent,isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from '../website-static-policy.js'
 import {validateWebsiteZipReferences} from '../website-zip-references.js'
 import {createWebsiteContentIsolation} from '../website-content-isolation.js'
 import {websiteIsolatedHeaders} from '../website-static-serving.js'
@@ -43,8 +43,8 @@ for(const html of [
   assert.throws(()=>validateWebsiteStaticContent([files[0]],new Map([['index.html',html]])),e=>e.code==='static_content_required')
 })
 
-test('scripts, WASM, XML, PDFs and active SVG cannot be labelled as static',async()=>{
-  for(const mime of ['text/javascript','application/wasm','application/xml','application/pdf','application/manifest+json']) {
+test('scripts, WASM and active SVG cannot be labelled as static',async()=>{
+  for(const mime of ['text/javascript','application/wasm']) {
     assert.throws(()=>validateWebsiteStaticContent([{path:'payload',mime}],new Map()),e=>e.code==='static_content_required')
   }
   for(const source of ['<svg onload="alert(1)"/>','<?xml-stylesheet href="evil.xsl"?><svg/>','<!DOCTYPE svg><svg/>','<s:svg xmlns:s="http://www.w3.org/2000/svg"><s:script>alert(1)</s:script></s:svg>']) {
@@ -53,6 +53,23 @@ test('scripts, WASM, XML, PDFs and active SVG cannot be labelled as static',asyn
   await assert.rejects(validateWebsiteZipReferences([files[0]],new Map([['index.html','<script>alert(1)</script>']]),{contentMode:'static'}),e=>e.code==='static_content_required')
   // Existing API clients keep the isolated mode; they are never silently downgraded.
   await validateWebsiteZipReferences([files[0]],new Map([['index.html','<script>console.log(1)</script>']]))
+})
+
+test('sandbox accreditation is versioned and permits brand hosts without giving scripts same-origin privileges',async()=>{
+ const sandbox={contentMode:'sandboxed',sandboxPolicyVersion:SANDBOX_CONTENT_POLICY}
+ const isolation=createWebsiteContentIsolation({adminOrigin:'https://erp.example.test',namespaceRoot:'sites.example.test'})
+ assert.equal(isolation.publicHost('tenant.sites.example.test',sandbox),'tenant.sites.example.test')
+ for(const m of [{contentMode:'sandboxed'},{...sandbox,sandboxPolicyVersion:'unknown'},{}]){
+  assert.equal(isSandboxedWebsiteContent(m),false)
+  assert.throws(()=>isolation.publicHost('tenant.sites.example.test',m))
+ }
+ const app=new Hono()
+ for(const mode of [manifest,sandbox])for(const mime of ['application/xml','application/pdf'])app.get(`/${mode.contentMode}/${mime.split('/')[1]}`,c=>{websiteIsolatedHeaders(c,{manifest:mode,mime});return c.body('download')})
+ app.get('/sandbox',c=>{c.header('Access-Control-Allow-Credentials','true');websiteIsolatedHeaders(c,{manifest:sandbox});return c.body('sandbox')})
+ const response=await app.request('/sandbox'),csp=response.headers.get('content-security-policy')
+ assert.match(csp,/sandbox allow-scripts/);assert.ok(!csp.includes('allow-same-origin'));assert.match(csp,/connect-src 'none'/)
+ assert.equal(response.headers.get('access-control-allow-origin'),'*');assert.equal(response.headers.get('access-control-allow-credentials'),null)
+ for(const mode of [manifest,sandbox])for(const type of ['xml','pdf'])assert.equal((await app.request(`/${mode.contentMode}/${type}`)).headers.get('content-disposition'),'attachment')
 })
 
 test('worker validation preserves the offending HTML file and attribute in the error',async()=>{

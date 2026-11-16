@@ -45,8 +45,8 @@ export function createWebsitePreviewHandler({previews,isolation,gateway,prisma})
       }
       websiteReleasePath(path)
       if(m.kind==='dist'){
-        websiteIsolatedHeaders(c,{preview:true,adminOrigin:isolation.admin(),manifest:m})
         const file=staticArtifactRoute(m,path,c.req.header('accept')?.includes('text/html'))
+        websiteIsolatedHeaders(c,{preview:true,adminOrigin:isolation.admin(),manifest:m,mime:file?.mime})
         const canonical=staticArtifactDirectoryRedirect(file,path)
         if(canonical)return c.redirect(canonical+new URL(c.req.url).search,308)
         if(!file)return c.notFound();c.header('Content-Type',file.mime);return c.body(await previews.bytes(file))

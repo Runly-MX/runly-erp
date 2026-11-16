@@ -19,7 +19,7 @@ test('error copy: known code, status fallback, unknown fallback', () => {
 })
 
 test('ZIP errors explain the rejection and preserve server-provided file details', () => {
-  const fields = { archivo: 'README.md', motivo: 'La extensión no está permitida.' }
+  const fields = { archivo: 'backend.php', motivo: 'La extensión no está permitida.' }
   const info = describeError({ status: 422, code: 'unexpected_archive_file', fields })
   assert.equal(info.title, 'El ZIP contiene un archivo no permitido')
   assert.equal(info.tone, 'warning')

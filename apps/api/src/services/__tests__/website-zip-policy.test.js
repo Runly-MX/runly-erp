@@ -10,10 +10,10 @@ test('ZIP root is explicit and a wrapper never truncates outside entries',async(
  await assert.rejects(inspectWebsiteZip(await archive({'dist/index.html':'ok','outside.txt':'no'})),e=>e.code==='archive_root_mismatch')
  await assert.rejects(inspectWebsiteZip(await archive({'a/index.html':'a','b/index.html':'b'})),e=>e.code==='ambiguous_archive_root')
 })
-for(const path of ['.env','server.js','package.json','x.map','src/a.ts','node_modules/x.js','.next/server.js','private.pem','backup.zip','app/index.html'])test(`private/server archive file rejected: ${path}`,async()=>await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok',[path]:'private'}))))
+for(const path of ['.env','server.js','package.json','backend.php','src/a.ts','node_modules/x.js','.next/server.js','private.pem','backup.zip','app/index.html'])test(`private/server archive file rejected: ${path}`,async()=>await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok',[path]:'private'}))))
 
 test('rejected ZIP entries identify the relative file and explain how to correct it',async()=>{
- for(const path of ['README.md','.DS_Store','package.json','public/logo.png']) {
+ for(const path of ['backend.php','.DS_Store','package.json','public/logo.png']) {
   await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok',[path]:'not allowed'})),error=>{
    assert.equal(error.code,'unexpected_archive_file')
    assert.equal(error.fields.archivo,path)
@@ -22,6 +22,15 @@ test('rejected ZIP entries identify the relative file and explain how to correct
    return true
   })
  }
+})
+
+test('auxiliary documentation, data, fonts and source maps do not block a static export',async()=>{
+ const extra={'README.md':'# Documentation','docs/setup.markdown':'Setup','LICENSE':'License','NOTICE':'Notice','data/catalog.json':'{}','data/table.csv':'a,b','assets/main.js.map':'{}','fonts/main.otf':'font','sitemap.xml':'<urlset/>','guide.pdf':'%PDF-1.7'}
+ const result=await inspectWebsiteZip(await archive({'index.html':'<h1>Export</h1>',...extra}))
+ assert.equal(result.files.length,Object.keys(extra).length+1)
+ assert.equal(result.files.find(file=>file.path==='README.md').mime,'text/plain')
+ assert.equal(result.files.find(file=>file.path.endsWith('.map')).mime,'application/json')
+ await validateWebsiteZipReferences(result.files,new Map([['index.html','<h1>Export</h1>']]),{contentMode:'static'})
 })
 test('original path, case collisions, symlinks, CRC and truncation fail closed',async()=>{
  await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok','A.js':'a','a.js':'b'})),e=>e.code==='duplicate_archive_path')

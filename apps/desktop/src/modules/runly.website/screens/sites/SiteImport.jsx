@@ -15,8 +15,9 @@ const ROUTING = [
   { value: 'spa', label: 'Una sola aplicación (todas las rutas abren index.html)' },
 ]
 const CONTENT_MODES = [
+  { value: 'sandboxed', label: 'Sitio HTML, CSS y JavaScript' },
   { value: 'static', label: 'Plantilla HTML y CSS (sin JavaScript)' },
-  { value: 'isolated', label: 'Sitio con JavaScript (requiere dominio aislado)' },
+  { value: 'isolated', label: 'Sitio con almacenamiento y sesión (dominio independiente)' },
 ]
 
 const POLL_MS = 1500
@@ -75,7 +76,7 @@ export default function SiteImport({ site, siteId, caps }) {
   const { api, companyId } = useWebsiteScope()
   const [file, setFile] = useState(null)
   const [routingMode, setRoutingMode] = useState('mpa')
-  const [contentMode, setContentMode] = useState('static')
+  const [contentMode, setContentMode] = useState('sandboxed')
   const [phase, setPhase] = useState('idle') // idle | uploading | validating | rejected | imported | preparing | prepared | activating | done
   const [imported, setImported] = useState(null)
   const [release, setRelease] = useState(null)
@@ -164,7 +165,9 @@ export default function SiteImport({ site, siteId, caps }) {
               <p className="text-sm text-[hsl(var(--muted-foreground))]">
                 {contentMode === 'static'
                   ? 'Publica HTML, CSS, imágenes y fuentes en la dirección de tu sitio. Se rechazan scripts y contenido ejecutable; los formularios no envían datos. El ZIP se publica como sitio y no se convierte en páginas editables.'
-                  : 'Conserva el JavaScript del sitio. Para publicarlo, esta instalación necesita un dominio aislado del ERP.'}
+                  : contentMode === 'sandboxed'
+                    ? 'Publica también JavaScript para menús, animaciones e interacciones en la dirección de tu sitio. No tiene acceso a cookies, almacenamiento, llamadas a APIs ni envío de formularios. No se convierte en páginas editables.'
+                    : 'Para sitios que necesitan almacenamiento o sesión propios. Requiere un dominio independiente del ERP; no ejecuta código de servidor.'}
               </p>
               <SelectField label="Cómo se navega el sitio" value={routingMode} onChange={setRoutingMode} options={ROUTING} disabled={busy} />
               {(phase === 'uploading' || phase === 'validating') && (

@@ -5,7 +5,7 @@ import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {releaseBytesHash} from './website-release-storage.js'
 
 export const STATIC_ZIP_POLICY=Object.freeze({version:'static-v1',compressed:100*1024**2,total:400*1024**2,entry:50*1024**2,files:10000,ratio:200,timeout:30000})
-const mime={html:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',json:'application/json',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',avif:'image/avif',ico:'image/x-icon',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',eot:'application/vnd.ms-fontobject',txt:'text/plain',xml:'application/xml',webmanifest:'application/manifest+json',pdf:'application/pdf',mp4:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',wasm:'application/wasm'}
+const mime={html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',json:'application/json',map:'application/json',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',avif:'image/avif',ico:'image/x-icon',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',eot:'application/vnd.ms-fontobject',txt:'text/plain',md:'text/plain',markdown:'text/plain',csv:'text/csv',xml:'application/xml',webmanifest:'application/manifest+json',pdf:'application/pdf',mp4:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',wasm:'application/wasm'}
 const fail=(code,status=422)=>new WebsiteServiceError('El artefacto no cumple la política estática.',status,code)
 export function zipArtifactPath(name,{directory=false}={}) {
   if(typeof name!=='string'||Buffer.byteLength(name)>512||/[^\x20-\x7e]|[\\:%?#]/.test(name)||name.startsWith('/'))throw fail('unsafe_archive_path')
@@ -15,13 +15,14 @@ export function zipArtifactPath(name,{directory=false}={}) {
 }
 function accepted(path) {
   const parts=path.toLowerCase().split('/'),file=parts.at(-1),ext=file.split('.').at(-1)
+  const contentType=mime[ext]??(/^(?:license|licence|notice|authors|changelog)$/.test(file)?'text/plain':undefined)
   let reason
   if(parts.some(p=>p.startsWith('.')||['node_modules','__macosx'].includes(p)))reason='Contiene archivos ocultos, metadatos del sistema o dependencias de desarrollo. Exclúyelos del ZIP.'
   else if(['__runly','__preview','__website_admin_gate','app','api','auth','public','mcp','p'].includes(parts[0]))reason='La carpeta raíz usa una ruta reservada por Runly. Cambia su nombre y actualiza las referencias del sitio.'
   else if(/^(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|server\.[cm]?js|middleware\.[cm]?js)$/.test(file))reason='Es un archivo de proyecto o servidor. Sube solo la exportación compilada del sitio.'
-  else if(!mime[ext])reason='La extensión no está permitida. Incluye solo los archivos publicados del sitio: HTML, CSS, imágenes, fuentes y medios; usa el modo aislado para JavaScript.'
+  else if(!contentType)reason='La extensión no está permitida. Incluye la exportación del sitio y sus recursos: HTML, CSS, JavaScript, imágenes, fuentes, medios, JSON, CSV y documentación Markdown o de texto.'
   if(reason)throw new WebsiteServiceError(`No se permite el archivo «${path}» en el ZIP. ${reason}`,422,'unexpected_archive_file',{archivo:path,motivo:reason})
-  return mime[ext]
+  return contentType
 }
 // Read original names with decodeStrings:false. Nothing is extracted to disk.
 export async function inspectWebsiteZip(buffer,{routingMode='mpa',rootDirectory,limits=STATIC_ZIP_POLICY,onFile=async()=>{}}={}) {

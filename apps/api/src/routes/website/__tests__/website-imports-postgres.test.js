@@ -50,13 +50,13 @@ test('private ZIP import is complete and idempotent without changing source or a
 
 test('REST import errors include the rejected file and reason without exposing internal exceptions',async()=>{
  const f=await fixture(),app=createWebsiteRouter({prisma:db,publicationContext:f.publication,requirePermission:testPermission([...ALL,'website.domains.manage'],f.company.id,f.actor.id)})
- for(const [index,files]of [{'index.html':'ok','README.md':'documentation'},{'index.html':'<button onclick="alert(1)">Send</button>'}].entries()) {
+ for(const [index,files]of [{'index.html':'ok','backend.php':'documentation'},{'index.html':'<button onclick="alert(1)">Send</button>'}].entries()) {
   const form=new FormData();form.append('file',new File([await zip(files)],'site.zip'));form.append('contentMode','static')
   const response=await app.request(`/website/sites/${f.site.id}/imports`,{method:'POST',headers:{Authorization:'Bearer fixture','Idempotency-Key':`rejected-file-details-${index}`},body:form})
   const body=await response.json()
   assert.equal(response.status,422)
   assert.equal(body.code,index===0?'unexpected_archive_file':'static_content_required')
-  assert.equal(body.fields.archivo,index===0?'README.md':'index.html')
+  assert.equal(body.fields.archivo,index===0?'backend.php':'index.html')
   assert.ok(body.fields.motivo.length>20)
   if(index===1)assert.match(body.fields.motivo,/onclick/)
   assert.equal(body.stack,undefined)
@@ -116,6 +116,30 @@ test('HTML/CSS imports publish under the brand namespace without an isolated con
  assert.equal((await get('/missing.js')).status,404)
  await assert.rejects(f.publication.imports.create({...f.args,bytes,contentMode:'isolated',idempotencyKey:'static-sdk-import-attempt'}),e=>e.code==='idempotency_conflict')
  await f.publication.releases.unpublish({...f.args,expectedPublicationRevision:1,idempotencyKey:'static-unpublish-attempt'});assert.equal((await get('/')).status,404)
+})
+
+test('sandboxed JavaScript and auxiliary files publish on the site namespace with sealed policy headers',async()=>{
+ const f=await fixture({namespaceRoot:'sites.runly.test',contentRoot:''})
+ const imported=await f.publication.imports.create({...f.args,bytes:await zip({'index.html':'<!doctype html><script type="module" src="/entry.js"></script><h1>Export</h1>','entry.js':'import "./part.js";','part.js':'console.log("template")','README.md':'# Guide','data.json':'{}','sitemap.xml':'<urlset/>','manual.pdf':'%PDF-1.7'}),contentMode:'sandboxed',idempotencyKey:'sandboxed-import-attempt'})
+ assert.equal(imported.manifest.sandboxPolicyVersion,'browser-sandbox-v1')
+ const release=await f.prepare(imported)
+ assert.equal(release.manifest.contentMode,'sandboxed');assert.equal(release.manifest.sandboxPolicyVersion,'browser-sandbox-v1')
+ assert.equal((await f.publication.releases.preflight({...f.args,kind:'dist',importId:imported.id})).canPublish,true)
+ await f.activate(release)
+ const serving=createDistServeService({prisma:db,publicationContext:f.publication}),app=new Hono();app.get('*',c=>serving.serve(c,c.req.path))
+ const get=path=>app.request(`https://${f.host.hostname}${path}`,{headers:{Host:f.host.hostname,Origin:'null'}})
+ for(const path of ['/','/entry.js','/part.js','/README.md','/data.json']){
+  const response=await get(path);assert.equal(response.status,200)
+  assert.match(response.headers.get('content-security-policy'),/sandbox allow-scripts/)
+  assert.ok(!response.headers.get('content-security-policy').includes('allow-same-origin'))
+  assert.equal(response.headers.get('access-control-allow-origin'),'*')
+  assert.equal(response.headers.get('access-control-allow-credentials'),null)
+ }
+ for(const path of ['/sitemap.xml','/manual.pdf'])assert.equal((await get(path)).headers.get('content-disposition'),'attachment')
+ const script=release.manifest.files.find(file=>file.path==='entry.js')
+ assert.equal((await f.publication.gateway.asset(f.c,release.id,script.hash)).sandboxPolicyVersion,'browser-sandbox-v1')
+ await f.publication.releases.unpublish({...f.args,expectedPublicationRevision:1,idempotencyKey:'sandboxed-unpublish-attempt'})
+ assert.equal((await get('/entry.js')).status,404)
 })
 
 test('static requests cannot downgrade executable archives or existing isolated releases',async()=>{

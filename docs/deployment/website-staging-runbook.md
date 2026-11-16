@@ -1,8 +1,8 @@
 # Website: candidato de staging
 
-> La importaci?n ahora distingue HTML/CSS sin JavaScript de sitios con JavaScript.
-> El modo HTML/CSS puede usar el namespace de marca; las vistas previas y el modo
-> con JavaScript conservan el aislamiento descrito abajo. Configuraci?n y l?mites:
+> HTML/CSS y JavaScript en sandbox pueden usar el namespace de marca. Las vistas
+> previas y el modo con sesión/almacenamiento conservan el dominio independiente
+> descrito abajo. Configuración y límites:
 > [Importar plantillas HTML y CSS](website-static-imports.md).
 
 Estado: APTO en laboratorio local desechable para los recorridos de `pnpm test:website:e2e`. **No hay despliegue autorizado ni hosting validado en infraestructura real.** Este documento separa lo que ya se demostró de lo que solo se podrá demostrar en staging.

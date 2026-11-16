@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.15.2",
+  "version": "2026.11.15.3",
   "files": {
     ".env.local.example": {
-      "sha256": "6f607715393c3daa9c994f0ef69fd216ef6f437b7d252cfb709b851c748d18d2",
+      "sha256": "d2379c62b06eb69d339543bfd060853ba6f1494f68100e930228be8b14949437",
       "modes": [
         "local"
       ],
@@ -38,6 +38,7 @@
         "a4088e4ab02fdfd463aca9d2e1eecfa62c0d9645",
         "ade8e7a5273fe110912a0c531f6c0af7b0f5fbb5",
         "b2f3ba28cfaa4cca68c5e7bc508e9f05186c9b9b",
+        "b869ae570a0de3a024d68c840379ed4586d08bcc",
         "c42e81f190179077febf4c29068da9787f1b73c7",
         "c7c61284d07fd6f1e8ff31fb3ef81d910786016b",
         "dc66cac9681924163939de25ff198e70463822f7",
@@ -607,7 +608,7 @@
       ]
     },
     ".env.external.example": {
-      "sha256": "cdd33cf0f325cad2f51bc41ed4fd9af36a11f1a19d33db1f16190732439126bf",
+      "sha256": "41983bcede8214ffbad58dea38b62fdedfc47d8ab6db0fad4ad4b64f75fea3b6",
       "modes": [
         "external"
       ],
@@ -621,6 +622,7 @@
         "17eb0b5c66d4eb2045f0bc4b1e4c29b922fae0aa",
         "23a734452070feb38bb163e8d65980024e2a65ea",
         "2b7ce0f273d3faa7a904dce805cef3a377956be4",
+        "2cd75bd30c2f9639af4cefffdf6f7dee8a236678",
         "303ed9f0364e4a4095a449ef96ecf938422b6eb0",
         "346367a5c689b5ec5b809fa482a3d5ee1f003ca0",
         "393b415d9f422c9d9a2484e0516207cc493d48ec",
