@@ -97,6 +97,9 @@ export function AnimationPanel({ targets, slideDuration, disabled, lockedReason,
 }
 
 const nameOf = (options, effect) => options.find(option => option.value === choiceOf(effect))?.label
+export const EFFECT_KINDS = Object.freeze([['enter', 'Entrada', ENTER_OPTIONS], ['emphasis', 'Énfasis', EMPHASIS_OPTIONS], ['exit', 'Salida', EXIT_OPTIONS]])
+// Kind and preset in the words of the panel (timeline labels).
+export const effectLabel = (kind, effect) => { const [, title, options] = EFFECT_KINDS.find(entry => entry[0] === kind); return `${title}: ${nameOf(options, effect)}` }
 // Inspector entry: what the selection does and a button to open the Animación panel.
 export function AnimationSummary({ item, disabled, onOpen }) {
   const parts = [['Entrada', nameOf(ENTER_OPTIONS, item?.enter)], ['Énfasis', nameOf(EMPHASIS_OPTIONS, item?.emphasis)], ['Salida', nameOf(EXIT_OPTIONS, item?.exit)]].filter(([, name]) => name && item)

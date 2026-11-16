@@ -119,3 +119,18 @@ animaciones se reproducen en **Presentar**, se guardan, se sincronizan y se desh
 cualquier cambio; no modifican el diseño: al terminar, cada elemento queda en su lugar. Si
 un efecto termina después de la duración de la diapositiva, se corta al presentar sin
 cambiar sus valores. Un elemento bloqueado no se puede animar hasta desbloquearlo.
+
+**Línea de tiempo** (barra superior; en el teléfono, en el menú) aparece bajo el lienzo con
+una pista por elemento. En modo **Animación** el lienzo muestra el instante del cabezal:
+arrastra un elemento para crear o actualizar su keyframe de posición en ese instante (el
+diseño base no se mueve); vuelve a **Diseño** para editar el diseño. Los segmentos de
+entrada, énfasis y salida se arrastran para cambiar su retraso y se estiran por los extremos
+para cambiar su duración; doble clic abre sus propiedades. Selecciona un keyframe (rombo)
+para editar posición, rotación, opacidad, escala y curva, copiarlo, pegarlo en el cabezal o
+eliminarlo. Con el foco en la línea de tiempo: Espacio reproduce, Inicio/Fin, flechas mueven
+el cabezal (Mayús, 1 s), [ y ] saltan entre keyframes, K añade uno y Supr lo elimina. El imán
+ajusta a décimas de segundo y a los bordes cercanos (Alt lo desactiva al arrastrar). Mover
+el cabezal o hacer zoom no modifica el diseño; cada arrastre se deshace en un paso. Al cambiar
+el tamaño de la página con «escalar contenido», los keyframes de posición se escalan igual que
+los elementos. Si dos personas editan los keyframes del mismo elemento a la vez, se conserva el
+último cambio.

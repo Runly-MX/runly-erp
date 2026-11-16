@@ -4,12 +4,12 @@ import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, Dro
 import { ExportDialog } from './ExportDialog.jsx'
 import { PresenceStack } from './collaboration/PresenceStack.jsx'
 import { SyncStatus } from './collaboration/SyncStatus.jsx'
-import { ArrowLeft, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Play, Redo2, Share2, Undo2 } from 'lucide-react'
+import { ArrowLeft, GanttChart, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Play, Redo2, Share2, Undo2 } from 'lucide-react'
 
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
 export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
-  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pages = [], pageCount = 1, packageExport = null, bulkData = null, dataset = null, onOpenData, onPresent, presentDisabled }) {
+  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pages = [], pageCount = 1, packageExport = null, bulkData = null, dataset = null, onOpenData, onPresent, presentDisabled, onTimeline, timelineOpen = false }) {
   const [exportOpen, setExportOpen] = useState(false)
   // onExport(options): screen (PNG/JPG) or print PDF, chosen in ExportDialog.
   const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} pages={pages} pageCount={pageCount} exporting={exporting} packageExport={packageExport} bulkData={bulkData} dataset={dataset} onOpenData={() => { setExportOpen(false); onOpenData?.() }}
@@ -42,6 +42,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
             <DropdownMenuLabel className="font-normal"><SyncStatus state={syncState} live={live} onRetry={onRetrySync} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
             {onPresent ? <DropdownMenuItem disabled={presentDisabled} onSelect={onPresent} className="gap-2.5"><Play className="h-4 w-4" />Presentar</DropdownMenuItem> : null}
+            {onTimeline ? <DropdownMenuItem onSelect={onTimeline} className="gap-2.5"><GanttChart className="h-4 w-4" />{timelineOpen ? 'Cerrar línea de tiempo' : 'Línea de tiempo'}</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
             {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
@@ -80,6 +81,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       </DropdownMenu>
       {exportDialog}
       <div className="flex items-center">
+        {onTimeline ? <ToolButton label={timelineOpen ? 'Cerrar línea de tiempo' : 'Línea de tiempo'} side="bottom" active={timelineOpen} onClick={onTimeline}><GanttChart /></ToolButton> : null}
         {inspectorToggle ? <ToolButton label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
         <ToolButton label={VIEW_LABELS[viewMode]} side="bottom" onClick={onCycleViewMode}>
           {viewMode === 'normal' ? <Maximize2 /> : viewMode === 'clean' ? <Fullscreen /> : <Minimize2 />}
