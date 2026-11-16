@@ -44,6 +44,9 @@ import { PagesPanel } from './editor/pages/PagesPanel.jsx'
 import { PageNavigator, PageSwitcher } from './editor/pages/PageSwitcher.jsx'
 import { SlideSettings } from './editor/pages/SlideSettings.jsx'
 import { PresentationOverlay } from './present/PresentationOverlay.jsx'
+import { AnimationPanel, AnimationSummary } from './editor/animation/AnimationPanel.jsx'
+import { AnimationPreviewDialog } from './editor/animation/AnimationPreviewDialog.jsx'
+import { slideDuration } from '../../../../../shared/studio/motion.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -78,7 +81,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
   const [doc, setDoc] = useState(initial), [browsing, setBrowsing] = useState(false), [removing, setRemoving] = useState(null)
-  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1'), [presenting, setPresenting] = useState(null)
+  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1'), [presenting, setPresenting] = useState(null), [previewing, setPreviewing] = useState(false)
   const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
   const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
   const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(visibleParticipants, selfId), [visibleParticipants, selfId])
@@ -298,6 +301,10 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
     pages: <PagesPanel {...pagesProps} layout={phone ? 'grid' : 'list'} />,
+    animation: <AnimationPanel targets={selectedObjects} slideDuration={slideDuration(page)} disabled={readOnly || !ready}
+      lockedReason={selectedObjects.some(object => object.locked) ? 'Desbloquea el elemento para cambiar su animación.' : ''}
+      onApply={patch => (selectedObjects.length === 1 ? attempt(async () => editorRef.current.patch(patch)) : attempt(() => patchMany(selectedObjects.map(object => object.id), patch)))}
+      onPreview={() => setPreviewing(true)} />,
     page: <div className="space-y-5">
       <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
         background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />
@@ -306,14 +313,15 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         onApplyAll={slide => editorRef.current.applyPageOperations(pageList.map(item => ({ type: 'patchPage', pageId: item.id, set: { slide } })))} />
     </div>,
   }
-  const panelLabel = (panel ?? shownPanel) === 'image' ? 'Imagen' : RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
+  const panelLabel = ({ image: 'Imagen', animation: 'Animación' })[panel ?? shownPanel] ?? RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
   const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
   const inspector = <StudioInspector selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
     onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }}
     photoTools={imageKit.tools.photo && !readOnly ? panels.image : null} shapeTools={readOnly ? null : tools} onError={setError}
-    group={readOnly ? null : group} grouping={readOnly ? null : grouping} onTransformGroup={transformGroup} />
+    group={readOnly ? null : group} grouping={readOnly ? null : grouping} onTransformGroup={transformGroup}
+    animation={selectedObjects.length ? <AnimationSummary item={selectedObjects[0]} disabled={!ready} onOpen={() => { setPanel('animation'); setInspectorSheet(false) }} /> : null} />
   // Eyedropper fallback + colors already used in the design (for every color picker).
   const [sampling, setSampling] = useState(null)
   const pickFromCanvas = useCallback(() => new Promise(resolve => setSampling(() => resolve)), [])
@@ -446,6 +454,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         </Sheet>
       ) : null}
       {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
+      {previewing && ready ? <AnimationPreviewDialog open onOpenChange={setPreviewing} editor={editorRef.current} pageId={activePageId} /> : null}
       {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={closePresentation} /> : null}
       <ConfirmDialog open={Boolean(removing)} onOpenChange={open => { if (!open) setRemoving(null) }} title={`Eliminar ${removing?.label ?? 'página'}`}
         description="Se eliminará la página con sus elementos. Puedes deshacerlo con Ctrl+Z mientras no cierres el editor." confirmLabel="Eliminar página"

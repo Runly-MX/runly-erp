@@ -108,3 +108,14 @@ deslizamiento o acercamiento) y su duración, o la aplicas a todas las páginas.
 sistema pide reducir el movimiento, las transiciones se muestran como cambio directo.
 Estos ajustes se guardan en el diseño y se sincronizan con los demás. El paquete
 .runlystudio todavía no los conserva: al descargarlo te pedirá confirmarlo.
+
+**Animar**: selecciona un elemento (o un grupo) y, en **Propiedades → Animación**, pulsa
+**Animar**. Elige una **Entrada** (aparecer, desvanecer, deslizar, escalar, girar o
+rebotar), un **Énfasis** (pulso, giro, sacudida o salto, con repeticiones) y una
+**Salida**, con su duración, retraso desde el inicio de la diapositiva y curva. En un
+grupo, todos sus elementos giran y escalan alrededor del centro del grupo. **Previsualizar
+página** reproduce la página y te deja arrastrar el tiempo a cualquier instante. Las
+animaciones se reproducen en **Presentar**, se guardan, se sincronizan y se deshacen como
+cualquier cambio; no modifican el diseño: al terminar, cada elemento queda en su lugar. Si
+un efecto termina después de la duración de la diapositiva, se corta al presentar sin
+cambiar sus valores. Un elemento bloqueado no se puede animar hasta desbloquearlo.

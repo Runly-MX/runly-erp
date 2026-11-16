@@ -90,7 +90,7 @@ function GroupTransform({ disabled, onTransform }) {
 // (none/solid/gradient/photo), border and radius operations (useImageTools).
 // `group`: {id, count} when the selection is exactly one flat group.
 export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools,
-  group, grouping, onTransformGroup, onError }) {
+  group, grouping, onTransformGroup, onError, animation }) {
   const locked = Boolean(selection?.locked), disabled = busy || readOnly
   if (!selection && selectedCount < 2) {
     return (
@@ -128,6 +128,7 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
         </Section>
         {group && onTransformGroup ? <GroupTransform disabled={disabled} onTransform={onTransformGroup} /> : null}
         <Alignment count={selectedCount} disabled={disabled} onAlign={onAlign} />
+        {animation ? <Section title="Animación">{animation}</Section> : null}
       </div>
     )
   }
@@ -182,6 +183,7 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
         </div>
       </Section>
       <Alignment count={selectedCount || 1} disabled={editable} onAlign={onAlign} />
+      {animation ? <Section title="Animación">{animation}</Section> : null}
       <Section title="Organizar">
         <div className="grid grid-cols-4 gap-1">
           {ORDER.map(([key, label, OrderIcon]) => <ToolButton key={key} label={label} side="bottom" className="h-10 w-full" disabled={editable} onClick={() => onOrder(key)}><OrderIcon /></ToolButton>)}
