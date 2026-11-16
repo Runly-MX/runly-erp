@@ -3,6 +3,7 @@ import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogH
 import { AlertTriangle, CheckCircle2, Copy, Globe, Info, Loader2, Plus, RefreshCw, ShieldCheck } from 'lucide-react'
 import { toast } from 'sonner'
 import { describeError } from '../lib/websiteErrors.js'
+import { DomainHelp } from './DomainHelp.jsx'
 
 export const HTTPS_STATUS = {
   ok: { label: 'HTTPS listo', tone: 'success', icon: ShieldCheck },
@@ -139,6 +140,7 @@ export function AddCustomDomainDialog({ open, onOpenChange, api, siteId, initial
               autoFocus
             />
           )}
+          {!domain && <DomainHelp zone={hostname.trim().replace(/^www\./, '') || undefined} />}
 
           {domain?.state === 'pending' && (
             <>
@@ -148,6 +150,7 @@ export function AddCustomDomainDialog({ open, onOpenChange, api, siteId, initial
                 <p className="text-[hsl(var(--muted-foreground))]">Los cambios de DNS suelen tardar unos minutos (a veces horas). Puedes cerrar esta ventana y verificar después.</p>
               </Notice>
               {domain.lastError && <Notice tone="warning" icon={AlertTriangle}><p>{domain.lastError}</p></Notice>}
+              <DomainHelp zone={domain.zone} />
             </>
           )}
 

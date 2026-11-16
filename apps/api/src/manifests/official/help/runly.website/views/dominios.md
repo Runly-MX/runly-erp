@@ -7,7 +7,13 @@ En **Dominios** eliges la dirección de tu sitio. Hay dos formas: una **direcci�
 
 ### Dirección de Runly
 
-Escribe el nombre que quieres, pulsa **Comprobar disponibilidad** y luego **Reservar**. Puedes liberarla cuando quieras.
+Escribe el nombre que quieres: Runly comprueba al momento si está libre y, si lo está, pulsa **Reservar dirección**. Queda lista enseguida y no necesitas configurar nada. Si la infraestructura todavía se está preparando, la pantalla lo indica y revisa el estado sola cada pocos segundos.
+
+Un sitio importado desde ZIP solo se puede activar cuando tiene una dirección lista; la pantalla de importación te deja elegirla ahí mismo.
+
+### Varias direcciones y la dirección principal
+
+Un sitio puede tener varias direcciones activas (por ejemplo la de Runly y tu dominio propio, o `mitienda.mx` y `www.mitienda.mx`). Todas muestran el mismo sitio publicado. Cuando hay más de una, elige en **Dirección principal** la que quieres que vean visitantes y buscadores: las demás redirigen a ella automáticamente. Si la principal deja de estar activa, cada dirección vuelve a mostrar el sitio.
 
 ### Dominio propio: paso a paso
 
@@ -43,7 +49,11 @@ Conéctalos uno por uno: cada dominio o subdominio es una conexión aparte, con 
 
 #### Si usas Cloudflare
 
-El registro TXT debe quedar en «solo DNS» (nube gris). El registro de envío puede estar con la nube naranja.
+Deja los registros en «Solo DNS» (nube gris). Con la nube naranja el sitio puede abrir, pero Runly mostrará que el DNS no apunta aquí y el certificado lo administra Cloudflare.
+
+#### Con www y sin www
+
+`www.mitienda.mx` y `mitienda.mx` son dos direcciones distintas: conectar una no conecta la otra. Si quieres que funcionen las dos, conéctalas ambas (la ventana ofrece un botón para conectar la otra) y elige una como dirección principal. Un subdominio como `tienda.mitienda.mx` es una sola dirección y no necesita versión con www.
 
 ### HTTPS (el candado del navegador)
 
@@ -57,9 +67,12 @@ Runly **no emite certificados**: quien administra tu instalación debe tener uno
 
 Si usas Growth, al verificar tu dominio se crean solos tres monitores (disponibilidad, certificado SSL y vencimiento del dominio) que te avisan si algo falla o está por vencer.
 
-### Liberar un dominio
+### Liberar una dirección
 
-**Liberar** hace que el dominio deje de mostrar tu sitio de inmediato. Puedes volver a conectarlo después. Si lo liberas, acuerda también qué registro quieres en tu DNS para que el dominio no quede apuntando a Runly sin mostrar nada.
+**Liberar** hace que la dirección deje de mostrar tu sitio de inmediato, y la pantalla pide confirmación.
+
+- **Dirección de Runly**: queda apartada para tu sitio durante 15 días; en ese tiempo puedes pulsar **Recuperar**. Después de los 15 días cualquier otro sitio puede reservarla (mientras nadie la tome, todavía puedes recuperarla). La pantalla muestra la fecha.
+- **Dominio propio**: se desconecta de tu sitio. Puedes volver a conectarlo después. Si lo liberas, acuerda también qué registro quieres en tu DNS para que el dominio no quede apuntando a Runly sin mostrar nada.
 
 ### Si algo no funciona
 

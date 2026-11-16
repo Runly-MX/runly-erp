@@ -1,13 +1,14 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { Button, ConfirmDialog, EmptyState, ErrorState, LoadingState, SelectField, StatusPill } from '@runly/ui'
-import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search, Star } from 'lucide-react'
+import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search, Star, BookOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { describeError } from '../../lib/websiteErrors.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { CustomDomainPanel } from '../../components/CustomDomainPanel.jsx'
 import { HostnamePicker } from '../../components/HostnamePicker.jsx'
+import { DomainHelp } from '../../components/DomainHelp.jsx'
 import { SiteAddress } from '../../components/SiteAddress.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
 import { ROW_CARD, SiteIconChip, SitePanel, TOUCH } from '../../components/SitePanel.jsx'
@@ -125,6 +126,9 @@ export default function SiteDomains({ siteId, caps }) {
       {info && <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{info.title}. {info.message}</p>}
 
       <CustomDomainPanel siteId={siteId} caps={caps} />
+      <SitePanel id="help-title" icon={BookOpen} tone="blue" title="Ayuda con las direcciones" description="Respuestas rápidas sobre direcciones gratuitas, dominios propios y la dirección principal.">
+        <DomainHelp variant="overview" />
+      </SitePanel>
       <ConfirmDialog
         open={Boolean(releasing)}
         onOpenChange={(open) => { if (!open) setReleasing(null) }}
