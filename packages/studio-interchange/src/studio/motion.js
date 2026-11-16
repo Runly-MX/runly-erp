@@ -136,3 +136,150 @@ export function presentationSequence(document) {
     transition: scene.page.slide?.transition ?? NO_TRANSITION,
   }))
 }
+
+// ---------------------------------------------------------------------------
+// Scene evaluation: sceneAt(document, pageId, t) → static {page, objects}.
+// Rules (docs/superpowers/plans/2026-11-16-studio-next-phase2-motion-engine.md):
+// t is clipped to the slide; base → keyframes → enter → emphasis → exit; offsets
+// add, opacity and scale multiply, rotations add; effects pivot on the object's
+// visual centre (or its group's box centre); rotation in the contract turns
+// around the top-left corner, so results are translated back to x/y.
+// Same document and t always give the same JSON. The document is never mutated.
+
+const SLIDE_DISTANCE = 0.2, SHAKE_DISTANCE = 0.02, BOUNCE_HEIGHT = 0.06
+const round = value => Math.round(value * 1e4) / 1e4 + 0
+const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
+const SCALED = new Set(['text', 'line'])
+export const objectHasMotion = object => MOTION_KEYS.some(key => object[key] !== undefined)
+export const sceneHasMotion = scene => scene.objects.some(objectHasMotion)
+
+// Visual size: text and lines keep width/height and scale with scaleX/scaleY.
+const visualSize = item => SCALED.has(item.type) ? [item.width * (item.scaleX ?? 1), item.height * (item.scaleY ?? 1)] : [item.width, item.height]
+function rotate([x, y], degrees) {
+  const r = degrees * Math.PI / 180, c = Math.cos(r), s = Math.sin(r)
+  return [x * c - y * s, x * s + y * c]
+}
+function centerOf(x, y, rotation, [w, h]) {
+  const [ox, oy] = rotate([w / 2, h / 2], rotation)
+  return [x + ox, y + oy]
+}
+function boxOf(item) {
+  const size = visualSize(item)
+  const corners = [[0, 0], [size[0], 0], [0, size[1]], size].map(corner => { const [dx, dy] = rotate(corner, item.rotation); return [item.x + dx, item.y + dy] })
+  const xs = corners.map(point => point[0]), ys = corners.map(point => point[1])
+  return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)]
+}
+
+// Back-out overshoot for `pop`, applied on top of the chosen curve.
+const backOut = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2 }
+
+// State of an enter/exit preset at p (0 = fully out, 1 = rest). Exits mirror directions.
+function presetState(preset, p, page, exit) {
+  const out = 1 - p, dir = exit ? -1 : 1, w = page.width * SLIDE_DISTANCE, h = page.height * SLIDE_DISTANCE
+  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0 }
+  if (preset === 'fade' || preset.startsWith('slide-fade-') || ['zoom-in', 'zoom-out', 'rotate'].includes(preset)) state.opacity = p
+  if (preset.startsWith('slide-')) {
+    const direction = preset.replace('slide-fade-', '').replace('slide-', '')
+    if (direction === 'up') state.dy = dir * out * h
+    if (direction === 'down') state.dy = -dir * out * h
+    if (direction === 'left') state.dx = dir * out * w
+    if (direction === 'right') state.dx = -dir * out * w
+  }
+  if (preset === 'zoom-in') state.scale = 0.5 + 0.5 * p
+  if (preset === 'zoom-out') state.scale = 1.5 - 0.5 * p
+  if (preset === 'rotate') state.rotation = -90 * out * dir
+  if (preset === 'pop') { state.scale = Math.max(0, backOut(p)); state.opacity = Math.min(1, p * 4) }
+  return state
+}
+
+function emphasisState(preset, u, page) {
+  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0 }
+  if (preset === 'pulse') state.scale = 1 + 0.12 * Math.sin(Math.PI * u)
+  if (preset === 'spin') state.rotation = 360 * u
+  if (preset === 'shake') state.dx = Math.sin(2 * Math.PI * 3 * u) * page.width * SHAKE_DISTANCE * (1 - u)
+  if (preset === 'bounce') state.dy = -Math.abs(Math.sin(Math.PI * u)) * page.height * BOUNCE_HEIGHT
+  return state
+}
+
+// Raw progress of an effect window at t; null before it starts.
+function progress(effect, t) {
+  if (t < effect.delay) return null
+  return effect.duration === 0 ? 1 : Math.min(1, (t - effect.delay) / effect.duration)
+}
+
+// One property track: hold the first value before it, the last after it; the
+// destination keyframe's curve between two keyframes (steps with reduced motion).
+function track(frames, key, t, reducedMotion) {
+  const points = frames.filter(frame => frame[key] !== undefined)
+  if (!points.length) return undefined
+  if (t <= points[0].at) return points[0][key]
+  const last = points.at(-1)
+  if (t >= last.at) return last[key]
+  const index = points.findIndex(frame => frame.at > t), a = points[index - 1], b = points[index]
+  if (reducedMotion) return a[key]
+  return a[key] + (b[key] - a[key]) * easing(b.easing ?? 'linear', (t - a.at) / (b.at - a.at))
+}
+
+function evaluate(item, t, page, pivots, reducedMotion) {
+  const { enter, exit, emphasis, keyframes, ...base } = item
+  if (base.hidden || !objectHasMotion(item)) return base
+  const frames = keyframes ?? []
+  const x = track(frames, 'x', t, reducedMotion) ?? base.x, y = track(frames, 'y', t, reducedMotion) ?? base.y
+  const rotation = track(frames, 'rotation', t, reducedMotion) ?? base.rotation
+  let opacity = track(frames, 'opacity', t, reducedMotion) ?? base.opacity ?? 1
+  const scale = track(frames, 'scale', t, reducedMotion) ?? 1
+  let dx = 0, dy = 0, turn = 0, effectScale = 1, hidden = false
+  const apply = state => { dx += state.dx; dy += state.dy; opacity *= state.opacity; effectScale *= state.scale; turn += state.rotation }
+  if (enter) {
+    const raw = progress(enter, t)
+    if (raw === null) hidden = true
+    else if (!reducedMotion) apply(presetState(enter.preset, easing(enter.easing, raw), page, false))
+  }
+  if (emphasis && !reducedMotion) {
+    const raw = progress(emphasis, t)
+    if (raw !== null && raw < 1) apply(emphasisState(emphasis.preset, easing(emphasis.easing, (raw * emphasis.repeat) % 1), page))
+  }
+  if (exit) {
+    const raw = progress(exit, t)
+    if (raw === 1) hidden = true
+    else if (raw !== null && !reducedMotion) apply(presetState(exit.preset, 1 - easing(exit.easing, raw), page, true))
+  }
+  // Keyframe scale pivots on the object's own centre; effects on the object or group pivot.
+  const size = visualSize(base), center = centerOf(x, y, rotation, size)
+  const pivot = (base.groupId && pivots.get(base.groupId)) || center
+  const [rx, ry] = rotate([(center[0] - pivot[0]) * effectScale, (center[1] - pivot[1]) * effectScale], turn)
+  const factor = scale * effectScale
+  const result = { ...base, hidden }
+  // At rest an object equals its design: opacity is only written when it has a value.
+  const finalOpacity = round(clamp(opacity, 0, 1))
+  if (base.opacity !== undefined || finalOpacity !== 1) result.opacity = finalOpacity
+  if (SCALED.has(base.type)) { result.scaleX = round(clamp((base.scaleX ?? 1) * factor, 0.02, 8)); result.scaleY = round(clamp((base.scaleY ?? 1) * factor, 0.02, 8)) }
+  else { result.width = round(clamp(base.width * factor, 1, 16384)); result.height = round(clamp(base.height * factor, 1, 16384)) }
+  const finalRotation = (rotation + turn) % 360
+  const [ox, oy] = rotate(visualSize(result).map(value => value / 2), finalRotation)
+  result.x = round(clamp(pivot[0] + rx + dx - ox, -16384, 16384))
+  result.y = round(clamp(pivot[1] + ry + dy - oy, -16384, 16384))
+  result.rotation = round(finalRotation)
+  return result
+}
+
+export function sceneAt(document, id, time, { reducedMotion = false } = {}) {
+  const scene = documentPages(document).find(candidate => pageId(candidate) === id)
+  if (!scene) throw new Error('La página ya no existe.')
+  // Clipped to the slide: effects that end later are cut visually, the data is untouched.
+  const t = clamp(Number.isFinite(time) ? time : 0, 0, slideDuration(scene.page))
+  // Group pivots come from the base geometry so every member turns around the same point.
+  const boxes = new Map()
+  for (const item of scene.objects) if (item.groupId) {
+    const [a, b, c, d] = boxOf(item), box = boxes.get(item.groupId)
+    boxes.set(item.groupId, box ? [Math.min(box[0], a), Math.min(box[1], b), Math.max(box[2], c), Math.max(box[3], d)] : [a, b, c, d])
+  }
+  const pivots = new Map([...boxes].map(([group, [a, b, c, d]]) => [group, [(a + c) / 2, (b + d) / 2]]))
+  return { page: scene.page, objects: scene.objects.map(item => evaluate(item, t, scene.page, pivots, reducedMotion)) }
+}
+
+// Slide timing for players and future exporters: duration and whether objects animate.
+export function slideTiming(document, id) {
+  const scene = documentPages(document).find(candidate => pageId(candidate) === id)
+  return scene ? { duration: slideDuration(scene.page), animated: sceneHasMotion(scene) } : null
+}
