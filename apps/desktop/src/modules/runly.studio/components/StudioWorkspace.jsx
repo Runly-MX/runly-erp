@@ -42,6 +42,8 @@ import { newContentId, pageLabel, pageSignature } from '../lib/studio-pages.js'
 import { usePageThumbnails } from '../hooks/usePageThumbnails.js'
 import { PagesPanel } from './editor/pages/PagesPanel.jsx'
 import { PageNavigator, PageSwitcher } from './editor/pages/PageSwitcher.jsx'
+import { SlideSettings } from './editor/pages/SlideSettings.jsx'
+import { PresentationOverlay } from './present/PresentationOverlay.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -76,7 +78,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
   const [doc, setDoc] = useState(initial), [browsing, setBrowsing] = useState(false), [removing, setRemoving] = useState(null)
-  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1')
+  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1'), [presenting, setPresenting] = useState(null)
   const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
   const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
   const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(visibleParticipants, selfId), [visibleParticipants, selfId])
@@ -125,6 +127,8 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   }), [doc, activePageId, pagesOpen])
   const pageCount = pageList.length, activeIndex = Math.max(0, pageList.findIndex(item => item.active))
   const thumbnails = usePageThumbnails(editorRef, pageList, pagesOpen && ready)
+  // Presenting reads the editor's own snapshot (viewers too): pending local changes are flushed first.
+  const present = () => attempt(async () => { await editorRef.current.flush(); setPresenting(editorRef.current.activePageId()) })
   const closeBrowsers = () => { setBrowsing(false); if (phone) setPanel(current => (current === 'pages' ? null : current)) }
   const goToPage = id => attempt(async () => { await editorRef.current.selectPage(id); closeBrowsers() })
   const pageActions = {
@@ -198,6 +202,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   function shortcut(event) {
     if (!ready || busy || browsing || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
     if (event.key === 'Escape' && viewMode.isImmersive) { viewMode.stepBack(); return }
+    if (event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key === 'Enter')) { event.preventDefault(); present(); return }
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection && !readOnly) { event.preventDefault(); setConfirm(true); return }
     // Tools without modifiers: H = mover vista, V = seleccionar.
     if (!event.ctrlKey && !event.metaKey && !event.altKey) {
@@ -271,8 +276,13 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
     pages: <PagesPanel {...pagesProps} layout={phone ? 'grid' : 'list'} />,
-    page: <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
-      background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />,
+    page: <div className="space-y-5">
+      <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
+        background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />
+      <SlideSettings page={page} pageCount={pageCount} disabled={readOnly || !ready}
+        onChange={slide => editorRef.current.updatePage(editorRef.current.activePageId(), { slide })}
+        onApplyAll={slide => editorRef.current.applyPageOperations(pageList.map(item => ({ type: 'patchPage', pageId: item.id, set: { slide } })))} />
+    </div>,
   }
   const panelLabel = (panel ?? shownPanel) === 'image' ? 'Imagen' : RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
   const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
@@ -304,7 +314,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         onUndo={() => attempt(() => editorRef.current.undo())} onRedo={() => attempt(() => editorRef.current.redo())}
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
-        viewMode={viewMode.mode} onCycleViewMode={viewMode.cycle} />
+        viewMode={viewMode.mode} onCycleViewMode={viewMode.cycle} onPresent={present} presentDisabled={!ready || busy} />
       <div className="flex min-h-0 flex-1">
         {!phone ? <StudioRail value={panel} onChange={setPanel} /> : null}
         {!phone ? (
@@ -414,6 +424,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         </Sheet>
       ) : null}
       {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
+      {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={() => setPresenting(null)} /> : null}
       <ConfirmDialog open={Boolean(removing)} onOpenChange={open => { if (!open) setRemoving(null) }} title={`Eliminar ${removing?.label ?? 'página'}`}
         description="Se eliminará la página con sus elementos. Puedes deshacerlo con Ctrl+Z mientras no cierres el editor." confirmLabel="Eliminar página"
         onConfirm={() => { const id = removing.id; setRemoving(null); attempt(() => editorRef.current.removePage(id)) }} />

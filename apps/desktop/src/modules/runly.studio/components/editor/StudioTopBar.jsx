@@ -4,12 +4,12 @@ import { Button, Input, DropdownMenu, DropdownMenuContent, DropdownMenuItem, Dro
 import { ExportDialog } from './ExportDialog.jsx'
 import { PresenceStack } from './collaboration/PresenceStack.jsx'
 import { SyncStatus } from './collaboration/SyncStatus.jsx'
-import { ArrowLeft, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Redo2, Share2, Undo2 } from 'lucide-react'
+import { ArrowLeft, LayoutTemplate, Download, Eye, Fullscreen, Loader2, Maximize2, Minimize2, MoreVertical, PanelRight, Play, Redo2, Share2, Undo2 } from 'lucide-react'
 
 const VIEW_LABELS = { normal: 'Vista despejada', clean: 'Pantalla completa', fullscreen: 'Vista normal (Esc)' }
 
 export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, live, canEdit, onBack, onRetrySync, onShare, onCredits, onSaveTemplate, onExport, exporting, exportDisabled,
-  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pages = [], pageCount = 1, packageExport = null, bulkData = null, dataset = null, onOpenData }) {
+  history, onUndo, onRedo, people, objects, inspectorToggle, inspectorOpen, onToggleInspector, viewMode, onCycleViewMode, page, pages = [], pageCount = 1, packageExport = null, bulkData = null, dataset = null, onOpenData, onPresent, presentDisabled }) {
   const [exportOpen, setExportOpen] = useState(false)
   // onExport(options): screen (PNG/JPG) or print PDF, chosen in ExportDialog.
   const exportDialog = page ? <ExportDialog open={exportOpen} onOpenChange={setExportOpen} page={page} pages={pages} pageCount={pageCount} exporting={exporting} packageExport={packageExport} bulkData={bulkData} dataset={dataset} onOpenData={() => { setExportOpen(false); onOpenData?.() }}
@@ -41,6 +41,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
           <DropdownMenuContent align="end" className="min-w-60">
             <DropdownMenuLabel className="font-normal"><SyncStatus state={syncState} live={live} onRetry={onRetrySync} /></DropdownMenuLabel>
             <DropdownMenuSeparator />
+            {onPresent ? <DropdownMenuItem disabled={presentDisabled} onSelect={onPresent} className="gap-2.5"><Play className="h-4 w-4" />Presentar</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onShare} className="gap-2.5"><Share2 className="h-4 w-4" />Compartir</DropdownMenuItem>
             {onSaveTemplate ? <DropdownMenuItem onSelect={onSaveTemplate} className="gap-2.5"><LayoutTemplate className="h-4 w-4" />Guardar como plantilla</DropdownMenuItem> : null}
             <DropdownMenuItem onSelect={onCredits}>Créditos del diseño</DropdownMenuItem>
@@ -62,6 +63,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       {history_}
       <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
       <PresenceStack people={people} objects={objects} />
+      {onPresent ? <Button data-studio-present variant="outline" disabled={presentDisabled} onClick={onPresent} title="Presentar (F5)" className="h-9 shrink-0 gap-1.5 px-3"><Play className="h-4 w-4" /><span className="max-xl:sr-only">Presentar</span></Button> : null}
       <Button variant="outline" onClick={onShare} className="h-9 shrink-0 gap-1.5 px-3"><Share2 className="h-4 w-4" /><span className="max-xl:sr-only">Compartir</span></Button>
       <Button disabled={exportDisabled || exporting} onClick={() => setExportOpen(true)} className="h-9 shrink-0 gap-1.5 px-3">
         {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" /> : <Download className="h-4 w-4" />}<span className="max-xl:sr-only">Descargar</span>

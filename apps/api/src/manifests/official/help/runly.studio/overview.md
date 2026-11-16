@@ -92,3 +92,19 @@ Recargar/cerrar utiliza el aviso del navegador. La copia local dura hasta siete 
 no sustituye a Guardar ni contiene los bytes de imágenes. El portapapeles interno cruza
 diseños del mismo usuario y empresa, pero se pierde al recargar. Para reutilizar una
 imagen nueva en otro diseño necesitas acceso independiente a ese archivo en Files.
+
+**Presentar** (en la barra superior; en el teléfono, en el menú de más opciones) muestra
+el diseño a pantalla completa desde la página en la que estás. Si el dispositivo no
+permite pantalla completa, la presentación ocupa toda la ventana. Avanza con la flecha
+derecha, Espacio, Av Pág o un clic en la mitad derecha; retrocede con la flecha izquierda,
+Re Pág o un clic en la mitad izquierda. En pantallas táctiles desliza a los lados y toca
+para mostrar los controles. **K** reproduce o pausa, **L** repite al terminar y **Esc**
+sale. F5 o Ctrl+Enter abren la presentación desde el editor. Quienes solo pueden ver el
+diseño también pueden presentarlo.
+
+Con la reproducción automática, cada página dura lo indicado en **Página → Diapositiva**
+(5 segundos si no lo cambias). Ahí también eliges la transición de entrada (fundido,
+deslizamiento o acercamiento) y su duración, o la aplicas a todas las páginas. Si tu
+sistema pide reducir el movimiento, las transiciones se muestran como cambio directo.
+Estos ajustes se guardan en el diseño y se sincronizan con los demás. El paquete
+.runlystudio todavía no los conserva: al descargarlo te pedirá confirmarlo.

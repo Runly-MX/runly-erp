@@ -60,7 +60,7 @@ function Result({ options, plan, versions = 0 }) {
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
 export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null, dataset: bulk = null, onOpenData }) {
-  const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
+  const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false), [motionAccepted, setMotionAccepted] = useState(false)
   // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
   const [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
   const readFields = bulkData?.readFields
@@ -69,6 +69,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   // A remembered or stale choice that is no longer offered falls back to PNG.
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
   const native = options.type === 'runlystudio'
+  const motionBlocked = native && Boolean(packageExport?.motionLoss) && !motionAccepted
   const [scope, setScope] = useState('all'), [range, setRange] = useState('')
   const entries = useMemo(() => (pages.length ? pages : [{ ...page, id: 'page-1', active: true, label: 'Página 1' }]).map(item => ({ ...item, label: pages.length > 1 ? item.label : '', ppiDefault: defaultPpi(item) })), [pages, page])
   const multiple = entries.length > 1
@@ -93,8 +94,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
       ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${sheets ?? labels}). Usa menos filas o páginas.` } : { ...base, sheets, perSheet: grid?.perSheet }
   }, [page, options, ppi, selected, scope, parsed, native, versions])
   function submit() {
-    if (plan.error || exporting || (native && !acknowledged)) return
-    if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true }); return }
+    if (plan.error || exporting || (native && (!acknowledged || motionBlocked))) return
+    if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true, ...(packageExport.motionLoss ? { acknowledgeMotionLoss: true } : {}) }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
@@ -162,6 +163,10 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               </div>
               <CheckboxField label={packageExport.imageCount ? 'Entiendo que el paquete incluye copias completas de las imágenes originales, también las ocultas o recortadas.' : 'Entiendo que el paquete incluye el texto del diseño y puede contener información personal.'}
                 checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />
+              {packageExport.motionLoss ? (
+                <CheckboxField label="Entiendo que el paquete no conserva las duraciones, transiciones ni animaciones de este diseño."
+                  hint="El formato .runlystudio todavía no las admite; el diseño en Studio no cambia." checked={motionAccepted} onChange={event => setMotionAccepted(event.target.checked)} />
+              ) : null}
             </div>
           ) : options.type === 'zpl' ? (
             <ZplOptions page={page} options={options} set={set} loadPrinters={bulkData?.printers} onPrinters={setPrinters} />
@@ -233,7 +238,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={submit} disabled={exporting || Boolean(plan.error) || (native && !acknowledged)} className="gap-1.5">
+            <Button onClick={submit} disabled={exporting || Boolean(plan.error) || (native && (!acknowledged || motionBlocked))} className="gap-1.5">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}Descargar
             </Button>
           </div>
