@@ -61,9 +61,10 @@ test('add creates a pending row with DNS instructions and does not serve yet', a
   const made = await svc.add(args({ hostname: 'www.mitienda.mx' }))
   assert.deepEqual([made.state, made.ready, made.verified, made.kind], ['pending', false, false, 'custom'])
   const txt = made.dnsRecords.find((r) => r.type === 'TXT')
+  assert.equal(txt.host, '_runly-verify.www', 'TXT host is relative to the zone')
   assert.equal(txt.name, '_runly-verify.www.mitienda.mx')
   assert.ok(txt.value.length >= 32)
-  assert.deepEqual(made.dnsRecords.find((r) => r.type === 'CNAME'), { type: 'CNAME', name: 'www.mitienda.mx', value: 'sites.example.net' })
+  assert.deepEqual(made.dnsRecords.find((r) => r.type === 'CNAME'), { type: 'CNAME', name: 'www.mitienda.mx', value: 'sites.example.net', host: 'www' })
   assert.equal(rows.get('www.mitienda.mx').registryManaged, false)
   assert.equal((await svc.add(args({ hostname: 'WWW.mitienda.mx' }))).dnsRecords.find((r) => r.type === 'TXT').value, txt.value, 'idempotent for the same site')
   const apex = await svc.add(args({ hostname: 'mitienda.mx' }))
@@ -73,7 +74,7 @@ test('add creates a pending row with DNS instructions and does not serve yet', a
 test('an IP target produces an A record', async () => {
   const { svc } = fake({ service: { target: '203.0.113.7' } })
   const made = await svc.add(args({ hostname: 'tienda.mx' }))
-  assert.deepEqual(made.dnsRecords.find((r) => r.type === 'A'), { type: 'A', name: 'tienda.mx', value: '203.0.113.7' })
+  assert.deepEqual(made.dnsRecords.find((r) => r.type === 'A'), { type: 'A', name: 'tienda.mx', value: '203.0.113.7', host: '@' })
 })
 
 test('platform, admin, reserved and unavailable cases are refused', async () => {

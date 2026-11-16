@@ -127,8 +127,12 @@ export function createWebsiteCustomDomainService({
       const routing = routingRecord(row.hostname);
       if (routing) records.push(routing);
     }
+    // Most DNS panels expect the name relative to the zone ("www", "@" for the zone itself), not the full name.
+    const zone = registrableDomain(row.hostname);
+    const relative = (name) => (zone && name === zone ? "@" : zone && name.endsWith(`.${zone}`) ? name.slice(0, -zone.length - 1) : name);
+    for (const record of records) record.host = relative(record.name);
     return {
-      hostname: row.hostname, kind: "custom", state: row.state === RELEASED ? "released" : row.state, ready: row.ready,
+      hostname: row.hostname, zone: zone ?? null, kind: "custom", state: row.state === RELEASED ? "released" : row.state, ready: row.ready,
       verified: row.state === "assigned" && Boolean(row.verifiedAt), verifiedAt: row.verifiedAt ?? null,
       httpsState: row.httpsState ?? "unknown", httpsCheckedAt: row.httpsCheckedAt ?? null,
       lastError: row.lastError ?? null, dnsRecords: records,
