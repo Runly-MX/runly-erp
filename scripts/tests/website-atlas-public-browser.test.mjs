@@ -10,10 +10,10 @@ import {chromium} from 'playwright'
 import {sectionsToAtlasPage} from '../../packages/studio-interchange/src/website-document.js'
 import {buildWebsitePublicRuntime,buildWebsiteSsr} from '../build-website-public-runtime.mjs'
 
-test('published Atlas 0.8.1 renders responsive geometry in the real ERP public runtime and SSR',async()=>{
+test('published Atlas renders responsive geometry in the real ERP public runtime and SSR',async()=>{
   const output=resolve('.artifacts/website-public-runtime/atlas-review')
   const files=await buildWebsitePublicRuntime(output)
-  assert.equal(files['entry.js'].rendererVersion,'0.8.1')
+  assert.equal(files['entry.js'].rendererVersion,createRequire(new URL('../../apps/api/package.json',import.meta.url))('@raulbellosom/atlas-web-builder/package.json').version)
   await buildWebsiteSsr(output,files['entry.js'].hash)
   const {renderPage}=await import(pathToFileURL(resolve(output,'ssr.mjs')))
   const sharp=createRequire(new URL('../../packages/studio-interchange/package.json',import.meta.url))('sharp')
