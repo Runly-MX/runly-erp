@@ -73,3 +73,36 @@ apertura/cierre). Regresión: `verify-studio-presentations.mjs`.
 
 1. Motor (`sceneAt` + pruebas). 2. Renderer y reproductor vivo. 3. Panel y previsualización.
 4. E2E, rendimiento y documentación.
+
+## Resultado (2026-11-16)
+
+Implementado según este plan. Desviaciones:
+
+- `sceneAt` no oculta un objeto por opacidad 0: solo por las ventanas de entrada/salida; y
+  solo escribe `opacity` si el diseño la tiene o difiere de 1, para que un objeto en reposo
+  sea idéntico a su diseño.
+- La animación corre en cada diapositiva mostrada aunque la reproducción automática esté
+  apagada; «Pausar» congela también la animación (`motionTime` en `presentation-state.js`).
+- Al salir de una diapositiva animada se copian sus píxeles (`captureFrame`) para la
+  transición; el reproductor vivo se crea al llegar y se destruye al salir (uno a la vez).
+- «Aparecer»/«Desaparecer» en la UI son `fade` con duración 0: no hay preset nuevo.
+
+Evidencia:
+
+- [x] Motor: `apps/shared/studio/motion-scene.test.js` (8 pruebas, fotograma de referencia a
+  1234 ms comprobado a mano) y `motion.test.js`; `node --test` de Studio 88/88.
+  Verified: 2026-11-16
+- [x] Navegador: `node scripts/verify-studio-motion.mjs --api-image=<etiqueta>` 14/14 en stack
+  Supabase desechable (animar desde el panel, deshacer/rehacer, reabrir, grupo, dos usuarios,
+  cliente protocolo 3 bloqueado, fotogramas a 0/500/1500/3500/4000 ms, reproducción en vivo y
+  pausa, igualdad de píxeles con la página estática, movimiento reducido, rendimiento y
+  memoria). Capturas en `.artifacts/studio/motion/`. Verified: 2026-11-16
+- [x] Regresión de Fase 1: `scripts/verify-studio-presentations.mjs`. Verified: 2026-11-16
+
+Rendimiento medido (Chrome headless en el equipo de desarrollo, página de 100 objetos con 40
+efectos, 2 fotos privadas y un grupo): `renderFrame` medio 2,2–2,6 ms, máximo 15,9–26,7 ms;
+116–134 callbacks de rAF por segundo (headless sin vsync) y 0 fotogramas de más de 34 ms en 3 s;
+heap +0,5/+0,9 MiB tras 5 ciclos de abrir y cerrar; todos los canvas liberados. No es una
+medida de 60 FPS en dispositivos reales: falta medir en un teléfono y en Tauri.
+
+Sin verificar: iPhone/Android físicos, Tauri/WebView2, GPU de gama baja.

@@ -73,6 +73,11 @@ Criterios de cierre:
 
 ## Fase 2 — Motor de animación
 
+Estado: implementada el 2026-11-16, pendiente de revisión. Plan, desviaciones, evidencia y
+rendimiento medido: [plan de Fase 2](../superpowers/plans/2026-11-16-studio-next-phase2-motion-engine.md).
+Pendiente: medir en dispositivos físicos y Tauri; `resizeDocument` con escala no escala
+keyframes (Fase 3, junto con su edición).
+
 Entregables:
 
 - `sceneAt` completo en `motion.js` (keyframes evaluados aunque aún no editables).

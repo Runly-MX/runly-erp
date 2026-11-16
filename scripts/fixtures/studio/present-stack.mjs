@@ -118,7 +118,8 @@ export async function startPresentStack({ apiImage, shots, keep = process.argv.i
     define: { 'import.meta.env.VITE_RUNLY_API_URL': JSON.stringify(stack.urls.api), 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(stack.urls.kong), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(stack.secret.SUPABASE_ANON_KEY) },
     build: { outDir: join(stack.directory, 'web'), emptyOutDir: true }, preview: { host: '127.0.0.1', port: stack.ports.web, strictPort: true } }
   await build(config); web = await preview(config)
-  browser = await chromium.launch({ channel: 'chrome', headless: true })
+  // gc() and precise heap sizes for the memory measurements of the motion verification.
+  browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--js-flags=--expose-gc', '--enable-precise-memory-info'] })
 
   async function openEditor(user, designId, options = {}) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...options })
