@@ -176,8 +176,13 @@ Escrituras por protocolo:
 
 | Documento almacenado o resultante | Cliente (cabecera) | API (`set_config`) |
 | --- | --- | --- |
-| v1–v7 | 3 o 4 | 4 |
-| v8 | solo 4; con 3 responde 426 `STUDIO_UPGRADE_REQUIRED` | 4 |
+| v1–v7 | 3 o 4 | 3 |
+| v8 (almacenado o resultante) | solo 4; con 3 responde 426 `STUDIO_UPGRADE_REQUIRED` | 4 |
+
+La API declara `'4'` solo cuando interviene un documento v8 (`writerProtocol`): una
+instalación sin la migración v8 sigue guardando diseños v1–v7 (su trigger exige `'3'`
+exacto para v7) y rechaza las escrituras v8 en lugar de perder datos. Implementado en
+Fase 1 (2026-11-16).
 
 El chequeo del cliente pasa del middleware a la transacción del servicio, que ya
 bloquea la fila y conoce ambas versiones. Nueva migración forward que redefine
@@ -224,8 +229,10 @@ keyframes: [ { at: 0, x: 80, opacity: 0 }, { at: 1200, x: 400, opacity: 1, easin
   `blur-in` y `flip-up`: requieren filtros o 3D que Fabric 2D no representa de
   forma uniforme en los seis tipos.
 - Énfasis: `pulse`, `spin`, `shake`, `bounce`; `repeat` 1–20.
-- `duration` 0–10000; `delay` 0–600000; la suma no puede superar
-  `slide.duration` (validado contra la duración efectiva).
+- `duration` 0–10000; `delay` 0–600000. Un efecto que termina después de la
+  diapositiva **no invalida el documento**: la evaluación lo recorta al final de la
+  diapositiva. Así, acortar una diapositiva nunca rechaza el cambio (decisión de
+  Fase 1, 2026-11-16).
 - `keyframes`: 2–32 entradas, `at` estrictamente creciente en 0–600000.
   Propiedades animables: `x`, `y`, `rotation`, `opacity`, `scale` (multiplicador
   0.02–8 alrededor del centro). Cada propiedad forma su propia pista con los

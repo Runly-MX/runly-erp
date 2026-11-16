@@ -1,7 +1,8 @@
 # Studio Next: plan maestro
 
-Estado: Fase 0 cerrada el 2026-11-16 (auditoría estática y arquitectura). Las
-fases 1 a 8 no han empezado.
+Estado: Fase 0 cerrada el 2026-11-16. Fase 1 (presentaciones) implementada el
+2026-11-16, pendiente de revisión; su migración no está aplicada en bases compartidas.
+Las fases 2 a 8 no han empezado.
 
 Studio Next convierte `runly.studio` en el **origen común** de diseños y sus
 animaciones. Presentación, video, GIF, PowerPoint y Website son destinos que se

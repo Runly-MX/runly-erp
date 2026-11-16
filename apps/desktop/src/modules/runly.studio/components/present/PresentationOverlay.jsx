@@ -118,7 +118,8 @@ export function PresentationOverlay({ editor, startPageId, title, onClose }) {
       ) : null}
       <div ref={stageRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} className="relative min-h-0 flex-1 touch-none select-none overflow-hidden">
         {[layers.outgoing, layers.incoming].map((layer, order) => layer ? (
-          <div key={`${order}:${layer.index}`} className="absolute inset-0 flex items-center justify-center">
+          // While the next slide renders, the previous one is dimmed so it never reads as the current slide.
+          <div key={`${order}:${layer.index}`} className={cn('absolute inset-0 flex items-center justify-center', !player.ready && 'opacity-40')}>
             <img src={layer.url} alt={order ? `Diapositiva ${layer.index + 1}` : ''} aria-hidden={order ? undefined : true} draggable={false}
               className="max-w-none" style={slideStyle(layer, pages[layer.index])} />
           </div>

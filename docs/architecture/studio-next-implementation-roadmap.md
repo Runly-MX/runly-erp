@@ -28,6 +28,24 @@ documento, migración del trigger, `motion.js` con `slideTimeline`,
 `transitionAt`, `easing` y `presentationSequence`, ajustes de diapositiva en el
 panel de página y un reproductor a pantalla completa.
 
+Estado: implementada el 2026-11-16, pendiente de revisión del usuario. Evidencia y
+desviaciones en la spec (§6). Migración `20270107000000_studio_v8_protocol` creada y
+probada solo en PostgreSQL desechable; **no aplicada** en bases compartidas.
+
+- [x] Contrato v8, protocolo 4, migración, reproductor y ajustes de diapositiva.
+  Verified: 2026-11-16 (node --test 159/159; guard SQL en PostgreSQL 18 desechable; E2E 22/22 en stack Supabase desechable)
+
+Pendientes que pasan a Fase 2:
+
+- `sceneAt` (composición de efectos y keyframes) y su recorte al final de la diapositiva.
+- `resizeDocument` con escala de contenido no escala `x`/`y` absolutos de keyframes.
+- La exportación de una página activa deselecciona el objeto del editor
+  (`discardActiveObject`) al presentar; preservar la selección.
+- `atlas_unaccent` falta en el fixture de `studio-postgres.test.js` (3 subpruebas fallan
+  desde `100b42305`, ajeno a Studio Next).
+- `apps/api/src/mcp/__tests__/official-domains.js` (casos MCP) no se ejecutó.
+- Prueba visual de deslizamiento y acercamiento; prueba en iPhone real y en Tauri/WebView2.
+
 Criterios de cierre:
 
 - Presentar un diseño de 3 o más páginas desde el editor, con teclado, clic,

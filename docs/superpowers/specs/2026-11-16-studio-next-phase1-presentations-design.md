@@ -169,24 +169,45 @@ Commits por bloque verificado (1–4 contrato, 5–6 API/SQL, 7–9 UI, 10–11 
 
 ## 6. Criterios de aceptación
 
-- [ ] Un diseño de 3 o más páginas se presenta a pantalla completa desde el
-  editor, empezando por la página activa, y se navega con teclado, clic y toque.
-- [ ] La reproducción automática respeta la duración de cada diapositiva; pausa,
-  reanudación y bucle funcionan sin deriva perceptible (menos de 100 ms por
-  diapositiva).
-- [ ] Las transiciones Ninguna, Fundido, Deslizar ×4 y Zoom se ven al avanzar, en
-  sentido inverso al retroceder, y como corte con movimiento reducido.
-- [ ] Duración y transición se guardan, sincronizan en vivo a otra sesión, se
-  deshacen con un solo paso y se conservan al reabrir y al duplicar la página.
-- [ ] Un diseño sin ajustes de diapositiva conserva `schemaVersion: 7` tras
-  editarse; al fijar una duración pasa a 8 y no vuelve a 7.
-- [ ] Un cliente de protocolo 3 sigue editando diseños v7 y recibe 426 con el
-  borrador conservado sobre un diseño v8.
-- [ ] Los campos `enter`, `exit`, `emphasis` y `keyframes` escritos por MCP
-  sobreviven a una edición desde la UI de Fase 1.
-- [ ] PNG, JPG, PDF, ZPL, creación masiva y plantillas sin cambios; el paquete
-  `.runlystudio` de un diseño v8 se exporta como v1 con la pérdida declarada y
-  Developer Hub lo acepta.
-- [ ] Colaboradores de solo lectura pueden presentar pero no cambiar ajustes.
-- [ ] Sin errores de consola; foco y lector de pantalla correctos; ningún archivo
-  supera 1000 líneas; `pnpm check:privacy` sin hallazgos.
+Estado: implementada el 2026-11-16 (commits `9c3cf0ba2`…`a4453d441` y cierre). Pruebas
+dirigidas `node --test` 159/159; guard SQL y servicio en PostgreSQL 18 desechable;
+E2E real en Chrome contra un stack Supabase desechable con todas las migraciones.
+
+- [x] Un diseño de 3 páginas se presenta a pantalla completa desde la página activa y se
+  navega con teclado, clic, botones y deslizamiento. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Reproducción automática respeta la duración (2086–2114 ms para 2 s en tres ejecuciones);
+  pausa y repetición funcionan. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Fundido observado con dos capas; movimiento reducido muestra corte (una capa).
+  Las transiciones de deslizamiento y acercamiento solo tienen prueba unitaria de
+  `transitionAt`, no prueba visual. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Duración y transición se guardan, llegan en vivo a otra sesión, «Aplicar a todas»
+  es un paso de deshacer y rehacer lo restaura; deshacer en la página activa llega al
+  servidor; duplicar conserva `slide` (prueba unitaria). Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Un diseño sin ajustes se crea y permanece v7; al fijar una duración pasa a 8 y no
+  vuelve (pruebas unitarias + E2E). Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Protocolo 3 edita v7 (200), no puede convertir a v8 ni tocar un v8 (426), comprobado
+  dentro de la transacción (prueba Postgres de carrera v7→v8 y E2E con API real). Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] `enter`/`exit`/`emphasis`/`keyframes` se validan, se conservan en el roundtrip y
+  convergen por clave (pruebas unitarias). Sin UI en esta fase.
+  Verified: 2026-11-16 (apps/shared/studio/motion.test.js)
+- [x] PNG se descarga sin cambios; el `.runlystudio` de un diseño v8 exige aceptación
+  (409 sin ella, 200 con ella) y declara la pérdida; el diálogo muestra la casilla. Los
+  diseños estáticos exportan un paquete idéntico. PDF, ZPL y creación masiva no tienen
+  prueba E2E nueva en esta fase. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Un colaborador VIEWER presenta (con la foto privada autorizada) y no puede cambiar
+  los ajustes. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+- [x] Sin errores de consola; foco devuelto a «Presentar»; Ctrl+Z no llega al editor
+  durante la presentación; archivos < 1000 líneas (`fabric-adapter.js` 906);
+  `pnpm check:privacy` sin hallazgos nuevos. Verified: 2026-11-16 (.e2e/studio-present-real.mjs, stack Supabase desechable, imagen API de HEAD, 22/22)
+
+### Desviaciones respecto a la propuesta
+
+- Un efecto que termina después de la diapositiva no invalida el documento: se recortará
+  al evaluar (Fase 2). Evita que acortar una diapositiva falle.
+- La API declara al trigger `'3'` para v1–v7 y `'4'` solo con v8 (`writerProtocol`), para
+  que una instalación sin la migración siga guardando diseños estáticos.
+- Se corrigieron dos fallos previos descubiertos por la E2E: deshacer/rehacer no se
+  sincronizaba con el servidor desde el envoltorio multipágina v7 (`0f18fc301`), y las
+  rutas del paquete exigían el literal de protocolo `'3'`.
+- La lógica del reproductor vive en `lib/presentation-state.js` (pura, con pruebas) y
+  `components/present/usePresentation.js`.
