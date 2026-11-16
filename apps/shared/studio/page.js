@@ -1,4 +1,5 @@
 import { validateDocument } from './document.js'
+import { scaleKeyframes } from './keyframes.js'
 
 export const PAGE_PRESETS = Object.freeze([
   { value: 'square', label: 'Publicación cuadrada', width: 1080, height: 1080 },
@@ -14,6 +15,8 @@ export function resizeDocument(document, page, scaleContent = false) {
   const scale = Math.min(page.width / current.page.width, page.height / current.page.height)
   return validateDocument({ ...current, page:{...current.page,...page}, objects: scaleContent ? current.objects.map(object => ({ ...object,
     x: object.x * scale, y: object.y * scale,
+    // Keyframe positions follow the same transform as the object; rotation, opacity and scale keep their meaning.
+    ...(object.keyframes ? { keyframes: scaleKeyframes(object.keyframes, scale) } : {}),
     ...(['text','line'].includes(object.type) ? { scaleX: object.scaleX * scale, scaleY: object.scaleY * scale } : { width: object.width * scale, height: object.height * scale }),
   })) : current.objects })
 }

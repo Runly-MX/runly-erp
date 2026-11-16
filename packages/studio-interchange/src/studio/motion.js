@@ -220,6 +220,16 @@ function track(frames, key, t, reducedMotion) {
   return a[key] + (b[key] - a[key]) * easing(b.easing ?? 'linear', (t - a.at) / (b.at - a.at))
 }
 
+// Keyframe track values at t before effects (what a keyframe edited at t starts from).
+export function keyframeValuesAt(item, t) {
+  const frames = item.keyframes ?? []
+  return {
+    x: track(frames, 'x', t, false) ?? item.x, y: track(frames, 'y', t, false) ?? item.y,
+    rotation: track(frames, 'rotation', t, false) ?? item.rotation, opacity: track(frames, 'opacity', t, false) ?? item.opacity ?? 1,
+    scale: track(frames, 'scale', t, false) ?? 1,
+  }
+}
+
 function evaluate(item, t, page, pivots, reducedMotion) {
   const { enter, exit, emphasis, keyframes, ...base } = item
   if (base.hidden || !objectHasMotion(item)) return base

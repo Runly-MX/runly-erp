@@ -14,7 +14,8 @@
     "./studio/document": "./src/studio/document.js",
     "./studio/pages": "./src/studio/pages.js",
     "./studio/fonts": "./src/studio/fonts.js",
-    "./studio/motion": "./src/studio/motion.js"
+    "./studio/motion": "./src/studio/motion.js",
+    "./studio/keyframes": "./src/studio/keyframes.js"
   },
   "dependencies": {
     "jszip": "3.10.1",
