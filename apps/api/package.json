@@ -43,6 +43,7 @@
     "node-cache": "^5.1.2",
     "node-ical": "0.22.0",
     "nodemailer": "^8.0.10",
+    "parse5": "7.3.0",
     "pdf-lib": "^1.17.1",
     "pdfjs-dist": "5.4.296",
     "pdfkit": "^0.18.0",

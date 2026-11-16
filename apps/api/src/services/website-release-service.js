@@ -9,6 +9,7 @@ import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { createFileAccess } from './files/access.js'
 import { z } from 'zod'
+import {isStaticWebsiteContent,STATIC_CONTENT_POLICY} from './website-static-policy.js'
 
 const failure=(code,status=409)=>new WebsiteServiceError('No se pudo completar la publicación.',status,code)
 const known=new Set(BLOCK_CATALOG.blocks.map(b=>b.type))
@@ -63,6 +64,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     if(!imports)throw failure('dependency_unavailable',503)
     const imported=await imports.get({...a,importId:a.importId});if(imported.phase!=='ready')throw failure('import_not_ready')
     const manifest={schemaVersion:1,kind:'dist',integrityMode:'sealed',previewOnly:previewCalls.has(input),companyId:a.companyId,siteId:a.siteId,importId:imported.id,routingMode:imported.manifest.routingMode,files:imported.manifest.files,routes:[],assets:Object.fromEntries(imported.manifest.files.map(f=>[f.hash,f])),runtime:{assets:{}},identity:{},theme:null,menus:[],dynamic:[]}
+    if(isStaticWebsiteContent(imported.manifest))Object.assign(manifest,{contentMode:'static',staticPolicyVersion:STATIC_CONTENT_POLICY})
     for(const ref of Object.values(manifest.assets)){const bytes=await storage.get(ref.objectKey);if(bytes.length!==ref.size||releaseBytesHash(bytes)!==ref.hash)throw failure('integrity_failed',422)}
     return prisma.$transaction(async tx=>{
       await drafts.lockSite(tx,a.companyId,a.siteId)
@@ -277,7 +279,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         if(imported.phase!=='ready')throw failure('import_not_ready')
         const hosts=await prisma.websiteDomain.findMany({where:{companyId:input.companyId,siteId:input.siteId,state:'assigned',ready:true}})
         if(!hosts.length||!isolation)throw failure('isolation_required')
-        for(const host of hosts)isolation.publicHost(host.hostname)
+        for(const host of hosts)isolation.publicHost(host.hostname,imported.manifest)
         for(const file of imported.manifest.files){
           const bytes=await storage.get(file.objectKey)
           if(bytes.length!==file.size||releaseBytesHash(bytes)!==file.hash)throw failure('integrity_failed',503)
@@ -304,7 +306,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
     if(action!=='unpublish') {
       const candidate=await release(prisma,a,a.releaseId);verify(candidate)
       if(candidate.manifest.previewOnly)throw failure('preview_not_publishable')
-      if(candidate.manifest.kind==='dist'){assertWebsiteAccess(a.access,a.companyId,'website.dist.upload');const domains=await prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId,state:'assigned',ready:true}});if(!domains.length||!isolation)throw failure('isolation_required');for(const domain of domains)isolation.publicHost(domain.hostname)}
+      if(candidate.manifest.kind==='dist'){assertWebsiteAccess(a.access,a.companyId,'website.dist.upload');const domains=await prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId,state:'assigned',ready:true}});if(!domains.length||!isolation)throw failure('isolation_required');for(const domain of domains)isolation.publicHost(domain.hostname,candidate.manifest)}
       for(const ref of [...Object.values(candidate.manifest.assets),...Object.values(candidate.manifest.runtime.assets)]) {
         const bytes=await storage.get(ref.objectKey);if(releaseBytesHash(bytes)!==ref.hash)throw failure('integrity_failed',422)
       }

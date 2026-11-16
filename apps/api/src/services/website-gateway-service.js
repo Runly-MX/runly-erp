@@ -35,7 +35,7 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(!site.releaseManaged)return {site,company,hostname,release:null}
     const release=await prisma.websiteRelease.findFirst({where:{id:site.activeReleaseId,companyId:site.companyId,siteId:site.id,state:'ready'}})
     if(!release||hash(release.manifest)!==release.manifestHash)throw fail('integrity_failed',503)
-    if(release.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(hostname)}
+    if(release.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(hostname,release.manifest)}
     return {site,company,hostname,release}
   }
   async function resolve(c) {try{return await resolveUnsafe(c)}catch(e){if(e instanceof WebsiteServiceError)throw e;throw fail('dependency_unavailable',503)}}
@@ -53,12 +53,12 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     if(!event)throw notFound('Recurso')
     const previous=await prisma.websiteRelease.findFirst({where:{id:releaseId,companyId:current.site.companyId,siteId:current.site.id,state:'ready'}})
     if(!previous||hash(previous.manifest)!==previous.manifestHash)throw notFound('Recurso')
-    if(previous.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(current.hostname)}
+    if(previous.manifest.kind==='dist'){if(!isolation)throw fail('isolation_required',409);isolation.publicHost(current.hostname,previous.manifest)}
     const ref=previous.manifest.assets[digest]??Object.values(previous.manifest.runtime.assets).find(a=>a.hash===digest)
     if(!ref)throw notFound('Recurso')
     let bytes;try{bytes=await storage.get(ref.objectKey)}catch{throw fail('dependency_unavailable',503)}
     if(bytes.length!==ref.size||releaseBytesHash(bytes)!==digest)throw fail('integrity_failed',503)
-    return {bytes,mime:ref.mime,kind:previous.manifest.kind}
+    return {bytes,mime:ref.mime,kind:previous.manifest.kind,contentMode:previous.manifest.contentMode,staticPolicyVersion:previous.manifest.staticPolicyVersion}
   }
   async function reserve(a) {
     assertWebsiteAccess(a.access,a.companyId,'website.domains.manage');assertWebsiteAccess(a.access,a.companyId,'website.site.update')

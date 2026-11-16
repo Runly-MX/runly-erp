@@ -26,13 +26,13 @@ before(async()=>{db=new PrismaClient({adapter:new PrismaPg({connectionString:url
 after(async()=>{await db?.$disconnect();if(root&&resolve(root).startsWith(resolve(tmpdir())))await rm(root,{recursive:true})})
 const zip=async(files={'index.html':'<!doctype html><title>Private test</title><h1>ZIP test</h1>','assets/a-1.js':'console.log("fixture")'})=>{const z=new JSZip();for(const [p,b]of Object.entries(files))z.file(p,b);return z.generateAsync({type:'nodebuffer'})}
 const uuid=async()=>(await db.$queryRaw`SELECT uuidv7()::text id`)[0].id
-async function fixture() {
+async function fixture({namespaceRoot='sites.untrusted.test',contentRoot='sites.untrusted.test'}={}) {
  const k=++n,folder=join(root,String(k)),objects=new Map()
  const storage={async put(key,bytes){const path=resolve(folder,key);assert.ok(path.startsWith(folder));await mkdir(resolve(path,'..'),{recursive:true});try{await writeFile(path,bytes,{flag:'wx'})}catch(e){if(e.code!=='EEXIST')throw e;assert.deepEqual(await readFile(path),bytes)}objects.set(key,bytes)},async get(key){return readFile(resolve(folder,key))}}
  const company=await db.company.create({data:{id:await uuid(),name:'Import test',slug:`import-${k}`}}),actor=await db.userProfile.create({data:{id:await uuid(),authUserId:await uuid(),email:`import-${k}@example.test`,displayName:'Import test'}})
  const access=createWebsiteAccess({companyId:company.id,actorId:actor.id,can:()=>true}),ctx={companyId:company.id,access}
- const isolation=createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',contentRoot:'sites.untrusted.test',previewRoot:'preview.untrusted.test'})
- const publication=createWebsitePublicationContext({prisma:db,storage,isolation,runtime:async()=>({'entry.js':{bytes:Buffer.from('console.log("trusted test")'),mime:'text/javascript'}}),namespaceRoot:'sites.untrusted.test'})
+ const isolation=createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',namespaceRoot,contentRoot,previewRoot:'preview.untrusted.test'})
+ const publication=createWebsitePublicationContext({prisma:db,storage,isolation,runtime:async()=>({'entry.js':{bytes:Buffer.from('console.log("trusted test")'),mime:'text/javascript'}}),namespaceRoot})
  const svc=createWebsiteService({prisma:db,publicationContext:publication}),site=await svc.createSite({...ctx,data:{name:'Import site'}}),args={...ctx,siteId:site.id}
  const host=await publication.gateway.reserve({...args,slug:`import-${k}`}),c={req:{url:`https://${host.hostname}/`,header:k=>k==='host'?host.hostname:undefined}}
  const upload=async(bytes,key='import-artifact-attempt-key')=>publication.imports.create({...args,bytes,idempotencyKey:key})
@@ -78,6 +78,58 @@ test('registrable-domain isolation rejects brand origins and cannot be enabled b
  for(const root of ['sites.runly.mx','preview.runly.mx','sites.runly.test']){const policy=createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',contentRoot:root});assert.throws(()=>policy.publicHost('tenant.'+root),e=>e.code==='isolation_required')}
  const f=await fixture(),r=await f.prepare(await f.upload(await zip()));await db.websiteDomain.create({data:{hostname:'legacy.runly.mx',companyId:f.company.id,siteId:f.site.id,kind:'legacy',state:'assigned',ready:true}})
  await assert.rejects(f.activate(r),e=>e.code==='isolation_required');assert.equal((await db.websiteSite.findUnique({where:{id:f.site.id}})).activeReleaseId,null)
+})
+
+test('HTML/CSS imports publish under the brand namespace without an isolated content root',async()=>{
+ const f=await fixture({namespaceRoot:'sites.runly.test',contentRoot:''})
+ const app=createWebsiteRouter({prisma:db,publicationContext:f.publication,requirePermission:testPermission([...ALL,'website.domains.manage'],f.company.id,f.actor.id)})
+ const sdk=createWebsiteDomain({withAuthHeaders:()=>({Authorization:'Bearer fixture'}),request:async(path,options)=>{const response=await app.request(path,options),body=await response.json();assert.ok(response.ok,JSON.stringify(body));return body}})
+ const bytes=await zip({'index.html':'<!doctype html><link rel="stylesheet" href="style.css"><h1>Plantilla</h1>','style.css':'h1 { color: #123456 }'})
+ const imported=(await sdk.createImport(f.site.id,new File([bytes],'template.zip'),{contentMode:'static'},'static-sdk-import-attempt','fixture')).data
+ assert.equal(imported.manifest.contentMode,'static');assert.equal(imported.manifest.staticPolicyVersion,'html-css-v1')
+ assert.equal((await f.publication.contracts.state(f.args)).capabilities['import.zip'].allowed,true)
+ assert.equal((await f.publication.releases.preflight({...f.args,kind:'dist',importId:imported.id})).canPublish,true)
+ const release=await f.prepare(imported);assert.equal(release.manifest.contentMode,'static');await f.activate(release)
+ const publicApp=new Hono(),serving=createDistServeService({prisma:db,publicationContext:f.publication});publicApp.get('*',c=>serving.serve(c,c.req.path))
+ const get=path=>publicApp.request(`https://${f.host.hostname}${path}`,{headers:{Host:f.host.hostname,Accept:'text/html'}})
+ for(const path of ['/','/style.css']) {
+  const response=await get(path);assert.equal(response.status,200);assert.match(response.headers.get('content-security-policy'),/script-src 'none'/);assert.ok(!response.headers.get('content-security-policy').includes('allow-scripts'))
+ }
+ const html=release.manifest.files.find(file=>file.mime==='text/html'),asset=await f.publication.gateway.asset(f.c,release.id,html.hash)
+ assert.equal(asset.contentMode,'static');assert.match(asset.bytes.toString(),/Plantilla/)
+ assert.equal((await get('/missing.js')).status,404)
+ await assert.rejects(f.publication.imports.create({...f.args,bytes,contentMode:'isolated',idempotencyKey:'static-sdk-import-attempt'}),e=>e.code==='idempotency_conflict')
+ await f.publication.releases.unpublish({...f.args,expectedPublicationRevision:1,idempotencyKey:'static-unpublish-attempt'});assert.equal((await get('/')).status,404)
+})
+
+test('static requests cannot downgrade executable archives or existing isolated releases',async()=>{
+ const f=await fixture({namespaceRoot:'sites.runly.test',contentRoot:''})
+ for(const [index,files]of [
+  {'index.html':'<script>window.evil=true</script>'},
+  {'index.html':'<h1>Looks static</h1>','hidden.js':'alert(1)'},
+  {'index.html':'<img src="logo.svg">','logo.svg':'<svg onload="alert(1)"/>'},
+ ].entries())await assert.rejects(f.publication.imports.create({...f.args,bytes:await zip(files),contentMode:'static',idempotencyKey:`static-rejection-attempt-${index}`}),e=>e.code==='static_content_required')
+ const scripted=await f.upload(await zip()),release=await f.prepare(scripted)
+ assert.equal(release.manifest.contentMode,undefined)
+ await assert.rejects(f.publication.releases.activate({...f.args,releaseId:release.id,manifestHash:release.manifestHash,expectedDraftRevision:release.draftRevision,expectedPublicationRevision:0,contentMode:'static',staticPolicyVersion:'html-css-v1',idempotencyKey:'static-spoof-activate-attempt'}),e=>e.code==='isolation_required')
+ assert.equal((await db.websiteSite.findUnique({where:{id:f.site.id}})).activeReleaseId,null)
+})
+
+test('static brand publishing never exposes historical executable asset URLs',async()=>{
+ const f=await fixture(),scripted=await f.prepare(await f.upload(await zip()));await f.activate(scripted)
+ const imported=await f.publication.imports.create({...f.args,bytes:await zip({'index.html':'<h1>Static replacement</h1>','new.css':'h1{color:blue}'}),contentMode:'static',idempotencyKey:'static-switch-import-attempt'})
+ const replacement=await f.prepare(imported,'static-switch-prepare-attempt');await f.activate(replacement,'static-switch-activate-attempt')
+ const hostname=`static-${n}.sites.runly.test`
+ await db.websiteDomain.create({data:{hostname,companyId:f.company.id,siteId:f.site.id,kind:'legacy',state:'assigned',ready:true}})
+ const publication=createWebsitePublicationContext({prisma:db,storage:f.storage,isolation:createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',namespaceRoot:'sites.runly.test'})})
+ const request={req:{url:`https://${hostname}/`,header:key=>key==='host'?hostname:undefined}}
+ assert.equal((await publication.gateway.resolve(request)).release.id,replacement.id)
+ const script=scripted.manifest.files.find(file=>file.mime==='text/javascript')
+ await assert.rejects(publication.gateway.asset(request,scripted.id,script.hash),e=>e.code==='isolation_required')
+ const app=new Hono();app.onError((e,c)=>c.json({code:e.code},e.status??500));app.get('*',async c=>publication.gateway.staticContent(c,await publication.gateway.resolve(c),c.req.path))
+ const response=await app.request(`https://${hostname}/${script.path}`,{headers:{Host:hostname}})
+ assert.equal(response.status,409);assert.equal((await response.json()).code,'isolation_required')
+ await assert.rejects(publication.releases.rollback({...f.args,releaseId:scripted.id,expectedPublicationRevision:2,idempotencyKey:'static-scripted-rollback-attempt'}),e=>e.code==='isolation_required')
 })
 test('preview fragment is exchanged once for a host-only HttpOnly cookie, expires and revokes',async()=>{
  const f=await fixture(),r=await f.prepare(await f.upload(await zip())),preview=await f.publication.previews.create({...f.args,releaseId:r.id}),u=new URL(preview.url),token=u.hash.slice(1)

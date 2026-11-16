@@ -11,7 +11,7 @@ export async function readWebsiteZipRequest(c) {
   const raw=new Request(c.req.url,{method:'POST',headers:c.req.raw.headers,body:Buffer.concat(chunks)})
   const form=await raw.formData().catch(()=>{throw new WebsiteServiceError('Archivo inválido.',400,'invalid_archive_request')}),file=form.get('file')
   if(!file||typeof file.arrayBuffer!=='function'||file.size>STATIC_ZIP_POLICY.compressed)return null
-  return {bytes:Buffer.from(await file.arrayBuffer()),routingMode:form.get('routingMode')??'mpa',rootDirectory:form.get('rootDirectory')??undefined}
+  return {bytes:Buffer.from(await file.arrayBuffer()),routingMode:form.get('routingMode')??'mpa',rootDirectory:form.get('rootDirectory')??undefined,contentMode:form.get('contentMode')??undefined}
 }
 export function createWebsiteImportRoutes({imports,storage,requirePermission}) {
   const app=new Hono();app.onError(websiteErrorHandler)

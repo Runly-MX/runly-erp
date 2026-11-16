@@ -23,7 +23,7 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
  app.use('*',async(c,next)=>{c.header('Cache-Control','no-store');c.header('X-Content-Type-Options','nosniff');return next()})
  app.get('/releases/:releaseId/assets/:hash',async c=>{
    const result=await gateway.asset(c,c.req.param('releaseId'),c.req.param('hash'))
-   if(result.kind==='dist')websiteIsolatedHeaders(c)
+   if(result.kind==='dist')websiteIsolatedHeaders(c,{manifest:result})
    if(result.kind!=='dist'&&isCode(result.mime))return sendCode(c,c.req.param('hash'),Buffer.from(result.bytes),result.mime)
    c.header('Content-Type',result.mime);return c.body(result.bytes)
  })

@@ -1,9 +1,10 @@
 import {getDomain} from 'tldts'
 import {strictWebsiteHostname} from './website-gateway-service.js'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
+import {isStaticWebsiteContent} from './website-static-policy.js'
 
 // Configuration is owned by the installation, never accepted from an API body.
-export function createWebsiteContentIsolation({adminOrigin,contentRoot,previewRoot,previewProtocol='https:',previewPort='',localLab=false}={}) {
+export function createWebsiteContentIsolation({adminOrigin,namespaceRoot,contentRoot,previewRoot,previewProtocol='https:',previewPort='',localLab=false}={}) {
   const fail=()=>new WebsiteServiceError('El origen aislado no está habilitado.',409,'isolation_required')
   function independent(root) {
     if(!root||!adminOrigin)throw fail()
@@ -14,10 +15,25 @@ export function createWebsiteContentIsolation({adminOrigin,contentRoot,previewRo
     if(!domain||!adminDomain||previewProtocol!=='https:')throw fail()
     return host
   }
-  function publicHost(host) {const root=independent(contentRoot);const h=strictWebsiteHostname(host);if(h===root||!h.endsWith('.'+root))throw fail();return h}
+  function staticRoot() {
+    if(!namespaceRoot||!adminOrigin)throw fail()
+    const root=strictWebsiteHostname(namespaceRoot),admin=new URL(adminOrigin)
+    if(admin.protocol!=='https:'||!getDomain(root,{allowPrivateDomains:true})||root===admin.hostname||admin.hostname.endsWith('.'+root))throw fail()
+    return root
+  }
+  function publicHost(host,manifest) {
+    const h=strictWebsiteHostname(host)
+    if(isStaticWebsiteContent(manifest)&&namespaceRoot) {
+      const root=staticRoot()
+      if(h!==new URL(adminOrigin).hostname&&h.endsWith('.'+root))return h
+    }
+    const root=independent(contentRoot)
+    if(h===root||!h.endsWith('.'+root))throw fail()
+    return h
+  }
   function previewHost(label) {return `${label}.${independent(previewRoot)}`}
   function previewOrigin(host) {return `${previewProtocol}//${host}${previewPort?':'+previewPort:''}`}
   function admin(){if(!adminOrigin)throw fail();return new URL(adminOrigin).origin}
   function isPreviewHost(host){const matches=!!previewRoot&&host.endsWith('.'+previewRoot)&&/^[a-f0-9]{32}$/.test(host.slice(0,-previewRoot.length-1));if(matches)independent(previewRoot);return matches}
-  return {assertContentRoot:()=>independent(contentRoot),publicHost,previewHost,previewOrigin,admin,isPreviewHost,localLab}
+  return {assertContentRoot:()=>independent(contentRoot),assertStaticRoot:staticRoot,publicHost,previewHost,previewOrigin,admin,isPreviewHost,localLab}
 }

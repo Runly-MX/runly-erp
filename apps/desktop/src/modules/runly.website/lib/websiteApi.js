@@ -110,10 +110,11 @@ export function createWebsiteApi(token) {
     releaseHostname: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}/release`, { method: 'POST' }),
     createPreview: (siteId, data, idempotencyKey) => call(`${site(siteId)}/previews`, { method: 'POST', body: data, idempotencyKey }),
     revokePreview: (siteId, previewId) => call(`${site(siteId)}/previews/${s(previewId)}`, { method: 'DELETE' }),
-    createImport: (siteId, file, { routingMode = 'mpa', rootDirectory } = {}, idempotencyKey) => {
+    createImport: (siteId, file, { routingMode = 'mpa', rootDirectory, contentMode } = {}, idempotencyKey) => {
       const formData = new FormData()
       formData.append('file', file)
       formData.append('routingMode', routingMode)
+      if (contentMode) formData.append('contentMode', contentMode)
       if (rootDirectory) formData.append('rootDirectory', rootDirectory)
       return call(`${site(siteId)}/imports`, { method: 'POST', formData, idempotencyKey })
     },

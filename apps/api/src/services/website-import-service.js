@@ -4,6 +4,7 @@ import {releaseBytesHash} from './website-release-storage.js'
 import {assertWebsiteAccess} from './website-authorization-service.js'
 import {createWebsiteDraftService} from './website-draft-service.js'
 import {WebsiteServiceError,notFound} from '../routes/website/service-helpers.js'
+import {STATIC_CONTENT_POLICY} from './website-static-policy.js'
 
 export function createWebsiteImportService({prisma,storage,limits=STATIC_ZIP_POLICY}) {
   const drafts=createWebsiteDraftService({prisma})
@@ -20,13 +21,14 @@ export function createWebsiteImportService({prisma,storage,limits=STATIC_ZIP_POL
   }
   async function create(input) {
     const a=await authorize(input)
+    if(a.contentMode!==undefined&&!['static','isolated'].includes(a.contentMode))throw fail('validation_failed')
     if(typeof a.idempotencyKey!=='string'||a.idempotencyKey.length<16||a.idempotencyKey.length>200)throw fail('validation_failed')
     if(!Buffer.isBuffer(a.bytes)||a.bytes.length>limits.compressed)throw fail('archive_too_large',413)
     const archiveHash=releaseBytesHash(a.bytes),archiveKey=`company/${a.companyId}/site/${a.siteId}/imports/${archiveHash}.zip`
     let claimed=false
     const captured=await prisma.$transaction(async tx=>{
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended('website.import.capacity',2))::text`
-      return drafts.receipt(tx,a,`import:${a.siteId}`,{archiveHash,routingMode:a.routingMode??'mpa',rootDirectory:a.rootDirectory??null},async()=>{
+      return drafts.receipt(tx,a,`import:${a.siteId}`,{archiveHash,routingMode:a.routingMode??'mpa',rootDirectory:a.rootDirectory??null,...(a.contentMode===undefined?{}:{contentMode:a.contentMode})},async()=>{
         // Explicit requests reclaim expired work after a crashed local process.
         // The ready update below is fenced by phase so a stale worker cannot win.
         const cutoff=new Date(Date.now()-limits.timeout)
@@ -56,10 +58,11 @@ export function createWebsiteImportService({prisma,storage,limits=STATIC_ZIP_POL
         check()
         const verify=await storage.get(objectKey);check();if(verify.length!==file.size||releaseBytesHash(verify)!==file.hash)throw fail('archive_integrity_failed')
         refs.set(file.path,objectKey)
-        if(['text/html','text/css','text/javascript'].includes(file.mime))texts.set(file.path,bytes.toString('utf8'))
+        if(['text/html','text/css','text/javascript','image/svg+xml'].includes(file.mime))texts.set(file.path,bytes.toString('utf8'))
       }})
       const normalizedTexts=new Map([...texts].map(([path,text])=>[path.slice(manifest.rootDirectory.length),text]))
-      await validateWebsiteZipReferences(manifest.files,normalizedTexts,{timeout:deadline-Date.now()})
+      await validateWebsiteZipReferences(manifest.files,normalizedTexts,{timeout:deadline-Date.now(),contentMode:a.contentMode})
+      if(a.contentMode==='static')Object.assign(manifest,{contentMode:'static',staticPolicyVersion:STATIC_CONTENT_POLICY})
       manifest.files=manifest.files.map(file=>({...file,objectKey:refs.get(manifest.rootDirectory+file.path)}))
       await prisma.websiteImport.updateMany({where:{id:previous.id,companyId:a.companyId,siteId:a.siteId,phase:'validating',createdAt:{gte:new Date(Date.now()-limits.timeout)}},data:{phase:'ready',manifest}})
       check();return get({...a,importId:previous.id})

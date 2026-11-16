@@ -15,6 +15,10 @@ const ROUTING = [
   { value: 'mpa', label: 'Varias páginas (cada ruta es un archivo HTML)' },
   { value: 'spa', label: 'Una sola aplicación (todas las rutas abren index.html)' },
 ]
+const CONTENT_MODES = [
+  { value: 'static', label: 'Plantilla HTML y CSS (sin JavaScript)' },
+  { value: 'isolated', label: 'Sitio con JavaScript (requiere dominio aislado)' },
+]
 
 const POLL_MS = 1500
 const POLL_MAX = 80
@@ -72,6 +76,7 @@ export default function SiteImport({ site, siteId, caps }) {
   const { api, companyId } = useWebsiteScope()
   const [file, setFile] = useState(null)
   const [routingMode, setRoutingMode] = useState('mpa')
+  const [contentMode, setContentMode] = useState('static')
   const [phase, setPhase] = useState('idle') // idle | uploading | validating | rejected | imported | preparing | prepared | activating | done
   const [imported, setImported] = useState(null)
   const [release, setRelease] = useState(null)
@@ -86,7 +91,7 @@ export default function SiteImport({ site, siteId, caps }) {
     setError(null); setPhase('uploading')
     try {
       keys.current.import = newIdempotencyKey()
-      let current = (await api.createImport(siteId, file, { routingMode }, keys.current.import)).data
+      let current = (await api.createImport(siteId, file, { routingMode, contentMode }, keys.current.import)).data
       setPhase('validating')
       for (let i = 0; i < POLL_MAX && !['ready', 'rejected', 'failed', 'expired'].includes(current.phase); i += 1) {
         await new Promise((resolve) => setTimeout(resolve, POLL_MS))
@@ -164,7 +169,13 @@ export default function SiteImport({ site, siteId, caps }) {
                   <span className="shrink-0 text-xs tabular-nums text-[hsl(var(--muted-foreground))]">{Math.max(1, Math.round(file.size / 1024))} KB</span>
                 </div>
               )}
-              <SelectField label="Cómo se navega el sitio" value={routingMode} onChange={setRoutingMode} options={ROUTING} />
+              <SelectField label="Tipo de sitio" value={contentMode} onChange={setContentMode} options={CONTENT_MODES} disabled={busy} />
+              <p className="text-sm text-[hsl(var(--muted-foreground))]">
+                {contentMode === 'static'
+                  ? 'Publica HTML, CSS, imágenes y fuentes en la dirección de tu sitio. Se rechazan scripts y contenido ejecutable; los formularios no envían datos. El ZIP se publica como sitio y no se convierte en páginas editables.'
+                  : 'Conserva el JavaScript del sitio. Para publicarlo, esta instalación necesita un dominio aislado del ERP.'}
+              </p>
+              <SelectField label="Cómo se navega el sitio" value={routingMode} onChange={setRoutingMode} options={ROUTING} disabled={busy} />
               {(phase === 'uploading' || phase === 'validating') && (
                 <div role="status" aria-live="polite" className="space-y-2">
                   <ProgressBar value={null} />
@@ -195,7 +206,7 @@ export default function SiteImport({ site, siteId, caps }) {
             icon={phase === 'done' ? CheckCircle2 : PackageCheck}
             tone="emerald"
             title={<>Tu ZIP es válido <StatusPill tone={nextState.tone} size="sm" icon={nextState.icon}>{nextState.label}</StatusPill></>}
-            description="Aún no es público. Primero se prepara una versión, la puedes ver en una vista previa privada y después la activas."
+            description="Prepara una versión y actívala para publicarla. La vista previa privada está disponible si la instalación tiene un dominio de vistas previas configurado."
           >
             {(phase === 'preparing' || phase === 'activating') && <div role="status" aria-live="polite" className="mb-3"><ProgressBar value={null} /></div>}
             <div className="flex flex-wrap gap-2">

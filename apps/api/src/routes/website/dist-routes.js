@@ -149,10 +149,10 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, web
       if(!site)return c.json({error:'Recurso no encontrado.'},404)
       const domains=await prisma.websiteDomain.findMany({where:{companyId,siteId,state:'assigned',ready:true}})
       if(!domains.length)return c.json({error:'El origen aislado no está habilitado.',code:'isolation_required'},409)
-      for(const domain of domains)publicationContext.isolation.publicHost(domain.hostname)
       const body=await readWebsiteZipRequest(c);if(!body)return c.json({error:'Archivo excesivo.',code:'archive_too_large'},413)
-      const idempotencyKey=c.req.header('Idempotency-Key')??`legacy-zip-${websiteDocumentHash({archive:releaseBytesHash(body.bytes),routingMode:body.routingMode,rootDirectory:body.rootDirectory??null})}`
+      const idempotencyKey=c.req.header('Idempotency-Key')??`legacy-zip-${websiteDocumentHash({archive:releaseBytesHash(body.bytes),routingMode:body.routingMode,rootDirectory:body.rootDirectory??null,...(body.contentMode===undefined?{}:{contentMode:body.contentMode})})}`
       const imported=await publicationContext.imports.create({...body,companyId,siteId,access,idempotencyKey})
+      for(const domain of domains)publicationContext.isolation.publicHost(domain.hostname,imported.manifest)
       const prior=await prisma.websiteDraftCommand.findFirst({where:{companyId,actorId:access.actorId,operation:`release.dist:${siteId}`,keyHash:websiteDocumentHash(idempotencyKey)}})
       const candidate=prior?.result??await publicationContext.releases.prepare({companyId,siteId,access,idempotencyKey,kind:'dist',importId:imported.id,baseReleaseId:site.activeReleaseId,expectedDraftRevision:site.draftRevision,expectedPublicationRevision:site.publicationRevision})
       const publication=await publicationContext.releases.activate({companyId,siteId,access,idempotencyKey,releaseId:candidate.id,manifestHash:candidate.manifestHash,expectedDraftRevision:candidate.draftRevision,expectedPublicationRevision:candidate.publicationRevision})

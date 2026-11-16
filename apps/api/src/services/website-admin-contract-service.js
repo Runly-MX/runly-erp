@@ -33,7 +33,8 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       if(!reason&&(['submissions.export','submissions.delete'].includes(key)||key==='domains.custom'&&!customDomainTarget))reason={code:'feature_unavailable'}
       if(!reason&&key==='domains.reserve'&&!namespaceRoot)reason={code:'namespace_unavailable'}
       if(!reason&&site.lifecycle==='archived')reason={code:'lifecycle_state'}
-      if(!reason&&['preview.site','import.zip'].includes(key))try{key==='preview.site'?isolation.previewHost('capability'):isolation.assertContentRoot()}catch{reason={code:'isolation_required'}}
+      if(!reason&&key==='preview.site')try{isolation.previewHost('capability')}catch{reason={code:'isolation_required'}}
+      if(!reason&&key==='import.zip')try{isolation.assertContentRoot()}catch{try{isolation.assertStaticRoot()}catch{reason={code:'isolation_required'}}}
       result[key]=reason?{allowed:false,reason}:{allowed:true}
     }
     result['calendar.publish']={allowed:false,reason:{code:'dynamic_binding_unavailable'}}

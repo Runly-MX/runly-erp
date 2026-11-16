@@ -36,7 +36,7 @@ export function createWebsitePublicationContext({prisma,supabaseAdmin,storage:pr
    if(result.error||!result.data)throw new WebsiteServiceError('Archivo no disponible.',503,'dependency_unavailable')
    return Buffer.from(await result.data.arrayBuffer())
  })
- const isolation=options.isolation??createWebsiteContentIsolation({adminOrigin:process.env.RUNLY_APP_URL,contentRoot:process.env.RUNLY_WEBSITE_CONTENT_ROOT,previewRoot:process.env.RUNLY_WEBSITE_PREVIEW_ROOT})
+ const isolation=options.isolation??createWebsiteContentIsolation({adminOrigin:process.env.RUNLY_APP_URL,namespaceRoot:options.namespaceRoot??process.env.RUNLY_WEBSITE_NAMESPACE_ROOT,contentRoot:process.env.RUNLY_WEBSITE_CONTENT_ROOT,previewRoot:process.env.RUNLY_WEBSITE_PREVIEW_ROOT})
  const imports=createWebsiteImportService({prisma,storage,limits:options.importLimits})
  const releases=createWebsiteReleaseService({prisma,storage,runtime,readFile,imports,isolation,...options})
  const adminUrl=process.env.RUNLY_APP_URL
