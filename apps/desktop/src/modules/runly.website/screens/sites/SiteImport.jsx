@@ -25,7 +25,7 @@ const POLL_MAX = 80
 
 const GUIDE = [
   { icon: FolderTree, text: <>Debe tener un <code>index.html</code> en la raíz, o dentro de una única carpeta.</> },
-  { icon: FileArchive, text: 'Incluye todos los archivos que usa el sitio (imágenes, estilos, scripts). No se descargan recursos externos.' },
+  { icon: FileArchive, text: 'Incluye las imágenes, estilos y scripts del sitio. Google Fonts puede cargarse desde sus dominios oficiales; los demás recursos deben venir en el ZIP.' },
   { icon: Fingerprint, text: 'Usa nombres con huella (hash) en los archivos que cambian: si un archivo cambia pero conserva su nombre, la publicación se rechaza.' },
   { icon: ShieldOff, text: <>No incluyas archivos privados (<code>.env</code>, llaves, copias de seguridad), código fuente ni carpetas de servidor.</> },
   { icon: FileCode2, text: 'La compatibilidad con cada herramienta de desarrollo no está certificada; solo se aceptan sitios estáticos.' },

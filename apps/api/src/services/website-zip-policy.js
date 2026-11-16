@@ -3,6 +3,8 @@ import {crc32} from 'node:zlib'
 import {posix} from 'node:path'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {releaseBytesHash} from './website-release-storage.js'
+import {parseFragment} from 'parse5'
+import {isWebsiteFontLink,isWebsiteFontReference} from './website-font-policy.js'
 
 export const STATIC_ZIP_POLICY=Object.freeze({version:'static-v1',compressed:100*1024**2,total:400*1024**2,entry:50*1024**2,files:10000,ratio:200,timeout:30000})
 const mime={html:'text/html',htm:'text/html',css:'text/css',js:'text/javascript',mjs:'text/javascript',json:'application/json',map:'application/json',svg:'image/svg+xml',png:'image/png',jpg:'image/jpeg',jpeg:'image/jpeg',gif:'image/gif',webp:'image/webp',avif:'image/avif',ico:'image/x-icon',woff:'font/woff',woff2:'font/woff2',ttf:'font/ttf',otf:'font/otf',eot:'application/vnd.ms-fontobject',txt:'text/plain',md:'text/plain',markdown:'text/plain',csv:'text/csv',xml:'application/xml',webmanifest:'application/manifest+json',pdf:'application/pdf',mp4:'video/mp4',webm:'video/webm',mp3:'audio/mpeg',ogg:'audio/ogg',wav:'audio/wav',wasm:'application/wasm'}
@@ -83,9 +85,12 @@ export async function inspectWebsiteZip(buffer,{routingMode='mpa',rootDirectory,
 }
 export function validateStaticReferences(files,texts) {
   const paths=new Set(files.map(f=>f.path))
-  function check(from,ref) {
+  function check(from,ref,kind) {
     if(!ref||ref.startsWith('#')||ref.startsWith('data:'))return
-    if(/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(ref))throw fail('external_artifact_dependency')
+    if(/^(?:[a-z][a-z\d+.-]*:|\/\/)/i.test(ref)){
+      if(kind==='css'&&(isWebsiteFontReference(ref,'stylesheet')||isWebsiteFontReference(ref,'font')))return
+      throw fail('external_artifact_dependency')
+    }
     const clean=ref.split(/[?#]/)[0]
     if(!clean)return
     if(/\\|%/.test(clean))throw fail('unsafe_artifact_reference')
@@ -95,13 +100,23 @@ export function validateStaticReferences(files,texts) {
   for(const file of files){const text=texts.get(file.path);if(text===undefined)continue
     if(file.mime==='text/html'){
       if(/<base\b|http-equiv\s*=\s*["']?refresh/i.test(text.replace(/<base\s+href=["']\/["']\s*\/?>/gi,'')))throw fail('unsupported_artifact_base')
-      for(const m of text.matchAll(/<(?:script|link|img|source|video|audio|iframe|object)\b[^>]*?\b(?:src|href|poster|data)\s*=\s*["']([^"']+)["']/gi))check(file.path,m[1])
+      for(const m of text.matchAll(/<(?:script|link|img|source|video|audio|iframe|object)\b[^>]*>/gi)){
+        if(/^<link\b/i.test(m[0])){
+          const link=parseFragment(m[0]).childNodes.find(node=>node.tagName==='link')
+          if(isWebsiteFontLink(link))continue
+          const href=link?.attrs.find(attr=>attr.name==='href')?.value
+          if(href)check(file.path,href)
+        }else{
+          const ref=/\b(?:src|href|poster|data)\s*=\s*["']([^"']+)["']/i.exec(m[0])
+          if(ref)check(file.path,ref[1])
+        }
+      }
       for(const m of text.matchAll(/\bsrcset\s*=\s*["']([^"']+)["']/gi))for(const src of m[1].split(','))check(file.path,src.trim().split(/\s/)[0])
     }
     if(['text/css','text/javascript'].includes(file.mime)){
       if(/\b(?:require\s*\(|from\s*["'](?:node:|fs["']|express["'])|process\.env|__dirname|createServer\s*\()/m.test(text))throw fail('server_artifact_not_supported')
       const patterns=file.mime==='text/css'?[/url\(\s*["']?([^"')\s]+)["']?\s*\)/gi,/@import\s*["']([^"']+)["']/gi]:[/\b(?:import|export)\s+(?:[^"'();]*?\s+from\s*)?["']([^"']+)["']/g,/\bimport\s*\(\s*["']([^"']+)["']\s*\)/g,/new\s+URL\(\s*["']([^"']+)["']\s*,\s*import\.meta\.url/g]
-      for(const pattern of patterns)for(const m of text.matchAll(pattern)){if(file.mime==='text/javascript'&&!/^[./]/.test(m[1]))throw fail('bare_import_not_supported');check(file.path,m[1])}
+      for(const pattern of patterns)for(const m of text.matchAll(pattern)){if(file.mime==='text/javascript'&&!/^[./]/.test(m[1]))throw fail('bare_import_not_supported');check(file.path,m[1],file.mime==='text/css'?'css':undefined)}
     }
   }
 }

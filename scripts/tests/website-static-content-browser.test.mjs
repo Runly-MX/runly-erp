@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {createServer} from 'node:http'
 import {once} from 'node:events'
+import {readFile} from 'node:fs/promises'
 import {Hono} from 'hono'
 import {chromium} from 'playwright'
 import {createWebsiteStaticServing} from '../../apps/api/src/services/website-static-serving.js'
@@ -64,6 +65,7 @@ test('sandboxed modules and interaction work on the same site without cookies, s
     ['manual.pdf','%PDF-1.7'],
   ])
   source.set('index.html',source.get('index.html').replace('<form ','<a href="/manual.pdf" download>Manual</a><form '))
+  source.set('index.html',source.get('index.html').replace('<h1>','<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=RunlyDemo"><h1>'))
   const objects=new Map([...source].map(([path,text])=>[path,Buffer.from(text)]))
   const files=[...objects].map(([path,bytes])=>({path,objectKey:path,hash:releaseBytesHash(bytes),size:bytes.length,mime:path.endsWith('.html')?'text/html':path.endsWith('.css')?'text/css':path.endsWith('.pdf')?'application/pdf':'text/javascript'}))
   const manifest={kind:'dist',contentMode:'sandboxed',sandboxPolicyVersion:'browser-sandbox-v1',routingMode:'mpa',files}
@@ -85,6 +87,12 @@ test('sandboxed modules and interaction work on the same site without cookies, s
   try {
     browser=await chromium.launch({headless:true,args:['--no-proxy-server','--host-resolver-rules=MAP *.sandbox.test 127.0.0.1']})
     const context=await browser.newContext(),port=server.address().port,site=`http://tenant.sites.sandbox.test:${port}`,erp=`http://erp.sandbox.test:${port}`
+    const font=await readFile(new URL('../../apps/desktop/public/studio-fonts/roboto.ttf',import.meta.url))
+    let fontRequests=0
+    // Deterministic provider responses: CSP/CORS and font decoding are real,
+    // but the test does not require live Google availability.
+    await context.route('https://fonts.googleapis.com/**',route=>route.fulfill({status:200,contentType:'text/css',headers:{'Access-Control-Allow-Origin':'*'},body:'@font-face{font-family:RunlyDemo;src:url(https://fonts.gstatic.com/s/demo/font.ttf) format("truetype");font-weight:400}h1{font-family:RunlyDemo}'}))
+    await context.route('https://fonts.gstatic.com/**',route=>{fontRequests++;return route.fulfill({status:200,contentType:'font/ttf',headers:{'Access-Control-Allow-Origin':'*'},body:font})})
     await context.addCookies([{name:'erp_session',value:'fixture',domain:'.sandbox.test',path:'/',httpOnly:true,sameSite:'Lax'}])
     const admin=await context.newPage();await admin.goto(erp);await admin.evaluate(()=>localStorage.setItem('erp_secret','fixture'))
     const page=await context.newPage()
@@ -92,6 +100,9 @@ test('sandboxed modules and interaction work on the same site without cookies, s
       const response=await page.goto(site+path)
       assert.equal(response.status(),200)
       await page.getByText('Módulo listo',{exact:true}).waitFor()
+      await page.evaluate(()=>document.fonts.ready)
+      assert.equal(await page.evaluate(()=>[...document.fonts].some(font=>font.family==='RunlyDemo'&&font.status==='loaded')),true)
+      assert.ok(fontRequests>0)
       assert.equal(await page.locator('h1').evaluate(el=>getComputedStyle(el).color),'rgb(12, 34, 56)')
       await page.getByRole('button',{name:'Menú',exact:true}).click();await page.getByRole('button',{name:'Abierto',exact:true}).waitFor()
       await page.getByRole('button',{name:'Enviar',exact:true}).click()

@@ -1,5 +1,6 @@
 import {parse} from 'parse5'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
+import {isWebsiteFontLink} from './website-font-policy.js'
 
 export const STATIC_CONTENT_POLICY='html-css-v1'
 export const SANDBOX_CONTENT_POLICY='browser-sandbox-v1'
@@ -31,7 +32,7 @@ export function validateWebsiteStaticContent(files,texts) {
         if(/^(?:javascript|vbscript|data|blob):/.test(value)&&['href','src','action','formaction','data','poster'].includes(name)) {
           if(!/^(?:src|poster)$/.test(name)||!/^data:image\/(?:png|jpeg|gif|webp|avif);base64,/.test(value))fail()
         }
-        if(tag==='link'&&name==='rel'&&/\b(?:modulepreload|import|manifest|prefetch|preconnect|dns-prefetch)\b/.test(attr.value.toLowerCase()))fail()
+        if(tag==='link'&&name==='rel'&&/\b(?:modulepreload|import|manifest|prefetch|preconnect|dns-prefetch)\b/.test(attr.value.toLowerCase())&&!isWebsiteFontLink(node))fail()
       }
       pending.push(...node.childNodes??[])
       if(node.content)pending.push(node.content)

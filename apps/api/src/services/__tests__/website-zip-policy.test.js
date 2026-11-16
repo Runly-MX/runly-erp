@@ -50,6 +50,23 @@ test('static references reject missing files, external dependencies and Node imp
  for(const value of ['import "./missing.js"','import "react"','import "node:fs"']){texts.set('assets/main.js',value);assert.throws(()=>validateStaticReferences(files,texts))}
  texts.set('assets/main.js','');texts.set('index.html','<script src="https://untrusted.example/evil.js"></script>');assert.throws(()=>validateStaticReferences(files,texts))
 })
+
+test('Google Fonts styles, preconnect and font files validate in their resource roles only',async()=>{
+ const files=[{path:'index.html',mime:'text/html'},{path:'style.css',mime:'text/css'}]
+ const html='<link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.gstatic.com" rel="preconnect" crossorigin><link href="https://fonts.googleapis.com/css2?family=Demo&amp;display=swap" rel="stylesheet"><link rel="preload" as="font" href="https://fonts.gstatic.com/s/demo/font.woff2" crossorigin>'
+ const css='@import url("https://fonts.googleapis.com/css2?family=Demo"); @font-face {font-family:Demo;src:url("https://fonts.gstatic.com/s/demo/font.woff2")}';
+ await validateWebsiteZipReferences(files,new Map([['index.html',html],['style.css',css]]),{contentMode:'static'})
+ for(const markup of [
+  '<script src="https://fonts.googleapis.com/css2?family=Demo"></script>',
+  '<script src="https://fonts.gstatic.com/s/demo/font.woff2"></script>',
+  '<img src="https://fonts.gstatic.com/s/demo/font.woff2">',
+  '<link rel="stylesheet" href="https://fonts.googleapis.com.evil.test/css2?family=Demo">',
+  '<link rel="stylesheet" href="https://evil.test@fonts.googleapis.com/css2?family=Demo">',
+  '<link rel="stylesheet" href="http://fonts.googleapis.com/css2?family=Demo">',
+  '<link rel="stylesheet" href="https://fonts.googleapis.com/redirect">',
+  '<link rel="preconnect" href="https://untrusted.example">',
+ ])assert.throws(()=>validateStaticReferences([files[0]],new Map([['index.html',markup]])),e=>e.code==='external_artifact_dependency')
+})
 test('central-directory overlap and encrypted members are rejected before publication',async()=>{
  const bytes=await archive({'index.html':'first','other.js':'second'}),first=bytes.indexOf(Buffer.from([0x50,0x4b,0x01,0x02])),second=bytes.indexOf(Buffer.from([0x50,0x4b,0x01,0x02]),first+4)
  const overlap=Buffer.from(bytes);overlap.writeUInt32LE(bytes.readUInt32LE(first+42),second+42);await assert.rejects(inspectWebsiteZip(overlap))

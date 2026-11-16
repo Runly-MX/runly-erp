@@ -2,6 +2,7 @@ import {releaseBytesHash} from './website-release-storage.js'
 import {websiteDocumentHash as hash} from './website-draft-service.js'
 import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {isStaticWebsiteContent,isSandboxedWebsiteContent} from './website-static-policy.js'
+import {WEBSITE_FONT_STYLES_ORIGIN,WEBSITE_FONT_FILES_ORIGIN} from './website-font-policy.js'
 
 export function staticArtifactRoute(manifest,path,navigation=false) {
   const files=manifest.files,clean=path.replace(/^\//,'')
@@ -25,17 +26,17 @@ export function websiteIsolatedHeaders(c,{adminOrigin,preview=false,manifest,mim
     c.header('Cross-Origin-Resource-Policy','cross-origin')
     c.header('Cross-Origin-Opener-Policy','same-origin')
     c.header('X-DNS-Prefetch-Control','off')
-    c.header('Content-Security-Policy',`default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-scripts allow-downloads`)
+    c.header('Content-Security-Policy',`default-src 'none'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' ${WEBSITE_FONT_STYLES_ORIGIN}; img-src 'self' data:; font-src 'self' data: ${WEBSITE_FONT_FILES_ORIGIN}; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'self'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-scripts allow-downloads`)
     return
   }
   if(isStaticWebsiteContent(manifest)) {
     c.header('Cross-Origin-Opener-Policy','same-origin')
     c.header('X-DNS-Prefetch-Control','off')
     // Keep local fonts/styles working, but never grant script or form execution.
-    c.header('Content-Security-Policy',`default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-same-origin allow-downloads`)
+    c.header('Content-Security-Policy',`default-src 'none'; script-src 'none'; style-src 'self' 'unsafe-inline' ${WEBSITE_FONT_STYLES_ORIGIN}; img-src 'self' data:; font-src 'self' data: ${WEBSITE_FONT_FILES_ORIGIN}; media-src 'self'; connect-src 'none'; object-src 'none'; base-uri 'none'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-same-origin allow-downloads`)
     return
   }
-  c.header('Content-Security-Policy',`default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-scripts allow-same-origin`)
+  c.header('Content-Security-Policy',`default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' ${WEBSITE_FONT_STYLES_ORIGIN}; img-src 'self' data:; font-src 'self' data: ${WEBSITE_FONT_FILES_ORIGIN}; connect-src 'self'; object-src 'none'; base-uri 'self'; worker-src 'none'; form-action 'none'; frame-src 'none'; frame-ancestors ${preview?adminOrigin:"'none'"}; sandbox allow-scripts allow-same-origin`)
 }
 export function createWebsiteStaticServing({prisma,storage,isolation}) {
   async function serve(c,snapshot,path) {

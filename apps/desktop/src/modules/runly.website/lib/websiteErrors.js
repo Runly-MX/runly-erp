@@ -67,7 +67,7 @@ const MAP = {
   overlapping_archive_entries: { title: 'La estructura interna del ZIP no es válida', message: 'Vuelve a generar el archivo con una herramienta de compresión estándar.', tone: 'warning' },
   archive_timeout: { title: 'La validación tardó demasiado', message: 'Reduce el tamaño o la cantidad de archivos del ZIP y vuelve a intentarlo.', tone: 'warning' },
   reference_budget_exceeded: { title: 'No pudimos analizar el sitio', message: 'Los archivos del sitio superan el presupuesto de análisis. Reduce su tamaño o complejidad y vuelve a exportarlos.', tone: 'warning' },
-  external_artifact_dependency: { title: 'El sitio depende de archivos externos', message: 'Incluye los estilos, imágenes, fuentes y scripts dentro del ZIP y cambia sus referencias a rutas locales.', tone: 'warning' },
+  external_artifact_dependency: { title: 'El sitio depende de archivos externos no admitidos', message: 'Google Fonts está permitido desde sus dominios oficiales. Incluye los demás estilos, imágenes, fuentes y scripts dentro del ZIP y cambia sus referencias a rutas locales.', tone: 'warning' },
   missing_artifact_dependency: { title: 'Falta un archivo del sitio', message: 'El HTML, CSS o JavaScript referencia un archivo que no está en el ZIP. Inclúyelo o corrige su ruta.', tone: 'warning' },
   unsafe_artifact_reference: { title: 'Una referencia usa una ruta no permitida', message: 'Corrige las referencias de los archivos: usa rutas locales sin barras invertidas ni rutas codificadas.', tone: 'warning' },
   unsupported_artifact_base: { title: 'La base o redirección del sitio no es compatible', message: 'Exporta el sitio para publicarlo desde la raíz y elimina las redirecciones automáticas del HTML.', tone: 'warning' },

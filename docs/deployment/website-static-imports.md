@@ -34,6 +34,14 @@ los límites de tamaño, expansión, rutas, integridad y referencias del importa
 Los archivos se validan en privado, se prepara una versión y luego se activa.
 Los assets que cambian deben usar nombres nuevos para conservar los históricos.
 
+Se permite cargar Google Fonts por HTTPS: hojas de estilo de
+`fonts.googleapis.com/css` y `/css2`, y fuentes de `fonts.gstatic.com/s/`.
+Esto incluye los enlaces preconnect y preload correspondientes. El navegador
+carga esos recursos; el API no descarga URLs proporcionadas por el ZIP. Los
+scripts externos y los demás proveedores no están habilitados. Las fuentes
+remotas dependen del proveedor y no quedan fijadas dentro del release; para una
+demo sin dependencias externas, incluye los archivos de fuente en el ZIP.
+
 En **Plantilla HTML y CSS** se rechazan archivos JavaScript, WASM, documentos incrustados, eventos como
 `onclick`, enlaces ejecutables, SVG activo y otros tipos no permitidos. El HTML
 se analiza con un parser, incluidos templates y noscript; la validación tiene
