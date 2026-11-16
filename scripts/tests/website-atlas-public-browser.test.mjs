@@ -10,10 +10,10 @@ import {chromium} from 'playwright'
 import {sectionsToAtlasPage} from '../../packages/studio-interchange/src/website-document.js'
 import {buildWebsitePublicRuntime,buildWebsiteSsr} from '../build-website-public-runtime.mjs'
 
-test('published Atlas 0.6 renders responsive geometry in the real ERP public runtime and SSR',async()=>{
-  const output=resolve('.artifacts/atlas-0.6.0-public')
+test('published Atlas 0.8.1 renders responsive geometry in the real ERP public runtime and SSR',async()=>{
+  const output=resolve('.artifacts/website-public-runtime/atlas-review')
   const files=await buildWebsitePublicRuntime(output)
-  assert.equal(files['entry.js'].rendererVersion,'0.6.3')
+  assert.equal(files['entry.js'].rendererVersion,'0.8.1')
   await buildWebsiteSsr(output,files['entry.js'].hash)
   const {renderPage}=await import(pathToFileURL(resolve(output,'ssr.mjs')))
   const sharp=createRequire(new URL('../../packages/studio-interchange/package.json',import.meta.url))('sharp')
@@ -26,6 +26,11 @@ test('published Atlas 0.6 renders responsive geometry in the real ERP public run
     {type:'StoreNavbarBlock',props:{brand:'Marca de tienda',logoSrc:logo,logoHeight:'40',showBrandName:false,tagline:'Texto de tienda'}},
     {type:'FooterBlock',props:{brand:'Marca del pie',logoSrc:logo,logoHeight:'48',showBrandName:false,tagline:'Texto del pie'}},
     {type:'SiteFooterBlock',props:{brand:'Marca del sitio',logoSrc:logo,logoHeight:'40',tagline:'Texto del sitio'}},
+    {type:'AccordionBlock',props:{initialOpen:'none'},children:{children:[
+      {type:'AccordionItemBlock',props:{title:'Pregunta publicada'},children:{children:[
+        {type:'TextElementBlock',props:{text:'Respuesta publicada'}},
+      ]}},
+    ]}},
   ]})
   const snapshot={releaseId:'atlas-test',site:{id:'laboratory',company:'laboratory'},page:{publishedBuilderData:document},theme:null}
   const ssr=renderPage({page:snapshot.page,theme:null,config:{}})
@@ -65,9 +70,17 @@ test('published Atlas 0.6 renders responsive geometry in the real ERP public run
       assert.equal(await page.getByText('Marca del pie',{exact:true}).count(),0)
       assert.equal(await page.getByText('Texto del pie',{exact:true}).count(),1)
       assert.equal(await page.locator('.runly-foot .atlas-brand-name').textContent(),'Marca del sitio')
+      const question=page.getByRole('button',{name:'Pregunta publicada',exact:true})
+      assert.equal(await question.getAttribute('aria-expanded'),'false')
+      assert.equal(await page.getByText('Respuesta publicada',{exact:true}).isVisible(),false)
+      await question.click()
+      assert.equal(await question.getAttribute('aria-expanded'),'true')
+      assert.equal(await page.getByText('Respuesta publicada',{exact:true}).isVisible(),true)
+      await question.click()
+      assert.equal(await question.getAttribute('aria-expanded'),'false')
     }
     assert.deepEqual(errors,[])
     await mkdir(output,{recursive:true});await page.screenshot({path:resolve(output,'mobile.png')})
-    await writeFile(resolve(output,'result.json'),JSON.stringify({version:'0.6.3',widths:[1280,900,768,600,375],ssr:true,hydrationErrors:errors,brandIdentity:true,footer:true}))
+    await writeFile(resolve(output,'result.json'),JSON.stringify({version:'0.8.1',widths:[1280,900,768,600,375],ssr:true,hydrationErrors:errors,brandIdentity:true,footer:true,accordion:true}))
   }finally{await browser?.close();await new Promise(resolve=>server.close(resolve))}
 })
