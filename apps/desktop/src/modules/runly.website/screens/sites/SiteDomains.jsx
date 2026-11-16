@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Button, EmptyState, ErrorState, LoadingState, StatusPill } from '@runly/ui'
+import { Button, ConfirmDialog, EmptyState, ErrorState, LoadingState, StatusPill } from '@runly/ui'
 import { Ban, CheckCircle2, CircleSlash, Clock, Globe, Link2, Loader2, PauseCircle, RefreshCw, Search } from 'lucide-react'
 import { describeError } from '../../lib/websiteErrors.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
@@ -27,11 +27,13 @@ export default function SiteDomains({ siteId, caps }) {
   const domains = useDomains(siteId)
   const [serverError, setServerError] = useState(null)
   const [rowBusy, setRowBusy] = useState(null)
+  const [releasing, setReleasing] = useState(null)
 
   async function act(domain, action) {
     setRowBusy(domain.hostname); setServerError(null)
     try {
-      await (action === 'activate' ? api.activateHostname(siteId, domain.hostname) : action === 'release' ? api.releaseHostname(siteId, domain.hostname) : api.hostnameStatus(siteId, domain.hostname))
+      // Reclaim: a released local name stays bound to its site, and reserving its slug again re-enables it.
+      await (action === 'activate' ? api.activateHostname(siteId, domain.hostname) : action === 'release' ? api.releaseHostname(siteId, domain.hostname) : action === 'reclaim' ? api.reserveHostname(siteId, domain.hostname.split('.')[0]) : api.hostnameStatus(siteId, domain.hostname))
       await queryClient.invalidateQueries({ queryKey: websiteKeys.domains(companyId, siteId) })
     } catch (error) { setServerError(error) } finally { setRowBusy(null) }
   }
@@ -43,7 +45,7 @@ export default function SiteDomains({ siteId, caps }) {
     <div className="space-y-5 p-4 md:p-6">
       <SiteSectionHeader icon={Globe} tone="emerald" title="Dominios" description="La dirección con la que tus visitantes encuentran el sitio." />
 
-      <SitePanel id="addr-title" icon={Link2} tone="emerald" title="Dirección del sitio" description={list.length ? 'Copia la dirección o ábrela cuando esté activa.' : undefined}>
+      <SitePanel id="addr-title" icon={Link2} tone="emerald" title="Dirección del sitio" description={list.length ? 'Todas las direcciones activas muestran la misma versión publicada del sitio. Normalmente basta con una.' : undefined}>
         {domains.isPending && <LoadingState variant="page" />}
         {domains.isError && <ErrorState title={describeError(domains.error).title} description={describeError(domains.error).message} onRetry={() => domains.refetch()} />}
         {domains.isSuccess && list.length === 0 && (
@@ -63,6 +65,7 @@ export default function SiteDomains({ siteId, caps }) {
                       <div className="flex flex-wrap items-center gap-2">
                         <StatusPill tone={status.tone} size="sm" icon={rowIsBusy ? Loader2 : status.icon}>{status.label}</StatusPill>
                         {!domain.ready && domain.state === 'pending' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Tu dirección ya es tuya. Actívala cuando la infraestructura esté lista.</span>}
+                        {domain.state === 'quarantined' && <span className="text-xs text-[hsl(var(--muted-foreground))]">Ya no muestra el sitio. Sigue apartada para este sitio: nadie más puede usarla y puedes recuperarla cuando quieras.</span>}
                       </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -72,7 +75,8 @@ export default function SiteDomains({ siteId, caps }) {
                           <Button size="sm" variant="outline" className={TOUCH} onClick={() => act(domain, 'status')} disabled={rowIsBusy}><RefreshCw className="h-3.5 w-3.5" aria-hidden />Actualizar estado</Button>
                         </>
                       )}
-                      {!domain.registryManaged && <CapabilityButton capability={caps.reserveHostname} size="sm" variant="ghost" className={TOUCH} onClick={() => act(domain, 'release')} disabled={rowIsBusy}>Liberar</CapabilityButton>}
+                      {!domain.registryManaged && domain.state === 'quarantined' && <CapabilityButton capability={caps.reserveHostname} size="sm" variant="outline" className={TOUCH} onClick={() => act(domain, 'reclaim')} disabled={rowIsBusy}>Recuperar</CapabilityButton>}
+                      {!domain.registryManaged && !['quarantined', 'revoked'].includes(domain.state) && <CapabilityButton capability={caps.reserveHostname} size="sm" variant="ghost" className={TOUCH} onClick={() => setReleasing(domain)} disabled={rowIsBusy}>Liberar</CapabilityButton>}
                     </div>
                   </div>
                 </li>
@@ -88,6 +92,14 @@ export default function SiteDomains({ siteId, caps }) {
       {info && <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{info.title}. {info.message}</p>}
 
       <CustomDomainPanel siteId={siteId} caps={caps} />
+      <ConfirmDialog
+        open={Boolean(releasing)}
+        onOpenChange={(open) => { if (!open) setReleasing(null) }}
+        title="Liberar la dirección"
+        description={`${releasing?.hostname ?? ''} dejará de mostrar el sitio de inmediato. La dirección seguirá apartada para este sitio y podrás recuperarla.`}
+        confirmLabel="Liberar"
+        onConfirm={async () => { const domain = releasing; setReleasing(null); await act(domain, 'release') }}
+      />
     </div>
   )
 }
