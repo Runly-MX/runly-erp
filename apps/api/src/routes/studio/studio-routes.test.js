@@ -49,8 +49,16 @@ test('live change batches require studio.edit and reach the service with the des
 })
 test('obsolete writers get 426 before touching the document',async()=>{
   let called=0;const app=createStudioRouter({service:{applyChanges:async()=>{called++},update:async()=>{called++}},requirePermission:()=>async(_,next)=>next()})
-  for(const [path,method]of [['/studio/designs/test/changes','POST'],['/studio/designs/test','PUT']])assert.equal((await app.request(path,{method,body:'{}'})).status,426)
+  for(const [path,method]of [['/studio/designs/test/changes','POST'],['/studio/designs/test','PUT']])for(const headers of [{},{'X-Runly-Studio-Protocol':'2'},{'X-Runly-Studio-Protocol':'5'}])assert.equal((await app.request(path,{method,headers,body:'{}'})).status,426)
   assert.equal(called,0)
+})
+test('protocol 3 and 4 writers reach the service with their protocol for the per-document check',async()=>{
+  const seen=[];const app=createStudioRouter({service:{applyChanges:async(...args)=>{seen.push(['changes',args.at(-1)]);return {}},update:async(...args)=>{seen.push(['update',args.at(-1)]);return {}}},requirePermission:()=>async(_,next)=>next()})
+  for(const protocol of ['3','4']){
+    assert.equal((await app.request('/studio/designs/test/changes',{method:'POST',headers:{'X-Runly-Studio-Protocol':protocol},body:'{}'})).status,200)
+    assert.equal((await app.request('/studio/designs/test',{method:'PUT',headers:{'X-Runly-Studio-Protocol':protocol},body:'{}'})).status,200)
+  }
+  assert.deepEqual(seen,[['changes',3],['update',3],['changes',4],['update',4]])
 })
 test('print checks access and revision after expensive processing, including read-only viewers',async()=>{
   let revoked=false,revision=1,builds=0

@@ -2,6 +2,11 @@ import { StudioError, validateDocument } from '../../../../shared/studio/documen
 import { createStudioAccess } from './studio-access.js'
 import { applyOps, checkOps, diffOps } from '../../../../shared/studio/operations.js'
 import { createHash } from 'node:crypto'
+import { STUDIO_PROTOCOL_VERSION, clientCanWrite } from '../../../../shared/studio/protocol.js'
+
+// Writer protocol the SQL guard (require_document_protocol) checks for this API.
+const API_PROTOCOL = String(STUDIO_PROTOCOL_VERSION)
+const upgradeRequired = () => new StudioError('Este diseño usa funciones de una versión más nueva de Studio. Actualiza Studio para editarlo; tu borrador se conserva.', 426, 'STUDIO_UPGRADE_REQUIRED')
 
 export function createStudioService({ prisma, filesService, broadcaster }) {
   const access = createStudioAccess({ prisma, filesService })
@@ -66,14 +71,17 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     const row = transaction ? await work(transaction) : await prisma.$transaction(work)
     return { ...row, ownerId: actorId, role: 'OWNER', canEdit: true }
   }
-  async function update(companyId, actorId, id, input, fileContext) {
+  // protocol: the client's accepted header value; internal callers (MCP) write as the current protocol.
+  async function update(companyId, actorId, id, input, fileContext, protocol = STUDIO_PROTOCOL_VERSION) {
     access.identity(companyId, actorId)
     const name = title(input?.name), document = validateDocument(input?.document)
     if (!Number.isSafeInteger(input?.revision) || input.revision < 1) throw new StudioError('Falta la revisión del diseño.')
     const row = await prisma.$transaction(async db => {
       await access.lock(db, id); const current=await access.get(companyId, actorId, id, db, true)
+      // Checked after the row lock: a design that became v8 meanwhile is never written by a v7 client.
+      if(!clientCanWrite(protocol,current.document.schemaVersion,document.schemaVersion))throw upgradeRequired()
       if(current.document.schemaVersion>=6&&input.document.schemaVersion<current.document.schemaVersion)throw new StudioError('El cliente no admite la versión actual del documento. Actualiza antes de guardar.',409,'STUDIO_DOCUMENT_DOWNGRADE_DENIED')
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       const ids = await access.assets(db, companyId, actorId, document, id, fileContext)
       const [row] = await db.$queryRaw`UPDATE studio_design SET name=${name},document=${JSON.stringify(document)}::jsonb,
         revision=revision+1,updated_at=now() WHERE id=${id}::uuid AND company_id=${companyId}::uuid AND revision=${input.revision}
@@ -91,7 +99,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
   // session, sequenced by the row lock (no revision check, no conflicts). The
   // result is validated and authorized exactly like a whole-document update,
   // then broadcast so every open editor replays the same operations.
-  async function applyChanges(companyId, actorId, id, input, fileContext) {
+  async function applyChanges(companyId, actorId, id, input, fileContext, protocol = STUDIO_PROTOCOL_VERSION) {
     access.identity(companyId, actorId)
     batchIdentity(input)
     if(new TextEncoder().encode(JSON.stringify(input)).byteLength>4_100_000)throw new StudioError('Lote demasiado grande.',413)
@@ -101,7 +109,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
     const digest=createHash('sha256').update(JSON.stringify({ops,name})).digest('hex')
     const row = await prisma.$transaction(async db => {
       await access.lock(db, id)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       const current = await access.get(companyId, actorId, id, db, true)
       // The design lock serializes identical concurrent requests. Receipts are
       // durable audit records, scoped to the authenticated actor, never clientId alone.
@@ -112,6 +120,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       }
       let document
       try { document = validateDocument(applyOps(validateDocument(current.document), ops)) } catch (error) { throw error instanceof StudioError ? error : new StudioError(error.message) }
+      if(!clientCanWrite(protocol,current.document.schemaVersion,document.schemaVersion))throw upgradeRequired()
       const ids = await access.assets(db, companyId, actorId, document, id, fileContext)
       const effective=diffOps(validateDocument(current.document),document)
       const [row] = await db.$queryRaw`UPDATE studio_design SET name=COALESCE(${name},name),document=${JSON.stringify(document)}::jsonb,
@@ -135,7 +144,7 @@ export function createStudioService({ prisma, filesService, broadcaster }) {
       const current = await access.get(companyId, actorId, id, db, true)
       if (current.ownerId !== actorId) throw new StudioError('Solo el propietario puede eliminar este diseño.', 403)
       if (current.revision !== input.revision) throw new StudioError('El diseño cambió. Actualiza la lista antes de eliminarlo.', 409, 'STUDIO_REVISION_CONFLICT')
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       const [row] = await db.$queryRaw`UPDATE studio_design SET enabled=false,revision=revision+1,updated_at=now()
         WHERE id=${id}::uuid AND company_id=${companyId}::uuid AND owner_id=${actorId}::uuid AND enabled AND revision=${input.revision}
         RETURNING id,name,revision,enabled,updated_at AS "updatedAt"`

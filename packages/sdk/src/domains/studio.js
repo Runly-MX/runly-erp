@@ -1,6 +1,6 @@
 export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const path = id => `/studio/designs/${encodeURIComponent(id)}`
-  const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'3'})}, onlineOnly: true,
+  const options = (token, method = 'GET', data) => ({ method, headers: {...withAuthHeaders(token),...(method==='GET'?{}:{'X-Runly-Studio-Protocol':'4'})}, onlineOnly: true,
     ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
   const interchange = '/studio/interchange'
   const catalogRequest = async (url, config, blob = false) => {

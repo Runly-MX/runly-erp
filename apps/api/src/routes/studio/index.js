@@ -11,7 +11,8 @@ import { createStudioCollectionsService } from './studio-collections-service.js'
 import { createStudioCatalog } from './catalog/service.js'
 import { createStudioImageCopies } from './studio-image-copies.js'
 import { buildPrintPdf } from './studio-print.js'
-import {STUDIO_PROTOCOL_VERSION,STUDIO_PROTOCOL_HEADER} from '../../../../shared/studio/protocol.js'
+import {STUDIO_PROTOCOL_VERSION,STUDIO_PROTOCOL_HEADER,clientProtocol} from '../../../../shared/studio/protocol.js'
+import {STUDIO_SCHEMA_VERSION} from '../../../../shared/studio/document.js'
 import {studioAssetIds} from './studio-document-data.js'
 import {checkAbort} from '../../../../shared/studio/abort.js'
 import {createStudioPrintJobs} from './studio-print-jobs.js'
@@ -85,9 +86,9 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
   app.get('/studio/favorites', requirePermission('studio.view'), async c => { c.header('Cache-Control', 'private, no-store'); return c.json({ data: await collections.favorites(...context(c)) }) })
   app.put('/studio/favorites', requirePermission('studio.view'), async c => c.json({ data: await collections.favorite(...context(c), await body(c)) }))
   app.delete('/studio/favorites', requirePermission('studio.view'), async c => c.json({ data: await collections.unfavorite(...context(c), await body(c)) }))
-  app.get('/studio/protocol',requirePermission('studio.view'),async c=>{await service.access.member(...context(c));c.header('Cache-Control','no-store');return c.json({data:{version:STUDIO_PROTOCOL_VERSION,schemaVersion:7}})})
-  app.use('/studio/designs/:id',async(c,next)=>{if(c.req.method==='PUT'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
-  app.use('/studio/designs/:id/changes',async(c,next)=>{if(c.req.method==='POST'&&c.req.header(STUDIO_PROTOCOL_HEADER)!==String(STUDIO_PROTOCOL_VERSION))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
+  app.get('/studio/protocol',requirePermission('studio.view'),async c=>{await service.access.member(...context(c));c.header('Cache-Control','no-store');return c.json({data:{version:STUDIO_PROTOCOL_VERSION,schemaVersion:STUDIO_SCHEMA_VERSION}})})
+  app.use('/studio/designs/:id',async(c,next)=>{if(c.req.method==='PUT'&&!clientProtocol(c.req.header(STUDIO_PROTOCOL_HEADER)))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
+  app.use('/studio/designs/:id/changes',async(c,next)=>{if(c.req.method==='POST'&&!clientProtocol(c.req.header(STUDIO_PROTOCOL_HEADER)))throw new StudioError('Actualiza Studio antes de guardar. El borrador se conserva.',426,'STUDIO_UPGRADE_REQUIRED');await next()})
   app.post('/studio/designs/:id/assets/:fileId/edited-copy',requirePermission('studio.edit'),async c => {
     const body = await c.req.parseBody()
     return c.json({data:await imageCopies.create(...context(c),c.req.param('id'),c.req.param('fileId'),body.file,fileContext(c))},201)
@@ -155,7 +156,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return c.json({data:{revision:record.revision,canEdit:record.canEdit,document:pageDocument(record.document,c.req.param('pageId'))}})
   })
   app.post('/studio/designs', requirePermission('studio.create'), async c => c.json({ data: await service.create(...context(c), await c.req.json(), fileContext(c)) }, 201))
-  app.put('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.update(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
+  app.put('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.update(...context(c), c.req.param('id'), await c.req.json(), fileContext(c), clientProtocol(c.req.header(STUDIO_PROTOCOL_HEADER))) }))
   app.delete('/studio/designs/:id', requirePermission('studio.edit'), async c => c.json({ data: await service.remove(...context(c), c.req.param('id'), await c.req.json()) }))
   // Real-time collaboration: a batch of object operations from an editor session.
   // Print PDF (RGB or CMYK, bleed, crop marks) from the editor's high-resolution render.
@@ -206,7 +207,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     c.header('Cache-Control', 'private, no-store'); c.header('Content-Type', 'application/pdf')
     return c.body(pdf)
   })
-  app.post('/studio/designs/:id/changes', requirePermission('studio.edit'), async c => c.json({ data: await service.applyChanges(...context(c), c.req.param('id'), await c.req.json(), fileContext(c)) }))
+  app.post('/studio/designs/:id/changes', requirePermission('studio.edit'), async c => c.json({ data: await service.applyChanges(...context(c), c.req.param('id'), await c.req.json(), fileContext(c), clientProtocol(c.req.header(STUDIO_PROTOCOL_HEADER))) }))
   app.get('/studio/designs/:id/changes', requirePermission('studio.view'), async c => c.json({data:await service.changeReceipt(...context(c),c.req.param('id'),{clientId:c.req.query('clientId'),batchId:Number(c.req.query('batchId'))})}))
   app.get('/studio/designs/:id/collaborators', requirePermission('studio.view'), async c => c.json({ data: await collaboration.collaborators(...context(c), c.req.param('id')) }))
   app.get('/studio/designs/:id/candidates', requirePermission('studio.edit'), async c => c.json({ data: await collaboration.candidates(...context(c), c.req.param('id'), c.req.query('q')) }))

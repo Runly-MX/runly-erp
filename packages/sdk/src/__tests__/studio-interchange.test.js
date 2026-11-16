@@ -21,7 +21,7 @@ test('portable Studio pipeline preserves multipart, protocol, auth, company and 
     assert.equal(options.headers.Authorization, 'Bearer token')
     assert.equal(options.headers['X-Runly-Company-Id'], 'company')
     assert.equal(options.signal, signal)
-    if (options.method !== 'GET') assert.equal(options.headers['X-Runly-Studio-Protocol'], '3')
+    if (options.method !== 'GET') assert.equal(options.headers['X-Runly-Studio-Protocol'], '4')
   }
   assert.equal(calls[2].options.body.get('file').type, 'application/vnd.runly.studio+zip')
   assert.deepEqual(JSON.parse(calls[2].options.body.get('options')), { target: 'personal', name: 'Portable' })

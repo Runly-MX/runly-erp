@@ -131,12 +131,28 @@ test('Studio service against disposable PostgreSQL: isolation, atomic revisions,
       await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261207000000_studio_protocol_guard/migration.sql',import.meta.url),'utf8'))
       await pool.query('CREATE TABLE studio_template(id uuid PRIMARY KEY,document jsonb,name text,revision integer); CREATE TABLE studio_presence(id uuid)')
       await pool.query(await readFile(new URL('../../../../../prisma/migrations/20261208000000_studio_multipage_protocol/migration.sql',import.meta.url),'utf8'))
+      await pool.query(await readFile(new URL('../../../../../prisma/migrations/20270107000000_studio_v8_protocol/migration.sql',import.meta.url),'utf8'))
       const design=await service.create(company,owner,{name:'Protocol guard',document})
       await assert.rejects(pool.query('UPDATE studio_design SET name=$1 WHERE id=$2',['old writer',design.id]),/STUDIO_UPGRADE_REQUIRED/)
       await assert.rejects(service.update(company,owner,design.id,{name:design.name,revision:1,document:{...document,schemaVersion:5}}),{code:'STUDIO_DOCUMENT_DOWNGRADE_DENIED'})
       await service.update(company,owner,design.id,{name:'Current writer',revision:1,document})
       await assert.rejects(pool.query('UPDATE studio_design SET name=$1 WHERE id=$2',['context must not leak',design.id]),/STUDIO_UPGRADE_REQUIRED/)
       assert.equal((await service.get(company,owner,design.id)).revision,2)
+    })
+    await t.test('protocol 3 clients keep writing v7 designs but never a design that is or becomes v8',async()=>{
+      const design=await service.create(company,owner,{name:'v8 race',document})
+      const slide={type:'patchPage',pageId:'page-1',set:{slide:{duration:3000}}}
+      await service.applyChanges(company,owner,design.id,{clientId:'old-client',batchId:1,ops:[{type:'patchPage',pageId:'page-1',set:{background:'#eeeeee'}}]},undefined,3)
+      await assert.rejects(service.applyChanges(company,owner,design.id,{clientId:'old-client',batchId:2,ops:[slide]},undefined,3),{status:426,code:'STUDIO_UPGRADE_REQUIRED'})
+      await service.applyChanges(company,owner,design.id,{clientId:'new-client',batchId:1,ops:[slide]},undefined,4)
+      const v8=await service.get(company,owner,design.id)
+      assert.equal(v8.document.schemaVersion,8);assert.equal(v8.document.page.slide.duration,3000)
+      await assert.rejects(service.applyChanges(company,owner,design.id,{clientId:'old-client',batchId:3,ops:[{type:'patchPage',pageId:'page-1',set:{background:'#ffffff'}}]},undefined,3),{status:426})
+      const {slide:_,...page}=v8.document.page
+      await assert.rejects(service.update(company,owner,design.id,{name:v8.name,revision:v8.revision,document:{...v8.document,schemaVersion:7,page}},undefined,3),{status:426})
+      await assert.rejects(service.update(company,owner,design.id,{name:v8.name,revision:v8.revision,document:{...v8.document,schemaVersion:7,page}},undefined,4),{code:'STUDIO_DOCUMENT_DOWNGRADE_DENIED'})
+      const after=await service.get(company,owner,design.id)
+      assert.equal(after.revision,v8.revision);assert.equal(after.document.page.slide.duration,3000)
     })
     await t.test('audit failure rolls back the mutation', async () => {
       await pool.query("ALTER TABLE audit_log ADD CONSTRAINT reject_updates CHECK(action <> 'studio.design.update') NOT VALID")

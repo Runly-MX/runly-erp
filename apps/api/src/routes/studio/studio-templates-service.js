@@ -2,6 +2,9 @@ import { signedUrlWithVariant } from '../../lib/image-variants.js'
 import { FILE_ID, StudioError, validateDocument } from '../../../../shared/studio/document.js'
 import { STUDIO_TEMPLATES, templateDocument } from '../../../../shared/studio/templates.js'
 import { createStudioAccess } from './studio-access.js'
+import { STUDIO_PROTOCOL_VERSION } from '../../../../shared/studio/protocol.js'
+
+const API_PROTOCOL = String(STUDIO_PROTOCOL_VERSION)
 import { studioAssetIds, studioSummary } from './studio-document-data.js'
 
 export function createStudioTemplatesService({ prisma, filesService, designService, supabaseAdmin }) {
@@ -183,7 +186,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     const work = async db => {
       await access.lock(db)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       if (operation !== 'create') { if (!FILE_ID.test(input.id)) missing(); await row(db,companyId,actorId,input.id,true) }
       const prepared = await prepare(companyId,actorId,operation,input,db,fileContext)
       const { name,category,description,scope,document,sourceDesignId } = prepared
@@ -208,7 +211,7 @@ export function createStudioTemplatesService({ prisma, filesService, designServi
     access.identity(companyId,actorId)
     return prisma.$transaction(async db => {
       await access.lock(db)
-      await db.$queryRaw`SELECT set_config('runly.studio.protocol','3',true)`
+      await db.$queryRaw`SELECT set_config('runly.studio.protocol',${API_PROTOCOL},true)`
       await access.member(companyId,actorId,'studio.create',db)
       const template = await get(companyId,actorId,id,db)
       const designName=name === undefined ? template.name : text(name,160,true)

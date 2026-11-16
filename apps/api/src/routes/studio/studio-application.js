@@ -2,6 +2,8 @@ import { DEFAULT_GRADIENT } from '../../../../shared/studio/gradient.js'
 import { LINE_CAPS } from '../../../../shared/studio/shape-properties.js'
 import { blankDocument, appendObject, STUDIO_LIMITS, STUDIO_SCHEMA_VERSION, validateDocument, StudioError } from '../../../../shared/studio/document.js'
 import { STUDIO_FONTS, STUDIO_FONT_VARIANTS, studioFontStyle } from '../../../../shared/studio/fonts.js'
+import { STUDIO_PROTOCOL_VERSION } from '../../../../shared/studio/protocol.js'
+import { SLIDE_LIMITS, MOTION_LIMITS, SLIDE_TRANSITIONS, ENTER_EXIT_PRESETS, EMPHASIS_PRESETS, EASINGS, KEYFRAME_PROPERTIES } from '../../../../shared/studio/motion.js'
 import { createStudioService } from './studio-service.js'
 import { createStudioTemplatesService } from './studio-templates-service.js'
 import { createStudioCatalog } from './catalog/service.js'
@@ -21,7 +23,10 @@ export function createStudioApplication({ prisma, supabaseAdmin, filesService = 
   const resources=createStudioResources({access:designs.access,filesService,supabaseAdmin})
   async function guide(a) {
     await designs.access.member(a.companyId,a.actorProfileId)
-    return {schemaVersion:STUDIO_SCHEMA_VERSION,protocolVersion:3,limits:STUDIO_LIMITS,unit:'px',
+    return {schemaVersion:STUDIO_SCHEMA_VERSION,protocolVersion:STUDIO_PROTOCOL_VERSION,limits:STUDIO_LIMITS,unit:'px',
+      versioning:'Documentos sin slide ni animaciones se guardan como v7; al usar cualquiera pasan a v8 y no vuelven a v7.',
+      slideContract:{field:'page.slide',duration:`${SLIDE_LIMITS.minDuration}–${SLIDE_LIMITS.maxDuration} ms enteros (por defecto ${SLIDE_LIMITS.defaultDuration})`,transition:{type:SLIDE_TRANSITIONS,duration:`0–${SLIDE_LIMITS.maxTransition} ms`,easing:EASINGS}},
+      motionContract:{fields:['enter','exit','emphasis','keyframes'],enter:{preset:ENTER_EXIT_PRESETS,duration:`0–${MOTION_LIMITS.maxEffectDuration} ms`,delay:`0–${MOTION_LIMITS.maxDelay} ms desde el inicio de la diapositiva`,easing:EASINGS},exit:'igual que enter',emphasis:{preset:EMPHASIS_PRESETS,repeat:`1–${MOTION_LIMITS.repeat}`},keyframes:{entries:`2–${MOTION_LIMITS.keyframes}, at estrictamente creciente en ms`,properties:Object.keys(KEYFRAME_PROPERTIES)},limits:{effects:MOTION_LIMITS.effects,totalKeyframes:MOTION_LIMITS.totalKeyframes},note:'La interfaz aún no edita animaciones; se conservan y la presentación todavía no las reproduce.'},
       pagesContract:{cover:'page + objects',additionalPages:'ordered array of {page:{id,width,height,background,name?,backgroundPaint?},objects:[]}',identity:'stable page.id; object IDs unique across document',operations:['addPage','duplicatePage','removePage','pageOrder','patchPage','transferObjects'],scope:'pageId on all graphic operations; legacy unscoped operations target page-1',lastPage:'cannot remove last remaining page'},
       shapeContract:{fill:'six-digit hex fallback',fillPaint:{gradient:DEFAULT_GRADIENT,solid:{type:'solid',color:'#2563eb'},image:{type:'image',fileAssetId:'UUID autorizado de Files',image:{fit:'cover',zoom:1,offsetX:0,offsetY:0,rotation:0,flipX:false,flipY:false}}},shape:{fillEnabled:true,strokeWidth:0,strokeColor:'#000000',dash:'solid',strokeAlign:'center',radius:0},photoGeometry:'rectangle, ellipse or a single closed filled monochrome vector path without stroke'},
       lineCaps:LINE_CAPS,
