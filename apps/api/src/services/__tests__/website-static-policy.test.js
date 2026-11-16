@@ -89,9 +89,12 @@ test('only validated policy versions may use the configured brand namespace',()=
     assert.equal(isStaticWebsiteContent(candidate),false)
     assert.throws(()=>isolation.publicHost('tenant.sites.runly.test',candidate),e=>e.code==='isolation_required')
   }
-  for(const host of ['erp.runly.test','sites.runly.test','tenant.sites.runly.test.example.com','unrelated.example.com']) {
+  for(const host of ['erp.runly.test','sites.runly.test','other.runly.test','runly.mx','tenant.runly.mx']) {
     assert.throws(()=>isolation.publicHost(host,manifest),e=>e.code==='isolation_required')
   }
+  // DNS-verified customer domains are their own registrable domain, apart from the ERP.
+  for(const host of ['villa.example.com','tenant.sites.runly.test.example.com']) assert.equal(isolation.publicHost(host,manifest),host)
+  assert.throws(()=>createWebsiteContentIsolation({adminOrigin:'http://erp.runly.test',namespaceRoot:'sites.runly.test',previewProtocol:'http:'}).publicHost('villa.example.com',manifest),e=>e.code==='isolation_required','custom domains need HTTPS')
   for(const namespaceRoot of ['erp.runly.test','runly.test']) {
     assert.throws(()=>createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',namespaceRoot}).assertStaticRoot())
   }

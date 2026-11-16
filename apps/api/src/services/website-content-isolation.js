@@ -27,9 +27,12 @@ export function createWebsiteContentIsolation({adminOrigin,namespaceRoot,content
       const root=staticRoot()
       if(h!==new URL(adminOrigin).hostname&&h.endsWith('.'+root))return h
     }
-    const root=independent(contentRoot)
-    if(h===root||!h.endsWith('.'+root))throw fail()
-    return h
+    const under=(root)=>{if(!root)return false;const r=strictWebsiteHostname(root);return h===r||h.endsWith('.'+r)}
+    if(contentRoot&&h!==strictWebsiteHostname(contentRoot)&&under(contentRoot)){independent(contentRoot);return h}
+    // A customer-owned hostname (DNS-verified) is its own registrable domain, apart from the ERP: that is the
+    // isolation this check exists for. Platform names, the content/preview roots and the ERP's domain never qualify.
+    if(under(namespaceRoot)||under(contentRoot)||under(previewRoot))throw fail()
+    return independent(h)
   }
   function previewHost(label) {return `${label}.${independent(previewRoot)}`}
   function previewOrigin(host) {return `${previewProtocol}//${host}${previewPort?':'+previewPort:''}`}
