@@ -42,7 +42,38 @@ Requests for a custom host must reach the **same upstream that serves your platf
 with the original `Host` header preserved. The gateway resolves the site from `Host`; it refuses
 the ERP's own hosts and anything that is not a verified, assigned domain. Pick one recipe.
 
-### A. nginx + Certbot (one host at a time)
+### Automatic (recommended): `website-domains.mjs` on a server with nginx + Certbot
+
+The installer ships `website-domains.mjs` next to `update-local.sh` / `update-external.sh`. It edits
+the **server's** nginx (`/etc/nginx/conf.d`), never the web container's. Requirements on the server:
+`nginx`, `certbot` and the running Runly containers. Run it as root from the installer directory:
+
+```bash
+sudo node website-domains.mjs setup
+```
+
+Once per instance it:
+
+- writes `00-runly-acme.conf`: port 80 `default_server` that serves Let's Encrypt challenges from
+  `/var/www/runly-acme` and redirects everything else to HTTPS. Ubuntu's stock site (the
+  "Welcome to nginx!" page) is disabled, with a copy in `/etc/nginx/runly-backup/`;
+- writes the `*.<RUNLY_WEBSITE_NAMESPACE_ROOT>` block when its wildcard certificate exists in
+  `/etc/letsencrypt/live/<root>/` (or `--sites-cert=<dir>`) and no nginx file serves it yet. The wildcard
+  certificate itself needs a DNS-01 challenge and is not issued by the script;
+- installs `runly-website-domains-<prefix>.timer`, which runs `sync` every 5 minutes.
+
+`sync` asks the API container which customer domains are verified (read-only
+`apps/api/scripts/website-tls-domains.mjs`, hostnames only), requests a certificate with HTTP-01 for
+each new one, writes `runly-site-<prefix>--<host>.conf`, and removes the blocks of released domains
+(certificates are kept). Hostnames are validated before they reach any file or command, a failed
+certificate is retried after an hour (Let's Encrypt limits failed validations), and every change is
+rolled back if `nginx -t` rejects it. `sudo node website-domains.mjs status` lists each domain with its
+certificate and nginx state. Several instances on one server keep separate files and timers.
+
+Optional variables in the instance `.env`: `RUNLY_WEBSITE_TLS_EMAIL` (Let's Encrypt notices) and
+`RUNLY_WEBSITE_TLS_UPSTREAM` (default `http://127.0.0.1:<RUNLY_WEB_HOST_PORT>`, the web container).
+
+### A. nginx + Certbot by hand (one host at a time)
 
 Copy your existing server block for `*.sites.<zone>`, change the name and certificate paths:
 

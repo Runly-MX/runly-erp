@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.15.3",
+  "version": "2026.11.16.1",
   "modes": {
     "local": [
       ".env.local.example",
@@ -44,7 +44,9 @@
       "supabase/volumes/db/webhooks.sql",
       "update-external.sh",
       "update-installer.mjs",
-      "update-local.sh"
+      "update-local.sh",
+      "website-domains.mjs",
+      "lib/website-domains-nginx.mjs"
     ],
     "external": [
       ".env.external.example",
@@ -78,7 +80,9 @@
       "supabase/volumes/db/studio-realtime-role.sql",
       "update-external.sh",
       "update-installer.mjs",
-      "update-local.sh"
+      "update-local.sh",
+      "website-domains.mjs",
+      "lib/website-domains-nginx.mjs"
     ]
   }
 }

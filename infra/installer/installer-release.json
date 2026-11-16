@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.15.3",
+  "version": "2026.11.16.1",
   "files": {
     ".env.local.example": {
-      "sha256": "d2379c62b06eb69d339543bfd060853ba6f1494f68100e930228be8b14949437",
+      "sha256": "f050147cdb1aac3d1d0b9c893dcd967a9fc1edf325208b7168f3266b821cf5e3",
       "modes": [
         "local"
       ],
@@ -42,6 +42,7 @@
         "c42e81f190179077febf4c29068da9787f1b73c7",
         "c7c61284d07fd6f1e8ff31fb3ef81d910786016b",
         "dc66cac9681924163939de25ff198e70463822f7",
+        "e01c040c73786927ad5141fe2bc4a90f5ee6780b",
         "e4dda466897ec796fbe6212bc649ad9bb7cbfd1a",
         "e7d2040adc15fe46ebebeb936e744091f1edf382",
         "f4bb2fdbcfdbd6a616082e193c9384296ee3151b",
@@ -607,8 +608,24 @@
         "b9ab1545dba416da060827ffaa802c5dd7f1a464"
       ]
     },
+    "website-domains.mjs": {
+      "sha256": "599918929027341d740d5cc22b8f2ecf54e3a0b3e1f082c4be85bdd1d636b0c0",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
+    "lib/website-domains-nginx.mjs": {
+      "sha256": "94c539fe7f6bf1a7824d2e497dfb83f0f0898912738b535fd691ad24329e7488",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
     ".env.external.example": {
-      "sha256": "41983bcede8214ffbad58dea38b62fdedfc47d8ab6db0fad4ad4b64f75fea3b6",
+      "sha256": "967eb0a0680084310efed64db2fd6817ebc0bc5aba00d27bc740eaa3e01170cb",
       "modes": [
         "external"
       ],
@@ -618,6 +635,7 @@
         "0a6ab0d75f96f65387dddfccfa1e1da9369477c5",
         "0bb0fbfa37a8c74530535519e575a2775f02650c",
         "10c707ce80f3e4d55cb668cf49ae9ea267b0fc40",
+        "135f62dad243e239a471145adcea7a3889cb01ce",
         "14a6db7aa13dd497af660e47064e654e9f7a519b",
         "17eb0b5c66d4eb2045f0bc4b1e4c29b922fae0aa",
         "23a734452070feb38bb163e8d65980024e2a65ea",
