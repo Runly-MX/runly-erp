@@ -24,7 +24,7 @@ import { describeError, describeFailure, describeCode } from '../lib/websiteErro
 import { editorPath,sitePath } from '../lib/pageRoute.js'
 import { useBlogPosts, useDomains, useWebsiteCapabilities, useWebsiteScope, websiteKeys } from '../hooks/useWebsite.js'
 import { ErrorNotice } from './ErrorNotice.jsx'
-import { HostnamePicker } from './HostnamePicker.jsx'
+import { AddressRequirement } from './AddressRequirement.jsx'
 import { ROW_CARD, SiteIconChip, SitePanel } from './SitePanel.jsx'
 
 const POLL_MS = 1500
@@ -344,13 +344,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
               </div>
               {readyDomain
                 ? <a className="flex items-center gap-2 rounded-xl bg-[hsl(var(--card))] p-3 text-sm font-medium hover:underline" href={`https://${readyDomain.hostname}`} target="_blank" rel="noreferrer"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> {readyDomain.hostname} <ExternalLink className="ml-auto h-3.5 w-3.5 text-[hsl(var(--muted-foreground))]" aria-hidden /></a>
-                : domains.isSuccess && (
-                  <div className="space-y-3 rounded-xl bg-[hsl(var(--card))] p-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> Elige la dirección de tu sitio</p>
-                    <p className="text-sm text-[hsl(var(--muted-foreground))]">Todavía no tiene una dirección pública. Escribe un nombre; comprobamos al momento si está libre.</p>
-                    <HostnamePicker siteId={site.id} caps={caps} />
-                  </div>
-                )}
+                : <AddressRequirement siteId={site.id} caps={caps} domains={domains} onNavigate={() => onOpenChange(false)} />}
             </div>
           )}
         </div>

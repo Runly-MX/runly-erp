@@ -124,13 +124,26 @@ export function useCustomDomains(siteId) {
   })
 }
 
+// A platform address that is reserved/activated but whose infrastructure is not ready yet.
+export const isDomainPreparing = (domain) => !domain.ready && domain.kind !== 'custom' && ['pending', 'reserved', 'assigned'].includes(domain.state)
+const DOMAIN_POLL_MS = 5_000
+const DOMAIN_POLL_MAX = 120 // ~10 minutes, then the user refreshes manually
+
 export function useDomains(siteId) {
   const { api, companyId, ready } = useWebsiteScope()
   return useQuery({
     queryKey: websiteKeys.domains(companyId, siteId),
-    queryFn: async ({ signal }) => (await api.listDomains(siteId, { signal })).data ?? [],
+    queryFn: async ({ signal }) => {
+      const list = (await api.listDomains(siteId, { signal })).data ?? []
+      // The list is the local mirror; the status call syncs registry-managed names that are still preparing.
+      return Promise.all(list.map(async (domain) => {
+        if (!domain.registryManaged || domain.state !== 'assigned' || domain.ready) return domain
+        try { return { ...domain, ...(await api.hostnameStatus(siteId, domain.hostname)).data } } catch { return domain }
+      }))
+    },
     enabled: ready && Boolean(siteId),
     staleTime: 15_000,
+    refetchInterval: (query) => (query.state.data ?? []).some(isDomainPreparing) && query.state.dataUpdateCount < DOMAIN_POLL_MAX ? DOMAIN_POLL_MS : false,
   })
 }
 

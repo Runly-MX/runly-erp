@@ -8,7 +8,7 @@ import { describeError } from '../../lib/websiteErrors.js'
 import { useDomains, useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
-import { HostnamePicker } from '../../components/HostnamePicker.jsx'
+import { AddressRequirement } from '../../components/AddressRequirement.jsx'
 import { PreviewDialog } from '../../components/PreviewDialog.jsx'
 import { SiteSectionHeader } from '../../components/SiteSectionHeader.jsx'
 import { SiteIconChip, SitePanel } from '../../components/SitePanel.jsx'
@@ -158,7 +158,8 @@ export default function SiteImport({ site, siteId, caps }) {
       <SiteSectionHeader icon={UploadCloud} tone="blue" title="Importar un sitio (ZIP)" description="Sube un sitio estático ya compilado. No se instala ni se ejecuta código del servidor." />
       <Stepper phase={phase} />
 
-      <ErrorNotice error={visibleError} onDismiss={() => { setError(null); if (phase === 'rejected') setPhase('idle') }} />
+      <AddressRequirement siteId={siteId} caps={caps} domains={domains} required />
+      <ErrorNotice error={visibleError?.code === 'isolation_required' && needsAddress ? null : visibleError} onDismiss={() => { setError(null); if (phase === 'rejected') setPhase('idle') }} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         {['idle', 'uploading', 'validating', 'rejected'].includes(phase) && (
@@ -214,13 +215,7 @@ export default function SiteImport({ site, siteId, caps }) {
               {phase === 'done' && <p className="flex items-center gap-2 rounded-xl bg-emerald-500/10 p-3 text-sm text-emerald-800 dark:text-emerald-300"><CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />La versión está activa. Revisa Publicaciones para ver el historial.</p>}
               {phase === 'done' && readyDomain && <a className="flex items-center gap-2 rounded-xl bg-[hsl(var(--muted))]/50 p-3 text-sm font-medium hover:underline" href={`https://${readyDomain.hostname}`} target="_blank" rel="noreferrer"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> {readyDomain.hostname} <ExternalLink className="ml-auto h-3.5 w-3.5" aria-hidden /></a>}
             </div>
-            {phase === 'prepared' && needsAddress && (
-              <div className="mt-4 space-y-3 border-t border-[hsl(var(--border))] pt-4">
-                <p className="flex items-center gap-2 text-sm font-semibold"><Globe className="h-4 w-4 text-emerald-600" aria-hidden /> Elige la dirección del sitio para poder activarlo</p>
-                <p className="text-sm text-[hsl(var(--muted-foreground))]">Un sitio importado desde ZIP se publica en su propia dirección. Escribe un nombre; comprobamos al momento si está libre.</p>
-                <HostnamePicker siteId={siteId} caps={caps} onReserved={(domain) => { setError(null); if (domain?.ready) setActivateOpen(true) }} />
-              </div>
-            )}
+            {phase === 'prepared' && needsAddress && <p className="mt-3 text-xs text-[hsl(var(--muted-foreground))]">“Activar versión” se habilita cuando la dirección del sitio esté lista (ver el aviso de arriba).</p>}
           </SitePanel>
         )}
 
