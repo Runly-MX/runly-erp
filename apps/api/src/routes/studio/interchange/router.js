@@ -3,6 +3,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { z } from 'zod'
 import { tenantActiveContext } from '../../../lib/active-context.js'
 import { StudioError } from '../../../../../shared/studio/document.js'
+import { STUDIO_PROTOCOL_HEADER, clientProtocol } from '../../../../../shared/studio/protocol.js'
 import { createStudioInterchange } from './service.js'
 import { PACKAGE_LIMITS, PACKAGE_MIME } from './zip.js'
 import { manifestSchema } from './package.js'
@@ -29,7 +30,8 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
   })
   app.use(`${prefix}/*`, bodyLimit({ maxSize: PACKAGE_LIMITS.compressed + 65536, onError: c => c.json({ error: 'El paquete supera 64 MiB.' }, 413) }))
   app.use(`${prefix}/*`, async (c, next) => {
-    if (c.req.method === 'POST' && c.req.header('X-Runly-Studio-Protocol') !== '3') throw new StudioError('Actualiza el cliente de Studio.', 426)
+    // Packages carry v7 documents: protocol 3 and 4 clients may import and export them.
+    if (c.req.method === 'POST' && !clientProtocol(c.req.header(STUDIO_PROTOCOL_HEADER))) throw new StudioError('Actualiza el cliente de Studio.', 426)
     await next()
   })
   async function upload(c) {

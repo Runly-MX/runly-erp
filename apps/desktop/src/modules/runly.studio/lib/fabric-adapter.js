@@ -160,8 +160,9 @@ export async function createStudioEditor(element, options) {
     transferObjects(pageId, targetPageId, ids, {copy = false, copyId} = {}) {
       return methods.applyPageOperations([{type: 'transferObjects', pageId, targetPageId, ids, copy, ...(copy ? {copyId} : {})}])
     },
-    undo() { writable(); return enqueue(async () => { writable(); const next = history.peek('undo'); if (next) { await show(next, {remote: true, track: false}); history.move('undo'); notifyHistory({}) } }) },
-    redo() { writable(); return enqueue(async () => { writable(); const next = history.peek('redo'); if (next) { await show(next, {remote: true, track: false}); history.move('redo'); notifyHistory({}) } }) },
+    // Undo/redo results are local changes (synced to the server) that history does not record again.
+    undo() { writable(); return enqueue(async () => { writable(); const next = history.peek('undo'); if (next) { await show(next, {track: false}); history.move('undo'); notifyHistory({}) } }) },
+    redo() { writable(); return enqueue(async () => { writable(); const next = history.peek('redo'); if (next) { await show(next, {track: false}); history.move('redo'); notifyHistory({}) } }) },
     setViewport(viewport) { viewports.set(active, viewport); return inner.setViewport(viewport) },
     setReadOnly(value) { protectedMode = value; inner.setReadOnly(value) },
     async flush() { await queue; await inner.flush() },

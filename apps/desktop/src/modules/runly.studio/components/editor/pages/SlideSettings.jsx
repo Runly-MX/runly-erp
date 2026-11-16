@@ -39,8 +39,7 @@ export function SlideSettings({ page, pageCount = 1, disabled = false, onChange,
           onChange={value => change({ duration: Math.round(value * 1000) })} />
       </div>
       <div className="space-y-1.5">
-        <Label>Transición de entrada</Label>
-        <SelectField aria-label="Transición de entrada" options={TRANSITION_OPTIONS} value={transition.type} disabled={locked}
+        <SelectField label="Transición de entrada" options={TRANSITION_OPTIONS} value={transition.type} disabled={locked}
           onValueChange={type => type && type !== transition.type && change({ transition: { ...transition, type } })} />
       </div>
       {transition.type !== 'none' ? (

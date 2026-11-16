@@ -102,7 +102,7 @@ para mostrar los controles. **K** reproduce o pausa, **L** repite al terminar y 
 sale. F5 o Ctrl+Enter abren la presentación desde el editor. Quienes solo pueden ver el
 diseño también pueden presentarlo.
 
-Con la reproducción automática, cada página dura lo indicado en **Página → Diapositiva**
+Con la reproducción automática, cada página dura lo indicado en **Formato → Diapositiva**
 (5 segundos si no lo cambias). Ahí también eliges la transición de entrada (fundido,
 deslizamiento o acercamiento) y su duración, o la aplicas a todas las páginas. Si tu
 sistema pide reducir el movimiento, las transiciones se muestran como cambio directo.

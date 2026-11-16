@@ -424,7 +424,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         </Sheet>
       ) : null}
       {imageKit.backgroundRemoval ? <BackgroundRemovalDialog {...imageKit.backgroundRemoval} /> : null}
-      {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={() => setPresenting(null)} /> : null}
+      {presenting && ready ? <PresentationOverlay editor={editorRef.current} startPageId={presenting} title={chrome.name || 'Diseño'} onClose={() => { setPresenting(null); requestAnimationFrame(() => document.querySelector('[data-studio-present]')?.focus()) }} /> : null}
       <ConfirmDialog open={Boolean(removing)} onOpenChange={open => { if (!open) setRemoving(null) }} title={`Eliminar ${removing?.label ?? 'página'}`}
         description="Se eliminará la página con sus elementos. Puedes deshacerlo con Ctrl+Z mientras no cierres el editor." confirmLabel="Eliminar página"
         onConfirm={() => { const id = removing.id; setRemoving(null); attempt(() => editorRef.current.removePage(id)) }} />
