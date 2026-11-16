@@ -146,7 +146,7 @@ export function PublishSheet({ open, onOpenChange, site, pages = [], activeRelea
     }
   }
 
-  const readyDomain = (domains.data ?? []).find((domain) => domain.ready)
+  const readyDomain = (domains.data ?? []).find((domain) => domain.ready && domain.isPrimary) ?? (domains.data ?? []).find((domain) => domain.ready)
   const errInfo = error ? describeError(error) : null
   const busy = phase === 'preparing' || phase === 'activating'
 

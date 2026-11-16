@@ -73,7 +73,7 @@ try {
   psql(scopeMigration)
   console.log('FormScope migration rollback/retention verified')
   // Later Website migrations (catalog selection, registry projection, local hostnames) so current application code runs.
-  for (const later of ['20261218120000_website_catalog_selection', '20261219120000_website_registry_projection', '20261220090000_website_local_hostnames', '20270105000000_website_custom_domains', '20270105100000_website_domain_kind_custom', '20270105200000_website_domain_guard_custom']) psql(readFileSync(join(root, 'prisma/migrations', later, 'migration.sql'), 'utf8'))
+  for (const later of ['20261218120000_website_catalog_selection', '20261219120000_website_registry_projection', '20261220090000_website_local_hostnames', '20270105000000_website_custom_domains', '20270105100000_website_domain_kind_custom', '20270105200000_website_domain_guard_custom', '20270106100000_website_domain_primary']) psql(readFileSync(join(root, 'prisma/migrations', later, 'migration.sql'), 'utf8'))
   console.log('Later Website migrations applied')
   execFileSync(process.execPath, [join(root,'node_modules/prisma/build/index.js'),'generate','--schema',join(root,'prisma/schema.prisma')], { cwd: temp, stdio: ['ignore','pipe','pipe'] })
   console.log('Prisma client generated from current schema; application config not loaded')

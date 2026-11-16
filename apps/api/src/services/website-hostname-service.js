@@ -151,5 +151,19 @@ export function createWebsiteHostnameService({ prisma, registry, registryConfigu
     // Customer-owned hostnames stop serving and become claimable again (ownership is proven by DNS, not by history).
     await prisma.websiteDomain.updateMany({ where: { companyId, siteId, kind: 'custom', state: { not: 'quarantined' } }, data: { state: 'quarantined', ready: false, verificationToken: null, httpsState: null } })
   }
-  return { availability, reserve, activate, release, status, sync, releaseForPurge }
+  // Picks the site's primary address (platform or custom); an empty hostname clears it. Only an active address
+  // can become primary; the gateway redirects the site's other addresses to it while it stays servable.
+  async function setPrimary(a) {
+    await guarded(a)
+    const hostname = a.hostname ? String(a.hostname).toLowerCase() : null
+    const row = hostname && await prisma.websiteDomain.findFirst({ where: { hostname, companyId: a.companyId, siteId: a.siteId } })
+    if (hostname && !row) throw notFound('Recurso')
+    if (row && !(row.state === 'assigned' && row.ready)) throw fail(409, 'domain_not_ready', 'Solo una dirección activa puede ser la principal.')
+    await prisma.$transaction([
+      prisma.websiteDomain.updateMany({ where: { companyId: a.companyId, siteId: a.siteId, isPrimary: true }, data: { isPrimary: false } }),
+      ...(row ? [prisma.websiteDomain.update({ where: { hostname: row.hostname }, data: { isPrimary: true } })] : []),
+    ])
+    return { hostname: row?.hostname ?? null }
+  }
+  return { availability, reserve, activate, release, status, sync, releaseForPurge, setPrimary }
 }

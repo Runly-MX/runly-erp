@@ -10,12 +10,14 @@ function fake() {
     websiteSite: { findFirst: async ({ where }) => (where.id === 's1' && where.companyId === 'c1' ? { id: 's1' } : null) },
     websiteDomain: {
       findUnique: async ({ where }) => rows.get(where.hostname) ?? null,
-      findFirst: async ({ where }) => [...rows.values()].find((r) => r.hostname === where.hostname && r.companyId === where.companyId && r.siteId === where.siteId && r.registryManaged === where.registryManaged) ?? null,
+      findFirst: async ({ where }) => [...rows.values()].find((r) => Object.entries(where).every(([k, v]) => r[k] === v)) ?? null,
+      updateMany: async ({ where, data }) => { for (const r of rows.values()) if (Object.entries(where).every(([k, v]) => r[k] === v)) Object.assign(r, data) },
       create: async ({ data }) => { if (rows.has(data.hostname)) throw Object.assign(new Error('dup'), { code: 'P2002' }); rows.set(data.hostname, data); return data },
       update: async ({ where, data }) => { const row = rows.get(where.hostname); Object.assign(row, data); return row },
     },
+    $transaction: async (ops) => Promise.all(ops),
   }
-  return { rows, svc: createWebsiteHostnameService({ prisma, registry: null, namespaceRoot: 'sites.example.org', adminHosts: ['erp.example.org'] }) }
+  return { rows, prisma, svc: createWebsiteHostnameService({ prisma, registry: null, namespaceRoot: 'sites.example.org', adminHosts: ['erp.example.org'] }) }
 }
 const args = (extra) => ({ access: allowed, companyId: 'c1', siteId: 's1', ...extra })
 
@@ -55,4 +57,24 @@ test('with a registry configured the registry still decides and rows stay regist
   const svc = createWebsiteHostnameService({ prisma, registry, registryConfigured: true, namespaceRoot: 'sites.example.org' })
   const made = await svc.reserve(args({ slug: 'mi-tienda' }))
   assert.deepEqual([made.registryManaged, made.state, made.ready], [true, 'pending', false])
+})
+
+test('primary address: only an active one can be primary, one per site, and the gateway redirects the others to it', async () => {
+  const { svc, rows, prisma } = fake()
+  const { createWebsiteGatewayService } = await import('../website-gateway-service.js')
+  const gateway = createWebsiteGatewayService({ prisma, namespaceRoot: 'sites.example.org' })
+  const a = await svc.reserve(args({ slug: 'principal' }))
+  const b = await svc.reserve(args({ slug: 'alias' }))
+  const site = { id: 's1', companyId: 'c1' }
+  assert.equal(await gateway.primaryRedirect({ site, hostname: b.hostname }), null, 'no primary, no redirect')
+  await svc.setPrimary(args({ hostname: a.hostname }))
+  assert.equal(await gateway.primaryRedirect({ site, hostname: b.hostname }), a.hostname)
+  assert.equal(await gateway.primaryRedirect({ site, hostname: a.hostname }), null, 'the primary itself serves')
+  await svc.setPrimary(args({ hostname: b.hostname }))
+  assert.deepEqual([rows.get(a.hostname).isPrimary, rows.get(b.hostname).isPrimary], [false, true], 'one primary per site')
+  await svc.release(args({ hostname: b.hostname }))
+  assert.equal(await gateway.primaryRedirect({ site, hostname: a.hostname }), null, 'a primary that cannot serve never receives redirects')
+  await assert.rejects(svc.setPrimary(args({ hostname: b.hostname })), (e) => e.code === 'domain_not_ready')
+  await svc.setPrimary(args({ hostname: null }))
+  assert.equal(rows.get(b.hostname).isPrimary, false, 'clearing removes the primary')
 })

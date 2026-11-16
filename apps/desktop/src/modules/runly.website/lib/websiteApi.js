@@ -107,6 +107,7 @@ export function createWebsiteApi(token) {
     hostnameAvailability: (siteId, slug) => call(`${site(siteId)}/domains/availability?slug=${encodeURIComponent(slug)}`),
     hostnameStatus: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}`),
     activateHostname: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}/activate`, { method: 'POST' }),
+    setPrimaryHostname: (siteId, hostname) => call(`${site(siteId)}/domains/primary`, { method: 'PUT', body: { hostname: hostname || null } }),
     releaseHostname: (siteId, hostname) => call(`${site(siteId)}/domains/${encodeURIComponent(hostname)}/release`, { method: 'POST' }),
     createPreview: (siteId, data, idempotencyKey) => call(`${site(siteId)}/previews`, { method: 'POST', body: data, idempotencyKey }),
     revokePreview: (siteId, previewId) => call(`${site(siteId)}/previews/${s(previewId)}`, { method: 'DELETE' }),

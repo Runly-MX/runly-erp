@@ -146,7 +146,7 @@ export default function SiteImport({ site, siteId, caps }) {
       if (e?.code === 'isolation_required') domains.refetch()
     }
   }
-  const readyDomain = (domains.data ?? []).find((domain) => domain.ready)
+  const readyDomain = (domains.data ?? []).find((domain) => domain.ready && domain.isPrimary) ?? (domains.data ?? []).find((domain) => domain.ready)
   const needsAddress = domains.isSuccess && !readyDomain
 
   const busy = ['uploading', 'validating', 'preparing', 'activating'].includes(phase)

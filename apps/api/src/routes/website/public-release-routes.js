@@ -35,6 +35,9 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
 }
 export async function serveWebsiteRelease(c,gateway,path,runtime,ssr) {
  const snapshot=await gateway.resolve(c)
+ // Every other servable address of the site sends visitors (and search engines) to its primary one.
+ const primary=gateway.primaryRedirect&&await gateway.primaryRedirect(snapshot)
+ if(primary){c.header('Cache-Control','public, max-age=3600');return c.redirect(`https://${primary}${String(path).startsWith('/')?path:`/${path}`}${new URL(c.req.url).search}`,301)}
  const turnstile=snapshot.release?snapshot.release.manifest.dynamic?.some(d=>d.kind==='form')&&snapshot.release.manifest.identity.turnstileSiteKey:snapshot.site.turnstileSiteKey
  const challenge=turnstile?' https://challenges.cloudflare.com':''
  websiteReleasePath(path)

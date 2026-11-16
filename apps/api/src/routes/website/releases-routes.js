@@ -14,6 +14,7 @@ export function createWebsiteReleaseRoutes({releases,gateway,hostnames,contracts
  app.post('/sites/:siteId/releases',requirePermission('website.pages.publish'),command(releases.prepare,202))
  for(const op of ['activate','rollback','unpublish'])app.post(`/sites/:siteId/publication/${op}`,requirePermission('website.pages.publish'),command(releases[op]))
  app.post('/sites/:siteId/domains',requirePermission('website.domains.manage'),command(hostnames.reserve,201))
+ app.put('/sites/:siteId/domains/primary',requirePermission('website.domains.manage'),command(hostnames.setPrimary))
  app.get('/sites/:siteId/domains/availability',requirePermission('website.domains.manage'),async c=>c.json({data:await hostnames.availability({...args(c),slug:c.req.query('slug')})}))
  app.get('/sites/:siteId/domains/:hostname',requirePermission('website.site.read'),async c=>c.json({data:await hostnames.status({...args(c),hostname:c.req.param('hostname')})}))
  app.post('/sites/:siteId/domains/:hostname/activate',requirePermission('website.domains.manage'),async c=>c.json({data:await hostnames.activate({...args(c),hostname:c.req.param('hostname')})}))

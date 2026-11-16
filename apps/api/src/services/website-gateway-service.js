@@ -19,14 +19,19 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     // this callback. Request headers can never enable proxy trust.
     return strictWebsiteHostname(trustedAuthority?await trustedAuthority(c):c.req.header('host')??new URL(c.req.url).host)
   }
+  // Registry-managed names are served from the last confirmation only for a bounded time: security decisions
+  // (suspension, revocation) must not stay stale forever when the registry is unreachable. Historical names are unaffected.
+  const servable=domain=>Boolean(domain&&domain.state==='assigned'&&domain.ready&&domain.siteId&&!(domain.registryManaged&&(!domain.registrySyncedAt||now()-new Date(domain.registrySyncedAt).getTime()>registryMaxStaleMs)))
+  // The site's primary address when the request came through another one and the primary can actually serve.
+  async function primaryRedirect(snapshot) {
+    const primary=await prisma.websiteDomain.findFirst({where:{companyId:snapshot.site.companyId,siteId:snapshot.site.id,isPrimary:true}})
+    return servable(primary)&&primary.hostname!==snapshot.hostname?primary.hostname:null
+  }
   async function resolveUnsafe(c) {
     const hostname=await authority(c)
     if(admin.has(hostname))throw fail('administrative_origin')
     const domain=await prisma.websiteDomain.findUnique({where:{hostname}})
-    if(!domain||domain.state!=='assigned'||!domain.ready||!domain.siteId)throw notFound('Recurso')
-    // Registry-managed names are served from the last confirmation only for a bounded time: security decisions
-    // (suspension, revocation) must not stay stale forever when the registry is unreachable. Historical names are unaffected.
-    if(domain.registryManaged&&(!domain.registrySyncedAt||now()-new Date(domain.registrySyncedAt).getTime()>registryMaxStaleMs))throw notFound('Recurso')
+    if(!servable(domain))throw notFound('Recurso')
     const site=await prisma.websiteSite.findFirst({where:{id:domain.siteId,companyId:domain.companyId,enabled:true}})
     const company=site&&await prisma.company.findFirst({where:{id:site.companyId,enabled:true},select:{slug:true}})
     if(!site||!company)throw notFound('Recurso')
@@ -80,7 +85,7 @@ export function createWebsiteGatewayService({prisma,storage,namespaceRoot,adminH
     assertWebsiteAccess(a.access,a.companyId,'website.site.read')
     if(!a.siteId)throw notFound('Recurso')
     if(!await prisma.websiteSite.findFirst({where:{id:a.siteId,companyId:a.companyId,enabled:true}}))throw notFound('Recurso')
-    return prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true,registryManaged:true,registryVersion:true,registrySyncedAt:true,verifiedAt:true,httpsState:true,lastError:true}})
+    return prisma.websiteDomain.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{hostname:true,kind:true,state:true,ready:true,registryManaged:true,registryVersion:true,registrySyncedAt:true,verifiedAt:true,httpsState:true,lastError:true,isPrimary:true}})
   }
-  return {resolve,response,asset,reserve,authority,domains}
+  return {resolve,response,asset,reserve,authority,domains,primaryRedirect}
 }
