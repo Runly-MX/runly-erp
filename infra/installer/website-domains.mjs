@@ -44,6 +44,10 @@ function instance() {
 const run = (cmd, argv, opts = {}) => spawnSync(cmd, argv, { encoding: 'utf8', ...opts })
 function requireTools() {
   if (process.getuid && process.getuid() !== 0) throw Error('WEBSITE_DOMAINS_ROOT_REQUIRED: run with sudo')
+  if (run('certbot', ['--version']).error && !run('apt-get', ['--version']).error) {
+    log('Installing certbot...')
+    run('apt-get', ['install', '-y', '-qq', 'certbot'], { stdio: 'inherit', env: { ...process.env, DEBIAN_FRONTEND: 'noninteractive' } })
+  }
   for (const [tool, hint] of [['nginx', 'sudo apt install nginx'], ['certbot', 'sudo apt install certbot'], ['docker', 'Docker must be installed']]) {
     if (run(tool, ['--version']).error && run(tool, ['-v']).error) throw Error(`WEBSITE_DOMAINS_TOOL_MISSING: ${tool} (${hint})`)
   }

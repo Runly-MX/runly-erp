@@ -25,6 +25,7 @@ import {
 import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME, LINUX_HOST_NETWORK_SERVICES, probePublicHealth } from "./lib/hairpin-nat.mjs";
 import { waitForApiHealth, resolveApiHealthUrl } from "./lib/api-health.mjs";
 import { prepareAndVerifyNotesStorage, probeNotesStorage } from "./lib/notes-storage-gate.mjs";
+import { autoSetupWebsiteDomains } from "./lib/website-domains-auto.mjs";
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 import { createStudioDatabaseRunner, prepareStudioRealtimeOwner, inspectStudioRealtimeFailure, assertStudioMigrationsUnblocked } from './lib/studio-realtime-db.mjs';
@@ -1434,6 +1435,7 @@ async function main() {
     await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: parseEnvValue(healthEnv, "RUNLY_PUBLIC_BIND_ADDR"), port: parseEnvValue(healthEnv, "RUNLY_API_HOST_PORT") }) });
   }
   probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: notesGateBase });
+  autoSetupWebsiteDomains({ installerDir, mode: "local", envContent: await fs.readFile(localEnvFile, "utf8") });
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
 

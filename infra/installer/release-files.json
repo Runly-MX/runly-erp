@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.16.1",
+  "version": "2026.11.16.2",
   "modes": {
     "local": [
       ".env.local.example",
@@ -46,7 +46,8 @@
       "update-installer.mjs",
       "update-local.sh",
       "website-domains.mjs",
-      "lib/website-domains-nginx.mjs"
+      "lib/website-domains-nginx.mjs",
+      "lib/website-domains-auto.mjs"
     ],
     "external": [
       ".env.external.example",
@@ -82,7 +83,8 @@
       "update-installer.mjs",
       "update-local.sh",
       "website-domains.mjs",
-      "lib/website-domains-nginx.mjs"
+      "lib/website-domains-nginx.mjs",
+      "lib/website-domains-auto.mjs"
     ]
   }
 }

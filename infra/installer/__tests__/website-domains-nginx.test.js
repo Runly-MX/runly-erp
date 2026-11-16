@@ -37,3 +37,17 @@ test('a sync issues new certificates, serves certified domains, backs off failur
   assert.equal(ownedSiteConf('runly', siteConfName('otra', 'ya.mx')), null, 'another instance on the same server keeps its blocks')
   assert.equal(ownedSiteConf('runly', 'default.conf'), null)
 })
+
+test('install/update runs the HTTPS setup once, only when custom domains are on, and never asks for a password', async () => {
+  const { websiteDomainsAction } = await import('../lib/website-domains-auto.mjs')
+  const on = 'RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET=203.0.113.10\n'
+  const base = { platform: 'linux', envContent: on, timerExists: false, nginxPresent: true, isRoot: false, sudoAvailable: true }
+  assert.equal(websiteDomainsAction(base), 'run-sudo')
+  assert.equal(websiteDomainsAction({ ...base, isRoot: true }), 'run')
+  assert.equal(websiteDomainsAction({ ...base, timerExists: true }), 'skip-done', 'already applied: later updates skip it')
+  assert.equal(websiteDomainsAction({ ...base, envContent: 'RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET=\n' }), 'skip-disabled')
+  assert.equal(websiteDomainsAction({ ...base, envContent: on + 'RUNLY_WEBSITE_TLS_AUTOMATION=off\n' }), 'skip-opted-out')
+  assert.equal(websiteDomainsAction({ ...base, nginxPresent: false }), 'skip-no-nginx')
+  assert.equal(websiteDomainsAction({ ...base, sudoAvailable: false }), 'manual', 'sudo would prompt: print the command instead')
+  assert.equal(websiteDomainsAction({ ...base, platform: 'win32' }), 'skip-platform')
+})

@@ -46,7 +46,13 @@ the ERP's own hosts and anything that is not a verified, assigned domain. Pick o
 
 The installer ships `website-domains.mjs` next to `update-local.sh` / `update-external.sh`. It edits
 the **server's** nginx (`/etc/nginx/conf.d`), never the web container's. Requirements on the server:
-`nginx`, `certbot` and the running Runly containers. Run it as root from the installer directory:
+`nginx` and the running Runly containers (`certbot` is installed with apt when missing).
+
+**It runs by itself once.** At the end of every install or update on Linux, when
+`RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET` is set, the installer runs `setup` if its systemd timer does not
+exist yet; once it exists, later installs and updates skip it. It runs as root directly, or through
+`sudo -n` when that needs no password; otherwise (or when nginx is missing) it prints the exact command
+and the install still finishes. Set `RUNLY_WEBSITE_TLS_AUTOMATION=off` to never run it. By hand:
 
 ```bash
 sudo node website-domains.mjs setup

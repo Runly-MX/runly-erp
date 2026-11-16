@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.16.1",
+  "version": "2026.11.16.2",
   "files": {
     ".env.local.example": {
       "sha256": "f050147cdb1aac3d1d0b9c893dcd967a9fc1edf325208b7168f3266b821cf5e3",
@@ -379,7 +379,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "7241d5602e94f73eb88b466b8ba113998a36970432d70e30fd0639959dedb076",
+      "sha256": "a4342071447712fe0c5d7968cea50b8add544cbe950daf035d2fa2c27b814fd1",
       "modes": [
         "local"
       ],
@@ -400,6 +400,7 @@
         "443b00601c6d07c3e4a2ec1c06d47cd718dbebe4",
         "47f78d1b07fc244a25e16b6165c1c7f19a2aa0e8",
         "4b36b71d3a5c0feddabba04addd9f81ca802cfa2",
+        "4c04be460f15082ec9dbc51db7e3f9df9dc2b03b",
         "5278e25c2c7e4d5b4c7c40f84bf3fdc1c900426f",
         "56496d95e4a779d12f853ec4d9540da14c40b4c2",
         "5702a1a29dc56fb4db760f25aea1db7ff5693802",
@@ -609,15 +610,25 @@
       ]
     },
     "website-domains.mjs": {
-      "sha256": "599918929027341d740d5cc22b8f2ecf54e3a0b3e1f082c4be85bdd1d636b0c0",
+      "sha256": "f70599fe72a0cddb4456a979d515d222c1bf2a4db885564ff79392a0f0fe624d",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": [
+        "dec728226c350e764d9aff56daa55bf5695c1583"
+      ]
+    },
+    "lib/website-domains-nginx.mjs": {
+      "sha256": "94c539fe7f6bf1a7824d2e497dfb83f0f0898912738b535fd691ad24329e7488",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": []
     },
-    "lib/website-domains-nginx.mjs": {
-      "sha256": "94c539fe7f6bf1a7824d2e497dfb83f0f0898912738b535fd691ad24329e7488",
+    "lib/website-domains-auto.mjs": {
+      "sha256": "82a2f45e0c97e5d3300d3e86c2bb54c3a6045999dbaa114f582fb35296f37b49",
       "modes": [
         "local",
         "external"
@@ -671,7 +682,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "3ca78350fa40ffd40d42916ca32459ecb598cad351e03ae41ab7ed7ce904a0a2",
+      "sha256": "724a22c4eaecb4ef07213c03b0c260e761503d7ca26b2c13906eb6d269642e2a",
       "modes": [
         "external"
       ],
@@ -705,6 +716,7 @@
         "7bcbc7fbd62b8cfb28e91e6edbb7fe49e93d2fba",
         "879e18e934054188f9edb292834ea77b1704e09d",
         "916b0f1ec602e148edf0b223f1dbabdc4535e158",
+        "9765b441b65698338a900d3e1d3ce15f84b94250",
         "9819136fa393af61862787490e50c045385f64be",
         "a3314d1d9029276d9b1c4c419c24c3933127a4af",
         "a72ec0c8aa5ae6ba10d1b048a1b2f5d375349fe8",

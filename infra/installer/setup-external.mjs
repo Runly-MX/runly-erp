@@ -39,6 +39,7 @@ import { collectPublicHttpsHosts, configureHairpinNat, HAIRPIN_OVERRIDE_FILENAME
 import { buildTranscriberDatabaseUrl, generateTranscriberPassword } from "./lib/transcriber-db.mjs";
 import { waitForApiHealth, resolveApiHealthUrl } from "./lib/api-health.mjs";
 import { prepareAndVerifyNotesStorage, probeNotesStorage } from "./lib/notes-storage-gate.mjs";
+import { autoSetupWebsiteDomains } from "./lib/website-domains-auto.mjs";
 import { resolveBackupConfig, getBackupComposeProfiles } from "./lib/backup-config.mjs";
 
 const argv = new Set(process.argv.slice(2));
@@ -1234,6 +1235,7 @@ async function main() {
     await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: parseEnvValue(healthEnv, "RUNLY_PUBLIC_BIND_ADDR"), port: parseEnvValue(healthEnv, "RUNLY_API_HOST_PORT") }) });
   }
   probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(await fs.readFile(envFile, "utf8")), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile] });
+  autoSetupWebsiteDomains({ installerDir, mode: "external", envContent: await fs.readFile(envFile, "utf8") });
   await validateLiveKitRuntime(liveKit);
   await checkOfficeRuntime(office);
 
