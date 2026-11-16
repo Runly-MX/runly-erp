@@ -18,6 +18,19 @@ test('error copy: known code, status fallback, unknown fallback', () => {
   assert.equal(describeFailure(undefined).title, 'No se pudo preparar la versión')
 })
 
+test('ZIP errors explain the rejection and preserve server-provided file details', () => {
+  const fields = { archivo: 'README.md', motivo: 'La extensión no está permitida.' }
+  const info = describeError({ status: 422, code: 'unexpected_archive_file', fields })
+  assert.equal(info.title, 'El ZIP contiene un archivo no permitido')
+  assert.equal(info.tone, 'warning')
+  assert.equal(info.fields, fields)
+  assert.match(info.message, /Vuelve a crear el ZIP/)
+  assert.ok(!info.retry)
+  for (const code of ['unsafe_archive_path', 'archive_root_mismatch', 'external_artifact_dependency', 'missing_artifact_dependency', 'archive_timeout', 'static_content_required']) {
+    assert.notEqual(describeError({ status: 422, code }).title, 'Algo salió mal')
+  }
+})
+
 test('site state: uses authoritative C-2 instead of comparing unrelated revisions', () => {
   assert.equal(deriveSiteState({ lifecycle: 'draft' }, null).key, 'draft')
   const published = { lifecycle: 'published', activeReleaseId: 'r1', draftRevision: 5 }

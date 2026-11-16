@@ -1,9 +1,8 @@
 import { useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription, AlertTitle, ConfirmDialog, FileUploader, ProgressBar, SelectField, StatusPill } from '@runly/ui'
-import { Check, CheckCircle2, Clock, Eye, FileArchive, FileCode2, Fingerprint, FolderTree, Info, ListChecks, Loader2, PackageCheck, Rocket, ShieldOff, UploadCloud, XCircle } from 'lucide-react'
+import { ConfirmDialog, FileUploader, ProgressBar, SelectField, StatusPill } from '@runly/ui'
+import { Check, CheckCircle2, Clock, Eye, FileArchive, FileCode2, Fingerprint, FolderTree, ListChecks, Loader2, PackageCheck, Rocket, ShieldOff, UploadCloud } from 'lucide-react'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
-import { describeCode, describeError } from '../../lib/websiteErrors.js'
 import { useWebsiteScope, websiteKeys } from '../../hooks/useWebsite.js'
 import { CapabilityButton } from '../../components/CapabilityButton.jsx'
 import { ErrorNotice } from '../../components/ErrorNotice.jsx'
@@ -85,8 +84,6 @@ export default function SiteImport({ site, siteId, caps }) {
   const [activateOpen, setActivateOpen] = useState(false)
   const keys = useRef({})
 
-  const isolation = error?.code === 'isolation_required'
-
   async function upload() {
     setError(null); setPhase('uploading')
     try {
@@ -141,7 +138,7 @@ export default function SiteImport({ site, siteId, caps }) {
   }
 
   const busy = ['uploading', 'validating', 'preparing', 'activating'].includes(phase)
-  const reasons = imported?.errorCodes ?? (imported?.errorCode ? [imported.errorCode] : [])
+  const visibleError = error ?? (phase === 'rejected' ? { code: imported?.errorCode ?? imported?.errorCodes?.[0] ?? 'import_rejected', status: 422 } : null)
   const nextState = NEXT_STATE[phase]
 
   return (
@@ -149,13 +146,7 @@ export default function SiteImport({ site, siteId, caps }) {
       <SiteSectionHeader icon={UploadCloud} tone="blue" title="Importar un sitio (ZIP)" description="Sube un sitio estático ya compilado. No se instala ni se ejecuta código del servidor." />
       <Stepper phase={phase} />
 
-      {isolation && (
-        <Alert role="status">
-          <Info className="h-4 w-4" aria-hidden="true" />
-          <div><AlertTitle>No disponible en esta instalación</AlertTitle><AlertDescription>{describeCode('isolation_required').message}</AlertDescription></div>
-        </Alert>
-      )}
-      {error && !isolation && <ErrorNotice error={error} />}
+      <ErrorNotice error={visibleError} onDismiss={() => { setError(null); if (phase === 'rejected') setPhase('idle') }} />
 
       <div className="grid gap-5 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
         {['idle', 'uploading', 'validating', 'rejected'].includes(phase) && (
@@ -181,17 +172,6 @@ export default function SiteImport({ site, siteId, caps }) {
                   <ProgressBar value={null} />
                   <p className="flex items-center gap-2 text-sm"><Loader2 className="h-4 w-4 animate-spin" aria-hidden />{phase === 'uploading' ? 'Subiendo el archivo…' : 'Validando los archivos…'}</p>
                 </div>
-              )}
-              {phase === 'rejected' && (
-                <Alert variant="destructive" role="alert">
-                  <XCircle className="h-4 w-4" aria-hidden="true" />
-                  <div>
-                    <AlertTitle>Archivo rechazado</AlertTitle>
-                    <AlertDescription>
-                      {reasons.length ? <ul className="list-disc pl-5">{reasons.map((code) => <li key={code}>{describeCode(code)?.message ?? code}</li>)}</ul> : 'El archivo no cumple los requisitos. No se guardó nada en el sitio.'}
-                    </AlertDescription>
-                  </div>
-                </Alert>
               )}
               <div className="flex justify-end border-t border-[hsl(var(--border))] pt-4">
                 <CapabilityButton capability={caps.importZip} onClick={upload} disabled={!file || busy}><UploadCloud className="h-4 w-4" aria-hidden /> Subir y validar</CapabilityButton>

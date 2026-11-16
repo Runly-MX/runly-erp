@@ -55,6 +55,15 @@ test('scripts, WASM, XML, PDFs and active SVG cannot be labelled as static',asyn
   await validateWebsiteZipReferences([files[0]],new Map([['index.html','<script>console.log(1)</script>']]))
 })
 
+test('worker validation preserves the offending HTML file and attribute in the error',async()=>{
+ await assert.rejects(validateWebsiteZipReferences([{path:'pages/contact.html',mime:'text/html'}],new Map([['pages/contact.html','<button onclick="alert(1)">Send</button>']]),{contentMode:'static'}),error=>{
+  assert.equal(error.code,'static_content_required')
+  assert.equal(error.fields.archivo,'pages/contact.html')
+  assert.match(error.fields.motivo,/onclick/)
+  return true
+ })
+})
+
 test('only validated policy versions may use the configured brand namespace',()=>{
   const isolation=createWebsiteContentIsolation({adminOrigin:'https://erp.runly.test',namespaceRoot:'sites.runly.test'})
   assert.equal(isolation.publicHost('tenant.sites.runly.test',manifest),'tenant.sites.runly.test')

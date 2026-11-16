@@ -11,6 +11,18 @@ test('ZIP root is explicit and a wrapper never truncates outside entries',async(
  await assert.rejects(inspectWebsiteZip(await archive({'a/index.html':'a','b/index.html':'b'})),e=>e.code==='ambiguous_archive_root')
 })
 for(const path of ['.env','server.js','package.json','x.map','src/a.ts','node_modules/x.js','.next/server.js','private.pem','backup.zip','app/index.html'])test(`private/server archive file rejected: ${path}`,async()=>await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok',[path]:'private'}))))
+
+test('rejected ZIP entries identify the relative file and explain how to correct it',async()=>{
+ for(const path of ['README.md','.DS_Store','package.json','public/logo.png']) {
+  await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok',[path]:'not allowed'})),error=>{
+   assert.equal(error.code,'unexpected_archive_file')
+   assert.equal(error.fields.archivo,path)
+   assert.ok(error.fields.motivo.length>30)
+   assert.ok(error.message.includes(path))
+   return true
+  })
+ }
+})
 test('original path, case collisions, symlinks, CRC and truncation fail closed',async()=>{
  await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok','A.js':'a','a.js':'b'})),e=>e.code==='duplicate_archive_path')
  await assert.rejects(inspectWebsiteZip(await archive({'index.html':'ok','../escape.txt':'no'})))

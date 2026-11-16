@@ -8,9 +8,9 @@ export function validateWebsiteZipReferences(files,texts,{timeout=30000,contentM
     const worker=new Worker(new URL('./website-zip-reference-worker.js',import.meta.url),{workerData:{files,texts:[...texts],contentMode},resourceLimits:{maxOldGenerationSizeMb:128,stackSizeMb:4}})
     let settled=false
     const finish=(error)=>{if(settled)return;settled=true;clearTimeout(timer);void worker.terminate();if(error)reject(error);else resolve()}
-    const fail=(code,status=413)=>new WebsiteServiceError(code==='static_content_required'?'La plantilla HTML y CSS contiene código o archivos no permitidos.':'El artefacto supera el presupuesto de validación.',status,code)
+    const fail=(code,status=413,fields)=>new WebsiteServiceError(code==='static_content_required'?'La plantilla HTML y CSS contiene código o archivos no permitidos.':'El artefacto no cumple los requisitos de validación.',status,code,fields)
     const timer=setTimeout(()=>finish(fail('archive_timeout')),Math.max(1,timeout))
-    worker.once('message',result=>finish(result.ok?null:fail(result.code??'invalid_archive',result.status??422)))
+    worker.once('message',result=>finish(result.ok?null:fail(result.code??'invalid_archive',result.status??422,result.fields)))
     worker.once('error',()=>finish(fail('reference_budget_exceeded')))
     worker.once('exit',()=>{if(!settled)finish(fail('reference_budget_exceeded'))})
   })

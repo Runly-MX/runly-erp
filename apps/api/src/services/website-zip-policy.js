@@ -15,7 +15,12 @@ export function zipArtifactPath(name,{directory=false}={}) {
 }
 function accepted(path) {
   const parts=path.toLowerCase().split('/'),file=parts.at(-1),ext=file.split('.').at(-1)
-  if(parts.some(p=>p.startsWith('.')||['node_modules','__macosx'].includes(p))||['__runly','__preview','__website_admin_gate','app','api','auth','public','mcp','p'].includes(parts[0])||/^(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|server\.[cm]?js|middleware\.[cm]?js)$/.test(file)||!mime[ext])throw fail('unexpected_archive_file')
+  let reason
+  if(parts.some(p=>p.startsWith('.')||['node_modules','__macosx'].includes(p)))reason='Contiene archivos ocultos, metadatos del sistema o dependencias de desarrollo. Exclúyelos del ZIP.'
+  else if(['__runly','__preview','__website_admin_gate','app','api','auth','public','mcp','p'].includes(parts[0]))reason='La carpeta raíz usa una ruta reservada por Runly. Cambia su nombre y actualiza las referencias del sitio.'
+  else if(/^(?:package(?:-lock)?\.json|pnpm-lock\.yaml|yarn\.lock|server\.[cm]?js|middleware\.[cm]?js)$/.test(file))reason='Es un archivo de proyecto o servidor. Sube solo la exportación compilada del sitio.'
+  else if(!mime[ext])reason='La extensión no está permitida. Incluye solo los archivos publicados del sitio: HTML, CSS, imágenes, fuentes y medios; usa el modo aislado para JavaScript.'
+  if(reason)throw new WebsiteServiceError(`No se permite el archivo «${path}» en el ZIP. ${reason}`,422,'unexpected_archive_file',{archivo:path,motivo:reason})
   return mime[ext]
 }
 // Read original names with decodeStrings:false. Nothing is extracted to disk.

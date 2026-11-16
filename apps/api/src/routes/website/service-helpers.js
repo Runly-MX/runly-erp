@@ -1,9 +1,10 @@
 export class WebsiteServiceError extends Error {
-  constructor(message, status = 500, code = 'website_error') {
+  constructor(message, status = 500, code = 'website_error', fields) {
     super(message)
     this.name = 'WebsiteServiceError'
     this.status = status
     this.code = code
+    if (fields) this.fields = fields
   }
 }
 

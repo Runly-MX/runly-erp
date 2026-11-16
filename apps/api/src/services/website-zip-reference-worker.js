@@ -1,6 +1,7 @@
 import {parentPort,workerData} from 'node:worker_threads'
 import {validateStaticReferences} from './website-zip-policy.js'
 import {validateWebsiteStaticContent} from './website-static-policy.js'
+import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 // Only our parser executes. Imported scripts are strings, never evaluated.
 try{
   const texts=new Map(workerData.texts)
@@ -8,4 +9,4 @@ try{
   validateStaticReferences(workerData.files,texts)
   parentPort.postMessage({ok:true})
 }
-catch(error){parentPort.postMessage({ok:false,code:error.code??'invalid_archive',status:error.status??422})}
+catch(error){parentPort.postMessage({ok:false,code:error.code??'invalid_archive',status:error.status??422,fields:error instanceof WebsiteServiceError?error.fields:undefined})}

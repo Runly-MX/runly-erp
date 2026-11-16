@@ -47,6 +47,22 @@ test('private ZIP import is complete and idempotent without changing source or a
  await assert.rejects(f.upload(await zip({'index.html':'changed'})),e=>e.code==='idempotency_conflict')
  assert.ok([...f.objects.keys()].every(k=>k.startsWith(`company/${f.company.id}/site/${f.site.id}/`)))
 })
+
+test('REST import errors include the rejected file and reason without exposing internal exceptions',async()=>{
+ const f=await fixture(),app=createWebsiteRouter({prisma:db,publicationContext:f.publication,requirePermission:testPermission([...ALL,'website.domains.manage'],f.company.id,f.actor.id)})
+ for(const [index,files]of [{'index.html':'ok','README.md':'documentation'},{'index.html':'<button onclick="alert(1)">Send</button>'}].entries()) {
+  const form=new FormData();form.append('file',new File([await zip(files)],'site.zip'));form.append('contentMode','static')
+  const response=await app.request(`/website/sites/${f.site.id}/imports`,{method:'POST',headers:{Authorization:'Bearer fixture','Idempotency-Key':`rejected-file-details-${index}`},body:form})
+  const body=await response.json()
+  assert.equal(response.status,422)
+  assert.equal(body.code,index===0?'unexpected_archive_file':'static_content_required')
+  assert.equal(body.fields.archivo,index===0?'README.md':'index.html')
+  assert.ok(body.fields.motivo.length>20)
+  if(index===1)assert.match(body.fields.motivo,/onclick/)
+  assert.equal(body.stack,undefined)
+ }
+ assert.equal((await db.websiteSite.findUnique({where:{id:f.site.id}})).activeReleaseId,null)
+})
 test('dist activation, history, rollback and withdrawal use the S3 transaction',async()=>{
  const f=await fixture(),a=await f.prepare(await f.upload(await zip()));await f.activate(a)
  const b=await f.prepare(await f.upload(await zip({'index.html':'second','assets/a-2.js':'second'}),'second-import-attempt-key'),'second-release-attempt-key');await f.activate(b,'second-activate-attempt-key')

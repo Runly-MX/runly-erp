@@ -1,10 +1,10 @@
 import { Alert, AlertDescription, AlertTitle, Button } from '@runly/ui'
-import { AlertTriangle, Info, RefreshCw } from 'lucide-react'
+import { AlertTriangle, Info, RefreshCw, X } from 'lucide-react'
 import { describeError } from '../lib/websiteErrors.js'
 
 // Renders any WebsiteApiError with the shared copy. `requestId` is tucked into
 // a collapsed "support" detail (design 8.8).
-export function ErrorNotice({ error, onRetry, className }) {
+export function ErrorNotice({ error, onRetry, onDismiss, className }) {
   if (!error) return null
   const info = describeError(error)
   const variant = info.tone === 'danger' ? 'destructive' : info.tone === 'info' ? 'default' : 'warning'
@@ -12,18 +12,23 @@ export function ErrorNotice({ error, onRetry, className }) {
   return (
     <Alert variant={variant} className={className} role="alert">
       <Icon className="h-4 w-4" aria-hidden="true" />
-      <div>
+      <div className={onDismiss ? 'pr-10' : undefined}>
         <AlertTitle>{info.title}</AlertTitle>
         <AlertDescription>
           {info.message}
           {info.fields && (
             <ul className="mt-2 list-disc pl-5 text-xs">
               {Object.entries(info.fields).map(([name, message]) => (
-                <li key={name}>{`${name}: ${Array.isArray(message) ? message.join(', ') : String(message)}`}</li>
+                <li key={name} className="break-all">{`${name}: ${Array.isArray(message) ? message.join(', ') : String(message)}`}</li>
               ))}
             </ul>
           )}
         </AlertDescription>
+        {onDismiss && (
+          <Button variant="ghost" size="icon" className="absolute right-2 top-2 h-8 w-8" aria-label="Descartar aviso" onClick={onDismiss}>
+            <X className="h-4 w-4" aria-hidden="true" />
+          </Button>
+        )}
         {(onRetry && (info.retry || info.reload)) && (
           <Button variant="outline" size="sm" className="mt-3" onClick={onRetry}>
             <RefreshCw className="h-3.5 w-3.5" /> {info.reload ? 'Recargar' : 'Reintentar'}
