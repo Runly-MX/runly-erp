@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { advanceIfDue, elapsedOf, goTo, next, previous, restartClock, setLoop, setPlaying, startPresentation } from './presentation-state.js'
+import { advanceIfDue, elapsedOf, goTo, motionTime, next, previous, restartClock, setLoop, setPlaying, startPresentation } from './presentation-state.js'
 import { frameScale } from './slide-frames.js'
 
 test('manual navigation clamps without loop and wraps with loop', () => {
@@ -37,4 +37,14 @@ test('frame scale fits the stage, honours pixel ratio and export bounds', () => 
   assert.equal(frameScale({ width: 4096, height: 4096 }, { width: 360, height: 640 }, 3), 0.25)
   assert.equal(frameScale({ width: 400, height: 400 }, { width: 1920, height: 1080 }, 2), 4, 'small pages fill the stage, capped')
   assert.equal(frameScale({ width: 1080, height: 1080 }, { width: 1920, height: 1080 }, 1), 1)
+})
+
+test('the animation clock runs without autoplay, freezes on pause and restarts per slide', () => {
+  let state = startPresentation({ count: 3, now: 0 })
+  assert.equal(motionTime(state, 1200), 1200, 'animations run in manual mode')
+  state = setPlaying(state, true, 1500); assert.equal(motionTime(state, 2000), 2000)
+  state = setPlaying(state, false, 2500); assert.equal(motionTime(state, 9000), 2500, 'pause freezes the animation')
+  state = setPlaying(state, true, 10_000); assert.equal(motionTime(state, 10_400), 2900, 'resume continues without a jump')
+  state = next(state, 11_000); assert.equal(motionTime(state, 11_250), 250, 'a new slide starts at 0')
+  state = restartClock(setPlaying(state, false, 11_500), 12_000); assert.equal(motionTime(state, 12_100), 100, 'a revealed slide always runs')
 })

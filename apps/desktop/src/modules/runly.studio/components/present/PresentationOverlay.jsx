@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Button, cn } from '@runly/ui'
 import { AlertTriangle, ChevronLeft, ChevronRight, Loader2, Pause, Play, RefreshCw, Repeat, X } from 'lucide-react'
 import { usePresentation } from './usePresentation.js'
+import { CapturedFrame, MotionStage } from './MotionStage.jsx'
 
 const HIDE_AFTER = 2500, SWIPE = 48
 const reducedMotionQuery = () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
@@ -98,10 +99,15 @@ export function PresentationOverlay({ editor, startPageId, title, onClose }) {
 
   const page = pages[index]?.page
   const fit = stage && page ? Math.min(stage.width / page.width, stage.height / page.height) : 0
-  const slideStyle = (layer, scene) => {
-    const size = scene && stage ? Math.min(stage.width / scene.page.width, stage.height / scene.page.height) : fit
-    return { width: (scene?.page.width ?? 0) * size, height: (scene?.page.height ?? 0) * size, opacity: layer.opacity,
-      transform: `translate(${layer.dx * 100}%, ${layer.dy * 100}%) scale(${layer.scale})` }
+  const fitOf = scene => (scene && stage ? Math.min(stage.width / scene.page.width, stage.height / scene.page.height) : fit)
+  const motionStyle = layer => ({ opacity: layer.opacity, transform: `translate(${layer.dx * 100}%, ${layer.dy * 100}%) scale(${layer.scale})` })
+  const slideStyle = (layer, scene) => ({ width: (scene?.page.width ?? 0) * fitOf(scene), height: (scene?.page.height ?? 0) * fitOf(scene), ...motionStyle(layer) })
+  const live = player.liveSlide, liveScene = live ? pages[live.index] : null
+  // Image (static slide) or captured pixels of a live slide that is leaving.
+  const still = (layer, order) => {
+    const scene = pages[layer.index]
+    if (layer.kind === 'canvas') return <CapturedFrame canvas={layer.canvas} width={scene.page.width} height={scene.page.height} fit={fitOf(scene)} style={motionStyle(layer)} />
+    return <img src={layer.url} alt={order ? `Diapositiva ${layer.index + 1}` : ''} aria-hidden={order ? undefined : true} draggable={false} className="max-w-none" style={slideStyle(layer, scene)} />
   }
   const counter = `${index + 1} / ${pages.length}`
   const iconButton = 'h-11 w-11 shrink-0 rounded-md text-white hover:bg-white/15 hover:text-white focus-visible:ring-white'
@@ -117,13 +123,21 @@ export function PresentationOverlay({ editor, startPageId, title, onClose }) {
         </div>
       ) : null}
       <div ref={stageRef} onPointerDown={onPointerDown} onPointerUp={onPointerUp} className="relative min-h-0 flex-1 touch-none select-none overflow-hidden">
-        {[layers.outgoing, layers.incoming].map((layer, order) => layer ? (
+        {[layers.outgoing, layers.incoming].map((layer, order) => layer && layer.kind !== 'live' ? (
           // While the next slide renders, the previous one is dimmed so it never reads as the current slide.
-          <div key={`${order}:${layer.index}`} className={cn('absolute inset-0 flex items-center justify-center', !player.ready && 'opacity-40')}>
-            <img src={layer.url} alt={order ? `Diapositiva ${layer.index + 1}` : ''} aria-hidden={order ? undefined : true} draggable={false}
-              className="max-w-none" style={slideStyle(layer, pages[layer.index])} />
+          <div key={`${order}:${layer.index}:${layer.kind}`} className={cn('absolute inset-0 flex items-center justify-center', !player.ready && 'opacity-40')}>
+            {still(layer, order)}
           </div>
         ) : null)}
+        {live && stage ? (
+          // The live slide loads underneath (invisible) and becomes the incoming layer once drawn.
+          <div key={`live:${live.index}`} role="img" aria-label={`Diapositiva ${live.index + 1}`} aria-hidden={live.shown ? undefined : true}
+            className={cn('absolute inset-0 flex items-center justify-center', !live.shown && 'opacity-0')}>
+            <MotionStage ref={player.live} editor={editor} document={player.snapshot} pageId={live.pageId} time={live.time} reducedMotion={reducedMotion}
+              width={liveScene.page.width} height={liveScene.page.height} fit={fitOf(liveScene)} onReady={player.onLiveReady} onError={player.onLiveError}
+              style={live.shown && layers.incoming?.kind === 'live' ? motionStyle(layers.incoming) : undefined} />
+          </div>
+        ) : null}
         {!player.ready && !failure ? (
           <div className="absolute inset-0 flex items-center justify-center" role="status">
             <Loader2 className="h-8 w-8 animate-spin text-white/70 motion-reduce:animate-none" aria-hidden />

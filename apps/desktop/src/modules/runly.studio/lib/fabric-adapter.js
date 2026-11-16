@@ -188,6 +188,12 @@ export async function createStudioEditor(element, options) {
       assertReviewed(reviewed)
       return result
     },
+    // Read-only page renderer for playback (sceneAt frames); separate from this editor's canvas and history.
+    async createPlayer(target, id, reviewed = snapshot(), signal) {
+      const canonical = validateDocument(reviewed)
+      await options.authorizePage?.(id, signal); checkAbort(signal)
+      return createPageEditor(target, {document: pageDocument(canonical, id), resolveImage: assetId => options.resolveImage(assetId, signal), readOnly: true, loadSignal: signal})
+    },
     getPageThumbnail(id, {signal} = {}) {
       return auxiliary(async () => {
         checkAbort(signal)
@@ -900,6 +906,19 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       } finally { output.width = output.height = 0 }
     },
     exportPng() { return editor.exportImage('png') },
+    // Playback frame from sceneAt() (same objects): moves in place, setItem only when the size changes. No validation, history or events.
+    renderFrame(scene) {
+      const objects = new Map(canvas.getObjects().map(object => [object.studioId, object]))
+      for (const item of scene.objects) {
+        const object = objects.get(item.id), previous = source.get(item.id)
+        if (!object || !previous) continue
+        if (['width', 'height', 'scaleX', 'scaleY'].some(key => previous[key] !== item[key])) setItem(object, item, item)
+        else { object.set({ left: item.x, top: item.y, angle: item.rotation, opacity: item.opacity ?? 1, visible: !item.hidden }); source.set(item.id, item) }
+      }
+      canvas.cancelRequestedRender?.(); canvas.renderAll()
+    },
+    // Copy of the current pixels (outgoing slide during a transition).
+    captureFrame() { const copy = element.ownerDocument.createElement('canvas'); copy.width = canvas.lowerCanvasEl.width; copy.height = canvas.lowerCanvasEl.height; copy.getContext('2d').drawImage(canvas.lowerCanvasEl, 0, 0); return copy },
     async destroy() { destroyed = true; await queue; await canvas.dispose() },
   }
   return editor

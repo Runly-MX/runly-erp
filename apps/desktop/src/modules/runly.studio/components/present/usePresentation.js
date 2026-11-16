@@ -1,88 +1,114 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { documentPages, pageId } from '../../../../../../shared/studio/pages.js'
-import { presentationSequence, transitionAt } from '../../../../../../shared/studio/motion.js'
+import { presentationSequence, sceneHasMotion, transitionAt } from '../../../../../../shared/studio/motion.js'
 import { createSlideFrames } from '../../lib/slide-frames.js'
-import { advanceIfDue, elapsedOf, goTo, next, previous, restartClock, setLoop, setPlaying, startPresentation } from '../../lib/presentation-state.js'
+import { advanceIfDue, elapsedOf, goTo, motionTime, next, previous, restartClock, setLoop, setPlaying, startPresentation } from '../../lib/presentation-state.js'
 
 const clock = () => performance.now()
 // The editor rejects a stale snapshot ("El diseño cambió…") or a removed page.
 const isStale = error => /cambió|ya no existe/i.test(error?.message ?? '')
+const EMPTY_VIEW = { shown: null, leaving: null, transition: null, direction: 1, since: 0 }
 
-// Player state for one presentation session over a frozen snapshot of the
-// design. Frames come from slide-frames; timing from presentation-state.
+// Player state for one presentation session over a frozen snapshot of the design.
+// Static slides are images (slide-frames); slides with object motion are drawn live
+// by MotionStage from sceneAt. Timing comes from presentation-state.
 export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
   const [snapshot, setSnapshot] = useState(() => editor.snapshot())
   const pages = useMemo(() => documentPages(snapshot), [snapshot])
-  const sequence = useMemo(() => presentationSequence(snapshot), [snapshot])
+  const sequence = useMemo(() => presentationSequence(snapshot).map((entry, index) => ({ ...entry, animated: sceneHasMotion(pages[index]) })), [snapshot, pages])
   const [state, setState] = useState(() => startPresentation({ count: pages.length, index: Math.max(0, pages.findIndex(scene => pageId(scene) === startPageId)), now: clock() }))
-  const update = useCallback(change => setState(current => change(current, clock())), [])
+  const stateRef = useRef(state)
+  stateRef.current = state
   const frames = useMemo(() => (stage ? createSlideFrames({ editor, document: snapshot, pages, stage }) : null), [editor, snapshot, pages, stage])
   useEffect(() => () => frames?.destroy(), [frames])
-  // shown: the slide on screen; leaving: the previous one while a transition runs.
-  const [view, setView] = useState({ shown: null, leaving: null, transition: null, direction: 1, since: 0 })
+  const [view, setView] = useState(EMPTY_VIEW), viewRef = useRef(view)
+  viewRef.current = view
   const [failure, setFailure] = useState(null), [now, setNow] = useState(clock)
+  // The live stage of the slide on screen; its pixels are captured before it unmounts.
+  const live = useRef(null)
   const index = Math.min(state.index, pages.length - 1), current = sequence[index]
+
+  // A live slide unmounts as soon as the index changes: keep its last pixels on screen
+  // (and as the outgoing layer of the transition) until the next slide is revealed.
+  const captureLeaving = useCallback(() => {
+    const shown = viewRef.current.shown, canvas = shown?.kind === 'live' ? live.current?.capture() : null
+    if (canvas) setView(v => (v.shown === shown ? { ...v, shown: { index: shown.index, kind: 'canvas', canvas } } : v))
+  }, [])
+  const navigate = useCallback(change => {
+    const s = stateRef.current, target = change(s, clock())
+    if (target.index !== s.index) captureLeaving()
+    setState(target)
+  }, [captureLeaving])
+
+  // Reveal the slide at `index` once its pixels exist, starting the transition.
+  const reveal = useCallback((target, entry) => {
+    const at = clock(), before = viewRef.current.shown, direction = stateRef.current.direction
+    const leaving = before && before.index !== target && before.kind !== 'live' ? before : null
+    const transition = leaving ? (direction > 0 ? sequence[target].transition : sequence[leaving.index]?.transition) : null
+    const animate = Boolean(leaving) && !reducedMotion && transition && transition.type !== 'none' && transition.duration > 0
+    setView({ shown: { index: target, ...entry }, leaving: animate ? leaving : null, transition: animate ? transition : null, direction, since: at })
+    setState(s => (s.index === target ? restartClock(s, at) : s))
+    if (frames) frames.prefetch([sequence[target + 1], sequence[target - 1], stateRef.current.loop ? sequence[0] : null].filter(entry => entry && !entry.animated).map(entry => entry.pageId))
+  }, [sequence, reducedMotion, frames])
 
   useEffect(() => {
     if (!frames) return undefined
-    let live = true
     setFailure(null)
-    frames.frame(current.pageId).then(url => {
-      if (!live) return
-      const at = clock()
-      setView(before => {
-        const moving = before.shown && before.shown.index !== index
-        // Going back plays the transition of the slide being left, reversed.
-        const transition = moving ? (state.direction > 0 ? current.transition : sequence[before.shown.index]?.transition) : null
-        const animate = moving && !reducedMotion && transition && transition.type !== 'none' && transition.duration > 0
-        return { shown: { index, url }, leaving: animate ? before.shown : null, transition: animate ? transition : null, direction: state.direction, since: at }
-      })
-      update(s => (s.index === index ? restartClock(s, at) : s))
-      frames.prefetch([sequence[index + 1]?.pageId, sequence[index - 1]?.pageId, state.loop ? sequence[0]?.pageId : null])
-    }).catch(error => { if (live && error?.name !== 'AbortError') setFailure({ message: error.message, stale: isStale(error) }) })
-    return () => { live = false }
+    if (current.animated) return undefined // MotionStage calls onLiveReady
+    let active = true
+    frames.frame(current.pageId).then(url => { if (active) reveal(index, { kind: 'image', url }) })
+      .catch(error => { if (active && error?.name !== 'AbortError') setFailure({ message: error.message, stale: isStale(error) }) })
+    return () => { active = false }
   }, [frames, index]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const ready = view.shown?.index === index
+  const liveShown = ready && view.shown.kind === 'live'
   const transitioning = Boolean(view.transition) && now - view.since < view.transition.duration
-  // One animation-frame loop while playing or transitioning; time is read, never accumulated.
+  const animating = liveShown && !state.frozen && motionTime(state, now) < current.duration
+  // One animation-frame loop while anything moves; time is read, never accumulated.
   useEffect(() => {
-    if (!state.playing && !transitioning) return undefined
+    if (!state.playing && !transitioning && !animating) return undefined
     let frame
     const loop = () => {
       const at = clock()
       setNow(at)
-      if (ready) setState(s => advanceIfDue(s, at, sequence[s.index]?.duration ?? Infinity))
+      if (ready) {
+        const s = stateRef.current, target = advanceIfDue(s, at, sequence[s.index]?.duration ?? Infinity)
+        if (target !== s) { if (target.index !== s.index) captureLeaving(); setState(target) }
+      }
       frame = requestAnimationFrame(loop)
     }
     frame = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(frame)
-  }, [state.playing, transitioning, ready, sequence])
+  }, [state.playing, transitioning, animating, ready, sequence, captureLeaving])
 
   const layers = useMemo(() => {
     if (!view.shown) return { incoming: null, outgoing: null }
-    if (!transitioning) return { incoming: { url: view.shown.url, index: view.shown.index, opacity: 1, dx: 0, dy: 0, scale: 1 }, outgoing: null }
-    const state = transitionAt(view.transition, (now - view.since) / view.transition.duration, view.direction)
-    return { incoming: { url: view.shown.url, index: view.shown.index, ...state.incoming }, outgoing: { url: view.leaving.url, index: view.leaving.index, ...state.outgoing } }
+    if (!transitioning) return { incoming: { ...view.shown, opacity: 1, dx: 0, dy: 0, scale: 1 }, outgoing: null }
+    const layer = transitionAt(view.transition, (now - view.since) / view.transition.duration, view.direction)
+    return { incoming: { ...view.shown, ...layer.incoming }, outgoing: { ...view.leaving, ...layer.outgoing } }
   }, [view, transitioning, now])
 
   const refresh = useCallback(async () => {
     await editor.flush()
     const fresh = editor.snapshot(), count = documentPages(fresh).length
-    setView({ shown: null, leaving: null, transition: null, direction: 1, since: 0 })
+    setView(EMPTY_VIEW)
     setSnapshot(fresh)
-    update(s => ({ ...goTo({ ...s, count }, Math.min(s.index, count - 1), clock()), playing: s.playing }))
-  }, [editor, update])
+    setState(s => ({ ...goTo({ ...s, count }, Math.min(s.index, count - 1), clock()), playing: s.playing }))
+  }, [editor])
 
   return {
-    pages, sequence, index, state, ready, layers, failure,
+    pages, sequence, index, state, ready, layers, failure, snapshot, live,
+    // The live slide for MotionStage: the one on screen, or the next one loading underneath.
+    liveSlide: current.animated ? { index, pageId: current.pageId, time: ready ? motionTime(state, now) : 0, shown: liveShown } : null,
+    onLiveReady: () => reveal(index, { kind: 'live' }),
+    onLiveError: error => setFailure({ message: error.message, stale: isStale(error) }),
     progress: state.playing && ready ? Math.min(1, elapsedOf(state, now) / current.duration) : 0,
     actions: {
-      next: () => update(next), previous: () => update(previous),
-      first: () => update((s, at) => goTo(s, 0, at)), last: () => update((s, at) => goTo(s, s.count - 1, at)),
-      toggle: () => { setNow(clock()); update((s, at) => setPlaying(s, !s.playing, at)) },
-      toggleLoop: () => update(s => setLoop(s, !s.loop)),
-      restartSlide: () => update(restartClock),
+      next: () => navigate(next), previous: () => navigate(previous),
+      first: () => navigate((s, at) => goTo(s, 0, at)), last: () => navigate((s, at) => goTo(s, s.count - 1, at)),
+      toggle: () => { setNow(clock()); setState(s => setPlaying(s, !s.playing, clock())) },
+      toggleLoop: () => setState(s => setLoop(s, !s.loop)),
       refresh,
     },
   }
