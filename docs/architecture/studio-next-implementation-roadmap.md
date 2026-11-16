@@ -97,6 +97,10 @@ cero diferencias en exportaciones estáticas. Resuelve R3 y R4.
 
 ## Fase 3 — Línea de tiempo y keyframes
 
+Estado: implementada el 2026-11-16, pendiente de revisión. Plan, hallazgos, evidencia y
+rendimiento: [plan de Fase 3](../superpowers/plans/2026-11-16-studio-next-phase3-timeline.md).
+Incluye el escalado de keyframes al redimensionar con «escalar contenido» (pendiente de Fase 2).
+
 Entregables: línea de tiempo bajo el lienzo en modo Animar (pistas por objeto,
 arrastre de inicio y duración, cursor de tiempo, Play/Pause, zoom temporal),
 edición de keyframes de `x`, `y`, `rotation`, `opacity` y `scale` desde el lienzo

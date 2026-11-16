@@ -2,8 +2,8 @@
 
 Estado: Fase 0 cerrada el 2026-11-16. Fase 1 (presentaciones) implementada el
 2026-11-16, pendiente de revisión; su migración no está aplicada en bases compartidas.
-Fase 2 (motor de animación y efectos por objeto) implementada el 2026-11-16, pendiente
-de revisión. Las fases 3 a 8 no han empezado.
+Fase 2 (motor de animación y efectos por objeto) y Fase 3 (línea de tiempo y keyframes)
+implementadas el 2026-11-16, pendientes de revisión. Las fases 4 a 8 no han empezado.
 
 Studio Next convierte `runly.studio` en el **origen común** de diseños y sus
 animaciones. Presentación, video, GIF, PowerPoint y Website son destinos que se

@@ -88,3 +88,36 @@ lienzo a 1,5 s, segmentos (retraso/duración), imán y zoom, selección lienzo�
 deshacer/rehacer, reabrir, dos usuarios y conflicto en el mismo keyframe, solo lectura, móvil,
 escalado de página, Presentar igual que la línea de tiempo, rendimiento y memoria. Regresión:
 `verify-studio-presentations.mjs` y `verify-studio-motion.mjs`.
+
+## Resultado (2026-11-16)
+
+Implementado sin cambios de contrato. Desviaciones y hallazgos:
+
+- En modo Animación, la barra del lienzo y el inspector siguen editando el **diseño base**; solo
+  los arrastres en el lienzo crean keyframes. La etiqueta dice «arrastra en el lienzo para crear
+  keyframes» para no prometer más.
+- Arrastrar un elemento agrupado en Animación mueve el grupo: un keyframe por miembro con el
+  mismo desplazamiento, en un solo paso de deshacer (`patchEach`).
+- Corregidos durante la verificación: Supr sobre un keyframe llegaba a los atajos del editor y
+  pedía eliminar el elemento; los rombos se recreaban al cambiar su instante y perdían la captura
+  del puntero (ahora se identifican por posición); la pista seleccionada no se mostraba si estaba
+  desplazada (ahora entra en vista); en el teléfono la barra ocupaba tres filas (ahora una fila
+  desplazable).
+- Teclas de la línea de tiempo que no maneja (H, V, Ctrl+Z…) siguen llegando al editor.
+
+Evidencia:
+
+- [x] Unitarias: `keyframes.test.js` (modelo y escalado con trayectoria proporcional),
+  `timeline-math.test.js`; `node --test` Studio 183/183. Verified: 2026-11-16
+- [x] Navegador: `node scripts/verify-studio-timeline.mjs --api-image=<etiqueta>` 22/22 en stack
+  Supabase desechable (capturas en `.artifacts/studio/timeline/`). Verified: 2026-11-16
+- [x] Regresión: `verify-studio-presentations.mjs` y `verify-studio-motion.mjs`. Verified: 2026-11-16
+
+Rendimiento medido (Chrome headless, equipo de desarrollo, página de 100 objetos con 50
+keyframes y 25 efectos): cambiar de página y abrir la línea de tiempo hasta el primer fotograma
+410–564 ms; `renderFrame` medio 1,7–2,1 ms y máximo 20,9–32,6 ms durante el *scrubbing*; heap
++1,7/+2,5 MiB tras 5 aperturas y cierres, todos los canvas liberados. Los tiempos totales de
+121 movimientos de cabezal (1,7–3,2 s) y de un arrastre de 60 pasos (1,5–1,9 s) incluyen la
+latencia de Playwright por evento: no son FPS. Frente a Fase 2 (2,2–2,6 ms por fotograma con
+40 efectos durante la reproducción) el coste por fotograma es del mismo orden; el método es el
+mismo `renderFrame` medido dentro del navegador. Sin medir en teléfonos físicos ni Tauri.
