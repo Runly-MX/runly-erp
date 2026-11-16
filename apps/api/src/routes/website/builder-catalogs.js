@@ -8,5 +8,8 @@ export const WEBSITE_BUILDER_CATALOGS=Object.freeze({
   '0.6.0':require('./builder-catalogs/0.6.0.json'),
   '0.6.1':require('./builder-catalogs/0.6.1.json'),
   '0.6.2':require('./builder-catalogs/0.6.2.json'),
-  '0.6.3':require('./block-catalog.json'),
+  '0.6.3':require('./builder-catalogs/0.6.3.json'),
+  '0.7.0':require('./builder-catalogs/0.7.0.json'),
+  '0.8.0':require('./builder-catalogs/0.8.0.json'),
+  '0.8.1':require('./block-catalog.json'),
 })
