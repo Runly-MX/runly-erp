@@ -18,6 +18,7 @@ import { useAuth } from '../../../../auth/AuthProvider.jsx'
 import { getApiUrl } from '../../../../lib/runtimeConfig.js'
 import { companyFetch } from '../../../../lib/companyFetch.js'
 import { buildRunlyBlocks, buildRunlyTemplates } from '../../../../website/runlyBlocks/index.js'
+import { usePrivateWebsiteAssets } from '../../../../website/usePrivateWebsiteAssets.js'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
 import { describeError, isRevisionConflict } from '../../lib/websiteErrors.js'
 import { deriveEditorStatus } from '../../lib/siteState.js'
@@ -132,11 +133,15 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     if (draft && revisionRef.current === null) revisionRef.current = draft.revision
   }, [draft])
 
+  // Private site images (file:<id>: Marketplace templates, Studio → Website) are shown from
+  // authorized bytes while editing and stored again as file:<id>.
+  const privateBlocks = useMemo(() => [...baseBlocks, ...buildRunlyBlocks(site.data?.siteType ?? 'website')], [site.data?.siteType])
+  const privateAssets = usePrivateWebsiteAssets({ token, siteId, blocks: privateBlocks })
   const initialPage = useMemo(
-    () => (draft ? toInitialPage(draft.document, pageMeta) : null),
+    () => (draft && !privateAssets.query.isPending ? (page => (page ? privateAssets.toView(page) : page))(toInitialPage(draft.document, pageMeta)) : null),
     // editorKey remounts with fresh server content after "discard".
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [draft, editorKey],
+    [draft, editorKey, privateAssets.query.isPending],
   )
   const theme = useMemo(() => {
     const tokens = themeQuery.data?.tokens
@@ -169,11 +174,11 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
   }, [queryClient, companyId, siteId])
 
   const persist = useCallback(async (page, expectedRevision) => {
-    const document = JSON.parse(serializePage(page))
+    const document = privateAssets.toStored(JSON.parse(serializePage(page)))
     const saved = (await api.saveDraft(siteId, pageId, { document, expectedRevision }, newIdempotencyKey())).data
     revisionRef.current = saved.revision
     return { saved, document }
-  }, [api, siteId, pageId])
+  }, [api, siteId, pageId, privateAssets])
 
   // Builder callback. The page object is the only source of the user's edits,
   // so it is kept in memory + a per-tab backup until the save is confirmed.
@@ -182,7 +187,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     setSaveState('saving'); setSaveError(null)
     pendingRef.current = page
     try {
-      writeBackup(companyId, siteId, pageId, { page })
+      writeBackup(companyId, siteId, pageId, { page: privateAssets.toStored(page) })
       await persist(page, revisionRef.current)
       pendingRef.current = null
       clearBackup(companyId, siteId, pageId)
@@ -194,7 +199,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
       else { setSaveState(error?.code === 'network' ? 'offline' : 'error'); setSaveError(error) }
       return false
     }
-  }, [caps.pagesUpdate.allowed, ready, companyId, siteId, pageId, persist, refreshSiteQueries])
+  }, [caps.pagesUpdate.allowed, ready, companyId, siteId, pageId, persist, refreshSiteQueries, privateAssets])
 
   const handleBuilderPublish = useCallback(async (page) => {
     const ok = await handleSave(page)
@@ -206,7 +211,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     try {
       const page = pendingRef.current
       if (kind === 'copy') {
-        const document = JSON.parse(serializePage(page))
+        const document = privateAssets.toStored(JSON.parse(serializePage(page)))
         const baseSlug = slugify(pageMeta?.slug ?? 'pagina') || 'pagina'
         const suffix = Math.random().toString(36).slice(2, 6)
         const slug = `${baseSlug}-copia-${suffix}`
@@ -264,7 +269,9 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
   let body
   if (loadError) {
     body = <div className="p-6"><ErrorState title={describeError(loadError).title} description={describeError(loadError).message} onRetry={() => draftQuery.refetch()} /></div>
-  } else if (!draft || site.isPending) {
+  } else if (privateAssets.query.isError) {
+    body = <div className="p-6"><ErrorState title="No se pudieron cargar las imágenes privadas" description="Vuelve a abrir el editor." onRetry={() => privateAssets.query.refetch()} /></div>
+  } else if (!draft || site.isPending || privateAssets.query.isPending) {
     body = <LoadingState variant="page" message="Cargando editor…" />
   } else if (schemaBlocked) {
     body = <div className="p-6"><ErrorNotice error={{ code: 'schema_unsupported', status: 422 }} /></div>
