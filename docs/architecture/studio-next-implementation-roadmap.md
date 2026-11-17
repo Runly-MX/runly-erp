@@ -114,6 +114,41 @@ de efectos.
 
 ## Fase 4 — Exportación animada
 
+Estado: implementada y verificada el 2026-11-16, pendiente de revisión.
+
+- Un solo recorrido de fotogramas para los tres formatos (`lib/motion-export-plan.js` +
+  `lib/studio-motion-export.js`): `sceneAt` dibujado por el mismo renderer de página que
+  Presentar (`createPlayer`), compuesto con `transitionAt`, en `k × 1000 / fps` ms.
+- MP4/WebM: WebCodecs `VideoEncoder` (H.264 `avc1.640028` o VP9 `vp09.00.10.08`, con
+  alternativas `avc1` main/baseline y `vp8`) fotograma a fotograma; solo se guardan los
+  paquetes comprimidos y ffmpeg.wasm (ya incluido para LMS) los remultiplexa con `-c copy`.
+  Respaldo sin WebCodecs: JPEG → libx264/libvpx en ffmpeg.wasm (más lento). GIF: PNG →
+  `palettegen/paletteuse`. Sin dependencias nuevas.
+- Diálogo Descargar: Video MP4, Video WebM y GIF animado con páginas, resolución, fps,
+  calidad, repetición, resumen (duración, fotogramas, tamaño estimado) y tipo de codificación;
+  progreso y cancelación en el aviso de descarga.
+- [x] `node scripts/verify-studio-exports.mjs --api-image=<etiqueta>` 10/10 sobre el proyecto de
+  aceptación (3 páginas 16:9 y cuadrada de 3 s, 2 s y 2,5 s; foto privada, textos, formas,
+  entradas/salidas, keyframes de posición/escala/opacidad/rotación, fundido y deslizamiento).
+  Archivos y tiras de fotogramas en `.artifacts/studio/exports/`. Verified: 2026-11-16 (Chrome
+  estable headless, Windows)
+  - MP4 1280×720, 225 fotogramas, 7,5 s, avc1, 0,42 MB, 2,3–4,7 s de exportación.
+  - WebM 1280×720, 225 fotogramas, 7,5 s, VP9, 0,75 MB, 2,9–3,5 s.
+  - GIF 640×360, 90 fotogramas, 7,51 s, bucle infinito, 0,12 MB, 2,3–2,9 s.
+  - Contenedores leídos con analizadores propios (cajas MP4, EBML, bloques GIF); los tres
+    reproducidos por los decodificadores de Chrome hasta el final; 13–15 puntos comparados con el
+    renderer del editor por formato (diferencia máxima 5 en video, 0 en GIF; los bordes de letra
+    no se comparan en el GIF de 640 px). Incluye el fundido a mitad y las franjas negras.
+  - Respaldo sin `VideoEncoder`: MP4 válido de 225 fotogramas en 13–17 s.
+  - Cancelar al ≥10 % no genera archivo y la siguiente exportación funciona; el diseño queda
+    idéntico (revisión y documento); un colaborador de solo lectura exporta con la foto privada
+    autorizada por el diseño.
+  - Heap máximo durante una exportación: +40 a +79 MiB sobre el inicio.
+- Diferencias inevitables: compresión con pérdida en MP4/WebM, 256 colores en GIF (bandas en
+  fotos y degradados), fotogramas cada 1/fps (un efecto más corto que un fotograma puede no
+  verse), sin audio. Sin verificar: Safari, Firefox, Tauri/WebView2, Android y equipos de gama
+  baja; la compatibilidad de H.264/VP9 depende del navegador (por eso existe el respaldo).
+
 Spike previo (sin código de producto): disponibilidad de `VideoEncoder` H.264,
 VP9 y VP8 en Chrome, Edge/WebView2, Android WebView, Safari y Firefox; elección
 y licencia del muxer; rendimiento de ffmpeg.wasm como respaldo.
