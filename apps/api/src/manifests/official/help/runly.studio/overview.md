@@ -156,3 +156,14 @@ que las páginas con otra proporción se centran con franjas negras. Si quieres 
 movimiento, marca **Añadir una diapositiva con la reproducción animada (MP4)**: se agrega al
 final un video como el de Presentar, sin cambiar las diapositivas editables. Las fotos privadas
 se incluyen dentro del archivo, sin enlaces; las fuentes no se incrustan.
+
+**Enviar a Website**: en el menú de Studio elige **Enviar a Website**, las páginas, el sitio y la
+ruta y el título de cada página. Se crean páginas en **borrador** que se abren en el editor de
+Website; el sitio no se publica y el diseño de Studio no cambia. Los textos, las fotos y los
+rectángulos y círculos llegan como elementos editables, y los grupos como contenedores. Lo que no
+tiene equivalente en Website (líneas, iconos, degradados, fotos con máscara o ajustes, elipses)
+llega como una imagen de ese elemento; antes de crear el borrador se muestra qué será editable y
+qué se pierde. En escritorio se conserva la composición; en tableta y teléfono los elementos se
+apilan en orden de lectura y puedes ajustarlos en Website. Las entradas se convierten en efectos
+de Website; las salidas, los énfasis, los keyframes y las transiciones de diapositiva no. Las
+fotos se copian como imágenes privadas del sitio.

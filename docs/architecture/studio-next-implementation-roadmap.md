@@ -304,6 +304,50 @@ antiguo reporta «versión más nueva» sin parsear. Resuelve R8.
 
 ## Fase 7 — Studio → Website
 
+Estado: implementada y verificada en un stack desechable el 2026-11-16, pendiente de revisión.
+
+- `POST /studio/designs/:id/website` (`apps/api/src/services/studio-website/`) crea páginas en
+  **borrador** de un sitio de la misma empresa con `applyBundle` (conflictos de ruta, recibos
+  idempotentes, auditoría); nunca publica ni modifica el diseño. Conversión pura compartida en
+  `apps/shared/studio/website-conversion.js` (el diálogo la usa para su informe; la API construye
+  la página autoritativa y la pasa por el catálogo Website, la lista blanca de efectos y la
+  normalización estricta de borradores).
+- Mapeo: texto → `TextElementBlock` (tamaño, peso, interlineado, alineación, color); foto simple
+  (también dentro de un rectángulo o círculo) → `ImageElementBlock`; rectángulo y círculo →
+  `BoxBlock` (fondo, radio, borde, opacidad); grupo → `BoxBlock` libre; sin equivalente (línea,
+  vector/QR, degradado, foto con máscara o ajustes, elipse no circular, círculo de más de 400 px)
+  → PNG de ese objeto generado en el navegador y validado en la API. Nunca la página completa.
+- Responsivo: escritorio con composición absoluta en un lienzo de 960 px (orden de Studio como
+  `layer`, rotación al centro); tableta y teléfono apilan en orden de lectura (fotos a todo el
+  ancho en teléfono, al menos la mitad en tableta).
+- Efectos: `enter` → `_animation` (fade → fade-in, rotate → rotate-in, resto igual; pop sin
+  equivalente; duración y retardo ≤ 5 s); opacidad → `_opacity`. Pérdidas declaradas: salida,
+  énfasis, keyframes, duración/transición de diapositiva, fuente (usa la del sitio), cursiva,
+  subrayado, tachado, espaciado, contorno y sombra del texto, bordes discontinuos, fondo degradado
+  de página (primer color), más de 100 capas, grupos intercalados en capas.
+- Recursos: las fotos se copian desde los originales autorizados del diseño como archivos privados
+  del sitio (`file:<id>`), con deduplicación por SHA-256; sin URLs firmadas ni ids de Studio. La
+  subida pasa por `website_template_job`: un fallo antes de la transacción final no deja páginas y
+  la compensación existente borra las subidas.
+- Website: el editor de páginas del sitio no resolvía imágenes privadas `file:<id>` (afectaba
+  también a plantillas del Marketplace); ahora usa `usePrivateWebsiteAssets` al cargar, guardar y
+  respaldar.
+- [x] `node scripts/verify-studio-website.mjs --build-api-image` 6/6. Verified: 2026-11-16
+  (stack desechable, Chrome headless, Atlas 0.8.2)
+  - Diálogo: «2 textos, 2 fotos, 2 formas, 1 grupos» editables; círculo de 444 px y línea como
+    imagen; pérdidas de movimiento. 3 borradores en ~1 s y Atlas abierto en la primera; sitio sin
+    publicar; diseño sin cambios.
+  - Páginas guardadas: título como `TextElementBlock` con `_animation` fade-in, foto privada del
+    sitio, caja roja en su capa, grupo como contenedor libre, línea como imagen, zoom-in conservado.
+  - Atlas: escritorio con texto DOM e imagen privada visible; tableta y teléfono apilados sin
+    desbordamiento horizontal (`.artifacts/studio/website/`); el título se edita en el inspector,
+    cambia el `TextElementBlock`, se guarda y se reabre con el cambio y las fotos privadas.
+  - Ruta existente: 409 y la página existente intacta; misma clave → mismo resultado; página
+    rechazada tras subir la foto → sin páginas ni archivos (compensado); visor sin permisos Website
+    y otra empresa rechazados.
+- Regresiones: tests unitarios de conversión 3/3, suite `lib/` de Studio 97/97, PPTX 9/9 (tras el
+  refactor compartido).
+
 Spike previo: contrato de geometría y anclas de `TextElementBlock`,
 `ImageElementBlock` y `BoxBlock` en Atlas 0.8.2 y su validación en Runly.
 

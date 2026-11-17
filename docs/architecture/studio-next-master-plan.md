@@ -7,7 +7,8 @@ implementadas el 2026-11-16, pendientes de revisión. Fase 4 (GIF, MP4 y WebM) i
 y verificada el 2026-11-16. Fase 5 (PowerPoint editable) implementada y verificada con
 Collabora el 2026-11-16; falta la comprobación manual en Microsoft PowerPoint. Fase 6 (paquete
 .runlystudio v2 y Developer Hub) verificada en local y laboratorio el 2026-11-16; su integración
-remota depende de publicar los paquetes compartidos. Las fases 7 y 8 no han empezado.
+remota se completó con los paquetes ca778628. Fase 7 (Studio → Website, borradores editables) verificada
+en stack desechable el 2026-11-16. Falta la Fase 8 (certificación integral y despliegue controlado).
 
 Studio Next convierte `runly.studio` en el **origen común** de diseños y sus
 animaciones. Presentación, video, GIF, PowerPoint y Website son destinos que se
