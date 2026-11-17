@@ -133,6 +133,11 @@ export function createGrowthPropertyService({ prisma, now = () => new Date() }) 
     if (patch.name !== undefined) data.name = String(patch.name).trim();
     if (patch.domain !== undefined) data.domain = normalizeDomain(patch.domain);
     if (patch.enabled !== undefined) data.enabled = Boolean(patch.enabled);
+    if (patch.analyticsMode !== undefined) {
+      // Module-site properties mirror the site settings (runly.website), which stay the source of truth.
+      if (property.kind !== "external_sdk") throw new GrowthPropertyServiceError("El modo de analitica de este sitio se cambia en el modulo Web.", 422, "analytics_mode_managed");
+      data.analyticsMode = patch.analyticsMode;
+    }
     if (patch.turnstileSiteKey !== undefined) {
       data.turnstileSiteKey = String(patch.turnstileSiteKey ?? "").trim() || null;
     }

@@ -174,3 +174,14 @@ test("createExternalProperty rejects a duplicate domain for the same company", a
     },
   );
 });
+
+test("updateProperty changes analyticsMode only for external properties", async () => {
+  const prisma = createPrismaStub({ growthProperties: [
+    { id: "ext", companyId: COMPANY_ID, kind: "external_sdk", enabled: true },
+    { id: "web", companyId: COMPANY_ID, kind: "website_module", enabled: true },
+  ] });
+  const service = createGrowthPropertyService({ prisma });
+  const updated = await service.updateProperty({ companyId: COMPANY_ID, propertyId: "ext", patch: { analyticsMode: "consent_required" } });
+  assert.equal(updated.analyticsMode, "consent_required");
+  await assert.rejects(service.updateProperty({ companyId: COMPANY_ID, propertyId: "web", patch: { analyticsMode: "off" } }), { code: "analytics_mode_managed" });
+});

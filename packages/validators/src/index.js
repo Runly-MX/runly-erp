@@ -936,6 +936,7 @@ export const growthPropertyUpdateSchema = z
     name: z.string().trim().min(1).max(200).optional(),
     domain: z.string().trim().min(1).max(300).nullable().optional(),
     enabled: z.boolean().optional(),
+    analyticsMode: z.enum(["off", "standard", "consent_required"]).optional(),
     turnstileSiteKey: z.string().trim().max(500).nullable().optional(),
     turnstileSecretKey: z.string().trim().max(500).nullable().optional(),
     // Extra site-monitor alert recipients: company users and external addresses.

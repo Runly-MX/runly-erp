@@ -7,10 +7,17 @@ import {
   DialogHeader,
   DialogTitle,
   PasswordField,
+  SelectField,
   TextField,
 } from "@runly/ui";
 
-const EMPTY = { name: "", domain: "", turnstileSiteKey: "", turnstileSecretKey: "" };
+const ANALYTICS_MODES = [
+  { value: "standard", label: "Estandar: mide todas las visitas" },
+  { value: "consent_required", label: "Con consentimiento: solo mide si el visitante acepta" },
+  { value: "off", label: "Apagada: no mide visitas" },
+];
+
+const EMPTY = { name: "", domain: "", analyticsMode: "standard", turnstileSiteKey: "", turnstileSecretKey: "" };
 
 export function EditPropertyDialog({ open, onOpenChange, property, onSave, saving }) {
   const [form, setForm] = useState(EMPTY);
@@ -21,6 +28,7 @@ export function EditPropertyDialog({ open, onOpenChange, property, onSave, savin
     setForm({
       name: property.name ?? "",
       domain: property.domain ?? "",
+      analyticsMode: property.analyticsMode ?? "standard",
       turnstileSiteKey: property.turnstileSiteKey ?? "",
       turnstileSecretKey: "",
     });
@@ -35,6 +43,7 @@ export function EditPropertyDialog({ open, onOpenChange, property, onSave, savin
     const payload = {
       name: form.name.trim(),
       domain: form.domain.trim() || null,
+      ...(property?.kind === "external_sdk" ? { analyticsMode: form.analyticsMode } : {}),
       turnstileSiteKey: form.turnstileSiteKey.trim() || null,
     };
     if (secretChanged) {
@@ -63,6 +72,19 @@ export function EditPropertyDialog({ open, onOpenChange, property, onSave, savin
             onChange={(e) => set("domain", e.target.value)}
             placeholder="runly.mx"
           />
+          {property?.kind === "external_sdk" ? (
+            <div className="space-y-1">
+              <SelectField
+                label="Modo de analitica"
+                value={form.analyticsMode}
+                options={ANALYTICS_MODES}
+                onValueChange={(value) => set("analyticsMode", value)}
+              />
+              <p className="text-[11px] text-[hsl(var(--muted-foreground))]">
+                Runly siempre respeta Do Not Track. El cambio aplica de inmediato, sin volver a copiar el codigo.
+              </p>
+            </div>
+          ) : null}
           <div className="rounded-lg border border-[hsl(var(--border))] p-3 space-y-3">
             <p className="text-xs font-semibold text-[hsl(var(--muted-foreground))] uppercase tracking-wide">
               Proteccion de formularios (Cloudflare Turnstile)
