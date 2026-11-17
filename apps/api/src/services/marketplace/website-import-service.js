@@ -114,5 +114,6 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
  }
  // Inspect retains bytes only server-side for the current request; never puts a ZIP in a browser URL.
  async function describe(a,ref){const {_inspected,...result}=await inspect(a,ref);return result}
- return {inspect:describe,confirm,startCleanup,recoverExpired,readFile,files}
+ // compensate: shared by every importer that stages site files through website_template_job (Studio → Website too).
+ return {inspect:describe,confirm,startCleanup,recoverExpired,compensate,readFile,files}
 }

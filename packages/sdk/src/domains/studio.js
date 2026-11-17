@@ -17,6 +17,8 @@ export function createStudioDomain({ request, requestBlob, withAuthHeaders, toQu
   }
   return {
     packageContract: (token, signal) => request(`${interchange}/schema`, { ...options(token), signal }),
+    // Studio → Website: editable draft pages in a site (never publishes). key: Idempotency-Key of this attempt.
+    sendToWebsite: (id, data, key, token, signal) => { const config = options(token, 'POST', data); return request(`${path(id)}/website`, { ...config, headers: { ...config.headers, 'Idempotency-Key': key }, signal }) },
     inspectPackage: (file, token, signal) => request(`${interchange}/inspect`, { ...options(token, 'POST'), body: packageBody(file), signal }),
     preparePackageImport: (file, data, token, signal) => request(`${interchange}/imports`, { ...options(token, 'POST'), body: packageBody(file, data), signal }),
     packageImportStatus: (id, token, signal) => request(`${interchange}/imports/${encodeURIComponent(id)}`, { ...options(token), signal }),

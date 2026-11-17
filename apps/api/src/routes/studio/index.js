@@ -27,6 +27,11 @@ import { appBaseUrlFromEnv } from '../../services/inventory-label-service.js'
 import { createFleetService } from '../fleet/fleet-service.js'
 import { createHrService } from '../../services/hr-service.js'
 import { signedUrlWithVariant } from '../../lib/image-variants.js'
+import { ZodError } from 'zod'
+import { createStudioWebsiteService } from '../../services/studio-website/service.js'
+import { websiteAccessFromRequest, websiteErrorHandler } from '../../services/website-authorization-service.js'
+import { WebsiteServiceError } from '../website/service-helpers.js'
+import { PageDocumentError } from '../website/page-document.js'
 
 export function createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin, marketplace = null, printBuilder=buildPrintPdf,
   service = createStudioService({ prisma, filesService, broadcaster }),
@@ -49,7 +54,7 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     },
   })
   // High-resolution print renders are larger than documents and photo copies.
-  const bodyMax = path => /\/export\/(?:print-pdf|jobs\/[^/]+\/pages\/[^/]+)$/.test(path) ? 64 * 1024 * 1024 : /^\/studio\/designs\/[^/]+\/assets\/[^/]+\/edited-copy$/.test(path) ? 11 * 1024 * 1024 : 4_100_000
+  const bodyMax = path => /\/export\/(?:print-pdf|jobs\/[^/]+\/pages\/[^/]+)$/.test(path) || /^\/studio\/designs\/[^/]+\/website$/.test(path) ? 64 * 1024 * 1024 : /^\/studio\/designs\/[^/]+\/assets\/[^/]+\/edited-copy$/.test(path) ? 11 * 1024 * 1024 : 4_100_000
   app.use('/studio/*', (c,next) => bodyLimit({ maxSize: bodyMax(c.req.path),
     onError: c => c.json({ error: 'El contenido supera el tamaño permitido.' }, 413) })(c,next))
   const context = c => [c.get('companyId'), c.get('userContext')?.profile?.id]
@@ -76,6 +81,20 @@ export function createStudioRouter({ prisma, requirePermission, filesService, br
     return { ...query, collectionId: id, builtinKeys: id ? await collections.builtinKeys(id) : [] }
   }
   app.get('/studio/designs', requirePermission('studio.view'), async c => c.json({ data: await service.list(...context(c), await withCollection(c)) }))
+  // Studio → Website: editable draft pages in a site of the same company; never publishes.
+  const studioWebsite = prisma && supabaseAdmin && filesService ? createStudioWebsiteService({ prisma, designs: service, filesService, supabaseAdmin }) : null
+  app.post('/studio/designs/:id/website', requirePermission('studio.view'), async c => {
+    if (!studioWebsite) return c.json({ error: 'Website no está disponible.' }, 503)
+    try {
+      const [companyId] = context(c)
+      return c.json({ data: await studioWebsite.convert({ companyId, access: websiteAccessFromRequest(c), idempotencyKey: c.req.header('Idempotency-Key') }, c.req.param('id'), await c.req.json(), fileContext(c)) }, 201)
+    } catch (error) {
+      if (error instanceof ZodError) return c.json({ error: 'Solicitud inválida.', code: 'validation_failed' }, 422)
+      if (error instanceof PageDocumentError) return c.json({ error: error.message, code: error.code }, 422)
+      if (error instanceof WebsiteServiceError) return websiteErrorHandler(error, c)
+      throw error
+    }
+  })
   const body = async c => c.req.json().catch(() => ({}))
   app.get('/studio/collections', requirePermission('studio.view'), async c => { c.header('Cache-Control', 'private, no-store'); return c.json({ data: await collections.list(...context(c)) }) })
   app.post('/studio/collections', requirePermission('studio.view'), async c => c.json({ data: await collections.create(...context(c), await body(c)) }, 201))
