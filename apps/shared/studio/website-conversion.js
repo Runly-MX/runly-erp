@@ -68,10 +68,12 @@ export function convertStudioPage(scene, refs) {
   const layerOf = new Map(objects.map((item, index) => [item.id, Math.min(100, index)]))
   const offset = (value, max = 4000) => clamp(round(value), -2000, max)
 
+  // Tablet: at least half the width; phone: photos and object images full width, shapes at least half.
   function stacked(kind, w, h) {
     if (kind === 'text') return { tabletPosition: 'flow', tabletRotation: 0, tabletWidthMode: 'fill', tabletHeightMode: 'auto' }
-    const percent = clamp(round((w / width) * 100), 10, 100), ratio = h / Math.max(1, w)
-    return { tabletPosition: 'flow', tabletRotation: 0, tabletWidthMode: 'percent', tabletWidthPercent: percent, tabletHeightMode: 'fixed', tabletHeight: clamp(round(STACK_WIDTH.tablet * (percent / 100) * ratio), 1, 4000), mobileHeight: clamp(round(STACK_WIDTH.mobile * (percent / 100) * ratio), 1, 4000) }
+    const ratio = h / Math.max(1, w), tablet = clamp(round((w / width) * 100), 50, 100), mobile = kind === 'box' ? tablet : 100
+    return { tabletPosition: 'flow', tabletRotation: 0, tabletWidthMode: 'percent', tabletWidthPercent: tablet, tabletHeightMode: 'fixed', tabletHeight: clamp(round(STACK_WIDTH.tablet * (tablet / 100) * ratio), 1, 4000),
+      mobileWidthPercent: mobile, mobileHeight: clamp(round(STACK_WIDTH.mobile * (mobile / 100) * ratio), 1, 4000) }
   }
   // An object image already carries its opacity: only its entrance is added.
   function effects(item, { opacity = true } = {}) {
@@ -144,9 +146,9 @@ export function convertStudioPage(scene, refs) {
     const children = members.map(member => element(member, { x: x0, y: y0 })).filter(Boolean).sort(reading).map(entry => entry.node)
     const w = Math.max(1, round((x1 - x0) * scale)), h = Math.max(1, round((y1 - y0) * scale))
     counts.group++
-    entries.push({ top: y0, left: x0, node: { type: 'BoxBlock', props: { layout: 'free', position: 'absolute', anchorX: 'left', anchorY: 'top', offsetX: offset(x0 * scale), offsetY: offset(y0 * scale), widthMode: 'fixed', width: w, heightMode: 'fixed', height: h, layer: layerOf.get(objects[first].id), tabletLayout: 'column', gap: 16, tabletPosition: 'flow', tabletWidthMode: 'fill', tabletHeightMode: 'auto' }, children: { children } } })
+    entries.push({ top: y0, left: x0, node: { type: 'BoxBlock', props: { layout: 'free', position: 'absolute', anchorX: 'left', anchorY: 'top', offsetX: offset(x0 * scale), offsetY: offset(y0 * scale), widthMode: 'fixed', width: w, heightMode: 'fixed', height: h, layer: layerOf.get(objects[first].id), tabletLayout: 'column', gap: 16, tabletPosition: 'flow', tabletWidthMode: 'fill', tabletHeightMode: 'auto', tabletMinHeight: 0 }, children: { children } } })
   }
-  const canvas = { type: 'BoxBlock', props: { layout: 'free', widthMode: 'fixed', width, heightMode: 'fixed', height, gap: 16, tabletLayout: 'column', mobileLayout: 'column', tabletWidthMode: 'fill', tabletHeightMode: 'auto' }, children: { children: entries.sort(reading).map(entry => entry.node) } }
+  const canvas = { type: 'BoxBlock', props: { layout: 'free', widthMode: 'fixed', width, heightMode: 'fixed', height, gap: 16, tabletLayout: 'column', mobileLayout: 'column', tabletWidthMode: 'fill', tabletHeightMode: 'auto', tabletMinHeight: 0 }, children: { children: entries.sort(reading).map(entry => entry.node) } }
   const gradient = page.backgroundPaint?.type === 'gradient'
   if (gradient) losses.add(LOSSES.gradientPage)
   const background = hex(gradient ? page.backgroundPaint.stops?.[0]?.color : page.background)

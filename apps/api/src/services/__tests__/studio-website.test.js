@@ -42,7 +42,7 @@ test('a page becomes one section with a free canvas: editable elements, layers, 
   assert.deepEqual(title.props._animation, { preset: 'fade-in', duration: 600, delay: 0, easing: 'linear' })
   assert.deepEqual([box.props.backgroundColor, box.props.rotation, box.props.cornerRadius, box.props.borderWidth, box.props._opacity, box.props.layer], ['#ef4444', 30, 10, 2, 0.5, 2])
   const photo = canvas.children.children.find(node => node.props.src === `file:${SITE_FILE}`)
-  assert.deepEqual([photo.props.offsetX, photo.props.offsetY, photo.props.width, photo.props.height, photo.props.layer, photo.props.tabletWidthPercent], [650, 300, 240, 180, 0, 25])
+  assert.deepEqual([photo.props.offsetX, photo.props.offsetY, photo.props.width, photo.props.height, photo.props.layer, photo.props.tabletWidthPercent, photo.props.mobileWidthPercent], [650, 300, 240, 180, 0, 50, 100])
   const circle = canvas.children.children.find(node => node.props.cornerRadius === 50)
   assert.equal(circle.props._animation, undefined, 'pop has no Atlas equivalent')
   const line = canvas.children.children.find(node => node.props.src === `file:${RASTER_FILE}`)
