@@ -207,7 +207,7 @@ export default function GrowthMonitorsScreen() {
   const columns = useMemo(
     () => [
       { accessorKey: "name", header: "Monitor" },
-      { id: "property", header: "Sitio", cell: ({ row }) => propertyName.get(row.original.propertyId) ?? "-" },
+      { id: "property", accessorFn: (m) => propertyName.get(m.propertyId) ?? "", header: "Sitio", cell: ({ row }) => propertyName.get(row.original.propertyId) ?? "-" },
       { accessorKey: "type", header: "Tipo", cell: ({ row }) => TYPE_LABEL[row.original.type] ?? row.original.type },
       {
         accessorKey: "status",
@@ -229,16 +229,17 @@ export default function GrowthMonitorsScreen() {
           </div>
         ),
       },
-      { id: "uptime", header: "Uptime", cell: ({ row }) => `${pct(row.original.uptime24h)} / ${pct(row.original.uptime30d)}` },
+      { id: "uptime", accessorFn: (m) => m.uptime24h ?? -1, header: "Uptime", cell: ({ row }) => `${pct(row.original.uptime24h)} / ${pct(row.original.uptime30d)}` },
       {
         id: "metric",
+        accessorFn: (m) => (m.type === "ssl" || m.type === "domain" ? m.sslDaysLeft : m.latestLatencyMs) ?? -1,
         header: "Latencia",
         cell: ({ row }) =>
           row.original.type === "ssl" || row.original.type === "domain"
             ? row.original.sslDaysLeft == null ? "-" : `${row.original.sslDaysLeft} dias`
             : row.original.latestLatencyMs == null ? "-" : `${row.original.latestLatencyMs} ms`,
       },
-      { id: "checked", header: "Revision", cell: ({ row }) => formatDateTime(row.original.lastCheckedAt) },
+      { id: "checked", accessorFn: (m) => m.lastCheckedAt ?? "", header: "Revision", cell: ({ row }) => formatDateTime(row.original.lastCheckedAt) },
       ...(canManage
         ? [
             {
@@ -327,7 +328,7 @@ export default function GrowthMonitorsScreen() {
           emptyIcon={Activity}
           emptyTitle="Sin monitores"
           emptyDescription="Conecta un sitio con dominio en Sitios conectados y crearemos sus monitores automaticamente."
-          showToolbar={false}
+          searchPlaceholder="Buscar..."
         />
       )}
 
@@ -335,10 +336,11 @@ export default function GrowthMonitorsScreen() {
         <h2 className="text-base font-semibold">Incidentes recientes</h2>
         <DataTable
           columns={[
-            { id: "monitor", header: "Monitor", cell: ({ row }) => monitorName.get(row.original.monitorId) ?? "-" },
-            { id: "started", header: "Inicio", cell: ({ row }) => formatDateTime(row.original.startedAt) },
+            { id: "monitor", accessorFn: (i) => monitorName.get(i.monitorId) ?? "", header: "Monitor", cell: ({ row }) => monitorName.get(row.original.monitorId) ?? "-" },
+            { id: "started", accessorFn: (i) => i.startedAt ?? "", header: "Inicio", cell: ({ row }) => formatDateTime(row.original.startedAt) },
             {
               id: "state",
+              accessorFn: (i) => (i.resolvedAt ? 1 : 0),
               header: "Estado",
               cell: ({ row }) =>
                 row.original.resolvedAt ? (
@@ -354,7 +356,7 @@ export default function GrowthMonitorsScreen() {
           emptyIcon={Activity}
           emptyTitle="Sin incidentes"
           emptyDescription="Cuando un sitio deje de responder aparecera aqui con su duracion."
-          showToolbar={false}
+          searchPlaceholder="Buscar..."
         />
       </section>
 
@@ -377,22 +379,23 @@ export default function GrowthMonitorsScreen() {
         <DataTable
           columns={[
             { accessorKey: "siteName", header: "Sitio" },
-            { id: "route", header: "Ruta", cell: ({ row }) => `${row.original.host ?? ""}${row.original.path ?? ""}` },
+            { id: "route", accessorFn: (e) => `${e.host ?? ""}${e.path ?? ""}`, header: "Ruta", cell: ({ row }) => `${row.original.host ?? ""}${row.original.path ?? ""}` },
             {
               id: "status",
+              accessorFn: (e) => (e.kind === "network" ? 0 : e.status),
               header: "Error",
               cell: ({ row }) => (row.original.kind === "network" ? "Sin conexion" : `HTTP ${row.original.status}`),
             },
             { accessorKey: "total", header: "Reportes" },
             { accessorKey: "sessions", header: "Visitantes" },
-            { id: "last", header: "Ultimo", cell: ({ row }) => formatDateTime(row.original.lastSeen) },
+            { id: "last", accessorFn: (e) => e.lastSeen ?? "", header: "Ultimo", cell: ({ row }) => formatDateTime(row.original.lastSeen) },
           ]}
           data={realErrorsQuery.data?.data ?? []}
           isLoading={realErrorsQuery.isLoading}
           emptyIcon={Activity}
           emptyTitle="Sin errores reportados"
           emptyDescription="Cuando un visitante encuentre una falla del servidor, aparecera aqui agrupada por ruta."
-          showToolbar={false}
+          searchPlaceholder="Buscar..."
         />
       </section>
 

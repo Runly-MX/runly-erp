@@ -245,7 +245,7 @@ export default function GrowthPropertiesScreen() {
           emptyIcon={Globe}
           emptyTitle="Sin sitios conectados"
           emptyDescription="Conecta un sitio externo o instala el modulo Web para empezar a rastrear."
-          showToolbar={false}
+          searchPlaceholder="Buscar sitio..."
         />
       )}
 
