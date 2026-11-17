@@ -71,8 +71,20 @@ function parseJson(bytes, { limit, reason, missing }) {
 }
 
 const PNG = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10])
+// Writers and readers re-check the same bytes in one process (export, then inspect):
+// a full pixel decode per photo per pass made large sites exceed validator time budgets.
+const checkedImages = new Map()
 export async function validateImage(input, mime, limits = PACKAGE_LIMITS) {
   const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input ?? [])
+  const key = bytes.length ? `${mime}:${limits.entry}:${limits.imageSide}:${limits.imagePixels}:${hash(bytes)}` : null
+  if (key && checkedImages.has(key)) return { ...checkedImages.get(key) }
+  const size = await decodeImage(bytes, mime, limits)
+  if (checkedImages.size >= 512) checkedImages.clear()
+  checkedImages.set(key, size)
+  return { ...size }
+}
+
+async function decodeImage(bytes, mime, limits) {
   if (!bytes.length) throw packageError('image_invalid', 'La imagen está vacía.')
   if (bytes.length > limits.entry) throw packageError('image_limit', 'Imagen demasiado grande.')
   const format = mime === 'image/png' && bytes.subarray(0, 8).equals(PNG) ? 'png' : mime === 'image/jpeg' && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? 'jpeg' : mime === 'image/webp' && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP' ? 'webp' : null
