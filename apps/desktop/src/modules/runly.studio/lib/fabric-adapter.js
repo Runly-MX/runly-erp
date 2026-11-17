@@ -917,7 +917,8 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
       }
       canvas.cancelRequestedRender?.(); canvas.renderAll()
     },
-    // Copy of the current pixels (outgoing slide during a transition).
+    // Live pixels of a playback frame (read right after renderFrame) and a copy of them.
+    frameCanvas() { return canvas.lowerCanvasEl },
     captureFrame() { const copy = element.ownerDocument.createElement('canvas'); copy.width = canvas.lowerCanvasEl.width; copy.height = canvas.lowerCanvasEl.height; copy.getContext('2d').drawImage(canvas.lowerCanvasEl, 0, 0); return copy },
     async destroy() { destroyed = true; await queue; await canvas.dispose() },
   }

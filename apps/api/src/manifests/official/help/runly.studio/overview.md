@@ -134,3 +134,13 @@ el cabezal o hacer zoom no modifica el diseño; cada arrastre se deshace en un p
 el tamaño de la página con «escalar contenido», los keyframes de posición se escalan igual que
 los elementos. Si dos personas editan los keyframes del mismo elemento a la vez, se conserva el
 último cambio.
+
+**Video y GIF**: en **Descargar** elige **Video MP4**, **Video WebM** o **GIF animado**. Se
+generan con las mismas animaciones, keyframes, transiciones y duraciones que ves en
+**Presentar**, una página tras otra. Puedes elegir las páginas, la resolución, los fotogramas
+por segundo, la calidad del video y si el GIF se repite; el resumen muestra la duración, los
+fotogramas y un tamaño aproximado. El archivo se genera en tu dispositivo: deja la pestaña
+abierta, sigue el porcentaje y cancela cuando quieras (no se guarda nada). Los videos no tienen
+sonido y duran como máximo 2 minutos; el GIF, 20 segundos y 800 px, con 256 colores (las fotos y
+degradados pueden verse con bandas). Si el navegador no codifica el formato de forma acelerada,
+se usa una codificación compatible más lenta. Exportar no modifica el diseño.

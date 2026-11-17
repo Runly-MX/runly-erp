@@ -212,7 +212,8 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
       if(fresh.revision!==sync.state().revision||JSON.stringify(validateDocument(fresh.document))!==JSON.stringify(validateDocument(sync.state().document)))throw Error('El diseño cambió. Revisa la revisión actual antes de descargar.')
       const { blob, extension } = options.type === 'zpl' ? await exportZpl({ editor: observed, options, scene: reviewedScene, signal })
         : options.bulk ? await exportBulk({ editor: observed, options, scene: reviewedScene, signal })
-        : await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal })
+        : await exportDesign({ editor: observed, options, scene: reviewedScene, designId: record.id, token, name,revision:fresh.revision,signal,
+          onProgress: (progress, stage) => phase(stage, { progress }) })
       const authorized=unwrap(await runly.studio.getDesign(record.id,token,signal));checkAbort(signal)
       if(authorized.revision!==fresh.revision)throw Error('El diseño cambió durante la exportación. Vuelve a revisar y descargar.')
       phase('downloading'); await nextPaint();checkAbort(signal)

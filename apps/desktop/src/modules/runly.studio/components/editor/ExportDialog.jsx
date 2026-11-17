@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
-import { AlertTriangle, Database, Download, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag } from 'lucide-react'
+import { AlertTriangle, Clapperboard, Database, Download, Film, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag, Video } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages, planScreenExport } from '../../lib/studio-export-plan.js'
 import { ZplOptions } from './ZplOptions.jsx'
+import { MotionExportOptions } from './MotionExportOptions.jsx'
+import { DEFAULT_MOTION_EXPORT, MOTION_TYPES, planMotionExport } from '../../lib/motion-export-plan.js'
 import { parsePageRange } from '../../lib/studio-pages.js'
 import { BULK_PDF_PAGES, autoMapping, sheetGrid } from '../../lib/studio-bulk.js'
 
@@ -13,6 +15,9 @@ const TYPES = [
   { value: 'jpg', label: 'JPG', purpose: 'Fotografías', hint: 'Archivo ligero con calidad ajustable. Sin transparencia.', icon: Images },
   { value: 'pdf', label: 'PDF para imprimir', purpose: 'Imprenta', hint: `Medidas en mm, ${PRINT_PPI} ppp, sangrado y marcas de corte.`, icon: Printer },
   { value: 'zpl', label: 'ZPL (Zebra)', purpose: 'Impresoras de etiquetas', hint: 'Archivo .zpl o envío a tu impresora Zebra, con QR y códigos nativos.', icon: Tag },
+  { value: 'mp4', label: 'Video MP4', purpose: 'Compartir y redes', hint: 'Animaciones, keyframes y transiciones como en Presentar. Sin sonido.', icon: Clapperboard },
+  { value: 'webm', label: 'Video WebM', purpose: 'Páginas web', hint: 'Video abierto para la web, con las mismas animaciones. Sin sonido.', icon: Video },
+  { value: 'gif', label: 'GIF animado', purpose: 'Chats y correos', hint: 'Hasta 20 s y 800 px, 256 colores. Se reproduce en cualquier lugar.', icon: Film },
 ]
 // Only offered when the API publishes the package contract (packageExport).
 const PACKAGE_TYPE = { value: 'runlystudio', label: 'Proyecto Studio', purpose: 'Editable en Studio', hint: 'Paquete .runlystudio: conserva páginas, texto y formas para seguir editando.', icon: PackageOpen }
@@ -68,7 +73,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const types = useMemo(() => (packageExport ? [...TYPES, PACKAGE_TYPE] : TYPES), [packageExport])
   // A remembered or stale choice that is no longer offered falls back to PNG.
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
-  const native = options.type === 'runlystudio'
+  const native = options.type === 'runlystudio', motion = MOTION_TYPES.includes(options.type)
+  const motionValue = motion ? { ...DEFAULT_MOTION_EXPORT[options.type], ...options.motion?.[options.type] } : null
   const motionBlocked = native && Boolean(packageExport?.motionLoss) && !motionAccepted
   const [scope, setScope] = useState('all'), [range, setRange] = useState('')
   const entries = useMemo(() => (pages.length ? pages : [{ ...page, id: 'page-1', active: true, label: 'Página 1' }]).map(item => ({ ...item, label: pages.length > 1 ? item.label : '', ppiDefault: defaultPpi(item) })), [pages, page])
@@ -82,6 +88,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const unmapped = bulk ? fields.filter(field => !{ ...autoMapping(fields, bulk.headers), ...bulk.mapping }[field]) : []
   const plan = useMemo(() => {
     if (native) return { kind: 'package' }
+    if (motion) return scope === 'range' && parsed?.error ? { error: parsed.error } : planMotionExport(selected, { type: options.type, ...motionValue })
     if (options.type === 'zpl') return planScreenExport(page, { type: 'zpl', scale: options.dpi / defaultPpi(page) })
     if (options.type !== 'pdf') return planExport(page, { ...options, ppi })
     // Batch PDFs are built in the browser: RGB, no bleed or crop marks.
@@ -92,16 +99,28 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     const sheets = grid ? Math.ceil(labels / grid.perSheet) : null
     return !base.error && (sheets ?? labels) > BULK_PDF_PAGES
       ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${sheets ?? labels}). Usa menos filas o páginas.` } : { ...base, sheets, perSheet: grid?.perSheet }
-  }, [page, options, ppi, selected, scope, parsed, native, versions])
+  }, [page, options, ppi, selected, scope, parsed, native, versions, motion, motionValue])
   function submit() {
     if (plan.error || exporting || (native && (!acknowledged || motionBlocked))) return
     if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true, ...(packageExport.motionLoss ? { acknowledgeMotionLoss: true } : {}) }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
+    if (motion) { onExport({ type: options.type, ...motionValue, pages: selected.map(({ id, width, height, slide }) => ({ id, width, height, slide })) }); return }
     const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
       ...(options.type === 'zpl' ? { printer: printers.find(item => item.id === options.printerId) ?? null } : {}),
       ...(versions ? { bulk: { rows: bulk.rows, mapping, source: bulk.source ?? null, ids: bulk.ids ?? null, images: bulk.images ?? null } } : {}) })
   }
+  // Pages to include (PDF and animations): current, all or a range, in the design's order.
+  const pageScope = multiple ? (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium">Páginas</p>
+      <SegmentedControl ariaLabel="Páginas a incluir" value={scope} onChange={setScope} className="w-full [&_button]:min-w-0"
+        options={[{ value: 'current', label: 'Actual' }, { value: 'all', label: `Todas (${entries.length})` }, { value: 'range', label: 'Rango' }]} />
+      {scope === 'range' ? <TextField id="studio-export-range" label="Rango de páginas" value={range} placeholder="1-3, 5" autoComplete="off" onChange={event => setRange(event.target.value)}
+        hint={`Del 1 al ${entries.length}. Se incluyen en el orden del diseño.`} error={parsed?.error && range.trim() ? parsed.error : undefined} /> : null}
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">{scope === 'current' ? `Solo ${entries.find(item => item.active)?.label}.` : scope === 'all' ? (motion ? 'Todas las páginas, una tras otra.' : 'Todas las páginas, cada una con sus propias medidas.') : 'Solo las páginas del rango.'}</p>
+    </div>
+  ) : null
   function arrows(event) {
     const delta = { ArrowRight: 1, ArrowDown: 1, ArrowLeft: -1, ArrowUp: -1 }[event.key]
     if (!delta) return
@@ -168,6 +187,9 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                   hint="El formato .runlystudio todavía no las admite; el diseño en Studio no cambia." checked={motionAccepted} onChange={event => setMotionAccepted(event.target.checked)} />
               ) : null}
             </div>
+          ) : motion ? (
+            <MotionExportOptions type={options.type} value={motionValue} plan={plan} pageScope={pageScope}
+              onChange={patch => set({ motion: { ...options.motion, [options.type]: { ...motionValue, ...patch } } })} />
           ) : options.type === 'zpl' ? (
             <ZplOptions page={page} options={options} set={set} loadPrinters={bulkData?.printers} onPrinters={setPrinters} />
           ) : options.type !== 'pdf' ? (
@@ -188,16 +210,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
             </div>
           ) : (
             <div className="space-y-4">
-              {multiple ? (
-                <div className="space-y-1.5">
-                  <p className="text-sm font-medium">Páginas</p>
-                  <SegmentedControl ariaLabel="Páginas a incluir" value={scope} onChange={setScope} className="w-full [&_button]:min-w-0"
-                    options={[{ value: 'current', label: 'Actual' }, { value: 'all', label: `Todas (${entries.length})` }, { value: 'range', label: 'Rango' }]} />
-                  {scope === 'range' ? <TextField id="studio-export-range" label="Rango de páginas" value={range} placeholder="1-3, 5" autoComplete="off" onChange={event => setRange(event.target.value)}
-                    hint={`Del 1 al ${entries.length}. Se incluyen en el orden del diseño.`} error={parsed?.error && range.trim() ? parsed.error : undefined} /> : null}
-                  <p className="text-xs text-[hsl(var(--muted-foreground))]">{scope === 'current' ? `Solo ${entries.find(item => item.active)?.label}.` : scope === 'all' ? 'Todas las páginas, cada una con sus propias medidas.' : 'Solo las páginas del rango.'}</p>
-                </div>
-              ) : null}
+              {pageScope}
               {versions ? null : <>
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Perfil de color</p>
@@ -233,7 +246,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
             </div>
           )}
         </div>
-        {native ? null : <div className="shrink-0"><Result options={options} plan={plan} versions={versions} /></div>}
+        {native || motion ? (motion && plan.error && !(scope === 'range' && parsed?.error) ? <p role="alert" className="shrink-0 text-sm text-[hsl(var(--destructive))]">{plan.error}</p> : null) : <div className="shrink-0"><Result options={options} plan={plan} versions={versions} /></div>}
         <DialogFooter className="sm:justify-between">
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">

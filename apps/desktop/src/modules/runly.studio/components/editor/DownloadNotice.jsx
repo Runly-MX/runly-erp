@@ -7,6 +7,8 @@ const TEXT = {
   preparing: 'Preparando el archivo…',
   processing: 'Procesando el PDF en el servidor…',
   downloading: 'Descargando…',
+  rendering: 'Generando fotogramas…',
+  encoding: 'Codificando el archivo…',
 }
 
 export function DownloadNotice({ download, onCancel, onClose }) {
@@ -20,6 +22,8 @@ export function DownloadNotice({ download, onCancel, onClose }) {
       <Icon className={cn('h-4 w-4 shrink-0', active && 'animate-spin motion-reduce:animate-none', phase === 'error' && 'text-[hsl(var(--destructive))]', phase === 'done' && 'text-emerald-600 dark:text-emerald-400')} aria-hidden />
       <span className="min-w-0 flex-1">
         {phase === 'error' ? <span className="mr-1 font-semibold">No se pudo descargar{format ? ` el ${format}` : ''}.</span> : null}{phase === 'error' ? ' ' : null}{text}
+        {/* The percentage changes every frame: shown, not announced (the phase text is). */}
+        {active && Number.isFinite(download.progress) ? <span aria-hidden data-progress className="ml-1 tabular-nums text-[hsl(var(--muted-foreground))]">{Math.round(download.progress * 100)} %</span> : null}
       </span>
       {active && phase !== 'downloading' ? <Button size="sm" variant="ghost" onClick={onCancel} className="h-7 shrink-0 px-2 text-xs">Cancelar</Button> : null}
       {!active ? <Button size="icon" variant="ghost" aria-label="Cerrar aviso de descarga" onClick={onClose} className="h-7 w-7 shrink-0"><X className="h-4 w-4" aria-hidden /></Button> : null}

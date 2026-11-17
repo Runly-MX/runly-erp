@@ -105,8 +105,13 @@ export async function exportZpl({ editor, options, scene, signal }) {
   return { blob: new Blob([labels.join('\n')], { type: 'text/plain' }), extension: 'zpl', count: labels.length }
 }
 
-export async function exportDesign({ editor, options, scene, designId, token, name,revision,signal }) {
+export async function exportDesign({ editor, options, scene, designId, token, name,revision,signal,onProgress }) {
   checkAbort(signal)
+  // GIF/MP4/WebM: same frames as Presentar (sceneAt); the encoder chunk is loaded on demand.
+  if (['gif', 'mp4', 'webm'].includes(options.type)) {
+    const { exportMotion } = await import('./studio-motion-export.js')
+    return exportMotion({ editor, document: scene, pages: options.pages, options, signal, onProgress })
+  }
   // Native editable package: built by the API from the saved design; the browser renders nothing.
   if (options.type === 'runlystudio') {
     if (options.acknowledgeImageCopies !== true) throw Error('Confirma la inclusión de copias de las imágenes para descargar el paquete.')
