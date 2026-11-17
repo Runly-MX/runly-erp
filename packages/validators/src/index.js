@@ -938,6 +938,9 @@ export const growthPropertyUpdateSchema = z
     enabled: z.boolean().optional(),
     turnstileSiteKey: z.string().trim().max(500).nullable().optional(),
     turnstileSecretKey: z.string().trim().max(500).nullable().optional(),
+    // Extra site-monitor alert recipients: company users and external addresses.
+    alertUserIds: z.array(z.string().uuid()).max(20).optional(),
+    alertEmails: z.array(z.string().trim().toLowerCase().email().max(254)).max(10).optional(),
   })
   .refine((data) => Object.keys(data).length > 0, {
     message: "No hay cambios para aplicar.",

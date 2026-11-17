@@ -8,7 +8,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Activity, Globe, Link2, Pencil, Play, Plus, Search, Trash2, Wrench } from "lucide-react";
+import { Activity, BellRing, Globe, Link2, Pencil, Play, Plus, Search, Trash2, Wrench } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -18,6 +18,7 @@ import { MonitorDetectDialog } from "../components/MonitorDetectDialog.jsx";
 import { MonitorDialog } from "../components/MonitorDialog.jsx";
 import { MonitorMaintenanceDialog } from "../components/MonitorMaintenanceDialog.jsx";
 import { StatusPageDialog } from "../components/StatusPageDialog.jsx";
+import { AlertRecipientsDialog } from "../components/AlertRecipientsDialog.jsx";
 
 const STATUS_LABEL = {
   up: "En linea",
@@ -64,6 +65,21 @@ export default function GrowthMonitorsScreen() {
   const [maintenanceTarget, setMaintenanceTarget] = useState(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [connection, setConnection] = useState(null);
+  const [alertsOpen, setAlertsOpen] = useState(false);
+  const usersQuery = useQuery({
+    queryKey: ["growth", "form-assignees"],
+    queryFn: () => runly.growth.listFormAssignees(token),
+    enabled: Boolean(token && canManage && alertsOpen),
+  });
+  const alertsMutation = useMutation({
+    mutationFn: ({ propertyId, payload }) => runly.growth.updateProperty(propertyId, payload, token),
+    onSuccess: () => {
+      toast.success("Destinatarios de alertas guardados");
+      queryClient.invalidateQueries({ queryKey: ["growth", "properties"] });
+      setAlertsOpen(false);
+    },
+    onError: (err) => toast.error(err?.message || "No se pudieron guardar los destinatarios"),
+  });
 
   const monitorsQuery = useQuery({
     queryKey: ["growth", "monitors"],
@@ -280,6 +296,10 @@ export default function GrowthMonitorsScreen() {
         actions={
           canManage ? (
             <div className="flex items-center gap-2">
+              <Button type="button" variant="outline" onClick={() => setAlertsOpen(true)}>
+                <BellRing className="mr-2 h-4 w-4" />
+                Alertas
+              </Button>
               <Button type="button" variant="outline" onClick={() => setStatusOpen(true)}>
                 <Globe className="mr-2 h-4 w-4" />
                 Pagina de estado
@@ -382,6 +402,15 @@ export default function GrowthMonitorsScreen() {
         properties={properties}
         onDetect={(url) => runly.growth.discoverMonitors({ url }, token)}
         onCreate={handleCreateDetected}
+      />
+
+      <AlertRecipientsDialog
+        open={alertsOpen}
+        onOpenChange={setAlertsOpen}
+        properties={properties}
+        users={usersQuery.data?.data ?? []}
+        saving={alertsMutation.isPending}
+        onSave={(propertyId, payload) => alertsMutation.mutate({ propertyId, payload })}
       />
 
       <StatusPageDialog

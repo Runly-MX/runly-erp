@@ -49,6 +49,7 @@ import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 import { createGrowthErrorSpikeWorker } from '../../api/src/services/growth-error-spike-worker.js'
 import { createGrowthMonitorWorker } from '../../api/src/services/growth-monitor-worker.js'
+import { createSmtpService } from '../../api/src/services/smtp-service.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -160,6 +161,7 @@ const growthPropertyHealthWorker = createGrowthPropertyHealthWorker({
 const growthMonitorWorker = createGrowthMonitorWorker({
   prisma,
   notificationService: createNotificationService({ prisma }),
+  sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail),
 })
 const growthErrorSpikeWorker = createGrowthErrorSpikeWorker({
   prisma,

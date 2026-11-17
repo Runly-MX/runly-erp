@@ -63,6 +63,14 @@ Si vas a actualizar o migrar un sitio, pulsa el botón de la llave inglesa del m
 - El certificado SSL avisa a los **30, 14, 7, 3 y 1 días** antes de vencer; el dominio, a los **60, 30, 14 y 7**.
 - El historial de revisiones se conserva **30 días**. Los incidentes recientes aparecen debajo de la tabla.
 - Si el propio servidor de Runly pierde internet y todo falla a la vez, no se envían alertas masivas.
+- El correo de cada aviso dice qué sitio falló, la dirección revisada, la causa y desde cuándo; al recuperarse, cuánto tiempo estuvo sin servicio.
+
+### Quién recibe los avisos
+
+Los administradores de la empresa y quienes pueden gestionar sitios conectados siempre los reciben. Para sumar a más personas, pulsa **Alertas**, elige el sitio y agrega:
+
+- **Usuarios de la empresa**: reciben el aviso dentro de Runly y por correo, sin necesitar permisos de Growth. Si alguien deja la empresa, deja de recibirlos.
+- **Correos externos** (hasta 10): para personas sin cuenta en Runly, por ejemplo el dueño del sitio. Reciben solo el correo, sin enlaces a Runly, con una nota que explica qué empresa los agregó.
 
 ### Página de estado pública
 

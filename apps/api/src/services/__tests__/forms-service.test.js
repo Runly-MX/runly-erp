@@ -74,7 +74,7 @@ test("listFormAssignees lists only active company members", async () => {
           assert.deepEqual(where, {
             companyId: COMPANY_ID,
             enabled: true,
-            user: { enabled: true },
+            user: { enabled: true, isBot: false },
           });
           return [
             {

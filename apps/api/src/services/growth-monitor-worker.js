@@ -3,6 +3,7 @@ import dns from "node:dns";
 import { resolveGrowthManagerUserIds } from "../lib/growth-managers.js";
 import { publishDomainEvent } from "./domain-events/events.js";
 import { decryptPassword } from "./smtp-service.js";
+import { buildGrowthMonitorEmail } from "./email-templates.js";
 import {
   createGrowthMonitorProbes,
   evaluateApiCheck,
@@ -39,6 +40,8 @@ export const inMaintenance = (monitor, at = new Date()) =>
 export function createGrowthMonitorWorker({
   prisma,
   notificationService = null,
+  // (mail) => smtpService.sendEmail(mail): external alert addresses of the property get the same template by email.
+  sendMail = null,
   probes = createGrowthMonitorProbes(),
   now = () => new Date(),
   failureThreshold = Number(process.env.RUNLY_GROWTH_MONITOR_FAILURE_THRESHOLD ?? 2),
@@ -88,10 +91,38 @@ export function createGrowthMonitorWorker({
   }
 
   // `alert` feeds the dedicated email template (buildGrowthMonitorEmail): state, error, days left, incident start.
+  // Extra recipients chosen on the property: company users still active in it, and external addresses.
+  async function extraRecipients(monitor) {
+    try {
+      const property = await prisma.growthProperty.findFirst({ where: { id: monitor.propertyId, companyId: monitor.companyId }, select: { alertUserIds: true, alertEmails: true } });
+      const ids = property?.alertUserIds ?? [];
+      const members = ids.length ? await prisma.membership.findMany({ where: { companyId: monitor.companyId, enabled: true, userId: { in: ids }, user: { isBot: false } }, select: { userId: true } }) : [];
+      return { userIds: members.map((member) => member.userId), emails: property?.alertEmails ?? [] };
+    } catch (error) {
+      console.error("[growth.monitor.recipients]", error?.message ?? error);
+      return { userIds: [], emails: [] };
+    }
+  }
+  async function emailExternal(monitor, emails, alert) {
+    if (!sendMail) return;
+    const company = await prisma.company.findUnique({ where: { id: monitor.companyId }, select: { name: true, brandingConfig: { select: { primaryColor: true } } } }).catch(() => null);
+    const mail = buildGrowthMonitorEmail({
+      state: alert.state, monitorName: monitor.name, target: monitor.config?.url ?? monitor.config?.host ?? null,
+      error: alert.error, daysLeft: alert.daysLeft, startedAt: alert.startedAt, resolvedAt: alert.resolvedAt,
+      brand: company ? { name: company.name, primaryColor: company.brandingConfig?.primaryColor ?? null } : null,
+      audience: "external", companyName: company?.name ?? null,
+    });
+    for (const to of emails) {
+      try { await sendMail({ to, ...mail, companyId: monitor.companyId }); } catch (error) { console.error("[growth.monitor.email]", error?.message ?? error); }
+    }
+  }
+
   async function notify(monitor, eventType, title, body, priority = "high", alert = {}) {
     if (!notificationService?.publish) return;
     try {
-      const userIds = await resolveGrowthManagerUserIds(prisma, monitor.companyId);
+      const extra = await extraRecipients(monitor);
+      const userIds = [...new Set([...(await resolveGrowthManagerUserIds(prisma, monitor.companyId)), ...extra.userIds])];
+      if (extra.emails.length) await emailExternal(monitor, extra.emails, alert);
       if (!userIds.length) return;
       await notificationService.publish({
         companyId: monitor.companyId,

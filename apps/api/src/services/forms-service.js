@@ -169,7 +169,7 @@ export function createFormsService({ prisma, ownerDomain = 'website' }) {
 
   async function listFormAssignees({ companyId }) {
     const memberships = await prisma.membership.findMany({
-      where: { companyId, enabled: true, user: { enabled: true } },
+      where: { companyId, enabled: true, user: { enabled: true, isBot: false } },
       orderBy: { user: { displayName: "asc" } },
       select: { user: { select: { id: true, displayName: true, email: true } } },
     });

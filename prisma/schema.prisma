@@ -1874,6 +1874,8 @@ model GrowthProperty {
   analyticsMode      String    @default("standard") @map("analytics_mode")
   turnstileSiteKey   String?   @map("turnstile_site_key")
   turnstileSecretKey String?   @map("turnstile_secret_key")
+  alertUserIds       String[]  @default([]) @db.Uuid @map("alert_user_ids")
+  alertEmails        String[]  @default([]) @map("alert_emails")
   capabilities       Json?
   verifiedAt         DateTime? @map("verified_at")
   enabled            Boolean   @default(true)

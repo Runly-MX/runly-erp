@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { createSmtpService } from "../../services/smtp-service.js";
 
 import { createNotificationService } from "../../services/notification-service.js";
 import { createGrowthAnalyticsRoutes } from "./growth-analytics-routes.js";
@@ -52,7 +53,7 @@ export function createGrowthRouter({
   );
   const monitorService = createGrowthMonitorService({
     prisma,
-    worker: createGrowthMonitorWorker({ prisma, notificationService }),
+    worker: createGrowthMonitorWorker({ prisma, notificationService, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail) }),
   });
   app.route("", createGrowthMonitorRoutes({ service: monitorService, requirePermission }));
   app.route("", createGrowthStatusPageRoutes({ service: createGrowthStatusPageService({ prisma }), requirePermission }));
@@ -61,7 +62,7 @@ export function createGrowthRouter({
 
 // Mounted without auth by the API entry (heartbeat pings carry their own token).
 export function createGrowthPublicRouter({ prisma, notificationService = createNotificationService({ prisma }) }) {
-  const worker = createGrowthMonitorWorker({ prisma, notificationService });
+  const worker = createGrowthMonitorWorker({ prisma, notificationService, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail) });
   const app = new Hono();
   app.route("", createGrowthMonitorPingRoutes({ service: createGrowthMonitorService({ prisma, worker }) }));
   app.route("", createGrowthStatusPagePublicRoutes({ service: createGrowthStatusPageService({ prisma }) }));

@@ -139,6 +139,17 @@ export function createGrowthPropertyService({ prisma, now = () => new Date() }) 
     if (patch.turnstileSecretKey !== undefined) {
       data.turnstileSecretKey = encryptedSecret(patch.turnstileSecretKey);
     }
+    if (patch.alertUserIds !== undefined) {
+      // Only active members of this company can receive its alerts.
+      const ids = [...new Set(patch.alertUserIds)];
+      const members = ids.length ? await prisma.membership.findMany({ where: { companyId, enabled: true, userId: { in: ids }, user: { isBot: false } }, select: { userId: true } }) : [];
+      const valid = new Set(members.map((member) => member.userId));
+      if (ids.some((id) => !valid.has(id))) {
+        throw new GrowthPropertyServiceError("Alguno de los usuarios elegidos no pertenece a la empresa.", 422, "alert_recipient_invalid");
+      }
+      data.alertUserIds = ids;
+    }
+    if (patch.alertEmails !== undefined) data.alertEmails = [...new Set(patch.alertEmails)];
     return prisma.growthProperty.update({ where: { id: propertyId }, data });
   }
 

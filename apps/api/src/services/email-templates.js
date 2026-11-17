@@ -725,7 +725,10 @@ function formatDuration(fromValue, toValue) {
   const days = Math.floor(hours / 24);
   return `${days} ${days === 1 ? "día" : "días"}${hours % 24 ? ` ${hours % 24} h` : ""}`;
 }
-export function buildGrowthMonitorEmail({ state, monitorName, target = null, error = null, daysLeft = null, startedAt = null, resolvedAt = null, link = null, brand = null, env = process.env }) {
+// `audience: "external"` is for addresses added on the property (no Runly account): no button, and a footer saying who added them.
+export function buildGrowthMonitorEmail({ state, monitorName, target = null, error = null, daysLeft = null, startedAt = null, resolvedAt = null, link = null, brand = null, audience = "member", companyName = null, env = process.env }) {
+  const external = audience === "external";
+  if (external) link = null;
   const s = MONITOR_STATES[state] ?? MONITOR_STATES.down;
   const name = monitorName || "Tu sitio";
   const rows = [
@@ -752,7 +755,9 @@ export function buildGrowthMonitorEmail({ state, monitorName, target = null, err
     heading,
     bodyHtml,
     cta: link ? { label: "Ver monitor", url: link } : null,
-    footnote: "Recibes este aviso porque administras los monitores de sitios de tu empresa en Runly ERP.",
+    footnote: external
+      ? `Recibes este aviso porque ${companyName || "la empresa que administra este sitio"} te agregó como contacto para las alertas del sitio. Si no deberías recibirlo, pídele que te quite de la lista.`
+      : "Recibes este aviso porque administras los monitores de sitios de tu empresa en Runly ERP, o porque te agregaron como contacto de alertas.",
     brand,
     env,
   });

@@ -360,3 +360,31 @@ test("error spike worker alerts once per route per cooldown and only for live si
   clock = new Date("2026-11-14T13:30:00Z");
   assert.equal((await worker.runOnce()).alerted, 1, "after the cooldown it alerts again");
 });
+
+test("alerts also reach the property's extra users (still members) and external addresses by email", async () => {
+  const prisma = fakePrisma({
+    id: "m1", companyId: "c1", propertyId: "p1", name: "Tienda", type: "http",
+    config: { url: "https://site.example/" }, status: "unknown", consecutiveFailures: 0,
+  });
+  prisma.growthProperty.findFirst = async () => ({ alertUserIds: ["u2", "u3"], alertEmails: ["dueno@example.mx"] });
+  prisma.membership.findMany = async ({ where }) => (where.userId
+    ? [{ userId: "u2" }] // u3 left the company
+    : [{ userId: "u1", role: { key: "runly.admin", enabled: true, permissions: [] } }]);
+  prisma.company = { findUnique: async () => ({ name: "Dimare", brandingConfig: { primaryColor: "#123456" } }) };
+  const recipients = [], mails = [];
+  const worker = createGrowthMonitorWorker({
+    prisma,
+    notificationService: { publish: async (event) => recipients.push(event.input.recipients.userIds) },
+    sendMail: async (mail) => mails.push(mail),
+    probes: { probeHttp: async () => ({ statusCode: 503, latencyMs: 10 }) },
+    failureThreshold: 1,
+  });
+  await worker.checkMonitor(prisma.db.monitor);
+  assert.deepEqual(recipients, [["u1", "u2"]])
+  assert.equal(mails.length, 1)
+  assert.equal(mails[0].to, "dueno@example.mx")
+  assert.equal(mails[0].subject, "Caído: Tienda")
+  assert.equal(mails[0].companyId, "c1")
+  assert.doesNotMatch(mails[0].html, /Ver monitor/, "external recipients have no Runly account")
+  assert.match(mails[0].html, /Dimare te agregó como contacto/)
+});
