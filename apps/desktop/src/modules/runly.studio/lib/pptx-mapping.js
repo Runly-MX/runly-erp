@@ -5,14 +5,13 @@
 // Slide size policy: PowerPoint has one size per file. The first exported page sets the
 // proportion (13.333 in on its long side, the 16:9 width). Pages with another proportion
 // are scaled uniformly and centred: black bars, page background as an editable rectangle.
-import { DEFAULT_IMAGE } from '../../../../../shared/studio/image-properties.js'
+import { classify, placement } from '../../../../../shared/studio/object-kinds.js'
 import { studioFontStyle } from '../../../../../shared/studio/fonts.js'
 import { slideDuration } from '../../../../../shared/studio/motion.js'
 
 export const SLIDE_LONG_SIDE = 13.333
 const round = (value, digits = 4) => Math.round(value * 10 ** digits) / 10 ** digits
 const hex = color => color.replace('#', '').toUpperCase()
-const SCALED = new Set(['text', 'line'])
 
 export function presentationLayout(firstPage) {
   const landscape = firstPage.width >= firstPage.height
@@ -25,32 +24,9 @@ export function pageFrame(page, layout) {
   return { scale, x, y, width: page.width * scale, height: page.height * scale, letterboxed: x > 0.005 || y > 0.005 }
 }
 // Studio rotates around the top-left corner; PowerPoint around the centre of the box.
-export function placement(item, frame) {
-  const w = SCALED.has(item.type) ? item.width * (item.scaleX ?? 1) : item.width, h = SCALED.has(item.type) ? item.height * (item.scaleY ?? 1) : item.height
-  const r = (item.rotation * Math.PI) / 180, cx = item.x + (w / 2) * Math.cos(r) - (h / 2) * Math.sin(r), cy = item.y + (w / 2) * Math.sin(r) + (h / 2) * Math.cos(r)
-  return { x: round(frame.x + (cx - w / 2) * frame.scale), y: round(frame.y + (cy - h / 2) * frame.scale), w: round(w * frame.scale), h: round(h * frame.scale), rotate: round(((item.rotation % 360) + 360) % 360, 2) }
-}
 const transparency = item => (item.opacity === undefined || item.opacity >= 1 ? undefined : round((1 - item.opacity) * 100, 1))
-// A photo PowerPoint can show as-is: rectangular mask, default framing, no border, shadow or adjustments.
-const plainImage = image => !image || (image.mask === 'rectangle' && !image.offsetX && !image.offsetY && (image.zoom ?? 1) === 1 && !image.rotation && !image.flipX && !image.flipY
-  && !image.border?.width && !image.shadow?.blur && !image.shadow?.offsetX && !image.shadow?.offsetY
-  && Object.entries(image.adjustments ?? {}).every(([key, value]) => value === DEFAULT_IMAGE.adjustments[key]))
-
-// What each Studio object becomes. `raster` keeps the object visible as an image of itself.
-export function classify(item) {
-  if (item.hidden) return { kind: 'skip' }
-  if (item.type === 'text') return { kind: 'text' }
-  if (item.type === 'line') return { kind: 'line' }
-  if (item.type === 'vector') return { kind: 'raster', reason: item.code ? 'código QR o de barras' : 'icono o vector' }
-  if (item.type === 'image') return plainImage(item.image) ? { kind: 'image' } : { kind: 'raster', reason: 'foto con máscara, encuadre, borde, sombra o ajustes' }
-  const paint = item.fillPaint
-  if (paint?.type === 'gradient') return { kind: 'raster', reason: 'degradado' }
-  if (paint?.type === 'image') {
-    const rounded = item.type === 'rectangle' && item.shape?.radius
-    return plainImage(paint.image) && !rounded && !(item.shape?.strokeWidth) ? { kind: 'photo-shape' } : { kind: 'raster', reason: 'foto dentro de una forma con borde, esquinas o ajustes' }
-  }
-  return { kind: 'shape' }
-}
+// classify/placement live in shared/studio/object-kinds.js (also used by the Website conversion).
+export { classify, placement }
 
 export function textOptions(item, frame) {
   const box = placement(item, frame), style = studioFontStyle(item.fontFamily, item.fontVariant) ?? { weight: 400, style: 'normal' }
