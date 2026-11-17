@@ -46,15 +46,30 @@ de autenticación. Cobertura que falta hasta actualizar esas pruebas: creación 
 páginas, formularios, blog y navegación de secciones en navegador. El editor de páginas del sitio queda cubierto
 por `verify-studio-website.mjs`.
 
-## Estado de producción observado (solo lectura pública, 2026-11-16)
+## Estado de producción observado
 
-- ERP `app.runly.mx`: `/api/health` ok. El bundle web servido contiene Studio hasta la Fase 5 (PPTX) y todavía la
-  casilla de pérdida de movimiento que eliminó la Fase 6; no contiene «Enviar a Website». No se conoce la SHA exacta.
-- Hub `devs.runly.mx`: `/api/v1/health` ok, toolchain `afc28075` (paquetes anteriores al formato v2). Feed de
-  recursos: secuencia 5, 4 entradas, `studio_template` formato 1, 1 clave de confianza.
-- **No se pudo inspeccionar dentro de los servidores**: desde el equipo de desarrollo las claves SSH son rechazadas
-  (`runly`, `hostinger`). Contenedores, digests, migraciones, validador, publicador y respaldos quedan sin
-  verificar hasta que el operador ejecute el preflight siguiente.
+Fuentes: endpoints públicos (2026-11-16) y la salida del preflight de solo lectura que ejecutó el operador en
+el VPS `srv1997287`, que aloja el ERP (`/opt/runly-installer`, proyecto Compose `runlyerp`, 19 servicios) y el
+Hub (`runly-devhub-prod`).
+
+- **ERP**: `/api/health` ok. Bundle web con Studio hasta la Fase 5 (PPTX), todavía sin paquete v2 ni «Enviar a
+  Website». `deployment-preflight` (PostgreSQL 17.6, solo lectura): 279 migraciones locales y 279 aplicadas,
+  `pending: []`, `failed: []`, `unknownApplied: []`, `checksumMismatches: []`, `ready: true`; Studio, Documents
+  y Automatizaciones instalados; permisos `studio.*` activos. **La migración v8 ya está aplicada.** El candidato
+  `5010b69ae` tiene exactamente esas 279 migraciones (ninguna nueva desde `e598c3c27`): **el despliegue no aplica
+  migraciones**. `BACKUP_MODE=enabled`.
+- **Hub**: release actual `100be3165b8b…` (anterior `343e2f6a…`; conservadas también `b48a6af`, `ccea64a`),
+  sin mantenimiento ni trabajos activos, 58/58 migraciones, todos los servicios sanos. Toolchain pública
+  `afc28075`. Respaldo: Backblaze B2 configurado, alcanzable, prueba de escritura ok, ciclo diario 03:30
+  (último éxito 2026-11-16 09:36 UTC; retención 14 diarios y 8 semanales).
+- **Publicador de recursos**: tras reiniciarlo, `worker-status` → 4 publicados, 0 pendientes, 0 bloqueados,
+  0 fallidos, sin atasco; antes del reinicio registraba `RESOURCE_PREFLIGHT_FAILED` (puerta cerrada). Tras
+  `prod:update` a `e20944b` el lock pasa a `ca778628`; `669183d` reapunta su raíz de validador y reactiva la
+  publicación. Verificar `worker-status` después del update.
+
+Pendiente de observar: digests actuales de `runly-api-local`, `runly-web-local` y `runly-worker-local` (para el
+rollback), el último snapshot del respaldo del ERP y su restauración, y `HUB_MARKETPLACE_VALIDATOR` /
+`/srv/runly-devhub/validators/`.
 
 ## 1. Preflight de solo lectura (operador, en cada VPS)
 
