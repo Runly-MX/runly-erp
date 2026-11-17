@@ -24,6 +24,7 @@ import { useInterchangeContract } from '../hooks/useInterchangeContract.js'
 import { downloadName, nextPaint, sanitizeExportError } from '../lib/studio-download.js'
 import { AccessLost } from './editor/collaboration/AccessLost.jsx'
 import { DownloadNotice } from './editor/DownloadNotice.jsx'
+import { StudioWebsiteDialog } from './editor/StudioWebsiteDialog.jsx'
 import { checkAbort,abortable } from '../../../../../shared/studio/abort.js'
 
 const unwrap = response => response?.data ?? response
@@ -53,7 +54,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const [initial] = useState(record.document), [name, setName] = useState(record.name)
   const [error, setError] = useState('')
   // Download: null | { phase: preparing|processing|downloading|done|cancelled|error, format, file, message }. The ref is the real guard against double clicks.
-  const [download, setDownload] = useState(null), job = useRef(null), [shareOpen, setShareOpen] = useState(false)
+  const [download, setDownload] = useState(null), job = useRef(null), [shareOpen, setShareOpen] = useState(false), [websiteOpen, setWebsiteOpen] = useState(false)
   useEffect(()=>()=>{job.current?.controller.abort();job.current=null},[])
   const exporting = Boolean(download && ['preparing', 'processing', 'downloading'].includes(download.phase))
   const [recovery, setRecovery] = useState(() => archive.read()??store.read()??collisions.read()), [copyWarning, setCopyWarning] = useState(false)
@@ -262,7 +263,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
     bulkData, dataset, onDataset: setDataset,
-    onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, exporting, exportDisabled: exporting, notices,
+    onCredits: () => openCredits(), onSaveTemplate: ready ? async()=>{try{await ensureSaved();saveAsTemplate.open()}catch(e){setError(e.message)}} : null, onWebsite: ready ? () => setWebsiteOpen(true) : null, exporting, exportDisabled: exporting, notices,
   }
   return <>
     <StudioWorkspace initial={initial} readOnly={!canEdit} participants={realtime.participants} presenceStore={realtime.presenceStore} selfId={scope.split(':')[1]} chrome={chrome}
@@ -272,6 +273,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
     <StudioSharing record={record} token={token} open={shareOpen} onOpenChange={setShareOpen} />
     {imageEditing.dialog}
     {saveAsTemplate.dialog}
+    <StudioWebsiteDialog open={websiteOpen} onOpenChange={setWebsiteOpen} record={record} token={token} editorRef={editorRef} ensureSaved={ensureSaved} />
     {credits?<StudioCredits id={record.id} token={token} scene={credits.scene} action={credits.action} onClose={()=>setCredits(null)} onContinue={()=>{const {action,scene}=credits;setCredits(null);if(action.kind==='share')setShareOpen(true);else exportImage(action.options,scene)}}/>:null}
     <ConfirmDialog open={navigation.pending} onOpenChange={open => { if (!open) navigation.cancel() }} title="Salir antes de sincronizar" description={copyWarning ? 'No se pudo conservar la copia local. Si sales puedes perder los últimos cambios. Espera a que diga «Sincronizado».' : 'Algunos cambios aún no llegan al servidor. Se conservarán en este navegador y podrás recuperarlos al volver.'}
       confirmLabel="Salir" onConfirm={navigation.proceed} />
