@@ -1,8 +1,29 @@
 ---
 title: Plantillas portables de Studio
-summary: Especificación pública de .runlystudio v1, recursos, validación y pipeline HTTP/SDK para diseños y plantillas independientes.
+summary: Especificación pública de .runlystudio v1 y v2 (diseños animados), recursos, validación y pipeline HTTP/SDK para diseños y plantillas independientes.
 order: 10.2
 ---
+
+## Versiones: paquete, documento y protocolo
+
+Son tres números distintos y no se mezclan:
+
+| Versión | Dónde | Valores |
+| --- | --- | --- |
+| `formatVersion` / `minReaderVersion` | `manifest.json`: estructura del contenedor | `1` o `2` |
+| `documentSchemaVersion` / `schemaVersion` | `manifest.json` y `document.json`: documento Studio | `7` o `8` |
+| Protocolo de escritura (`X-Runly-Studio-Protocol`) | Cabecera HTTP del editor; nunca va dentro del paquete | `3` o `4` |
+
+Cada versión de documento viaja en una sola versión de paquete: documento `7` →
+paquete `1` (lo leen también los lectores anteriores); documento `8` → paquete `2`
+(`minReaderVersion: 2`). Un manifest v1 que declare documento 8, o un documento con
+campos v8 declarado como 7, se rechaza: no hay degradación silenciosa de v8 a v7.
+Los lectores actuales leen v1 y v2 y rechazan versiones futuras pidiendo actualizar.
+
+El paquete v2 tiene la misma estructura, recursos y reglas que v1; solo cambia el
+documento, que conserva sin pérdida las diapositivas (`page.slide`: duración y
+transición), los efectos de entrada, énfasis y salida, los keyframes con sus tiempos
+y easing, los grupos y el orden de capas. `compatibility.losses` queda vacío.
 
 ## Contrato v1
 
@@ -60,8 +81,8 @@ Campos obligatorios del manifest:
 | Campo | Valor o semántica |
 | --- | --- |
 | `format` | `runly.studio` |
-| `formatVersion`, `minReaderVersion` | Ambos `1` |
-| `documentSchemaVersion` | `7`, independiente de la versión del contenedor |
+| `formatVersion`, `minReaderVersion` | Ambos `1` (documento 7) o ambos `2` (documento 8) |
+| `documentSchemaVersion` | `7` o `8`, emparejado con la versión del contenedor |
 | `kind` | `design` o `template`; no determina el destino autorizado |
 | `packageId` | SHA-256 no autoritativo; el escritor usa el hash de document.json |
 | `title` | 1–160 caracteres |
@@ -219,8 +240,9 @@ OpenRaster y ODG están evaluados en el spec de diseño, pendientes de adaptador
 No se anuncian como formatos soportados. Todos los adaptadores futuros deberán
 producir el mismo documento canónico/reporte y decisiones explícitas sobre pérdidas.
 
-El lector v1 rechaza versiones futuras. Un cambio incompatible incrementará
+El lector rechaza versiones futuras. Un cambio incompatible incrementará
 formatVersion/minReaderVersion; cada nueva versión tendrá lector explícito y
-conservará soporte de v1. Agregar campos requiere revisar el lector, porque v1 es
+conservará el soporte de las anteriores (hoy v1 y v2; esquemas en
+`studio-template-package-v1.schema.json` y `studio-template-package-v2.schema.json`). Agregar campos requiere revisar el lector, porque v1 es
 cerrado. El documento evoluciona por su propio schemaVersion, nunca por Fabric.
 Un paquete no actualiza ni sobrescribe registros existentes por su packageId.

@@ -28,7 +28,7 @@ try {
   assert.equal((await stored(design.id)).document.schemaVersion, 7)
   ok('3-page design (text, private photo, square page) created as v7 and shared')
 
-  await step('protocol 3/4 contract and package acknowledgement on the real API', async () => {
+  await step('protocol 3/4 contract and the v8 package on the real API', async () => {
     const legacy = await createDesign('Cliente antiguo', blankDocument())
     const change = (protocol, batchId, set) => api(`/studio/designs/${legacy.id}/changes`, { data: { clientId: 'legacy-client', batchId, ops: [{ type: 'patchPage', pageId: 'page-1', set }] }, headers: { 'X-Runly-Studio-Protocol': protocol } })
     assert.equal((await change('3', 1, { background: '#eeeeee' })).status, 200)
@@ -44,11 +44,14 @@ try {
     assert.equal((await stored(legacy.id)).document.page.slide.duration, 2000)
     ok('protocol 3 edits v7 (200), cannot upgrade or touch v8 (426); protocol 2 refused; a v8→v7 PUT is denied (409)')
     const exportPackage = data => api(`/studio/interchange/designs/${legacy.id}/export`, { data, headers: v4 })
-    assert.equal((await exportPackage({ acknowledgeImageCopies: true })).status, 409)
+    // Package v2 (phase 6) keeps the v8 document: no motion-loss acknowledgement; older clients may still send it.
+    const v2 = await exportPackage({ acknowledgeImageCopies: true })
+    assert.equal(v2.status, 200)
+    assert.match(Buffer.from(await v2.arrayBuffer()).toString('latin1'), /"formatVersion":2,"minReaderVersion":2,"documentSchemaVersion":8/)
     assert.equal((await exportPackage({ acknowledgeImageCopies: true, acknowledgeMotionLoss: true })).status, 200)
     const legacyClient = await api(`/studio/interchange/designs/${legacy.id}/export`, { data: { acknowledgeImageCopies: true, acknowledgeMotionLoss: true }, headers: { 'X-Runly-Studio-Protocol': '3' } })
     assert.equal(legacyClient.status, 200, 'package routes accept protocol 3 clients')
-    ok('.runlystudio of a v8 design needs acknowledgeMotionLoss (409/200); package routes accept protocol 3 and 4')
+    ok('.runlystudio of a v8 design is package v2 with document v8 (no loss to acknowledge); package routes accept protocol 3 and 4')
   })
 
   const { page } = await openEditor(users.owner, design.id), second = await openEditor(users.editor, design.id)
@@ -260,17 +263,18 @@ try {
     ok('reduced motion shows a single layer (cut)')
   })
 
-  await step('static exports unchanged and package dialog asks for the loss', async () => {
+  await step('static exports unchanged and the package dialog no longer asks for a motion loss', async () => {
     await page.getByRole('button', { name: 'Descargar' }).click()
     const dialog = page.getByRole('dialog').last()
     await dialog.getByText('Proyecto Studio').click()
-    await dialog.getByText('Entiendo que el paquete no conserva las duraciones').waitFor()
+    await dialog.getByText(/^Entiendo que el paquete incluye/).waitFor()
+    assert.equal(await dialog.getByText('no conserva las duraciones').count(), 0)
     await dialog.getByRole('radio', { name: /^PNG/ }).click()
     const download = page.waitForEvent('download', { timeout: 30000 })
     await dialog.getByRole('button', { name: 'Descargar', exact: true }).click()
     await page.getByRole('button', { name: 'Exportar PNG' }).click()
     assert.match((await download).suggestedFilename(), /\.png$/)
-    ok('package export shows the motion-loss acknowledgement; PNG export still downloads')
+    ok('package export asks only for the image-copies acknowledgement (no motion loss); PNG export still downloads')
   })
 
   assert.deepEqual(pageErrors, [], `page errors: ${pageErrors.join(' | ')}`)

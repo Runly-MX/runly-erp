@@ -134,7 +134,7 @@ export async function startPresentStack({ apiImage, shots, keep = process.argv.i
     return { context, page }
   }
 
-  return { stack, company, users, api, json, stored, uploadPhoto, createDesign, openEditor, pageErrors, close,
+  return { stack, scenario, company, users, api, json, stored, uploadPhoto, createDesign, openEditor, pageErrors, close,
     shot: (page, name) => page.screenshot({ path: join(shots, `${name}.png`) }) }
 }
 
