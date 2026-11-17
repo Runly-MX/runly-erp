@@ -188,6 +188,8 @@ export async function createStudioEditor(element, options) {
       assertReviewed(reviewed)
       return result
     },
+    // Authorized original bytes, resolved like the canvas (the signed URL is never stored).
+    async imageBlob(assetId, signal) { const response = await fetch(await options.resolveImage(assetId, signal), { signal }); if (!response.ok) throw Error('No se pudo obtener una imagen del diseño.'); return response.blob() },
     // Read-only page renderer for playback (sceneAt frames); separate from this editor's canvas and history.
     async createPlayer(target, id, reviewed = snapshot(), signal) {
       const canonical = validateDocument(reviewed)

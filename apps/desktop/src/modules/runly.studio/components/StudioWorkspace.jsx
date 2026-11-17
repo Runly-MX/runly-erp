@@ -376,7 +376,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
         exportDisabled={!ready || chrome.exportDisabled} inspectorToggle inspectorOpen={wide ? inspectorOpen : inspectorSheet}
         onToggleInspector={() => (wide ? setInspectorOpen(value => !value) : setInspectorSheet(value => !value))}
         viewMode={viewMode.mode} onCycleViewMode={viewMode.cycle} onPresent={present} presentDisabled={!ready || busy}
-        timelineOpen={timeline.open} onTimeline={() => timeline.setOpen(!timeline.open)} />
+        timelineOpen={timeline.open} onTimeline={() => timeline.setOpen(!timeline.open)} document={doc} />
       <div className="flex min-h-0 flex-1">
         {!phone ? <StudioRail value={panel} onChange={setPanel} /> : null}
         {!phone ? (

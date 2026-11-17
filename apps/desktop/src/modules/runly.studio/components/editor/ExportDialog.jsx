@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, SliderRow, TextField, cn } from '@runly/ui'
-import { AlertTriangle, Clapperboard, Database, Download, Film, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Printer, Tag, Video } from 'lucide-react'
+import { AlertTriangle, Clapperboard, Database, Download, Film, Image as ImageIcon, Images, Info, Loader2, PackageOpen, Presentation, Printer, Tag, Video } from 'lucide-react'
 import { DEFAULT_EXPORT, SOURCE_PPI, defaultPpi } from '../../lib/studio-export.js'
 import { PRINT_PPI, megapixels, mm, pixels, planExport, planPdfPages, planScreenExport } from '../../lib/studio-export-plan.js'
 import { ZplOptions } from './ZplOptions.jsx'
 import { MotionExportOptions } from './MotionExportOptions.jsx'
+import { PptxExportOptions } from './PptxExportOptions.jsx'
 import { DEFAULT_MOTION_EXPORT, MOTION_TYPES, planMotionExport } from '../../lib/motion-export-plan.js'
 import { parsePageRange } from '../../lib/studio-pages.js'
 import { BULK_PDF_PAGES, autoMapping, sheetGrid } from '../../lib/studio-bulk.js'
@@ -17,6 +18,7 @@ const TYPES = [
   { value: 'zpl', label: 'ZPL (Zebra)', purpose: 'Impresoras de etiquetas', hint: 'Archivo .zpl o envío a tu impresora Zebra, con QR y códigos nativos.', icon: Tag },
   { value: 'mp4', label: 'Video MP4', purpose: 'Compartir y redes', hint: 'Animaciones, keyframes y transiciones como en Presentar. Sin sonido.', icon: Clapperboard },
   { value: 'webm', label: 'Video WebM', purpose: 'Páginas web', hint: 'Video abierto para la web, con las mismas animaciones. Sin sonido.', icon: Video },
+  { value: 'pptx', label: 'PowerPoint (PPTX)', purpose: 'Editar en PowerPoint', hint: 'Textos, formas y fotos editables por separado, con transiciones compatibles.', icon: Presentation },
   { value: 'gif', label: 'GIF animado', purpose: 'Chats y correos', hint: 'Hasta 20 s y 800 px, 256 colores. Se reproduce en cualquier lugar.', icon: Film },
 ]
 // Only offered when the API publishes the package contract (packageExport).
@@ -64,7 +66,7 @@ function Result({ options, plan, versions = 0 }) {
 // "Descargar": screen (PNG/JPG: size, transparency, quality) or print (PDF at
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
-export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null, dataset: bulk = null, onOpenData }) {
+export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null, dataset: bulk = null, onOpenData, document = null }) {
   const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false), [motionAccepted, setMotionAccepted] = useState(false)
   // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
   const [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
@@ -73,7 +75,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const types = useMemo(() => (packageExport ? [...TYPES, PACKAGE_TYPE] : TYPES), [packageExport])
   // A remembered or stale choice that is no longer offered falls back to PNG.
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
-  const native = options.type === 'runlystudio', motion = MOTION_TYPES.includes(options.type)
+  const native = options.type === 'runlystudio', motion = MOTION_TYPES.includes(options.type), pptx = options.type === 'pptx'
   const motionValue = motion ? { ...DEFAULT_MOTION_EXPORT[options.type], ...options.motion?.[options.type] } : null
   const motionBlocked = native && Boolean(packageExport?.motionLoss) && !motionAccepted
   const [scope, setScope] = useState('all'), [range, setRange] = useState('')
@@ -89,6 +91,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const plan = useMemo(() => {
     if (native) return { kind: 'package' }
     if (motion) return scope === 'range' && parsed?.error ? { error: parsed.error } : planMotionExport(selected, { type: options.type, ...motionValue })
+    // PowerPoint: needs pages; with the video slide, the MP4 limits apply too.
+    if (pptx) return scope === 'range' && parsed?.error ? { error: parsed.error } : !selected.length ? { error: 'Elige al menos una página.' } : options.pptx?.video ? planMotionExport(selected, { type: 'mp4', side: 1280, fps: 30 }) : {}
     if (options.type === 'zpl') return planScreenExport(page, { type: 'zpl', scale: options.dpi / defaultPpi(page) })
     if (options.type !== 'pdf') return planExport(page, { ...options, ppi })
     // Batch PDFs are built in the browser: RGB, no bleed or crop marks.
@@ -99,12 +103,13 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
     const sheets = grid ? Math.ceil(labels / grid.perSheet) : null
     return !base.error && (sheets ?? labels) > BULK_PDF_PAGES
       ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${sheets ?? labels}). Usa menos filas o páginas.` } : { ...base, sheets, perSheet: grid?.perSheet }
-  }, [page, options, ppi, selected, scope, parsed, native, versions, motion, motionValue])
+  }, [page, options, ppi, selected, scope, parsed, native, versions, motion, motionValue, pptx])
   function submit() {
     if (plan.error || exporting || (native && (!acknowledged || motionBlocked))) return
     if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true, ...(packageExport.motionLoss ? { acknowledgeMotionLoss: true } : {}) }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     if (motion) { onExport({ type: options.type, ...motionValue, pages: selected.map(({ id, width, height, slide }) => ({ id, width, height, slide })) }); return }
+    if (pptx) { onExport({ type: 'pptx', video: Boolean(options.pptx?.video), pages: selected.map(({ id, width, height, slide }) => ({ id, width, height, slide })) }); return }
     const mapping = versions ? Object.fromEntries(Object.entries({ ...autoMapping(fields, bulk.headers), ...bulk.mapping }).filter(([field]) => fields.includes(field))) : null
     onExport({ ...options, ppi: options.type === 'pdf' ? options.ppi : ppi, ...(options.type === 'pdf' ? { pageIds: selected.map(item => item.id) } : {}),
       ...(options.type === 'zpl' ? { printer: printers.find(item => item.id === options.printerId) ?? null } : {}),
@@ -187,6 +192,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                   hint="El formato .runlystudio todavía no las admite; el diseño en Studio no cambia." checked={motionAccepted} onChange={event => setMotionAccepted(event.target.checked)} />
               ) : null}
             </div>
+          ) : pptx && document ? (
+            <PptxExportOptions document={document} pageIds={selected.map(item => item.id)} value={options.pptx ?? {}} pageScope={pageScope} onChange={patch => set({ pptx: { ...options.pptx, ...patch } })} />
           ) : motion ? (
             <MotionExportOptions type={options.type} value={motionValue} plan={plan} pageScope={pageScope}
               onChange={patch => set({ motion: { ...options.motion, [options.type]: { ...motionValue, ...patch } } })} />
@@ -246,7 +253,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
             </div>
           )}
         </div>
-        {native || motion ? (motion && plan.error && !(scope === 'range' && parsed?.error) ? <p role="alert" className="shrink-0 text-sm text-[hsl(var(--destructive))]">{plan.error}</p> : null) : <div className="shrink-0"><Result options={options} plan={plan} versions={versions} /></div>}
+        {native || motion || pptx ? ((motion || pptx) && plan.error && !(scope === 'range' && parsed?.error) ? <p role="alert" className="shrink-0 text-sm text-[hsl(var(--destructive))]">{plan.error}</p> : null) : <div className="shrink-0"><Result options={options} plan={plan} versions={versions} /></div>}
         <DialogFooter className="sm:justify-between">
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">

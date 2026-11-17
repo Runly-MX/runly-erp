@@ -108,6 +108,10 @@ export async function exportZpl({ editor, options, scene, signal }) {
 export async function exportDesign({ editor, options, scene, designId, token, name,revision,signal,onProgress }) {
   checkAbort(signal)
   // GIF/MP4/WebM: same frames as Presentar (sceneAt); the encoder chunk is loaded on demand.
+  if (options.type === 'pptx') {
+    const { exportPptx } = await import('./studio-pptx-export.js')
+    return exportPptx({ editor, design: scene, pages: options.pages, options, signal, onProgress, title: name })
+  }
   if (['gif', 'mp4', 'webm'].includes(options.type)) {
     const { exportMotion } = await import('./studio-motion-export.js')
     return exportMotion({ editor, document: scene, pages: options.pages, options, signal, onProgress })

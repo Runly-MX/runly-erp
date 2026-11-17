@@ -144,3 +144,15 @@ abierta, sigue el porcentaje y cancela cuando quieras (no se guarda nada). Los v
 sonido y duran como máximo 2 minutos; el GIF, 20 segundos y 800 px, con 256 colores (las fotos y
 degradados pueden verse con bandas). Si el navegador no codifica el formato de forma acelerada,
 se usa una codificación compatible más lenta. Exportar no modifica el diseño.
+
+**PowerPoint**: en **Descargar** elige **PowerPoint (PPTX)**. Cada página es una diapositiva
+en el mismo orden, y los textos, formas, líneas y fotos llegan como elementos independientes
+que puedes editar, mover y recolorear. Antes de descargar, el resumen indica cuántos elementos
+serán editables y cuáles se incluyen como imagen (por ejemplo, fotos con máscara o ajustes,
+degradados, iconos y códigos QR). Las animaciones de los elementos no se convierten: cada uno
+queda en su posición del diseño. Solo el fundido se conserva como transición; deslizar y
+acercar cambian de diapositiva sin efecto. PowerPoint usa un solo tamaño de diapositiva, así
+que las páginas con otra proporción se centran con franjas negras. Si quieres conservar el
+movimiento, marca **Añadir una diapositiva con la reproducción animada (MP4)**: se agrega al
+final un video como el de Presentar, sin cambiar las diapositivas editables. Las fotos privadas
+se incluyen dentro del archivo, sin enlaces; las fuentes no se incrustan.
