@@ -164,6 +164,59 @@ ffmpeg; superar un presupuesto se rechaza antes de empezar. Resuelve R5.
 
 ## Fase 5 — PPTX
 
+Estado: implementada y verificada el 2026-11-16, pendiente de revisión y de la comprobación
+manual en Microsoft PowerPoint.
+
+- `pptxgenjs` 4.0.1 (MIT) y `jszip` 3.10.1 en `apps/desktop`, cargados solo al exportar.
+  `lib/pptx-mapping.js` (geometría, clasificación por objeto, texto, formas, líneas, fotos,
+  transiciones), `lib/pptx-build.js` (ensamblado + informe), `lib/studio-pptx-export.js`
+  (navegador: bytes autorizados por `editor.imageBlob`, imagen por objeto, video opcional) y
+  `components/editor/PptxExportOptions.jsx` (resumen de compatibilidad en Descargar).
+- Mapeo: texto → cuadro de texto nativo (fuente nombrada, tamaño, peso, cursiva, alineación,
+  interlineado, espaciado, subrayado, tachado); rectángulo/elipse → forma nativa con relleno,
+  borde, guiones, esquinas y opacidad; línea → `custGeom` con flechas; foto simple → imagen
+  propia con recorte `cover`/`contain`; foto en elipse → imagen recortada en círculo. Rotación
+  convertida del pivote de esquina de Studio al centro de PowerPoint. Orden de capas = orden de
+  dibujo.
+- Se exportan como imagen de ese objeto (nunca la diapositiva entera), cada uno declarado en el
+  resumen y en el informe: fotos con máscara, encuadre, borde, sombra o ajustes; degradados;
+  iconos/vectores; QR y códigos de barras. Fondos degradados → imagen de fondo.
+- Proporciones: el tamaño de diapositiva sale de la primera página (lado largo 13,333 in); las
+  páginas con otra proporción se centran sin deformar, con franjas negras y la página como
+  rectángulo editable.
+- Transiciones: solo `fade` (`<p:fade/>` con velocidad aproximada). Cada diapositiva lleva su
+  duración como avance automático. Deslizar y acercar no se exportan (`<p:cut/>`) y se declaran:
+  en la prueba de ida y vuelta con LibreOffice, `<p:push>` volvió con la dirección horizontal
+  invertida y `<p:zoom/>` se perdió. LibreOffice además redondea el avance a segundos enteros,
+  descarta la velocidad y descarta `<p:cut/>` con su tiempo de avance.
+- Video opcional: diapositiva final con el MP4 de la Fase 4 (1280 px, 30 fps) y su portada;
+  las diapositivas editables no cambian.
+- Seguridad: las fotos privadas se piden con la resolución autorizada del lienzo y se
+  incrustan como binarios; el archivo no contiene URLs firmadas ni tokens (comprobado). Imágenes
+  por objeto a escala 2 con tope de 2048 px de lado de página.
+- Pérdidas declaradas: animaciones de elementos, grupos (quedan sueltos), transiciones de
+  deslizar y acercar, extremos de línea cuadrados/barra, fuentes no incrustadas.
+- [x] `node scripts/verify-studio-pptx.mjs --api-image=<etiqueta> --office-url=<collabora>`
+  9/9 sobre el proyecto de aceptación compartido con la Fase 4
+  (`scripts/fixtures/studio/acceptance-project.mjs`). Archivos en `.artifacts/studio/pptx/`.
+  Verified: 2026-11-16 (Chrome headless, Collabora CODE en contenedor aislado, Windows)
+  - PPTX de 21 kB en 0,5 s: 3 diapositivas 16:9 en orden, 7 elementos editables (2 textos,
+    3 formas, 2 fotos) + rectángulo de página cuadrada; ninguna diapositiva es una sola imagen.
+  - Collabora lo convierte a PDF; 10 puntos coinciden con la exportación PNG de Studio
+    (diferencia máxima 1); la página cuadrada conserva su proporción con franjas;
+    `comparacion-studio-vs-office.png` guardada.
+  - Edición: texto cambiado, forma recoloreada y movida 1 in; Collabora vuelve a guardar y el
+    texto sigue siendo texto, la forma se movió sola y la foto sigue siendo su propia imagen.
+  - Con video: 0,46 MB, 4.ª diapositiva con el MP4 incrustado (0,42 MB); Collabora la abre y
+    conserva el video al volver a guardar.
+  - Diseño v7 vertical → diapositiva 4:5 editable; el diseño sigue en v7.
+  - Colaborador de solo lectura exporta con la foto privada incrustada; rango inválido
+    deshabilita Descargar; cancelar con video no genera archivo; el diseño no cambia.
+  - Unitarias: `lib/pptx-build.test.js` 2/2; suite `lib/` de Studio 97/97.
+- Pendiente de comprobación manual: abrir, editar y presentar en Microsoft PowerPoint (Windows y
+  Mac) y Google Slides; reproducir el video dentro de PowerPoint (Collabora solo confirma que
+  está incrustado y se conserva); velocidad del fundido en PowerPoint.
+
 Spike previo: `pptxgenjs` en el navegador frente a escribir OOXML con JSZip;
 transiciones inyectadas; apertura en PowerPoint, LibreOffice y Google Slides.
 
