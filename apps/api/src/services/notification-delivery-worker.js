@@ -2,7 +2,7 @@ import { canReceiveResourceEvent } from './notification-access.js';
 import { createSmtpService } from "./smtp-service.js";
 import { createWebPushService } from "./web-push-service.js";
 import { createFcmService } from "./fcm-service.js";
-import { renderRunlyEmailLayout } from "./email-templates.js";
+import { buildGrowthMonitorEmail, renderRunlyEmailLayout } from "./email-templates.js";
 
 const DEFAULT_MAX_ATTEMPTS = 3;
 const DEFAULT_BATCH_SIZE = 25;
@@ -147,6 +147,10 @@ const EVENT_TYPE_LABELS = {
   "ledger.access_revoked": "Acceso revocado",
   // Growth
   "growth.lead.created": "Nuevo lead",
+  "growth.monitor.down": "Sitio caído",
+  "growth.monitor.recovered": "Sitio recuperado",
+  "growth.monitor.ssl_expiring": "Certificado por vencer",
+  "growth.monitor.domain_expiring": "Dominio por vencer",
   "growth.lead.assigned": "Lead asignado",
   // Finanzas personales
   "pfm.budget.threshold": "Presupuesto cerca del limite",
@@ -271,6 +275,10 @@ function buildNotificationEmail({ notification, appBaseUrl, brand = null }) {
 
   if ((kind && kind.startsWith("chat_")) || rawEventType.startsWith("chat.")) {
     return buildChatEmail({ notification, link, brand, createdAt });
+  }
+  if (kind === "growth_monitor") {
+    const meta = notification.metadata;
+    return buildGrowthMonitorEmail({ state: meta.state, monitorName: meta.monitorName, target: meta.target, error: meta.error, daysLeft: meta.daysLeft, startedAt: meta.startedAt, resolvedAt: meta.resolvedAt, link, brand: emailBrand(brand) });
   }
 
   const title = notification?.title ?? "Notificacion de Runly";

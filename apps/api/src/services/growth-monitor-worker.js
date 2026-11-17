@@ -87,7 +87,8 @@ export function createGrowthMonitorWorker({
     return { raw, ...evaluated };
   }
 
-  async function notify(monitor, eventType, title, body, priority = "high") {
+  // `alert` feeds the dedicated email template (buildGrowthMonitorEmail): state, error, days left, incident start.
+  async function notify(monitor, eventType, title, body, priority = "high", alert = {}) {
     if (!notificationService?.publish) return;
     try {
       const userIds = await resolveGrowthManagerUserIds(prisma, monitor.companyId);
@@ -105,7 +106,11 @@ export function createGrowthMonitorWorker({
           priority,
           sourceType: "GrowthMonitor",
           sourceId: monitor.id,
-          metadata: { monitorId: monitor.id, propertyId: monitor.propertyId },
+          metadata: {
+            monitorId: monitor.id, propertyId: monitor.propertyId, kind: "growth_monitor",
+            monitorName: monitor.name, monitorType: monitor.type, target: monitor.config?.url ?? monitor.config?.host ?? null,
+            ...alert,
+          },
         },
       });
     } catch (error) {
@@ -162,13 +167,13 @@ export function createGrowthMonitorWorker({
         await prisma.growthIncident.create({
           data: { companyId: monitor.companyId, monitorId: monitor.id, startedAt: at, cause: result.error, lastNotifiedAt: at },
         });
-        await notify(monitor, "growth.monitor.down", "Sitio caido", `${monitor.name}: ${result.error}`);
+        await notify(monitor, "growth.monitor.down", "Sitio caido", `${monitor.name}: ${result.error}`, "high", { state: "down", error: result.error, startedAt: at.toISOString() });
         await emit(monitor, "growth.monitor.down", { error: result.error });
       } else if (previousStatus === "down") {
         const incident = await openIncident(monitor.id);
         if (incident && (!incident.lastNotifiedAt || at - incident.lastNotifiedAt >= REMINDER_MS)) {
           await prisma.growthIncident.update({ where: { id: incident.id }, data: { lastNotifiedAt: at } });
-          await notify(monitor, "growth.monitor.down", "Sitio sigue caido", `${monitor.name}: ${result.error}`);
+          await notify(monitor, "growth.monitor.down", "Sitio sigue caido", `${monitor.name}: ${result.error}`, "high", { state: "still_down", error: result.error, startedAt: new Date(incident.startedAt).toISOString() });
         }
       }
       return;
@@ -186,7 +191,7 @@ export function createGrowthMonitorWorker({
     if (previousStatus === "down") {
       const incident = await openIncident(monitor.id);
       if (incident) await prisma.growthIncident.update({ where: { id: incident.id }, data: { resolvedAt: at } });
-      await notify(monitor, "growth.monitor.recovered", "Sitio recuperado", `${monitor.name} vuelve a responder.`, "medium");
+      await notify(monitor, "growth.monitor.recovered", "Sitio recuperado", `${monitor.name} vuelve a responder.`, "medium", { state: "recovered", startedAt: incident?.startedAt ? new Date(incident.startedAt).toISOString() : null, resolvedAt: at.toISOString() });
       await emit(monitor, "growth.monitor.recovered");
     }
     if (EXPIRY_THRESHOLDS[monitor.type] && result.detail?.daysLeft != null) {
@@ -201,7 +206,7 @@ export function createGrowthMonitorWorker({
       const crossed = EXPIRY_THRESHOLDS[monitor.type].find((t) => prevDays > t && result.detail.daysLeft <= t);
       if (crossed) {
         const [eventType, title] = EXPIRY_EVENT[monitor.type];
-        await notify(monitor, eventType, title, `${monitor.name}: vence en ${result.detail.daysLeft} dias.`);
+        await notify(monitor, eventType, title, `${monitor.name}: vence en ${result.detail.daysLeft} dias.`, "high", { state: monitor.type === "ssl" ? "ssl_expiring" : "domain_expiring", daysLeft: result.detail.daysLeft });
         await emit(monitor, "growth.monitor.expiring", { error: result.error, daysLeft: result.detail.daysLeft });
       }
     }

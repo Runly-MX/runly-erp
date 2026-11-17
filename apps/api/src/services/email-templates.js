@@ -704,3 +704,58 @@ export function buildCompanyDeletionEmail({ companyName, purgeAfter, requestedBy
 
   return { subject: `Aviso: ${orgName} será eliminada`, html, text };
 }
+
+// Growth site monitors (down / still down / recovered / SSL or domain about to expire). Same branded layout as
+// every email: a colored status banner says what happened at a glance, then the watched address, the cause and
+// the timing, and a button to the monitor.
+const MONITOR_STATES = {
+  down: { kicker: "Alerta de sitio", status: "Caído", color: "#b91c1c", tint: "#fef2f2", lead: "dejó de responder." },
+  still_down: { kicker: "Alerta de sitio", status: "Sigue caído", color: "#b91c1c", tint: "#fef2f2", lead: "sigue sin responder." },
+  recovered: { kicker: "Sitio recuperado", status: "Recuperado", color: "#15803d", tint: "#f0fdf4", lead: "vuelve a responder con normalidad." },
+  ssl_expiring: { kicker: "Aviso de certificado", status: "Certificado por vencer", color: "#b45309", tint: "#fffbeb", lead: "tiene un certificado de seguridad (SSL) que está por vencer." },
+  domain_expiring: { kicker: "Aviso de dominio", status: "Dominio por vencer", color: "#b45309", tint: "#fffbeb", lead: "tiene un dominio que está por vencer." },
+};
+function formatDuration(fromValue, toValue) {
+  const ms = new Date(toValue) - new Date(fromValue);
+  if (!Number.isFinite(ms) || ms < 0) return null;
+  const minutes = Math.round(ms / 60000);
+  if (minutes < 60) return `${Math.max(1, minutes)} min`;
+  const hours = Math.floor(minutes / 60), rest = minutes % 60;
+  if (hours < 24) return rest ? `${hours} h ${rest} min` : `${hours} h`;
+  const days = Math.floor(hours / 24);
+  return `${days} ${days === 1 ? "día" : "días"}${hours % 24 ? ` ${hours % 24} h` : ""}`;
+}
+export function buildGrowthMonitorEmail({ state, monitorName, target = null, error = null, daysLeft = null, startedAt = null, resolvedAt = null, link = null, brand = null, env = process.env }) {
+  const s = MONITOR_STATES[state] ?? MONITOR_STATES.down;
+  const name = monitorName || "Tu sitio";
+  const rows = [
+    target ? ["Dirección vigilada", target] : null,
+    error && state !== "recovered" ? ["Causa", error] : null,
+    daysLeft != null ? ["Vence en", `${daysLeft} ${daysLeft === 1 ? "día" : "días"}`] : null,
+    startedAt && state !== "recovered" ? ["Caído desde", formatScheduledDateTime(startedAt)] : null,
+    state === "recovered" && startedAt && resolvedAt ? ["Tiempo sin servicio", formatDuration(startedAt, resolvedAt)] : null,
+  ].filter((row) => row && row[1])
+  const next = state === "recovered" ? null
+    : state === "ssl_expiring" ? "Renueva el certificado antes de que venza, o pide a quien administra el servidor que lo haga; al vencer, los navegadores mostrarán el sitio como no seguro."
+    : state === "domain_expiring" ? "Renueva el dominio con tu proveedor (IONOS, GoDaddy u otro) antes de que venza; si vence, el sitio y los correos de ese dominio dejarán de funcionar."
+    : "Revisa el sitio. Te avisaremos cuando vuelva a responder; mientras siga caído, recibirás un recordatorio cada hora.";
+  const bodyHtml = `
+        <div style="margin:0 0 16px 0;padding:12px 14px;border-radius:10px;background:${s.tint};border-left:4px solid ${s.color}">
+          <div style="font-size:12px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:${s.color}">${escapeHtml(s.status)}</div>
+          <div style="margin-top:4px;font-size:15px;line-height:1.5;color:#334155"><strong style="color:#0c172d">${escapeHtml(name)}</strong> ${escapeHtml(s.lead)}</div>
+        </div>
+        ${rows.length ? `<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;margin:0 0 16px 0;border:1px solid #e5e7eb;border-radius:10px">${rows.map(([label, value], i) => `<tr><td style="padding:10px 12px;${i ? "border-top:1px solid #e5e7eb;" : ""}font-size:13px;color:#64748b;white-space:nowrap;vertical-align:top">${escapeHtml(label)}</td><td style="padding:10px 12px;${i ? "border-top:1px solid #e5e7eb;" : ""}font-size:13px;color:#0c172d;word-break:break-word">${escapeHtml(String(value))}</td></tr>`).join("")}</table>` : ""}
+        ${next ? `<p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#475569">${escapeHtml(next)}</p>` : ""}`;
+  const heading = state === "recovered" ? `${name} está en línea` : state === "down" || state === "still_down" ? `${name} no responde` : `${name}: ${s.status.toLowerCase()}`;
+  const html = renderRunlyEmailLayout({
+    kicker: s.kicker,
+    heading,
+    bodyHtml,
+    cta: link ? { label: "Ver monitor", url: link } : null,
+    footnote: "Recibes este aviso porque administras los monitores de sitios de tu empresa en Runly ERP.",
+    brand,
+    env,
+  });
+  const text = [heading, "", `${name} ${s.lead}`, ...rows.map(([label, value]) => `${label}: ${value}`), next ? `\n${next}` : null, link ? `\nVer monitor: ${link}` : null].filter((line) => line !== null).join("\n");
+  return { subject: `${s.status}: ${name}`, html, text };
+}

@@ -87,3 +87,19 @@ describe("buildCallInviteEmail", () => {
     assert.match(out.html, /&lt;img src=x/);
   });
 });
+
+it('site monitor alerts use the branded layout with status, address, cause and timing', async () => {
+  const { buildGrowthMonitorEmail } = await import('../email-templates.js')
+  const down = buildGrowthMonitorEmail({ state: 'down', monitorName: 'Villa OM', target: 'https://villa-om.dimare.mx', error: 'Tiempo de espera agotado <script>', startedAt: '2026-11-16T10:00:00Z', link: 'https://app.example.com/app/m/runly.growth/monitors' })
+  assert.equal(down.subject, 'Caído: Villa OM')
+  assert.match(down.html, /cid:runly-email-logo@runly\.mx/, 'same Runly layout as every email')
+  assert.match(down.html, /Villa OM no responde/)
+  assert.match(down.html, /https:\/\/villa-om\.dimare\.mx/)
+  assert.match(down.html, /Tiempo de espera agotado &lt;script&gt;/, 'the probe error is escaped')
+  assert.match(down.html, /Ver monitor/)
+  const back = buildGrowthMonitorEmail({ state: 'recovered', monitorName: 'Villa OM', startedAt: '2026-11-16T10:00:00Z', resolvedAt: '2026-11-16T11:25:00Z', error: 'viejo' })
+  assert.match(back.html, /Villa OM está en línea/)
+  assert.match(back.html, /1 h 25 min/)
+  assert.doesNotMatch(back.html, /viejo/, 'a recovered alert does not repeat the old cause')
+  assert.match(buildGrowthMonitorEmail({ state: 'ssl_expiring', monitorName: 'Villa OM', daysLeft: 7 }).text, /Vence en: 7 días/)
+})
