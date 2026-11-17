@@ -230,6 +230,64 @@ matriz de apertura manual queda documentada. Resuelve R6.
 
 ## Fase 6 — Paquete portable v2 y Developer Hub
 
+Estado: implementada y verificada en local y en laboratorio el 2026-11-16, pendiente de
+revisión. La integración remota NO está lista: depende de publicar los paquetes compartidos
+de commits que aún no se han subido (secuencia en `runly-developer-hub`
+`docs/RUNLY_SHARED_PACKAGES.md`, sección «Studio .runlystudio v2»).
+
+- Tres versiones separadas: formato de paquete (`formatVersion`/`minReaderVersion`),
+  documento (`documentSchemaVersion`) y protocolo de escritura (cabecera HTTP, nunca en el
+  paquete). Documento 7 → paquete v1 byte a byte igual que antes (lectores antiguos lo
+  abren); documento 8 → paquete v2 (`minReaderVersion: 2`) sin proyección ni pérdidas. Un
+  manifest v1 con documento 8, o un documento con campos v8 declarado como 7, se rechaza.
+  Lector con v1 y v2; versiones futuras → «versión más nueva». Recursos con las reglas de
+  v1 (bytes originales, id `asset-<sha256>`, deduplicación, MIME/tamaño/píxeles, sin
+  enlaces). Sin cambios en `sceneAt` ni en el contrato v8.
+- ERP: se quita la aceptación de pérdida de movimiento del diálogo (la API la sigue
+  aceptando e ignora); `GET /studio/interchange/schema` informa formato 2/documento 8; el
+  catálogo de recursos admite `studio_template` formato 2.
+- Hub: `studio.js` admite documentos 7 u 8; el validador aislado rechaza un v8 con
+  `document_schema_unsupported` si el paquete fijado solo escribe v1; textos MCP.
+- [x] `node scripts/verify-studio-package.mjs --build-api-image` 8/8 (proyecto de aceptación
+  + grupo, énfasis y segunda foto). Verified: 2026-11-16 (stack desechable, Chrome headless)
+  - Exportar desde Descargar: 27 kB en 0,6–1,1 s; v2/documento 8; 2 PNG 800×600 con el
+    SHA-256 de los bytes subidos (3 referencias → 2 archivos); document.json = diseño
+    guardado; sin URLs, tokens, ids de archivo ni de empresa.
+  - Importar desde el diálogo en 3,2–4,2 s y abrir: v8 con páginas, orden, geometría,
+    efectos, keyframes, transiciones y grupos idénticos; 2 archivos privados nuevos de la
+    empresa, referencias resueltas.
+  - Comparación: 3 páginas PNG con diferencia 0; GIF del recorrido `sceneAt` (90
+    fotogramas) idéntico byte a byte al del original.
+  - Editar (Formato, mover 50 px) conserva el énfasis y no toca nada más; Presentar 1 → 3.
+  - v7 → paquete v1 → reimportado v7; corpus v1 versionado se importa; formato futuro pide
+    actualizar; bomba ZIP, path traversal, symlink, v8 declarado v7, pareja de versiones
+    incorrecta y documento alterado se bloquean antes de guardar; recurso faltante nombrado
+    sin guardar nada; cancelar deja 0 diseños/archivos; VIEWER sin permiso (UI y 403); otra
+    empresa no puede exportar.
+  - `--hub-feed`: plantilla v2 del Hub (laboratorio, firma de prueba) verificada,
+    descargada e instalada por los servicios reales de importación del Marketplace en
+    16,7 s; igual al documento del Hub; 90 fotogramas con diferencia 0 frente a una copia
+    directa; editada y presentada. La instalación corre en proceso porque la imagen de API
+    fija la clave productiva del feed; la UI es la del stack.
+- [x] Hub `tests/integration/studio-package-v2.test.js` 5/5 con raíz de validador de la
+  revisión local `bbc7d8a9…` (`pnpm release:shared` sin publicar +
+  `prepare-marketplace-validator.mjs`): MCP con foto en cuarentena, edición en el Hub que
+  conserva el movimiento, evidencia de formato 2, vista previa, revisión, aprobación
+  institucional, publicación firmada `local-test`, consumidor real del ERP con la plantilla
+  elegible; el pin actual rechaza v8 en vez de perder animaciones. Verified: 2026-11-16
+- Regresiones: interchange 25/25 (incluye corpus 33 casos), API interchange/SDK/import
+  15/15, catálogo 67/67, Presentaciones 25/25, Hub unitarias 708/708, Hub plantillas
+  oficiales 2/2. Con la raíz nueva y el corpus nuevo copiado temporalmente: validación
+  unitaria del Hub 16/16; en integración solo fallan las aserciones que comparan la
+  revisión con el lock fijado (desaparecen al adoptar) y dos pruebas que ya fallaban con el
+  pin actual (revisión humana #9 y lista de herramientas MCP #1).
+- No ejecutado: `scripts/verify-studio-interchange.mjs` está desfasado desde antes de esta fase
+  (supone que la inicialización no crea `studio_interchange_job` y su API MCP no arranca:
+  `LOCAL_MCP_API_NOT_READY`); su cobertura de paquete la reemplaza `verify-studio-package.mjs`.
+- Pendiente: la ficha del Hub no tiene vista previa animada (las vistas previas siguen
+  siendo capturas subidas); publicar y adoptar los paquetes; sincronizar runly-web y los
+  docs MCP del Hub (copias generadas de `docs/developers`).
+
 Entregables en runly-erp: `formatVersion: 2` con `documentSchemaVersion: 8`,
 lector v1 conservado, proyección exacta a v1 para diseños estáticos, límites de
 efectos en `limits.js` y actualización de

@@ -5,8 +5,9 @@ Estado: Fase 0 cerrada el 2026-11-16. Fase 1 (presentaciones) implementada el
 Fase 2 (motor de animación y efectos por objeto) y Fase 3 (línea de tiempo y keyframes)
 implementadas el 2026-11-16, pendientes de revisión. Fase 4 (GIF, MP4 y WebM) implementada
 y verificada el 2026-11-16. Fase 5 (PowerPoint editable) implementada y verificada con
-Collabora el 2026-11-16; falta la comprobación manual en Microsoft PowerPoint. Las fases 6 a 8
-no han empezado.
+Collabora el 2026-11-16; falta la comprobación manual en Microsoft PowerPoint. Fase 6 (paquete
+.runlystudio v2 y Developer Hub) verificada en local y laboratorio el 2026-11-16; su integración
+remota depende de publicar los paquetes compartidos. Las fases 7 y 8 no han empezado.
 
 Studio Next convierte `runly.studio` en el **origen común** de diseños y sus
 animaciones. Presentación, video, GIF, PowerPoint y Website son destinos que se
