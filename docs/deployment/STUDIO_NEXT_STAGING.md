@@ -1,5 +1,8 @@
 # Studio Next 1.0: ejecución controlada de staging
 
+> **Sustituido** por [STUDIO_NEXT_PRODUCTION_RELEASE.md](STUDIO_NEXT_PRODUCTION_RELEASE.md): no existe un staging
+> independiente; las revisiones de este documento ya no son el candidato.
+
 Estado: **preparado, no ejecutado.** Nada de este documento se ha corrido contra un VPS ni una base
 compartida. Reutiliza los procedimientos ya revisados de
 [runly-studio-test-upgrade.md](runly-studio-test-upgrade.md) (imágenes con tag dedicado, override
