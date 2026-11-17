@@ -1,6 +1,5 @@
 import { documentAssetIds } from '../../../../../shared/studio/shape-properties.js'
 import {validateDocument} from '../../../../../shared/studio/document.js'
-import { usesV8 } from '../../../../../shared/studio/motion.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog } from '@runly/ui'
 import { AlertTriangle, Eye, History } from 'lucide-react'
@@ -259,7 +258,7 @@ export function DesignEditor({ record, token, scope, onBack, onRecordChange, edi
   const chrome = {
     name, nameDisabled: !canEdit || !ready, onBack,
     onName: value => { nameRef.current = value; setName(value); if (value.trim()) sync.rename(value.trim()) },
-    packageExport: interchange.data?.exportNotice ? { notice: interchange.data.exportNotice, imageCount: documentAssetIds(sync.state().document).length, motionLoss: usesV8(sync.state().document) } : null,
+    packageExport: interchange.data?.exportNotice ? { notice: interchange.data.exportNotice, imageCount: documentAssetIds(sync.state().document).length } : null,
     syncState: status, live: realtime.status, onRetrySync: () => {if(status==='error'){if(preserve())window.location.reload()}else return sync.resync()}, ensureSaved,
     onShare: () => openCredits({kind:'share'}), onExport: options => openCredits({kind:'export',format:options.type,options}),
     bulkData, dataset, onDataset: setDataset,

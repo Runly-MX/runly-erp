@@ -119,7 +119,7 @@ export async function exportDesign({ editor, options, scene, designId, token, na
   // Native editable package: built by the API from the saved design; the browser renders nothing.
   if (options.type === 'runlystudio') {
     if (options.acknowledgeImageCopies !== true) throw Error('Confirma la inclusión de copias de las imágenes para descargar el paquete.')
-    const blob = await runly.studio.exportPackage('design', designId, { acknowledgeImageCopies: true, ...(options.acknowledgeMotionLoss === true ? { acknowledgeMotionLoss: true } : {}) }, token, signal)
+    const blob = await runly.studio.exportPackage('design', designId, { acknowledgeImageCopies: true }, token, signal)
     checkAbort(signal)
     return { blob, extension: 'runlystudio' }
   }

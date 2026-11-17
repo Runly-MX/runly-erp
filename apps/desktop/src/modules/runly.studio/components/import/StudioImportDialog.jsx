@@ -188,7 +188,7 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
             <div className="space-y-3">
               <FileUploader accept=".runlystudio,.svg" maxSizeMB={64} disabled={!targets.length} emptyLabel="Elegir archivo" hint="Arrastra aquí un .runlystudio o un .svg, o búscalo en tu equipo." onChange={chosen => chosen && pick(chosen)} />
               <p className="text-xs text-[hsl(var(--muted-foreground))]">
-                .runlystudio conserva páginas, texto y formas editables. Un SVG admite formas, trazos y degradados simples (hasta 32 KB); el texto, los filtros y las imágenes externas no se importan.
+                .runlystudio conserva páginas, fotos originales, animaciones y transiciones editables. Un SVG admite formas, trazos y degradados simples (hasta 32 KB); el texto, los filtros y las imágenes externas no se importan.
               </p>
             </div>
           ) : null}

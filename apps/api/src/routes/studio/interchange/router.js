@@ -6,7 +6,7 @@ import { StudioError } from '../../../../../shared/studio/document.js'
 import { STUDIO_PROTOCOL_HEADER, clientProtocol } from '../../../../../shared/studio/protocol.js'
 import { createStudioInterchange } from './service.js'
 import { PACKAGE_LIMITS, PACKAGE_MIME } from './zip.js'
-import { manifestSchema } from './package.js'
+import { FORMAT, manifestSchemaV2 } from './package.js'
 import { buildPreview } from './marketplace-preview.js'
 import { inspectStudioPackage } from '@runly/studio-interchange/inspect'
 import { MarketplaceImportError } from '../../../services/marketplace/marketplace-import-gate.js'
@@ -43,7 +43,7 @@ export function createStudioInterchangeRouter({ prisma, filesService, supabaseAd
     return { bytes: Buffer.from(await file.arrayBuffer()), mime, body }
   }
   app.post(`${prefix}/inspect`, async c => { const input = await upload(c); return c.json({ data: await interchange.inspect(input.bytes, input.mime) }) })
-  app.get(`${prefix}/schema`, c => c.json({ data: { formatVersion: 1, documentSchemaVersion: 7, mime: PACKAGE_MIME, limits: PACKAGE_LIMITS, manifest: z.toJSONSchema(manifestSchema),
+  app.get(`${prefix}/schema`, c => c.json({ data: { formatVersion: FORMAT.formatVersion, documentSchemaVersion: FORMAT.documentSchemaVersion, readableFormatVersions: [1, 2], mime: PACKAGE_MIME, limits: PACKAGE_LIMITS, manifest: z.toJSONSchema(manifestSchemaV2),
     exportNotice: 'El paquete incluirá copias completas de todas las imágenes del documento, incluidas las ocultas y recortadas. Esas copias y sus metadatos podrán salir de la empresa.',
     adapters: { svg: { version: 1, maxBytes: 32000, transforms: ['translate'], text: false, externalResources: false }, openRaster: false, odg: false },
   } }))

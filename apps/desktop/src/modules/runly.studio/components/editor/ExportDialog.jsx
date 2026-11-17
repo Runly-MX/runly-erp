@@ -22,7 +22,7 @@ const TYPES = [
   { value: 'gif', label: 'GIF animado', purpose: 'Chats y correos', hint: 'Hasta 20 s y 800 px, 256 colores. Se reproduce en cualquier lugar.', icon: Film },
 ]
 // Only offered when the API publishes the package contract (packageExport).
-const PACKAGE_TYPE = { value: 'runlystudio', label: 'Proyecto Studio', purpose: 'Editable en Studio', hint: 'Paquete .runlystudio: conserva páginas, texto y formas para seguir editando.', icon: PackageOpen }
+const PACKAGE_TYPE = { value: 'runlystudio', label: 'Proyecto Studio', purpose: 'Editable en Studio', hint: 'Paquete .runlystudio: conserva páginas, fotos originales, animaciones y transiciones para seguir editando.', icon: PackageOpen }
 function remembered() {
   try { return { ...DEFAULT_EXPORT, ...JSON.parse(window.localStorage.getItem(KEY) ?? '{}') } } catch { return DEFAULT_EXPORT }
 }
@@ -67,7 +67,7 @@ function Result({ options, plan, versions = 0 }) {
 // 300 ppp, RGB/CMYK, 3 mm bleed, crop marks). Choices are remembered per
 // browser; credits are reviewed after this step, as before.
 export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount = 1, exporting, onExport, onCredits, packageExport = null, bulkData = null, dataset: bulk = null, onOpenData, document = null }) {
-  const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false), [motionAccepted, setMotionAccepted] = useState(false)
+  const [stored, setOptions] = useState(remembered), group = useRef(null), [acknowledged, setAcknowledged] = useState(false)
   // Bulk create: fields are read from the live design whenever the dialog opens or a column is inserted.
   const [fields, setFields] = useState([]), [printers, setPrinters] = useState([])
   const readFields = bulkData?.readFields
@@ -77,7 +77,6 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const options = useMemo(() => (types.some(type => type.value === stored.type) ? stored : { ...stored, type: 'png' }), [stored, types])
   const native = options.type === 'runlystudio', motion = MOTION_TYPES.includes(options.type), pptx = options.type === 'pptx'
   const motionValue = motion ? { ...DEFAULT_MOTION_EXPORT[options.type], ...options.motion?.[options.type] } : null
-  const motionBlocked = native && Boolean(packageExport?.motionLoss) && !motionAccepted
   const [scope, setScope] = useState('all'), [range, setRange] = useState('')
   const entries = useMemo(() => (pages.length ? pages : [{ ...page, id: 'page-1', active: true, label: 'Página 1' }]).map(item => ({ ...item, label: pages.length > 1 ? item.label : '', ppiDefault: defaultPpi(item) })), [pages, page])
   const multiple = entries.length > 1
@@ -105,8 +104,8 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
       ? { ...base, error: `El PDF en lote admite como máximo ${BULK_PDF_PAGES} páginas (ahora ${sheets ?? labels}). Usa menos filas o páginas.` } : { ...base, sheets, perSheet: grid?.perSheet }
   }, [page, options, ppi, selected, scope, parsed, native, versions, motion, motionValue, pptx])
   function submit() {
-    if (plan.error || exporting || (native && (!acknowledged || motionBlocked))) return
-    if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true, ...(packageExport.motionLoss ? { acknowledgeMotionLoss: true } : {}) }); return }
+    if (plan.error || exporting || (native && !acknowledged)) return
+    if (native) { onExport({ type: 'runlystudio', acknowledgeImageCopies: true }); return }
     try { window.localStorage.setItem(KEY, JSON.stringify(options)) } catch { /* storage unavailable */ }
     if (motion) { onExport({ type: options.type, ...motionValue, pages: selected.map(({ id, width, height, slide }) => ({ id, width, height, slide })) }); return }
     if (pptx) { onExport({ type: 'pptx', video: Boolean(options.pptx?.video), pages: selected.map(({ id, width, height, slide }) => ({ id, width, height, slide })) }); return }
@@ -187,10 +186,6 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               </div>
               <CheckboxField label={packageExport.imageCount ? 'Entiendo que el paquete incluye copias completas de las imágenes originales, también las ocultas o recortadas.' : 'Entiendo que el paquete incluye el texto del diseño y puede contener información personal.'}
                 checked={acknowledged} onChange={event => setAcknowledged(event.target.checked)} />
-              {packageExport.motionLoss ? (
-                <CheckboxField label="Entiendo que el paquete no conserva las duraciones, transiciones ni animaciones de este diseño."
-                  hint="El formato .runlystudio todavía no las admite; el diseño en Studio no cambia." checked={motionAccepted} onChange={event => setMotionAccepted(event.target.checked)} />
-              ) : null}
             </div>
           ) : pptx && document ? (
             <PptxExportOptions document={document} pageIds={selected.map(item => item.id)} value={options.pptx ?? {}} pageScope={pageScope} onChange={patch => set({ pptx: { ...options.pptx, ...patch } })} />
@@ -258,7 +253,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
           <Button variant="ghost" onClick={onCredits}>Créditos del diseño</Button>
           <div className="flex gap-2">
             <Button variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button onClick={submit} disabled={exporting || Boolean(plan.error) || (native && (!acknowledged || motionBlocked))} className="gap-1.5">
+            <Button onClick={submit} disabled={exporting || Boolean(plan.error) || (native && !acknowledged)} className="gap-1.5">
               {exporting ? <Loader2 className="h-4 w-4 animate-spin motion-reduce:animate-none" aria-hidden /> : <Download className="h-4 w-4" aria-hidden />}Descargar
             </Button>
           </div>
