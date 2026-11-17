@@ -1,9 +1,11 @@
 # Shared packages: Runly-MX
 
 The official source is **Runly-MX/runly-erp** and the consumer is
-**Runly-MX/runly-developer-hub**. Six private packages are distributed through
+**Runly-MX/runly-developer-hub**. Eight private packages are distributed through
 https://npm.pkg.github.com under **@runly-mx**: core, module-engine,
-module-compiler, ui, sdk and preview-runtime.
+module-compiler, ui, sdk, preview-runtime, studio-interchange and website-blocks.
+The effective inventory is `shared-packages.release.json` (and each published
+manifest), not a number quoted in prose.
 
 Logical @runly/* imports and Atlas aliases stay unchanged. Source workspace
 package names/exports stay logical. Release staging uses @runly-mx/<name>;
@@ -34,8 +36,9 @@ The workflow is manual, publish=false by default, and requires a full revision
 reachable from main. Prepare tests core/engine, directed compiler
 archive/contracts/static inspection and release policy, then packs six packages.
 Publishing runs only in Runly-MX/runly-erp through the protected
-**shared-packages** environment with required review/main restrictions and
-**RUNLY_SHARED_PUBLISH_ENABLED=true**. The publish job has contents:read and
+**shared-packages** environment (deployment branch policy: main only) and
+**RUNLY_SHARED_PUBLISH_ENABLED=true**. As of 2026-11-16 the environment has NO
+required reviewers: the human gate is who may dispatch the workflow. The publish job has contents:read and
 packages:write and passes **secrets.GITHUB_TOKEN** as NODE_AUTH_TOKEN.
 No authentication selector or additional CI credential is required.
 
@@ -59,7 +62,10 @@ an external user npmrc / NPM_CONFIG_USERCONFIG with a read-only credential
 CLI or logs. The VPS independently uses an external read-only npmrc mounted
 as a BuildKit secret; it does not receive an Actions GITHUB_TOKEN.
 
-The Hub has adopted 0.1.0-source.4299bec165678ea27c24a3cb2dcf345bb9adc7b8.
+Latest release: 0.1.0-source.ca778628b583480acfea3714083bc451c482f582 (run
+44001841552, Studio .runlystudio v2). Its Hub adoption is on the Hub branch
+`integration/studio-next-shared-ca778628` until that pull request is merged; the
+Hub main still pins 0.1.0-source.afc28075ca8f6a0a941a7d801e1f3eff7e596fd6.
 Future adoption requires all six versions, their approved manifest and clean
 frozen installs/contracts/build without a source sibling or local shared TGZ.
 DEV snapshots remain external dirty sandboxes, never release pins.
@@ -87,6 +93,8 @@ GitHub Packages retrieval/access and actual Hub adoption remain separate checks;
 the command neither publishes nor changes the consumer. Local evidence and limits:
 `docs/architecture/2026-10-12-shared-consumer-verification.md`.
 
-## Seventh package (E1b, staged)
+## Studio-interchange and website-blocks
 
-`@runly/studio-interchange` (pure Studio/Website-template inspection) is listed in `shared-packages.release.json` and in `PACKAGES`, so a release would pack seven packages. Nothing is published, and the Developer Hub lock keeps its six-package allowlist until Marketplace H3 adopts the seventh. See `docs/architecture/2026-11-09-erp-e1b-shared-validators.md`.
+`@runly/studio-interchange` (pure Studio/Website-template inspection, the Hub
+validator) and `@runly/website-blocks` are released with the other six. See
+`docs/architecture/2026-11-09-erp-e1b-shared-validators.md`.

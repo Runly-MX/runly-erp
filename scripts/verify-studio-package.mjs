@@ -260,7 +260,13 @@ try {
     const prisma = new prismaPackage.PrismaClient({ adapter: new PrismaPg(stack.pool) })
     const files = createFilesService({ prisma, supabaseAdmin: scenario.admin }), designs = createStudioService({ prisma, filesService: files })
     const templates = createStudioTemplatesService({ prisma, filesService: files, supabaseAdmin: scenario.admin, designService: designs })
-    const gate = createMarketplaceImportGate({ catalog: createResourceCatalogService({ prisma, trust: { resource: [lab.publicKey] } }) })
+    // The stack's API container may already have accepted the real production resource feed (higher
+    // sequence); this disposable instance trusts only the lab key, so its anti-rollback mark starts clean.
+    await stack.pool.query("UPDATE instance_config SET value=(value::jsonb - 'resource:runly-resources-v1')::text WHERE key='catalog.sequence.highWater'")
+    const catalog = createResourceCatalogService({ prisma, trust: { resource: [lab.publicKey] } }), gate = createMarketplaceImportGate({ catalog })
+    // The gate keeps quiet about a failed refresh; surface its reason here.
+    const refreshed = await catalog.refresh().catch(error => ({ status: 'error', reason: `${error.code} ${error.message} ${error.cause?.message ?? ''}` }))
+    assert.equal(refreshed.status, 'ok', `resource feed refresh: ${JSON.stringify(refreshed)}`)
     const interchange = createStudioInterchange({ prisma, filesService: files, supabaseAdmin: scenario.admin, designs, templates, verifySource: gate.recheck })
     const owner = (await stack.pool.query('SELECT id, auth_user_id FROM user_profile WHERE id=$1', [users.owner.id])).rows[0]
     const permissionSet = new Set((await stack.pool.query('SELECT p.key FROM membership m JOIN role_permission rp ON rp.role_id=m.role_id JOIN permission p ON p.id=rp.permission_id WHERE m.company_id=$1 AND m.user_id=$2', [company.id, owner.id])).rows.map(r => r.key))
