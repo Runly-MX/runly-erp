@@ -4,13 +4,13 @@ import { z } from 'zod'
 import { validateDocument } from './studio/document.js'
 import { documentPages } from './studio/pages.js'
 import { STUDIO_FONTS, studioFontStyle } from './studio/fonts.js'
-import { FORMAT, LIMITS_VERSION, PACKAGE_LIMITS, resolveLimits } from './limits.js'
+import { FORMAT, LIMITS_VERSION, PACKAGE_FOR_DOCUMENT, PACKAGE_LIMITS, resolveLimits } from './limits.js'
 import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 
 // Pure inspection of a portable Studio package: no Prisma, Storage, network,
 // filesystem or persistence. Safe to run on hostile bytes.
-export { FORMAT, LIMITS_VERSION, PACKAGE_LIMITS, shaPattern, PackageError }
+export { FORMAT, LIMITS_VERSION, PACKAGE_FOR_DOCUMENT, PACKAGE_LIMITS, shaPattern, PackageError }
 export const PACKAGE_MIME = FORMAT.mime
 const FOLDERS = ['assets', 'previews', 'licenses']
 
@@ -32,8 +32,11 @@ export const manifestSchema = z.strictObject({
   previews: z.array(entry).max(24), licenses: z.array(entry).max(100),
   compatibility: z.strictObject({ assetReferences: z.literal('package-local-v1'), losses: z.array(z.string().max(500)).max(100) }),
 })
+// Package v2 has the v1 layout and asset rules; it only carries a v8 document (slides, effects,
+// keyframes) instead of a v7 one, so nothing is projected or dropped.
+export const manifestSchemaV2 = manifestSchema.extend({ formatVersion: z.literal(2), minReaderVersion: z.literal(2), documentSchemaVersion: z.literal(8) })
 // One reader per supported formatVersion: raising the version keeps the previous readers.
-export const MANIFEST_READERS = Object.freeze({ 1: manifestSchema })
+export const MANIFEST_READERS = Object.freeze({ 1: manifestSchema, 2: manifestSchemaV2 })
 const SENTINEL = '00000000-0000-4000-8000-000000000000'
 
 export const defaultFonts = Object.freeze({ has: (family, variant) => Boolean(STUDIO_FONTS.some((row) => row.family === family) && studioFontStyle(family, variant)) })
@@ -100,9 +103,9 @@ async function decodeImage(bytes, mime, limits) {
   return { width: metadata.width, height: metadata.height }
 }
 
-export function canonicalPortable(portable, resources, limits = PACKAGE_LIMITS) {
+export function canonicalPortable(portable, resources, limits = PACKAGE_LIMITS, schemaVersion = 7) {
   const invalid = (message) => packageError('document_invalid', message)
-  if (!portable || portable.schemaVersion !== 7 || portable.unit !== 'px' || !Array.isArray(portable.additionalPages) || !Array.isArray(portable.objects) || !portable.page || portable.additionalPages.some((s) => !s || !s.page || !Array.isArray(s.objects)) || documentPages(portable).some((s) => s.objects.some((o) => !o || typeof o !== 'object' || Array.isArray(o)))) throw invalid('Estructura de documento v7 no válida.')
+  if (!portable || portable.schemaVersion !== schemaVersion || portable.unit !== 'px' || !Array.isArray(portable.additionalPages) || !Array.isArray(portable.objects) || !portable.page || portable.additionalPages.some((s) => !s || !s.page || !Array.isArray(s.objects)) || documentPages(portable).some((s) => s.objects.some((o) => !o || typeof o !== 'object' || Array.isArray(o)))) throw invalid(`Estructura de documento v${schemaVersion} no válida.`)
   const scenes = documentPages(portable)
   if (scenes.length > limits.pages || scenes.some((s) => s.objects.length > limits.objectsPerPage) || scenes.reduce((n, s) => n + s.objects.length, 0) > limits.totalObjects) throw invalid('El documento supera los límites de páginas u objetos.')
   const ids = new Set(resources.map((r) => r.id)), refs = new Set()
@@ -115,7 +118,7 @@ export function canonicalPortable(portable, resources, limits = PACKAGE_LIMITS) 
   // Unknown persistent fields cannot be smuggled through the normalizer.
   if (JSON.stringify(test) !== JSON.stringify(canonical)) {
     const sort = (v) => (Array.isArray(v) ? v.map(sort) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])])) : v)
-    if (JSON.stringify(sort(test)) !== JSON.stringify(sort(canonical))) throw invalid('El documento debe ser v7 canónico, sin campos adicionales.')
+    if (JSON.stringify(sort(test)) !== JSON.stringify(sort(canonical))) throw invalid(`El documento debe ser v${schemaVersion} canónico, sin campos adicionales.`)
   }
   for (const scene of scenes) {
     const pixels = scene.objects.reduce((n, o) => { const id = o.type === 'image' ? o.fileAssetId : o.fillPaint?.type === 'image' ? o.fillPaint.fileAssetId : null; const r = resources.find((x) => x.id === id); return n + (r ? r.width * r.height : 0) }, 0)
@@ -139,7 +142,7 @@ export function describePackage(manifest, portable, catalog = defaultFonts) {
   const fonts = fontRows(manifest, catalog)
   if (fonts.some((f) => !f.available)) throw packageError('font_unavailable', 'El paquete depende de una fuente o variante no disponible.')
   const first = portable.objects.slice(0, 500).map((o) => ({ ...o, ...(o.text ? { text: o.text.slice(0, 120) } : {}) }))
-  return { format: manifest.format, formatVersion: 1, kind: manifest.kind, title: manifest.title, packageId: manifest.packageId, pages: documentPages(portable).map((s) => ({ ...s.page, objectCount: s.objects.length })), resources: manifest.resources, fonts, notices: manifest.notices, warnings, blockingErrors: [], preview: { page: portable.page, objects: first }, previewKind: 'studio-declarative', requiresWarningAcceptance: warnings.length > 0 }
+  return { format: manifest.format, formatVersion: manifest.formatVersion, documentSchemaVersion: manifest.documentSchemaVersion, kind: manifest.kind, title: manifest.title, packageId: manifest.packageId, pages: documentPages(portable).map((s) => ({ ...s.page, objectCount: s.objects.length })), resources: manifest.resources, fonts, notices: manifest.notices, warnings, blockingErrors: [], preview: { page: portable.page, objects: first }, previewKind: 'studio-declarative', requiresWarningAcceptance: warnings.length > 0 }
 }
 
 const EMAIL = /[a-z0-9._%+-]+@[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}/i
@@ -183,6 +186,8 @@ async function inspectCore(input, { limits, fonts: catalog = defaultFonts } = {}
     throw packageError('format_unsupported', 'El paquete es de una versión más nueva de Runly. Actualiza Runly para importarlo.', { manifest: { format: raw.format, formatVersion: raw.formatVersion, minReaderVersion: raw.minReaderVersion } })
   }
   const reader = MANIFEST_READERS[raw.formatVersion]
+  // A package never pairs a document with another package version (no silent v8 → v7 downgrade).
+  if (!reader || PACKAGE_FOR_DOCUMENT[raw.documentSchemaVersion] !== raw.formatVersion) throw packageError('manifest_invalid', 'Manifest o versión de paquete no compatible.')
   let manifest
   try { manifest = reader.parse(raw) } catch { throw packageError('manifest_invalid', 'Manifest o versión de paquete no compatible.') }
   if (manifest.resources.length > limits.assets) throw packageError('zip_limit_exceeded', 'El paquete declara demasiados recursos.')
@@ -216,7 +221,7 @@ async function inspectCore(input, { limits, fonts: catalog = defaultFonts } = {}
     if (!portable || typeof portable !== 'object' || !Array.isArray(portable.objects) || !Array.isArray(portable.additionalPages) || documentPages(portable).some((s) => !s || !Array.isArray(s.objects))) throw packageError('document_invalid', 'Estructura de documento v7 no válida.')
     return { manifest, portable, files, fonts, partial: true }
   }
-  canonicalPortable(portable, manifest.resources, limits)
+  canonicalPortable(portable, manifest.resources, limits, manifest.documentSchemaVersion)
   noticeSubjects(manifest, portable)
   if (documentPages(portable).length !== manifest.pageCount) throw packageError('page_count_mismatch', 'El número de páginas no coincide con el manifest.')
   const actualFonts = documentPages(portable).flatMap((s) => s.objects.filter((o) => o.type === 'text').map((o) => `${o.fontFamily}:${o.fontVariant}`))

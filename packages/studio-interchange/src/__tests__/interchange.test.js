@@ -3,15 +3,17 @@ import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { FORMAT, LIMITS_VERSION, PACKAGE_LIMITS, inspectNativePackage, inspectStudioPackage, readPackageZip } from '../inspect.js'
-import { exportStudioPackage, writePackageZip, MOTION_LOSS } from '../write.js'
-import { studioCorpus, studioDocument, studioImage, validStudio, repack } from './corpus.js'
+import { exportStudioPackage, writePackageZip } from '../write.js'
+import { studioCorpus, studioDocument, studioImage, studioMotionDocument, validMotionStudio, validStudio, repack } from './corpus.js'
+import { validateDocument } from '../studio/document.js'
+import { sceneAt } from '../studio/motion.js'
 import { validateWebsiteTemplate, WEBSITE_LIMITS, resolveWebsiteLimits, catalogDigest, richTextProblem } from '../website-template.js'
 import { builderCatalogs, section, websiteCorpus, websiteTemplate } from './corpus.js'
 
 const codes = (result) => result.errors.map((e) => e.code)
 
 test('format identity and limits are exported and consistent', () => {
-  assert.deepEqual({ ...FORMAT }, { name: 'studio', formatVersion: 1, minReaderVersion: 1, documentSchemaVersion: 7, mime: 'application/vnd.runly.studio+zip' })
+  assert.deepEqual({ ...FORMAT }, { name: 'studio', formatVersion: 2, minReaderVersion: 1, documentSchemaVersion: 8, mime: 'application/vnd.runly.studio+zip' })
   assert.equal(LIMITS_VERSION, 1)
   for (const key of ['compressed', 'expanded', 'entry', 'entries', 'ratio', 'folders', 'depth', 'pages', 'objectsPerPage', 'totalObjects', 'assets', 'resourceBytes', 'imageSide', 'imagePixels', 'documentBytes']) assert.ok(Number.isInteger(PACKAGE_LIMITS[key]) && PACKAGE_LIMITS[key] > 0, key)
   assert.ok(Object.isFrozen(PACKAGE_LIMITS))
@@ -50,7 +52,7 @@ test('unknown fonts are an error AND stay visible in the report; the legacy stri
 
 test('newer versions expose only the version triple so Runly can say "update"', async () => {
   const result = await inspectStudioPackage((await studioCorpus())['studio/newer-format.runlystudio'].bytes)
-  assert.deepEqual(result.manifest, { format: 'runly.studio', formatVersion: 2, minReaderVersion: 1 })
+  assert.deepEqual(result.manifest, { format: 'runly.studio', formatVersion: 3, minReaderVersion: 1 })
   assert.equal(result.report, null)
 })
 
@@ -68,19 +70,22 @@ test('round trip: export, inspect and re-export lose nothing', async () => {
   assert.equal(JSON.parse(files.get('document.json')).additionalPages.length, 1)
 })
 
-test('v8 slide and motion fields need an explicit acceptance and are declared as losses', async () => {
-  const doc = await studioDocument()
-  const v8 = { ...doc, page: { ...doc.page, slide: { duration: 3000 } }, objects: doc.objects.map((o, i) => (i ? o : { ...o, enter: { preset: 'fade' } })) }
-  await assert.rejects(validStudio({ document: v8 }), (e) => e.status === 409 && e.code === 'STUDIO_MOTION_LOSS_ACK_REQUIRED')
-  const bytes = await validStudio({ document: v8, acknowledgeMotionLoss: true })
-  const result = await inspectStudioPackage(bytes)
-  assert.equal(result.ok, true)
-  assert.deepEqual(result.report.losses, [MOTION_LOSS])
-  const portable = JSON.parse((await readPackageZip(bytes)).get('document.json'))
-  assert.equal(portable.schemaVersion, 7)
-  assert.equal(portable.page.slide, undefined)
-  assert.equal(portable.objects[0].enter, undefined)
-  assert.deepEqual(await validStudio({ acknowledgeMotionLoss: true }), await validStudio(), 'static designs export identically')
+test('package v2 keeps a v8 document whole; v7 documents keep writing package v1', async () => {
+  const bytes = await validMotionStudio(), files = await readPackageZip(bytes)
+  const manifest = JSON.parse(files.get('manifest.json')), portable = JSON.parse(files.get('document.json'))
+  assert.deepEqual([manifest.formatVersion, manifest.minReaderVersion, manifest.documentSchemaVersion, manifest.compatibility.losses], [2, 2, 8, []])
+  const inspected = await inspectNativePackage(bytes)
+  assert.deepEqual([inspected.report.formatVersion, inspected.report.documentSchemaVersion, inspected.report.warnings.includes('compatibility_losses')], [2, 8, false])
+  // Everything but the asset reference is the same document, and it animates the same.
+  const source = validateDocument(await studioMotionDocument()), id = manifest.resources[0].id
+  const back = validateDocument(JSON.parse(JSON.stringify(portable).replaceAll(id, source.objects[0].fileAssetId)))
+  assert.deepEqual(back, source)
+  for (const t of [0, 450, 1500, 2700]) assert.deepEqual(sceneAt(back, back.page.id, t), sceneAt(source, source.page.id, t), `frame at ${t} ms`)
+  assert.deepEqual([portable.objects[1].emphasis.repeat, portable.objects[0].keyframes.length, portable.objects[0].groupId, portable.additionalPages[0].page.slide.transition.type], [2, 2, 'g1', 'slide-left'])
+  const v7 = JSON.parse((await readPackageZip(await validStudio())).get('manifest.json'))
+  assert.deepEqual([v7.formatVersion, v7.minReaderVersion, v7.documentSchemaVersion], [1, 1, 7])
+  assert.deepEqual(await validStudio({ acknowledgeMotionLoss: true }), await validStudio(), 'the old acknowledgement is ignored; v1 bytes unchanged')
+  assert.deepEqual(await validMotionStudio(), bytes, 'deterministic')
 })
 
 test('limits are clamped to the format, validated, and applied', async () => {

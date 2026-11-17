@@ -1,12 +1,11 @@
 import JSZip from 'jszip'
 import { StudioError, validateDocument } from './studio/document.js'
 import { documentPages } from './studio/pages.js'
-import { projectV7 } from './studio/motion.js'
 import { documentAssetIds } from './studio/shape-properties.js'
 import { iconSource } from './studio/licenses.js'
-import { PACKAGE_LIMITS, FORMAT } from './limits.js'
+import { PACKAGE_FOR_DOCUMENT, PACKAGE_LIMITS } from './limits.js'
 import { packageError } from './errors.js'
-import { PACKAGE_MIME, canonicalPortable, describePackage, hash, licenseSchema, manifestSchema, mapReferences, noticeSubjects, validateImage } from './inspect.js'
+import { MANIFEST_READERS, PACKAGE_MIME, canonicalPortable, describePackage, hash, licenseSchema, mapReferences, noticeSubjects, validateImage } from './inspect.js'
 
 // Deterministic writer: fixed timestamps, STORE compression, entries in the given order.
 export async function writePackageZip(entries, { limit = PACKAGE_LIMITS.compressed } = {}) {
@@ -17,14 +16,12 @@ export async function writePackageZip(entries, { limit = PACKAGE_LIMITS.compress
   return bytes
 }
 
-export const MOTION_LOSS = 'Se omitieron duraciones, transiciones y animaciones: el paquete portable v1 todavía no las admite.'
-
-export async function exportStudioPackage({ document, title, kind = 'design', readAsset, author = '', provenance = '', notices = [], losses = [], licenseFiles = {}, acknowledgeMotionLoss = false }) {
-  // Package v1 carries document v7: v8 fields are dropped only after an explicit acceptance, and declared.
-  const projected = projectV7(validateDocument(document))
-  if (projected.lost && acknowledgeMotionLoss !== true) throw new StudioError('El diseño tiene duraciones, transiciones o animaciones que el paquete no conserva. Confirma la pérdida para exportarlo.', 409, 'STUDIO_MOTION_LOSS_ACK_REQUIRED')
-  if (projected.lost) losses = [...losses, MOTION_LOSS]
-  const canonical = validateDocument(projected.document), resources = [], entries = [], mapping = new Map()
+// The document is written as is: v7 → package v1, v8 (slides, effects, keyframes) → package v2.
+// `acknowledgeMotionLoss` is accepted from older clients and ignored: nothing is lost any more.
+export async function exportStudioPackage({ document, title, kind = 'design', readAsset, author = '', provenance = '', notices = [], losses = [], licenseFiles = {} }) {
+  const canonical = validateDocument(document), resources = [], entries = [], mapping = new Map()
+  const formatVersion = PACKAGE_FOR_DOCUMENT[canonical.schemaVersion]
+  if (!formatVersion) throw new StudioError('Versión de documento no exportable.', 422)
   let resourceBytes = 0
   for (const id of documentAssetIds({ objects: documentPages(canonical).flatMap((s) => s.objects) })) {
     const asset = await readAsset(id), bytes = asset.bytes, size = await validateImage(bytes, asset.mime), sha256 = hash(bytes)
@@ -61,8 +58,8 @@ export async function exportStudioPackage({ document, title, kind = 'design', re
     licenses.push({ path, sha256: hash(bytes), bytes: bytes.length })
     entries.push([path, bytes])
   }
-  const manifest = manifestSchema.parse({ format: 'runly.studio', formatVersion: FORMAT.formatVersion, minReaderVersion: FORMAT.minReaderVersion, documentSchemaVersion: FORMAT.documentSchemaVersion, kind, packageId: hash(documentBytes), title, author, provenance, pageCount: documentPages(canonical).length, document: { path: 'document.json', sha256: hash(documentBytes), bytes: documentBytes.length }, resources, fonts, notices, previews: [], licenses, compatibility: { assetReferences: 'package-local-v1', losses } })
-  canonicalPortable(portable, resources)
+  const manifest = MANIFEST_READERS[formatVersion].parse({ format: 'runly.studio', formatVersion, minReaderVersion: formatVersion, documentSchemaVersion: canonical.schemaVersion, kind, packageId: hash(documentBytes), title, author, provenance, pageCount: documentPages(canonical).length, document: { path: 'document.json', sha256: hash(documentBytes), bytes: documentBytes.length }, resources, fonts, notices, previews: [], licenses, compatibility: { assetReferences: 'package-local-v1', losses } })
+  canonicalPortable(portable, resources, PACKAGE_LIMITS, canonical.schemaVersion)
   noticeSubjects(manifest, portable)
   describePackage(manifest, portable)
   return writePackageZip([['mimetype', Buffer.from(PACKAGE_MIME)], ['manifest.json', Buffer.from(JSON.stringify(manifest))], ['document.json', documentBytes], ...entries])

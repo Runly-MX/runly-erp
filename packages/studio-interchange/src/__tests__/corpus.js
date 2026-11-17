@@ -31,6 +31,18 @@ export async function validStudio(overrides = {}) {
   const image = await studioImage()
   return exportStudioPackage({ document: await studioDocument(), title: 'Menú de ejemplo', author: 'Runly', readAsset: async () => ({ bytes: image, mime: 'image/png', license: { id: 'CC-BY-4.0', author: 'Runly', notice: 'Imagen de ejemplo', redistribution: 'allowed' } }), licenseFiles: { 'licenses/notice.txt': 'Declaración de licencia como datos.' }, ...overrides })
 }
+// Document v8 → package v2: slide durations/transitions, every effect kind, keyframes and a group.
+export async function studioMotionDocument() {
+  const document = await studioDocument()
+  document.schemaVersion = 8
+  document.page.slide = { duration: 3000 }
+  const [photo, text] = document.objects
+  Object.assign(photo, { groupId: 'g1', keyframes: [{ at: 0, x: 0, opacity: 1 }, { at: 2000, x: 40, opacity: 0.5, easing: 'ease-in' }] })
+  Object.assign(text, { groupId: 'g1', enter: { preset: 'slide-fade-up', duration: 700, delay: 100, easing: 'ease-out' }, emphasis: { preset: 'pulse', duration: 600, delay: 900, easing: 'linear', repeat: 2 }, exit: { preset: 'zoom-out', duration: 500, delay: 2400, easing: 'ease-in' } })
+  document.additionalPages[0].page.slide = { duration: 2000, transition: { type: 'slide-left', duration: 600, easing: 'ease-in-out' } }
+  return document
+}
+export const validMotionStudio = async (overrides = {}) => validStudio({ document: await studioMotionDocument(), ...overrides })
 // Rewrites manifest/document of a package and keeps the document inventory consistent.
 export async function repack(bytes, edit, { fixInventory = true } = {}) {
   const files = await readPackageZip(bytes)
@@ -49,7 +61,7 @@ const zipOf = async (entries, { generate = {}, perFile = {} } = {}) => {
 }
 
 export async function studioCorpus() {
-  const valid = await validStudio()
+  const valid = await validStudio(), motion = await validMotionStudio()
   const bomb = await zipOf([['mimetype', Buffer.from(PACKAGE_MIME)], ['manifest.json', Buffer.from('{}')], ['document.json', Buffer.alloc(5 * 1024 * 1024, 0x20)]])
   return {
     'studio/valid.runlystudio': { bytes: valid, expect: { ok: true, codes: [] } },
@@ -59,8 +71,12 @@ export async function studioCorpus() {
     'studio/symlink-entry.runlystudio': { bytes: await zipOf([['mimetype', Buffer.from(PACKAGE_MIME)], ['manifest.json', Buffer.from('{}')], ['document.json', Buffer.from('{}')]], { perFile: { 'document.json': { unixPermissions: 0o120777 } } }), expect: { ok: false, codes: ['zip_unsafe_entry'] } },
     'studio/path-traversal.runlystudio': { bytes: await zipOf([['mimetype', Buffer.from(PACKAGE_MIME)], ['manifest.json', Buffer.from('{}')], ['assets/../x.txt', Buffer.from('x')]]), expect: { ok: false, codes: ['zip_unsafe_entry'] } },
     'studio/data-descriptor.runlystudio': { bytes: await zipOf([['mimetype', Buffer.from(PACKAGE_MIME)], ['manifest.json', Buffer.from('{}')], ['document.json', Buffer.from('{}')]], { generate: { streamFiles: true } }), expect: { ok: false, codes: ['zip_unsafe_entry'] } },
-    'studio/newer-format.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.formatVersion = 2 }, { fixInventory: false }), expect: { ok: false, codes: ['format_unsupported'] } },
-    'studio/newer-document-schema.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.documentSchemaVersion = 8 }, { fixInventory: false }), expect: { ok: false, codes: ['format_unsupported'] } },
+    'studio/newer-format.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.formatVersion = 3 }, { fixInventory: false }), expect: { ok: false, codes: ['format_unsupported'] } },
+    'studio/newer-document-schema.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.documentSchemaVersion = 9 }, { fixInventory: false }), expect: { ok: false, codes: ['format_unsupported'] } },
+    'studio/valid-motion.runlystudio': { bytes: motion, expect: { ok: true, codes: [] } },
+    // A v8 document can never be declared as v7 (silent loss) nor a v1 manifest claim v8.
+    'studio/motion-declared-v7.runlystudio': { bytes: await repack(motion, ({ manifest, document }) => { Object.assign(manifest, { formatVersion: 1, minReaderVersion: 1, documentSchemaVersion: 7 }); document.schemaVersion = 7 }), expect: { ok: false, codes: ['document_invalid'] } },
+    'studio/version-pair-mismatch.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.documentSchemaVersion = 8 }), expect: { ok: false, codes: ['manifest_invalid'] } },
     'studio/tampered-document.runlystudio': { bytes: await repack(valid, ({ document }) => { document.page.background = '#000000' }, { fixInventory: false }), expect: { ok: false, codes: ['checksum_mismatch'] } },
     'studio/undeclared-entry.runlystudio': { bytes: await repack(valid, () => [['licenses/oculta.txt', Buffer.from('no declarada')]]), expect: { ok: false, codes: ['undeclared_entry'] } },
     'studio/page-count-mismatch.runlystudio': { bytes: await repack(valid, ({ manifest }) => { manifest.pageCount = 1 }), expect: { ok: false, codes: ['page_count_mismatch'] } },

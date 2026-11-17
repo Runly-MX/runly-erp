@@ -1,12 +1,18 @@
 // Format identity and limits of the portable Studio package (and of the ZIP
 // container shared with the Website template format).
+// Three separate versions: formatVersion is the package layout (manifest), documentSchemaVersion
+// the Studio document inside it, and the HTTP writer protocol is never stored in a package.
+// formatVersion/documentSchemaVersion here are the newest this reader understands.
 export const FORMAT = Object.freeze({
   name: 'studio',
-  formatVersion: 1,
+  formatVersion: 2,
   minReaderVersion: 1,
-  documentSchemaVersion: 7,
+  documentSchemaVersion: 8,
   mime: 'application/vnd.runly.studio+zip',
 })
+// Each document version travels in exactly one package version: v7 documents keep writing
+// package v1 (readable by older Runly and Hub readers); v8 documents (slides, motion) need v2.
+export const PACKAGE_FOR_DOCUMENT = Object.freeze({ 7: 1, 8: 2 })
 // Bumps with any change of PACKAGE_LIMITS (recorded in validation evidence).
 export const LIMITS_VERSION = 1
 export const PACKAGE_LIMITS = Object.freeze({

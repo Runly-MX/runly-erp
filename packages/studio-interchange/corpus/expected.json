@@ -53,6 +53,22 @@
         "format_unsupported"
       ]
     },
+    "studio/valid-motion.runlystudio": {
+      "ok": true,
+      "codes": []
+    },
+    "studio/motion-declared-v7.runlystudio": {
+      "ok": false,
+      "codes": [
+        "document_invalid"
+      ]
+    },
+    "studio/version-pair-mismatch.runlystudio": {
+      "ok": false,
+      "codes": [
+        "manifest_invalid"
+      ]
+    },
     "studio/tampered-document.runlystudio": {
       "ok": false,
       "codes": [
