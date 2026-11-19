@@ -3,12 +3,13 @@ import {
   Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, SectionCard, Skeleton, StatusPill,
   SwatchField, SwitchField, TextField, TextareaField, copyText,
 } from '@runly/ui'
-import { Copy, Eye, Globe, Loader2, Pencil, Plus } from 'lucide-react'
+import { Copy, Eye, Globe, Loader2, Pencil, Plus, Share2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { KEY, useBookingsMutation, useToken } from '../hooks/useBookings.js'
 import { MUTED_TEXT, bookingsError } from '../lib/bookingsLabels.js'
+import { ShareEmbedDialog } from './ShareEmbedDialog.jsx'
 
 // "Reservas online": publish the space and manage its public pages. Turning
 // publication off keeps every booking; it only stops new self-scheduling.
@@ -16,6 +17,7 @@ export function OnlinePanel({ space, services, canEdit }) {
   const token = useToken()
   const pages = useQuery({ queryKey: [KEY, 'pages', space.id], queryFn: async () => (await runly.bookings.listPages(space.id, token))?.data ?? [], enabled: Boolean(token) })
   const [editing, setEditing] = useState(null)
+  const [sharing, setSharing] = useState(null)
   const publish = useBookingsMutation((t, published) => runly.bookings.updateSpace(space.id, { published }, t), { success: (_d, v) => (v ? 'Reservas online activadas.' : 'Reservas online desactivadas. Las reservaciones existentes se conservan.') })
   const save = useBookingsMutation((t, { id, data }) => (id ? runly.bookings.updatePage(id, data, t) : runly.bookings.createPage(space.id, data, t)), { success: 'Página guardada.' })
 
@@ -64,6 +66,7 @@ export function OnlinePanel({ space, services, canEdit }) {
                 </div>
                 <div className="flex flex-wrap gap-1">
                   <Button type="button" variant="ghost" size="sm" onClick={() => copy(p)}><Copy />Copiar enlace</Button>
+                  <Button type="button" variant="ghost" size="sm" onClick={() => setSharing(p)}><Share2 />Compartir e integrar</Button>
                   {canEdit ? <Button type="button" variant="ghost" size="sm" onClick={() => preview(p)}><Eye />Vista previa</Button> : null}
                   {canEdit ? <Button type="button" variant="ghost" size="sm" onClick={() => setEditing(p)}><Pencil />Editar</Button> : null}
                 </div>
@@ -72,6 +75,10 @@ export function OnlinePanel({ space, services, canEdit }) {
           </ul>
         )}
       </SectionCard>
+      <ShareEmbedDialog
+        open={Boolean(sharing)} onOpenChange={(v) => !v && setSharing(null)} page={pages.data?.find((p) => p.id === sharing?.id) ?? sharing}
+        services={services} live={Boolean(sharing?.published && space.published)} canEdit={canEdit}
+      />
       <PageFormDialog
         open={Boolean(editing)} onOpenChange={(v) => !v && setEditing(null)} page={editing === 'new' ? null : editing} services={services} pending={save.isPending}
         onSubmit={async (data) => { await save.mutateAsync({ id: editing === 'new' ? null : editing.id, data }).then(() => setEditing(null)).catch(() => {}) }}
