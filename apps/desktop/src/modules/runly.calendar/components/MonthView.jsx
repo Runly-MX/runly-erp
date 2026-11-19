@@ -2,7 +2,7 @@ import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useYearEvents } from "../hooks/useCalendarData";
-import EventChip from "./EventChip";
+import EventChip, { eventColors } from "./EventChip";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const WEEKDAYS_NARROW = ["D", "L", "M", "X", "J", "V", "S"];
@@ -138,34 +138,42 @@ function WeekRow({
       b.colEnd - b.colStart - (a.colEnd - a.colStart),
   );
   const laned = assignLanes(rawSpans);
-  const maxLanes = laned.reduce((m, s) => Math.max(m, s.lane + 1), 0);
-  const spansH = maxLanes * SPAN_H;
   const spanIds = new Set(rawSpans.map((s) => s.ev.id));
+  // Lanes used per column, so single-day chips only drop below bars on days that have bars
+  const colLanes = cells.map((_, ci) =>
+    laned.reduce(
+      (m, s) => (s.colStart <= ci && ci <= s.colEnd ? Math.max(m, s.lane + 1) : m),
+      0,
+    ),
+  );
 
   return (
-    <div className="flex-1 flex flex-col min-h-0 border-b border-[hsl(var(--border))] last:border-b-0">
-      {/* ── Date numbers + spanning bars ── */}
-      <div
-        className="relative shrink-0 grid grid-cols-7"
-        style={{ height: `${DATE_ROW_H + spansH}px` }}
-      >
-        {cells.map((cell, ci) => {
-          const k = dateKey(cell.date);
-          return (
+    <div className="relative flex-1 grid grid-cols-7 min-h-0 border-b border-[hsl(var(--border))] last:border-b-0">
+      {/* Full-height day cells: number + single-day chips */}
+      {cells.map((cell, ci) => {
+        const k = dateKey(cell.date);
+        const dayEvents = (singleByDate[k] ?? []).filter(
+          (ev) => !spanIds.has(ev.id),
+        );
+        return (
+          <div
+            key={ci}
+            onClick={() => onSelectDate(k)}
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              onNewEvent(k);
+            }}
+            className={[
+              "flex flex-col min-h-0 border-r border-[hsl(var(--border))] last:border-r-0 cursor-pointer overflow-hidden select-none",
+              "hover:bg-[hsl(var(--muted))]/30 transition-colors",
+              !cell.current && "bg-[hsl(var(--muted))]/20",
+              k === selectedDate && "ring-1 ring-inset ring-violet-500",
+            ]
+              .filter(Boolean)
+              .join(" ")}
+          >
             <div
-              key={ci}
-              onClick={() => onSelectDate(k)}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                onNewEvent(k);
-              }}
-              className={[
-                "flex justify-end pr-1 pt-0.5 cursor-pointer select-none border-r border-[hsl(var(--border))] last:border-r-0",
-                "hover:bg-[hsl(var(--muted))]/30 transition-colors",
-                !cell.current && "bg-[hsl(var(--muted))]/20",
-              ]
-                .filter(Boolean)
-                .join(" ")}
+              className="flex shrink-0 justify-end pr-1 pt-0.5"
               style={{ height: `${DATE_ROW_H}px` }}
             >
               <span
@@ -180,12 +188,31 @@ function WeekRow({
                 {cell.date.getDate()}
               </span>
             </div>
-          );
-        })}
+            <div
+              className="space-y-0.5 overflow-hidden px-1 pb-1 pt-0.5"
+              style={{ marginTop: `${colLanes[ci] * SPAN_H}px` }}
+            >
+              {dayEvents.slice(0, 3).map((ev) => (
+                <EventChip
+                  key={ev.id}
+                  event={ev}
+                  onClick={onEventClick}
+                  compact
+                />
+              ))}
+              {dayEvents.length > 3 && (
+                <div className="text-[10px] text-[hsl(var(--muted-foreground))] pl-1">
+                  +{dayEvents.length - 3} más
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
-        {/* Absolutely positioned spanning bars */}
-        {laned.map(({ ev, colStart, colEnd, lane, startsHere, endsHere }) => {
-          const bg = ev.color || ev.calendar?.color || "#6B46C1";
+      {/* Spanning bars overlaid on the cells */}
+      {laned.map(({ ev, colStart, colEnd, lane, startsHere, endsHere }) => {
+          const { bg, accent } = eventColors(ev);
           const lPct = (colStart / 7) * 100;
           const wPct = ((colEnd - colStart + 1) / 7) * 100;
           const rL = startsHere ? "4px" : "0";
@@ -209,6 +236,7 @@ function WeekRow({
                 height: `${SPAN_H - 4}px`,
                 lineHeight: `${SPAN_H - 4}px`,
                 backgroundColor: bg,
+                boxShadow: accent && startsHere ? `inset 4px 0 0 ${accent}` : undefined,
                 borderTopLeftRadius: rL,
                 borderBottomLeftRadius: rL,
                 borderTopRightRadius: rR,
@@ -219,52 +247,6 @@ function WeekRow({
             </button>
           );
         })}
-      </div>
-
-      {/* ── Per-cell single-day chips ── */}
-      <div className="flex-1 grid grid-cols-7 min-h-0 overflow-hidden">
-        {cells.map((cell, ci) => {
-          const k = dateKey(cell.date);
-          const dayEvents = (singleByDate[k] ?? []).filter(
-            (ev) => !spanIds.has(ev.id),
-          );
-          const isSelected = k === selectedDate;
-          return (
-            <div
-              key={ci}
-              onClick={() => onSelectDate(k)}
-              onDoubleClick={(e) => {
-                e.stopPropagation();
-                onNewEvent(k);
-              }}
-              className={[
-                "border-r border-[hsl(var(--border))] last:border-r-0 p-1 cursor-pointer overflow-hidden select-none",
-                "hover:bg-[hsl(var(--muted))]/30 transition-colors",
-                !cell.current && "bg-[hsl(var(--muted))]/20",
-                isSelected && "ring-1 ring-inset ring-violet-500",
-              ]
-                .filter(Boolean)
-                .join(" ")}
-            >
-              <div className="space-y-0.5 overflow-hidden">
-                {dayEvents.slice(0, 3).map((ev) => (
-                  <EventChip
-                    key={ev.id}
-                    event={ev}
-                    onClick={onEventClick}
-                    compact
-                  />
-                ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-[hsl(var(--muted-foreground))] pl-1">
-                    +{dayEvents.length - 3} más
-                  </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
     </div>
   );
 }

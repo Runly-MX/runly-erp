@@ -1,6 +1,14 @@
 import { BellRing } from 'lucide-react'
 import { hasReminder } from '../lib/reminder-utils'
 
+// Event color fills the chip; when it differs from its calendar's color, the
+// calendar color stays visible as a left accent so the calendar is still recognizable.
+export function eventColors(event) {
+  const calendarColor = event.calendar?.color || '#6B46C1'
+  const own = event.color && event.color.toLowerCase() !== calendarColor.toLowerCase() ? event.color : null
+  return { bg: own || calendarColor, accent: own ? calendarColor : null }
+}
+
 export default function EventChip({
   event,
   onClick,
@@ -8,7 +16,7 @@ export default function EventChip({
   hideTime = false,
   hideReminder = false,
 }) {
-  const bg = event.color || event.calendar?.color || '#6B46C1'
+  const { bg, accent } = eventColors(event)
   const reminder = !hideReminder && hasReminder(event)
 
   return (
@@ -21,7 +29,7 @@ export default function EventChip({
         'hover:brightness-90 transition-all',
         compact ? 'h-5 text-[11px] leading-5 py-0' : 'text-xs py-0.5',
       ].join(' ')}
-      style={{ backgroundColor: bg }}
+      style={{ backgroundColor: bg, boxShadow: accent ? `inset 4px 0 0 ${accent}` : undefined }}
     >
       <span className="flex min-w-0 items-center gap-1">
         {reminder && <BellRing size={compact ? 10 : 12} className="opacity-90 shrink-0" />}

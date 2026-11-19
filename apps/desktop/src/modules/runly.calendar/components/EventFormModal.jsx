@@ -24,6 +24,7 @@ import {
   useUpdateEvent,
 } from "../hooks/useCalendarData";
 import { toast } from "sonner";
+import { COLORS } from "./CalendarFormModal";
 
 const FREQ_OPTIONS = [
   { value: "NONE", label: "Sin repeticion" },
@@ -80,6 +81,7 @@ function buildDefaultForm(defaultDate, defaultCalendarId, allCalendars, defaultV
     allDay: false,
     location: "",
     videoUrl: defaultVideoUrl || "",
+    color: "",
     reminderMinutes: "10",
     recurrenceFreq: "NONE",
     recurrenceInterval: 1,
@@ -109,12 +111,49 @@ function buildEditForm(event) {
     allDay,
     location: event.location ?? "",
     videoUrl: event.videoUrl ?? "",
+    color: event.color ?? "",
     reminderMinutes: firstReminder
       ? String(firstReminder.minutesBefore)
       : "NONE",
     recurrenceFreq: event.recurrenceRule?.freq ?? "NONE",
     recurrenceInterval: event.recurrenceRule?.interval ?? 1,
   };
+}
+
+// "" = inherit the calendar color; any other swatch keeps the calendar color as a left accent.
+function EventColorPicker({ value, calendarColor, onChange }) {
+  const swatch = (color, selected, label, onPick) => (
+    <button
+      key={label}
+      type="button"
+      title={label}
+      aria-label={label}
+      aria-pressed={selected}
+      onClick={onPick}
+      className="w-6 h-6 rounded-full transition-transform"
+      style={{
+        backgroundColor: color,
+        border: selected ? "2px solid white" : "2px solid transparent",
+        transform: selected ? "scale(1.18)" : "scale(1)",
+        boxShadow: selected ? `0 0 0 2px ${color}` : "none",
+      }}
+    />
+  );
+  return (
+    <div className="space-y-1.5">
+      <p className="text-sm font-medium text-[hsl(var(--foreground))]">Color del evento</p>
+      <div className="flex flex-wrap items-center gap-2">
+        {swatch(calendarColor, !value, "Color del calendario", () => onChange(""))}
+        <span className="h-5 w-px bg-[hsl(var(--border))]" />
+        {COLORS.filter((c) => c.toLowerCase() !== calendarColor.toLowerCase()).map((c) =>
+          swatch(c, value?.toLowerCase() === c.toLowerCase(), c, () => onChange(c)),
+        )}
+      </div>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">
+        El color del calendario se conserva como franja a la izquierda del evento.
+      </p>
+    </div>
+  );
 }
 
 export default function EventFormModal({
@@ -239,6 +278,7 @@ export default function EventFormModal({
       allDay: form.allDay,
       location: form.location.trim() || null,
       videoUrl: form.videoUrl.trim() || null,
+      color: form.color || null,
       recurrenceRule,
     };
 
@@ -408,6 +448,12 @@ export default function EventFormModal({
             options={calendarOptions}
             value={form.calendarId}
             onValueChange={(v) => set("calendarId", v)}
+          />
+
+          <EventColorPicker
+            value={form.color}
+            calendarColor={allCalendars.find((c) => c.id === form.calendarId)?.color || "#6B46C1"}
+            onChange={(v) => set("color", v)}
           />
 
           <MarkdownField

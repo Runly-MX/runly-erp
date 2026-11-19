@@ -13,7 +13,7 @@ import { CALENDAR_ICONS } from "../calendarIcons";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider";
 import { toast } from "sonner";
 
-const COLORS = [
+export const COLORS = [
   "#6366F1",
   "#2563EB",
   "#0EA5E9",
