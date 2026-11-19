@@ -315,6 +315,11 @@ const SCREEN_MAP = {
     () => import("../modules/runly.canvas/screens/BoardEditor.jsx"),
   ),
   // runly.lms
+  "runly.bookings:/": lazy(() => import("../modules/runly.bookings/screens/BookingsHome.jsx")),
+  "runly.bookings:/spaces/:spaceId": lazy(() => import("../modules/runly.bookings/screens/BookingsSpace.jsx")),
+  "runly.bookings:/agenda": lazy(() => import("../modules/runly.bookings/screens/BookingsAgenda.jsx")),
+  "runly.bookings:/reservations": lazy(() => import("../modules/runly.bookings/screens/BookingsReservations.jsx")),
+  "runly.bookings:/resources": lazy(() => import("../modules/runly.bookings/screens/BookingsResources.jsx")),
   "runly.lms:/": lazy(() => import("../modules/runly.lms/screens/LmsHome.jsx")),
   "runly.lms:/courses": lazy(() => import("../modules/runly.lms/screens/LmsCourses.jsx")),
   "runly.lms:/courses/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsCourseEditor.jsx")),

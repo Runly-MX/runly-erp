@@ -11,6 +11,7 @@ import { createCanvasDomain } from "./domains/canvas.js";
 import { createStudioDomain } from "./domains/studio.js";
 import { createAttendanceDomain } from "./domains/attendance.js";
 import { createLmsDomain } from "./domains/lms.js";
+import { createBookingsDomain } from "./domains/bookings.js";
 import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createInventoryCustodyDomain } from "./domains/inventory-custody.js";
@@ -2349,6 +2350,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     canvas: createCanvasDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     attendance: createAttendanceDomain({ request, withAuthHeaders, toQueryString }),
     lms: createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
+    bookings: createBookingsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     connections: createConnectionsDomain({ request, withAuthHeaders, toQueryString }),
     trash: createTrashDomain({ request, withAuthHeaders, toQueryString }),
     moduleCatalog: createModuleCatalogDomain({ request, withAuthHeaders }),

@@ -236,6 +236,12 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (/^\/[^/]+\/?$/.test(subPath)) return screenMap["runly.canvas:/:boardId"] ?? null;
     return null;
   }
+  if (moduleKey === "runly.bookings") {
+    if (subPath === "/" || subPath === "/spaces") return screenMap["runly.bookings:/"] ?? null;
+    if (["/agenda", "/reservations", "/resources"].includes(subPath)) return screenMap[`runly.bookings:${subPath}`] ?? null;
+    if (/^\/spaces\/[^/]+\/?$/.test(subPath)) return screenMap["runly.bookings:/spaces/:spaceId"] ?? null;
+    return null;
+  }
   if (moduleKey === "runly.lms") {
     if (subPath === "/" || subPath === "/courses" || subPath === "/review" || subPath === "/certificates") return screenMap[`runly.lms:${subPath}`] ?? null;
     if (/^\/courses\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/courses/:courseId"] ?? null;
