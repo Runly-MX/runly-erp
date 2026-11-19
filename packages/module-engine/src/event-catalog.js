@@ -133,6 +133,18 @@ const MONITOR_FIELDS = (what) => [
   field('daysLeft', 'Días restantes', 'number', 'Días para que venza el certificado o el dominio; vacío en otros tipos.', '14'),
 ]
 
+// No guest email or phone: subscribers read contact data through authorized services.
+const BOOKING_FIELDS = [
+  ID('la reservación'),
+  field('spaceId', 'Sistema de reservaciones', 'id', 'Sistema al que pertenece la reservación.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e40'),
+  field('serviceId', 'Servicio', 'id', 'Servicio reservado.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e41'),
+  field('status', 'Estado', 'text', 'PENDING, CONFIRMED, CANCELLED, REJECTED, COMPLETED, NO_SHOW o EXPIRED.', 'CONFIRMED'),
+  field('startsAt', 'Inicio', 'date', 'Fecha y hora de inicio.', '2026-11-20T16:00:00Z'),
+  field('endsAt', 'Fin', 'date', 'Fecha y hora de fin.', '2026-11-20T17:00:00Z'),
+  field('partySize', 'Personas', 'number', 'Personas incluidas en la reservación.', '2'),
+  field('channel', 'Canal', 'text', 'backoffice, portal, website, pos o api.', 'backoffice'),
+  field('contactId', 'Contacto', 'id', 'Contacto vinculado, si lo hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e42'),
+]
 const WHEN_FIELDS = [
   field('localHour', 'Hora local', 'number', 'Hora del mensaje en la zona horaria de la instancia (0 a 23).', '21'),
   field('localWeekday', 'Día de la semana', 'number', '0 = domingo, 1 = lunes ... 6 = sábado.', '6'),
@@ -224,6 +236,18 @@ export const EVENT_CATALOG = Object.freeze({
     field('durationMs', 'Duración (ms)', 'number', 'Cuánto tardó en ejecutarse.', '240'),
     field('depth', 'Nivel de encadenamiento', 'number', 'Cuántas automatizaciones encadenadas hay antes de esta (límite 3).', '0'),
   ] },
+  // runly.bookings lifecycle (spec 2026-11-18-bookings-engine-design §6). Published in the
+  // booking transaction; hidden from trigger pickers until phase 4 (INTERNAL_EVENTS).
+  ...Object.fromEntries([
+    ['created', 'Se creó una reservación', 'Cuando se registra una reservación nueva, pendiente o confirmada.'],
+    ['confirmed', 'Se confirmó una reservación', 'Cuando una reservación pendiente pasa a confirmada.'],
+    ['rescheduled', 'Se reprogramó una reservación', 'Cuando cambia el horario, la sesión o el recurso de una reservación.'],
+    ['cancelled', 'Se canceló una reservación', 'Cuando se cancela una reservación pendiente o confirmada.'],
+    ['rejected', 'Se rechazó una reservación', 'Cuando se rechaza una reservación pendiente de aprobación.'],
+    ['completed', 'Se completó una reservación', 'Cuando una reservación confirmada se marca como completada.'],
+    ['no_show', 'Un cliente no se presentó a su reservación', 'Cuando una reservación confirmada se marca como no presentada.'],
+    ['expired', 'Venció una reservación pendiente', 'Cuando una reservación pendiente no se confirmó a tiempo.'],
+  ].map(([action, label, description]) => [`bookings.booking.${action}`, { module: 'Reservaciones', label, description, fields: BOOKING_FIELDS }])),
   // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
   'automations.webhook.received': { module: 'Automatizaciones', label: 'Se recibió un mensaje en un webhook de automatización', description: 'Interno.', fields: [field('automationKey', 'Automatización', 'text', 'Automatización destino.', 'pedido'), field('data', 'Datos', 'text', 'Datos recibidos.', '{}')] },
 })

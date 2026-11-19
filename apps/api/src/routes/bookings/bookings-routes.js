@@ -1,0 +1,206 @@
+// runly.bookings internal API (/bookings/*). Thin: validation, tenant + per-space
+// role checks, then the services. Roles: viewer reads, agent operates bookings,
+// admin configures the space; bookings.spaces.manage owns company resources.
+import { Hono } from 'hono'
+import {
+  bookingAvailabilityQuerySchema, bookingCreateSchema, bookingExceptionCreateSchema, bookingListQuerySchema,
+  bookingMemberSchema, bookingResourceCreateSchema, bookingResourceIdsSchema, bookingResourceUpdateSchema,
+  bookingRescheduleSchema, bookingScheduleSchema, bookingServiceCreateSchema, bookingServiceUpdateSchema,
+  bookingSessionCreateSchema, bookingSpaceCreateSchema, bookingSpaceUpdateSchema, bookingTransitionSchema,
+} from '@runly/validators'
+import { BookingError, canManageCatalog, isBookingsAdmin, requireSpaceRole } from './bookings-core.js'
+import { createBookingsAvailabilityService } from './bookings-availability-service.js'
+import { createBookingsCommandService } from './bookings-command-service.js'
+import { createBookingsConfigService } from './bookings-config-service.js'
+
+const TRANSITION_PATHS = { confirm: 'CONFIRMED', reject: 'REJECTED', cancel: 'CANCELLED', complete: 'COMPLETED', 'no-show': 'NO_SHOW' }
+
+export function createBookingsRouter({ prisma, requirePermission, commands = null }) {
+  const app = new Hono()
+  const config = createBookingsConfigService({ prisma })
+  const availability = createBookingsAvailabilityService({ prisma })
+  const cmd = commands ?? createBookingsCommandService({ prisma })
+  const access = requirePermission('bookings.access')
+
+  const companyId = (c) => c.get('companyId')
+  const userId = (c) => c.get('userContext')?.profile?.id ?? c.get('userId') ?? null
+  const ctx = (c) => c.get('userContext')
+  const idempotencyKey = (c) => c.req.header('Idempotency-Key') || null
+
+  async function parse(c, schema, source = 'json') {
+    const raw = source === 'query' ? c.req.query() : await c.req.json().catch(() => ({}))
+    const result = schema.safeParse(raw)
+    if (!result.success) throw new BookingError(result.error.issues[0]?.message ?? 'Datos inválidos.', 400, 'VALIDATION')
+    return result.data
+  }
+
+  const space = (c, spaceId, min) => requireSpaceRole(prisma, { companyId: companyId(c), spaceId, userId: userId(c), ctx: ctx(c), min })
+  const catalog = (c) => {
+    if (!canManageCatalog(ctx(c))) throw new BookingError('No tienes permiso para administrar los recursos de reservaciones.', 403, 'FORBIDDEN')
+  }
+  const bookingRole = async (c, min) => space(c, await config.bookingSpaceId({ companyId: companyId(c), bookingId: c.req.param('id') }), min)
+
+  const run = (fn) => async (c) => {
+    try {
+      return await fn(c)
+    } catch (error) {
+      if (error instanceof BookingError) return c.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, error.status)
+      console.error('[runly.bookings]', error?.message ?? error)
+      return c.json({ error: 'No se pudo completar la operación de reservaciones.' }, 500)
+    }
+  }
+  const written = (c, result) => c.json({ data: result.booking, replayed: result.replayed }, result.replayed ? 200 : 201)
+  const changed = (c, result) => c.json({ data: result.booking, replayed: result.replayed })
+
+  // Spaces and members
+  app.get('/bookings/spaces', access, run(async (c) => c.json({ data: await config.listSpaces({ companyId: companyId(c), userId: userId(c), all: isBookingsAdmin(ctx(c)) }) })))
+  app.post('/bookings/spaces', access, run(async (c) => {
+    catalog(c)
+    return c.json({ data: await config.createSpace({ companyId: companyId(c), userId: userId(c), input: await parse(c, bookingSpaceCreateSchema) }) }, 201)
+  }))
+  app.get('/bookings/spaces/:spaceId', access, run(async (c) => {
+    const { space: row, role } = await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: { id: row.id, name: row.name, slug: row.slug, description: row.description, mode: row.mode, timezone: row.timezone, published: row.published, policy: row.policy, enabled: row.enabled, role } })
+  }))
+  app.patch('/bookings/spaces/:spaceId', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    return c.json({ data: await config.updateSpace({ companyId: companyId(c), spaceId: c.req.param('spaceId'), input: await parse(c, bookingSpaceUpdateSchema) }) })
+  }))
+  app.get('/bookings/spaces/:spaceId/members', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.listMembers({ companyId: companyId(c), spaceId: c.req.param('spaceId') }) })
+  }))
+  app.put('/bookings/spaces/:spaceId/members/:userId', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    const { role } = await parse(c, bookingMemberSchema)
+    return c.json({ data: await config.setMember({ companyId: companyId(c), spaceId: c.req.param('spaceId'), userId: c.req.param('userId'), role }) })
+  }))
+  app.delete('/bookings/spaces/:spaceId/members/:userId', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    await config.removeMember({ companyId: companyId(c), spaceId: c.req.param('spaceId'), userId: c.req.param('userId') })
+    return c.json({ ok: true })
+  }))
+
+  // Company resources (shared between spaces)
+  app.get('/bookings/resources', access, run(async (c) => c.json({ data: await config.listResources({ companyId: companyId(c) }) })))
+  app.post('/bookings/resources', access, run(async (c) => {
+    catalog(c)
+    return c.json({ data: await config.createResource({ companyId: companyId(c), input: await parse(c, bookingResourceCreateSchema) }) }, 201)
+  }))
+  app.patch('/bookings/resources/:resourceId', access, run(async (c) => {
+    catalog(c)
+    return c.json({ data: await config.updateResource({ companyId: companyId(c), resourceId: c.req.param('resourceId'), input: await parse(c, bookingResourceUpdateSchema) }) })
+  }))
+  app.get('/bookings/resources/:resourceId/schedule', access, run(async (c) => c.json({ data: await config.getSchedule({ companyId: companyId(c), resourceId: c.req.param('resourceId') }) })))
+  app.put('/bookings/resources/:resourceId/schedule', access, run(async (c) => {
+    catalog(c)
+    const { rules } = await parse(c, bookingScheduleSchema)
+    return c.json({ data: await config.setSchedule({ companyId: companyId(c), resourceId: c.req.param('resourceId'), rules }) })
+  }))
+  app.put('/bookings/spaces/:spaceId/resources', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    const { resourceIds } = await parse(c, bookingResourceIdsSchema)
+    return c.json({ data: await config.setSpaceResources({ companyId: companyId(c), spaceId: c.req.param('spaceId'), resourceIds }) })
+  }))
+
+  // Services, hours, exceptions
+  app.get('/bookings/spaces/:spaceId/services', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.listServices({ companyId: companyId(c), spaceId: c.req.param('spaceId') }) })
+  }))
+  app.post('/bookings/spaces/:spaceId/services', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    return c.json({ data: await config.createService({ companyId: companyId(c), spaceId: c.req.param('spaceId'), input: await parse(c, bookingServiceCreateSchema) }) }, 201)
+  }))
+  app.patch('/bookings/services/:serviceId', access, run(async (c) => {
+    const service = await config.getService({ companyId: companyId(c), serviceId: c.req.param('serviceId') })
+    await space(c, service.spaceId, 'admin')
+    return c.json({ data: await config.updateService({ companyId: companyId(c), serviceId: service.id, input: await parse(c, bookingServiceUpdateSchema) }) })
+  }))
+  app.put('/bookings/services/:serviceId/resources', access, run(async (c) => {
+    const service = await config.getService({ companyId: companyId(c), serviceId: c.req.param('serviceId') })
+    await space(c, service.spaceId, 'admin')
+    const { resourceIds } = await parse(c, bookingResourceIdsSchema)
+    return c.json({ data: await config.setServiceResources({ companyId: companyId(c), serviceId: service.id, resourceIds }) })
+  }))
+  app.get('/bookings/spaces/:spaceId/schedule', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.getSchedule({ companyId: companyId(c), spaceId: c.req.param('spaceId') }) })
+  }))
+  app.put('/bookings/spaces/:spaceId/schedule', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    const { rules } = await parse(c, bookingScheduleSchema)
+    return c.json({ data: await config.setSchedule({ companyId: companyId(c), spaceId: c.req.param('spaceId'), rules }) })
+  }))
+  app.get('/bookings/spaces/:spaceId/exceptions', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    const { from, to } = await parse(c, bookingListQuerySchema, 'query')
+    return c.json({ data: await config.listExceptions({ companyId: companyId(c), spaceId: c.req.param('spaceId'), from, to }) })
+  }))
+  app.post('/bookings/exceptions', access, run(async (c) => {
+    const input = await parse(c, bookingExceptionCreateSchema)
+    if (input.spaceId) await space(c, input.spaceId, 'admin')
+    else catalog(c)
+    return c.json({ data: await config.createException({ companyId: companyId(c), input }) }, 201)
+  }))
+  app.delete('/bookings/exceptions/:exceptionId', access, run(async (c) => {
+    const row = await config.getException({ companyId: companyId(c), exceptionId: c.req.param('exceptionId') })
+    if (row.spaceId) await space(c, row.spaceId, 'admin')
+    else catalog(c)
+    await config.deleteException({ companyId: companyId(c), exceptionId: row.id })
+    return c.json({ ok: true })
+  }))
+
+  // Sessions and availability
+  app.get('/bookings/spaces/:spaceId/sessions', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    const { from, to } = await parse(c, bookingListQuerySchema, 'query')
+    return c.json({ data: await config.listSessions({ companyId: companyId(c), spaceId: c.req.param('spaceId'), from, to }) })
+  }))
+  app.post('/bookings/spaces/:spaceId/sessions', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    return c.json({ data: await cmd.createSession({ companyId: companyId(c), spaceId: c.req.param('spaceId'), input: await parse(c, bookingSessionCreateSchema) }) }, 201)
+  }))
+  app.post('/bookings/sessions/:sessionId/cancel', access, run(async (c) => {
+    const session = await config.getSession({ companyId: companyId(c), sessionId: c.req.param('sessionId') })
+    await space(c, session.spaceId, 'admin')
+    return c.json({ data: await cmd.cancelSession({ companyId: companyId(c), sessionId: session.id }) })
+  }))
+  app.get('/bookings/spaces/:spaceId/availability', access, run(async (c) => {
+    const { space: row } = await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await availability.availability({ companyId: companyId(c), space: row, query: await parse(c, bookingAvailabilityQuerySchema, 'query') }) })
+  }))
+
+  // Bookings
+  app.get('/bookings/spaces/:spaceId/reservations', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.listBookings({ companyId: companyId(c), spaceId: c.req.param('spaceId'), ...(await parse(c, bookingListQuerySchema, 'query')) }) })
+  }))
+  app.post('/bookings/spaces/:spaceId/reservations', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'agent')
+    const input = await parse(c, bookingCreateSchema)
+    return written(c, await cmd.create({ companyId: companyId(c), actorId: userId(c), spaceId: c.req.param('spaceId'), input, idempotencyKey: idempotencyKey(c) }))
+  }))
+  app.get('/bookings/reservations/:id', access, run(async (c) => {
+    await bookingRole(c, 'viewer')
+    return c.json({ data: await cmd.view(companyId(c), c.req.param('id')) })
+  }))
+  app.get('/bookings/reservations/:id/history', access, run(async (c) => {
+    await bookingRole(c, 'viewer')
+    return c.json({ data: await config.history({ companyId: companyId(c), bookingId: c.req.param('id') }) })
+  }))
+  app.post('/bookings/reservations/:id/reschedule', access, run(async (c) => {
+    await bookingRole(c, 'agent')
+    const input = await parse(c, bookingRescheduleSchema)
+    return changed(c, await cmd.reschedule({ companyId: companyId(c), actorId: userId(c), bookingId: c.req.param('id'), input, idempotencyKey: idempotencyKey(c) }))
+  }))
+  for (const [path, to] of Object.entries(TRANSITION_PATHS)) {
+    app.post(`/bookings/reservations/:id/${path}`, access, run(async (c) => {
+      await bookingRole(c, 'agent')
+      const input = await parse(c, bookingTransitionSchema)
+      return changed(c, await cmd.transition({ companyId: companyId(c), actorId: userId(c), bookingId: c.req.param('id'), to, input, idempotencyKey: idempotencyKey(c) }))
+    }))
+  }
+
+  return app
+}

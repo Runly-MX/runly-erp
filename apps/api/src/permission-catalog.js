@@ -25,6 +25,7 @@ const GROUPS = {
   calendar: "Calendario",
   catalog: "Catalogo",
   lms: "Aprendizaje",
+  bookings: "Reservaciones",
   automations: "Automatizaciones",
 };
 
@@ -54,6 +55,7 @@ const MODULE_LABELS = {
   calendar: "Calendario",
   catalog: "Catalogo",
   lms: "Aprendizaje",
+  bookings: "Reservaciones",
   automations: "Automatizaciones",
 };
 
@@ -1498,6 +1500,15 @@ export const PERMISSION_CATALOG = {
   },
   "lms.grade": {
     displayNameEs: "Calificar actividades y tareas", descriptionEs: "Permite revisar y calificar exámenes con respuestas abiertas y entregas de tareas, y otorgar intentos extra.", groupKey: "lms", order: 40,
+  },
+  "bookings.access": {
+    displayNameEs: "Acceder a Reservaciones", descriptionEs: "Permite entrar a los sistemas de reservaciones donde la persona es administradora, agente o lectora.", groupKey: "bookings", order: 10,
+  },
+  "bookings.spaces.manage": {
+    displayNameEs: "Crear sistemas y recursos de reservaciones", descriptionEs: "Permite crear sistemas de reservaciones y administrar los recursos de la empresa (personal, salas, equipos, mesas) y sus horarios.", groupKey: "bookings", order: 20,
+  },
+  "bookings.admin": {
+    displayNameEs: "Administrar todas las reservaciones", descriptionEs: "Da acceso de administrador a todos los sistemas de reservaciones de la empresa, sin ser miembro de cada uno.", groupKey: "bookings", order: 30,
   },
 
   "projects.access": {

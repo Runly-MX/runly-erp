@@ -1012,6 +1012,46 @@ export const lmsMap = createModuleManifest({
   blueprints: [...loadHelpBlueprints('runly.lms', path.join(HELP_DIR, 'runly.lms'))],
 });
 
+// runly.bookings (spec 2026-11-18-bookings-engine-design). Phase 1 ships the engine
+// API only. shortcut: not listed in core-modules.js yet, so seed does not install it
+// and no empty module reaches the launcher; phase 2 adds it with its screens.
+export const bookingsMap = createModuleManifest({
+  key: 'runly.bookings',
+  name: 'Reservaciones',
+  description: 'Sistemas de reservaciones por empresa: servicios, horarios, recursos compartidos, citas y sesiones con cupo, sin dobles reservaciones.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.CORE,
+  core: true,
+  uninstallable: false,
+  icon: 'CalendarClock',
+  color: '#0f766e',
+  pwa: { shortName: 'Reservaciones', startPath: '/' },
+  category: 'operaciones',
+  summary: 'Citas, sesiones con cupo y disponibilidad publicable',
+  dependencies: [{ key: 'runly.identity' }, { key: 'runly.company' }, { key: 'runly.contacts', optional: true }],
+  lifecycle: {
+    installable: true,
+    uninstallable: false,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'purge-owned-tables',
+    ownedEntities: ['BookingSpace', 'BookingSpaceMember', 'BookingService', 'BookingResource', 'BookingSpaceResource', 'BookingServiceResource', 'BookingScheduleRule', 'BookingException', 'BookingSession', 'Booking', 'BookingAllocation', 'BookingHistory', 'BookingIdempotency'],
+    sharedEntities: ['Company', 'UserProfile', 'Contact', 'DomainEventOutbox'],
+  },
+  navigation: [],
+  acl: {
+    module: 'bookings.access',
+    actions: { read: 'bookings.access', create: 'bookings.access', update: 'bookings.access', delete: 'bookings.admin' },
+    models: {},
+  },
+  permissions: [
+    { key: 'bookings.access', name: 'Acceder a Reservaciones' },
+    { key: 'bookings.spaces.manage', name: 'Crear sistemas y recursos de reservaciones' },
+    { key: 'bookings.admin', name: 'Administrar todas las reservaciones' },
+  ],
+  exposes: {},
+});
+
 export const chatMap = createModuleManifest({
   key: 'runly.chat',
   name: 'Chat',
