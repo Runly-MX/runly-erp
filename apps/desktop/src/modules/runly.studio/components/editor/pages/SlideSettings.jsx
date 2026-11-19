@@ -42,7 +42,7 @@ export function SlideSettings({ page, pageCount = 1, disabled = false, editor, o
       <p className="text-xs font-medium">Transición de entrada</p>
       <TransitionGallery applied={transition.type} candidate={candidate} reducedMotion={reducedMotion} onCandidate={setCandidate} />
       <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-1.5 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-1 py-2">
-        <p className="min-w-0 flex-1 truncate text-xs"><span className="text-[hsl(var(--muted-foreground))]">{candidate && candidate !== transition.type ? 'Probando: ' : 'Aplicada: '}</span><span className="font-medium">{label}</span></p>
+        <p className="w-full truncate text-xs"><span className="text-[hsl(var(--muted-foreground))]">{candidate && candidate !== transition.type ? 'Probando: ' : 'Aplicada: '}</span><span className="font-medium">{label}</span></p>
         {tried !== 'none' && editor ? <Button type="button" size="sm" variant="ghost" className="gap-1" onClick={() => setPreviewing(true)}><Eye className="h-3.5 w-3.5" aria-hidden />Vista previa</Button> : null}
         {candidate && candidate !== transition.type ? <Button type="button" size="sm" className="gap-1" disabled={locked} onClick={() => change({ transition: shown }).then(() => setCandidate(null))}><Check className="h-3.5 w-3.5" aria-hidden />Aplicar</Button> : null}
         {transition.type !== 'none' ? <Button type="button" size="sm" variant="ghost" className="gap-1 text-destructive" disabled={locked} onClick={() => { setCandidate(null); change({ transition: { ...transition, type: 'none' } }) }}><Trash2 className="h-3.5 w-3.5" aria-hidden />Quitar</Button> : null}

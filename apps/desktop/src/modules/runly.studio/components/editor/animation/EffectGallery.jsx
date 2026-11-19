@@ -52,7 +52,7 @@ export function EffectGallery({ kind, applied, disabled, reducedMotion, onPrevie
       )) : <p className="text-sm text-[hsl(var(--muted-foreground))]">Ningún efecto coincide con «{query}».</p>}
       {/* Decision bar: preview again, apply the card being tried, or remove the applied effect. */}
       <div className="sticky bottom-0 -mx-1 flex flex-wrap items-center gap-1.5 border-t border-[hsl(var(--border))] bg-[hsl(var(--card))] px-1 py-2">
-        <p className="min-w-0 flex-1 truncate text-xs">{chosen ? <><span className="text-[hsl(var(--muted-foreground))]">Probando: </span><span className="font-medium">{chosen.label}</span></> : <span className="text-[hsl(var(--muted-foreground))]">Toca un efecto para verlo en el elemento.</span>}</p>
+        <p className="w-full truncate text-xs">{chosen ? <><span className="text-[hsl(var(--muted-foreground))]">Probando: </span><span className="font-medium">{chosen.label}</span></> : <span className="text-[hsl(var(--muted-foreground))]">Toca un efecto para verlo en el elemento.</span>}</p>
         {chosen ? <Button type="button" size="sm" variant="ghost" className="gap-1" onClick={() => preview(chosen.value)}><Play className="h-3.5 w-3.5" aria-hidden />Reproducir de nuevo</Button> : null}
         {chosen && chosen.value !== applied ? <Button type="button" size="sm" className="gap-1" disabled={disabled} onClick={() => onApply(chosen.value)}><Check className="h-3.5 w-3.5" aria-hidden />Aplicar</Button> : null}
         {applied !== 'none' ? <Button type="button" size="sm" variant="ghost" className="gap-1 text-destructive" disabled={disabled} onClick={onRemove}><Trash2 className="h-3.5 w-3.5" aria-hidden />Quitar</Button> : null}

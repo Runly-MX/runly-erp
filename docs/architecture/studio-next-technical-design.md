@@ -206,7 +206,7 @@ Página:
 page.slide = {
   duration: 5000,                 // 500–600000 ms; ausente = 5000
   transition: {                   // entrada a esta diapositiva
-    type: 'fade',                 // none | fade | slide-left | slide-right | slide-up | slide-down | zoom
+    type: 'fade',                 // none | fade | fade-black | slide-* (empujar) | cover-* | uncover-* | wipe-* | split-horizontal | split-vertical | zoom | zoom-out  (* = left | right | up | down)
     duration: 600,                // 0–3000 ms
     easing: 'ease-out'            // linear | ease | ease-in | ease-out | ease-in-out (los mismos de Atlas)
   }
@@ -224,11 +224,21 @@ keyframes: [ { at: 0, x: 80, opacity: 0 }, { at: 1200, x: 400, opacity: 1, easin
 
 - Presets de entrada/salida: `fade`, `slide-up`, `slide-down`, `slide-left`,
   `slide-right`, `slide-fade-up`, `slide-fade-down`, `slide-fade-left`,
-  `slide-fade-right`, `zoom-in`, `zoom-out`, `rotate`, `pop`. Cada entrada tiene
-  un equivalente en `EFFECT_PRESETS` de Atlas salvo `pop`. Se excluyen
+  `slide-fade-right`, `zoom-in`, `zoom-out`, `rotate`, `pop` y, desde 2026-11-18,
+  `wipe-*`, `reveal`, `float-*`, `fly-*`, `grow`, `elastic`, `spiral`
+  (`*` = `left|right|up|down`, la dirección es la del movimiento). Website traduce
+  `float-*` → `slide-fade-*`, `fly-*` → `slide-*`, `grow` → `zoom-in`; `pop`, barridos,
+  `reveal`, `elastic` y `spiral` se omiten con aviso. Barridos y `reveal` recortan la
+  caja visual: `sceneAt` añade al objeto evaluado `clip: {left, top, right, bottom}`
+  (fracciones), clave solo de reproducción que nunca entra en el documento. Se excluyen
   `blur-in` y `flip-up`: requieren filtros o 3D que Fabric 2D no representa de
   forma uniforme en los seis tipos.
-- Énfasis: `pulse`, `spin`, `shake`, `bounce`; `repeat` 1–20.
+- Énfasis: `pulse`, `spin`, `shake`, `bounce`, `swing`, `wobble`, `soft-pulse`,
+  `tremble`, `tilt`, `jelly`, `enlarge`; `repeat` 1–20. Todos están en reposo al inicio y
+  al final de cada repetición.
+- Transiciones: las capas de `transitionAt` llevan además `clip` opcional y `front`
+  (capa que va delante). Retroceder reproduce la transición de la diapositiva que se
+  deja exactamente al revés (progreso 1 − p con las capas intercambiadas).
 - `duration` 0–10000; `delay` 0–600000. Un efecto que termina después de la
   diapositiva **no invalida el documento**: la evaluación lo recorta al final de la
   diapositiva. Así, acortar una diapositiva nunca rechaza el cambio (decisión de

@@ -42,10 +42,12 @@ try {
 
   const { page: a } = await openEditor(users.owner, design.id)
   const selectLayer = async (target, name) => { await ui.layersPanel(target); await ui.layer(target, name).getByRole('button', { name: new RegExp(name) }).first().click() }
-  const openAnimation = async target => { await target.getByRole('button', { name: 'Animar', exact: true }).click(); await target.getByRole('region', { name: 'Entrada' }).waitFor() }
+  const openAnimation = async target => { await target.getByRole('button', { name: 'Animar', exact: true }).click(); await target.getByRole('radiogroup', { name: 'Tipo de efecto' }).waitFor() }
+  // Gallery: pick the kind tab, try the card, apply it (`current` kept for call-site readability).
   const choose = async (target, section, current, option) => {
-    await target.getByRole('region', { name: section }).getByText(current, { exact: true }).first().click()
-    await target.getByRole('option', { name: option, exact: true }).click()
+    await target.getByRole('radiogroup', { name: 'Tipo de efecto' }).getByRole('radio', { name: new RegExp(`^${section}`) }).click()
+    await target.locator(`[data-effect-card]`).filter({ hasText: new RegExp(`^${option}$`) }).first().click()
+    await target.getByRole('button', { name: 'Aplicar', exact: true }).click()
   }
 
   await step('animate an element from the panel; undo, redo and reopen', async () => {
@@ -66,7 +68,7 @@ try {
     ok('undo removes the exit and redo restores it on the server')
     const again = await openEditor(users.owner, design.id)
     await selectLayer(again.page, 'Rectángulo'); await openAnimation(again.page)
-    await again.page.getByRole('region', { name: 'Entrada' }).getByText('Deslizar hacia arriba', { exact: true }).waitFor()
+    await again.page.locator('[data-effect-card="slide-up"]').filter({ has: again.page.locator('svg.lucide-check') }).waitFor()
     await again.context.close()
     ok('reopening the design shows the saved animation')
     await ui.layersPanel(a); await ui.layer(a, 'Grupo 1').getByRole('button', { name: /Grupo 1/ }).first().click()

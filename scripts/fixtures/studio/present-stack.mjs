@@ -41,7 +41,7 @@ export function apiImageFromArgs(argv = process.argv) {
   throw Error('Usa --api-image=<etiqueta local> o --build-api-image (construye la API desde HEAD).')
 }
 
-export async function startPresentStack({ apiImage, shots, keep = process.argv.includes('--keep') }) {
+export async function startPresentStack({ apiImage, shots, keep = process.argv.includes('--keep'), browserArgs = [] }) {
   await mkdir(shots, { recursive: true })
   const stack = await createStudioStack({ apiImage })
   let web, browser
@@ -119,7 +119,7 @@ export async function startPresentStack({ apiImage, shots, keep = process.argv.i
     build: { outDir: join(stack.directory, 'web'), emptyOutDir: true }, preview: { host: '127.0.0.1', port: stack.ports.web, strictPort: true } }
   await build(config); web = await preview(config)
   // gc() and precise heap sizes for the memory measurements of the motion verification.
-  browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--js-flags=--expose-gc', '--enable-precise-memory-info'] })
+  browser = await chromium.launch({ channel: 'chrome', headless: true, args: ['--js-flags=--expose-gc', '--enable-precise-memory-info', ...browserArgs] })
 
   async function openEditor(user, designId, options = {}) {
     const context = await browser.newContext({ viewport: { width: 1440, height: 900 }, ...options })
@@ -134,7 +134,7 @@ export async function startPresentStack({ apiImage, shots, keep = process.argv.i
     return { context, page }
   }
 
-  return { stack, scenario, company, users, api, json, stored, uploadPhoto, createDesign, openEditor, pageErrors, close,
+  return { stack, scenario, company, users, api, json, stored, uploadPhoto, createDesign, openEditor, pageErrors, close, browser,
     shot: (page, name) => page.screenshot({ path: join(shots, `${name}.png`) }) }
 }
 

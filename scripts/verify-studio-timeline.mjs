@@ -79,7 +79,8 @@ try {
     const revision = (await stored(design.id)).revision
     await seek(a, 1500)
     assert.equal(await readout(a).innerText(), '00:01,500 / 00:04,000')
-    await a.getByRole('status').filter({ hasText: 'Editando animación · 1,5 s' }).waitFor()
+    await a.getByText('Modo Animación', { exact: true }).waitFor()
+    await timeline(a).getByText(/^Arrastra un elemento en el lienzo/).waitFor()
     assert.equal((await stored(design.id)).revision, revision, 'moving the playhead never writes')
     ok('seeking to 1,5 s shows the animated canvas and badge; no write, no history')
   })
