@@ -32,7 +32,7 @@ export async function buildPptx({ PptxGenJS, JSZip, document, pageIds, title = '
     } else slide.background = { color: hex(scene.page.background) }
     if (frame.letterboxed) report.losses.add('Las páginas con otra proporción se centran con franjas negras.')
     const transition = index ? scene.page.slide?.transition?.type : null
-    if (transition && transition !== 'none' && !MAPPED_TRANSITIONS.includes(transition)) report.losses.add('Las transiciones de deslizar y acercar no se exportan: los programas de presentaciones las interpretan de forma distinta. Esas diapositivas cambian sin efecto.')
+    if (transition && transition !== 'none' && !MAPPED_TRANSITIONS.includes(transition)) report.losses.add('Solo el fundido se exporta como transición; las de empujar, cubrir, descubrir, barrido, división y zoom no: los programas de presentaciones las interpretan de forma distinta. Esas diapositivas cambian sin efecto.')
     if (new Set(scene.objects.map(item => item.groupId).filter(Boolean)).size) report.losses.add('Los grupos se exportan como elementos independientes (PowerPoint los recibe sin agrupar).')
     if (sceneHasMotion(scene)) report.losses.add('Las animaciones de los elementos no se convierten en animaciones de PowerPoint: cada elemento queda en su posición del diseño.')
     for (const item of scene.objects) {

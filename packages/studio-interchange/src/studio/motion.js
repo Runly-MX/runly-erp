@@ -7,10 +7,15 @@ import { documentPages, pageId } from './pages.js'
 export const SLIDE_LIMITS = Object.freeze({ minDuration: 500, maxDuration: 600_000, defaultDuration: 5000, maxTransition: 3000, defaultTransition: 600 })
 export const MOTION_LIMITS = Object.freeze({ maxEffectDuration: 10_000, maxDelay: 600_000, keyframes: 32, effects: 2000, totalKeyframes: 8000, repeat: 20 })
 export const EASINGS = Object.freeze(['linear', 'ease', 'ease-in', 'ease-out', 'ease-in-out'])
-export const SLIDE_TRANSITIONS = Object.freeze(['none', 'fade', 'slide-left', 'slide-right', 'slide-up', 'slide-down', 'zoom'])
-// Every entry except `pop` has an Atlas Web Builder EFFECT_PRESETS equivalent (Website export).
-export const ENTER_EXIT_PRESETS = Object.freeze(['fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'slide-fade-up', 'slide-fade-down', 'slide-fade-left', 'slide-fade-right', 'zoom-in', 'zoom-out', 'rotate', 'pop'])
-export const EMPHASIS_PRESETS = Object.freeze(['pulse', 'spin', 'shake', 'bounce'])
+const DIRECTIONS = ['left', 'right', 'up', 'down']
+const each = prefix => DIRECTIONS.map(direction => `${prefix}-${direction}`)
+// slide-* moves both slides (push); cover/uncover move one; wipe/split clip the incoming one.
+export const SLIDE_TRANSITIONS = Object.freeze(['none', 'fade', 'slide-left', 'slide-right', 'slide-up', 'slide-down', 'zoom',
+  ...each('cover'), ...each('uncover'), ...each('wipe'), 'split-horizontal', 'split-vertical', 'zoom-out', 'fade-black'])
+// Website export maps most entries to Atlas Web Builder presets; the rest are reported as lost.
+export const ENTER_EXIT_PRESETS = Object.freeze(['fade', 'slide-up', 'slide-down', 'slide-left', 'slide-right', 'slide-fade-up', 'slide-fade-down', 'slide-fade-left', 'slide-fade-right', 'zoom-in', 'zoom-out', 'rotate', 'pop',
+  ...each('wipe'), 'reveal', ...each('float'), ...each('fly'), 'grow', 'elastic', 'spiral'])
+export const EMPHASIS_PRESETS = Object.freeze(['pulse', 'spin', 'shake', 'bounce', 'swing', 'wobble', 'soft-pulse', 'tremble', 'tilt', 'jelly', 'enlarge'])
 export const KEYFRAME_PROPERTIES = Object.freeze({ x: [-16384, 16384], y: [-16384, 16384], rotation: [-3600, 3600], opacity: [0, 1], scale: [0.02, 8] })
 export const MOTION_KEYS = Object.freeze(['enter', 'exit', 'emphasis', 'keyframes'])
 
@@ -114,19 +119,36 @@ export function easing(name, x) {
 export const slideDuration = page => page.slide?.duration ?? SLIDE_LIMITS.defaultDuration
 export const NO_TRANSITION = Object.freeze({ type: 'none', duration: 0, easing: 'linear' })
 
-// Layer state of a slide change. dx/dy are fractions of the stage size;
-// direction -1 plays the transition backwards (navigating to the previous slide).
-export function transitionAt(transition = NO_TRANSITION, progress, direction = 1) {
-  const p = easing(transition.easing ?? 'linear', Math.min(1, Math.max(0, progress)))
-  const layer = (opacity = 1, dx = 0, dy = 0, scale = 1) => ({ opacity, dx, dy, scale })
-  const slide = { 'slide-left': [1, 0], 'slide-right': [-1, 0], 'slide-up': [0, 1], 'slide-down': [0, -1] }[transition.type]
-  if (slide) {
-    const [x, y] = slide.map(value => value * direction)
-    return { outgoing: layer(1, -x * p, -y * p), incoming: layer(1, x * (1 - p), y * (1 - p)) }
+// Layer state of a slide change: dx/dy are fractions of the slide size, `clip` (optional)
+// insets the layer by fractions of its size, `front` names the layer drawn on top.
+// Direction -1 (navigating to the previous slide) plays the same transition exactly in
+// reverse: progress 1 - p with the two layers swapped, so every type rewinds faithfully.
+const VECTORS = { left: [1, 0], right: [-1, 0], up: [0, 1], down: [0, -1] }
+const layer = (opacity = 1, dx = 0, dy = 0, scale = 1, clip) => (clip ? { opacity, dx, dy, scale, clip } : { opacity, dx, dy, scale })
+const inset = (left = 0, top = 0, right = 0, bottom = 0) => ({ left: round(left), top: round(top), right: round(right), bottom: round(bottom) })
+function forwardTransition(type, p, duration) {
+  const [kind, side] = type.split(/-(?=left$|right$|up$|down$)/), [x, y] = VECTORS[side] ?? [0, 0]
+  if (kind === 'slide') return { outgoing: layer(1, -x * p, -y * p), incoming: layer(1, x * (1 - p), y * (1 - p)), front: 'incoming' }
+  if (kind === 'cover') return { outgoing: layer(1), incoming: layer(1, x * (1 - p), y * (1 - p)), front: 'incoming' }
+  if (kind === 'uncover') return { outgoing: layer(1, -x * p, -y * p), incoming: layer(1), front: 'outgoing' }
+  if (kind === 'wipe') {
+    // The revealing edge moves in the named direction.
+    const out = 1 - p, clip = { left: inset(out), right: inset(0, 0, out), up: inset(0, out), down: inset(0, 0, 0, out) }[side]
+    return { outgoing: layer(1), incoming: layer(1, 0, 0, 1, clip), front: 'incoming' }
   }
-  if (transition.type === 'fade') return { outgoing: layer(1), incoming: layer(p) }
-  if (transition.type === 'zoom') return { outgoing: layer(1), incoming: layer(p, 0, 0, 0.85 + 0.15 * p) }
-  return { outgoing: layer(p >= 1 || transition.duration === 0 ? 0 : 1), incoming: layer(1) }
+  if (type === 'split-vertical') return { outgoing: layer(1), incoming: layer(1, 0, 0, 1, inset((1 - p) / 2, 0, (1 - p) / 2, 0)), front: 'incoming' }
+  if (type === 'split-horizontal') return { outgoing: layer(1), incoming: layer(1, 0, 0, 1, inset(0, (1 - p) / 2, 0, (1 - p) / 2)), front: 'incoming' }
+  if (type === 'fade') return { outgoing: layer(1), incoming: layer(p), front: 'incoming' }
+  if (type === 'fade-black') return { outgoing: layer(round(Math.max(0, 1 - 2 * p))), incoming: layer(round(Math.max(0, 2 * p - 1))), front: 'incoming' }
+  if (type === 'zoom') return { outgoing: layer(1), incoming: layer(p, 0, 0, 0.85 + 0.15 * p), front: 'incoming' }
+  if (type === 'zoom-out') return { outgoing: layer(1), incoming: layer(p, 0, 0, round(1.15 - 0.15 * p)), front: 'incoming' }
+  return { outgoing: layer(p >= 1 || duration === 0 ? 0 : 1), incoming: layer(1), front: 'incoming' }
+}
+export function transitionAt(transition = NO_TRANSITION, progress, direction = 1) {
+  const raw = Math.min(1, Math.max(0, progress)), name = transition.easing ?? 'linear'
+  if (direction >= 0) return forwardTransition(transition.type, easing(name, raw), transition.duration)
+  const forward = forwardTransition(transition.type, easing(name, 1 - raw), transition.duration)
+  return { outgoing: forward.incoming, incoming: forward.outgoing, front: forward.front === 'incoming' ? 'outgoing' : 'incoming' }
 }
 
 export function presentationSequence(document) {
@@ -146,7 +168,7 @@ export function presentationSequence(document) {
 // around the top-left corner, so results are translated back to x/y.
 // Same document and t always give the same JSON. The document is never mutated.
 
-const SLIDE_DISTANCE = 0.2, SHAKE_DISTANCE = 0.02, BOUNCE_HEIGHT = 0.06
+const SLIDE_DISTANCE = 0.2, FLOAT_DISTANCE = 0.06, SHAKE_DISTANCE = 0.02, BOUNCE_HEIGHT = 0.06
 const round = value => Math.round(value * 1e4) / 1e4 + 0
 const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 const SCALED = new Set(['text', 'line'])
@@ -173,31 +195,57 @@ function boxOf(item) {
 // Back-out overshoot for `pop`, applied on top of the chosen curve.
 const backOut = x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * (x - 1) ** 3 + c1 * (x - 1) ** 2 }
 
-// State of an enter/exit preset at p (0 = fully out, 1 = rest). Exits mirror directions.
+// Soft elastic settle: starts at 0, overshoots ~13 % once, rests at exactly 1.
+const elasticSoft = x => (x >= 1 ? 1 : 1 - Math.exp(-6 * x) * Math.cos(3 * Math.PI * x))
+const smooth = x => x * x * (3 - 2 * x)
+
+// State of an enter/exit preset at p (0 = fully out, 1 = rest). Directions name the motion:
+// an entry moves that way into place, an exit moves that way out. `clip` holds the hidden
+// fraction of each side of the object's box (wipes and reveals).
 function presetState(preset, p, page, exit) {
-  const out = 1 - p, dir = exit ? -1 : 1, w = page.width * SLIDE_DISTANCE, h = page.height * SLIDE_DISTANCE
-  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0 }
-  if (preset === 'fade' || preset.startsWith('slide-fade-') || ['zoom-in', 'zoom-out', 'rotate'].includes(preset)) state.opacity = p
-  if (preset.startsWith('slide-')) {
-    const direction = preset.replace('slide-fade-', '').replace('slide-', '')
-    if (direction === 'up') state.dy = dir * out * h
-    if (direction === 'down') state.dy = -dir * out * h
-    if (direction === 'left') state.dx = dir * out * w
-    if (direction === 'right') state.dx = -dir * out * w
+  const out = 1 - p, dir = exit ? -1 : 1
+  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0, clip: null }
+  const [kind, side] = preset.split(/-(?=left$|right$|up$|down$)/)
+  const move = distance => {
+    const [x, y] = VECTORS[side]
+    state.dx = dir * out * x * page.width * distance
+    state.dy = dir * out * y * page.height * distance
   }
+  if (['fade', 'slide-fade', 'float', 'zoom-in', 'zoom-out', 'rotate', 'spiral'].includes(kind)) state.opacity = p
+  if (kind === 'slide' || kind === 'slide-fade') move(SLIDE_DISTANCE)
+  if (kind === 'float') move(FLOAT_DISTANCE)
+  if (kind === 'fly') move(1)
+  if (kind === 'wipe') {
+    // Entry: the far side opens last; exit: the near side closes first.
+    const hidden = { left: exit ? 'right' : 'left', right: exit ? 'left' : 'right', up: exit ? 'bottom' : 'top', down: exit ? 'top' : 'bottom' }[side]
+    state.clip = { left: 0, top: 0, right: 0, bottom: 0, [hidden]: out }
+  }
+  if (preset === 'reveal') state.clip = { left: out / 2, top: out / 2, right: out / 2, bottom: out / 2 }
   if (preset === 'zoom-in') state.scale = 0.5 + 0.5 * p
   if (preset === 'zoom-out') state.scale = 1.5 - 0.5 * p
   if (preset === 'rotate') state.rotation = -90 * out * dir
   if (preset === 'pop') { state.scale = Math.max(0, backOut(p)); state.opacity = Math.min(1, p * 4) }
+  if (preset === 'grow') { state.scale = p; state.opacity = Math.min(1, p * 3) }
+  if (preset === 'elastic') { state.scale = Math.max(0, elasticSoft(p)); state.opacity = Math.min(1, p * 4) }
+  if (preset === 'spiral') { state.rotation = -180 * out * dir; state.scale = 0.3 + 0.7 * p; state.dx = -dir * out * page.width * SLIDE_DISTANCE }
   return state
 }
 
+// u: progress of one repetition (eased). Every preset is at rest at u = 0 and u = 1.
 function emphasisState(preset, u, page) {
-  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0 }
+  const state = { dx: 0, dy: 0, opacity: 1, scale: 1, rotation: 0, clip: null }
+  const wave = cycles => Math.sin(2 * Math.PI * cycles * u)
   if (preset === 'pulse') state.scale = 1 + 0.12 * Math.sin(Math.PI * u)
+  if (preset === 'soft-pulse') state.scale = 1 + 0.05 * Math.sin(Math.PI * u)
   if (preset === 'spin') state.rotation = 360 * u
-  if (preset === 'shake') state.dx = Math.sin(2 * Math.PI * 3 * u) * page.width * SHAKE_DISTANCE * (1 - u)
+  if (preset === 'shake') state.dx = wave(3) * page.width * SHAKE_DISTANCE * (1 - u)
+  if (preset === 'tremble') { state.dx = wave(8) * page.width * 0.004; state.dy = wave(6) * page.height * 0.004 }
   if (preset === 'bounce') state.dy = -Math.abs(Math.sin(Math.PI * u)) * page.height * BOUNCE_HEIGHT
+  if (preset === 'swing') state.rotation = 15 * wave(1) * (1 - u)
+  if (preset === 'wobble') { state.dx = wave(2) * page.width * 0.015 * (1 - u); state.rotation = 5 * wave(2) * (1 - u) }
+  if (preset === 'tilt') state.rotation = 12 * Math.sin(Math.PI * u)
+  if (preset === 'jelly') state.scale = 1 + 0.15 * (1 - u) * Math.sin(3 * Math.PI * u)
+  if (preset === 'enlarge') state.scale = 1 + 0.25 * smooth(Math.min(1, u / 0.25, (1 - u) / 0.25))
   return state
 }
 
@@ -238,8 +286,11 @@ function evaluate(item, t, page, pivots, reducedMotion) {
   const rotation = track(frames, 'rotation', t, reducedMotion) ?? base.rotation
   let opacity = track(frames, 'opacity', t, reducedMotion) ?? base.opacity ?? 1
   const scale = track(frames, 'scale', t, reducedMotion) ?? 1
-  let dx = 0, dy = 0, turn = 0, effectScale = 1, hidden = false
-  const apply = state => { dx += state.dx; dy += state.dy; opacity *= state.opacity; effectScale *= state.scale; turn += state.rotation }
+  let dx = 0, dy = 0, turn = 0, effectScale = 1, hidden = false, clip = null
+  const apply = state => {
+    dx += state.dx; dy += state.dy; opacity *= state.opacity; effectScale *= state.scale; turn += state.rotation
+    if (state.clip) clip = Object.fromEntries(Object.entries(state.clip).map(([side, value]) => [side, Math.max(value, clip?.[side] ?? 0)]))
+  }
   if (enter) {
     const raw = progress(enter, t)
     if (raw === null) hidden = true
@@ -270,6 +321,8 @@ function evaluate(item, t, page, pivots, reducedMotion) {
   result.x = round(clamp(pivot[0] + rx + dx - ox, -16384, 16384))
   result.y = round(clamp(pivot[1] + ry + dy - oy, -16384, 16384))
   result.rotation = round(finalRotation)
+  // Playback-only key (never part of the document): hidden fraction of each side of the visual box.
+  if (clip && Object.values(clip).some(value => value > 0)) result.clip = Object.fromEntries(Object.entries(clip).map(([side, value]) => [side, round(clamp(value, 0, 1))]))
   return result
 }
 

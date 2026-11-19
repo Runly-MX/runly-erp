@@ -12,7 +12,10 @@ import { studioFontStyle } from './fonts.js'
 export const WEBSITE_CANVAS = 960
 // Content width used to size stacked photos and shapes (preview widths 834/390 minus 2×32 px).
 export const STACK_WIDTH = Object.freeze({ tablet: 770, mobile: 326 })
-const ENTER = Object.freeze({ fade: 'fade-in', rotate: 'rotate-in', 'slide-up': 'slide-up', 'slide-down': 'slide-down', 'slide-left': 'slide-left', 'slide-right': 'slide-right', 'slide-fade-up': 'slide-fade-up', 'slide-fade-down': 'slide-fade-down', 'slide-fade-left': 'slide-fade-left', 'slide-fade-right': 'slide-fade-right', 'zoom-in': 'zoom-in', 'zoom-out': 'zoom-out' })
+const ENTER = Object.freeze({ fade: 'fade-in', rotate: 'rotate-in', 'slide-up': 'slide-up', 'slide-down': 'slide-down', 'slide-left': 'slide-left', 'slide-right': 'slide-right', 'slide-fade-up': 'slide-fade-up', 'slide-fade-down': 'slide-fade-down', 'slide-fade-left': 'slide-fade-left', 'slide-fade-right': 'slide-fade-right', 'zoom-in': 'zoom-in', 'zoom-out': 'zoom-out',
+  // Closest Atlas preset: a shorter float is a slide-fade, a fly-in a slide, grow a zoom-in.
+  'float-up': 'slide-fade-up', 'float-down': 'slide-fade-down', 'float-left': 'slide-fade-left', 'float-right': 'slide-fade-right',
+  'fly-up': 'slide-up', 'fly-down': 'slide-down', 'fly-left': 'slide-left', 'fly-right': 'slide-right', grow: 'zoom-in' })
 const WEIGHTS = [400, 500, 600, 700, 800, 900]
 const BOX_TYPES = new Set(['rectangle', 'ellipse'])
 const round = value => Math.round(value)
@@ -25,7 +28,7 @@ export const LOSSES = Object.freeze({
   justify: 'El texto justificado se alinea a la izquierda.',
   dash: 'Los bordes discontinuos o punteados se convierten en continuos.',
   motion: 'Los efectos de salida y énfasis y los keyframes no se convierten: cada elemento queda en su posición del diseño.',
-  pop: 'La entrada «pop» no tiene equivalente en Website y se omite.',
+  pop: 'Las entradas rebote, barrido, revelar, elástica y espiral no tienen equivalente en Website y se omiten.',
   timing: 'Las entradas de más de 5 s de duración o retardo se acortan a 5 s.',
   slide: 'Las duraciones y transiciones de diapositiva no aplican a una página web.',
   gradientPage: 'Los fondos degradados de página se convierten en su primer color.',
