@@ -160,6 +160,41 @@ Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase2-backoffice
 - Not built: a Contacts-picker fallback for users without contacts permission (the guest fields remain), per-module
   MirAI capabilities, push notifications for bookings (phase 4 with events).
 
+## 7.3 Phase 3 implementation decisions (2026-11-19)
+
+Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase3-portal.md`.
+
+- `booking_page` (migration `20270108200000_bookings_portal`): global slug (`/app/p/reservar/<slug>`, `gestion`
+  reserved), owning space, visible services (explicit list), texts, policies, privacy notice, accent color,
+  `policy_version`. A page accepts bookings only while the page, its space and the company are published/enabled.
+  Pages are never hard-deleted.
+- Manage link: token = HMAC-SHA256(`BOOKINGS_LINK_SECRET` or `JWT_SECRET`, booking id + version), 43 chars.
+  Only its SHA-256 is stored (`manage_token_hash`); emails rebuild it from the version, so no secret sits in the
+  database or outbox. Rotation (backoffice "Enviar nuevo enlace") bumps the version and revokes the old link.
+  Expiry: 30 days after the booking ends (moved on reschedule). The token travels in the URL fragment
+  (`/app/p/reservar/gestion#<token>`) and in the `X-Booking-Token` header, never in a path or query.
+- Access policy after unpublishing: the customer keeps viewing and cancelling (within the cut-off); rescheduling
+  needs the page and space still published. Bookings made in the backoffice with a customer email also get a link
+  (view/cancel; reschedule only if made from a page).
+- Customer cut-offs (`cancelUntilMinutes`, `rescheduleUntilMinutes`) are enforced inside the booking transaction
+  after the row lock; staff are never limited by them. Changing a page's policy texts or the space policy bumps
+  `policy_version`; a booking stores the accepted version, time and a keyed hash of the client IP.
+- Notifications: `booking_notification` outbox written in the same transaction (`dedupe_key = booking:kind:version`,
+  so idempotent replays enqueue nothing), sent by the existing worker through the company mailer with branding,
+  claimed with `FOR UPDATE SKIP LOCKED`, retried with exponential backoff up to 6 attempts, `skipped` when no SMTP
+  is configured. "sent" means accepted by SMTP. A crash between send and mark can resend once (at-least-once).
+  The user-notification queue was not reused because customers are not ERP users.
+- Pending holds expire in the same worker tick (`expireAllHolds`, every 30 s, idempotent per row).
+- Public security: per-IP read bucket, per-IP-and-page and per-page create buckets, per-IP manage-write bucket
+  (in memory per API process), honeypot field, required idempotency key (scope `portal:<page>`), browser origin
+  allow-list (`CORS_ORIGIN` + app URL), client IP only through `RUNLY_TRUSTED_PROXIES`, `Cache-Control: no-store`,
+  `Referrer-Policy: no-referrer`, uniform 404 for unknown/unpublished pages and invalid/expired/revoked links,
+  no internal ids, other customers or resource names (unless the page lets customers choose) in responses.
+- Found and fixed while testing: zod applied `.default()` inside `.partial()`, so PATCH requests reset space mode
+  and policy, service buffers/capacity and resource type; update schemas now have no defaults (regression test).
+- Not built: prices (no price source exists), captcha (honeypot + limits first), embeds/widgets and custom
+  domains (phase 4). The SPA boot splash also shows briefly on public routes (shared shell; phase 4 embedding).
+
 ## 8. Non-goals for v1
 
 Multi-resource services (service needs room AND staff), recurring bookings, waitlists, payments,
