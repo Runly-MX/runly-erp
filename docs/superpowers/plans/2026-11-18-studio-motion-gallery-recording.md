@@ -28,4 +28,4 @@ Trabajo directo en `main`, un commit por bloque verificado.
   - Reproductor (reloj falso de Playwright): mismo fotograma a 1,5 s por reproducción, reinicio+pausa+reanudación y retroceso; barrido pausado al 50 % sin avanzar 3 s; retroceso inverso con la capa saliente delante; una sola capa tras interrumpir una transición.
   - Grabación: MP4 1920×1080 con narración (audio 5,61 s / video 5,66 s, pausa de 2 s excluida), sin micrófono sin pista de audio, pestaña oculta pausa, ✕ detiene y conserva, micrófono denegado explicado, sin MediaRecorder no hay botón de inicio, pistas liberadas.
   - Motores (sondeo Playwright): Chrome MP4 y WebM; Firefox solo WebM (vp8/opus); WebKit de Playwright sin MediaRecorder ni captureStream.
-- [ ] Hub: publicar `@runly/studio-interchange` de esta revisión y adoptarlo en el Hub antes de que se suban paquetes con los efectos nuevos.
+- [x] Hub: paquetes de `aad51d79` publicados (run 44461972877) y adoptados en el Hub (`25ee406`, shared-packages-clean verde run 44463219287); validador aislado: paquete con efectos nuevos `ok` (antes `document_invalid`). Verified: 2026-11-18. Pendiente al desplegar: raíz del validador del VPS.
