@@ -136,10 +136,29 @@ These refine sections 3-6; nothing else in the design changed.
 - `COMPLETED` and `NO_SHOW` are only accepted once the booking has started. Cancelling a session with active bookings is refused.
 - Permissions: three keys (`bookings.access`, `bookings.spaces.manage`, `bookings.admin`); `bookings.manage` was dropped because the per-space roles already carry the right to operate bookings. Company admins count as `bookings.admin`.
 - Domain events are written with the transaction client and allowed to throw (the existing `publishDomainEvent` swallows errors, which inside a transaction would turn the commit into a silent rollback). They are hidden from the Automations trigger picker (`INTERNAL_EVENTS`) until phase 4.
-- `bookingsMap` is defined but not yet listed in `core-modules.js`: seed does not install it and no module without screens reaches the launcher. Phase 2 lists it together with its screens and the seeded permissions; until then only company admins can call `/bookings/*`.
+- `bookingsMap` is defined but not yet listed in `core-modules.js`: seed does not install it and no module without screens reaches the launcher. Phase 2 lists it together with its screens and the seeded permissions; until then only company admins can call `/bookings/*`. (Done in phase 2, see 7.2.)
 - Time zones: nonexistent local times (DST gap) shift forward and ambiguous ones resolve to the later, standard-time occurrence (Postgres `AT TIME ZONE`). Zone names are validated against `pg_timezone_names`.
 - Not built in phase 1: `valid_from`/`valid_to` on schedule rules, manage-token generation (column exists; phase 3), cancel/reschedule cut-offs for customers (phase 3; staff are not limited).
 - Prisma models declare no relation fields; the foreign keys exist only in SQL, as in the rest of the schema (`prisma migrate diff` already reports the same kind of drift for other modules).
+
+## 7.2 Phase 2 implementation decisions (2026-11-19)
+
+Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase2-backoffice.md`.
+
+- `bookingsMap` is now listed in `core-modules.js`; the regular seed installs it and its permissions (it runs on
+  every deploy through `infra/docker/api-entrypoint.sh`). This supersedes the 7.1 note about not listing it.
+- Permission bootstrap: space membership owns the per-user `bookings.access` grant (granted with the first
+  space, revoked with the last). A `bookings.access` granted by hand to someone without spaces is also revoked
+  when they leave their last space. Company resources are readable only by catalog managers and space members.
+- Weekly rules gained optional `valid_from`/`valid_to` (local dates, inclusive) in a forward migration.
+- Every serialized booking carries `actions` (allowed transitions plus `reschedule`) computed from the engine's
+  single transition table; the UI shows only those and never re-derives the state machine.
+- The SDK domain is online only: a reservation is never queued offline and replayed.
+- The module's root list lives at `/spaces` because the shell only authorizes routes covered by navigation
+  (`/spaces/:id` needs the `/spaces` prefix); `/` resolves to the same screen.
+- Publication stays descriptive in Configuración (no switch) until the portal exists.
+- Not built: a Contacts-picker fallback for users without contacts permission (the guest fields remain), per-module
+  MirAI capabilities, push notifications for bookings (phase 4 with events).
 
 ## 8. Non-goals for v1
 
