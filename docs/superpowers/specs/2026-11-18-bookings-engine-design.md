@@ -195,6 +195,52 @@ Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase3-portal.md`
 - Not built: prices (no price source exists), captcha (honeypot + limits first), embeds/widgets and custom
   domains (phase 4). The SPA boot splash also shows briefly on public routes (shared shell; phase 4 embedding).
 
+## 7.4 Phase 4 implementation decisions (2026-11-19)
+
+Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase4-distribution.md`. Phase 4 (as agreed for this
+program) covers distribution (F4A-F4C) and the Calendar/Automations wiring (F4D); the old Website `BookingFormBlock`
+and `POST /public/website/bookings` stay untouched until phase 5.
+
+- Migration `20270108300000_bookings_distribution`: `booking_page.embed_origins`, `booking_rate_bucket` (UNLOGGED),
+  `booking_calendar_sync`, index on `booking.updated_at`.
+- **Public pages without the ERP boot.** `/app/p/reservar/*` skips the brand loader and removes the static splash.
+- **Embedding.** A page is framed only as `/app/p/reservar/<slug>?embed=1`. nginx (`infra/nginx/spa.conf`, location
+  `/app/p/reservar/`) asks `GET /public/bookings/frame-policy` (auth_request, with `X-Original-URI`) and sends
+  `Content-Security-Policy: frame-ancestors <answer>`: `'none'` for manage links, `'self'` for the plain portal, and
+  `'self'` + the page's `embed_origins` + the company's assigned and ready Runly Website hostnames (https) for embeds.
+  The same endpoint answers 403 on non-ERP hosts, like the admin-origin gate it replaces for that location. The SPA
+  also refuses to render when the browser reports a framing origin outside the list (defense in depth; Firefox
+  without `ancestorOrigins` relies on the CSP). The iframe's API calls are same-origin (portal origin), so CORS was
+  not widened. Manage links from an embed open in a new tab. Origins are scheme + host + port, HTTPS only (HTTP on
+  loopback for local tests), no paths or wildcards, up to 20.
+- **Rate limits with several API instances.** Writes (creates per IP+page, per page, manage changes per IP) use
+  token buckets in PostgreSQL (one atomic upsert per request, hashed keys, pruned by the worker). Reads stay in memory
+  per process: N instances only multiply a generous browsing limit.
+- **Website block** `BookingPortalBlock` ("Reservaciones", universal group): `bookingPage` (slug), `serviceId`,
+  `display` (`calendar` iframe with auto height, `button`, `link`), `buttonLabel`. The editor offers the company's live
+  pages (`GET /bookings/pages/published`, readable with `website.pages.update` or `bookings.access`). Publication
+  validates page and service against the company (cross-company = not found; unpublished = `booking_page_unpublished`;
+  service not on the page = `booking_service_unavailable`), records a `{ kind: 'booking' }` dynamic binding and pins
+  `portalUrl` (absolute) into the sealed copy; base routes are re-pinned on every release, so rollback restores the
+  configuration exactly. Published pages open `frame-src` only to the portal origin, only when the release has the block.
+- **Compartir e integrar** (Reservas online, per page): direct link, iframe snippet with the optional
+  `/runly/bookings-embed.js` auto-height script (accepts height messages only from the portal origin and its own
+  iframes), button snippet, and the authorized sites editor.
+- **Calendar.** `bookings-calendar.js` mirrors each booking from its current row (never from an event payload) under a
+  per-booking advisory lock and a version check (`booking_calendar_sync`), so replays, out-of-order and concurrent runs
+  converge on one event and stray duplicates are removed. PENDING ("Pendiente · ..."), CONFIRMED, COMPLETED and NO_SHOW
+  are shown; CANCELLED, REJECTED and EXPIRED remove the event. One calendar per space ("Reservaciones · <space>"),
+  owned by a space admin and shared as viewer with current members only (leaving the space revokes it). Title and
+  description carry service, guest name, folio, status, party and channel; never email, phone or notes. Triggered after
+  each committed API command (not awaited) and by the worker for everything not yet mirrored at its version (expired
+  holds, crashes, bookings changed in the last 35 days). Calendar shows these events read-only with "Abrir reservación"
+  (`/app/m/runly.bookings/reservations?reservacion=<id>`). The engine never reads them.
+- **Automations.** The eight `bookings.booking.*` events left `INTERNAL_EVENTS`: their payload is documented in
+  `EVENT_CATALOG` without contact data, they are written to the outbox in the booking transaction and delivered at
+  least once by the existing dispatcher (system automations dedupe by event id).
+- Not built: the website editor's booking selector in the legacy `WebsitePageEditorScreen` (text field there), a
+  popup/modal embed, channel `website` for embedded bookings (they are `portal`), custom domains for the portal itself.
+
 ## 8. Non-goals for v1
 
 Multi-resource services (service needs room AND staff), recurring bookings, waitlists, payments,

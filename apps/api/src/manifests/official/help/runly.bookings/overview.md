@@ -48,3 +48,21 @@ Tus clientes reservan sin crear cuenta: eligen servicio, fecha y hora libres, es
 En **Configuración** defines hasta cuántas horas antes el cliente puede cancelar o reprogramar en línea; tu equipo siempre puede hacerlo desde el ERP. Si cambias las políticas, los clientes nuevos deben aceptarlas de nuevo.
 
 Desactivar la publicación no borra nada: los clientes conservan el acceso a lo que ya reservaron (consultar y cancelar), pero no se aceptan reservaciones nuevas. Si un cliente perdió o compartió su enlace, abre la reservación y usa **Enviar nuevo enlace al cliente**: el anterior deja de funcionar.
+
+### Compartir e integrar
+
+En cada página pública, **Compartir e integrar** te da tres formas de llevarla a tus clientes:
+
+- **Enlace directo**, para redes sociales, WhatsApp, correo o un código QR.
+- **Calendario integrado**: un código para pegar en tu sitio web. El calendario se muestra dentro de tu página y ajusta su altura al contenido.
+- **Botón de reservación**: abre las reservaciones en una pestaña nueva. Funciona en cualquier sitio.
+
+Por seguridad, el calendario integrado solo se muestra en los **sitios autorizados** que agregues ahí (por ejemplo `https://www.tunegocio.com`); en cualquier otro sitio el navegador lo bloquea. Tus sitios publicados con Runly Website ya están autorizados. En **Runly Website** también puedes usar el bloque **Reservaciones**: eliges la página (y, si quieres, un servicio) y cómo mostrarla: calendario integrado, botón o enlace.
+
+Sin importar por dónde llegue, cada reservación usa los mismos horarios, reglas y validaciones de este sistema.
+
+### Calendario y Automatizaciones
+
+Cada reservación pendiente o confirmada aparece en **Calendario**, en un calendario "Reservaciones · nombre del sistema" que ven las personas del sistema. Se actualiza al reprogramar, confirmar, completar o marcar como no presentada, y desaparece al cancelar, rechazar o vencer. No incluye el correo, teléfono ni comentarios del cliente. Calendario solo refleja las reservaciones: los cambios se hacen en Reservaciones (el evento tiene el enlace **Abrir reservación**), y borrar un evento no libera el horario.
+
+En **Automatizaciones** puedes usar como disparador cuando una reservación se crea, se confirma, se reprograma, se cancela, se rechaza, se completa, no se presenta el cliente o vence.
