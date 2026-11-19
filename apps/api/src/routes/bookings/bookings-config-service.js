@@ -5,7 +5,7 @@ import { BookingError, notFound, serializeBooking } from './bookings-core.js'
 
 const pick = (input, map) => Object.fromEntries(Object.entries(map).filter(([key]) => input[key] !== undefined).map(([key, column]) => [column, input[key]]))
 
-export function createBookingsConfigService({ prisma }) {
+export function createBookingsConfigService({ prisma, cacheDel = null }) {
   async function assertTimezone(timezone) {
     const rows = await prisma.$queryRaw`SELECT 1 AS ok FROM pg_timezone_names WHERE name = ${timezone} LIMIT 1`
     if (!rows.length) throw new BookingError('La zona horaria no es válida (usa un nombre IANA, por ejemplo America/Mexico_City).', 422, 'INVALID_TIMEZONE')
@@ -28,6 +28,7 @@ export function createBookingsConfigService({ prisma }) {
     return prisma.$transaction(async (tx) => {
       const space = await tx.bookingSpace.create({ data: { companyId, name: input.name, slug: input.slug, description: input.description ?? null, mode: input.mode, timezone: input.timezone, policy: input.policy ?? {}, createdById: userId } })
       await tx.bookingSpaceMember.create({ data: { companyId, spaceId: space.id, userId, role: 'admin' } })
+      await syncAccessGrant(tx, { companyId, userId, actorId: userId })
       return space
     }).catch(uniqueSlug)
   }
@@ -48,18 +49,55 @@ export function createBookingsConfigService({ prisma }) {
        ORDER BY u.display_name`
   }
 
-  async function setMember({ companyId, spaceId, userId, role }) {
+  // Space membership manages the per-user `bookings.access` grant (effective
+  // permissions = role ∪ grants): added on the first space, removed with the last.
+  async function syncAccessGrant(db, { companyId, userId, actorId }) {
+    const permission = await db.permission.findUnique({ where: { key: 'bookings.access' }, select: { id: true } })
+    if (!permission) return false
+    const spaces = await db.bookingSpaceMember.count({ where: { companyId, userId } })
+    if (spaces > 0) {
+      await db.userPermissionGrant.upsert({
+        where: { userId_companyId_permissionId: { userId, companyId, permissionId: permission.id } },
+        update: {},
+        create: { userId, companyId, permissionId: permission.id, grantedById: actorId ?? null },
+      })
+    } else {
+      await db.userPermissionGrant.deleteMany({ where: { userId, companyId, permissionId: permission.id } })
+    }
+    return true
+  }
+
+  async function invalidateUser(userId) {
+    if (!cacheDel) return
+    const profile = await prisma.userProfile.findUnique({ where: { id: userId }, select: { authUserId: true } })
+    if (profile?.authUserId) await cacheDel(`user_ctx:${profile.authUserId}`)
+  }
+
+  async function setMember({ companyId, spaceId, userId, role, actorId = null }) {
     const member = await prisma.membership.findFirst({ where: { companyId, userId, enabled: true }, select: { id: true } })
     if (!member) throw new BookingError('La persona no pertenece a esta empresa.', 422, 'NOT_COMPANY_MEMBER')
-    return prisma.bookingSpaceMember.upsert({
-      where: { spaceId_userId: { spaceId, userId } },
-      update: { role },
-      create: { companyId, spaceId, userId, role },
+    const row = await prisma.$transaction(async (tx) => {
+      const saved = await tx.bookingSpaceMember.upsert({
+        where: { spaceId_userId: { spaceId, userId } },
+        update: { role },
+        create: { companyId, spaceId, userId, role },
+      })
+      await syncAccessGrant(tx, { companyId, userId, actorId })
+      return saved
     })
+    await invalidateUser(userId)
+    return row
   }
 
   async function removeMember({ companyId, spaceId, userId }) {
-    await prisma.bookingSpaceMember.deleteMany({ where: { companyId, spaceId, userId } })
+    const admins = await prisma.bookingSpaceMember.count({ where: { companyId, spaceId, role: 'admin', userId: { not: userId } } })
+    const target = await prisma.bookingSpaceMember.findFirst({ where: { companyId, spaceId, userId }, select: { role: true } })
+    if (target?.role === 'admin' && admins === 0) throw new BookingError('El sistema necesita al menos un administrador.', 409, 'LAST_ADMIN')
+    await prisma.$transaction(async (tx) => {
+      await tx.bookingSpaceMember.deleteMany({ where: { companyId, spaceId, userId } })
+      await syncAccessGrant(tx, { companyId, userId })
+    })
+    await invalidateUser(userId)
   }
 
   const listResources = ({ companyId }) => prisma.bookingResource.findMany({ where: { companyId }, orderBy: { name: 'asc' } })
@@ -96,7 +134,11 @@ export function createBookingsConfigService({ prisma }) {
     return prisma.bookingSpaceResource.findMany({ where: { companyId, spaceId } })
   }
 
-  const listServices = ({ companyId, spaceId }) => prisma.bookingService.findMany({ where: { companyId, spaceId }, orderBy: { name: 'asc' } })
+  async function listServices({ companyId, spaceId }) {
+    const services = await prisma.bookingService.findMany({ where: { companyId, spaceId }, orderBy: { name: 'asc' } })
+    const links = await prisma.bookingServiceResource.findMany({ where: { companyId, serviceId: { in: services.map((s) => s.id) } }, select: { serviceId: true, resourceId: true } })
+    return services.map((s) => ({ ...s, resourceIds: links.filter((l) => l.serviceId === s.id).map((l) => l.resourceId) }))
+  }
 
   async function getService({ companyId, serviceId }) {
     const service = await prisma.bookingService.findFirst({ where: { id: serviceId, companyId } })
@@ -128,7 +170,8 @@ export function createBookingsConfigService({ prisma }) {
 
   async function getSchedule({ companyId, spaceId = null, resourceId = null }) {
     return prisma.$queryRaw`
-      SELECT weekday, to_char(start_time, 'HH24:MI') AS "startTime", to_char(end_time, 'HH24:MI') AS "endTime"
+      SELECT weekday, to_char(start_time, 'HH24:MI') AS "startTime", to_char(end_time, 'HH24:MI') AS "endTime",
+             to_char(valid_from, 'YYYY-MM-DD') AS "validFrom", to_char(valid_to, 'YYYY-MM-DD') AS "validTo"
         FROM booking_schedule_rule
        WHERE company_id = ${companyId}::uuid AND (space_id = ${spaceId}::uuid OR resource_id = ${resourceId}::uuid)
        ORDER BY weekday, start_time`
@@ -141,8 +184,9 @@ export function createBookingsConfigService({ prisma }) {
       await tx.$executeRaw`DELETE FROM booking_schedule_rule WHERE company_id = ${companyId}::uuid AND (space_id = ${spaceId}::uuid OR resource_id = ${resourceId}::uuid)`
       for (const rule of rules) {
         await tx.$executeRaw`
-          INSERT INTO booking_schedule_rule (company_id, space_id, resource_id, weekday, start_time, end_time)
-          VALUES (${companyId}::uuid, ${spaceId}::uuid, ${resourceId}::uuid, ${rule.weekday}, ${rule.startTime}::time, ${rule.endTime}::time)`
+          INSERT INTO booking_schedule_rule (company_id, space_id, resource_id, weekday, start_time, end_time, valid_from, valid_to)
+          VALUES (${companyId}::uuid, ${spaceId}::uuid, ${resourceId}::uuid, ${rule.weekday}, ${rule.startTime}::time, ${rule.endTime}::time,
+                  ${rule.validFrom ?? null}::date, ${rule.validTo ?? null}::date)`
       }
     })
     return getSchedule({ companyId, spaceId, resourceId })
@@ -183,16 +227,58 @@ export function createBookingsConfigService({ prisma }) {
     return row
   }
 
-  async function listBookings({ companyId, spaceId, from, to, status }) {
+  // Search inside one space. resourceId matches the active allocation or, for
+  // session bookings, the session's resource.
+  async function listBookings({ companyId, spaceId, from, to, status, serviceId, resourceId, q, limit = 1000, offset = 0 }) {
+    const like = q ? `%${q.replace(/[\\%_]/g, (ch) => `\\${ch}`)}%` : null
     const rows = await prisma.$queryRaw`
-      SELECT b.*, COALESCE(array_agg(a.resource_id ORDER BY a.resource_id) FILTER (WHERE a.id IS NOT NULL), '{}') AS resource_ids
-        FROM booking b LEFT JOIN booking_allocation a ON a.booking_id = b.id AND a.active
+      SELECT b.*, COALESCE(array_agg(a.resource_id ORDER BY a.resource_id) FILTER (WHERE a.id IS NOT NULL), '{}') AS resource_ids,
+             s.resource_id AS session_resource_id, count(*) OVER () AS total
+        FROM booking b
+        LEFT JOIN booking_allocation a ON a.booking_id = b.id AND a.active
+        LEFT JOIN booking_session s ON s.id = b.session_id
        WHERE b.company_id = ${companyId}::uuid AND b.space_id = ${spaceId}::uuid
          AND (${from ?? null}::timestamptz IS NULL OR b.ends_at > ${from ?? null}::timestamptz)
          AND (${to ?? null}::timestamptz IS NULL OR b.starts_at < ${to ?? null}::timestamptz)
          AND (${status ?? null}::booking_status IS NULL OR b.status = ${status ?? null}::booking_status)
-       GROUP BY b.id ORDER BY b.starts_at LIMIT 1000`
-    return rows.map((row) => serializeBooking(row, row.resource_ids))
+         AND (${serviceId ?? null}::uuid IS NULL OR b.service_id = ${serviceId ?? null}::uuid)
+         AND (${resourceId ?? null}::uuid IS NULL OR s.resource_id = ${resourceId ?? null}::uuid
+              OR EXISTS (SELECT 1 FROM booking_allocation x WHERE x.booking_id = b.id AND x.resource_id = ${resourceId ?? null}::uuid
+                           AND (x.active OR b.status NOT IN ('PENDING', 'CONFIRMED'))))
+         AND (${like}::text IS NULL OR b.guest_name ILIKE ${like} OR b.guest_email ILIKE ${like} OR b.guest_phone ILIKE ${like} OR b.notes ILIKE ${like})
+       GROUP BY b.id, s.resource_id ORDER BY b.starts_at, b.id LIMIT ${limit} OFFSET ${offset}`
+    return {
+      items: rows.map((row) => serializeBooking(row, row.resource_ids.length ? row.resource_ids : row.session_resource_id ? [row.session_resource_id] : [])),
+      total: rows.length ? Number(rows[0].total) : 0,
+    }
+  }
+
+  async function spaceSummary({ companyId, spaceId, now = new Date() }) {
+    const [counts, upcoming, services, resources] = await Promise.all([
+      prisma.$queryRaw`
+        SELECT status, count(*)::int AS n FROM booking
+         WHERE company_id = ${companyId}::uuid AND space_id = ${spaceId}::uuid AND ends_at > ${now}
+         GROUP BY status`,
+      listBookings({ companyId, spaceId, from: now, limit: 5 }),
+      prisma.bookingService.count({ where: { companyId, spaceId, enabled: true } }),
+      prisma.bookingSpaceResource.count({ where: { companyId, spaceId } }),
+    ])
+    return { upcomingByStatus: Object.fromEntries(counts.map((c) => [c.status, c.n])), next: upcoming.items.filter((b) => ['PENDING', 'CONFIRMED'].includes(b.status)), services, resources }
+  }
+
+  async function listSpaceResourceIds({ companyId, spaceId }) {
+    return (await prisma.bookingSpaceResource.findMany({ where: { companyId, spaceId }, select: { resourceId: true } })).map((r) => r.resourceId)
+  }
+
+  async function listServiceResourceIds({ companyId, serviceId }) {
+    return (await prisma.bookingServiceResource.findMany({ where: { companyId, serviceId }, select: { resourceId: true } })).map((r) => r.resourceId)
+  }
+
+  const isAnySpaceMember = async ({ companyId, userId }) => (await prisma.bookingSpaceMember.count({ where: { companyId, userId } })) > 0
+
+  async function myRoles({ companyId, userId }) {
+    const rows = await prisma.bookingSpaceMember.findMany({ where: { companyId, userId }, select: { spaceId: true, role: true } })
+    return Object.fromEntries(rows.map((r) => [r.spaceId, r.role]))
   }
 
   async function bookingSpaceId({ companyId, bookingId }) {
@@ -201,7 +287,12 @@ export function createBookingsConfigService({ prisma }) {
     return row.spaceId
   }
 
-  const history = ({ companyId, bookingId }) => prisma.bookingHistory.findMany({ where: { companyId, bookingId }, orderBy: { createdAt: 'asc' } })
+  const history = ({ companyId, bookingId }) => prisma.$queryRaw`
+    SELECT h.id, h.action, h.from_status AS "fromStatus", h.to_status AS "toStatus", h.before, h.after, h.created_at AS "createdAt",
+           h.actor_kind AS "actorKind", h.actor_id AS "actorId", u.display_name AS "actorName"
+      FROM booking_history h LEFT JOIN user_profile u ON u.id = h.actor_id
+     WHERE h.company_id = ${companyId}::uuid AND h.booking_id = ${bookingId}::uuid
+     ORDER BY h.created_at, h.id`
 
   return {
     listSpaces, createSpace, updateSpace, listMembers, setMember, removeMember,
@@ -209,5 +300,6 @@ export function createBookingsConfigService({ prisma }) {
     listServices, getService, createService, updateService, setServiceResources,
     getSchedule, setSchedule, listExceptions, createException, getException, deleteException,
     listSessions, getSession, listBookings, bookingSpaceId, history,
+    spaceSummary, listSpaceResourceIds, listServiceResourceIds, isAnySpaceMember, myRoles,
   }
 }

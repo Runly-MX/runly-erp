@@ -7095,6 +7095,8 @@ model BookingScheduleRule {
   weekday    Int      @db.SmallInt
   startTime  DateTime @map("start_time") @db.Time(0)
   endTime    DateTime @map("end_time") @db.Time(0)
+  validFrom  DateTime? @map("valid_from") @db.Date // local date, inclusive; null = open-ended
+  validTo    DateTime? @map("valid_to") @db.Date
   createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([spaceId])

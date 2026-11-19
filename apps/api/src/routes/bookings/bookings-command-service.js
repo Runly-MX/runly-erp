@@ -3,7 +3,7 @@
 // booking row, history and the outbox event commit or roll back together.
 import crypto from 'node:crypto'
 import { DOMAIN_EVENTS } from '../../services/domain-events/events.js'
-import { BookingError, eligibleResources, loadResourceWindows, notFound, policyOf, serializeBooking } from './bookings-core.js'
+import { BookingError, TRANSITIONS, eligibleResources, loadResourceWindows, notFound, policyOf, serializeBooking } from './bookings-core.js'
 import { bookingWindowLimits } from './bookings-availability-service.js'
 import { fitsWindow } from './bookings-slots.js'
 
@@ -11,10 +11,7 @@ const M = 60000
 
 // PENDING (an unexpired hold) and CONFIRMED occupy capacity; every other state frees it.
 export const OCCUPYING = new Set(['PENDING', 'CONFIRMED'])
-export const TRANSITIONS = Object.freeze({
-  PENDING: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
-  CONFIRMED: ['CANCELLED', 'COMPLETED', 'NO_SHOW'],
-})
+export { TRANSITIONS }
 const LABEL = { PENDING: 'Pendiente', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada', REJECTED: 'Rechazada', COMPLETED: 'Completada', NO_SHOW: 'No presentada', EXPIRED: 'Expirada' }
 const EVENT_OF = { CONFIRMED: 'confirmed', CANCELLED: 'cancelled', REJECTED: 'rejected', COMPLETED: 'completed', NO_SHOW: 'no_show', EXPIRED: 'expired' }
 

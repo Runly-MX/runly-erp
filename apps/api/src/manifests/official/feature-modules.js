@@ -1012,14 +1012,13 @@ export const lmsMap = createModuleManifest({
   blueprints: [...loadHelpBlueprints('runly.lms', path.join(HELP_DIR, 'runly.lms'))],
 });
 
-// runly.bookings (spec 2026-11-18-bookings-engine-design). Phase 1 ships the engine
-// API only. shortcut: not listed in core-modules.js yet, so seed does not install it
-// and no empty module reaches the launcher; phase 2 adds it with its screens.
+// runly.bookings (spec 2026-11-18-bookings-engine-design): engine (phase 1) and
+// backoffice (phase 2). Space membership grants bookings.access per user.
 export const bookingsMap = createModuleManifest({
   key: 'runly.bookings',
   name: 'Reservaciones',
   description: 'Sistemas de reservaciones por empresa: servicios, horarios, recursos compartidos, citas y sesiones con cupo, sin dobles reservaciones.',
-  version: '0.1.0',
+  version: '0.2.0',
   kind: MODULE_KINDS.CORE,
   core: true,
   uninstallable: false,
@@ -1038,7 +1037,12 @@ export const bookingsMap = createModuleManifest({
     ownedEntities: ['BookingSpace', 'BookingSpaceMember', 'BookingService', 'BookingResource', 'BookingSpaceResource', 'BookingServiceResource', 'BookingScheduleRule', 'BookingException', 'BookingSession', 'Booking', 'BookingAllocation', 'BookingHistory', 'BookingIdempotency'],
     sharedEntities: ['Company', 'UserProfile', 'Contact', 'DomainEventOutbox'],
   },
-  navigation: [],
+  navigation: [
+    { label: 'Sistemas', path: '/spaces', icon: 'CalendarClock', layout: 'main', permissionKey: 'bookings.access' },
+    { label: 'Agenda', path: '/agenda', icon: 'CalendarDays', layout: 'main', permissionKey: 'bookings.access' },
+    { label: 'Reservaciones', path: '/reservations', icon: 'ListChecks', layout: 'main', permissionKey: 'bookings.access' },
+    { label: 'Recursos', path: '/resources', icon: 'Users', layout: 'main', permissionKey: 'bookings.access' },
+  ],
   acl: {
     module: 'bookings.access',
     actions: { read: 'bookings.access', create: 'bookings.access', update: 'bookings.access', delete: 'bookings.admin' },
@@ -1050,6 +1054,7 @@ export const bookingsMap = createModuleManifest({
     { key: 'bookings.admin', name: 'Administrar todas las reservaciones' },
   ],
   exposes: {},
+  blueprints: [...loadHelpBlueprints('runly.bookings', path.join(HELP_DIR, 'runly.bookings'))],
 });
 
 export const chatMap = createModuleManifest({

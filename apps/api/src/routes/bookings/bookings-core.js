@@ -37,9 +37,27 @@ export async function requireSpaceRole(db, { companyId, spaceId, userId, ctx, mi
   return { space, role }
 }
 
+// Single source of the state machine; the command service enforces it and the
+// serialized booking advertises it (`actions`) so clients never re-derive it.
+export const TRANSITIONS = Object.freeze({
+  PENDING: ['CONFIRMED', 'REJECTED', 'CANCELLED', 'EXPIRED'],
+  CONFIRMED: ['CANCELLED', 'COMPLETED', 'NO_SHOW'],
+})
+const ACTION_OF = { CONFIRMED: 'confirm', REJECTED: 'reject', CANCELLED: 'cancel', COMPLETED: 'complete', NO_SHOW: 'no-show' }
+
+export function bookingActions(row, now = Date.now()) {
+  const started = now >= new Date(row.starts_at).getTime()
+  const actions = (TRANSITIONS[row.status] ?? [])
+    .filter((to) => ACTION_OF[to] && ((to !== 'COMPLETED' && to !== 'NO_SHOW') || started))
+    .map((to) => ACTION_OF[to])
+  if (row.status === 'PENDING' || row.status === 'CONFIRMED') actions.push('reschedule')
+  return actions
+}
+
 export function serializeBooking(row, resourceIds = undefined) {
   if (!row) return null
   return {
+    actions: bookingActions(row),
     id: row.id,
     spaceId: row.space_id,
     serviceId: row.service_id,
@@ -83,7 +101,9 @@ export async function loadResourceWindows(db, { companyId, space, resourceIds, f
                                   (${toAt}::timestamptz AT TIME ZONE ${space.timezone})::date, interval '1 day') d
        WHERE r.company_id = ${companyId}::uuid
          AND (r.space_id = ${space.id}::uuid OR r.resource_id = ANY(${ids}::uuid[]))
-         AND extract(dow FROM d)::int = r.weekday`,
+         AND extract(dow FROM d)::int = r.weekday
+         AND (r.valid_from IS NULL OR d::date >= r.valid_from)
+         AND (r.valid_to IS NULL OR d::date <= r.valid_to)`,
     db.$queryRaw`
       SELECT space_id, resource_id, kind, starts_at, ends_at FROM booking_exception
        WHERE company_id = ${companyId}::uuid

@@ -6,8 +6,9 @@ import {
   bookingAvailabilityQuerySchema, bookingCreateSchema, bookingExceptionCreateSchema, bookingListQuerySchema,
   bookingMemberSchema, bookingResourceCreateSchema, bookingResourceIdsSchema, bookingResourceUpdateSchema,
   bookingRescheduleSchema, bookingScheduleSchema, bookingServiceCreateSchema, bookingServiceUpdateSchema,
-  bookingSessionCreateSchema, bookingSpaceCreateSchema, bookingSpaceUpdateSchema, bookingTransitionSchema,
+  bookingSearchQuerySchema, bookingSessionCreateSchema, bookingSpaceCreateSchema, bookingSpaceUpdateSchema, bookingTransitionSchema,
 } from '@runly/validators'
+import { bookingsWorkbook } from './bookings-export.js'
 import { BookingError, canManageCatalog, isBookingsAdmin, requireSpaceRole } from './bookings-core.js'
 import { createBookingsAvailabilityService } from './bookings-availability-service.js'
 import { createBookingsCommandService } from './bookings-command-service.js'
@@ -15,9 +16,9 @@ import { createBookingsConfigService } from './bookings-config-service.js'
 
 const TRANSITION_PATHS = { confirm: 'CONFIRMED', reject: 'REJECTED', cancel: 'CANCELLED', complete: 'COMPLETED', 'no-show': 'NO_SHOW' }
 
-export function createBookingsRouter({ prisma, requirePermission, commands = null }) {
+export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null }) {
   const app = new Hono()
-  const config = createBookingsConfigService({ prisma })
+  const config = createBookingsConfigService({ prisma, cacheDel })
   const availability = createBookingsAvailabilityService({ prisma })
   const cmd = commands ?? createBookingsCommandService({ prisma })
   const access = requirePermission('bookings.access')
@@ -52,8 +53,34 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   const written = (c, result) => c.json({ data: result.booking, replayed: result.replayed }, result.replayed ? 200 : 201)
   const changed = (c, result) => c.json({ data: result.booking, replayed: result.replayed })
 
+  // Company resources are visible to catalog managers and to members of any space.
+  const resourceReader = async (c) => {
+    if (canManageCatalog(ctx(c)) || await config.isAnySpaceMember({ companyId: companyId(c), userId: userId(c) })) return
+    throw new BookingError('No tienes acceso a los recursos de reservaciones.', 403, 'FORBIDDEN')
+  }
+
+  // What the caller can do: drives the UI only; every route re-checks on its own.
+  app.get('/bookings/me', access, run(async (c) => c.json({
+    data: { isAdmin: isBookingsAdmin(ctx(c)), canManageCatalog: canManageCatalog(ctx(c)), roles: await config.myRoles({ companyId: companyId(c), userId: userId(c) }) },
+  })))
+
   // Spaces and members
-  app.get('/bookings/spaces', access, run(async (c) => c.json({ data: await config.listSpaces({ companyId: companyId(c), userId: userId(c), all: isBookingsAdmin(ctx(c)) }) })))
+  app.get('/bookings/spaces', access, run(async (c) => {
+    const admin = isBookingsAdmin(ctx(c))
+    const [spaces, roles] = await Promise.all([
+      config.listSpaces({ companyId: companyId(c), userId: userId(c), all: admin }),
+      config.myRoles({ companyId: companyId(c), userId: userId(c) }),
+    ])
+    return c.json({ data: spaces.map((s) => ({ ...s, role: admin ? 'admin' : roles[s.id] ?? null })) })
+  }))
+  app.get('/bookings/spaces/:spaceId/summary', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.spaceSummary({ companyId: companyId(c), spaceId: c.req.param('spaceId') }) })
+  }))
+  app.get('/bookings/spaces/:spaceId/resources', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: await config.listSpaceResourceIds({ companyId: companyId(c), spaceId: c.req.param('spaceId') }) })
+  }))
   app.post('/bookings/spaces', access, run(async (c) => {
     catalog(c)
     return c.json({ data: await config.createSpace({ companyId: companyId(c), userId: userId(c), input: await parse(c, bookingSpaceCreateSchema) }) }, 201)
@@ -73,7 +100,7 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   app.put('/bookings/spaces/:spaceId/members/:userId', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'admin')
     const { role } = await parse(c, bookingMemberSchema)
-    return c.json({ data: await config.setMember({ companyId: companyId(c), spaceId: c.req.param('spaceId'), userId: c.req.param('userId'), role }) })
+    return c.json({ data: await config.setMember({ companyId: companyId(c), spaceId: c.req.param('spaceId'), userId: c.req.param('userId'), role, actorId: userId(c) }) })
   }))
   app.delete('/bookings/spaces/:spaceId/members/:userId', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'admin')
@@ -82,7 +109,10 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   }))
 
   // Company resources (shared between spaces)
-  app.get('/bookings/resources', access, run(async (c) => c.json({ data: await config.listResources({ companyId: companyId(c) }) })))
+  app.get('/bookings/resources', access, run(async (c) => {
+    await resourceReader(c)
+    return c.json({ data: await config.listResources({ companyId: companyId(c) }) })
+  }))
   app.post('/bookings/resources', access, run(async (c) => {
     catalog(c)
     return c.json({ data: await config.createResource({ companyId: companyId(c), input: await parse(c, bookingResourceCreateSchema) }) }, 201)
@@ -91,7 +121,10 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
     catalog(c)
     return c.json({ data: await config.updateResource({ companyId: companyId(c), resourceId: c.req.param('resourceId'), input: await parse(c, bookingResourceUpdateSchema) }) })
   }))
-  app.get('/bookings/resources/:resourceId/schedule', access, run(async (c) => c.json({ data: await config.getSchedule({ companyId: companyId(c), resourceId: c.req.param('resourceId') }) })))
+  app.get('/bookings/resources/:resourceId/schedule', access, run(async (c) => {
+    await resourceReader(c)
+    return c.json({ data: await config.getSchedule({ companyId: companyId(c), resourceId: c.req.param('resourceId') }) })
+  }))
   app.put('/bookings/resources/:resourceId/schedule', access, run(async (c) => {
     catalog(c)
     const { rules } = await parse(c, bookingScheduleSchema)
@@ -116,6 +149,11 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
     const service = await config.getService({ companyId: companyId(c), serviceId: c.req.param('serviceId') })
     await space(c, service.spaceId, 'admin')
     return c.json({ data: await config.updateService({ companyId: companyId(c), serviceId: service.id, input: await parse(c, bookingServiceUpdateSchema) }) })
+  }))
+  app.get('/bookings/services/:serviceId/resources', access, run(async (c) => {
+    const service = await config.getService({ companyId: companyId(c), serviceId: c.req.param('serviceId') })
+    await space(c, service.spaceId, 'viewer')
+    return c.json({ data: await config.listServiceResourceIds({ companyId: companyId(c), serviceId: service.id }) })
   }))
   app.put('/bookings/services/:serviceId/resources', access, run(async (c) => {
     const service = await config.getService({ companyId: companyId(c), serviceId: c.req.param('serviceId') })
@@ -174,7 +212,22 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   // Bookings
   app.get('/bookings/spaces/:spaceId/reservations', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'viewer')
-    return c.json({ data: await config.listBookings({ companyId: companyId(c), spaceId: c.req.param('spaceId'), ...(await parse(c, bookingListQuerySchema, 'query')) }) })
+    const result = await config.listBookings({ companyId: companyId(c), spaceId: c.req.param('spaceId'), ...(await parse(c, bookingSearchQuerySchema, 'query')) })
+    return c.json({ data: result.items, total: result.total })
+  }))
+  app.get('/bookings/spaces/:spaceId/reservations/export', access, run(async (c) => {
+    const { space: row } = await space(c, c.req.param('spaceId'), 'viewer')
+    const query = await parse(c, bookingSearchQuerySchema, 'query')
+    const [result, services, resources] = await Promise.all([
+      config.listBookings({ companyId: companyId(c), spaceId: row.id, ...query, limit: 5000, offset: 0 }),
+      config.listServices({ companyId: companyId(c), spaceId: row.id }),
+      config.listResources({ companyId: companyId(c) }),
+    ])
+    const buffer = await bookingsWorkbook({ space: row, items: result.items, services, resources })
+    return new Response(buffer, { headers: {
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="reservaciones-${row.slug}.xlsx"`,
+    } })
   }))
   app.post('/bookings/spaces/:spaceId/reservations', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'agent')

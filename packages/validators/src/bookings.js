@@ -60,9 +60,16 @@ export const bookingServiceCreateSchema = z.object(serviceShape).refine(partyOrd
 export const bookingServiceUpdateSchema = z.object(serviceShape).partial().omit({ kind: true })
   .extend({ enabled: z.boolean().optional() }).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');
 
+const localDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Usa el formato AAAA-MM-DD');
 export const bookingScheduleSchema = z.object({
-  rules: z.array(z.object({ weekday: z.coerce.number().int().min(0).max(6), startTime: time, endTime: time })
-    .refine((r) => r.startTime !== r.endTime, 'El inicio y el fin no pueden ser iguales')).max(100),
+  rules: z.array(z.object({
+    weekday: z.coerce.number().int().min(0).max(6),
+    startTime: time,
+    endTime: time,
+    validFrom: localDate.optional().nullable(),
+    validTo: localDate.optional().nullable(),
+  }).refine((r) => r.startTime !== r.endTime, 'El inicio y el fin no pueden ser iguales')
+    .refine((r) => !r.validFrom || !r.validTo || r.validTo >= r.validFrom, 'La vigencia termina antes de empezar')).max(200),
 });
 
 export const bookingExceptionCreateSchema = z.object({
@@ -123,4 +130,12 @@ export const bookingListQuerySchema = z.object({
   from: instant.optional(),
   to: instant.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
+});
+
+export const bookingSearchQuerySchema = bookingListQuerySchema.extend({
+  serviceId: z.string().uuid().optional(),
+  resourceId: z.string().uuid().optional(),
+  q: z.string().trim().max(120).optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(50),
+  offset: z.coerce.number().int().min(0).max(100000).default(0),
 });

@@ -2612,7 +2612,7 @@ mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, 
 mountWithAuth(app, createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin, marketplace: marketplaceGate }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 // Booking engine (runly.bookings phase 1): internal API only, /bookings/*.
-mountWithAuth(app, createBookingsRouter({ prisma, requirePermission }));
+mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel }));
 mountWithAuth(app, createLmsRouter({ prisma, requirePermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission, supabaseAdmin }));
