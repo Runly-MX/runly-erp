@@ -5,7 +5,7 @@ import { MOTION_LIMITS } from '../../../../../../../shared/studio/motion.js'
 import { moveKeyframe } from '../../../../../../../shared/studio/keyframes.js'
 import { OBJECT_META } from '../LayersPanel.jsx'
 import { effectLabel } from '../animation/AnimationPanel.jsx'
-import { formatSeconds, msToPx, pxToMs, rulerTicks, snapTime } from '../../../lib/timeline-math.js'
+import { formatClock, formatSeconds, msToPx, pxToMs, rulerTicks, snapTime } from '../../../lib/timeline-math.js'
 
 // PAD: room before 0 s so a keyframe at the start is not hidden by the labels.
 const ROW = 32, RULER = 28, PAD = 8
@@ -59,8 +59,11 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
     if (d.part === 'playhead') { onTime(snapped(timeAt(event))); return }
     if (Math.abs(msToPx(delta, zoom)) < 2 && !d.patch) return
     const { object } = d
+    let readout
     if (d.part === 'keyframe') {
-      try { d.patch = { keyframes: moveKeyframe(object, d.at, clampMs(snapped(d.at + delta), MOTION_LIMITS.maxDelay)) } } catch { return }
+      const to = clampMs(snapped(d.at + delta), MOTION_LIMITS.maxDelay)
+      try { d.patch = { keyframes: moveKeyframe(object, d.at, to) } } catch { return }
+      readout = `Keyframe · ${formatClock(to)}`
     } else {
       const effect = object[d.kind], endAt = effect.delay + effect.duration
       let next
@@ -68,8 +71,11 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
       if (d.part === 'end') next = { duration: clampMs(snapped(endAt + delta) - effect.delay, MOTION_LIMITS.maxEffectDuration) }
       if (d.part === 'start') { const begin = Math.min(endAt, clampMs(snapped(effect.delay + delta), endAt)); next = { delay: begin, duration: Math.min(MOTION_LIMITS.maxEffectDuration, endAt - begin) } }
       d.patch = { [d.kind]: { ...effect, ...next } }
+      const moved = d.patch[d.kind]
+      readout = `${effectLabel(d.kind, moved)} · ${formatClock(moved.delay)} – ${formatClock(moved.delay + moved.duration)}`
     }
-    onDraft(object.id, d.patch)
+    // The readout is shown in the timeline's fixed help bar, never next to the pointer.
+    onDraft(object.id, d.patch, readout)
   }
   function finish() {
     const d = drag.current

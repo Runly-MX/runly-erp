@@ -80,6 +80,16 @@ export function TimelinePanel({ timeline: t, objects, selectedIds, phone, onSele
         </div>
       </div>
       {t.collapsed ? null : (
+        // One fixed line: instructions, or the live times of the segment/keyframe being dragged.
+        // Fixed height, no wrapping, tabular digits: it never reflows the tracks below.
+        <p aria-live="off" className={cn('flex h-7 shrink-0 items-center gap-2 overflow-hidden whitespace-nowrap border-b border-[hsl(var(--border))] px-3 text-xs',
+          t.draft?.readout ? 'font-medium tabular-nums text-fuchsia-700 dark:text-fuchsia-300' : 'text-[hsl(var(--muted-foreground))]')}>
+          <span className="min-w-0 truncate">{t.draft?.readout ?? (t.mode === 'animation'
+            ? (phone ? 'Arrastra en el lienzo para crear o mover keyframes.' : 'Arrastra un elemento en el lienzo para crear o mover su keyframe en el cabezal · K añade un keyframe · [ y ] saltan entre keyframes')
+            : 'Diseño: los cambios modifican la posición base. Pasa a Animación para crear movimiento.')}</span>
+        </p>
+      )}
+      {t.collapsed ? null : (
         <div className={cn('flex min-h-0 flex-1', phone && 'flex-col')}>
           <div ref={scroll} data-timeline-scroll className="min-h-0 min-w-0 flex-1 overflow-auto overscroll-contain"
             onWheel={event => { if (event.ctrlKey || event.metaKey) { event.preventDefault(); t.setZoom(zoom * (event.deltaY < 0 ? 1.15 : 1 / 1.15)) } }}>
@@ -89,7 +99,7 @@ export function TimelinePanel({ timeline: t, objects, selectedIds, phone, onSele
                 onSelectObject={id => { onSelect(id); t.setSelectedEffect(null) }} onSelectGroup={onSelectGroup}
                 onSelectKeyframe={(id, at) => { onSelect(id); t.setSelectedKeyframe({ id, at }); t.setTime(at) }}
                 onSelectEffect={(id, kind) => { onSelect(id); t.setSelectedEffect({ id, kind }) }} onOpenEffect={(id, kind) => { onSelect(id); t.setSelectedEffect({ id, kind }); onOpenEffect() }}
-                onDraft={(id, patch) => t.setDraft({ id, patch })} onCommit={(id, patch) => t.commit(id, patch)}
+                onDraft={(id, patch, readout) => t.setDraft({ id, patch, readout })} onCommit={(id, patch) => t.commit(id, patch)}
                 onRemoveKeyframe={(object, at) => run(object.id, () => ({ keyframes: removeKeyframe(object, at) }))} />
             ) : <p className="p-4 text-sm text-[hsl(var(--muted-foreground))]">Añade elementos a la página para animarlos.</p>}
           </div>

@@ -1,7 +1,7 @@
 import { documentPages, findPage, pageId } from '../../../../../shared/studio/pages.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Alert, AlertDescription, AlertTitle, Button, ConfirmDialog, FileUploader, Sheet, SheetContent, SheetHeader, SheetTitle, Skeleton, ToolButton, cn, useIsMobile, useViewMode } from '@runly/ui'
-import { AlertTriangle, PanelLeftClose } from 'lucide-react'
+import { AlertTriangle, Clapperboard, PanelLeftClose } from 'lucide-react'
 import { toast } from 'sonner'
 import { createStudioEditor } from '../lib/fabric-adapter.js'
 import { StudioInspector } from './StudioInspector.jsx'
@@ -47,11 +47,11 @@ import { PresentationOverlay } from './present/PresentationOverlay.jsx'
 import { AnimationPanel, AnimationSummary } from './editor/animation/AnimationPanel.jsx'
 import { AnimationPreviewDialog } from './editor/animation/AnimationPreviewDialog.jsx'
 import { keyframeValuesAt, slideDuration } from '../../../../../shared/studio/motion.js'
+import { formatClock } from '../lib/timeline-math.js'
 import { setKeyframe } from '../../../../../shared/studio/keyframes.js'
 import { useTimeline } from './editor/timeline/useTimeline.js'
 import { TimelinePanel } from './editor/timeline/TimelinePanel.jsx'
 import { AnimatedCanvasLayer } from './editor/timeline/AnimatedCanvasLayer.jsx'
-import { formatSeconds } from '../lib/timeline-math.js'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -250,7 +250,11 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     try {
       entries = members.map(object => { const at = keyframeValuesAt(object, timeline.time); return [object.id, { keyframes: setKeyframe(object, timeline.time, { x: at.x + dx, y: at.y + dy }, { slideDuration: timeline.duration }) }] })
     } catch (failure) { setError(failure.message); timeline.setDraft(null); return }
-    if (!final) { if (entries.length === 1) timeline.setDraft({ id, patch: entries[0][1] }); return }
+    if (!final) {
+      const at = keyframeValuesAt(hit, timeline.time)
+      if (entries.length === 1) timeline.setDraft({ id, patch: entries[0][1], readout: `Keyframe · ${formatClock(timeline.time)} · X ${Math.round(at.x + dx)} · Y ${Math.round(at.y + dy)}` })
+      return
+    }
     timeline.setSelectedKeyframe({ id, at: Math.round(timeline.time) })
     if (entries.length === 1) timeline.commit(id, entries[0][1])
     else attempt(() => patchEach(entries)).finally(() => timeline.setDraft(null))
@@ -431,6 +435,11 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
           {canvas.preferences.grid.rulers ? <Rulers viewportRef={view.viewport} paperRef={view.paper} page={page} zoom={zoom} selection={selectionBox} /> : null}
           {sampling ? <CanvasColorSampler canvas={canvasRef.current} onPick={finishSampling} onCancel={() => finishSampling(null)} /> : null}
           {!ready && !error ? <div className="pointer-events-none absolute inset-0 flex items-center justify-center"><Skeleton className="aspect-square w-2/5 max-w-sm" /></div> : null}
+          {/* Constant mode badge pinned to a corner: it never changes width or moves with the selection bar.
+              The playhead time and the instructions live in the timeline's own readout and help bar; phones
+              keep the fuchsia paper outline only, so nothing competes with the selection bar. */}
+          {animating && !phone ? <span className={cn('pointer-events-none absolute z-20 inline-flex h-7 items-center gap-1.5 whitespace-nowrap rounded-md bg-fuchsia-600 px-2.5 text-xs font-semibold text-white shadow', canvas.preferences.grid.rulers ? 'left-7 top-7' : 'left-2 top-2 sm:left-4 sm:top-3')}>
+            <Clapperboard className="h-3.5 w-3.5" aria-hidden />Modo Animación</span> : null}
           <div className="pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col items-center gap-2 px-2 pt-2 sm:px-4 sm:pt-3">
             {imageKit.framing ? (
               <FadeSwap contentKey="framing-bar" className="flex max-w-full justify-center">
@@ -446,7 +455,6 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
                   onOrder={direction => attempt(() => editorRef.current.order(direction))} onRemove={() => setConfirm(true)} onProperties={openProperties} />
               </FadeSwap>
             ) : null}
-            {animating ? <span role="status" className="pointer-events-none rounded-md bg-fuchsia-600 px-2.5 py-1 text-xs font-semibold text-white shadow">Editando animación · {formatSeconds(timeline.time)} · arrastra en el lienzo para crear keyframes</span> : null}
             {chrome.notices}
             {error ? (
               <Alert variant="destructive" className="pointer-events-auto max-w-lg shadow-lg">
