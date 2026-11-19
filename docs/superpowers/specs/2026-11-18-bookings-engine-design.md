@@ -124,6 +124,23 @@ contactId (no guest email/phone; Automations reads them through an authorized ac
 | 6 | POS restaurant/appointments consume engine resources (migration path for `pos_reservation`, `pos_appointment`) | POS regression suite green. |
 | Later | Ticketing (QR, admission), payments via Commerce/POS, public API | Separate specs. |
 
+## 7.1 Phase 1 implementation decisions (2026-11-18)
+
+These refine sections 3-6; nothing else in the design changed.
+
+- Migration is `20270108000000_bookings_engine` (sorts after the existing 2027-dated migrations).
+- Intervals are half-open `[start, end)` everywhere (`tstzrange(..., '[)')`, CHECK on `booking_allocation`), so back-to-back bookings coexist.
+- Idempotency lives in `booking_idempotency` (company, scope = `user:<id>`, operation, key, request hash, booking id) instead of a `booking.idempotency_key` column, so create, reschedule and every transition are covered and a reused key with another payload is detected (422 `IDEMPOTENCY_KEY_REUSED`). The row is written inside the operation's transaction: a rolled-back attempt leaves no record and can be retried.
+- `booking_allocation` also carries `session_id`: a session with a resource occupies it for its whole duration. Bookings inside a session take seats, not allocations.
+- Occupying states: `PENDING` (until `hold_expires_at`) and `CONFIRMED`. Every other state frees allocations and seats. Stale holds are expired inside the transaction that needs their capacity, and in bulk by `expireHolds` (worker wiring in phase 3).
+- `COMPLETED` and `NO_SHOW` are only accepted once the booking has started. Cancelling a session with active bookings is refused.
+- Permissions: three keys (`bookings.access`, `bookings.spaces.manage`, `bookings.admin`); `bookings.manage` was dropped because the per-space roles already carry the right to operate bookings. Company admins count as `bookings.admin`.
+- Domain events are written with the transaction client and allowed to throw (the existing `publishDomainEvent` swallows errors, which inside a transaction would turn the commit into a silent rollback). They are hidden from the Automations trigger picker (`INTERNAL_EVENTS`) until phase 4.
+- `bookingsMap` is defined but not yet listed in `core-modules.js`: seed does not install it and no module without screens reaches the launcher. Phase 2 lists it together with its screens and the seeded permissions; until then only company admins can call `/bookings/*`.
+- Time zones: nonexistent local times (DST gap) shift forward and ambiguous ones resolve to the later, standard-time occurrence (Postgres `AT TIME ZONE`). Zone names are validated against `pg_timezone_names`.
+- Not built in phase 1: `valid_from`/`valid_to` on schedule rules, manage-token generation (column exists; phase 3), cancel/reschedule cut-offs for customers (phase 3; staff are not limited).
+- Prisma models declare no relation fields; the foreign keys exist only in SQL, as in the rest of the schema (`prisma migrate diff` already reports the same kind of drift for other modules).
+
 ## 8. Non-goals for v1
 
 Multi-resource services (service needs room AND staff), recurring bookings, waitlists, payments,
