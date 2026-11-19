@@ -94,9 +94,10 @@ function isAtlasInternalPath(pathname) {
 function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapError = '' }) {
   const [brandReady, setBrandReady] = useState(false);
   const setBranding = useBrandingStore((s) => s.setBranding);
+  // The booking portal (and its embeds) renders at once, without the ERP loader.
   const skipBrandWait = typeof window === 'undefined'
     ? false
-    : !isAtlasInternalPath(window.location.pathname);
+    : !isAtlasInternalPath(window.location.pathname) || window.location.pathname.startsWith('/app/p/reservar/');
 
   useCallSoundUnlock();
   useBootLoader('brand', !requiresServerSetup && !brandReady && !skipBrandWait);

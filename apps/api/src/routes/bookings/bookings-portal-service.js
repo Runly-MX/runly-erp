@@ -65,10 +65,31 @@ export function createBookingsPortalService({ prisma, commands, getBrand = async
     }
   }
 
+  // Sites that may show a page inside an iframe: the ones the business listed plus
+  // its own published Runly websites. The ERP origin itself is always allowed ('self').
+  async function embedOrigins(page) {
+    const domains = await prisma.$queryRaw`
+      SELECT hostname FROM website_domain WHERE company_id = ${page.company_id}::uuid AND state = 'assigned' AND ready = true ORDER BY hostname`
+    return [...new Set([...(page.embed_origins ?? []), ...domains.map((d) => `https://${d.hostname}`)])]
+  }
+
+  // CSP frame-ancestors for an HTML request of the portal (nginx asks before serving
+  // the SPA). Manage links are never framed; only ?embed=1 pages admit other sites.
+  async function frameAncestors(originalUri) {
+    let url
+    try { url = new URL(String(originalUri ?? ''), 'http://portal.invalid') } catch { return "'none'" }
+    const match = /^\/app\/p\/reservar\/([^/]+)\/?$/.exec(url.pathname)
+    if (!match || match[1] === 'gestion') return match ? "'none'" : "'self'"
+    if (url.searchParams.get('embed') !== '1' || !/^[a-z0-9-]{3,64}$/.test(match[1])) return "'self'"
+    const page = (await prisma.$queryRaw`SELECT company_id, embed_origins FROM booking_page WHERE enabled = true AND slug = ${match[1]}`)[0]
+    return page ? ["'self'", ...await embedOrigins(page)].join(' ') : "'self'"
+  }
+
   async function getPage(slug, preview) {
     const page = await resolvePage(slug, preview)
-    const [services, brand] = await Promise.all([pageServices(page), getBrand(page.company_id).catch(() => null)])
+    const [services, brand, origins] = await Promise.all([pageServices(page), getBrand(page.company_id).catch(() => null), embedOrigins(page)])
     return {
+      embed: { allowedOrigins: origins },
       slug: page.slug, title: page.title, description: page.description, location: page.location, instructions: page.instructions,
       company: { name: brand?.name || page.company_name, logoUrl: brand?.logoUrl ?? null },
       space: { name: page.space_name, timezone: page.timezone },
@@ -209,5 +230,5 @@ export function createBookingsPortalService({ prisma, commands, getBrand = async
     return manage(token)
   }
 
-  return { getPage, availability, create, manage, manageAvailability, cancel, reschedule }
+  return { getPage, availability, create, manage, manageAvailability, cancel, reschedule, frameAncestors }
 }

@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { runly } from '../../../lib/runly.js'
 import { bookingsError } from '../lib/bookingsLabels.js'
 
@@ -39,6 +39,34 @@ export function useAttemptKey() {
     return `${session}-${(hash >>> 0).toString(36)}`
   }, [session])
   return [keyFor, () => setSession(crypto.randomUUID())]
+}
+
+// Inside an iframe: which site frames the page (when the browser tells) and
+// whether the business authorized it. The server's CSP frame-ancestors is the
+// real guard; this one also covers servers without it and explains the refusal.
+export function embedState(allowedOrigins = [], win = typeof window === 'undefined' ? null : window) {
+  let framed = false
+  try { framed = Boolean(win) && win.self !== win.top } catch { framed = true }
+  if (!framed) return { framed: false, blocked: false, parent: null }
+  let parent = win.location.ancestorOrigins?.[0] ?? null
+  if (!parent && win.document?.referrer) { try { parent = new URL(win.document.referrer).origin } catch { parent = null } }
+  const blocked = Boolean(parent) && parent !== win.location.origin && !allowedOrigins.includes(parent)
+  return { framed, blocked, parent }
+}
+
+// Tells the embedding page how tall the content is (bookings-embed.js and the
+// Website block resize the iframe). Measures the content, not the viewport, so it
+// can shrink again. Only a height leaves the frame.
+export function useReportHeight(active, ref) {
+  useEffect(() => {
+    const node = ref.current
+    if (!active || !node || typeof ResizeObserver === 'undefined') return undefined
+    const send = () => window.parent.postMessage({ type: 'runly-booking:height', height: Math.ceil(node.getBoundingClientRect().height) }, '*')
+    const observer = new ResizeObserver(send)
+    observer.observe(node)
+    send()
+    return () => observer.disconnect()
+  }, [active, ref])
 }
 
 export function formatPolicyMinutes(minutes) {

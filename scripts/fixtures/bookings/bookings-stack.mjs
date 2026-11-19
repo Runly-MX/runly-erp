@@ -2,6 +2,7 @@
 // (never the regular database), every migration + the regular seed, and the API
 // and web of the working tree on their own ports. Nothing touches 4010/5173.
 //   const s = await bootBookingsStack(); ...; await s.close()
+// env: extra API variables, or a function of the stack (its ports) returning them.
 import { spawn } from 'node:child_process'
 import { createRequire } from 'node:module'
 import { join, resolve } from 'node:path'
@@ -29,7 +30,7 @@ export async function bootBookingsStack({ keep = false, env: extraEnv = {} } = {
     SUPABASE_SERVICE_ROLE_KEY: stack.secret.SUPABASE_SERVICE_ROLE_KEY, SUPABASE_JWT_SECRET: stack.secret.SUPABASE_JWT_SECRET,
     JWT_SECRET: stack.secret.SUPABASE_JWT_SECRET, BOOKINGS_LINK_SECRET: LINK_SECRET, RUNLY_SKIP_DB_INIT: '1',
     CORS_ORIGIN: stack.urls.web, PUBLIC_APP_URL: stack.urls.web, RUNLY_MCP_ENABLED: 'false',
-    GROQ_API_KEY: '', TAVILY_API_KEY: '', LIVEKIT_URL: '', SMTP_HOST: '', ...extraEnv,
+    GROQ_API_KEY: '', TAVILY_API_KEY: '', LIVEKIT_URL: '', SMTP_HOST: '', ...(typeof extraEnv === 'function' ? extraEnv(stack) : extraEnv),
   }
   try {
     await stack.compose(['up', '-d', '--wait', '--wait-timeout', '180', 'supabase-db', 'supabase-auth', 'supabase-rest', 'supabase-realtime', 'supabase-storage', 'supabase-kong'], { log: join(stack.directory, 'startup.log') })

@@ -144,6 +144,20 @@ export const bookingListQuerySchema = z.object({
   status: z.enum(BOOKING_STATUSES).optional(),
 });
 
+// A site allowed to embed a page: its origin only (scheme, host, port), HTTPS
+// except on loopback for local testing. Paths, wildcards and credentials are refused.
+export function normalizeEmbedOrigin(value) {
+  const raw = String(value ?? '').trim()
+  const text = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw}`
+  let url
+  try { url = new URL(text) } catch { return null }
+  const loopback = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname) || url.hostname.endsWith('.localhost')
+  if (url.protocol !== 'https:' && !(url.protocol === 'http:' && loopback)) return null
+  if (url.username || url.password || raw.includes('*') || !/^[a-z0-9.-]+$|^\[::1\]$/i.test(url.hostname) || (!loopback && !url.hostname.includes('.'))) return null
+  if ((url.pathname !== '/' && url.pathname !== '') || url.search || url.hash) return null
+  return url.origin
+}
+
 // Public pages (phase 3). The slug is global: it is the public URL.
 const pageText = (max) => z.string().trim().max(max).optional().nullable().transform((v) => v || null);
 const pageShape = {
@@ -162,6 +176,8 @@ const pageShape = {
   punctualityPolicy: pageText(2000),
   privacyNotice: pageText(4000),
   accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Usa un color #RRGGBB').optional().nullable(),
+  embedOrigins: z.array(z.string().trim().transform(normalizeEmbedOrigin).refine(Boolean, 'Escribe un dominio como https://www.ejemplo.com'))
+    .max(20, 'Hasta 20 dominios').transform((list) => [...new Set(list)]),
 };
 // Defaults only on create: a PATCH must never reset fields it did not send.
 export const bookingPageCreateSchema = z.object({
@@ -170,6 +186,7 @@ export const bookingPageCreateSchema = z.object({
   published: pageShape.published.default(false),
   allowResourceChoice: pageShape.allowResourceChoice.default(false),
   requirePhone: pageShape.requirePhone.default(false),
+  embedOrigins: pageShape.embedOrigins.default([]),
 });
 export const bookingPageUpdateSchema = z.object(pageShape).partial().extend({ enabled: z.boolean().optional() });
 

@@ -231,6 +231,40 @@ describe('runly.bookings public portal on real PostgreSQL', { skip: !url }, () =
     assert.equal(attempts[6], 429)
   })
 
+  it('distribution: frame policy per URL, authorized origins, limits shared by API instances', async () => {
+    const f = await setup({ page: { embedOrigins: ['https://www.clinica-socia.mx'] } })
+    const pub = publicApi()
+    const policy = async (uri, host = 'app.example.test') => {
+      const res = await pub('GET', '/public/bookings/frame-policy', null, { host, 'x-original-uri': uri })
+      return res.status === 204 ? res.headers.get('x-booking-frame-ancestors') : res.status
+    }
+    assert.equal(await policy(`/app/p/reservar/${f.slug}?embed=1`, 'www.sitio-cliente.mx'), 403, 'a website host never gets the SPA')
+    assert.equal(await policy('/app/p/reservar/gestion'), "'none'")
+    assert.equal(await policy(`/app/p/reservar/${f.slug}`), "'self'")
+    assert.equal(await policy(`/app/p/reservar/${f.slug}?embed=1`), "'self' https://www.clinica-socia.mx")
+    assert.equal(await policy('/app/p/reservar/no-existe-esta?embed=1'), "'self'")
+    // The company's own published websites are authorized too; another company's are not.
+    const other = await setup()
+    const domain = async (company, hostname) => {
+      const site = await db.websiteSite.create({ data: { companyId: company.id, name: 'Sitio' } })
+      await db.$executeRaw`INSERT INTO website_domain (hostname, company_id, site_id, kind, state, ready) VALUES (${hostname}, ${company.id}::uuid, ${site.id}::uuid, 'custom', 'assigned', true)`
+    }
+    await domain(f.company, `reservas-${f.slug}.example.test`)
+    await domain(other.company, `ajeno-${f.slug}.example.test`)
+    const allowed = (await pub('GET', `/public/bookings/pages/${f.slug}`)).body.data.embed.allowedOrigins
+    assert.deepEqual(allowed, ['https://www.clinica-socia.mx', `https://reservas-${f.slug}.example.test`])
+    assert.equal(await policy(`/app/p/reservar/${f.slug}?embed=1`), `'self' ${allowed.join(' ')}`)
+
+    // Two API processes, one limit: the 7th attempt is refused even when spread across both.
+    const limits = { ...OPEN, creates: [6, 1 / 120] }
+    const [a, b] = [publicApi(limits), publicApi(limits)]
+    const statuses = []
+    for (let i = 0; i < 7; i++) statuses.push((await book(i % 2 ? b : a, f, { startsAt: `2027-02-0${i + 1}T16:00:00Z`, guestEmail: `m${i}@example.test` })).status)
+    assert.deepEqual(statuses.slice(0, 6).every((s) => s === 201), true, statuses.join(','))
+    assert.equal(statuses[6], 429)
+    assert.equal((await db.$queryRaw`SELECT count(*)::int AS n FROM booking_rate_bucket WHERE key LIKE '%:%.%'`)[0].n, 0, 'no raw IPs or slugs at rest')
+  })
+
   it('DST: a New York page lists only real hours on the spring-forward day', async () => {
     const f = await setup({ timezone: 'America/New_York', rules: [{ weekday: 0, startTime: '01:00', endTime: '04:00' }] })
     const slots = (await publicApi()('GET', `/public/bookings/pages/${f.slug}/availability?serviceId=${f.service.id}&from=2027-03-14T00:00:00Z&to=2027-03-15T00:00:00Z`)).body.data.slots

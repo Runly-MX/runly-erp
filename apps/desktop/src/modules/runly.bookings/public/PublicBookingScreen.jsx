@@ -1,11 +1,11 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, Button, CheckboxField, EmptyState, SelectField, Skeleton, TextField, TextareaField } from '@runly/ui'
-import { AlertTriangle, CalendarCheck, CalendarX2, CheckCircle2, ChevronLeft, Clock3, Loader2, RotateCcw } from 'lucide-react'
+import { AlertTriangle, CalendarCheck, CalendarX2, CheckCircle2, ChevronLeft, Clock3, ExternalLink, Loader2, RotateCcw, ShieldAlert } from 'lucide-react'
 import { addDays, dayKey, formatDateTime, formatTime } from '../lib/bookingsTime.js'
 import { Card, LocationLines, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
-import { accentStyle, isNetworkError, portalApi, portalError, unwrap, useAttemptKey } from './portalLib.js'
+import { accentStyle, embedState, isNetworkError, portalApi, portalError, unwrap, useAttemptKey, useReportHeight } from './portalLib.js'
 
 const STEPS = ['service', 'slot', 'details', 'review']
 const STEP_LABEL = { service: 'Servicio', slot: 'Fecha y hora', details: 'Tus datos', review: 'Confirmar' }
@@ -30,6 +30,8 @@ export default function PublicBookingScreen() {
   const [keyFor, newAttempt] = useAttemptKey()
   const p = page.data
   const service = p?.services.find((s) => s.id === serviceId)
+  const embed = params.get('embed') === '1'
+  const frame = useMemo(() => embedState(p?.embed?.allowedOrigins), [p])
 
   useEffect(() => {
     if (!p || serviceId) return
@@ -39,9 +41,17 @@ export default function PublicBookingScreen() {
   }, [p]) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { window.scrollTo?.({ top: 0 }) }, [step])
 
-  if (page.isPending) return <Shell><Skeleton className="h-16 w-2/3" /><Skeleton className="h-64 w-full" /></Shell>
+  if (page.isPending) return <Shell embed={embed}><Skeleton className="h-16 w-2/3" /><Skeleton className="h-64 w-full" /></Shell>
   if (page.isError) {
-    return <Shell><EmptyState icon={CalendarX2} title="Página no disponible" description={portalError(page.error)} action={isNetworkError(page.error) ? <Button type="button" onClick={() => page.refetch()}>Reintentar</Button> : null} /></Shell>
+    return <Shell embed={embed}><EmptyState icon={CalendarX2} title="Página no disponible" description={portalError(page.error)} action={isNetworkError(page.error) ? <Button type="button" onClick={() => page.refetch()}>Reintentar</Button> : null} /></Shell>
+  }
+  if (frame.blocked) {
+    return (
+      <Shell embed={embed}>
+        <EmptyState icon={ShieldAlert} title="Sitio no autorizado" description="Este sitio no está autorizado para mostrar estas reservaciones. Puedes reservar directamente en la página del negocio."
+          action={<Button asChild><a href={`/app/p/reservar/${slug}`} target="_blank" rel="noopener noreferrer"><ExternalLink />Abrir reservaciones</a></Button>} />
+      </Shell>
+    )
   }
   const tz = p.space.timezone
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }))
@@ -86,7 +96,7 @@ export default function PublicBookingScreen() {
   }
 
   return (
-    <Shell accent={p.accentColor}>
+    <Shell accent={p.accentColor} embed={embed}>
       <PortalHeader company={p.company} title={p.title} subtitle={p.space.name} />
       {p.preview ? <Alert><AlertTriangle className="h-4 w-4" /><AlertDescription>Vista previa: la página no está publicada y no acepta reservaciones.</AlertDescription></Alert> : null}
       {step !== 'result' ? <StepIndicator step={step} skipService={p.services.length === 1} /> : null}
@@ -170,12 +180,12 @@ export default function PublicBookingScreen() {
         </Card>
       ) : null}
 
-      {step === 'result' && submit.booking ? <Result booking={submit.booking} token={submit.token} page={p} onAgain={() => { newAttempt(); setSlot(null); setSubmit({ state: 'idle' }); setForm((f) => ({ ...f, accepted: false })); setStep(p.services.length > 1 ? 'service' : 'slot') }} /> : null}
+      {step === 'result' && submit.booking ? <Result booking={submit.booking} token={submit.token} page={p} framed={frame.framed} onAgain={() => { newAttempt(); setSlot(null); setSubmit({ state: 'idle' }); setForm((f) => ({ ...f, accepted: false })); setStep(p.services.length > 1 ? 'service' : 'slot') }} /> : null}
     </Shell>
   )
 }
 
-function Result({ booking, token, page, onAgain }) {
+function Result({ booking, token, page, framed, onAgain }) {
   const tz = booking.timezone
   const pending = booking.status === 'PENDING'
   return (
@@ -193,7 +203,10 @@ function Result({ booking, token, page, onAgain }) {
       ]} />
       <LocationLines location={page.location} instructions={page.instructions} />
       <div className="flex flex-wrap gap-2">
-        <Button asChild><Link to={`/app/p/reservar/gestion#${token}`}>Ver o gestionar mi reservación</Link></Button>
+        {/* Manage links are never framed: from an embed they open in a new tab. */}
+        <Button asChild>{framed
+          ? <a href={`/app/p/reservar/gestion#${token}`} target="_blank" rel="noopener noreferrer">Ver o gestionar mi reservación<ExternalLink /></a>
+          : <Link to={`/app/p/reservar/gestion#${token}`}>Ver o gestionar mi reservación</Link>}</Button>
         <Button type="button" variant="outline" onClick={onAgain}>Hacer otra reservación</Button>
       </div>
       <p className="text-xs text-[hsl(var(--muted-foreground))]">Guarda el enlace de gestión: es personal y te permite consultar, reprogramar o cancelar sin crear una cuenta.</p>
@@ -222,7 +235,10 @@ function StepTitle({ children, onBack }) {
   )
 }
 
-export function Shell({ children, accent }) {
+// embed: tighter spacing inside an iframe, and the content height is reported to the host page.
+export function Shell({ children, accent, embed = false }) {
   const style = useMemo(() => accentStyle(accent), [accent])
-  return <main className="mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-5 px-4 py-6 sm:py-10" style={style}>{children}</main>
+  const ref = useRef(null)
+  useReportHeight(embed, ref)
+  return <main ref={ref} className={`mx-auto flex w-full max-w-3xl min-w-0 flex-col gap-5 px-4 ${embed ? 'py-4' : 'py-6 sm:py-10'}`} style={style}>{children}</main>
 }

@@ -297,7 +297,7 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
   const pageData = (input) => pick(input, {
     slug: 'slug', title: 'title', description: 'description', location: 'location', instructions: 'instructions', serviceIds: 'serviceIds',
     published: 'published', allowResourceChoice: 'allowResourceChoice', requirePhone: 'requirePhone', cancellationPolicy: 'cancellationPolicy',
-    reschedulePolicy: 'reschedulePolicy', punctualityPolicy: 'punctualityPolicy', privacyNotice: 'privacyNotice', accentColor: 'accentColor', enabled: 'enabled',
+    reschedulePolicy: 'reschedulePolicy', punctualityPolicy: 'punctualityPolicy', privacyNotice: 'privacyNotice', accentColor: 'accentColor', embedOrigins: 'embedOrigins', enabled: 'enabled',
   })
   const slugTaken = (error) => {
     if (error?.code === 'P2002') throw new BookingError('Esa dirección ya está en uso. Elige otra.', 409, 'SLUG_TAKEN')

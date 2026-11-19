@@ -7241,6 +7241,7 @@ model BookingPage {
   privacyNotice       String?  @map("privacy_notice")
   policyVersion       Int      @default(1) @map("policy_version")
   accentColor         String?  @map("accent_color")
+  embedOrigins        String[] @default([]) @map("embed_origins")
   enabled             Boolean  @default(true)
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -7248,6 +7249,26 @@ model BookingPage {
   @@unique([companyId, id])
   @@index([spaceId])
   @@map("booking_page")
+}
+
+// Booking version last mirrored onto runly.calendar (projection bookkeeping only).
+model BookingCalendarSync {
+  bookingId String   @id @map("booking_id") @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  version   Int
+  syncedAt  DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@map("booking_calendar_sync")
+}
+
+// Public portal token buckets shared by every API instance (UNLOGGED in SQL).
+model BookingRateBucket {
+  key       String   @id
+  tokens    Float
+  updatedAt DateTime @map("updated_at") @db.Timestamptz(6)
+
+  @@index([updatedAt], map: "booking_rate_bucket_updated_idx")
+  @@map("booking_rate_bucket")
 }
 
 model BookingNotification {

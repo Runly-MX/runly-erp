@@ -57,6 +57,13 @@
   </head>
   <body>
     <div id="root"><div class="runly-bootstrap" role="status"><img class="boot-logo-light" src="/runly/runly-isotipo-light.png" width="48" height="48" alt="Runly" /><img class="boot-logo-dark" src="/runly/runly-isotipo-dark.png" width="48" height="48" alt="Runly" /><p>Abriendo Runly...</p></div></div>
+    <script>
+      // The booking portal belongs to the business, not to Runly: no ERP splash.
+      if (location.pathname.indexOf("/app/p/reservar/") === 0) {
+        var boot = document.querySelector(".runly-bootstrap");
+        if (boot) boot.remove();
+      }
+    </script>
     <script type="module" src="/src/main.jsx"></script>
   </body>
 </html>

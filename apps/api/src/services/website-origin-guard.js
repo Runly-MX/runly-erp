@@ -7,7 +7,8 @@ export function createWebsiteOriginGuard({gateway,adminHosts=[]}) {
      if(admin.has(host))return next()
      // Unknown public hosts are no more privileged than registered ones.
      // Never expose the administrative router merely because a binding is absent.
-     const allowed=/^\/public\/(?:website\/(?:resolve(?:\/|$)|checkout$|account\/|admin-origin-check$|blog(?:\/|$)|releases\/|runtime\/|forms\/)|site\/(?!erp-badge-check)|storefront\/|catalog\/)/.test(c.req.path)
+     // bookings/frame-policy is an nginx gate: it must answer 403 itself on a website host (a 404 here becomes a 500).
+     const allowed=/^\/public\/(?:website\/(?:resolve(?:\/|$)|checkout$|account\/|admin-origin-check$|blog(?:\/|$)|releases\/|runtime\/|forms\/)|site\/(?!erp-badge-check)|storefront\/|catalog\/|bookings\/frame-policy$)/.test(c.req.path)
      if(!allowed)return c.json({error:'Recurso no encontrado.'},404)
      return next()
    }catch(error){return websiteErrorHandler(error,c)}
