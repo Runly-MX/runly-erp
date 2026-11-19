@@ -4,6 +4,8 @@ import {websiteReleasePath} from '../../services/website-release-service.js'
 import {websiteIsolatedHeaders} from '../../services/website-static-serving.js'
 import {requestOrigin,websiteSeoHead} from '../../services/website-seo-head.js'
 import {resolvePublicSupabaseUrl} from '../../lib/supabase-public-url.js'
+import {pageUrl as bookingPageUrl} from '../bookings/bookings-links.js'
+const bookingPortalOrigin=()=>{try{return new URL(bookingPageUrl('x')).origin}catch{return null}}
 import {brotliCompressSync,gzipSync,constants as zlib} from 'node:zlib'
 // The runtime and stylesheet are content-addressed (the URL carries their hash), so they never change: they are
 // compressed once and cached by browsers for a year. A ~1 MB runtime sent raw with no-store took ~5 s on a phone.
@@ -65,7 +67,10 @@ export async function serveWebsiteRelease(c,gateway,path,runtime,ssr) {
  c.header('Cache-Control','no-store');c.header('X-Content-Type-Options','nosniff')
  // Catalog product covers are served straight from Supabase Storage (public bucket or signed URL), not pinned in the release.
  const storage=(()=>{try{return ' '+new URL(resolvePublicSupabaseUrl()).origin}catch{return ''}})()
- c.header('Content-Security-Policy',`default-src 'self'; script-src 'self'${challenge}; frame-src ${turnstile?'https://challenges.cloudflare.com':"'none'"}; style-src 'self' 'unsafe-inline'; img-src 'self' data:${storage}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`)
+ // runly.bookings blocks embed the ERP's booking portal: only that origin may be framed, and only when the release has one.
+ const bookingFrame=snapshot.release.manifest.dynamic?.some(d=>d.kind==='booking')?bookingPortalOrigin():null
+ const frames=[turnstile?'https://challenges.cloudflare.com':null,bookingFrame].filter(Boolean).join(' ')||"'none'"
+ c.header('Content-Security-Policy',`default-src 'self'; script-src 'self'${challenge}; frame-src ${frames}; style-src 'self' 'unsafe-inline'; img-src 'self' data:${storage}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`)
  // Attributes carry only UUIDs and hex digests. The body is pre-rendered by React from the same release data the
  // runtime fetches (React escapes all tenant text; rich HTML is reduced to plain text on the server), then hydrated.
  const origin=requestOrigin(c), config={company:data.site.company,companySlug:data.site.company,siteId:data.site.id,apiUrl:origin,baseUrl:origin,analyticsMode:data.site.analyticsMode,turnstileSiteKey:data.site.turnstileSiteKey}

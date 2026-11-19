@@ -28,6 +28,8 @@ export function createBookingsDomain({ request, requestBlob, withAuthHeaders, to
     createPage: (spaceId, data, token) => send('POST', `${space(spaceId)}/pages`, data, token),
     updatePage: (pageId, data, token) => send('PATCH', `/bookings/pages/${id(pageId)}`, data, token),
     previewPage: (pageId, token) => send('POST', `/bookings/pages/${id(pageId)}/preview`, {}, token),
+    // Live pages for the Website editor's Reservaciones block (phase 4).
+    listPublishedPages: (token) => send('GET', '/bookings/pages/published', undefined, token),
     rotateManageLink: (bookingId, token) => send('POST', `/bookings/reservations/${id(bookingId)}/manage-link`, {}, token),
     me: (token) => send('GET', '/bookings/me', undefined, token),
     // Spaces, members

@@ -18,11 +18,11 @@ import { createBookingsConfigService } from './bookings-config-service.js'
 
 const TRANSITION_PATHS = { confirm: 'CONFIRMED', reject: 'REJECTED', cancel: 'CANCELLED', complete: 'COMPLETED', 'no-show': 'NO_SHOW' }
 
-export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null, env = process.env }) {
+export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null, env = process.env, onChanged = null }) {
   const app = new Hono()
   const config = createBookingsConfigService({ prisma, cacheDel })
   const availability = createBookingsAvailabilityService({ prisma })
-  const cmd = commands ?? createBookingsCommandService({ prisma })
+  const cmd = commands ?? createBookingsCommandService({ prisma, onChanged })
   const access = requirePermission('bookings.access')
 
   const companyId = (c) => c.get('companyId')
@@ -253,6 +253,27 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   app.post('/bookings/reservations/:id/manage-link', access, run(async (c) => {
     await bookingRole(c, 'agent')
     return c.json({ data: await cmd.rotateManageLink({ companyId: companyId(c), actorId: userId(c), bookingId: c.req.param('id') }) })
+  }))
+
+  // Live pages of the company for the Website editor's Reservaciones block. Only what is
+  // already public (title, slug, services); readable by site editors without bookings access.
+  app.get('/bookings/pages/published', run(async (c) => {
+    const user = ctx(c)
+    if (!user?.isAdmin && !['bookings.access', 'website.pages.update'].some((key) => user?.permissionSet?.has(key))) {
+      throw new BookingError('No tienes acceso a las páginas de reservaciones.', 403, 'FORBIDDEN')
+    }
+    const rows = await prisma.$queryRaw`
+      SELECT p.slug, p.title, s.name AS space_name, sv.id AS service_id, sv.name AS service_name
+        FROM booking_page p JOIN booking_space s ON s.id = p.space_id AND s.company_id = p.company_id
+        LEFT JOIN booking_service sv ON sv.company_id = p.company_id AND sv.space_id = p.space_id AND sv.enabled AND sv.id = ANY(p.service_ids)
+       WHERE p.company_id = ${companyId(c)}::uuid AND p.enabled AND p.published AND s.enabled AND s.published
+       ORDER BY s.name, p.title, sv.name`
+    const pages = new Map()
+    for (const r of rows) {
+      if (!pages.has(r.slug)) pages.set(r.slug, { slug: r.slug, title: r.title, spaceName: r.space_name, url: pageUrl(r.slug, env), services: [] })
+      if (r.service_id) pages.get(r.slug).services.push({ id: r.service_id, name: r.service_name })
+    }
+    return c.json({ data: [...pages.values()] })
   }))
 
   // Public pages of a space (phase 3).

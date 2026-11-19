@@ -7,11 +7,27 @@ import {conformTemplateDocument} from './website-template-conform.js'
 import {isEffectProp,isValidEffect} from './website-block-effects.js'
 import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
+import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
 import { createFileAccess } from './files/access.js'
 import { z } from 'zod'
 import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
 
 const failure=(code,status=409)=>new WebsiteServiceError('No se pudo completar la publicación.',status,code)
+// runly.bookings block: the page (and service) must belong to this company and be
+// live; the release pins the portal address so the site never guesses the ERP host.
+async function bookingBinding(prisma,companyId,props) {
+  const slug=props?.bookingPage??''
+  const resource=id=>({publicationResource:{kind:'booking_page',id}})
+  if(!/^[a-z0-9-]{3,64}$/.test(slug))throw Object.assign(failure('booking_page_required',422),resource(null))
+  const [page]=await prisma.$queryRaw`SELECT p.id,p.slug,p.service_ids,p.published,s.published AS space_published,s.enabled AS space_enabled
+    FROM booking_page p JOIN booking_space s ON s.id=p.space_id AND s.company_id=p.company_id WHERE p.company_id=${companyId}::uuid AND p.slug=${slug} AND p.enabled=true`
+  if(!page)throw Object.assign(notFound('Recurso'),resource(null))
+  if(!page.published||!page.space_published||!page.space_enabled)throw Object.assign(failure('booking_page_unpublished',422),resource(page.id))
+  if(props.serviceId&&!page.service_ids.includes(props.serviceId))throw Object.assign(failure('booking_service_unavailable',422),resource(page.id))
+  const portalUrl=bookingPageUrl(page.slug)
+  if(!portalUrl)throw Object.assign(failure('dependency_unavailable',503),resource(page.id))
+  return {binding:{kind:'booking',pageId:page.id,slug:page.slug,serviceId:props.serviceId||null},portalUrl}
+}
 const known=new Set(BLOCK_CATALOG.blocks.map(b=>b.type))
 const definitions=new Map(BLOCK_CATALOG.blocks.map(b=>[b.type,b]))
 const changesSchema=z.object({publishPageIds:z.array(z.string().uuid()).max(100),publishPostIds:z.array(z.string().uuid()).max(100).default([]),unpublishPageIds:z.array(z.string().uuid()).max(100).default([]),unpublishPostIds:z.array(z.string().uuid()).max(100).default([]),includeThemeAndMenus:z.boolean().default(true)}).strict()
@@ -203,6 +219,8 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
               // BookingFormBlock has no executable public booking contract, even with an empty ID.
               if(block.type==='ContactFormBlock'&&!/^[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/i.test(block.props?.formId??''))throw failure('form_not_found',422)
               if(block.type==='BookingFormBlock')throw failure('dynamic_binding_unavailable',422)
+              // The portal address is pinned by the server on every release (base routes carry it already).
+              if(block.type==='BookingPortalBlock'&&block.props){const{portalUrl,...rest}=block.props;block.props=rest}
               for(const [name,value]of Object.entries(block.props??{})) {
                 const field=definition.fields[name]
                 if(isEffectProp(name)){if(!isValidEffect(name,value))throw failure('invalid_block_property',422);continue}
@@ -214,6 +232,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
                   (field.type==='select'&&!field.options?.includes(value)))throw failure('invalid_block_property',422)
               }
               block.props=await visit(block.props)
+              if(block.type==='BookingPortalBlock'){const booking=await bookingBinding(prisma,a.companyId,block.props);dynamic.push(booking.binding);block.props={...block.props,portalUrl:booking.portalUrl}}
             }catch(e){if(!a.readOnly)throw e;issues.push(issue(e))}
           }
           location={pageId:r.sourceId,blockId:null,blockType:null}

@@ -5,6 +5,7 @@ import { ProductsGridBlock } from './productsGridBlock.jsx'
 import { ProductCardBlock }  from './productCardBlock.jsx'
 import { CartBlock }         from './cartBlock.jsx'
 import { BookingFormBlock }  from './bookingFormBlock.jsx'
+import { BookingPortalBlock } from './bookingPortalBlock.jsx'
 import { AccountPortalBlock } from './accountPortalBlock.jsx'
 
 // --- Bloques universales ---
@@ -76,6 +77,7 @@ export {
 
 export const universalRunlyBlocks = [
   ContactFormBlock,
+  BookingPortalBlock,
   AccountPortalBlock,
   BlogIndexBlock,
   ServicesGridBlock,
@@ -155,6 +157,7 @@ export {
   ProductCardBlock,
   CartBlock,
   BookingFormBlock,
+  BookingPortalBlock,
   ServicesGridBlock,
   TestimonialsBlock,
   StatsBlock,

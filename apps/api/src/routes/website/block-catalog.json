@@ -5460,6 +5460,42 @@
       }
     },
     {
+      "type": "BookingPortalBlock",
+      "label": "Reservaciones",
+      "category": "atlas-bookings",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "bookingPage": "",
+        "serviceId": "",
+        "display": "calendar",
+        "buttonLabel": "Reservar ahora"
+      },
+      "fields": {
+        "bookingPage": {
+          "type": "text",
+          "label": "Página de reservaciones"
+        },
+        "serviceId": {
+          "type": "text",
+          "label": "Servicio (opcional)"
+        },
+        "display": {
+          "type": "select",
+          "label": "Presentación",
+          "options": [
+            "calendar",
+            "button",
+            "link"
+          ]
+        },
+        "buttonLabel": {
+          "type": "text",
+          "label": "Texto del botón o enlace"
+        }
+      }
+    },
+    {
       "type": "AccountPortalBlock",
       "label": "Cuenta de cliente",
       "category": "atlas",
