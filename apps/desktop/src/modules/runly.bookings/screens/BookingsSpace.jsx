@@ -3,11 +3,12 @@ import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
   BackButton, Button, CheckboxField, ChipTabs, EmptyState, ErrorState, LoadingState, NotFoundState, PageHeader, SectionCard, Skeleton, StatCard,
 } from '@runly/ui'
-import { CalendarClock, CalendarDays, CalendarPlus, ConciergeBell, LayoutDashboard, ListChecks, Loader2, Settings2, ShieldCheck, Users } from 'lucide-react'
+import { CalendarClock, CalendarDays, CalendarPlus, ConciergeBell, Globe, LayoutDashboard, ListChecks, Loader2, Settings2, ShieldCheck, Users } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { BookingFormDialog } from '../components/BookingDialogs.jsx'
 import { ExceptionsPanel } from '../components/ExceptionsPanel.jsx'
 import { MembersPanel } from '../components/MembersPanel.jsx'
+import { OnlinePanel } from '../components/OnlinePanel.jsx'
 import { ScheduleEditor } from '../components/ScheduleEditor.jsx'
 import { SessionsPanel } from '../components/SessionsPanel.jsx'
 import { SpaceServicesTab } from '../components/SpaceServicesTab.jsx'
@@ -25,6 +26,7 @@ const TABS = [
   { value: 'resources', label: 'Recursos', icon: Users },
   { value: 'availability', label: 'Disponibilidad', icon: CalendarClock },
   { value: 'team', label: 'Equipo', icon: ShieldCheck },
+  { value: 'online', label: 'Reservas online', icon: Globe },
   { value: 'settings', label: 'Configuración', icon: Settings2 },
 ]
 
@@ -78,6 +80,7 @@ export default function BookingsSpace() {
       {tab === 'resources' ? <ResourcesTab space={s} resources={resources} linkedIds={linked.data ?? []} canEdit={canConfigure} canManageCatalog={Boolean(me.data?.canManageCatalog)} /> : null}
       {tab === 'availability' ? <AvailabilityTab space={s} services={services.data ?? []} resources={spaceResources} canEdit={canConfigure} canEditResources={Boolean(me.data?.canManageCatalog)} /> : null}
       {tab === 'team' ? <MembersPanel space={s} canEdit={canConfigure} /> : null}
+      {tab === 'online' ? <OnlinePanel space={s} services={services.data ?? []} canEdit={canConfigure} /> : null}
       {tab === 'settings' ? <SpaceSettingsTab space={s} canEdit={canConfigure} /> : null}
       {canOperate ? <BookingFormDialog open={booking} onOpenChange={setBooking} space={s} services={services.data ?? []} resources={spaceResources} /> : null}
     </PageShell>

@@ -10,7 +10,25 @@ export function createBookingsDomain({ request, requestBlob, withAuthHeaders, to
     ...(data === undefined ? {} : { body: JSON.stringify(data) }),
   })
   const space = (spaceId) => `/bookings/spaces/${id(spaceId)}`
+  // Customer side (/public/bookings): no session; the manage token goes in a header.
+  const pub = (method, path, { data, headers = {} } = {}) => request(path, { method, onlineOnly: true, headers, ...(data === undefined ? {} : { body: JSON.stringify(data) }) })
+  const portal = {
+    getPage: (slug, vista) => pub('GET', `/public/bookings/pages/${id(slug)}${toQueryString(vista ? { vista } : null)}`),
+    availability: (slug, query) => pub('GET', `/public/bookings/pages/${id(slug)}/availability${toQueryString(query)}`),
+    create: (slug, data, idempotencyKey) => pub('POST', `/public/bookings/pages/${id(slug)}/reservations`, { data, headers: { 'Idempotency-Key': idempotencyKey } }),
+    manage: (manageToken) => pub('GET', '/public/bookings/manage', { headers: { 'X-Booking-Token': manageToken } }),
+    manageAvailability: (manageToken, query) => pub('GET', `/public/bookings/manage/availability${toQueryString(query)}`, { headers: { 'X-Booking-Token': manageToken } }),
+    cancel: (manageToken, idempotencyKey) => pub('POST', '/public/bookings/manage/cancel', { data: {}, headers: { 'X-Booking-Token': manageToken, 'Idempotency-Key': idempotencyKey } }),
+    reschedule: (manageToken, data, idempotencyKey) => pub('POST', '/public/bookings/manage/reschedule', { data, headers: { 'X-Booking-Token': manageToken, 'Idempotency-Key': idempotencyKey } }),
+  }
   return {
+    portal,
+    // Publication (phase 3)
+    listPages: (spaceId, token) => send('GET', `${space(spaceId)}/pages`, undefined, token),
+    createPage: (spaceId, data, token) => send('POST', `${space(spaceId)}/pages`, data, token),
+    updatePage: (pageId, data, token) => send('PATCH', `/bookings/pages/${id(pageId)}`, data, token),
+    previewPage: (pageId, token) => send('POST', `/bookings/pages/${id(pageId)}/preview`, {}, token),
+    rotateManageLink: (bookingId, token) => send('POST', `/bookings/reservations/${id(bookingId)}/manage-link`, {}, token),
     me: (token) => send('GET', '/bookings/me', undefined, token),
     // Spaces, members
     listSpaces: (token) => send('GET', '/bookings/spaces', undefined, token),

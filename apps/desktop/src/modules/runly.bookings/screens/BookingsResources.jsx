@@ -108,7 +108,7 @@ function ResourceDialog({ open, onOpenChange, resource, onSubmit, pending }) {
                 <p className={MUTED}>Vincula a la persona con su usuario en lugar de duplicar su registro.</p>
               </div>
             ) : null}
-            {resource ? <SwitchField label="Recurso activo" description="Un recurso inactivo deja de recibir reservaciones nuevas." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} /> : null}
+            {resource ? <SwitchField id="bookings-resource-enabled" label="Recurso activo" description="Un recurso inactivo deja de recibir reservaciones nuevas." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} /> : null}
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

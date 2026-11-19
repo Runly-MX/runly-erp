@@ -88,7 +88,7 @@ export function ServiceFormDialog({ open, onOpenChange, service, resourceIds = [
               ) : <p className={MUTED_TEXT}>Este sistema aún no tiene recursos. Agrégalos en la pestaña Recursos.</p>}
               {errors.resources ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.resources}</p> : null}
             </fieldset>
-            {service ? <SwitchField label="Servicio activo" description="Los servicios inactivos no aceptan nuevas reservaciones." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} /> : null}
+            {service ? <SwitchField id="bookings-service-enabled" label="Servicio activo" description="Los servicios inactivos no aceptan nuevas reservaciones." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} /> : null}
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

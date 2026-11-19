@@ -2,7 +2,7 @@ import { useState } from 'react'
 import {
   ActivityTimeline, Button, ConfirmDialog, DetailSkeleton, ErrorState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, TextareaField,
 } from '@runly/ui'
-import { CalendarSync, Check, CircleCheckBig, UserX, X, XCircle } from 'lucide-react'
+import { CalendarSync, Check, CircleCheckBig, Link2, UserX, X, XCircle } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation, useHistory, useIdempotencyKey, useReservation } from '../hooks/useBookings.js'
 import { ACTIONS, STATUS } from '../lib/bookingsLabels.js'
@@ -13,7 +13,7 @@ import { Field, StatusBadge } from './shared.jsx'
 const ICONS = { confirm: Check, reject: X, cancel: XCircle, complete: CircleCheckBig, 'no-show': UserX, reschedule: CalendarSync }
 const HISTORY_LABEL = {
   create: 'Reservación registrada', confirmed: 'Confirmada', rejected: 'Rechazada', cancelled: 'Cancelada', completed: 'Completada',
-  no_show: 'Marcada como no presentada', expire: 'Venció sin confirmarse', reschedule: 'Reprogramada',
+  no_show: 'Marcada como no presentada', expire: 'Venció sin confirmarse', reschedule: 'Reprogramada', manage_link: 'Se envió un nuevo enlace al cliente',
 }
 
 // One reservation: data, the actions the engine allows right now (`actions`),
@@ -27,6 +27,7 @@ export function BookingDetailSheet({ bookingId, onOpenChange, space, services, r
   const [reason, setReason] = useState('')
   const [rescheduling, setRescheduling] = useState(false)
   const act = useBookingsMutation((t, { action, data, key }) => runly.bookings.transition(bookingId, action, data, t, key), { success: (_d, v) => ACTIONS[v.action].done })
+  const rotate = useBookingsMutation((t) => runly.bookings.rotateManageLink(bookingId, t), { success: 'Enlace nuevo en camino al correo del cliente.' })
   const b = booking.data
   const service = services.find((s) => s.id === b?.serviceId)
   const resourceNames = (b?.resourceIds ?? []).map((id) => resources.find((r) => r.id === id)?.name).filter(Boolean)
@@ -40,7 +41,7 @@ export function BookingDetailSheet({ bookingId, onOpenChange, space, services, r
   const items = (history.data ?? []).map((h) => ({
     id: h.id,
     createdAt: h.createdAt,
-    actor: h.actorName ? { displayName: h.actorName, name: h.actorName } : { displayName: h.actorKind === 'system' ? 'Sistema' : 'Cliente', name: h.actorKind === 'system' ? 'Sistema' : 'Cliente' },
+    actor: h.actorName ? { displayName: h.actorName, name: h.actorName } : { displayName: h.actorKind === 'system' ? 'Sistema' : 'Cliente (portal)', name: h.actorKind === 'system' ? 'Sistema' : 'Cliente (portal)' },
     summary: [
       HISTORY_LABEL[h.action] ?? h.action,
       h.action === 'reschedule' && h.before && h.after ? `de ${formatDateTime(h.before.startsAt, tz)} a ${formatDateTime(h.after.startsAt, tz)}` : null,
@@ -84,6 +85,12 @@ export function BookingDetailSheet({ bookingId, onOpenChange, space, services, r
                       </Button>
                     )
                   })}
+                </div>
+              ) : null}
+              {canOperate && b.guestEmail && ['PENDING', 'CONFIRMED'].includes(b.status) ? (
+                <div className="space-y-1">
+                  <Button type="button" variant="ghost" size="sm" disabled={rotate.isPending} onClick={() => rotate.mutate()}><Link2 />Enviar nuevo enlace al cliente</Button>
+                  <p className="text-xs text-[hsl(var(--muted-foreground))]">El enlace anterior deja de funcionar. Úsalo si el cliente lo perdió o lo compartió por error.</p>
                 </div>
               ) : null}
               <section aria-label="Historial de cambios" className="space-y-2">
