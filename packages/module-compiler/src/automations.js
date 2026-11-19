@@ -134,11 +134,7 @@ export function automationServices({ trigger = 'record', afterDelay = false, sea
 }
 
 // Events a person can pick as a trigger (internal ones stay out).
-// shortcut: bookings events stay out until runly.bookings phase 4 wires Automations.
-export const INTERNAL_EVENTS = Object.freeze([
-  'automations.webhook.received',
-  ...['created', 'confirmed', 'rescheduled', 'cancelled', 'rejected', 'completed', 'no_show', 'expired'].map((a) => `bookings.booking.${a}`),
-])
+export const INTERNAL_EVENTS = Object.freeze(['automations.webhook.received'])
 
 export function automationEvents() {
   return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({

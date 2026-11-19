@@ -236,8 +236,8 @@ export const EVENT_CATALOG = Object.freeze({
     field('durationMs', 'Duración (ms)', 'number', 'Cuánto tardó en ejecutarse.', '240'),
     field('depth', 'Nivel de encadenamiento', 'number', 'Cuántas automatizaciones encadenadas hay antes de esta (límite 3).', '0'),
   ] },
-  // runly.bookings lifecycle (spec 2026-11-18-bookings-engine-design §6). Published in the
-  // booking transaction; hidden from trigger pickers until phase 4 (INTERNAL_EVENTS).
+  // runly.bookings lifecycle (spec 2026-11-18-bookings-engine-design §6). Written to the outbox in the
+  // booking transaction (at-least-once); payload without guest email, phone or notes. Triggers since phase 4.
   ...Object.fromEntries([
     ['created', 'Se creó una reservación', 'Cuando se registra una reservación nueva, pendiente o confirmada.'],
     ['confirmed', 'Se confirmó una reservación', 'Cuando una reservación pendiente pasa a confirmada.'],

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Button, DataTable, DateField, ErrorState, PageHeader, SearchInput, SelectField, Skeleton, useIsMobile } from '@runly/ui'
 import { CalendarPlus, ChevronLeft, ChevronRight, FileSpreadsheet, ListChecks, Loader2 } from 'lucide-react'
+import { useSearchParams } from 'react-router-dom'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { BookingDetailSheet } from '../components/BookingDetailSheet.jsx'
@@ -41,6 +42,16 @@ export default function BookingsReservations() {
   const [search, setSearch] = useState('')
   const [page, setPage] = useState(0)
   const [openId, setOpenId] = useState(null)
+  // Deep link from Calendario: ?reservacion=<id> opens it in its own system.
+  const [params, setParams] = useSearchParams()
+  const deepLinked = params.get('reservacion')
+  useEffect(() => {
+    if (!deepLinked || !token || !spaces.data) return
+    runly.bookings.getReservation(deepLinked, token)
+      .then((res) => { if (res?.data?.spaceId) selectSpace(res.data.spaceId); setOpenId(deepLinked) })
+      .catch((error) => toast.error(bookingsError(error, 'No se pudo abrir la reservación.')))
+      .finally(() => setParams((p) => { const n = new URLSearchParams(p); n.delete('reservacion'); return n }, { replace: true }))
+  }, [deepLinked, token, spaces.data]) // eslint-disable-line react-hooks/exhaustive-deps
   const [creating, setCreating] = useState(false)
   const [exporting, setExporting] = useState(false)
   useEffect(() => { const t = setTimeout(() => setFilters((f) => ({ ...f, q: search.trim() })), 300); return () => clearTimeout(t) }, [search])

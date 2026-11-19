@@ -40,7 +40,7 @@ export const requestHash = (operation, body) => crypto.createHash('sha256').upda
 
 const slotTaken = () => new BookingError('Ese horario ya no está disponible.', 409, 'SLOT_TAKEN')
 
-export function createBookingsCommandService({ prisma, now = () => Date.now() }) {
+export function createBookingsCommandService({ prisma, now = () => Date.now(), onChanged = null }) {
   async function inTx(fn) {
     try {
       return await prisma.$transaction(fn, { maxWait: 30000, timeout: 30000 })
@@ -438,5 +438,17 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
     return { companies: companies.length, expired }
   }
 
-  return { create, transition, reschedule, rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id) }
+  // After the commit (never inside it): projections such as the calendar mirror. Not
+  // awaited, so a slow projection never delays or fails the customer's booking; the
+  // worker re-projects whatever this misses.
+  const notifyChanged = (fn) => async (args) => {
+    const result = await fn(args)
+    if (onChanged && result?.booking?.id) Promise.resolve().then(() => onChanged(result.booking.id)).catch(() => {})
+    return result
+  }
+
+  return {
+    create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule),
+    rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id),
+  }
 }

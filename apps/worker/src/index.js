@@ -53,6 +53,8 @@ import { createSmtpService, createCompanyMailer } from '../../api/src/services/s
 import { createCompanyBrandService } from '../../api/src/services/company-brand-service.js'
 import { createBookingsNotifier } from '../../api/src/routes/bookings/bookings-notifications.js'
 import { createBookingsCommandService } from '../../api/src/routes/bookings/bookings-command-service.js'
+import { pruneRateBuckets } from '../../api/src/routes/bookings/bookings-rate-limit.js'
+import { createBookingsCalendarProjection } from '../../api/src/routes/bookings/bookings-calendar.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -736,6 +738,7 @@ async function runMeetingChannelArchiveTick() {
 // PENDING holds past hold_expires_at, which frees their resources and seats.
 const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId) })
 const bookingsCommands = createBookingsCommandService({ prisma })
+const bookingsCalendar = createBookingsCalendarProjection({ prisma })
 let bookingsTickRunning = false
 async function runBookingsTick() {
   if (bookingsTickRunning) return
@@ -745,6 +748,10 @@ async function runBookingsTick() {
     if (holds.expired) console.log(`[worker] bookings holds ${formatLogTimestamp()} companies=${holds.companies} expired=${holds.expired}`)
     const mail = await bookingsNotifier.processDue({ limit: 25 })
     if (mail.processed) console.log(`[worker] bookings emails ${formatLogTimestamp()} processed=${mail.processed} sent=${mail.sent} retrying=${mail.retrying} failed=${mail.failed} skipped=${mail.skipped}`)
+    // Calendar mirror of everything not yet projected at its current version (expired holds included).
+    const calendar = await bookingsCalendar.syncDue()
+    if (calendar.processed) console.log(`[worker] bookings calendar ${formatLogTimestamp()} processed=${calendar.processed} created=${calendar.created} updated=${calendar.updated} removed=${calendar.removed} failed=${calendar.failed}`)
+    await pruneRateBuckets(prisma)
   } catch (err) {
     console.error('[worker] bookings tick failed:', err?.message ?? err)
     if (isConnectionError(err)) await reconnect()

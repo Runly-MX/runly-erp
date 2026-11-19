@@ -9,7 +9,9 @@ import {
   Edit2,
   Trash2,
   BellRing,
+  CalendarCheck,
 } from "lucide-react";
+import { Link } from "react-router-dom";
 import { useDeleteEvent } from "../hooks/useCalendarData";
 import { toast } from "sonner";
 import {
@@ -180,6 +182,8 @@ export default function EventDetailModal({
   const accepted = event.attendees?.filter((a) => a.status === "ACCEPTED").length ?? 0;
   const pending = event.attendees?.filter((a) => a.status === "PENDING").length ?? 0;
   const showDelete = canDelete && !event.sourceModule;
+  // Mirror of a reservation: managed (and re-written) by Reservaciones, never edited here.
+  const isBooking = event.sourceModule === "runly.bookings" && Boolean(event.sourceEntityId);
 
   async function doDelete() {
     try {
@@ -210,7 +214,7 @@ export default function EventDetailModal({
                   <span className="truncate">{event.calendar?.name ?? "Evento"}</span>
                 </span>
                 <div className="ml-auto flex items-center gap-0.5">
-                  {canEdit && (
+                  {canEdit && !isBooking && (
                     <button type="button" onClick={() => onEdit(event)} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Editar serie" : "Editar"}>
                       <Edit2 size={16} />
                     </button>
@@ -254,6 +258,13 @@ export default function EventDetailModal({
 
             {event.sourceModule === "runly.projects" && event.sourceEntityId && (
               <ProjectTaskCard taskId={event.sourceEntityId} onNavigate={onClose} />
+            )}
+
+            {isBooking && (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
+                <span className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]"><CalendarCheck size={16} aria-hidden="true" />Se administra en Reservaciones.</span>
+                <Link to={`/app/m/runly.bookings/reservations?reservacion=${event.sourceEntityId}`} onClick={onClose} className="inline-flex min-h-11 items-center font-medium text-[hsl(var(--primary))] hover:underline">Abrir reservación</Link>
+              </div>
             )}
 
             {event.description && (
