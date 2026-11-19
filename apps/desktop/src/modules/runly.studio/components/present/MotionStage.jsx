@@ -19,7 +19,8 @@ export const MotionStage = forwardRef(function MotionStage({ editor, document, p
   latest.current = time
   source.current = document
   const designKey = useMemo(() => designKeyOf(document, pageId), [document, pageId])
-  useImperativeHandle(handle, () => ({ capture: () => player.current?.captureFrame() ?? null }), [])
+  // capture: a copy of the pixels; frame: the live canvas itself (recording reads it every frame).
+  useImperativeHandle(handle, () => ({ capture: () => player.current?.captureFrame() ?? null, frame: () => player.current?.frameCanvas() ?? null }), [])
 
   function draw(at) {
     const renderer = player.current

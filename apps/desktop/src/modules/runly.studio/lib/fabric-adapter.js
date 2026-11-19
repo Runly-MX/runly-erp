@@ -446,6 +446,19 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
     }
     canvas.requestRenderAll()
   }
+  // Wipes/reveals (sceneAt `clip`): an absolute clip rectangle over the object's rotated visual box. Playback only.
+  function playbackClip(object, item) {
+    if (!item.clip) {
+      if (object.studioPlaybackClip) { object.clipPath = undefined; object.studioPlaybackClip = false; object.dirty = true }
+      return
+    }
+    const scaled = item.type === 'text' || item.type === 'line', w = scaled ? item.width * (item.scaleX ?? 1) : item.width, h = scaled ? item.height * (item.scaleY ?? 1) : item.height
+    const { left, top, right, bottom } = item.clip, r = item.rotation * Math.PI / 180, ox = left * w, oy = top * h
+    object.clipPath = new Rect({ absolutePositioned: true, originX: 'left', originY: 'top', strokeWidth: 0, angle: item.rotation,
+      left: item.x + ox * Math.cos(r) - oy * Math.sin(r), top: item.y + ox * Math.sin(r) + oy * Math.cos(r),
+      width: Math.max(0, w * (1 - left - right)), height: Math.max(0, h * (1 - top - bottom)) })
+    object.studioPlaybackClip = true; object.dirty = true
+  }
   function applyItem(object,item,patch) { setItem(object,item,patch); changed() }
   function setItem(object,item,patch) {
     if(object instanceof StudioPhoto){
@@ -916,6 +929,7 @@ async function createPageEditor(element, { document, resolveImage, onChange, onS
         if (!object || !previous) continue
         if (['width', 'height', 'scaleX', 'scaleY'].some(key => previous[key] !== item[key])) setItem(object, item, item)
         else { object.set({ left: item.x, top: item.y, angle: item.rotation, opacity: item.opacity ?? 1, visible: !item.hidden }); source.set(item.id, item) }
+        playbackClip(object, item)
       }
       canvas.cancelRequestedRender?.(); canvas.renderAll()
     },

@@ -2,12 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { documentPages, pageId } from '../../../../../../shared/studio/pages.js'
 import { presentationSequence, sceneHasMotion, transitionAt } from '../../../../../../shared/studio/motion.js'
 import { createSlideFrames } from '../../lib/slide-frames.js'
-import { advanceIfDue, elapsedOf, goTo, motionTime, next, previous, restartClock, setLoop, setPlaying, startPresentation } from '../../lib/presentation-state.js'
+import { advanceIfDue, goTo, motionTime, next, previous, restartClock, setFrozen, setLoop, setPlaying, startPresentation } from '../../lib/presentation-state.js'
 
 const clock = () => performance.now()
 // The editor rejects a stale snapshot ("El diseño cambió…") or a removed page.
 const isStale = error => /cambió|ya no existe/i.test(error?.message ?? '')
-const EMPTY_VIEW = { shown: null, leaving: null, transition: null, direction: 1, since: 0 }
+const EMPTY_VIEW = { shown: null, leaving: null, transition: null, direction: 1 }
 
 // Player state for one presentation session over a frozen snapshot of the design.
 // Static slides are images (slide-frames); slides with object motion are drawn live
@@ -37,6 +37,8 @@ export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
   const navigate = useCallback(change => {
     const s = stateRef.current, target = change(s, clock())
     if (target.index !== s.index) captureLeaving()
+    // Restarting the same slide replays its animations, never the transition that brought it.
+    else setView(v => (v.transition ? { ...v, leaving: null, transition: null } : v))
     setState(target)
   }, [captureLeaving])
 
@@ -46,7 +48,8 @@ export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
     const leaving = before && before.index !== target && before.kind !== 'live' ? before : null
     const transition = leaving ? (direction > 0 ? sequence[target].transition : sequence[leaving.index]?.transition) : null
     const animate = Boolean(leaving) && !reducedMotion && transition && transition.type !== 'none' && transition.duration > 0
-    setView({ shown: { index: target, ...entry }, leaving: animate ? leaving : null, transition: animate ? transition : null, direction, since: at })
+    // The transition runs on the slide clock restarted here: pausing freezes it too.
+    setView({ shown: { index: target, ...entry }, leaving: animate ? leaving : null, transition: animate ? transition : null, direction })
     setState(s => (s.index === target ? restartClock(s, at) : s))
     if (frames) frames.prefetch([sequence[target + 1], sequence[target - 1], stateRef.current.loop ? sequence[0] : null].filter(entry => entry && !entry.animated).map(entry => entry.pageId))
   }, [sequence, reducedMotion, frames])
@@ -63,11 +66,13 @@ export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
 
   const ready = view.shown?.index === index
   const liveShown = ready && view.shown.kind === 'live'
-  const transitioning = Boolean(view.transition) && now - view.since < view.transition.duration
-  const animating = liveShown && !state.frozen && motionTime(state, now) < current.duration
+  const slideTime = ready ? motionTime(state, now) : 0
+  // Drawn only once the destination is on screen, at the time of the one slide clock.
+  const transitioning = ready && Boolean(view.transition) && slideTime < view.transition.duration
+  const animating = liveShown && !state.frozen && slideTime < current.duration
   // One animation-frame loop while anything moves; time is read, never accumulated.
   useEffect(() => {
-    if (!state.playing && !transitioning && !animating) return undefined
+    if (state.frozen || (!state.playing && !transitioning && !animating)) return undefined
     let frame
     const loop = () => {
       const at = clock()
@@ -80,14 +85,14 @@ export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
     }
     frame = requestAnimationFrame(loop)
     return () => cancelAnimationFrame(frame)
-  }, [state.playing, transitioning, animating, ready, sequence, captureLeaving])
+  }, [state.playing, state.frozen, transitioning, animating, ready, sequence, captureLeaving])
 
   const layers = useMemo(() => {
     if (!view.shown) return { incoming: null, outgoing: null }
-    if (!transitioning) return { incoming: { ...view.shown, opacity: 1, dx: 0, dy: 0, scale: 1 }, outgoing: null }
-    const layer = transitionAt(view.transition, (now - view.since) / view.transition.duration, view.direction)
-    return { incoming: { ...view.shown, ...layer.incoming }, outgoing: { ...view.leaving, ...layer.outgoing } }
-  }, [view, transitioning, now])
+    if (!transitioning) return { incoming: { ...view.shown, opacity: 1, dx: 0, dy: 0, scale: 1 }, outgoing: null, front: 'incoming' }
+    const layer = transitionAt(view.transition, slideTime / view.transition.duration, view.direction)
+    return { incoming: { ...view.shown, ...layer.incoming }, outgoing: { ...view.leaving, ...layer.outgoing }, front: layer.front }
+  }, [view, transitioning, slideTime])
 
   const refresh = useCallback(async () => {
     await editor.flush()
@@ -100,15 +105,18 @@ export function usePresentation({ editor, startPageId, stage, reducedMotion }) {
   return {
     pages, sequence, index, state, ready, layers, failure, snapshot, live,
     // The live slide for MotionStage: the one on screen, or the next one loading underneath.
-    liveSlide: current.animated ? { index, pageId: current.pageId, time: ready ? motionTime(state, now) : 0, shown: liveShown } : null,
+    liveSlide: current.animated ? { index, pageId: current.pageId, time: slideTime, shown: liveShown } : null,
     onLiveReady: () => reveal(index, { kind: 'live' }),
     onLiveError: error => setFailure({ message: error.message, stale: isStale(error) }),
-    progress: state.playing && ready ? Math.min(1, elapsedOf(state, now) / current.duration) : 0,
+    progress: state.playing && ready ? Math.min(1, slideTime / current.duration) : 0, slideTime,
     actions: {
       next: () => navigate(next), previous: () => navigate(previous),
       first: () => navigate((s, at) => goTo(s, 0, at)), last: () => navigate((s, at) => goTo(s, s.count - 1, at)),
       toggle: () => { setNow(clock()); setState(s => setPlaying(s, !s.playing, clock())) },
       toggleLoop: () => setState(s => setLoop(s, !s.loop)),
+      restart: () => navigate((s, at) => goTo(s, 0, at)),
+      replay: () => navigate((s, at) => goTo(s, s.index, at)),
+      freeze: frozen => { const at = clock(); setNow(at); setState(s => setFrozen(s, frozen, at)) },
       refresh,
     },
   }

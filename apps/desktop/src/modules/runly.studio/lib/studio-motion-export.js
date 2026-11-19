@@ -16,9 +16,9 @@ import { documentPages, findPage, pageId } from '../../../../../shared/studio/pa
 import { abortable, checkAbort } from '../../../../../shared/studio/abort.js'
 import { ensureStudioFont } from './studio-fonts.js'
 import { frameTime, locate, planMotionExport } from './motion-export-plan.js'
+import { REST_LAYER, drawLayer, layerOrder } from './stage-layers.js'
 
 const CODECS = { mp4: ['avc1.640028', 'avc1.4d0028', 'avc1.42e028'], webm: ['vp09.00.10.08', 'vp8'] }
-const REST = Object.freeze({ opacity: 1, dx: 0, dy: 0, scale: 1 })
 
 // First encoder configuration the browser supports for this plan, or null (fallback).
 export async function pickEncoder(plan) {
@@ -57,16 +57,6 @@ function createPages(editor, document, signal) {
       await current?.player.destroy()
     },
   }
-}
-
-function draw(ctx, source, box, layer) {
-  ctx.save()
-  ctx.globalAlpha = layer.opacity
-  // Same transform as the player's CSS: translate by a fraction of the slide, scale around its centre.
-  ctx.translate(box.x + box.width / 2 + layer.dx * box.width, box.y + box.height / 2 + layer.dy * box.height)
-  ctx.scale(layer.scale, layer.scale)
-  ctx.drawImage(source, -box.width / 2, -box.height / 2, box.width, box.height)
-  ctx.restore()
 }
 
 // IVF container for VP8/VP9 frames (what ffmpeg remuxes into WebM).
@@ -165,9 +155,11 @@ export async function exportMotion({ editor, document, pages, options, signal, o
       ctx.fillStyle = '#000000'; ctx.fillRect(0, 0, plan.width, plan.height)
       if (at.transition) {
         const layers = transitionAt(at.transition, at.transition.progress, 1), leaving = pagesRenderer.outgoing
-        if (leaving) draw(ctx, leaving.canvas, leaving.box, layers.outgoing)
-        draw(ctx, page.player.frameCanvas(), segment.box, layers.incoming)
-      } else draw(ctx, page.player.frameCanvas(), segment.box, REST)
+        for (const role of layerOrder(layers.front)) {
+          if (role === 'outgoing') { if (leaving) drawLayer(ctx, leaving.canvas, leaving.box, layers.outgoing) }
+          else drawLayer(ctx, page.player.frameCanvas(), segment.box, layers.incoming)
+        }
+      } else drawLayer(ctx, page.player.frameCanvas(), segment.box, REST_LAYER)
       await sink.add(output, k)
       onProgress((k + 1) / plan.frames, 'rendering')
     }

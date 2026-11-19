@@ -13,7 +13,7 @@ test('manual navigation clamps without loop and wraps with loop', () => {
   state = previous(state, 50); assert.deepEqual([state.index, state.direction], [2, -1])
 })
 
-test('autoplay uses wall-clock elapsed time, pauses without drift and stops at the end', () => {
+test('autoplay uses the slide clock, pauses without drift and stops at the end', () => {
   let state = setPlaying(startPresentation({ count: 2, now: 1000 }), true, 1000)
   assert.equal(advanceIfDue(state, 5999, 5000), state)
   state = setPlaying(state, false, 3000); assert.equal(elapsedOf(state, 99_000), 2000)
@@ -47,4 +47,14 @@ test('the animation clock runs without autoplay, freezes on pause and restarts p
   state = setPlaying(state, true, 10_000); assert.equal(motionTime(state, 10_400), 2900, 'resume continues without a jump')
   state = next(state, 11_000); assert.equal(motionTime(state, 11_250), 250, 'a new slide starts at 0')
   state = restartClock(setPlaying(state, false, 11_500), 12_000); assert.equal(motionTime(state, 12_100), 100, 'a revealed slide always runs')
+})
+
+test('one clock: autoplay started mid-slide advances when the animations end, not a full slide later', () => {
+  let state = startPresentation({ count: 2, now: 0 })
+  state = setPlaying(state, true, 3000)
+  assert.equal(elapsedOf(state, 3000), motionTime(state, 3000), 'progress bar and animations read the same time')
+  assert.equal(advanceIfDue(state, 4999, 5000).index, 0)
+  assert.equal(advanceIfDue(state, 5000, 5000).index, 1)
+  state = setPlaying(state, false, 4000)
+  assert.equal(advanceIfDue({ ...state, playing: true }, 99_000, 5000).index, 0, 'a frozen clock never advances')
 })
