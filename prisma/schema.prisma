@@ -6979,3 +6979,236 @@ model ExternalFile {
  @@index([realmId])
  @@map("external_file")
 }
+
+// ── runly.bookings (spec 2026-11-18-bookings-engine-design) ──────────────────
+// Migration 20270108000000_bookings_engine also holds what Prisma cannot model:
+// composite (company_id, id) foreign keys, booking_allocation.during (tstzrange) with
+// its EXCLUDE constraint, CHECKs and the append-only trigger on booking_history.
+// Engine writes go through $queryRaw in bookings-command-service.js.
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  REJECTED
+  COMPLETED
+  NO_SHOW
+  EXPIRED
+
+  @@map("booking_status")
+}
+
+model BookingSpace {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  name        String
+  slug        String
+  description String?
+  mode        String   @default("internal") // internal | online | hybrid
+  timezone    String
+  published   Boolean  @default(false)
+  policy      Json     @default("{}") // leadMinutes, horizonDays, requiresApproval, holdMinutes, cancelUntilMinutes, rescheduleUntilMinutes
+  enabled     Boolean  @default(true)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@unique([companyId, slug])
+  @@map("booking_space")
+}
+
+model BookingSpaceMember {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  spaceId   String   @map("space_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  role      String // admin | agent | viewer
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([spaceId, userId])
+  @@index([userId])
+  @@map("booking_space_member")
+}
+
+model BookingService {
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId           String   @map("company_id") @db.Uuid
+  spaceId             String   @map("space_id") @db.Uuid
+  name                String
+  description         String?
+  kind                String // appointment | session
+  durationMinutes     Int      @map("duration_minutes")
+  bufferBeforeMinutes Int      @default(0) @map("buffer_before_minutes")
+  bufferAfterMinutes  Int      @default(0) @map("buffer_after_minutes")
+  slotStepMinutes     Int      @default(30) @map("slot_step_minutes")
+  capacity            Int      @default(1)
+  minParty            Int      @default(1) @map("min_party")
+  maxParty            Int      @default(1) @map("max_party")
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@index([spaceId])
+  @@map("booking_service")
+}
+
+model BookingResource {
+  id        String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId String   @map("company_id") @db.Uuid
+  name      String
+  type      String   @default("other") // staff | room | equipment | table | other
+  userId    String?  @map("user_id") @db.Uuid
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@map("booking_resource")
+}
+
+model BookingSpaceResource {
+  companyId  String @map("company_id") @db.Uuid
+  spaceId    String @map("space_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+
+  @@id([spaceId, resourceId])
+  @@map("booking_space_resource")
+}
+
+model BookingServiceResource {
+  companyId  String @map("company_id") @db.Uuid
+  serviceId  String @map("service_id") @db.Uuid
+  resourceId String @map("resource_id") @db.Uuid
+
+  @@id([serviceId, resourceId])
+  @@map("booking_service_resource")
+}
+
+model BookingScheduleRule {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  spaceId    String?  @map("space_id") @db.Uuid
+  resourceId String?  @map("resource_id") @db.Uuid
+  weekday    Int      @db.SmallInt
+  startTime  DateTime @map("start_time") @db.Time(0)
+  endTime    DateTime @map("end_time") @db.Time(0)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([spaceId])
+  @@index([resourceId])
+  @@map("booking_schedule_rule")
+}
+
+model BookingException {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  spaceId    String?  @map("space_id") @db.Uuid
+  resourceId String?  @map("resource_id") @db.Uuid
+  startsAt   DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime @map("ends_at") @db.Timestamptz(6)
+  kind       String // closed | open
+  reason     String?
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([companyId, startsAt])
+  @@map("booking_exception")
+}
+
+model BookingSession {
+  id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String   @map("company_id") @db.Uuid
+  spaceId    String   @map("space_id") @db.Uuid
+  serviceId  String   @map("service_id") @db.Uuid
+  resourceId String?  @map("resource_id") @db.Uuid
+  startsAt   DateTime @map("starts_at") @db.Timestamptz(6)
+  endsAt     DateTime @map("ends_at") @db.Timestamptz(6)
+  capacity   Int
+  seatsTaken Int      @default(0) @map("seats_taken")
+  status     String   @default("scheduled") // scheduled | cancelled
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@index([serviceId, startsAt])
+  @@map("booking_session")
+}
+
+model Booking {
+  id              String        @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId       String        @map("company_id") @db.Uuid
+  spaceId         String        @map("space_id") @db.Uuid
+  serviceId       String        @map("service_id") @db.Uuid
+  sessionId       String?       @map("session_id") @db.Uuid
+  status          BookingStatus
+  startsAt        DateTime      @map("starts_at") @db.Timestamptz(6)
+  endsAt          DateTime      @map("ends_at") @db.Timestamptz(6)
+  partySize       Int           @default(1) @map("party_size")
+  contactId       String?       @map("contact_id") @db.Uuid
+  guestName       String?       @map("guest_name")
+  guestEmail      String?       @map("guest_email")
+  guestPhone      String?       @map("guest_phone")
+  notes           String?
+  channel         String        @default("backoffice") // backoffice | portal | website | pos | api
+  holdExpiresAt   DateTime?     @map("hold_expires_at") @db.Timestamptz(6)
+  manageTokenHash String?       @unique @map("manage_token_hash")
+  createdById     String?       @map("created_by_id") @db.Uuid
+  version         Int           @default(1)
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt       DateTime      @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@index([companyId, startsAt])
+  @@index([companyId, status])
+  @@index([spaceId, startsAt])
+  @@index([sessionId])
+  @@map("booking")
+}
+
+model BookingAllocation {
+  id         String                   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String                   @map("company_id") @db.Uuid
+  bookingId  String?                  @map("booking_id") @db.Uuid
+  sessionId  String?                  @map("session_id") @db.Uuid
+  resourceId String                   @map("resource_id") @db.Uuid
+  during     Unsupported("tstzrange")
+  active     Boolean                  @default(true)
+  createdAt  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([bookingId])
+  @@index([sessionId])
+  @@map("booking_allocation")
+}
+
+model BookingHistory {
+  id         String         @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId  String         @map("company_id") @db.Uuid
+  bookingId  String         @map("booking_id") @db.Uuid
+  actorId    String?        @map("actor_id") @db.Uuid
+  actorKind  String         @default("user") @map("actor_kind") // user | portal | system
+  action     String
+  fromStatus BookingStatus? @map("from_status")
+  toStatus   BookingStatus? @map("to_status")
+  before     Json?
+  after      Json?
+  createdAt  DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([bookingId, createdAt])
+  @@map("booking_history")
+}
+
+model BookingIdempotency {
+  id          String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  scope       String
+  operation   String
+  key         String
+  requestHash String   @map("request_hash")
+  bookingId   String?  @map("booking_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@unique([companyId, scope, operation, key], map: "booking_idempotency_key_key")
+  @@map("booking_idempotency")
+}
