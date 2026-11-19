@@ -59,6 +59,8 @@ export function serializeBooking(row, resourceIds = undefined) {
   return {
     actions: bookingActions(row),
     id: row.id,
+    reference: row.reference,
+    pageId: row.page_id ?? null,
     spaceId: row.space_id,
     serviceId: row.service_id,
     sessionId: row.session_id,
@@ -141,5 +143,7 @@ export function policyOf(space) {
     horizonDays: Number(p.horizonDays ?? 90),
     requiresApproval: Boolean(p.requiresApproval),
     holdMinutes: p.holdMinutes == null ? null : Number(p.holdMinutes),
+    cancelUntilMinutes: p.cancelUntilMinutes == null ? null : Number(p.cancelUntilMinutes),
+    rescheduleUntilMinutes: p.rescheduleUntilMinutes == null ? null : Number(p.rescheduleUntilMinutes),
   }
 }

@@ -39,6 +39,12 @@ En el detalle de una reservación aparecen solo las acciones válidas para su es
 
 Pendiente (espera aprobación y aparta el horario), Confirmada, Cancelada, Rechazada, Completada, No presentada y Expirada (una pendiente que no se confirmó a tiempo).
 
-### Publicación online
+### Reservas online
 
-La modalidad online o híbrida prepara el sistema para que los clientes reserven solos. El portal público todavía no está disponible; cuando llegue usará estos mismos servicios, horarios y políticas.
+En la pestaña **Reservas online** de un sistema activas **Publicar este sistema** y creas **páginas públicas**: una general o una por servicio, con su dirección (`.../app/p/reservar/tu-pagina`), servicios visibles, ubicación, indicaciones, políticas de cancelación, reprogramación y puntualidad, aviso de privacidad y color. Usa **Vista previa** para revisarla antes de publicarla y **Copiar enlace** para compartirla.
+
+Tus clientes reservan sin crear cuenta: eligen servicio, fecha y hora libres, escriben sus datos, aceptan las políticas y reciben un folio y un correo con un **enlace personal** para consultar, reprogramar o cancelar. Si el sistema requiere aprobación, la reservación queda pendiente hasta que alguien del equipo la confirme.
+
+En **Configuración** defines hasta cuántas horas antes el cliente puede cancelar o reprogramar en línea; tu equipo siempre puede hacerlo desde el ERP. Si cambias las políticas, los clientes nuevos deben aceptarlas de nuevo.
+
+Desactivar la publicación no borra nada: los clientes conservan el acceso a lo que ya reservaron (consultar y cancelar), pero no se aceptan reservaciones nuevas. Si un cliente perdió o compartió su enlace, abre la reservación y usa **Enviar nuevo enlace al cliente**: el anterior deja de funcionar.

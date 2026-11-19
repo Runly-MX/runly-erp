@@ -36,8 +36,13 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
   async function updateSpace({ companyId, spaceId, input }) {
     if (input.timezone) await assertTimezone(input.timezone)
     const data = pick(input, { name: 'name', slug: 'slug', description: 'description', mode: 'mode', timezone: 'timezone', policy: 'policy', published: 'published', enabled: 'enabled' })
+    const before = await prisma.bookingSpace.findFirst({ where: { id: spaceId, companyId }, select: { policy: true } })
     const result = await prisma.bookingSpace.updateMany({ where: { id: spaceId, companyId }, data }).catch(uniqueSlug)
     if (!result.count) throw notFound('Sistema de reservaciones')
+    // Customers accepted the previous cut-offs: new policies need a new acceptance.
+    if (input.policy && JSON.stringify(before?.policy ?? {}) !== JSON.stringify(input.policy)) {
+      await prisma.bookingPage.updateMany({ where: { companyId, spaceId }, data: { policyVersion: { increment: 1 } } })
+    }
     return prisma.bookingSpace.findFirst({ where: { id: spaceId, companyId } })
   }
 
@@ -287,6 +292,45 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
     return row.spaceId
   }
 
+  // ---- Public pages (phase 3) ----------------------------------------------------
+  const POLICY_FIELDS = ['cancellationPolicy', 'reschedulePolicy', 'punctualityPolicy', 'privacyNotice']
+  const pageData = (input) => pick(input, {
+    slug: 'slug', title: 'title', description: 'description', location: 'location', instructions: 'instructions', serviceIds: 'serviceIds',
+    published: 'published', allowResourceChoice: 'allowResourceChoice', requirePhone: 'requirePhone', cancellationPolicy: 'cancellationPolicy',
+    reschedulePolicy: 'reschedulePolicy', punctualityPolicy: 'punctualityPolicy', privacyNotice: 'privacyNotice', accentColor: 'accentColor', enabled: 'enabled',
+  })
+  const slugTaken = (error) => {
+    if (error?.code === 'P2002') throw new BookingError('Esa dirección ya está en uso. Elige otra.', 409, 'SLUG_TAKEN')
+    throw error
+  }
+
+  async function assertServices(companyId, spaceId, serviceIds = []) {
+    const found = await prisma.bookingService.count({ where: { companyId, spaceId, id: { in: serviceIds } } })
+    if (found !== new Set(serviceIds).size) throw notFound('Servicio')
+  }
+
+  const listPages = ({ companyId, spaceId }) => prisma.bookingPage.findMany({ where: { companyId, spaceId, enabled: true }, orderBy: { createdAt: 'asc' } })
+
+  async function getPageRow({ companyId, pageId }) {
+    const page = await prisma.bookingPage.findFirst({ where: { id: pageId, companyId } })
+    if (!page) throw notFound('Página')
+    return page
+  }
+
+  async function createPage({ companyId, spaceId, input }) {
+    await assertServices(companyId, spaceId, input.serviceIds)
+    return prisma.bookingPage.create({ data: { companyId, spaceId, ...pageData(input) } }).catch(slugTaken)
+  }
+
+  // Changing any customer-facing policy text asks customers to accept it again.
+  async function updatePage({ companyId, pageId, input }) {
+    const current = await getPageRow({ companyId, pageId })
+    if (input.serviceIds) await assertServices(companyId, current.spaceId, input.serviceIds)
+    const bump = POLICY_FIELDS.some((key) => input[key] !== undefined && (input[key] ?? null) !== (current[key] ?? null))
+    await prisma.bookingPage.updateMany({ where: { id: pageId, companyId }, data: { ...pageData(input), ...(bump ? { policyVersion: { increment: 1 } } : {}) } }).catch(slugTaken)
+    return getPageRow({ companyId, pageId })
+  }
+
   const history = ({ companyId, bookingId }) => prisma.$queryRaw`
     SELECT h.id, h.action, h.from_status AS "fromStatus", h.to_status AS "toStatus", h.before, h.after, h.created_at AS "createdAt",
            h.actor_kind AS "actorKind", h.actor_id AS "actorId", u.display_name AS "actorName"
@@ -301,5 +345,6 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
     getSchedule, setSchedule, listExceptions, createException, getException, deleteException,
     listSessions, getSession, listBookings, bookingSpaceId, history,
     spaceSummary, listSpaceResourceIds, listServiceResourceIds, isAnySpaceMember, myRoles,
+    listPages, getPageRow, createPage, updatePage,
   }
 }

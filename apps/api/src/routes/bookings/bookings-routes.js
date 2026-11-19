@@ -9,6 +9,8 @@ import {
   bookingSearchQuerySchema, bookingSessionCreateSchema, bookingSpaceCreateSchema, bookingSpaceUpdateSchema, bookingTransitionSchema,
 } from '@runly/validators'
 import { bookingsWorkbook } from './bookings-export.js'
+import { bookingPageCreateSchema, bookingPageUpdateSchema } from '@runly/validators'
+import { pageUrl, previewToken } from './bookings-links.js'
 import { BookingError, canManageCatalog, isBookingsAdmin, requireSpaceRole } from './bookings-core.js'
 import { createBookingsAvailabilityService } from './bookings-availability-service.js'
 import { createBookingsCommandService } from './bookings-command-service.js'
@@ -16,7 +18,7 @@ import { createBookingsConfigService } from './bookings-config-service.js'
 
 const TRANSITION_PATHS = { confirm: 'CONFIRMED', reject: 'REJECTED', cancel: 'CANCELLED', complete: 'COMPLETED', 'no-show': 'NO_SHOW' }
 
-export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null }) {
+export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null, env = process.env }) {
   const app = new Hono()
   const config = createBookingsConfigService({ prisma, cacheDel })
   const availability = createBookingsAvailabilityService({ prisma })
@@ -247,6 +249,34 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
     const input = await parse(c, bookingRescheduleSchema)
     return changed(c, await cmd.reschedule({ companyId: companyId(c), actorId: userId(c), bookingId: c.req.param('id'), input, idempotencyKey: idempotencyKey(c) }))
   }))
+  // Revokes the customer's manage link and emails a new one.
+  app.post('/bookings/reservations/:id/manage-link', access, run(async (c) => {
+    await bookingRole(c, 'agent')
+    return c.json({ data: await cmd.rotateManageLink({ companyId: companyId(c), actorId: userId(c), bookingId: c.req.param('id') }) })
+  }))
+
+  // Public pages of a space (phase 3).
+  const pageOut = (p) => ({ ...p, url: pageUrl(p.slug, env) })
+  app.get('/bookings/spaces/:spaceId/pages', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'viewer')
+    return c.json({ data: (await config.listPages({ companyId: companyId(c), spaceId: c.req.param('spaceId') })).map(pageOut) })
+  }))
+  app.post('/bookings/spaces/:spaceId/pages', access, run(async (c) => {
+    await space(c, c.req.param('spaceId'), 'admin')
+    return c.json({ data: pageOut(await config.createPage({ companyId: companyId(c), spaceId: c.req.param('spaceId'), input: await parse(c, bookingPageCreateSchema) })) }, 201)
+  }))
+  app.patch('/bookings/pages/:pageId', access, run(async (c) => {
+    const page = await config.getPageRow({ companyId: companyId(c), pageId: c.req.param('pageId') })
+    await space(c, page.spaceId, 'admin')
+    return c.json({ data: pageOut(await config.updatePage({ companyId: companyId(c), pageId: page.id, input: await parse(c, bookingPageUpdateSchema) })) })
+  }))
+  // Short-lived link that shows an unpublished page read-only.
+  app.post('/bookings/pages/:pageId/preview', access, run(async (c) => {
+    const page = await config.getPageRow({ companyId: companyId(c), pageId: c.req.param('pageId') })
+    await space(c, page.spaceId, 'admin')
+    return c.json({ data: { url: `${pageUrl(page.slug, env)}?vista=${encodeURIComponent(previewToken(page.id, env))}` } })
+  }))
+
   for (const [path, to] of Object.entries(TRANSITION_PATHS)) {
     app.post(`/bookings/reservations/:id/${path}`, access, run(async (c) => {
       await bookingRole(c, 'agent')

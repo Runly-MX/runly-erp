@@ -120,7 +120,7 @@ import { createStudioRouter } from './routes/studio/index.js';
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
 import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
-import { createBookingsRouter } from "./routes/bookings/index.js";
+import { createBookingsRouter, createBookingsPortalRouter } from "./routes/bookings/index.js";
 import { createCertTemplateOfficeRescan } from "./routes/lms/lms-cert-templates.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
@@ -909,7 +909,7 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret", "X-Pos-Device-Token"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret", "X-Pos-Device-Token", "X-Booking-Token"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),
@@ -2294,6 +2294,9 @@ app.route("/", createAttendancePublicRouter({ prisma, supabaseAdmin, bucket: STO
 // POS registers opened from a link: /public/pos/devices/* (link + device token, no user auth).
 app.route("/", createPosDevicePublicRouter({ deviceService: posDeviceService }));
 
+// Reservaciones: public Booking Portal, /public/bookings/* (no user auth; rate limited, own origins only).
+app.route("/", createBookingsPortalRouter({ prisma, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId) }));
+
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
 app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
 
@@ -2342,6 +2345,10 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/modules",                        auth: "none",       description: "Installed and enabled modules (key, name, version, navigation)" },
       { method: "GET",  path: "/public/blueprints",                     auth: "none",       description: "Public custom views declared by modules (schema, component path)" },
       { method: "ALL",  path: "/public/m/:moduleKey/:token/*",          auth: "link token", description: "Module public links: _context plus the module api/public.js routes" },
+      { method: "GET",  path: "/public/bookings/pages/:slug",            auth: "none",       description: "Published booking page: services and policies" },
+      { method: "GET",  path: "/public/bookings/pages/:slug/availability", auth: "none",     description: "Free times or session seats of a published service" },
+      { method: "POST", path: "/public/bookings/pages/:slug/reservations", auth: "none + Idempotency-Key", description: "Self-scheduled booking (rate limited)" },
+      { method: "GET",  path: "/public/bookings/manage",                 auth: "X-Booking-Token", description: "Customer view of one booking (also /availability, POST /cancel, /reschedule)" },
       { method: "GET",  path: "/public/lms/certificates/:token",        auth: "link token", description: "Learning certificate verification (valid or revoked)" },
       { method: "GET",  path: "/public/lms/certificates/:token/pdf",    auth: "link token", description: "Learning certificate PDF (revoked ones are stamped)" },
       { method: "GET",  path: "/public/lms/share/:token",               auth: "link token", description: "Shared course summary and outline for external guests" },

@@ -6,6 +6,7 @@ import { DOMAIN_EVENTS } from '../../services/domain-events/events.js'
 import { BookingError, TRANSITIONS, eligibleResources, loadResourceWindows, notFound, policyOf, serializeBooking } from './bookings-core.js'
 import { bookingWindowLimits } from './bookings-availability-service.js'
 import { fitsWindow } from './bookings-slots.js'
+import { hashToken, manageExpiry, manageToken } from './bookings-links.js'
 
 const M = 60000
 
@@ -14,6 +15,8 @@ export const OCCUPYING = new Set(['PENDING', 'CONFIRMED'])
 export { TRANSITIONS }
 const LABEL = { PENDING: 'Pendiente', CONFIRMED: 'Confirmada', CANCELLED: 'Cancelada', REJECTED: 'Rechazada', COMPLETED: 'Completada', NO_SHOW: 'No presentada', EXPIRED: 'Expirada' }
 const EVENT_OF = { CONFIRMED: 'confirmed', CANCELLED: 'cancelled', REJECTED: 'rejected', COMPLETED: 'completed', NO_SHOW: 'no_show', EXPIRED: 'expired' }
+// Customer emails per transition (none for completed, no-show or expiry).
+const NOTIFY_OF = { CONFIRMED: 'confirmed', CANCELLED: 'cancelled', REJECTED: 'rejected' }
 
 // SQLSTATE through Prisma's driver-adapter error wrappers.
 export function pgCode(error) {
@@ -107,6 +110,24 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
         payload: { id: row.id, spaceId: row.space_id, serviceId: row.service_id, status: row.status, startsAt: new Date(row.starts_at).toISOString(), endsAt: new Date(row.ends_at).toISOString(), partySize: row.party_size, channel: row.channel, contactId: row.contact_id ?? null },
       },
     })
+  }
+
+  // Customer email for this change, in the same transaction; the worker sends it
+  // later. dedupe_key makes retries and replays enqueue it only once.
+  async function notify(tx, row, kind) {
+    if (!row.guest_email || !kind) return
+    await tx.$executeRaw`
+      INSERT INTO booking_notification (company_id, booking_id, kind, dedupe_key, recipient)
+      VALUES (${row.company_id}::uuid, ${row.id}::uuid, ${kind}, ${`${row.id}:${kind}:${row.version}`}, ${row.guest_email})
+      ON CONFLICT (dedupe_key) DO NOTHING`
+  }
+
+  // Customers act from the portal only while the space's cut-off allows it.
+  function assertCustomerWindow(row, minutes, what) {
+    if (minutes == null) return
+    if (now() > new Date(row.starts_at).getTime() - Number(minutes) * M) {
+      throw new BookingError(`Ya no es posible ${what} en línea; comunícate con el negocio.`, 409, 'POLICY_WINDOW_CLOSED')
+    }
   }
 
   // Frees what a booking occupies: resource allocations and session seats.
@@ -223,10 +244,12 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
     if (!row) throw notFound('Contacto')
   }
 
-  async function create({ companyId, actorId, spaceId, input, idempotencyKey = null, channel = 'backoffice' }) {
+  // portal: { pageId, acceptance } for self-scheduled bookings (actorId null).
+  async function create({ companyId, actorId, spaceId, input, idempotencyKey = null, channel = 'backoffice', portal = null }) {
     const hash = requestHash('create', { spaceId, channel, ...input })
+    const scope = portal ? `portal:${portal.pageId}` : `user:${actorId}`
     return inTx(async (tx) => {
-      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: 'create', key: idempotencyKey, hash })
+      const claimed = await claim(tx, { companyId, scope, operation: 'create', key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const space = await loadSpace(tx, companyId, spaceId)
       const service = await loadService(tx, companyId, space.id, input.serviceId)
@@ -253,30 +276,41 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
         const range = occupiedRange(service, start, end)
         await expireStaleHolds(tx, companyId, { resourceIds: candidates, ...range })
       }
-      const row = (await tx.$queryRaw`
+      // A manage link exists whenever the customer can receive or keep it.
+      const linked = Boolean(portal || input.guestEmail)
+      let row = (await tx.$queryRaw`
         INSERT INTO booking (company_id, space_id, service_id, session_id, status, starts_at, ends_at, party_size,
-                             contact_id, guest_name, guest_email, guest_phone, notes, channel, hold_expires_at, created_by_id)
+                             contact_id, guest_name, guest_email, guest_phone, notes, channel, hold_expires_at, created_by_id,
+                             page_id, policy_acceptance, manage_token_version, manage_token_expires_at)
         VALUES (${companyId}::uuid, ${space.id}::uuid, ${service.id}::uuid, ${session?.id ?? null}::uuid, ${status}::booking_status,
                 ${start}, ${end}, ${partySize}, ${input.contactId ?? null}::uuid, ${input.guestName ?? null}, ${input.guestEmail ?? null},
-                ${input.guestPhone ?? null}, ${input.notes ?? null}, ${channel}, ${holdExpiresAt}, ${actorId}::uuid)
+                ${input.guestPhone ?? null}, ${input.notes ?? null}, ${channel}, ${holdExpiresAt}, ${actorId}::uuid,
+                ${portal?.pageId ?? null}::uuid, ${portal?.acceptance ? JSON.stringify(portal.acceptance) : null}::jsonb,
+                ${linked ? 1 : 0}, ${linked ? manageExpiry(end) : null})
         RETURNING *`)[0]
+      if (linked) {
+        row = (await tx.$queryRaw`UPDATE booking SET manage_token_hash = ${hashToken(manageToken(row.id, 1))} WHERE id = ${row.id}::uuid RETURNING *`)[0]
+      }
       const resourceIds = candidates
         ? [await allocate(tx, { companyId, bookingId: row.id, candidates, range: occupiedRange(service, start, end) })]
         : []
       await settle(tx, claimed, row.id)
-      await history(tx, { companyId, row, actorId, action: 'create', to: status, after: serializeBooking(row, resourceIds) })
+      await history(tx, { companyId, row, actorId, actorKind: portal ? 'portal' : 'user', action: 'create', to: status, after: serializeBooking(row, resourceIds) })
       await emit(tx, companyId, 'created', row)
+      await notify(tx, row, status === 'PENDING' ? 'pending' : 'confirmed')
       return { booking: serializeBooking(row, resourceIds), replayed: false }
     })
   }
 
-  async function transition({ companyId, actorId, bookingId, to, input = {}, idempotencyKey = null, actorKind = 'user' }) {
+  // customer: { cancelUntilMinutes } when the customer acts from the portal.
+  async function transition({ companyId, actorId, bookingId, to, input = {}, idempotencyKey = null, actorKind = 'user', customer = null }) {
     if (!EVENT_OF[to]) throw new BookingError('Estado inválido.', 400, 'INVALID_STATUS')
     const hash = requestHash(`transition:${to}`, { bookingId, ...input })
     return inTx(async (tx) => {
-      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: `transition:${to}`, key: idempotencyKey, hash })
+      const claimed = await claim(tx, { companyId, scope: customer ? `portal-manage:${bookingId}` : `user:${actorId}`, operation: `transition:${to}`, key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const row = await lockBooking(tx, companyId, bookingId)
+      if (customer && to === 'CANCELLED' && OCCUPYING.has(row.status)) assertCustomerWindow(row, customer.cancelUntilMinutes, 'cancelar')
       if (input.expectedVersion && row.version !== input.expectedVersion) throw new BookingError('La reservación cambió mientras la editabas.', 409, 'VERSION_CONFLICT')
       if (!(TRANSITIONS[row.status] ?? []).includes(to)) throw new BookingError(`Una reservación ${LABEL[row.status].toLowerCase()} no puede pasar a ${LABEL[to].toLowerCase()}.`, 409, 'INVALID_TRANSITION')
       if ((to === 'COMPLETED' || to === 'NO_SHOW') && now() < new Date(row.starts_at).getTime()) {
@@ -295,18 +329,21 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
       await settle(tx, claimed, row.id)
       await history(tx, { companyId, row, actorId, actorKind, action: to.toLowerCase(), from: row.status, to, before, after: { ...serializeBooking(updated, resourceIds), ...(input.reason ? { reason: input.reason } : {}) } })
       await emit(tx, companyId, EVENT_OF[to], updated)
+      await notify(tx, updated, NOTIFY_OF[to])
       return { booking: serializeBooking(updated, resourceIds), replayed: false }
     })
   }
 
-  async function reschedule({ companyId, actorId, bookingId, input, idempotencyKey = null }) {
+  // customer: { rescheduleUntilMinutes, allowResource } when the customer acts from the portal.
+  async function reschedule({ companyId, actorId, bookingId, input, idempotencyKey = null, actorKind = 'user', customer = null }) {
     const hash = requestHash('reschedule', { bookingId, ...input })
     return inTx(async (tx) => {
-      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: 'reschedule', key: idempotencyKey, hash })
+      const claimed = await claim(tx, { companyId, scope: customer ? `portal-manage:${bookingId}` : `user:${actorId}`, operation: 'reschedule', key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const row = await lockBooking(tx, companyId, bookingId)
       if (input.expectedVersion && row.version !== input.expectedVersion) throw new BookingError('La reservación cambió mientras la editabas.', 409, 'VERSION_CONFLICT')
       if (!OCCUPYING.has(row.status)) throw new BookingError('Solo se reprograman reservaciones pendientes o confirmadas.', 409, 'INVALID_TRANSITION')
+      if (customer) assertCustomerWindow(row, customer.rescheduleUntilMinutes, 'reprogramar')
       const space = await loadSpace(tx, companyId, row.space_id)
       const service = await loadService(tx, companyId, space.id, row.service_id)
       const before = serializeBooking(row, await activeResources(tx, row.id))
@@ -329,12 +366,33 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
         resourceIds = [await allocate(tx, { companyId, bookingId: row.id, candidates, range })]
       }
       const updated = (await tx.$queryRaw`
-        UPDATE booking SET starts_at = ${start}, ends_at = ${end}, session_id = ${sessionId}::uuid, version = version + 1, updated_at = now()
+        UPDATE booking SET starts_at = ${start}, ends_at = ${end}, session_id = ${sessionId}::uuid, version = version + 1, updated_at = now(),
+               manage_token_expires_at = CASE WHEN manage_token_version > 0 THEN ${manageExpiry(end)}::timestamptz ELSE manage_token_expires_at END
          WHERE id = ${row.id}::uuid RETURNING *`)[0]
       await settle(tx, claimed, row.id)
-      await history(tx, { companyId, row, actorId, action: 'reschedule', from: row.status, to: row.status, before, after: serializeBooking(updated, resourceIds) })
+      await history(tx, { companyId, row, actorId, actorKind, action: 'reschedule', from: row.status, to: row.status, before, after: serializeBooking(updated, resourceIds) })
       await emit(tx, companyId, 'rescheduled', updated)
+      await notify(tx, updated, 'rescheduled')
       return { booking: serializeBooking(updated, resourceIds), replayed: false }
+    })
+  }
+
+  // Revokes the current manage link and issues a new one (sent by email).
+  async function rotateManageLink({ companyId, actorId, bookingId }) {
+    return inTx(async (tx) => {
+      const row = await lockBooking(tx, companyId, bookingId)
+      if (!row.guest_email) throw new BookingError('La reservación no tiene correo del cliente para enviarle un enlace.', 422, 'NO_GUEST_EMAIL')
+      const version = row.manage_token_version + 1
+      const updated = (await tx.$queryRaw`
+        UPDATE booking SET manage_token_version = ${version}, manage_token_hash = ${hashToken(manageToken(row.id, version))},
+               manage_token_expires_at = ${manageExpiry(row.ends_at)}, updated_at = now()
+         WHERE id = ${row.id}::uuid RETURNING *`)[0]
+      await history(tx, { companyId, row, actorId, action: 'manage_link', from: row.status, to: row.status })
+      await tx.$executeRaw`
+        INSERT INTO booking_notification (company_id, booking_id, kind, dedupe_key, recipient)
+        VALUES (${companyId}::uuid, ${row.id}::uuid, 'manage_link', ${`${row.id}:manage_link:${version}`}, ${row.guest_email})
+        ON CONFLICT (dedupe_key) DO NOTHING`
+      return serializeBooking(updated, await activeResources(tx, row.id))
     })
   }
 
@@ -372,5 +430,13 @@ export function createBookingsCommandService({ prisma, now = () => Date.now() })
   // Worker entry point (phase 3): expire every stale hold of a company.
   const expireHolds = ({ companyId }) => inTx((tx) => expireStaleHolds(tx, companyId))
 
-  return { create, transition, reschedule, createSession, cancelSession, expireHolds, view: (companyId, id) => view(prisma, companyId, id) }
+  // Worker sweep across companies: idempotent (each stale hold is claimed by one UPDATE).
+  async function expireAllHolds() {
+    const companies = await prisma.$queryRaw`SELECT DISTINCT company_id FROM booking WHERE status = 'PENDING' AND hold_expires_at < now()`
+    let expired = 0
+    for (const { company_id: companyId } of companies) expired += await expireHolds({ companyId })
+    return { companies: companies.length, expired }
+  }
+
+  return { create, transition, reschedule, rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id) }
 }

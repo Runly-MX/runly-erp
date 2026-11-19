@@ -7156,6 +7156,11 @@ model Booking {
   channel         String        @default("backoffice") // backoffice | portal | website | pos | api
   holdExpiresAt   DateTime?     @map("hold_expires_at") @db.Timestamptz(6)
   manageTokenHash String?       @unique @map("manage_token_hash")
+  manageTokenVersion   Int       @default(0) @map("manage_token_version")
+  manageTokenExpiresAt DateTime? @map("manage_token_expires_at") @db.Timestamptz(6)
+  pageId          String?       @map("page_id") @db.Uuid
+  reference       String        @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 8))"))
+  policyAcceptance Json?        @map("policy_acceptance")
   createdById     String?       @map("created_by_id") @db.Uuid
   version         Int           @default(1)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -7165,7 +7170,9 @@ model Booking {
   @@index([companyId, startsAt])
   @@index([companyId, status])
   @@index([spaceId, startsAt])
+  @@unique([companyId, reference])
   @@index([sessionId])
+  @@index([status, holdExpiresAt])
   @@map("booking")
 }
 
@@ -7213,4 +7220,53 @@ model BookingIdempotency {
 
   @@unique([companyId, scope, operation, key], map: "booking_idempotency_key_key")
   @@map("booking_idempotency")
+}
+
+model BookingPage {
+  id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId           String   @map("company_id") @db.Uuid
+  spaceId             String   @map("space_id") @db.Uuid
+  slug                String   @unique
+  title               String
+  description         String?
+  location            String?
+  instructions        String?
+  serviceIds          String[] @default([]) @map("service_ids") @db.Uuid
+  published           Boolean  @default(false)
+  allowResourceChoice Boolean  @default(false) @map("allow_resource_choice")
+  requirePhone        Boolean  @default(false) @map("require_phone")
+  cancellationPolicy  String?  @map("cancellation_policy")
+  reschedulePolicy    String?  @map("reschedule_policy")
+  punctualityPolicy   String?  @map("punctuality_policy")
+  privacyNotice       String?  @map("privacy_notice")
+  policyVersion       Int      @default(1) @map("policy_version")
+  accentColor         String?  @map("accent_color")
+  enabled             Boolean  @default(true)
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, id])
+  @@index([spaceId])
+  @@map("booking_page")
+}
+
+model BookingNotification {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  bookingId     String    @map("booking_id") @db.Uuid
+  kind          String // pending | confirmed | rescheduled | cancelled | rejected | manage_link
+  dedupeKey     String    @unique @map("dedupe_key")
+  recipient     String
+  status        String    @default("pending") // pending | sending | sent | failed | skipped
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, nextAttemptAt])
+  @@index([bookingId])
+  @@map("booking_notification")
 }

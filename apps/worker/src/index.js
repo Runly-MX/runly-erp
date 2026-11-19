@@ -49,7 +49,10 @@ import { createSupabaseAdminClient } from '../../api/src/services/supabase-admin
 import { createGrowthAggregationWorker } from '../../api/src/services/growth-aggregation-worker.js'
 import { createGrowthErrorSpikeWorker } from '../../api/src/services/growth-error-spike-worker.js'
 import { createGrowthMonitorWorker } from '../../api/src/services/growth-monitor-worker.js'
-import { createSmtpService } from '../../api/src/services/smtp-service.js'
+import { createSmtpService, createCompanyMailer } from '../../api/src/services/smtp-service.js'
+import { createCompanyBrandService } from '../../api/src/services/company-brand-service.js'
+import { createBookingsNotifier } from '../../api/src/routes/bookings/bookings-notifications.js'
+import { createBookingsCommandService } from '../../api/src/routes/bookings/bookings-command-service.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -729,6 +732,28 @@ async function runMeetingChannelArchiveTick() {
     if (isConnectionError(err)) await reconnect()
   }
 }
+// runly.bookings: customer emails (booking_notification outbox) and expiry of
+// PENDING holds past hold_expires_at, which frees their resources and seats.
+const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId) })
+const bookingsCommands = createBookingsCommandService({ prisma })
+let bookingsTickRunning = false
+async function runBookingsTick() {
+  if (bookingsTickRunning) return
+  bookingsTickRunning = true
+  try {
+    const holds = await bookingsCommands.expireAllHolds()
+    if (holds.expired) console.log(`[worker] bookings holds ${formatLogTimestamp()} companies=${holds.companies} expired=${holds.expired}`)
+    const mail = await bookingsNotifier.processDue({ limit: 25 })
+    if (mail.processed) console.log(`[worker] bookings emails ${formatLogTimestamp()} processed=${mail.processed} sent=${mail.sent} retrying=${mail.retrying} failed=${mail.failed} skipped=${mail.skipped}`)
+  } catch (err) {
+    console.error('[worker] bookings tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  } finally {
+    bookingsTickRunning = false
+  }
+}
+setTimeout(runBookingsTick, 20_000)
+setInterval(runBookingsTick, Number(process.env.RUNLY_BOOKINGS_TICK_MS ?? 30_000))
 setTimeout(runMeetingChannelArchiveTick, 150_000)
 setInterval(runMeetingChannelArchiveTick, 6 * 60 * 60 * 1000)
 

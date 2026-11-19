@@ -19,27 +19,31 @@ export const bookingPolicySchema = z.object({
   rescheduleUntilMinutes: minutes(0, 525600).optional().nullable(),
 }).strict();
 
-export const bookingSpaceCreateSchema = z.object({
+// Update schemas are built from shapes WITHOUT defaults: zod applies `.default()`
+// even inside `.partial()`, so a PATCH would silently reset fields it did not send.
+const spaceShape = {
   name,
   slug: z.string().trim().toLowerCase().regex(/^[a-z0-9](?:[a-z0-9-]{0,62}[a-z0-9])?$/, 'Solo minúsculas, números y guiones'),
   description: optionalText(2000),
-  mode: z.enum(['internal', 'online', 'hybrid']).default('internal'),
+  mode: z.enum(['internal', 'online', 'hybrid']),
   timezone: z.string().trim().min(1).max(64),
-  policy: bookingPolicySchema.default({}),
-});
-export const bookingSpaceUpdateSchema = bookingSpaceCreateSchema.partial().extend({
+  policy: bookingPolicySchema,
+};
+export const bookingSpaceCreateSchema = z.object({ ...spaceShape, mode: spaceShape.mode.default('internal'), policy: spaceShape.policy.default({}) });
+export const bookingSpaceUpdateSchema = z.object(spaceShape).partial().extend({
   published: z.boolean().optional(),
   enabled: z.boolean().optional(),
 });
 
 export const bookingMemberSchema = z.object({ role: z.enum(BOOKING_SPACE_ROLES) });
 
-export const bookingResourceCreateSchema = z.object({
+const resourceShape = {
   name,
-  type: z.enum(['staff', 'room', 'equipment', 'table', 'other']).default('other'),
+  type: z.enum(['staff', 'room', 'equipment', 'table', 'other']),
   userId: z.string().uuid().optional().nullable(),
-});
-export const bookingResourceUpdateSchema = bookingResourceCreateSchema.partial().extend({ enabled: z.boolean().optional() });
+};
+export const bookingResourceCreateSchema = z.object({ ...resourceShape, type: resourceShape.type.default('other') });
+export const bookingResourceUpdateSchema = z.object(resourceShape).partial().extend({ enabled: z.boolean().optional() });
 
 export const bookingResourceIdsSchema = z.object({ resourceIds: z.array(z.string().uuid()).max(500) });
 
@@ -48,15 +52,23 @@ const serviceShape = {
   description: optionalText(2000),
   kind: z.enum(['appointment', 'session']),
   durationMinutes: minutes(1, 1440),
-  bufferBeforeMinutes: minutes(0, 720).default(0),
-  bufferAfterMinutes: minutes(0, 720).default(0),
-  slotStepMinutes: minutes(5, 1440).default(30),
-  capacity: minutes(1, 100000).default(1),
-  minParty: minutes(1, 100000).default(1),
-  maxParty: minutes(1, 100000).default(1),
+  bufferBeforeMinutes: minutes(0, 720),
+  bufferAfterMinutes: minutes(0, 720),
+  slotStepMinutes: minutes(5, 1440),
+  capacity: minutes(1, 100000),
+  minParty: minutes(1, 100000),
+  maxParty: minutes(1, 100000),
 };
 const partyOrder = (s) => s.minParty == null || s.maxParty == null || s.maxParty >= s.minParty;
-export const bookingServiceCreateSchema = z.object(serviceShape).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');
+export const bookingServiceCreateSchema = z.object({
+  ...serviceShape,
+  bufferBeforeMinutes: serviceShape.bufferBeforeMinutes.default(0),
+  bufferAfterMinutes: serviceShape.bufferAfterMinutes.default(0),
+  slotStepMinutes: serviceShape.slotStepMinutes.default(30),
+  capacity: serviceShape.capacity.default(1),
+  minParty: serviceShape.minParty.default(1),
+  maxParty: serviceShape.maxParty.default(1),
+}).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');
 export const bookingServiceUpdateSchema = z.object(serviceShape).partial().omit({ kind: true })
   .extend({ enabled: z.boolean().optional() }).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');
 
@@ -131,6 +143,72 @@ export const bookingListQuerySchema = z.object({
   to: instant.optional(),
   status: z.enum(BOOKING_STATUSES).optional(),
 });
+
+// Public pages (phase 3). The slug is global: it is the public URL.
+const pageText = (max) => z.string().trim().max(max).optional().nullable().transform((v) => v || null);
+const pageShape = {
+  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])$/, 'De 3 a 64 caracteres: minúsculas, números y guiones')
+    .refine((s) => s !== 'gestion', 'Esa dirección está reservada'),
+  title: name,
+  description: pageText(2000),
+  location: pageText(500),
+  instructions: pageText(2000),
+  serviceIds: z.array(z.string().uuid()).max(100),
+  published: z.boolean(),
+  allowResourceChoice: z.boolean(),
+  requirePhone: z.boolean(),
+  cancellationPolicy: pageText(2000),
+  reschedulePolicy: pageText(2000),
+  punctualityPolicy: pageText(2000),
+  privacyNotice: pageText(4000),
+  accentColor: z.string().regex(/^#[0-9a-fA-F]{6}$/, 'Usa un color #RRGGBB').optional().nullable(),
+};
+// Defaults only on create: a PATCH must never reset fields it did not send.
+export const bookingPageCreateSchema = z.object({
+  ...pageShape,
+  serviceIds: pageShape.serviceIds.default([]),
+  published: pageShape.published.default(false),
+  allowResourceChoice: pageShape.allowResourceChoice.default(false),
+  requirePhone: pageShape.requirePhone.default(false),
+});
+export const bookingPageUpdateSchema = z.object(pageShape).partial().extend({ enabled: z.boolean().optional() });
+
+// What a customer sends. `website` is a honeypot: people never fill it.
+export const publicBookingCreateSchema = z.object({
+  serviceId: z.string().uuid(),
+  startsAt: instant.optional(),
+  sessionId: z.string().uuid().optional(),
+  resourceId: z.string().uuid().optional(),
+  partySize: minutes(1, 1000).default(1),
+  guestName: z.string().trim().min(2, 'Escribe tu nombre').max(160),
+  guestEmail: z.string().trim().toLowerCase().email('Revisa tu correo').max(254),
+  guestPhone: z.string().trim().max(40).regex(/^[0-9+()\-.\s]*$/, 'Revisa el teléfono').optional().nullable().transform((v) => v || null),
+  notes: pageText(500),
+  acceptedPolicyVersion: z.coerce.number().int().min(1),
+  website: z.string().max(0, 'Solicitud inválida').optional(),
+}).strict().refine((b) => Boolean(b.startsAt) !== Boolean(b.sessionId), 'Indica un horario o una sesión');
+
+export const publicRescheduleSchema = z.object({
+  startsAt: instant.optional(),
+  sessionId: z.string().uuid().optional(),
+  resourceId: z.string().uuid().optional(),
+}).strict().refine((b) => Boolean(b.startsAt) !== Boolean(b.sessionId), 'Indica un horario o una sesión');
+
+export const publicAvailabilityQuerySchema = z.object({
+  serviceId: z.string().uuid(),
+  from: instant,
+  to: instant,
+  resourceId: z.string().uuid().optional(),
+  vista: z.string().max(200).optional(),
+}).refine((q) => q.to > q.from, 'El rango es inválido')
+  .refine((q) => q.to - q.from <= 35 * 86400000, 'El rango máximo es de 35 días');
+
+export const publicManageAvailabilitySchema = z.object({
+  from: instant,
+  to: instant,
+  resourceId: z.string().uuid().optional(),
+}).refine((q) => q.to > q.from, 'El rango es inválido')
+  .refine((q) => q.to - q.from <= 35 * 86400000, 'El rango máximo es de 35 días');
 
 export const bookingSearchQuerySchema = bookingListQuerySchema.extend({
   serviceId: z.string().uuid().optional(),
