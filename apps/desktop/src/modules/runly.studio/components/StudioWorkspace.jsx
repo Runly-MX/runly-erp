@@ -52,6 +52,7 @@ import { setKeyframe } from '../../../../../shared/studio/keyframes.js'
 import { useTimeline } from './editor/timeline/useTimeline.js'
 import { TimelinePanel } from './editor/timeline/TimelinePanel.jsx'
 import { AnimatedCanvasLayer } from './editor/timeline/AnimatedCanvasLayer.jsx'
+import { EffectPreviewLayer } from './editor/animation/EffectPreviewLayer.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
 
@@ -86,7 +87,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   const [history, setHistory] = useState({ canUndo: false, canRedo: false }), [retry, setRetry] = useState(0), [busy, setBusy] = useState(false)
   const [objects, setObjects] = useState(initial.objects)
   const [doc, setDoc] = useState(initial), [browsing, setBrowsing] = useState(false), [removing, setRemoving] = useState(null)
-  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1'), [presenting, setPresenting] = useState(null), [previewing, setPreviewing] = useState(false)
+  const [activePageId, setActivePageId] = useState(initial.page.id ?? 'page-1'), [presenting, setPresenting] = useState(null), [previewing, setPreviewing] = useState(false), [effectPreview, setEffectPreview] = useState(null)
   const visibleParticipants = useMemo(() => participants.filter(person => (person.pageId ?? 'page-1') === activePageId), [participants, activePageId])
   const canvasPeople = useMemo(() => groupParticipants(visibleParticipants, selfId), [visibleParticipants, selfId])
   const people = useMemo(() => groupParticipants(participants, selfId), [participants, selfId]), remoteSelections = useMemo(() => selectionsByObject(visibleParticipants, selfId), [visibleParticipants, selfId])
@@ -239,6 +240,8 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   // Timeline: a view over the page's animation fields (playhead and zoom never write).
   const timeline = useTimeline({ editorRef, doc, activePageId, readOnly, attempt })
   const animating = timeline.open && timeline.mode === 'animation' && ready
+  // An effect being tried belongs to the page and selection it was started on.
+  useEffect(() => { setEffectPreview(null) }, [activePageId, selectedIds.join()])
   const timelineObjects = findPage(timeline.frameDoc, activePageId)?.objects ?? objects
   // Dragging in Animación writes keyframe positions at the playhead; a grouped element moves its group.
   function dragAnimated(id, dx, dy, final) {
@@ -339,11 +342,11 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
     animation: <AnimationPanel targets={selectedObjects} slideDuration={slideDuration(page)} disabled={readOnly || !ready}
       lockedReason={selectedObjects.some(object => object.locked) ? 'Desbloquea el elemento para cambiar su animación.' : ''}
       onApply={patch => (selectedObjects.length === 1 ? attempt(async () => editorRef.current.patch(patch)) : attempt(() => patchMany(selectedObjects.map(object => object.id), patch)))}
-      onPreview={() => setPreviewing(true)} />,
+      onPreview={() => setPreviewing(true)} onPreviewEffect={({ kind, effect }) => setEffectPreview({ kind, effect, ids: selectedObjects.map(object => object.id) })} />,
     page: <div className="space-y-5">
       <PageSettingsForm key={`${page.width}x${page.height}:${page.background}`} page={page} disabled={readOnly || !ready} onApply={(next, scale) => editorRef.current.resize(next, scale)}
         background={<PageBackground page={page} disabled={readOnly || !ready} paint={paint} onError={setError} canApplyToSelection={canHoldPhoto(selection) && !selection.locked} />} />
-      <SlideSettings page={page} pageCount={pageCount} disabled={readOnly || !ready}
+      <SlideSettings page={page} pageCount={pageCount} disabled={readOnly || !ready} editor={ready ? editorRef.current : null}
         onChange={slide => editorRef.current.updatePage(editorRef.current.activePageId(), { slide })}
         onApplyAll={slide => editorRef.current.applyPageOperations(pageList.map(item => ({ type: 'patchPage', pageId: item.id, set: { slide } })))} />
     </div>,
@@ -417,6 +420,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
               <div ref={view.paper} className="shadow-[0_12px_48px_-12px_rgb(0_0_0/0.35)] ring-1 ring-black/5"
                 style={view.paperStyle}>
                 <canvas ref={canvasRef} aria-label="Lienzo editable de Studio" />
+                {effectPreview && !animating && ready ? <EffectPreviewLayer editor={editorRef.current} document={doc} pageId={activePageId} page={page} preview={effectPreview} onDone={() => setEffectPreview(null)} /> : null}
                 {animating ? <AnimatedCanvasLayer editor={editorRef.current} document={timeline.frameDoc} pageId={activePageId} page={page} time={timeline.time} zoom={zoom} reducedMotion={timeline.reducedMotion}
                   selectedIds={selectedIds} readOnly={readOnly} hand={view.hand || view.panning}
                   onSelect={id => { const hit = objects.find(object => object.id === id); if (!id) editorRef.current?.deselect(); else if (hit?.groupId) editorRef.current?.selectGroup(hit.groupId); else editorRef.current?.select(id) }}
