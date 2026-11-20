@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { createPosAppointmentService } from "./pos-appointment-service.js";
 import { createPosCalendarBridge } from "./pos-calendar-bridge.js";
+import { createBookingsCalendarProjection } from "../bookings/bookings-calendar.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import { appointmentStatusSchema, createAppointmentSchema, listAppointmentsSchema, updateAppointmentSchema } from "./validators.js";
 
@@ -16,11 +17,12 @@ function fail(c, err, fallback) {
 
 export function createPosAppointmentRoutes({ prisma, requireAnyPermission }) {
   const app = new Hono();
-  const svc = createPosAppointmentService({ prisma });
+  const svc = createPosAppointmentService({ prisma, onChanged: createBookingsCalendarProjection({ prisma }).projectQuietly });
   const calendar = createPosCalendarBridge({ prisma });
   const ctx = (c) => ({ companyId: getCompanyId(c), actorId: getActorId(c) });
   // Calendar mirroring never fails the request.
-  const mirror = (c, appointment) => { calendar.syncAppointment({ ...ctx(c), appointment }).catch(() => {}); return appointment; };
+  // Appointments on the Booking Engine (bookingId) are mirrored by its projection instead.
+  const mirror = (c, appointment) => { if (!appointment?.bookingId) calendar.syncAppointment({ ...ctx(c), appointment }).catch(() => {}); return appointment; };
   const body = async (c, schema) => schema.parse(await c.req.json().catch(() => ({})));
 
   app.get("/pos/appointments", requireAnyPermission(READ), async (c) => {

@@ -8,3 +8,5 @@ Citas es la agenda del dia para negocios que venden servicios (salon, consultori
 - **Nueva cita**: cliente (o su telefono), sucursal, fecha y hora, duracion, servicios del catalogo y notas.
 - Cambia de dia con las flechas. Cada cita pasa por **Agendada**, **Llego**, **Cobrada**, **No asistio** o **Cancelada**.
 - Al cobrarla, sus servicios se cargan en la caja para cobrarlos como cualquier venta.
+
+**Con Reservaciones activo en la sucursal** (Administracion > Reservas): cada profesional tiene su propia agenda. Al agendar puedes elegir al profesional o dejar que el sistema asigne a cualquiera libre; dos citas al mismo tiempo necesitan dos profesionales libres y un horario ocupado se rechaza al guardar. **No asistio** solo se marca cuando la cita ya empezo.

@@ -12,6 +12,8 @@ function makePrisma({ orders = [] } = {}) {
     events,
     auditLog: { create: async () => ({}) },
     posOutlet: { findFirst: async ({ where }) => (where.id === "outlet-1" && where.companyId === "c1" ? { id: "outlet-1" } : null) },
+    // Outlet still on legacy appointments (no Booking Engine link).
+    posBookingLink: { findUnique: async () => null },
     contact: { findFirst: async () => null },
     catalogProduct: {
       findFirst: async ({ where }) => (where.id === "p-corte" && where.companyId === "c1" ? { id: "p-corte", name: "Corte de cabello", price: "150.0000" } : null),

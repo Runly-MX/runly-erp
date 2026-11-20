@@ -1,11 +1,15 @@
 import { PosServiceError, requireCompanyId, writeAudit } from "./service-helpers.js";
+import { createPosBookingsAdapter } from "./pos-bookings-adapter.js";
 
 const OPEN = ["SCHEDULED", "ARRIVED"];
 
 // Appointments for service businesses. Service names and prices are read from
 // the catalog (never trusted from the client); the price shown is a reference,
 // Caja charges the current catalog price.
-export function createPosAppointmentService({ prisma }) {
+// Outlets with appointments on the Booking Engine get real availability per professional
+// (no overlaps); their pos_appointment row is written in the booking's transaction.
+export function createPosAppointmentService({ prisma, onChanged = null }) {
+  const engine = createPosBookingsAdapter({ prisma, onChanged });
   async function find(companyId, id) {
     const row = await prisma.posAppointment.findFirst({ where: { id, companyId } });
     if (!row) throw new PosServiceError("Cita no encontrada.", 404);
@@ -45,10 +49,12 @@ export function createPosAppointmentService({ prisma }) {
 
   async function list({ companyId, from, to, outletId }) {
     const scoped = requireCompanyId(companyId);
-    return prisma.posAppointment.findMany({
+    const rows = await prisma.posAppointment.findMany({
       where: { companyId: scoped, startsAt: { gte: new Date(from), lt: new Date(to) }, ...(outletId ? { outletId } : {}) },
       orderBy: [{ startsAt: "asc" }, { createdAt: "asc" }],
     });
+    const who = await engine.appointmentResources(scoped, rows.filter((r) => r.bookingId).map((r) => r.bookingId));
+    return rows.map((r) => (r.bookingId ? { ...r, professional: who.get(r.bookingId) ?? null } : r));
   }
 
   async function get({ companyId, id }) {
@@ -60,6 +66,13 @@ export function createPosAppointmentService({ prisma }) {
     await outlet(scoped, data.outletId);
     await assertContact(scoped, data.contactId);
     const items = await resolveItems(scoped, data.items);
+    const link = await engine.link(prisma, scoped, data.outletId, "appointments");
+    if (link) {
+      const created = await engine.createAppointment({ companyId: scoped, actorId, link, data, items });
+      await writeAudit(prisma, { actorId, entityType: "PosAppointment", entityId: created.id, action: "pos.appointment.create", after: created });
+      return created;
+    }
+    if (data.resourceId) throw new PosServiceError("Elegir profesional requiere que la sucursal use el sistema de reservaciones.", 409);
     const row = await prisma.posAppointment.create({
       data: {
         companyId: scoped, outletId: data.outletId, contactId: data.contactId ?? null,
@@ -78,6 +91,10 @@ export function createPosAppointmentService({ prisma }) {
     if (!OPEN.includes(before.status)) throw new PosServiceError("Solo se editan citas pendientes.", 409);
     if (data.outletId) await outlet(scoped, data.outletId);
     if (data.contactId) await assertContact(scoped, data.contactId);
+    if (before.bookingId && await engine.link(prisma, scoped, before.outletId, "appointments")) {
+      if (data.outletId && data.outletId !== before.outletId) throw new PosServiceError("Para cambiar de sucursal cancela la cita y agéndala en la otra.", 409);
+      return engine.updateAppointment({ companyId: scoped, actorId, before, data, items: data.items ? await resolveItems(scoped, data.items) : null });
+    }
     const row = await prisma.posAppointment.update({
       where: { id },
       data: {
@@ -104,6 +121,11 @@ export function createPosAppointmentService({ prisma }) {
     if (status === "COMPLETED") {
       const order = orderId ? await prisma.posOrder.findFirst({ where: { id: orderId, companyId: scoped } }) : null;
       if (!order || order.status !== "PAID") throw new PosServiceError("La cita se completa al cobrarla en Caja.", 409);
+    }
+    if (before.bookingId && await engine.link(prisma, scoped, before.outletId, "appointments")) {
+      const row = await engine.setAppointmentStatus({ companyId: scoped, actorId, before, status, orderId });
+      await writeAudit(prisma, { actorId, entityType: "PosAppointment", entityId: id, action: "pos.appointment.status", before, after: row });
+      return row;
     }
     const row = await prisma.posAppointment.update({
       where: { id },

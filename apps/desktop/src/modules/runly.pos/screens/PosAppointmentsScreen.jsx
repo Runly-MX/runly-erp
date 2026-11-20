@@ -24,6 +24,7 @@ const STATUS = {
 }
 const DURATIONS = [['15', '15 min'], ['30', '30 min'], ['45', '45 min'], ['60', '1 h'], ['90', '1 h 30 min'], ['120', '2 h'], ['180', '3 h']].map(([value, label]) => ({ value, label }))
 
+const ANY = 'any'
 const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
 const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
 const time = (value) => new Date(value).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
@@ -101,6 +102,7 @@ export default function PosAppointmentsScreen() {
                       <p className="font-semibold text-[hsl(var(--foreground))]">{a.customerName}</p>
                       <StatusPill size="sm" tone={STATUS[a.status]?.tone}>{STATUS[a.status]?.label}</StatusPill>
                     </div>
+                    {a.professional && <p className="text-sm text-[hsl(var(--muted-foreground))]">Con {a.professional.name}</p>}
                     {a.customerPhone && <p className="flex items-center gap-1 text-sm text-[hsl(var(--muted-foreground))]"><Phone className="h-3.5 w-3.5" aria-hidden="true" />{a.customerPhone}</p>}
                     {(a.items ?? []).length > 0 && (
                       <div className="flex flex-wrap gap-1.5">
@@ -160,11 +162,18 @@ function AppointmentDialog({ appointment, day, outlets, token, currency, onClose
     durationMinutes: String(appointment.durationMinutes ?? 60),
     items: (appointment.items ?? []).map((i) => i.productId),
     notes: appointment.notes ?? '',
+    resourceId: appointment.professional?.id ?? ANY,
   }))
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value?.target ? value.target.value : value }))
+  // Outlets on Reservaciones: each professional has an agenda and overlaps are refused.
+  const professionals = useQuery({
+    queryKey: ['pos-appointment-professionals', form.outletId, token],
+    queryFn: async () => (await runly.pos.bookings.professionals(form.outletId, token)).data ?? [],
+    enabled: Boolean(token && form.outletId), staleTime: 60_000,
+  })
   const services = useQuery({
     queryKey: ['pos-appointment-services', form.outletId, search, token],
     queryFn: () => runly.commerce.sellables({ outletId: form.outletId, page: 1, pageSize: 30, ...(search ? { search } : {}) }, token),
@@ -190,6 +199,7 @@ function AppointmentDialog({ appointment, day, outlets, token, currency, onClose
       durationMinutes: Number(form.durationMinutes),
       items: form.items.map((productId) => ({ productId })),
       notes: form.notes.trim() || null,
+      ...(professionals.data?.length ? { resourceId: form.resourceId === ANY ? null : form.resourceId } : {}),
     }
     try {
       if (editing) await runly.pos.appointments.update(appointment.id, body, token)
@@ -224,6 +234,7 @@ function AppointmentDialog({ appointment, day, outlets, token, currency, onClose
         <DateTimeField label="Fecha y hora" required value={form.startsAt} onChange={set('startsAt')} />
         <SelectField label="Duración" value={form.durationMinutes} onChange={set('durationMinutes')} options={DURATIONS} />
       </div>
+      {professionals.data?.length ? <SelectField label="Profesional" value={form.resourceId} onChange={set('resourceId')} options={[{ value: ANY, label: 'Cualquiera disponible' }, ...professionals.data.map((p) => ({ value: p.id, label: p.name }))]} hint="Si el horario ya está ocupado, te lo diremos al guardar." /> : null}
       {outlets.length > 1 && <SelectField label="Sucursal" value={form.outletId} onChange={set('outletId')} options={outlets.map((o) => ({ value: o.id, label: o.name }))} />}
       <ComboboxField
         label="Servicios"
