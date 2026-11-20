@@ -81,26 +81,44 @@ function mexico(y) {
   return list
 }
 
+// Fixed-date federal holidays falling on a weekend are observed on the nearest
+// weekday (Saturday -> Friday before, Sunday -> Monday after; 5 U.S.C. 6103).
+function observed(y, m, d, title) {
+  const ms = Date.UTC(y, m - 1, d)
+  const dow = new Date(ms).getUTCDay()
+  if (dow === 6) return [[shift(ms, -1), `Descanso por ${title}`, true]]
+  if (dow === 0) return [[shift(ms, 1), `Descanso por ${title}`, true]]
+  return []
+}
+
 function usa(y) {
-  return [
-    [iso(y, 1, 1), 'Año Nuevo (EE. UU.)', true],
+  const e = easter(y)
+  const fixed = (m, d, title) => [[iso(y, m, d), title, true], ...observed(y, m, d, title)]
+  const list = [
+    // A Saturday Jan 1 is observed on Dec 31 of the year before: it belongs to that year's list.
+    ...fixed(1, 1, 'Año Nuevo (EE. UU.)').filter(([day]) => day.startsWith(String(y))),
+    ...observed(y + 1, 1, 1, 'Año Nuevo (EE. UU.)').filter(([day]) => day.startsWith(String(y))),
     [nthWeekday(y, 1, 1, 3), 'Día de Martin Luther King Jr.', true],
     [iso(y, 2, 14), 'San Valentín (EE. UU.)', false],
     [nthWeekday(y, 2, 1, 3), 'Día de los Presidentes', true],
+    [iso(y, 3, 17), 'Día de San Patricio', false],
+    [shift(e, 0), 'Pascua (EE. UU.)', false],
     [nthWeekday(y, 5, 0, 2), 'Día de las Madres (EE. UU.)', false],
     [nthWeekday(y, 5, 1, -1), 'Día de los Caídos (Memorial Day)', true],
     [nthWeekday(y, 6, 0, 3), 'Día del Padre (EE. UU.)', false],
-    [iso(y, 6, 19), 'Juneteenth', true],
-    [iso(y, 7, 4), 'Día de la Independencia (EE. UU.)', true],
+    ...fixed(6, 19, 'Juneteenth'),
+    ...fixed(7, 4, 'Día de la Independencia (EE. UU.)'),
     [nthWeekday(y, 9, 1, 1), 'Día del Trabajo (Labor Day)', true],
-    [nthWeekday(y, 10, 1, 2), 'Día de Colón', true],
+    [nthWeekday(y, 10, 1, 2), 'Día de Colón / Pueblos Indígenas', true],
     [iso(y, 10, 31), 'Halloween', false],
-    [iso(y, 11, 11), 'Día de los Veteranos', true],
+    ...fixed(11, 11, 'Día de los Veteranos'),
     [nthWeekday(y, 11, 4, 4), 'Día de Acción de Gracias', true],
+    [iso(y, 11, Number(nthWeekday(y, 11, 4, 4).slice(8)) + 1), 'Black Friday', false],
     [iso(y, 12, 24), 'Nochebuena (EE. UU.)', false],
-    [iso(y, 12, 25), 'Navidad (EE. UU.)', true],
+    ...fixed(12, 25, 'Navidad (EE. UU.)'),
     [iso(y, 12, 31), 'Fin de Año (EE. UU.)', false],
   ]
+  return list
 }
 
 const BUILDERS = { MX: mexico, US: usa }

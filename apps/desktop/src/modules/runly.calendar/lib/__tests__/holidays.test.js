@@ -26,6 +26,18 @@ test("usa 2026 movable holidays", () => {
   assert.equal(us["Día de los Caídos (Memorial Day)"], "2026-05-25");
   assert.equal(us["Día de Acción de Gracias"], "2026-11-26");
   assert.equal(us["Día de las Madres (EE. UU.)"], "2026-05-10");
+  assert.equal(us["Black Friday"], "2026-11-27");
+});
+
+test("usa weekend federal holidays get an observed weekday", () => {
+  // July 4 2026 is a Saturday -> Friday July 3; Juneteenth 2027 Saturday -> Friday 18.
+  assert.equal(days(2026, "US")["Descanso por Día de la Independencia (EE. UU.)"], "2026-07-03");
+  assert.equal(days(2027, "US")["Descanso por Juneteenth"], "2027-06-18");
+  // Jan 1 2022 was a Saturday -> observed Friday Dec 31 2021, listed in 2021 only.
+  assert.equal(days(2021, "US")["Descanso por Año Nuevo (EE. UU.)"], "2021-12-31");
+  assert.equal(days(2022, "US")["Descanso por Año Nuevo (EE. UU.)"], undefined);
+  // Weekday holidays get no extra entry.
+  assert.equal(days(2026, "US")["Descanso por Navidad (EE. UU.)"], undefined);
 });
 
 test("no countries, no holidays", () => {
