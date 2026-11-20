@@ -22,7 +22,10 @@ export default function EventChip({
   // Holidays read as a soft label, not as a booked block of time.
   const colors = event._holiday
     ? { backgroundColor: `color-mix(in srgb, ${bg} 16%, hsl(var(--surface-1)))`, color: bg, boxShadow: `inset 3px 0 0 ${bg}` }
-    : { backgroundColor: bg, boxShadow: accent ? `inset 4px 0 0 ${accent}` : undefined }
+    : accent
+      // Calendar tab (6px) + a light 2px divider, so it reads even next to a similar hue.
+      ? { backgroundColor: bg, boxShadow: `inset 6px 0 0 ${accent}, inset 8px 0 0 rgba(255,255,255,0.9)`, paddingLeft: compact ? '12px' : '13px' }
+      : { backgroundColor: bg }
 
   return (
     <button

@@ -149,6 +149,8 @@ function EventDetailContent({ event, onClose, onEdit, canEdit, canDelete, Title,
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const calColor = event.color || event.calendar?.color || "#6B46C1";
+  // The calendar chip keeps the calendar's own color even when the event has its own.
+  const calendarColor = event.calendar?.color || calColor;
   const reminderMinutes = getPrimaryReminderMinutes(event);
   const reminderClock = formatReminderClock(event, reminderMinutes);
   const isChatMeeting = event.sourceModule === "runly.chat" && Boolean(event.sourceEntityId);
@@ -186,9 +188,9 @@ function EventDetailContent({ event, onClose, onEdit, canEdit, canDelete, Title,
           <div className="flex items-center gap-2">
             <span
               className="inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-              style={{ backgroundColor: `${calColor}22`, color: calColor }}
+              style={{ backgroundColor: `${calendarColor}22`, color: calendarColor }}
             >
-              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calColor }} />
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calendarColor }} />
               <span className="truncate">{event.calendar?.name ?? "Evento"}</span>
             </span>
             <div className="ml-auto flex items-center gap-0.5">
