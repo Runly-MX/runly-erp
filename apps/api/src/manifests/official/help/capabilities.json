@@ -1124,5 +1124,34 @@
       "MirAI",
       "Comprobantes fiscales (UUID)"
     ]
+  },
+  "runly.bookings": {
+    "highlights": [
+      {
+        "icon": "CalendarCheck",
+        "title": "Sin dobles reservaciones",
+        "text": "Cada horario se confirma en el momento; dos personas nunca se quedan con el mismo lugar."
+      },
+      {
+        "icon": "Globe",
+        "title": "Reservas en línea",
+        "text": "Tus clientes reservan, reprograman o cancelan desde un enlace, sin cuenta."
+      },
+      {
+        "icon": "Share2",
+        "title": "En tu sitio web",
+        "text": "Calendario integrado, botón o enlace en Runly Website o en cualquier sitio autorizado."
+      },
+      {
+        "icon": "Armchair",
+        "title": "Mesas y citas del punto de venta",
+        "text": "Capacidad por mesa, varias reservas al día y citas por profesional sin empalmes."
+      },
+      {
+        "icon": "CalendarDays",
+        "title": "En tu Calendario",
+        "text": "Cada reservación aparece en el calendario del sistema, sin datos de contacto del cliente."
+      }
+    ]
   }
 }
