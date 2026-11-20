@@ -15,6 +15,16 @@ export const useCalendarStore = create(
       leftSidebarOpen: true,
       rightSidebarOpen: true,
       activeCalendarIds: [],
+      holidayCountries: ['MX'],
+      // surface: plain | relief | tinted; tint: hex used by "tinted" and accents.
+      appearance: { surface: 'relief', tint: '#7C3AED', shadeWeekends: true },
+
+      toggleHolidayCountry: (code) => set((s) => ({
+        holidayCountries: s.holidayCountries.includes(code)
+          ? s.holidayCountries.filter((c) => c !== code)
+          : [...s.holidayCountries, code],
+      })),
+      setAppearance: (patch) => set((s) => ({ appearance: { ...s.appearance, ...patch } })),
 
       setActiveView: (view) => set({ activeView: view }),
       setSelectedDate: (date) => set({ selectedDate: date, selectedSlotHour: null }),
@@ -76,6 +86,8 @@ export const useCalendarStore = create(
         activeView: s.activeView,
         leftSidebarOpen: s.leftSidebarOpen,
         rightSidebarOpen: s.rightSidebarOpen,
+        holidayCountries: s.holidayCountries,
+        appearance: s.appearance,
       }),
     }
   )

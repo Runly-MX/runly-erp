@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, PanelLeftOpen, Plus } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
+import CalendarAppearanceMenu from './CalendarAppearanceMenu'
 
 const VIEWS = [
   { key: 'day',    label: 'Día' },
@@ -128,6 +129,8 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
         </button>
 
         <div className="flex-1" />
+
+        <CalendarAppearanceMenu />
 
         <div className="flex items-center rounded-lg border border-[hsl(var(--border))] overflow-hidden shrink-0">
           {VIEWS.map((v) => (

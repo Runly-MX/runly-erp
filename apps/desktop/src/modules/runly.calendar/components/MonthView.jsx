@@ -2,7 +2,8 @@ import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useYearEvents } from "../hooks/useCalendarData";
-import EventChip, { eventColors } from "./EventChip";
+import EventChip from "./EventChip";
+import { dayCellBg, gridBackdrop } from "../lib/appearance";
 
 const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const WEEKDAYS_NARROW = ["D", "L", "M", "X", "J", "V", "S"];
@@ -91,8 +92,12 @@ function assignLanes(spans) {
   return result;
 }
 
-const SPAN_H = 20; // px — height of one spanning-bar slot
+// Spanning bars and single-day chips share one slot grid so they line up:
+// chip h-5 (20px) + space-y-0.5 (2px) = 22px per lane, starting 2px under the date row.
+const SPAN_H = 22; // px — one lane (chip height + gap)
+const CHIP_H = 20; // px
 const DATE_ROW_H = 24; // px — height of the day-number row
+const CHIP_PAD_X = 4; // px — matches the chip column's px-1
 
 // One week row: renders spanning bars + per-cell single-day chips
 function WeekRow({
@@ -104,7 +109,10 @@ function WeekRow({
   onSelectDate,
   onNewEvent,
   onEventClick,
+  appearance,
 }) {
+  const relief = appearance.surface === "relief";
+  const inset = relief ? 3 : 0; // relief cells are cards with a 3px margin
   const rowStartKey = dateKey(cells[0].date);
   const rowEndKey = dateKey(cells[6].date);
 
@@ -148,7 +156,7 @@ function WeekRow({
   );
 
   return (
-    <div className="relative flex-1 grid grid-cols-7 min-h-0 border-b border-[hsl(var(--border))] last:border-b-0">
+    <div className={`relative flex-1 grid grid-cols-7 min-h-0 ${relief ? "" : "border-b border-[hsl(var(--border))] last:border-b-0"}`}>
       {/* Full-height day cells: number + single-day chips */}
       {cells.map((cell, ci) => {
         const k = dateKey(cell.date);
@@ -163,10 +171,15 @@ function WeekRow({
               e.stopPropagation();
               onNewEvent(k);
             }}
+            style={{
+              backgroundColor: dayCellBg(appearance, { weekend: ci === 0 || ci === 6, current: cell.current }),
+              margin: inset ? `${inset}px` : undefined,
+            }}
             className={[
-              "flex flex-col min-h-0 border-r border-[hsl(var(--border))] last:border-r-0 cursor-pointer overflow-hidden select-none",
-              "hover:bg-[hsl(var(--muted))]/30 transition-colors",
-              !cell.current && "bg-[hsl(var(--muted))]/20",
+              "flex flex-col min-h-0 cursor-pointer overflow-hidden select-none transition-[filter,box-shadow] hover:brightness-[0.97] dark:hover:brightness-110",
+              relief
+                ? "rounded-lg border border-[hsl(var(--border))]/70 shadow-[0_1px_2px_rgba(15,23,42,0.06),0_2px_6px_-2px_rgba(15,23,42,0.08)] hover:shadow-md"
+                : "border-r border-[hsl(var(--border))] last:border-r-0",
               k === selectedDate && "ring-1 ring-inset ring-violet-500",
             ]
               .filter(Boolean)
@@ -177,9 +190,10 @@ function WeekRow({
               style={{ height: `${DATE_ROW_H}px` }}
             >
               <span
+                style={k === todayKey ? { backgroundColor: appearance.tint } : undefined}
                 className={[
                   "text-xs w-6 h-6 flex items-center justify-center rounded-full font-medium",
-                  k === todayKey ? "bg-violet-600 text-white" : "",
+                  k === todayKey ? "text-white!" : "",
                   !cell.current
                     ? "text-[hsl(var(--muted-foreground))] opacity-50"
                     : "text-[hsl(var(--foreground))]",
@@ -212,39 +226,36 @@ function WeekRow({
 
       {/* Spanning bars overlaid on the cells */}
       {laned.map(({ ev, colStart, colEnd, lane, startsHere, endsHere }) => {
-          const { bg, accent } = eventColors(ev);
           const lPct = (colStart / 7) * 100;
           const wPct = ((colEnd - colStart + 1) / 7) * 100;
           const rL = startsHere ? "4px" : "0";
           const rR = endsHere ? "4px" : "0";
-          const lInset = startsHere ? 3 : 0;
-          const rInset = endsHere ? 3 : 0;
+          const lInset = startsHere ? inset + CHIP_PAD_X : 0;
+          const rInset = endsHere ? inset + CHIP_PAD_X : 0;
           return (
-            <button
+            <div
               key={ev.id}
-              type="button"
-              title={ev.title}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEventClick(ev);
-              }}
-              className="absolute text-white text-[11px] font-medium px-1.5 truncate hover:brightness-90 transition-all"
+              className="absolute z-[1]"
               style={{
                 left: `calc(${lPct}% + ${lInset}px)`,
-                width: `calc(${wPct}% - ${lInset + rInset + 2}px)`,
-                top: `${DATE_ROW_H + lane * SPAN_H + 2}px`,
-                height: `${SPAN_H - 4}px`,
-                lineHeight: `${SPAN_H - 4}px`,
-                backgroundColor: bg,
-                boxShadow: accent && startsHere ? `inset 4px 0 0 ${accent}` : undefined,
-                borderTopLeftRadius: rL,
-                borderBottomLeftRadius: rL,
-                borderTopRightRadius: rR,
-                borderBottomRightRadius: rR,
+                width: `calc(${wPct}% - ${lInset + rInset}px)`,
+                top: `${inset + DATE_ROW_H + 2 + lane * SPAN_H}px`,
+                height: `${CHIP_H}px`,
               }}
             >
-              {ev.title}
-            </button>
+              <EventChip
+                event={ev}
+                onClick={onEventClick}
+                compact
+                style={{
+                  borderTopLeftRadius: rL,
+                  borderBottomLeftRadius: rL,
+                  borderTopRightRadius: rR,
+                  borderBottomRightRadius: rR,
+                  ...(startsHere ? {} : { boxShadow: "none" }),
+                }}
+              />
+            </div>
           );
         })}
     </div>
@@ -261,6 +272,7 @@ function MonthGrid({
   onSelectDate,
   onEventClick,
   onNewEvent,
+  appearance,
 }) {
   const cells = buildMonthGrid(year, month);
   const rows = [];
@@ -280,6 +292,7 @@ function MonthGrid({
           onSelectDate={onSelectDate}
           onNewEvent={onNewEvent}
           onEventClick={onEventClick}
+          appearance={appearance}
         />
       ))}
     </div>
@@ -293,6 +306,7 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
     activeCalendarIds,
     navigatePrev,
     navigateNext,
+    appearance,
   } = useCalendarStore();
   const ref = selectedDate || toLocalIso();
   const d = new Date(ref + "T12:00:00");
@@ -427,6 +441,7 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
     direction === "next" ? "cal-slide-out-up" : "cal-slide-out-down";
 
   const gridCommonProps = {
+    appearance,
     selectedDate,
     onSelectDate: handleSelectDate,
     onEventClick,
@@ -442,7 +457,10 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
       <style>{SLIDE_CSS}</style>
 
       {/* Weekday headers */}
-      <div className="grid grid-cols-7 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] shrink-0">
+      <div
+        className="grid grid-cols-7 border-b border-[hsl(var(--border))] bg-[hsl(var(--surface-2))] shrink-0"
+        style={{ backgroundColor: gridBackdrop(appearance) }}
+      >
         {WEEKDAYS.map((wd, i) => (
           <div
             key={wd}
@@ -455,7 +473,11 @@ export default function MonthView({ onEventClick, onDayClick, onNewEvent }) {
       </div>
 
       {/* Grid area */}
-      <div ref={gridRef} className="flex-1 relative overflow-hidden">
+      <div
+        ref={gridRef}
+        className="flex-1 relative overflow-hidden"
+        style={{ backgroundColor: gridBackdrop(appearance) }}
+      >
         {/* Outgoing grid */}
         {animating && prev && (
           <div

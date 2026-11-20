@@ -10,6 +10,7 @@ import {
   Trash2,
   BellRing,
   CalendarCheck,
+  X,
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useDeleteEvent } from "../hooks/useCalendarData";
@@ -140,33 +141,12 @@ function InfoRow({ icon: Icon, label, children }) {
 const ACTION_BTN =
   "rounded-md p-2 text-[hsl(var(--muted-foreground))] transition-colors hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus:outline-none focus:ring-2 focus:ring-[hsl(var(--ring))]/40 disabled:pointer-events-none disabled:opacity-40";
 
-export default function EventDetailModal({
-  event,
-  onClose,
-  onEdit,
-  canEdit,
-  canDelete,
-}) {
+
+// Shared detail layout: fixed header (calendar chip, actions, title) + scrolling body.
+// Rendered inside the modal (Title = DialogTitle) or the desktop side panel (Title = "h2").
+function EventDetailContent({ event, onClose, onEdit, canEdit, canDelete, Title, showClose = false }) {
   const deleteEvent = useDeleteEvent();
   const [confirmOpen, setConfirmOpen] = useState(false);
-
-  if (!event) return null;
-
-  if (event._isLoading) {
-    return (
-      <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-        <DialogContent size="lg">
-          <DialogTitle className="sr-only">Cargando evento</DialogTitle>
-          <div className="space-y-3">
-            <Skeleton className="h-6 w-3/4" />
-            <Skeleton className="h-4 w-1/2" />
-            <Skeleton className="h-4 w-2/3" />
-            <Skeleton className="h-4 w-1/3" />
-          </div>
-        </DialogContent>
-      </Dialog>
-    );
-  }
 
   const calColor = event.color || event.calendar?.color || "#6B46C1";
   const reminderMinutes = getPrimaryReminderMinutes(event);
@@ -184,6 +164,7 @@ export default function EventDetailModal({
   const showDelete = canDelete && !event.sourceModule;
   // Mirror of a reservation: managed (and re-written) by Reservaciones, never edited here.
   const isBooking = event.sourceModule === "runly.bookings" && Boolean(event.sourceEntityId);
+  const showEdit = canEdit && !isBooking && !event._holiday;
 
   async function doDelete() {
     try {
@@ -198,127 +179,129 @@ export default function EventDetailModal({
 
   return (
     <>
-      <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-        <DialogContent size="lg">
-          <div className="space-y-4">
-            {/* Header: calendar chip + actions on one row, then the title.
-                Actions keep clear of the dialog's close (X) on desktop (md:pr-8);
-                on the phone sheet there is no X so they sit flush right. */}
-            <div className="space-y-2 md:pr-8">
-              <div className="flex items-center gap-2">
-                <span
-                  className="inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
-                  style={{ backgroundColor: `${calColor}22`, color: calColor }}
-                >
-                  <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calColor }} />
-                  <span className="truncate">{event.calendar?.name ?? "Evento"}</span>
-                </span>
-                <div className="ml-auto flex items-center gap-0.5">
-                  {canEdit && !isBooking && (
-                    <button type="button" onClick={() => onEdit(event)} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Editar serie" : "Editar"}>
-                      <Edit2 size={16} />
-                    </button>
-                  )}
-                  {showDelete && (
-                    <button type="button" onClick={() => setConfirmOpen(true)} disabled={deleteEvent.isPending} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Eliminar serie" : "Eliminar"}>
-                      <Trash2 size={16} />
-                    </button>
-                  )}
-                </div>
-              </div>
-              <DialogTitle className="text-xl font-semibold leading-snug break-words">
-                {event.title}
-              </DialogTitle>
-            </div>
-
-            {/* When: the key fact, shown prominently with the calendar colour. */}
-            <div className="flex items-start gap-3">
-              <Clock size={18} className="mt-0.5 shrink-0" style={{ color: calColor }} />
-              <div className="min-w-0">
-                <div className="text-sm font-semibold first-letter:uppercase break-words">{when.primary}</div>
-                <div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
-                  {when.secondary}
-                  {duration ? ` · ${duration}` : ""}
-                </div>
-                <span className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${PROGRESS_TONES[progress.tone]}`}>
-                  {progress.label}
-                </span>
-              </div>
-            </div>
-
-            {isChatMeeting && (
-              <MeetingJoinButton
-                conversationId={event.sourceEntityId}
-                calendarEventId={event._baseEventId ?? event.id}
-                startAt={event.startAt}
-                endAt={event.endAt}
-                onDone={onClose}
-              />
-            )}
-
-            {event.sourceModule === "runly.projects" && event.sourceEntityId && (
-              <ProjectTaskCard taskId={event.sourceEntityId} onNavigate={onClose} />
-            )}
-
-            {isBooking && (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
-                <span className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]"><CalendarCheck size={16} aria-hidden="true" />Se administra en Reservaciones.</span>
-                <Link to={`/app/m/runly.bookings/reservations?reservacion=${event.sourceEntityId}`} onClick={onClose} className="inline-flex min-h-11 items-center font-medium text-[hsl(var(--primary))] hover:underline">Abrir reservación</Link>
-              </div>
-            )}
-
-            {event.description && (
-              <MarkdownViewer value={event.description} accentColor={calColor} />
-            )}
-
-            <div className="divide-y divide-[hsl(var(--border))] overflow-hidden rounded-xl border border-[hsl(var(--border))]">
-              {event.location && <InfoRow icon={MapPin} label="Ubicación">{event.location}</InfoRow>}
-
-              {event.videoUrl && (
-                <InfoRow icon={Video} label="Videollamada">
-                  <a href={event.videoUrl} target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:underline">
-                    {isChatMeeting ? "Enlace para invitados externos" : "Unirse a la videollamada"}
-                  </a>
-                </InfoRow>
+      <div className="flex min-h-0 flex-1 flex-col">
+        {/* Actions keep clear of the dialog's close (X) on desktop (md:pr-8);
+            the side panel renders its own close button instead. */}
+        <div className={`shrink-0 space-y-2 border-b border-[hsl(var(--border))] px-5 pt-4 pb-3 ${showClose ? "" : "md:pr-12"}`}>
+          <div className="flex items-center gap-2">
+            <span
+              className="inline-flex min-w-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium"
+              style={{ backgroundColor: `${calColor}22`, color: calColor }}
+            >
+              <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: calColor }} />
+              <span className="truncate">{event.calendar?.name ?? "Evento"}</span>
+            </span>
+            <div className="ml-auto flex items-center gap-0.5">
+              {showEdit && (
+                <button type="button" onClick={() => onEdit(event)} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Editar serie" : "Editar"} aria-label="Editar">
+                  <Edit2 size={16} />
+                </button>
               )}
-
-              {event.calendar && <InfoRow icon={Calendar} label="Calendario">{event.calendar.name}</InfoRow>}
-
-              {event.recurrenceRule && (
-                <InfoRow icon={Repeat} label="Repetición">
-                  {RECURRENCE_LABELS[event.recurrenceRule.freq]}
-                  {event.recurrenceRule.interval > 1 && ` cada ${event.recurrenceRule.interval}`}
-                </InfoRow>
+              {showDelete && (
+                <button type="button" onClick={() => setConfirmOpen(true)} disabled={deleteEvent.isPending} className={ACTION_BTN} title={event._isRecurrenceInstance ? "Eliminar serie" : "Eliminar"} aria-label="Eliminar">
+                  <Trash2 size={16} />
+                </button>
               )}
-
-              {reminderMinutes !== null && (
-                <InfoRow icon={BellRing} label="Recordatorio">
-                  {formatReminderLead(reminderMinutes)}
-                  {reminderClock ? ` (${reminderClock})` : ""}
-                </InfoRow>
-              )}
-
-              {event.attendees?.length > 0 && (
-                <InfoRow icon={Users} label={`Invitados (${event.attendees.length})`}>
-                  <div className="mb-1.5 text-xs text-[hsl(var(--muted-foreground))]">
-                    {accepted} aceptado{accepted === 1 ? "" : "s"} · {pending} pendiente{pending === 1 ? "" : "s"}
-                  </div>
-                  <div className="space-y-1.5">
-                    {event.attendees.map((att) => (
-                      <div key={att.id} className="flex items-center justify-between gap-2">
-                        <span className="truncate">{att.user?.firstName} {att.user?.lastName}</span>
-                        <span className="shrink-0 rounded bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">
-                          {STATUS_LABELS[att.status] ?? att.status}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </InfoRow>
+              {showClose && (
+                <button type="button" onClick={onClose} className={ACTION_BTN} title="Cerrar" aria-label="Cerrar">
+                  <X size={16} />
+                </button>
               )}
             </div>
           </div>
-        </DialogContent>
-      </Dialog>
+          <Title className="text-xl font-semibold leading-snug break-words">
+            {event.title}
+          </Title>
+        </div>
+
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-5 py-4">
+          {/* When: the key fact, shown prominently with the calendar colour. */}
+          <div className="flex items-start gap-3">
+            <Clock size={18} className="mt-0.5 shrink-0" style={{ color: calColor }} />
+            <div className="min-w-0">
+              <div className="text-sm font-semibold first-letter:uppercase break-words">{when.primary}</div>
+              <div className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">
+                {when.secondary}
+                {duration ? ` · ${duration}` : ""}
+              </div>
+              <span className={`mt-2 inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${PROGRESS_TONES[progress.tone]}`}>
+                {progress.label}
+              </span>
+            </div>
+          </div>
+
+          {isChatMeeting && (
+            <MeetingJoinButton
+              conversationId={event.sourceEntityId}
+              calendarEventId={event._baseEventId ?? event.id}
+              startAt={event.startAt}
+              endAt={event.endAt}
+              onDone={onClose}
+            />
+          )}
+
+          {event.sourceModule === "runly.projects" && event.sourceEntityId && (
+            <ProjectTaskCard taskId={event.sourceEntityId} onNavigate={onClose} />
+          )}
+
+          {isBooking && (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[hsl(var(--border))] p-3 text-sm">
+              <span className="flex items-center gap-2 text-[hsl(var(--muted-foreground))]"><CalendarCheck size={16} aria-hidden="true" />Se administra en Reservaciones.</span>
+              <Link to={`/app/m/runly.bookings/reservations?reservacion=${event.sourceEntityId}`} onClick={onClose} className="inline-flex min-h-11 items-center font-medium text-[hsl(var(--primary))] hover:underline">Abrir reservación</Link>
+            </div>
+          )}
+
+          {event.description && (
+            <MarkdownViewer value={event.description} accentColor={calColor} />
+          )}
+
+          <div className="divide-y divide-[hsl(var(--border))] overflow-hidden rounded-xl border border-[hsl(var(--border))]">
+            {event.location && <InfoRow icon={MapPin} label="Ubicación">{event.location}</InfoRow>}
+
+            {event.videoUrl && (
+              <InfoRow icon={Video} label="Videollamada">
+                <a href={event.videoUrl} target="_blank" rel="noopener noreferrer" className="text-violet-500 hover:underline">
+                  {isChatMeeting ? "Enlace para invitados externos" : "Unirse a la videollamada"}
+                </a>
+              </InfoRow>
+            )}
+
+            {event.calendar && <InfoRow icon={Calendar} label="Calendario">{event.calendar.name}</InfoRow>}
+
+            {event.recurrenceRule && (
+              <InfoRow icon={Repeat} label="Repetición">
+                {RECURRENCE_LABELS[event.recurrenceRule.freq]}
+                {event.recurrenceRule.interval > 1 && ` cada ${event.recurrenceRule.interval}`}
+              </InfoRow>
+            )}
+
+            {reminderMinutes !== null && (
+              <InfoRow icon={BellRing} label="Recordatorio">
+                {formatReminderLead(reminderMinutes)}
+                {reminderClock ? ` (${reminderClock})` : ""}
+              </InfoRow>
+            )}
+
+            {event.attendees?.length > 0 && (
+              <InfoRow icon={Users} label={`Invitados (${event.attendees.length})`}>
+                <div className="mb-1.5 text-xs text-[hsl(var(--muted-foreground))]">
+                  {accepted} aceptado{accepted === 1 ? "" : "s"} · {pending} pendiente{pending === 1 ? "" : "s"}
+                </div>
+                <div className="space-y-1.5">
+                  {event.attendees.map((att) => (
+                    <div key={att.id} className="flex items-center justify-between gap-2">
+                      <span className="truncate">{att.user?.firstName} {att.user?.lastName}</span>
+                      <span className="shrink-0 rounded bg-[hsl(var(--muted))] px-1.5 py-0.5 text-[10px] text-[hsl(var(--muted-foreground))]">
+                        {STATUS_LABELS[att.status] ?? att.status}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </InfoRow>
+            )}
+          </div>
+        </div>
+      </div>
 
       <ConfirmDialog
         open={confirmOpen}
@@ -330,5 +313,52 @@ export default function EventDetailModal({
         onConfirm={doDelete}
       />
     </>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="space-y-3 px-5 py-5">
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-2/3" />
+      <Skeleton className="h-4 w-1/3" />
+    </div>
+  );
+}
+
+// Desktop side panel: pushes the grid instead of covering it, so events can be
+// browsed one after another without opening and closing a modal.
+export function EventDetailPanel({ event, onClose, ...rest }) {
+  if (!event) return null;
+  return (
+    <aside
+      aria-label="Detalle del evento"
+      className="flex w-[360px] shrink-0 flex-col border-l border-[hsl(var(--border))] bg-[hsl(var(--surface-1))] animate-in slide-in-from-right-4 fade-in-0 duration-200"
+    >
+      {event._isLoading ? (
+        <LoadingSkeleton />
+      ) : (
+        <EventDetailContent key={event.id} event={event} onClose={onClose} Title="h2" showClose {...rest} />
+      )}
+    </aside>
+  );
+}
+
+export default function EventDetailModal({ event, onClose, ...rest }) {
+  if (!event) return null;
+  return (
+    <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
+      <DialogContent scrollable size="lg" className="gap-0 p-0 md:p-0 md:pt-0!">
+        {event._isLoading ? (
+          <>
+            <DialogTitle className="sr-only">Cargando evento</DialogTitle>
+            <LoadingSkeleton />
+          </>
+        ) : (
+          <EventDetailContent event={event} onClose={onClose} Title={DialogTitle} {...rest} />
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }

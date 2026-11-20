@@ -18,7 +18,7 @@ import WeekGridView from "../components/WeekGridView";
 import DayView from "../components/DayView";
 import AgendaView from "../components/AgendaView";
 import DayAgendaSheet from "../components/DayAgendaSheet";
-import EventDetailModal from "../components/EventDetailModal";
+import EventDetailModal, { EventDetailPanel } from "../components/EventDetailModal";
 import EventFormModal from "../components/EventFormModal";
 import CalendarFormModal from "../components/CalendarFormModal";
 import CalendarShareModal from "../components/CalendarShareModal";
@@ -51,6 +51,8 @@ export default function CalendarScreen() {
   } = useCalendarStore();
 
   const isNarrow = useNarrow();
+  // From this width the event detail opens as a side panel that pushes the grid.
+  const isWide = !useNarrow(1024);
 
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -131,7 +133,7 @@ export default function CalendarScreen() {
   const [detailEvent, setDetailEvent] = useState(null);
   useMiraiRecordContext({
     recordType: "event",
-    recordId: detailEvent?._isLoading ? undefined : detailEvent?.id,
+    recordId: detailEvent?._isLoading || detailEvent?._holiday ? undefined : detailEvent?.id,
     label: detailEvent?.title,
   });
   const [agendaDate, setAgendaDate] = useState(null);
@@ -261,8 +263,18 @@ export default function CalendarScreen() {
           )}
         </div>
 
-        {/* Right sidebar — inline on desktop, overlay on narrow */}
-        {rightSidebarOpen && (
+        {isWide && detailEvent && (
+          <EventDetailPanel
+            event={detailEvent}
+            onClose={() => setDetailEvent(null)}
+            onEdit={openEditEvent}
+            canEdit
+            canDelete
+          />
+        )}
+
+        {/* Right sidebar — inline on desktop, overlay on narrow; the event panel takes its place while open */}
+        {rightSidebarOpen && !(isWide && detailEvent) && (
           <>
             {isNarrow && (
               <div
@@ -295,7 +307,7 @@ export default function CalendarScreen() {
       )}
 
       {/* Modals */}
-      {detailEvent && (
+      {detailEvent && !isWide && (
         <EventDetailModal
           event={detailEvent}
           onClose={() => setDetailEvent(null)}

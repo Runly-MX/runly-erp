@@ -1,11 +1,12 @@
 import { toLocalIso } from '../../../lib/localDate.js';
 import { useState, useEffect, useRef } from "react";
-import { Calendar, MapPin, Video, Repeat } from "lucide-react";
+import { Calendar, CalendarCog, CalendarPlus, MapPin, Video, Repeat } from "lucide-react";
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
   Button,
   TextField,
@@ -353,11 +354,15 @@ export default function EventFormModal({
 
   return (
     <Dialog open onOpenChange={(next) => { if (!next) onClose(); }}>
-      <DialogContent size="2xl">
-        <DialogHeader>
+      <DialogContent scrollable size="2xl" className="gap-0 p-0 md:p-0 md:pt-0!">
+        <form onSubmit={handleSubmit} className="flex min-h-0 flex-1 flex-col" noValidate>
+        <DialogHeader icon={isEdit ? CalendarCog : CalendarPlus} className="mb-0 shrink-0 px-5 pt-4 pb-3">
           <DialogTitle>{isEdit ? "Editar evento" : "Nuevo evento"}</DialogTitle>
+          <DialogDescription>
+            {isEdit ? "Actualiza los datos del evento." : "Agenda un evento en uno de tus calendarios."}
+          </DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
           {!isEdit && initialAttendeeIds?.length > 0 && (
             <p className="text-xs text-[hsl(var(--muted-foreground))] px-1">
               Se invitará a los {initialAttendeeIds.length} miembros de esta conversación.
@@ -506,9 +511,10 @@ export default function EventFormModal({
               onChange={(e) => set("recurrenceInterval", e.target.value)}
             />
           )}
+        </div>
 
-          <DialogFooter>
-            <Button type="button" variant="ghost" onClick={onClose}>
+          <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
+            <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
             <Button type="submit" disabled={isPending}>

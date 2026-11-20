@@ -6,7 +6,10 @@ import {
 } from "@tanstack/react-query";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useOfflineContext, useOfflineStore } from "@runly/offline";
+import { useCallback } from "react";
 import { runly } from "../../../lib/runly";
+import { useCalendarStore } from "../stores/useCalendarStore";
+import { holidaysForYear } from "../lib/holidays";
 
 function useToken() {
   const { session } = useAuth();
@@ -154,7 +157,13 @@ export function useYearEvents(year, calendarIds = [], enabled = true) {
   const isOnline = useOfflineStore((s) => s.isOnline);
   const yearStart = new Date(year, 0, 1);
   const yearEnd = new Date(year, 11, 31, 23, 59, 59);
+  const holidayKey = useCalendarStore((s) => s.holidayCountries).join(",");
+  const withHolidays = useCallback(
+    (events) => (holidayKey ? [...(events ?? []), ...holidaysForYear(year, holidayKey.split(","))] : events),
+    [year, holidayKey],
+  );
   return useQuery({
+    select: withHolidays,
     queryKey: ["calendar", "events", "year", year, calendarIds.join(",")],
     queryFn: async () => {
       if (!isOnline) {

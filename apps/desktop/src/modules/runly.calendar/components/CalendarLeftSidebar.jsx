@@ -21,6 +21,7 @@ import { useAuth } from "../../../auth/AuthProvider";
 import MiniCalendar from "./MiniCalendar";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import { useCalendars } from "../hooks/useCalendarData";
+import { HOLIDAY_COUNTRIES } from "../lib/holidays";
 import { CalendarIcon } from "../calendarIcons";
 import GoogleCalendarConnectionCard from "./GoogleCalendarConnectionCard";
 import GoogleCalendarCalendarPickerDialog from "./GoogleCalendarCalendarPickerDialog";
@@ -180,6 +181,8 @@ export default function CalendarLeftSidebar({
     setSelectedDate,
     activeCalendarIds,
     toggleCalendarFilter,
+    holidayCountries,
+    toggleHolidayCountry,
   } = useCalendarStore();
   const { data, isLoading } = useCalendars();
   const owned = data?.owned ?? [];
@@ -260,6 +263,20 @@ export default function CalendarLeftSidebar({
               ))}
             </section>
           )}
+
+          <section className="mt-4">
+            <div className="text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))] mb-2">
+              Días festivos
+            </div>
+            {HOLIDAY_COUNTRIES.map((c) => (
+              <SharedCalendarItem
+                key={c.code}
+                cal={{ id: c.code, name: c.label, color: c.color }}
+                isActive={holidayCountries.includes(c.code)}
+                onToggle={toggleHolidayCountry}
+              />
+            ))}
+          </section>
 
           <section className="mt-6 border-t border-[hsl(var(--border))] pt-4">
             <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-[hsl(var(--muted-foreground))]">
