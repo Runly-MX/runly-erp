@@ -241,6 +241,65 @@ and `POST /public/website/bookings` stay untouched until phase 5.
 - Not built: the website editor's booking selector in the legacy `WebsitePageEditorScreen` (text field there), a
   popup/modal embed, channel `website` for embedded bookings (they are `portal`), custom domains for the portal itself.
 
+## 7.5 Phase 5: POS on the Booking Engine (2026-11-19)
+
+Plan and evidence: `docs/superpowers/plans/2026-11-19-bookings-phase5-pos.md`. In this program phase 5 is the POS
+integration (the table in section 7 listed it as phase 6; the Website rewiring was absorbed by phase 4).
+
+**F5A audit (working tree, 2026-11-19).**
+
+| Area | Finding |
+|---|---|
+| Table reservations | `pos_reservation` + `pos-reservation-service.js`: creating one with a table sets `pos_table.status = RESERVED` for the whole day (confirmed: a 21:00 reservation blocks the table from the morning, and a second future reservation on the table is refused while it is RESERVED). No time-range check, no capacity check (party size vs table seats), duration only informative. Cancel / no-show set the table AVAILABLE when no open order. |
+| UI | No POS screen uses the reservation hooks (`usePosReservation.js` is unused): reservations exist only through the API/SDK; the comandero just shows RESERVED tables. |
+| Arrival | Two seat paths: legacy `POST /pos/reservations/:id/seat` (floor routes) is shadowed by the C6 command `seatReservation` (v2 router mounted first), which opens the order through `createPosRecoveryOrders.createOrder` (table lock, one open order per table, RESERVED only openable by its reservation). |
+| Appointments | `pos_appointment`: no professional/resource at all and no overlap detection (confirmed: any number of appointments can share a time in one outlet). COMPLETED requires the paid POS order; status changes have no time rules. |
+| Outlets, customers | Outlets have no time zone; reservations keep guest name/phone, appointments link `contact_id` and catalog items (charged later in Caja). |
+| Permissions | Reservations: `pos.orders.read/create/update`; appointments: any of `pos.caja.*`, `pos.comandas.*`, `pos.admin.*`. |
+| Calendar | `pos-calendar-bridge.js` mirrors reservations and appointments onto "Punto de venta - Agenda". |
+| Data | `scripts/audit-pos-bookings-legacy.mjs` (read-only, counts only) on the development instance: 0 legacy reservations, 0 appointments, 0 RESERVED tables. Production must be audited the same way before activating any outlet. |
+
+**Contract.** The Booking Engine is the only source of time and capacity; POS keeps physical state and money.
+- `pos_booking_link (company, outlet, kind = tables | appointments)` → one engine space + service; `mode` `engine`
+  (POS writes through the engine) or `legacy` (POS writes its own tables). One writer per outlet and kind.
+- Tables are engine resources (`pos_booking_table`), `booking_resource.capacity` = seats; the engine keeps only
+  resources with room for the party and picks the smallest that fits. Professionals are staff resources.
+- The legacy POS routes and SDK keep their shape: `/pos/reservations*` and `/pos/appointments*` delegate to
+  `pos-bookings-adapter.js` for engine outlets (reservation id = booking id, or a carried legacy row). No route was
+  removed; POS UI calls were made online-only (a time is never confirmed offline).
+- Engine additions (no second engine): `durationMinutes` per booking for staff (never portal), `partySize` change on
+  reschedule (staff), `createTx/transitionTx/rescheduleTx` inside a caller's transaction with a `sideEffect` hook
+  (the `pos_appointment` row commits with its booking), `source` idempotency (`booking.source_module/source_id`,
+  unique), `attachOrderTx` (arrival: `booking.pos_order_id`, `arrived_at`, history `arrive`), `updateDetails`,
+  internal `skipLimits` (migration only) and `excludeResourceIds`.
+- Boundary with physical state (POS): a table occupied now cannot take a reservation that starts within one turnover
+  (the link service's duration) and is skipped by auto-assignment; a walk-in cannot open a table whose unseated
+  reservation overlaps the next turnover (`TABLE_OCCUPIED`, existing code); seating needs the table physically free.
+  The engine booking stays CONFIRMED while seated (the table keeps its time) and is completed by the worker once its
+  account is paid/cancelled/refunded (or an appointment was charged) and it has started.
+- Statuses: engine CONFIRMED → POS `CONFIRMED`, or `SEATED` with an account; CANCELLED/REJECTED/EXPIRED → `CANCELLED`;
+  NO_SHOW, COMPLETED, PENDING as is. Appointments: ARRIVED is POS-only; NO_SHOW only after the start (engine rule);
+  COMPLETED before the start updates POS now and the engine later.
+- Calendar: engine outlets are mirrored only by the bookings projection (the POS bridge skips them); carried legacy rows
+  lose their POS calendar event.
+
+**F5D migration and rollback.** Per outlet and kind, from Administración > Reservas (or the routes):
+`preview` runs the whole activation in a transaction that is rolled back and reports what is carried and what does not
+fit; `activate` creates the space (internal, unpublished, open 24 h in two halves so a dinner can cross midnight), the
+service (tables 90 min + 15 min cleanup, appointments 60 min), the resources, and carries every open, not yet ended
+legacy row into the engine with `source` = the legacy row (idempotent; started ones keep their remaining time);
+any conflict blocks the activation (409 with the list) until staff fix it in POS; legacy RESERVED marks are cleared.
+Legacy rows are never deleted: history stays in `pos_reservation`/`pos_appointment` (`booking_id` links carried
+ones). `rollback` sets `legacy`, unpublishes the space and copies every live engine booking back to a legacy row
+(created or updated, linked by `booking_id`), so nothing booked after activation is lost; reactivation applies changes
+made in legacy mode (cancellations, moves) through the engine first. Legacy mode after a rollback does not re-mark
+tables RESERVED (that would block them all day again).
+
+Not built: automatic combination of tables (resources are one table each; a combination would need multi-resource
+bookings, a non-goal of v1), outlet time zones (the activation takes the browser's), a public restaurant portal by
+default (the space starts unpublished; a portal booking for a near time can land on a table that is physically busy,
+see risks), deposits/payments.
+
 ## 8. Non-goals for v1
 
 Multi-resource services (service needs room AND staff), recurring bookings, waitlists, payments,
