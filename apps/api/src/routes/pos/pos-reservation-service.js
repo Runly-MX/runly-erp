@@ -5,30 +5,45 @@ import {
 } from "./service-helpers.js";
 import { createPosScopeService } from './pos-scope-service.js';
 import {createPosCommandService} from './pos-command-service.js';
+import { createPosBookingsAdapter } from './pos-bookings-adapter.js';
 
-export function createPosReservationService({ prisma }) {
+// Outlets whose tables are on the Booking Engine (pos_booking_link mode 'engine') read and
+// write through it; the rest keep the legacy rows. Same routes and DTO either way.
+export function createPosReservationService({ prisma, onChanged = null }) {
   const commands=createPosCommandService({prisma});
-  async function listReservations({ companyId, outletId, date, status }) {
+  const engine=createPosBookingsAdapter({ prisma, onChanged });
+  async function listReservations({ companyId, outletId, date, status, from = null, to = null }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const where = { companyId: scopedCompanyId };
     if (outletId) where.outletId = outletId;
     if (status) where.status = status;
-    if (date) {
-      const start = new Date(date);
+    let start = null, end = null;
+    const instant = (v) => { const d = new Date(v); if (Number.isNaN(d.getTime())) throw new PosServiceError("Fecha inválida.", 400); return d; };
+    if (from || to) {
+      start = from ? instant(from) : null; end = to ? instant(to) : null;
+      where.scheduledAt = { ...(start ? { gte: start } : {}), ...(end ? { lt: end } : {}) };
+    } else if (date) {
+      start = new Date(date);
       start.setHours(0, 0, 0, 0);
-      const end = new Date(date);
+      end = new Date(date);
       end.setHours(23, 59, 59, 999);
       where.scheduledAt = { gte: start, lte: end };
     }
-    return prisma.posReservation.findMany({
-      where,
+    // Legacy rows already carried into the engine are shown once, from the engine.
+    const engineOutlets = (await prisma.posBookingLink.findMany({ where: { companyId: scopedCompanyId, kind: 'tables', mode: 'engine' }, select: { outletId: true } })).map((l) => l.outletId);
+    const legacy = await prisma.posReservation.findMany({
+      where: { ...where, NOT: { AND: [{ bookingId: { not: null } }, { outletId: { in: engineOutlets } }] } },
       include: { table: true },
       orderBy: { scheduledAt: "asc" },
     });
+    const fromEngine = await engine.listReservations({ companyId: scopedCompanyId, outletId, from: start, to: end, status });
+    return [...legacy.map((r) => ({ ...r, source: 'legacy' })), ...fromEngine].sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
   }
 
   async function getReservation({ companyId, id }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    const ref = await engine.resolveReservation(prisma, scopedCompanyId, id);
+    if (ref) return engine.reservationView(prisma, scopedCompanyId, ref.link, ref.bookingId);
     const reservation = await prisma.posReservation.findFirst({
       where: { id, companyId: scopedCompanyId },
       include: { table: true },
@@ -41,6 +56,11 @@ export function createPosReservationService({ prisma }) {
     const scopedCompanyId = requireCompanyId(companyId);
     const scope = createPosScopeService({ prisma });
     await scope.outlet(scopedCompanyId, data.outletId);
+    const link = await engine.link(prisma, scopedCompanyId, data.outletId, 'tables');
+    if (link) {
+      if (data.tableId) await scope.table(scopedCompanyId, data.outletId, data.tableId);
+      return engine.createReservation({ companyId: scopedCompanyId, actorId, link, data });
+    }
 
     if (data.tableId) {
       const table = await scope.table(scopedCompanyId, data.outletId, data.tableId);
@@ -88,6 +108,9 @@ export function createPosReservationService({ prisma }) {
   async function updateReservation({ companyId, actorId, id, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
     if(data.status==='SEATED')throw new PosServiceError('Atiende la reserva mediante el comando C6 para crear una cuenta consistente.',409);
+    const ref = await engine.resolveReservation(prisma, scopedCompanyId, id);
+    if (ref) return engine.updateReservation({ companyId: scopedCompanyId, actorId, ref, data });
+    if (data.tableId !== undefined) throw new PosServiceError('Cambiar de mesa requiere que la sucursal use el sistema de reservaciones.', 409);
     const existing = await prisma.posReservation.findFirst({
       where: { id, companyId: scopedCompanyId },
     });

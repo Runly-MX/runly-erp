@@ -2,6 +2,7 @@ import { createCatalogSellablesService } from '../catalog/catalog-sellables-serv
 import { fail, json } from './pos-contracts.js';
 import { createPosScopeService } from './pos-scope-service.js';
 import { createPosModifierService } from './pos-modifier-service.js';
+import { assertTableWalkIn } from './pos-bookings-adapter.js';
 
 export function createPosRecoveryOrders({ commands, store }) {
   async function createOrder(tx, ctx, data) {
@@ -19,6 +20,8 @@ export function createPosRecoveryOrders({ commands, store }) {
       const table=await store.row(tx,'posTable',companyId,data.tableId,{outletId:outlet.id,enabled:true});
       if(table.status==='RESERVED'&&!ctx.reservationId)fail('TABLE_OCCUPIED','La mesa está reservada; atiende su reserva para abrir la cuenta.');
       if(!['AVAILABLE','RESERVED'].includes(table.status)||await tx.posOrder.count({where:{companyId,tableId:table.id,status:{notIn:['PAID','CANCELLED','REFUNDED']}}}))fail('TABLE_OCCUPIED','La mesa ya tiene una cuenta o no está disponible.');
+      // Outlets on the Booking Engine: a walk-in must not take a table reserved for the next turnover.
+      if(!ctx.reservationId)await assertTableWalkIn(tx,{companyId,outletId:outlet.id,tableId:table.id});
     }
     const settings = await store.settings(tx, companyId);
     if(session){store.knownCurrency(session);if(session.currency!==settings.currency)fail('CURRENCY_MISMATCH','La sesión abierta y la configuración comercial usan monedas distintas.');}

@@ -13,7 +13,7 @@ import { Field, StatusBadge } from './shared.jsx'
 const ICONS = { confirm: Check, reject: X, cancel: XCircle, complete: CircleCheckBig, 'no-show': UserX, reschedule: CalendarSync }
 const HISTORY_LABEL = {
   create: 'Reservación registrada', confirmed: 'Confirmada', rejected: 'Rechazada', cancelled: 'Cancelada', completed: 'Completada',
-  no_show: 'Marcada como no presentada', expire: 'Venció sin confirmarse', reschedule: 'Reprogramada', manage_link: 'Se envió un nuevo enlace al cliente',
+  no_show: 'Marcada como no presentada', expire: 'Venció sin confirmarse', reschedule: 'Reprogramada', manage_link: 'Se envió un nuevo enlace al cliente', arrive: 'Llegó el cliente (cuenta abierta en POS)', update: 'Se actualizaron los datos del cliente',
 }
 
 // One reservation: data, the actions the engine allows right now (`actions`),

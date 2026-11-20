@@ -7,6 +7,7 @@ Runly POS es la terminal de venta: abre y cierra caja, cobra ventas de mostrador
 - **Caja**: se cobra. Escanea o toca productos, cobra un monto libre, aplica descuentos, divide el pago y genera el comprobante. En restaurante tambien cobras las cuentas de las mesas.
 - **Citas**: agenda servicios con tus clientes y cobralos desde la caja; tambien aparecen en el Calendario.
 - **Comandero**: las mesas del restaurante; el mesero abre la cuenta, captura el consumo y lo envia a cocina.
+- **Reservas**: reservaciones de mesas por horario, con la capacidad de cada mesa (requiere activar Reservaciones en la sucursal).
 - **Cocina**: las comandas por estacion (Cocina, Barra, Postres...), en tiempo real.
 - **Ordenes**: el historial de ventas, comprobantes y devoluciones.
 - **Administracion**: tu negocio, sucursales, cajas, formas de pago, cajas por enlace y, si sirves mesas, lo de restaurante.

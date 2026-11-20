@@ -1,9 +1,11 @@
 import {fail,commerceDto} from './pos-contracts.js';
 import {createUserAccessService} from '../../services/user-access-service.js';
 import {createPosRecoveryOrders} from './pos-recovery-orders.js';
+import {createPosBookingsAdapter} from './pos-bookings-adapter.js';
 
 export function createPosRestaurantService({commands,store,prisma}) {
   const terminal=['PAID','CANCELLED','REFUNDED'];
+  const bookings=createPosBookingsAdapter({prisma});
   async function outlet(tx,companyId,id) {
     const value=await store.row(tx,'posOutlet',companyId,id,{enabled:true});
     if(!['RESTAURANT','HYBRID'].includes(value.mode))fail('INVALID_TRANSITION','Selecciona una sucursal de Restaurante o Mixta.');
@@ -39,10 +41,12 @@ export function createPosRestaurantService({commands,store,prisma}) {
       const rows=await tx.posTable.findMany({where:{companyId,outletId},orderBy:[{name:'asc'},{id:'asc'}]});
       const orders=await tx.posOrder.findMany({where:{companyId,outletId,tableId:{in:rows.map(r=>r.id)},status:{notIn:terminal}},orderBy:{openedAt:'asc'}});
       const users=await tx.userProfile.findMany({where:{id:{in:orders.map(o=>o.waiterId).filter(Boolean)}},select:{id:true,displayName:true}});
+      // Outlets on the Booking Engine: each table's next unseated reservation (the table stays physically free until then).
+      const upcoming=await bookings.upcomingByTable(tx,{companyId,outletId});
       const ready=await tx.posOrderLine.groupBy({by:['orderId'],where:{orderId:{in:orders.map(o=>o.id)},voided:false,kitchenStatus:'READY'},_count:{_all:true}});
       return commerceDto(rows.filter(t=>!myTablesOnly||orders.some(o=>o.tableId===t.id&&o.waiterId===actorId)||(!orders.some(o=>o.tableId===t.id)&&t.waiterId===actorId)).map(t=>{
         const active=orders.filter(o=>o.tableId===t.id),o=active[0];
-        return {...t,status:o?(t.status==='BILL_REQUESTED'?'BILL_REQUESTED':'OCCUPIED'):t.status,activeOrderId:active.length===1?o.id:null,activeOrderIds:active.map(o=>o.id),reconciliationRequired:active.length>1,
+        return {...t,status:o?(t.status==='BILL_REQUESTED'?'BILL_REQUESTED':'OCCUPIED'):t.status,activeOrderId:active.length===1?o.id:null,activeOrderIds:active.map(o=>o.id),reconciliationRequired:active.length>1,nextReservation:upcoming?.get(t.id)??null,
           activeOrder:o?{id:o.id,orderNumber:o.orderNumber,totalAmount:o.totalAmount,guestCount:o.guestCount,waiterId:o.waiterId,waiterName:users.find(u=>u.id===o.waiterId)?.displayName??null,openedAt:o.openedAt,version:o.version,
             readyLineCount:ready.find(r=>r.orderId===o.id)?._count._all??0}:null};
       }));
@@ -66,6 +70,13 @@ export function createPosRestaurantService({commands,store,prisma}) {
     return after;
   }
   async function seatReservation(tx,ctx,data,{reservationId}) {
+    // Outlets on the Booking Engine: the account and the booking's arrival commit together.
+    const ref=await bookings.resolveReservation(tx,ctx.companyId,reservationId);
+    if(ref){
+      const o=await bookings.seatInTx(tx,{companyId:ctx.companyId,actorId:ctx.actorId,ref,openOrder:(r)=>createPosRecoveryOrders({commands,store}).createOrder(tx,{...ctx,reservationId,reservationCustomer:{name:r.guestName,phone:r.guestPhone}},{outletId:r.outletId,tableId:r.tableId,sessionId:data.sessionId,experience:'RESTAURANT',fulfillmentType:'DINE_IN',guestCount:r.partySize,notes:r.notes})});
+      await commands.audit(tx,{...ctx,entityType:'Booking',entityId:ref.bookingId,action:'pos.reservation.seat',after:{orderId:o.id}});
+      return o;
+    }
     await tx.$queryRaw`SELECT id FROM pos_reservation WHERE id=${reservationId}::uuid AND company_id=${ctx.companyId}::uuid FOR UPDATE`;
     const r=await store.row(tx,'posReservation',ctx.companyId,reservationId);
     if(r.status!=='CONFIRMED'||r.orderId)fail('INVALID_TRANSITION','La reserva ya fue atendida o cancelada.');

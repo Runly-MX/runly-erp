@@ -55,6 +55,7 @@ import { createBookingsNotifier } from '../../api/src/routes/bookings/bookings-n
 import { createBookingsCommandService } from '../../api/src/routes/bookings/bookings-command-service.js'
 import { pruneRateBuckets } from '../../api/src/routes/bookings/bookings-rate-limit.js'
 import { createBookingsCalendarProjection } from '../../api/src/routes/bookings/bookings-calendar.js'
+import { createPosBookingsAdapter } from '../../api/src/routes/pos/pos-bookings-adapter.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -739,6 +740,7 @@ async function runMeetingChannelArchiveTick() {
 const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId) })
 const bookingsCommands = createBookingsCommandService({ prisma })
 const bookingsCalendar = createBookingsCalendarProjection({ prisma })
+const posBookings = createPosBookingsAdapter({ prisma })
 let bookingsTickRunning = false
 async function runBookingsTick() {
   if (bookingsTickRunning) return
@@ -748,6 +750,9 @@ async function runBookingsTick() {
     if (holds.expired) console.log(`[worker] bookings holds ${formatLogTimestamp()} companies=${holds.companies} expired=${holds.expired}`)
     const mail = await bookingsNotifier.processDue({ limit: 25 })
     if (mail.processed) console.log(`[worker] bookings emails ${formatLogTimestamp()} processed=${mail.processed} sent=${mail.sent} retrying=${mail.retrying} failed=${mail.failed} skipped=${mail.skipped}`)
+    // POS: a seated reservation whose account closed (or an appointment charged early) is completed once started.
+    const closed = await posBookings.completeClosed()
+    if (closed.completed) console.log(`[worker] bookings pos ${formatLogTimestamp()} completed=${closed.completed}`)
     // Calendar mirror of everything not yet projected at its current version (expired holds included).
     const calendar = await bookingsCalendar.syncDue()
     if (calendar.processed) console.log(`[worker] bookings calendar ${formatLogTimestamp()} processed=${calendar.processed} created=${calendar.created} updated=${calendar.updated} removed=${calendar.removed} failed=${calendar.failed}`)

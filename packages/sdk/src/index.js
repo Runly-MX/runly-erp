@@ -1677,11 +1677,20 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         get: (id, token) =>
           request(`/pos/appointments/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token) }),
         create: (data, token) =>
-          request("/pos/appointments", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+          request("/pos/appointments", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
         update: (id, data, token) =>
-          request(`/pos/appointments/${encodeURIComponent(id)}`, { method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+          request(`/pos/appointments/${encodeURIComponent(id)}`, { method: "PATCH", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
         setStatus: (id, data, token) =>
-          request(`/pos/appointments/${encodeURIComponent(id)}/status`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data) }),
+          request(`/pos/appointments/${encodeURIComponent(id)}/status`, { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      },
+      // Outlets on the Booking Engine (runly.bookings phase 5): activation per outlet and kind.
+      bookings: {
+        links: (outletId, token) => request(`/pos/bookings/links${toQueryString({ outletId })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        preview: (data, token) => request("/pos/bookings/links/preview", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        activate: (data, token) => request("/pos/bookings/links/activate", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        rollback: (data, token) => request("/pos/bookings/links/rollback", { method: "POST", headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+        professionals: (outletId, token) => request(`/pos/bookings/professionals${toQueryString({ outletId })}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+        tables: (query, token) => request(`/pos/reservations/tables${toQueryString(query)}`, { headers: withAuthHeaders(token), onlineOnly: true }),
       },
       setup: (data, token) =>
         request("/pos/setup", {
@@ -1939,11 +1948,13 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         request(`/pos/reservations${toQueryString(query)}`, {
           headers: withAuthHeaders(token),
         }),
+      // Never queued offline: the Booking Engine confirms a time only online.
       createReservation: (data, token) =>
         request("/pos/reservations", {
           method: "POST",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
+          onlineOnly: true,
         }),
       getReservation: (id, token) =>
         request(`/pos/reservations/${encodeURIComponent(id)}`, {
@@ -1954,6 +1965,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           method: "PATCH",
           headers: withAuthHeaders(token),
           body: JSON.stringify(data),
+          onlineOnly: true,
         }),
       seatReservation: (id, data, token) =>
         request(`/pos/reservations/${encodeURIComponent(id)}/seat`, {

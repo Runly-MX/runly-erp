@@ -6,6 +6,7 @@ import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosWaiterShiftService } from "./pos-waiter-shift-service.js";
 import { createPosFloorRoutes } from "./pos-floor-routes.js";
 import { createPosAppointmentRoutes } from "./pos-appointment-routes.js";
+import { createPosBookingsRoutes } from "./pos-bookings-routes.js";
 import { createPosDeviceRoutes } from "./pos-device-routes.js";
 import { createPosModifierService } from "./pos-modifier-service.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
@@ -60,6 +61,8 @@ export function createPosRouter({ prisma, requirePermission, requireAnyPermissio
   const kitchenSvc = createPosKitchenService({ prisma });
   const sessionReader = requireAnyPermission ? requireAnyPermission(['pos.sessions.read','pos.caja.read']) : requirePermission('pos.sessions.read');
 
+  // Before the floor routes: /pos/reservations/tables must not match /pos/reservations/:id.
+  app.route("", createPosBookingsRoutes({ prisma, requirePermission, requireAnyPermission }));
   app.route("", createPosFloorRoutes({ prisma, requirePermission }));
   if (requireAnyPermission) app.route("", createPosAppointmentRoutes({ prisma, requireAnyPermission }));
   if (deviceService) app.route("", createPosDeviceRoutes({ deviceService, requirePermission }));

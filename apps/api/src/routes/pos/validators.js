@@ -264,6 +264,8 @@ export const updateReservationSchema = z.object({
   durationMinutes: z.coerce.number().int().min(15).max(720).optional(),
   notes: optionalNullableText(1000),
   status: reservationStatusSchema.optional(),
+  // Outlets on the Booking Engine can move a reservation to another table.
+  tableId: z.string().uuid().nullable().optional(),
 });
 
 export const seatReservationSchema = z.object({
@@ -335,6 +337,8 @@ export const createAppointmentSchema = z.object({
   durationMinutes: z.coerce.number().int().min(5).max(720).optional(),
   items: z.array(appointmentItemSchema).max(20).optional(),
   notes: optionalNullableText(1000),
+  // Professional (engine resource) for outlets on the Booking Engine; empty = any free one.
+  resourceId: z.string().uuid().nullable().optional(),
 }).strict();
 
 export const updateAppointmentSchema = createAppointmentSchema.partial().strict();

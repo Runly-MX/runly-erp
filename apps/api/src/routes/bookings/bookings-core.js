@@ -125,13 +125,17 @@ export async function loadResourceWindows(db, { companyId, space, resourceIds, f
 }
 
 // Resources that can deliver the service in this space (linked to both, enabled).
-export async function eligibleResources(db, { companyId, spaceId, serviceId }) {
+// With a party size, only resources with room for it (capacity NULL = unlimited),
+// smallest fitting first so a couple does not take the table for ten.
+export async function eligibleResources(db, { companyId, spaceId, serviceId, partySize = null }) {
+  const party = partySize == null ? null : Number(partySize)
   const rows = await db.$queryRaw`
-    SELECT r.id, r.name, r.type FROM booking_resource r
+    SELECT r.id, r.name, r.type, r.capacity FROM booking_resource r
       JOIN booking_service_resource sr ON sr.resource_id = r.id AND sr.company_id = r.company_id AND sr.service_id = ${serviceId}::uuid
       JOIN booking_space_resource sp ON sp.resource_id = r.id AND sp.company_id = r.company_id AND sp.space_id = ${spaceId}::uuid
      WHERE r.company_id = ${companyId}::uuid AND r.enabled = true
-     ORDER BY r.name, r.id`
+       AND (${party}::int IS NULL OR r.capacity IS NULL OR r.capacity >= ${party}::int)
+     ORDER BY r.capacity NULLS LAST, r.name, r.id`
   return rows
 }
 

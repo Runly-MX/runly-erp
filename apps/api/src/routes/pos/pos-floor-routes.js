@@ -10,6 +10,7 @@ import { createPosFloorService } from "./pos-floor-service.js";
 import { createPosKitchenService } from "./pos-kitchen-service.js";
 import { createPosReservationService } from "./pos-reservation-service.js";
 import { createPosCalendarBridge } from "./pos-calendar-bridge.js";
+import { createBookingsCalendarProjection } from "../bookings/bookings-calendar.js";
 import { getActorId, getCompanyId, PosServiceError } from "./service-helpers.js";
 import {
   assignWaiterSchema,
@@ -56,10 +57,11 @@ export function createPosFloorRoutes({ prisma, requirePermission }) {
   const app = new Hono();
   const floorSvc = createPosFloorService({ prisma });
   const kitchenSvc = createPosKitchenService({ prisma });
-  const reservationSvc = createPosReservationService({ prisma });
+  const reservationSvc = createPosReservationService({ prisma, onChanged: createBookingsCalendarProjection({ prisma }).projectQuietly });
   const calendar = createPosCalendarBridge({ prisma });
-  // Calendar mirroring runs after the response is decided and never fails it.
-  const mirror = (ctx, reservation) => { calendar.syncReservation({ ...ctx, reservation }).catch(() => {}); return reservation; };
+  // Calendar mirroring runs after the response is decided and never fails it. Engine
+  // reservations are mirrored by the Booking Engine projection instead (one event each).
+  const mirror = (ctx, reservation) => { if (reservation?.source !== "engine") calendar.syncReservation({ ...ctx, reservation }).catch(() => {}); return reservation; };
 
   app.get("/pos/floors", requirePermission("pos.floor.read"), async (c) => {
     try {
@@ -241,9 +243,10 @@ export function createPosFloorRoutes({ prisma, requirePermission }) {
   // ── Reservations ───────────────────────────────────────────────────────────
   app.get("/pos/reservations", requirePermission("pos.orders.read"), async (c) => {
     try {
-      const { outletId, date, status } = c.req.query();
+      // from/to (ISO instants) give the day as the device sees it; date keeps the legacy server-day filter.
+      const { outletId, date, status, from, to } = c.req.query();
       return c.json({
-        data: await reservationSvc.listReservations({ ...context(c), outletId, date, status }),
+        data: await reservationSvc.listReservations({ ...context(c), outletId, date, status, from, to }),
       });
     } catch (err) {
       return handleError(c, err, "No se pudieron consultar las reservaciones.");

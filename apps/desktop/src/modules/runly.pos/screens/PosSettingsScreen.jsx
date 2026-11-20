@@ -24,6 +24,7 @@ import { settingsPatch } from '../lib/posSettings.js'
 import { POS_ADMIN_TOUCH } from '../components/adminTouch.js'
 import { ModeTiles } from '../retail/components/PosQuickSetup.jsx'
 import PosDeviceAccess from '../components/PosDeviceAccess.jsx'
+import PosBookingsLinkPanel from '../components/PosBookingsLinkPanel.jsx'
 
 // The operating screens' default orange (pos-theme.css) first, then common brand colors.
 const POS_DEFAULT_ACCENT = '#F5411E'
@@ -59,6 +60,7 @@ function PosSettingsView() {
                 <span className="hidden sm:inline">Cajas por enlace</span>
               </TabsTrigger>
               {restaurant && <TabsTrigger value="restaurant">Restaurante</TabsTrigger>}
+              <TabsTrigger value="bookings">Reservas</TabsTrigger>
               <TabsTrigger value="advanced">Avanzado</TabsTrigger>
             </TabsList>
           </div>
@@ -77,6 +79,7 @@ function PosSettingsView() {
           {/* Like Asistencia's kiosks: each register opens apart at /app/p/pos/<link>, outside the ERP. */}
           <TabsContent value="links"><PosDeviceAccess /></TabsContent>
           {restaurant && <TabsContent value="restaurant"><RestaurantAdmin onEditOutlets={() => setTab('general')} /></TabsContent>}
+          <TabsContent value="bookings"><PosBookingsLinkPanel outlets={outlets} appointmentsEnabled={Boolean(settings?.appointmentsEnabled)} /></TabsContent>
           <TabsContent value="advanced"><GeneralTab part="advanced" /></TabsContent>
         </Tabs>
       </div>

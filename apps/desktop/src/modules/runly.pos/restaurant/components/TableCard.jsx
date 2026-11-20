@@ -13,8 +13,13 @@ export default function TableCard({ table, currency, now, layout = 'grid', onOpe
   const ready = order?.readyLineCount ?? 0
   const busy = Boolean(order)
   const reconcile = table.reconciliationRequired
+  const next = table.nextReservation
+  // Shown for the same day only (later ones live in Reservas).
+  const soon = next && new Date(next.scheduledAt).toDateString() === new Date(now ?? Date.now()).toDateString()
+  const nextTime = next ? new Date(next.scheduledAt).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' }) : null
   const label = [
     `${table.name}, ${meta.label}`,
+    soon ? `reserva a las ${nextTime} para ${next.partySize}` : null,
     order ? `cuenta ${order.orderNumber ?? ''}, ${formatMoney(order.totalAmount, currency)}${order.waiterName ? `, mesero ${order.waiterName}` : ''}` : `capacidad ${table.capacity}`,
     ready ? `${ready} listas para llevar` : null,
   ].filter(Boolean).join(', ')
@@ -36,6 +41,8 @@ export default function TableCard({ table, currency, now, layout = 'grid', onOpe
           <span className="min-w-0">
             <span className="block truncate text-xl font-extrabold text-[hsl(var(--foreground))]">{table.name}</span>
             <span className="flex items-center gap-1 text-sm text-[hsl(var(--muted-foreground))]"><Users className="h-4 w-4" aria-hidden="true" />{order ? `${order.guestCount ?? '—'} comensales` : `Para ${table.capacity}`}</span>
+            {/* Outlets on Reservaciones: the table stays free until its next reservation. */}
+            {next && soon ? <span className="flex items-center gap-1 text-sm font-semibold text-blue-700 dark:text-blue-300"><Clock className="h-4 w-4" aria-hidden="true" />Reserva {nextTime} · {next.partySize} pers.</span> : null}
           </span>
         </span>
         <span className="flex min-w-0 flex-1 flex-wrap items-center gap-x-4 gap-y-1">

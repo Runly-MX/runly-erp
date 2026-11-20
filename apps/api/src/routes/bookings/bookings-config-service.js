@@ -115,12 +115,12 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
 
   async function createResource({ companyId, input }) {
     await assertUser(companyId, input.userId)
-    return prisma.bookingResource.create({ data: { companyId, name: input.name, type: input.type, userId: input.userId ?? null } })
+    return prisma.bookingResource.create({ data: { companyId, name: input.name, type: input.type, userId: input.userId ?? null, capacity: input.capacity ?? null } })
   }
 
   async function updateResource({ companyId, resourceId, input }) {
     await assertUser(companyId, input.userId)
-    const result = await prisma.bookingResource.updateMany({ where: { id: resourceId, companyId }, data: pick(input, { name: 'name', type: 'type', userId: 'userId', enabled: 'enabled' }) })
+    const result = await prisma.bookingResource.updateMany({ where: { id: resourceId, companyId }, data: pick(input, { name: 'name', type: 'type', userId: 'userId', capacity: 'capacity', enabled: 'enabled' }) })
     if (!result.count) throw notFound('Recurso')
     return prisma.bookingResource.findFirst({ where: { id: resourceId, companyId } })
   }
@@ -346,5 +346,7 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
     listSessions, getSession, listBookings, bookingSpaceId, history,
     spaceSummary, listSpaceResourceIds, listServiceResourceIds, isAnySpaceMember, myRoles,
     listPages, getPageRow, createPage, updatePage,
+    // Integrations (POS activation) that add space members inside their own transaction.
+    syncAccessGrant,
   }
 }

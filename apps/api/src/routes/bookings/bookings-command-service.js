@@ -188,9 +188,12 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
 
   // Resources that can take [start, end) by the hours rules; the exclusion
   // constraint decides which of them is actually free.
-  async function appointmentCandidates(tx, { companyId, space, service, start, end, resourceId }) {
-    let resources = await eligibleResources(tx, { companyId, spaceId: space.id, serviceId: service.id })
-    if (!resources.length) throw new BookingError('El servicio no tiene recursos asignados en este sistema.', 422, 'NO_RESOURCES')
+  async function appointmentCandidates(tx, { companyId, space, service, start, end, resourceId, partySize = null }) {
+    let resources = await eligibleResources(tx, { companyId, spaceId: space.id, serviceId: service.id, partySize })
+    if (!resources.length) {
+      if (partySize != null && (await eligibleResources(tx, { companyId, spaceId: space.id, serviceId: service.id })).length) throw new BookingError(`Ningún recurso de este servicio tiene lugar para ${partySize} personas.`, 422, 'NO_CAPACITY')
+      throw new BookingError('El servicio no tiene recursos asignados en este sistema.', 422, 'NO_RESOURCES')
+    }
     if (resourceId) {
       resources = resources.filter((r) => r.id === resourceId)
       if (!resources.length) throw new BookingError('Ese recurso no puede atender este servicio.', 422, 'RESOURCE_NOT_ELIGIBLE')
@@ -200,6 +203,14 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
     const fit = ids.filter((id) => fitsWindow(windows.get(id) ?? [], start.getTime(), end.getTime()))
     if (!fit.length) throw new BookingError('El horario está fuera del horario de atención.', 409, 'OUTSIDE_HOURS')
     return fit
+  }
+
+  // Integrations exclude resources they know are busy outside the engine (a table physically occupied now).
+  function withoutExcluded(candidates, exclude) {
+    if (!exclude?.length) return candidates
+    const left = candidates.filter((id) => !exclude.includes(id))
+    if (!left.length) throw new BookingError('Ese recurso está ocupado en este momento; elige otro horario u otro recurso.', 409, 'RESOURCE_BUSY_NOW')
+    return left
   }
 
   function occupiedRange(service, start, end) {
@@ -244,11 +255,25 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
     if (!row) throw notFound('Contacto')
   }
 
+  // Length of a booking: the service's, or one chosen by staff (never by a portal customer).
+  function lengthOf(service, input, portal) {
+    const custom = !portal && input.durationMinutes != null ? Number(input.durationMinutes) : null
+    if (custom != null && !(Number.isInteger(custom) && custom >= 5 && custom <= 720)) throw new BookingError('La duración debe estar entre 5 y 720 minutos.', 422, 'DURATION')
+    return (custom ?? service.duration_minutes) * M
+  }
+
   // portal: { pageId, acceptance } for self-scheduled bookings (actorId null).
-  async function create({ companyId, actorId, spaceId, input, idempotencyKey = null, channel = 'backoffice', portal = null }) {
+  // source: { module, id } of an integration record (unique: a repeat returns the existing booking).
+  // sideEffect(tx, row): the integration's own record, written in this same transaction.
+  const create = (args) => inTx((tx) => createTx(tx, args))
+  async function createTx(tx, { companyId, actorId, spaceId, input, idempotencyKey = null, channel = 'backoffice', portal = null, source = null, sideEffect = null, skipLimits = false, excludeResourceIds = null }) {
     const hash = requestHash('create', { spaceId, channel, ...input })
     const scope = portal ? `portal:${portal.pageId}` : `user:${actorId}`
-    return inTx(async (tx) => {
+    {
+      if (source) {
+        const prior = (await tx.$queryRaw`SELECT id FROM booking WHERE company_id = ${companyId}::uuid AND source_module = ${source.module} AND source_id = ${source.id}::uuid`)[0]
+        if (prior) return { booking: await view(tx, companyId, prior.id), replayed: true }
+      }
       const claimed = await claim(tx, { companyId, scope, operation: 'create', key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const space = await loadSpace(tx, companyId, spaceId)
@@ -270,9 +295,9 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
         checkLimits(space, start)
       } else {
         if (!input.startsAt) throw new BookingError('Este servicio se reserva eligiendo un horario.', 422, 'START_REQUIRED')
-        start = new Date(input.startsAt); end = new Date(start.getTime() + service.duration_minutes * M)
-        checkLimits(space, start)
-        candidates = await appointmentCandidates(tx, { companyId, space, service, start, end, resourceId: input.resourceId })
+        start = new Date(input.startsAt); end = new Date(start.getTime() + lengthOf(service, input, portal))
+        if (!skipLimits) checkLimits(space, start)
+        candidates = withoutExcluded(await appointmentCandidates(tx, { companyId, space, service, start, end, resourceId: input.resourceId, partySize }), excludeResourceIds)
         const range = occupiedRange(service, start, end)
         await expireStaleHolds(tx, companyId, { resourceIds: candidates, ...range })
       }
@@ -281,12 +306,12 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
       let row = (await tx.$queryRaw`
         INSERT INTO booking (company_id, space_id, service_id, session_id, status, starts_at, ends_at, party_size,
                              contact_id, guest_name, guest_email, guest_phone, notes, channel, hold_expires_at, created_by_id,
-                             page_id, policy_acceptance, manage_token_version, manage_token_expires_at)
+                             page_id, policy_acceptance, manage_token_version, manage_token_expires_at, source_module, source_id)
         VALUES (${companyId}::uuid, ${space.id}::uuid, ${service.id}::uuid, ${session?.id ?? null}::uuid, ${status}::booking_status,
                 ${start}, ${end}, ${partySize}, ${input.contactId ?? null}::uuid, ${input.guestName ?? null}, ${input.guestEmail ?? null},
                 ${input.guestPhone ?? null}, ${input.notes ?? null}, ${channel}, ${holdExpiresAt}, ${actorId}::uuid,
                 ${portal?.pageId ?? null}::uuid, ${portal?.acceptance ? JSON.stringify(portal.acceptance) : null}::jsonb,
-                ${linked ? 1 : 0}, ${linked ? manageExpiry(end) : null})
+                ${linked ? 1 : 0}, ${linked ? manageExpiry(end) : null}, ${source?.module ?? null}, ${source?.id ?? null}::uuid)
         RETURNING *`)[0]
       if (linked) {
         row = (await tx.$queryRaw`UPDATE booking SET manage_token_hash = ${hashToken(manageToken(row.id, 1))} WHERE id = ${row.id}::uuid RETURNING *`)[0]
@@ -298,15 +323,17 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
       await history(tx, { companyId, row, actorId, actorKind: portal ? 'portal' : 'user', action: 'create', to: status, after: serializeBooking(row, resourceIds) })
       await emit(tx, companyId, 'created', row)
       await notify(tx, row, status === 'PENDING' ? 'pending' : 'confirmed')
+      if (sideEffect) await sideEffect(tx, row, resourceIds)
       return { booking: serializeBooking(row, resourceIds), replayed: false }
-    })
+    }
   }
 
   // customer: { cancelUntilMinutes } when the customer acts from the portal.
-  async function transition({ companyId, actorId, bookingId, to, input = {}, idempotencyKey = null, actorKind = 'user', customer = null }) {
+  const transition = (args) => inTx((tx) => transitionTx(tx, args))
+  async function transitionTx(tx, { companyId, actorId, bookingId, to, input = {}, idempotencyKey = null, actorKind = 'user', customer = null, sideEffect = null }) {
     if (!EVENT_OF[to]) throw new BookingError('Estado inválido.', 400, 'INVALID_STATUS')
     const hash = requestHash(`transition:${to}`, { bookingId, ...input })
-    return inTx(async (tx) => {
+    {
       const claimed = await claim(tx, { companyId, scope: customer ? `portal-manage:${bookingId}` : `user:${actorId}`, operation: `transition:${to}`, key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const row = await lockBooking(tx, companyId, bookingId)
@@ -330,14 +357,17 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
       await history(tx, { companyId, row, actorId, actorKind, action: to.toLowerCase(), from: row.status, to, before, after: { ...serializeBooking(updated, resourceIds), ...(input.reason ? { reason: input.reason } : {}) } })
       await emit(tx, companyId, EVENT_OF[to], updated)
       await notify(tx, updated, NOTIFY_OF[to])
+      if (sideEffect) await sideEffect(tx, updated, resourceIds)
       return { booking: serializeBooking(updated, resourceIds), replayed: false }
-    })
+    }
   }
 
   // customer: { rescheduleUntilMinutes, allowResource } when the customer acts from the portal.
-  async function reschedule({ companyId, actorId, bookingId, input, idempotencyKey = null, actorKind = 'user', customer = null }) {
+  // The booked length is kept unless staff send a new durationMinutes.
+  const reschedule = (args) => inTx((tx) => rescheduleTx(tx, args))
+  async function rescheduleTx(tx, { companyId, actorId, bookingId, input, idempotencyKey = null, actorKind = 'user', customer = null, sideEffect = null, excludeResourceIds = null }) {
     const hash = requestHash('reschedule', { bookingId, ...input })
-    return inTx(async (tx) => {
+    {
       const claimed = await claim(tx, { companyId, scope: customer ? `portal-manage:${bookingId}` : `user:${actorId}`, operation: 'reschedule', key: idempotencyKey, hash })
       if (claimed?.replay) return { booking: await view(tx, companyId, claimed.replay), replayed: true }
       const row = await lockBooking(tx, companyId, bookingId)
@@ -347,6 +377,10 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
       const space = await loadSpace(tx, companyId, row.space_id)
       const service = await loadService(tx, companyId, space.id, row.service_id)
       const before = serializeBooking(row, await activeResources(tx, row.id))
+      // Staff may change the party size with the move (it decides which table fits).
+      const party = !customer && input.partySize != null ? Number(input.partySize) : row.party_size
+      if (party < service.min_party || party > service.max_party) throw new BookingError(`Este servicio admite de ${service.min_party} a ${service.max_party} personas.`, 422, 'PARTY_SIZE')
+      if (party !== row.party_size && service.kind === 'session') throw new BookingError('En una sesión cambia el número de personas creando otra reservación.', 422, 'PARTY_SIZE')
       // Old capacity is freed first, so moving within an overlapping range works.
       await release(tx, row)
       let start, end, sessionId = null, resourceIds = []
@@ -358,22 +392,54 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
         checkLimits(space, start)
       } else {
         if (!input.startsAt) throw new BookingError('Este servicio se reprograma eligiendo otro horario.', 422, 'START_REQUIRED')
-        start = new Date(input.startsAt); end = new Date(start.getTime() + service.duration_minutes * M)
+        const booked = new Date(row.ends_at).getTime() - new Date(row.starts_at).getTime()
+        start = new Date(input.startsAt); end = new Date(start.getTime() + (input.durationMinutes != null && !customer ? lengthOf(service, input, null) : booked))
         checkLimits(space, start)
-        const candidates = await appointmentCandidates(tx, { companyId, space, service, start, end, resourceId: input.resourceId })
+        const candidates = withoutExcluded(await appointmentCandidates(tx, { companyId, space, service, start, end, resourceId: input.resourceId, partySize: party }), excludeResourceIds)
         const range = occupiedRange(service, start, end)
         await expireStaleHolds(tx, companyId, { resourceIds: candidates, ...range })
         resourceIds = [await allocate(tx, { companyId, bookingId: row.id, candidates, range })]
       }
       const updated = (await tx.$queryRaw`
-        UPDATE booking SET starts_at = ${start}, ends_at = ${end}, session_id = ${sessionId}::uuid, version = version + 1, updated_at = now(),
+        UPDATE booking SET starts_at = ${start}, ends_at = ${end}, session_id = ${sessionId}::uuid, party_size = ${party}, version = version + 1, updated_at = now(),
                manage_token_expires_at = CASE WHEN manage_token_version > 0 THEN ${manageExpiry(end)}::timestamptz ELSE manage_token_expires_at END
          WHERE id = ${row.id}::uuid RETURNING *`)[0]
       await settle(tx, claimed, row.id)
       await history(tx, { companyId, row, actorId, actorKind, action: 'reschedule', from: row.status, to: row.status, before, after: serializeBooking(updated, resourceIds) })
       await emit(tx, companyId, 'rescheduled', updated)
       await notify(tx, updated, 'rescheduled')
+      if (sideEffect) await sideEffect(tx, updated, resourceIds)
       return { booking: serializeBooking(updated, resourceIds), replayed: false }
+    }
+  }
+
+  // The guest arrived and an account (POS order) was opened for this booking, in the
+  // caller's transaction (the order and the link commit together). The booking keeps
+  // occupying its resource until it is completed.
+  async function attachOrderTx(tx, { companyId, actorId, bookingId, orderId }) {
+    const row = await lockBooking(tx, companyId, bookingId)
+    if (row.status !== 'CONFIRMED') throw new BookingError('Solo una reservación confirmada puede recibir al cliente.', 409, 'INVALID_TRANSITION')
+    if (row.pos_order_id) throw new BookingError('Esta reservación ya tiene una cuenta abierta.', 409, 'ALREADY_ARRIVED')
+    const updated = (await tx.$queryRaw`
+      UPDATE booking SET pos_order_id = ${orderId}::uuid, arrived_at = now(), version = version + 1, updated_at = now()
+       WHERE id = ${row.id}::uuid RETURNING *`)[0]
+    await history(tx, { companyId, row, actorId, action: 'arrive', from: row.status, to: row.status, after: { orderId } })
+    return serializeBooking(updated, await activeResources(tx, row.id))
+  }
+
+  // Customer name, phone and notes (nothing that changes capacity or time).
+  async function updateDetails({ companyId, actorId, bookingId, input }) {
+    return inTx(async (tx) => {
+      const row = await lockBooking(tx, companyId, bookingId)
+      if (!OCCUPYING.has(row.status)) throw new BookingError('La reservación ya no se puede editar.', 409, 'INVALID_TRANSITION')
+      const pick = (key, column) => (input[key] !== undefined ? input[key] : row[column])
+      const updated = (await tx.$queryRaw`
+        UPDATE booking SET guest_name = ${pick('guestName', 'guest_name')}, guest_phone = ${pick('guestPhone', 'guest_phone')}, notes = ${pick('notes', 'notes')},
+               version = version + 1, updated_at = now()
+         WHERE id = ${row.id}::uuid RETURNING *`)[0]
+      const resourceIds = await activeResources(tx, row.id)
+      await history(tx, { companyId, row, actorId, action: 'update', from: row.status, to: row.status, before: serializeBooking(row, resourceIds), after: serializeBooking(updated, resourceIds) })
+      return { booking: serializeBooking(updated, resourceIds) }
     })
   }
 
@@ -448,7 +514,9 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
   }
 
   return {
-    create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule),
+    create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule), updateDetails: notifyChanged(updateDetails),
+    // In the caller's transaction (integrations such as POS); the caller runs its projections after commit.
+    createTx, transitionTx, rescheduleTx, attachOrderTx,
     rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id),
   }
 }

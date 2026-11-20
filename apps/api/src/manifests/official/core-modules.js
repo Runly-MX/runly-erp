@@ -1333,6 +1333,13 @@ export const runlyPosManifest = createModuleManifest({
       permissionKey: "pos.comandas.read",
     },
     {
+      label: "Reservas",
+      path: "/app/m/runly.pos/pos/reservas",
+      icon: "CalendarCheck",
+      layout: "main",
+      permissionKey: "pos.orders.read",
+    },
+    {
       label: "Cocina",
       path: "/app/m/runly.pos/pos/cocina",
       icon: "ChefHat",

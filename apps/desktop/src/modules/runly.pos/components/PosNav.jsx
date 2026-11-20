@@ -10,6 +10,7 @@ const ITEMS = [
   { to: `${BASE}/caja`, label: 'Caja', any: ['pos.caja.read', 'pos.caja.operate'] },
   { to: `${BASE}/citas`, label: 'Citas', any: ['pos.caja.read', 'pos.comandas.read'], appointments: true },
   { to: `${BASE}/comandero`, label: 'Comandero', any: ['pos.comandas.read'], restaurant: true },
+  { to: `${BASE}/reservas`, label: 'Reservas', any: ['pos.orders.read'], restaurant: true },
   { to: `${BASE}/cocina`, label: 'Cocina', any: ['pos.cocina.read', 'pos.stations.read'], restaurant: true },
   { to: `${BASE}/orders`, label: 'Órdenes', any: ['pos.orders.read'] },
   { to: `${BASE}/admin`, label: 'Administración', any: ['pos.admin.read'] },

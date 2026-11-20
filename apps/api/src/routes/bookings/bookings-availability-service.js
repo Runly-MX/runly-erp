@@ -50,11 +50,13 @@ export function createBookingsAvailabilityService({ prisma }) {
         sessions: sessions.map((s) => ({ id: s.id, resourceId: s.resource_id, startsAt: s.starts_at, endsAt: s.ends_at, capacity: s.capacity, seatsLeft: s.capacity - s.seats_taken })),
       }
     }
-    let resources = await eligibleResources(prisma, { companyId, spaceId: space.id, serviceId: service.id })
+    // partySize keeps only resources with room; durationMinutes (staff only) replaces the service length.
+    const durationMinutes = query.durationMinutes ?? service.duration_minutes
+    let resources = await eligibleResources(prisma, { companyId, spaceId: space.id, serviceId: service.id, partySize: query.partySize ?? null })
     if (query.resourceId) resources = resources.filter((r) => r.id === query.resourceId)
     if (to <= from || !resources.length) return { kind: 'appointment', slots: [] }
     const ids = resources.map((r) => r.id)
-    const pad = (service.buffer_before_minutes + service.buffer_after_minutes + service.duration_minutes) * M
+    const pad = (service.buffer_before_minutes + service.buffer_after_minutes + durationMinutes) * M
     const [windows, busy] = await Promise.all([
       loadResourceWindows(prisma, { companyId, space, resourceIds: ids, from, to }),
       loadBusy(prisma, { companyId, resourceIds: ids, from: from - pad, to: to + pad }),
@@ -62,7 +64,7 @@ export function createBookingsAvailabilityService({ prisma }) {
     const bySlot = new Map()
     for (const id of ids) {
       for (const slot of cutSlots({
-        windows: windows.get(id), busy: busy.get(id), durationMs: service.duration_minutes * M,
+        windows: windows.get(id), busy: busy.get(id), durationMs: durationMinutes * M,
         bufferBeforeMs: service.buffer_before_minutes * M, bufferAfterMs: service.buffer_after_minutes * M,
         stepMs: service.slot_step_minutes * M, notBefore: from, notAfter: to - 1,
       })) {

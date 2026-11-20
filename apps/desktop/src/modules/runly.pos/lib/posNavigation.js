@@ -1,6 +1,6 @@
 // POS sidebar entries that only make sense when some outlet serves tables.
 // Unknown modes (still loading, or the read failed) never hide them.
-const RESTAURANT_PATHS = ['/pos/comandero', '/pos/cocina']
+const RESTAURANT_PATHS = ['/pos/comandero', '/pos/cocina', '/pos/reservas']
 // Citas is opt-in: shown only once the company turned appointments on.
 const APPOINTMENTS_PATH = '/pos/citas'
 

@@ -393,6 +393,9 @@ const SCREEN_MAP = {
   "runly.pos:/pos/admin/planos": lazy(
     () => import("../modules/runly.pos/screens/PosFloorPlannerScreen.jsx"),
   ),
+  "runly.pos:/pos/reservas": lazy(
+    () => import("../modules/runly.pos/screens/PosReservationsScreen.jsx"),
+  ),
   "runly.pos:/pos/citas": lazy(
     () => import("../modules/runly.pos/screens/PosAppointmentsScreen.jsx"),
   ),

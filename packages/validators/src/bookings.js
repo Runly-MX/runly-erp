@@ -41,6 +41,8 @@ const resourceShape = {
   name,
   type: z.enum(['staff', 'room', 'equipment', 'table', 'other']),
   userId: z.string().uuid().optional().nullable(),
+  // Seats of a table (party size limit); empty = not limited.
+  capacity: z.coerce.number().int().min(1).max(1000).optional().nullable(),
 };
 export const bookingResourceCreateSchema = z.object({ ...resourceShape, type: resourceShape.type.default('other') });
 export const bookingResourceUpdateSchema = z.object(resourceShape).partial().extend({ enabled: z.boolean().optional() });
@@ -106,6 +108,8 @@ export const bookingAvailabilityQuerySchema = z.object({
   from: instant,
   to: instant,
   resourceId: z.string().uuid().optional(),
+  partySize: z.coerce.number().int().min(1).max(100000).optional(),
+  durationMinutes: z.coerce.number().int().min(5).max(720).optional(),
 }).refine((q) => q.to > q.from, 'El rango es inválido')
   .refine((q) => q.to - q.from <= 62 * 86400000, 'El rango máximo es de 62 días');
 
@@ -122,6 +126,8 @@ export const bookingCreateSchema = z.object({
   sessionId: z.string().uuid().optional(),
   resourceId: z.string().uuid().optional(),
   partySize: minutes(1, 100000).default(1),
+  // Staff may book a length other than the service's (a longer dinner, a double session).
+  durationMinutes: z.coerce.number().int().min(5).max(720).optional(),
   ...guest,
 }).refine((b) => Boolean(b.startsAt) !== Boolean(b.sessionId), 'Indica un horario o una sesión')
   .refine((b) => Boolean(b.contactId || b.guestName), 'Indica un contacto o el nombre del cliente');
@@ -135,6 +141,8 @@ export const bookingRescheduleSchema = z.object({
   startsAt: instant.optional(),
   sessionId: z.string().uuid().optional(),
   resourceId: z.string().uuid().optional(),
+  durationMinutes: z.coerce.number().int().min(5).max(720).optional(),
+  partySize: z.coerce.number().int().min(1).max(100000).optional(),
   expectedVersion: z.coerce.number().int().min(1).optional(),
 }).refine((b) => Boolean(b.startsAt) !== Boolean(b.sessionId), 'Indica un horario o una sesión');
 

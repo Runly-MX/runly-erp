@@ -3653,6 +3653,7 @@ model PosReservation {
   notes           String?
   status          PosReservationStatus @default(CONFIRMED)
   orderId         String?              @unique @db.Uuid @map("order_id")
+  bookingId       String?              @unique @db.Uuid @map("booking_id")
   createdById     String               @db.Uuid @map("created_by_id")
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt @map("updated_at")
@@ -3682,6 +3683,7 @@ model PosAppointment {
   notes           String?
   status          PosAppointmentStatus @default(SCHEDULED)
   orderId         String?              @db.Uuid @map("order_id")
+  bookingId       String?              @unique @db.Uuid @map("booking_id")
   createdById     String               @db.Uuid @map("created_by_id")
   createdAt       DateTime             @default(now()) @map("created_at")
   updatedAt       DateTime             @updatedAt @map("updated_at")
@@ -7061,6 +7063,7 @@ model BookingResource {
   name      String
   type      String   @default("other") // staff | room | equipment | table | other
   userId    String?  @map("user_id") @db.Uuid
+  capacity  Int? // seats (tables); null = not limited by party size
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -7161,6 +7164,10 @@ model Booking {
   pageId          String?       @map("page_id") @db.Uuid
   reference       String        @default(dbgenerated("upper(substr(md5(((random())::text || (clock_timestamp())::text)), 1, 8))"))
   policyAcceptance Json?        @map("policy_acceptance")
+  sourceModule    String?       @map("source_module")
+  sourceId        String?       @map("source_id") @db.Uuid
+  posOrderId      String?       @map("pos_order_id") @db.Uuid
+  arrivedAt       DateTime?     @map("arrived_at") @db.Timestamptz(6)
   createdById     String?       @map("created_by_id") @db.Uuid
   version         Int           @default(1)
   createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -7249,6 +7256,34 @@ model BookingPage {
   @@unique([companyId, id])
   @@index([spaceId])
   @@map("booking_page")
+}
+
+// POS outlet served by a Booking Engine space (tables or appointments); mode engine|legacy.
+model PosBookingLink {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  outletId      String    @map("outlet_id") @db.Uuid
+  kind          String // tables | appointments
+  spaceId       String    @map("space_id") @db.Uuid
+  serviceId     String    @map("service_id") @db.Uuid
+  mode          String    @default("engine")
+  activatedAt   DateTime? @map("activated_at") @db.Timestamptz(6)
+  activatedById String?   @map("activated_by_id") @db.Uuid
+  rolledBackAt  DateTime? @map("rolled_back_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@unique([companyId, outletId, kind])
+  @@map("pos_booking_link")
+}
+
+// A POS table as one engine resource.
+model PosBookingTable {
+  tableId    String @id @map("table_id") @db.Uuid
+  companyId  String @map("company_id") @db.Uuid
+  resourceId String @unique @map("resource_id") @db.Uuid
+
+  @@map("pos_booking_table")
 }
 
 // Booking version last mirrored onto runly.calendar (projection bookkeeping only).
