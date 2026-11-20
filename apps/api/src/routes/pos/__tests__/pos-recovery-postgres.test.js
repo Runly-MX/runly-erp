@@ -30,6 +30,8 @@ describe('Commerce phase 1 — real PostgreSQL transactions', { skip: !url }, ()
     const suffix = ++sequence;
     const company = await db.company.create({ data: { id: await uuid(), name: 'Commerce test', slug: `commerce-${batch}-${suffix}` } });
     const actor = await db.userProfile.create({ data: { id: await uuid(), authUserId: await uuid(), displayName: 'Operador prueba', email: `operator-${batch}-${suffix}@example.test` } });
+    // Operators are active members (runly_user_reference trigger on pos_order), as in production.
+    await db.membership.create({ data: { id: await uuid(), companyId: company.id, userId: actor.id } });
     const ctx = { companyId: company.id, actorId: actor.id };
     await db.posSettings.create({ data: { companyId: company.id, currency: 'MXN', defaultTaxRate: options.taxRate ?? 0, pricesIncludeTax: options.included ?? false } });
     const outlet = await db.posOutlet.create({ data: { companyId: company.id, name: 'Centro', mode: 'HYBRID', allowTableCharge: true } });

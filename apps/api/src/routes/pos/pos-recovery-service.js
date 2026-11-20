@@ -44,7 +44,7 @@ export function createPosRecoveryService({ prisma }) {
     const allowed = (...keys) => permissions.isAdmin || keys.some((k) => permissions.permissionSet?.has(k));
     const tableCharge=Boolean(outlet&&['RESTAURANT','HYBRID'].includes(outlet.mode)&&outlet.allowTableCharge&&allowed('pos.comandas.charge'));
     const currentSession = terminal ? await prisma.posSession.findFirst({ where: { companyId, terminalId: terminal.id, status: 'OPEN' } }) : null;
-    return commerceDto({ companyId, outlets: outlets.map(({id,name,mode}) => ({id,name,mode})), terminals: terminals.map(({id,outletId,name}) => ({id,outletId,name})),
+    return commerceDto({ companyId, outlets: outlets.map(({id,name,mode,timezone}) => ({id,name,mode,timezone})), terminals: terminals.map(({id,outletId,name}) => ({id,outletId,name})),
       operationState: !outlet ? 'SELECT_OUTLET' : !terminal ? 'SELECT_TERMINAL' : !settings?.currency ? 'CONFIGURATION_REQUIRED' : !currentSession ? 'OPEN_SESSION' : currentSession.currency!==settings.currency ? 'RECONCILIATION_REQUIRED' : 'READY',
       restaurantOperationState:!outlet?'SELECT_OUTLET':!['RESTAURANT','HYBRID'].includes(outlet.mode)?'EXPERIENCE_NOT_AVAILABLE':!settings?.currency?'CONFIGURATION_REQUIRED':'READY',
       selectedOutletId: outlet?.id ?? null, selectedTerminalId: terminal?.id ?? null, currentSession,

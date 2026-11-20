@@ -753,6 +753,9 @@ async function runBookingsTick() {
     // POS: a seated reservation whose account closed (or an appointment charged early) is completed once started.
     const closed = await posBookings.completeClosed()
     if (closed.completed) console.log(`[worker] bookings pos ${formatLogTimestamp()} completed=${closed.completed}`)
+    // POS tables: open accounts hold (and keep extending) their table in the engine; closed ones release it.
+    const occupancy = await posBookings.maintainOccupancy()
+    if (occupancy.released || occupancy.held || occupancy.conflicts) console.log(`[worker] bookings pos tables ${formatLogTimestamp()} released=${occupancy.released} held=${occupancy.held} conflicts=${occupancy.conflicts}`)
     // Calendar mirror of everything not yet projected at its current version (expired holds included).
     const calendar = await bookingsCalendar.syncDue()
     if (calendar.processed) console.log(`[worker] bookings calendar ${formatLogTimestamp()} processed=${calendar.processed} created=${calendar.created} updated=${calendar.updated} removed=${calendar.removed} failed=${calendar.failed}`)

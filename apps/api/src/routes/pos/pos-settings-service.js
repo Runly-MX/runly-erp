@@ -85,8 +85,14 @@ export function createPosSettingsService({ prisma }) {
     });
   }
 
+  async function assertZone(zone) {
+    if (zone == null) return;
+    if (!(await prisma.$queryRaw`SELECT 1 FROM pg_timezone_names WHERE name = ${zone}`).length) throw new PosServiceError("Zona horaria inválida.", 400);
+  }
+
   async function createOutlet({ companyId, actorId, data }) {
     const scopedCompanyId = requireCompanyId(companyId);
+    await assertZone(data.timezone);
     const { mode } = await getSettings({ companyId: scopedCompanyId });
     const outlet = await prisma.posOutlet.create({
       data: {
@@ -111,10 +117,16 @@ export function createPosSettingsService({ prisma }) {
       where: { id, companyId: scopedCompanyId },
     });
     if (!before) throw new PosServiceError("Sucursal POS no encontrada.", 404);
+    await assertZone(data.timezone);
+    const links = data.timezone !== undefined && data.timezone !== before.timezone
+      ? await prisma.posBookingLink.findMany({ where: { companyId: scopedCompanyId, outletId: id } }) : [];
+    if (links.length && !data.timezone) throw new PosServiceError("Esta sucursal usa Reservaciones: necesita una zona horaria.", 409);
 
-    const updated = await prisma.posOutlet.update({
-      where: { id },
-      data: cleanData(data),
+    // The Reservaciones spaces of the outlet follow its zone (bookings are instants and do not move).
+    const updated = await prisma.$transaction(async (tx) => {
+      const row = await tx.posOutlet.update({ where: { id }, data: cleanData(data) });
+      if (links.length) await tx.bookingSpace.updateMany({ where: { companyId: scopedCompanyId, id: { in: links.map((l) => l.spaceId) } }, data: { timezone: data.timezone } });
+      return row;
     });
     await writeAudit(prisma, {
       actorId,

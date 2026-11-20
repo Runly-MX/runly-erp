@@ -255,4 +255,74 @@ describe('runly.bookings x POS on real PostgreSQL', { skip: !url }, () => {
     assert.equal(await db.auditLog.count({ where: { entityId: r.id, action: { startsWith: 'pos.reservation.' } } }), 3)
     assert.equal(await db.calendarEvent.count({ where: { sourceModule: 'runly.pos', sourceEntityId: r.id } }), 0, 'POS bridge does not mirror engine reservations')
   })
+
+  it('F5.1 occupation is engine capacity: a walk-in closes the near online slots; closing the account frees them; late accounts extend', async () => {
+    const f = await fixture({ tables: [['Barra', 4]] })
+    const link = (await activate(f)).body.data
+    const service = (await db.posBookingLink.findFirst({ where: { companyId: f.company.id } })).serviceId
+    const slug = `p-${tag()}`.slice(0, 60)
+    const page = (await f.admin('POST', `/bookings/spaces/${link.spaceId}/pages`, { slug, title: 'Barra', serviceIds: [service], published: true })).body.data
+    await f.admin('PATCH', `/bookings/spaces/${link.spaceId}`, { published: true })
+    const pub = portal()
+    const near = async () => (await pub('GET', `/public/bookings/pages/${slug}/availability?serviceId=${service}&from=${new Date().toISOString()}&to=${new Date(Date.now() + 2 * H).toISOString()}`)).body.data.slots.length
+    const before = await near()
+    assert.ok(before > 0)
+    const order = (await walkIn(f, f.tables[0].id)).data
+    assert.equal(await db.bookingAllocation.count({ where: { posOrderId: order.id, active: true } }), 1, 'the account holds its table in the engine')
+    assert.ok(await near() < before, 'the occupied table is not offered online for the next turnover')
+    // The portal cannot take it either: the engine holds the table, not pos_table.status.
+    const at15 = new Date(Date.now() + 15 * MIN); at15.setUTCSeconds(0, 0); at15.setUTCMinutes(Math.ceil(at15.getUTCMinutes() / 15) * 15)
+    const taken = await pub('POST', `/public/bookings/pages/${slug}/reservations`, { serviceId: service, startsAt: at15.toISOString(), guestName: 'En linea', guestEmail: 'l@example.test', acceptedPolicyVersion: page.policyVersion }, { 'Idempotency-Key': key() })
+    assert.equal(taken.status, 409, JSON.stringify(taken.body))
+    // The account stays open past its hold: the worker extends it.
+    const adapter = createPosBookingsAdapter({ prisma: db })
+    await db.$executeRaw`UPDATE booking_allocation SET during = tstzrange(now() - interval '80 minutes', now() + interval '10 minutes', '[)') WHERE pos_order_id = ${order.id}::uuid`
+    const ext = await adapter.maintainOccupancy()
+    assert.equal(ext.held >= 1, true, JSON.stringify(ext))
+    assert.equal(await db.bookingAllocation.count({ where: { posOrderId: order.id, active: true } }), 2)
+    // An extension that would overlap the next reservation is not made.
+    await db.$executeRaw`UPDATE booking_allocation SET active = false WHERE pos_order_id = ${order.id}::uuid AND lower(during) > now()`
+    await db.$executeRaw`UPDATE booking_allocation SET during = tstzrange(now() - interval '85 minutes', now() + interval '5 minutes', '[)') WHERE pos_order_id = ${order.id}::uuid AND active`
+    const next = await reserve(f, { scheduledAt: new Date(Date.now() + 25 * MIN).toISOString(), durationMinutes: 60 })
+    assert.equal(next.status, 201, JSON.stringify(next.body))
+    assert.equal((await adapter.maintainOccupancy()).conflicts >= 1, true)
+    // Closing the account releases the table.
+    await f.sdk.cancel(order.id, { expectedVersion: order.version, reason: 'Se fueron' }, 'token', { idempotencyKey: key() })
+    assert.equal((await adapter.maintainOccupancy()).released >= 1, true)
+    assert.equal(await db.bookingAllocation.count({ where: { posOrderId: order.id, active: true } }), 0)
+  })
+
+  it('F5.1 outlet IANA zone drives the engine space; activation needs one; DST-safe local days', async () => {
+    const f = await fixture({ tables: [['Patio', 4]] })
+    const none = await f.pos('POST', '/pos/bookings/links/activate', { outletId: f.outlet.id, kind: 'tables' })
+    assert.equal(none.status, 400, 'no zone on the outlet and none sent')
+    assert.equal((await f.pos('PATCH', `/pos/outlets/${f.outlet.id}`, { timezone: 'Mars/Olympus' })).status, 400)
+    assert.equal((await f.pos('PATCH', `/pos/outlets/${f.outlet.id}`, { timezone: 'America/New_York' })).status, 200)
+    const link = (await f.pos('POST', '/pos/bookings/links/activate', { outletId: f.outlet.id, kind: 'tables' })).body.data
+    assert.equal((await db.bookingSpace.findUnique({ where: { id: link.spaceId } })).timezone, 'America/New_York')
+    assert.equal((await f.pos('PATCH', `/pos/outlets/${f.outlet.id}`, { timezone: null })).status, 409, 'a linked outlet keeps a zone')
+    await f.pos('PATCH', `/pos/outlets/${f.outlet.id}`, { timezone: 'America/Tijuana' })
+    assert.equal((await db.bookingSpace.findUnique({ where: { id: link.spaceId } })).timezone, 'America/Tijuana', 'the space follows the outlet')
+    // Spring-forward day in New York (2027-03-14): a 01:30 local reservation exists; 02:30 does not exist and shifts forward.
+    await f.pos('PATCH', `/pos/outlets/${f.outlet.id}`, { timezone: 'America/New_York' })
+    const a = await reserve(f, { scheduledAt: '2027-03-14T06:30:00.000Z', durationMinutes: 60 })
+    assert.equal(a.status, 201, JSON.stringify(a.body))
+    const day = (await f.pos('GET', `/pos/reservations?outletId=${f.outlet.id}&from=2027-03-14T05:00:00.000Z&to=2027-03-15T04:00:00.000Z`)).body.data
+    assert.deepEqual(day.map((r) => r.durationMinutes), [60], 'a 23-hour local day still lists it once')
+  })
+
+  it('F5.1 rollback restores the legacy guarantee: tables with live reservations are RESERVED and holds are released', async () => {
+    const f = await fixture({ tables: [['Mesa R', 4], ['Mesa S', 4]] })
+    await activate(f)
+    const r = (await reserve(f, { tableId: f.tables[0].id, scheduledAt: at(30) })).body.data
+    const order = (await walkIn(f, f.tables[1].id)).data
+    const back = await f.pos('POST', '/pos/bookings/links/rollback', { outletId: f.outlet.id, kind: 'tables' })
+    assert.equal(back.status, 200)
+    assert.equal((await db.posTable.findUnique({ where: { id: f.tables[0].id } })).status, 'RESERVED')
+    assert.equal(await db.bookingAllocation.count({ where: { posOrderId: order.id, active: true } }), 0)
+    // Legacy mode cannot double-book the reserved table, nor seat a walk-in there.
+    assert.equal((await reserve(f, { tableId: f.tables[0].id, scheduledAt: at(50) })).status, 409)
+    await assert.rejects(walkIn(f, f.tables[0].id), { code: 'TABLE_OCCUPIED' })
+    assert.equal((await db.posReservation.findFirst({ where: { bookingId: r.id } })).status, 'CONFIRMED')
+  })
 })

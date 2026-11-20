@@ -11,6 +11,7 @@ import { createBookingsCommandService } from '../bookings/bookings-command-servi
 import { createBookingsConfigService } from '../bookings/bookings-config-service.js'
 import { BookingError } from '../bookings/bookings-core.js'
 import { PosServiceError, requireCompanyId, writeAudit } from './service-helpers.js'
+import { holdTable } from './pos-bookings-adapter.js'
 
 const KINDS = {
   tables: { space: 'Mesas', service: 'Mesa', duration: 90, bufferAfter: 15, maxParty: 50, source: 'runly.pos.reservation' },
@@ -155,7 +156,28 @@ export function createPosBookingsLinkService({ prisma, onChanged = null }) {
     return report
   }
 
-  async function run({ companyId, actorId, outletId, kind, timezone = 'America/Mexico_City', professionals = [], dryRun }) {
+  // The outlet's IANA zone wins; an outlet without one takes the zone sent with the activation
+  // (validated) and keeps it. The engine space always follows the outlet.
+  async function outletZone(tx, outlet, requested) {
+    const zone = outlet.timezone ?? requested
+    if (!zone || !(await tx.$queryRaw`SELECT 1 FROM pg_timezone_names WHERE name = ${zone}`).length) throw new PosServiceError('Configura la zona horaria de la sucursal antes de activar Reservaciones.', 400)
+    if (!outlet.timezone) await tx.posOutlet.update({ where: { id: outlet.id }, data: { timezone: zone } })
+    return zone
+  }
+
+  // Accounts already open on the outlet's tables hold them in the engine from now on, so a
+  // carried reservation that needs a busy table is reported instead of double-booking it.
+  async function holdOpenAccounts(tx, { companyId, outletId, serviceId, tables }) {
+    const minutes = (await tx.bookingService.findUnique({ where: { id: serviceId } })).durationMinutes
+    const open = await tx.posOrder.findMany({ where: { companyId, outletId, tableId: { in: [...tables.keys()] }, status: { notIn: ['PAID', 'CANCELLED', 'REFUNDED'] } }, select: { id: true, tableId: true } })
+    for (const o of open) {
+      const held = await tx.$queryRaw`SELECT 1 FROM booking_allocation WHERE pos_order_id = ${o.id}::uuid AND active LIMIT 1`
+      if (!held.length) await holdTable(tx, { companyId, resourceId: tables.get(o.tableId), orderId: o.id, from: new Date(), to: new Date(Date.now() + minutes * M) })
+    }
+    return open.length
+  }
+
+  async function run({ companyId, actorId, outletId, kind, timezone = null, professionals = [], dryRun }) {
     const scoped = requireCompanyId(companyId)
     if (!KINDS[kind]) throw new PosServiceError('Tipo inválido.', 400)
     let report
@@ -166,8 +188,11 @@ export function createPosBookingsLinkService({ prisma, onChanged = null }) {
         if (kind === 'tables' && !['RESTAURANT', 'HYBRID'].includes(outlet.mode)) throw new PosServiceError('La sucursal no maneja mesas.', 409)
         const existing = await tx.posBookingLink.findUnique({ where: { companyId_outletId_kind: { companyId: scoped, outletId, kind } } })
         if (existing?.mode === 'engine') { report = { alreadyActive: true, carried: 0, conflicts: [], spaceId: existing.spaceId }; return }
-        const { spaceId, serviceId } = await ensureSpace(tx, { companyId: scoped, outlet, kind, actorId, timezone, existing })
+        const zone = await outletZone(tx, outlet, timezone)
+        const { spaceId, serviceId } = await ensureSpace(tx, { companyId: scoped, outlet, kind, actorId, timezone: zone, existing })
+        if (existing) await tx.bookingSpace.update({ where: { id: spaceId }, data: { timezone: zone } })
         const tables = kind === 'tables' ? await syncTables(tx, { companyId: scoped, outletId, spaceId, serviceId }) : new Map()
+        if (kind === 'tables') await holdOpenAccounts(tx, { companyId: scoped, outletId, serviceId, tables })
         if (kind === 'appointments') await syncProfessionals(tx, { companyId: scoped, spaceId, serviceId, professionals })
         report = { ...(await carryOver(tx, { companyId: scoped, outletId, kind, spaceId, serviceId, tables })), spaceId, resources: kind === 'tables' ? tables.size : professionals.length }
         if (report.conflicts.length && !dryRun) throw new PosServiceError(`${report.conflicts.length} registro(s) no caben en el motor; resuélvelos y vuelve a activar.`, 409)
@@ -217,6 +242,18 @@ export function createPosBookingsLinkService({ prisma, onChanged = null }) {
           if (row) { await tx.posAppointment.update({ where: { id: row.id }, data: { startsAt: b.starts_at, durationMinutes: minutes } }); updated++ }
           else { await tx.posAppointment.create({ data: { companyId: scoped, outletId, contactId: b.contact_id, customerName: b.guest_name ?? 'Cliente', customerPhone: b.guest_phone, startsAt: b.starts_at, durationMinutes: minutes, notes: b.notes, createdById: b.created_by_id ?? actorId, bookingId: b.id } }); copied++ }
         }
+      }
+      if (kind === 'tables') {
+        // Holds of open accounts mean nothing in legacy mode.
+        await tx.$executeRaw`UPDATE booking_allocation a SET active = false FROM booking_space_resource sr WHERE sr.space_id = ${link.spaceId}::uuid AND a.resource_id = sr.resource_id AND a.pos_order_id IS NOT NULL AND a.active`
+        // Legacy mode has no time ranges: its only guard against double booking is a table marked
+        // RESERVED while it has a live reservation. Restore it, so neither a second reservation nor
+        // a walk-in can take a table someone booked after activation.
+        await tx.$executeRaw`
+          UPDATE pos_table t SET status = 'RESERVED', version = version + 1
+           WHERE t.company_id = ${scoped}::uuid AND t.status = 'AVAILABLE'
+             AND EXISTS (SELECT 1 FROM pos_reservation r WHERE r.table_id = t.id AND r.outlet_id = ${outletId}::uuid AND r.status = 'CONFIRMED' AND r.scheduled_at + make_interval(mins => r.duration_minutes) > now())
+             AND NOT EXISTS (SELECT 1 FROM pos_order o WHERE o.table_id = t.id AND o.status NOT IN ('PAID', 'CANCELLED', 'REFUNDED'))`
       }
       await tx.posBookingLink.update({ where: { id: link.id }, data: { mode: 'legacy', rolledBackAt: new Date() } })
       await tx.bookingSpace.update({ where: { id: link.spaceId }, data: { published: false } })

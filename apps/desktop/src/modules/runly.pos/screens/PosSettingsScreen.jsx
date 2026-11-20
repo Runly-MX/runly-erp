@@ -286,6 +286,7 @@ function OutletsTab({ section = 'both' }) {
       defaultStationId: o.defaultStationId ?? null,
       kitchenKdsEnabled: Boolean(o.kitchenKdsEnabled),
       kitchenPrintEnabled: Boolean(o.kitchenPrintEnabled),
+      timezone: o.timezone ?? null,
     })
   }
 

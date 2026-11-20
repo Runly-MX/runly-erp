@@ -12,7 +12,8 @@ import { createStudioStack, command } from '../studio/supabase-stack.mjs'
 
 export const LINK_SECRET = 'bookings-verification-link-secret'
 
-export async function bootBookingsStack({ keep = false, env: extraEnv = {} } = {}) {
+// web: false skips building and serving the web app (API-only verifications).
+export async function bootBookingsStack({ keep = false, env: extraEnv = {}, web: withWeb = true } = {}) {
   const stack = await createStudioStack({ apiImage: process.env.RUNLY_STACK_API_IMAGE || 'runly-studio-combined:api' })
   const dbUrl = `postgresql://postgres:${stack.secret.SUPABASE_POSTGRES_PASSWORD}@127.0.0.1:${stack.ports.db}/postgres`
   const q = (sql, params) => stack.pool.query(sql, params)
@@ -59,7 +60,7 @@ export async function bootBookingsStack({ keep = false, env: extraEnv = {} } = {
       define: { 'import.meta.env.VITE_RUNLY_API_URL': JSON.stringify(stack.urls.api), 'import.meta.env.VITE_SUPABASE_URL': JSON.stringify(stack.urls.kong), 'import.meta.env.VITE_SUPABASE_ANON_KEY': JSON.stringify(stack.secret.SUPABASE_ANON_KEY) },
       build: { outDir: join(stack.directory, 'web'), emptyOutDir: true }, preview: { host: '127.0.0.1', port: stack.ports.web, strictPort: true },
     }
-    await build(config); web = await preview(config)
+    if (withWeb) { await build(config); web = await preview(config) }
   } catch (error) { await close(); throw error }
 
   const { createClient } = createRequire(resolve('apps/api/package.json'))('@supabase/supabase-js')

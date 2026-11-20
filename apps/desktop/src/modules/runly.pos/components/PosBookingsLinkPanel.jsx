@@ -90,7 +90,9 @@ function ActivateDialog({ outlet, kind, hasLink, token, onClose, onDone }) {
   const [report, setReport] = useState(null)
   const [state, setState] = useState('idle')
   const [error, setError] = useState('')
-  const body = () => ({ outletId: outlet.id, kind, timezone: browserZone(), ...(needsPeople ? { professionals: people.map((name) => ({ name })) } : {}) })
+  // The outlet's zone wins on the server; an outlet without one takes this device's zone, shown below.
+  const zone = outlet.timezone || browserZone()
+  const body = () => ({ outletId: outlet.id, kind, timezone: zone, ...(needsPeople ? { professionals: people.map((name) => ({ name })) } : {}) })
 
   async function review() {
     if (needsPeople && !people.length) { setError('Agrega al menos un profesional.'); return }
@@ -115,6 +117,10 @@ function ActivateDialog({ outlet, kind, hasLink, token, onClose, onDone }) {
           <DialogDescription>Primero se revisa sin cambiar nada: cuántas {KIND[kind].what} vigentes se trasladan y cuáles no caben.</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <p className="text-sm">
+            Zona horaria: <span className="font-semibold">{zone.replace(/_/g, ' ')}</span>
+            {outlet.timezone ? null : <span className="text-[hsl(var(--muted-foreground))]"> (la de este equipo; la sucursal no tiene una. Si no es correcta, cámbiala en General antes de activar.)</span>}
+          </p>
           {needsPeople ? (
             <section className="space-y-2" aria-labelledby="pos-pros-title">
               <h3 id="pos-pros-title" className="text-sm font-semibold">Profesionales que atienden citas</h3>

@@ -5,13 +5,13 @@ import {
   Alert, AlertDescription, Button, ConfirmDialog, DateTimeField, DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
   EmptyState, ErrorState, PageHeader, SelectField, Skeleton, StatusPill, TextField, TextareaField,
 } from '@runly/ui'
-import { toLocalIso } from '@runly/core'
 import { Armchair, CalendarClock, ChevronLeft, ChevronRight, Ellipsis, Phone, Plus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAuth } from '../../../auth/AuthProvider'
 import { useActiveCompany } from '../../../company/ActiveCompanyProvider'
 import { runly } from '../../../lib/runly'
 import FormDialog from '../../runly.catalog/components/FormDialog.jsx'
+import { addDays, browserTimeZone, dayKey, formatKey, formatTime, keyParts, wallToInstant, zonedParts } from '../../runly.bookings/lib/bookingsTime.js'
 
 const STATUS = {
   PENDING: { label: 'Por confirmar', tone: 'warning' },
@@ -23,10 +23,11 @@ const STATUS = {
 }
 const DURATIONS = [['60', '1 h'], ['90', '1 h 30 min'], ['120', '2 h'], ['150', '2 h 30 min'], ['180', '3 h']].map(([value, label]) => ({ value, label }))
 const AUTO = 'auto'
-const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate())
-const addDays = (d, n) => new Date(d.getFullYear(), d.getMonth(), d.getDate() + n)
-const time = (value) => new Date(value).toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit' })
-const localInput = (value) => { const d = new Date(value); return `${toLocalIso(d)}T${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}` }
+const pad = (n) => String(n).padStart(2, '0')
+// Every date here is the outlet's wall clock (its IANA zone), whatever the device's zone is.
+const wallInput = (value, tz) => { const p = zonedParts(new Date(value), tz); return `${p.year}-${pad(p.month)}-${pad(p.day)}T${pad(p.hour)}:${pad(p.minute)}` }
+const wallToDate = (input, tz) => { const [d, t] = String(input).split('T'); if (!d || !t) return null; const [hour, minute] = t.split(':').map(Number); return wallToInstant({ ...keyParts(d), hour, minute }, tz) }
+const dayStart = (key, tz) => wallToInstant({ ...keyParts(key), hour: 0, minute: 0 }, tz)
 const attempt = () => `pos-seat-${crypto.randomUUID()}`
 
 // Table reservations of the day for the hostess. Times, tables and capacity come from
@@ -38,16 +39,18 @@ export default function PosReservationsScreen() {
   const { activeCompanyId } = useActiveCompany()
   const navigate = useNavigate()
   const client = useQueryClient()
-  const [day, setDay] = useState(() => startOfDay(new Date()))
   const [outletId, setOutletId] = useState('')
   const [editing, setEditing] = useState(null)
   const [cancelling, setCancelling] = useState(null)
   const context = useQuery({ queryKey: ['pos-retail-context', activeCompanyId, 'reservas', token], queryFn: () => runly.commerce.context({}, token), enabled: Boolean(token && activeCompanyId), staleTime: 60_000 })
   const outlets = (context.data?.data?.outlets ?? []).filter((o) => ['RESTAURANT', 'HYBRID'].includes(o.mode))
   useEffect(() => { if (!outletId && outlets[0]) setOutletId(outlets[0].id) }, [outlets, outletId])
+  const tz = outlets.find((o) => o.id === outletId)?.timezone || browserTimeZone()
+  const [dayChoice, setDay] = useState(null)
+  const day = dayChoice ?? dayKey(new Date(), tz)
   const links = useQuery({ queryKey: ['pos-bookings-links', outletId, token], queryFn: async () => (await runly.pos.bookings.links(outletId, token)).data ?? [], enabled: Boolean(token && outletId) })
   const engine = links.data?.some((l) => l.kind === 'tables' && l.mode === 'engine')
-  const range = { from: day.toISOString(), to: addDays(day, 1).toISOString() }
+  const range = { from: dayStart(day, tz).toISOString(), to: dayStart(addDays(day, 1), tz).toISOString() }
   const list = useQuery({
     queryKey: ['pos-reservations', activeCompanyId, outletId, range.from, token],
     queryFn: async () => (await runly.pos.listReservations({ outletId, ...range }, token))?.data ?? [],
@@ -55,8 +58,8 @@ export default function PosReservationsScreen() {
   })
   const refresh = () => { client.invalidateQueries({ queryKey: ['pos-reservations'] }); client.invalidateQueries({ queryKey: ['pos', 'tables'] }) }
   const rows = list.data ?? []
-  const today = toLocalIso(day) === toLocalIso(new Date())
-  const title = day.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long' })
+  const today = day === dayKey(new Date(), tz)
+  const title = formatKey(day, { weekday: 'long', day: 'numeric', month: 'long' })
 
   async function act(promise, done) {
     try { await promise; toast.success(done); refresh() } catch (e) { toast.error(e?.message ?? 'No se pudo completar.') }
@@ -85,7 +88,7 @@ export default function PosReservationsScreen() {
         <div className="flex items-center gap-2">
           <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => setDay(addDays(day, -1))} aria-label="Día anterior"><ChevronLeft className="h-5 w-5" aria-hidden="true" /></Button>
           <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => setDay(addDays(day, 1))} aria-label="Día siguiente"><ChevronRight className="h-5 w-5" aria-hidden="true" /></Button>
-          {!today && <Button variant="ghost" size="lg" onClick={() => setDay(startOfDay(new Date()))}>Hoy</Button>}
+          {!today && <Button variant="ghost" size="lg" onClick={() => setDay(null)}>Hoy</Button>}
           <h2 className="ml-1 text-lg font-bold first-letter:uppercase">{title}</h2>
           <span className="ml-auto text-sm text-[hsl(var(--muted-foreground))]">{rows.filter((r) => !['CANCELLED', 'NO_SHOW'].includes(r.status)).length} reserva(s)</span>
         </div>
@@ -103,11 +106,11 @@ export default function PosReservationsScreen() {
             {rows.map((r) => {
               const open = r.source === 'engine' && ['CONFIRMED', 'PENDING'].includes(r.status)
               const started = Date.now() >= new Date(r.scheduledAt).getTime()
-              const sameDay = new Date(r.scheduledAt).toDateString() === new Date().toDateString()
+              const sameDay = dayKey(r.scheduledAt, tz) === dayKey(new Date(), tz)
               return (
                 <li key={r.id} className="flex gap-4 rounded-2xl border border-[hsl(var(--border))] bg-[hsl(var(--card))] p-4 shadow-sm">
                   <div className="w-24 shrink-0 text-center">
-                    <p className="text-base font-bold tabular-nums">{time(r.scheduledAt)}</p>
+                    <p className="text-base font-bold tabular-nums">{formatTime(r.scheduledAt, tz)}</p>
                     <p className="text-xs text-[hsl(var(--muted-foreground))]">{r.durationMinutes} min</p>
                   </div>
                   <div className="min-w-0 flex-1 space-y-1.5">
@@ -142,28 +145,28 @@ export default function PosReservationsScreen() {
           </ul>
         )}
       </div>
-      {editing ? <ReservationDialog reservation={editing} outletId={outletId} day={day} token={token} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} /> : null}
+      {editing ? <ReservationDialog reservation={editing} outletId={outletId} day={day} tz={tz} token={token} onClose={() => setEditing(null)} onSaved={() => { setEditing(null); refresh() }} /> : null}
       <ConfirmDialog
         open={Boolean(cancelling)} onOpenChange={(v) => !v && setCancelling(null)} tone="destructive" icon={CalendarClock} title="Cancelar reserva"
-        description={cancelling ? `La reserva de ${cancelling.guestName} a las ${time(cancelling.scheduledAt)} se cancela y su mesa queda libre en ese horario.` : ''}
+        description={cancelling ? `La reserva de ${cancelling.guestName} a las ${formatTime(cancelling.scheduledAt, tz)} se cancela y su mesa queda libre en ese horario.` : ''}
         confirmLabel="Cancelar reserva" onConfirm={() => { act(runly.pos.updateReservation(cancelling.id, { status: 'CANCELLED' }, token), 'Reserva cancelada'); setCancelling(null) }}
       />
     </div>
   )
 }
 
-function ReservationDialog({ reservation, outletId, day, token, onClose, onSaved }) {
+function ReservationDialog({ reservation, outletId, day, tz, token, onClose, onSaved }) {
   const editing = Boolean(reservation.id)
-  const defaultStart = useMemo(() => { const d = new Date(day); d.setHours(20, 0, 0, 0); return localInput(d) }, [day])
+  const defaultStart = useMemo(() => `${day}T20:00`, [day])
   const [form, setForm] = useState(() => ({
     guestName: reservation.guestName ?? '', guestPhone: reservation.guestPhone ?? '', partySize: String(reservation.partySize ?? 2),
-    scheduledAt: reservation.scheduledAt ? localInput(reservation.scheduledAt) : defaultStart, durationMinutes: String(reservation.durationMinutes ?? 90),
+    scheduledAt: reservation.scheduledAt ? wallInput(reservation.scheduledAt, tz) : defaultStart, durationMinutes: String(reservation.durationMinutes ?? 90),
     tableId: reservation.tableId ?? AUTO, notes: reservation.notes ?? '',
   }))
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
   const set = (key) => (value) => setForm((f) => ({ ...f, [key]: value?.target ? value.target.value : value }))
-  const at = form.scheduledAt ? new Date(form.scheduledAt) : null
+  const at = form.scheduledAt ? wallToDate(form.scheduledAt, tz) : null
   const tables = useQuery({
     queryKey: ['pos-reservation-tables', outletId, form.scheduledAt, form.durationMinutes, form.partySize, token],
     queryFn: async () => (await runly.pos.bookings.tables({ outletId, scheduledAt: at.toISOString(), durationMinutes: form.durationMinutes, partySize: form.partySize }, token)).data ?? [],
@@ -198,7 +201,7 @@ function ReservationDialog({ reservation, outletId, day, token, onClose, onSaved
       <div className="grid gap-4 sm:grid-cols-2">
         <TextField label="Cliente" required value={form.guestName} onChange={(e) => { set('guestName')(e); setError('') }} maxLength={160} icon={null} />
         <TextField label="Teléfono" value={form.guestPhone} onChange={set('guestPhone')} maxLength={60} icon={null} inputMode="tel" />
-        <DateTimeField label="Fecha y hora" required value={form.scheduledAt} onChange={set('scheduledAt')} />
+        <DateTimeField label="Fecha y hora" required value={form.scheduledAt} onChange={set('scheduledAt')} hint={`Hora de la sucursal (${tz.replace(/_/g, ' ')})`} />
         <TextField label="Personas" type="number" inputMode="numeric" min={1} max={50} value={form.partySize} onChange={set('partySize')} icon={null} />
         <SelectField label="Duración" value={form.durationMinutes} onChange={set('durationMinutes')} options={DURATIONS} />
         <SelectField label="Mesa" value={form.tableId} onChange={set('tableId')} options={options} hint={busy ? `${busy} mesa(s) ocupadas, reservadas o chicas para ese horario.` : undefined} />

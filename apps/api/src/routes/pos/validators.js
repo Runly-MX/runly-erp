@@ -65,6 +65,8 @@ export const createOutletSchema = z.object({
   code: optionalNullableText(40),
   address: optionalNullableText(500),
   mode: posModeSchema.optional(),
+  // IANA zone (America/Mexico_City); checked against the database's zone list.
+  timezone: z.string().trim().min(1).max(64).regex(/^[A-Za-z0-9_+\-/]+$/, "Zona horaria inválida.").nullable().optional(),
 });
 
 export const updateOutletSchema = createOutletSchema.partial().extend({

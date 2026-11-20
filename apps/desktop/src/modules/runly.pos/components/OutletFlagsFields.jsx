@@ -1,5 +1,9 @@
 import { POS_ADMIN_TOUCH } from './adminTouch.js'
-import { SwitchField, SelectField, Label } from '@runly/ui'
+import { ComboboxField, SwitchField, SelectField, Label } from '@runly/ui'
+
+// IANA zones the browser knows (the API validates against the database list).
+const ZONES = (() => { try { return Intl.supportedValuesOf('timeZone') } catch { return ['America/Mexico_City'] } })()
+const ZONE_OPTIONS = ZONES.map((z) => ({ value: z, label: z.replace(/_/g, ' ') }))
 
 const NO_STATION = '__none__'
 
@@ -8,6 +12,16 @@ export default function OutletFlagsFields({ value, onChange, stations = [] }) {
 
   return (
     <div className="flex flex-col gap-4">
+      {/* Reservations and appointments use the outlet's own clock (needed to turn on Reservaciones). */}
+      <ComboboxField
+        label="Zona horaria"
+        options={ZONE_OPTIONS}
+        value={value.timezone ?? ''}
+        onChange={(v) => set({ timezone: v || null })}
+        placeholder="Elige la zona horaria"
+        searchPlaceholder="Buscar zona, por ejemplo Mexico City"
+        hint="Las reservas y citas de esta sucursal se muestran y calculan con esta zona."
+      />
       <SwitchField touchTarget
         id="outlet-allow-table-charge"
         label="Permitir cobro en mesa"

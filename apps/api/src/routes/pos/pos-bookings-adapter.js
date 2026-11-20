@@ -1,19 +1,23 @@
 // POS table reservations and appointments for outlets whose pos_booking_link is in
 // 'engine' mode. The legacy POS routes keep their contract (same DTO shape) and
 // delegate here, so the Booking Engine is the only source of time and capacity.
-// Boundary with physical state, which stays in POS (pos_table.status, open orders):
-//   - a table occupied right now cannot take a reservation that starts within one
-//     turnover (the link service's duration); auto-assignment skips it;
-//   - a walk-in cannot open a table whose unseated reservation overlaps the next turnover;
-//   - seating needs the table physically free (createOrder already checks it).
-import { createBookingsCommandService } from '../bookings/bookings-command-service.js'
+// Physical occupation is engine capacity too: an open POS account on a table holds the
+// table's resource through allocations owned by the order (booking_allocation.pos_order_id;
+// no booking row, events or calendar entry), opened with the account and extended by the
+// worker while it stays open. So online and POS reservations never land on a busy table,
+// a walk-in cannot take a table reserved for the coming turnover, and nothing depends on
+// pos_table.status. Seated reservations keep their own booking allocation.
+import { createBookingsCommandService, pgCode } from '../bookings/bookings-command-service.js'
 import { BookingError } from '../bookings/bookings-core.js'
 import { fail } from './pos-contracts.js'
 import { PosServiceError, writeAudit } from './service-helpers.js'
 
 const M = 60000
-const OPEN_ORDER = ['PAID', 'CANCELLED', 'REFUNDED']
+// Order statuses that close an account (the table is free again).
+const CLOSED_ORDER = ['PAID', 'CANCELLED', 'REFUNDED']
 const STATUS = { PENDING: 'PENDING', CANCELLED: 'CANCELLED', REJECTED: 'CANCELLED', EXPIRED: 'CANCELLED', NO_SHOW: 'NO_SHOW', COMPLETED: 'COMPLETED' }
+// Extension step for accounts that stay open past their allocation.
+export const OCCUPANCY_STEP_MINUTES = 30
 
 export const engineError = (error) => (error instanceof BookingError ? new PosServiceError(error.message, error.status) : error)
 
@@ -26,21 +30,39 @@ export async function engineLink(db, companyId, outletId, kind) {
 
 const serviceMinutes = async (db, serviceId) => (await db.bookingService.findUnique({ where: { id: serviceId }, select: { durationMinutes: true } }))?.durationMinutes ?? 90
 
-// A walk-in cannot open a table whose unseated reservation overlaps the next turnover.
-export async function assertTableWalkIn(tx, { companyId, outletId, tableId }) {
+// Holds [from, to) of a table for an open account. Returns false on overlap (savepoint, so the
+// caller's transaction stays usable).
+export async function holdTable(tx, { companyId, resourceId, orderId, from, to }) {
+  await tx.$executeRawUnsafe('SAVEPOINT pos_hold')
+  try {
+    await tx.$executeRaw`
+      INSERT INTO booking_allocation (company_id, pos_order_id, resource_id, during)
+      VALUES (${companyId}::uuid, ${orderId}::uuid, ${resourceId}::uuid, tstzrange(${from}::timestamptz, ${to}::timestamptz, '[)'))`
+    await tx.$executeRawUnsafe('RELEASE SAVEPOINT pos_hold')
+    return true
+  } catch (error) {
+    await tx.$executeRawUnsafe('ROLLBACK TO SAVEPOINT pos_hold')
+    if (pgCode(error) !== '23P01') throw error
+    return false
+  }
+}
+
+// A walk-in account (not a reservation's arrival) on an engine outlet holds the table for one
+// turnover; if a reservation needs it sooner the account is refused, saying when.
+export async function occupyTable(tx, { companyId, outletId, tableId, orderId }) {
   const l = await engineLink(tx, companyId, outletId, 'tables')
   if (!l || !tableId) return
+  const map = await tx.posBookingTable.findFirst({ where: { tableId, companyId } })
+  if (!map) return
   const minutes = await serviceMinutes(tx, l.serviceId)
-  const soon = (await tx.$queryRaw`
-    SELECT b.starts_at, s.timezone FROM booking_allocation a JOIN booking b ON b.id = a.booking_id JOIN booking_space s ON s.id = b.space_id
-      JOIN pos_booking_table pbt ON pbt.resource_id = a.resource_id
-     WHERE pbt.table_id = ${tableId}::uuid AND a.active AND b.pos_order_id IS NULL AND b.status IN ('PENDING', 'CONFIRMED')
-       AND a.during && tstzrange(now(), now() + make_interval(mins => ${minutes}::int), '[)')
-     ORDER BY b.starts_at LIMIT 1`)[0]
-  if (soon) {
-    const at = new Date(soon.starts_at).toLocaleTimeString('es-MX', { timeZone: soon.timezone, hour: '2-digit', minute: '2-digit' })
-    fail('TABLE_OCCUPIED', `La mesa tiene una reserva a las ${at}; recibe esa reserva o usa otra mesa.`)
-  }
+  const now = Date.now()
+  if (await holdTable(tx, { companyId, resourceId: map.resourceId, orderId, from: new Date(now), to: new Date(now + minutes * M) })) return
+  const next = (await tx.$queryRaw`
+    SELECT lower(a.during) AS starts_at, s.timezone FROM booking_allocation a JOIN booking_space s ON s.id = ${l.spaceId}::uuid
+     WHERE a.resource_id = ${map.resourceId}::uuid AND a.active AND a.during && tstzrange(now(), now() + make_interval(mins => ${minutes}::int), '[)')
+     ORDER BY lower(a.during) LIMIT 1`)[0]
+  const at = next ? new Date(Math.max(new Date(next.starts_at).getTime(), now)).toLocaleTimeString('es-MX', { timeZone: next.timezone, hour: '2-digit', minute: '2-digit' }) : null
+  fail('TABLE_OCCUPIED', at ? `La mesa está reservada a partir de las ${at}; recibe esa reserva o usa otra mesa.` : 'La mesa está reservada para la próxima rotación; usa otra mesa.')
 }
 
 export function createPosBookingsAdapter({ prisma, onChanged = null }) {
@@ -56,18 +78,6 @@ export function createPosBookingsAdapter({ prisma, onChanged = null }) {
     if (!row) throw new PosServiceError('La mesa no está en el sistema de reservaciones; vuelve a activar la sucursal para incluirla.', 404)
     return row.resourceId
   }
-  // Tables occupied right now (open account or a physical status) whose resource must not
-  // take a reservation that starts before the table can turn over.
-  async function busyNow(db, { companyId, link: l, startsAt }) {
-    if (new Date(startsAt).getTime() >= Date.now() + await serviceMinutes(db, l.serviceId) * M) return []
-    const rows = await db.$queryRaw`
-      SELECT pbt.resource_id FROM pos_table t JOIN pos_booking_table pbt ON pbt.table_id = t.id
-       WHERE t.company_id = ${companyId}::uuid
-         AND (t.status IN ('OCCUPIED', 'BILL_REQUESTED', 'DIRTY')
-              OR EXISTS (SELECT 1 FROM pos_order o WHERE o.table_id = t.id AND o.status NOT IN ('PAID', 'CANCELLED', 'REFUNDED')))`
-    return rows.map((r) => r.resource_id)
-  }
-
   // ---- Reservations ----------------------------------------------------------------
   async function bookingsOf(db, { companyId, spaceId, from = null, to = null, id = null }) {
     return db.$queryRaw`
@@ -121,10 +131,8 @@ export function createPosBookingsAdapter({ prisma, onChanged = null }) {
 
   async function createReservation({ companyId, actorId, link: l, data }) {
     const resourceId = data.tableId ? await tableResource(prisma, companyId, data.tableId) : undefined
-    const busy = await busyNow(prisma, { companyId, link: l, startsAt: data.scheduledAt })
-    if (resourceId && busy.includes(resourceId)) throw new PosServiceError('La mesa está ocupada ahora; elige otra mesa o un horario posterior a su rotación.', 409)
     const result = await guard(() => commands.create({
-      companyId, actorId, spaceId: l.spaceId, channel: 'pos', excludeResourceIds: busy,
+      companyId, actorId, spaceId: l.spaceId, channel: 'pos',
       input: { serviceId: l.serviceId, startsAt: data.scheduledAt, durationMinutes: data.durationMinutes, partySize: data.partySize ?? 2, resourceId, guestName: data.guestName, guestPhone: data.guestPhone ?? null, notes: data.notes ?? null },
     }))
     changed(result.booking.id)
@@ -146,9 +154,7 @@ export function createPosBookingsAdapter({ prisma, onChanged = null }) {
       const startsAt = data.scheduledAt ?? current.scheduledAt
       const tableId = data.tableId === undefined ? current.tableId : data.tableId
       const resourceId = tableId ? await tableResource(prisma, companyId, tableId) : undefined
-      const busy = await busyNow(prisma, { companyId, link: l, startsAt })
-      if (resourceId && busy.includes(resourceId)) throw new PosServiceError('La mesa está ocupada ahora; elige otra mesa o un horario posterior a su rotación.', 409)
-      await guard(() => commands.reschedule({ companyId, actorId, bookingId, excludeResourceIds: busy, input: {
+      await guard(() => commands.reschedule({ companyId, actorId, bookingId, input: {
         startsAt, resourceId, durationMinutes: data.durationMinutes ?? current.durationMinutes, partySize: data.partySize ?? current.partySize,
       } }))
     }
@@ -270,7 +276,7 @@ export function createPosBookingsAdapter({ prisma, onChanged = null }) {
         LEFT JOIN pos_order o ON o.id = b.pos_order_id
         LEFT JOIN pos_appointment p ON p.booking_id = b.id
        WHERE b.status = 'CONFIRMED' AND b.starts_at <= now()
-         AND ((b.pos_order_id IS NOT NULL AND o.status::text = ANY(${OPEN_ORDER})) OR p.status = 'COMPLETED')
+         AND ((b.pos_order_id IS NOT NULL AND o.status::text = ANY(${CLOSED_ORDER})) OR p.status = 'COMPLETED')
        LIMIT 100`
     let completed = 0
     for (const b of due) {
@@ -279,8 +285,41 @@ export function createPosBookingsAdapter({ prisma, onChanged = null }) {
     return { completed }
   }
 
+  // Worker: physical occupation in the engine follows the accounts. Closed accounts release
+  // their holds; an open account on an engine table (walk-in, seated reservation that runs
+  // late, or one opened before activation) is held now and extended step by step while open.
+  // An extension that would overlap the next reservation is not made (counted as conflict):
+  // the reservation keeps its table and POS shows the overlap on the floor.
+  async function maintainOccupancy() {
+    const released = await prisma.$executeRaw`
+      UPDATE booking_allocation a SET active = false FROM pos_order o
+       WHERE a.pos_order_id = o.id AND a.active AND o.status::text = ANY(${CLOSED_ORDER})`
+    const open = await prisma.$queryRaw`
+      SELECT o.id AS order_id, o.company_id, pbt.resource_id, s.duration_minutes,
+             (SELECT max(upper(a.during)) FROM booking_allocation a LEFT JOIN booking b ON b.id = a.booking_id
+               WHERE a.active AND a.resource_id = pbt.resource_id AND (a.pos_order_id = o.id OR b.pos_order_id = o.id)) AS held_until
+        FROM pos_order o
+        JOIN pos_booking_table pbt ON pbt.table_id = o.table_id
+        JOIN pos_booking_link l ON l.company_id = o.company_id AND l.outlet_id = o.outlet_id AND l.kind = 'tables' AND l.mode = 'engine'
+        JOIN booking_service s ON s.id = l.service_id
+       WHERE o.table_id IS NOT NULL AND NOT (o.status::text = ANY(${CLOSED_ORDER}))`
+    let held = 0, conflicts = 0
+    const now = Date.now()
+    for (const row of open) {
+      const until = row.held_until ? new Date(row.held_until).getTime() : null
+      if (until && until > now + OCCUPANCY_STEP_MINUTES * M) continue
+      // +1 ms: the database keeps microseconds, a JS Date only milliseconds (would overlap by a fraction).
+      const from = new Date(Math.max(until != null ? until + 1 : now, now))
+      const to = new Date(from.getTime() + (until ? OCCUPANCY_STEP_MINUTES : row.duration_minutes) * M)
+      const ok = await prisma.$transaction((tx) => holdTable(tx, { companyId: row.company_id, resourceId: row.resource_id, orderId: row.order_id, from, to }))
+      if (ok) held++
+      else conflicts++
+    }
+    return { released, held, conflicts }
+  }
+
   return {
-    link, listReservations, resolveReservation, createReservation, updateReservation, seatInTx, upcomingByTable, reservationView, assertWalkIn: assertTableWalkIn,
-    createAppointment, updateAppointment, setAppointmentStatus, professionals, appointmentResources, completeClosed,
+    link, listReservations, resolveReservation, createReservation, updateReservation, seatInTx, upcomingByTable, reservationView,
+    createAppointment, updateAppointment, setAppointmentStatus, professionals, appointmentResources, completeClosed, maintainOccupancy,
   }
 }

@@ -3297,6 +3297,7 @@ model PosOutlet {
   defaultStationId    String?  @db.Uuid @map("default_station_id")
   kitchenKdsEnabled   Boolean  @default(true) @map("kitchen_kds_enabled")
   kitchenPrintEnabled Boolean  @default(false) @map("kitchen_print_enabled")
+  timezone            String? // IANA zone of the outlet (reservations, appointments)
   createdAt           DateTime @default(now()) @map("created_at")
   updatedAt           DateTime @updatedAt @map("updated_at")
 
@@ -7188,6 +7189,7 @@ model BookingAllocation {
   companyId  String                   @map("company_id") @db.Uuid
   bookingId  String?                  @map("booking_id") @db.Uuid
   sessionId  String?                  @map("session_id") @db.Uuid
+  posOrderId String?                  @map("pos_order_id") @db.Uuid // table held by an open POS account
   resourceId String                   @map("resource_id") @db.Uuid
   during     Unsupported("tstzrange")
   active     Boolean                  @default(true)

@@ -32,6 +32,8 @@ describe('Restaurant phase 4: same commerce engine, real PostgreSQL/API/SDK',{sk
   async function fixture({manual=false,mode='RESTAURANT',tax=0,price=50}={}){
     const company=await db.company.create({data:{id:await uuid(),name:'Restaurant fixture',slug:key()}});
     const actor=await db.userProfile.create({data:{id:await uuid(),authUserId:await uuid(),displayName:'Mesero Uno',email:`${key()}@example.test`}});
+    // Waiters must be active members (runly_user_reference trigger on pos_order), as in production.
+    await db.membership.create({data:{id:await uuid(),companyId:company.id,userId:actor.id}});
     await db.posSettings.create({data:{companyId:company.id,currency:'MXN',defaultTaxRate:tax,pricesIncludeTax:true}});
     const outlet=await db.posOutlet.create({data:{companyId:company.id,name:'Comedor',mode,allowTableCharge:true,kitchenKdsEnabled:!manual,kitchenPrintEnabled:false}});
     const terminal=await db.posTerminal.create({data:{companyId:company.id,outletId:outlet.id,name:'Caja restaurante'}});
@@ -318,7 +320,8 @@ describe('Restaurant phase 4: same commerce engine, real PostgreSQL/API/SDK',{sk
   it('D12 Mis mesas and ready summary, guest metadata, authorized reassignment and D23 bill request remain operational without a planner',async()=>{
     const f=await fixture(),o=await order(f),other=await db.userProfile.create({data:{id:await uuid(),authUserId:await uuid(),displayName:'Mesero Dos',email:`${key()}@example.test`}});
     const role=await db.role.create({data:{id:await uuid(),companyId:f.company.id,name:'Mesero fixture',key:key()}});
-    for(const actor of [f.actor,other])await db.membership.create({data:{id:await uuid(),companyId:f.company.id,userId:actor.id,roleId:role.id}});
+    await db.membership.updateMany({where:{companyId:f.company.id,userId:f.actor.id},data:{roleId:role.id}});
+    await db.membership.create({data:{id:await uuid(),companyId:f.company.id,userId:other.id,roleId:role.id}});
     await assert.rejects(api(f,{permissions:'pos.comandas.create'}).updateRestaurantOrder(o.id,{expectedVersion:o.version,waiterId:other.id},'token',opt()),{code:'FORBIDDEN'});
     const metadata=(await f.api.updateRestaurantOrder(o.id,{expectedVersion:o.version,waiterId:other.id,guestCount:3,notes:'Cumpleaños'},'token',opt())).data;
     assert.equal(metadata.guests.length,3);assert.equal(metadata.guests[0].id,o.guests[0].id);assert.equal(metadata.waiterName,'Mesero Dos');assert.equal(metadata.notes,'Cumpleaños');
