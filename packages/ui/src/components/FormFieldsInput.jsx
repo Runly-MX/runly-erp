@@ -61,6 +61,7 @@ export const TextField = forwardRef(function TextField(
         <input
           ref={ref}
           id={id}
+          aria-invalid={error ? true : undefined}
           className={fieldCls(error, cn(icon && "pl-9", className))}
           autoComplete={resolvedAutoComplete}
           onBlur={handleBlur}
@@ -300,6 +301,7 @@ export const TextareaField = forwardRef(function TextareaField(
       <textarea
         ref={ref}
         id={id}
+        aria-invalid={error ? true : undefined}
         rows={rows}
         autoComplete={resolvedAutoComplete}
         value={value}

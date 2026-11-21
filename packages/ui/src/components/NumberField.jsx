@@ -145,6 +145,7 @@ export const NumberField = forwardRef(function NumberField(
         <input
           ref={ref}
           id={id}
+          aria-invalid={error ? true : undefined}
           type="number"
           inputMode={allowDecimal ? "decimal" : "numeric"}
           min={min}
