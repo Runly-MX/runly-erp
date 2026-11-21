@@ -811,6 +811,16 @@ export function createCallService({
     }
   }
 
+  // Nobody in the room: no JOINED member (one inside the reconnect grace still
+  // counts) and no admitted guest. Recording stops then (reconcile sweep).
+  async function isCallEmpty(callId) {
+    const [row] = await prisma.$queryRaw`
+      SELECT NOT EXISTS (SELECT 1 FROM call_participant WHERE call_id = ${callId} AND status = 'JOINED')
+         AND NOT EXISTS (SELECT 1 FROM call_guest WHERE call_id = ${callId} AND status = 'ADMITTED') AS empty
+    `;
+    return Boolean(row?.empty);
+  }
+
   // Ends ACTIVE calls nobody (member or admitted guest) has been in for the
   // grace. The last leftAt (or the start) is when the room became empty.
   async function expireEmptyRooms() {
@@ -1023,6 +1033,7 @@ export function createCallService({
     expireStaleCalls,
     expireDisconnectedParticipants,
     expireEmptyRooms,
+    isCallEmpty,
     startExpirySweeper,
     revokeUnauthorizedParticipants,
     assertCanManageCall,

@@ -366,6 +366,9 @@ export function createCallRecordingService({
           try { await callService.getLiveCallOrThrow(row.callId); }
           catch { callStillLive = false; }
         }
+        // A meeting left empty stays open a few minutes for people to come
+        // back; stop recording it right away so the file has no blank tail.
+        if (callStillLive && callService?.isCallEmpty && await callService.isCallEmpty(row.callId)) callStillLive = false;
         // Edge case 2: hard duration cap.
         const overCap = now().getTime() - new Date(row.startedAt).getTime() > MAX_DURATION_MS;
 

@@ -456,6 +456,8 @@ export function createCallTranscriptService({
           try { liveCall = await callService.getLiveCallOrThrow(transcript.callId); }
           catch { liveCall = null; }
         }
+        // An empty meeting kept open for rejoins ends the capture like a hang-up.
+        if (liveCall && callService?.isCallEmpty && await callService.isCallEmpty(transcript.callId)) liveCall = null;
         const callStillLive = Boolean(liveCall);
         // Capture still open: pick up anyone who joined, turned their mic on
         // or reconnected (new track sid) since the last sweep.

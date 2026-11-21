@@ -247,6 +247,24 @@ describe("createCallRecordingService.reconcileActiveRecordings (sweep)", () => {
     assert.deepEqual(egress.stopped, ["egress_1"]);
   });
 
+  it("stops recording a meeting that is still open but empty", async () => {
+    const egress = new FakeEgress();
+    const updates = [];
+    const prisma = {
+      callRecording: {
+        findMany: async () => [{ id: REC, callId: CALL, conversationId: CONV, egressId: "egress_1", status: "ACTIVE", startedAt: new Date() }],
+        update: async (args) => { updates.push(args.data.status); return {}; },
+      },
+    };
+    const svc = createCallRecordingService({
+      prisma, env: env(), EgressClientImpl: egress,
+      callService: { getLiveCallOrThrow: async () => ({ id: CALL }), isCallEmpty: async () => true },
+    });
+    await svc.reconcileActiveRecordings();
+    assert.deepEqual(egress.stopped, ["egress_1"]);
+    assert.deepEqual(updates, ["PROCESSING"]);
+  });
+
   it("looks up egress state by egressId, not via an active:true filter that would exclude terminal states", async () => {
     // Mirrors real LiveKit semantics: `listEgress({ active: true })` only
     // ever returns non-terminal egresses (STARTING/ACTIVE/ENDING) — it
