@@ -31,8 +31,11 @@ function summary({ created = 0, reactivated = 0, skipped = 0 } = {}) {
 
 // Picks company users (MirAI and other bots excluded) and assigns the course
 // with an optional due date. Users already active/completed are shown disabled.
-export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments }) {
+// onAssign(userProfileIds) replaces the course assignment (evaluations reuse the
+// picker); copy overrides the texts. Without them it assigns the course.
+export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments, onAssign = null, pending = false, copy = null }) {
   const assign = useAssign()
+  const text = { title: 'Asignar alumnos', description: 'Elige a las personas que deben tomar el curso. Verán el curso en «Mis cursos».', already: 'Ya está inscrito en este curso', dueDate: true, ...copy }
   const [query, setQuery] = useState('')
   const [selected, setSelected] = useState(() => new Set())
   const [dueDate, setDueDate] = useState('')
@@ -55,7 +58,9 @@ export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments
 
   async function submit() {
     try {
-      const result = await assign.mutateAsync({ courseId, userProfileIds: [...selected], dueAt: dueDateToIso(dueDate) })
+      const result = onAssign
+        ? await onAssign([...selected])
+        : await assign.mutateAsync({ courseId, userProfileIds: [...selected], dueAt: dueDateToIso(dueDate) })
       toast.success(summary(result))
       onOpenChange(false)
     } catch { /* toast shown by the mutation */ }
@@ -65,8 +70,8 @@ export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent scrollable size="lg" className="gap-0 p-0 md:p-0 md:pt-0!">
         <DialogHeader icon={UserPlus} className="mb-0 shrink-0 px-5 pt-4 pb-3">
-          <DialogTitle>Asignar alumnos</DialogTitle>
-          <DialogDescription>Elige a las personas que deben tomar el curso. Verán el curso en «Mis cursos».</DialogDescription>
+          <DialogTitle>{text.title}</DialogTitle>
+          <DialogDescription>{text.description}</DialogDescription>
         </DialogHeader>
         <div className="shrink-0 space-y-3 border-b border-[hsl(var(--border))] px-5 pb-3">
           <SearchInput value={query} onChange={(event) => setQuery(event.target.value)} onClear={() => setQuery('')} placeholder="Buscar por nombre o correo…" />
@@ -88,7 +93,7 @@ export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments
                     <CheckboxField
                       id={`lms-assign-${user.id}`}
                       label={userName(user)}
-                      hint={already ? 'Ya está inscrito en este curso' : user.email || undefined}
+                      hint={already ? text.already : user.email || undefined}
                       checked={checked}
                       disabled={already}
                       onChange={() => toggle(user.id)}
@@ -99,13 +104,13 @@ export function AssignLearnersDialog({ open, onOpenChange, courseId, enrollments
             </ul>
           )}
         </div>
-        <div className="shrink-0 border-t border-[hsl(var(--border))] px-5 pt-3">
+        {text.dueDate ? <div className="shrink-0 border-t border-[hsl(var(--border))] px-5 pt-3">
           <DateField label="Fecha límite (opcional)" value={dueDate} onChange={(event) => setDueDate(event.target.value)} placeholder="Sin fecha límite" />
-        </div>
+        </div> : null}
         <DialogFooter className="mt-0 shrink-0 px-5 py-3">
           <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-          <Button onClick={submit} disabled={!selected.size || assign.isPending}>
-            {assign.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
+          <Button onClick={submit} disabled={!selected.size || assign.isPending || pending}>
+            {assign.isPending || pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
             {selected.size ? `Asignar a ${selected.size}` : 'Asignar'}
           </Button>
         </DialogFooter>

@@ -186,7 +186,7 @@ export function createLmsAssessmentService({ prisma, signFile = null, learners =
     return rows.map((row) => ({
       enrollmentId: row.id,
       status: row.status,
-      learner: { id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, kind: row.learner.userProfileId ? 'user' : row.learner.contactId ? 'contact' : 'guest' },
+      learner: { id: row.learner.id, userProfileId: row.learner.userProfileId, displayName: row.learner.displayName, email: row.learner.email, kind: row.learner.userProfileId ? 'user' : row.learner.contactId ? 'contact' : 'guest' },
       sessions: row.sessions.map((s) => ({
         id: s.id, number: s.number, status: s.status, startedAt: iso(s.startedAt), expiresAt: iso(s.expiresAt), submittedAt: iso(s.submittedAt),
         closedReason: s.closedReason, scorePoints: s.scorePoints, maxPoints: s.maxPoints,

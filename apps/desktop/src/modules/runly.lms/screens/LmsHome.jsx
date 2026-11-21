@@ -3,6 +3,8 @@ import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '@runly/ui'
 import { ClipboardList, GraduationCap, Settings2 } from 'lucide-react'
 import { CourseCard } from '../components/CourseCard.jsx'
 import { MyCertificates } from '../components/certificates/MyCertificates.jsx'
+import { MyAssessments } from '../components/runner/MyAssessments.jsx'
+import { useMyAssessments } from '../hooks/useLmsSession.js'
 import { PageShell } from '../components/shared.jsx'
 import { useCatalog, useEnroll, useLmsPermissions, useMyCourses } from '../hooks/useLmsData.js'
 import { useMyCertificates } from '../hooks/useLmsCerts.js'
@@ -31,6 +33,7 @@ export default function LmsHome() {
   const navigate = useNavigate()
   const my = useMyCourses(), catalog = useCatalog(), enroll = useEnroll(), certificates = useMyCertificates({ retry: false })
   const { canManageCourses } = useLmsPermissions()
+  const assessments = useMyAssessments()
   const open = (courseId) => navigate(lmsPath(`/learn/${courseId}`))
   const openPage = (courseId) => navigate(coursePagePath(courseId))
 
@@ -48,7 +51,7 @@ export default function LmsHome() {
 
   const loading = my.isLoading || catalog.isLoading
   const error = my.isError ? my.error : catalog.isError ? catalog.error : null
-  const empty = !loading && !error && !active.length && !completed.length && !available.length
+  const empty = !loading && !error && !active.length && !completed.length && !available.length && !assessments.data?.length
   return (
     <PageShell>
       <PageHeader
@@ -82,6 +85,7 @@ export default function LmsHome() {
           ))}
         </Section>
       ) : null}
+      {!loading ? <MyAssessments items={assessments.data} onOpen={(id) => navigate(lmsPath(`/evaluate/${id}`))} /> : null}
       {!loading && available.length ? (
         <Section title="Catálogo" description="Cursos abiertos a los que puedes inscribirte.">
           {available.map((course) => (

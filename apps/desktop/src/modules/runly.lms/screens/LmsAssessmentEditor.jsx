@@ -1,17 +1,20 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, Button, ChipTabPanel, ChipTabs, ConfirmDialog, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { Archive, EyeOff, Globe, ListChecks, RotateCcw, Settings2 } from 'lucide-react'
+import { Archive, EyeOff, Globe, ListChecks, RotateCcw, Settings2, Users } from 'lucide-react'
 import { ActivitiesPanel } from '../components/assessment/ActivitiesPanel.jsx'
 import { AssessmentStatusBadge } from '../components/assessment/AssessmentParts.jsx'
 import { AssessmentSettingsForm } from '../components/assessment/AssessmentSettingsForm.jsx'
+import { ParticipantsPanel } from '../components/assessment/ParticipantsPanel.jsx'
 import { PageShell, useRouteId } from '../components/shared.jsx'
 import { useArchiveAssessment, useAssessment, useUpdateAssessment } from '../hooks/useLmsAssessments.js'
+import { useLmsPermissions } from '../hooks/useLmsData.js'
 import { assessmentsPath, formatPoints, formatTimeLimit } from '../lib/lmsAssessment.js'
 
 const TABS = [
   { value: 'activities', label: 'Actividades', icon: ListChecks, description: 'Cuestionarios, entregas y actividades prácticas, en el orden en que se presentan.' },
   { value: 'settings', label: 'Configuración', icon: Settings2, description: 'Instrucciones, tiempo límite, intentos, disponibilidad y resultados.' },
+  { value: 'participants', label: 'Participantes', icon: Users, description: 'Quiénes la presentan, cuándo empezaron y cuándo entregaron.' },
 ]
 
 // Evaluation editor: /assessments/:id. Sharing, results and graders arrive in later phases.
@@ -23,6 +26,7 @@ export default function LmsAssessmentEditor() {
   const archive = useArchiveAssessment()
   const [tab, setTab] = useState('activities')
   const [confirmArchive, setConfirmArchive] = useState(false)
+  const { canManageEnrollments } = useLmsPermissions()
   const back = () => navigate(assessmentsPath())
 
   if (query.isLoading) {
@@ -72,13 +76,18 @@ export default function LmsAssessmentEditor() {
       ) : assessment.status === 'draft' ? (
         <Alert><AlertDescription>Borrador: nadie puede presentarla hasta que la publiques.</AlertDescription></Alert>
       ) : null}
-      <ChipTabs tabs={TABS} value={tab} onChange={setTab} tone="violet" ariaLabel="Secciones de la evaluación" />
+      <ChipTabs tabs={canManageEnrollments ? TABS : TABS.filter((item) => item.value !== 'participants')} value={tab} onChange={setTab} tone="violet" ariaLabel="Secciones de la evaluación" />
       <ChipTabPanel value="activities" active={tab === 'activities'}>
         <ActivitiesPanel assessmentId={assessment.id} activities={activities} readOnly={archived} />
       </ChipTabPanel>
       <ChipTabPanel value="settings" active={tab === 'settings'}>
         <AssessmentSettingsForm assessment={assessment} readOnly={archived} />
       </ChipTabPanel>
+      {canManageEnrollments ? (
+        <ChipTabPanel value="participants" active={tab === 'participants'}>
+          <ParticipantsPanel assessmentId={assessment.id} readOnly={archived} />
+        </ChipTabPanel>
+      ) : null}
       <ConfirmDialog
         open={confirmArchive} onOpenChange={setConfirmArchive} icon={Archive} title="Archivar evaluación"
         description={`«${assessment.title}» dejará de estar disponible. Sus actividades y resultados se conservan.`}

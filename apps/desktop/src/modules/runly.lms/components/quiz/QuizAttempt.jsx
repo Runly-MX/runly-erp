@@ -5,6 +5,7 @@ import { toast } from 'sonner'
 import { errorCode, useSaveAnswers, useSubmitAttempt } from '../../hooks/useLmsEval.js'
 import { answeredPct, toggleFlag } from '../../lib/lmsAnswers.js'
 import { countUnanswered, formatCountdown, remainingMs } from '../../lib/lmsEval.js'
+import { clearPending, readPending, writePending } from '../../lib/lmsSession.js'
 import { QuizNavigator } from './QuizNavigator.jsx'
 import { QuizQuestionField } from './QuizQuestionField.jsx'
 
@@ -41,13 +42,18 @@ function useNow(enabled) {
 // on one page; 'one' shows one at a time with Anterior / Siguiente and a
 // question navigator. `onFinished(attempt)` gets the submitted attempt;
 // `onExpired()` runs when the server already closed the attempt.
-export function QuizAttempt({ attempt, courseId, lessonId, layout = 'all', onFinished, onExpired }) {
-  const [answers, setAnswers] = useState(() => attempt.answers ?? {})
+// sessionMode (evaluations): the session owns the clock and the submit, so the
+// attempt shows neither; unsaved answers are backed up in this browser and
+// restored on reload. `disabled` locks it when the session time is up.
+export function QuizAttempt({ attempt, courseId, lessonId, layout = 'all', onFinished, onExpired, sessionMode = false, disabled = false, onAnswersChange }) {
+  const [answers, setAnswers] = useState(() => (sessionMode ? { ...(attempt.answers ?? {}), ...(readPending(attempt.id) ?? {}) } : attempt.answers ?? {}))
   const [saveState, setSaveState] = useState(null)
   const [confirmOpen, setConfirmOpen] = useState(false)
   const save = useSaveAnswers(), submit = useSubmitAttempt(courseId, lessonId)
-  const dirty = useRef(false), closed = useRef(false), answersRef = useRef(answers)
+  // A restored backup counts as unsaved: autosave sends it right away.
+  const dirty = useRef(sessionMode && Boolean(readPending(attempt.id))), closed = useRef(false), answersRef = useRef(answers)
   answersRef.current = answers
+  useEffect(() => { onAnswersChange?.(answers) }, [answers]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const questions = attempt.questions ?? []
   const unanswered = countUnanswered(questions, answers)
@@ -58,8 +64,8 @@ export function QuizAttempt({ attempt, courseId, lessonId, layout = 'all', onFin
     setCurrent(Math.max(0, Math.min(questions.length - 1, index)))
     if (typeof window !== 'undefined') window.requestAnimationFrame?.(() => document.getElementById('lms-quiz-current')?.scrollIntoView?.({ block: 'nearest' }))
   }
-  const now = useNow(Boolean(attempt.deadlineAt))
-  const left = remainingMs(attempt.deadlineAt, now)
+  const now = useNow(!sessionMode && Boolean(attempt.deadlineAt))
+  const left = sessionMode ? null : remainingMs(attempt.deadlineAt, now)
 
   const handleError = useCallback((error) => {
     if (errorCode(error) === 'EXPIRED' || error?.status === 409) {
@@ -79,6 +85,7 @@ export function QuizAttempt({ attempt, courseId, lessonId, layout = 'all', onFin
       setSaveState('saving')
       try {
         await save.mutateAsync({ attemptId: attempt.id, answers: answersRef.current })
+        if (sessionMode && !dirty.current) clearPending(attempt.id)
         setSaveState('saved')
       } catch (error) {
         if (!handleError(error)) setSaveState('error')
@@ -104,16 +111,18 @@ export function QuizAttempt({ attempt, courseId, lessonId, layout = 'all', onFin
     }
   }, [attempt.id, submit, onFinished, handleError])
 
-  // Time is up: submit what the learner has.
-  useEffect(() => { if (left === 0 && !closed.current) send() }, [left, send])
+  // Time is up: submit what the learner has (in a session, the session does it).
+  useEffect(() => { if (!sessionMode && left === 0 && !closed.current) send() }, [left, send, sessionMode])
 
   function answer(questionId, value) {
     dirty.current = true
+    // Backed up in the event itself: a reload right after typing must not lose it.
+    if (sessionMode) writePending(attempt.id, { ...answersRef.current, [questionId]: value })
     setAnswers((current) => ({ ...current, [questionId]: value }))
   }
 
-  const busy = submit.isPending || closed.current
-  const sendButton = (
+  const busy = submit.isPending || closed.current || disabled
+  const sendButton = sessionMode ? null : (
     <Button onClick={() => setConfirmOpen(true)} disabled={busy}>
       {submit.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <Send />}Enviar examen
     </Button>
