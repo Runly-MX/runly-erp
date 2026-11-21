@@ -1,12 +1,13 @@
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Button, ContactPicker, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SelectField, TextField, TextareaField,
+  Button, ContactPicker, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, NumberField, SelectField, TextField, TextareaField,
 } from '@runly/ui'
 import { CalendarPlus, CalendarSync, Loader2 } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation, useIdempotencyKey, useToken } from '../hooks/useBookings.js'
 import { MUTED_TEXT } from '../lib/bookingsLabels.js'
 import { dayKey, formatDateTime } from '../lib/bookingsTime.js'
+import { FormGroup } from './shared.jsx'
 import { SlotPicker } from './SlotPicker.jsx'
 
 const ANY = 'any'
@@ -22,7 +23,7 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
   const [errors, setErrors] = useState({})
   useEffect(() => {
     if (open) {
-      setForm({ serviceId: active[0]?.id ?? '', resourceId: ANY, date: initialDate ?? dayKey(new Date(), tz), slot: null, contact: null, guestName: '', guestEmail: '', guestPhone: '', partySize: '1', notes: '' })
+      setForm({ serviceId: active[0]?.id ?? '', resourceId: ANY, date: initialDate ?? dayKey(new Date(), tz), slot: null, contact: null, guestName: '', guestEmail: '', guestPhone: '', partySize: String(active[0]?.minParty ?? 1), notes: '' })
       setErrors({})
     }
   }, [open]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -65,10 +66,11 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
             <DialogTitle>Nueva reservación</DialogTitle>
             <DialogDescription>{space.name} · horario de {tz}</DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            <FormGroup title="Servicio y horario">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <SelectField label="Servicio" required options={active.map((s) => ({ value: s.id, label: s.name }))} value={form.serviceId ?? ''} error={errors.service}
-                onValueChange={(serviceId) => setForm((f) => ({ ...f, serviceId, slot: null, resourceId: ANY }))} />
+                onValueChange={(serviceId) => setForm((f) => ({ ...f, serviceId, slot: null, resourceId: ANY, partySize: String(active.find((s) => s.id === serviceId)?.minParty ?? 1) }))} />
               {service?.kind === 'appointment' && serviceResources.length > 1 ? (
                 <SelectField label="Recurso" options={[{ value: ANY, label: 'Cualquiera disponible' }, ...serviceResources.map((r) => ({ value: r.id, label: r.name }))]}
                   value={form.resourceId ?? ANY} onValueChange={(resourceId) => setForm((f) => ({ ...f, resourceId, slot: null }))} />
@@ -77,18 +79,21 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
             <SlotPicker space={space} service={service} date={form.date ?? ''} onDateChange={(date) => setForm((f) => ({ ...f, date }))}
               resourceId={form.resourceId !== ANY ? form.resourceId : undefined} value={form.slot} onChange={(slot) => setForm((f) => ({ ...f, slot }))} />
             {errors.slot ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.slot}</p> : null}
-            <ContactPicker label="Contacto (opcional)" value={form.contact} searchContacts={searchContacts} minQueryLength={0}
-              onChange={(contact) => setForm((f) => ({ ...f, contact, guestName: f.guestName || contact?.name || '', guestEmail: f.guestEmail || contact?.email || '', guestPhone: f.guestPhone || contact?.phone || '' }))}
-              hint="Vincula un contacto existente o registra solo los datos mínimos del cliente." />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+            </FormGroup>
+            <FormGroup title="Cliente">
+              <ContactPicker label="Contacto (opcional)" value={form.contact} searchContacts={searchContacts} minQueryLength={0}
+                onChange={(contact) => setForm((f) => ({ ...f, contact, guestName: f.guestName || contact?.name || '', guestEmail: f.guestEmail || contact?.email || '', guestPhone: f.guestPhone || contact?.phone || '' }))}
+                hint="Vincula un contacto existente o registra solo los datos mínimos del cliente." />
               <TextField label="Nombre del cliente" value={form.guestName ?? ''} onChange={set('guestName')} maxLength={160} error={errors.guest} autoComplete="off" />
-              <TextField label="Correo" type="email" value={form.guestEmail ?? ''} onChange={set('guestEmail')} error={errors.email} autoComplete="off" />
-              <TextField label="Teléfono" type="tel" value={form.guestPhone ?? ''} onChange={set('guestPhone')} maxLength={40} autoComplete="off" />
-            </div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-[10rem_1fr]">
-              <TextField label="Personas" type="number" inputMode="numeric" min={1} value={form.partySize ?? '1'} onChange={set('partySize')} error={errors.party} />
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <TextField label="Correo" type="email" inputMode="email" value={form.guestEmail ?? ''} onChange={set('guestEmail')} error={errors.email} autoComplete="off" />
+                <TextField label="Teléfono" type="tel" inputMode="tel" value={form.guestPhone ?? ''} onChange={set('guestPhone')} maxLength={40} autoComplete="off" />
+              </div>
+              {service && service.maxParty > 1 ? (
+                <NumberField label="Personas" icon={null} min={service.minParty} max={service.maxParty} allowDecimal={false} value={form.partySize ?? '1'} onChange={set('partySize')} error={errors.party} hint={`De ${service.minParty} a ${service.maxParty}.`} className="sm:max-w-xs" />
+              ) : errors.party ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.party}</p> : null}
               <TextareaField label="Notas internas" value={form.notes ?? ''} onChange={set('notes')} rows={2} />
-            </div>
+            </FormGroup>
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>

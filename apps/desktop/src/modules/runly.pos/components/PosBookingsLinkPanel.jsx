@@ -65,19 +65,19 @@ function LinkRow({ outlet, kind }) {
         </div>
         <p className="text-sm text-[hsl(var(--muted-foreground))]">{active ? `Desde ${when(link.activatedAt)}. Los horarios y la capacidad los decide Reservaciones.` : KIND[kind].legacy}</p>
       </div>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex w-full flex-wrap gap-2 sm:w-auto">
         {active ? (
           <>
             <Button variant="outline" asChild><a href={`/app/m/runly.bookings/spaces/${link.spaceId}`}><ExternalLink />Abrir en Reservaciones</a></Button>
-            <Button variant="ghost" onClick={() => setConfirmBack(true)} disabled={busy}><RotateCcw />Volver al modo anterior</Button>
+            <Button type="button" variant="ghost" onClick={() => setConfirmBack(true)} disabled={busy}><RotateCcw />Volver al modo anterior</Button>
           </>
-        ) : <Button onClick={() => setOpen(true)}><CalendarCheck />Revisar y activar</Button>}
+        ) : <Button type="button" onClick={() => setOpen(true)}><CalendarCheck />Revisar y activar</Button>}
       </div>
       {open ? <ActivateDialog outlet={outlet} kind={kind} hasLink={Boolean(link)} token={token} onClose={() => setOpen(false)} onDone={() => { setOpen(false); client.invalidateQueries({ queryKey: ['pos-bookings-links'] }) }} /> : null}
       <ConfirmDialog
         open={confirmBack} onOpenChange={setConfirmBack} tone="destructive" icon={RotateCcw} title="Volver al modo anterior"
         description={`POS dejará de usar Reservaciones para las ${KIND[kind].what} de ${outlet.name}. Las reservas vigentes se copian a POS y la página pública de este sistema se despublica. Puedes volver a activarlo después.`}
-        confirmLabel="Volver al modo anterior" onConfirm={rollback}
+        confirmLabel="Volver al modo anterior" loading={busy} onConfirm={rollback}
       />
     </div>
   )
@@ -129,7 +129,7 @@ function ActivateDialog({ outlet, kind, hasLink, token, onClose, onDone }) {
                 <ul className="flex flex-wrap gap-2">
                   {people.map((name) => (
                     <li key={name} className="flex min-h-11 items-center gap-1 rounded-md border border-[hsl(var(--border))] pl-3">
-                      {name}<Button variant="ghost" size="icon" className="h-11 w-11" aria-label={`Quitar a ${name}`} onClick={() => setPeople((p) => p.filter((x) => x !== name))}><X /></Button>
+                      {name}<Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label={`Quitar a ${name}`} onClick={() => setPeople((p) => p.filter((x) => x !== name))}><X /></Button>
                     </li>
                   ))}
                 </ul>

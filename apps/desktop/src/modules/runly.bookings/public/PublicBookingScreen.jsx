@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Alert, AlertDescription, Button, CheckboxField, EmptyState, SelectField, Skeleton, TextField, TextareaField } from '@runly/ui'
+import { Alert, AlertDescription, Button, CheckboxField, EmptyState, NumberField, SelectField, Skeleton, TextField, TextareaField } from '@runly/ui'
 import { AlertTriangle, CalendarCheck, CalendarX2, CheckCircle2, ChevronLeft, Clock3, ExternalLink, Loader2, RotateCcw, ShieldAlert } from 'lucide-react'
 import { addDays, dayKey, formatDateTime, formatTime } from '../lib/bookingsTime.js'
 import { Card, LocationLines, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
@@ -148,7 +148,7 @@ export default function PublicBookingScreen() {
               <TextField label="Correo electrónico" type="email" required value={form.guestEmail} onChange={set('guestEmail')} error={errors.guestEmail} autoComplete="email" inputMode="email" hint="Aquí te enviaremos la confirmación y el enlace para gestionar tu reservación." />
               <TextField label={p.requirePhone ? 'Teléfono' : 'Teléfono (opcional)'} type="tel" required={p.requirePhone} value={form.guestPhone} onChange={set('guestPhone')} error={errors.guestPhone} autoComplete="tel" inputMode="tel" maxLength={40} />
             </div>
-            {service.maxParty > 1 ? <TextField label="Personas" type="number" inputMode="numeric" min={service.minParty} max={service.maxParty} value={form.partySize} onChange={set('partySize')} error={errors.partySize} /> : null}
+            {service.maxParty > 1 ? <NumberField label="Personas" icon={null} min={service.minParty} max={service.maxParty} allowDecimal={false} value={form.partySize} onChange={set('partySize')} error={errors.partySize} hint={`De ${service.minParty} a ${service.maxParty}.`} className="sm:max-w-xs" /> : null}
             <TextareaField label="Comentarios para el negocio (opcional)" value={form.notes} onChange={set('notes')} rows={3} maxLength={500} hint="No incluyas información médica ni otros datos sensibles." />
             <div className="flex justify-end"><Button type="submit">Revisar</Button></div>
           </form>

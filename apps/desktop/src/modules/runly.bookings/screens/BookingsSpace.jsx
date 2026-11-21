@@ -164,7 +164,7 @@ function AvailabilityTab({ space, services, resources, canEdit, canEditResources
     <div className="space-y-4">
       <ScheduleEditor
         title="Horario semanal del sistema"
-        description={`Horas en que se puede reservar, en ${space.timezone}. Los descansos son huecos entre horarios del mismo día. Los buffers de cada servicio se definen en Servicios.`}
+        description={`Horas en que se puede reservar, en ${space.timezone}. Los descansos son huecos entre horarios del mismo día. Los márgenes antes y después de cada servicio se definen en Servicios.`}
         rules={schedule.data}
         loading={schedule.isLoading}
         canEdit={canEdit}

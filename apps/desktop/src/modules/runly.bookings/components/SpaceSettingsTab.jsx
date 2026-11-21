@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Alert, AlertDescription, AlertTitle, Button, SectionCard, SelectField, SwitchField, TextField, TextareaField } from '@runly/ui'
-import { Globe, Loader2, Settings2 } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, Button, NumberField, SectionCard, SelectField, SwitchField, TextField, TextareaField } from '@runly/ui'
+import { CalendarClock, Globe, Loader2, Settings2, ShieldCheck } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation } from '../hooks/useBookings.js'
-import { MODE, MODE_HINT, optionsOf } from '../lib/bookingsLabels.js'
+import { MODE, MODE_HINT, MUTED_TEXT, optionsOf } from '../lib/bookingsLabels.js'
 import { useTimeZoneOptions } from './SpaceFormDialog.jsx'
 
 const fromSpace = (s) => ({
@@ -57,23 +57,28 @@ export function SpaceSettingsTab({ space, canEdit }) {
           <SwitchField id="bookings-space-enabled" label="Sistema operando" description="Un sistema desactivado conserva sus datos, pero no acepta reservaciones nuevas." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} disabled={!canEdit} />
         </div>
       </SectionCard>
-      <SectionCard title="Políticas de reservación" icon={Settings2} description="El Booking Engine las aplica al crear y reprogramar.">
+      <SectionCard title="Políticas de reservación" icon={ShieldCheck} description="El Booking Engine las aplica al crear y reprogramar.">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Anticipación mínima (min)" type="number" inputMode="numeric" min={0} value={form.leadMinutes} onChange={set('leadMinutes')} error={errors.leadMinutes} disabled={!canEdit} hint="0 permite reservar desde ahora." />
-            <TextField label="Reservar hasta (días)" type="number" inputMode="numeric" min={1} value={form.horizonDays} onChange={set('horizonDays')} error={errors.horizonDays} disabled={!canEdit} />
+            <NumberField label="Anticipación mínima" suffix="min" icon={null} min={0} max={525600} allowDecimal={false} value={form.leadMinutes} onChange={set('leadMinutes')} error={errors.leadMinutes} disabled={!canEdit} hint="0 permite reservar desde ahora." />
+            <NumberField label="Reservar con hasta" suffix="días" icon={null} min={1} max={730} allowDecimal={false} value={form.horizonDays} onChange={set('horizonDays')} error={errors.horizonDays} disabled={!canEdit} hint="Qué tan lejos en el futuro se puede reservar." />
           </div>
           <SwitchField id="bookings-space-approval" label="Requiere aprobación" description="Las reservaciones nuevas quedan Pendientes hasta que alguien del equipo las confirme." checked={form.requiresApproval} onChange={(requiresApproval) => setForm((f) => ({ ...f, requiresApproval }))} disabled={!canEdit} />
           {form.requiresApproval ? (
-            <TextField label="Vencer pendientes después de (min)" type="number" inputMode="numeric" min={1} value={form.holdMinutes} onChange={set('holdMinutes')} error={errors.holdMinutes} disabled={!canEdit}
-              hint="Vacío: la pendiente aparta el horario hasta que se confirme o rechace." />
+            <NumberField label="Vencer pendientes después de" suffix="min" icon={null} min={1} max={10080} allowDecimal={false} value={form.holdMinutes} onChange={set('holdMinutes')} error={errors.holdMinutes} disabled={!canEdit}
+              hint="Vacío: la pendiente aparta el horario hasta que se confirme o rechace." className="sm:max-w-xs" />
           ) : null}
+        </div>
+      </SectionCard>
+      <SectionCard title="Cambios del cliente en línea" icon={CalendarClock} description="Hasta cuándo puede el cliente cancelar o reprogramar desde su enlace. Tu equipo siempre puede hacerlo.">
+        <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <TextField label="Cancelación en línea hasta (horas antes)" type="number" inputMode="decimal" min={0} value={form.cancelUntilHours} onChange={set('cancelUntilHours')} error={errors.cancelUntilHours} disabled={!canEdit}
-              hint="Vacío: el cliente puede cancelar hasta la hora de inicio. Tu equipo siempre puede hacerlo." />
-            <TextField label="Reprogramación en línea hasta (horas antes)" type="number" inputMode="decimal" min={0} value={form.rescheduleUntilHours} onChange={set('rescheduleUntilHours')} error={errors.rescheduleUntilHours} disabled={!canEdit}
-              hint="Vacío: hasta la hora de inicio. Cambiar estas políticas pide a los clientes aceptarlas de nuevo." />
+            <NumberField label="Cancelar hasta" suffix="h antes" icon={null} min={0} max={8760} value={form.cancelUntilHours} onChange={set('cancelUntilHours')} error={errors.cancelUntilHours} disabled={!canEdit}
+              hint="Vacío: hasta la hora de inicio." className="pr-20" />
+            <NumberField label="Reprogramar hasta" suffix="h antes" icon={null} min={0} max={8760} value={form.rescheduleUntilHours} onChange={set('rescheduleUntilHours')} error={errors.rescheduleUntilHours} disabled={!canEdit}
+              hint="Vacío: hasta la hora de inicio." className="pr-20" />
           </div>
+          <p className={MUTED_TEXT}>Cambiar estas políticas pide a los clientes aceptarlas de nuevo.</p>
         </div>
       </SectionCard>
       <Alert>
@@ -85,7 +90,7 @@ export function SpaceSettingsTab({ space, canEdit }) {
       </Alert>
       {canEdit ? (
         <div className="flex justify-end">
-          <Button type="submit" disabled={save.isPending}>{save.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}Guardar configuración</Button>
+          <Button type="submit" disabled={save.isPending} className="w-full sm:w-auto">{save.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{save.isPending ? 'Guardando…' : 'Guardar configuración'}</Button>
         </div>
       ) : null}
     </form>

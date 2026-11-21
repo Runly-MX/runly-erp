@@ -112,7 +112,7 @@ export default function BookingsReservations() {
         )}
       />
       <SpaceSwitcher spaces={spaces.data} value={spaceId} onChange={(id) => { selectSpace(id); setFilters((f) => ({ ...f, serviceId: ALL, resourceId: ALL })) }} />
-      <FiltersPanel active={[filters.status, filters.serviceId, filters.resourceId].filter((v) => v !== ALL).length + (filters.to ? 1 : 0)} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <FiltersPanel active={[filters.status, filters.serviceId, filters.resourceId].filter((v) => v !== ALL).length + (filters.to ? 1 : 0)} className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
         <SelectField label="Estado" options={[{ value: ALL, label: 'Todos' }, ...STATUS_OPTIONS]} value={filters.status} onValueChange={(status) => setFilters((f) => ({ ...f, status }))} />
         <SelectField label="Servicio" options={[{ value: ALL, label: 'Todos' }, ...(services.data ?? []).map((s) => ({ value: s.id, label: s.name }))]} value={filters.serviceId} onValueChange={(serviceId) => setFilters((f) => ({ ...f, serviceId }))} />
         <SelectField label="Recurso" options={[{ value: ALL, label: 'Todos' }, ...spaceResources.map((r) => ({ value: r.id, label: r.name }))]} value={filters.resourceId} onValueChange={(resourceId) => setFilters((f) => ({ ...f, resourceId }))} />

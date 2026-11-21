@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, SectionCard, Skeleton, StatusPill,
+  Button, CheckboxField, EmptyState, SectionCard, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, StatusPill,
   SwatchField, SwitchField, TextField, TextareaField, copyText,
 } from '@runly/ui'
 import { Copy, Eye, Globe, Loader2, Pencil, Plus, Share2 } from 'lucide-react'
@@ -10,6 +10,7 @@ import { runly } from '../../../lib/runly.js'
 import { KEY, useBookingsMutation, useToken } from '../hooks/useBookings.js'
 import { MUTED_TEXT, bookingsError } from '../lib/bookingsLabels.js'
 import { ShareEmbedDialog } from './ShareEmbedDialog.jsx'
+import { FormGroup } from './shared.jsx'
 
 // "Reservas online": publish the space and manage its public pages. Turning
 // publication off keeps every booking; it only stops new self-scheduling.
@@ -116,50 +117,54 @@ function PageFormDialog({ open, onOpenChange, page, services, onSubmit, pending 
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent scrollable size="lg" className="gap-0 p-0 md:p-0 md:pt-0!">
+    <Sheet open={open} onOpenChange={onOpenChange}>
+      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
-          <DialogHeader icon={Globe} className="mb-0 shrink-0 px-5 pt-4 pb-3">
-            <DialogTitle>{page ? 'Editar página pública' : 'Nueva página pública'}</DialogTitle>
-            <DialogDescription>Lo que verán tus clientes. Si cambias las políticas, los clientes deben aceptarlas de nuevo.</DialogDescription>
-          </DialogHeader>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <SheetHeader className="shrink-0 border-b border-[hsl(var(--border))] px-5 py-4">
+            <SheetTitle>{page ? 'Editar página pública' : 'Nueva página pública'}</SheetTitle>
+            <SheetDescription>Lo que verán tus clientes. Si cambias las políticas, los clientes deben aceptarlas de nuevo.</SheetDescription>
+          </SheetHeader>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            <FormGroup title="Página">
               <TextField label="Título" required value={form.title} onChange={set('title')} error={errors.title} maxLength={160} placeholder="Ej. Agenda tu consulta" />
-              <TextField label="Dirección (slug)" required value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value.toLowerCase() }))} error={errors.slug} hint={`.../app/p/reservar/${form.slug || 'tu-pagina'}`} />
-            </div>
-            <TextareaField label="Descripción" value={form.description} onChange={set('description')} rows={2} />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <TextField label="Dirección (slug)" required value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value.toLowerCase() }))} error={errors.slug} hint={`.../app/p/reservar/${form.slug || 'tu-pagina'}`} autoComplete="off" />
+              <TextareaField label="Descripción" value={form.description} onChange={set('description')} rows={2} />
               <TextField label="Ubicación" value={form.location} onChange={set('location')} maxLength={500} placeholder="Calle, número, ciudad" />
+              <TextareaField label="Indicaciones para llegar o prepararse" value={form.instructions} onChange={set('instructions')} rows={2} />
               <SwatchField label="Color de la página (opcional)" value={form.accentColor || ''} onChange={(accentColor) => setForm((f) => ({ ...f, accentColor }))} error={errors.accentColor} />
-            </div>
-            <TextareaField label="Indicaciones para llegar o prepararse" value={form.instructions} onChange={set('instructions')} rows={2} />
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Servicios en esta página</legend>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {active.map((s) => (
-                  <CheckboxField key={s.id} label={s.name} checked={form.serviceIds.includes(s.id)}
-                    onChange={(e) => setForm((f) => ({ ...f, serviceIds: e.target.checked ? [...f.serviceIds, s.id] : f.serviceIds.filter((x) => x !== s.id) }))} />
-                ))}
-              </div>
-              {errors.services ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.services}</p> : null}
-            </fieldset>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            </FormGroup>
+            <FormGroup title="Servicios y datos del cliente">
+              <fieldset className="space-y-2">
+                <legend className="text-sm font-medium">Servicios en esta página</legend>
+                {active.length ? (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {active.map((s) => (
+                      <CheckboxField key={s.id} label={s.name} checked={form.serviceIds.includes(s.id)}
+                        onChange={(e) => setForm((f) => ({ ...f, serviceIds: e.target.checked ? [...f.serviceIds, s.id] : f.serviceIds.filter((x) => x !== s.id) }))} />
+                    ))}
+                  </div>
+                ) : <p className={MUTED_TEXT}>Este sistema no tiene servicios activos. Créalos en la pestaña Servicios.</p>}
+                {errors.services ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.services}</p> : null}
+              </fieldset>
               <SwitchField id="bookings-page-resource-choice" label="Elegir profesional" description="El cliente puede elegir quién lo atiende. Si no, el sistema asigna a cualquiera disponible." checked={form.allowResourceChoice} onChange={(allowResourceChoice) => setForm((f) => ({ ...f, allowResourceChoice }))} />
               <SwitchField id="bookings-page-require-phone" label="Teléfono obligatorio" description="Si está apagado, el teléfono es opcional." checked={form.requirePhone} onChange={(requirePhone) => setForm((f) => ({ ...f, requirePhone }))} />
-            </div>
-            <TextareaField label="Política de cancelación" value={form.cancellationPolicy} onChange={set('cancellationPolicy')} rows={2} />
-            <TextareaField label="Política de reprogramación" value={form.reschedulePolicy} onChange={set('reschedulePolicy')} rows={2} />
-            <TextareaField label="Puntualidad" value={form.punctualityPolicy} onChange={set('punctualityPolicy')} rows={2} />
-            <TextareaField label="Aviso de privacidad" value={form.privacyNotice} onChange={set('privacyNotice')} rows={3} hint="Si lo dejas vacío se muestra un aviso breve: los datos se usan solo para gestionar la reservación." />
-            <SwitchField id="bookings-page-published" label="Página publicada" description="Además, el sistema debe estar publicado en Reservas online." checked={form.published} onChange={(published) => setForm((f) => ({ ...f, published }))} />
+            </FormGroup>
+            <FormGroup title="Políticas y avisos" description="Se muestran antes de confirmar; el cliente debe aceptarlas.">
+              <TextareaField label="Política de cancelación" value={form.cancellationPolicy} onChange={set('cancellationPolicy')} rows={2} />
+              <TextareaField label="Política de reprogramación" value={form.reschedulePolicy} onChange={set('reschedulePolicy')} rows={2} />
+              <TextareaField label="Puntualidad" value={form.punctualityPolicy} onChange={set('punctualityPolicy')} rows={2} />
+              <TextareaField label="Aviso de privacidad" value={form.privacyNotice} onChange={set('privacyNotice')} rows={3} hint="Si lo dejas vacío se muestra un aviso breve: los datos se usan solo para gestionar la reservación." />
+            </FormGroup>
+            <FormGroup title="Publicación">
+              <SwitchField id="bookings-page-published" label="Página publicada" description="Además, el sistema debe estar publicado en Reservas online." checked={form.published} onChange={(published) => setForm((f) => ({ ...f, published }))} />
+            </FormGroup>
           </div>
-          <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
+          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-[hsl(var(--border))] px-5 py-3 sm:flex-row sm:justify-end">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={pending}>{pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}Guardar página</Button>
-          </DialogFooter>
+            <Button type="submit" disabled={pending}>{pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{pending ? 'Guardando…' : 'Guardar página'}</Button>
+          </div>
         </form>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   )
 }

@@ -58,6 +58,19 @@ export function FiltersPanel({ active = 0, children, className }) {
   )
 }
 
+// Titled group inside a dialog or sheet body, so long forms read as sections.
+export function FormGroup({ title, description, children }) {
+  return (
+    <section className="space-y-3 border-t border-[hsl(var(--border))] pt-4 first:border-t-0 first:pt-0">
+      <div className="space-y-0.5">
+        <h3 className="text-sm font-semibold">{title}</h3>
+        {description ? <p className={MUTED}>{description}</p> : null}
+      </div>
+      {children}
+    </section>
+  )
+}
+
 export function Field({ label, children }) {
   return (
     <div className="min-w-0">

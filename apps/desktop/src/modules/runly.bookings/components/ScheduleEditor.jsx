@@ -52,19 +52,19 @@ export function ScheduleEditor({ title, description, rules, loading, canEdit, on
                 <ul className="mt-2 space-y-2">
                   {byDay[day].map((r) => (
                     <li key={r.key} className="space-y-2">
-                      <div className="grid grid-cols-2 items-end gap-2 sm:grid-cols-[10rem_10rem_auto_auto]">
-                        <SelectField label="Desde" options={TIME_OPTIONS} value={r.startTime} onValueChange={(startTime) => update(r.key, { startTime })} disabled={!canEdit} />
-                        <SelectField label="Hasta" options={TIME_OPTIONS} value={r.endTime} onValueChange={(endTime) => update(r.key, { endTime })} disabled={!canEdit} />
-                        {canEdit ? (
-                          <div className="col-span-2 flex items-center gap-1 sm:contents">
-                            <Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label={`Quitar horario del ${WEEKDAYS[day].toLowerCase()}`} onClick={() => remove(r.key)}><Trash2 /></Button>
-                            {!r.showValidity ? <Button type="button" variant="ghost" size="sm" className="h-11 sm:self-end" onClick={() => update(r.key, { showValidity: true })}>Vigencia</Button> : null}
-                          </div>
-                        ) : null}
+                      <div className="flex flex-wrap items-end gap-2">
+                        <div className="min-w-0 flex-1 sm:w-40 sm:flex-none">
+                          <SelectField label="Desde" icon={null} options={TIME_OPTIONS} value={r.startTime} onValueChange={(startTime) => update(r.key, { startTime })} disabled={!canEdit} />
+                        </div>
+                        <div className="min-w-0 flex-1 sm:w-40 sm:flex-none">
+                          <SelectField label="Hasta" icon={null} options={TIME_OPTIONS} value={r.endTime} onValueChange={(endTime) => update(r.key, { endTime })} disabled={!canEdit} />
+                        </div>
+                        {canEdit ? <Button type="button" variant="ghost" size="icon" className="h-11 w-11 shrink-0" aria-label={`Quitar horario del ${WEEKDAYS[day].toLowerCase()}`} onClick={() => remove(r.key)}><Trash2 /></Button> : null}
+                        {canEdit && !r.showValidity ? <Button type="button" variant="ghost" size="sm" className="h-11 basis-full justify-start sm:basis-auto" onClick={() => update(r.key, { showValidity: true })}>Vigencia</Button> : null}
                       </div>
                       {r.endTime <= r.startTime && r.endTime !== r.startTime ? <p className={MUTED_TEXT}>Termina al día siguiente.</p> : null}
                       {r.showValidity ? (
-                        <div className="grid grid-cols-1 gap-2 sm:grid-cols-[12rem_12rem]">
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-[12rem_12rem]">
                           <DateField label="Vigente desde" value={r.validFrom} onChange={(e) => update(r.key, { validFrom: e.target.value })} disabled={!canEdit} />
                           <DateField label="Vigente hasta" value={r.validTo} onChange={(e) => update(r.key, { validTo: e.target.value })} disabled={!canEdit} />
                         </div>
@@ -77,7 +77,8 @@ export function ScheduleEditor({ title, description, rules, loading, canEdit, on
           ))}
           {error ? <p role="alert" className="text-sm text-[hsl(var(--destructive))]">{error}</p> : null}
           {canEdit ? (
-            <div className="flex justify-end">
+            <div className="flex items-center justify-end gap-3">
+              {dirty ? <span className={MUTED_TEXT}>Cambios sin guardar</span> : null}
               <Button type="button" onClick={save} disabled={!dirty || saving}>
                 {saving ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
                 {saving ? 'Guardando…' : 'Guardar horario'}

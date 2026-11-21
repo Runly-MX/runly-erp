@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
 import {
-  Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SwitchField, TextField, TextareaField,
+  Button, CheckboxField, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, NumberField, SegmentedControl, SwitchField, TextField, TextareaField,
 } from '@runly/ui'
 import { ConciergeBell, Loader2 } from 'lucide-react'
 import { KIND, MUTED_TEXT, RESOURCE_TYPE } from '../lib/bookingsLabels.js'
+import { FormGroup } from './shared.jsx'
 
 const EMPTY = { name: '', description: '', kind: 'appointment', durationMinutes: '60', bufferBeforeMinutes: '0', bufferAfterMinutes: '0', slotStepMinutes: '30', capacity: '10', minParty: '1', maxParty: '1', enabled: true, resourceIds: [] }
 const toForm = (s, resourceIds) => ({
@@ -56,29 +57,34 @@ export function ServiceFormDialog({ open, onOpenChange, service, resourceIds = [
             <DialogTitle>{service ? 'Editar servicio' : 'Nuevo servicio'}</DialogTitle>
             <DialogDescription>Lo que se puede reservar en este sistema, cuánto dura y quién lo atiende.</DialogDescription>
           </DialogHeader>
-          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            <TextField label="Nombre" required value={form.name} onChange={set('name')} maxLength={160} error={errors.name} placeholder="Ej. Consulta general" autoComplete="off" />
-            <TextareaField label="Descripción" value={form.description} onChange={set('description')} rows={2} />
-            {!service ? (
-              <div className="space-y-1.5">
-                <p className="text-sm font-medium">Modalidad</p>
-                <SegmentedControl ariaLabel="Modalidad del servicio" value={form.kind} onChange={(kind) => setForm((f) => ({ ...f, kind }))} options={Object.entries(KIND).map(([value, label]) => ({ value, label }))} />
-                <p className={MUTED_TEXT}>{session ? 'Se reserva un lugar dentro de una sesión programada con cupo compartido.' : 'Cada reservación ocupa un recurso durante su duración.'}</p>
+          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
+            <FormGroup title="Servicio">
+              <TextField label="Nombre" required value={form.name} onChange={set('name')} maxLength={160} error={errors.name} placeholder="Ej. Consulta general" autoComplete="off" />
+              <TextareaField label="Descripción" value={form.description} onChange={set('description')} rows={2} />
+              {!service ? (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-medium">Modalidad</p>
+                  <SegmentedControl ariaLabel="Modalidad del servicio" value={form.kind} onChange={(kind) => setForm((f) => ({ ...f, kind }))} options={Object.entries(KIND).map(([value, label]) => ({ value, label }))} />
+                  <p className={MUTED_TEXT}>{session ? 'Se reserva un lugar dentro de una sesión programada con cupo compartido.' : 'Cada reservación ocupa un recurso durante su duración.'}</p>
+                </div>
+              ) : <p className={MUTED_TEXT}>Modalidad: {KIND[service.kind]} (no se puede cambiar).</p>}
+            </FormGroup>
+            <FormGroup title="Duración y horarios" description="Los márgenes bloquean el recurso antes y después de cada reservación, por ejemplo para limpieza o traslado.">
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <NumberField label="Duración" suffix="min" icon={null} min={1} max={1440} allowDecimal={false} value={form.durationMinutes} onChange={set('durationMinutes')} error={errors.durationMinutes} />
+                <NumberField label="Ofrecer un horario cada" suffix="min" icon={null} min={5} max={1440} allowDecimal={false} value={form.slotStepMinutes} onChange={set('slotStepMinutes')} error={errors.slotStepMinutes} hint="Ej. 30: 9:00, 9:30, 10:00…" />
+                <NumberField label="Margen antes" suffix="min" icon={null} min={0} max={720} allowDecimal={false} value={form.bufferBeforeMinutes} onChange={set('bufferBeforeMinutes')} error={errors.bufferBeforeMinutes} />
+                <NumberField label="Margen después" suffix="min" icon={null} min={0} max={720} allowDecimal={false} value={form.bufferAfterMinutes} onChange={set('bufferAfterMinutes')} error={errors.bufferAfterMinutes} />
               </div>
-            ) : <p className={MUTED_TEXT}>Modalidad: {KIND[service.kind]} (no se puede cambiar).</p>}
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-              <TextField label="Duración (min)" type="number" inputMode="numeric" min={1} value={form.durationMinutes} onChange={set('durationMinutes')} error={errors.durationMinutes} />
-              <TextField label="Buffer previo (min)" type="number" inputMode="numeric" min={0} value={form.bufferBeforeMinutes} onChange={set('bufferBeforeMinutes')} error={errors.bufferBeforeMinutes} />
-              <TextField label="Buffer posterior (min)" type="number" inputMode="numeric" min={0} value={form.bufferAfterMinutes} onChange={set('bufferAfterMinutes')} error={errors.bufferAfterMinutes} />
-              <TextField label="Horarios cada (min)" type="number" inputMode="numeric" min={5} value={form.slotStepMinutes} onChange={set('slotStepMinutes')} error={errors.slotStepMinutes} />
-            </div>
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-              {session ? <TextField label="Cupo por sesión" type="number" inputMode="numeric" min={1} value={form.capacity} onChange={set('capacity')} error={errors.capacity} /> : null}
-              <TextField label="Mínimo de personas" type="number" inputMode="numeric" min={1} value={form.minParty} onChange={set('minParty')} error={errors.minParty} />
-              <TextField label="Máximo de personas" type="number" inputMode="numeric" min={1} value={form.maxParty} onChange={set('maxParty')} error={errors.maxParty} />
-            </div>
-            <fieldset className="space-y-2">
-              <legend className="text-sm font-medium">Recursos que lo atienden</legend>
+            </FormGroup>
+            <FormGroup title="Personas" description={session ? 'Cuántos lugares tiene cada sesión y cuántas personas puede apartar una reservación.' : 'Cuántas personas puede incluir una reservación.'}>
+              {session ? <NumberField label="Cupo por sesión" suffix="lugares" icon={null} min={1} max={100000} allowDecimal={false} value={form.capacity} onChange={set('capacity')} error={errors.capacity} className="pr-20" /> : null}
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                <NumberField label="Mínimo por reservación" icon={null} min={1} max={100000} allowDecimal={false} value={form.minParty} onChange={set('minParty')} error={errors.minParty} />
+                <NumberField label="Máximo por reservación" icon={null} min={1} max={100000} allowDecimal={false} value={form.maxParty} onChange={set('maxParty')} error={errors.maxParty} />
+              </div>
+            </FormGroup>
+            <FormGroup title={session ? 'Recursos (opcional)' : 'Recursos que lo atienden'} description={session ? 'La sala o persona de cada sesión se elige al programarla.' : 'Cada reservación ocupa uno de estos recursos.'}>
               {resources.length ? (
                 <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {resources.map((r) => (
@@ -87,7 +93,7 @@ export function ServiceFormDialog({ open, onOpenChange, service, resourceIds = [
                 </div>
               ) : <p className={MUTED_TEXT}>Este sistema aún no tiene recursos. Agrégalos en la pestaña Recursos.</p>}
               {errors.resources ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.resources}</p> : null}
-            </fieldset>
+            </FormGroup>
             {service ? <SwitchField id="bookings-service-enabled" label="Servicio activo" description="Los servicios inactivos no aceptan nuevas reservaciones." checked={form.enabled} onChange={(enabled) => setForm((f) => ({ ...f, enabled }))} /> : null}
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">

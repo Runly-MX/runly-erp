@@ -16,9 +16,12 @@ export function wallValueToIso(value, timeZone) {
 // Date + time picked in the booking space's own zone (shown next to the label).
 export function WallTimeFields({ label, value, onChange, timeZone, error, disabled }) {
   return (
-    <div className="grid grid-cols-[1fr_8rem] items-end gap-2">
-      <DateField label={`${label} (${timeZone})`} value={value?.date ?? ''} onChange={(e) => onChange({ ...value, date: e.target.value })} error={error} disabled={disabled} />
-      <SelectField label="Hora" options={TIME_OPTIONS} value={value?.time ?? ''} onValueChange={(time) => onChange({ ...value, time })} disabled={disabled} />
+    <div className="space-y-1">
+      <div className="grid grid-cols-[minmax(0,1fr)_7rem] items-start gap-3">
+        <DateField label={label} value={value?.date ?? ''} onChange={(e) => onChange({ ...value, date: e.target.value })} error={error} disabled={disabled} />
+        <SelectField label="Hora" icon={null} options={TIME_OPTIONS} value={value?.time ?? ''} onValueChange={(time) => onChange({ ...value, time })} disabled={disabled} />
+      </div>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Hora de {timeZone.replaceAll('_', ' ')}</p>
     </div>
   )
 }

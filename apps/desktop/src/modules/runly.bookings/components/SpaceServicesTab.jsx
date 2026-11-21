@@ -29,7 +29,7 @@ export function SpaceServicesTab({ space, services, resources, canEdit }) {
     },
     { id: 'duration', header: 'Duración', accessorFn: (s) => s.durationMinutes, cell: ({ row }) => <span className="tabular-nums">{row.original.durationMinutes} min</span> },
     {
-      id: 'buffers', header: 'Buffers', accessorFn: (s) => s.bufferBeforeMinutes + s.bufferAfterMinutes,
+      id: 'buffers', header: 'Márgenes', accessorFn: (s) => s.bufferBeforeMinutes + s.bufferAfterMinutes,
       cell: ({ row }) => <span className={MUTED_TEXT}>{row.original.bufferBeforeMinutes} / {row.original.bufferAfterMinutes} min</span>,
     },
     { id: 'resources', header: 'Recursos', accessorFn: (s) => s.resourceIds.length, cell: ({ row }) => <span className="text-sm">{row.original.resourceIds.map((id) => resourceName.get(id)).filter(Boolean).join(', ') || '—'}</span> },
@@ -48,7 +48,7 @@ export function SpaceServicesTab({ space, services, resources, canEdit }) {
         stateKey={`bookings-services-${space.id}`}
         emptyIcon={ConciergeBell}
         emptyTitle="Aún no hay servicios"
-        emptyDescription={canEdit ? 'Define lo que se puede reservar: duración, buffers, modalidad y quién lo atiende.' : undefined}
+        emptyDescription={canEdit ? 'Define lo que se puede reservar: duración, márgenes, modalidad y quién lo atiende.' : undefined}
         emptyAction={canEdit ? <Button type="button" onClick={() => setEditing('new')}><Plus />Nuevo servicio</Button> : undefined}
         toolbarActions={canEdit && services.length ? <Button type="button" onClick={() => setEditing('new')}><Plus />Nuevo servicio</Button> : null}
       />

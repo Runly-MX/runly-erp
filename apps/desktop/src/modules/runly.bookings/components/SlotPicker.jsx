@@ -21,7 +21,7 @@ export function SlotPicker({ space, service, date, onDateChange, resourceId, val
 
   return (
     <div className="space-y-3">
-      <DateField label={`Fecha (${tz})`} value={date} onChange={(e) => { onDateChange(e.target.value); onChange(null) }} />
+      <DateField label="Fecha" hint={`Horarios en hora de ${tz.replaceAll('_', ' ')}`} value={date} onChange={(e) => { onDateChange(e.target.value); onChange(null) }} />
       {!service ? <p className={MUTED_TEXT}>Elige un servicio para ver los horarios libres.</p>
         : availability.isLoading ? <Skeleton className="h-24 w-full" />
           : availability.isError ? <ErrorState title="No se pudo consultar la disponibilidad" onRetry={() => availability.refetch()} />

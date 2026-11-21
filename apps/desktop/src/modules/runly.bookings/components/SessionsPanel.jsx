@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import {
-  Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, ProgressBar, SectionCard, SelectField, Skeleton, StatusPill, TextField,
+  Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, NumberField, ProgressBar, SectionCard, SelectField, Skeleton, StatusPill,
 } from '@runly/ui'
 import { Loader2, Plus, UsersRound, XCircle } from 'lucide-react'
 import { useBookingsMutation, useSessions } from '../hooks/useBookings.js'
@@ -100,7 +100,7 @@ function SessionDialog({ open, onOpenChange, space, services, resources, onSubmi
               onValueChange={(serviceId) => setForm((f) => ({ ...f, serviceId, capacity: String(services.find((s) => s.id === serviceId)?.capacity ?? f.capacity) }))} />
             <WallTimeFields label="Inicio" timeZone={tz} value={form.start} onChange={(start) => setForm((f) => ({ ...f, start }))} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <TextField label="Cupo" type="number" inputMode="numeric" min={1} value={form.capacity ?? ''} onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))} />
+              <NumberField label="Cupo" suffix="lugares" icon={null} min={1} max={100000} allowDecimal={false} value={form.capacity ?? ''} onChange={(e) => setForm((f) => ({ ...f, capacity: e.target.value }))} className="pr-20" />
               <SelectField label="Recurso (opcional)" options={[{ value: 'none', label: 'Sin recurso' }, ...resources.map((r) => ({ value: r.id, label: r.name }))]} value={form.resourceId || 'none'}
                 onValueChange={(v) => setForm((f) => ({ ...f, resourceId: v === 'none' ? '' : v }))} />
             </div>
@@ -108,7 +108,7 @@ function SessionDialog({ open, onOpenChange, space, services, resources, onSubmi
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={pending}>{pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}Programar</Button>
+            <Button type="submit" disabled={pending}>{pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{pending ? 'Programando…' : 'Programar'}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
