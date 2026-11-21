@@ -26,6 +26,7 @@ const GROUPS = {
   catalog: "Catalogo",
   lms: "Aprendizaje",
   bookings: "Reservaciones",
+  ticketing: "Boletos",
   automations: "Automatizaciones",
 };
 
@@ -56,6 +57,7 @@ const MODULE_LABELS = {
   catalog: "Catalogo",
   lms: "Aprendizaje",
   bookings: "Reservaciones",
+  ticketing: "Boletos",
   automations: "Automatizaciones",
 };
 
@@ -1509,6 +1511,18 @@ export const PERMISSION_CATALOG = {
   },
   "bookings.admin": {
     displayNameEs: "Administrar todas las reservaciones", descriptionEs: "Da acceso de administrador a todos los sistemas de reservaciones de la empresa, sin ser miembro de cada uno.", groupKey: "bookings", order: 30,
+  },
+  "ticketing.access": {
+    displayNameEs: "Acceder a Boletos", descriptionEs: "Permite entrar a los eventos donde la persona es administradora, agente o lectora.", groupKey: "ticketing", order: 10,
+  },
+  "ticketing.events.manage": {
+    displayNameEs: "Crear eventos", descriptionEs: "Permite crear eventos con funciones, tipos de boleto y cupos; quien lo crea lo administra.", groupKey: "ticketing", order: 20,
+  },
+  "ticketing.checkin": {
+    displayNameEs: "Controlar el acceso a eventos", descriptionEs: "Permite escanear y validar boletos en la entrada de los eventos.", groupKey: "ticketing", order: 30,
+  },
+  "ticketing.admin": {
+    displayNameEs: "Administrar todos los eventos", descriptionEs: "Da acceso de administrador a todos los eventos de la empresa, sin ser miembro de cada uno.", groupKey: "ticketing", order: 40,
   },
 
   "projects.access": {

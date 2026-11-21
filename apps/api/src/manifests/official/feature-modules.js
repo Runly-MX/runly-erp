@@ -1058,6 +1058,48 @@ export const bookingsMap = createModuleManifest({
   blueprints: [...loadHelpBlueprints('runly.bookings', path.join(HELP_DIR, 'runly.bookings'))],
 });
 
+// runly.ticketing (spec 2026-11-20-ticketing-design): official native module, not
+// core. F6B ships the engine and API only; screens arrive in F6C (navigation empty).
+// Event roles reuse the bookings space membership of each event's space.
+export const ticketingMap = createModuleManifest({
+  key: 'runly.ticketing',
+  name: 'Boletos',
+  description: 'Eventos con funciones sobre el motor de Reservaciones, tipos de boleto con cupo, emisión con QR seguro, transferencias y control de acceso.',
+  version: '0.1.0',
+  kind: MODULE_KINDS.FEATURE,
+  core: false,
+  uninstallable: true,
+  icon: 'Ticket',
+  color: '#b45309',
+  pwa: { shortName: 'Boletos', startPath: '/' },
+  category: 'operaciones',
+  summary: 'Eventos, boletos con QR y cupos sin sobreventa',
+  dependencies: [{ key: 'runly.identity' }, { key: 'runly.company' }, { key: 'runly.bookings' }, { key: 'runly.contacts', optional: true }, { key: 'runly.catalog', optional: true }],
+  lifecycle: {
+    installable: true,
+    uninstallable: true,
+    resettable: false,
+    supportsDataPurge: true,
+    defaultUninstallPolicy: 'preserve-data',
+    ownedEntities: ['TicketEvent', 'TicketSession', 'TicketType', 'TicketQuota', 'TicketOrder', 'Ticket', 'TicketAdmission', 'TicketHistory', 'TicketIdempotency'],
+    sharedEntities: ['Company', 'UserProfile', 'Contact', 'CatalogProduct', 'BookingSpace', 'BookingService', 'BookingSession', 'Booking', 'DomainEventOutbox'],
+  },
+  navigation: [],
+  acl: {
+    module: 'ticketing.access',
+    actions: { read: 'ticketing.access', create: 'ticketing.access', update: 'ticketing.access', delete: 'ticketing.admin' },
+    models: {},
+  },
+  permissions: [
+    { key: 'ticketing.access', name: 'Acceder a Boletos' },
+    { key: 'ticketing.events.manage', name: 'Crear eventos' },
+    { key: 'ticketing.checkin', name: 'Controlar el acceso a eventos' },
+    { key: 'ticketing.admin', name: 'Administrar todos los eventos' },
+  ],
+  exposes: {},
+  blueprints: [],
+});
+
 export const chatMap = createModuleManifest({
   key: 'runly.chat',
   name: 'Chat',

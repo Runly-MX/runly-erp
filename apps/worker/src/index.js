@@ -56,6 +56,7 @@ import { createBookingsCommandService } from '../../api/src/routes/bookings/book
 import { pruneRateBuckets } from '../../api/src/routes/bookings/bookings-rate-limit.js'
 import { createBookingsCalendarProjection } from '../../api/src/routes/bookings/bookings-calendar.js'
 import { createPosBookingsAdapter } from '../../api/src/routes/pos/pos-bookings-adapter.js'
+import { createTicketingCommandService } from '../../api/src/routes/ticketing/ticketing-command-service.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -741,11 +742,15 @@ const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => cr
 const bookingsCommands = createBookingsCommandService({ prisma })
 const bookingsCalendar = createBookingsCalendarProjection({ prisma })
 const posBookings = createPosBookingsAdapter({ prisma })
+const ticketingCommands = createTicketingCommandService({ prisma, engine: bookingsCommands })
 let bookingsTickRunning = false
 async function runBookingsTick() {
   if (bookingsTickRunning) return
   bookingsTickRunning = true
   try {
+    // Boletos: unpaid ticket holds release their quota and engine seats (before the engine's own sweep).
+    const ticketHolds = await ticketingCommands.expireHolds({ limit: 200 })
+    if (ticketHolds.expired) console.log(`[worker] ticketing holds ${formatLogTimestamp()} expired=${ticketHolds.expired}`)
     const holds = await bookingsCommands.expireAllHolds()
     if (holds.expired) console.log(`[worker] bookings holds ${formatLogTimestamp()} companies=${holds.companies} expired=${holds.expired}`)
     const mail = await bookingsNotifier.processDue({ limit: 25 })

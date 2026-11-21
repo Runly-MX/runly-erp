@@ -1069,6 +1069,7 @@ export * from './activity-categories.js';
 export * from './activity-modules.js';
 export * from './module-public-links.js';
 export * from './bookings.js';
+export * from './ticketing.js';
 
 // Module help system (docs/superpowers/specs/2026-09-26-module-help-system-design.md)
 export const helpSearchQuerySchema = z.object({

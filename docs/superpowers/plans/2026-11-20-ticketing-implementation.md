@@ -11,6 +11,27 @@ closes and the user asks for it.
 | F6E Distribution and integration | Public event portal (`/app/p/boletos/<slug>`, free tickets online, paid shown as box office until D1), emails with QR via the outbox, Website block and embeds (bookings phase 4 contracts), calendar projection of sessions, Automations triggers enabled. | F6B-F6D; bookings phase 4 | Portal E2E on phone (book free tickets, receive QR, admit it); embed allowed/blocked by origin; events in Automations without contact data; calendar shows sessions once. |
 | Later | Online paid tickets | D1 Commerce online payments (verified webhooks) | Separate spec. |
 
+## F6B status (2026-11-21): closed
+
+- Migration `20270110000000_ticketing_core` (9 `ticket_*` tables, composite company foreign keys, quota and credential
+  CHECKs, append-only `ticket_history`, RLS with client roles revoked) and the matching Prisma models.
+- `runly.ticketing` manifest (official, `core: false`, installed from the catalog; no navigation until F6C) and
+  permissions `ticketing.access|events.manage|checkin|admin`.
+- API `apps/api/src/routes/ticketing/`: events (each with its own booking space and session service), functions via
+  the engine's new `createSessionTx`, types and quotas, `POST /ticketing/orders` (free: issued with credentials; paid:
+  `PENDING_PAYMENT` hold until F6C confirms it), cancel (free or unpaid), reissue, transfer, credential check
+  (service only; admission is F6D). Worker expires unpaid holds.
+- Outbox `ticketing.order.created|cancelled|expired`, `ticketing.ticket.reissued|transferred` without personal data,
+  hidden from trigger pickers (`HIDDEN_PREFIXES`) until F6E. Ticket bookings are skipped by the calendar mirror.
+- Credential decision: the QR secret is returned only in the response that creates it (issue, reissue, transfer);
+  an idempotent replay returns the order without secrets. Resending an existing QR by email (F6E) therefore needs a
+  reissue or a stored encrypted copy; to be decided in F6E.
+- Verification: `node scripts/verify-ticketing-core.mjs` (disposable stack, real auth): 21/21 on 2026-11-21, including
+  the ticketing PostgreSQL suite (11/11: 50 buyers for the last 5 room seats and for the last 5 of a type quota issue
+  exactly 5, idempotent replay and concurrent duplicate, reused key 422, forced failure leaves nothing, cross-company
+  isolation, reissue/transfer invalidate earlier QRs, no personal data in events, hold expiry once) and the Booking
+  Engine regression suites (40/40), plus 50 concurrent HTTP buyers for the last 5 seats (5 x 201, 45 x 409).
+
 Ground rules for every phase: one writer per capacity (engine seats, ticket quota counters), idempotency key on every
 write, history and outbox in the same transaction, no new availability or payment engine, versioned verification
 script per phase, previous bookings verifications re-run when the engine or shared code changes.

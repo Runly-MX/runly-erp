@@ -145,6 +145,24 @@ const BOOKING_FIELDS = [
   field('channel', 'Canal', 'text', 'backoffice, portal, website, pos o api.', 'backoffice'),
   field('contactId', 'Contacto', 'id', 'Contacto vinculado, si lo hay.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e42'),
 ]
+// runly.ticketing: ids, counts and states only. Never buyer or holder name, email,
+// phone or contact (spec 2026-11-20-ticketing-design section 2, Automations).
+const TICKET_ORDER_FIELDS = [
+  ID('la orden de boletos'),
+  field('eventId', 'Evento', 'id', 'Evento de la orden.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e50'),
+  field('sessionId', 'Función', 'id', 'Función (fecha y hora) de la orden.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e51'),
+  field('status', 'Estado', 'text', 'PENDING_PAYMENT, CONFIRMED, CANCELLED, EXPIRED o REFUNDED.', 'CONFIRMED'),
+  field('quantity', 'Boletos', 'number', 'Cuántos boletos incluye la orden.', '2'),
+  field('channel', 'Canal', 'text', 'box_office, portal, website o api.', 'box_office'),
+]
+const TICKET_FIELDS = [
+  ID('el boleto'),
+  field('orderId', 'Orden', 'id', 'Orden a la que pertenece el boleto.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e52'),
+  field('eventId', 'Evento', 'id', 'Evento del boleto.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e50'),
+  field('sessionId', 'Función', 'id', 'Función del boleto.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e51'),
+  field('typeId', 'Tipo de boleto', 'id', 'Tipo de boleto.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e53'),
+  field('credentialVersion', 'Versión del QR', 'number', 'Sube cada vez que el QR se reemplaza; los anteriores dejan de servir.', '2'),
+]
 const WHEN_FIELDS = [
   field('localHour', 'Hora local', 'number', 'Hora del mensaje en la zona horaria de la instancia (0 a 23).', '21'),
   field('localWeekday', 'Día de la semana', 'number', '0 = domingo, 1 = lunes ... 6 = sábado.', '6'),
@@ -248,6 +266,15 @@ export const EVENT_CATALOG = Object.freeze({
     ['no_show', 'Un cliente no se presentó a su reservación', 'Cuando una reservación confirmada se marca como no presentada.'],
     ['expired', 'Venció una reservación pendiente', 'Cuando una reservación pendiente no se confirmó a tiempo.'],
   ].map(([action, label, description]) => [`bookings.booking.${action}`, { module: 'Reservaciones', label, description, fields: BOOKING_FIELDS }])),
+  // runly.ticketing (spec 2026-11-20-ticketing-design): written in the order transaction
+  // (at-least-once). Hidden from trigger pickers until F6E enables them.
+  ...Object.fromEntries([
+    ['order.created', 'Se emitió una orden de boletos', 'Cuando se registra una orden: confirmada (gratis) o pendiente de pago.', TICKET_ORDER_FIELDS],
+    ['order.cancelled', 'Se canceló una orden de boletos', 'Cuando se cancela una orden y se liberan sus lugares.', TICKET_ORDER_FIELDS],
+    ['order.expired', 'Venció una orden de boletos sin pagar', 'Cuando una orden apartada no se pagó a tiempo y se liberan sus lugares.', TICKET_ORDER_FIELDS],
+    ['ticket.reissued', 'Se reemplazó el QR de un boleto', 'Cuando se emite un QR nuevo para un boleto y el anterior deja de servir.', TICKET_FIELDS],
+    ['ticket.transferred', 'Se transfirió un boleto', 'Cuando un boleto cambia de titular; el QR anterior deja de servir.', TICKET_FIELDS],
+  ].map(([action, label, description, fields]) => [`ticketing.${action}`, { module: 'Boletos', label, description, fields }])),
   // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
   'automations.webhook.received': { module: 'Automatizaciones', label: 'Se recibió un mensaje en un webhook de automatización', description: 'Interno.', fields: [field('automationKey', 'Automatización', 'text', 'Automatización destino.', 'pedido'), field('data', 'Datos', 'text', 'Datos recibidos.', '{}')] },
 })

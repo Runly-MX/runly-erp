@@ -135,9 +135,11 @@ export function automationServices({ trigger = 'record', afterDelay = false, sea
 
 // Events a person can pick as a trigger (internal ones stay out).
 export const INTERNAL_EVENTS = Object.freeze(['automations.webhook.received'])
+// Published but not offered as triggers yet: runly.ticketing until its phase F6E.
+export const HIDDEN_PREFIXES = Object.freeze(['ticketing.'])
 
 export function automationEvents() {
-  return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key)).map(([key, label]) => ({
+  return Object.entries(DOMAIN_EVENTS).filter(([key]) => !INTERNAL_EVENTS.includes(key) && !HIDDEN_PREFIXES.some((prefix) => key.startsWith(prefix))).map(([key, label]) => ({
     key, label, module: EVENT_CATALOG[key]?.module ?? '', description: EVENT_CATALOG[key]?.description ?? '', link: EVENT_CATALOG[key]?.link ?? null,
     payload: [...(DOMAIN_EVENT_PAYLOADS[key] ?? [])], fields: (EVENT_CATALOG[key]?.fields ?? []).map((item) => ({ ...item })),
   }))

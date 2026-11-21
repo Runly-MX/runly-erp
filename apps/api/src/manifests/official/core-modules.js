@@ -17,6 +17,7 @@ import {
   attendanceMap,
   lmsMap,
   bookingsMap,
+  ticketingMap,
   chatMap,
 } from "./feature-modules.js";
 
@@ -1817,6 +1818,7 @@ export const coreModules = [
   attendanceMap,
   lmsMap,
   bookingsMap,
+  ticketingMap,
   inventoryMap,
   studioMap,
   purchasesMap,
