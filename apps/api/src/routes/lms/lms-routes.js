@@ -27,7 +27,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null, inviteService = null, assessmentService = null, sendMail = null, isMailConfigured = null, buildMail = null, getBrand = null, appBaseUrl = undefined, documentsHub = null }) {
+export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = null, bucket = 'runly-files', signFile = null, notificationService = null, service = null, learnService = null, media = null, evalServices = null, socialService = null, certService = null, experienceServices = null, shareService = null, inviteService = null, assessmentService = null, sessionService = null, sendMail = null, isMailConfigured = null, buildMail = null, getBrand = null, appBaseUrl = undefined, documentsHub = null }) {
   const app = new Hono()
   const svc = service ?? createLmsService({ prisma, signFile })
   const files = media ?? createLmsMedia({ prisma, supabaseAdmin, bucket })
@@ -95,7 +95,7 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   registerLmsCertRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, run, service: certService, hub: documentsHub })
 
   // ---- standalone evaluations (spec 2026-11-21) ----------------------------
-  registerLmsAssessmentRoutes(app, { prisma, requirePermission, signFile, run, service: assessmentService })
+  registerLmsAssessmentRoutes(app, { prisma, requirePermission, signFile, run, service: assessmentService, sessionService, learners: svc, media: files, notificationService })
 
   return app
 }

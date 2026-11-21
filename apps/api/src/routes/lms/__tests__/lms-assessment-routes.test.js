@@ -68,3 +68,24 @@ test('activity routes reach the service', async () => {
   assert.deepEqual(calls.map((call) => call[0]), ['create', 'reorder', 'update', 'delete'])
   assert.deepEqual(calls[0], ['create', 'company-1', 'a1', { type: 'files' }])
 })
+
+test('participant session routes need lms.access; start answers 201 new, 200 resumed', async () => {
+  const app = new Hono()
+  const run = (fallback, fn) => async (c) => { try { return await fn(c) } catch (error) { return c.json({ error: error.message, code: error.code }, error.status ?? 500) } }
+  let resumed = false
+  const sessionService = {
+    start: async () => ({ session: { session: { id: 's1' } }, resumed }),
+    saveAnswers: async () => { throw new LmsError('Se terminó el tiempo.', 409, 'EXPIRED') },
+  }
+  registerLmsAssessmentRoutes(app, { requirePermission, run, service: {}, sessionService })
+  const post = (path, permissions) => req(app, path, { method: 'POST' }, permissions)
+  assert.equal((await post('/lms/learn/assessments/a1/sessions', ['lms.course.manage'])).status, 403)
+  assert.equal((await post('/lms/learn/assessments/a1/sessions', ['lms.access'])).status, 201)
+  resumed = true
+  const again = await post('/lms/learn/assessments/a1/sessions', ['lms.access'])
+  assert.equal(again.status, 200)
+  assert.equal((await again.json()).data.resumed, true)
+  const late = await req(app, '/lms/learn/sessions/s1/attempts/t1/answers', { method: 'PUT', body: '{}' }, ['lms.access'])
+  assert.equal(late.status, 409)
+  assert.equal((await late.json()).code, 'EXPIRED')
+})

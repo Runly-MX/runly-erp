@@ -22,6 +22,8 @@ import { createTimeService } from '../../api/src/routes/projects/projects-time-s
 import { createAutomationRunsService } from '../../api/src/services/automation-runs-service.js'
 import { createAutomationWorker } from '../../api/src/services/automation-worker-service.js'
 import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance-evidence.js'
+import { createLmsSessionService } from '../../api/src/routes/lms/lms-session-service.js'
+import { createLmsNotifier } from '../../api/src/routes/lms/lms-notify.js'
 import { resolveModulesDir } from '../../api/src/services/module-upload-service.js'
 import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
 import { createGoogleTokenCrypto } from '../../api/src/routes/calendar/google/google-token-crypto.js'
@@ -467,6 +469,26 @@ async function runAttendanceEvidenceTick() {
     tickRunning.attendanceEvidence = false
   }
 }
+
+// runly.lms evaluation sessions past their deadline close even when the
+// participant never comes back (spec 2026-11-21 section 6). Idempotent.
+const lmsSessions = createLmsSessionService({ prisma, notifier: createLmsNotifier({ notificationService: createNotificationService({ prisma }) }) })
+const LMS_SESSION_SWEEP_INTERVAL_MS = Number(process.env.RUNLY_LMS_SESSION_SWEEP_INTERVAL_MS ?? 60_000)
+let lmsSweepRunning = false
+async function runLmsSessionSweepTick() {
+  if (lmsSweepRunning) return
+  lmsSweepRunning = true
+  try {
+    const { closed } = await lmsSessions.sweepExpired()
+    if (closed) console.log(`[worker] lms sessions ${formatLogTimestamp()} closed=${closed}`)
+  } catch (err) {
+    console.error('[worker] lms session sweep tick failed:', err?.message ?? err)
+    if (isConnectionError(err)) await reconnect()
+  } finally {
+    lmsSweepRunning = false
+  }
+}
+setInterval(runLmsSessionSweepTick, LMS_SESSION_SWEEP_INTERVAL_MS)
 
 console.log('Runly Worker started')
 runCalendarReminderTick()

@@ -26,6 +26,18 @@ export const GUEST_OWNER = {
   ownsFile: (row, guest) => row.metadata?.guestLearnerId === guest.learner.id,
 }
 
+// Files must be confirmed LmsSubmission uploads of this learner in this company.
+// actor: profile id (PROFILE_OWNER) or the guest context (GUEST_OWNER).
+export async function assertSubmissionFiles(prisma, owner, companyId, actor, fileIds) {
+  if (!fileIds.length) return
+  const rows = await prisma.fileAsset.findMany({
+    where: { id: { in: fileIds }, enabled: true, moduleKey: 'runly.lms', entityType: 'LmsSubmission', uploadedById: owner.uploadedById(actor) },
+    select: { id: true, metadata: true },
+  })
+  const ok = rows.filter((row) => row.metadata?.companyId === companyId && row.metadata?.pending !== true && owner.ownsFile(row, actor))
+  if (ok.length !== fileIds.length) throw new LmsError('Un archivo no existe o no terminó de subirse.', 400, 'INVALID_FILE')
+}
+
 export function createLmsAssignmentService({ prisma, learn, media, notifier, signFile = null, owner = PROFILE_OWNER }) {
   const ser = createLmsSerializers({ prisma, signFile })
 
@@ -50,16 +62,7 @@ export function createLmsAssignmentService({ prisma, learn, media, notifier, sig
     }
   }
 
-  // Files must be confirmed LmsSubmission uploads of this learner in this company.
-  async function assertOwnFiles(companyId, profileId, fileIds) {
-    if (!fileIds.length) return
-    const rows = await prisma.fileAsset.findMany({
-      where: { id: { in: fileIds }, enabled: true, moduleKey: 'runly.lms', entityType: 'LmsSubmission', uploadedById: owner.uploadedById(profileId) },
-      select: { id: true, metadata: true },
-    })
-    const ok = rows.filter((row) => row.metadata?.companyId === companyId && row.metadata?.pending !== true && owner.ownsFile(row, profileId))
-    if (ok.length !== fileIds.length) throw new LmsError('Un archivo no existe o no terminó de subirse.', 400, 'INVALID_FILE')
-  }
+  const assertOwnFiles = (companyId, profileId, fileIds) => assertSubmissionFiles(prisma, owner, companyId, profileId, fileIds)
 
   async function submit(companyId, profileId, lessonId, body = {}) {
     const { lesson, enrollment, course, settings } = await assignmentContext(companyId, profileId, lessonId, { write: true })

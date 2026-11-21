@@ -268,8 +268,15 @@ export function createLmsQuizService({ prisma, learn, notifier, signFile = null,
     return { ...(await resultPayload(row.id)), ...(expired ? { expired: true } : {}) }
   }
 
+  // Evaluation sessions close their attempts through here (deadline or submit),
+  // with whatever answers were saved. Idempotent like close().
+  async function closeById(attemptId) {
+    const row = await loadFull(attemptId)
+    if (row?.status === 'in_progress') await close(row)
+  }
+
   return {
     listQuestions, createQuestion, updateQuestion, deleteQuestion, reorderQuestions,
-    getQuizSummary, startAttempt, getAttempt, saveAnswers, submitAttempt,
+    getQuizSummary, startAttempt, getAttempt, saveAnswers, submitAttempt, closeById,
   }
 }

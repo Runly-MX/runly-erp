@@ -12,7 +12,7 @@ const ASSESSMENT_FIELDS = ['title', 'summary', 'description', 'status']
 const iso = (value) => (value ? new Date(value).toISOString() : null)
 const pick = (body, keys) => Object.fromEntries(keys.filter((key) => Object.prototype.hasOwnProperty.call(body ?? {}, key)).map((key) => [key, body[key]]))
 
-export function createLmsAssessmentService({ prisma, signFile = null }) {
+export function createLmsAssessmentService({ prisma, signFile = null, learners = null, sessions = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
 
   async function findAssessment(companyId, id) {
@@ -172,5 +172,52 @@ export function createLmsAssessmentService({ prisma, signFile = null }) {
     return (await detail(await findAssessment(companyId, assessment.id))).activities
   }
 
-  return { list, create, get, update, archive, createActivity, updateActivity, deleteActivity, reorderActivities, findAssessment, findActivity }
+  // ---- participants (internal users; share-link guests arrive in phase 4) ----
+  // learners: the authoring service (ensureLearnerForProfile). sessions: the
+  // session service, so this view closes expired sessions before listing them.
+  async function listParticipants(companyId, assessmentId) {
+    const assessment = await findAssessment(companyId, assessmentId)
+    if (sessions) await sessions.sweepExpired({ courseId: assessment.id })
+    const rows = await prisma.lmsEnrollment.findMany({
+      where: { courseId: assessment.id, companyId },
+      include: { learner: true, sessions: { orderBy: { number: 'desc' } } },
+      orderBy: { createdAt: 'asc' },
+    })
+    return rows.map((row) => ({
+      enrollmentId: row.id,
+      status: row.status,
+      learner: { id: row.learner.id, displayName: row.learner.displayName, email: row.learner.email, kind: row.learner.userProfileId ? 'user' : row.learner.contactId ? 'contact' : 'guest' },
+      sessions: row.sessions.map((s) => ({
+        id: s.id, number: s.number, status: s.status, startedAt: iso(s.startedAt), expiresAt: iso(s.expiresAt), submittedAt: iso(s.submittedAt),
+        closedReason: s.closedReason, scorePoints: s.scorePoints, maxPoints: s.maxPoints,
+      })),
+    }))
+  }
+
+  async function assignParticipants(companyId, actorId, assessmentId, body = {}) {
+    const assessment = await findAssessment(companyId, assessmentId)
+    if (assessment.status === 'archived') throw new LmsError('La evaluación está archivada.', 409)
+    if (!learners) throw new LmsError('No disponible.', 503)
+    const ids = Array.isArray(body?.userProfileIds) ? [...new Set(body.userProfileIds.map(String))] : []
+    if (!ids.length) throw new LmsError('Selecciona al menos una persona.', 400)
+    if (ids.length > 500) throw new LmsError('Agrega como máximo 500 personas a la vez.', 400)
+    const result = { created: 0, reactivated: 0, skipped: 0 }
+    for (const userProfileId of ids) {
+      const learner = await learners.ensureLearnerForProfile(companyId, userProfileId)
+      const existing = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: assessment.id, learnerId: learner.id } } })
+      if (!existing) {
+        await prisma.lmsEnrollment.create({ data: { companyId, courseId: assessment.id, learnerId: learner.id, source: 'assigned', assignedById: actorId } })
+        result.created += 1
+      } else if (existing.status === 'dropped') {
+        await prisma.lmsEnrollment.update({ where: { id: existing.id }, data: { status: 'active', source: 'assigned', assignedById: actorId } })
+        result.reactivated += 1
+      } else result.skipped += 1
+    }
+    return result
+  }
+
+  return {
+    list, create, get, update, archive, createActivity, updateActivity, deleteActivity, reorderActivities, findAssessment, findActivity,
+    listParticipants, assignParticipants,
+  }
 }
