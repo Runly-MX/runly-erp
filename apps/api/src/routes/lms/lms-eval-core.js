@@ -47,6 +47,8 @@ export function normalizeAssignmentSettings(raw) {
     maxFiles: clampInt(src.maxFiles, 1, 10, 5),
     dueDaysAfterEnroll: clampInt(src.dueDaysAfterEnroll, 1, 3650, null),
     passingScore: clampInt(src.passingScore, 0, 100, null),
+    // Points the activity is worth inside an evaluation (courses keep grading 0-100).
+    maxPoints: clampInt(src.maxPoints, 1, 1000, 100),
   }
 }
 
