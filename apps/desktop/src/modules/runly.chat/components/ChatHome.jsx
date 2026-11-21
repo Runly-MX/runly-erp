@@ -1,6 +1,5 @@
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@runly/ui";
-import { toast } from "sonner";
 import { CalendarPlus, Clapperboard, Hash, KeyRound, MessageSquare, Mic, Phone, Users, Video } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
@@ -201,12 +200,8 @@ export function ChatHome({ conversations, onOpenConversation, onOpenRecordings }
       <JoinByIdDialog
         open={joinByIdOpen}
         onOpenChange={setJoinByIdOpen}
-        onJoinLive={setJoinTarget}
-        onOpenConversation={(id) => {
-          const conversation = byId.get(id);
-          if (conversation) onOpenConversation(conversation);
-          else toast.info("Esa reunión es de otra empresa: cámbiate a esa empresa para entrar.");
-        }}
+        conversations={conversations}
+        onOpenConversation={onOpenConversation}
       />
       <PreJoinDialog
         open={Boolean(joinTarget)}

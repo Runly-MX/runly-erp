@@ -390,6 +390,7 @@ describe("createCallService", () => {
       $queryRaw: async (strings) => {
         const sql = Array.isArray(strings) ? strings.join("?") : String(strings);
         if (sql.includes("INSERT INTO chat_messages")) return [{ id: "sysmsg-2", created_at: new Date() }];
+        if (sql.includes("SELECT type")) return [{ type: "direct" }];
         if (sql.includes("chat_conversation_members")) {
           return [{ userId: CALLER_ID, displayName: "Caller" }, { userId: CALLEE_ID, displayName: "Callee" }];
         }
@@ -1063,6 +1064,42 @@ describe("createCallService — leaving a group meeting", () => {
     const service = createCallService({ prisma, env: enabledEnv() });
     await service.leaveCall({ authUserId: "host-auth", callId: CALL_ID });
     assert.equal(ended, false);
+  });
+
+  it("keeps an emptied meeting open, and the sweep ends it once empty past the grace", async () => {
+    let ended = false;
+    let cutoff = null;
+    const meeting = (status) => ({
+      id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE",
+      initiatedByUserId: CALLER_ID, livekitRoomName: `call_${CALL_ID}`,
+      participants: [{ userId: CALLER_ID, status }], initiator: { id: CALLER_ID, displayName: "Host" }, calendarEvent: null,
+    });
+    let current = meeting("JOINED");
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID, displayName: "Host" }) },
+      call: { findUnique: async () => current, update: async () => { ended = true; return {}; } },
+      callParticipant: { update: async () => ({}), updateMany: async () => ({ count: 0 }), count: async () => 0 },
+      $queryRaw: async (strings, ...values) => {
+        const sql = strings.join("?");
+        if (sql.includes("SELECT type")) return [{ type: "channel" }];
+        if (sql.includes("NOT EXISTS")) { cutoff = values[0]; return [{ id: CALL_ID }]; }
+        return [{ id: "member-row" }];
+      },
+      $executeRaw: async () => 1,
+      $transaction: async (ops) => Promise.all(ops),
+    };
+    const service = createCallService({ prisma, env: enabledEnv(), now: () => new Date("2026-11-21T12:00:00Z") });
+    await service.leaveCall({ authUserId: "host-auth", callId: CALL_ID });
+    assert.equal(ended, false);
+
+    current = meeting("JOINED");
+    await service.expireEmptyRooms();
+    assert.equal(ended, false, "someone rejoined: stays open");
+
+    current = meeting("LEFT");
+    await service.expireEmptyRooms();
+    assert.equal(ended, true);
+    assert.equal(cutoff.toISOString(), "2026-11-21T11:55:00.000Z");
   });
 });
 

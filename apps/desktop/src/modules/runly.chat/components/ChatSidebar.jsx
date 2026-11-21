@@ -3,7 +3,8 @@ import {
   Button, ConfirmDialog, EmptyState, SearchInput, Skeleton,
   DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem,
 } from "@runly/ui";
-import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus, Bell, Bookmark } from "lucide-react";
+import { Plus, Archive, ChevronDown, ChevronRight, MessageSquarePlus, Hash, Compass, Settings, Video, Images, FolderPlus, Bell, Bookmark, KeyRound } from "lucide-react";
+import { JoinByIdDialog } from "../calls/JoinByIdDialog";
 import { ChatConversationItem, ChatConversationRow } from "./ChatConversationItem";
 import { ChatActivitySheet, useChatActivity } from "./ChatActivitySheet";
 import { ChatSavedSheet } from "./ChatSavedSheet";
@@ -48,6 +49,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const [showCreateChannel, setShowCreateChannel] = useState(false);
   const [showDirectory, setShowDirectory] = useState(false);
   const [showMeeting, setShowMeeting] = useState(false);
+  const [showJoinById, setShowJoinById] = useState(false);
   const [showArchived, setShowArchived] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [sectionDialog, setSectionDialog] = useState({ open: false, section: null, thenMove: null });
@@ -126,6 +128,18 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
               <Images className="h-4 w-4" />
             </Button>
           )}
+          {/* Desktop has it in the chat home, which phones never show. */}
+          <Button
+            type="button"
+            size="icon"
+            variant="ghost"
+            className="h-9 w-9 md:hidden"
+            title="Unirse con un ID"
+            aria-label="Unirse con un ID"
+            onClick={() => setShowJoinById(true)}
+          >
+            <KeyRound className="h-4 w-4" />
+          </Button>
           <Button
             size="icon"
             variant="ghost"
@@ -162,6 +176,10 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                 <Video className="h-3.5 w-3.5 mr-2" />
                 Nueva reunion
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={() => afterMenu(() => setShowJoinById(true))}>
+                <KeyRound className="h-3.5 w-3.5 mr-2" />
+                Unirse con un ID
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
         </div>
@@ -169,6 +187,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
 
       <ChatSettingsDialog open={showSettings} onOpenChange={setShowSettings} />
       <NewMeetingDialog open={showMeeting} onOpenChange={setShowMeeting} defaultConversationId={activeId ?? null} />
+      <JoinByIdDialog open={showJoinById} onOpenChange={setShowJoinById} conversations={conversations ?? []} onOpenConversation={(conversation) => onSelect(conversation)} />
 
       {/* Search */}
       <div className="px-3 py-2 border-b border-[hsl(var(--border))] shrink-0">

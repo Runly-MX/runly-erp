@@ -4,3 +4,6 @@ export const RING_TIMEOUT_MS = 36_000;
 // How long a participant whose page unloaded (reload, crash, tab closed) keeps
 // their place in the call before it counts as leaving.
 export const DISCONNECT_GRACE_MS = 90_000;
+// How long a group call or meeting stays open with nobody in it, so people
+// can come back ("Regresar") before it ends on its own.
+export const EMPTY_ROOM_GRACE_MS = 5 * 60_000;

@@ -87,7 +87,7 @@ export function LiveMeetingBanner({ conversationId }) {
         <p className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{rejoin ? "Saliste de esta llamada" : "Llamada en curso"}</p>
         <p className="flex items-center gap-1 truncate text-xs text-[hsl(var(--muted-foreground))]">
           <Users className="h-3 w-3 shrink-0" aria-hidden />
-          {call.joinedCount} {call.joinedCount === 1 ? "persona" : "personas"}{elapsed ? ` · ${elapsed}` : ""}
+          {call.joinedCount ? `${call.joinedCount} ${call.joinedCount === 1 ? "persona" : "personas"}` : "Sala vacía, se cierra en unos minutos"}{elapsed ? ` · ${elapsed}` : ""}
         </p>
       </div>
       <button

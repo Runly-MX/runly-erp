@@ -2,7 +2,7 @@ import { AccessToken, RoomServiceClient } from "livekit-server-sdk";
 import { buildCallSystemMessage } from "./call-system-messages.js";
 import { createCallScreenShareService } from './call-screen-share-service.js';
 import { createCallInviteService } from "./call-invite-service.js";
-import { DISCONNECT_GRACE_MS, LIVE_CALL_STATUSES, RING_TIMEOUT_MS } from "./call-constants.js";
+import { DISCONNECT_GRACE_MS, EMPTY_ROOM_GRACE_MS, LIVE_CALL_STATUSES, RING_TIMEOUT_MS } from "./call-constants.js";
 
 function isLiveCallConflict(error) {
   return error?.code === "P2002"
@@ -794,7 +794,9 @@ export function createCallService({
   // grown past two people it keeps going until one is left alone. A group call
   // or meeting keeps going while anyone is still in it — even after the host
   // leaves (the host ends it for everyone with endCall, "Finalizar para
-  // todos"). Someone still inside the reconnect grace counts as in it.
+  // todos"). Someone still inside the reconnect grace counts as in it. An
+  // answered group call or meeting left empty stays open for EMPTY_ROOM_GRACE_MS
+  // (expireEmptyRooms ends it), so people can still come back.
   async function endCallIfEmptied(call, leftProfileId) {
     const remaining = await prisma.callParticipant.count({
       where: { callId: call.id, userId: { not: leftProfileId }, status: "JOINED" },
@@ -802,9 +804,32 @@ export function createCallService({
     const [conversation] = await prisma.$queryRaw`
       SELECT type FROM chat_conversations WHERE id = ${call.conversationId} LIMIT 1
     `;
-    if ((conversation?.type === "direct" && remaining <= 1) || remaining === 0) {
+    if (conversation?.type === "direct" && remaining <= 1) {
+      await endCallRecord(call, "ended");
+    } else if (remaining === 0 && call.status !== "ACTIVE") {
       await endCallRecord(call, "ended");
     }
+  }
+
+  // Ends ACTIVE calls nobody (member or admitted guest) has been in for the
+  // grace. The last leftAt (or the start) is when the room became empty.
+  async function expireEmptyRooms() {
+    const cutoff = new Date(now().getTime() - EMPTY_ROOM_GRACE_MS);
+    const rows = await prisma.$queryRaw`
+      SELECT c.id FROM call c
+      WHERE c.status = 'ACTIVE'
+        AND NOT EXISTS (SELECT 1 FROM call_participant p WHERE p.call_id = c.id AND p.status = 'JOINED')
+        AND NOT EXISTS (SELECT 1 FROM call_guest g WHERE g.call_id = c.id AND g.status = 'ADMITTED')
+        AND COALESCE((SELECT max(p.left_at) FROM call_participant p WHERE p.call_id = c.id), c.started_at, c.created_at) <= ${cutoff}
+      LIMIT 50
+    `;
+    for (const row of rows) {
+      const call = await getCallRecord(row.id);
+      // Re-checked: someone may have joined since the query.
+      if (call.status !== "ACTIVE" || call.participants.some((p) => p.status === "JOINED")) continue;
+      await endCallRecord(call, "ended");
+    }
+    return rows.length;
   }
 
   // Participants whose page unloaded (soft leave) and did not come back within
@@ -976,7 +1001,7 @@ export function createCallService({
   function startExpirySweeper() {
     if (!getConfig().enabled) return () => {};
     const timer = setInterval(() => {
-      Promise.all([expireStaleCalls(), expireDisconnectedParticipants(), revokeUnauthorizedParticipants()]).catch((error) => {
+      Promise.all([expireStaleCalls(), expireDisconnectedParticipants().then(expireEmptyRooms), revokeUnauthorizedParticipants()]).catch((error) => {
         console.error("[atlas.calls] Error expirando llamadas:", error?.message ?? error);
       });
     }, 15_000);
@@ -997,6 +1022,7 @@ export function createCallService({
     endCall,
     expireStaleCalls,
     expireDisconnectedParticipants,
+    expireEmptyRooms,
     startExpirySweeper,
     revokeUnauthorizedParticipants,
     assertCanManageCall,
