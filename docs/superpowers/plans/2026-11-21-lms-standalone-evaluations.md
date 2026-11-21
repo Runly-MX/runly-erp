@@ -121,6 +121,32 @@ drafts (save text, attach confirmed files) inside the session; worker sweep ever
 review, confirmation), `QuizAttempt` session mode, offline answer queue; "Mis evaluaciones" on Mis cursos;
 internal route `/evaluate/:id`.
 
+Status:
+- [x] Phase 2 done. Verified: 2026-11-21 (local test DB and company only).
+  - Migration `20270110100000_lms_assessment_sessions` applied locally. RLS audit: 17/17 tables, 0 client access.
+  - `node --test`: LMS API + MCP + office + desktop lib + modules routes, 281/281. Includes the session core
+    boundaries: deadline + 30 s grace, upload grace, start blockers, close policy and grading state.
+  - `.e2e/lms-session-e2e.mjs` 35/35 on a temporary API:
+    - Two simultaneous starts give one session, one attempt and one draft; one 60-minute deadline; the quiz
+      deadline equals the session deadline.
+    - Reopening keeps the deadline and the answers.
+    - At deadline + 20 s a write is accepted; at + 40 s it gets 409 EXPIRED and the session closes with saved
+      work.
+    - A file presigned in time and confirmed after the close is attached; uploads after the deadline are refused.
+    - Two simultaneous submits close the session once.
+    - Real 1-minute clock: the in-process sweep closes an abandoned session and keeps its answer; a second sweep
+      is a no-op.
+  - `.e2e/lms-session-ui.mjs` 20/20 (Playwright, 1366×900 and 360×740):
+    - Covered: intro without starting the clock, confirm and start, quiz answer, switching activity, Excel upload,
+      reload before autosave, device clock +10 min, submit, and a live time-up path.
+    - Two runner bugs were found and fixed on the way: a stale quiz on return, and the backup written in the state
+      updater.
+  - Regression: `lms-assessment-e2e`, `lms-e2e`, `lms-eval-e2e`, `lms-share-e2e`, `lms-intake-e2e`,
+    `lms-social-e2e`, `lms-assessment-ui` and the new `lms-course-quiz-ui` (course quiz keeps its own clock and
+    "Enviar examen") all passed.
+  - Deferred to phase 5 (spec 6.1 incidents): manager extend / void / extra session. Accepted types (CSV etc.)
+    move to phase 3.
+
 Acceptance: one clock for all activities; reload and activity switch keep time and answers; server refuses
 writes after `expires_at + 30 s`; double start returns the same session; double submit returns the same
 result; sweep closes abandoned sessions; close policy as spec 6.2.
