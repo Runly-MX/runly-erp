@@ -274,6 +274,13 @@ export function LoginScreen({ returnTo = '/app' }) {
               >
                 ¿Olvidaste tu contraseña?
               </button>
+              <button
+                type="button"
+                onClick={() => navigate('/app/p/call')}
+                className="block w-full text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
+              >
+                ¿Tienes un ID de reunión? Unirse sin cuenta
+              </button>
               {isTauriRuntime() || native.isRemoteHost() ? (
                 <Button variant="ghost"
                   type="button"

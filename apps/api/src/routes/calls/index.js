@@ -172,6 +172,23 @@ export function createCallsRouter({
     catch (error) { return handleError(c, error, "Error consultando las llamadas en curso."); }
   });
 
+  // "Unirse con un ID": a member gets the conversation and its live call; anyone
+  // else only learns the ID is valid and joins through the guest page.
+  internal.get("/links/resolve", async (c) => {
+    try {
+      const { code, token } = c.req.query();
+      if (!code && !token) return c.json({ error: "Escribe el ID de la reunión." }, 422);
+      const link = await linksService.resolveLinkForJoin({ code: token ? null : code, token: token || null });
+      try {
+        const live = await calls.getConversationLiveCall({ authUserId: c.get("authUserId"), conversationId: link.conversationId });
+        return c.json({ data: { member: true, conversationId: link.conversationId, live } });
+      } catch (error) {
+        if (error instanceof CallServiceError && error.status === 404) return c.json({ data: { member: false } });
+        throw error;
+      }
+    } catch (error) { return handleError(c, error, "No se pudo buscar la reunión."); }
+  });
+
   // Live call/meeting of a conversation, for the "Unirse" banner.
   internal.get("/conversations/:conversationId/live", async (c) => {
     try {

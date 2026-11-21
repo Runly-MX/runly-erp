@@ -1,9 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { Button } from "@runly/ui";
-import { CalendarPlus, Clapperboard, Hash, MessageSquare, Mic, Phone, Users, Video } from "lucide-react";
+import { toast } from "sonner";
+import { CalendarPlus, Clapperboard, Hash, KeyRound, MessageSquare, Mic, Phone, Users, Video } from "lucide-react";
 import { useAuth } from "../../../auth/AuthProvider";
 import { useCalls } from "../calls/CallsProvider";
 import { useLiveCalls } from "../calls/hooks/useLiveCalls";
+import { JoinByIdDialog } from "../calls/JoinByIdDialog";
 import { PreJoinDialog } from "../calls/PreJoinDialog";
 import { useCompanyPeople, useStartDirectChat } from "../hooks/useCompanyPeople";
 import { getConversationDisplayName } from "../lib/chatUtils";
@@ -54,6 +56,7 @@ export function ChatHome({ conversations, onOpenConversation, onOpenRecordings }
   const { people, onlineCount } = useCompanyPeople();
   const [meetingMode, setMeetingMode] = useState(null);
   const [joinTarget, setJoinTarget] = useState(null);
+  const [joinByIdOpen, setJoinByIdOpen] = useState(false);
   const busy = isStarting || Boolean(activeCall);
 
   // A call is started from the 1:1 chat: open it (or reuse it), then call.
@@ -125,6 +128,7 @@ export function ChatHome({ conversations, onOpenConversation, onOpenRecordings }
             <div className="grid gap-2 sm:grid-cols-2">
               <QuickAction icon={Video} label="Nueva reunión" hint="Abre una sala ahora; nadie recibe timbre" onClick={() => setMeetingMode("now")} disabled={busy} />
               <QuickAction icon={CalendarPlus} label="Programar reunión" hint="Con invitados, enlace y evento en el calendario" onClick={() => setMeetingMode("schedule")} disabled={busy} />
+              <QuickAction icon={KeyRound} label="Unirse con un ID" hint="Escribe el ID de la reunión o pega su enlace" onClick={() => setJoinByIdOpen(true)} disabled={busy} />
               <QuickAction icon={Mic} label="Reunión presencial" hint="Graba y transcribe una reunión en persona" onClick={() => setMeetingMode("inperson")} disabled={busy} />
               <QuickAction icon={Clapperboard} label="Grabaciones" hint="Todas las grabaciones de tus llamadas" onClick={onOpenRecordings} />
             </div>
@@ -194,6 +198,16 @@ export function ChatHome({ conversations, onOpenConversation, onOpenRecordings }
       </div>
 
       <NewMeetingDialog open={Boolean(meetingMode)} onOpenChange={(open) => { if (!open) setMeetingMode(null); }} initialMode={meetingMode ?? "now"} />
+      <JoinByIdDialog
+        open={joinByIdOpen}
+        onOpenChange={setJoinByIdOpen}
+        onJoinLive={setJoinTarget}
+        onOpenConversation={(id) => {
+          const conversation = byId.get(id);
+          if (conversation) onOpenConversation(conversation);
+          else toast.info("Esa reunión es de otra empresa: cámbiate a esa empresa para entrar.");
+        }}
+      />
       <PreJoinDialog
         open={Boolean(joinTarget)}
         onOpenChange={(open) => { if (!open) setJoinTarget(null); }}
