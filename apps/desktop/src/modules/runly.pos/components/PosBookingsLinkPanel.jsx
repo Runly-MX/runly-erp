@@ -107,7 +107,9 @@ function ActivateDialog({ outlet, kind, hasLink, token, onClose, onDone }) {
       onDone()
     } catch (e) { setError(e?.message ?? 'No se pudo activar.'); if (e?.details?.report) setReport(e.details.report); setState('reviewed') }
   }
-  const add = (event) => { event.preventDefault(); const name = draft.trim(); if (name && !people.includes(name)) setPeople((p) => [...p, name]); setDraft(''); setError('') }
+  // A changed team invalidates the last review: it must be reviewed again before activating.
+  const changePeople = (next) => { setPeople(next); setReport(null); setState('idle') }
+  const add = (event) => { event.preventDefault(); const name = draft.trim(); if (name && !people.includes(name)) changePeople([...people, name]); setDraft(''); setError('') }
 
   return (
     <Dialog open onOpenChange={(v) => !v && onClose()}>
@@ -129,7 +131,7 @@ function ActivateDialog({ outlet, kind, hasLink, token, onClose, onDone }) {
                 <ul className="flex flex-wrap gap-2">
                   {people.map((name) => (
                     <li key={name} className="flex min-h-11 items-center gap-1 rounded-md border border-[hsl(var(--border))] pl-3">
-                      {name}<Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label={`Quitar a ${name}`} onClick={() => setPeople((p) => p.filter((x) => x !== name))}><X /></Button>
+                      {name}<Button type="button" variant="ghost" size="icon" className="h-11 w-11" aria-label={`Quitar a ${name}`} onClick={() => changePeople(people.filter((x) => x !== name))}><X /></Button>
                     </li>
                   ))}
                 </ul>
