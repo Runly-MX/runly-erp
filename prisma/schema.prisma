@@ -6316,6 +6316,7 @@ model LmsCourse {
 
   sections            LmsSection[]
   enrollments         LmsEnrollment[]
+  sessions            LmsAssessmentSession[]
   reviews             LmsReview[]
   announcements       LmsAnnouncement[]
   certificateTemplate LmsCertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
@@ -6451,6 +6452,7 @@ model LmsEnrollment {
   completedAt  DateTime? @map("completed_at") @db.Timestamptz(6)
   progressPct  Int       @default(0) @map("progress_pct")
   lastLessonId String?   @map("last_lesson_id") @db.Uuid
+  extraSessions Int      @default(0) @map("extra_sessions") // evaluations: sessions granted over maxSessions
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -6460,6 +6462,7 @@ model LmsEnrollment {
   attempts     LmsQuizAttempt[]
   submissions  LmsSubmission[]
   certificates LmsCertificate[]
+  sessions     LmsAssessmentSession[]
 
   @@unique([courseId, learnerId])
   @@index([learnerId, status])
@@ -6530,12 +6533,15 @@ model LmsQuizAttempt {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  sessionId    String?   @map("session_id") @db.Uuid // evaluation session that owns the clock
   enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  session    LmsAssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   // The unique index also serves (enrollment_id, lesson_id) lookups.
   @@unique([enrollmentId, lessonId, number])
   @@index([companyId, status])
+  @@index([sessionId])
   @@map("lms_quiz_attempt")
 }
 
@@ -6557,13 +6563,58 @@ model LmsSubmission {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
+  // Evaluations: session that owns the clock (status also draft | missing there),
+  // points 0..maxPoints (courses keep `grade` 0-100) and rubric scores.
+  sessionId    String?   @map("session_id") @db.Uuid
+  points       Float?
+  rubricScores Json      @default("{}") @map("rubric_scores")
   enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  session    LmsAssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
 
   // The unique index also serves (enrollment_id, lesson_id) lookups.
   @@unique([enrollmentId, lessonId, number])
   @@index([companyId, status])
+  @@index([sessionId])
   @@map("lms_submission")
+}
+
+// One attempt at a standalone evaluation (spec 2026-11-21 section 6): owns the
+// single clock of every activity. Partial unique index (SQL only): one
+// in_progress session per enrollment.
+model LmsAssessmentSession {
+  id               String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId        String    @map("company_id") @db.Uuid
+  courseId         String    @map("course_id") @db.Uuid
+  enrollmentId     String    @map("enrollment_id") @db.Uuid
+  number           Int
+  status           String    @default("in_progress") // in_progress | submitted | expired | graded | voided
+  startedAt        DateTime  @default(now()) @map("started_at") @db.Timestamptz(6)
+  expiresAt        DateTime? @map("expires_at") @db.Timestamptz(6)
+  submittedAt      DateTime? @map("submitted_at") @db.Timestamptz(6)
+  gradedAt         DateTime? @map("graded_at") @db.Timestamptz(6)
+  closedReason     String?   @map("closed_reason") // learner | timeout | manager
+  timeLimitMinutes Int?      @map("time_limit_minutes")
+  snapshot         Json      @default("{}") // { activities: [{ lessonId, kind, title, maxPoints }] }
+  scorePoints      Float?    @map("score_points")
+  maxPoints        Float?    @map("max_points")
+  extendedMinutes  Int       @default(0) @map("extended_minutes")
+  decision         String?
+  decisionNote     String?   @map("decision_note")
+  decisionById     String?   @map("decision_by_id") @db.Uuid
+  decidedAt        DateTime? @map("decided_at") @db.Timestamptz(6)
+  createdAt        DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  course      LmsCourse        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  enrollment  LmsEnrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
+  attempts    LmsQuizAttempt[]
+  submissions LmsSubmission[]
+
+  @@unique([enrollmentId, number])
+  @@index([courseId])
+  @@index([status, expiresAt])
+  @@map("lms_assessment_session")
 }
 
 // Lesson discussion. parentId null = root question; replies are one level deep.
