@@ -271,7 +271,7 @@ export function createLmsCertService({
   }
 
   async function listCourseCertificates(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, select: { id: true } })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, select: { id: true } })
     if (!course) throw new LmsError('El curso no existe.', 404)
     return serializeCertificates(await prisma.lmsCertificate.findMany({ where: { companyId, courseId: course.id }, orderBy: { issuedAt: 'desc' } }))
   }

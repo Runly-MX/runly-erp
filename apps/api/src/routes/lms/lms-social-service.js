@@ -22,7 +22,7 @@ export function createLmsSocialService({ prisma, notifier = null, signFile = nul
 
   async function findCourse(companyId, courseId, { canManage = false } = {}) {
     if (!isUuid(courseId)) throw new LmsError('El curso no existe.', 404)
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true } })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' } })
     if (!course || (course.status === 'draft' && !canManage)) throw new LmsError('El curso no existe.', 404)
     return course
   }

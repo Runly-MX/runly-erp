@@ -57,7 +57,7 @@ export function createLmsGuestService({
 
   async function sharedCourse(token) {
     if (!SHARE_TOKEN_RE.test(String(token ?? ''))) throw linkGone()
-    const course = await prisma.lmsCourse.findFirst({ where: { shareToken: token, shareEnabled: true, enabled: true, status: 'published' } })
+    const course = await prisma.lmsCourse.findFirst({ where: { shareToken: token, shareEnabled: true, enabled: true, status: 'published', kind: 'course' } })
     if (!course) throw linkGone()
     return { course, settings: normalizeShareSettings(course.shareSettings) }
   }

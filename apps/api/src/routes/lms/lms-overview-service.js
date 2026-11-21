@@ -64,7 +64,7 @@ export function createLmsOverviewService({ prisma, signFile = null, resolveMedia
   }
 
   async function overview(companyId, userProfileId, courseId, { canManage = false } = {}) {
-    const course = isUuid(courseId) ? await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, include: COURSE_COUNTS }) : null
+    const course = isUuid(courseId) ? await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, include: COURSE_COUNTS }) : null
     if (!course) throw new LmsError('El curso no existe.', 404)
     const enrollmentRow = await callerEnrollment(companyId, userProfileId, course.id)
     const enrolled = Boolean(enrollmentRow && enrollmentRow.status !== 'dropped')

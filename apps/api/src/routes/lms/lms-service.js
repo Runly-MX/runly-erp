@@ -1,6 +1,6 @@
 // runly.lms authoring: courses, sections, lessons, ordering, learners and
 // enrollments. Every query is scoped by companyId.
-import { COURSE_STATUSES, LmsError, normalizeCourseInput, normalizeLessonInput } from './lms-core.js'
+import { COURSE_ONLY, COURSE_STATUSES, LmsError, normalizeCourseInput, normalizeLessonInput } from './lms-core.js'
 import { COURSE_COUNTS, ENROLLMENT_INCLUDE, createLmsSerializers } from './lms-serialize.js'
 import { updateEnrollmentWithCertificate } from './lms-cert-issue.js'
 import { assertPromoLesson } from './lms-promo.js'
@@ -20,7 +20,7 @@ export function createLmsService({ prisma, signFile = null }) {
   const ser = createLmsSerializers({ prisma, signFile })
 
   async function findCourse(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, include: COURSE_COUNTS })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, ...COURSE_ONLY }, include: COURSE_COUNTS })
     if (!course) throw new LmsError('El curso no existe.', 404)
     return course
   }
@@ -32,7 +32,8 @@ export function createLmsService({ prisma, signFile = null }) {
   }
 
   async function findLesson(companyId, lessonId) {
-    const lesson = await prisma.lmsLesson.findFirst({ where: { id: lessonId, companyId, enabled: true } })
+    // Course lessons only: evaluation activities (no section) have their own routes.
+    const lesson = await prisma.lmsLesson.findFirst({ where: { id: lessonId, companyId, enabled: true, sectionId: { not: null } } })
     if (!lesson) throw new LmsError('La lección no existe.', 404)
     return lesson
   }
@@ -56,7 +57,7 @@ export function createLmsService({ prisma, signFile = null }) {
 
   // ---- courses ------------------------------------------------------------
   async function listCourses(companyId, query = {}) {
-    const where = { companyId, enabled: true }
+    const where = { companyId, enabled: true, ...COURSE_ONLY }
     if (COURSE_STATUSES.includes(query.status)) where.status = query.status
     const rows = await prisma.lmsCourse.findMany({ where, include: COURSE_COUNTS, orderBy: { updatedAt: 'desc' } })
     return ser.serializeCourses(rows)

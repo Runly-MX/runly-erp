@@ -1,6 +1,6 @@
 // runly.lms learner side: catalog, my courses, self-enrollment, course outline,
 // lesson open and progress. The learner is always the current user profile.
-import { EVALUATED_KINDS, LmsError, lessonStates, liveProgressPct, orderLessons, shouldAutoComplete } from './lms-core.js'
+import { COURSE_ONLY, EVALUATED_KINDS, LmsError, lessonStates, liveProgressPct, orderLessons, shouldAutoComplete } from './lms-core.js'
 import { normalizeLessonSettings } from './lms-eval-core.js'
 import { COURSE_COUNTS, ENROLLMENT_CERT, ENROLLMENT_INCLUDE, createLmsSerializers, enrollmentCertificate } from './lms-serialize.js'
 import { createLmsService } from './lms-service.js'
@@ -33,7 +33,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
 
   async function catalog(companyId, userProfileId) {
     const rows = await prisma.lmsCourse.findMany({
-      where: { companyId, enabled: true, status: 'published', selfEnroll: true },
+      where: { companyId, enabled: true, status: 'published', selfEnroll: true, ...COURSE_ONLY },
       include: COURSE_COUNTS,
       orderBy: { updatedAt: 'desc' },
     })
@@ -50,7 +50,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
     const learner = await findLearner(companyId, userProfileId)
     if (!learner) return { active: [], completed: [] }
     const rows = await prisma.lmsEnrollment.findMany({
-      where: { companyId, learnerId: learner.id, status: { in: OPEN_STATUSES }, course: { enabled: true, status: { in: ['published', 'archived'] } } },
+      where: { companyId, learnerId: learner.id, status: { in: OPEN_STATUSES }, course: { enabled: true, status: { in: ['published', 'archived'] }, ...COURSE_ONLY } },
       include: { ...ENROLLMENT_INCLUDE, course: { include: COURSE_COUNTS } },
       orderBy: { updatedAt: 'desc' },
     })
@@ -69,7 +69,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
   }
 
   async function enroll(companyId, userProfileId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true } })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, ...COURSE_ONLY } })
     if (!course) throw new LmsError('El curso no existe.', 404)
     if (course.status !== 'published' || !course.selfEnroll) throw new LmsError('Este curso no admite inscripción libre.', 409, 'NOT_SELF_ENROLL')
     const learner = await learners.ensureLearnerForProfile(companyId, userProfileId)
@@ -88,7 +88,7 @@ export function createLmsLearnService({ prisma, signFile = null, authoring = nul
   // preview (course managers only): the author's "Vista previa" ignores their own
   // enrollment, so every lesson opens and nothing is recorded as progress.
   async function loadContext(companyId, userProfileId, courseId, { canManage, preview = false }) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, include: COURSE_COUNTS })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, ...COURSE_ONLY }, include: COURSE_COUNTS })
     if (!course) throw new LmsError('El curso no existe.', 404)
     const enrollment = preview && canManage ? null : await openEnrollment(companyId, userProfileId, course.id)
     const notEnrolled = () => new LmsError('No estás inscrito en este curso.', 403, 'NOT_ENROLLED')

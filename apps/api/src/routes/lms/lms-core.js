@@ -11,6 +11,10 @@ export const EVALUATED_KINDS = new Set(['quiz', 'assignment'])
 const PROGRESS_STATES = new Set(['completed', 'in_progress', 'pending_review', 'failed'])
 export const LEVELS = ['basic', 'intermediate', 'advanced']
 export const COURSE_STATUSES = ['draft', 'published', 'archived']
+// lms_course.kind: course paths add COURSE_ONLY to every course lookup so an
+// evaluation id answers 404 there; evaluation paths use ASSESSMENT_ONLY.
+export const COURSE_ONLY = Object.freeze({ kind: 'course' })
+export const ASSESSMENT_ONLY = Object.freeze({ kind: 'assessment' })
 export const ENROLLMENT_STATUSES = ['active', 'completed', 'dropped']
 export const AUTO_COMPLETE_RATIO = 0.9
 export const VIDEO_MAX_BYTES = 50 * 1024 * 1024

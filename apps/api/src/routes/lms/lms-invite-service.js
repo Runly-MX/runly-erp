@@ -34,7 +34,7 @@ export function createLmsInviteService({
   }
 
   async function findCourse(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, select: { id: true, companyId: true, title: true, shareToken: true } })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, select: { id: true, companyId: true, title: true, shareToken: true } })
     if (!course) throw new LmsError('El curso no existe.', 404)
     return course
   }

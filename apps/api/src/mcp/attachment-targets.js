@@ -130,7 +130,7 @@ export function createAttachmentTargets({ prisma }) {
         return product;
       }
       case 'lms.course': {
-        const course = await prisma.lmsCourse.findFirst({ where: { id, companyId: a.companyId, enabled: true }, select: { id: true, title: true, updatedAt: true } });
+        const course = await prisma.lmsCourse.findFirst({ where: { id, companyId: a.companyId, enabled: true, kind: 'course' }, select: { id: true, title: true, updatedAt: true } });
         insist(course, 'not_found', 'Curso no disponible.', 404);
         return course;
       }

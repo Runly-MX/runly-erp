@@ -8,7 +8,7 @@ const SHARE_SELECT = { id: true, status: true, shareEnabled: true, shareToken: t
 
 export function createLmsShareService({ prisma, appBaseUrl = () => resolveAppBaseUrl(process.env), newToken = newShareToken }) {
   async function findCourse(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true }, select: SHARE_SELECT })
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, select: SHARE_SELECT })
     if (!course) throw new LmsError('El curso no existe.', 404)
     return course
   }

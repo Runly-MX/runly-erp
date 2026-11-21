@@ -36,6 +36,8 @@ function fixture(permissions = ALL) {
   const lessons = table([]);
   const sections = table([], (row, args) => args.include?.lessons ? { ...row, lessons: lessons.rows.filter(l => l.sectionId === row.id && l.enabled) } : row);
   const courses = table([], row => ({ ...row, _count: { sections: sections.rows.filter(s => s.courseId === row.id).length, enrollments: 0 } }));
+  const createCourse = courses.create;
+  courses.create = ({ data }) => createCourse({ data: { kind: 'course', ...data } }); // DB default
   const proposals = [];
   const prisma = {
     lmsCourse: courses, lmsSection: sections, lmsLesson: lessons, lmsQuizQuestion: table([]), lmsEnrollment: table([]), lmsLessonProgress: table([]), lmsCertificateTemplate: table([]),
@@ -47,8 +49,8 @@ function fixture(permissions = ALL) {
     runlyModule: { findMany: async () => [{ id: uid(9), key: 'runly.lms', core: false, enabled: true, status: 'INSTALLED', manifest: { acl: { module: 'lms.access' } } }] },
     mcpState: { findUnique: async () => null, deleteMany: async () => ({ count: 0 }), create: async ({ data }) => { proposals.push(data.payload); return data; } },
   };
-  const course = { id: uid(10), companyId: COMPANY, title: 'Seguridad industrial', status: 'draft', level: 'basic', enabled: true, shareEnabled: true, shareSettings: { scope: 'preview' }, position: 0 };
-  const foreign = { id: uid(11), companyId: OTHER, title: 'Curso ajeno', status: 'draft', level: 'basic', enabled: true, shareSettings: {}, position: 0 };
+  const course = { id: uid(10), companyId: COMPANY, kind: 'course', title: 'Seguridad industrial', status: 'draft', level: 'basic', enabled: true, shareEnabled: true, shareSettings: { scope: 'preview' }, position: 0 };
+  const foreign = { id: uid(11), companyId: OTHER, kind: 'course', title: 'Curso ajeno', status: 'draft', level: 'basic', enabled: true, shareSettings: {}, position: 0 };
   courses.rows.push(course, foreign);
   sections.rows.push({ id: uid(20), companyId: COMPANY, courseId: course.id, title: 'Introducción', position: 1 }, { id: uid(21), companyId: OTHER, courseId: foreign.id, title: 'Ajena', position: 1 });
   lessons.rows.push({ id: uid(30), companyId: COMPANY, courseId: course.id, sectionId: uid(20), title: 'Examen', kind: 'quiz', settings: {}, position: 1, enabled: true, required: true },

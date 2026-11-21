@@ -177,16 +177,16 @@ export const lessonLine = (lesson, questions = []) => clip(`[${lesson.kind}] ${l
 export function createLmsLookups(prisma) {
   const found = (row, message) => { insist(row, 'not_found', message, 404); return row; };
   return {
-    course: async (a, id) => found(await prisma.lmsCourse.findFirst({ where: { id, companyId: a.companyId, enabled: true } }), 'El curso no existe.'),
+    course: async (a, id) => found(await prisma.lmsCourse.findFirst({ where: { id, companyId: a.companyId, enabled: true, kind: 'course' } }), 'El curso no existe.'),
     section: async (a, id) => found(await prisma.lmsSection.findFirst({ where: { id, companyId: a.companyId } }), 'La sección no existe.'),
-    lesson: async (a, id) => found(await prisma.lmsLesson.findFirst({ where: { id, companyId: a.companyId, enabled: true } }), 'La lección no existe.'),
+    lesson: async (a, id) => found(await prisma.lmsLesson.findFirst({ where: { id, companyId: a.companyId, enabled: true, sectionId: { not: null } } }), 'La lección no existe.'),
     question: async (a, id) => found(await prisma.lmsQuizQuestion.findFirst({ where: { id, companyId: a.companyId, enabled: true } }), 'La pregunta no existe.'),
     async template(a, id) {
       if (!id) return null;
       return found(await prisma.lmsCertificateTemplate.findFirst({ where: { id, companyId: a.companyId, enabled: true }, select: { id: true, name: true } }), 'La plantilla de certificado no existe.');
     },
     async quiz(a, id) {
-      const lesson = found(await prisma.lmsLesson.findFirst({ where: { id, companyId: a.companyId, enabled: true } }), 'La lección no existe.');
+      const lesson = found(await prisma.lmsLesson.findFirst({ where: { id, companyId: a.companyId, enabled: true, sectionId: { not: null } } }), 'La lección no existe.');
       insist(lesson.kind === 'quiz', 'conflict', 'La lección no es un examen (kind quiz).', 409);
       return lesson;
     },

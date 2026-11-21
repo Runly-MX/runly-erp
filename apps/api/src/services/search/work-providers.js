@@ -53,7 +53,7 @@ export const lmsCoursesProvider = defineProvider({
       limit,
       from: "lms_course c",
       select: "c.id, c.title, c.category, c.status",
-      scope: Prisma.sql`c.company_id = ${companyId}::uuid AND c.enabled = true`,
+      scope: Prisma.sql`c.company_id = ${companyId}::uuid AND c.enabled = true AND c.kind = 'course'`,
       columns: ["c.title", "c.summary", "c.category"],
       titleColumn: "c.title",
       orderBy: "c.updated_at DESC",
