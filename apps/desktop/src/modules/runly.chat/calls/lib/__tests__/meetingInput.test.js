@@ -7,6 +7,7 @@ test("parseMeetingInput reads an ID, a code link and a token link", () => {
   assert.equal(parseMeetingInput("https://x.example/app/p/call?code=abc-d234-5").code, "ABCD2345");
   const token = "a".repeat(64);
   assert.deepEqual(parseMeetingInput(`https://x.example/app/p/call/${token}?i=beef`), { token, guestPath: `/app/p/call/${token}?i=beef` });
+  assert.equal(parseMeetingInput("https://x.example/app/p/call/abc-d234-5").code, "ABCD2345");
   assert.equal(parseMeetingInput("abc"), null);
   assert.equal(parseMeetingInput(""), null);
 });

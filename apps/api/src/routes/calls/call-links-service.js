@@ -56,7 +56,9 @@ export function createCallLinksService({ prisma, smtpService, callService, supab
       token: link.token,
       code: link.code,
       meetingId: formatMeetingId(link.code),
-      url: joinUrl(link.token),
+      // Short shareable link carrying the meeting ID (same access as typing
+      // it); personal email invites keep the token + invite URL.
+      url: `${publicAppUrl}/p/call/${formatMeetingId(link.code)}`,
       requireLobby: link.requireLobby,
       accessMode: link.accessMode ?? (link.requireLobby ? "LOBBY" : "OPEN"),
       pin: link.pin ?? null,

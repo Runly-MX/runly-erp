@@ -142,6 +142,14 @@ export function ExternalInvitePane({ conversationId, token }) {
 
   const meetingId = link.meetingId ?? link.code;
   const joinPage = link.url.replace(/\/p\/call\/.*$/, "/p/call");
+  // Ready to paste in WhatsApp or an email, like Meet's "joining info".
+  const invitationText = [
+    "Te invito a una reunión en Runly.",
+    `Entra aquí: ${link.url}`,
+    "",
+    `O abre ${joinPage} y escribe el ID de reunión: ${meetingId}`,
+    link.accessMode === "PIN" && link.pin ? `PIN: ${link.pin}` : null,
+  ].filter((line) => line !== null).join("\n");
 
   return (
     <div className="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain px-6 pb-5">
@@ -159,6 +167,10 @@ export function ExternalInvitePane({ conversationId, token }) {
             {copied === "url" ? "Copiado" : "Copiar"}
           </Button>
         </div>
+        <Button type="button" variant="secondary" className="mt-2 w-full" onClick={() => copy(invitationText, "invitation")}>
+          {copied === "invitation" ? <Check className="mr-1.5 h-4 w-4" /> : <Copy className="mr-1.5 h-4 w-4" />}
+          {copied === "invitation" ? "Invitación copiada" : "Copiar invitación (enlace, ID y PIN)"}
+        </Button>
       </Section>
 
       <Section

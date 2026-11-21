@@ -58,10 +58,14 @@ function Card({ children }) {
 }
 
 export default function GuestCallScreen() {
-  const { token = null } = useParams();
+  const { token: routeParam = null } = useParams();
   const [sp] = useSearchParams();
   const inviteToken = sp.get("i");
-  const urlCode = sp.get("code");
+  // /p/call/<64-hex token> (older links) or /p/call/abc-d234-5 (meeting ID).
+  const routeIsToken = Boolean(routeParam && /^[0-9a-f]{32,}$/i.test(routeParam));
+  const token = routeIsToken ? routeParam : null;
+  const routeCode = routeParam && !routeIsToken ? routeParam : null;
+  const urlCode = routeCode ?? sp.get("code");
 
   useEffect(() => {
     const html = document.documentElement;
@@ -173,7 +177,10 @@ export default function GuestCallScreen() {
               <TextField label="Correo (opcional)" type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
             )}
             {inviteToken && <p className="text-xs text-gray-500">Invitación por correo verificada.</p>}
-            {!token && !inviteToken && (
+            {routeCode && !inviteToken && (
+              <p className="text-sm text-gray-600">ID de reunión: <span className="font-mono font-semibold tracking-wider">{routeCode.toLowerCase()}</span></p>
+            )}
+            {!token && !routeCode && !inviteToken && (
               <TextField
                 label="ID de reunión"
                 placeholder="abc-defg-h"

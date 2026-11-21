@@ -9,7 +9,7 @@ export function parseMeetingInput(input) {
     const invite = text.match(/[?&]i=([0-9a-f]+)/i)?.[1];
     return { token: tokenMatch[1], guestPath: `/app/p/call/${tokenMatch[1]}${invite ? `?i=${invite}` : ""}` };
   }
-  const fromUrl = text.match(/[?&]code=([^&#\s]+)/i)?.[1];
+  const fromUrl = text.match(/[?&]code=([^&#\s]+)/i)?.[1] ?? text.match(/\/p\/call\/([0-9a-z-]+)/i)?.[1];
   const code = decodeURIComponent(fromUrl ?? text).replace(/[^0-9a-z]/gi, "").toUpperCase();
   if (code.length !== 8) return null;
   return { code, guestPath: `/app/p/call?code=${code.toLowerCase()}` };
