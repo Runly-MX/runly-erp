@@ -137,7 +137,30 @@ Order matters:
 - audit `blockers` not empty for an outlet about to be activated;
 - `BOOKINGS_LINK_SECRET` not decided before the first public booking.
 
-## 8. Ticketing (F6A) is architecture only
+## 8. v1.1: form layout pass and first post-deploy checks (2026-11-20)
+
+UI-only change in `a1e12ef41`: service, settings, booking, session, exception and public-page forms (the page form is
+now a side sheet), schedule rows on phones, and the POS reservations panel. No API, schema, permission or rule change.
+
+Verified: 2026-11-20 (`verify-bookings-portal.mjs` 35/35, `verify-bookings-pos.mjs` 25/25, local
+`.e2e/bookings-ui-e2e.mjs` 45/45 with desktop light and phone dark form checks, lint and web build clean).
+`verify-bookings-distribution.mjs` was not re-run: embeds, share links and the Website block were not touched.
+
+Post-deploy checks done from outside, read-only, against the production web origin:
+
+- `/app/` sends `frame-ancestors 'self'`, `/app/p/reservar/gestion` sends `'none'`: the new `spa.conf` is live.
+- `/api/health` OK. `/api/public/bookings/pages/<unknown>` answers 404 `PAGE_UNAVAILABLE` and `/manage` with a bad
+  token 404 `LINK_INVALID` (no 5xx, so the portal tables exist). `/runly/bookings-embed.js` is served.
+- `/api/health` reports no version, so the API image version cannot be confirmed from outside.
+- No `Strict-Transport-Security`, `X-Content-Type-Options` or `Referrer-Policy` header on `/app/`. Not specific to
+  Reservaciones; decide at the proxy level.
+
+Still to do on each VPS (needs shell or database access): `prisma migrate status`, the API and worker image tags
+match, `[worker] bookings` ticks in the worker log and no older worker on the database, `BOOKINGS_LINK_SECRET` is
+set (check presence only, never print it), a real SMTP pass (book, reschedule, cancel), the legacy audit before
+any outlet activation, and a booking from an external site using the embed.
+
+## 9. Ticketing (F6A) is architecture only
 
 `docs/superpowers/specs/2026-11-20-ticketing-design.md` and `docs/superpowers/plans/2026-11-20-ticketing-implementation.md`
 stay as design documents. Nothing of `runly.ticketing` is implemented and it is not part of this release.
