@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { Button, EmptyState, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { GraduationCap, Settings2 } from 'lucide-react'
+import { ClipboardList, GraduationCap, Settings2 } from 'lucide-react'
 import { CourseCard } from '../components/CourseCard.jsx'
 import { MyCertificates } from '../components/certificates/MyCertificates.jsx'
 import { PageShell } from '../components/shared.jsx'
@@ -55,7 +55,12 @@ export default function LmsHome() {
         eyebrow="Aprendizaje"
         title="Mis cursos"
         description="Tus cursos asignados, tu avance y el catálogo de cursos abiertos de tu empresa."
-        actions={canManageCourses ? <Button variant="outline" onClick={() => navigate(lmsPath('/courses'))}><Settings2 />Administrar cursos</Button> : null}
+        actions={canManageCourses ? (
+          <>
+            <Button variant="outline" onClick={() => navigate(lmsPath('/courses'))}><Settings2 />Administrar cursos</Button>
+            <Button variant="outline" onClick={() => navigate(lmsPath('/assessments'))}><ClipboardList />Evaluaciones</Button>
+          </>
+        ) : null}
         className="mb-2 pb-0"
       />
       {loading ? <LoadingGrid /> : null}

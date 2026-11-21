@@ -326,6 +326,9 @@ const SCREEN_MAP = {
   "runly.lms:/courses/:courseId/lessons/:lessonId": lazy(() => import("../modules/runly.lms/screens/LmsLessonEditor.jsx")),
   "runly.lms:/learn/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsPlayer.jsx")),
   "runly.lms:/course/:courseId": lazy(() => import("../modules/runly.lms/screens/LmsCoursePage.jsx")),
+  "runly.lms:/assessments": lazy(() => import("../modules/runly.lms/screens/LmsAssessments.jsx")),
+  "runly.lms:/assessments/:assessmentId": lazy(() => import("../modules/runly.lms/screens/LmsAssessmentEditor.jsx")),
+  "runly.lms:/assessments/:assessmentId/activities/:activityId": lazy(() => import("../modules/runly.lms/screens/LmsAssessmentActivityEditor.jsx")),
   "runly.lms:/review": lazy(() => import("../modules/runly.lms/screens/LmsReview.jsx")),
   "runly.lms:/certificates": lazy(() => import("../modules/runly.lms/screens/LmsCertificates.jsx")),
   // Office (Collabora) editor for LMS submission files and certificate templates.

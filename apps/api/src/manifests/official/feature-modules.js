@@ -994,6 +994,7 @@ export const lmsMap = createModuleManifest({
   navigation: [
     { label: 'Mis cursos', path: '/', icon: 'GraduationCap', layout: 'main', permissionKey: 'lms.access' },
     { label: 'Cursos', path: '/courses', icon: 'BookOpen', layout: 'main', permissionKey: 'lms.course.manage' },
+    { label: 'Evaluaciones', path: '/assessments', icon: 'ClipboardList', layout: 'main', permissionKey: 'lms.course.manage' },
     { label: 'Revisión', path: '/review', icon: 'ClipboardCheck', layout: 'main', permissionKey: 'lms.grade' },
     { label: 'Certificados', path: '/certificates', icon: 'Award', layout: 'main', permissionKey: 'lms.course.manage' },
   ],
