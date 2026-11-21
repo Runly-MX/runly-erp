@@ -1713,9 +1713,11 @@ export function createModulesRouter({
             .map((r) => r.key),
         ]);
 
+        // Custom rows only: a sync scoped to an official module (runly.*) must
+        // never treat it as a stale custom module and disable it.
         const dbCustomRows = await prisma.runlyModule.findMany({
           where: requestedModuleKey
-            ? { key: requestedModuleKey }
+            ? { AND: [{ key: requestedModuleKey }, { key: { startsWith: "custom." } }] }
             : { key: { startsWith: "custom." } },
           select: { key: true, status: true, lifecycleConfig: true },
         });
