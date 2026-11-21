@@ -5,7 +5,7 @@ import {
 } from '@runly/ui'
 import { CheckCircle2, Circle, Clock3, ConciergeBell, Info, Plus, ToggleRight, User, Users, UsersRound } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
-import { FormActionBar, FormPage, FormSection, useLeaveGuard } from '../components/FormPage.jsx'
+import { FormActionBar, FormPage, FormSection, useLeaveGuard } from '../../../components/form-page/FormPage.jsx'
 import { QuickResourcePanel } from '../components/QuickResourcePanel.jsx'
 import { useBookingsMutation } from '../hooks/useBookings.js'
 import { KIND, MUTED_TEXT, RESOURCE_TYPE, bookingsPath } from '../lib/bookingsLabels.js'

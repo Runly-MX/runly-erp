@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import { CheckboxField, LoadingState, NotFoundState, StatusPill, SwatchField, SwitchField, TextField, TextareaField } from '@runly/ui'
 import { FileText, Globe, ListChecks, MapPin, Palette, ShieldCheck } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
-import { FormActionBar, FormPage, FormSection, useLeaveGuard } from '../components/FormPage.jsx'
+import { FormActionBar, FormPage, FormSection, useLeaveGuard } from '../../../components/form-page/FormPage.jsx'
 import { KEY, useBookingsMutation, useToken } from '../hooks/useBookings.js'
 import { MUTED_TEXT, bookingsPath } from '../lib/bookingsLabels.js'
 

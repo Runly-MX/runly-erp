@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react'
 import { BackButton, Button, ConfirmDialog, PageHeader, cn } from '@runly/ui'
 import { Loader2 } from 'lucide-react'
-import { useUnsavedNavigationGuard } from '../../../lib/useUnsavedNavigationGuard.js'
+import { useUnsavedNavigationGuard } from '../../lib/useUnsavedNavigationGuard.js'
 
 const noop = () => {}
 

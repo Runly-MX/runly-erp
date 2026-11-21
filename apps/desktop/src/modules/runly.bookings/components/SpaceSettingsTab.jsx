@@ -4,7 +4,7 @@ import { CalendarClock, Globe, Settings2, ShieldCheck } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation } from '../hooks/useBookings.js'
 import { MODE, MODE_HINT, MUTED_TEXT, optionsOf } from '../lib/bookingsLabels.js'
-import { FormActionBar, useLeaveGuard } from './FormPage.jsx'
+import { FormActionBar, useLeaveGuard } from '../../../components/form-page/FormPage.jsx'
 import { useTimeZoneOptions } from './SpaceFormDialog.jsx'
 
 const fromSpace = (s) => ({

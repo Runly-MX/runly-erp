@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { Button, ErrorState, PageHeader, SectionCard, Skeleton, StatusPill } from '@runly/ui'
-import { CalendarClock, ChevronRight, Globe, Plus } from 'lucide-react'
+import { CalendarClock, ChevronRight, Globe, Plus, Ticket } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { NoSpaces, PageShell } from '../components/shared.jsx'
 import { SpaceFormDialog } from '../components/SpaceFormDialog.jsx'
@@ -68,6 +68,7 @@ function SpaceCard({ space, onOpen }) {
         <StatusPill tone="neutral" size="sm">{MODE[space.mode]}</StatusPill>
         {space.role ? <StatusPill tone="brand" size="sm">{ROLE[space.role]}</StatusPill> : null}
         {space.published ? <StatusPill tone="brand" size="sm" icon={Globe}>Publicado</StatusPill> : null}
+        {space.ownerModule === 'runly.ticketing' ? <StatusPill tone="neutral" size="sm" icon={Ticket}>Administrado por Boletos</StatusPill> : null}
       </div>
       {summary.isLoading ? <Skeleton className="mt-3 h-14 w-full" /> : s ? (
         <div className="mt-3 space-y-2">

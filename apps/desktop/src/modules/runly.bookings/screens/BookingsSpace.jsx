@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import {
-  BackButton, Button, CheckboxField, ChipTabs, EmptyState, ErrorState, LoadingState, NotFoundState, PageHeader, SectionCard, Skeleton, StatCard,
+  Alert, AlertDescription, AlertTitle, BackButton, Button, CheckboxField, ChipTabs, EmptyState, ErrorState, LoadingState, NotFoundState, PageHeader, SectionCard, Skeleton, StatCard,
 } from '@runly/ui'
-import { CalendarClock, CalendarDays, CalendarPlus, ConciergeBell, Globe, LayoutDashboard, ListChecks, Loader2, Settings2, ShieldCheck, Users } from 'lucide-react'
+import { CalendarClock, CalendarDays, CalendarPlus, ConciergeBell, Globe, LayoutDashboard, ListChecks, Loader2, Settings2, ShieldCheck, Ticket, Users } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { BookingFormDialog } from '../components/BookingDialogs.jsx'
 import { ExceptionsPanel } from '../components/ExceptionsPanel.jsx'
@@ -42,7 +42,12 @@ export default function BookingsSpace() {
   const setTab = (value) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', value); return n }, { replace: true })
   const space = useSpace(spaceId)
   const me = useBookingsMe()
-  const { canOperate, canConfigure, role } = useBookingRole(space.data)
+  const roles = useBookingRole(space.data)
+  // A space owned by another module (Boletos) is read-only here; its event edits it.
+  const managed = space.data?.ownerModule === 'runly.ticketing'
+  const { role } = roles
+  const canOperate = roles.canOperate && !managed
+  const canConfigure = roles.canConfigure && !managed
   const services = useServices(spaceId)
   const resources = useResources()
   const linked = useSpaceResourceIds(spaceId)
@@ -80,6 +85,16 @@ export default function BookingsSpace() {
           </div>
         )}
       />
+      {managed ? (
+        <Alert>
+          <Ticket className="h-4 w-4" aria-hidden="true" />
+          <AlertTitle>Administrado por Boletos</AlertTitle>
+          <AlertDescription className="flex flex-wrap items-center gap-2">
+            Este sistema guarda las funciones y lugares de un evento. Aquí solo se consulta; los cambios se hacen desde el evento.
+            <Button type="button" variant="outline" size="sm" onClick={() => navigate(`/app/m/runly.ticketing/events/${s.ownerId}`)}><Ticket />Abrir evento</Button>
+          </AlertDescription>
+        </Alert>
+      ) : null}
       <ChipTabs tabs={TABS} value={tab} onChange={setTab} tone="teal" ariaLabel="Secciones del sistema" />
       {tab === 'overview' ? <Overview space={s} onOpenList={() => navigate(bookingsPath(`/reservations?space=${s.id}`))} /> : null}
       {tab === 'services' ? <SpaceServicesTab space={s} services={services.data ?? []} resources={spaceResources} canEdit={canConfigure} /> : null}
