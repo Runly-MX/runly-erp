@@ -127,6 +127,10 @@ export const moveAccountGroupSchema = z.object({
 export const userSearchQuerySchema = z.object({
   q:     z.string().trim().min(2).max(100).optional(),
   limit: z.coerce.number().int().min(1).max(20).default(10),
+  // "Cargar más" in pickers; capped so paging never becomes a directory dump in one call.
+  offset: z.coerce.number().int().min(0).max(1000).default(0),
+  // Pickers that may pick the caller (e.g. linking yourself as a bookings staff resource).
+  includeSelf: z.enum(['1', 'true']).optional().transform(Boolean),
 })
 
 // ── AI statement import ──────────────────────────────────────────────────────

@@ -16,6 +16,18 @@ describe('userSearchQuerySchema', () => {
     assert.equal(parsed.success, false)
   })
 
+  it('pages with a bounded offset', () => {
+    assert.equal(userSearchQuerySchema.parse({}).offset, 0)
+    assert.equal(userSearchQuerySchema.parse({ offset: '20' }).offset, 20)
+    assert.equal(userSearchQuerySchema.safeParse({ offset: '-1' }).success, false)
+    assert.equal(userSearchQuerySchema.safeParse({ offset: '5000' }).success, false)
+  })
+
+  it('excludes the caller unless includeSelf is sent', () => {
+    assert.equal(userSearchQuerySchema.parse({}).includeSelf, false)
+    assert.equal(userSearchQuerySchema.parse({ includeSelf: '1' }).includeSelf, true)
+  })
+
   it('accepts a valid "q" as before', () => {
     const parsed = userSearchQuerySchema.safeParse({ q: 'an' })
     assert.ok(parsed.success)
