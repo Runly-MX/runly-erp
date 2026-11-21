@@ -6307,6 +6307,9 @@ model LmsCourse {
   ratingCount      Int      @default(0) @map("rating_count")
   // null = the course issues no certificate (phase 4).
   certificateTemplateId String? @map("certificate_template_id") @db.Uuid
+  // course | assessment (standalone evaluation, spec 2026-11-21). Immutable (DB trigger).
+  kind             String   @default("course")
+  settings         Json     @default("{}") // assessment settings (time limit, sessions, window, ...)
   enabled          Boolean  @default(true)
   createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt        DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
@@ -6318,6 +6321,7 @@ model LmsCourse {
   certificateTemplate LmsCertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
 
   @@index([companyId, status])
+  @@index([companyId, kind, status])
   @@map("lms_course")
 }
 
@@ -6342,7 +6346,8 @@ model LmsLesson {
   id              String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId       String   @map("company_id") @db.Uuid
   courseId        String   @map("course_id") @db.Uuid
-  sectionId       String   @map("section_id") @db.Uuid
+  // null only for the activities of an assessment (DB trigger enforces it).
+  sectionId       String?  @map("section_id") @db.Uuid
   title           String
   kind            String   @default("text") // video | embed | text | file | quiz | assignment
   body            String? // markdown
@@ -6358,7 +6363,7 @@ model LmsLesson {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  section     LmsSection          @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  section     LmsSection?         @relation(fields: [sectionId], references: [id], onDelete: Cascade)
   progress    LmsLessonProgress[]
   questions   LmsQuizQuestion[]
   attempts    LmsQuizAttempt[]
