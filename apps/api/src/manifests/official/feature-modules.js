@@ -1059,13 +1059,13 @@ export const bookingsMap = createModuleManifest({
 });
 
 // runly.ticketing (spec 2026-11-20-ticketing-design): official native module, not
-// core. F6B ships the engine and API only; screens arrive in F6C (navigation empty).
+// core. Backoffice and box office since F6C; check-in (F6D) and portal (F6E) later.
 // Event roles reuse the bookings space membership of each event's space.
 export const ticketingMap = createModuleManifest({
   key: 'runly.ticketing',
   name: 'Boletos',
   description: 'Eventos con funciones sobre el motor de Reservaciones, tipos de boleto con cupo, emisión con QR seguro, transferencias y control de acceso.',
-  version: '0.1.0',
+  version: '0.2.0',
   kind: MODULE_KINDS.FEATURE,
   core: false,
   uninstallable: true,
@@ -1084,7 +1084,9 @@ export const ticketingMap = createModuleManifest({
     ownedEntities: ['TicketEvent', 'TicketSession', 'TicketType', 'TicketQuota', 'TicketOrder', 'Ticket', 'TicketAdmission', 'TicketHistory', 'TicketIdempotency'],
     sharedEntities: ['Company', 'UserProfile', 'Contact', 'CatalogProduct', 'BookingSpace', 'BookingService', 'BookingSession', 'Booking', 'DomainEventOutbox'],
   },
-  navigation: [],
+  navigation: [
+    { label: 'Eventos', path: '/events', icon: 'Ticket', layout: 'main', permissionKey: 'ticketing.access' },
+  ],
   acl: {
     module: 'ticketing.access',
     actions: { read: 'ticketing.access', create: 'ticketing.access', update: 'ticketing.access', delete: 'ticketing.admin' },

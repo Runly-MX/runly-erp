@@ -23,6 +23,7 @@ import { CashMovementDialog, SessionCloseDialog } from './components/SessionDial
 import { useRetailContext } from './hooks/useRetailContext.js'
 import { useRetailOrder } from './hooks/useRetailOrder.js'
 import {usePendingOperations} from './hooks/usePendingOperations.js'
+import { useTicketSale } from './hooks/useTicketSale.jsx'
 import {readPending,writePending} from './lib/pendingCommands.js'
 import { classifyPosError } from './lib/retailErrors.js'
 import { activeLines, formatMoney, itemCount, quantitiesByProduct } from './lib/retailRules.js'
@@ -97,6 +98,7 @@ export function RetailCajaView({ device = null }) {
     return () => { stop = true }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [citaId, session?.id])
+  const tickets = useTicketSale({ sessionId: session?.id, token, addItems: sale.addItems })
   function completeCita(order) {
     if (!cita || order?.status !== 'PAID') return
     runly.pos.appointments.setStatus(cita.id, { status: 'COMPLETED', orderId: order.id }, token)
@@ -129,6 +131,7 @@ export function RetailCajaView({ device = null }) {
         const payment = [...(order.payments ?? [])].filter((p) => p.status === 'CAPTURED').pop()
         sale.finish()
         completeCita(order)
+        tickets.onPaid(order)
         setCompleted({ order, payment, receiptId: order.receiptId })
         setCartOpen(true)
         refreshContext()
@@ -328,6 +331,8 @@ export function RetailCajaView({ device = null }) {
           onSignOut={device?.onSignOut}
         />
       )}
+      {tickets.banner}
+      {tickets.dialog}
       {cita && (
         <Alert className="mx-3 mt-3 w-auto">
           <CalendarClock className="h-4 w-4" aria-hidden="true" />
@@ -350,7 +355,7 @@ export function RetailCajaView({ device = null }) {
           sessionId={session.id}
           token={token}
           methods={methods}
-          onPaid={(result) => { setDialog(null); sale.finish(); completeCita(result.order); setCompleted(result); setCartOpen(true); refreshContext() }}
+          onPaid={(result) => { setDialog(null); sale.finish(); completeCita(result.order); tickets.onPaid(result.order); setCompleted(result); setCartOpen(true); refreshContext() }}
           onPartial={(order) => sale.setOrder(order)}
           onConflict={() => sale.reload()}
           onClose={settleAfterCharge}

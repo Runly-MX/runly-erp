@@ -243,6 +243,12 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (/^\/spaces\/[^/]+(\/(services|pages)\/[^/]+)?\/?$/.test(subPath)) return screenMap["runly.bookings:/spaces/:spaceId"] ?? null;
     return null;
   }
+  if (moduleKey === "runly.ticketing") {
+    if (subPath === "/" || subPath === "/events") return screenMap["runly.ticketing:/"] ?? null;
+    // Event screen also hosts /events/new, /events/:id/edit and /events/:id/orders/:orderId.
+    if (/^\/events\/[^/]+(\/(edit|orders\/[^/]+))?\/?$/.test(subPath)) return screenMap["runly.ticketing:/events/:eventId"] ?? null;
+    return null;
+  }
   if (moduleKey === "runly.lms") {
     if (subPath === "/" || subPath === "/courses" || subPath === "/assessments" || subPath === "/review" || subPath === "/certificates") return screenMap[`runly.lms:${subPath}`] ?? null;
     if (/^\/assessments\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/assessments/:assessmentId"] ?? null;

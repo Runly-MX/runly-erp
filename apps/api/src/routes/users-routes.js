@@ -8,10 +8,10 @@ export function createUsersRouter({ prisma, requirePermission, requireAnyPermiss
   const app = new Hono()
 
   // Also used by the inventory area members picker (inventory.area.manage) and by
-  // Reservaciones (team members, staff resources): a space admin only holds
-  // bookings.access, so that grant is enough. Always this company's members only.
+  // Reservaciones and Boletos (team members, staff resources): a space or event admin
+  // only holds bookings.access / ticketing.access, so that grant is enough. Always this company's members only.
   const canSearch = requireAnyPermission
-    ? requireAnyPermission(['ledger.accounts.read', 'inventory.area.manage', 'bookings.access', 'bookings.spaces.manage', 'bookings.admin'])
+    ? requireAnyPermission(['ledger.accounts.read', 'inventory.area.manage', 'bookings.access', 'bookings.spaces.manage', 'bookings.admin', 'ticketing.access', 'ticketing.events.manage', 'ticketing.admin'])
     : requirePermission('ledger.accounts.read')
   app.get('/users/search', canSearch, async (c) => {
     const parsed = userSearchQuerySchema.safeParse(c.req.query())

@@ -12,6 +12,7 @@ import { createStudioDomain } from "./domains/studio.js";
 import { createAttendanceDomain } from "./domains/attendance.js";
 import { createLmsDomain } from "./domains/lms.js";
 import { createBookingsDomain } from "./domains/bookings.js";
+import { createTicketingDomain } from "./domains/ticketing.js";
 import { createConnectionsDomain } from "./domains/connections.js";
 import { createTrashDomain } from "./domains/trash.js";
 import { createInventoryCustodyDomain } from "./domains/inventory-custody.js";
@@ -2363,6 +2364,7 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
     attendance: createAttendanceDomain({ request, withAuthHeaders, toQueryString }),
     lms: createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
     bookings: createBookingsDomain({ request, requestBlob, withAuthHeaders, toQueryString }),
+    ticketing: createTicketingDomain({ request, withAuthHeaders, toQueryString }),
     connections: createConnectionsDomain({ request, withAuthHeaders, toQueryString }),
     trash: createTrashDomain({ request, withAuthHeaders, toQueryString }),
     moduleCatalog: createModuleCatalogDomain({ request, withAuthHeaders }),
