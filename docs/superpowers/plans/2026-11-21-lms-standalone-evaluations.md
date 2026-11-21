@@ -84,6 +84,25 @@ Unit (core, labels), route tests, trigger check script, full LMS suites, E2E reg
 `.e2e/lms-assessment-e2e.mjs` (create → activities → questions → resource → publish → archive, plus course
 endpoints refusing the assessment id), `pnpm lint`, `pnpm build:web`, browser check at 360 px and desktop.
 
+### Status
+
+- [x] Phase 1 done. Verified: 2026-11-21 (local test DB and company only).
+  - Migrations applied locally with `db execute` + `migrate resolve`. Trigger check, run inside a rolled-back
+    transaction: 2 valid shapes accepted, 5 invalid ones rejected.
+  - `scripts/lms-rls-audit.mjs`: 16/16 tables with RLS, 0 readable/writable by `anon`/`authenticated`;
+    `SET ROLE anon/authenticated` denied; the owner role still reads.
+  - `node --test` LMS API + MCP + office + desktop lib + modules routes: 270/270.
+  - E2E on a temporary API (4019): `.e2e/lms-assessment-e2e.mjs` 34/34, including 12 course routes refusing an
+    evaluation id. Regression `lms-e2e`, `lms-eval-e2e`, `lms-share-e2e`, `lms-intake-e2e`, `lms-social-e2e`
+    all passed with RLS on and the guards in place.
+  - Playwright `.e2e/lms-assessment-ui.mjs` on a private Vite (5199), at 1366×900 and 360×740: list, editor,
+    add-activity dialog, settings, both activity editors, no horizontal scroll, a UI save persisted.
+  - `eslint` clean on the touched files; `vite build` ok.
+  - Finding while verifying: `POST /modules/sync { moduleKey: 'runly.*' }` disabled the official module as a
+    "stale custom module" (pre-existing bug). Fixed in `routes/modules.js`, re-verified live, and the local
+    `runly.lms` row restored.
+  - Not done in phase 1: the navigation entry needs `POST /modules/sync` on every instance after deploy.
+
 ---
 
 ## Phase 2 — Session engine and global timer
