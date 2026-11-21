@@ -53,7 +53,7 @@ export function createBookingsCalendarProjection({ prisma, log = console.error }
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`bookings.calendar:${bookingId}`}, 0))::text`
       const row = (await tx.$queryRaw`
-        SELECT b.id, b.company_id, b.status::text AS status, b.starts_at, b.ends_at, b.party_size, b.reference, b.channel, b.guest_name, b.version,
+        SELECT b.id, b.company_id, b.status::text AS status, b.starts_at, b.ends_at, b.party_size, b.reference, b.channel, b.guest_name, b.version, b.source_module,
                sv.name AS service_name, s.id AS space_id, s.name AS space_name
           FROM booking b
           JOIN booking_service sv ON sv.id = b.service_id AND sv.company_id = b.company_id
@@ -64,7 +64,8 @@ export function createBookingsCalendarProjection({ prisma, log = console.error }
       if (synced && synced.version >= row.version) return 'current'
       const existing = await tx.calendarEvent.findMany({ where: { sourceModule: SOURCE, sourceEntityId: row.id }, orderBy: { createdAt: 'asc' }, select: { id: true } })
       let outcome = 'removed'
-      if (SHOWN.has(row.status)) {
+      // Ticket orders hold seats through the engine but are not calendar entries (ticketing spec section 2).
+      if (SHOWN.has(row.status) && row.source_module !== 'runly.ticketing') {
         // shortcut: a space without members has no calendar owner; its bookings are marked
         // synced and appear once they change again after someone joins the space.
         const calendar = await calendarFor(tx, { id: row.space_id, name: row.space_name, companyId: row.company_id })

@@ -462,8 +462,10 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
     })
   }
 
-  async function createSession({ companyId, spaceId, input }) {
-    return inTx(async (tx) => {
+  // In the caller's transaction too (Ticketing creates the function and its own row together).
+  const createSession = (args) => inTx((tx) => createSessionTx(tx, args))
+  async function createSessionTx(tx, { companyId, spaceId, input }) {
+    {
       const space = await loadSpace(tx, companyId, spaceId)
       const service = await loadService(tx, companyId, space.id, input.serviceId)
       if (service.kind !== 'session') throw new BookingError('Solo los servicios por sesión tienen sesiones.', 422, 'NOT_SESSION_SERVICE')
@@ -477,7 +479,7 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
         RETURNING *`)[0]
       if (input.resourceId) await allocate(tx, { companyId, sessionId: session.id, candidates: [input.resourceId], range: occupiedRange(service, start, end) })
       return session
-    })
+    }
   }
 
   async function cancelSession({ companyId, sessionId }) {
@@ -516,7 +518,7 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
   return {
     create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule), updateDetails: notifyChanged(updateDetails),
     // In the caller's transaction (integrations such as POS); the caller runs its projections after commit.
-    createTx, transitionTx, rescheduleTx, attachOrderTx,
+    createTx, transitionTx, rescheduleTx, attachOrderTx, createSessionTx,
     rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id),
   }
 }
