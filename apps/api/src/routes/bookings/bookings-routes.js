@@ -37,7 +37,13 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
     return result.data
   }
 
-  const space = (c, spaceId, min) => requireSpaceRole(prisma, { companyId: companyId(c), spaceId, userId: userId(c), ctx: ctx(c), min })
+  // Spaces owned by another module (Ticketing events) are read-only here: every write
+  // route asks for agent or admin, and the owner module writes through the engine.
+  const space = async (c, spaceId, min) => {
+    const result = await requireSpaceRole(prisma, { companyId: companyId(c), spaceId, userId: userId(c), ctx: ctx(c), min })
+    if (min !== 'viewer' && result.space.owner_module) throw new BookingError('Este sistema lo administra Boletos; edítalo desde su evento.', 409, 'MANAGED_SPACE')
+    return result
+  }
   const catalog = (c) => {
     if (!canManageCatalog(ctx(c))) throw new BookingError('No tienes permiso para administrar los recursos de reservaciones.', 403, 'FORBIDDEN')
   }
@@ -89,7 +95,7 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   }))
   app.get('/bookings/spaces/:spaceId', access, run(async (c) => {
     const { space: row, role } = await space(c, c.req.param('spaceId'), 'viewer')
-    return c.json({ data: { id: row.id, name: row.name, slug: row.slug, description: row.description, mode: row.mode, timezone: row.timezone, published: row.published, policy: row.policy, enabled: row.enabled, role } })
+    return c.json({ data: { id: row.id, name: row.name, slug: row.slug, description: row.description, mode: row.mode, timezone: row.timezone, published: row.published, policy: row.policy, enabled: row.enabled, role, ownerModule: row.owner_module ?? null, ownerId: row.owner_id ?? null } })
   }))
   app.patch('/bookings/spaces/:spaceId', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'admin')

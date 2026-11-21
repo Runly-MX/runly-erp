@@ -413,6 +413,23 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
     }
   }
 
+  // D3 (ticketing spec section 9): fewer people in a session booking, in the caller's
+  // transaction. Frees exactly `by` seats of its session; the booking keeps the rest.
+  // Reducing to zero is a cancellation (transitionTx), never an empty booking.
+  async function reducePartyTx(tx, { companyId, actorId, bookingId, by, actorKind = 'user' }) {
+    const seats = Number(by)
+    if (!Number.isInteger(seats) || seats < 1) throw new BookingError('Indica cuántos lugares liberar.', 422, 'PARTY_SIZE')
+    const row = await lockBooking(tx, companyId, bookingId)
+    if (!OCCUPYING.has(row.status)) throw new BookingError('La reservación ya no ocupa lugares.', 409, 'INVALID_TRANSITION')
+    if (!row.session_id) throw new BookingError('Solo se reducen reservaciones de sesiones con cupo.', 422, 'NOT_SESSION_BOOKING')
+    if (seats >= row.party_size) throw new BookingError('Para liberar todos los lugares cancela la reservación.', 422, 'PARTY_SIZE')
+    await tx.$executeRaw`UPDATE booking_session SET seats_taken = seats_taken - ${seats}, updated_at = now() WHERE id = ${row.session_id}::uuid AND company_id = ${companyId}::uuid`
+    const updated = (await tx.$queryRaw`
+      UPDATE booking SET party_size = party_size - ${seats}, version = version + 1, updated_at = now() WHERE id = ${row.id}::uuid RETURNING *`)[0]
+    await history(tx, { companyId, row, actorId, actorKind, action: 'reduce_party', from: row.status, to: row.status, before: { partySize: row.party_size }, after: { partySize: updated.party_size } })
+    return serializeBooking(updated)
+  }
+
   // The guest arrived and an account (POS order) was opened for this booking, in the
   // caller's transaction (the order and the link commit together). The booking keeps
   // occupying its resource until it is completed.
@@ -518,7 +535,7 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
   return {
     create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule), updateDetails: notifyChanged(updateDetails),
     // In the caller's transaction (integrations such as POS); the caller runs its projections after commit.
-    createTx, transitionTx, rescheduleTx, attachOrderTx, createSessionTx,
+    createTx, transitionTx, rescheduleTx, attachOrderTx, createSessionTx, reducePartyTx,
     rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id),
   }
 }

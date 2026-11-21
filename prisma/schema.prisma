@@ -7069,6 +7069,8 @@ model BookingSpace {
   policy      Json     @default("{}") // leadMinutes, horizonDays, requiresApproval, holdMinutes, cancelUntilMinutes, rescheduleUntilMinutes
   enabled     Boolean  @default(true)
   createdById String?  @map("created_by_id") @db.Uuid
+  ownerModule String?  @map("owner_module") // runly.ticketing: space administered by that module (read-only in Reservaciones)
+  ownerId     String?  @map("owner_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
@@ -7487,6 +7489,7 @@ model TicketOrder {
   posOrderId         String?   @unique(map: "ticket_order_pos_order_key") @map("pos_order_id") @db.Uuid
   bookingId          String?   @unique(map: "ticket_order_booking_key") @map("booking_id") @db.Uuid
   holdExpiresAt      DateTime? @map("hold_expires_at") @db.Timestamptz(6)
+  paidAt             DateTime? @map("paid_at") @db.Timestamptz(6)
   totals             Json      @default("{}")
   policyVersion      Int       @map("policy_version")
   manageTokenHash    String?   @unique @map("manage_token_hash")
@@ -7516,6 +7519,7 @@ model Ticket {
   credentialHash    String?   @unique @map("credential_hash") // SHA-256 of the current QR secret
   issuedAt          DateTime? @map("issued_at") @db.Timestamptz(6)
   cancelledAt       DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  posRefundId       String?   @map("pos_refund_id") @db.Uuid
   version           Int       @default(1)
   createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
