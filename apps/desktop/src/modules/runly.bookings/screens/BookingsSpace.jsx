@@ -13,6 +13,8 @@ import { ScheduleEditor } from '../components/ScheduleEditor.jsx'
 import { SessionsPanel } from '../components/SessionsPanel.jsx'
 import { SpaceServicesTab } from '../components/SpaceServicesTab.jsx'
 import { SpaceSettingsTab } from '../components/SpaceSettingsTab.jsx'
+import BookingsPageEditor from './BookingsPageEditor.jsx'
+import BookingsServiceEditor from './BookingsServiceEditor.jsx'
 import { MUTED, PageShell, StatusBadge } from '../components/shared.jsx'
 import {
   useBookingRole, useBookingsMe, useBookingsMutation, useResources, useSchedule, useServices, useSpace, useSpaceResourceIds, useSummary,
@@ -31,9 +33,9 @@ const TABS = [
 ]
 
 export default function BookingsSpace() {
-  // Module screens are mounted under a wildcard route: "/spaces/:spaceId" -> segment 1.
+  // Module screens are mounted under a wildcard route: "/spaces/:spaceId[/services|pages/:id]".
   const { '*': wildcard } = useParams()
-  const spaceId = String(wildcard ?? '').split('/').filter(Boolean)[1] ?? null
+  const [, spaceId = null, editorKind = null, editorId = null] = String(wildcard ?? '').split('/').filter(Boolean)
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const tab = TABS.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'overview'
@@ -59,6 +61,10 @@ export default function BookingsSpace() {
   }
   const s = space.data
   const spaceResources = (resources.data ?? []).filter((r) => (linked.data ?? []).includes(r.id))
+  if (editorKind === 'services' && editorId) {
+    return <BookingsServiceEditor space={s} serviceId={editorId} services={services} resources={resources} linkedIds={linked} canConfigure={canConfigure} canManageCatalog={Boolean(me.data?.canManageCatalog)} />
+  }
+  if (editorKind === 'pages' && editorId) return <BookingsPageEditor space={s} pageId={editorId} services={services.data ?? []} canConfigure={canConfigure} />
 
   return (
     <PageShell>
@@ -123,10 +129,12 @@ function Overview({ space, onOpenList }) {
 function ResourcesTab({ space, resources, linkedIds, canEdit, canManageCatalog }) {
   const navigate = useNavigate()
   const [selected, setSelected] = useState(linkedIds)
-  useEffect(() => { setSelected(linkedIds) }, [linkedIds])
+  const linkedKey = [...linkedIds].sort().join()
+  // Keyed by content: a parent re-render (new array, same ids) must not drop the selection in progress.
+  useEffect(() => { setSelected(linkedIds) }, [linkedKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useBookingsMutation((t, ids) => runly.bookings.setSpaceResources(space.id, ids, t), { success: 'Recursos del sistema guardados.' })
   const list = resources.data ?? []
-  const dirty = [...selected].sort().join() !== [...linkedIds].sort().join()
+  const dirty = [...selected].sort().join() !== linkedKey
   const visible = canEdit ? list.filter((r) => r.enabled || linkedIds.includes(r.id)) : list.filter((r) => linkedIds.includes(r.id))
 
   return (

@@ -116,8 +116,9 @@ function ResourceDialog({ open, onOpenChange, resource, onSubmit, pending }) {
           </DialogFooter>
         </form>
         {picking ? (
-          <UserSearchModal open={picking} onClose={() => setPicking(false)} apiBase={getApiUrl()} token={session?.access_token} companyId={activeCompanyId}
-            onConfirm={(userId) => { setForm((f) => ({ ...f, userId, userLabel: 'Usuario vinculado' })); setPicking(false) }} />
+          <UserSearchModal open={picking} onClose={() => setPicking(false)} apiBase={getApiUrl()} token={session?.access_token} companyId={activeCompanyId} includeSelf
+            title="Vincular usuario" description="La persona que atiende con este recurso."
+            onConfirm={(userId, _role, user) => { setForm((f) => ({ ...f, userId, userLabel: user?.display_name ?? 'Usuario vinculado' })); setPicking(false) }} />
         ) : null}
       </DialogContent>
     </Dialog>

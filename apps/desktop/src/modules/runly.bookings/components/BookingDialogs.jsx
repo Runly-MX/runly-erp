@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import {
-  Button, ContactPicker, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, NumberField, SelectField, TextField, TextareaField,
+  Button, ConfirmDialog, ContactPicker, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, NumberField, SelectField, TextField, TextareaField,
 } from '@runly/ui'
-import { CalendarPlus, CalendarSync, Loader2 } from 'lucide-react'
+import { CalendarPlus, CalendarSync, ConciergeBell, Info, Loader2 } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation, useIdempotencyKey, useToken } from '../hooks/useBookings.js'
-import { MUTED_TEXT } from '../lib/bookingsLabels.js'
+import { MUTED_TEXT, bookingsPath } from '../lib/bookingsLabels.js'
 import { dayKey, formatDateTime } from '../lib/bookingsTime.js'
 import { FormGroup } from './shared.jsx'
 import { SlotPicker } from './SlotPicker.jsx'
@@ -31,6 +32,14 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
   const create = useBookingsMutation((t, { data, key }) => runly.bookings.createReservation(space.id, data, t, key), { success: 'Reservación registrada.' })
   const searchContacts = useCallback(async (q) => (await runly.contacts.picker(token, { q, limit: 10 }))?.data ?? [], [token])
+  const navigate = useNavigate()
+  const [confirmClose, setConfirmClose] = useState(false)
+  const hasInput = Boolean(form.slot || form.contact || form.guestName?.trim() || form.guestEmail?.trim() || form.guestPhone?.trim() || form.notes?.trim())
+  // Closing by accident (outside click, Esc, swipe) must not throw away a captured customer or slot.
+  const requestOpenChange = (next) => {
+    if (next || !hasInput || create.isPending) onOpenChange(next)
+    else setConfirmClose(true)
+  }
 
   async function submit(event) {
     event.preventDefault()
@@ -58,14 +67,29 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
   }
 
   const serviceResources = resources.filter((r) => (service?.resourceIds ?? []).includes(r.id))
+  const noServices = !active.length
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={requestOpenChange}>
       <DialogContent scrollable size="lg" className="gap-0 p-0 md:p-0 md:pt-0!">
         <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
           <DialogHeader icon={CalendarPlus} className="mb-0 shrink-0 px-5 pt-4 pb-3">
             <DialogTitle>Nueva reservación</DialogTitle>
             <DialogDescription>{space.name} · horario de {tz}</DialogDescription>
           </DialogHeader>
+          {noServices ? (
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+              <div className="flex gap-3 rounded-lg border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.35)] p-4">
+                <Info className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+                <div className="space-y-3">
+                  <div>
+                    <p className="text-sm font-medium">Este sistema aún no tiene servicios activos</p>
+                    <p className={MUTED_TEXT}>Una reservación siempre es de un servicio: define primero qué se reserva, cuánto dura y quién lo atiende.</p>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" onClick={() => { onOpenChange(false); navigate(bookingsPath(`/spaces/${space.id}?tab=services`)) }}><ConciergeBell />Ir a Servicios</Button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <FormGroup title="Servicio y horario">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -95,15 +119,24 @@ export function BookingFormDialog({ open, onOpenChange, space, services, resourc
               <TextareaField label="Notas internas" value={form.notes ?? ''} onChange={set('notes')} rows={2} />
             </FormGroup>
           </div>
+          )}
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
-              {create.isPending ? 'Reservando…' : 'Reservar'}
-            </Button>
+            <Button type="button" variant="outline" onClick={() => requestOpenChange(false)}>{noServices ? 'Cerrar' : 'Cancelar'}</Button>
+            {noServices ? null : (
+              <Button type="submit" disabled={create.isPending}>
+                {create.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}
+                {create.isPending ? 'Reservando…' : 'Reservar'}
+              </Button>
+            )}
           </DialogFooter>
         </form>
       </DialogContent>
+      <ConfirmDialog
+        open={confirmClose} onOpenChange={setConfirmClose}
+        title="¿Descartar la reservación?" description="Se perderán el horario y los datos del cliente que capturaste."
+        confirmLabel="Descartar" cancelLabel="Seguir capturando"
+        onConfirm={() => { setConfirmClose(false); onOpenChange(false) }}
+      />
     </Dialog>
   )
 }

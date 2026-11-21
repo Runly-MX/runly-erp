@@ -1,20 +1,13 @@
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Button, DataTable, StatusPill } from '@runly/ui'
 import { ConciergeBell, Pencil, Plus } from 'lucide-react'
-import { runly } from '../../../lib/runly.js'
-import { useBookingsMutation, useToken } from '../hooks/useBookings.js'
-import { KIND, MUTED_TEXT } from '../lib/bookingsLabels.js'
-import { ServiceFormDialog } from './ServiceFormDialog.jsx'
+import { KIND, MUTED_TEXT, bookingsPath } from '../lib/bookingsLabels.js'
 
+// Services list; creating and editing happen on their own full page.
 export function SpaceServicesTab({ space, services, resources, canEdit }) {
-  const token = useToken()
-  const [editing, setEditing] = useState(null)
-  const save = useBookingsMutation(async (t, { service, data, resourceIds }) => {
-    const saved = service ? await runly.bookings.updateService(service.id, data, t) : await runly.bookings.createService(space.id, data, t)
-    const id = (saved?.data ?? saved).id
-    await runly.bookings.setServiceResources(id, resourceIds, t)
-    return saved
-  }, { success: 'Servicio guardado.' })
+  const navigate = useNavigate()
+  const setEditing = (target) => navigate(bookingsPath(`/spaces/${space.id}/services/${target === 'new' ? 'new' : target.id}`))
   const resourceName = useMemo(() => new Map(resources.map((r) => [r.id, r.name])), [resources])
 
   const columns = useMemo(() => [
@@ -51,18 +44,6 @@ export function SpaceServicesTab({ space, services, resources, canEdit }) {
         emptyDescription={canEdit ? 'Define lo que se puede reservar: duración, márgenes, modalidad y quién lo atiende.' : undefined}
         emptyAction={canEdit ? <Button type="button" onClick={() => setEditing('new')}><Plus />Nuevo servicio</Button> : undefined}
         toolbarActions={canEdit && services.length ? <Button type="button" onClick={() => setEditing('new')}><Plus />Nuevo servicio</Button> : null}
-      />
-      <ServiceFormDialog
-        open={Boolean(editing)}
-        onOpenChange={(v) => !v && setEditing(null)}
-        service={editing && editing !== 'new' ? editing : null}
-        resourceIds={editing && editing !== 'new' ? editing.resourceIds : []}
-        resources={resources}
-        pending={save.isPending}
-        onSubmit={async ({ data, resourceIds }) => {
-          if (!token) return
-          await save.mutateAsync({ service: editing === 'new' ? null : editing, data, resourceIds }).then(() => setEditing(null)).catch(() => {})
-        }}
       />
     </div>
   )

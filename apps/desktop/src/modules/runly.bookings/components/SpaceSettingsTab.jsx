@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { Alert, AlertDescription, AlertTitle, Button, NumberField, SectionCard, SelectField, SwitchField, TextField, TextareaField } from '@runly/ui'
-import { CalendarClock, Globe, Loader2, Settings2, ShieldCheck } from 'lucide-react'
+import { Alert, AlertDescription, AlertTitle, NumberField, SectionCard, SelectField, SwitchField, TextField, TextareaField } from '@runly/ui'
+import { CalendarClock, Globe, Settings2, ShieldCheck } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation } from '../hooks/useBookings.js'
 import { MODE, MODE_HINT, MUTED_TEXT, optionsOf } from '../lib/bookingsLabels.js'
+import { FormActionBar, useLeaveGuard } from './FormPage.jsx'
 import { useTimeZoneOptions } from './SpaceFormDialog.jsx'
 
 const fromSpace = (s) => ({
@@ -18,9 +19,19 @@ const hoursToMinutes = (v) => (v === '' ? null : Math.round(Number(v) * 60))
 // General rules of the space; publication lives in "Reservas online".
 export function SpaceSettingsTab({ space, canEdit }) {
   const zones = useTimeZoneOptions()
-  const [form, setForm] = useState(() => fromSpace(space))
+  const server = fromSpace(space)
+  const serverKey = JSON.stringify(server)
+  const [initial, setInitial] = useState(server)
+  const [form, setForm] = useState(server)
   const [errors, setErrors] = useState({})
-  useEffect(() => { setForm(fromSpace(space)); setErrors({}) }, [space])
+  const dirty = JSON.stringify(form) !== JSON.stringify(initial)
+  const { dialog } = useLeaveGuard(dirty)
+  // Follow the server only while nothing is being edited: a background refetch
+  // (window focus, another tab's save) must never wipe what the person typed.
+  useEffect(() => {
+    if (dirty) return
+    setInitial(server); setForm(server); setErrors({})
+  }, [serverKey]) // eslint-disable-line react-hooks/exhaustive-deps
   const save = useBookingsMutation((t, data) => runly.bookings.updateSpace(space.id, data, t), { success: 'Configuración guardada.' })
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
 
@@ -37,10 +48,12 @@ export function SpaceSettingsTab({ space, canEdit }) {
     if (rescheduleUntil !== null && !(rescheduleUntil >= 0 && rescheduleUntil <= 525600)) next.rescheduleUntilHours = 'Entre 0 y 8760 horas, o vacío.'
     setErrors(next)
     if (Object.keys(next).length) return
-    await save.mutateAsync({
+    const saved = await save.mutateAsync({
       name: form.name.trim(), description: form.description.trim() || null, mode: form.mode, timezone: form.timezone, enabled: form.enabled,
       policy: { leadMinutes: lead, horizonDays: horizon, requiresApproval: form.requiresApproval, holdMinutes: hold, cancelUntilMinutes: cancelUntil, rescheduleUntilMinutes: rescheduleUntil },
-    }).catch(() => {})
+    }).then(() => true).catch(() => false)
+    // Baseline = what was saved; the refetch then confirms it without a flash.
+    if (saved) setInitial(form)
   }
 
   return (
@@ -89,10 +102,13 @@ export function SpaceSettingsTab({ space, canEdit }) {
         </AlertDescription>
       </Alert>
       {canEdit ? (
-        <div className="flex justify-end">
-          <Button type="submit" disabled={save.isPending} className="w-full sm:w-auto">{save.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{save.isPending ? 'Guardando…' : 'Guardar configuración'}</Button>
-        </div>
+        <FormActionBar
+          status={dirty ? <span className="font-medium text-[hsl(var(--foreground))]">Cambios sin guardar</span> : 'Sin cambios'}
+          pending={save.isPending} submitLabel="Guardar configuración" cancelLabel="Descartar"
+          onCancel={() => { setForm(initial); setErrors({}) }}
+        />
       ) : null}
+      {dialog}
     </form>
   )
 }

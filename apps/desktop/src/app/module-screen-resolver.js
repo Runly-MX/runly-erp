@@ -239,7 +239,8 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
   if (moduleKey === "runly.bookings") {
     if (subPath === "/" || subPath === "/spaces") return screenMap["runly.bookings:/"] ?? null;
     if (["/agenda", "/reservations", "/resources"].includes(subPath)) return screenMap[`runly.bookings:${subPath}`] ?? null;
-    if (/^\/spaces\/[^/]+\/?$/.test(subPath)) return screenMap["runly.bookings:/spaces/:spaceId"] ?? null;
+    // The space screen also hosts its full-page editors: /services/:id and /pages/:id ("new" to create).
+    if (/^\/spaces\/[^/]+(\/(services|pages)\/[^/]+)?\/?$/.test(subPath)) return screenMap["runly.bookings:/spaces/:spaceId"] ?? null;
     return null;
   }
   if (moduleKey === "runly.lms") {

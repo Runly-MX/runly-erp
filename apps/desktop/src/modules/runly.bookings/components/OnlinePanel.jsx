@@ -1,26 +1,23 @@
-import { useEffect, useState } from 'react'
-import {
-  Button, CheckboxField, EmptyState, SectionCard, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, Skeleton, StatusPill,
-  SwatchField, SwitchField, TextField, TextareaField, copyText,
-} from '@runly/ui'
-import { Copy, Eye, Globe, Loader2, Pencil, Plus, Share2 } from 'lucide-react'
+import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { Button, EmptyState, SectionCard, Skeleton, StatusPill, SwitchField, copyText } from '@runly/ui'
+import { Copy, Eye, Globe, Pencil, Plus, Share2 } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { KEY, useBookingsMutation, useToken } from '../hooks/useBookings.js'
-import { MUTED_TEXT, bookingsError } from '../lib/bookingsLabels.js'
+import { MUTED_TEXT, bookingsError, bookingsPath } from '../lib/bookingsLabels.js'
 import { ShareEmbedDialog } from './ShareEmbedDialog.jsx'
-import { FormGroup } from './shared.jsx'
 
 // "Reservas online": publish the space and manage its public pages. Turning
 // publication off keeps every booking; it only stops new self-scheduling.
 export function OnlinePanel({ space, services, canEdit }) {
   const token = useToken()
   const pages = useQuery({ queryKey: [KEY, 'pages', space.id], queryFn: async () => (await runly.bookings.listPages(space.id, token))?.data ?? [], enabled: Boolean(token) })
-  const [editing, setEditing] = useState(null)
+  const navigate = useNavigate()
+  const setEditing = (target) => navigate(bookingsPath(`/spaces/${space.id}/pages/${target === 'new' ? 'new' : target.id}`))
   const [sharing, setSharing] = useState(null)
   const publish = useBookingsMutation((t, published) => runly.bookings.updateSpace(space.id, { published }, t), { success: (_d, v) => (v ? 'Reservas online activadas.' : 'Reservas online desactivadas. Las reservaciones existentes se conservan.') })
-  const save = useBookingsMutation((t, { id, data }) => (id ? runly.bookings.updatePage(id, data, t) : runly.bookings.createPage(space.id, data, t)), { success: 'Página guardada.' })
 
   async function preview(page) {
     try {
@@ -80,91 +77,6 @@ export function OnlinePanel({ space, services, canEdit }) {
         open={Boolean(sharing)} onOpenChange={(v) => !v && setSharing(null)} page={pages.data?.find((p) => p.id === sharing?.id) ?? sharing}
         services={services} live={Boolean(sharing?.published && space.published)} canEdit={canEdit}
       />
-      <PageFormDialog
-        open={Boolean(editing)} onOpenChange={(v) => !v && setEditing(null)} page={editing === 'new' ? null : editing} services={services} pending={save.isPending}
-        onSubmit={async (data) => { await save.mutateAsync({ id: editing === 'new' ? null : editing.id, data }).then(() => setEditing(null)).catch(() => {}) }}
-      />
     </div>
-  )
-}
-
-const EMPTY = { slug: '', title: '', description: '', location: '', instructions: '', serviceIds: [], published: false, allowResourceChoice: false, requirePhone: false, cancellationPolicy: '', reschedulePolicy: '', punctualityPolicy: '', privacyNotice: '', accentColor: '' }
-
-function PageFormDialog({ open, onOpenChange, page, services, onSubmit, pending }) {
-  const [form, setForm] = useState(EMPTY)
-  const [errors, setErrors] = useState({})
-  useEffect(() => { if (open) { setForm(page ? { ...EMPTY, ...Object.fromEntries(Object.entries(page).map(([k, v]) => [k, v ?? (Array.isArray(EMPTY[k]) ? [] : EMPTY[k])])) } : EMPTY); setErrors({}) } }, [open, page])
-  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }))
-  const active = services.filter((s) => s.enabled)
-
-  async function submit(event) {
-    event.preventDefault()
-    const next = {}
-    if (!/^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])$/.test(form.slug)) next.slug = 'De 3 a 64 caracteres: minúsculas, números y guiones.'
-    if (form.slug === 'gestion') next.slug = 'Esa dirección está reservada.'
-    if (!form.title.trim()) next.title = 'Escribe un título.'
-    if (form.published && !form.serviceIds.length) next.services = 'Elige al menos un servicio para publicar la página.'
-    if (form.accentColor && !/^#[0-9a-fA-F]{6}$/.test(form.accentColor)) next.accentColor = 'Usa un color #RRGGBB.'
-    setErrors(next)
-    if (Object.keys(next).length) return
-    const text = (v) => v?.trim() || null
-    await onSubmit({
-      slug: form.slug, title: form.title.trim(), description: text(form.description), location: text(form.location), instructions: text(form.instructions),
-      serviceIds: form.serviceIds, published: form.published, allowResourceChoice: form.allowResourceChoice, requirePhone: form.requirePhone,
-      cancellationPolicy: text(form.cancellationPolicy), reschedulePolicy: text(form.reschedulePolicy), punctualityPolicy: text(form.punctualityPolicy),
-      privacyNotice: text(form.privacyNotice), accentColor: form.accentColor || null,
-    })
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="right" className="flex w-full flex-col gap-0 p-0 sm:max-w-xl">
-        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
-          <SheetHeader className="shrink-0 border-b border-[hsl(var(--border))] px-5 py-4">
-            <SheetTitle>{page ? 'Editar página pública' : 'Nueva página pública'}</SheetTitle>
-            <SheetDescription>Lo que verán tus clientes. Si cambias las políticas, los clientes deben aceptarlas de nuevo.</SheetDescription>
-          </SheetHeader>
-          <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
-            <FormGroup title="Página">
-              <TextField label="Título" required value={form.title} onChange={set('title')} error={errors.title} maxLength={160} placeholder="Ej. Agenda tu consulta" />
-              <TextField label="Dirección (slug)" required value={form.slug} onChange={(e) => setForm((f) => ({ ...f, slug: e.target.value.toLowerCase() }))} error={errors.slug} hint={`.../app/p/reservar/${form.slug || 'tu-pagina'}`} autoComplete="off" />
-              <TextareaField label="Descripción" value={form.description} onChange={set('description')} rows={2} />
-              <TextField label="Ubicación" value={form.location} onChange={set('location')} maxLength={500} placeholder="Calle, número, ciudad" />
-              <TextareaField label="Indicaciones para llegar o prepararse" value={form.instructions} onChange={set('instructions')} rows={2} />
-              <SwatchField label="Color de la página (opcional)" value={form.accentColor || ''} onChange={(accentColor) => setForm((f) => ({ ...f, accentColor }))} error={errors.accentColor} />
-            </FormGroup>
-            <FormGroup title="Servicios y datos del cliente">
-              <fieldset className="space-y-2">
-                <legend className="text-sm font-medium">Servicios en esta página</legend>
-                {active.length ? (
-                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                    {active.map((s) => (
-                      <CheckboxField key={s.id} label={s.name} checked={form.serviceIds.includes(s.id)}
-                        onChange={(e) => setForm((f) => ({ ...f, serviceIds: e.target.checked ? [...f.serviceIds, s.id] : f.serviceIds.filter((x) => x !== s.id) }))} />
-                    ))}
-                  </div>
-                ) : <p className={MUTED_TEXT}>Este sistema no tiene servicios activos. Créalos en la pestaña Servicios.</p>}
-                {errors.services ? <p role="alert" className="text-xs text-[hsl(var(--destructive))]">{errors.services}</p> : null}
-              </fieldset>
-              <SwitchField id="bookings-page-resource-choice" label="Elegir profesional" description="El cliente puede elegir quién lo atiende. Si no, el sistema asigna a cualquiera disponible." checked={form.allowResourceChoice} onChange={(allowResourceChoice) => setForm((f) => ({ ...f, allowResourceChoice }))} />
-              <SwitchField id="bookings-page-require-phone" label="Teléfono obligatorio" description="Si está apagado, el teléfono es opcional." checked={form.requirePhone} onChange={(requirePhone) => setForm((f) => ({ ...f, requirePhone }))} />
-            </FormGroup>
-            <FormGroup title="Políticas y avisos" description="Se muestran antes de confirmar; el cliente debe aceptarlas.">
-              <TextareaField label="Política de cancelación" value={form.cancellationPolicy} onChange={set('cancellationPolicy')} rows={2} />
-              <TextareaField label="Política de reprogramación" value={form.reschedulePolicy} onChange={set('reschedulePolicy')} rows={2} />
-              <TextareaField label="Puntualidad" value={form.punctualityPolicy} onChange={set('punctualityPolicy')} rows={2} />
-              <TextareaField label="Aviso de privacidad" value={form.privacyNotice} onChange={set('privacyNotice')} rows={3} hint="Si lo dejas vacío se muestra un aviso breve: los datos se usan solo para gestionar la reservación." />
-            </FormGroup>
-            <FormGroup title="Publicación">
-              <SwitchField id="bookings-page-published" label="Página publicada" description="Además, el sistema debe estar publicado en Reservas online." checked={form.published} onChange={(published) => setForm((f) => ({ ...f, published }))} />
-            </FormGroup>
-          </div>
-          <div className="flex shrink-0 flex-col-reverse gap-2 border-t border-[hsl(var(--border))] px-5 py-3 sm:flex-row sm:justify-end">
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancelar</Button>
-            <Button type="submit" disabled={pending}>{pending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}{pending ? 'Guardando…' : 'Guardar página'}</Button>
-          </div>
-        </form>
-      </SheetContent>
-    </Sheet>
   )
 }

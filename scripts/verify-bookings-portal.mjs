@@ -101,8 +101,8 @@ try {
   await adminPage.getByLabel('Política de cancelación').fill('Si no puedes asistir, cancela con 24 horas de anticipación.')
   await adminPage.getByRole('switch', { name: 'Página publicada' }).click()
   await shot(adminPage, '01-admin-page-form')
-  await adminPage.getByRole('button', { name: 'Guardar página' }).click()
-  ok('1. admin publishes a page from the backoffice', await visible(adminPage.getByText('Página guardada')) && await visible(adminPage.getByRole('listitem').filter({ hasText: 'Agenda tu consulta' }).getByText('Publicada', { exact: true })))
+  await adminPage.getByRole('button', { name: 'Crear página' }).click()
+  ok('1. admin publishes a page from the backoffice', await visible(adminPage.getByText('Página creada')) && await visible(adminPage.getByRole('listitem').filter({ hasText: 'Agenda tu consulta' }).getByText('Publicada', { exact: true })))
   await shot(adminPage, '02-admin-online-tab')
 
   // ---- 2-8. Customer books on desktop without a session -----------------------------
