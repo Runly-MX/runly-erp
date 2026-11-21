@@ -37,6 +37,8 @@ export function createCallsDomain(request, withAuthHeaders) {
     removeParticipant: (callId, profileId, token) =>
       json(`/calls/${encodeURIComponent(callId)}/participants/${encodeURIComponent(profileId)}/remove`, "POST", {}, token),
     // { call: { id, kind, status, startedAt, initiatedByUserId, joinedCount }, myStatus } | null
+    // [{ conversationId, call, myStatus }] — every live call in my conversations.
+    listLive: (token) => request("/calls/live", { headers: withAuthHeaders(token) }),
     getConversationLive: (conversationId, token) =>
       request(`/calls/conversations/${encodeURIComponent(conversationId)}/live`, { headers: withAuthHeaders(token) }),
     screenToken: (callId, token) => action(callId, 'screen-token', token),

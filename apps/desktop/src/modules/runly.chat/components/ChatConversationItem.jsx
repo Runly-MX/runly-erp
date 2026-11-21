@@ -1,4 +1,4 @@
-import { AtSign, Hash, Pin, Users, Video } from "lucide-react";
+import { AtSign, Hash, Phone, Pin, Users, Video } from "lucide-react";
 import { isMeeting } from "../lib/sidebarSections";
 import { MiraiAvatar } from "@runly/ui";
 import { AssistantWordmark, renderMentionText } from "@runly/ui";
@@ -158,7 +158,7 @@ export function ChatConversationItem({ conversation, isActive, onClick, currentU
 // Dense row of the sectioned sidebar: channels read as "# name", direct messages keep a
 // small avatar with presence, groups and meetings get an icon. Unread conversations are
 // bold; mentions and unread counts sit on the right. 44 px on touch, 32 px with a mouse.
-export function ChatConversationRow({ conversation, isActive, onClick, currentUserId, isOnline = false, status = null }) {
+export function ChatConversationRow({ conversation, isActive, onClick, currentUserId, isOnline = false, status = null, liveCall = null }) {
   const otherMember = conversation.type === "direct"
     ? (conversation.members ?? []).find((m) => m.userId !== currentUserId)
     : null;
@@ -199,6 +199,17 @@ export function ChatConversationRow({ conversation, isActive, onClick, currentUs
         </span>
         {direct && preview && <span className="block truncate text-xs text-[hsl(var(--muted-foreground))]">{renderMentionText(preview)}</span>}
       </span>
+      {liveCall && (
+        <span
+          title={`Llamada en curso · ${liveCall.call.joinedCount} conectad${liveCall.call.joinedCount === 1 ? "o" : "os"}`}
+          className="inline-flex h-4 shrink-0 items-center gap-0.5 rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400"
+        >
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden />
+          {liveCall.call.kind === "AUDIO" ? <Phone className="h-2.5 w-2.5" aria-hidden /> : <Video className="h-2.5 w-2.5" aria-hidden />}
+          {liveCall.call.joinedCount > 0 && liveCall.call.joinedCount}
+          <span className="sr-only">Llamada en curso</span>
+        </span>
+      )}
       {mentions > 0 && (
         <span title={`${mentions} mención${mentions === 1 ? "" : "es"} sin leer`} className="inline-flex h-4 min-w-4 shrink-0 items-center justify-center rounded-full bg-accent px-1 text-[10px] font-semibold text-white">
           <AtSign className="h-2.5 w-2.5" strokeWidth={3} />{mentions > 9 ? "9+" : mentions}

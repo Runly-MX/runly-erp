@@ -4,6 +4,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import "../chat-theme.css";
 import { ChatSidebar } from "../components/ChatSidebar";
 import { ChatWindow } from "../components/ChatWindow";
+import { ChatHome } from "../components/ChatHome";
 import { ChatMediaView } from "../components/media/ChatMediaView";
 import { useChatConversations, useArchivedConversations } from "../hooks/useChatConversations";
 import { useEnsureMiraiConversation } from "../hooks/useMirAI";
@@ -117,6 +118,12 @@ function ChatScreenInner() {
       onTabChange={(tab) => navigate(`/app/m/runly.chat/chat/inbox?view=media&tab=${tab}`, { replace: true })}
       onBack={handleClose}
       onOpenConversation={(id) => navigate(`/app/m/runly.chat/chat/inbox/${id}`)}
+    />
+  ) : !conversationIdFromUrl ? (
+    <ChatHome
+      conversations={conversations}
+      onOpenConversation={(conv) => handleSelect(conv)}
+      onOpenRecordings={() => navigate("/app/m/runly.chat/chat/inbox?view=media&tab=recordings")}
     />
   ) : (
     <ChatWindow

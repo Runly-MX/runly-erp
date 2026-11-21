@@ -1132,3 +1132,26 @@ describe("createCallService — page reloads keep your place", () => {
     assert.equal(ended, false);
   });
 });
+
+describe("listLiveCalls", () => {
+  it("reports a soft-left caller as DISCONNECTED and counts only connected people", async () => {
+    const prisma = {
+      userProfile: { findUnique: async () => ({ id: CALLER_ID }) },
+      $queryRaw: async () => [{ id: CALL_ID }],
+      call: {
+        findMany: async () => [{
+          id: CALL_ID, conversationId: CONVERSATION_ID, kind: "VIDEO", status: "ACTIVE", startedAt: null, initiatedByUserId: CALLER_ID,
+          participants: [
+            { userId: CALLER_ID, status: "JOINED", leftAt: new Date() },
+            { userId: CALLEE_ID, status: "JOINED", leftAt: null },
+          ],
+        }],
+      },
+    };
+    const service = createCallService({ prisma, env: enabledEnv() });
+    const [live] = await service.listLiveCalls({ authUserId: "auth" });
+    assert.equal(live.conversationId, CONVERSATION_ID);
+    assert.equal(live.myStatus, "DISCONNECTED");
+    assert.equal(live.call.joinedCount, 1);
+  });
+});

@@ -30,6 +30,7 @@ import { useGlobalPresence } from "../../../providers/RealtimeProvider";
 import { useArchivedConversations, useConversationActionHandler } from "../hooks/useChatConversations";
 import { useCompanyPeople, useStartDirectChat } from "../hooks/useCompanyPeople";
 import { PeopleSearchResults, PeopleStrip } from "./PeopleStrip";
+import { useLiveCalls } from "../calls/hooks/useLiveCalls";
 
 export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCreated, mediaActive = false, onOpenMedia }) {
   const { userProfile } = useAuth();
@@ -58,6 +59,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
   const { data: activity } = useChatActivity(true);
   const [sectionToDelete, setSectionToDelete] = useState(null);
   const { people, onlineCount } = useCompanyPeople();
+  const { byConversation: liveCalls } = useLiveCalls();
   const { start: startDirectChat, startingId } = useStartDirectChat(onCreated);
   const searchText = search.trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
   const peopleMatch = Boolean(searchText) && people.some((p) => p.displayName?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchText) || p.email?.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().includes(searchText));
@@ -321,7 +323,7 @@ export function ChatSidebar({ conversations, isLoading, activeId, onSelect, onCr
                     return (
                       <div key={conv.id} draggable onDragStart={(event) => { event.dataTransfer.setData(DRAG_TYPE, conv.id); event.dataTransfer.effectAllowed = "move"; }}>
                         <ConversationRowActions conversation={conv} currentUserId={userProfile?.id} onAction={onRowAction} canOrganize swipeOpenId={openRowId} onSwipeOpen={setOpenRowId}>
-                          <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} status={otherMember ? statusByUser[otherMember.userId] : null} />
+                          <ChatConversationRow conversation={conv} isActive={conv.id === activeId} onClick={() => onSelect(conv)} currentUserId={userProfile?.id} isOnline={otherMember ? isUserOnline(otherMember.userId) : false} status={otherMember ? statusByUser[otherMember.userId] : null} liveCall={liveCalls.get(conv.id) ?? null} />
                         </ConversationRowActions>
                       </div>
                     );

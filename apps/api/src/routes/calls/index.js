@@ -166,6 +166,12 @@ export function createCallsRouter({
     } catch (error) { return handleError(c, error, "Error iniciando la llamada."); }
   });
 
+  // Live calls across the caller's conversations (chat list + chat home).
+  internal.get("/live", async (c) => {
+    try { return c.json({ data: await calls.listLiveCalls({ authUserId: c.get("authUserId") }) }); }
+    catch (error) { return handleError(c, error, "Error consultando las llamadas en curso."); }
+  });
+
   // Live call/meeting of a conversation, for the "Unirse" banner.
   internal.get("/conversations/:conversationId/live", async (c) => {
     try {

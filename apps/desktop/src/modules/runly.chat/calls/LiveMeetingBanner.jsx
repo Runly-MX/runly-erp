@@ -65,7 +65,10 @@ export function LiveMeetingBanner({ conversationId }) {
   const call = data?.call ?? null;
   const elapsed = useElapsedLabel(call?.startedAt);
   if (!call || call.status !== "ACTIVE") return null;
-  if (activeCall?.id === call.id || data?.myStatus === "JOINED") return null;
+  // JOINED means connected right now (elsewhere); DISCONNECTED (closed the
+  // window, within the reconnect grace) and LEFT get "Regresar".
+  if (activeCall?.id === call.id || data?.myStatus === "JOINED" || data?.myStatus === "REMOVED") return null;
+  const rejoin = data?.myStatus === "DISCONNECTED" || data?.myStatus === "LEFT";
 
   const Icon = call.kind === "AUDIO" ? Phone : Video;
   return (
@@ -81,7 +84,7 @@ export function LiveMeetingBanner({ conversationId }) {
         <span className="absolute -right-0.5 -top-0.5 h-2.5 w-2.5 animate-pulse rounded-full bg-emerald-300 ring-2 ring-[hsl(var(--background))]" aria-hidden />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">Reunión en curso</p>
+        <p className="truncate text-sm font-semibold text-[hsl(var(--foreground))]">{rejoin ? "Saliste de esta llamada" : "Llamada en curso"}</p>
         <p className="flex items-center gap-1 truncate text-xs text-[hsl(var(--muted-foreground))]">
           <Users className="h-3 w-3 shrink-0" aria-hidden />
           {call.joinedCount} {call.joinedCount === 1 ? "persona" : "personas"}{elapsed ? ` · ${elapsed}` : ""}
@@ -93,12 +96,12 @@ export function LiveMeetingBanner({ conversationId }) {
         disabled={isStarting || Boolean(activeCall)}
         className="min-h-[36px] shrink-0 rounded-lg bg-emerald-600 px-4 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
       >
-        Unirse
+        {rejoin ? "Regresar" : "Unirse"}
       </button>
       <PreJoinDialog
         open={preJoinOpen}
         onOpenChange={setPreJoinOpen}
-        subtitle={`${call.joinedCount} ${call.joinedCount === 1 ? "persona" : "personas"} en la reunión`}
+        subtitle={call.joinedCount ? `${call.joinedCount} ${call.joinedCount === 1 ? "persona" : "personas"} en la llamada` : "No hay nadie conectado ahora"}
         name={userProfile?.displayName}
         defaultCamera={call.kind !== "AUDIO"}
         busy={isStarting}

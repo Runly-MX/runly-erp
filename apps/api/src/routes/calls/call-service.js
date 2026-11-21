@@ -894,19 +894,54 @@ export function createCallService({
       select: { id: true },
     });
     if (!live) return null;
-    const call = await getCallRecord(live.id);
-    const mine = call.participants.find((entry) => entry.userId === profile.id) ?? null;
+    return summarizeLiveCall(await getCallRecord(live.id), profile.id);
+  }
+
+  // A participant whose page unloaded stays JOINED with a leftAt marker for
+  // the reconnect grace: report it as DISCONNECTED so "Regresar" shows, and
+  // count only people actually connected.
+  function summarizeLiveCall(call, profileId) {
+    const connected = (p) => p.status === "JOINED" && !p.leftAt;
+    const mine = call.participants.find((entry) => entry.userId === profileId) ?? null;
     return {
+      conversationId: call.conversationId,
       call: {
         id: call.id,
         kind: call.kind,
         status: call.status,
         startedAt: call.startedAt ?? null,
         initiatedByUserId: call.initiatedByUserId,
-        joinedCount: call.participants.filter((p) => p.status === "JOINED").length,
+        joinedCount: call.participants.filter(connected).length,
       },
-      myStatus: mine?.status ?? null,
+      myStatus: mine ? (mine.status === "JOINED" && mine.leftAt ? "DISCONNECTED" : mine.status) : null,
     };
+  }
+
+  // Every live call in the caller's conversations: the chat list marks those
+  // conversations and the chat home lists them with "Unirse"/"Regresar".
+  async function listLiveCalls({ authUserId }) {
+    assertEnabled();
+    const profile = await resolveProfile(authUserId);
+    const rows = await prisma.$queryRaw`
+      SELECT DISTINCT ON (c.conversation_id) c.id
+      FROM call c
+      JOIN chat_conversation_members m ON m.conversation_id = c.conversation_id
+      JOIN chat_conversations conv ON conv.id = c.conversation_id
+      WHERE c.status::text = ANY(${LIVE_CALL_STATUSES}::text[])
+        AND m.user_id = ${profile.id}
+        AND m.left_at IS NULL
+        AND conv.deleted_at IS NULL
+        AND public.runly_chat_user_access(m.conversation_id, m.user_id)
+      ORDER BY c.conversation_id, c.created_at DESC
+      LIMIT 50
+    `;
+    if (!rows.length) return [];
+    const calls = await prisma.call.findMany({
+      where: { id: { in: rows.map((row) => row.id) } },
+      orderBy: { createdAt: "desc" },
+      include: { participants: { select: { userId: true, status: true, leftAt: true } } },
+    });
+    return calls.map((call) => summarizeLiveCall(call, profile.id));
   }
 
   async function revokeUnauthorizedParticipants() {
@@ -968,6 +1003,7 @@ export function createCallService({
     inviteMembersToLiveCall,
     ringParticipants,
     getConversationLiveCall,
+    listLiveCalls,
     postSystemMessage,
     getRecordingActiveStatus,
   };
