@@ -2,62 +2,18 @@
 // quota (conditional UPDATE), seats through the Booking Engine (createTx/transitionTx),
 // the order and its tickets, history and the outbox event commit or roll back together.
 // Credentials: the QR text is returned once, when it is created; only its hash is kept.
-import { DOMAIN_EVENTS } from '../../services/domain-events/events.js'
-import { pgCode, requestHash } from '../bookings/bookings-command-service.js'
+import { requestHash } from '../bookings/bookings-command-service.js'
+import { readPosSale } from '../pos/pos-sale-read.js'
 import {
   ENGINE_CHANNEL, SOURCE_MODULE, TicketingError, credentialMatches, newSecret, notFound, orderEvent, parseCredential, policyOf,
   qrText, serializeOrder, serializeTicket, ticketEvent,
 } from './ticketing-core.js'
+import { createTicketingTx } from './ticketing-tx.js'
 
 const M = 60000
 
 export function createTicketingCommandService({ prisma, engine, now = () => Date.now() }) {
-  async function inTx(fn) {
-    try {
-      return await prisma.$transaction(fn, { maxWait: 60000, timeout: 60000 })
-    } catch (error) {
-      if (error?.status && error?.code) throw error
-      const code = pgCode(error)
-      if (code === '40P01' || code === '40001') throw new TicketingError('Otra operación cambió estos datos al mismo tiempo; inténtalo de nuevo.', 409, 'CONFLICT_RETRY')
-      throw error
-    }
-  }
-
-  // Claimed inside the operation's transaction: a rolled-back attempt leaves no record;
-  // a concurrent duplicate waits on the unique index, then replays.
-  async function claim(tx, { companyId, scope, operation, key, hash }) {
-    if (!key) return null
-    if (typeof key !== 'string' || key.length > 200) throw new TicketingError('La clave de idempotencia no es válida.', 400, 'IDEMPOTENCY_KEY_INVALID')
-    const rows = await tx.$queryRaw`
-      INSERT INTO ticket_idempotency (company_id, scope, operation, key, request_hash)
-      VALUES (${companyId}::uuid, ${scope}, ${operation}, ${key}, ${hash})
-      ON CONFLICT (company_id, scope, operation, key) DO NOTHING RETURNING id`
-    if (rows[0]) return { id: rows[0].id }
-    const prior = (await tx.$queryRaw`
-      SELECT request_hash, result_id FROM ticket_idempotency
-       WHERE company_id = ${companyId}::uuid AND scope = ${scope} AND operation = ${operation} AND key = ${key}`)[0]
-    if (!prior || prior.request_hash !== hash) throw new TicketingError('Esta clave de idempotencia ya se usó con otra solicitud.', 422, 'IDEMPOTENCY_KEY_REUSED')
-    return { replay: prior.result_id }
-  }
-  const settle = (tx, claimed, id) => (claimed?.id ? tx.$executeRaw`UPDATE ticket_idempotency SET result_id = ${id}::uuid WHERE id = ${claimed.id}::uuid` : null)
-
-  const history = (tx, { companyId, entity, entityId, action, actorId, actorKind = 'user', before = null, after = null }) => tx.$executeRaw`
-    INSERT INTO ticket_history (company_id, entity, entity_id, action, actor_id, actor_kind, before, after)
-    VALUES (${companyId}::uuid, ${entity}, ${entityId}::uuid, ${action}, ${actorId}::uuid, ${actorKind},
-            ${before ? JSON.stringify(before) : null}::jsonb, ${after ? JSON.stringify(after) : null}::jsonb)`
-
-  // Same transaction and allowed to throw (a swallowed failure would turn the commit into a rollback).
-  async function emit(tx, companyId, event, payload) {
-    if (!DOMAIN_EVENTS[event]) throw new Error(`Evento de dominio desconocido: ${event}`)
-    await tx.domainEventOutbox.create({ data: { companyId, event, payload } })
-  }
-
-  const ticketsOf = (tx, orderId) => tx.$queryRaw`SELECT * FROM ticket WHERE order_id = ${orderId}::uuid ORDER BY created_at, id`
-  async function orderView(tx, companyId, orderId) {
-    const order = (await tx.$queryRaw`SELECT * FROM ticket_order WHERE id = ${orderId}::uuid AND company_id = ${companyId}::uuid`)[0]
-    if (!order) throw notFound('Orden')
-    return serializeOrder(order, await ticketsOf(tx, order.id))
-  }
+  const { inTx, claim, settle, history, emit, ticketsOf, orderView } = createTicketingTx({ prisma })
 
   // ---- Reserve / issue -----------------------------------------------------------------
   // input: ticketOrderCreateSchema. Free tickets are ISSUED with a credential at once;
@@ -107,10 +63,23 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
         if (!taken[0]) throw new TicketingError(`Ya no quedan suficientes boletos «${types.find((t) => t.id === typeId).name}».`, 409, 'SOLD_OUT')
       }
 
+      // Paid orders snapshot the catalog price and currency Caja must charge; the
+      // confirmation compares the POS sale against this, never against the client.
       const paid = types.some((t) => t.price_mode !== 'free')
       const status = paid ? 'PENDING_PAYMENT' : 'CONFIRMED'
       const holdExpiresAt = paid ? new Date(at + policy.holdMinutes * M) : null
-      const totals = { items: typeIds.map((typeId) => { const t = types.find((x) => x.id === typeId); return { typeId, quantity: wanted.get(typeId), priceMode: t.price_mode, catalogProductId: t.catalog_product_id } }) }
+      const products = paid ? await tx.$queryRaw`SELECT id, name, price, currency, enabled FROM catalog_product WHERE company_id = ${companyId}::uuid AND id = ANY(${types.filter((t) => t.catalog_product_id).map((t) => t.catalog_product_id)}::uuid[])` : []
+      const items = typeIds.map((typeId) => {
+        const t = types.find((x) => x.id === typeId)
+        if (t.price_mode === 'free') return { typeId, quantity: wanted.get(typeId), priceMode: 'free', catalogProductId: null, unitPrice: '0.00' }
+        const product = products.find((p) => p.id === t.catalog_product_id)
+        if (!product?.enabled) throw new TicketingError(`El producto de «${t.name}» ya no está en el catálogo.`, 409, 'PRODUCT_UNAVAILABLE')
+        return { typeId, quantity: wanted.get(typeId), priceMode: t.price_mode, catalogProductId: product.id, productName: product.name, unitPrice: Number(product.price).toFixed(2), currency: product.currency }
+      })
+      const currencies = [...new Set(items.filter((i) => i.currency).map((i) => i.currency))]
+      if (currencies.length > 1) throw new TicketingError('Una orden no puede mezclar monedas.', 422, 'MIXED_CURRENCY')
+      const amount = items.reduce((sum, i) => sum + Number(i.unitPrice) * i.quantity, 0).toFixed(2)
+      const totals = { items, currency: currencies[0] ?? null, amount }
       let order = (await tx.$queryRaw`
         INSERT INTO ticket_order (company_id, event_id, session_id, status, channel, quantity, contact_id, buyer_name, buyer_email, buyer_phone,
                                   hold_expires_at, totals, policy_version, created_by_id)
@@ -130,10 +99,10 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
       const credentials = []
       let index = 0
       for (const typeId of typeIds) {
-        const type = types.find((t) => t.id === typeId)
         for (let i = 0; i < wanted.get(typeId); i++, index++) {
           const holder = holders[index] ?? {}
-          const issue = type.price_mode === 'free' ? newSecret() : null
+          // In a paid order every ticket waits for the payment, free types included.
+          const issue = paid ? null : newSecret()
           const ticket = (await tx.$queryRaw`
             INSERT INTO ticket (company_id, order_id, session_id, type_id, status, holder_name, holder_email, credential_version, credential_hash, issued_at)
             VALUES (${companyId}::uuid, ${order.id}::uuid, ${session.id}::uuid, ${typeId}::uuid, ${issue ? 'ISSUED' : 'PENDING_PAYMENT'},
@@ -151,39 +120,92 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
     })
   }
 
-  // Frees what an order holds: per-type quota (by its tickets) and the engine seats.
-  async function release(tx, { companyId, actorId, order, ticketStatus, actorKind }) {
-    const counts = await tx.$queryRaw`SELECT type_id, count(*)::int AS n FROM ticket WHERE order_id = ${order.id}::uuid AND status IN ('ISSUED', 'PENDING_PAYMENT') GROUP BY type_id ORDER BY type_id`
-    for (const { type_id: typeId, n } of counts) {
-      await tx.$executeRaw`UPDATE ticket_quota SET issued = issued - ${n}, updated_at = now() WHERE ticket_type_id = ${typeId}::uuid AND session_id = ${order.session_id}::uuid`
+  // Frees what the given tickets hold: their per-type quota and their seats in the
+  // engine. Seats of the order's other tickets stay taken (engine reducePartyTx); the
+  // engine booking is cancelled only when no active ticket remains.
+  async function release(tx, { companyId, actorId, order, ticketIds = null, ticketStatus, actorKind, refundIds = {} }) {
+    const active = await tx.$queryRaw`SELECT id, type_id FROM ticket WHERE order_id = ${order.id}::uuid AND status IN ('ISSUED', 'PENDING_PAYMENT') ORDER BY id FOR UPDATE`
+    const target = ticketIds ? active.filter((t) => ticketIds.includes(t.id)) : active
+    const byType = new Map()
+    for (const t of target) byType.set(t.type_id, (byType.get(t.type_id) ?? 0) + 1)
+    for (const typeId of [...byType.keys()].sort()) {
+      await tx.$executeRaw`UPDATE ticket_quota SET issued = issued - ${byType.get(typeId)}, updated_at = now() WHERE ticket_type_id = ${typeId}::uuid AND session_id = ${order.session_id}::uuid`
     }
-    await tx.$executeRaw`
-      UPDATE ticket SET status = ${ticketStatus}, credential_hash = NULL, cancelled_at = now(), version = version + 1, updated_at = now()
-       WHERE order_id = ${order.id}::uuid AND status IN ('ISSUED', 'PENDING_PAYMENT')`
-    if (order.booking_id) {
+    for (const t of target) {
+      await tx.$executeRaw`
+        UPDATE ticket SET status = ${ticketStatus}, credential_hash = NULL, cancelled_at = now(), pos_refund_id = ${refundIds[t.type_id] ?? null}::uuid,
+               version = version + 1, updated_at = now()
+         WHERE id = ${t.id}::uuid`
+    }
+    const remaining = active.length - target.length
+    if (order.booking_id && target.length) {
       const booking = (await tx.$queryRaw`SELECT status FROM booking WHERE id = ${order.booking_id}::uuid`)[0]
       if (booking && ['PENDING', 'CONFIRMED'].includes(booking.status)) {
-        await engine.transitionTx(tx, { companyId, actorId, bookingId: order.booking_id, to: 'CANCELLED', actorKind, input: { reason: `ticketing:${ticketStatus.toLowerCase()}` } })
+        if (remaining > 0) await engine.reducePartyTx(tx, { companyId, actorId, bookingId: order.booking_id, by: target.length, actorKind })
+        else await engine.transitionTx(tx, { companyId, actorId, bookingId: order.booking_id, to: 'CANCELLED', actorKind, input: { reason: `ticketing:${ticketStatus.toLowerCase()}` } })
       }
     }
+    return { released: target, remaining }
   }
 
-  // Cancels a whole order. Paid orders need the Commerce refund first (F6C).
-  async function cancel({ companyId, actorId, orderId, reason = null, idempotencyKey = null }) {
+  // Paid tickets are voided only against a Commerce refund of their lines: per product,
+  // refunded quantity in the linked sale minus tickets already voided against it.
+  async function refundsCover(tx, { companyId, order, target }) {
+    const items = order.totals?.items ?? []
+    const paidTypes = new Map(items.filter((i) => i.priceMode !== 'free').map((i) => [i.typeId, i]))
+    const needed = new Map()
+    for (const t of target) if (paidTypes.has(t.type_id)) needed.set(t.type_id, (needed.get(t.type_id) ?? 0) + 1)
+    if (!needed.size) return {}
+    const sale = await readPosSale(tx, { companyId, orderId: order.pos_order_id, lock: true })
+    if (!sale) throw new TicketingError('No se encontró la venta de Caja de esta orden.', 409, 'REFUND_REQUIRED')
+    const refundIds = {}
+    for (const [typeId, count] of needed) {
+      const productId = paidTypes.get(typeId).catalogProductId
+      const lineIds = new Set(sale.lines.filter((l) => l.productId === productId).map((l) => l.id))
+      const refunds = sale.refunds.filter((r) => lineIds.has(r.orderLineId))
+      const refunded = refunds.reduce((sum, r) => sum + r.quantity, 0)
+      const voided = (await tx.$queryRaw`SELECT count(*)::int AS n FROM ticket WHERE order_id = ${order.id}::uuid AND type_id = ${typeId}::uuid AND pos_refund_id IS NOT NULL`)[0].n
+      if (refunded - voided < count) {
+        throw new TicketingError(`Primero devuelve en Caja ${count - Math.max(0, refunded - voided)} boleto(s) «${paidTypes.get(typeId).productName ?? 'de pago'}» de la venta #${sale.orderNumber}.`, 409, 'REFUND_REQUIRED')
+      }
+      refundIds[typeId] = refunds[refunds.length - 1].refundId
+    }
+    return refundIds
+  }
+
+  // Cancels some tickets (ticketIds) or the whole order. Free tickets cancel directly;
+  // paid ones need their Commerce refund first. The order ends CANCELLED (or REFUNDED
+  // when it was paid) once no active ticket is left.
+  async function cancel({ companyId, actorId, orderId, ticketIds = null, reason = null, idempotencyKey = null }) {
     return inTx(async (tx) => {
-      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: 'cancel', key: idempotencyKey, hash: requestHash('cancel', { orderId, reason }) })
+      const ids = ticketIds?.length ? [...new Set(ticketIds)].sort() : null
+      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: 'cancel', key: idempotencyKey, hash: requestHash('cancel', { orderId, ticketIds: ids, reason }) })
       if (claimed?.replay) return { order: await orderView(tx, companyId, claimed.replay), replayed: true }
       const order = (await tx.$queryRaw`SELECT * FROM ticket_order WHERE id = ${orderId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`)[0]
       if (!order) throw notFound('Orden')
       if (!['CONFIRMED', 'PENDING_PAYMENT'].includes(order.status)) throw new TicketingError('Esta orden ya no se puede cancelar.', 409, 'INVALID_TRANSITION')
-      if (order.status === 'CONFIRMED' && (order.totals?.items ?? []).some((i) => i.priceMode !== 'free')) throw new TicketingError('Una orden pagada se cancela con su reembolso en Caja.', 409, 'REFUND_REQUIRED')
-      const used = (await tx.$queryRaw`SELECT 1 FROM ticket WHERE order_id = ${order.id}::uuid AND status = 'USED' LIMIT 1`)[0]
-      if (used) throw new TicketingError('La orden tiene boletos que ya entraron al evento.', 409, 'TICKET_USED')
-      await release(tx, { companyId, actorId, order, ticketStatus: 'CANCELLED', actorKind: 'user' })
-      const updated = (await tx.$queryRaw`UPDATE ticket_order SET status = 'CANCELLED', hold_expires_at = NULL, version = version + 1, updated_at = now() WHERE id = ${order.id}::uuid RETURNING *`)[0]
+      const tickets = await ticketsOf(tx, order.id)
+      const target = ids ? tickets.filter((t) => ids.includes(t.id)) : tickets.filter((t) => ['ISSUED', 'PENDING_PAYMENT', 'USED'].includes(t.status))
+      if (ids && target.length !== ids.length) throw notFound('Boleto')
+      if (target.some((t) => t.status === 'USED')) throw new TicketingError('Hay boletos que ya entraron al evento.', 409, 'TICKET_USED')
+      if (target.some((t) => !['ISSUED', 'PENDING_PAYMENT'].includes(t.status))) throw new TicketingError('Algunos boletos ya estaban cancelados.', 409, 'INVALID_TRANSITION')
+      if (!target.length) throw new TicketingError('No hay boletos vigentes para cancelar.', 409, 'INVALID_TRANSITION')
+      // An unpaid order is cancelled whole: its price snapshot must keep matching the sale Caja charges.
+      if (order.status === 'PENDING_PAYMENT' && target.length < tickets.filter((t) => t.status === 'PENDING_PAYMENT').length) {
+        throw new TicketingError('Una orden sin pagar se cancela completa; cóbrala primero para cancelar solo algunos boletos.', 409, 'PARTIAL_UNPAID')
+      }
+      const refundIds = order.status === 'CONFIRMED' && order.pos_order_id ? await refundsCover(tx, { companyId, order, target }) : {}
+      const { remaining } = await release(tx, { companyId, actorId, order, ticketIds: target.map((t) => t.id), ticketStatus: 'CANCELLED', actorKind: 'user', refundIds })
+      const ended = remaining === 0
+      // A paid order whose last tickets are voided was refunded (paid tickets only void against refunds).
+      const final = ended ? (order.pos_order_id ? 'REFUNDED' : 'CANCELLED') : order.status
+      const updated = (await tx.$queryRaw`
+        UPDATE ticket_order SET status = ${final}, hold_expires_at = CASE WHEN ${ended} THEN NULL ELSE hold_expires_at END, version = version + 1, updated_at = now()
+         WHERE id = ${order.id}::uuid RETURNING *`)[0]
       await settle(tx, claimed, order.id)
-      await history(tx, { companyId, entity: 'order', entityId: order.id, action: 'cancel', actorId, before: { status: order.status }, after: { status: 'CANCELLED', reason } })
-      await emit(tx, companyId, 'ticketing.order.cancelled', orderEvent(updated))
+      await history(tx, { companyId, entity: 'order', entityId: order.id, action: ended ? 'cancel' : 'cancel_tickets', actorId, before: { status: order.status }, after: { status: final, reason, ticketIds: target.map((t) => t.id), refundIds } })
+      for (const t of target) await emit(tx, companyId, 'ticketing.ticket.cancelled', ticketEvent({ ...t, credential_version: t.credential_version }, order.event_id))
+      if (ended) await emit(tx, companyId, final === 'REFUNDED' ? 'ticketing.order.refunded' : 'ticketing.order.cancelled', orderEvent(updated))
       return { order: serializeOrder(updated, await ticketsOf(tx, order.id)), replayed: false }
     })
   }
@@ -275,12 +297,31 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
   }
 
   const getOrder = ({ companyId, orderId }) => orderView(prisma, companyId, orderId)
-  async function listOrders({ companyId, eventId, sessionId = null }) {
+  // Orders of an event, newest first, with ticket counts; q matches reference, buyer or holder.
+  async function listOrders({ companyId, eventId, sessionId = null, status = null, q = null }) {
+    const like = q ? `%${q.trim()}%` : null
     const rows = await prisma.$queryRaw`
-      SELECT * FROM ticket_order WHERE company_id = ${companyId}::uuid AND event_id = ${eventId}::uuid AND (${sessionId}::uuid IS NULL OR session_id = ${sessionId}::uuid)
-       ORDER BY created_at DESC LIMIT 500`
-    return rows.map((o) => serializeOrder(o))
+      SELECT o.*,
+             (SELECT count(*)::int FROM ticket t WHERE t.order_id = o.id AND t.status IN ('ISSUED', 'USED')) AS active_tickets,
+             (SELECT count(*)::int FROM ticket t WHERE t.order_id = o.id AND t.status IN ('CANCELLED', 'EXPIRED')) AS cancelled_tickets
+        FROM ticket_order o
+       WHERE o.company_id = ${companyId}::uuid AND o.event_id = ${eventId}::uuid
+         AND (${sessionId}::uuid IS NULL OR o.session_id = ${sessionId}::uuid)
+         AND (${status}::text IS NULL OR o.status = ${status})
+         AND (${like}::text IS NULL OR o.reference ILIKE ${like} OR o.buyer_name ILIKE ${like} OR o.buyer_email ILIKE ${like}
+              OR EXISTS (SELECT 1 FROM ticket t WHERE t.order_id = o.id AND (t.holder_name ILIKE ${like} OR t.code ILIKE ${like})))
+       ORDER BY o.created_at DESC LIMIT 500`
+    return rows.map((o) => ({ ...serializeOrder(o), activeTickets: o.active_tickets, cancelledTickets: o.cancelled_tickets }))
   }
 
-  return { reserve, cancel, expireHolds, reissue, transfer, verifyCredential, getOrder, listOrders }
+  // Audit trail of an order and its tickets (append-only), newest first.
+  async function orderHistory({ companyId, orderId }) {
+    const rows = await prisma.$queryRaw`
+      SELECT h.*, p.display_name AS actor_name FROM ticket_history h LEFT JOIN user_profile p ON p.id = h.actor_id
+       WHERE h.company_id = ${companyId}::uuid AND (h.entity_id = ${orderId}::uuid OR h.entity_id IN (SELECT id FROM ticket WHERE order_id = ${orderId}::uuid))
+       ORDER BY h.created_at DESC, h.id DESC LIMIT 200`
+    return rows.map((h) => ({ id: h.id, entity: h.entity, entityId: h.entity_id, action: h.action, actorName: h.actor_name, actorKind: h.actor_kind, before: h.before, after: h.after, createdAt: h.created_at }))
+  }
+
+  return { reserve, cancel, expireHolds, reissue, transfer, verifyCredential, getOrder, listOrders, orderHistory }
 }

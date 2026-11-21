@@ -3,20 +3,25 @@
 // box office, admin configures the event; ticketing.events.manage creates events.
 import { Hono } from 'hono'
 import {
-  ticketCancelSchema, ticketEventCreateSchema, ticketEventUpdateSchema, ticketOrderCreateSchema, ticketQuotaSchema,
+  ticketCancelSchema, ticketConfirmPaymentSchema, ticketMemberSchema, ticketEventCreateSchema, ticketEventUpdateSchema, ticketOrderCreateSchema, ticketQuotaSchema,
   ticketSessionCreateSchema, ticketTransferSchema, ticketTypeCreateSchema, ticketTypeUpdateSchema,
 } from '@runly/validators'
 import { createBookingsCommandService } from '../bookings/bookings-command-service.js'
 import { TicketingError, canCreateEvents, notFound, requireEventRole, serializeEvent } from './ticketing-core.js'
 import { createTicketingCommandService } from './ticketing-command-service.js'
 import { createTicketingConfigService } from './ticketing-config-service.js'
+import { createTicketingPaymentService } from './ticketing-payment-service.js'
 
-export function createTicketingRouter({ prisma, requirePermission, engine = null, commands = null }) {
+export function createTicketingRouter({ prisma, requirePermission, requireAnyPermission = null, engine = null, commands = null, payments = null }) {
   const app = new Hono()
   const bookings = engine ?? createBookingsCommandService({ prisma })
   const config = createTicketingConfigService({ prisma, engine: bookings })
   const cmd = commands ?? createTicketingCommandService({ prisma, engine: bookings })
+  const pay = payments ?? createTicketingPaymentService({ prisma })
   const access = requirePermission('ticketing.access')
+  // Caja confirms the sale it just charged: cashiers without Boletos access may load
+  // the order's lines and confirm it (the server proves the payment either way).
+  const accessOrCashier = requireAnyPermission ? requireAnyPermission(['ticketing.access', 'pos.caja.operate']) : access
 
   const companyId = (c) => c.get('companyId')
   const userId = (c) => c.get('userContext')?.profile?.id ?? c.get('userId') ?? null
@@ -87,10 +92,36 @@ export function createTicketingRouter({ prisma, requirePermission, engine = null
     return c.json({ data: await config.setQuota({ companyId: companyId(c), actorId: userId(c), typeId: c.req.param('typeId'), sessionId: c.req.param('sessionId'), quota }) })
   }))
 
+  // Event team
+  app.get('/ticketing/events/:eventId/members', access, run(async (c) => {
+    const { event } = await role(c, c.req.param('eventId'), 'viewer')
+    return c.json({ data: await config.listMembers({ companyId: companyId(c), event }) })
+  }))
+  app.put('/ticketing/events/:eventId/members/:userId', access, run(async (c) => {
+    const { event } = await role(c, c.req.param('eventId'), 'admin')
+    const { role: memberRole } = await parse(c, ticketMemberSchema)
+    return c.json({ data: await config.setMember({ companyId: companyId(c), actorId: userId(c), event, userId: c.req.param('userId'), role: memberRole }) })
+  }))
+  app.delete('/ticketing/events/:eventId/members/:userId', access, run(async (c) => {
+    const { event } = await role(c, c.req.param('eventId'), 'admin')
+    return c.json({ data: await config.removeMember({ companyId: companyId(c), actorId: userId(c), event, userId: c.req.param('userId') }) })
+  }))
+
+  // An event agent, or a cashier of this company (order resolved inside the company).
+  async function agentOrCashier(c, orderId) {
+    const eventId = await eventOf(c, 'order', orderId)
+    const grants = ctx(c)?.permissionSet
+    if (grants?.has?.('pos.caja.operate') && !grants?.has?.('ticketing.access')) return
+    try { await role(c, eventId, 'agent') } catch (error) { if (!(error?.status === 403 && grants?.has?.('pos.caja.operate'))) throw error }
+  }
+
   // Orders and tickets
   app.get('/ticketing/events/:eventId/orders', access, run(async (c) => {
     await role(c, c.req.param('eventId'), 'viewer')
-    return c.json({ data: await cmd.listOrders({ companyId: companyId(c), eventId: c.req.param('eventId'), sessionId: c.req.query('sessionId') || null }) })
+    const sessionId = c.req.query('sessionId') || null
+    if (sessionId && !uuid.test(sessionId)) throw notFound('Función')
+    const status = ['PENDING_PAYMENT', 'CONFIRMED', 'CANCELLED', 'EXPIRED', 'REFUNDED'].includes(c.req.query('status')) ? c.req.query('status') : null
+    return c.json({ data: await cmd.listOrders({ companyId: companyId(c), eventId: c.req.param('eventId'), sessionId, status, q: (c.req.query('q') || '').slice(0, 100) || null }) })
   }))
   app.post('/ticketing/orders', access, run(async (c) => {
     const input = await parse(c, ticketOrderCreateSchema)
@@ -102,10 +133,28 @@ export function createTicketingRouter({ prisma, requirePermission, engine = null
     await role(c, await eventOf(c, 'order', c.req.param('orderId')), 'viewer')
     return c.json({ data: await cmd.getOrder({ companyId: companyId(c), orderId: c.req.param('orderId') }) })
   }))
+  app.get('/ticketing/orders/:orderId/history', access, run(async (c) => {
+    await role(c, await eventOf(c, 'order', c.req.param('orderId')), 'viewer')
+    return c.json({ data: await cmd.orderHistory({ companyId: companyId(c), orderId: c.req.param('orderId') }) })
+  }))
+  app.get('/ticketing/orders/:orderId/sale', accessOrCashier, run(async (c) => {
+    await agentOrCashier(c, c.req.param('orderId'))
+    return c.json({ data: await pay.saleView({ companyId: companyId(c), orderId: c.req.param('orderId') }) })
+  }))
+  app.get('/ticketing/orders/:orderId/payment-candidates', access, run(async (c) => {
+    await role(c, await eventOf(c, 'order', c.req.param('orderId')), 'agent')
+    return c.json({ data: await pay.paymentCandidates({ companyId: companyId(c), orderId: c.req.param('orderId') }) })
+  }))
+  app.post('/ticketing/orders/:orderId/confirm-payment', accessOrCashier, run(async (c) => {
+    await agentOrCashier(c, c.req.param('orderId'))
+    const { posOrderId } = await parse(c, ticketConfirmPaymentSchema)
+    const result = await pay.confirmPayment({ companyId: companyId(c), actorId: userId(c), orderId: c.req.param('orderId'), posOrderId, idempotencyKey: key(c) })
+    return c.json({ data: result.order, credentials: result.credentials, replayed: result.replayed })
+  }))
   app.post('/ticketing/orders/:orderId/cancel', access, run(async (c) => {
     await role(c, await eventOf(c, 'order', c.req.param('orderId')), 'agent')
-    const { reason } = await parse(c, ticketCancelSchema)
-    const result = await cmd.cancel({ companyId: companyId(c), actorId: userId(c), orderId: c.req.param('orderId'), reason: reason ?? null, idempotencyKey: key(c) })
+    const { reason, ticketIds } = await parse(c, ticketCancelSchema)
+    const result = await cmd.cancel({ companyId: companyId(c), actorId: userId(c), orderId: c.req.param('orderId'), ticketIds: ticketIds ?? null, reason: reason ?? null, idempotencyKey: key(c) })
     return c.json({ data: result.order, replayed: result.replayed })
   }))
   app.post('/ticketing/tickets/:ticketId/reissue', access, run(async (c) => {

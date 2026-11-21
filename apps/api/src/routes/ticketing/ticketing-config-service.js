@@ -44,8 +44,10 @@ export function createTicketingConfigService({ prisma, engine }) {
         VALUES (${companyId}::uuid, ${space.id}::uuid, ${service.id}::uuid, ${input.title}, ${input.slug}, ${input.description ?? null},
                 ${input.venue ?? null}, ${JSON.stringify(input.policy ?? {})}::jsonb, ${actorId}::uuid)
         RETURNING *`)[0]
+      // Reservaciones shows this space read-only and links back to the event.
+      await tx.$executeRaw`UPDATE booking_space SET owner_module = 'runly.ticketing', owner_id = ${event.id}::uuid WHERE id = ${space.id}::uuid`
       await history(tx, { companyId, entity: 'event', entityId: event.id, action: 'create', actorId, after: serializeEvent(event) })
-      return serializeEvent(event)
+      return serializeEvent({ ...event, timezone: input.timezone })
     })
   }
 
@@ -61,8 +63,12 @@ export function createTicketingConfigService({ prisma, engine }) {
                sales_open = ${pick('salesOpen', 'sales_open')}, enabled = ${pick('enabled', 'enabled')}, policy = ${JSON.stringify(policy)}::jsonb,
                policy_version = policy_version + ${policyChanged ? 1 : 0}, version = version + 1, updated_at = now()
          WHERE id = ${row.id}::uuid RETURNING *`)[0]
+      // The engine's space and service carry the event's name (agenda, history).
+      await tx.$executeRaw`UPDATE booking_space SET name = ${updated.title}, description = ${updated.description}, enabled = ${updated.enabled}, updated_at = now() WHERE id = ${row.space_id}::uuid AND company_id = ${companyId}::uuid`
+      await tx.$executeRaw`UPDATE booking_service SET name = ${updated.title}, updated_at = now() WHERE id = ${row.service_id}::uuid AND company_id = ${companyId}::uuid`
+      const timezone = (await tx.$queryRaw`SELECT timezone FROM booking_space WHERE id = ${row.space_id}::uuid`)[0]?.timezone
       await history(tx, { companyId, entity: 'event', entityId: row.id, action: 'update', actorId, before: serializeEvent(row), after: serializeEvent(updated) })
-      return serializeEvent(updated)
+      return serializeEvent({ ...updated, timezone })
     })
   }
 
@@ -70,11 +76,17 @@ export function createTicketingConfigService({ prisma, engine }) {
   async function listEvents({ companyId, userId, ctx }) {
     const all = isTicketingAdmin(ctx)
     const rows = await prisma.$queryRaw`
-      SELECT e.* FROM ticket_event e
+      SELECT e.*, sp.timezone,
+             (SELECT count(*)::int FROM ticket_session s WHERE s.event_id = e.id AND s.status = 'scheduled') AS sessions,
+             (SELECT min(b.starts_at) FROM ticket_session s JOIN booking_session b ON b.id = s.booking_session_id WHERE s.event_id = e.id AND s.status = 'scheduled' AND b.starts_at > now()) AS next_starts_at,
+             (SELECT coalesce(sum(b.capacity), 0)::int FROM ticket_session s JOIN booking_session b ON b.id = s.booking_session_id WHERE s.event_id = e.id AND s.status = 'scheduled') AS capacity,
+             (SELECT count(*)::int FROM ticket t JOIN ticket_order o ON o.id = t.order_id WHERE o.event_id = e.id AND t.status IN ('ISSUED', 'USED')) AS issued,
+             (SELECT count(*)::int FROM ticket t JOIN ticket_order o ON o.id = t.order_id WHERE o.event_id = e.id AND t.status = 'PENDING_PAYMENT') AS pending
+        FROM ticket_event e JOIN booking_space sp ON sp.id = e.space_id AND sp.company_id = e.company_id
        WHERE e.company_id = ${companyId}::uuid
          AND (${all} OR EXISTS (SELECT 1 FROM booking_space_member m WHERE m.space_id = e.space_id AND m.company_id = e.company_id AND m.user_id = ${userId}::uuid))
        ORDER BY e.created_at DESC`
-    return rows.map(serializeEvent)
+    return rows.map((e) => ({ ...serializeEvent(e), stats: { sessions: e.sessions, nextStartsAt: e.next_starts_at, capacity: e.capacity, issued: e.issued, pending: e.pending } }))
   }
 
   // A function = one engine booking_session in the event's space (its room capacity),
@@ -102,7 +114,13 @@ export function createTicketingConfigService({ prisma, engine }) {
         FROM ticket_session s JOIN booking_session b ON b.id = s.booking_session_id AND b.company_id = s.company_id
        WHERE s.event_id = ${eventId}::uuid AND s.company_id = ${companyId}::uuid
        ORDER BY b.starts_at`
+    const counts = await db.$queryRaw`
+      SELECT t.session_id, t.status, count(*)::int AS n FROM ticket t JOIN ticket_session s ON s.id = t.session_id
+       WHERE s.event_id = ${eventId}::uuid AND t.company_id = ${companyId}::uuid GROUP BY t.session_id, t.status`
+    const count = (sessionId, ...statuses) => counts.filter((c) => c.session_id === sessionId && statuses.includes(c.status)).reduce((a, c) => a + c.n, 0)
+    // Seats: taken in the engine (sold + held), free = capacity - taken; tickets by state.
     return rows.map((s) => ({
+      stats: { sold: count(s.id, 'ISSUED', 'USED'), used: count(s.id, 'USED'), reserved: count(s.id, 'PENDING_PAYMENT'), cancelled: count(s.id, 'CANCELLED', 'EXPIRED') },
       id: s.id, eventId: s.event_id, bookingSessionId: s.booking_session_id, status: s.status, startsAt: s.starts_at, endsAt: s.ends_at,
       capacity: s.capacity, seatsTaken: s.seats_taken, available: Math.max(0, s.capacity - s.seats_taken), doorsOpenAt: s.doors_open_at,
       admitBeforeMinutes: s.admit_before_minutes, admitAfterMinutes: s.admit_after_minutes, version: s.version,
@@ -181,7 +199,47 @@ export function createTicketingConfigService({ prisma, engine }) {
     })
   }
 
-  return { createEvent, updateEvent, listEvents, createSession, listSessions, createType, updateType, listTypes, setQuota }
+  // Event team = members of the event's booking space (admin | agent | viewer). Written
+  // here, not through Reservaciones (the space is read-only there).
+  async function listMembers({ companyId, event }) {
+    const rows = await prisma.$queryRaw`
+      SELECT m.user_id, m.role, p.display_name, p.email FROM booking_space_member m JOIN user_profile p ON p.id = m.user_id
+       WHERE m.space_id = ${event.space_id}::uuid AND m.company_id = ${companyId}::uuid ORDER BY p.display_name`
+    return rows.map((r) => ({ userId: r.user_id, role: r.role, displayName: r.display_name, email: r.email }))
+  }
+
+  async function setMember({ companyId, actorId, event, userId, role }) {
+    return inTx(async (tx) => {
+      const member = (await tx.$queryRaw`SELECT 1 FROM membership m JOIN user_profile p ON p.id = m.user_id WHERE m.company_id = ${companyId}::uuid AND m.user_id = ${userId}::uuid AND m.enabled AND NOT p.is_bot`)[0]
+      if (!member) throw new TicketingError('La persona no pertenece a esta empresa.', 422, 'NOT_COMPANY_MEMBER')
+      const before = (await tx.$queryRaw`SELECT role FROM booking_space_member WHERE space_id = ${event.space_id}::uuid AND user_id = ${userId}::uuid FOR UPDATE`)[0]
+      if (before?.role === 'admin' && role !== 'admin') await assertAnotherAdmin(tx, event, userId)
+      await tx.$executeRaw`
+        INSERT INTO booking_space_member (company_id, space_id, user_id, role) VALUES (${companyId}::uuid, ${event.space_id}::uuid, ${userId}::uuid, ${role})
+        ON CONFLICT (space_id, user_id) DO UPDATE SET role = EXCLUDED.role, updated_at = now()`
+      await history(tx, { companyId, entity: 'event', entityId: event.id, action: 'member', actorId, before: before ? { userId, role: before.role } : null, after: { userId, role } })
+      return { userId, role }
+    })
+  }
+
+  async function removeMember({ companyId, actorId, event, userId }) {
+    return inTx(async (tx) => {
+      const before = (await tx.$queryRaw`SELECT role FROM booking_space_member WHERE space_id = ${event.space_id}::uuid AND user_id = ${userId}::uuid FOR UPDATE`)[0]
+      if (!before) throw notFound('Integrante')
+      if (before.role === 'admin') await assertAnotherAdmin(tx, event, userId)
+      await tx.$executeRaw`DELETE FROM booking_space_member WHERE space_id = ${event.space_id}::uuid AND user_id = ${userId}::uuid`
+      await history(tx, { companyId, entity: 'event', entityId: event.id, action: 'member_remove', actorId, before: { userId, role: before.role } })
+      return { userId }
+    })
+  }
+
+  // An event always keeps someone who can administer it.
+  async function assertAnotherAdmin(tx, event, userId) {
+    const others = (await tx.$queryRaw`SELECT count(*)::int AS n FROM booking_space_member WHERE space_id = ${event.space_id}::uuid AND role = 'admin' AND user_id <> ${userId}::uuid`)[0].n
+    if (!others) throw new TicketingError('El evento necesita al menos un administrador.', 409, 'LAST_ADMIN')
+  }
+
+  return { createEvent, updateEvent, listEvents, createSession, listSessions, createType, updateType, listTypes, setQuota, listMembers, setMember, removeMember }
 }
 
 export const serializeType = (t) => t && ({

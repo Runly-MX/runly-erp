@@ -272,8 +272,11 @@ export const EVENT_CATALOG = Object.freeze({
     ['order.created', 'Se emitió una orden de boletos', 'Cuando se registra una orden: confirmada (gratis) o pendiente de pago.', TICKET_ORDER_FIELDS],
     ['order.cancelled', 'Se canceló una orden de boletos', 'Cuando se cancela una orden y se liberan sus lugares.', TICKET_ORDER_FIELDS],
     ['order.expired', 'Venció una orden de boletos sin pagar', 'Cuando una orden apartada no se pagó a tiempo y se liberan sus lugares.', TICKET_ORDER_FIELDS],
+    ['order.confirmed', 'Se pagó una orden de boletos', 'Cuando la venta de Caja de una orden apartada se verifica como pagada y se emiten sus boletos.', TICKET_ORDER_FIELDS],
+    ['order.refunded', 'Se reembolsó una orden de boletos', 'Cuando se anula el último boleto pagado de una orden después de su devolución en Caja.', TICKET_ORDER_FIELDS],
     ['ticket.reissued', 'Se reemplazó el QR de un boleto', 'Cuando se emite un QR nuevo para un boleto y el anterior deja de servir.', TICKET_FIELDS],
     ['ticket.transferred', 'Se transfirió un boleto', 'Cuando un boleto cambia de titular; el QR anterior deja de servir.', TICKET_FIELDS],
+    ['ticket.cancelled', 'Se canceló un boleto', 'Cuando se anula un boleto (sola o con toda su orden); su QR deja de servir y su lugar se libera.', TICKET_FIELDS],
   ].map(([action, label, description, fields]) => [`ticketing.${action}`, { module: 'Boletos', label, description, fields }])),
   // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
   'automations.webhook.received': { module: 'Automatizaciones', label: 'Se recibió un mensaje en un webhook de automatización', description: 'Interno.', fields: [field('automationKey', 'Automatización', 'text', 'Automatización destino.', 'pedido'), field('data', 'Datos', 'text', 'Datos recibidos.', '{}')] },

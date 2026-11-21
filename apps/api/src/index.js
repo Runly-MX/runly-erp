@@ -2626,7 +2626,7 @@ mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSm
 // Booking engine (runly.bookings phase 1): internal API only, /bookings/*.
 mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel, onChanged: bookingsCalendar.projectQuietly }));
 // Boletos (runly.ticketing, F6B): events, functions on the Booking Engine, free issuance, credentials.
-mountWithAuth(app, createTicketingRouter({ prisma, requirePermission }));
+mountWithAuth(app, createTicketingRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createLmsRouter({ prisma, requirePermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission, supabaseAdmin }));

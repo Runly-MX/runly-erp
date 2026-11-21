@@ -44,7 +44,8 @@ export const canCreateEvents = (ctx) => isTicketingAdmin(ctx) || Boolean(ctx?.pe
 // 404 for another company's event (never reveals it exists), 403 when the role is too low.
 export async function requireEventRole(db, { companyId, eventId, userId, ctx, min = 'viewer' }) {
   const event = (await db.$queryRaw`
-    SELECT e.*, m.role AS member_role FROM ticket_event e
+    SELECT e.*, sp.timezone, m.role AS member_role FROM ticket_event e
+      JOIN booking_space sp ON sp.id = e.space_id AND sp.company_id = e.company_id
       LEFT JOIN booking_space_member m ON m.space_id = e.space_id AND m.company_id = e.company_id AND m.user_id = ${userId}::uuid
      WHERE e.id = ${eventId}::uuid AND e.company_id = ${companyId}::uuid`)[0]
   if (!event) throw notFound('Evento')
@@ -67,7 +68,7 @@ export function policyOf(event) {
 }
 
 export const serializeEvent = (e) => e && ({
-  id: e.id, spaceId: e.space_id, title: e.title, slug: e.slug, description: e.description, venue: e.venue,
+  id: e.id, spaceId: e.space_id, title: e.title, slug: e.slug, description: e.description, venue: e.venue, timezone: e.timezone ?? null,
   published: e.published, salesOpen: e.sales_open, policy: policyOf(e), policyVersion: e.policy_version, enabled: e.enabled,
   version: e.version, createdAt: e.created_at, updatedAt: e.updated_at,
 })

@@ -93,5 +93,7 @@ export const ticketOrderCreateSchema = z.object({
   holders: z.array(holderSchema).max(100).optional(),
 }).strict();
 
-export const ticketCancelSchema = z.object({ reason: optionalText(500) }).strict();
+export const ticketCancelSchema = z.object({ reason: optionalText(500), ticketIds: z.array(z.string().uuid()).min(1).max(100).optional() }).strict();
+export const ticketConfirmPaymentSchema = z.object({ posOrderId: z.string().uuid() }).strict();
+export const ticketMemberSchema = z.object({ role: z.enum(['admin', 'agent', 'viewer']) }).strict();
 export const ticketTransferSchema = z.object({ holderName: text(160), holderEmail: email.optional().nullable() }).strict();
