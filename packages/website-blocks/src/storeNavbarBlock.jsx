@@ -6,9 +6,18 @@ import { ACCENT, INK, LINE, PAPER, SANS, SERIF } from './storeUi.jsx'
 
 const parseLinks = (raw) => String(raw ?? '').split('\n').map((l) => l.split('|').map((p) => p.trim())).filter(([label]) => label).slice(0, 8).map(([label, href]) => ({ label, href: href || '#' }))
 
+// The Atlas editor can render a 390px page in a much wider browser viewport.
+// Query the actual page container; a viewport fallback also covers standalone storefronts.
+const COMPACT_NAV_CSS = `.sn-burger{display:inline-flex}
+.sn-links{display:none!important}
+.sn-bar nav{gap:12px!important;padding-inline:16px!important}
+.sn-bar[data-open="true"] .sn-links{display:flex!important;position:absolute;left:0;right:0;top:100%;flex-direction:column;align-items:stretch;gap:0;padding:8px 16px 16px;background:var(--sn-bg);border-bottom:1px solid ${LINE};max-width:100%;box-sizing:border-box}
+.sn-links a{min-height:44px}`
 const CSS = `.sn-bar a,.sn-bar button{outline-offset:2px}.sn-bar a:focus-visible,.sn-bar button:focus-visible{outline:3px solid ${ACCENT}}
 .sn-link{transition:opacity .18s ease}.sn-link:hover{opacity:.7}.sn-burger{display:none}
-@media (max-width:767px){.sn-burger{display:inline-flex}.sn-links{display:none!important}.sn-bar[data-open="true"] .sn-links{display:flex!important;position:absolute;left:0;right:0;top:100%;flex-direction:column;align-items:stretch;gap:0;padding:8px 24px 16px;background:var(--sn-bg);border-bottom:1px solid ${LINE}}.sn-links a{min-height:44px}}
+.sn-bar{min-width:0;max-width:100%}.sn-bar nav{box-sizing:border-box;min-width:0}.sn-bar .sn-links{min-width:0}
+@container atlas-page (max-width:859px){${COMPACT_NAV_CSS}}
+@media (max-width:859px){${COMPACT_NAV_CSS}}
 @media (prefers-reduced-motion:reduce){.sn-link{transition:none}}`
 
 function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky, ...identity }) {
