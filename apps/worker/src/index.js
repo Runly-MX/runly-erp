@@ -60,6 +60,8 @@ import { createBookingsCalendarProjection } from '../../api/src/routes/bookings/
 import { createBookingsMeetings } from '../../api/src/routes/bookings/bookings-meetings.js'
 import { createPosBookingsAdapter } from '../../api/src/routes/pos/pos-bookings-adapter.js'
 import { createTicketingCommandService } from '../../api/src/routes/ticketing/ticketing-command-service.js'
+import { createTicketingNotifier } from '../../api/src/routes/ticketing/ticketing-notifications.js'
+import { createTicketingCalendarProjection } from '../../api/src/routes/ticketing/ticketing-calendar.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
 import { expireStaleGuestSessions } from '../../api/src/routes/chat/session-expiry-job.js'
 import { sweepOrphanChatAttachments } from '../../api/src/routes/chat/orphan-attachment-sweep-job.js'
@@ -767,6 +769,9 @@ const bookingsCommands = createBookingsCommandService({ prisma })
 const bookingsCalendar = createBookingsCalendarProjection({ prisma })
 const posBookings = createPosBookingsAdapter({ prisma })
 const ticketingCommands = createTicketingCommandService({ prisma, engine: bookingsCommands })
+// Boletos F6E: ticket emails (outbox; the only process that opens sealed QR secrets) and the Calendar mirror of functions.
+const ticketingNotifier = createTicketingNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId) })
+const ticketingCalendar = createTicketingCalendarProjection({ prisma })
 let bookingsTickRunning = false
 async function runBookingsTick() {
   if (bookingsTickRunning) return
@@ -791,6 +796,10 @@ async function runBookingsTick() {
     // Online appointments: rooms missing, moved or to revoke (cancelled, finished, service no longer online).
     const meetings = await bookingsMeetings.syncDue()
     if (meetings.processed) console.log(`[worker] bookings meetings ${formatLogTimestamp()} ${Object.entries(meetings).map(([k, v]) => `${k}=${v}`).join(' ')}`)
+    const ticketMail = await ticketingNotifier.processDue({ limit: 20 })
+    if (ticketMail.processed) console.log(`[worker] ticketing emails ${formatLogTimestamp()} processed=${ticketMail.processed} sent=${ticketMail.sent} retrying=${ticketMail.retrying} failed=${ticketMail.failed} skipped=${ticketMail.skipped}`)
+    const ticketCalendar = await ticketingCalendar.syncDue()
+    if (ticketCalendar.processed) console.log(`[worker] ticketing calendar ${formatLogTimestamp()} ${Object.entries(ticketCalendar).map(([k, v]) => `${k}=${v}`).join(' ')}`)
     await pruneRateBuckets(prisma)
   } catch (err) {
     console.error('[worker] bookings tick failed:', err?.message ?? err)

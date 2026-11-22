@@ -34,32 +34,32 @@ export function roomEventOf(row) {
   }
 }
 
-export function createBookingsCalendarProjection({ prisma, log = console.error }) {
-  const configKey = (spaceId) => `bookings.calendarId.${spaceId}`
+const configKey = (spaceId) => `bookings.calendarId.${spaceId}`
 
-  // One calendar per space, owned by a space admin and shared (viewer) with the
-  // space's current members only; whoever leaves the space loses it.
-  async function calendarFor(tx, space) {
-    const members = await tx.bookingSpaceMember.findMany({ where: { companyId: space.companyId, spaceId: space.id }, orderBy: { createdAt: 'asc' }, select: { userId: true, role: true } })
-    const owner = (members.find((m) => m.role === 'admin') ?? members[0])?.userId
-    if (!owner) return null
-    const cfg = await tx.instanceConfig.findUnique({ where: { key: configKey(space.id) } })
-    let calendar = cfg?.value ? await tx.calendarCalendar.findFirst({ where: { id: cfg.value, companyId: space.companyId, enabled: true }, select: { id: true, ownerId: true } }) : null
-    if (!calendar) {
-      calendar = await tx.calendarCalendar.create({ data: { ownerId: owner, companyId: space.companyId, name: `Reservaciones · ${space.name}`, color: COLOR, icon: 'CalendarCheck', isDefault: false }, select: { id: true, ownerId: true } })
-      await tx.instanceConfig.upsert({ where: { key: configKey(space.id) }, update: { value: calendar.id }, create: { key: configKey(space.id), value: calendar.id } })
-    } else if (!members.some((m) => m.userId === calendar.ownerId)) {
-      calendar = await tx.calendarCalendar.update({ where: { id: calendar.id }, data: { ownerId: owner }, select: { id: true, ownerId: true } })
-    }
-    const wanted = new Set(members.map((m) => m.userId).filter((id) => id !== calendar.ownerId))
-    const have = new Set((await tx.calendarShare.findMany({ where: { calendarId: calendar.id }, select: { userId: true } })).map((s) => s.userId))
-    const gone = [...have].filter((id) => !wanted.has(id))
-    if (gone.length) await tx.calendarShare.deleteMany({ where: { calendarId: calendar.id, userId: { in: gone } } })
-    const added = [...wanted].filter((id) => !have.has(id))
-    if (added.length) await tx.calendarShare.createMany({ data: added.map((userId) => ({ calendarId: calendar.id, userId, role: 'VIEWER' })), skipDuplicates: true })
-    return calendar
+// One calendar per space, owned by a space admin and shared (viewer) with the
+// space's current members only; whoever leaves the space loses it.
+export async function calendarFor(tx, space, { label = 'Reservaciones' } = {}) {
+  const members = await tx.bookingSpaceMember.findMany({ where: { companyId: space.companyId, spaceId: space.id }, orderBy: { createdAt: 'asc' }, select: { userId: true, role: true } })
+  const owner = (members.find((m) => m.role === 'admin') ?? members[0])?.userId
+  if (!owner) return null
+  const cfg = await tx.instanceConfig.findUnique({ where: { key: configKey(space.id) } })
+  let calendar = cfg?.value ? await tx.calendarCalendar.findFirst({ where: { id: cfg.value, companyId: space.companyId, enabled: true }, select: { id: true, ownerId: true } }) : null
+  if (!calendar) {
+    calendar = await tx.calendarCalendar.create({ data: { ownerId: owner, companyId: space.companyId, name: `${label} · ${space.name}`, color: COLOR, icon: 'CalendarCheck', isDefault: false }, select: { id: true, ownerId: true } })
+    await tx.instanceConfig.upsert({ where: { key: configKey(space.id) }, update: { value: calendar.id }, create: { key: configKey(space.id), value: calendar.id } })
+  } else if (!members.some((m) => m.userId === calendar.ownerId)) {
+    calendar = await tx.calendarCalendar.update({ where: { id: calendar.id }, data: { ownerId: owner }, select: { id: true, ownerId: true } })
   }
+  const wanted = new Set(members.map((m) => m.userId).filter((id) => id !== calendar.ownerId))
+  const have = new Set((await tx.calendarShare.findMany({ where: { calendarId: calendar.id }, select: { userId: true } })).map((s) => s.userId))
+  const gone = [...have].filter((id) => !wanted.has(id))
+  if (gone.length) await tx.calendarShare.deleteMany({ where: { calendarId: calendar.id, userId: { in: gone } } })
+  const added = [...wanted].filter((id) => !have.has(id))
+  if (added.length) await tx.calendarShare.createMany({ data: added.map((userId) => ({ calendarId: calendar.id, userId, role: 'VIEWER' })), skipDuplicates: true })
+  return calendar
+}
 
+export function createBookingsCalendarProjection({ prisma, log = console.error }) {
   async function project(bookingId) {
     return prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`bookings.calendar:${bookingId}`}, 0))::text`

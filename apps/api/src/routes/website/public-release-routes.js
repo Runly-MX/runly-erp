@@ -68,7 +68,8 @@ export async function serveWebsiteRelease(c,gateway,path,runtime,ssr) {
  // Catalog product covers are served straight from Supabase Storage (public bucket or signed URL), not pinned in the release.
  const storage=(()=>{try{return ' '+new URL(resolvePublicSupabaseUrl()).origin}catch{return ''}})()
  // runly.bookings blocks embed the ERP's booking portal: only that origin may be framed, and only when the release has one.
- const bookingFrame=snapshot.release.manifest.dynamic?.some(d=>d.kind==='booking')?bookingPortalOrigin():null
+ // runly.ticketing blocks (F6E) embed the event portal on the same ERP origin.
+ const bookingFrame=snapshot.release.manifest.dynamic?.some(d=>d.kind==='booking'||d.kind==='ticketing')?bookingPortalOrigin():null
  const frames=[turnstile?'https://challenges.cloudflare.com':null,bookingFrame].filter(Boolean).join(' ')||"'none'"
  c.header('Content-Security-Policy',`default-src 'self'; script-src 'self'${challenge}; frame-src ${frames}; style-src 'self' 'unsafe-inline'; img-src 'self' data:${storage}; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'self'`)
  // Attributes carry only UUIDs and hex digests. The body is pre-rendered by React from the same release data the

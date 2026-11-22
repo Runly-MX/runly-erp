@@ -1069,8 +1069,8 @@ export const bookingsMap = createModuleManifest({
 export const ticketingMap = createModuleManifest({
   key: 'runly.ticketing',
   name: 'Boletos',
-  description: 'Eventos con funciones sobre el motor de Reservaciones, tipos de boleto con cupo, emisión con QR seguro, transferencias y control de acceso.',
-  version: '0.3.0',
+  description: 'Eventos con funciones sobre el motor de Reservaciones, tipos de boleto con cupo, página pública con boletos gratuitos, envío y reenvío por correo, emisión con QR seguro, transferencias y control de acceso.',
+  version: '0.4.0',
   kind: MODULE_KINDS.FEATURE,
   core: false,
   uninstallable: true,
@@ -1086,7 +1086,7 @@ export const ticketingMap = createModuleManifest({
     resettable: false,
     supportsDataPurge: true,
     defaultUninstallPolicy: 'preserve-data',
-    ownedEntities: ['TicketEvent', 'TicketSession', 'TicketType', 'TicketQuota', 'TicketOrder', 'Ticket', 'TicketAdmission', 'TicketCredentialRevoked', 'TicketHistory', 'TicketIdempotency'],
+    ownedEntities: ['TicketEvent', 'TicketSession', 'TicketType', 'TicketQuota', 'TicketOrder', 'Ticket', 'TicketAdmission', 'TicketCredentialRevoked', 'TicketHistory', 'TicketIdempotency', 'TicketCredentialSecret', 'TicketNotification', 'TicketSessionCalendarSync'],
     sharedEntities: ['Company', 'UserProfile', 'Contact', 'CatalogProduct', 'BookingSpace', 'BookingService', 'BookingSession', 'Booking', 'DomainEventOutbox'],
   },
   navigation: [
@@ -1105,7 +1105,7 @@ export const ticketingMap = createModuleManifest({
     { key: 'ticketing.admin', name: 'Administrar todos los eventos' },
   ],
   exposes: {},
-  blueprints: [],
+  blueprints: [...loadHelpBlueprints('runly.ticketing', path.join(HELP_DIR, 'runly.ticketing'))],
 });
 
 export const chatMap = createModuleManifest({

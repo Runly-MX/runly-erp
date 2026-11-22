@@ -4,8 +4,10 @@
 import { Hono } from 'hono'
 import {
   ticketCancelSchema, ticketConfirmPaymentSchema, ticketScanSchema, ticketMemberSchema, ticketEventCreateSchema, ticketEventUpdateSchema, ticketOrderCreateSchema, ticketQuotaSchema,
-  ticketSessionCreateSchema, ticketTransferSchema, ticketTypeCreateSchema, ticketTypeUpdateSchema,
+  ticketSessionCreateSchema, ticketSessionMoveSchema, ticketResendSchema, ticketTransferSchema, ticketTypeCreateSchema, ticketTypeUpdateSchema,
 } from '@runly/validators'
+import { eventUrl } from './ticketing-links.js'
+import { eventPreviewToken } from './ticketing-public-service.js'
 import { createBookingsCommandService } from '../bookings/bookings-command-service.js'
 import { createSharedBucket } from '../bookings/bookings-rate-limit.js'
 import { TicketingError, canCreateEvents, isTicketingAdmin, notFound, requireEventRole, serializeEvent } from './ticketing-core.js'
@@ -14,13 +16,15 @@ import { createTicketingCommandService } from './ticketing-command-service.js'
 import { createTicketingConfigService } from './ticketing-config-service.js'
 import { createTicketingPaymentService } from './ticketing-payment-service.js'
 
-export function createTicketingRouter({ prisma, requirePermission, requireAnyPermission = null, engine = null, commands = null, payments = null, checkin = null, scanLimit = [60, 3] }) {
+// onSessionsChanged(eventId): projections after a commit (Calendar mirror), never awaited by the caller.
+export function createTicketingRouter({ prisma, requirePermission, requireAnyPermission = null, engine = null, commands = null, payments = null, checkin = null, scanLimit = [60, 3], env = process.env, onSessionsChanged = null }) {
   const app = new Hono()
   const bookings = engine ?? createBookingsCommandService({ prisma })
   const config = createTicketingConfigService({ prisma, engine: bookings })
-  const cmd = commands ?? createTicketingCommandService({ prisma, engine: bookings })
-  const pay = payments ?? createTicketingPaymentService({ prisma })
+  const cmd = commands ?? createTicketingCommandService({ prisma, engine: bookings, env })
+  const pay = payments ?? createTicketingPaymentService({ prisma, env })
   const gate = checkin ?? createTicketingCheckinService({ prisma })
+  const changed = (eventId) => { if (onSessionsChanged && eventId) Promise.resolve().then(() => onSessionsChanged(eventId)).catch(() => {}) }
   const access = requirePermission('ticketing.access')
   const checkinAccess = requirePermission('ticketing.checkin')
   // Shared PostgreSQL buckets (all API instances): per operator and per reader device.
@@ -76,13 +80,42 @@ export function createTicketingRouter({ prisma, requirePermission, requireAnyPer
   }))
   app.patch('/ticketing/events/:eventId', access, run(async (c) => {
     await role(c, c.req.param('eventId'), 'admin')
-    return c.json({ data: await config.updateEvent({ companyId: companyId(c), actorId: userId(c), eventId: c.req.param('eventId'), input: await parse(c, ticketEventUpdateSchema) }) })
+    const data = await config.updateEvent({ companyId: companyId(c), actorId: userId(c), eventId: c.req.param('eventId'), input: await parse(c, ticketEventUpdateSchema) })
+    changed(data.id)
+    return c.json({ data })
+  }))
+  // F6E: a 30-minute read-only preview of the public page (also before publishing).
+  app.post('/ticketing/events/:eventId/preview', access, run(async (c) => {
+    const { event } = await role(c, c.req.param('eventId'), 'admin')
+    const base = eventUrl(event.slug, env)
+    if (!base) throw new TicketingError('La dirección pública de la instancia no está configurada.', 503, 'APP_URL_MISSING')
+    return c.json({ data: { url: `${base}?vista=${encodeURIComponent(eventPreviewToken(event.id, env))}` } })
+  }))
+  // Website editor: the company's published events (public data only, any signed-in user of the company).
+  app.get('/ticketing/events-published', run(async (c) => {
+    const rows = await prisma.$queryRaw`SELECT id, slug, title FROM ticket_event WHERE company_id = ${companyId(c)}::uuid AND published = true AND enabled = true ORDER BY title`
+    return c.json({ data: rows.map((r) => ({ id: r.id, slug: r.slug, title: r.title })) })
   }))
 
   // Functions, types, quotas
   app.post('/ticketing/events/:eventId/sessions', access, run(async (c) => {
     const { event } = await role(c, c.req.param('eventId'), 'admin')
-    return c.json({ data: await config.createSession({ companyId: companyId(c), actorId: userId(c), event, input: await parse(c, ticketSessionCreateSchema) }) }, 201)
+    const data = await config.createSession({ companyId: companyId(c), actorId: userId(c), event, input: await parse(c, ticketSessionCreateSchema) })
+    changed(event.id)
+    return c.json({ data }, 201)
+  }))
+  app.post('/ticketing/sessions/:sessionId/move', access, run(async (c) => {
+    await role(c, await eventOf(c, 'session', c.req.param('sessionId')), 'admin')
+    const { startsAt } = await parse(c, ticketSessionMoveSchema)
+    const eventId = await config.moveSession({ companyId: companyId(c), actorId: userId(c), sessionId: c.req.param('sessionId'), startsAt })
+    changed(eventId)
+    return c.json({ data: (await config.listSessions({ companyId: companyId(c), eventId })).find((s) => s.id === c.req.param('sessionId')) })
+  }))
+  app.post('/ticketing/sessions/:sessionId/cancel', access, run(async (c) => {
+    await role(c, await eventOf(c, 'session', c.req.param('sessionId')), 'admin')
+    const eventId = await config.cancelSession({ companyId: companyId(c), actorId: userId(c), sessionId: c.req.param('sessionId') })
+    changed(eventId)
+    return c.json({ data: (await config.listSessions({ companyId: companyId(c), eventId })).find((s) => s.id === c.req.param('sessionId')) })
   }))
   app.post('/ticketing/events/:eventId/types', access, run(async (c) => {
     const { event } = await role(c, c.req.param('eventId'), 'admin')
@@ -162,6 +195,12 @@ export function createTicketingRouter({ prisma, requirePermission, requireAnyPer
     const { reason, ticketIds } = await parse(c, ticketCancelSchema)
     const result = await cmd.cancel({ companyId: companyId(c), actorId: userId(c), orderId: c.req.param('orderId'), ticketIds: ticketIds ?? null, reason: reason ?? null, idempotencyKey: key(c) })
     return c.json({ data: result.order, replayed: result.replayed })
+  }))
+  // F6E resend: the same valid QR to the address on file (never one typed here).
+  app.post('/ticketing/orders/:orderId/resend', access, run(async (c) => {
+    await role(c, await eventOf(c, 'order', c.req.param('orderId')), 'agent')
+    const { ticketIds } = await parse(c, ticketResendSchema)
+    return c.json({ data: await cmd.resend({ companyId: companyId(c), orderId: c.req.param('orderId'), ticketIds: ticketIds ?? null, stamp: `u${userId(c)}:${Math.floor(Date.now() / 60000)}`, actorId: userId(c) }) })
   }))
   app.post('/ticketing/tickets/:ticketId/reissue', access, run(async (c) => {
     await role(c, await eventOf(c, 'ticket', c.req.param('ticketId')), 'agent')

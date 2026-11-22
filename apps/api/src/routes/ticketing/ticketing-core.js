@@ -71,6 +71,7 @@ export function policyOf(event) {
 export const serializeEvent = (e) => e && ({
   id: e.id, spaceId: e.space_id, title: e.title, slug: e.slug, description: e.description, venue: e.venue, timezone: e.timezone ?? null,
   published: e.published, salesOpen: e.sales_open, policy: policyOf(e), policyVersion: e.policy_version, enabled: e.enabled,
+  imageFileId: e.image_file_id ?? null, embedOrigins: e.embed_origins ?? [], publishedAt: e.published_at ?? null,
   version: e.version, createdAt: e.created_at, updatedAt: e.updated_at,
 })
 

@@ -24,7 +24,7 @@ export const WEBSITE_DESIGN_GUIDE = [
   'Los campos textarea con listas siguen el formato de su defaultProps (por ejemplo "Etiqueta | /ruta" por línea y "---" entre columnas). Respeta ese formato.',
   'Imágenes: usa URLs de website_media o https públicas. Para subir una imagen nueva usa runly_files_import_prepare con target { type: "website.site", id: <siteId> }.',
   'Tienda: ProductsGridBlock y ProductCardBlock muestran productos publicados del catálogo; créalos con runly_catalog_prepare. CartBlock agrega el carrito.',
-  'Contacto y reservas: ContactFormBlock guarda las solicitudes en Runly. Para reservaciones usa BookingPortalBlock con bookingPage = slug de una página publicada de Reservaciones (BookingFormBlock es antiguo y no se publica). No inventes formularios con texto.',
+  'Contacto y reservas: ContactFormBlock guarda las solicitudes en Runly. Para reservaciones usa BookingPortalBlock con bookingPage = slug de una página publicada de Reservaciones (BookingFormBlock es antiguo y no se publica). Para eventos con boletos usa TicketingEventBlock con event = slug de un evento publicado de Boletos (display: card, portal, button o link). No inventes formularios con texto.',
   'Usa los colores del tema (tokens primary, accent, muted, bg, fg) en fondos y variantes en vez de colores sueltos. Máximo 12 páginas por propuesta.',
 ];
 

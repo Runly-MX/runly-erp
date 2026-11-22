@@ -9,23 +9,27 @@ import {
   qrText, serializeOrder, serializeTicket, ticketEvent,
 } from './ticketing-core.js'
 import { createTicketingTx } from './ticketing-tx.js'
+import { createTicketingVault } from './ticketing-vault.js'
+import { canSignLinks, hashToken, orderLinkExpiry, orderToken } from './ticketing-links.js'
 
 const M = 60000
 
-export function createTicketingCommandService({ prisma, engine, now = () => Date.now() }) {
-  const { inTx, claim, settle, history, emit, ticketsOf, orderView } = createTicketingTx({ prisma })
+export function createTicketingCommandService({ prisma, engine, now = () => Date.now(), env = process.env, vault = createTicketingVault({ env }) }) {
+  const { inTx, claim, settle, history, emit, ticketsOf, orderView, enqueueDelivery } = createTicketingTx({ prisma })
 
   // ---- Reserve / issue -----------------------------------------------------------------
   // input: ticketOrderCreateSchema. Free tickets are ISSUED with a credential at once;
   // paid ones are held (PENDING_PAYMENT) until Caja confirms (F6C) or the hold expires.
   // beforeCommit(tx, order): an integration's own write in this same transaction.
-  async function reserve({ companyId, actorId, input, idempotencyKey = null, actorKind = 'user', beforeCommit = null }) {
+  // scope: the idempotency scope (a portal passes its own, since it has no user).
+  async function reserve({ companyId, actorId, input, idempotencyKey = null, actorKind = 'user', beforeCommit = null, scope = null }) {
     return inTx(async (tx) => {
-      const claimed = await claim(tx, { companyId, scope: `user:${actorId}`, operation: 'reserve', key: idempotencyKey, hash: requestHash('reserve', input) })
+      const claimed = await claim(tx, { companyId, scope: scope ?? `user:${actorId}`, operation: 'reserve', key: idempotencyKey, hash: requestHash('reserve', input) })
       if (claimed?.replay) return { order: await orderView(tx, companyId, claimed.replay), credentials: [], replayed: true }
       const session = (await tx.$queryRaw`
-        SELECT s.*, e.space_id, e.service_id, e.enabled AS event_enabled, e.sales_open, e.policy, e.policy_version, e.id AS event_id
+        SELECT s.*, e.space_id, e.service_id, e.enabled AS event_enabled, e.sales_open, e.policy, e.policy_version, e.id AS event_id, b.ends_at
           FROM ticket_session s JOIN ticket_event e ON e.id = s.event_id AND e.company_id = s.company_id
+          JOIN booking_session b ON b.id = s.booking_session_id AND b.company_id = s.company_id
          WHERE s.id = ${input.sessionId}::uuid AND s.company_id = ${companyId}::uuid`)[0]
       if (!session) throw notFound('Función')
       if (!session.event_enabled || session.status !== 'scheduled') throw new TicketingError('Esta función ya no vende boletos.', 409, 'SESSION_UNAVAILABLE')
@@ -108,15 +112,27 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
             VALUES (${companyId}::uuid, ${order.id}::uuid, ${session.id}::uuid, ${typeId}::uuid, ${issue ? 'ISSUED' : 'PENDING_PAYMENT'},
                     ${holder.name?.trim() || input.buyer?.name || null}, ${holder.email ?? null}, ${issue ? 1 : 0}, ${issue?.hash ?? null}, ${issue ? new Date(at) : null})
             RETURNING id, code`)[0]
-          if (issue) credentials.push({ ticketId: ticket.id, code: ticket.code, credentialVersion: 1, qr: qrText(ticket.id, issue.secret) })
+          if (issue) {
+            credentials.push({ ticketId: ticket.id, code: ticket.code, credentialVersion: 1, qr: qrText(ticket.id, issue.secret) })
+            await vault.store(tx, { companyId, ticketId: ticket.id, version: 1, secret: issue.secret })
+          }
         }
+      }
+      // The buyer's personal link (hash only) whenever there is an address to send it to.
+      let manageToken = null
+      if (order.buyer_email && canSignLinks(env)) {
+        manageToken = orderToken(order.id, 1, env)
+        order = (await tx.$queryRaw`
+          UPDATE ticket_order SET manage_token_version = 1, manage_token_hash = ${hashToken(manageToken)}, manage_token_expires_at = ${orderLinkExpiry(session.ends_at)}
+           WHERE id = ${order.id}::uuid RETURNING *`)[0]
       }
       await settle(tx, claimed, order.id)
       const tickets = await ticketsOf(tx, order.id)
       await history(tx, { companyId, entity: 'order', entityId: order.id, action: 'create', actorId, actorKind, after: { ...serializeOrder(order), tickets: tickets.map((t) => ({ id: t.id, code: t.code, typeId: t.type_id, status: t.status })) } })
       await emit(tx, companyId, 'ticketing.order.created', orderEvent(order))
+      await enqueueDelivery(tx, { companyId, order, tickets, kind: 'issued' })
       if (beforeCommit) await beforeCommit(tx, order)
-      return { order: serializeOrder(order, tickets), credentials, replayed: false }
+      return { order: serializeOrder(order, tickets), credentials, manageToken, replayed: false }
     })
   }
 
@@ -142,6 +158,7 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
         UPDATE ticket SET status = ${ticketStatus}, credential_hash = NULL, cancelled_at = now(), pos_refund_id = ${refundIds[t.type_id] ?? null}::uuid,
                version = version + 1, updated_at = now()
          WHERE id = ${t.id}::uuid`
+      await vault.forget(tx, t.id)
     }
     const remaining = active.length - target.length
     if (order.booking_id && target.length) {
@@ -259,6 +276,10 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
              holder_name = ${holder ? holder.name : ticket.holder_name}, holder_email = ${holder ? holder.email ?? null : ticket.holder_email}
        WHERE id = ${ticket.id}::uuid RETURNING *`)[0]
     await settle(tx, idempotency, updated.id)
+    // The sealed copy follows the credential: the old version's copy is replaced.
+    await vault.store(tx, { companyId, ticketId: updated.id, version: updated.credential_version, secret: issue.secret })
+    const order = (await tx.$queryRaw`SELECT * FROM ticket_order WHERE id = ${updated.order_id}::uuid`)[0]
+    await enqueueDelivery(tx, { companyId, order, tickets: [updated], kind: action === 'reissue' ? 'reissued' : 'transferred', stamp: `v${updated.credential_version}` })
     await history(tx, {
       companyId, entity: 'ticket', entityId: ticket.id, action, actorId,
       before: { credentialVersion: ticket.credential_version, ...(holder ? { holderName: ticket.holder_name, holderEmail: ticket.holder_email } : {}) },
@@ -291,6 +312,30 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
       if (!policy.transferAllowed) throw new TicketingError('Este evento no permite transferir boletos.', 409, 'TRANSFER_NOT_ALLOWED')
       if (now() >= new Date(ticket.starts_at).getTime() - (policy.transferCutoffMinutes ?? 0) * M) throw new TicketingError('Ya no es posible transferir boletos de esta función.', 409, 'TRANSFER_CLOSED')
       return rotate(tx, { companyId, actorId, ticket, action: 'transfer', holder: { name: input.holderName, email: input.holderEmail }, idempotency: claimed })
+    })
+  }
+
+  // Resend (F6E): the SAME valid QR again, to the address on file (holder, else buyer);
+  // never to an address the caller supplies. Nothing about the credential changes.
+  // Tickets issued before F6E (or without a vault key) have no sealed copy: the caller
+  // gets REISSUE_REQUIRED and staff decide whether to reissue.
+  // stamp groups repeated clicks (one email per stamp); actor is staff or the buyer's link.
+  async function resend({ companyId, orderId, ticketIds = null, stamp, actorId = null, actorKind = 'user' }) {
+    return inTx(async (tx) => {
+      const order = (await tx.$queryRaw`SELECT * FROM ticket_order WHERE id = ${orderId}::uuid AND company_id = ${companyId}::uuid`)[0]
+      if (!order) throw notFound('Orden')
+      const tickets = (await tx.$queryRaw`
+        SELECT t.*, (s.ticket_id IS NOT NULL AND s.credential_version = t.credential_version) AS sealed
+          FROM ticket t LEFT JOIN ticket_credential_secret s ON s.ticket_id = t.id
+         WHERE t.order_id = ${order.id}::uuid AND t.company_id = ${companyId}::uuid ORDER BY t.created_at, t.id`)
+      const target = ticketIds?.length ? tickets.filter((t) => ticketIds.includes(t.id)) : tickets.filter((t) => t.status === 'ISSUED')
+      if (ticketIds?.length && target.length !== new Set(ticketIds).size) throw notFound('Boleto')
+      if (!target.length || target.some((t) => t.status !== 'ISSUED')) throw new TicketingError('Solo se reenvían boletos vigentes.', 409, 'TICKET_NOT_ISSUED')
+      if (target.some((t) => !t.sealed)) throw new TicketingError('Este boleto se emitió antes de los envíos por correo; para mandarlo hay que reemitir su QR.', 409, 'REISSUE_REQUIRED')
+      if (!target.some((t) => t.holder_email || order.buyer_email)) throw new TicketingError('La orden no tiene un correo al cual reenviar.', 409, 'NO_EMAIL')
+      const queued = await enqueueDelivery(tx, { companyId, order, tickets: target, kind: 'resend', stamp })
+      await history(tx, { companyId, entity: 'order', entityId: order.id, action: 'resend', actorId, actorKind, after: { ticketIds: target.map((t) => t.id), queued } })
+      return { queued, tickets: target.map((t) => t.id) }
     })
   }
 
@@ -332,5 +377,5 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
     return rows.map((h) => ({ id: h.id, entity: h.entity, entityId: h.entity_id, action: h.action, actorName: h.actor_name, actorKind: h.actor_kind, before: h.before, after: h.after, createdAt: h.created_at }))
   }
 
-  return { reserve, cancel, expireHolds, reissue, transfer, verifyCredential, getOrder, listOrders, orderHistory }
+  return { reserve, cancel, expireHolds, reissue, transfer, resend, verifyCredential, getOrder, listOrders, orderHistory, vault }
 }

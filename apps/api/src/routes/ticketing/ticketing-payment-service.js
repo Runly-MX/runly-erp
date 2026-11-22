@@ -7,6 +7,7 @@ import { requestHash } from '../bookings/bookings-command-service.js'
 import { listPaidSalesWithProducts, readPosSale } from '../pos/pos-sale-read.js'
 import { TicketingError, newSecret, notFound, orderEvent, qrText, serializeOrder } from './ticketing-core.js'
 import { createTicketingTx } from './ticketing-tx.js'
+import { createTicketingVault } from './ticketing-vault.js'
 
 // Pure: why this sale cannot pay this order (null when it can).
 export function saleMismatch(totals, sale) {
@@ -27,8 +28,8 @@ export function saleMismatch(totals, sale) {
   return null
 }
 
-export function createTicketingPaymentService({ prisma, now = () => Date.now() }) {
-  const { inTx, claim, settle, history, emit, ticketsOf, orderView } = createTicketingTx({ prisma })
+export function createTicketingPaymentService({ prisma, now = () => Date.now(), env = process.env, vault = createTicketingVault({ env }) }) {
+  const { inTx, claim, settle, history, emit, ticketsOf, orderView, enqueueDelivery } = createTicketingTx({ prisma })
 
   async function confirmPayment({ companyId, actorId, orderId, posOrderId, idempotencyKey = null }) {
     return inTx(async (tx) => {
@@ -54,11 +55,13 @@ export function createTicketingPaymentService({ prisma, now = () => Date.now() }
           UPDATE ticket SET status = 'ISSUED', credential_hash = ${issue.hash}, credential_version = 1, issued_at = ${new Date(now())}, version = version + 1, updated_at = now()
            WHERE id = ${ticket.id}::uuid`
         credentials.push({ ticketId: ticket.id, code: ticket.code, credentialVersion: 1, qr: qrText(ticket.id, issue.secret) })
+        await vault.store(tx, { companyId, ticketId: ticket.id, version: 1, secret: issue.secret })
       }
       const updated = (await tx.$queryRaw`
         UPDATE ticket_order SET status = 'CONFIRMED', pos_order_id = ${posOrderId}::uuid, paid_at = ${new Date(now())}, hold_expires_at = NULL, version = version + 1, updated_at = now()
          WHERE id = ${order.id}::uuid RETURNING *`)[0]
       await settle(tx, claimed, order.id)
+      await enqueueDelivery(tx, { companyId, order: updated, tickets: await ticketsOf(tx, order.id), kind: 'issued' })
       await history(tx, { companyId, entity: 'order', entityId: order.id, action: 'confirm_payment', actorId, before: { status: order.status }, after: { status: 'CONFIRMED', posOrderId, posOrderNumber: sale.orderNumber, paidAmount: sale.paidAmount, currency: sale.currency } })
       await emit(tx, companyId, 'ticketing.order.confirmed', orderEvent(updated))
       return { order: serializeOrder(updated, await ticketsOf(tx, order.id)), credentials, replayed: false }

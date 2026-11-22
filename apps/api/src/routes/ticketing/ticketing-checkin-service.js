@@ -31,7 +31,7 @@ export function decide(state, session, at) {
 }
 
 export function createTicketingCheckinService({ prisma, now = () => Date.now() }) {
-  const { inTx, history } = createTicketingTx({ prisma })
+  const { inTx, history, emit } = createTicketingTx({ prisma })
 
   async function sessionOf(db, companyId, sessionId) {
     const s = (await db.$queryRaw`
@@ -50,12 +50,12 @@ export function createTicketingCheckinService({ prisma, now = () => Date.now() }
 
   // Ticket rows of this company only, locked: a reissue or another gate waits for us.
   const byId = (tx, companyId, id) => tx.$queryRaw`
-    SELECT t.id, t.session_id, t.status, t.code, t.holder_name, t.credential_hash, t.credential_version, ty.name AS type_name, ts.event_id
+    SELECT t.id, t.order_id, t.type_id, t.session_id, t.status, t.code, t.holder_name, t.credential_hash, t.credential_version, ty.name AS type_name, ts.event_id
       FROM ticket t JOIN ticket_type ty ON ty.id = t.type_id AND ty.company_id = t.company_id
       JOIN ticket_session ts ON ts.id = t.session_id AND ts.company_id = t.company_id
      WHERE t.id = ${id}::uuid AND t.company_id = ${companyId}::uuid FOR UPDATE OF t`
   const byCode = (tx, companyId, code) => tx.$queryRaw`
-    SELECT t.id, t.session_id, t.status, t.code, t.holder_name, t.credential_hash, t.credential_version, ty.name AS type_name, ts.event_id
+    SELECT t.id, t.order_id, t.type_id, t.session_id, t.status, t.code, t.holder_name, t.credential_hash, t.credential_version, ty.name AS type_name, ts.event_id
       FROM ticket t JOIN ticket_type ty ON ty.id = t.type_id AND ty.company_id = t.company_id
       JOIN ticket_session ts ON ts.id = t.session_id AND ts.company_id = t.company_id
      WHERE t.code = ${code} AND t.company_id = ${companyId}::uuid FOR UPDATE OF t`
@@ -120,6 +120,9 @@ export function createTicketingCheckinService({ prisma, now = () => Date.now() }
             admittedAt = row.scanned_at
             await tx.$executeRaw`UPDATE ticket SET status = 'USED', version = version + 1, updated_at = now() WHERE id = ${state.row.id}::uuid`
             await history(tx, { companyId, entity: 'ticket', entityId: state.row.id, action: 'admit', actorId: operatorId, before: { status: 'ISSUED' }, after: { status: 'USED', sessionId: session.id, method: state.method, deviceId } })
+            // F6E: a used ticket is never resent, so its sealed copy goes; Automations learn of the entry (ids only).
+            await tx.$executeRaw`DELETE FROM ticket_credential_secret WHERE ticket_id = ${state.row.id}::uuid`
+            await emit(tx, companyId, 'ticketing.ticket.admitted', { id: state.row.id, orderId: state.row.order_id, eventId: session.event_id, sessionId: session.id, typeId: state.row.type_id, credentialVersion: state.row.credential_version, method: state.method })
           }
         }
         return { result, admittedAt, ...(await view(tx, { reason, state, session })) }

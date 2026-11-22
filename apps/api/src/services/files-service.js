@@ -49,6 +49,8 @@ const ALLOWED_FILE_ENTITY_TYPES = [
   // runly.canvas: generated Board covers. Signable like any Canvas file, but
   // derived data: never listed in Files (see LISTED_FILE_ENTITY_TYPES).
   "CanvasThumbnail",
+  // runly.ticketing: the cover of an event (shown signed on its public page).
+  "TicketEvent",
 ];
 // Entity types shown in the Files listing (generated Canvas covers are not).
 const LISTED_FILE_ENTITY_TYPES = ALLOWED_FILE_ENTITY_TYPES.filter((type) => type !== "CanvasThumbnail");

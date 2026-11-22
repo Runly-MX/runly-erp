@@ -23,7 +23,7 @@ export function allowedOrigins(env = process.env) {
 const LIMITS = { reads: [120, 1], creates: [6, 1 / 120], pageCreates: [120, 1 / 30], manageWrites: [10, 1 / 60] }
 
 // Hosts that serve the ERP SPA (same rule as /public/website/admin-origin-check).
-function isAdminHost(host, env) {
+export function isAdminHost(host, env) {
   let name
   try { name = strictWebsiteHostname(String(host ?? '')) } catch { return false }
   const configured = [env.RUNLY_APP_URL, resolveAppBaseUrl(env)].filter(Boolean).map((v) => { try { return new URL(v).hostname } catch { return null } })

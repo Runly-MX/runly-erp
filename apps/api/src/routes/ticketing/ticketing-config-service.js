@@ -14,6 +14,7 @@ export function createTicketingConfigService({ prisma, engine }) {
       if (code === '23505' && /slug/.test(String(error?.message))) throw new TicketingError('Esa dirección ya la usa otro evento.', 409, 'SLUG_TAKEN')
       if (code === '23514' && /ticket_quota_issued_check/.test(String(error?.message))) throw new TicketingError('El cupo no puede ser menor a los boletos ya emitidos.', 409, 'QUOTA_BELOW_ISSUED')
       if (code === '40P01' || code === '40001') throw new TicketingError('Otra operación cambió estos datos al mismo tiempo; inténtalo de nuevo.', 409, 'CONFLICT_RETRY')
+      if (code === '23P01') throw new TicketingError('La sala ya está ocupada en ese horario.', 409, 'SLOT_TAKEN')
       throw error
     }
   }
@@ -58,9 +59,17 @@ export function createTicketingConfigService({ prisma, engine }) {
       const policy = input.policy ? { ...(row.policy ?? {}), ...input.policy } : row.policy
       const policyChanged = Boolean(input.policy) && JSON.stringify(policy) !== JSON.stringify(row.policy)
       const pick = (key, column) => (input[key] !== undefined ? input[key] : row[column])
+      // F6E: the cover is an image uploaded for this event in this company (files keep the
+      // company in entity_id and the record in metadata.sourceEntityId); any other file is refused.
+      if (input.imageFileId && !(await tx.$queryRaw`
+        SELECT 1 FROM file_asset WHERE id = ${input.imageFileId}::uuid AND entity_id = ${companyId}::uuid AND module_key = 'runly.ticketing'
+           AND entity_type = 'TicketEvent' AND metadata->>'sourceEntityId' = ${row.id} AND enabled = true AND mime_type LIKE 'image/%'`)[0]) throw notFound('Imagen')
+      const publishedNow = input.published === true && !row.published
       const updated = (await tx.$queryRaw`
         UPDATE ticket_event SET title = ${pick('title', 'title')}, description = ${pick('description', 'description')}, venue = ${pick('venue', 'venue')},
                sales_open = ${pick('salesOpen', 'sales_open')}, enabled = ${pick('enabled', 'enabled')}, policy = ${JSON.stringify(policy)}::jsonb,
+               published = ${pick('published', 'published')}, image_file_id = ${pick('imageFileId', 'image_file_id')}::uuid,
+               embed_origins = ${pick('embedOrigins', 'embed_origins')}::text[], published_at = CASE WHEN ${publishedNow} THEN now() ELSE published_at END,
                policy_version = policy_version + ${policyChanged ? 1 : 0}, version = version + 1, updated_at = now()
          WHERE id = ${row.id}::uuid RETURNING *`)[0]
       // The engine's space and service carry the event's name (agenda, history).
@@ -105,6 +114,40 @@ export function createTicketingConfigService({ prisma, engine }) {
         ON CONFLICT DO NOTHING`
       await history(tx, { companyId, entity: 'session', entityId: session.id, action: 'create', actorId, after: { bookingSessionId: booking.id, startsAt: booking.starts_at, capacity: booking.capacity } })
       return (await listSessions({ companyId, eventId: event.id }, tx)).find((s) => s.id === session.id)
+    })
+  }
+
+  // F6E: move a function (its seats and every ticket order's engine booking move with it;
+  // credentials do not change) or cancel one that has no live tickets left. Calendar
+  // reflects both through its projection.
+  async function lockSession(tx, companyId, sessionId) {
+    const s = (await tx.$queryRaw`SELECT * FROM ticket_session WHERE id = ${sessionId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`)[0]
+    if (!s) throw notFound('Función')
+    if (s.status !== 'scheduled') throw new TicketingError('La función ya no está programada.', 409, 'SESSION_UNAVAILABLE')
+    return s
+  }
+  async function moveSession({ companyId, actorId, sessionId, startsAt }) {
+    return inTx(async (tx) => {
+      const session = await lockSession(tx, companyId, sessionId)
+      const used = (await tx.$queryRaw`SELECT count(*)::int AS n FROM ticket WHERE session_id = ${session.id}::uuid AND status = 'USED'`)[0].n
+      if (used) throw new TicketingError('Ya entraron asistentes a esta función; no se puede mover.', 409, 'SESSION_STARTED')
+      const { session: moved } = await engine.rescheduleSessionTx(tx, { companyId, actorId, sessionId: session.booking_session_id, startsAt })
+      await tx.$executeRaw`UPDATE ticket_session SET version = version + 1, updated_at = now() WHERE id = ${session.id}::uuid`
+      // Buyers' links stay valid until a month after the new end.
+      await tx.$executeRaw`UPDATE ticket_order SET manage_token_expires_at = ${new Date(new Date(moved.ends_at).getTime() + 30 * 86400000)} WHERE session_id = ${session.id}::uuid AND manage_token_version > 0`
+      await history(tx, { companyId, entity: 'session', entityId: session.id, action: 'move', actorId, after: { startsAt: moved.starts_at, endsAt: moved.ends_at } })
+      return session.event_id
+    })
+  }
+  async function cancelSession({ companyId, actorId, sessionId }) {
+    return inTx(async (tx) => {
+      const session = await lockSession(tx, companyId, sessionId)
+      const live = (await tx.$queryRaw`SELECT count(*)::int AS n FROM ticket WHERE session_id = ${session.id}::uuid AND status IN ('ISSUED', 'PENDING_PAYMENT', 'USED')`)[0].n
+      if (live) throw new TicketingError('La función tiene boletos vigentes; cancela o reembolsa sus órdenes primero.', 409, 'SESSION_HAS_TICKETS')
+      await engine.cancelSessionTx(tx, { companyId, sessionId: session.booking_session_id })
+      await tx.$executeRaw`UPDATE ticket_session SET status = 'cancelled', version = version + 1, updated_at = now() WHERE id = ${session.id}::uuid`
+      await history(tx, { companyId, entity: 'session', entityId: session.id, action: 'cancel', actorId })
+      return session.event_id
     })
   }
 
@@ -239,7 +282,7 @@ export function createTicketingConfigService({ prisma, engine }) {
     if (!others) throw new TicketingError('El evento necesita al menos un administrador.', 409, 'LAST_ADMIN')
   }
 
-  return { createEvent, updateEvent, listEvents, createSession, listSessions, createType, updateType, listTypes, setQuota, listMembers, setMember, removeMember }
+  return { createEvent, updateEvent, listEvents, createSession, moveSession, cancelSession, listSessions, createType, updateType, listTypes, setQuota, listMembers, setMember, removeMember }
 }
 
 export const serializeType = (t) => t && ({

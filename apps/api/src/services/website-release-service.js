@@ -8,6 +8,7 @@ import {isEffectProp,isValidEffect} from './website-block-effects.js'
 import { BLOCK_CATALOG } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
+import { eventUrl as ticketEventUrl } from '../routes/ticketing/ticketing-links.js'
 import { createFileAccess } from './files/access.js'
 import { z } from 'zod'
 import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
@@ -27,6 +28,19 @@ async function bookingBinding(prisma,companyId,props) {
   const portalUrl=bookingPageUrl(page.slug)
   if(!portalUrl)throw Object.assign(failure('dependency_unavailable',503),resource(page.id))
   return {binding:{kind:'booking',pageId:page.id,slug:page.slug,serviceId:props.serviceId||null},portalUrl}
+}
+// runly.ticketing block (F6E): same contract as bookings. The event must be this company's,
+// published and enabled; the release pins its portal address (the block embeds or links it).
+async function ticketingBinding(prisma,companyId,props) {
+  const slug=props?.event??''
+  const resource=id=>({publicationResource:{kind:'ticket_event',id}})
+  if(!/^[a-z0-9](?:[a-z0-9-]{1,62}[a-z0-9])$/.test(slug))throw Object.assign(failure('ticket_event_required',422),resource(null))
+  const [event]=await prisma.$queryRaw`SELECT id,slug,published,enabled FROM ticket_event WHERE company_id=${companyId}::uuid AND slug=${slug}`
+  if(!event)throw Object.assign(notFound('Recurso'),resource(null))
+  if(!event.published||!event.enabled)throw Object.assign(failure('ticket_event_unpublished',422),resource(event.id))
+  const portalUrl=ticketEventUrl(event.slug)
+  if(!portalUrl)throw Object.assign(failure('dependency_unavailable',503),resource(event.id))
+  return {binding:{kind:'ticketing',eventId:event.id,slug:event.slug},portalUrl}
 }
 const known=new Set(BLOCK_CATALOG.blocks.map(b=>b.type))
 const definitions=new Map(BLOCK_CATALOG.blocks.map(b=>[b.type,b]))
@@ -221,6 +235,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
               if(block.type==='BookingFormBlock')throw failure('dynamic_binding_unavailable',422)
               // The portal address is pinned by the server on every release (base routes carry it already).
               if(block.type==='BookingPortalBlock'&&block.props){const{portalUrl,...rest}=block.props;block.props=rest}
+              if(block.type==='TicketingEventBlock'&&block.props){const{portalUrl,...rest}=block.props;block.props=rest}
               for(const [name,value]of Object.entries(block.props??{})) {
                 const field=definition.fields[name]
                 if(isEffectProp(name)){if(!isValidEffect(name,value))throw failure('invalid_block_property',422);continue}
@@ -233,6 +248,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
               }
               block.props=await visit(block.props)
               if(block.type==='BookingPortalBlock'){const booking=await bookingBinding(prisma,a.companyId,block.props);dynamic.push(booking.binding);block.props={...block.props,portalUrl:booking.portalUrl}}
+              if(block.type==='TicketingEventBlock'){const tickets=await ticketingBinding(prisma,a.companyId,block.props);dynamic.push(tickets.binding);block.props={...block.props,portalUrl:tickets.portalUrl}}
             }catch(e){if(!a.readOnly)throw e;issues.push(issue(e))}
           }
           location={pageId:r.sourceId,blockId:null,blockType:null}

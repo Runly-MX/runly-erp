@@ -40,12 +40,32 @@ export const ticketEventCreateSchema = z.object({
   durationMinutes: int(1, 1440).default(120),
   policy: ticketPolicySchema.default({}),
 }).strict();
+// Sites allowed to show the portal inside an iframe (besides the company's own Runly websites).
+export const embedOriginSchema = z.string().trim().toLowerCase().max(200)
+  .regex(/^https:\/\/(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?\.)+[a-z]{2,63}(?::\d{1,5})?$/, 'Escribe el origen completo, por ejemplo https://www.tusitio.com');
 export const ticketEventUpdateSchema = z.object({
   ...eventShape,
   policy: z.object(policyShape).partial().strict(),
   salesOpen: z.boolean(),
   enabled: z.boolean(),
+  // F6E publication.
+  published: z.boolean(),
+  imageFileId: z.string().uuid().nullable(),
+  embedOrigins: z.array(embedOriginSchema).max(20).transform((list) => [...new Set(list)]),
 }).partial().strict();
+
+export const ticketSessionMoveSchema = z.object({ startsAt: instant }).strict();
+export const ticketResendSchema = z.object({ ticketIds: z.array(z.string().uuid()).min(1).max(100).optional() }).strict();
+
+// F6E public portal: free tickets only (paid ones are sold at the box office until online payments exist).
+export const publicTicketOrderSchema = z.object({
+  sessionId: z.string().uuid(),
+  items: z.array(z.object({ typeId: z.string().uuid(), quantity: int(1, 100) }).strict()).min(1).max(20),
+  buyer: z.object({ name: text(160), email, phone: optionalText(40) }).strict(),
+  holders: z.array(z.object({ name: optionalText(160), email: email.optional().nullable() }).strict()).max(100).optional(),
+  acceptedPolicyVersion: int(1, 100000),
+  website: z.string().max(0).optional(), // honeypot: humans never fill it
+}).strict();
 
 export const ticketSessionCreateSchema = z.object({
   startsAt: instant,

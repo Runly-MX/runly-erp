@@ -7516,6 +7516,8 @@ model TicketEvent {
   organizerContactId String?  @map("organizer_contact_id") @db.Uuid
   published          Boolean  @default(false)
   salesOpen          Boolean  @default(false) @map("sales_open")
+  embedOrigins       String[] @default([]) @map("embed_origins") // F6E: sites allowed to frame the portal
+  publishedAt        DateTime? @map("published_at") @db.Timestamptz(6)
   policy             Json     @default("{}") // transferAllowed, transferCutoffMinutes, maxPerOrder, holderNameRequired, holdMinutes, refundText
   policyVersion      Int      @default(1) @map("policy_version")
   enabled            Boolean  @default(true)
@@ -7604,6 +7606,7 @@ model TicketOrder {
   policyVersion      Int       @map("policy_version")
   manageTokenHash    String?   @unique @map("manage_token_hash")
   manageTokenVersion Int       @default(0) @map("manage_token_version")
+  manageTokenExpiresAt DateTime? @map("manage_token_expires_at") @db.Timestamptz(6)
   createdById        String?   @map("created_by_id") @db.Uuid
   version            Int       @default(1)
   createdAt          DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -7702,4 +7705,51 @@ model TicketIdempotency {
 
   @@unique([companyId, scope, operation, key], map: "ticket_idempotency_key_key")
   @@map("ticket_idempotency")
+}
+
+// F6E: the current QR secret sealed with AES-256-GCM (key outside the database); raw SQL only.
+model TicketCredentialSecret {
+  ticketId          String   @id @map("ticket_id") @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  credentialVersion Int      @map("credential_version")
+  keyId             String   @map("key_id")
+  nonce             Bytes
+  ciphertext        Bytes
+  tag               Bytes
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([keyId], map: "ticket_credential_secret_key_idx")
+  @@map("ticket_credential_secret")
+}
+
+// F6E: ticket emails (outbox), sent by the worker.
+model TicketNotification {
+  id            String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId     String    @map("company_id") @db.Uuid
+  orderId       String    @map("order_id") @db.Uuid
+  ticketIds     String[]  @map("ticket_ids") @db.Uuid
+  kind          String
+  dedupeKey     String    @unique(map: "ticket_notification_dedupe_key") @map("dedupe_key")
+  recipient     String
+  status        String    @default("pending")
+  attempts      Int       @default(0)
+  nextAttemptAt DateTime  @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lockedUntil   DateTime? @map("locked_until") @db.Timestamptz(6)
+  lastError     String?   @map("last_error")
+  sentAt        DateTime? @map("sent_at") @db.Timestamptz(6)
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@index([status, nextAttemptAt], map: "ticket_notification_due_idx")
+  @@map("ticket_notification")
+}
+
+// F6E: Calendar mirror state per function.
+model TicketSessionCalendarSync {
+  sessionId   String   @id @map("session_id") @db.Uuid
+  companyId   String   @map("company_id") @db.Uuid
+  fingerprint String
+  syncedAt    DateTime @default(now()) @map("synced_at") @db.Timestamptz(6)
+
+  @@map("ticket_session_calendar_sync")
 }

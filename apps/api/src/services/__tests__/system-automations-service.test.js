@@ -164,3 +164,16 @@ test('active days and once-per-value limit when an automation runs', async () =>
   await assert.rejects(svc.save({ companyId: 'c1', key: 'avisar', input: input({ active: { from: '2026-11-02', until: '2026-11-01' } }) }), (error) => error.diagnostics.some((d) => d.code === 'AUTOMATION_ACTIVE_INVALID'))
   await assert.rejects(svc.save({ companyId: 'c1', key: 'avisar', input: input({ once: { field: 'nada', hours: 24 } }) }), (error) => error.diagnostics.some((d) => d.code === 'AUTOMATION_FIELD_NOT_FOUND'))
 })
+
+test('runly.ticketing events (F6E) are valid triggers and a redelivered event runs once', async () => {
+  const prisma = fakePrisma()
+  const calls = []
+  const moduleServices = { forSystem: () => ({ call: async (service, args) => { calls.push({ service, args }) } }) }
+  const svc = createSystemAutomationsService({ prisma, moduleServices, now: () => NOW })
+  await svc.create({ companyId: 'c1', input: input({ key: 'entrada', trigger: { type: 'event', event: 'ticketing.ticket.admitted', when: { field: 'method', op: 'equals', value: 'qr' } } }) })
+  const event = { companyId: 'c1', event: 'ticketing.ticket.admitted', payload: { id: 't1', orderId: 'o1', eventId: 'e1', sessionId: 's1', typeId: 'y1', credentialVersion: 1, method: 'qr' }, eventId: 'ev-1' }
+  assert.deepEqual(await svc.runEvent(event), { ran: 1 })
+  assert.deepEqual(await svc.runEvent(event), { ran: 0 })
+  assert.equal(calls.length, 1)
+  assert.equal(calls[0].args.idempotencyKey, 'entrada:ev-1')
+})

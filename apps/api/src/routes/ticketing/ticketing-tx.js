@@ -52,5 +52,33 @@ export function createTicketingTx({ prisma }) {
     return serializeOrder(order, await ticketsOf(tx, order.id))
   }
 
-  return { inTx, claim, settle, history, emit, ticketsOf, orderView }
+  // F6E delivery: ticket emails enqueued in the issuing transaction (sent later by the
+  // worker, never inside it). The buyer gets the order's tickets; a holder with another
+  // address gets only their own. `stamp` separates deliveries of the same tickets
+  // (credential version for reissue/transfer, a request id for a resend).
+  async function enqueueDelivery(tx, { companyId, order, tickets, kind, stamp = '' }) {
+    const live = tickets.filter((t) => t.status === 'ISSUED')
+    if (!live.length) return 0
+    const byRecipient = new Map()
+    const add = (email, ids) => {
+      const to = String(email ?? '').trim().toLowerCase()
+      if (!to) return
+      byRecipient.set(to, [...new Set([...(byRecipient.get(to) ?? []), ...ids])])
+    }
+    if (kind === 'issued') add(order.buyer_email, live.map((t) => t.id))
+    for (const t of live) add(t.holder_email || (kind === 'issued' ? null : order.buyer_email), [t.id])
+    let queued = 0
+    for (const [recipient, ids] of byRecipient) {
+      const sorted = [...ids].sort()
+      const dedupe = `${order.id}:${kind}:${sorted.join(',')}:${stamp}:${recipient}`
+      const rows = await tx.$queryRaw`
+        INSERT INTO ticket_notification (company_id, order_id, ticket_ids, kind, dedupe_key, recipient)
+        VALUES (${companyId}::uuid, ${order.id}::uuid, ${sorted}::uuid[], ${kind}, ${dedupe}, ${recipient})
+        ON CONFLICT (dedupe_key) DO NOTHING RETURNING id`
+      queued += rows.length
+    }
+    return queued
+  }
+
+  return { inTx, claim, settle, history, emit, ticketsOf, orderView, enqueueDelivery }
 }

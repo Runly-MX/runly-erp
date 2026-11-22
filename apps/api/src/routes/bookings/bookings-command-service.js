@@ -499,8 +499,9 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
     }
   }
 
-  async function cancelSession({ companyId, sessionId }) {
-    return inTx(async (tx) => {
+  const cancelSession = (args) => inTx((tx) => cancelSessionTx(tx, args))
+  async function cancelSessionTx(tx, { companyId, sessionId }) {
+    {
       const session = (await tx.$queryRaw`SELECT * FROM booking_session WHERE id = ${sessionId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`)[0]
       if (!session) throw notFound('Sesión')
       if (session.status === 'cancelled') return session
@@ -509,7 +510,36 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
       if (fresh.seats_taken > 0) throw new BookingError('La sesión tiene reservaciones activas; cancélalas o reprográmalas primero.', 409, 'SESSION_HAS_BOOKINGS')
       await tx.$executeRaw`UPDATE booking_allocation SET active = false WHERE session_id = ${sessionId}::uuid AND active`
       return (await tx.$queryRaw`UPDATE booking_session SET status = 'cancelled', updated_at = now() WHERE id = ${sessionId}::uuid RETURNING *`)[0]
-    })
+    }
+  }
+
+  // Moves a whole session (same length) with every booking in it, in the caller's
+  // transaction. A session with a resource keeps it: the exclusion constraint refuses a
+  // move onto a taken range (SLOT_TAKEN). Each moved booking gets its history, outbox
+  // event and customer notification like a single reschedule.
+  async function rescheduleSessionTx(tx, { companyId, actorId, sessionId, startsAt }) {
+    const session = (await tx.$queryRaw`SELECT * FROM booking_session WHERE id = ${sessionId}::uuid AND company_id = ${companyId}::uuid FOR UPDATE`)[0]
+    if (!session) throw notFound('Sesión')
+    if (session.status !== 'scheduled') throw new BookingError('La sesión ya no está disponible.', 409, 'SESSION_UNAVAILABLE')
+    const start = new Date(startsAt)
+    const end = new Date(start.getTime() + (new Date(session.ends_at).getTime() - new Date(session.starts_at).getTime()))
+    if (session.resource_id) {
+      const service = (await tx.$queryRaw`SELECT * FROM booking_service WHERE id = ${session.service_id}::uuid AND company_id = ${companyId}::uuid`)[0]
+      const range = occupiedRange(service, start, end)
+      await tx.$executeRaw`UPDATE booking_allocation SET during = tstzrange(${range.from}::timestamptz, ${range.to}::timestamptz, '[)') WHERE session_id = ${sessionId}::uuid AND active`
+    }
+    const moved = (await tx.$queryRaw`UPDATE booking_session SET starts_at = ${start}, ends_at = ${end}, updated_at = now() WHERE id = ${sessionId}::uuid RETURNING *`)[0]
+    const bookings = await tx.$queryRaw`
+      UPDATE booking SET starts_at = ${start}, ends_at = ${end}, version = version + 1, updated_at = now(),
+             manage_token_expires_at = CASE WHEN manage_token_version > 0 THEN ${manageExpiry(end)}::timestamptz ELSE manage_token_expires_at END
+       WHERE session_id = ${sessionId}::uuid AND company_id = ${companyId}::uuid AND status IN ('PENDING', 'CONFIRMED')
+      RETURNING *`
+    for (const row of bookings) {
+      await history(tx, { companyId, row, actorId, action: 'reschedule', from: row.status, to: row.status, before: { startsAt: session.starts_at, endsAt: session.ends_at }, after: { startsAt: start, endsAt: end } })
+      await emit(tx, companyId, 'rescheduled', row)
+      await notify(tx, row, 'rescheduled')
+    }
+    return { session: moved, bookingIds: bookings.map((b) => b.id) }
   }
 
   // Worker entry point (phase 3): expire every stale hold of a company.
@@ -535,7 +565,7 @@ export function createBookingsCommandService({ prisma, now = () => Date.now(), o
   return {
     create: notifyChanged(create), transition: notifyChanged(transition), reschedule: notifyChanged(reschedule), updateDetails: notifyChanged(updateDetails),
     // In the caller's transaction (integrations such as POS); the caller runs its projections after commit.
-    createTx, transitionTx, rescheduleTx, attachOrderTx, createSessionTx, reducePartyTx,
+    createTx, transitionTx, rescheduleTx, attachOrderTx, createSessionTx, reducePartyTx, rescheduleSessionTx, cancelSessionTx,
     rotateManageLink, createSession, cancelSession, expireHolds, expireAllHolds, view: (companyId, id) => view(prisma, companyId, id),
   }
 }

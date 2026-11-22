@@ -163,6 +163,10 @@ const TICKET_FIELDS = [
   field('typeId', 'Tipo de boleto', 'id', 'Tipo de boleto.', '0198c1f2-7a4b-7c3d-9e10-5b2a6f4d8e53'),
   field('credentialVersion', 'Versión del QR', 'number', 'Sube cada vez que el QR se reemplaza; los anteriores dejan de servir.', '2'),
 ]
+const TICKET_ADMISSION_FIELDS = [
+  ...TICKET_FIELDS,
+  field('method', 'Forma de entrada', 'text', 'qr (lectura del código QR) o code (folio escrito a mano).', 'qr'),
+]
 const WHEN_FIELDS = [
   field('localHour', 'Hora local', 'number', 'Hora del mensaje en la zona horaria de la instancia (0 a 23).', '21'),
   field('localWeekday', 'Día de la semana', 'number', '0 = domingo, 1 = lunes ... 6 = sábado.', '6'),
@@ -267,7 +271,7 @@ export const EVENT_CATALOG = Object.freeze({
     ['expired', 'Venció una reservación pendiente', 'Cuando una reservación pendiente no se confirmó a tiempo.'],
   ].map(([action, label, description]) => [`bookings.booking.${action}`, { module: 'Reservaciones', label, description, fields: BOOKING_FIELDS }])),
   // runly.ticketing (spec 2026-11-20-ticketing-design): written in the order transaction
-  // (at-least-once). Hidden from trigger pickers until F6E enables them.
+  // (at-least-once). Offered as triggers since F6E.
   ...Object.fromEntries([
     ['order.created', 'Se emitió una orden de boletos', 'Cuando se registra una orden: confirmada (gratis) o pendiente de pago.', TICKET_ORDER_FIELDS],
     ['order.cancelled', 'Se canceló una orden de boletos', 'Cuando se cancela una orden y se liberan sus lugares.', TICKET_ORDER_FIELDS],
@@ -277,6 +281,7 @@ export const EVENT_CATALOG = Object.freeze({
     ['ticket.reissued', 'Se reemplazó el QR de un boleto', 'Cuando se emite un QR nuevo para un boleto y el anterior deja de servir.', TICKET_FIELDS],
     ['ticket.transferred', 'Se transfirió un boleto', 'Cuando un boleto cambia de titular; el QR anterior deja de servir.', TICKET_FIELDS],
     ['ticket.cancelled', 'Se canceló un boleto', 'Cuando se anula un boleto (sola o con toda su orden); su QR deja de servir y su lugar se libera.', TICKET_FIELDS],
+    ['ticket.admitted', 'Entró un asistente con su boleto', 'Cuando el control de acceso registra la entrada de un boleto (una sola vez por boleto).', TICKET_ADMISSION_FIELDS],
   ].map(([action, label, description, fields]) => [`ticketing.${action}`, { module: 'Boletos', label, description, fields }])),
   // Internal: a message arrived at the webhook of a company automation (hidden from pickers).
   'automations.webhook.received': { module: 'Automatizaciones', label: 'Se recibió un mensaje en un webhook de automatización', description: 'Interno.', fields: [field('automationKey', 'Automatización', 'text', 'Automatización destino.', 'pedido'), field('data', 'Datos', 'text', 'Datos recibidos.', '{}')] },

@@ -121,7 +121,7 @@ import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/a
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
 import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
 import { createBookingsRouter, createBookingsPortalRouter, createBookingsCalendarProjection, createBookingsRoomsRouter, createBookingsMeetings } from "./routes/bookings/index.js";
-import { createTicketingRouter } from "./routes/ticketing/index.js";
+import { createTicketingRouter, createTicketingPublicRouter, createTicketingCalendarProjection } from "./routes/ticketing/index.js";
 import { createCertTemplateOfficeRescan } from "./routes/lms/lms-cert-templates.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
 import { createCanvasFileRemover } from "./routes/canvas/canvas-files.js";
@@ -910,7 +910,7 @@ app.use(
   cors({
     origin: (origin) => origin || "*",
     credentials: true,
-    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret", "X-Pos-Device-Token", "X-Booking-Token"],
+    allowHeaders: ["Content-Type", "Authorization", "X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Studio-Protocol", "X-Runly-Catalog-Request", "X-Runly-Site", "X-Runly-Website-Site", "X-Runly-Property", "X-Runly-Page", "Idempotency-Key", "X-Pair-Secret", "X-Pos-Device-Token", "X-Booking-Token", "X-Ticket-Token"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),
@@ -2302,6 +2302,10 @@ const bookingsCalendar = createBookingsCalendarProjection({ prisma });
 const bookingsMeetings = createBookingsMeetings({ prisma });
 const bookingsProjections = (id) => Promise.all([bookingsCalendar.projectQuietly(id), bookingsMeetings.projectQuietly(id)]);
 app.route("/", createBookingsPortalRouter({ prisma, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), onChanged: bookingsProjections, meetings: bookingsMeetings }));
+// Boletos (F6E): public event portal, free tickets without an account, the buyer's link and resend, /public/ticketing/*.
+// Functions mirror onto Calendario after each change (the worker re-projects what this misses).
+const ticketingCalendar = createTicketingCalendarProjection({ prisma });
+app.route("/", createTicketingPublicRouter({ prisma, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId) }));
 
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
 app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
@@ -2357,6 +2361,11 @@ app.get("/public", (c) => {
       { method: "GET",  path: "/public/bookings/manage",                 auth: "X-Booking-Token", description: "Customer view of one booking (also /availability, POST /cancel, /reschedule)" },
       { method: "GET",  path: "/public/bookings/frame-policy",           auth: "none (nginx gate)", description: "CSP frame-ancestors for a portal URL; 403 on non-ERP hosts" },
       { method: "GET",  path: "/bookings/pages/published",              auth: "website.pages.update or bookings.access", description: "Live booking pages for the Website Reservaciones block" },
+      { method: "GET",  path: "/public/ticketing/events/:slug",          auth: "none",       description: "Published event: functions, ticket types, availability, policies" },
+      { method: "POST", path: "/public/ticketing/events/:slug/orders",   auth: "none + Idempotency-Key", description: "Free tickets of a published event (rate limited); QR texts returned once" },
+      { method: "GET",  path: "/public/ticketing/orders",                auth: "X-Ticket-Token", description: "Buyer view of one order (no codes or QR); POST /resend sends the same QR again" },
+      { method: "GET",  path: "/public/ticketing/frame-policy",          auth: "none (nginx gate)", description: "CSP frame-ancestors for an event portal URL; 403 on non-ERP hosts" },
+      { method: "GET",  path: "/ticketing/events-published",            auth: "signed in", description: "Published events of the company for the Website block" },
       { method: "GET",  path: "/public/lms/certificates/:token",        auth: "link token", description: "Learning certificate verification (valid or revoked)" },
       { method: "GET",  path: "/public/lms/certificates/:token/pdf",    auth: "link token", description: "Learning certificate PDF (revoked ones are stamped)" },
       { method: "GET",  path: "/public/lms/share/:token",               auth: "link token", description: "Shared course summary and outline for external guests" },
@@ -2631,7 +2640,7 @@ mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel, o
 // Rooms and equipment reserved by employees (v1.2 R1): bookings.reserve or bookings.access.
 mountWithAuth(app, createBookingsRoomsRouter({ prisma, requireAnyPermission, onChanged: bookingsCalendar.projectQuietly }));
 // Boletos (runly.ticketing, F6B): events, functions on the Booking Engine, free issuance, credentials.
-mountWithAuth(app, createTicketingRouter({ prisma, requirePermission, requireAnyPermission }));
+mountWithAuth(app, createTicketingRouter({ prisma, requirePermission, requireAnyPermission, onSessionsChanged: ticketingCalendar.projectEvent }));
 mountWithAuth(app, createLmsRouter({ prisma, requirePermission, requireAnyPermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 mountWithAuth(app, createActivityRouter({ prisma, requirePermission, supabaseAdmin }));
 mountWithAuth(app, createNotificationsRouter({ prisma, requirePermission, supabaseAdmin }));

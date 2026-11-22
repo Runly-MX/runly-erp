@@ -10021,6 +10021,38 @@
       }
     },
     {
+      "type": "TicketingEventBlock",
+      "label": "Evento con boletos",
+      "category": "atlas-tickets",
+      "group": "universal",
+      "slots": [],
+      "defaultProps": {
+        "event": "",
+        "display": "card",
+        "buttonLabel": "Obtener boletos"
+      },
+      "fields": {
+        "event": {
+          "type": "text",
+          "label": "Evento publicado"
+        },
+        "display": {
+          "type": "select",
+          "label": "Presentación",
+          "options": [
+            "card",
+            "portal",
+            "button",
+            "link"
+          ]
+        },
+        "buttonLabel": {
+          "type": "text",
+          "label": "Texto del botón o enlace"
+        }
+      }
+    },
+    {
       "type": "AccountPortalBlock",
       "label": "Cuenta de cliente",
       "category": "atlas",

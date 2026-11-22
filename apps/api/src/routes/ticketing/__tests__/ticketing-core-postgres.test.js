@@ -248,7 +248,8 @@ describe('runly.ticketing core (F6B) on real PostgreSQL', { skip: !url }, () => 
     const text = JSON.stringify(events.map((e) => e.payload))
     for (const pii of ['Ana', 'Pérez', 'Luis', 'Marta', 'example.test', '5512345678']) assert.ok(!text.includes(pii), pii)
     const { automationEvents } = await import('../../../../../../packages/module-compiler/src/automations.js')
-    assert.ok(!automationEvents().some((e) => e.key.startsWith('ticketing.')), 'hidden from trigger pickers until F6E')
+    // F6E enabled them as triggers (with the same ids-only payloads checked above).
+    assert.ok(automationEvents().some((e) => e.key === 'ticketing.order.created'), 'offered as triggers since F6E')
     const live = await reserve(f, 1)
     assert.equal(await createBookingsCalendarProjection({ prisma: db }).project(live.order.bookingId), 'removed')
     assert.equal(await db.calendarEvent.count({ where: { sourceEntityId: live.order.bookingId } }), 0)
