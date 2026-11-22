@@ -7,12 +7,12 @@ const lines = (raw, max) => String(raw ?? '').split('\n').map((l) => l.split('|'
 function StoreHero({ eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref, badge, size }) {
   const compact = size === 'compact'
   return (
-    <section style={{ position: 'relative', overflow: 'hidden', background: PAPER, padding: compact ? 'clamp(32px, 5vw, 56px) 24px' : 'clamp(48px, 8vw, 104px) 24px' }}>
+    <section style={{ position: 'relative', overflow: 'hidden', background: PAPER, padding: compact ? 'clamp(32px, 5cqw, 56px) 24px' : 'clamp(48px, 8cqw, 104px) 24px' }}>
       <Styles />
-      <div style={{ maxWidth: 1200, marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(32px, 5vw, 72px)', alignItems: 'center' }}>
+      <div style={{ maxWidth: 1200, marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(32px, 5cqw, 72px)', alignItems: 'center' }}>
         <div>
           {eyebrow && <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 14, fontFamily: SANS, fontSize: 12, fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase', color: ACCENT }}><span style={{ width: 32, height: 2, background: 'currentColor' }} />{eyebrow}</p>}
-          <h1 style={{ margin: '20px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: compact ? 'clamp(38px, 5.5vw, 68px)' : 'clamp(44px, 7vw, 92px)', lineHeight: 0.98, letterSpacing: '-0.035em', color: INK }}>
+          <h1 style={{ margin: '20px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: compact ? 'clamp(38px, 5.5cqw, 68px)' : 'clamp(44px, 7cqw, 92px)', lineHeight: 0.98, letterSpacing: '-0.035em', color: INK }}>
             {title}{highlight && <> <em style={{ fontStyle: 'italic', color: ACCENT }}>{highlight}</em></>}
           </h1>
           {subtitle && <p style={{ margin: '24px 0 0', maxWidth: '46ch', fontFamily: SANS, fontSize: 18, lineHeight: 1.7, color: MUTED }}>{subtitle}</p>}
@@ -79,11 +79,11 @@ function TileArt({ kind, color }) {
 function CollectionTiles({ eyebrow, title, tiles, linkLabel }) {
   const items = lines(tiles, 4)
   return (
-    <section style={{ background: PAPER, padding: 'clamp(48px, 7vw, 96px) 24px' }}>
+    <section style={{ background: PAPER, padding: 'clamp(48px, 7cqw, 96px) 24px' }}>
       <Styles />
       <div style={{ maxWidth: 1200, marginInline: 'auto' }}>
         {eyebrow && <p style={{ margin: 0, fontFamily: SANS, fontSize: 12, fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase', color: ACCENT }}>{eyebrow}</p>}
-        {title && <h2 style={{ margin: '12px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(32px, 4.4vw, 56px)', lineHeight: 1.05, letterSpacing: '-0.02em', color: INK, maxWidth: '18ch' }}>{title}</h2>}
+        {title && <h2 style={{ margin: '12px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(32px, 4.4cqw, 56px)', lineHeight: 1.05, letterSpacing: '-0.02em', color: INK, maxWidth: '18ch' }}>{title}</h2>}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 250px), 1fr))', gap: 20, marginTop: 40 }}>
           {items.map(([name, text, href], i) => {
             const tone = TILE_TONES[i % TILE_TONES.length]

@@ -1,0 +1,3646 @@
+{
+  "schemaVersion": 1,
+  "scope": "All specialized blocks registered in the four Runly groups; shared source signals include sibling helper imports.",
+  "total": 129,
+  "blocks": [
+    {
+      "type": "AccountPortalBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/accountPortalBlock.jsx",
+      "customizableFields": [],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "email",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyFactsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "stats"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "tag",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "size"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyMarqueeBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "items",
+        "speed"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyServicesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "services",
+        "showArrow"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyTeamBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "team"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyVoicesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "voices"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "AgencyWorkBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/agencyBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "projects",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BentoGridBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bentoGridBlock.jsx",
+      "customizableFields": [
+        "items",
+        "background"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizCasesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "cases"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "points",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizEngagementBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "models",
+        "prices",
+        "rows",
+        "highlight",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "proofs",
+        "panelLabel",
+        "panelValue",
+        "panelCaption",
+        "size"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizKpiBandBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "kpis"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizPillarsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "items",
+        "background"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizProcessBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "steps"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BizTrustBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bizBlocks.jsx",
+      "customizableFields": [
+        "title",
+        "clients",
+        "badges"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BlogIndexBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/blogIndexBlock.jsx",
+      "customizableFields": [
+        "limit",
+        "columns",
+        "showExcerpt",
+        "siteId"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BookingFormBlock",
+      "group": "bookings",
+      "source": "packages/website-blocks/src/bookingFormBlock.jsx",
+      "customizableFields": [
+        "calendarId",
+        "serviceDuration",
+        "successMessage",
+        "buttonLabel"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "BookingPortalBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/bookingPortalBlock.jsx",
+      "customizableFields": [
+        "bookingPage",
+        "serviceId",
+        "display",
+        "buttonLabel"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CartBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/cartBlock.jsx",
+      "customizableFields": [
+        "siteId"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CartPageBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeShopBlocks.jsx",
+      "customizableFields": [
+        "mode",
+        "checkoutLabel",
+        "shopHref",
+        "promoNote"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ChapterBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/chapterBlock.jsx",
+      "customizableFields": [
+        "scene",
+        "index",
+        "kicker",
+        "title",
+        "body",
+        "details",
+        "place",
+        "ctaLabel",
+        "ctaHref",
+        "flip",
+        "tone"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CollectionTilesBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeEditorialBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "tiles",
+        "linkLabel"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ContactFormBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/contactFormBlock.jsx",
+      "customizableFields": [
+        "formId",
+        "successMessage",
+        "buttonLabel"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "highlight",
+        "text",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "formTitle"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrContactBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "text",
+        "channels"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrFaqBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrFeaturesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "lead",
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrFooterBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "brand",
+        "tagline",
+        "columns",
+        "copyright"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "badge",
+        "badgeText",
+        "title",
+        "titleSoft",
+        "titleStrong",
+        "text",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "phoneTitle",
+        "topics",
+        "activeTopic",
+        "widgets"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrNavbarBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "brand",
+        "links",
+        "active",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrPageHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "text",
+        "crumb"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrPricingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "lead",
+        "currency",
+        "period",
+        "yearlyLabel",
+        "plans"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrStepsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "steps"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrVoicesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "stats",
+        "voices"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CrWindowBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/cristalBlocks.jsx",
+      "customizableFields": [
+        "badge",
+        "title",
+        "titleStrong",
+        "text",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "CtaBannerBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/ctaBannerBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "variant",
+        "size",
+        "align"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevAboutBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "body",
+        "traits",
+        "linkLabel",
+        "linkHref",
+        "scene"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevCaseBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "body",
+        "metrics",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevChannelsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "channels",
+        "availabilityTitle",
+        "availabilityStatus",
+        "availabilityItems"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevContactBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "highlight",
+        "subtitle",
+        "email",
+        "phone",
+        "location",
+        "connectTitle",
+        "socials"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "greeting",
+        "firstName",
+        "lastName",
+        "role",
+        "typedPrefix",
+        "phrases",
+        "description",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "status"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevNavbarBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "brand",
+        "links",
+        "active",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevNowUsesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "nowTitle",
+        "nowItems",
+        "usesTitle",
+        "usesItems"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevPageHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "path",
+        "title",
+        "highlight",
+        "subtitle",
+        "scene"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevProcessBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "steps"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevSkillBarsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "skills"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevSkillsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "skills"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevStoryBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "body",
+        "facts"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevTimelineBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "layout",
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevValuesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "values"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "DevWorkBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/devfolioBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "linkLabel",
+        "linkHref",
+        "showFilters",
+        "allLabel",
+        "projects"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FeaturesSectionBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/featuresSectionBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "layout",
+        "iconStyle",
+        "background",
+        "features"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FinCalculatorBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/finCalculatorBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "defaultAmount",
+        "defaultTerm",
+        "defaultRate",
+        "minAmount",
+        "maxAmount",
+        "currency",
+        "ctaLabel",
+        "ctaHref",
+        "disclaimer"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FinClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/finClosingBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FinHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/finHeroBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "trust",
+        "balanceLabel",
+        "balance",
+        "currency",
+        "transactions",
+        "loanTitle",
+        "loanAmount",
+        "loanNote"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FinLoanCardsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/finLoanCardsBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "loans",
+        "rateLabel",
+        "columns",
+        "background"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "FinStepsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/finLoanCardsBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "steps",
+        "background"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "GalleryBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/galleryBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "columns",
+        "gap",
+        "aspectRatio",
+        "zoom",
+        "image1",
+        "caption1",
+        "image2",
+        "caption2",
+        "image3",
+        "caption3",
+        "image4",
+        "caption4",
+        "image5",
+        "caption5",
+        "image6",
+        "caption6"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": false,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "note"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaFiguresBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "figures"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "issue",
+        "index",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaLeafletBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "edition",
+        "title",
+        "highlight",
+        "subtitle",
+        "panels"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaMaterialsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "materials"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaPageHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "folio",
+        "title",
+        "highlight",
+        "subtitle",
+        "scene"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaPiecesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "pieces",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaQuoteBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "quote",
+        "attribution",
+        "folio",
+        "scene"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaRoomsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "href",
+        "rooms"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "HabitiaStoryBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/habitiaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "year",
+        "title",
+        "highlight",
+        "body",
+        "signature",
+        "scene",
+        "flip"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImAboutBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "body",
+        "checks",
+        "values",
+        "figures"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImChannelsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "channels"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImFaqBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "text",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "stats"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImLogosBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "label",
+        "brands"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImNavbarBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "brand",
+        "links",
+        "active",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImNewsletterBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "text"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImPageHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "text",
+        "crumb"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImPricingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "lead",
+        "currency",
+        "period",
+        "yearlyLabel",
+        "plans"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImProcessBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "lead",
+        "steps"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImResultsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "title",
+        "highlight",
+        "text",
+        "ctaLabel",
+        "ctaHref",
+        "stats"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImServiceDetailBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImServicesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "lead",
+        "services"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ImTestimonialCtaBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/impulsaBlocks2.jsx",
+      "customizableFields": [
+        "quote",
+        "name",
+        "role",
+        "ctaTitle",
+        "ctaText",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "LandscapeHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/landscapeHeroBlock.jsx",
+      "customizableFields": [
+        "scene",
+        "eyebrow",
+        "coordinates",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "height",
+        "cue"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "LogoCloudBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/logoCloudBlock.jsx",
+      "customizableFields": [
+        "title",
+        "names",
+        "logo1",
+        "logo2",
+        "logo3",
+        "logo4",
+        "logo5",
+        "logo6",
+        "background"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MarqueeBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/marqueeBlock.jsx",
+      "customizableFields": [
+        "items",
+        "speed",
+        "background",
+        "size"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "email",
+        "phone",
+        "location"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaNotesBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "testimonials"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaPageHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaPlansBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaPlansBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "currency",
+        "ctaLabel",
+        "ctaHref",
+        "plans"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaPortraitBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "imageSrc",
+        "imageAlt",
+        "badgeValue",
+        "badgeLabel",
+        "note",
+        "chipOne",
+        "chipTwo"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaTagBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "text",
+        "tone",
+        "align"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaTickerBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "items",
+        "tone"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MayaWorkBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/mayaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "projects"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MenuGridBlock",
+      "group": "restaurant",
+      "source": "packages/website-blocks/src/menuGridBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "currency",
+        "showPrices",
+        "columns",
+        "menu"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoCategoriesBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks.jsx",
+      "customizableFields": [
+        "title",
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoFooterBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks3.jsx",
+      "customizableFields": [
+        "brand",
+        "tagline",
+        "social",
+        "columns",
+        "appTitle",
+        "appText",
+        "appStoreHref",
+        "playStoreHref",
+        "copyright",
+        "legal",
+        "region"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoHeaderBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks.jsx",
+      "customizableFields": [
+        "announcements",
+        "brand",
+        "tagline",
+        "logoSrc",
+        "searchPlaceholder",
+        "searchHref",
+        "accountLabel",
+        "accountHref",
+        "wishlistLabel",
+        "wishlistHref",
+        "cartLabel",
+        "cartHref",
+        "allLabel",
+        "allHref",
+        "links",
+        "active",
+        "sticky"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoHeroBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks.jsx",
+      "customizableFields": [
+        "slides",
+        "image1",
+        "image2",
+        "image3",
+        "sealTop",
+        "sealValue",
+        "sealBottom",
+        "trust",
+        "autoplay",
+        "interval"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoNewsletterBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks3.jsx",
+      "customizableFields": [
+        "title",
+        "text",
+        "note"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoPicksBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "linkLabel",
+        "linkHref",
+        "categorySlug",
+        "limit",
+        "detailHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoPromoTilesBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks2.jsx",
+      "customizableFields": [
+        "tiles",
+        "image1",
+        "image2",
+        "image3"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoReviewsBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks2.jsx",
+      "customizableFields": [
+        "title",
+        "score",
+        "scoreLabel",
+        "reviews"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "MercadoServicesBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/mercadoBlocks3.jsx",
+      "customizableFields": [
+        "items"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ParallaxSectionBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/parallaxSectionBlock.jsx",
+      "customizableFields": [
+        "tone",
+        "shapes",
+        "speed",
+        "paddingY",
+        "minHeight",
+        "align"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ProductCardBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/productCardBlock.jsx",
+      "customizableFields": [
+        "productId",
+        "showPrice",
+        "showDescription"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ProductDetailBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeShopBlocks.jsx",
+      "customizableFields": [
+        "addLabel",
+        "backHref",
+        "cartHref",
+        "zoomImage"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": true,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ProductsGridBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/productsGridBlock.jsx",
+      "customizableFields": [
+        "categorySlug",
+        "limit",
+        "columns",
+        "showPrice",
+        "showSearch",
+        "showCategories",
+        "showAddToCart",
+        "detailHref"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ProjectCardsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/projectCardsBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "projects",
+        "image1",
+        "image2",
+        "image3",
+        "image4",
+        "image5",
+        "image6",
+        "columns",
+        "background"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": false,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "QuoteBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/quoteBlock.jsx",
+      "customizableFields": [
+        "quote",
+        "attribution",
+        "background",
+        "size",
+        "ornament"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "RestoHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/restoBlocks.jsx",
+      "customizableFields": [
+        "size",
+        "eyebrow",
+        "title",
+        "accent",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "boardTitle",
+        "dishes",
+        "stamp"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "RestoHoursBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/restoBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "hours",
+        "address",
+        "phone",
+        "note",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "RestoMenuBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/restoBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "currency",
+        "tone",
+        "menu"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ServicesGridBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/servicesGridBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "columns",
+        "services",
+        "cardStyle",
+        "align"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "ShowcaseHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/showcaseHeroBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "imageSrc",
+        "imageAlt",
+        "badgeValue",
+        "badgeLabel",
+        "shape",
+        "background"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "SiteFooterBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/siteFooterBlock.jsx",
+      "customizableFields": [
+        "brand",
+        "logoSrc",
+        "logoAlt",
+        "logoHeight",
+        "showBrandName",
+        "tagline",
+        "brandDirection",
+        "brandGap",
+        "brandHref",
+        "tone",
+        "columns",
+        "copyright",
+        "showBrand",
+        "backToTop"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "SpaClosingBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/spaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "body",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "hours"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "SpaHeroBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/spaBlocks.jsx",
+      "customizableFields": [
+        "size",
+        "eyebrow",
+        "title",
+        "accent",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "inhale",
+        "exhale",
+        "facts"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "SpaRitualsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/spaBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "currency",
+        "rituals",
+        "ctaLabel",
+        "ctaHref"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "SplitFeatureBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/splitFeatureBlock.jsx",
+      "customizableFields": [
+        "variant",
+        "eyebrow",
+        "title",
+        "body",
+        "ctaLabel",
+        "ctaHref",
+        "imageSrc",
+        "imageAlt",
+        "background",
+        "imageHeight"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": false,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "StatsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/statsBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "stats",
+        "background",
+        "align"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "StoreHeroBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeEditorialBlocks.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "highlight",
+        "subtitle",
+        "ctaLabel",
+        "ctaHref",
+        "ctaSecondLabel",
+        "ctaSecondHref",
+        "badge",
+        "size"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "StoreNavbarBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeNavbarBlock.jsx",
+      "customizableFields": [
+        "brand",
+        "logoSrc",
+        "logoAlt",
+        "logoHeight",
+        "showBrandName",
+        "tagline",
+        "brandDirection",
+        "brandGap",
+        "brandHref",
+        "variant",
+        "links",
+        "cartLabel",
+        "cartHref",
+        "sticky"
+      ],
+      "responsive": "container-queries",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "TeamGridBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/teamGridBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "subtitle",
+        "columns",
+        "layout",
+        "team",
+        "photo1",
+        "photo2",
+        "photo3",
+        "photo4",
+        "photo5",
+        "photo6"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": true
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "TestimonialsBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/testimonialsBlock.jsx",
+      "customizableFields": [
+        "eyebrow",
+        "title",
+        "columns",
+        "background",
+        "testimonials"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": false,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "TopBarBlock",
+      "group": "universal",
+      "source": "packages/website-blocks/src/topBarBlock.jsx",
+      "customizableFields": [
+        "message",
+        "email",
+        "phone",
+        "hours",
+        "background"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": false,
+        "absolutePosition": false,
+        "viewportUnits": false,
+        "hover": false,
+        "nativeControls": true,
+        "aria": false,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    },
+    {
+      "type": "TrustStripBlock",
+      "group": "ecommerce",
+      "source": "packages/website-blocks/src/storeEditorialBlocks.jsx",
+      "customizableFields": [
+        "items",
+        "tone"
+      ],
+      "responsive": "intrinsic-or-unverified",
+      "signals": {
+        "fixedDimensions": true,
+        "absolutePosition": true,
+        "viewportUnits": false,
+        "hover": true,
+        "nativeControls": true,
+        "aria": true,
+        "imageAlt": false
+      },
+      "browserCoverage": {
+        "cases": 18,
+        "failures": 0
+      },
+      "assessment": "Las señales estáticas no equivalen a defectos confirmados. Los casos de navegador cubren valores predeterminados; la accesibilidad completa requiere revisión manual."
+    }
+  ]
+}

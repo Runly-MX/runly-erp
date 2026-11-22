@@ -83,7 +83,7 @@ export const GalleryBlock = defineBlock({
               </p>
             )}
             {title && (
-              <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
+              <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3cqw, 40px)', fontWeight: 800, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.2 }}>
                 {title}
               </h2>
             )}

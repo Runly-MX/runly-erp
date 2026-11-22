@@ -25,21 +25,21 @@ export const ImTestimonialCtaBlock = defineBlock({
 function TestimonialCta({ quote, name, role, ctaTitle, ctaText, ctaLabel, ctaHref }) {
   const [ref, rv] = useReveal(0.3)
   return (
-    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3vw, 36px)">
+    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3cqw, 36px)">
       <div style={{ position: 'relative', overflow: 'hidden', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', borderRadius: '28px', background: `linear-gradient(110deg, #2C8A3F 0%, ${G.greenHex} 48%, ${G.forest} 52%, ${G.forest2} 100%)`, color: '#fff' }}>
-        <figure className="im-rv l" style={{ margin: 0, display: 'flex', gap: '22px', alignItems: 'center', padding: 'clamp(26px, 4vw, 44px)' }}>
+        <figure className="im-rv l" style={{ margin: 0, display: 'flex', gap: '22px', alignItems: 'center', padding: 'clamp(26px, 4cqw, 44px)' }}>
           <Avatar name={name} size={92} />
           <div>
             <Icon name="quote" size={28} color={G.lime} stroke={1.6} />
-            <blockquote style={{ margin: '8px 0 0', fontSize: 'clamp(16px, 1.6vw, 19px)', fontWeight: 600, lineHeight: 1.55 }}>{quote}</blockquote>
+            <blockquote style={{ margin: '8px 0 0', fontSize: 'clamp(16px, 1.6cqw, 19px)', fontWeight: 600, lineHeight: 1.55 }}>{quote}</blockquote>
             <figcaption style={{ marginTop: '14px', fontSize: '14px' }}><strong>{name}</strong><span style={{ display: 'block', color: 'rgba(255,255,255,.72)' }}>{role}</span></figcaption>
           </div>
         </figure>
-        <div className="im-rv r" style={{ '--i': 1, position: 'relative', padding: 'clamp(26px, 4vw, 44px)' }}>
-          <h2 style={{ margin: 0, fontSize: 'clamp(24px, 2.6vw, 32px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15 }}>{ctaTitle}</h2>
+        <div className="im-rv r" style={{ '--i': 1, position: 'relative', padding: 'clamp(26px, 4cqw, 44px)' }}>
+          <h2 style={{ margin: 0, fontSize: 'clamp(24px, 2.6cqw, 32px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15 }}>{ctaTitle}</h2>
           <p style={{ margin: '10px 0 22px', color: 'rgba(255,255,255,.78)' }}>{ctaText}</p>
           <Btn href={ctaHref} variant="light">{ctaLabel}</Btn>
-          <CurlyArrow color={G.lime} style={{ position: 'absolute', right: 'clamp(16px, 4vw, 48px)', bottom: '26%', width: 'clamp(70px, 9vw, 110px)' }} />
+          <CurlyArrow color={G.lime} style={{ position: 'absolute', right: 'clamp(16px, 4cqw, 48px)', bottom: '26%', width: 'clamp(70px, 9cqw, 110px)' }} />
         </div>
       </div>
     </Section>
@@ -60,15 +60,15 @@ export const ImNewsletterBlock = defineBlock({
 function Newsletter({ title, text, form }) {
   const [ref, rv] = useReveal(0.3)
   return (
-    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3vw, 36px)">
-      <div className="im-rv" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px', alignItems: 'center', padding: 'clamp(22px, 3vw, 34px)', borderRadius: '24px', background: G.soft, border: `1px solid ${G.line}` }}>
+    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3cqw, 36px)">
+      <div className="im-rv" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px', alignItems: 'center', padding: 'clamp(22px, 3cqw, 34px)', borderRadius: '24px', background: G.soft, border: `1px solid ${G.line}` }}>
         <div style={{ display: 'flex', gap: '18px', alignItems: 'center' }}>
           <div aria-hidden="true" style={{ position: 'relative', flexShrink: 0, width: '74px', height: '64px' }}>
             <ServiceArt kind="email" />
             <svg className="im-plane" viewBox="0 0 24 24" width="22" style={{ position: 'absolute', right: '-18px', top: '-10px' }}><path d="M3 11.5L21 3l-6 18-3.5-7.5z" fill={G.leaf} /></svg>
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: 'clamp(18px, 2vw, 22px)', fontWeight: 800, letterSpacing: '-0.02em' }}>{title}</h2>
+            <h2 style={{ margin: 0, fontSize: 'clamp(18px, 2cqw, 22px)', fontWeight: 800, letterSpacing: '-0.02em' }}>{title}</h2>
             <p style={{ margin: '6px 0 0', fontSize: '15px', lineHeight: 1.6, color: G.muted }}>{text}</p>
           </div>
         </div>
@@ -87,7 +87,7 @@ export const ImPageHeroBlock = defineBlock({
   fields: { eyebrow: { type: 'text', label: 'Etiqueta' }, title: { type: 'text', label: 'Título' }, highlight: { type: 'text', label: 'Título resaltado' }, text: { type: 'textarea', label: 'Texto' }, crumb: { type: 'text', label: 'Nombre en la ruta de navegación' } },
   render({ eyebrow, title, highlight, text, crumb }) {
     return (
-      <section className="im" data-rv="in" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(900px 380px at 50% -20%, ${G.mint}, transparent 65%), #fff`, padding: 'clamp(48px, 7vw, 96px) 0 clamp(36px, 5vw, 64px)', textAlign: 'center' }}>
+      <section className="im" data-rv="in" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(900px 380px at 50% -20%, ${G.mint}, transparent 65%), #fff`, padding: 'clamp(48px, 7cqw, 96px) 0 clamp(36px, 5cqw, 64px)', textAlign: 'center' }}>
         <ImStyle />
         <div aria-hidden="true" className="im-float" style={{ position: 'absolute', left: '8%', top: '22%', width: '64px', height: '64px', borderRadius: '20px', background: G.mintDeep, transform: 'rotate(12deg)', opacity: 0.7 }} />
         <div aria-hidden="true" className="im-float" style={{ position: 'absolute', right: '10%', top: '30%', width: '38px', height: '38px', borderRadius: '50%', border: `3px solid ${G.lime}`, animationDelay: '-3s' }} />
@@ -95,7 +95,7 @@ export const ImPageHeroBlock = defineBlock({
         <div style={{ ...WRAP, position: 'relative', maxWidth: '820px' }}>
           {crumb && <nav aria-label="Ruta" style={{ fontSize: '13px', color: G.muted }}><a href="/" style={{ color: G.greenHex, fontWeight: 600, textDecoration: 'none' }}>Inicio</a> <span aria-hidden="true">/</span> <span aria-current="page">{crumb}</span></nav>}
           {eyebrow && <p className="im-eyebrow" style={{ marginTop: '18px' }}>{eyebrow}</p>}
-          <h1 style={{ margin: '12px 0 0', fontSize: 'clamp(34px, 5vw, 58px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.06 }}>{title} <span className="im-hl">{highlight}</span></h1>
+          <h1 style={{ margin: '12px 0 0', fontSize: 'clamp(34px, 5cqw, 58px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.06 }}>{title} <span className="im-hl">{highlight}</span></h1>
           {text && <p className="im-lead" style={{ maxWidth: '60ch', marginInline: 'auto' }}>{text}</p>}
         </div>
       </section>
@@ -126,7 +126,7 @@ function About({ eyebrow, title, highlight, body, checks, values, figures }) {
   const [ref, rv] = useReveal()
   return (
     <Section innerRef={ref} rv={rv}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(28px, 5vw, 64px)', alignItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(28px, 5cqw, 64px)', alignItems: 'center' }}>
         <div>
           <Heading eyebrow={eyebrow} title={title} highlight={highlight} center={false} />
           <p className="im-lead im-rv" style={{ '--i': 2 }}>{body}</p>
@@ -137,7 +137,7 @@ function About({ eyebrow, title, highlight, body, checks, values, figures }) {
               </li>
             ))}
           </ul>
-          <div style={{ marginTop: '28px', display: 'flex', flexWrap: 'wrap', gap: 'clamp(18px, 4vw, 40px)' }}>
+          <div style={{ marginTop: '28px', display: 'flex', flexWrap: 'wrap', gap: 'clamp(18px, 4cqw, 40px)' }}>
             {cells(figures).map(([value, label], index) => (
               <div key={label + index} className="im-rv" style={{ '--i': index + 5 }}>
                 <p style={{ margin: 0, fontSize: '34px', fontWeight: 800, letterSpacing: '-0.03em', color: G.greenHex }}><Stat raw={value} active={rv === 'in'} /></p>
@@ -176,13 +176,13 @@ function ServiceDetailRow({ name, text, points, index }) {
   const [ref, rv] = useReveal(0.25)
   const flip = index % 2 === 1
   return (
-    <div ref={ref} data-rv={rv} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(24px, 5vw, 64px)', alignItems: 'center' }}>
+    <div ref={ref} data-rv={rv} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(24px, 5cqw, 64px)', alignItems: 'center' }}>
       <div className={`im-rv ${flip ? 'r' : 'l'}`} style={{ order: flip ? 2 : 0, display: 'grid', placeItems: 'center', aspectRatio: '4 / 3', borderRadius: '28px', background: TONES[index % 4] }}>
         <div className="im-float" style={{ width: '46%', animationDelay: `${-index * 1.3}s` }}><ServiceArt kind={KINDS[index % 4]} /></div>
       </div>
       <div className={`im-rv ${flip ? 'l' : 'r'}`} style={{ '--i': 1 }}>
         <p className="im-eyebrow">{String(index + 1).padStart(2, '0')}</p>
-        <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 2.6vw, 32px)', fontWeight: 800, letterSpacing: '-0.03em' }}>{name}</h2>
+        <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 2.6cqw, 32px)', fontWeight: 800, letterSpacing: '-0.03em' }}>{name}</h2>
         <p className="im-lead">{text}</p>
         <ul style={{ listStyle: 'none', margin: '18px 0 0', padding: 0, display: 'grid', gap: '10px' }}>
           {points.map((point) => <li key={point} style={{ display: 'flex', gap: '10px', alignItems: 'center', fontWeight: 600 }}><Icon name="check" size={18} stroke={3} color={G.leaf} />{point}</li>)}
@@ -194,7 +194,7 @@ function ServiceDetailRow({ name, text, points, index }) {
 function ServiceDetail({ items }) {
   return (
     <Section>
-      <div style={{ display: 'grid', gap: 'clamp(48px, 7vw, 96px)' }}>
+      <div style={{ display: 'grid', gap: 'clamp(48px, 7cqw, 96px)' }}>
         {cells(items).map(([name, text, points], index) => <ServiceDetailRow key={name + index} name={name} text={text} points={String(points ?? '').split(';').map((p) => p.trim()).filter(Boolean)} index={index} />)}
       </div>
     </Section>
@@ -326,7 +326,7 @@ export const ImChannelsBlock = defineBlock({
 function Channels({ channels }) {
   const [ref, rv] = useReveal()
   return (
-    <Section innerRef={ref} rv={rv} pad="clamp(32px, 4vw, 56px)">
+    <Section innerRef={ref} rv={rv} pad="clamp(32px, 4cqw, 56px)">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '16px' }}>
         {cells(channels).map(([name, value, href, icon], index) => {
           const link = href && href !== '#'

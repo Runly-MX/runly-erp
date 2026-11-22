@@ -63,7 +63,7 @@ export const MenuGridBlock = defineBlock({
             </p>
           )}
           {title && (
-            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-serif, Georgia, serif)', fontSize: 'clamp(28px, 4vw, 48px)', fontWeight: 700, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
+            <h2 style={{ textAlign: 'center', fontFamily: 'var(--runly-font-serif, Georgia, serif)', fontSize: 'clamp(28px, 4cqw, 48px)', fontWeight: 700, color: 'var(--runly-color-fg, #0f172a)', margin: '0 0 16px', lineHeight: 1.15, letterSpacing: '-0.01em' }}>
               {title}
             </h2>
           )}

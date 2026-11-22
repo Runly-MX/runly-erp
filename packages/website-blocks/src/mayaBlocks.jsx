@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 
 // Blocks of the "Maya Studio" template: a bright blue + yellow freelance portfolio with marker-style accents.
@@ -59,8 +60,8 @@ function Portrait({ imageSrc, imageAlt, badgeValue, badgeLabel, note, chipOne, c
     <div className="fl pop" style={{ '--r': r, position: 'absolute', ...pos, background: bg, color: fg, padding: '9px 18px', borderRadius: '999px', fontFamily: BOLD, fontWeight: 800, fontSize: '14px', boxShadow: '0 8px 20px rgba(15,35,71,.18)', animationDelay: delay, border: '2px solid #0F2347' }}>{text}</div>
   )
   return (
-    <div className="mya mya-portrait" style={{ position: 'relative', width: '100%', maxWidth: '480px', marginInline: 'auto', aspectRatio: '1 / 1.08' }}>
-      <style>{PORTRAIT_CSS}</style>
+    <div className="mya mya-portrait" style={{ position: 'relative', width: 'calc(100% - 32px)', maxWidth: '480px', marginInline: 'auto', aspectRatio: '1 / 1.08' }}>
+      <style>{responsiveCss(PORTRAIT_CSS)}</style>
       <svg aria-hidden="true" viewBox="0 0 400 430" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}>
         <path d="M70 40c70-50 200-34 262 28 60 60 56 190 4 262-52 70-168 92-246 40C14 322-8 210 6 140 16 92 40 62 70 40z" fill="#FBBF24" />
         <g style={{ transformOrigin: '200px 215px', animation: 'mya-spin 40s linear infinite' }}><circle cx="200" cy="215" r="196" fill="none" stroke="#2563EB" strokeWidth="3" strokeDasharray="3 14" strokeLinecap="round" /></g>
@@ -137,13 +138,13 @@ function Ticker({ items, tone }) {
   const row = (cls, hidden) => (
     <div className={cls} aria-hidden={hidden || undefined} style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
       {words.map((w, i) => (
-        <span key={`${w}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '28px', paddingRight: '28px', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(22px, 3vw, 34px)', letterSpacing: '-.01em', color: fg, whiteSpace: 'nowrap' }}>{w}<Sparkle size={22} color={star} /></span>
+        <span key={`${w}-${i}`} style={{ display: 'inline-flex', alignItems: 'center', gap: '28px', paddingRight: '28px', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(22px, 3cqw, 34px)', letterSpacing: '-.01em', color: fg, whiteSpace: 'nowrap' }}>{w}<Sparkle size={22} color={star} /></span>
       ))}
     </div>
   )
   return (
     <div className="mya mya-ticker" style={{ overflow: 'hidden', padding: '26px 0', background: 'transparent' }}>
-      <style>{TICKER_CSS}</style>
+      <style>{responsiveCss(TICKER_CSS)}</style>
       <div style={{ transform: 'rotate(-1.6deg)', margin: '0 -3%', background: bg, borderBlock: '3px solid #0F2347', padding: '14px 0' }}>
         <div className="track">{row('', false)}{row('dup', true)}</div>
       </div>
@@ -192,13 +193,13 @@ function Work({ eyebrow, title, highlight, subtitle, projects }) {
   const cards = lines(projects).map((l) => l.split('|').map((p) => p.trim()))
   const tilts = ['-2.2deg', '1.6deg', '-1deg', '2deg', '-1.8deg', '1.2deg']
   return (
-    <section className="mya mya-work" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8vw, 104px) 24px', background: 'var(--runly-color-bg, #F5F9FF)' }}>
-      <style>{WORK_CSS}</style>
+    <section className="mya mya-work" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8cqw, 104px) 24px', background: 'var(--runly-color-bg, #F5F9FF)' }}>
+      <style>{responsiveCss(WORK_CSS)}</style>
       <Sparkle size={44} style={{ position: 'absolute', right: '6%', top: '56px' }} />
       <div style={{ maxWidth: '1180px', marginInline: 'auto' }}>
         <div style={{ maxWidth: '760px' }}>
           {eyebrow && <span style={{ fontFamily: HAND, fontWeight: 700, fontSize: '20px', color: BLUE }}>{eyebrow}</span>}
-          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(34px, 5vw, 58px)', lineHeight: 1.04, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
+          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(34px, 5cqw, 58px)', lineHeight: 1.04, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
           {subtitle && <p style={{ margin: '16px 0 0', fontSize: '18px', lineHeight: 1.6, color: MUTED, fontFamily: 'var(--runly-font-sans)' }}>{subtitle}</p>}
         </div>
         <div style={{ marginTop: '56px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: '40px 32px' }}>
@@ -242,12 +243,12 @@ function Notes({ eyebrow, title, highlight, testimonials }) {
   }).filter((t) => t.name && t.quote)
   const looks = [['#FFF1B8', '-2.5deg'], ['#fff', '1.8deg'], ['#DCEBFF', '-1.2deg']]
   return (
-    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8vw, 104px) 24px', background: 'linear-gradient(180deg, #E8F1FF 0%, #F5F9FF 100%)' }}>
-      <style>{CSS_BASE}</style>
+    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8cqw, 104px) 24px', background: 'linear-gradient(180deg, #E8F1FF 0%, #F5F9FF 100%)' }}>
+      <style>{responsiveCss(CSS_BASE)}</style>
       <div style={{ maxWidth: '1180px', marginInline: 'auto' }}>
         <div style={{ textAlign: 'center' }}>
           {eyebrow && <span style={{ fontFamily: HAND, fontWeight: 700, fontSize: '20px', color: BLUE }}>{eyebrow}</span>}
-          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(32px, 4.6vw, 54px)', lineHeight: 1.05, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
+          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(32px, 4.6cqw, 54px)', lineHeight: 1.05, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
         </div>
         <div style={{ marginTop: '56px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 290px), 1fr))', gap: '36px 28px' }}>
           {items.map((t, i) => {
@@ -286,15 +287,15 @@ export const MayaNotesBlock = defineBlock({
 // Inner-page hero with playful shapes.
 function PageHero({ eyebrow, title, highlight, subtitle }) {
   return (
-    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8vw, 96px) 24px clamp(48px, 7vw, 80px)', background: 'linear-gradient(180deg, #DCEBFF 0%, #F5F9FF 100%)' }}>
-      <style>{`${CSS_BASE}@keyframes mya-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}`}</style>
-      <svg aria-hidden="true" viewBox="0 0 300 300" style={{ position: 'absolute', right: '-40px', top: '-30px', width: 'min(46vw, 380px)', animation: 'mya-bob 7s ease-in-out infinite' }}>
+    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8cqw, 96px) 24px clamp(48px, 7cqw, 80px)', background: 'linear-gradient(180deg, #DCEBFF 0%, #F5F9FF 100%)' }}>
+      <style>{responsiveCss(`${CSS_BASE}@keyframes mya-bob{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}`)}</style>
+      <svg aria-hidden="true" viewBox="0 0 300 300" style={{ position: 'absolute', right: '-40px', top: '-30px', width: 'min(46cqw, 380px)', animation: 'mya-bob 7s ease-in-out infinite' }}>
         <circle cx="170" cy="130" r="110" fill="#FBBF24" /><circle cx="110" cy="200" r="50" fill="#2563EB" /><circle cx="220" cy="220" r="26" fill="#fff" stroke="#0F2347" strokeWidth="4" />
       </svg>
       <Squiggle width={150} style={{ position: 'absolute', left: '5%', bottom: '24px' }} />
       <div style={{ position: 'relative', maxWidth: '1180px', marginInline: 'auto' }}>
         {eyebrow && <span style={{ display: 'inline-block', fontFamily: HAND, fontWeight: 700, fontSize: '18px', color: '#0F2347', background: '#fff', border: '2px solid #0F2347', borderRadius: '12px 18px 14px 20px', padding: '5px 16px', transform: 'rotate(-2deg)', boxShadow: '3px 3px 0 #0F2347' }}>{eyebrow}</span>}
-        <h1 style={{ margin: '20px 0 0', maxWidth: '14ch', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(40px, 7vw, 84px)', lineHeight: 1, letterSpacing: '-.03em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h1>
+        <h1 style={{ margin: '20px 0 0', maxWidth: '14ch', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(40px, 7cqw, 84px)', lineHeight: 1, letterSpacing: '-.03em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h1>
         {subtitle && <p style={{ margin: '22px 0 0', maxWidth: '46ch', fontFamily: 'var(--runly-font-sans)', fontSize: '19px', lineHeight: 1.6, color: '#3B4A68' }}>{subtitle}</p>}
       </div>
     </section>
@@ -315,20 +316,20 @@ export const MayaPageHeroBlock = defineBlock({
 function Closing({ eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, email, phone, location }) {
   const contacts = [['✉', email, email && `mailto:${email}`], ['☎', phone, phone && `tel:${phone.replace(/[^+\d]/g, '')}`], ['⌖', location, '']].filter(([, v]) => v)
   return (
-    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 9vw, 120px) 24px 0', background: NAVY, color: '#fff' }}>
-      <style>{`${CSS_BASE}.mya-close .btn{transition:transform .2s ease,box-shadow .2s ease}.mya-close .btn:hover{transform:translate(-3px,-3px);box-shadow:8px 8px 0 #fff}.mya-close .btn:focus-visible{outline:3px solid #fff;outline-offset:3px}`}</style>
+    <section className="mya" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 9cqw, 120px) 24px 0', background: NAVY, color: '#fff' }}>
+      <style>{responsiveCss(`${CSS_BASE}.mya-close .btn{transition:transform .2s ease,box-shadow .2s ease}.mya-close .btn:hover{transform:translate(-3px,-3px);box-shadow:8px 8px 0 #fff}.mya-close .btn:focus-visible{outline:3px solid #fff;outline-offset:3px}`)}</style>
       <div className="mya-close" style={{ position: 'relative', maxWidth: '1100px', marginInline: 'auto', textAlign: 'center' }}>
-        <svg aria-hidden="true" viewBox="0 0 200 200" style={{ position: 'absolute', left: '-6%', top: '-30px', width: 'clamp(80px, 14vw, 170px)', opacity: 0.95 }}><circle cx="100" cy="100" r="90" fill="#2563EB" /><circle cx="130" cy="70" r="30" fill="#FBBF24" /></svg>
+        <svg aria-hidden="true" viewBox="0 0 200 200" style={{ position: 'absolute', left: '-6%', top: '-30px', width: 'clamp(80px, 14cqw, 170px)', opacity: 0.95 }}><circle cx="100" cy="100" r="90" fill="#2563EB" /><circle cx="130" cy="70" r="30" fill="#FBBF24" /></svg>
         <Sparkle size={48} style={{ position: 'absolute', right: '4%', top: '0' }} />
         {eyebrow && <div style={{ fontFamily: HAND, fontWeight: 700, fontSize: '22px', color: '#FBBF24', transform: 'rotate(-2deg)' }}>{eyebrow}</div>}
-        <h2 style={{ margin: '12px auto 0', maxWidth: '14ch', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(44px, 8vw, 104px)', lineHeight: 0.98, letterSpacing: '-.035em' }}>{title} {highlight && <span style={{ color: '#FBBF24' }}>{highlight}</span>}</h2>
+        <h2 style={{ margin: '12px auto 0', maxWidth: '14ch', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(44px, 8cqw, 104px)', lineHeight: 0.98, letterSpacing: '-.035em' }}>{title} {highlight && <span style={{ color: '#FBBF24' }}>{highlight}</span>}</h2>
         {subtitle && <p style={{ margin: '22px auto 0', maxWidth: '44ch', fontFamily: 'var(--runly-font-sans)', fontSize: '19px', lineHeight: 1.6, color: 'rgba(255,255,255,.88)' }}>{subtitle}</p>}
         {ctaLabel && <div style={{ marginTop: '34px', display: 'inline-flex', alignItems: 'center', gap: '8px' }}>
           <a className="btn" href={ctaHref || '#'} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', padding: '16px 34px', borderRadius: '999px', background: '#FBBF24', color: '#0F2347', border: '3px solid #fff', boxShadow: '5px 5px 0 #fff', fontFamily: BOLD, fontWeight: 900, fontSize: '18px', textDecoration: 'none' }}>{ctaLabel}<span aria-hidden="true">→</span></a>
           <Arrow color="#fff" style={{ transform: 'scaleX(-1) rotate(-20deg)', marginTop: '-34px' }} />
         </div>}
         {contacts.length > 0 && (
-          <ul style={{ listStyle: 'none', margin: 'clamp(48px, 7vw, 80px) 0 0', padding: '22px 24px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px 34px', background: '#fff', color: INK, borderRadius: '26px 26px 0 0' }}>
+          <ul style={{ listStyle: 'none', margin: 'clamp(48px, 7cqw, 80px) 0 0', padding: '22px 24px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px 34px', background: '#fff', color: INK, borderRadius: '26px 26px 0 0' }}>
             {contacts.map(([icon, value, href]) => (
               <li key={value} style={{ display: 'flex', alignItems: 'center', gap: '10px', fontFamily: BOLD, fontWeight: 800, fontSize: '16px' }}>
                 <span aria-hidden="true" style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#FBBF24', border: '2px solid #0F2347', display: 'grid', placeItems: 'center', fontSize: '15px' }}>{icon}</span>

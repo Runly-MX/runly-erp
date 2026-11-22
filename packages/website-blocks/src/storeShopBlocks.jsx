@@ -9,7 +9,7 @@ import { ACCENT, INK, LINE, MUTED, PAPER, SANS, SERIF, Styles, button } from './
 
 const SAMPLE_PRODUCT = { id: 'sample', name: 'Camisa de lino lavado', category_name: 'Ropa', price: 890, currency: 'MXN', description: 'Corte holgado, lino lavado a la piedra y botones de coco. Suave desde el primer uso.', sample: true }
 const wrap = { maxWidth: 1100, marginInline: 'auto' }
-const section = { padding: 'clamp(40px, 6vw, 80px) 24px', background: PAPER }
+const section = { padding: 'clamp(40px, 6cqw, 80px) 24px', background: PAPER }
 const variantLabel = (v) => Object.values(v?.option_values ?? {}).join(' / ') || v?.sku || 'Opción'
 
 function ZoomableImage({ src, alt }) {
@@ -64,7 +64,7 @@ function ProductDetail({ backHref, cartHref, addLabel, zoomImage }) {
   return (
     <section style={section}>
       <Styles />
-      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 72px)' }}>
+      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5cqw, 72px)' }}>
         <div style={{ position: 'relative', aspectRatio: '4 / 5', borderRadius: '28px 28px 6px 6px', overflow: 'hidden', background: 'linear-gradient(160deg, #EFE7DB 0%, #E4D8C8 100%)' }}>
           {product.image_url && zoomImage !== false
             ? <ZoomableImage src={product.image_url} alt={product.name} />
@@ -73,7 +73,7 @@ function ProductDetail({ backHref, cartHref, addLabel, zoomImage }) {
         <div style={{ alignSelf: 'center' }}>
           <a href={backHref || '/productos'} style={{ fontFamily: SANS, fontSize: 14, color: MUTED, display: 'inline-block', minHeight: 44, lineHeight: '44px' }}>← Volver a la tienda</a>
           {product.category_name && <p style={{ margin: '8px 0 0', fontFamily: SANS, fontSize: 12, fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: ACCENT }}>{product.category_name}</p>}
-          <h1 style={{ margin: '10px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(34px, 4.6vw, 56px)', lineHeight: 1.05, letterSpacing: '-0.02em', color: INK }}>{product.name}</h1>
+          <h1 style={{ margin: '10px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(34px, 4.6cqw, 56px)', lineHeight: 1.05, letterSpacing: '-0.02em', color: INK }}>{product.name}</h1>
           <p style={{ margin: '18px 0 0', fontFamily: SANS, fontSize: 24, fontWeight: 700, color: INK, fontVariantNumeric: 'tabular-nums' }}>{formatCatalogPrice(price, product.currency)}</p>
           {product.description && <p style={{ margin: '18px 0 0', maxWidth: '52ch', fontFamily: SANS, fontSize: 17, lineHeight: 1.7, color: MUTED }}>{product.description}</p>}
           {product.variants?.length > 0 && (
@@ -133,7 +133,7 @@ function CartPage({ mode, checkoutLabel, shopHref, promoNote }) {
     return (
       <section style={section}><div style={{ ...wrap, maxWidth: 640, textAlign: 'center', padding: '48px 0' }}>
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m7.5 12.5 3 3 6-7" /></svg>
-        <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(34px, 5vw, 56px)', color: INK, margin: '16px 0 0' }}>Gracias por tu compra</h1>
+        <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(34px, 5cqw, 56px)', color: INK, margin: '16px 0 0' }}>Gracias por tu compra</h1>
         <p style={{ fontFamily: SANS, fontSize: 17, lineHeight: 1.7, color: MUTED }}>Recibimos tu pedido y te enviaremos la confirmación por correo.</p>
         <a className="rs-btn" href={shopHref || '/productos'} style={{ ...button(true), marginTop: 12 }}>Seguir comprando</a>
       </div></section>
@@ -157,15 +157,15 @@ function CartPage({ mode, checkoutLabel, shopHref, promoNote }) {
   return (
     <section style={section}>
       <Styles />
-      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 64px)', alignItems: 'start' }}>
+      <div style={{ ...wrap, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5cqw, 64px)', alignItems: 'start' }}>
         <ul style={{ listStyle: 'none', margin: 0, padding: 0, gridColumn: 'span 1' }}>
           {lines.map((l) => (
-            <li key={`${l.productId}-${l.variantId}`} style={{ display: 'grid', gridTemplateColumns: '84px 1fr auto', gap: 16, alignItems: 'center', padding: '18px 0', borderBottom: `1px solid ${LINE}` }}>
+            <li key={`${l.productId}-${l.variantId}`} style={{ display: 'grid', gridTemplateColumns: '84px minmax(0,1fr) auto', gap: 16, alignItems: 'center', padding: '18px 0', borderBottom: `1px solid ${LINE}` }}>
               <div style={{ position: 'relative', aspectRatio: '4 / 5', borderRadius: 12, overflow: 'hidden', background: 'linear-gradient(160deg, #EFE7DB, #E4D8C8)' }}><ImageSlot src="" alt="" /></div>
               <div>
                 <p style={{ margin: 0, fontFamily: SERIF, fontSize: 19, color: INK }}>{l.name}</p>
                 {l.variantLabel && <p style={{ margin: '2px 0 0', fontFamily: SANS, fontSize: 13, color: MUTED }}>{l.variantLabel}</p>}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 8 }}>
+                <div style={{ display: 'flex', flexWrap:'wrap',alignItems: 'center', gap: 4, marginTop: 8 }}>
                   <button type="button" className="rs-chip" aria-label={`Menos ${l.name}`} onClick={() => setQty(l, l.qty - 1)} style={{ width: 44, height: 44, borderRadius: 999, border: `1.5px solid ${LINE}`, background: 'transparent', color: INK, cursor: 'pointer' }}>−</button>
                   <span style={{ minWidth: 28, textAlign: 'center', fontFamily: SANS, fontWeight: 700, color: INK }}>{l.qty}</span>
                   <button type="button" className="rs-chip" aria-label={`Más ${l.name}`} onClick={() => setQty(l, l.qty + 1)} style={{ width: 44, height: 44, borderRadius: 999, border: `1.5px solid ${LINE}`, background: 'transparent', color: INK, cursor: 'pointer' }}>+</button>
@@ -178,7 +178,7 @@ function CartPage({ mode, checkoutLabel, shopHref, promoNote }) {
         </ul>
         <aside style={{ padding: 28, borderRadius: 24, background: '#fff', border: `1px solid ${LINE}` }}>
           <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 26, color: INK }}>Resumen</h2>
-          <p style={{ display: 'flex', justifyContent: 'space-between', margin: '18px 0 0', fontFamily: SANS, color: INK }}><span>Subtotal estimado</span><strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCatalogPrice(total, currency)}</strong></p>
+          <p style={{ display: 'flex',flexWrap:'wrap',gap:8, justifyContent: 'space-between', margin: '18px 0 0', fontFamily: SANS, color: INK }}><span>Subtotal estimado</span><strong style={{ fontVariantNumeric: 'tabular-nums' }}>{formatCatalogPrice(total, currency)}</strong></p>
           <p style={{ margin: '8px 0 20px', fontFamily: SANS, fontSize: 13, lineHeight: 1.5, color: MUTED }}>El total final y el envío se confirman en el pago seguro.{promoNote ? ` ${promoNote}` : ''}</p>
           <button type="button" className="rs-btn" disabled={busy || preview} onClick={pay} style={{ ...button(true), width: '100%' }}>{busy ? 'Redirigiendo…' : checkoutLabel || 'Pagar'}</button>
           <p role="alert" style={{ margin: '10px 0 0', minHeight: 20, fontFamily: SANS, fontSize: 14, color: ACCENT }}>{error}</p>

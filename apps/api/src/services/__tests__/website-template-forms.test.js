@@ -50,3 +50,24 @@ test('ensureTemplateForm reuses an existing form by name', async () => {
   const tx = { websiteForm: { findFirst: async ({ where }) => ({ id: `reuse-${where.name}` }) } }
   assert.equal(await ensureTemplateForm({ tx, companyId: 'c', siteId: 's', placeholder: '@newsletter' }), 'reuse-Newsletter')
 })
+
+test('newsletter creation provisions ownership and one required email field on the supplied transaction',async()=>{
+  let created,scope,fields,locked=false
+  const tx={
+    $queryRaw:async()=>{locked=true;return []},
+    websiteForm:{findFirst:async({where})=>where.name?null:created,create:async({data})=>(created={id:'fixture-form',...data})},
+    websiteFormScope:{findFirst:async()=>null,create:async({data})=>(scope=data)},
+    websiteSite:{findFirst:async()=>({id:'fixture-site',name:'Fixture site',enabled:true})},
+    growthProperty:{findFirst:async()=>null,upsert:async()=>({id:'fixture-analytics',websiteSiteId:'fixture-site',enabled:true})},
+    websiteFormField:{createMany:async({data})=>{fields=data}},
+  }
+  const id=await ensureTemplateForm({tx,companyId:'fixture-company',siteId:'fixture-site',placeholder:'@newsletter'})
+  assert.equal(id,created.id);assert.equal(locked,true)
+  assert.equal(scope.ownerWebsiteSiteId,'fixture-site');assert.equal(scope.analyticsPropertyId,'fixture-analytics')
+  assert.equal(fields.length,1);assert.equal(fields[0].fieldType,'email');assert.equal(fields[0].required,true)
+  assert.equal(created.honeypotEnabled,true)
+  const doc=mixed();bindContactForm(doc,{'@newsletter':id,'@contact':null})
+  assert.equal(doc.blocks.news.props.formId,id)
+  tx.websiteFormField.createMany=async()=>{throw Error('fixture-field-write-failed')}
+  await assert.rejects(ensureTemplateForm({tx,companyId:'fixture-company',siteId:'fixture-site',placeholder:'@newsletter'}),/fixture-field-write-failed/)
+})

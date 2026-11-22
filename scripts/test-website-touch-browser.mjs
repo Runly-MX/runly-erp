@@ -14,7 +14,8 @@ const {Hono}=require('hono'),{serve}=require('@hono/node-server')
 
 test('public touch: legacy viewport, release hydration, native links and mobile menu', {timeout:90000},async()=>{
  const output=resolve('.artifacts/website-touch');await mkdir(output,{recursive:true})
- const files=await buildWebsitePublicRuntime(),ssr=await buildWebsiteSsr(null,files['entry.js'].hash)
+ const candidate=process.env.WEBSITE_TEST_ATLAS_ROOT?{atlasRoot:process.env.WEBSITE_TEST_ATLAS_ROOT}:{}
+ const files=await buildWebsitePublicRuntime(null,candidate),ssr=await buildWebsiteSsr(null,files['entry.js'].hash,candidate)
  await writeFile(resolve(output,'ssr.mjs'),ssr)
  const {renderPage}=await import(pathToFileURL(resolve(output,'ssr.mjs')).href)
  const doc={schemaVersion:1,id:'touch',title:'Touch',slug:'/',visibility:'public',regions:{main:{children:['nav','heading','button']}},blocks:{
@@ -22,6 +23,7 @@ test('public touch: legacy viewport, release hydration, native links and mobile 
   heading:{id:'heading',type:'HeadingBlock',props:{text:'Public touch',level:'h1'}},
   button:{id:'button',type:'ButtonBlock',props:{label:'Visit destination',href:'/destination',newTab:false}},
  },seo:{}}
+ if(candidate.atlasRoot){doc.regions.main.children.push('responsive');doc.blocks.responsive={id:'responsive',type:'TextElementBlock',props:{text:'Responsive public',tag:'h2',fontSize:48,tabletFontSize:36,mobileFontSize:24,widthMode:'fill'}}}
  const pageData={id:'touch-page',title:'Touch',path:'/',publishedBuilderData:doc}
  const site={id:'touch-site',sourceType:'builder',company:'touch-company'}
  const release={id:'touch-release',manifest:{kind:'builder',identity:{},runtime:{assets:files}}}
@@ -59,6 +61,12 @@ test('public touch: legacy viewport, release hydration, native links and mobile 
       await page.setViewportSize(size);await page.goto(url);await page.getByRole('heading',{name:'Public touch',exact:true}).waitFor()
       assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'Public page horizontal overflow')
       await page.screenshot({path:resolve(output,`${name}-${legacy?'legacy':'release'}-${size.width}.png`)})
+     }
+     if(candidate.atlasRoot)for(const width of [320,360,390,768,820,1024,1280,1440,1920]){
+      await page.setViewportSize({width,height:900});await page.goto(url)
+      const heading=page.getByRole('heading',{name:'Responsive public',exact:true});await heading.waitFor()
+      assert.equal(await heading.evaluate(node=>getComputedStyle(node).fontSize),width<640?'24px':width<1024?'36px':'48px')
+      assert(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth),'SSR/hydration candidate overflow')
      }
      assert.deepEqual(errors,[]);results.push({name,legacy,hydration:legacy?'client render':'SSR hydrate',passed:true,physicalIOS:false});await context.close()
     }

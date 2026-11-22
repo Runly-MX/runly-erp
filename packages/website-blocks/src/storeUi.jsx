@@ -8,6 +8,7 @@ export const PAPER = 'var(--runly-color-bg, #FAF7F2)'
 export const LINE = 'rgba(31,26,23,.14)'
 
 export const button = (primary = true) => ({
+  boxSizing: 'border-box',maxWidth:'100%',whiteSpace:'normal',overflowWrap:'anywhere',
   display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', minHeight: '44px', padding: '0 24px', borderRadius: '999px',
   border: `1.5px solid ${INK}`, background: primary ? INK : 'transparent', color: primary ? PAPER : INK,
   fontFamily: SANS, fontSize: '14px', fontWeight: 700, letterSpacing: '.02em', textDecoration: 'none', cursor: 'pointer',

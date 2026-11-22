@@ -49,7 +49,7 @@ export const ProjectCardsBlock = defineBlock({
           {(eyebrow || title || subtitle) && (
             <div style={{ marginBottom: '40px', fontFamily: 'var(--runly-font-sans)' }}>
               {eyebrow && <p style={{ margin: '0 0 10px', color: 'var(--runly-color-accent, #d97706)', fontSize: '12px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{eyebrow}</p>}
-              {title && <h2 style={{ margin: 0, color: 'var(--runly-color-fg, #0f172a)', fontSize: 'clamp(26px, 3.4vw, 40px)', fontWeight: 800, lineHeight: 1.15 }}>{title}</h2>}
+              {title && <h2 style={{ margin: 0, color: 'var(--runly-color-fg, #0f172a)', fontSize: 'clamp(26px, 3.4cqw, 40px)', fontWeight: 800, lineHeight: 1.15 }}>{title}</h2>}
               {subtitle && <p style={{ margin: '12px 0 0', color: 'var(--runly-color-muted, #64748b)', fontSize: '17px', lineHeight: 1.6, maxWidth: '560px' }}>{subtitle}</p>}
             </div>
           )}

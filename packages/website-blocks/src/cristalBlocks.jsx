@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { cells, lines, safeHref, useReveal, usePointerVars, useScrollVar, CountUp, Icon } from './blockKit.jsx'
 import { C, WRAP, CrStyle, Btn, Blobs, Section, Heading, SkyScene, Orb, Phone, Stars } from './cristalArt.jsx'
@@ -17,7 +18,7 @@ const NAV_CSS = `
 @media (max-width:900px){.cr-nav .links,.cr-nav .cta{display:none}.cr-nav .mob{display:block}}
 .cr-nav .mob summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:48px;height:48px;border-radius:50%}
 .cr-nav .mob summary::-webkit-details-marker{display:none}
-.cr-nav .panel{position:absolute;right:0;top:calc(100% + 10px);width:min(86vw,320px);padding:10px;border-radius:24px;display:grid;gap:2px}
+.cr-nav .panel{position:absolute;right:0;top:calc(100% + 10px);width:min(86cqw,320px);padding:10px;border-radius:24px;display:grid;gap:2px}
 .cr-nav .panel a{display:flex;align-items:center;min-height:48px;padding:0 16px;border-radius:16px;color:${C.ink};font-weight:600;text-decoration:none}
 .cr-nav .panel a[aria-current="page"],.cr-nav .panel a:hover{background:rgba(255,255,255,.7)}
 .cr-nav .bars{display:block;width:18px;height:2px;background:${C.ink};border-radius:2px;box-shadow:0 6px 0 ${C.ink},0 -6px 0 ${C.ink}}
@@ -44,7 +45,7 @@ export const CrNavbarBlock = defineBlock({
     const items = cells(links).map(([label, href]) => ({ label, href: safeHref(href) }))
     return (
       <header className="cr cr-nav">
-        <CrStyle /><style>{NAV_CSS}</style>
+        <CrStyle /><style>{responsiveCss(NAV_CSS)}</style>
         <div className="bar" style={WRAP}>
           <Logo brand={brand} />
           <nav className="links cr-glass" aria-label="Principal">
@@ -66,7 +67,7 @@ export const CrNavbarBlock = defineBlock({
 
 // ---------------------------------------------------------------------------------------------------------------
 const HERO_CSS = `
-.cr-hero .stage{position:relative;display:flex;justify-content:center;margin-top:clamp(40px,6vw,72px)}
+.cr-hero .stage{position:relative;display:flex;justify-content:center;margin-top:clamp(40px,6cqw,72px)}
 .cr-hero .phone{position:relative;z-index:2;margin-bottom:-120px;transform:translateY(calc(var(--sy,0) * -0.12px))}
 .cr-hero .widget{position:absolute;z-index:3;display:flex;align-items:center;gap:14px;text-align:left;padding:14px 16px;border-radius:24px;min-width:200px;transform:translate(calc((var(--mx,.5) - .5) * var(--d,30px)),calc((var(--my,.5) - .5) * var(--d,30px)));transition:transform .6s cubic-bezier(.2,.7,.2,1)}
 .cr-hero .widget small{display:block;font-size:12px;color:${C.muted};font-weight:600}
@@ -103,12 +104,12 @@ function Hero({ badge, badgeText, title, titleSoft, titleStrong, text, ctaLabel,
   const scroll = useScrollVar()
   const set = (node) => { ref.current = node; pointer.current = node; scroll.current = node }
   return (
-    <section ref={set} data-rv={rv} className="cr cr-hero" style={{ position: 'relative', overflow: 'hidden', marginTop: '-78px', padding: 'calc(78px + clamp(40px, 6vw, 80px)) 0 0', background: 'radial-gradient(1100px 600px at 50% 110%, #9CCBFF 0%, #CFE5FF 45%, #F3F8FF 75%), #F3F8FF' }}>
-      <CrStyle /><style>{HERO_CSS}</style>
+    <section ref={set} data-rv={rv} className="cr cr-hero" style={{ position: 'relative', overflow: 'hidden', marginTop: '-78px', padding: 'calc(78px + clamp(40px, 6cqw, 80px)) 0 0', background: 'radial-gradient(1100px 600px at 50% 110%, #9CCBFF 0%, #CFE5FF 45%, #F3F8FF 75%), #F3F8FF' }}>
+      <CrStyle /><style>{responsiveCss(HERO_CSS)}</style>
       <Blobs />
       <div style={{ ...WRAP, position: 'relative', textAlign: 'center' }}>
         {badgeText && <p className="cr-pill cr-glass cr-rv" style={{ margin: 0 }}><b><Icon name="sparkle" size={13} />{badge}</b>{badgeText}</p>}
-        <h1 className="cr-rv" style={{ '--i': 1, margin: '22px auto 0', maxWidth: '16ch', fontSize: 'clamp(40px, 6.4vw, 80px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.04 }}>
+        <h1 className="cr-rv" style={{ '--i': 1, margin: '22px auto 0', maxWidth: '16ch', fontSize: 'clamp(40px, 6.4cqw, 80px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.04 }}>
           <span className="cr-grad" style={{ fontWeight: 600 }}>{title}</span> <span style={{ color: '#5B6B84' }}>{titleSoft}</span> <strong style={{ fontWeight: 700 }}>{titleStrong}</strong>
         </h1>
         <p className="cr-lead cr-rv" style={{ '--i': 2, maxWidth: '58ch', marginInline: 'auto' }}>{text}</p>
@@ -132,7 +133,7 @@ function Hero({ badge, badgeText, title, titleSoft, titleStrong, text, ctaLabel,
 
 // ---------------------------------------------------------------------------------------------------------------
 const BENTO_CSS = `
-.cr-bento{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;margin-top:clamp(36px,5vw,60px)}
+.cr-bento{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:16px;margin-top:clamp(36px,5cqw,60px)}
 .cr-bento .card{grid-column:span 2;padding:24px;border-radius:28px;min-height:250px;display:flex;flex-direction:column;transition:transform .45s cubic-bezier(.2,.7,.2,1)}
 .cr-bento .card:hover{transform:translateY(-6px)}
 .cr-bento .card.wide{grid-column:span 3}
@@ -212,7 +213,7 @@ function Features({ eyebrow, title, highlight, lead, items }) {
   const [ref, rv] = useReveal(0.12)
   return (
     <Section innerRef={ref} rv={rv} blobs="day">
-      <style>{BENTO_CSS}</style>
+      <style>{responsiveCss(BENTO_CSS)}</style>
       <Heading eyebrow={eyebrow} title={title} highlight={highlight} lead={lead} />
       <div className="cr-bento">{cells(items).map(([name, text, kind, wide], index) => <FeatureCard key={name + index} name={name} text={text} kind={kind} wide={wide} index={index} />)}</div>
     </Section>
@@ -221,9 +222,9 @@ function Features({ eyebrow, title, highlight, lead, items }) {
 
 // ---------------------------------------------------------------------------------------------------------------
 const WINDOW_CSS = `
-.cr-window .frame{position:relative;border-radius:clamp(36px,6vw,80px);padding:clamp(12px,1.6vw,20px);background:linear-gradient(145deg,#C9CED6,#7E8794 40%,#B8BEC8 60%,#6C7480);box-shadow:inset 0 2px 2px rgba(255,255,255,.7),inset 0 -3px 6px rgba(0,0,0,.35),0 50px 90px -40px rgba(10,30,60,.6)}
+.cr-window .frame{position:relative;border-radius:clamp(36px,6cqw,80px);padding:clamp(12px,1.6cqw,20px);background:linear-gradient(145deg,#C9CED6,#7E8794 40%,#B8BEC8 60%,#6C7480);box-shadow:inset 0 2px 2px rgba(255,255,255,.7),inset 0 -3px 6px rgba(0,0,0,.35),0 50px 90px -40px rgba(10,30,60,.6)}
 .cr-window .frame::before{content:"";position:absolute;inset:6px;border-radius:inherit;border:1px dashed rgba(255,255,255,.35);pointer-events:none}
-.cr-window .pane{position:relative;overflow:hidden;border-radius:clamp(26px,4.6vw,62px);min-height:clamp(440px,52vw,620px);display:grid;place-items:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25),inset 0 12px 40px rgba(0,0,0,.25)}
+.cr-window .pane{position:relative;overflow:hidden;border-radius:clamp(26px,4.6cqw,62px);min-height:clamp(440px,52cqw,620px);display:grid;place-items:center;box-shadow:inset 0 0 0 2px rgba(0,0,0,.25),inset 0 12px 40px rgba(0,0,0,.25)}
 .cr-window .glare{position:absolute;inset:0;background:linear-gradient(120deg,rgba(255,255,255,.28) 0%,transparent 26%,transparent 62%,rgba(255,255,255,.14) 74%,transparent 82%);pointer-events:none}
 .cr-window .rivet{position:absolute;width:8px;height:8px;border-radius:50%;background:radial-gradient(circle at 35% 35%,#fff,#7E8794)}
 `
@@ -246,7 +247,7 @@ function Window({ badge, title, titleStrong, text, ctaLabel, ctaHref }) {
   const scroll = useScrollVar(600)
   return (
     <Section innerRef={(node) => { ref.current = node; scroll.current = node }} rv={rv} bg="linear-gradient(180deg,#F5F9FF,#E6EEF8)">
-      <style>{WINDOW_CSS}</style>
+      <style>{responsiveCss(WINDOW_CSS)}</style>
       <div className="cr-window cr-rv" style={{ '--i': 0 }}>
         <div className="frame">
           {[['18px', '50%'], ['calc(100% - 26px)', '50%'], ['50%', '10px'], ['50%', 'calc(100% - 18px)']].map(([left, top]) => <span key={left + top} className="rivet" aria-hidden="true" style={{ left, top, translate: '-50% -50%' }} />)}
@@ -255,8 +256,8 @@ function Window({ badge, title, titleStrong, text, ctaLabel, ctaHref }) {
             <div className="glare" aria-hidden="true" />
             <div style={{ position: 'relative', textAlign: 'center', padding: '40px 20px', maxWidth: '760px' }}>
               {badge && <p className="cr-pill cr-glass cr-rv" style={{ '--i': 1, margin: 0, padding: '6px 14px', color: C.ink }}>{badge}</p>}
-              <h2 className="cr-rv" style={{ '--i': 2, margin: '18px 0 0', fontSize: 'clamp(32px, 5vw, 64px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.04, color: '#13233D', textShadow: '0 1px 18px rgba(255,255,255,.6)' }}>{title} <strong style={{ fontWeight: 700 }}>{titleStrong}</strong></h2>
-              <p className="cr-rv" style={{ '--i': 3, margin: '16px auto 0', maxWidth: '54ch', fontSize: 'clamp(15px, 1.4vw, 18px)', lineHeight: 1.6, color: '#1E3150', textShadow: '0 1px 12px rgba(255,255,255,.7)' }}>{text}</p>
+              <h2 className="cr-rv" style={{ '--i': 2, margin: '18px 0 0', fontSize: 'clamp(32px, 5cqw, 64px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.04, color: '#13233D', textShadow: '0 1px 18px rgba(255,255,255,.6)' }}>{title} <strong style={{ fontWeight: 700 }}>{titleStrong}</strong></h2>
+              <p className="cr-rv" style={{ '--i': 3, margin: '16px auto 0', maxWidth: '54ch', fontSize: 'clamp(15px, 1.4cqw, 18px)', lineHeight: 1.6, color: '#1E3150', textShadow: '0 1px 12px rgba(255,255,255,.7)' }}>{text}</p>
               <div className="cr-glass cr-rv" style={{ '--i': 4, display: 'inline-flex', marginTop: '26px', padding: '6px', borderRadius: '999px' }}><Btn href={ctaHref} variant="white">{ctaLabel}</Btn></div>
             </div>
           </div>
@@ -284,7 +285,7 @@ function Steps({ eyebrow, title, highlight, steps }) {
   return (
     <Section innerRef={ref} rv={rv} blobs="day">
       <Heading eyebrow={eyebrow} title={title} highlight={highlight} />
-      <div style={{ position: 'relative', marginTop: 'clamp(40px, 5vw, 64px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '18px' }}>
+      <div style={{ position: 'relative', marginTop: 'clamp(40px, 5cqw, 64px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 260px), 1fr))', gap: '18px' }}>
         <div aria-hidden="true" style={{ position: 'absolute', left: '8%', right: '8%', top: '52px', height: '3px', borderRadius: '3px', background: 'rgba(255,255,255,.7)', overflow: 'hidden' }}>
           <div style={{ height: '100%', background: `linear-gradient(90deg, ${C.cyan}, ${C.sky}, ${C.violet})`, transformOrigin: 'left', transform: rv === 'wait' ? 'scaleX(0)' : 'scaleX(1)', transition: 'transform 1.6s cubic-bezier(.4,.1,.2,1) .4s' }} />
         </div>
@@ -351,9 +352,9 @@ function Voices({ eyebrow, title, highlight, stats, voices }) {
   }
   return (
     <Section innerRef={ref} rv={rv} blobs="day" bg="#EEF5FF">
-      <style>{VOICES_CSS}</style>
+      <style>{responsiveCss(VOICES_CSS)}</style>
       <Heading eyebrow={eyebrow} title={title} highlight={highlight} />
-      <div className="cr-rv" style={{ '--i': 3, margin: '32px auto 0', maxWidth: '820px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px' }}>
+      <div className="cr-rv" style={{ '--i': 3, margin: '32px auto 0', maxWidth: '820px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(180px,100%),1fr))', gap: '12px' }}>
         {cells(stats).map(([value, label]) => {
           const parsed = parseNumber(value)
           return (
@@ -364,7 +365,7 @@ function Voices({ eyebrow, title, highlight, stats, voices }) {
           )
         })}
       </div>
-      <div className="cr-voices cr-rv" style={{ '--i': 4, marginTop: '36px', display: 'grid', gap: '16px', marginInline: 'calc(-1 * clamp(18px, 4vw, 40px))' }}>
+      <div className="cr-voices cr-rv" style={{ '--i': 4, marginTop: '36px', display: 'grid', gap: '16px', marginInline: 'calc(-1 * clamp(18px, 4cqw, 40px))' }}>
         {row(list.slice(0, half), 'a')}
         {row(list.slice(half), 'b')}
       </div>

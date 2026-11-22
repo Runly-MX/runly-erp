@@ -70,7 +70,7 @@ export const SplitFeatureBlock = defineBlock({
           </p>
         )}
         {title && (
-          <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 'clamp(28px, 3vw, 44px)', fontWeight: 400, color: fg, margin: '0 0 24px', lineHeight: 1.2 }}>
+          <h2 style={{ fontFamily: 'Georgia, "Times New Roman", serif', fontSize: 'clamp(28px, 3cqw, 44px)', fontWeight: 400, color: fg, margin: '0 0 24px', lineHeight: 1.2 }}>
             {title}
           </h2>
         )}

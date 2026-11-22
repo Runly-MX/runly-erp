@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 
 // Blocks of the "Serenity Spa" template: calm and airy, soft organic shapes that drift and a breathing orb.
@@ -68,14 +69,14 @@ function SpaHero({ size, eyebrow, title, accent, subtitle, ctaLabel, ctaHref, ct
   const full = size !== 'page'
   const rows = lines(facts).slice(0, 3).map(cells).filter(([k, v]) => k && v)
   return (
-    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: full ? 'clamp(64px, 9vw, 120px) 24px clamp(72px, 9vw, 128px)' : 'clamp(56px, 7vw, 96px) 24px', background: 'linear-gradient(165deg, #F6F3EE 0%, #E7F0EB 100%)', color: INK }}>
-      <style>{CSS}</style>
+    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: full ? 'clamp(64px, 9cqw, 120px) 24px clamp(72px, 9cqw, 128px)' : 'clamp(56px, 7cqw, 96px) 24px', background: 'linear-gradient(165deg, #F6F3EE 0%, #E7F0EB 100%)', color: INK }}>
+      <style>{responsiveCss(CSS)}</style>
       <Blob color="#CFE3DB" size={520} style={{ top: '-180px', right: '-120px', opacity: 0.8 }} />
       <Blob color="#EBD9C8" size={380} delay={-8} style={{ bottom: '-160px', left: '-100px', opacity: 0.75 }} />
-      <div style={{ position: 'relative', maxWidth: '1180px', marginInline: 'auto', display: 'grid', gridTemplateColumns: full ? 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' : '1fr', gap: 'clamp(40px, 6vw, 88px)', alignItems: 'center' }}>
+      <div style={{ position: 'relative', maxWidth: '1180px', marginInline: 'auto', display: 'grid', gridTemplateColumns: full ? 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' : '1fr', gap: 'clamp(40px, 6cqw, 88px)', alignItems: 'center' }}>
         <div>
           {eyebrow && <p className="spa-line" style={{ margin: 0, fontFamily: SANS, fontSize: '13px', fontWeight: 600, letterSpacing: '.26em', textTransform: 'uppercase', color: CLAY }}>{eyebrow}</p>}
-          <h1 className="spa-line" style={{ animationDelay: '.15s', margin: '22px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: full ? 'clamp(44px, 7vw, 96px)' : 'clamp(38px, 5.4vw, 72px)', lineHeight: 1.04, letterSpacing: '-0.02em' }}>
+          <h1 className="spa-line" style={{ animationDelay: '.15s', margin: '22px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: full ? 'clamp(44px, 7cqw, 96px)' : 'clamp(38px, 5.4cqw, 72px)', lineHeight: 1.04, letterSpacing: '-0.02em' }}>
             {title}{accent && <> <em style={{ color: SAGE }}>{accent}</em></>}
           </h1>
           {subtitle && <p className="spa-line" style={{ animationDelay: '.3s', margin: '24px 0 0', maxWidth: '44ch', fontFamily: SANS, fontSize: '18px', lineHeight: 1.8, color: MUTED }}>{subtitle}</p>}
@@ -145,12 +146,12 @@ export const SpaHeroBlock = defineBlock({
 function SpaRituals({ eyebrow, title, subtitle, currency, rituals, ctaLabel, ctaHref }) {
   const rows = lines(rituals).map(cells).filter(([name]) => name)
   return (
-    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 9vw, 120px) 24px', background: 'var(--runly-color-bg, #F6F3EE)', color: INK }}>
-      <style>{CSS}</style>
-      <div style={{ maxWidth: '1180px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6vw, 96px)' }}>
+    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(64px, 9cqw, 120px) 24px', background: 'var(--runly-color-bg, #F6F3EE)', color: INK }}>
+      <style>{responsiveCss(CSS)}</style>
+      <div style={{ maxWidth: '1180px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6cqw, 96px)' }}>
         <div style={{ alignSelf: 'start', position: 'relative' }}>
           {eyebrow && <p style={{ margin: 0, fontFamily: SANS, fontSize: '13px', fontWeight: 600, letterSpacing: '.26em', textTransform: 'uppercase', color: CLAY }}>{eyebrow}</p>}
-          <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(36px, 5vw, 64px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}>{title}</h2>
+          <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(36px, 5cqw, 64px)', lineHeight: 1.08, letterSpacing: '-0.02em' }}>{title}</h2>
           {subtitle && <p style={{ margin: '20px 0 0', maxWidth: '36ch', fontFamily: SANS, fontSize: '17px', lineHeight: 1.8, color: MUTED }}>{subtitle}</p>}
           <div style={{ marginTop: '28px' }}><Pill label={ctaLabel} href={ctaHref} solid /></div>
           <div style={{ marginTop: '40px' }}><Leaf /></div>
@@ -198,14 +199,14 @@ export const SpaRitualsBlock = defineBlock({
 function SpaClosing({ eyebrow, title, body, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref, hours }) {
   const rows = lines(hours).map(cells).filter(([d, t]) => d && t)
   return (
-    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 10vw, 130px) 24px', background: `linear-gradient(160deg, ${DEEP} 0%, #2F5D54 100%)`, color: '#F6F3EE' }}>
-      <style>{CSS}</style>
+    <section className="spa" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 10cqw, 130px) 24px', background: `linear-gradient(160deg, ${DEEP} 0%, #2F5D54 100%)`, color: '#F6F3EE' }}>
+      <style>{responsiveCss(CSS)}</style>
       <Blob color="#3C7266" size={480} style={{ top: '-200px', left: '-140px' }} />
       <Blob color="#2A5249" size={420} delay={-10} style={{ bottom: '-200px', right: '-100px' }} />
-      <div style={{ position: 'relative', maxWidth: '1100px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6vw, 88px)', alignItems: 'center' }}>
+      <div style={{ position: 'relative', maxWidth: '1100px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6cqw, 88px)', alignItems: 'center' }}>
         <div>
           {eyebrow && <p style={{ margin: 0, fontFamily: SANS, fontSize: '13px', fontWeight: 600, letterSpacing: '.26em', textTransform: 'uppercase', color: '#E8C9AE' }}>{eyebrow}</p>}
-          <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(38px, 5.6vw, 72px)', lineHeight: 1.06, letterSpacing: '-0.02em' }}>{title}</h2>
+          <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(38px, 5.6cqw, 72px)', lineHeight: 1.06, letterSpacing: '-0.02em' }}>{title}</h2>
           {body && <p style={{ margin: '22px 0 0', maxWidth: '42ch', fontFamily: SANS, fontSize: '18px', lineHeight: 1.8, color: 'rgba(246,243,238,.88)' }}>{body}</p>}
           <div style={{ marginTop: '32px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
             <Pill label={ctaLabel} href={ctaHref} solid onDark />

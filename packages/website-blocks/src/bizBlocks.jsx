@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useEffect, useRef, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 
@@ -10,7 +11,7 @@ const SKY = '#0369A1'
 const LINE = '#E2E8F0'
 const NAVY = '#0B1B3A'
 const SANS = 'var(--runly-font-sans, system-ui, sans-serif)'
-const WRAP = { width: '100%', maxWidth: '1180px', marginInline: 'auto', paddingInline: 'clamp(20px, 4vw, 40px)', boxSizing: 'border-box' }
+const WRAP = { width: '100%', maxWidth: '1180px', marginInline: 'auto', paddingInline: 'clamp(20px, 4cqw, 40px)', boxSizing: 'border-box' }
 const NUM = { fontVariantNumeric: 'tabular-nums' }
 
 const STYLE = `
@@ -19,12 +20,12 @@ const STYLE = `
 .bz a:focus-visible{outline:3px solid ${SKY};outline-offset:3px}
 .bz-btn{display:inline-flex;align-items:center;gap:8px;min-height:48px;padding:0 26px;border-radius:8px;font:700 15px/1 ${SANS};text-decoration:none;transition:transform .2s ease,background .2s,box-shadow .2s}
 .bz-btn:hover{transform:translateY(-2px)}
-.bz-hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(32px,5vw,72px);align-items:center}
+.bz-hero-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:clamp(32px,5cqw,72px);align-items:center}
 .bz-line{stroke-dasharray:420;animation:bz-draw 1.8s ease-out .2s backwards}
 .bz-bar{transform-origin:bottom;animation:bz-grow .9s cubic-bezier(.2,.7,.2,1) backwards}
 .bz-pillar{display:grid;grid-template-columns:56px minmax(0,1fr);gap:8px 20px;padding:26px 0 26px 22px;border-top:1px solid ${LINE};border-left:3px solid transparent;transition:border-color .2s,background .2s,padding .2s}
 .bz-pillar:hover{border-left-color:${BLUE};background:linear-gradient(90deg,rgba(30,64,175,.06),transparent);padding-left:28px}
-.bz-split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5vw,80px);align-items:start}
+.bz-split{display:grid;grid-template-columns:minmax(0,.8fr) minmax(0,1.2fr);gap:clamp(28px,5cqw,80px);align-items:start}
 .bz-steps{display:grid;grid-template-columns:repeat(var(--n,4),minmax(0,1fr));gap:0 28px;position:relative}
 .bz-step{position:relative;padding-top:64px}
 .bz-step:before{content:"";position:absolute;top:21px;left:44px;right:-28px;height:2px;background:repeating-linear-gradient(90deg,#94A3B8 0 6px,transparent 6px 12px)}
@@ -58,7 +59,7 @@ const rowsOf = (raw) => lines(raw).map((l) => ({ cells: cells(l) }))
 
 const Check = ({ color = SKY, size = 18 }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{ flex: 'none' }}><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
 const Eyebrow = ({ children, color = SKY }) => children ? <div style={{ fontFamily: SANS, fontSize: '13px', fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color }}>{children}</div> : null
-const H2 = ({ children, color = INK, style }) => <h2 style={{ margin: '12px 0 0', fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(28px, 3.6vw, 44px)', lineHeight: 1.1, letterSpacing: '-0.03em', color, ...style }}>{children}</h2>
+const H2 = ({ children, color = INK, style }) => <h2 style={{ margin: '12px 0 0', fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(28px, 3.6cqw, 44px)', lineHeight: 1.1, letterSpacing: '-0.03em', color, ...style }}>{children}</h2>
 const Lead = ({ children, color = BODY }) => children ? <p style={{ margin: '16px 0 0', maxWidth: '58ch', fontFamily: SANS, fontSize: '17px', lineHeight: 1.65, color }}>{children}</p> : null
 
 /* ---------------------------------------------------------------- Hero */
@@ -67,7 +68,7 @@ function Panel({ label, value, caption }) {
     <div aria-hidden="true" style={{ position: 'relative', background: '#fff', border: `1px solid ${LINE}`, borderRadius: '16px', padding: '26px', boxShadow: '0 30px 60px -30px rgba(15,23,42,.35)' }}>
       <div style={{ fontFamily: SANS, fontSize: '13px', fontWeight: 600, color: BODY }}>{label}</div>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: '10px', margin: '6px 0 4px' }}>
-        <span style={{ fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(40px, 5vw, 60px)', letterSpacing: '-0.04em', color: INK, ...NUM }}>{value}</span>
+        <span style={{ fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(40px, 5cqw, 60px)', letterSpacing: '-0.04em', color: INK, ...NUM }}>{value}</span>
         <span style={{ padding: '3px 10px', borderRadius: '99px', background: '#DCFCE7', color: '#166534', fontFamily: SANS, fontSize: '12px', fontWeight: 700 }}>vs. año anterior</span>
       </div>
       <div style={{ fontFamily: SANS, fontSize: '14px', color: BODY }}>{caption}</div>
@@ -87,7 +88,7 @@ function Hero({ eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, ctaSecon
   const copy = (
     <div>
       <Eyebrow>{eyebrow}</Eyebrow>
-      <h1 style={{ margin: '16px 0 0', fontFamily: SANS, fontWeight: 800, fontSize: full ? 'clamp(36px, 5.2vw, 66px)' : 'clamp(32px, 4.4vw, 54px)', lineHeight: 1.04, letterSpacing: '-0.04em', color: INK, maxWidth: '18ch' }}>
+      <h1 style={{ margin: '16px 0 0', fontFamily: SANS, fontWeight: 800, fontSize: full ? 'clamp(36px, 5.2cqw, 66px)' : 'clamp(32px, 4.4cqw, 54px)', lineHeight: 1.04, letterSpacing: '-0.04em', color: INK, maxWidth: '18ch' }}>
         {title}{highlight && <> <span style={{ color: BLUE }}>{highlight}</span></>}
       </h1>
       <Lead>{subtitle}</Lead>
@@ -105,8 +106,8 @@ function Hero({ eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, ctaSecon
     </div>
   )
   return (
-    <section className="bz" style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(180deg,#EEF4FF 0%,#F8FAFC 100%)', paddingBlock: full ? 'clamp(56px, 8vw, 112px)' : 'clamp(48px, 6vw, 84px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ position: 'relative', overflow: 'hidden', background: 'linear-gradient(180deg,#EEF4FF 0%,#F8FAFC 100%)', paddingBlock: full ? 'clamp(56px, 8cqw, 112px)' : 'clamp(48px, 6cqw, 84px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'linear-gradient(rgba(30,64,175,.06) 1px,transparent 1px),linear-gradient(90deg,rgba(30,64,175,.06) 1px,transparent 1px)', backgroundSize: '56px 56px', WebkitMaskImage: 'linear-gradient(180deg,#000,transparent 85%)', maskImage: 'linear-gradient(180deg,#000,transparent 85%)' }} />
       <div className={full ? 'bz-hero-grid' : undefined} style={{ ...WRAP, position: 'relative' }}>
         {copy}
@@ -135,8 +136,8 @@ export const BizHeroBlock = defineBlock({
 /* ------------------------------------------------------------- Pillars */
 function Pillars({ eyebrow, title, subtitle, items, background }) {
   return (
-    <section className="bz" style={{ background: background === 'muted' ? '#F1F5F9' : '#fff', paddingBlock: 'clamp(56px, 8vw, 104px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: background === 'muted' ? '#F1F5F9' : '#fff', paddingBlock: 'clamp(56px, 8cqw, 104px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div className="bz-split" style={WRAP}>
         <div style={{ position: 'sticky', top: '96px' }}>
           <Eyebrow>{eyebrow}</Eyebrow><H2>{title}</H2><Lead>{subtitle}</Lead>
@@ -191,7 +192,7 @@ function Counter({ value, label }) {
   const text = match ? `${match[1]}${Number(shown ?? 0).toLocaleString('es-MX', { minimumFractionDigits: decimals, maximumFractionDigits: decimals })}${match[3]}` : value
   return (
     <div ref={ref} aria-label={`${value} ${label}`}>
-      <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(34px, 4.2vw, 56px)', letterSpacing: '-0.04em', lineHeight: 1, color: '#fff', ...NUM }}>{text}</div>
+      <div style={{ fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(34px, 4.2cqw, 56px)', letterSpacing: '-0.04em', lineHeight: 1, color: '#fff', ...NUM }}>{text}</div>
       <div style={{ marginTop: '10px', fontFamily: SANS, fontSize: '15px', lineHeight: 1.4, color: '#CBD5E1' }}>{label}</div>
     </div>
   )
@@ -199,11 +200,11 @@ function Counter({ value, label }) {
 
 function KpiBand({ eyebrow, title, kpis }) {
   return (
-    <section className="bz" style={{ background: `radial-gradient(900px 400px at 85% 0%, rgba(14,165,233,.22), transparent 60%), ${NAVY}`, paddingBlock: 'clamp(52px, 7vw, 96px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: `radial-gradient(900px 400px at 85% 0%, rgba(14,165,233,.22), transparent 60%), ${NAVY}`, paddingBlock: 'clamp(52px, 7cqw, 96px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={WRAP}>
         <Eyebrow color="#7DD3FC">{eyebrow}</Eyebrow><H2 color="#fff" style={{ maxWidth: '24ch' }}>{title}</H2>
-        <div className="bz-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: '36px 0', marginTop: 'clamp(32px, 4vw, 56px)' }}>
+        <div className="bz-kpis" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0,1fr))', gap: '36px 0', marginTop: 'clamp(32px, 4cqw, 56px)' }}>
           {rowsOf(kpis).map((item, i) => (
             <div key={i} className="bz-kpi" style={{ paddingInline: '28px', borderLeft: i ? '1px solid rgba(148,163,184,.3)' : 'none', paddingLeft: i ? undefined : 0 }}><Counter value={item.cells[0]} label={item.cells[1]} /></div>
           ))}
@@ -227,11 +228,11 @@ export const BizKpiBandBlock = defineBlock({
 function Process({ eyebrow, title, subtitle, steps }) {
   const list = entries(steps)
   return (
-    <section className="bz" style={{ background: '#F8FAFC', paddingBlock: 'clamp(56px, 8vw, 104px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: '#F8FAFC', paddingBlock: 'clamp(56px, 8cqw, 104px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow><H2 style={{ maxWidth: '22ch' }}>{title}</H2><Lead>{subtitle}</Lead>
-        <ol className="bz-steps" style={{ '--n': list.length, listStyle: 'none', margin: 'clamp(36px, 5vw, 64px) 0 0', padding: 0 }}>
+        <ol className="bz-steps" style={{ '--n': list.length, listStyle: 'none', margin: 'clamp(36px, 5cqw, 64px) 0 0', padding: 0 }}>
           {list.map((item, i) => (
             <li key={i} className="bz-step">
               <span className="bz-node" aria-hidden="true">{i + 1}</span>
@@ -259,11 +260,11 @@ export const BizProcessBlock = defineBlock({
 /* --------------------------------------------------------------- Cases */
 function Cases({ eyebrow, title, subtitle, cases }) {
   return (
-    <section className="bz" style={{ background: '#fff', paddingBlock: 'clamp(56px, 8vw, 104px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: '#fff', paddingBlock: 'clamp(56px, 8cqw, 104px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow><H2 style={{ maxWidth: '22ch' }}>{title}</H2><Lead>{subtitle}</Lead>
-        <div className="bz-cases" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: '20px', marginTop: 'clamp(32px, 4vw, 56px)' }}>
+        <div className="bz-cases" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0,1fr))', gap: '20px', marginTop: 'clamp(32px, 4cqw, 56px)' }}>
           {entries(cases).map((item, i) => {
             const [client, sector, result, resultLabel] = item.cells
             return (
@@ -272,7 +273,7 @@ function Cases({ eyebrow, title, subtitle, cases }) {
                   <span style={{ fontFamily: SANS, fontSize: '14px', fontWeight: 700, color: INK }}>{client}</span>
                   <span style={{ padding: '3px 10px', borderRadius: '99px', background: '#F1F5F9', color: BODY, fontFamily: SANS, fontSize: '12px', fontWeight: 600 }}>{sector}</span>
                 </div>
-                <div style={{ margin: '24px 0 4px', fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(44px, 5vw, 60px)', letterSpacing: '-0.04em', lineHeight: 1, color: BLUE, ...NUM }}>{result}</div>
+                <div style={{ margin: '24px 0 4px', fontFamily: SANS, fontWeight: 800, fontSize: 'clamp(44px, 5cqw, 60px)', letterSpacing: '-0.04em', lineHeight: 1, color: BLUE, ...NUM }}>{result}</div>
                 <div style={{ fontFamily: SANS, fontSize: '14px', fontWeight: 700, color: INK }}>{resultLabel}</div>
                 <svg viewBox="0 0 200 40" aria-hidden="true" style={{ width: '100%', height: '40px', margin: '16px 0' }} fill="none"><path d="M2 8 C 40 10, 60 30, 100 28 S 160 34, 198 32" stroke="#BFDBFE" strokeWidth="3" strokeLinecap="round" /><circle cx="198" cy="32" r="4" fill="#1E40AF" /></svg>
                 <p style={{ margin: 0, flex: 1, fontFamily: SANS, fontSize: '15px', lineHeight: 1.65, color: BODY }}>{item.lines[0]}</p>
@@ -309,11 +310,11 @@ function Engagement({ eyebrow, title, subtitle, models, prices, rows, highlight,
   const hl = Math.max(0, Math.min(names.length - 1, Number(highlight) - 1))
   const priceCells = cells(prices)
   return (
-    <section className="bz" style={{ background: '#F1F5F9', paddingBlock: 'clamp(56px, 8vw, 104px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: '#F1F5F9', paddingBlock: 'clamp(56px, 8cqw, 104px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow><H2 style={{ maxWidth: '24ch' }}>{title}</H2><Lead>{subtitle}</Lead>
-        <div role="region" aria-label={title} tabIndex={0} style={{ marginTop: 'clamp(28px, 4vw, 48px)', overflowX: 'auto', background: '#fff', border: `1px solid ${LINE}`, borderRadius: '14px' }}>
+        <div role="region" aria-label={title} tabIndex={0} style={{ marginTop: 'clamp(28px, 4cqw, 48px)', overflowX: 'auto', background: '#fff', border: `1px solid ${LINE}`, borderRadius: '14px' }}>
           <table className="bz-table">
             <thead>
               <tr>
@@ -355,12 +356,12 @@ export const BizEngagementBlock = defineBlock({
 /* --------------------------------------------------------------- Trust */
 function Trust({ title, badges, clients }) {
   return (
-    <section className="bz" style={{ background: '#fff', borderBlock: `1px solid ${LINE}`, paddingBlock: 'clamp(36px, 5vw, 60px)' }}>
-      <style>{STYLE}</style>
+    <section className="bz" style={{ background: '#fff', borderBlock: `1px solid ${LINE}`, paddingBlock: 'clamp(36px, 5cqw, 60px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={WRAP}>
         <div style={{ textAlign: 'center', fontFamily: SANS, fontSize: '13px', fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', color: BODY }}>{title}</div>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px 44px', margin: '22px 0' }}>
-          {String(clients ?? '').split(/[·\n]/).map((c) => c.trim()).filter(Boolean).map((name, i) => <span key={i} style={{ fontFamily: i % 2 ? 'Georgia, serif' : SANS, fontWeight: i % 2 ? 700 : 800, fontStyle: i % 3 === 0 ? 'italic' : 'normal', fontSize: 'clamp(18px, 2vw, 24px)', letterSpacing: i % 2 ? '0' : '-0.03em', color: '#334155' }}>{name}</span>)}
+          {String(clients ?? '').split(/[·\n]/).map((c) => c.trim()).filter(Boolean).map((name, i) => <span key={i} style={{ fontFamily: i % 2 ? 'Georgia, serif' : SANS, fontWeight: i % 2 ? 700 : 800, fontStyle: i % 3 === 0 ? 'italic' : 'normal', fontSize: 'clamp(18px, 2cqw, 24px)', letterSpacing: i % 2 ? '0' : '-0.03em', color: '#334155' }}>{name}</span>)}
         </div>
         <div style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '14px' }}>
           {rowsOf(badges).map((b, i) => (
@@ -388,9 +389,9 @@ export const BizTrustBlock = defineBlock({
 /* ------------------------------------------------------------- Closing */
 function Closing({ eyebrow, title, subtitle, points, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref }) {
   return (
-    <section className="bz" style={{ background: '#fff', paddingBlock: 'clamp(48px, 7vw, 96px)' }}>
-      <style>{STYLE}</style>
-      <div className="bz-closing" style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,.8fr)', gap: 'clamp(28px, 4vw, 56px)', alignItems: 'center', position: 'relative', background: `radial-gradient(700px 320px at 100% 0%, rgba(14,165,233,.3), transparent 60%), ${NAVY}`, borderRadius: '20px', padding: 'clamp(32px, 5vw, 64px)', width: 'min(1180px, calc(100% - 40px))' }}>
+    <section className="bz" style={{ background: '#fff', paddingBlock: 'clamp(48px, 7cqw, 96px)' }}>
+      <style>{responsiveCss(STYLE)}</style>
+      <div className="bz-closing" style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'minmax(0,1.2fr) minmax(0,.8fr)', gap: 'clamp(28px, 4cqw, 56px)', alignItems: 'center', position: 'relative', background: `radial-gradient(700px 320px at 100% 0%, rgba(14,165,233,.3), transparent 60%), ${NAVY}`, borderRadius: '20px', padding: 'clamp(32px, 5cqw, 64px)', width: 'min(1180px, calc(100% - 40px))' }}>
         <div>
           <Eyebrow color="#7DD3FC">{eyebrow}</Eyebrow>
           <H2 color="#fff" style={{ maxWidth: '20ch' }}>{title}</H2>

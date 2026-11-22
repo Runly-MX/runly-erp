@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { G, WRAP, cells, lines, safeHref, useReveal, usePointerVars, CountUp, ImStyle, Section, Heading, Btn, Icon, RocketScene, ServiceArt } from './impulsaArt.jsx'
 
@@ -12,7 +13,7 @@ const NAV_CSS = `
 .im-nav .nl::after{content:"";position:absolute;left:0;right:0;bottom:8px;height:2px;border-radius:2px;background:${G.leaf};transform:scaleX(0);transform-origin:right;transition:transform .3s ease}
 .im-nav .nl:hover{color:${G.greenHex}}
 .im-nav .nl:hover::after,.im-nav .nl[aria-current="page"]::after{transform:scaleX(1);transform-origin:left}
-.im-nav .links{display:flex;align-items:center;gap:clamp(16px,2.6vw,34px)}
+.im-nav .links{display:flex;align-items:center;gap:clamp(16px,2.6cqw,34px)}
 .im-nav .mob{display:none;position:relative}
 @media (max-width:900px){.im-nav .links,.im-nav .cta{display:none}.im-nav .mob{display:block}}
 .im-nav .mob summary{list-style:none;cursor:pointer;display:grid;place-items:center;width:46px;height:46px;border-radius:14px;background:${G.mint};color:${G.forest}}
@@ -21,7 +22,7 @@ const NAV_CSS = `
 .im-nav .mob[open] .panel{animation:im-menu .28s cubic-bezier(.2,.8,.2,1);transform-origin:top right}
 @keyframes im-menu{from{opacity:0;transform:translateY(-8px) scale(.97)}to{opacity:1;transform:none}}
 @media (prefers-reduced-motion:reduce){.im-nav .mob[open] .panel{animation:none}}
-.im-nav .panel{position:absolute;right:0;top:calc(100% + 10px);width:min(86vw,320px);background:#fff;border:1px solid ${G.line};border-radius:18px;padding:10px;box-shadow:0 24px 50px -20px rgba(15,59,34,.35);display:grid;gap:2px}
+.im-nav .panel{position:absolute;right:0;top:calc(100% + 10px);width:min(86cqw,320px);background:#fff;border:1px solid ${G.line};border-radius:18px;padding:10px;box-shadow:0 24px 50px -20px rgba(15,59,34,.35);display:grid;gap:2px}
 .im-nav .panel a{display:flex;align-items:center;min-height:48px;padding:0 14px;border-radius:12px;color:${G.ink};font-weight:600;text-decoration:none}
 .im-nav .panel a:hover,.im-nav .panel a[aria-current="page"]{background:${G.mint};color:${G.forest}}
 .im-nav .bars{display:block;width:20px;height:2px;background:currentColor;border-radius:2px;box-shadow:0 6px 0 currentColor,0 -6px 0 currentColor}
@@ -40,7 +41,7 @@ export const ImNavbarBlock = defineBlock({
     const items = cells(links).map(([label, href]) => ({ label, href: safeHref(href) }))
     return (
       <header className="im im-nav" style={{ position: 'sticky', top: 0, zIndex: 40, background: 'rgba(255,255,255,.86)', backdropFilter: 'saturate(1.4) blur(12px)', borderBottom: `1px solid ${G.line}` }}>
-        <ImStyle /><style>{NAV_CSS}</style>
+        <ImStyle /><style>{responsiveCss(NAV_CSS)}</style>
         <div style={{ ...WRAP, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', minHeight: '76px' }}>
           <a href="/" aria-label={`${brand}, inicio`} style={{ display: 'inline-flex', alignItems: 'center', gap: '10px', minHeight: '44px', color: G.ink, textDecoration: 'none', fontWeight: 800, fontSize: '22px', letterSpacing: '-0.03em' }}>
             <svg aria-hidden="true" width="30" height="30" viewBox="0 0 32 32"><path d="M16 2 L20 12 L30 16 L20 20 L16 30 L12 20 L2 16 L12 12 Z" fill={G.greenHex} /><path d="M16 9 L18 14 L23 16 L18 18 L16 23 L14 18 L9 16 L14 14 Z" fill={G.lime} /></svg>
@@ -97,13 +98,13 @@ function Hero({ eyebrow, title, highlight, text, ctaLabel, ctaHref, ctaSecondLab
   const [ref, rv] = useReveal(0.05)
   const pointer = usePointerVars()
   return (
-    <section ref={(node) => { ref.current = node; pointer.current = node }} data-rv={rv} className="im im-hero" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(1200px 500px at 85% -10%, ${G.mint}, transparent 60%), #fff`, padding: 'clamp(36px, 6vw, 80px) 0 clamp(40px, 6vw, 72px)' }}>
-      <ImStyle /><style>{HERO_CSS}</style>
+    <section ref={(node) => { ref.current = node; pointer.current = node }} data-rv={rv} className="im im-hero" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(1200px 500px at 85% -10%, ${G.mint}, transparent 60%), #fff`, padding: 'clamp(36px, 6cqw, 80px) 0 clamp(40px, 6cqw, 72px)' }}>
+      <ImStyle /><style>{responsiveCss(HERO_CSS)}</style>
       <div aria-hidden="true" className="im-orb" style={{ position: 'absolute', left: '-120px', bottom: '-160px', width: '360px', height: '360px', borderRadius: '50%', background: `radial-gradient(circle, ${G.mintDeep}, transparent 70%)`, opacity: 0.8 }} />
-      <div style={{ ...WRAP, position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))', gap: 'clamp(28px, 4vw, 56px)', alignItems: 'center' }}>
+      <div style={{ ...WRAP, position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 460px), 1fr))', gap: 'clamp(28px, 4cqw, 56px)', alignItems: 'center' }}>
         <div>
           {eyebrow && <p className="im-eyebrow im-rv" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '7px 14px', borderRadius: '999px', background: G.mint }}><span className="im-pulse" aria-hidden="true" style={{ width: '8px', height: '8px', borderRadius: '50%', background: G.leaf }} />{eyebrow}</p>}
-          <h1 className="im-rv" style={{ '--i': 1, margin: '20px 0 0', fontSize: 'clamp(36px, 4.4vw, 58px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.06 }}>
+          <h1 className="im-rv" style={{ '--i': 1, margin: '20px 0 0', fontSize: 'clamp(36px, 4.4cqw, 58px)', fontWeight: 800, letterSpacing: '-0.04em', lineHeight: 1.06 }}>
             {title} <span className="im-hl">{highlight}</span>
           </h1>
           <p className="im-lead im-rv" style={{ '--i': 2, maxWidth: '50ch' }}>{text}</p>
@@ -131,7 +132,7 @@ function Hero({ eyebrow, title, highlight, text, ctaLabel, ctaHref, ctaSecondLab
 // ---------------------------------------------------------------------------------------------------------------
 const LOGO_STYLES = [{ fontWeight: 800, letterSpacing: '-0.04em' }, { fontWeight: 500, fontStyle: 'italic', fontFamily: 'Georgia, serif' }, { fontWeight: 900, textTransform: 'uppercase', letterSpacing: '.08em', fontSize: '17px' }, { fontWeight: 700, letterSpacing: '-0.02em' }, { fontWeight: 300, letterSpacing: '.18em', textTransform: 'uppercase', fontSize: '16px' }, { fontWeight: 800, fontFamily: 'ui-monospace, Menlo, monospace', fontSize: '18px' }]
 const LOGOS_CSS = `
-.im-logos .track{display:flex;width:max-content;gap:clamp(36px,6vw,72px);animation:im-marquee 32s linear infinite}
+.im-logos .track{display:flex;width:max-content;gap:clamp(36px,6cqw,72px);animation:im-marquee 32s linear infinite}
 .im-logos:hover .track{animation-play-state:paused}
 .im-logos .mask{overflow:hidden;-webkit-mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent);mask-image:linear-gradient(90deg,transparent,#000 12%,#000 88%,transparent)}
 .im-logos .lg{display:inline-flex;align-items:center;gap:8px;font-size:21px;color:#8A968E;white-space:nowrap;transition:color .25s,transform .25s}
@@ -148,10 +149,10 @@ export const ImLogosBlock = defineBlock({
     const list = lines(brands)
     const row = (copy) => list.map((brand, index) => <span key={`${copy}${brand}`} className="lg" aria-hidden={copy ? 'true' : undefined} style={LOGO_STYLES[index % LOGO_STYLES.length]}>{index % 3 === 0 && <Icon name={['globe', 'bolt', 'shield'][(index / 3) % 3]} size={18} />}{brand}</span>)
     return (
-      <section className="im im-logos" style={{ background: '#fff', padding: '8px 0 clamp(32px, 4vw, 56px)' }}>
-        <ImStyle /><style>{LOGOS_CSS}</style>
+      <section className="im im-logos" style={{ background: '#fff', padding: '8px 0 clamp(32px, 4cqw, 56px)' }}>
+        <ImStyle /><style>{responsiveCss(LOGOS_CSS)}</style>
         <div style={WRAP}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3vw, 36px)', flexWrap: 'wrap', padding: '20px clamp(18px, 3vw, 32px)', border: `1px solid ${G.line}`, borderRadius: '22px', boxShadow: '0 20px 40px -32px rgba(15,59,34,.45)' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3cqw, 36px)', flexWrap: 'wrap', padding: '20px clamp(18px, 3cqw, 32px)', border: `1px solid ${G.line}`, borderRadius: '22px', boxShadow: '0 20px 40px -32px rgba(15,59,34,.45)' }}>
             <p style={{ margin: 0, fontSize: '14px', fontWeight: 700, lineHeight: 1.4, maxWidth: '150px', color: G.ink }}>{label}</p>
             <div className="mask" style={{ flex: '1 1 320px', minWidth: 0 }}><div className="track">{row('')}{row('b')}</div></div>
           </div>
@@ -203,9 +204,9 @@ function Services({ eyebrow, title, highlight, lead, services }) {
   const [ref, rv] = useReveal()
   return (
     <Section innerRef={ref} rv={rv}>
-      <style>{SERVICES_CSS}</style>
+      <style>{responsiveCss(SERVICES_CSS)}</style>
       <Heading eyebrow={eyebrow} title={title} highlight={highlight} lead={lead} />
-      <div className="im-svc" style={{ marginTop: 'clamp(32px, 4vw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '18px' }}>
+      <div className="im-svc" style={{ marginTop: 'clamp(32px, 4cqw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '18px' }}>
         {cells(services).map(([name, text, href], index) => <ServiceCard key={name + index} title={name} text={text} href={href} index={index} />)}
       </div>
     </Section>
@@ -243,20 +244,20 @@ export const ImResultsBlock = defineBlock({
 function Results({ title, highlight, text, ctaLabel, ctaHref, stats }) {
   const [ref, rv] = useReveal(0.3)
   return (
-    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3vw, 36px)">
-      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '28px', background: `linear-gradient(120deg, ${G.forest} 0%, ${G.forest2} 55%, #1F6B3A 100%)`, color: '#fff', padding: 'clamp(28px, 4vw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 'clamp(24px, 4vw, 48px)', alignItems: 'center' }}>
+    <Section innerRef={ref} rv={rv} pad="clamp(20px, 3cqw, 36px)">
+      <div style={{ position: 'relative', overflow: 'hidden', borderRadius: '28px', background: `linear-gradient(120deg, ${G.forest} 0%, ${G.forest2} 55%, #1F6B3A 100%)`, color: '#fff', padding: 'clamp(28px, 4cqw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 300px), 1fr))', gap: 'clamp(24px, 4cqw, 48px)', alignItems: 'center' }}>
         <div aria-hidden="true" className="im-orb" style={{ position: 'absolute', right: '8%', top: '-40%', width: '340px', height: '340px', borderRadius: '50%', background: 'radial-gradient(circle, rgba(143,217,154,.35), transparent 65%)' }} />
         <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,.08) 1px, transparent 1px)', backgroundSize: '22px 22px' }} />
         <div style={{ position: 'relative' }}>
-          <h2 className="im-rv l" style={{ margin: 0, fontSize: 'clamp(26px, 3vw, 36px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15 }}>{title} <span style={{ color: G.lime }}>{highlight}</span></h2>
+          <h2 className="im-rv l" style={{ margin: 0, fontSize: 'clamp(26px, 3cqw, 36px)', fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1.15 }}>{title} <span style={{ color: G.lime }}>{highlight}</span></h2>
           <p className="im-rv l" style={{ '--i': 1, margin: '14px 0 22px', color: 'rgba(255,255,255,.78)', lineHeight: 1.65 }}>{text}</p>
           <div className="im-rv l" style={{ '--i': 2 }}><Btn href={ctaHref} variant="leaf">{ctaLabel}</Btn></div>
         </div>
-        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(108px, 1fr))', gap: '4px' }}>
+        <div style={{ position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(108px,100%),1fr))', gap: '4px' }}>
           {cells(stats).map(([value, label, icon], index) => (
             <div key={label + index} className="im-rv" style={{ '--i': index + 1, textAlign: 'center', padding: '14px 8px', borderLeft: index ? '1px solid rgba(255,255,255,.14)' : 0 }}>
               <span className="im-popin" style={{ '--i': index, display: 'inline-grid', placeItems: 'center', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(143,217,154,.16)', color: G.lime }}><Icon name={icon} size={22} /></span>
-              <p style={{ margin: '12px 0 0', fontSize: 'clamp(30px, 3.4vw, 40px)', fontWeight: 800, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}><Stat raw={value} active={rv === 'in'} /></p>
+              <p style={{ margin: '12px 0 0', fontSize: 'clamp(30px, 3.4cqw, 40px)', fontWeight: 800, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}><Stat raw={value} active={rv === 'in'} /></p>
               <p style={{ margin: '4px 0 0', fontSize: '14px', color: 'rgba(255,255,255,.72)' }}>{label}</p>
             </div>
           ))}
@@ -297,9 +298,9 @@ function Process({ eyebrow, title, highlight, lead, steps }) {
   const list = cells(steps)
   return (
     <Section innerRef={ref} rv={rv}>
-      <style>{PROCESS_CSS}</style>
+      <style>{responsiveCss(PROCESS_CSS)}</style>
       <Heading eyebrow={eyebrow} title={title} highlight={highlight} lead={lead} />
-      <ol className="im-steps" style={{ listStyle: 'none', margin: 'clamp(36px, 4vw, 56px) 0 0', padding: 0 }}>
+      <ol className="im-steps" style={{ listStyle: 'none', margin: 'clamp(36px, 4cqw, 56px) 0 0', padding: 0 }}>
         {list.map(([name, text, icon], index) => (
           <li key={name + index} className="step im-rv" style={{ '--i': index }}>
             <div className="tile"><span className="num im-popin" style={{ '--i': index }}>{String(index + 1).padStart(2, '0')}</span><Icon name={icon} size={30} stroke={1.8} /></div>

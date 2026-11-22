@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useId } from 'react'
 import { Icon, safeHref } from './blockKit.jsx'
 
@@ -9,7 +10,7 @@ export const C = {
   ink: '#0B1B33', muted: '#56688A', line: 'rgba(255,255,255,.6)', white: '#FFFFFF',
 }
 export const SANS = "var(--atlas-font-sans, 'DM Sans', Inter, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif)"
-export const WRAP = { maxWidth: '1200px', marginInline: 'auto', padding: '0 clamp(18px, 4vw, 40px)' }
+export const WRAP = { maxWidth: '1200px', marginInline: 'auto', padding: '0 clamp(18px, 4cqw, 40px)' }
 
 export const CR_CSS = `
 .cr,.cr *{box-sizing:border-box}
@@ -32,8 +33,8 @@ export const CR_CSS = `
 .cr-pill{display:inline-flex;align-items:center;gap:8px;padding:6px 14px 6px 6px;border-radius:999px;font-size:13px;font-weight:600;color:${C.muted}}
 .cr-pill b{display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:999px;background:${C.ice};color:${C.blueHex};font-size:12px}
 .cr-eyebrow{margin:0;font-size:12px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:${C.blueHex}}
-.cr-h2{margin:12px 0 0;font-size:clamp(30px,3.8vw,48px);font-weight:600;letter-spacing:-.035em;line-height:1.08}
-.cr-lead{margin:16px 0 0;font-size:clamp(16px,1.4vw,18px);line-height:1.7;color:${C.muted}}
+.cr-h2{margin:12px 0 0;font-size:clamp(30px,3.8cqw,48px);font-weight:600;letter-spacing:-.035em;line-height:1.08}
+.cr-lead{margin:16px 0 0;font-size:clamp(16px,1.4cqw,18px);line-height:1.7;color:${C.muted}}
 .cr-grad{background:linear-gradient(92deg,#1E7BFF,#33B4FF 60%,#1E7BFF);background-size:200% 100%;-webkit-background-clip:text;background-clip:text;color:transparent}
 @keyframes cr-sheen{0%,70%{transform:translateX(-60%)}100%{transform:translateX(60%)}}
 @keyframes cr-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-14px)}}
@@ -68,7 +69,7 @@ export const CR_CSS = `
 @media (prefers-reduced-motion:no-preference){details[open]>.cr-menu{animation:cr-menu .28s cubic-bezier(.2,.8,.2,1);transform-origin:top right}}
 @media (prefers-reduced-motion:reduce){.cr *,.cr,.cr *::before,.cr *::after{animation:none!important;transition:none!important}}
 `
-export const CrStyle = () => <style>{CR_CSS}</style>
+export const CrStyle = () => <style>{responsiveCss(CR_CSS)}</style>
 
 export const Btn = ({ href, children, variant = 'solid', icon = 'arrow' }) => (children
   ? <a className={`cr-btn ${variant}`} href={safeHref(href)}>{children}{icon && <Icon name={icon} size={17} stroke={2.4} />}</a>
@@ -86,7 +87,7 @@ export const Blobs = ({ tone = 'day' }) => {
   )
 }
 
-export const Section = ({ children, bg = C.mist, pad = 'clamp(64px, 8vw, 110px)', blobs, innerRef, rv, style, id }) => (
+export const Section = ({ children, bg = C.mist, pad = 'clamp(64px, 8cqw, 110px)', blobs, innerRef, rv, style, id }) => (
   <section id={id} ref={innerRef} data-rv={rv} className="cr" style={{ position: 'relative', overflow: 'hidden', background: bg, padding: `${pad} 0`, ...style }}>
     <CrStyle />
     {blobs && <Blobs tone={blobs} />}
@@ -162,7 +163,7 @@ export const Orb = ({ size = 90 }) => (
 // Phone mockup in CSS with a glass UI: header, topic chips (one active) and the orb.
 export function Phone({ title, topics, active }) {
   return (
-    <div style={{ position: 'relative', width: 'min(300px, 72vw)', aspectRatio: '9 / 18.5', borderRadius: '46px', padding: '10px', background: 'linear-gradient(145deg,#2B3442,#0E131B)', boxShadow: '0 50px 90px -30px rgba(10,40,100,.6), inset 0 0 0 2px rgba(255,255,255,.12)' }}>
+    <div style={{ position: 'relative', width: 'min(300px, 72cqw)', aspectRatio: '9 / 18.5', borderRadius: '46px', padding: '10px', background: 'linear-gradient(145deg,#2B3442,#0E131B)', boxShadow: '0 50px 90px -30px rgba(10,40,100,.6), inset 0 0 0 2px rgba(255,255,255,.12)' }}>
       <div style={{ position: 'relative', height: '100%', borderRadius: '37px', overflow: 'hidden', background: 'linear-gradient(180deg,#5AAEFF 0%,#2F8BFF 45%,#1D6FE8 100%)' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'radial-gradient(circle at 50% 85%, rgba(255,255,255,.45), transparent 45%)' }} />
         <div style={{ position: 'absolute', top: '10px', left: '50%', translate: '-50% 0', width: '34%', height: '24px', borderRadius: '999px', background: '#0B0F15' }} />

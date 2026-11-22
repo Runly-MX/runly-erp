@@ -23,10 +23,10 @@ export function ImageLightbox({ images, index, onIndex, onClose }) {
       onClose={onClose}
       onClick={(e) => { if (e.target === ref.current) ref.current.close() }}
       onKeyDown={(e) => { if (many && e.key === 'ArrowRight') step(1); if (many && e.key === 'ArrowLeft') step(-1) }}
-      style={{ padding: 0, border: 0, background: 'transparent', maxWidth: '96vw', maxHeight: '96vh', overflow: 'visible' }}
+      style={{ padding: 0, border: 0, background: 'transparent', maxWidth: '96cqw', maxHeight: '96vh', overflow: 'visible' }}
     >
       <style>{'.rs-lightbox::backdrop{background:rgba(15,12,10,.85)}'}</style>
-      {image && <img src={image.src} alt={image.alt || ''} style={{ display: 'block', maxWidth: '94vw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} />}
+      {image && <img src={image.src} alt={image.alt || ''} style={{ display: 'block', maxWidth: '94cqw', maxHeight: '90vh', objectFit: 'contain', borderRadius: 8 }} />}
       <button type="button" aria-label="Cerrar" onClick={() => ref.current.close()} style={{ ...control, top: 16, right: 16 }}>×</button>
       {many && (
         <>

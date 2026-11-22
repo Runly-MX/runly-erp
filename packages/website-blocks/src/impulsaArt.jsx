@@ -11,7 +11,7 @@ export const G = {
   blue: '#EEF4FF', violet: '#F4F0FF', amber: '#FFF5E6', rose: '#FFEFF2',
 }
 export const SANS = "var(--atlas-font-sans, 'DM Sans', Inter, 'Segoe UI', system-ui, -apple-system, Roboto, sans-serif)"
-export const WRAP = { maxWidth: '1180px', marginInline: 'auto', padding: '0 clamp(18px, 4vw, 40px)' }
+export const WRAP = { maxWidth: '1180px', marginInline: 'auto', padding: '0 clamp(18px, 4cqw, 40px)' }
 export { lines, cells, safeHref, useReveal, CountUp, usePointerVars, Icon, ICON_NAMES } from './blockKit.jsx'
 export const IM_CSS = `
 .im,.im *{box-sizing:border-box}
@@ -33,8 +33,8 @@ export const IM_CSS = `
 .im-btn.leaf{background:${G.leaf};color:${G.forest}}
 .im-btn.leaf .im-bi{background:rgba(255,255,255,.35)}
 .im-eyebrow{margin:0;font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:${G.green}}
-.im-h2{margin:10px 0 0;font-size:clamp(28px,3.4vw,42px);font-weight:800;letter-spacing:-.03em;line-height:1.12}
-.im-lead{margin:14px 0 0;font-size:clamp(16px,1.4vw,18px);line-height:1.7;color:${G.muted}}
+.im-h2{margin:10px 0 0;font-size:clamp(28px,3.4cqw,42px);font-weight:800;letter-spacing:-.03em;line-height:1.12}
+.im-lead{margin:14px 0 0;font-size:clamp(16px,1.4cqw,18px);line-height:1.7;color:${G.muted}}
 .im-hl{background:linear-gradient(90deg,${G.greenHex},${G.leaf});-webkit-background-clip:text;background-clip:text;color:transparent}
 @keyframes im-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-12px)}}
 @keyframes im-bob{0%,100%{transform:translate(0,0) rotate(0)}50%{transform:translate(4px,-14px) rotate(1.5deg)}}
@@ -72,7 +72,7 @@ export const IM_CSS = `
 `
 export const ImStyle = () => <style>{IM_CSS}</style>
 
-export const Section = ({ children, bg = G.white, pad = 'clamp(56px, 7vw, 96px)', id, style, innerRef, rv }) => (
+export const Section = ({ children, bg = G.white, pad = 'clamp(56px, 7cqw, 96px)', id, style, innerRef, rv }) => (
   <section id={id} ref={innerRef} data-rv={rv} className="im" style={{ position: 'relative', overflowX: 'clip', background: bg, padding: `${pad} 0`, ...style }}>
     <ImStyle />
     <div style={{ ...WRAP, position: 'relative' }}>{children}</div>

@@ -62,7 +62,7 @@ export const ShowcaseHeroBlock = defineBlock({
         <div style={{ maxWidth: '1200px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '48px', alignItems: 'center' }}>
           <div>
             {eyebrow && <p style={{ margin: '0 0 16px', color: 'var(--runly-color-primary, #2563eb)', fontFamily: 'var(--runly-font-sans)', fontSize: '13px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{eyebrow}</p>}
-            <h1 style={{ margin: 0, color: fg, fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(36px, 5vw, 60px)', fontWeight: 800, lineHeight: 1.08 }}>
+            <h1 style={{ margin: 0, color: fg, fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(36px, 5cqw, 60px)', fontWeight: 800, lineHeight: 1.08 }}>
               {title}
               {highlight && <><br /><span style={{ color: 'var(--runly-color-primary, #2563eb)' }}>{highlight}</span></>}
             </h1>

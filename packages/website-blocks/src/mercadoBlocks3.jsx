@@ -15,14 +15,14 @@ function MercadoNewsletter({ title, text, note, ctx }) {
   return (
     <section className="mk" style={sectionPad}>
       <Base /><style>{NEWS_CSS}</style>
-      <div style={{ position: 'relative', maxWidth: 1280, marginInline: 'auto', borderRadius: 20, overflow: 'hidden', background: GREEN, color: ON_GREEN, padding: 'clamp(24px, 3.5vw, 40px) clamp(20px, 5vw, 72px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', alignItems: 'center', gap: 'clamp(20px, 4vw, 48px)' }}>
+      <div style={{ position: 'relative', maxWidth: 1280, marginInline: 'auto', borderRadius: 20, overflow: 'hidden', background: GREEN, color: ON_GREEN, padding: 'clamp(24px, 3.5cqw, 40px) clamp(20px, 5cqw, 72px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', alignItems: 'center', gap: 'clamp(20px, 4cqw, 48px)' }}>
         <svg aria-hidden="true" viewBox="0 0 400 200" preserveAspectRatio="xMinYMid slice" style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.08 }}>
           <g fill="#fff"><path d="M-20 160c60-80 160-90 200-40-60 70-150 80-200 40z" /><path d="M320 -10c40 60 30 140-20 170-40-60-30-130 20-170z" /></g>
         </svg>
-        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3vw, 32px)' }}>
-          <span style={{ flex: 'none', width: 'clamp(72px, 8vw, 96px)', height: 'clamp(72px, 8vw, 96px)', borderRadius: 999, background: '#fff', color: GREEN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="mail" size={40} stroke={1.4} style={{ transformOrigin: '50% 80%', animation: 'mk-env 4s ease-in-out infinite' }} /></span>
+        <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 'clamp(16px, 3cqw, 32px)' }}>
+          <span style={{ flex: 'none', width: 'clamp(72px, 8cqw, 96px)', height: 'clamp(72px, 8cqw, 96px)', borderRadius: 999, background: '#fff', color: GREEN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="mail" size={40} stroke={1.4} style={{ transformOrigin: '50% 80%', animation: 'mk-env 4s ease-in-out infinite' }} /></span>
           <div>
-            <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(24px, 2.6vw, 32px)', lineHeight: 1.15 }}>{title}</h2>
+            <h2 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(24px, 2.6cqw, 32px)', lineHeight: 1.15 }}>{title}</h2>
             {text && <p style={{ margin: '8px 0 0', maxWidth: '36ch', fontFamily: SANS, fontSize: 14, lineHeight: 1.6, opacity: 0.88 }}>{text}</p>}
           </div>
         </div>
@@ -57,7 +57,7 @@ function MercadoServices({ items }) {
   return (
     <section className="mk" style={sectionPad}>
       <Base /><style>{SERVICE_CSS}</style>
-      <ul ref={ref} data-in={inView} className="mk-stagger" style={{ ...panel, listStyle: 'none', margin: '0 auto', padding: 'clamp(18px, 2.4vw, 24px) clamp(18px, 3vw, 40px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 20 }}>
+      <ul ref={ref} data-in={inView} className="mk-stagger" style={{ ...panel, listStyle: 'none', margin: '0 auto', padding: 'clamp(18px, 2.4cqw, 24px) clamp(18px, 3cqw, 40px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 220px), 1fr))', gap: 20 }}>
         {rows(items, 4).map(([icon, title, text]) => (
           <li key={title} className="mk-svc" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <span className="mk-svc-ico" style={{ flex: 'none', width: 52, height: 52, borderRadius: 999, background: '#EEF3EC', color: GREEN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name={icon} size={26} /></span>
@@ -104,7 +104,7 @@ function MercadoFooter({ brand, tagline, social, columns, appTitle, appText, app
   return (
     <footer className="mk mk-foot" style={{ marginTop: 12, background: GREEN, color: ON_GREEN, fontFamily: SANS }}>
       <Base /><style>{FOOT_CSS}</style>
-      <div style={{ maxWidth: 1280, marginInline: 'auto', padding: 'clamp(40px, 5vw, 56px) clamp(16px, 3vw, 24px) 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 32 }}>
+      <div style={{ maxWidth: 1280, marginInline: 'auto', padding: 'clamp(40px, 5cqw, 56px) clamp(16px, 3cqw, 24px) 24px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 170px), 1fr))', gap: 32 }}>
         <div style={{ gridColumn: 'span 1', minWidth: 0 }}>
           <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10 }}>
             <span style={{ width: 44, height: 44, borderRadius: 12, border: '2px solid currentColor', display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}><Icon name="hoja" size={24} stroke={1.8} /></span>
@@ -136,7 +136,7 @@ function MercadoFooter({ brand, tagline, social, columns, appTitle, appText, app
           </div>
         )}
       </div>
-      <div style={{ maxWidth: 1280, marginInline: 'auto', padding: '16px clamp(16px, 3vw, 24px) 24px', borderTop: '1px solid rgba(255,255,255,.14)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, fontSize: 12 }}>
+      <div style={{ maxWidth: 1280, marginInline: 'auto', padding: '16px clamp(16px, 3cqw, 24px) 24px', borderTop: '1px solid rgba(255,255,255,.14)', display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16, fontSize: 12 }}>
         <p style={{ margin: 0, opacity: 0.8 }}>{copyright}</p>
         <nav aria-label="Legal" style={{ display: 'flex', flexWrap: 'wrap', gap: 24 }}>
           {rows(legal, 4).map(([label, href]) => <a key={label} href={safeHref(href)} style={{ opacity: 0.8, minHeight: 32, display: 'inline-flex', alignItems: 'center' }}>{label}</a>)}

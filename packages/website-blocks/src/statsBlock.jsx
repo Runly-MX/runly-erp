@@ -71,7 +71,7 @@ export const StatsBlock = defineBlock({
                 </p>
               )}
               {title && (
-                <h2 style={{ margin: 0, fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3vw, 40px)', fontWeight: 800, color: fg, lineHeight: 1.2 }}>
+                <h2 style={{ margin: 0, fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(24px, 3cqw, 40px)', fontWeight: 800, color: fg, lineHeight: 1.2 }}>
                   {title}
                 </h2>
               )}
@@ -81,7 +81,7 @@ export const StatsBlock = defineBlock({
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, 200px), 1fr))`, gap: '0' }}>
             {items.map((item, i) => (
               <div key={i} style={{ textAlign: isCenter ? 'center' : 'left', padding: '32px 24px', borderLeft: i > 0 ? `1px solid ${divider}` : 'none' }}>
-                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(36px, 5vw, 56px)', fontWeight: 900, color: fg, margin: '0 0 6px', lineHeight: 1, letterSpacing: '-0.02em' }}>
+                <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(36px, 5cqw, 56px)', fontWeight: 900, color: fg, margin: '0 0 6px', lineHeight: 1, letterSpacing: '-0.02em' }}>
                   {item.value}
                 </p>
                 <p style={{ fontFamily: 'var(--runly-font-sans)', fontSize: '16px', fontWeight: 700, color: fg, margin: '0 0 6px' }}>

@@ -18,17 +18,17 @@ function Hero({ scene, eyebrow, coordinates, title, highlight, subtitle, ctaLabe
     <section ref={root} style={{ position: 'relative', overflow: 'hidden', minHeight: HEIGHTS[height] ?? 680, display: 'flex', alignItems: 'flex-start', color: '#fff' }}>
       <style>{STYLE}</style>
       <SceneArt scene={scene} />
-      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '1200px', marginInline: 'auto', padding: `clamp(56px, 9vw, 120px) 24px ${cue ? '36%' : '30%'}` }}>
+      <div style={{ position: 'relative', zIndex: 1, width: '100%', maxWidth: '1200px', marginInline: 'auto', padding: `clamp(56px, 9cqw, 120px) 24px ${cue ? '36%' : '30%'}` }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 20px', alignItems: 'center', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase' }}>
           <span style={{ width: '40px', height: '2px', background: 'var(--runly-color-accent, #f97316)' }} />
           {eyebrow && <span>{eyebrow}</span>}
           {coordinates && <span style={{ opacity: 0.75, fontWeight: 500 }}>{coordinates}</span>}
         </div>
-        <h1 style={{ margin: '22px 0 0', maxWidth: '14ch', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(46px, 9vw, 124px)', lineHeight: 0.95, letterSpacing: '-0.035em', textShadow: '0 2px 40px rgba(0,0,0,.25)' }}>
+        <h1 style={{ margin: '22px 0 0', maxWidth: '14ch', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(46px, 9cqw, 124px)', lineHeight: 0.95, letterSpacing: '-0.035em', textShadow: '0 2px 40px rgba(0,0,0,.25)' }}>
           {title}
           {highlight && <><br /><em style={{ fontWeight: 400, color: 'var(--runly-color-accent, #f97316)' }}>{highlight}</em></>}
         </h1>
-        {subtitle && <p style={{ margin: '26px 0 0', maxWidth: '520px', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(17px, 1.6vw, 20px)', lineHeight: 1.6, color: 'rgba(255,255,255,.92)' }}>{subtitle}</p>}
+        {subtitle && <p style={{ margin: '26px 0 0', maxWidth: '520px', fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(17px, 1.6cqw, 20px)', lineHeight: 1.6, color: 'rgba(255,255,255,.92)' }}>{subtitle}</p>}
         {(ctaLabel || ctaSecondLabel) && (
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '34px' }}>
             {ctaLabel && <a href={ctaHref || '#'} style={button(true)}>{ctaLabel}</a>}

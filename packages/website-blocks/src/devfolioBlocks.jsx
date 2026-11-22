@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useEffect, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { D, SANS, MONO, DEV_CSS, WRAP, lines, cells, safeHref, Stroke, Icon, BeanbagScene, WindowScene, DeskScene, Device } from './devfolioArt.jsx'
@@ -9,7 +10,7 @@ const INK = 'var(--runly-color-fg, #1A1A1A)'
 const MUTED = 'var(--runly-color-muted, #5B5249)'
 
 export const Eyebrow = ({ children }) => (children ? <p style={{ margin: 0, fontFamily: MONO, fontSize: '13px', fontWeight: 600, letterSpacing: '.04em', color: D.orangeText }}>{children}</p> : null)
-export const SectionTitle = ({ children, eyebrow, as: Tag = 'h2', size = 'clamp(26px, 3vw, 36px)', style }) => (
+export const SectionTitle = ({ children, eyebrow, as: Tag = 'h2', size = 'clamp(26px, 3cqw, 36px)', style }) => (
   <div style={style}>
     <Eyebrow>{eyebrow}</Eyebrow>
     <Tag style={{ margin: eyebrow ? '8px 0 0' : 0, fontFamily: SANS, fontSize: size, fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.1, color: INK }}>{children}</Tag>
@@ -19,8 +20,8 @@ export const SectionTitle = ({ children, eyebrow, as: Tag = 'h2', size = 'clamp(
 export const Btn = ({ href, children, variant = 'solid', icon = 'arrow' }) => (children
   ? <a className="dv-btn" href={safeHref(href)} style={variant === 'solid' ? { background: D.orange, color: D.ink } : { background: 'transparent', color: D.ink }}>{children}<Icon name={icon} size={18} stroke={2.2} /></a>
   : null)
-export const Section = ({ children, id, pad = 'clamp(48px, 6vw, 84px)', bg = BG, ...rest }) => (
-  <section id={id} className="dv" style={{ background: bg, padding: `${pad} 0`, fontFamily: SANS, color: INK }} {...rest}><style>{DEV_CSS}</style><div style={WRAP}>{children}</div></section>
+export const Section = ({ children, id, pad = 'clamp(48px, 6cqw, 84px)', bg = BG, ...rest }) => (
+  <section id={id} className="dv" style={{ background: bg, padding: `${pad} 0`, fontFamily: SANS, color: INK }} {...rest}><style>{responsiveCss(DEV_CSS)}</style><div style={WRAP}>{children}</div></section>
 )
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -28,13 +29,13 @@ const NAV_CSS = `
 .dv-nav a.nl{position:relative;display:inline-flex;align-items:center;min-height:44px;padding:0 4px;color:${D.ink};font-weight:600;font-size:15px;text-decoration:none}
 .dv-nav a.nl::after{content:"";position:absolute;left:4px;right:4px;bottom:6px;height:3px;border-radius:3px;background:${D.orange};transform:scaleX(0);transform-origin:left;transition:transform .22s ease}
 .dv-nav a.nl:hover::after,.dv-nav a.nl[aria-current="page"]::after{transform:scaleX(1)}
-.dv-nav .dn-links{display:flex;align-items:center;gap:clamp(14px,2.4vw,32px)}
+.dv-nav .dn-links{display:flex;align-items:center;gap:clamp(14px,2.4cqw,32px)}
 .dv-nav .dn-m{display:none}
 @media (max-width:860px){.dv-nav .dn-links{display:none}.dv-nav .dn-m{display:block}}
 .dv-nav .dn-m summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 14px;border:2px solid ${D.ink};border-radius:8px;font-weight:700;font-size:14px}
 .dv-nav .dn-m summary::-webkit-details-marker{display:none}
 .dv-nav .dn-m[open] summary{background:${D.ink};color:${D.cream}}
-.dv-nav .dn-panel{position:absolute;left:auto;right:0;width:min(100vw,360px);top:100%;background:${D.cream};border-bottom:2px solid ${D.ink};padding:8px clamp(20px,4vw,40px) 20px;display:grid;gap:2px}
+.dv-nav .dn-panel{position:absolute;left:auto;right:0;width:min(100cqw,360px);top:100%;background:${D.cream};border-bottom:2px solid ${D.ink};padding:8px clamp(20px,4cqw,40px) 20px;display:grid;gap:2px}
 .dv-nav .dn-panel a{display:flex;align-items:center;min-height:48px;color:${D.ink};font-weight:600;text-decoration:none;border-bottom:1px solid ${D.line}}
 .dv-nav .dn-panel a[aria-current="page"]{color:${D.orangeText}}
 `
@@ -52,7 +53,7 @@ export const DevNavbarBlock = defineBlock({
     const items = cells(links).map(([label, href]) => ({ label, href: safeHref(href) }))
     return (
       <header className="dv dv-nav" style={{ position: 'sticky', top: 0, zIndex: 40, background: 'color-mix(in srgb, var(--runly-color-bg, #FBF6EE) 92%, transparent)', backdropFilter: 'blur(10px)', borderBottom: `1px solid ${D.line}`, fontFamily: SANS }}>
-        <style>{`${DEV_CSS}${NAV_CSS}`}</style>
+        <style>{responsiveCss(`${DEV_CSS}${NAV_CSS}`)}</style>
         <div style={{ ...WRAP, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '16px', minHeight: '72px' }}>
           <a href="/" aria-label={`${brand}, inicio`} style={{ display: 'inline-flex', alignItems: 'baseline', minHeight: '44px', alignContent: 'center', color: D.ink, textDecoration: 'none', fontWeight: 900, fontSize: '30px', letterSpacing: '-0.06em', lineHeight: 1 }}>
             {brand}<span aria-hidden="true" style={{ display: 'inline-block', width: '9px', height: '9px', marginLeft: '2px', background: D.orange, borderRadius: '2px' }} />
@@ -90,26 +91,26 @@ function Typed({ phrases, prefix }) {
     return () => clearTimeout(timer)
   }, [phrases.join('|')]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <p style={{ margin: 0, fontFamily: MONO, fontSize: 'clamp(14px, 1.6vw, 17px)', color: INK, minHeight: '1.6em' }}>
+    <p style={{ margin: 0, fontFamily: MONO, fontSize: 'clamp(14px, 1.6cqw, 17px)', color: INK, minHeight: '1.6em' }}>
       <span style={{ color: D.orangeText }}>{'> '}</span>{prefix} <strong style={{ fontWeight: 700 }}>{text}</strong><span aria-hidden="true" className="dv-cursor" style={{ display: 'inline-block', width: '9px', height: '1.1em', marginLeft: '3px', verticalAlign: '-0.18em', background: D.orange }} />
-      <style>{'@media (prefers-reduced-motion:no-preference){.dv-cursor{animation:dv-blink 1.1s steps(1) infinite}}'}</style>
+      <style>{responsiveCss('@media (prefers-reduced-motion:no-preference){.dv-cursor{animation:dv-blink 1.1s steps(1) infinite}}')}</style>
     </p>
   )
 }
 
 function Hero({ greeting, firstName, lastName, role, typedPrefix, phrases, description, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref, status }) {
   return (
-    <section className="dv" style={{ position: 'relative', overflow: 'hidden', background: BG, fontFamily: SANS, color: INK, padding: 'clamp(24px, 4vw, 56px) 0 clamp(40px, 5vw, 72px)' }}>
-      <style>{DEV_CSS}</style>
-      <div aria-hidden="true" className="dv-par" style={{ position: 'absolute', right: '-6%', top: '2%', width: 'min(62vw, 640px)', aspectRatio: '1', borderRadius: '50%', background: `radial-gradient(circle at 50% 50%, ${D.peach} 0%, ${D.peach} 55%, transparent 72%)`, opacity: 0.9 }} />
-      <div style={{ ...WRAP, position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 'clamp(24px, 4vw, 64px)', alignItems: 'center' }}>
+    <section className="dv" style={{ position: 'relative', overflow: 'hidden', background: BG, fontFamily: SANS, color: INK, padding: 'clamp(24px, 4cqw, 56px) 0 clamp(40px, 5cqw, 72px)' }}>
+      <style>{responsiveCss(DEV_CSS)}</style>
+      <div aria-hidden="true" className="dv-par" style={{ position: 'absolute', right: '-6%', top: '2%', width: 'min(62cqw, 640px)', aspectRatio: '1', borderRadius: '50%', background: `radial-gradient(circle at 50% 50%, ${D.peach} 0%, ${D.peach} 55%, transparent 72%)`, opacity: 0.9 }} />
+      <div style={{ ...WRAP, position: 'relative', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 380px), 1fr))', gap: 'clamp(24px, 4cqw, 64px)', alignItems: 'center' }}>
         <div>
           <p className="dv-in" style={{ '--i': 0, margin: 0, fontSize: '18px', fontWeight: 700 }}>{greeting}</p>
           <Stroke className="dv-in" width={46} style={{ margin: '6px 0 14px' }} />
-          <h1 className="dv-in" style={{ '--i': 1, margin: 0, fontSize: 'clamp(44px, 6.4vw, 88px)', fontWeight: 900, letterSpacing: '-0.045em', lineHeight: 0.98 }}>
+          <h1 className="dv-in" style={{ '--i': 1, margin: 0, fontSize: 'clamp(44px, 6.4cqw, 88px)', fontWeight: 900, letterSpacing: '-0.045em', lineHeight: 0.98 }}>
             {firstName} <span style={{ color: D.display }}>{lastName}</span>
           </h1>
-          <p className="dv-in" style={{ '--i': 2, margin: '18px 0 0', fontSize: 'clamp(17px, 1.7vw, 21px)', fontWeight: 700, color: MUTED, lineHeight: 1.35, maxWidth: '30ch' }}>{role}</p>
+          <p className="dv-in" style={{ '--i': 2, margin: '18px 0 0', fontSize: 'clamp(17px, 1.7cqw, 21px)', fontWeight: 700, color: MUTED, lineHeight: 1.35, maxWidth: '30ch' }}>{role}</p>
           <div className="dv-in" style={{ '--i': 3, margin: '18px 0 0', padding: '12px 14px', background: D.white, border: `1.5px solid ${D.line}`, borderRadius: '8px', maxWidth: '440px' }}><Typed phrases={phrases} prefix={typedPrefix} /></div>
           <p className="dv-in" style={{ '--i': 4, margin: '18px 0 0', maxWidth: '46ch', fontSize: '17px', lineHeight: 1.7, color: MUTED }}>{description}</p>
           <div className="dv-in" style={{ '--i': 5, marginTop: '28px', display: 'flex', flexWrap: 'wrap', gap: '14px' }}>
@@ -164,7 +165,7 @@ export const DevAboutBlock = defineBlock({
     const Scene = SCENES[scene] ?? WindowScene
     return (
       <Section>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 72px)', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5cqw, 72px)', alignItems: 'center' }}>
           <div className="dv-par" style={{ maxWidth: '460px', width: '100%', justifySelf: 'center' }}><Scene /></div>
           <div>
             <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
@@ -204,7 +205,7 @@ export const DevSkillsBlock = defineBlock({
   render({ eyebrow, title, skills }) {
     return (
       <Section>
-        <style>{TILE_CSS}</style>
+        <style>{responsiveCss(TILE_CSS)}</style>
         <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
         <ul style={{ listStyle: 'none', margin: '28px 0 0', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 104px), 1fr))', gap: '14px' }}>
           {cells(skills).map(([name, icon], index) => (
@@ -282,7 +283,7 @@ export const DevWorkBlock = defineBlock({
   render({ eyebrow, title, linkLabel, linkHref, showFilters, allLabel, projects }) {
     return (
       <Section>
-        <style>{CARD_CSS}</style>
+        <style>{responsiveCss(CARD_CSS)}</style>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', justifyContent: 'space-between', gap: '12px 24px' }}>
           <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
           {linkLabel && <a href={safeHref(linkHref)} style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', minHeight: '44px', color: INK, fontWeight: 700, fontSize: '14px', textDecoration: 'none' }}>{linkLabel} <span style={{ color: D.orangeText }}><Icon name="arrow" size={18} stroke={2.2} /></span></a>}
@@ -307,12 +308,12 @@ export const DevPageHeroBlock = defineBlock({
   render({ path, title, highlight, subtitle, scene }) {
     const Scene = SCENES[scene] ?? DeskScene
     return (
-      <section className="dv" style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(180deg, ${D.peach} 0%, ${BG} 100%)`, fontFamily: SANS, color: INK, padding: 'clamp(32px, 5vw, 72px) 0 clamp(24px, 3vw, 40px)' }}>
-        <style>{DEV_CSS}</style>
-        <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4vw, 56px)', alignItems: 'center' }}>
+      <section className="dv" style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(180deg, ${D.peach} 0%, ${BG} 100%)`, fontFamily: SANS, color: INK, padding: 'clamp(32px, 5cqw, 72px) 0 clamp(24px, 3cqw, 40px)' }}>
+        <style>{responsiveCss(DEV_CSS)}</style>
+        <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4cqw, 56px)', alignItems: 'center' }}>
           <div>
             <p className="dv-in" style={{ '--i': 0, margin: 0, fontFamily: MONO, fontSize: '14px', fontWeight: 600, color: D.orangeText }}>{path}</p>
-            <h1 className="dv-in" style={{ '--i': 1, margin: '14px 0 0', fontSize: 'clamp(38px, 5.6vw, 72px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.02 }}>{title} <span style={{ color: D.display }}>{highlight}</span></h1>
+            <h1 className="dv-in" style={{ '--i': 1, margin: '14px 0 0', fontSize: 'clamp(38px, 5.6cqw, 72px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1.02 }}>{title} <span style={{ color: D.display }}>{highlight}</span></h1>
             <Stroke className="dv-in" width={96} style={{ margin: '14px 0 0' }} />
             <p className="dv-in" style={{ '--i': 3, margin: '20px 0 0', maxWidth: '46ch', fontSize: '18px', lineHeight: 1.7, color: MUTED }}>{subtitle}</p>
           </div>

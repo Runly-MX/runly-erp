@@ -124,9 +124,11 @@ export default function ContactFormRenderer({
   const [sending, setSending] = useState(false)
   const turnstileRef = useRef(null)
   const tokenRef = useRef('')
+  const inFlight = useRef(false)
+  const unresolved=typeof formId==='string'&&formId.startsWith('@')
 
   useEffect(() => {
-    if (!formId) return undefined
+    if (!formId||unresolved) return undefined
     let cancelled = false
     setDefinition(null); setFailed(false)
     loadStorefrontSdk()
@@ -134,7 +136,7 @@ export default function ContactFormRenderer({
       .then((loaded) => { if (!cancelled) setDefinition(loaded) })
       .catch(() => { if (!cancelled) setFailed(true) })
     return () => { cancelled = true }
-  }, [formId])
+  }, [formId,unresolved])
 
   const siteKey = typeof window !== 'undefined' ? (window.RUNLY_CONFIG ?? window.ATLAS_CONFIG)?.turnstileSiteKey : null
   const needsChallenge = Boolean(definition?.turnstileRequired && siteKey)
@@ -150,6 +152,8 @@ export default function ContactFormRenderer({
 
   async function submit(event) {
     event.preventDefault()
+    if(inFlight.current)return
+    inFlight.current=true
     const form = event.currentTarget
     const values = {}
     for (const field of definition.fields ?? []) {
@@ -164,7 +168,7 @@ export default function ContactFormRenderer({
       if (needsChallenge) { tokenRef.current = ''; window.turnstile?.reset?.() }
     } catch (error) {
       setStatus({ tone: 'error', text: error?.message || 'No se pudo enviar' })
-    } finally { setSending(false) }
+    } finally { inFlight.current=false;setSending(false) }
   }
 
   const fields = definition?.fields ?? []
@@ -172,13 +176,13 @@ export default function ContactFormRenderer({
   const compact = fields.length === 1 && fields[0].fieldType !== 'checkbox'
   // Dropped straight on the page the form would span the whole viewport, so it frames itself as a centered section;
   // inside another block (newsletter band, section) it stays bare and takes that block's layout.
-  const box = { width: '100%', boxSizing: 'border-box', ...(!ctx?.nested ? { maxWidth: 768, marginInline: 'auto', padding: 'clamp(40px, 6vw, 80px) 24px' } : null) }
+  const box = { width: '100%', boxSizing: 'border-box', ...(!ctx?.nested ? { maxWidth: 768, marginInline: 'auto', padding: 'clamp(40px, 6cqw, 80px) 24px' } : null) }
 
-  if (!formId) {
+  if (!formId||unresolved) {
     return (
       <div style={box}>
         <div style={{ padding: '24px', border: '1px dashed currentColor', borderRadius: '12px', textAlign: 'center', opacity: 0.6 }}>
-          <p style={{ fontSize: '14px', margin: 0 }}>Elige un formulario del sitio en las propiedades del bloque</p>
+          <p role="status" style={{ fontSize: '14px', margin: 0 }}>{ctx?.mode==='edit'?(unresolved?'Este formulario se vincula durante la instalación de la plantilla. Para usarlo en este sitio, elige un formulario configurado.':'Elige un formulario del sitio en las propiedades del bloque'):'El formulario todavía no está disponible.'}</p>
         </div>
       </div>
     )

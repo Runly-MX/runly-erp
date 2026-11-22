@@ -95,7 +95,7 @@ export default function ProductsGridRenderer({ categorySlug = '', limit = 8, col
   const chips = [{ slug: '', name: 'Todo' }, ...(sample ? [{ slug: 'ropa', name: 'Ropa' }, { slug: 'hogar', name: 'Hogar' }, { slug: 'accesorios', name: 'Accesorios' }] : categories)]
 
   return (
-    <section style={{ padding: 'clamp(40px, 6vw, 72px) 24px', background: PAPER }}>
+    <section style={{ padding: 'clamp(40px, 6cqw, 72px) 24px', background: PAPER }}>
       <Styles />
       <div style={{ maxWidth: 1200, marginInline: 'auto' }}>
         {(showSearch || showCategories) && (

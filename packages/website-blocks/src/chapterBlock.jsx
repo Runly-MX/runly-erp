@@ -17,10 +17,10 @@ function Chapter({ scene, index, kicker, title, body, details, place, ctaLabel, 
   const rows = parseDetails(details)
   const copy = (
     <div style={{ position: 'relative', alignSelf: 'center' }}>
-      <div aria-hidden="true" data-drift="-0.07" style={{ position: 'absolute', top: '-0.52em', [flip === 'right' ? 'right' : 'left']: '-0.08em', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(150px, 24vw, 340px)', lineHeight: 0.8, fontWeight: 400, color: dark ? '#fff' : 'var(--runly-color-primary, #0e7490)', opacity: dark ? 0.07 : 0.09, userSelect: 'none', pointerEvents: 'none', willChange: 'transform' }}>{index}</div>
+      <div aria-hidden="true" data-drift="-0.07" style={{ position: 'absolute', top: '-0.52em', [flip === 'right' ? 'right' : 'left']: '-0.08em', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(150px, 24cqw, 340px)', lineHeight: 0.8, fontWeight: 400, color: dark ? '#fff' : 'var(--runly-color-primary, #0e7490)', opacity: dark ? 0.07 : 0.09, userSelect: 'none', pointerEvents: 'none', willChange: 'transform' }}>{index}</div>
       <div style={{ position: 'relative' }}>
         {kicker && <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '14px', fontFamily: 'var(--runly-font-sans)', fontSize: '12px', fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase', color: dark ? 'var(--runly-color-accent, #f97316)' : '#C2410C' }}><span style={{ width: '32px', height: '2px', background: 'currentColor' }} />{kicker}</p>}
-        <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(38px, 5.4vw, 76px)', lineHeight: 1, letterSpacing: '-0.03em', color: dark ? '#fff' : 'var(--runly-color-fg, #0b1b2b)' }}>{title}</h2>
+        <h2 style={{ margin: '18px 0 0', fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(38px, 5.4cqw, 76px)', lineHeight: 1, letterSpacing: '-0.03em', color: dark ? '#fff' : 'var(--runly-color-fg, #0b1b2b)' }}>{title}</h2>
         {body && <p style={{ margin: '22px 0 0', maxWidth: '46ch', fontFamily: 'var(--runly-font-sans)', fontSize: '18px', lineHeight: 1.7, color: dark ? 'rgba(255,255,255,.82)' : 'var(--runly-color-muted, #5b6b7c)' }}>{body}</p>}
         {rows.length > 0 && (
           <dl style={{ margin: '28px 0 0', display: 'grid', gridTemplateColumns: `repeat(${Math.min(rows.length, 3)}, auto)`, justifyContent: 'start', gap: '14px 36px', fontFamily: 'var(--runly-font-sans)' }}>
@@ -45,8 +45,8 @@ function Chapter({ scene, index, kicker, title, body, details, place, ctaLabel, 
     </div>
   )
   return (
-    <section ref={root} style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 10vw, 140px) 24px', background: dark ? 'linear-gradient(180deg, #0B1B2B 0%, #10263a 100%)' : 'var(--runly-color-bg, #f8fafc)' }}>
-      <div style={{ maxWidth: '1200px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(40px, 6vw, 96px)' }}>
+    <section ref={root} style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 10cqw, 140px) 24px', background: dark ? 'linear-gradient(180deg, #0B1B2B 0%, #10263a 100%)' : 'var(--runly-color-bg, #f8fafc)' }}>
+      <div style={{ maxWidth: '1200px', marginInline: 'auto', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 360px), 1fr))', gap: 'clamp(40px, 6cqw, 96px)' }}>
         {flip === 'right' ? <>{poster}{copy}</> : <>{copy}{poster}</>}
       </div>
     </section>

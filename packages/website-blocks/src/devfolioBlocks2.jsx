@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useEffect, useRef, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { D, SANS, MONO, DEV_CSS, WRAP, lines, cells, safeHref, Icon, Device } from './devfolioArt.jsx'
@@ -44,7 +45,7 @@ export const DevTimelineBlock = defineBlock({
     const vertical = layout === 'vertical'
     return (
       <Section>
-        <style>{TL_CSS}</style>
+        <style>{responsiveCss(TL_CSS)}</style>
         <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
         <ol className={vertical ? 'dv-tlv' : 'dv-tl'} style={vertical ? { '--rows': Math.ceil(rows.length / 2) } : undefined}>
           {rows.map(([dates, role, company, text, icon], index) => (
@@ -88,7 +89,7 @@ export const DevProcessBlock = defineBlock({
   render({ eyebrow, title, steps }) {
     return (
       <Section>
-        <style>{PR_CSS}</style>
+        <style>{responsiveCss(PR_CSS)}</style>
         <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
         <ol className="dv-steps">
           {cells(steps).map(([name, text, icon], index) => (
@@ -126,7 +127,7 @@ export const DevSkillBarsBlock = defineBlock({
   render({ eyebrow, title, subtitle, skills }) {
     return (
       <Section>
-        <style>{BAR_CSS}</style>
+        <style>{responsiveCss(BAR_CSS)}</style>
         <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
         {subtitle && <p style={{ margin: '18px 0 0', maxWidth: '58ch', fontSize: '17px', lineHeight: 1.7, color: MUTED }}>{subtitle}</p>}
         <ul className="dv-bars">
@@ -178,7 +179,7 @@ export const DevStoryBlock = defineBlock({
   render({ eyebrow, title, body, facts }) {
     return (
       <Section>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 72px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5cqw, 72px)' }}>
           <div>
             <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
             <div style={{ marginTop: '22px', display: 'grid', gap: '16px', maxWidth: '58ch', fontSize: '17px', lineHeight: 1.75, color: MUTED }}>
@@ -188,7 +189,7 @@ export const DevStoryBlock = defineBlock({
           <dl style={{ margin: 0, display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '16px', alignContent: 'start' }}>
             {cells(facts).map(([n, suffix, label], i) => (
               <div key={label} className="dv-rv" style={{ '--i': i, padding: '22px 20px', background: i % 3 === 0 ? D.peach : D.white, border: `1.5px solid ${D.ink}`, borderRadius: '16px', boxShadow: `0 6px 0 -2px ${D.orange}` }}>
-                <dd style={{ margin: 0, fontSize: 'clamp(34px, 4vw, 48px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}><Counter to={Number(n) || 0} suffix={suffix} /></dd>
+                <dd style={{ margin: 0, fontSize: 'clamp(34px, 4cqw, 48px)', fontWeight: 900, letterSpacing: '-0.04em', lineHeight: 1 }}><Counter to={Number(n) || 0} suffix={suffix} /></dd>
                 <dt style={{ margin: '8px 0 0', fontSize: '14px', lineHeight: 1.4, color: MUTED, fontWeight: 600 }}>{label}</dt>
               </div>
             ))}
@@ -212,11 +213,11 @@ export const DevValuesBlock = defineBlock({
   groups: [{ label: 'Contenido', fields: ['eyebrow', 'title', 'values'] }],
   render({ eyebrow, title, values }) {
     return (
-      <section className="dv" style={{ background: D.ink, color: D.cream, fontFamily: SANS, padding: 'clamp(48px, 6vw, 84px) 0' }}>
-        <style>{DEV_CSS}</style>
+      <section className="dv" style={{ background: D.ink, color: D.cream, fontFamily: SANS, padding: 'clamp(48px, 6cqw, 84px) 0' }}>
+        <style>{responsiveCss(DEV_CSS)}</style>
         <div style={WRAP}>
           <p style={{ margin: 0, fontFamily: MONO, fontSize: '13px', fontWeight: 600, color: D.orange }}>{eyebrow}</p>
-          <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(26px, 3vw, 36px)', fontWeight: 800, letterSpacing: '-0.025em' }}>{title}</h2>
+          <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(26px, 3cqw, 36px)', fontWeight: 800, letterSpacing: '-0.025em' }}>{title}</h2>
           <svg aria-hidden="true" viewBox="0 0 84 10" width="84" height="10" style={{ display: 'block', marginTop: '10px' }}><path className="dv-draw" pathLength="100" d="M3 6 C18 1.5 30 9 46 4.5 S70 3.5 81 5.5" stroke={D.orange} strokeWidth="3.4" strokeLinecap="round" fill="none" /></svg>
           <ul style={{ listStyle: 'none', margin: '34px 0 0', padding: 0, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: '28px 32px' }}>
             {cells(values).map(([name, text, icon], i) => (
@@ -247,7 +248,7 @@ export const DevNowUsesBlock = defineBlock({
   render({ nowTitle, nowItems, usesTitle, usesItems }) {
     return (
       <Section>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5vw, 64px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(28px, 5cqw, 64px)' }}>
           <div>
             <SectionTitle eyebrow="/ahora">{nowTitle}</SectionTitle>
             <ul style={{ listStyle: 'none', margin: '26px 0 0', padding: 0, display: 'grid', gap: '18px' }}>
@@ -290,11 +291,11 @@ export const DevCaseBlock = defineBlock({
   render({ eyebrow, title, body, metrics, ctaLabel, ctaHref }) {
     return (
       <Section>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4vw, 56px)', alignItems: 'center', background: D.peach, border: `2px solid ${D.ink}`, borderRadius: '22px', boxShadow: `0 10px 0 -2px ${D.orange}`, padding: 'clamp(24px, 4vw, 48px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4cqw, 56px)', alignItems: 'center', background: D.peach, border: `2px solid ${D.ink}`, borderRadius: '22px', boxShadow: `0 10px 0 -2px ${D.orange}`, padding: 'clamp(24px, 4cqw, 48px)' }}>
           <div className="dv-par" style={{ maxWidth: '440px', justifySelf: 'center', width: '100%' }}><Device type="monitor" kind={1} /></div>
           <div>
             <Eyebrow>{eyebrow}</Eyebrow>
-            <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 2.8vw, 34px)', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15 }}>{title}</h2>
+            <h2 style={{ margin: '8px 0 0', fontSize: 'clamp(24px, 2.8cqw, 34px)', fontWeight: 800, letterSpacing: '-0.025em', lineHeight: 1.15 }}>{title}</h2>
             <p style={{ margin: '14px 0 0', fontSize: '16px', lineHeight: 1.7, color: MUTED, maxWidth: '52ch' }}>{body}</p>
             <ul style={{ listStyle: 'none', margin: '22px 0 0', padding: 0, display: 'flex', flexWrap: 'wrap', gap: '14px 28px' }}>
               {cells(metrics).map(([n, label]) => <li key={label}><strong style={{ display: 'block', fontSize: '28px', fontWeight: 900, letterSpacing: '-0.03em', color: INK }}>{n}</strong><span style={{ fontSize: '13px', color: MUTED, fontWeight: 600 }}>{label}</span></li>)}
@@ -333,11 +334,11 @@ export const DevContactBlock = defineBlock({
   render({ title, highlight, subtitle, email, phone, location, connectTitle, socials }) {
     const rows = [['mail', email, 'mail'], ['phone', phone, 'phone'], ['pin', location, '']].filter((r) => r[1])
     return (
-      <section className="dv dv-ct" style={{ background: D.peach, borderTop: `2px solid ${D.ink}`, fontFamily: SANS, color: INK, padding: 'clamp(44px, 6vw, 80px) 0' }}>
-        <style>{`${DEV_CSS}${CT_CSS}`}</style>
-        <div style={{ ...WRAP, display: 'flex', flexWrap: 'wrap', gap: '32px clamp(24px, 5vw, 72px)', alignItems: 'flex-start' }}>
+      <section className="dv dv-ct" style={{ background: D.peach, borderTop: `2px solid ${D.ink}`, fontFamily: SANS, color: INK, padding: 'clamp(44px, 6cqw, 80px) 0' }}>
+        <style>{responsiveCss(`${DEV_CSS}${CT_CSS}`)}</style>
+        <div style={{ ...WRAP, display: 'flex', flexWrap: 'wrap', gap: '32px clamp(24px, 5cqw, 72px)', alignItems: 'flex-start' }}>
           <div style={{ flex: '2 1 360px', minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontSize: 'clamp(28px, 3.4vw, 44px)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>{title} <span style={{ color: D.display }}>{highlight}</span></h2>
+            <h2 style={{ margin: 0, fontSize: 'clamp(28px, 3.4cqw, 44px)', fontWeight: 900, letterSpacing: '-0.035em', lineHeight: 1.08 }}>{title} <span style={{ color: D.display }}>{highlight}</span></h2>
             <svg aria-hidden="true" viewBox="0 0 84 10" width="84" height="10" style={{ display: 'block', marginTop: '12px' }}><path className="dv-draw" pathLength="100" d="M3 6 C18 1.5 30 9 46 4.5 S70 3.5 81 5.5" stroke={D.orange} strokeWidth="3.4" strokeLinecap="round" fill="none" /></svg>
             <p style={{ margin: '16px 0 0', maxWidth: '36ch', fontSize: '16px', lineHeight: 1.65, color: MUTED }}>{subtitle}</p>
           </div>
@@ -378,8 +379,8 @@ export const DevChannelsBlock = defineBlock({
   render({ eyebrow, title, channels, availabilityTitle, availabilityStatus, availabilityItems }) {
     return (
       <Section>
-        <style>{TILE_LIFT}</style>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4vw, 56px)', alignItems: 'start' }}>
+        <style>{responsiveCss(TILE_LIFT)}</style>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(24px, 4cqw, 56px)', alignItems: 'start' }}>
           <div>
             <SectionTitle eyebrow={eyebrow}>{title}</SectionTitle>
             <ul style={{ listStyle: 'none', margin: '26px 0 0', padding: 0, display: 'grid', gap: '14px' }}>
@@ -394,7 +395,7 @@ export const DevChannelsBlock = defineBlock({
               ))}
             </ul>
           </div>
-          <aside style={{ background: D.ink, color: D.cream, borderRadius: '20px', padding: 'clamp(22px, 3vw, 36px)', boxShadow: `0 10px 0 -2px ${D.orange}` }} aria-label={availabilityTitle}>
+          <aside style={{ background: D.ink, color: D.cream, borderRadius: '20px', padding: 'clamp(22px, 3cqw, 36px)', boxShadow: `0 10px 0 -2px ${D.orange}` }} aria-label={availabilityTitle}>
             <h3 style={{ margin: 0, fontSize: '22px', fontWeight: 800 }}>{availabilityTitle}</h3>
             <p style={{ margin: '12px 0 0', display: 'flex', alignItems: 'center', gap: '10px', fontFamily: MONO, fontSize: '14px', color: D.orange }}><span aria-hidden="true" className="dv-pulse" style={{ width: '10px', height: '10px', borderRadius: '50%', background: D.orange }} />{availabilityStatus}</p>
             <dl style={{ margin: '20px 0 0', display: 'grid', gap: '0' }}>

@@ -23,7 +23,7 @@ try{
   for(const [name,engine] of [['chromium',chromium],['webkit',webkit]]){
     const browser=await engine.launch()
     try{
-      const page=await browser.newPage({viewport:{width:1920,height:1000},reducedMotion:'reduce'})
+      const page=await browser.newPage({viewport:{width:1920,height:1000},reducedMotion:'reduce',hasTouch:true})
       const errors=[];page.on('pageerror',e=>errors.push(e.message))
       const measure=()=>page.evaluate(()=>{
         const root=document.querySelector('[data-atlas-page]')??document.querySelector('.atlas-wb-canvas__frame')
@@ -97,8 +97,27 @@ try{
       await page.locator('.atlas-wb-overflow-diagnostics').waitFor({state:'hidden'})
       await page.evaluate(()=>window.foundation.select(null))
       await page.screenshot({path:resolve(output,`${name}-editor-390-in-1920.png`)})
+      await page.goto(`${origin}/embed.html`)
+      const embedded=page.frameLocator('iframe[title="Navbar embebido"]'),menus=embedded.getByRole('button',{name:'Abrir menú',exact:true})
+      await menus.first().waitFor()
+      const ids=await menus.evaluateAll(nodes=>nodes.map(node=>node.getAttribute('aria-controls')))
+      assert.equal(new Set(ids).size,2,'Each navbar owns its menu ID')
+      for(let index=0;index<2;index++){
+        const menu=embedded.locator('.sn-burger').nth(index)
+        await menu.tap();assert.equal(await menu.getAttribute('aria-expanded'),'true')
+        await page.keyboard.press('Escape');assert.equal(await menu.getAttribute('aria-expanded'),'false')
+        assert(await menu.evaluate(node=>node===node.ownerDocument.activeElement))
+      }
+      await page.screenshot({path:resolve(output,`${name}-multiple-navbar-iframe.png`)})
+      for(const state of ['unresolved','error','loading']){
+        await page.goto(`${origin}/?mode=public&width=390&form=${state}`)
+        if(state==='unresolved'){await page.getByText('El formulario todavía no está disponible.',{exact:true}).waitFor();assert.equal(await page.evaluate(()=>window.foundationFormCalls),0)}
+        if(state==='error')await page.getByRole('alert').filter({hasText:'No se pudo cargar'}).waitFor()
+        if(state==='loading'){await page.getByLabel('Cargando formulario',{exact:true}).waitFor();await page.waitForFunction(()=>typeof window.foundationResolveForm==='function');await page.evaluate(()=>window.foundationResolveForm());await page.getByRole('textbox',{name:'Correo electrónico *',exact:true}).waitFor()}
+        assert.equal(await page.locator('input[aria-hidden=true]').count(),state==='loading'?1:0)
+      }
       assert.deepEqual(errors,[])
-      results.push({browser:name,mode:'edit',viewport:1920,canvas:390,editUndoRedoResetReopen:true})
+      results.push({browser:name,mode:'edit',viewport:1920,canvas:390,editUndoRedoResetReopen:true,multipleNavbarIframe:true,newsletterStates:true})
       await page.close()
     }finally{await browser.close()}
   }

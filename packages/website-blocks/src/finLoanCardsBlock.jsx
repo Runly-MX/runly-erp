@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { FinIcon } from './finHeroBlock.jsx'
 
@@ -30,7 +31,7 @@ function parseLoans(raw) {
 const Heading = ({ eyebrow, title, subtitle, center }) => (
   <div style={{ maxWidth: '640px', margin: center ? '0 auto 48px' : '0 0 40px', textAlign: center ? 'center' : 'left' }}>
     {eyebrow && <p style={{ margin: '0 0 10px', color: '#0F6B4B', fontSize: '13px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{eyebrow}</p>}
-    {title && <h2 style={{ margin: 0, color: '#0B2E22', fontSize: 'clamp(30px, 4vw, 46px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.03em' }}>{title}</h2>}
+    {title && <h2 style={{ margin: 0, color: '#0B2E22', fontSize: 'clamp(30px, 4cqw, 46px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.03em' }}>{title}</h2>}
     {subtitle && <p style={{ margin: '14px 0 0', color: '#3F5B4E', fontSize: '17px', lineHeight: 1.65 }}>{subtitle}</p>}
   </div>
 )
@@ -56,8 +57,8 @@ export const FinLoanCardsBlock = defineBlock({
     const items = parseLoans(loans)
     const min = { 2: 420, 3: 300, 4: 240 }[columns] ?? 240
     return (
-      <section style={{ padding: 'clamp(56px, 7vw, 96px) 24px', background: background === 'muted' ? '#EAF6F0' : '#fff', fontFamily: 'var(--runly-font-sans)' }}>
-        <style>{STYLE}</style>
+      <section style={{ padding: 'clamp(56px, 7cqw, 96px) 24px', background: background === 'muted' ? '#EAF6F0' : '#fff', fontFamily: 'var(--runly-font-sans)' }}>
+        <style>{responsiveCss(STYLE)}</style>
         <div style={{ maxWidth: '1200px', marginInline: 'auto' }}>
           <Heading eyebrow={eyebrow} title={title} subtitle={subtitle} />
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(auto-fit, minmax(min(100%, ${min}px), 1fr))`, gap: '20px' }}>
@@ -111,8 +112,8 @@ export const FinStepsBlock = defineBlock({
   render({ eyebrow, title, subtitle, steps, background }) {
     const items = parseSteps(steps)
     return (
-      <section style={{ padding: 'clamp(56px, 7vw, 96px) 24px', background: background === 'muted' ? '#EAF6F0' : '#fff', fontFamily: 'var(--runly-font-sans)' }}>
-        <style>{STYLE}</style>
+      <section style={{ padding: 'clamp(56px, 7cqw, 96px) 24px', background: background === 'muted' ? '#EAF6F0' : '#fff', fontFamily: 'var(--runly-font-sans)' }}>
+        <style>{responsiveCss(STYLE)}</style>
         <div style={{ maxWidth: '1100px', marginInline: 'auto' }}>
           <Heading eyebrow={eyebrow} title={title} subtitle={subtitle} center />
           <div style={{ position: 'relative' }}>

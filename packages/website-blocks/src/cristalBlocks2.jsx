@@ -144,13 +144,13 @@ function Closing({ title, highlight, text, ctaLabel, ctaHref, ctaSecondLabel, ct
   const [ref, rv] = useReveal(0.25)
   const pointer = usePointerVars()
   return (
-    <section ref={(node) => { ref.current = node; pointer.current = node }} data-rv={rv} className="cr" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 9vw, 120px) 0', background: 'radial-gradient(900px 500px at 50% 0%, #1F4FA8 0%, #0D2557 55%, #081634 100%)', color: '#fff', textAlign: 'center' }}>
+    <section ref={(node) => { ref.current = node; pointer.current = node }} data-rv={rv} className="cr" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(72px, 9cqw, 120px) 0', background: 'radial-gradient(900px 500px at 50% 0%, #1F4FA8 0%, #0D2557 55%, #081634 100%)', color: '#fff', textAlign: 'center' }}>
       <CrStyle />
       <Blobs tone="night" />
       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, backgroundImage: 'radial-gradient(rgba(255,255,255,.7) 1px, transparent 1.4px)', backgroundSize: '90px 90px', opacity: 0.25 }} />
       <div style={{ ...WRAP, position: 'relative', maxWidth: '860px' }}>
         <div className="cr-rv" style={{ display: 'flex', justifyContent: 'center', transform: 'translate(calc((var(--mx,.5) - .5) * 26px), calc((var(--my,.5) - .5) * 26px))', transition: 'transform .6s ease-out' }}><Orb size={140} /></div>
-        <h2 className="cr-rv" style={{ '--i': 1, margin: '34px 0 0', fontSize: 'clamp(32px, 4.6vw, 58px)', fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.06 }}>{title} <span style={{ background: `linear-gradient(90deg, ${C.cyan}, #A9C7FF, #D7B8FF)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{highlight}</span></h2>
+        <h2 className="cr-rv" style={{ '--i': 1, margin: '34px 0 0', fontSize: 'clamp(32px, 4.6cqw, 58px)', fontWeight: 600, letterSpacing: '-0.04em', lineHeight: 1.06 }}>{title} <span style={{ background: `linear-gradient(90deg, ${C.cyan}, #A9C7FF, #D7B8FF)`, WebkitBackgroundClip: 'text', backgroundClip: 'text', color: 'transparent' }}>{highlight}</span></h2>
         <p className="cr-rv" style={{ '--i': 2, margin: '16px auto 0', maxWidth: '54ch', fontSize: '18px', lineHeight: 1.6, color: 'rgba(255,255,255,.75)' }}>{text}</p>
         <div className="cr-rv" style={{ '--i': 3, marginTop: '30px', display: 'flex', flexWrap: 'wrap', justifyContent: 'center', gap: '12px' }}>
           <Btn href={ctaHref} variant="white" icon="device">{ctaLabel}</Btn>
@@ -179,15 +179,15 @@ export const CrPageHeroBlock = defineBlock({
 function PageHero({ eyebrow, title, highlight, text, crumb }) {
   const scroll = useScrollVar(500)
   return (
-    <section ref={scroll} className="cr" style={{ position: 'relative', overflow: 'hidden', marginTop: '-78px', padding: 'calc(78px + clamp(56px, 8vw, 110px)) 0 clamp(72px, 9vw, 120px)', textAlign: 'center' }}>
+    <section ref={scroll} className="cr" style={{ position: 'relative', overflow: 'hidden', marginTop: '-78px', padding: 'calc(78px + clamp(56px, 8cqw, 110px)) 0 clamp(72px, 9cqw, 120px)', textAlign: 'center' }}>
       <CrStyle />
       <SkyScene clouds={5} />
       <div aria-hidden="true" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(180deg, rgba(243,248,255,.1) 0%, rgba(243,248,255,.35) 60%, #F5F9FF 100%)' }} />
       <div style={{ ...WRAP, position: 'relative', maxWidth: '860px' }}>
-        <div className="cr-glass" style={{ display: 'inline-block', padding: 'clamp(26px, 4vw, 44px)', borderRadius: '36px' }}>
+        <div className="cr-glass" style={{ display: 'inline-block', padding: 'clamp(26px, 4cqw, 44px)', borderRadius: '36px' }}>
           {crumb && <nav aria-label="Ruta" style={{ fontSize: '13px', fontWeight: 600, color: C.muted }}><a href="/" style={{ color: C.blueHex, textDecoration: 'none' }}>Inicio</a> <span aria-hidden="true">/</span> <span aria-current="page">{crumb}</span></nav>}
           {eyebrow && <p className="cr-eyebrow" style={{ marginTop: '16px' }}>{eyebrow}</p>}
-          <h1 style={{ margin: '10px 0 0', fontSize: 'clamp(34px, 5vw, 62px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.05 }}>{title} <span className="cr-grad" style={{ fontWeight: 700 }}>{highlight}</span></h1>
+          <h1 style={{ margin: '10px 0 0', fontSize: 'clamp(34px, 5cqw, 62px)', fontWeight: 500, letterSpacing: '-0.045em', lineHeight: 1.05 }}>{title} <span className="cr-grad" style={{ fontWeight: 700 }}>{highlight}</span></h1>
           {text && <p className="cr-lead" style={{ maxWidth: '54ch', marginInline: 'auto', color: '#3E5072' }}>{text}</p>}
         </div>
       </div>
@@ -211,7 +211,7 @@ export const CrContactBlock = defineBlock({
 function Contact({ title, text, channels, form }) {
   const [ref, rv] = useReveal(0.15)
   return (
-    <Section innerRef={ref} rv={rv} blobs="day" pad="clamp(40px, 6vw, 80px)">
+    <Section innerRef={ref} rv={rv} blobs="day" pad="clamp(40px, 6cqw, 80px)">
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: '24px', alignItems: 'start' }}>
         <div>
           <h2 className="cr-h2 cr-rv" style={{ marginTop: 0 }}>{title}</h2>
@@ -229,7 +229,7 @@ function Contact({ title, text, channels, form }) {
             })}
           </div>
         </div>
-        <div className="cr-glass cr-rv" style={{ '--i': 2, padding: 'clamp(20px, 3vw, 32px)', borderRadius: '30px' }}>
+        <div className="cr-glass cr-rv" style={{ '--i': 2, padding: 'clamp(20px, 3cqw, 32px)', borderRadius: '30px' }}>
           {form ? <div style={{ background: '#fff', borderRadius: '20px', padding: '18px' }}>{form}</div> : <Btn href="mailto:hola@example.com">Escríbenos por correo</Btn>}
         </div>
       </div>
@@ -251,11 +251,11 @@ export const CrFooterBlock = defineBlock({
   render({ brand, tagline, columns, copyright }) {
     const groups = String(columns ?? '').split(/\n-{3,}\n/).map((chunk) => { const [head, ...rows] = chunk.split('\n').map((l) => l.trim()).filter(Boolean); return { head, rows: rows.map((r) => r.split('|').map((p) => p.trim())) } }).filter((g) => g.head)
     return (
-      <footer className="cr" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(40px, 6vw, 72px) 0 28px', background: 'linear-gradient(180deg, #F5F9FF, #DCEBFF)' }}>
+      <footer className="cr" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(40px, 6cqw, 72px) 0 28px', background: 'linear-gradient(180deg, #F5F9FF, #DCEBFF)' }}>
         <CrStyle />
         <Blobs />
         <div style={{ ...WRAP, position: 'relative' }}>
-          <div className="cr-glass" style={{ padding: 'clamp(24px, 4vw, 44px)', borderRadius: '34px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '28px' }}>
+          <div className="cr-glass" style={{ padding: 'clamp(24px, 4cqw, 44px)', borderRadius: '34px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 180px), 1fr))', gap: '28px' }}>
             <div style={{ gridColumn: '1 / -1', minWidth: 0, maxWidth: '420px' }}>
               <p style={{ margin: 0, fontSize: '24px', fontWeight: 700, letterSpacing: '-0.02em' }}>{brand}</p>
               <p style={{ margin: '10px 0 0', fontSize: '14px', lineHeight: 1.7, color: C.muted }}>{tagline}</p>

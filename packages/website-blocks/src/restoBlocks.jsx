@@ -83,13 +83,13 @@ function RestoHero({ size, eyebrow, title, accent, subtitle, ctaLabel, ctaHref, 
   const full = size !== 'page'
   const rows = lines(dishes).slice(0, 5).map(cells)
   return (
-    <section className="rst" style={{ ...chalkBg, position: 'relative', overflow: 'hidden', padding: full ? 'clamp(64px, 9vw, 120px) 24px clamp(80px, 10vw, 136px)' : 'clamp(56px, 7vw, 96px) 24px', color: '#F5E9D3' }}>
+    <section className="rst" style={{ ...chalkBg, position: 'relative', overflow: 'hidden', padding: full ? 'clamp(64px, 9cqw, 120px) 24px clamp(80px, 10cqw, 136px)' : 'clamp(56px, 7cqw, 96px) 24px', color: '#F5E9D3' }}>
       <style>{CSS}</style>
       <div aria-hidden="true" style={{ position: 'absolute', inset: '14px', border: '1px solid rgba(245,233,211,.16)', pointerEvents: 'none' }} />
-      <div style={{ position: 'relative', maxWidth: '1200px', marginInline: 'auto', display: 'grid', gridTemplateColumns: full && rows.length ? 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' : '1fr', gap: 'clamp(40px, 6vw, 88px)', alignItems: 'center' }}>
+      <div style={{ position: 'relative', maxWidth: '1200px', marginInline: 'auto', display: 'grid', gridTemplateColumns: full && rows.length ? 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))' : '1fr', gap: 'clamp(40px, 6cqw, 88px)', alignItems: 'center' }}>
         <div>
           <Eyebrow color={GOLD}>{eyebrow}</Eyebrow>
-          <h1 className="rst-line" style={{ margin: '22px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: full ? 'clamp(48px, 8.4vw, 118px)' : 'clamp(40px, 6vw, 84px)', lineHeight: 0.98, letterSpacing: '-0.03em', color: '#FFF6E5' }}>
+          <h1 className="rst-line" style={{ margin: '22px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: full ? 'clamp(48px, 8.4cqw, 118px)' : 'clamp(40px, 6cqw, 84px)', lineHeight: 0.98, letterSpacing: '-0.03em', color: '#FFF6E5' }}>
             {title}{accent && <> <em style={{ color: GOLD, fontWeight: 400 }}>{accent}</em></>}
           </h1>
           {subtitle && <p className="rst-line" style={{ animationDelay: '.12s', margin: '24px 0 0', maxWidth: '46ch', fontFamily: SANS, fontSize: '18px', lineHeight: 1.7, color: 'rgba(245,233,211,.86)' }}>{subtitle}</p>}
@@ -168,16 +168,16 @@ function RestoMenu({ eyebrow, title, subtitle, currency, tone, menu }) {
   const sub = dark ? 'rgba(245,233,211,.8)' : MUTED
   const accent = dark ? GOLD : BRICK
   return (
-    <section className="rst" style={{ ...(dark ? chalkBg : paperBg), padding: 'clamp(64px, 9vw, 120px) 24px', color: fg }}>
+    <section className="rst" style={{ ...(dark ? chalkBg : paperBg), padding: 'clamp(64px, 9cqw, 120px) 24px', color: fg }}>
       <style>{CSS}</style>
       <div style={{ maxWidth: '1120px', marginInline: 'auto' }}>
         <header style={{ textAlign: 'center', maxWidth: '640px', marginInline: 'auto' }}>
           {eyebrow && <p style={{ margin: 0, fontFamily: SANS, fontSize: '12px', fontWeight: 700, letterSpacing: '.28em', textTransform: 'uppercase', color: accent }}>{eyebrow}</p>}
-          <h2 style={{ margin: '14px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(40px, 6vw, 76px)', lineHeight: 1, letterSpacing: '-0.025em' }}>{title}</h2>
+          <h2 style={{ margin: '14px 0 0', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(40px, 6cqw, 76px)', lineHeight: 1, letterSpacing: '-0.025em' }}>{title}</h2>
           <svg aria-hidden="true" width="140" height="14" viewBox="0 0 140 14" style={{ margin: '20px auto 0', display: 'block' }}><path d="M0 7h56M84 7h56" stroke={accent} strokeWidth="1" /><path d="M70 0l6 7-6 7-6-7z" fill={accent} /></svg>
           {subtitle && <p style={{ margin: '18px 0 0', fontFamily: SANS, fontSize: '17px', lineHeight: 1.65, color: sub }}>{subtitle}</p>}
         </header>
-        <div style={{ marginTop: 'clamp(40px, 6vw, 72px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: 'clamp(36px, 5vw, 64px) clamp(32px, 6vw, 88px)' }}>
+        <div style={{ marginTop: 'clamp(40px, 6cqw, 72px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 420px), 1fr))', gap: 'clamp(36px, 5cqw, 64px) clamp(32px, 6cqw, 88px)' }}>
           {courses.map((course, i) => (
             <div key={course.title}>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: '16px', paddingBottom: '12px', borderBottom: `1px solid ${dark ? 'rgba(245,233,211,.3)' : 'rgba(42,24,16,.28)'}` }}>
@@ -220,12 +220,12 @@ function RestoHours({ eyebrow, title, hours, address, phone, note, ctaLabel, cta
   const col = { background: 'rgba(255,246,229,.05)', border: '1px solid rgba(245,233,211,.16)', padding: '32px' }
   const label = { margin: '0 0 14px', fontFamily: SANS, fontSize: '12px', fontWeight: 700, letterSpacing: '.24em', textTransform: 'uppercase', color: GOLD }
   return (
-    <section className="rst" style={{ ...chalkBg, padding: 'clamp(64px, 9vw, 112px) 24px', color: '#F5E9D3' }}>
+    <section className="rst" style={{ ...chalkBg, padding: 'clamp(64px, 9cqw, 112px) 24px', color: '#F5E9D3' }}>
       <style>{CSS}</style>
       <div style={{ maxWidth: '1120px', marginInline: 'auto' }}>
         <Eyebrow color={GOLD}>{eyebrow}</Eyebrow>
-        <h2 style={{ margin: '18px 0 0', maxWidth: '16ch', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(38px, 5.6vw, 72px)', lineHeight: 1, letterSpacing: '-0.025em', color: '#FFF6E5' }}>{title}</h2>
-        <div style={{ marginTop: 'clamp(32px, 5vw, 56px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px' }}>
+        <h2 style={{ margin: '18px 0 0', maxWidth: '16ch', fontFamily: SERIF, fontWeight: 400, fontSize: 'clamp(38px, 5.6cqw, 72px)', lineHeight: 1, letterSpacing: '-0.025em', color: '#FFF6E5' }}>{title}</h2>
+        <div style={{ marginTop: 'clamp(32px, 5cqw, 56px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: '24px' }}>
           <div style={col}>
             <p style={label}>Horario</p>
             <ul style={{ margin: 0, padding: 0 }}>

@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 // Shared look of the Mercado template blocks: theme tokens with safe fallbacks, a line-icon set and small helpers.
 import { useEffect, useRef, useState } from 'react'
 
@@ -127,8 +128,8 @@ ${Array.from({ length: 10 }, (_, i) => `.mk-stagger[data-in="in"]>*:nth-child(${
 .mk-link svg{transition:transform .2s ease}.mk-link:hover svg{transform:translateX(4px)}
 @media (prefers-reduced-motion:reduce){.mk *,.mk *::before,.mk *::after{animation:none!important;transition:none!important}}`
 
-export const Base = () => <style>{BASE_CSS}</style>
+export const Base = () => <style>{responsiveCss(BASE_CSS)}</style>
 
 export const panel = { maxWidth: 1280, marginInline: 'auto', background: CARD, borderRadius: 20, boxShadow: '0 1px 2px rgba(21,36,28,.04), 0 10px 30px rgba(21,36,28,.05)' }
-export const sectionPad = { padding: '12px clamp(12px, 3vw, 24px)', background: PAPER }
-export const h2 = { margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(24px, 2.6vw, 32px)', lineHeight: 1.15, letterSpacing: '-0.01em', color: INK }
+export const sectionPad = { padding: '12px clamp(12px, 3cqw, 24px)', background: PAPER }
+export const h2 = { margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(24px, 2.6cqw, 32px)', lineHeight: 1.15, letterSpacing: '-0.01em', color: INK }

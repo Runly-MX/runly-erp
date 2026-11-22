@@ -83,7 +83,7 @@ export const CtaBannerBlock = defineBlock({
             </p>
           )}
           {title && (
-            <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(28px, 4vw, 52px)', fontWeight: 900, color: fg, margin: '0 0 16px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
+            <h2 style={{ fontFamily: 'var(--runly-font-sans)', fontSize: 'clamp(28px, 4cqw, 52px)', fontWeight: 900, color: fg, margin: '0 0 16px', lineHeight: 1.1, letterSpacing: '-0.02em' }}>
               {title}
             </h2>
           )}

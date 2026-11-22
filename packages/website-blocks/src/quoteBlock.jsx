@@ -52,7 +52,7 @@ export const QuoteBlock = defineBlock({
           )}
           <p style={{
             fontFamily: 'Georgia, "Times New Roman", serif',
-            fontSize: isLarge ? 'clamp(28px, 4vw, 52px)' : '28px',
+            fontSize: isLarge ? 'clamp(28px, 4cqw, 52px)' : '28px',
             fontWeight: 400,
             lineHeight: 1.45,
             color: fg,

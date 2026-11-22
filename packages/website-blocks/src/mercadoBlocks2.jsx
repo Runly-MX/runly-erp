@@ -74,7 +74,7 @@ function MercadoPicks({ title, linkLabel, linkHref, categorySlug, limit, detailH
   return (
     <section className="mk" style={sectionPad}>
       <Base /><style>{PICK_CSS}</style>
-      <div style={{ ...panel, padding: 'clamp(18px, 2.4vw, 28px)', position: 'relative' }}>
+      <div style={{ ...panel, padding: 'clamp(18px, 2.4cqw, 28px)', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16, marginBottom: 18 }}>
           <h2 style={{ ...h2, display: 'inline-flex', alignItems: 'center', gap: 10 }}>{title}<svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="#E8B931"><path d="M12 2l1.8 6.2L20 10l-6.2 1.8L12 18l-1.8-6.2L4 10l6.2-1.8z" /></svg></h2>
           {linkLabel && <a className="mk-link" href={safeHref(linkHref)}>{linkLabel}<Icon name="arrow" size={16} stroke={2} /></a>}
@@ -131,9 +131,9 @@ function MercadoPromoTiles({ tiles, image1, image2, image3 }) {
           const img = safeImg(images[i])
           return (
             <a key={title} className="mk-tile" href={safeHref(href)} style={{ position: 'relative', display: 'flex', minHeight: 180, borderRadius: 18, overflow: 'hidden', background: bg, textDecoration: 'none', color: INK }}>
-              <div style={{ position: 'relative', zIndex: 1, padding: 'clamp(20px, 2.4vw, 28px)', maxWidth: '58%', display: 'flex', flexDirection: 'column' }}>
+              <div style={{ position: 'relative', zIndex: 1, padding: 'clamp(20px, 2.4cqw, 28px)', maxWidth: '58%', display: 'flex', flexDirection: 'column' }}>
                 {eyebrow && <span style={{ fontFamily: SANS, fontSize: 12, fontWeight: 600, color: MUTED }}>{eyebrow}</span>}
-                <span style={{ marginTop: 8, fontFamily: SERIF, fontSize: 'clamp(22px, 2vw, 28px)', lineHeight: 1.1, color: INK }}>{title}</span>
+                <span style={{ marginTop: 8, fontFamily: SERIF, fontSize: 'clamp(22px, 2cqw, 28px)', lineHeight: 1.1, color: INK }}>{title}</span>
                 {cta && <span className="mk-link" style={{ marginTop: 'auto', fontSize: 13 }}>{cta}<Icon name="arrow" size={16} stroke={2} /></span>}
               </div>
               <div className="mk-tile-art" aria-hidden="true" style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: GREEN }}>
@@ -175,7 +175,7 @@ function MercadoReviews({ title, score, scoreLabel, reviews }) {
   return (
     <section className="mk" style={sectionPad}>
       <Base />
-      <div style={{ ...panel, padding: 'clamp(18px, 2.4vw, 28px)', position: 'relative' }}>
+      <div style={{ ...panel, padding: 'clamp(18px, 2.4cqw, 28px)', position: 'relative' }}>
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 18 }}>
           <h2 style={{ ...h2, display: 'inline-flex', alignItems: 'center', gap: 10 }}>{title}<svg width="20" height="20" viewBox="0 0 24 24" fill="#EF7C74" aria-hidden="true"><path d="M12 20s-8-4.7-8-10.5A4.5 4.5 0 0 1 12 7a4.5 4.5 0 0 1 8 2.5C20 15.3 12 20 12 20z" /></svg></h2>
           {score && <p style={{ margin: 0, display: 'inline-flex', alignItems: 'center', gap: 10, fontFamily: SANS, fontSize: 14, color: INK }}><strong>{score}/5</strong> {scoreLabel}<Stars value={Math.round(Number(score) || 5)} size={18} /></p>}

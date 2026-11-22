@@ -9,9 +9,9 @@ import { accountApi, accountErrorMessage, accountFileUrl, deleteAccountFile, upl
 import { loadTurnstile } from './ContactFormRenderer.jsx'
 import { ACCENT, INK, LINE, MUTED, PAPER, SANS, SERIF, Styles, button } from './storeUi.jsx'
 
-const section = { padding: 'clamp(40px, 6vw, 80px) 24px', background: PAPER }
+const section = { padding: 'clamp(40px, 6cqw, 80px) 24px', background: PAPER }
 const card = { maxWidth: 460, marginInline: 'auto', display: 'grid', gap: 18 }
-const h1 = { margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(30px, 4vw, 44px)', lineHeight: 1.1, color: INK }
+const h1 = { margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(30px, 4cqw, 44px)', lineHeight: 1.1, color: INK }
 const h2 = { margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 24, color: INK }
 const text = { margin: 0, fontFamily: SANS, fontSize: 15, lineHeight: 1.6, color: MUTED }
 const link = { background: 'none', border: 0, padding: 0, minHeight: 44, fontFamily: SANS, fontSize: 14, fontWeight: 700, color: ACCENT, cursor: 'pointer', textAlign: 'left' }

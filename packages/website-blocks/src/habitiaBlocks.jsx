@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { H, SERIF, SANS, HeroScene, StillLife, ObjectArt, Vase, RoundVase, Lamp, Plant, archPath } from './habitiaArt.jsx'
 
@@ -9,7 +10,7 @@ const BG = 'var(--runly-color-bg, #FAF7F2)'
 const lines = (raw) => String(raw ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
 const cells = (raw) => lines(raw).map((line) => line.split('|').map((part) => part.trim()))
 const sections = (raw) => String(raw ?? '').split(/\n-{3,}\n/).map((part) => lines(part)).filter((part) => part.length)
-const WRAP = { maxWidth: '1240px', marginInline: 'auto', padding: '0 clamp(20px, 4vw, 48px)' }
+const WRAP = { maxWidth: '1240px', marginInline: 'auto', padding: '0 clamp(20px, 4cqw, 48px)' }
 const BASE_CSS = `.hb *{box-sizing:border-box}
 @keyframes hb-spin{to{transform:rotate(360deg)}}
 @keyframes hb-pulse{0%,100%{opacity:.85}50%{opacity:1}}
@@ -21,7 +22,7 @@ const BASE_CSS = `.hb *{box-sizing:border-box}
 @media (prefers-reduced-motion: reduce){.hb *{animation:none!important;transition:none!important}}`
 
 const Eyebrow = ({ children, light }) => children ? <p style={{ margin: 0, display: 'flex', alignItems: 'center', gap: '12px', fontFamily: SANS, fontSize: '12px', fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase', color: light ? H.blush : H.accent }}><span style={{ width: '28px', height: '1px', background: 'currentColor' }} />{children}</p> : null
-const Display = ({ as: Tag = 'h2', size = 'clamp(36px, 5.4vw, 72px)', light, children, style }) => <Tag style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: size, lineHeight: 1.02, letterSpacing: '-0.02em', color: light ? H.cream : INK, ...style }}>{children}</Tag>
+const Display = ({ as: Tag = 'h2', size = 'clamp(36px, 5.4cqw, 72px)', light, children, style }) => <Tag style={{ margin: 0, fontFamily: SERIF, fontWeight: 400, fontSize: size, lineHeight: 1.02, letterSpacing: '-0.02em', color: light ? H.cream : INK, ...style }}>{children}</Tag>
 const Em = ({ children, light }) => <em style={{ fontStyle: 'italic', color: light ? H.blush : H.accent }}>{children}</em>
 const Button = ({ href, children, light }) => href || children ? <a href={href || '#'} style={{ display: 'inline-flex', alignItems: 'center', gap: '12px', minHeight: '48px', padding: '0 28px', background: light ? H.cream : H.umber, color: light ? H.umber : H.cream, fontFamily: SANS, fontSize: '13px', fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', textDecoration: 'none', borderRadius: '2px' }}>{children}<span aria-hidden="true">&rarr;</span></a> : null
 const Link2 = ({ href, children, light }) => children ? <a href={href || '#'} style={{ display: 'inline-flex', alignItems: 'center', minHeight: '48px', color: light ? H.cream : INK, fontFamily: SANS, fontSize: '13px', fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', textDecoration: 'underline', textUnderlineOffset: '6px', textDecorationThickness: '1px' }}>{children}</a> : null
@@ -29,15 +30,15 @@ const Link2 = ({ href, children, light }) => children ? <a href={href || '#'} st
 // ---------------------------------------------------------------------------------------------------------------
 function Hero({ issue, title, highlight, subtitle, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref, index }) {
   return (
-    <section className="hb" style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(180deg, #F4E7D6 0%, ${BG} 100%)`, padding: 'clamp(20px, 3vw, 36px) 0 clamp(32px, 4vw, 56px)' }}>
-      <style>{BASE_CSS}</style>
+    <section className="hb" style={{ position: 'relative', overflow: 'hidden', background: `linear-gradient(180deg, #F4E7D6 0%, ${BG} 100%)`, padding: 'clamp(20px, 3cqw, 36px) 0 clamp(32px, 4cqw, 56px)' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
       <div style={WRAP}>
         <div style={{ display: 'flex', justifyContent: 'space-between', gap: '16px', flexWrap: 'wrap', paddingBottom: '14px', borderBottom: `1px solid ${INK}`, fontFamily: SANS, fontSize: '11px', fontWeight: 700, letterSpacing: '.24em', textTransform: 'uppercase', color: INK }}>
           <span>Habitia</span><span>{issue}</span><span style={{ color: MUTED }}>{index}</span>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(32px, 5vw, 80px)', alignItems: 'center', marginTop: 'clamp(28px, 5vw, 64px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(32px, 5cqw, 80px)', alignItems: 'center', marginTop: 'clamp(28px, 5cqw, 64px)' }}>
           <div>
-            <Display as="h1" size="clamp(52px, 8.6vw, 128px)" style={{ lineHeight: 0.94, letterSpacing: '-0.035em' }}>{title}{highlight && <><br /><Em>{highlight}</Em></>}</Display>
+            <Display as="h1" size="clamp(52px, 8.6cqw, 128px)" style={{ lineHeight: 0.94, letterSpacing: '-0.035em' }}>{title}{highlight && <><br /><Em>{highlight}</Em></>}</Display>
             <p style={{ margin: '28px 0 0', maxWidth: '40ch', fontFamily: SANS, fontSize: '18px', lineHeight: 1.7, color: MUTED }}>{subtitle}</p>
             <div style={{ marginTop: '32px', display: 'flex', gap: '12px 28px', flexWrap: 'wrap', alignItems: 'center' }}>
               <Button href={ctaHref}>{ctaLabel}</Button><Link2 href={ctaSecondHref}>{ctaSecondLabel}</Link2>
@@ -83,13 +84,13 @@ const Vignette = ({ index }) => {
 }
 
 const ROOMS_CSS = `${BASE_CSS}
-.hb-room{display:grid;grid-template-columns:clamp(40px,7vw,96px) 1fr auto;gap:0 16px;align-items:baseline;padding:clamp(22px,3vw,34px) clamp(8px,2vw,20px);border-top:1px solid rgba(42,30,23,.3);position:relative;text-decoration:none;color:inherit;transition:background .3s}
+.hb-room{display:grid;grid-template-columns:clamp(40px,7cqw,96px) 1fr auto;gap:0 16px;align-items:baseline;padding:clamp(22px,3cqw,34px) clamp(8px,2cqw,20px);border-top:1px solid rgba(42,30,23,.3);position:relative;text-decoration:none;color:inherit;transition:background .3s}
 .hb-room:last-child{border-bottom:1px solid rgba(42,30,23,.3)}
 @media (max-width:560px){.hb-room{grid-template-columns:32px minmax(0,1fr)}.hb-room .ct{grid-column:2;margin-top:12px}}
 .hb-room .nm{display:inline-block;transition:transform .35s ease}
 .hb-room .rv{display:grid;grid-template-rows:1fr;margin-top:10px;transition:grid-template-rows .35s ease,opacity .3s}
 .hb-room .rv>div{overflow:hidden}
-.hb-room .vg{display:none;position:absolute;right:clamp(150px,18vw,260px);top:50%;width:min(24vw,270px);transform:translateY(-50%) translateX(34px) rotate(2deg);opacity:0;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1);pointer-events:none}
+.hb-room .vg{display:none;position:absolute;right:clamp(150px,18cqw,260px);top:50%;width:min(24cqw,270px);transform:translateY(-50%) translateX(34px) rotate(2deg);opacity:0;transition:opacity .35s ease,transform .45s cubic-bezier(.2,.9,.3,1);pointer-events:none}
 @media (hover:hover) and (min-width:860px){
  .hb-room .rv{grid-template-rows:0fr;opacity:0}
  .hb-room .vg{display:block}
@@ -102,18 +103,18 @@ const ROOMS_CSS = `${BASE_CSS}
 function Rooms({ eyebrow, title, highlight, rooms, href }) {
   const rows = cells(rooms)
   return (
-    <section className="hb" style={{ background: BG, padding: 'clamp(64px, 9vw, 130px) 0' }}>
-      <style>{ROOMS_CSS}</style>
+    <section className="hb" style={{ background: BG, padding: 'clamp(64px, 9cqw, 130px) 0' }}>
+      <style>{responsiveCss(ROOMS_CSS)}</style>
       <div style={WRAP}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: '20px', flexWrap: 'wrap', marginBottom: 'clamp(28px, 4vw, 52px)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'end', gap: '20px', flexWrap: 'wrap', marginBottom: 'clamp(28px, 4cqw, 52px)' }}>
           <div><Eyebrow>{eyebrow}</Eyebrow><Display style={{ marginTop: '16px' }}>{title} <Em>{highlight}</Em></Display></div>
         </div>
         <nav aria-label={title}>
           {rows.map(([name, note, count], index) => (
             <a key={name} className="hb-room" href={href || '#'}>
-              <span style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(16px, 1.6vw, 22px)', color: H.accent }}>{String(index + 1).padStart(2, '0')}</span>
+              <span style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(16px, 1.6cqw, 22px)', color: H.accent }}>{String(index + 1).padStart(2, '0')}</span>
               <span>
-                <span className="nm" style={{ fontFamily: SERIF, fontSize: 'clamp(44px, 8vw, 112px)', lineHeight: 1, letterSpacing: '-0.03em', color: INK }}>{name}</span>
+                <span className="nm" style={{ fontFamily: SERIF, fontSize: 'clamp(44px, 8cqw, 112px)', lineHeight: 1, letterSpacing: '-0.03em', color: INK }}>{name}</span>
                 <span className="rv"><span style={{ overflow: 'hidden' }}><span style={{ display: 'block', paddingTop: '8px', maxWidth: '38ch', fontFamily: SANS, fontSize: '16px', lineHeight: 1.6, color: MUTED }}>{note}</span></span></span>
               </span>
               <span className="ct" style={{ display: 'flex', alignItems: 'center', gap: '16px', fontFamily: SANS, fontSize: '12px', fontWeight: 700, letterSpacing: '.18em', textTransform: 'uppercase', color: INK, whiteSpace: 'nowrap' }}>{count}<span aria-hidden="true" style={{ fontSize: '22px' }}>&rarr;</span></span>
@@ -153,12 +154,12 @@ const TONES = [['#E9C7B3', H.terracotta], ['#D8DFD0', H.sage], ['#F0DDB4', H.mus
 function Pieces({ eyebrow, title, highlight, pieces, ctaLabel, ctaHref }) {
   const rows = cells(pieces)
   return (
-    <section className="hb" style={{ background: '#F4EBDD', padding: 'clamp(64px, 9vw, 120px) 0' }}>
-      <style>{PIECES_CSS}</style>
+    <section className="hb" style={{ background: '#F4EBDD', padding: 'clamp(64px, 9cqw, 120px) 0' }}>
+      <style>{responsiveCss(PIECES_CSS)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow>
         <Display style={{ marginTop: '16px', maxWidth: '22ch' }}>{title} <Em>{highlight}</Em></Display>
-        <div style={{ marginTop: 'clamp(32px, 5vw, 60px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 'clamp(20px, 3vw, 36px)' }}>
+        <div style={{ marginTop: 'clamp(32px, 5cqw, 60px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 230px), 1fr))', gap: 'clamp(20px, 3cqw, 36px)' }}>
           {rows.map(([name, material, price, kind], index) => {
             const [bg, arch] = TONES[index % TONES.length]
             return (
@@ -177,7 +178,7 @@ function Pieces({ eyebrow, title, highlight, pieces, ctaLabel, ctaHref }) {
             )
           })}
         </div>
-        {ctaLabel && <div style={{ marginTop: 'clamp(32px, 4vw, 52px)' }}><Button href={ctaHref}>{ctaLabel}</Button></div>}
+        {ctaLabel && <div style={{ marginTop: 'clamp(32px, 4cqw, 52px)' }}><Button href={ctaHref}>{ctaLabel}</Button></div>}
       </div>
     </section>
   )
@@ -220,12 +221,12 @@ const Swatch = ({ kind, size = 88 }) => (
 function Materials({ eyebrow, title, materials }) {
   const rows = cells(materials)
   return (
-    <section className="hb" style={{ background: BG, borderTop: `3px double ${H.umber}`, borderBottom: `3px double ${H.umber}`, padding: 'clamp(40px, 6vw, 80px) 0' }}>
-      <style>{BASE_CSS}</style>
+    <section className="hb" style={{ background: BG, borderTop: `3px double ${H.umber}`, borderBottom: `3px double ${H.umber}`, padding: 'clamp(40px, 6cqw, 80px) 0' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow>
-        <Display size="clamp(30px, 3.6vw, 52px)" style={{ margin: '14px 0 clamp(28px, 4vw, 48px)', maxWidth: '26ch' }}>{title}</Display>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 'clamp(24px, 3vw, 40px)', alignItems: 'start' }}>
+        <Display size="clamp(30px, 3.6cqw, 52px)" style={{ margin: '14px 0 clamp(28px, 4cqw, 48px)', maxWidth: '26ch' }}>{title}</Display>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))', gap: 'clamp(24px, 3cqw, 40px)', alignItems: 'start' }}>
         {rows.map(([name, note], index) => (
           <div key={name} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
             <Swatch kind={SWATCH_ORDER[index % SWATCH_ORDER.length]} />
@@ -264,19 +265,19 @@ const SPREAD_CSS = `${BASE_CSS}
 
 function Spread({ quote, attribution, folio, scene }) {
   return (
-    <section className="hb" style={{ background: '#E6D6BF', padding: 'clamp(56px, 8vw, 110px) 0' }}>
-      <style>{SPREAD_CSS}</style>
+    <section className="hb" style={{ background: '#E6D6BF', padding: 'clamp(56px, 8cqw, 110px) 0' }}>
+      <style>{responsiveCss(SPREAD_CSS)}</style>
       <div style={WRAP}>
         <div className="hb-spread">
-          <div style={{ background: H.paper, padding: 'clamp(32px, 5vw, 72px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '32px', minHeight: '440px' }}>
+          <div style={{ background: H.paper, padding: 'clamp(32px, 5cqw, 72px)', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '32px', minHeight: '440px' }}>
             <div>
               <span aria-hidden="true" style={{ display: 'block', fontFamily: SERIF, fontSize: '120px', lineHeight: 0.7, color: H.terracotta, height: '56px' }}>&ldquo;</span>
-              <blockquote style={{ margin: '12px 0 0', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(26px, 3.2vw, 42px)', lineHeight: 1.22, letterSpacing: '-0.01em', color: INK }}>{quote}</blockquote>
+              <blockquote style={{ margin: '12px 0 0', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(26px, 3.2cqw, 42px)', lineHeight: 1.22, letterSpacing: '-0.01em', color: INK }}>{quote}</blockquote>
               <p style={{ margin: '24px 0 0', fontFamily: SANS, fontSize: '12px', fontWeight: 700, letterSpacing: '.22em', textTransform: 'uppercase', color: H.accent }}>{attribution}</p>
             </div>
             <p style={{ margin: 0, textAlign: 'center', fontFamily: SERIF, fontSize: '14px', color: MUTED }}>&mdash; {folio} &mdash;</p>
           </div>
-          <div style={{ background: '#EBCDB9', padding: 'clamp(24px, 3vw, 44px)', display: 'grid', placeItems: 'center' }}><div style={{ width: '100%', maxWidth: '400px' }}><StillLife scene={scene} id="hbq" /></div></div>
+          <div style={{ background: '#EBCDB9', padding: 'clamp(24px, 3cqw, 44px)', display: 'grid', placeItems: 'center' }}><div style={{ width: '100%', maxWidth: '400px' }}><StillLife scene={scene} id="hbq" /></div></div>
           <div className="gut" aria-hidden="true" />
         </div>
       </div>
@@ -312,20 +313,20 @@ const Barcode = () => <svg aria-hidden="true" width="92" height="30" viewBox="0 
 function Leaflet({ title, highlight, subtitle, edition, panels }) {
   const list = sections(panels).slice(0, 6)
   return (
-    <section className="hb" style={{ background: '#E6D6BF', padding: 'clamp(40px, 6vw, 90px) 0' }}>
-      <style>{BASE_CSS}</style>
+    <section className="hb" style={{ background: '#E6D6BF', padding: 'clamp(40px, 6cqw, 90px) 0' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
       <div style={WRAP}>
-        <article style={{ background: H.paper, boxShadow: '0 30px 80px rgba(42,30,23,.25)', padding: 'clamp(24px, 4vw, 56px)' }}>
+        <article style={{ background: H.paper, boxShadow: '0 30px 80px rgba(42,30,23,.25)', padding: 'clamp(24px, 4cqw, 56px)' }}>
           <header style={{ display: 'flex', flexWrap: 'wrap', gap: '20px 40px', justifyContent: 'space-between', alignItems: 'flex-end', paddingBottom: '24px', borderBottom: `2px solid ${H.umber}` }}>
             <div>
               <Eyebrow>{edition}</Eyebrow>
-              <Display as="h2" size="clamp(36px, 5vw, 68px)" style={{ marginTop: '14px' }}>{title} <Em>{highlight}</Em></Display>
+              <Display as="h2" size="clamp(36px, 5cqw, 68px)" style={{ marginTop: '14px' }}>{title} <Em>{highlight}</Em></Display>
             </div>
             <div style={{ maxWidth: '34ch' }}><p style={{ margin: 0, fontFamily: SANS, fontSize: '15px', lineHeight: 1.65, color: MUTED }}>{subtitle}</p><div style={{ marginTop: '14px' }}><Barcode /></div></div>
           </header>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 240px), 1fr))' }}>
             {list.map(([name, intro, ...items], index) => (
-              <div key={name} style={{ padding: 'clamp(22px, 3vw, 34px)', borderRight: '1.5px dashed rgba(42,30,23,.35)', borderBottom: '1.5px dashed rgba(42,30,23,.35)' }}>
+              <div key={name} style={{ padding: 'clamp(22px, 3cqw, 34px)', borderRight: '1.5px dashed rgba(42,30,23,.35)', borderBottom: '1.5px dashed rgba(42,30,23,.35)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontFamily: SERIF, fontStyle: 'italic', fontSize: '28px', color: H.accent }}>{ROMAN[index]}.</span>
                   <Swatch kind={SWATCH_ORDER[index % SWATCH_ORDER.length]} size={48} />
@@ -376,7 +377,7 @@ function Story({ eyebrow, year, title, highlight, body, signature, scene, flip }
   )
   const copy = (
     <div style={{ alignSelf: 'center', position: 'relative' }}>
-      <span aria-hidden="true" style={{ display: 'block', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(90px, 14vw, 190px)', lineHeight: 0.95, color: 'transparent', WebkitTextStroke: `1.5px ${H.clay}`, marginBottom: '14px' }}>{year}</span>
+      <span aria-hidden="true" style={{ display: 'block', fontFamily: SERIF, fontStyle: 'italic', fontSize: 'clamp(90px, 14cqw, 190px)', lineHeight: 0.95, color: 'transparent', WebkitTextStroke: `1.5px ${H.clay}`, marginBottom: '14px' }}>{year}</span>
       <Eyebrow>{eyebrow}</Eyebrow>
       <Display style={{ marginTop: '14px' }}>{title} <Em>{highlight}</Em></Display>
       <p className="body" style={{ margin: '24px 0 0', maxWidth: '46ch', fontFamily: SANS, fontSize: '17px', lineHeight: 1.8, color: MUTED }}>{body}</p>
@@ -384,9 +385,9 @@ function Story({ eyebrow, year, title, highlight, body, signature, scene, flip }
     </div>
   )
   return (
-    <section className="hb hb-story" style={{ background: BG, padding: 'clamp(56px, 8vw, 120px) 0', overflow: 'hidden' }}>
-      <style>{STORY_CSS}</style>
-      <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6vw, 96px)' }}>
+    <section className="hb hb-story" style={{ background: BG, padding: 'clamp(56px, 8cqw, 120px) 0', overflow: 'hidden' }}>
+      <style>{responsiveCss(STORY_CSS)}</style>
+      <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 340px), 1fr))', gap: 'clamp(36px, 6cqw, 96px)' }}>
         {flip === 'right' ? <>{art}{copy}</> : <>{copy}{art}</>}
       </div>
     </section>
@@ -416,15 +417,15 @@ export const HabitiaStoryBlock = defineBlock({
 function Figures({ eyebrow, title, figures }) {
   const rows = cells(figures).slice(0, 4)
   return (
-    <section className="hb" style={{ background: '#F4EBDD', padding: 'clamp(56px, 8vw, 100px) 0' }}>
-      <style>{BASE_CSS}</style>
+    <section className="hb" style={{ background: '#F4EBDD', padding: 'clamp(56px, 8cqw, 100px) 0' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
       <div style={WRAP}>
         <Eyebrow>{eyebrow}</Eyebrow>
-        <Display size="clamp(30px, 4vw, 52px)" style={{ marginTop: '14px', maxWidth: '22ch' }}>{title}</Display>
-        <div style={{ marginTop: 'clamp(28px, 4vw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', borderTop: `1px solid ${INK}` }}>
+        <Display size="clamp(30px, 4cqw, 52px)" style={{ marginTop: '14px', maxWidth: '22ch' }}>{title}</Display>
+        <div style={{ marginTop: 'clamp(28px, 4cqw, 52px)', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 200px), 1fr))', borderTop: `1px solid ${INK}` }}>
           {rows.map(([value, label, note], index) => (
             <div key={label} style={{ padding: '24px 20px 8px 0', borderLeft: index ? '1px solid rgba(42,30,23,.25)' : 'none', paddingLeft: index ? '20px' : 0 }}>
-              <p style={{ margin: 0, fontFamily: SERIF, fontSize: 'clamp(52px, 6.6vw, 92px)', lineHeight: 1, letterSpacing: '-0.03em', color: H.accent }}>{value}</p>
+              <p style={{ margin: 0, fontFamily: SERIF, fontSize: 'clamp(52px, 6.6cqw, 92px)', lineHeight: 1, letterSpacing: '-0.03em', color: H.accent }}>{value}</p>
               <p style={{ margin: '10px 0 0', fontFamily: SANS, fontSize: '13px', fontWeight: 700, letterSpacing: '.16em', textTransform: 'uppercase', color: INK }}>{label}</p>
               <p style={{ margin: '4px 0 0', fontFamily: SANS, fontSize: '14px', color: MUTED }}>{note}</p>
             </div>
@@ -458,13 +459,13 @@ const MAST = {
 function PageHero({ folio, title, highlight, subtitle, scene }) {
   const m = MAST[scene] ?? MAST.coleccion
   return (
-    <section className="hb" style={{ background: `linear-gradient(180deg, ${m.bg} 0%, ${BG} 100%)`, padding: 'clamp(20px, 3vw, 32px) 0 clamp(24px, 3vw, 40px)', overflow: 'hidden' }}>
-      <style>{BASE_CSS}</style>
+    <section className="hb" style={{ background: `linear-gradient(180deg, ${m.bg} 0%, ${BG} 100%)`, padding: 'clamp(20px, 3cqw, 32px) 0 clamp(24px, 3cqw, 40px)', overflow: 'hidden' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
       <div style={WRAP}>
         <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: '14px', borderBottom: `1px solid ${INK}`, fontFamily: SANS, fontSize: '11px', fontWeight: 700, letterSpacing: '.24em', textTransform: 'uppercase', color: INK }}><span>Habitia</span><span>{folio}</span></div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(24px, 4vw, 64px)', alignItems: 'center', marginTop: 'clamp(24px, 4vw, 48px)' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(24px, 4cqw, 64px)', alignItems: 'center', marginTop: 'clamp(24px, 4cqw, 48px)' }}>
           <div>
-            <Display as="h1" size="clamp(46px, 7.4vw, 108px)" style={{ lineHeight: 0.96, letterSpacing: '-0.035em' }}>{title}{highlight && <><br /><Em>{highlight}</Em></>}</Display>
+            <Display as="h1" size="clamp(46px, 7.4cqw, 108px)" style={{ lineHeight: 0.96, letterSpacing: '-0.035em' }}>{title}{highlight && <><br /><Em>{highlight}</Em></>}</Display>
             <p style={{ margin: '22px 0 0', maxWidth: '42ch', fontFamily: SANS, fontSize: '18px', lineHeight: 1.7, color: MUTED }}>{subtitle}</p>
           </div>
           <div style={{ width: '100%', maxWidth: '360px', justifySelf: 'center' }}><StillLife scene={m.art} id="hbm" /></div>
@@ -489,9 +490,9 @@ export const HabitiaPageHeroBlock = defineBlock({
 // ---------------------------------------------------------------------------------------------------------------
 function Closing({ eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, note }) {
   return (
-    <section className="hb" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(ellipse at 80% 40%, #4A3425 0%, ${H.umber} 62%)`, padding: 'clamp(64px, 9vw, 130px) 0' }}>
-      <style>{BASE_CSS}</style>
-      <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(32px, 5vw, 80px)', alignItems: 'center' }}>
+    <section className="hb" style={{ position: 'relative', overflow: 'hidden', background: `radial-gradient(ellipse at 80% 40%, #4A3425 0%, ${H.umber} 62%)`, padding: 'clamp(64px, 9cqw, 130px) 0' }}>
+      <style>{responsiveCss(BASE_CSS)}</style>
+      <div style={{ ...WRAP, display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 320px), 1fr))', gap: 'clamp(32px, 5cqw, 80px)', alignItems: 'center' }}>
         <div>
           <Eyebrow light>{eyebrow}</Eyebrow>
           <Display light style={{ marginTop: '16px' }}>{title} <Em light>{highlight}</Em></Display>

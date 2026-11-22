@@ -292,5 +292,5 @@ export const DEV_CSS = `
 
 export const lines = (raw) => String(raw ?? '').split('\n').map((line) => line.trim()).filter(Boolean)
 export const cells = (raw) => lines(raw).map((line) => line.split('|').map((part) => part.trim()))
-export const WRAP = { maxWidth: '1160px', marginInline: 'auto', padding: '0 clamp(20px, 4vw, 40px)' }
+export const WRAP = { maxWidth: '1160px', marginInline: 'auto', padding: '0 clamp(20px, 4cqw, 40px)' }
 export const safeHref = (value) => (/^(https?:|mailto:|tel:|\/|#)/i.test(value ?? '') ? value : '#')

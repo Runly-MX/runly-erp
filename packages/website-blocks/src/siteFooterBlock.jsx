@@ -46,11 +46,11 @@ export const SiteFooterBlock = defineBlock({
       <footer className="runly-foot" style={{ position: 'relative', background: bg, color: fg, fontFamily: 'var(--runly-font-sans)' }}>
         <style>{STYLE}</style>
         <div aria-hidden="true" style={{ height: '4px', background: 'linear-gradient(90deg, var(--runly-color-accent, #f97316), var(--runly-color-primary, #2563eb))' }} />
-        <div style={{ maxWidth: '1200px', marginInline: 'auto', padding: 'clamp(48px, 7vw, 88px) 24px 28px' }}>
+        <div style={{ maxWidth: '1200px', marginInline: 'auto', padding: 'clamp(48px, 7cqw, 88px) 24px 28px' }}>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px 48px' }}>
             {showBrand && (
               <div style={{ flex: '2 1 260px', minWidth: 0 }}>
-                <a href={brandIdentityHref(identity.brandHref)} style={{ display: 'inline-block', color: fg, textDecoration: 'none', fontSize: 'clamp(28px, 3.6vw, 40px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}><BrandIdentity {...identity} brand={brand}/></a>
+                <a href={brandIdentityHref(identity.brandHref)} style={{ display: 'inline-block', color: fg, textDecoration: 'none', fontSize: 'clamp(28px, 3.6cqw, 40px)', fontWeight: 800, letterSpacing: '-0.02em', lineHeight: 1.1 }}><BrandIdentity {...identity} brand={brand}/></a>
                 {tagline && <p style={{ margin: '14px 0 0', maxWidth: '34ch', color: muted, fontSize: '16px', lineHeight: 1.6 }}>{tagline}</p>}
               </div>
             )}

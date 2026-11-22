@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 // Mercado template: header with live cart, hero slider and category circles.
 import { useEffect, useRef, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
@@ -18,8 +19,9 @@ const HEADER_CSS = `.mk-head-link{position:relative;display:inline-flex;align-it
 .mk-search{transition:box-shadow .2s ease,border-color .2s ease}.mk-search:focus-within{border-color:${GREEN};box-shadow:0 0 0 4px rgba(20,67,47,.12)}
 .mk-ann-one{display:none}.mk-ann-one span{animation:mk-fade .5s ease}@keyframes mk-fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
 .mk-head .mk-burger{display:none}.mk-drawer{display:none}
-@media (max-width:899px){.mk-ann-all{display:none!important}.mk-ann-one{display:flex}.mk-tool span.mk-tool-label,.mk-catbar,.mk-tagline{display:none!important}.mk-head .mk-burger{display:inline-flex}.mk-main{grid-template-columns:auto 1fr auto!important}.mk-main .mk-search{grid-column:1 / -1;order:3}
-.mk-head[data-open="true"] .mk-drawer{display:flex}}`
+@media (max-width:899px){.mk-ann-all{display:none!important}.mk-ann-one{display:flex}.mk-tool span.mk-tool-label,.mk-catbar,.mk-tagline{display:none!important}.mk-head .mk-burger{display:inline-flex}.mk-main{grid-template-columns:minmax(0,1fr) auto!important}.mk-main>nav{grid-column:2}.mk-main .mk-search{grid-column:1 / -1;order:3}
+.mk-head[data-open="true"] .mk-drawer{display:flex}}
+@media (max-width:399px){.mk-head .mk-tool:not(:last-child){display:none}}`
 
 function MercadoHeader({ announcements, brand, tagline, logoSrc, searchPlaceholder, searchHref, accountLabel, accountHref, wishlistLabel, wishlistHref, cartLabel, cartHref, allLabel, allHref, links, active, sticky }) {
   const notes = rows(announcements, 4).map(([text]) => text)
@@ -45,7 +47,7 @@ function MercadoHeader({ announcements, brand, tagline, logoSrc, searchPlacehold
   const current = (href) => (active && href === active ? 'page' : undefined)
   return (
     <header className="mk mk-head" data-open={open} style={{ position: sticky ? 'sticky' : 'relative', top: 0, zIndex: 40, background: PAPER, boxShadow: '0 1px 0 ' + LINE }}>
-      <Base /><style>{HEADER_CSS}</style>
+      <Base /><style>{responsiveCss(HEADER_CSS)}</style>
       {notes.length > 0 && (
         <div style={{ background: GREEN, color: ON_GREEN, fontFamily: SANS, fontSize: 13, fontWeight: 600 }}>
           <div className="mk-ann-all" style={{ maxWidth: 1280, marginInline: 'auto', minHeight: 38, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, padding: '0 24px' }}>
@@ -54,7 +56,7 @@ function MercadoHeader({ announcements, brand, tagline, logoSrc, searchPlacehold
           <div className="mk-ann-one" aria-live="polite" style={{ minHeight: 38, alignItems: 'center', justifyContent: 'center', padding: '0 16px', textAlign: 'center' }}><span key={note}>{notes[note % notes.length]}</span></div>
         </div>
       )}
-      <div className="mk-main" style={{ maxWidth: 1280, marginInline: 'auto', padding: '14px clamp(16px, 3vw, 24px)', display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: 'clamp(12px, 3vw, 40px)' }}>
+      <div className="mk-main" style={{ maxWidth: 1280, marginInline: 'auto', padding: '14px clamp(16px, 3cqw, 24px)', display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) auto', alignItems: 'center', gap: 'clamp(12px, 3cqw, 40px)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <button ref={toggleRef} type="button" className="mk-burger mk-round" aria-expanded={open} aria-controls="mk-drawer" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((v) => !v)} style={{ boxShadow: 'none' }}><Icon name={open ? 'close' : 'menu'} /></button>
           <a href="/" style={{ display: 'inline-flex', alignItems: 'center', gap: 10, textDecoration: 'none', color: GREEN }}>
@@ -69,14 +71,14 @@ function MercadoHeader({ announcements, brand, tagline, logoSrc, searchPlacehold
             )}
           </a>
         </div>
-        <form className="mk-search" role="search" action={safeHref(searchHref || '/productos')} method="get" style={{ display: 'flex', alignItems: 'center', minHeight: 48, maxWidth: 520, width: '100%', justifySelf: 'center', borderRadius: 999, border: `1px solid ${LINE}`, background: CARD, padding: '4px 4px 4px 20px' }}>
-          <label style={{ flex: 1, display: 'flex' }}>
+        <form className="mk-search" role="search" action={safeHref(searchHref || '/productos')} method="get" style={{ boxSizing:'border-box',minWidth:0,display: 'flex', alignItems: 'center', minHeight: 48, maxWidth: 520, width: '100%', justifySelf: 'center', borderRadius: 999, border: `1px solid ${LINE}`, background: CARD, padding: '4px 4px 4px 20px' }}>
+          <label style={{ flex: 1,minWidth:0,display: 'flex' }}>
             <span style={{ position: 'absolute', width: 1, height: 1, overflow: 'hidden', clip: 'rect(0 0 0 0)' }}>{searchPlaceholder}</span>
             <input type="search" name="q" placeholder={searchPlaceholder} style={{ flex: 1, minWidth: 0, border: 0, outline: 'none', background: 'transparent', fontFamily: SANS, fontSize: 15, color: INK }} />
           </label>
           <button type="submit" aria-label="Buscar" style={{ width: 52, height: 40, borderRadius: 999, border: 0, background: GREEN, color: ON_GREEN, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }}><Icon name="search" size={20} stroke={2} /></button>
         </form>
-        <nav aria-label="Cuenta" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(4px, 1.5vw, 20px)' }}>
+        <nav aria-label="Cuenta" style={{ display: 'flex', alignItems: 'center', gap: 'clamp(4px, 1.5cqw, 20px)' }}>
           {accountLabel && <a className="mk-tool" href={safeHref(accountHref)}><Icon name="user" /><span className="mk-tool-label">{accountLabel}</span></a>}
           {wishlistLabel && <a className="mk-tool" href={safeHref(wishlistHref)}><Icon name="heart" /><span className="mk-tool-label">{wishlistLabel}</span></a>}
           <a className="mk-tool" href={safeHref(cartHref || '/carrito')} aria-label={count ? `${cartLabel}, ${count} artículos` : cartLabel}>
@@ -85,12 +87,14 @@ function MercadoHeader({ announcements, brand, tagline, logoSrc, searchPlacehold
           </a>
         </nav>
       </div>
-      <nav aria-label="Categorías" className="mk-catbar" style={{ maxWidth: 1280, marginInline: 'auto', padding: '0 clamp(16px, 3vw, 24px) 12px', display: 'flex', alignItems: 'center', gap: 32 }}>
+      <nav aria-label="Categorías" className="mk-catbar" style={{ maxWidth: 1280, marginInline: 'auto', padding: '0 clamp(16px, 3cqw, 24px) 12px', display: 'flex', alignItems: 'center', gap: 32 }}>
         {allLabel && <a href={safeHref(allHref)} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, minHeight: 44, padding: '0 22px', borderRadius: 10, background: GREEN, color: ON_GREEN, fontFamily: SANS, fontSize: 14, fontWeight: 600, textDecoration: 'none' }}><Icon name="menu" size={18} />{allLabel}</a>}
         {navLinks.map((l) => <a key={l.label} className="mk-head-link" href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
       </nav>
       <nav id="mk-drawer" aria-label="Menú" className="mk-drawer" style={{ flexDirection: 'column', padding: '4px 20px 16px', borderTop: `1px solid ${LINE}`, background: PAPER }}>
         {allLabel && <a className="mk-head-link" href={safeHref(allHref)}>{allLabel}</a>}
+        {accountLabel&&<a className="mk-head-link" href={safeHref(accountHref)}>{accountLabel}</a>}
+        {wishlistLabel&&<a className="mk-head-link" href={safeHref(wishlistHref)}>{wishlistLabel}</a>}
         {navLinks.map((l) => <a key={l.label} className="mk-head-link" href={l.href} aria-current={current(l.href)}>{l.label}</a>)}
       </nav>
     </header>
@@ -173,30 +177,30 @@ function MercadoHero({ slides, image1, image2, image3, sealTop, sealValue, sealB
 
   return (
     <section className="mk" style={sectionPad} aria-roledescription="carrusel" aria-label="Destacados">
-      <Base /><style>{HERO_CSS}</style>
+      <Base /><style>{responsiveCss(HERO_CSS)}</style>
       <div className="mk-hero-box" onMouseEnter={() => setPaused(true)} onMouseLeave={() => setPaused(false)} onFocus={() => setPaused(true)} onBlur={() => setPaused(false)}
-        style={{ '--mk-int': `${ms}ms`, position: 'relative', maxWidth: 1280, marginInline: 'auto', minHeight: 'clamp(440px, 44vw, 560px)', borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(120deg, #F1ECE2 0%, #E7DECD 100%)', boxShadow: '0 18px 40px rgba(21,36,28,.08)' }}>
+        style={{ '--mk-int': `${ms}ms`, position: 'relative', maxWidth: 1280, marginInline: 'auto', minHeight: 'clamp(440px, 44cqw, 560px)', borderRadius: 24, overflow: 'hidden', background: 'linear-gradient(120deg, #F1ECE2 0%, #E7DECD 100%)', boxShadow: '0 18px 40px rgba(21,36,28,.08)' }}>
         {list.map((s, i) => (
           <div key={i} className="mk-slide" data-on={i === index} aria-hidden={i !== index} role="group" aria-roledescription="diapositiva" aria-label={`${i + 1} de ${list.length}`}>
             {s.img
               ? <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}><img className="mk-kb" src={s.img} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', objectPosition: 'right center' }} /><div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(90deg, rgba(241,236,226,.96) 0%, rgba(241,236,226,.75) 38%, rgba(241,236,226,0) 62%)' }} /></div>
               : <StillLife />}
-            <div className="mk-copy" style={{ position: 'relative', zIndex: 1, maxWidth: 520, padding: 'clamp(32px, 6vw, 72px) clamp(24px, 4vw, 56px)' }}>
-              <h1 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(38px, 5.4vw, 66px)', lineHeight: 1.04, letterSpacing: '-0.02em', color: INK }}>{s.title}</h1>
+            <div className="mk-copy" style={{ position: 'relative', zIndex: 1, maxWidth: 520, padding: 'clamp(32px, 6cqw, 72px) clamp(24px, 4cqw, 56px)' }}>
+              <h1 style={{ margin: 0, fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(38px, 5.4cqw, 66px)', lineHeight: 1.04, letterSpacing: '-0.02em', color: INK }}>{s.title}</h1>
               {s.text ? <p style={{ margin: '20px 0 0', maxWidth: '40ch', fontFamily: SANS, fontSize: 17, lineHeight: 1.6, color: MUTED }}>{s.text}</p> : <span />}
               {s.cta ? <a className="mk-cta" href={s.href} tabIndex={i === index ? 0 : -1} style={{ display: 'inline-flex', alignItems: 'center', gap: 10, marginTop: 28, minHeight: 48, padding: '0 26px', borderRadius: 12, background: GREEN, color: ON_GREEN, fontFamily: SANS, fontSize: 15, fontWeight: 600, textDecoration: 'none' }}>{s.cta}<Icon name="arrow" size={18} stroke={2} /></a> : <span />}
             </div>
           </div>
         ))}
         {sealValue && (
-          <div className="mk-seal" style={{ position: 'absolute', top: 0, right: 'clamp(16px, 6vw, 72px)', zIndex: 2, padding: '18px 18px 20px', background: GREEN, color: ON_GREEN, borderRadius: '0 0 6px 6px', textAlign: 'center', fontFamily: SANS, boxShadow: '0 14px 30px rgba(20,67,47,.3)' }}>
+          <div className="mk-seal" style={{ position: 'absolute', top: 0, right: 'clamp(16px, 6cqw, 72px)', zIndex: 2, padding: '18px 18px 20px', background: GREEN, color: ON_GREEN, borderRadius: '0 0 6px 6px', textAlign: 'center', fontFamily: SANS, boxShadow: '0 14px 30px rgba(20,67,47,.3)' }}>
             {sealTop && <div style={{ fontFamily: SERIF, fontSize: 16, lineHeight: 1.1, textTransform: 'uppercase', letterSpacing: '.06em', maxWidth: '9ch', marginInline: 'auto' }}>{sealTop}</div>}
             <div style={{ fontFamily: SERIF, fontSize: 40, fontWeight: 600, lineHeight: 1, marginTop: 8, color: '#E9D8A6' }}>{sealValue}</div>
             {sealBottom && <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: '.14em', textTransform: 'uppercase', marginTop: 4 }}>{sealBottom}</div>}
           </div>
         )}
-        <div style={{ position: 'absolute', left: 'clamp(24px, 4vw, 56px)', right: 24, bottom: 24, zIndex: 2, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
-          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 'clamp(12px, 2.4vw, 28px)' }}>
+        <div style={{ position: 'absolute', left: 'clamp(24px, 4cqw, 56px)', right: 24, bottom: 24, zIndex: 2, display: 'flex', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
+          <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'flex', flexWrap: 'wrap', gap: 'clamp(12px, 2.4cqw, 28px)' }}>
             {trustItems.map(([icon, label]) => <li key={label} style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontFamily: SANS, fontSize: 12, fontWeight: 600, color: INK }}><Icon name={icon} size={22} />{label}</li>)}
           </ul>
           {list.length > 1 && (
@@ -241,7 +245,7 @@ export const MercadoHeroBlock = defineBlock({
 
 const TINTS = ['#E3EEF7', '#F9E4E1', '#FBEBD9', '#F7E3EA', '#E1EEF8', '#F8E6DC', '#ECE6F5', '#F3E9DA']
 const CAT_CSS = `.mk-cat{display:flex;flex-direction:column;align-items:center;gap:12px;padding:6px 4px;text-decoration:none;color:${INK};font-family:${SANS};font-size:13px;font-weight:600;text-align:center}
-.mk-cat-ring{width:clamp(64px,7vw,78px);height:clamp(64px,7vw,78px);border-radius:999px;display:flex;align-items:center;justify-content:center;border:4px solid #fff;box-shadow:0 6px 16px rgba(21,36,28,.1);transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease}
+.mk-cat-ring{width:clamp(64px,7cqw,78px);height:clamp(64px,7cqw,78px);border-radius:999px;display:flex;align-items:center;justify-content:center;border:4px solid #fff;box-shadow:0 6px 16px rgba(21,36,28,.1);transition:transform .3s cubic-bezier(.2,.7,.2,1),box-shadow .3s ease}
 .mk-cat:hover .mk-cat-ring{transform:translateY(-6px);box-shadow:0 14px 26px rgba(21,36,28,.16)}.mk-cat:hover svg{animation:mk-wiggle .5s ease}
 @keyframes mk-wiggle{0%,100%{transform:rotate(0)}30%{transform:rotate(-10deg)}60%{transform:rotate(8deg)}}`
 
@@ -250,10 +254,10 @@ function MercadoCategories({ title, items }) {
   const list = rows(items, 10)
   return (
     <section className="mk" style={sectionPad}>
-      <Base /><style>{CAT_CSS}</style>
-      <div style={{ ...panel, padding: 'clamp(18px, 2.4vw, 28px)' }}>
+      <Base /><style>{responsiveCss(CAT_CSS)}</style>
+      <div style={{ ...panel, padding: 'clamp(18px, 2.4cqw, 28px)' }}>
         {title && <h2 style={{ ...h2, marginBottom: 18 }}>{title}</h2>}
-        <div ref={ref} data-in={inView} className="mk-stagger mk-rail" style={{ gridAutoColumns: 'minmax(96px, 1fr)', gap: 8 }}>
+        <div ref={ref} data-in={inView} className="mk-stagger mk-rail" style={{ gridAutoColumns: 'minmax(min(96px,100%),1fr)', gap: 8 }}>
           {list.map(([name, icon, href], i) => (
             <a key={name} className="mk-cat" href={safeHref(href)}>
               <span className="mk-cat-ring" style={{ background: icon === 'todo' ? '#fff' : TINTS[i % TINTS.length] }}><Icon name={icon} size={30} stroke={1.5} /></span>

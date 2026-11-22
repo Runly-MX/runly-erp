@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useEffect, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 
@@ -117,16 +118,16 @@ function Hero(props) {
   const { eyebrow, title, highlight, subtitle, ctaLabel, ctaHref, ctaSecondLabel, ctaSecondHref, trust } = props
   const trustItems = String(trust || '').split('|').map((item) => item.trim()).filter(Boolean)
   return (
-    <section style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(32px, 5vw, 64px) 24px clamp(40px, 6vw, 80px)', background: 'linear-gradient(180deg,#E3F5EC 0%,#F6FBF8 100%)' }}>
-      <style>{STYLE}</style>
+    <section style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(32px, 5cqw, 64px) 24px clamp(40px, 6cqw, 80px)', background: 'linear-gradient(180deg,#E3F5EC 0%,#F6FBF8 100%)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div aria-hidden="true" style={{ position: 'absolute', left: '-120px', top: '-80px', width: '420px', height: '420px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(52,176,127,.28), transparent)' }} />
       <div className="fin-hero-grid" style={{ position: 'relative', maxWidth: '1200px', marginInline: 'auto', fontFamily: 'var(--runly-font-sans)' }}>
         <div>
           {eyebrow && <span style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '99px', background: 'rgba(255,255,255,.8)', border: '1px solid rgba(23,131,94,.25)', color: GREEN_DEEP, fontSize: '13px', fontWeight: 700 }}><span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#17835E' }} />{eyebrow}</span>}
-          <h1 style={{ margin: '22px 0 0', color: '#0B2E22', fontSize: 'clamp(40px, 6vw, 72px)', fontWeight: 800, lineHeight: 1.02, letterSpacing: '-.035em' }}>
+          <h1 style={{ margin: '22px 0 0', color: '#0B2E22', fontSize: 'clamp(40px, 6cqw, 72px)', fontWeight: 800, lineHeight: 1.02, letterSpacing: '-.035em' }}>
             {title}{highlight && <> <span style={{ color: '#0F6B4B', background: 'linear-gradient(transparent 68%, rgba(52,176,127,.35) 68%)' }}>{highlight}</span></>}
           </h1>
-          {subtitle && <p style={{ margin: '24px 0 0', maxWidth: '520px', color: '#3F5B4E', fontSize: 'clamp(17px, 1.5vw, 19px)', lineHeight: 1.65 }}>{subtitle}</p>}
+          {subtitle && <p style={{ margin: '24px 0 0', maxWidth: '520px', color: '#3F5B4E', fontSize: 'clamp(17px, 1.5cqw, 19px)', lineHeight: 1.65 }}>{subtitle}</p>}
           {(ctaLabel || ctaSecondLabel) && (
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '12px', marginTop: '32px' }}>
               {ctaLabel && <a className="fin-btn" href={ctaHref || '#'} style={btn(true)}>{ctaLabel}</a>}

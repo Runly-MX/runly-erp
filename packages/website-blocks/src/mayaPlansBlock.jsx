@@ -16,13 +16,13 @@ function Plans({ eyebrow, title, highlight, subtitle, plans, currency, ctaLabel,
     return { name, price, badge, description, features: features.filter(Boolean) }
   }).filter((p) => p.name)
   return (
-    <section className="mya mya-plans" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8vw, 104px) 24px', background: 'linear-gradient(180deg, #FFF3C4 0%, #F5F9FF 100%)' }}>
+    <section className="mya mya-plans" style={{ position: 'relative', overflow: 'hidden', padding: 'clamp(56px, 8cqw, 104px) 24px', background: 'linear-gradient(180deg, #FFF3C4 0%, #F5F9FF 100%)' }}>
       <style>{PLANS_CSS}</style>
       <Squiggle width={150} style={{ position: 'absolute', left: '4%', top: '44px' }} />
       <div style={{ maxWidth: '1100px', marginInline: 'auto' }}>
         <div style={{ textAlign: 'center' }}>
           {eyebrow && <span style={{ fontFamily: HAND, fontWeight: 700, fontSize: '20px', color: BLUE }}>{eyebrow}</span>}
-          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(32px, 4.6vw, 54px)', lineHeight: 1.05, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
+          <h2 style={{ margin: '6px 0 0', fontFamily: BOLD, fontWeight: 900, fontSize: 'clamp(32px, 4.6cqw, 54px)', lineHeight: 1.05, letterSpacing: '-.02em', color: INK }}>{title} {highlight && <span style={marker}>{highlight}</span>}</h2>
           {subtitle && <p style={{ margin: '14px auto 0', maxWidth: '46ch', fontSize: '18px', lineHeight: 1.6, color: '#3B4A68', fontFamily: 'var(--runly-font-sans)' }}>{subtitle}</p>}
         </div>
         <div style={{ marginTop: '64px', display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 280px), 1fr))', gap: '28px', alignItems: 'start' }}>

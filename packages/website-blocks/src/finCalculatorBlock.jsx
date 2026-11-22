@@ -1,3 +1,4 @@
+import { responsiveCss } from './responsiveCss.js'
 import { useId, useState } from 'react'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { finMoney } from './finHeroBlock.jsx'
@@ -52,25 +53,25 @@ function Calculator(props) {
   const interestShare = total > 0 ? (interest / total) * 100 : 0
   const termLabel = term % 12 === 0 ? `${term / 12} ${term === 12 ? 'año' : 'años'}` : `${term} meses`
   return (
-    <section style={{ padding: 'clamp(56px, 7vw, 96px) 24px', background: '#F6FBF8', fontFamily: 'var(--runly-font-sans)' }}>
-      <style>{STYLE}</style>
+    <section style={{ padding: 'clamp(56px, 7cqw, 96px) 24px', background: '#F6FBF8', fontFamily: 'var(--runly-font-sans)' }}>
+      <style>{responsiveCss(STYLE)}</style>
       <div style={{ maxWidth: '1100px', marginInline: 'auto' }}>
         <div style={{ maxWidth: '640px', marginBottom: '40px' }}>
           {eyebrow && <p style={{ margin: '0 0 10px', color: '#0F6B4B', fontSize: '13px', fontWeight: 800, letterSpacing: '.12em', textTransform: 'uppercase' }}>{eyebrow}</p>}
-          {title && <h2 style={{ margin: 0, color: '#0B2E22', fontSize: 'clamp(30px, 4vw, 46px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.03em' }}>{title}</h2>}
+          {title && <h2 style={{ margin: 0, color: '#0B2E22', fontSize: 'clamp(30px, 4cqw, 46px)', fontWeight: 800, lineHeight: 1.1, letterSpacing: '-.03em' }}>{title}</h2>}
           {subtitle && <p style={{ margin: '14px 0 0', color: '#3F5B4E', fontSize: '17px', lineHeight: 1.65 }}>{subtitle}</p>}
         </div>
         <div className="fin-calc-grid">
-          <form onSubmit={(event) => event.preventDefault()} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(24px, 3vw, 40px)', borderRadius: '28px', background: '#fff', boxShadow: '0 30px 60px -30px rgba(11,61,46,.25), 0 0 0 1px rgba(23,131,94,.1)' }}>
+          <form onSubmit={(event) => event.preventDefault()} style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: 'clamp(24px, 3cqw, 40px)', borderRadius: '28px', background: '#fff', boxShadow: '0 30px 60px -30px rgba(11,61,46,.25), 0 0 0 1px rgba(23,131,94,.1)' }}>
             <Slider id={`${uid}-amount`} label="Monto del préstamo" value={safeAmount} min={min} max={max} step={1000} display={finMoney(safeAmount, currency, 0)} onChange={setAmount} hint={[finMoney(min, currency, 0), finMoney(max, currency, 0)]} />
             <Slider id={`${uid}-term`} label="Plazo" value={term} min={6} max={120} step={6} display={termLabel} onChange={setTerm} hint={['6 meses', '10 años']} />
             <Slider id={`${uid}-rate`} label="Tasa de interés anual" value={rate} min={1} max={60} step={0.1} display={`${rate.toFixed(1)}%`} onChange={setRate} hint={['1%', '60%']} />
           </form>
-          <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '24px', padding: 'clamp(24px, 3vw, 40px)', borderRadius: '28px', color: '#fff', background: 'linear-gradient(150deg,#0F6B4B 0%,#083A2A 100%)', boxShadow: '0 30px 60px -24px rgba(8,58,42,.6)' }}>
+          <div style={{ position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: '24px', padding: 'clamp(24px, 3cqw, 40px)', borderRadius: '28px', color: '#fff', background: 'linear-gradient(150deg,#0F6B4B 0%,#083A2A 100%)', boxShadow: '0 30px 60px -24px rgba(8,58,42,.6)' }}>
             <div aria-hidden="true" style={{ position: 'absolute', right: '-80px', top: '-80px', width: '260px', height: '260px', borderRadius: '50%', background: 'radial-gradient(closest-side, rgba(123,224,178,.35), transparent)' }} />
             <div role="status" aria-live="polite" aria-atomic="true" style={{ position: 'relative' }}>
               <div style={{ fontSize: '14px', fontWeight: 700 }}>Pago mensual estimado</div>
-              <div style={{ margin: '6px 0 4px', fontSize: 'clamp(40px, 5vw, 58px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1, ...NUM }}>{finMoney(monthly, currency, 0)}</div>
+              <div style={{ margin: '6px 0 4px', fontSize: 'clamp(40px, 5cqw, 58px)', fontWeight: 800, letterSpacing: '-.04em', lineHeight: 1, ...NUM }}>{finMoney(monthly, currency, 0)}</div>
               <div style={{ fontSize: '14px' }}>durante {termLabel}</div>
               <div style={{ margin: '26px 0 8px', height: '10px', borderRadius: '99px', background: '#7BE0B2', overflow: 'hidden' }} aria-hidden="true"><div style={{ width: `${interestShare}%`, height: '100%', background: '#04231A', transition: 'width .3s ease' }} /></div>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '12px', flexWrap: 'wrap', fontSize: '13px' }}>
