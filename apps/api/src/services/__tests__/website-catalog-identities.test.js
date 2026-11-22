@@ -10,10 +10,12 @@ for(const [label,version,catalog] of [
   ['Hub histórico','0.8.2',identities['0.8.2']['2d7c84c46d74164981abb6028d6d278f5a9774a9eef32fb86a639cbe18c5d318']],
   ['ERP histórico','0.8.2',identities['0.8.2']['cdb67dabfee8e546f4fb453935ac7a791bebba294ace9035e3159e3fb84126d1']],
   ['Atlas publicado','0.9.0',catalogs['0.9.0']],
+  ['ERP con Ticketing','0.9.0',identities['0.9.0']['bf50cd9eb4aeb731c2f35e21af7603f303f9c5c8626b4542b9594ea5f9bb8da1']],
 ])test(`${label}: apertura, edición, validación y reapertura conservan identidad y campos`,async()=>{
   const digest=catalogDigest(catalog)
   const sections=[{type:'TextElementBlock',props:{text:'Documento histórico',fontSize:48,...(version==='0.9.0'?{mobileFontSize:28,mobilePaddingLeft:0,mobileVisibility:'collapsed'}:{})}}]
   if(catalog.blocks.some(b=>b.type==='BookingPortalBlock'))sections.push({type:'BookingPortalBlock',props:{bookingPage:'/reservar',display:'button',buttonLabel:'Reservar'}})
+  if(catalog.blocks.some(b=>b.type==='TicketingEventBlock'))sections.push({type:'TicketingEventBlock',props:{event:'evento-de-prueba',display:'button',buttonLabel:'Obtener boletos'}})
   const page={path:'/',title:'Inicio',isHome:true,sections}
   const original=await exportWebsiteTemplate({title:'Identidad',builderVersion:version,catalog,pages:[page]})
   const opened=await inspectWebsiteTemplate(original.bytes,options)
@@ -33,9 +35,13 @@ for(const [label,version,catalog] of [
 })
 
 test('identidades históricas son exactas y los snapshots no dependen del catálogo actual',()=>{
-  for(const [digest,catalog] of Object.entries(identities['0.8.2']))assert.equal(catalogDigest(catalog),digest)
+  for(const variants of Object.values(identities))for(const [digest,catalog] of Object.entries(variants))assert.equal(catalogDigest(catalog),digest)
   assert.equal(catalogs['0.8.2'].blocks.length,157)
   assert.equal(catalogs['0.9.0'].blocks.length,157)
+  const extended=identities['0.9.0']['bf50cd9eb4aeb731c2f35e21af7603f303f9c5c8626b4542b9594ea5f9bb8da1']
+  assert.equal(extended.blocks.length,158)
+  assert.deepEqual(extended.blocks.filter(b=>b.type!=='TicketingEventBlock'),catalogs['0.9.0'].blocks)
+  assert.equal(resolveWebsiteCatalog(catalogs,identities,'0.8.2',catalogDigest(extended)),null)
   const digest=Object.keys(identities['0.8.2'])[0],forged=structuredClone(identities)
   forged['0.8.2'][digest].blocks[0].label='Alterado'
   assert.equal(resolveWebsiteCatalog({},forged,'0.8.2',digest),null)
