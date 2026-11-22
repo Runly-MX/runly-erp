@@ -2,7 +2,8 @@ import { useState } from 'react'
 import {
   ActivityTimeline, Button, ConfirmDialog, DetailSkeleton, ErrorState, Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, TextareaField,
 } from '@runly/ui'
-import { CalendarSync, Check, CircleCheckBig, Link2, UserX, X, XCircle } from 'lucide-react'
+import { useNavigate } from 'react-router-dom'
+import { CalendarSync, Check, CircleCheckBig, ExternalLink, Link2, UserX, Video, X, XCircle } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { useBookingsMutation, useHistory, useIdempotencyKey, useReservation } from '../hooks/useBookings.js'
 import { ACTIONS, STATUS } from '../lib/bookingsLabels.js'
@@ -14,6 +15,31 @@ const ICONS = { confirm: Check, reject: X, cancel: XCircle, complete: CircleChec
 const HISTORY_LABEL = {
   create: 'Reservación registrada', confirmed: 'Confirmada', rejected: 'Rechazada', cancelled: 'Cancelada', completed: 'Completada',
   no_show: 'Marcada como no presentada', expire: 'Venció sin confirmarse', reschedule: 'Reprogramada', manage_link: 'Se envió un nuevo enlace al cliente', arrive: 'Llegó el cliente (cuenta abierta en POS)', update: 'Se actualizaron los datos del cliente',
+}
+
+// Online appointment: hosts open the booking's meeting channel and start the call there;
+// the customer waits in the lobby until someone admits them.
+function MeetingRow({ meeting, status }) {
+  const navigate = useNavigate()
+  const hint = meeting.kind === 'external' ? 'Se atiende con el enlace externo del servicio.'
+    : meeting.conversationId ? 'Inicia la llamada desde la sala; el cliente espera hasta que lo admitas.'
+      : status === 'CONFIRMED' ? 'La sala es para quien atiende la cita.' : 'La sala se prepara cuando la reservación se confirma y se cierra si se cancela.'
+  return (
+    <div className="flex flex-col gap-2 rounded-md border border-[hsl(var(--border))] p-3 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 gap-2.5">
+        <Video className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-medium">Cita en línea · {meeting.kind === 'external' ? 'enlace externo' : 'Runly Chat'}</p>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">{hint}</p>
+        </div>
+      </div>
+      {meeting.kind === 'external' ? (
+        <Button asChild size="sm" variant="outline" className="shrink-0"><a href={meeting.url} target="_blank" rel="noopener noreferrer"><ExternalLink />Abrir enlace</a></Button>
+      ) : meeting.conversationId ? (
+        <Button type="button" size="sm" className="shrink-0" onClick={() => navigate(`/app/m/runly.chat/chat/inbox/${meeting.conversationId}`)}><Video />Abrir sala</Button>
+      ) : null}
+    </div>
+  )
 }
 
 // One reservation: data, the actions the engine allows right now (`actions`),
@@ -73,6 +99,7 @@ export function BookingDetailSheet({ bookingId, onOpenChange, space, services, r
                 <Field label="Teléfono">{b.guestPhone || '—'}</Field>
               </div>
               {b.notes ? <Field label="Notas internas"><span className="whitespace-pre-wrap font-normal">{b.notes}</span></Field> : null}
+              {b.meeting ? <MeetingRow meeting={b.meeting} status={b.status} /> : null}
               {actions.length ? (
                 <div className="flex flex-wrap gap-2">
                   {actions.map((action) => {

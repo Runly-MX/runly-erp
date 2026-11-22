@@ -10,7 +10,7 @@ const OCCUPYING = new Set(['PENDING', 'CONFIRMED'])
 const unavailable = () => new BookingError('Esta página de reservaciones no está disponible.', 404, 'PAGE_UNAVAILABLE')
 const badLink = () => new BookingError('El enlace no es válido o ya venció.', 404, 'LINK_INVALID')
 
-export function createBookingsPortalService({ prisma, commands, getBrand = async () => null, env = process.env, now = () => Date.now() }) {
+export function createBookingsPortalService({ prisma, commands, getBrand = async () => null, env = process.env, now = () => Date.now(), meetings = null }) {
   const availabilitySvc = createBookingsAvailabilityService({ prisma })
 
   const isLive = (p) => Boolean(p.published && p.space_published && p.space_enabled && p.company_enabled)
@@ -130,6 +130,8 @@ export function createBookingsPortalService({ prisma, commands, getBrand = async
       timezone: page?.timezone ?? row.timezone, service: service ? { name: service.name, durationMinutes: service.duration_minutes, kind: service.kind } : null,
       resourceNames: resources.map((r) => r.name), partySize: row.party_size,
       guestName: row.guest_name, guestEmail: row.guest_email, guestPhone: row.guest_phone, notes: row.notes,
+      // Online appointment (v1.2 R2): only the guest lobby link, and only once confirmed.
+      meeting: meetings ? await meetings.guestJoin(row.id, { ensure: true }) : null,
     }
   }
 

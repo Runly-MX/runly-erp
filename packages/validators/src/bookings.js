@@ -63,6 +63,12 @@ const serviceShape = {
   capacity: minutes(1, 100000),
   minParty: minutes(1, 100000),
   maxParty: minutes(1, 100000),
+  // Online appointments (v1.2 R2): a Runly Chat meeting per booking, or one external https URL.
+  meeting: z.discriminatedUnion('kind', [
+    z.object({ kind: z.literal('none') }),
+    z.object({ kind: z.literal('runly') }),
+    z.object({ kind: z.literal('external'), url: z.string().trim().max(500).url('Escribe un enlace válido').refine((v) => /^https:\/\//i.test(v), 'El enlace debe empezar con https://') }),
+  ]),
 };
 const partyOrder = (s) => s.minParty == null || s.maxParty == null || s.maxParty >= s.minParty;
 export const bookingServiceCreateSchema = z.object({
@@ -73,6 +79,7 @@ export const bookingServiceCreateSchema = z.object({
   capacity: serviceShape.capacity.default(1),
   minParty: serviceShape.minParty.default(1),
   maxParty: serviceShape.maxParty.default(1),
+  meeting: serviceShape.meeting.default({ kind: 'none' }),
 }).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');
 export const bookingServiceUpdateSchema = z.object(serviceShape).partial().omit({ kind: true })
   .extend({ enabled: z.boolean().optional() }).refine(partyOrder, 'El máximo de personas no puede ser menor al mínimo');

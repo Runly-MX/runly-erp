@@ -4,3 +4,4 @@ export { createBookingsAvailabilityService } from './bookings-availability-servi
 export { createBookingsPortalRouter } from './bookings-public-routes.js'
 export { createBookingsCalendarProjection } from './bookings-calendar.js'
 export { createBookingsRoomsRouter } from './bookings-rooms-routes.js'
+export { createBookingsMeetings } from './bookings-meetings.js'

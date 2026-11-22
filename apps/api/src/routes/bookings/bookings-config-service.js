@@ -175,14 +175,21 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
     if (space?.purpose === 'resources') throw new BookingError('Un sistema de salas y recursos no usa servicios ni páginas públicas.', 422, 'RESOURCE_SPACE')
   }
 
+  // shortcut: one meeting per booking, so group sessions cannot be online yet; add a per-session meeting when asked.
+  function assertMeeting(kind, meeting) {
+    if (meeting && meeting.kind !== 'none' && kind === 'session') throw new BookingError('Las reuniones en línea solo están disponibles para citas.', 422, 'MEETING_SESSION')
+  }
+
   async function createService({ companyId, spaceId, input }) {
     await assertServicesSpace(companyId, spaceId)
+    assertMeeting(input.kind, input.meeting)
     return prisma.bookingService.create({ data: { companyId, spaceId, ...input, capacity: input.kind === 'session' ? input.capacity : 1 } })
   }
 
   async function updateService({ companyId, serviceId, input }) {
     const current = await getService({ companyId, serviceId })
     const next = { ...current, ...input }
+    assertMeeting(current.kind, input.meeting)
     if (next.maxParty < next.minParty) throw new BookingError('El máximo de personas no puede ser menor al mínimo.', 422, 'PARTY_SIZE')
     await prisma.bookingService.updateMany({ where: { id: serviceId, companyId }, data: { ...input, ...(current.kind === 'appointment' ? { capacity: 1 } : {}) } })
     return getService({ companyId, serviceId })

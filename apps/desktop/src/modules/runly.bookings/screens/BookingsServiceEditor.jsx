@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom'
 import {
   Button, CheckboxField, ChoiceCardGroup, LoadingState, NotFoundState, NumberField, StatusPill, SwitchField, TextField, TextareaField, cn,
 } from '@runly/ui'
-import { CheckCircle2, Circle, Clock3, ConciergeBell, Info, Plus, ToggleRight, User, Users, UsersRound } from 'lucide-react'
+import { CheckCircle2, Circle, Clock3, ConciergeBell, Info, Link2, MapPin, Plus, ToggleRight, User, Users, UsersRound, Video } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
+import { useCalls } from '../../runly.chat/calls/CallsProvider.jsx'
 import { FormActionBar, FormPage, FormSection, useLeaveGuard } from '../../../components/form-page/FormPage.jsx'
 import { QuickResourcePanel } from '../components/QuickResourcePanel.jsx'
 import { useBookingsMutation } from '../hooks/useBookings.js'
@@ -15,6 +16,8 @@ const KIND_OPTIONS = [
   { value: 'appointment', label: KIND.appointment, icon: User, description: 'Cada reservación ocupa a una persona, sala o equipo durante su duración.' },
   { value: 'session', label: KIND.session, icon: UsersRound, description: 'Clases o grupos: se apartan lugares dentro de sesiones programadas.' },
 ]
+
+const MEETING_LABEL = { none: 'En persona', runly: 'Runly Chat', external: 'Enlace externo' }
 
 // Nuevo / Editar servicio as a full page. Resources can be created in place, so
 // nobody discovers at the end of the form that one was missing.
@@ -34,6 +37,7 @@ export default function BookingsServiceEditor({ space, serviceId, services, reso
 
 function ServiceEditorForm({ space, service, resources, linkedIds, canManageCatalog }) {
   const navigate = useNavigate()
+  const { enabled: callsEnabled } = useCalls()
   const [initial] = useState(() => (service ? serviceToForm(service) : EMPTY_SERVICE))
   const [form, setForm] = useState(initial)
   const [attempted, setAttempted] = useState(false)
@@ -132,6 +136,26 @@ function ServiceEditorForm({ space, service, resources, linkedIds, canManageCata
           </div>
         </FormSection>
 
+        {!session ? (
+          <FormSection icon={Video} title="Dónde se atiende" description="En línea, tus clientes reciben el enlace en su confirmación y en la página de su reservación.">
+            <ChoiceCardGroup
+              ariaLabel="Dónde se atiende"
+              columns={3}
+              className="max-sm:grid-cols-1"
+              value={form.meetingKind}
+              onChange={(meetingKind) => setForm((f) => ({ ...f, meetingKind }))}
+              options={[
+                { value: 'none', label: 'En persona', icon: MapPin, description: 'En tu local o donde acuerden.' },
+                { value: 'runly', label: 'Runly Chat', icon: Video, disabled: !callsEnabled && form.meetingKind !== 'runly', description: callsEnabled ? 'Una sala con espera por cita; tú admites al cliente.' : 'Las llamadas no están configuradas en esta instancia.' },
+                { value: 'external', label: 'Enlace externo', icon: Link2, description: 'Zoom, Meet, Teams u otro.' },
+              ]}
+            />
+            {form.meetingKind === 'external' ? (
+              <TextField label="Enlace de la reunión" required type="url" inputMode="url" value={form.meetingUrl} onChange={set('meetingUrl')} maxLength={500} error={errors.meetingUrl} placeholder="https://" autoComplete="off" hint="El mismo enlace para todas las citas de este servicio." />
+            ) : null}
+          </FormSection>
+        ) : null}
+
         <FormSection
           icon={UsersRound}
           title={session ? 'Recursos (opcional)' : 'Quién lo atiende'}
@@ -226,6 +250,7 @@ function ServiceSummary({ form, chosen, missing, timezone }) {
           {form.kind === 'session' ? <Row label="Cupo por sesión">{form.capacity || '—'}</Row> : null}
           <Row label="Personas">{form.minParty === form.maxParty ? form.minParty : `${form.minParty}–${form.maxParty}`}</Row>
           <Row label="Recursos">{chosen.length ? chosen.length : 'Ninguno'}</Row>
+          {form.kind !== 'session' ? <Row label="Dónde">{MEETING_LABEL[form.meetingKind]}</Row> : null}
         </dl>
         {chosen.length ? (
           <div className="mt-3 flex flex-wrap gap-1.5">

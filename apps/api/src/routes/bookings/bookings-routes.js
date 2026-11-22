@@ -18,7 +18,7 @@ import { createBookingsConfigService } from './bookings-config-service.js'
 
 const TRANSITION_PATHS = { confirm: 'CONFIRMED', reject: 'REJECTED', cancel: 'CANCELLED', complete: 'COMPLETED', 'no-show': 'NO_SHOW' }
 
-export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null, env = process.env, onChanged = null }) {
+export function createBookingsRouter({ prisma, requirePermission, commands = null, cacheDel = null, env = process.env, onChanged = null, meetings = null }) {
   const app = new Hono()
   const config = createBookingsConfigService({ prisma, cacheDel })
   const availability = createBookingsAvailabilityService({ prisma })
@@ -244,7 +244,8 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   }))
   app.get('/bookings/reservations/:id', access, run(async (c) => {
     await bookingRole(c, 'viewer')
-    return c.json({ data: await cmd.view(companyId(c), c.req.param('id')) })
+    const booking = await cmd.view(companyId(c), c.req.param('id'))
+    return c.json({ data: { ...booking, meeting: meetings ? await meetings.staffMeeting(companyId(c), booking.id, userId(c)) : null } })
   }))
   app.get('/bookings/reservations/:id/history', access, run(async (c) => {
     await bookingRole(c, 'viewer')

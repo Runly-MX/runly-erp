@@ -30,9 +30,9 @@ function isAdminHost(host, env) {
   return name === 'localhost' || name === '127.0.0.1' || configured.includes(name)
 }
 
-export function createBookingsPortalRouter({ prisma, getBrand, env = process.env, portal = null, now = () => Date.now(), limits = {}, onChanged }) {
+export function createBookingsPortalRouter({ prisma, getBrand, env = process.env, portal = null, now = () => Date.now(), limits = {}, onChanged, meetings = null }) {
   const app = new Hono()
-  const svc = portal ?? createBookingsPortalService({ prisma, commands: createBookingsCommandService({ prisma, now, onChanged }), getBrand, env, now })
+  const svc = portal ?? createBookingsPortalService({ prisma, commands: createBookingsCommandService({ prisma, now, onChanged }), getBrand, env, now, meetings })
   const trusted = parseTrustedProxies(env.RUNLY_TRUSTED_PROXIES || env.RUNLY_MCP_TRUSTED_PROXIES)
   const origins = allowedOrigins(env)
   // Per IP: browsing (in memory: cheap, and N instances only multiply a generous

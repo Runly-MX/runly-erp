@@ -2,14 +2,21 @@
 // checks before saving. Same limits as the API validators.
 export const EMPTY_SERVICE = {
   name: '', description: '', kind: 'appointment', durationMinutes: '60', bufferBeforeMinutes: '0', bufferAfterMinutes: '0',
-  slotStepMinutes: '30', capacity: '10', minParty: '1', maxParty: '1', enabled: true, resourceIds: [],
+  slotStepMinutes: '30', capacity: '10', minParty: '1', maxParty: '1', enabled: true, resourceIds: [], meetingKind: 'none', meetingUrl: '',
 }
 
 export const serviceToForm = (s) => ({
   name: s.name, description: s.description ?? '', kind: s.kind, durationMinutes: String(s.durationMinutes), bufferBeforeMinutes: String(s.bufferBeforeMinutes),
   bufferAfterMinutes: String(s.bufferAfterMinutes), slotStepMinutes: String(s.slotStepMinutes), capacity: String(s.capacity), minParty: String(s.minParty),
   maxParty: String(s.maxParty), enabled: s.enabled, resourceIds: [...(s.resourceIds ?? [])],
+  meetingKind: s.meeting?.kind ?? 'none', meetingUrl: s.meeting?.url ?? '',
 })
+
+// Online meetings exist for appointments only (one meeting per booking).
+const meetingOf = (form) => {
+  if (form.kind === 'session' || form.meetingKind === 'none') return { kind: 'none' }
+  return form.meetingKind === 'external' ? { kind: 'external', url: form.meetingUrl.trim() } : { kind: 'runly' }
+}
 
 const int = (v) => Number.parseInt(v, 10)
 
@@ -30,6 +37,7 @@ export function validateService(form) {
   if (form.kind === 'session') range('capacity', 1, 100000, 'Cupo')
   if (!errors.maxParty && !errors.minParty && int(form.maxParty) < int(form.minParty)) errors.maxParty = 'No puede ser menor al mínimo.'
   if (needsResource(form) && !form.resourceIds.length) errors.resources = 'Elige al menos un recurso: una cita ocupa a una persona, sala o equipo.'
+  if (meetingOf(form).kind === 'external' && !/^https:\/\/[^\s/]+\.[^\s]+$/i.test(form.meetingUrl.trim())) errors.meetingUrl = 'Escribe un enlace que empiece con https://'
   return errors
 }
 
@@ -40,6 +48,7 @@ export function serviceToPayload(form, { editing }) {
     durationMinutes: int(form.durationMinutes), bufferBeforeMinutes: int(form.bufferBeforeMinutes), bufferAfterMinutes: int(form.bufferAfterMinutes),
     slotStepMinutes: int(form.slotStepMinutes), minParty: int(form.minParty), maxParty: int(form.maxParty),
     ...(session ? { capacity: int(form.capacity) } : {}),
+    meeting: meetingOf(form),
     ...(editing ? { enabled: form.enabled } : { kind: form.kind }),
   }
 }

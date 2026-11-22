@@ -57,6 +57,7 @@ import { createBookingsNotifier } from '../../api/src/routes/bookings/bookings-n
 import { createBookingsCommandService } from '../../api/src/routes/bookings/bookings-command-service.js'
 import { pruneRateBuckets } from '../../api/src/routes/bookings/bookings-rate-limit.js'
 import { createBookingsCalendarProjection } from '../../api/src/routes/bookings/bookings-calendar.js'
+import { createBookingsMeetings } from '../../api/src/routes/bookings/bookings-meetings.js'
 import { createPosBookingsAdapter } from '../../api/src/routes/pos/pos-bookings-adapter.js'
 import { createTicketingCommandService } from '../../api/src/routes/ticketing/ticketing-command-service.js'
 import { createGrowthPropertyHealthWorker } from '../../api/src/services/growth-property-health-worker.js'
@@ -760,7 +761,8 @@ async function runMeetingChannelArchiveTick() {
 }
 // runly.bookings: customer emails (booking_notification outbox) and expiry of
 // PENDING holds past hold_expires_at, which frees their resources and seats.
-const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId) })
+const bookingsMeetings = createBookingsMeetings({ prisma })
+const bookingsNotifier = createBookingsNotifier({ prisma, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), getBrand: (companyId) => createCompanyBrandService({ prisma, supabaseAdmin: workerSupabaseAdmin }).getBrandForCompany(companyId), meetings: bookingsMeetings })
 const bookingsCommands = createBookingsCommandService({ prisma })
 const bookingsCalendar = createBookingsCalendarProjection({ prisma })
 const posBookings = createPosBookingsAdapter({ prisma })
@@ -786,6 +788,9 @@ async function runBookingsTick() {
     // Calendar mirror of everything not yet projected at its current version (expired holds included).
     const calendar = await bookingsCalendar.syncDue()
     if (calendar.processed) console.log(`[worker] bookings calendar ${formatLogTimestamp()} processed=${calendar.processed} created=${calendar.created} updated=${calendar.updated} removed=${calendar.removed} failed=${calendar.failed}`)
+    // Online appointments: rooms missing, moved or to revoke (cancelled, finished, service no longer online).
+    const meetings = await bookingsMeetings.syncDue()
+    if (meetings.processed) console.log(`[worker] bookings meetings ${formatLogTimestamp()} ${Object.entries(meetings).map(([k, v]) => `${k}=${v}`).join(' ')}`)
     await pruneRateBuckets(prisma)
   } catch (err) {
     console.error('[worker] bookings tick failed:', err?.message ?? err)

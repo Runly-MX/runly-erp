@@ -49,6 +49,15 @@ En **Configuración** defines hasta cuántas horas antes el cliente puede cancel
 
 Desactivar la publicación no borra nada: los clientes conservan el acceso a lo que ya reservaron (consultar y cancelar), pero no se aceptan reservaciones nuevas. Si un cliente perdió o compartió su enlace, abre la reservación y usa **Enviar nuevo enlace al cliente**: el anterior deja de funcionar.
 
+### Citas en línea
+
+En el servicio, **Dónde se atiende** puede ser **En persona**, **Runly Chat** o **Enlace externo** (Zoom, Meet, Teams u otro, siempre con `https://`). Solo las citas pueden ser en línea; las sesiones con cupo, todavía no.
+
+- **Runly Chat**: cuando una reservación queda confirmada se prepara una sala privada para esa cita, con sala de espera. Nadie inicia la llamada por adelantado: quien atiende abre la reservación, pulsa **Abrir sala** e inicia la llamada; el cliente espera hasta que lo admites. Atiende la persona vinculada al recurso reservado o, si el recurso no tiene persona, los agentes y administradores del sistema.
+- El cliente recibe **Unirse a la reunión** en la confirmación, en su correo y en la página de su reservación, solo mientras está confirmada. Nunca recibe el canal interno ni el ID de la reunión.
+- Si se reprograma, la sala y el enlace siguen siendo los mismos. Si se cancela o se rechaza, el enlace deja de funcionar y los invitados que esperaban salen de la sala.
+- La opción Runly Chat solo aparece disponible si las llamadas están configuradas en tu instancia.
+
 ### Compartir e integrar
 
 En cada página pública, **Compartir e integrar** te da tres formas de llevarla a tus clientes:

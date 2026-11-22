@@ -120,7 +120,7 @@ import { createStudioRouter } from './routes/studio/index.js';
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
 import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
-import { createBookingsRouter, createBookingsPortalRouter, createBookingsCalendarProjection, createBookingsRoomsRouter } from "./routes/bookings/index.js";
+import { createBookingsRouter, createBookingsPortalRouter, createBookingsCalendarProjection, createBookingsRoomsRouter, createBookingsMeetings } from "./routes/bookings/index.js";
 import { createTicketingRouter } from "./routes/ticketing/index.js";
 import { createCertTemplateOfficeRescan } from "./routes/lms/lms-cert-templates.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
@@ -2298,7 +2298,10 @@ app.route("/", createPosDevicePublicRouter({ deviceService: posDeviceService }))
 // Reservaciones: public Booking Portal, /public/bookings/* (no user auth; rate limited, own origins only).
 // Reservaciones mirror onto Calendario after each committed change (the worker re-projects what this misses).
 const bookingsCalendar = createBookingsCalendarProjection({ prisma });
-app.route("/", createBookingsPortalRouter({ prisma, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), onChanged: bookingsCalendar.projectQuietly }));
+// Online appointments (v1.2 R2): each confirmed booking of a Runly Chat service gets its meeting room and guest link.
+const bookingsMeetings = createBookingsMeetings({ prisma });
+const bookingsProjections = (id) => Promise.all([bookingsCalendar.projectQuietly(id), bookingsMeetings.projectQuietly(id)]);
+app.route("/", createBookingsPortalRouter({ prisma, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), onChanged: bookingsProjections, meetings: bookingsMeetings }));
 
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
 app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
@@ -2624,7 +2627,7 @@ mountWithAuth(app, createCanvasRouter({ prisma, requirePermission, broadcaster, 
 mountWithAuth(app, createStudioRouter({ prisma, requirePermission, filesService, broadcaster, supabaseAdmin, marketplace: marketplaceGate }));
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 // Booking engine (runly.bookings phase 1): internal API only, /bookings/*.
-mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel, onChanged: bookingsCalendar.projectQuietly }));
+mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel, onChanged: bookingsProjections, meetings: bookingsMeetings }));
 // Rooms and equipment reserved by employees (v1.2 R1): bookings.reserve or bookings.access.
 mountWithAuth(app, createBookingsRoomsRouter({ prisma, requireAnyPermission, onChanged: bookingsCalendar.projectQuietly }));
 // Boletos (runly.ticketing, F6B): events, functions on the Booking Engine, free issuance, credentials.

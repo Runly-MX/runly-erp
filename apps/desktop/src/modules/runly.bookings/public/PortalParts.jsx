@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button, ErrorState, Skeleton, cn } from '@runly/ui'
-import { ChevronLeft, ChevronRight, Clock, MapPin } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Clock, MapPin, Video } from 'lucide-react'
 import { addDays, dayKey, daysRange, formatKey, formatTime } from '../lib/bookingsTime.js'
 import { formatPolicyMinutes, portalError, unwrap } from './portalLib.js'
 
@@ -55,6 +55,26 @@ export function SummaryRows({ rows }) {
 export const LocationLines = ({ location, instructions }) => (
   <div className="space-y-1.5"><InfoLine icon={MapPin}>{location}</InfoLine><InfoLine icon={Clock}>{instructions}</InfoLine></div>
 )
+
+// Online appointment: the guest's way in (lobby link or the business's external URL).
+// The API only sends it for confirmed bookings. Opens in a new tab, so it works framed too.
+export function MeetingJoin({ meeting }) {
+  if (!meeting?.url) return null
+  return (
+    <div className="flex flex-col gap-3 rounded-md border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.35)] p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex min-w-0 gap-3">
+        <Video className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" />
+        <div className="min-w-0">
+          <p className="text-sm font-semibold">Cita en línea</p>
+          <p className="text-sm text-[hsl(var(--muted-foreground))]">
+            {meeting.kind === 'runly' ? 'Entra a la hora de tu cita: esperarás un momento hasta que el negocio te admita.' : 'Entra a la hora de tu cita con el enlace del negocio.'}
+          </p>
+        </div>
+      </div>
+      <Button asChild className="shrink-0"><a href={meeting.url} target="_blank" rel="noopener noreferrer"><Video />Unirse a la reunión</a></Button>
+    </div>
+  )
+}
 
 // Week strip + free times of the engine for the selected day. `fetchWeek(from, to)`
 // returns { kind, slots | sessions } for those instants.

@@ -7182,6 +7182,7 @@ model BookingServiceResource {
 }
 
 model BookingScheduleRule {
+  meeting             Json     @default("{\"kind\":\"none\"}") // { kind: none | runly | external, url? } (v1.2 R2)
   id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId  String   @map("company_id") @db.Uuid
   spaceId    String?  @map("space_id") @db.Uuid
@@ -7336,6 +7337,21 @@ model BookingIdempotency {
   @@unique([companyId, scope, operation, key], map: "booking_idempotency_key_key")
   @@map("booking_idempotency")
 }
+// Runly Chat meeting of a booking (v1.2 R2): its private channel and lobby guest link,
+// kept in step with the booking by the meetings projection (raw SQL).
+model BookingMeeting {
+  bookingId      String    @id @map("booking_id") @db.Uuid
+  companyId      String    @map("company_id") @db.Uuid
+  conversationId String    @unique(map: "booking_meeting_conversation_key") @map("conversation_id") @db.Uuid
+  callLinkId     String    @map("call_link_id") @db.Uuid
+  version        Int
+  revokedAt      DateTime? @map("revoked_at") @db.Timestamptz(6)
+  createdAt      DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime  @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("booking_meeting")
+}
+
 
 model BookingPage {
   id                  String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
