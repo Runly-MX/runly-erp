@@ -1,5 +1,9 @@
 # Website Responsive Foundation — fase 3C
 
+La publicación y adopción ejecutadas posteriormente se documentan en el
+[cierre de publicación](website-responsive-foundation-publication-close.md).
+Este informe conserva el estado histórico de 3C.
+
 Continuación de la [fase 3B](website-responsive-foundation-phase-3b.md).
 Estado: **PARCIAL**. Se ejecutaron verificaciones y se corrigieron tres pendientes
 de integración; la publicación nueva, adopción Hub y aceptación remota siguen

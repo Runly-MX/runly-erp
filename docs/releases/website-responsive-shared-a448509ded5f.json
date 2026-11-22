@@ -1,0 +1,111 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-11-22",
+  "sourceRevision": "a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+  "workflowRunId": 45046425281,
+  "workflowUrl": "https://github.com/Runly-MX/runly-erp/actions/runs/45046425281",
+  "workflowConclusion": "success",
+  "registry": "https://npm.pkg.github.com",
+  "manifestArtifact": "published-shared-package-manifest",
+  "manifestSha256": "7a8004e668f3ea74cb9fa164dc077dae9abd430d23484178750adc98a55a06b1",
+  "packages": [
+    {
+      "logical": "@runly/core",
+      "registryPackage": "@runly-mx/core",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "7bcb0f8cdaaf84bf2159b9c3f29e819c3f668796cecefb27e68dc2550f2b252c",
+      "integrity": "sha512-jD+Ji9lQefuoNnBcrieUMNJ5Kjf3Iql8jXkvRUWI/dgYhZ/4X2hrSKergSAuEuxhpNr8A3loO5n94qt/c2LQZg==",
+      "contentDigest": "ece65e370683d0916a2f14a58f0774c51ba33fc3c95bcee0f0bba2836dd7100e"
+    },
+    {
+      "logical": "@runly/module-engine",
+      "registryPackage": "@runly-mx/module-engine",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "6341f1b531179699591d49c3189ea3e9ea879f789998cc82344d4a6855f1f872",
+      "integrity": "sha512-1fxRqh1BMvLF/fxzNE4vJcl43wmR5YGAwrRvKajp3jGrK58Q5GBDvDlfkfz+BZGV7q/sJmAhySXIW65+Yf8jsw==",
+      "contentDigest": "c72a02f80b4c898b20e0e77923e2b127a3ba8abf12c6507c3d1572d3535b1b9e"
+    },
+    {
+      "logical": "@runly/module-compiler",
+      "registryPackage": "@runly-mx/module-compiler",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "36bc5b67d28edf4b5f5094b2c5fd5bf04e4bcd298f030c3ff7d09734f2a68f0e",
+      "integrity": "sha512-yfGA+DXFnt+j9vefk3S1uLKvXZqw040TUBvjrlgyHQH+pBCJOMw+ZcZDpyEIt+KEQ7TWG43/QBgmNuz5uuf+cA==",
+      "contentDigest": "9a4293c3128edc7b416dbc5a2f9aef01d3c77b0e5848e1bf9e3cd9406a76ec74"
+    },
+    {
+      "logical": "@runly/ui",
+      "registryPackage": "@runly-mx/ui",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "e42ecd8797dcf7ae6b2e46e72a4bb6b9006ebafaaa78ccb69501b84d15cba55e",
+      "integrity": "sha512-y1U/zDW8Ico7A1OV7lgvTOcxoCkapjJfEcyeu/+b+A7cKYxBIm7eBsNPv7Lk2tiB8IDd7RJw+XfG8jq1UA/OPQ==",
+      "contentDigest": "1a50500f1627bad21dc54789644653f4b2fa846b97cd36943d239c8e1124200a"
+    },
+    {
+      "logical": "@runly/sdk",
+      "registryPackage": "@runly-mx/sdk",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "94285773626c7ee4ac1c829e98d736e2b65da3fcffa623f1bf66b3720391fc7f",
+      "integrity": "sha512-nGQz1IhebzFjYTFTU+kWEvYSBaiFY4XpZ0EHA8YJoj5BKeoM7D6DgpMqRbmWJQkl79xyr5tqFIPDpT+ll5aJNw==",
+      "contentDigest": "8ac7233c123650f18d0dcaf261b45e733f862a29323db3fb638b9c96b4195418"
+    },
+    {
+      "logical": "@runly/preview-runtime",
+      "registryPackage": "@runly-mx/preview-runtime",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "675218871aa6a893546e31f75e85c0eb8327ee197d5611dab5ab46933bbc2520",
+      "integrity": "sha512-ReGIhFoax175oXz24wydHRkruZsMJLGzFxSwB1356H8WwItZOtgrMu9hF/pEFFsY9RK7C8YblIVCrNMmY3hVmw==",
+      "contentDigest": "5fe97f187ab29471b6d188325658bf5e5afb88cd8a043d2d904e60df91e83501"
+    },
+    {
+      "logical": "@runly/studio-interchange",
+      "registryPackage": "@runly-mx/studio-interchange",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "1e363f94a67004a26dbfa2009395cfdd4efc96dcc50b0e248d608b957cbaf068",
+      "integrity": "sha512-NyJuBoTfB7J4MYkFQvPa72K2NwXcdBZMd4Nl7mV+6prw+V+UvhD1CBDWMQKSfRKrbWRkB6yZvPNZ7sZJah6DNg==",
+      "contentDigest": "fd6f3cedf9961e1309eb8cc76e26471f37a619e5905f7cc85c254e1d4d2e898c"
+    },
+    {
+      "logical": "@runly/website-blocks",
+      "registryPackage": "@runly-mx/website-blocks",
+      "version": "0.1.0-source.a448509ded5fad1b9b4d129bcff9482e4a9b7de2",
+      "sha256": "390fa68679129c0b75f83897a4ce7e04bef2dec6028a35e81b388e58cc4297dc",
+      "integrity": "sha512-UZlTAzt+qOrrmK1KnOOvGa9DIa1khEdgywhxX/8okDtMM6q5rFtzDMpw5mJ0X5r04CaiyMbKfYkodyL3V2yHNw==",
+      "contentDigest": "ede96cec8ee2427bcc520ba9ae767a70884ef46ab2fc52a807f4a8d309868694"
+    }
+  ],
+  "verification": {
+    "ciPrepareMatchesCiPublish": true,
+    "publishedTarballsVerified": 8,
+    "registryVerifiedDuringOfficialAdoption": true,
+    "installedPackageInventoriesVerified": 8
+  },
+  "atlas": {
+    "name": "@raulbellosom/atlas-web-builder",
+    "version": "0.9.0",
+    "republished": false
+  },
+  "catalogs": [
+    {
+      "version": "0.8.2",
+      "blocks": 156,
+      "digest": "2d7c84c46d74164981abb6028d6d278f5a9774a9eef32fb86a639cbe18c5d318"
+    },
+    {
+      "version": "0.8.2",
+      "blocks": 157,
+      "digest": "cdb67dabfee8e546f4fb453935ac7a791bebba294ace9035e3159e3fb84126d1"
+    },
+    {
+      "version": "0.9.0",
+      "blocks": 157,
+      "digest": "f5b5d67e4ddbffeedbc8e33e934a19b2973cae42ea7892192ca7849984d5a5b2"
+    },
+    {
+      "version": "0.9.0",
+      "blocks": 158,
+      "digest": "bf50cd9eb4aeb731c2f35e21af7603f303f9c5c8626b4542b9594ea5f9bb8da1"
+    }
+  ],
+  "remoteDeploymentExecuted": false
+}
