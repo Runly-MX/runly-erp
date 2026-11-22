@@ -6,17 +6,18 @@ import {
   CardContent,
   CardHeader,
   CardTitle,
-  EmptyState,
   ErrorState,
   PageHeader,
+  SegmentedControl,
   Skeleton,
-  Switch,
 } from "@runly/ui";
 import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall, ShieldAlert, Users } from "lucide-react";
 import { toast } from "sonner";
 import { getDefaultNotificationPreference } from '@runly/core';
 import { useAuth } from "../../auth/AuthProvider";
 import PushDiagnosticsCard from "./PushDiagnosticsCard";
+import { EVENT_CATALOG, fallbackEvent } from "./notificationCatalog";
+import NotificationPreferencesPanel from "./NotificationPreferencesPanel";
 import DeliveryCheckCard from "./DeliveryCheckCard";
 import DigestCard from "./DigestCard";
 import QuietHoursCard from "./QuietHoursCard";
@@ -30,133 +31,6 @@ import {
   unsubscribeCurrentDeviceFromWebPush,
 } from "../../lib/webPush";
 
-const EVENT_CATALOG = [
-  { eventType: 'calendar.event.invite', title: 'Invitación a evento', description: 'Cuando te invitan a un evento.', icon: CalendarClock },
-  { eventType: 'calendar.event.reschedule', title: 'Evento reprogramado', description: 'Cuando cambia la fecha de un evento al que asistes.', icon: CalendarClock },
-  { eventType: 'calendar.event.cancel', title: 'Evento cancelado', description: 'Cuando cancelan un evento al que asistes.', icon: CalendarClock },
-  { eventType: 'growth.lead.created', title: 'Nuevo lead asignado', description: 'Cuando se crea un lead a tu cargo.', icon: Users },
-  { eventType: 'growth.lead.assigned', title: 'Asignación de lead', description: 'Cuando te asignan un lead existente.', icon: Users },
-  { eventType: 'ledger.account_invite', title: 'Cuenta compartida', description: 'Cuando te comparten una cuenta.', icon: Users },
-  { eventType: 'ledger.group_invite', title: 'Grupo de cuentas compartido', description: 'Cuando te agregan a un grupo de cuentas.', icon: Users },
-  { eventType: 'ledger.access_revoked', title: 'Acceso a cuentas retirado', description: 'Cuando retiran tu acceso a una cuenta o grupo.', icon: ShieldAlert },
-  { eventType: 'pfm.budget.threshold', title: 'Presupuesto próximo al límite', description: 'Cuando tu presupuesto alcanza el umbral de alerta.', icon: ShieldAlert },
-  { eventType: 'pfm.budget.overage', title: 'Presupuesto excedido', description: 'Cuando tus gastos superan el presupuesto.', icon: ShieldAlert },
-  { eventType: 'projects.task.reaction', title: 'Reacción en tarea', description: 'Cuando reaccionan a tu comentario en una tarea.', icon: CheckSquare2 },
-  { eventType: 'inventory.item.reaction', title: 'Reacción en inventario', description: 'Cuando reaccionan a tu comentario en inventario.', icon: CheckSquare2 },
-  // runly.chat
-  { eventType: 'chat.reminder', title: 'Recordatorio de un mensaje', description: 'Cuando llega la hora de un mensaje que pediste recordar.', icon: CalendarClock },
-  { eventType: 'chat.member.added', title: 'Invitación a un chat', description: 'Cuando te agregan a un canal o grupo.', icon: Users },
-  { eventType: 'chat.mention.new', title: 'Mención en chat', description: 'Cuando te mencionan en una conversación.', icon: MessageCircle },
-  { eventType: 'chat.thread.reply', title: 'Respuesta en un hilo', description: 'Cuando responden en un hilo en el que participas.', icon: MessageCircle },
-  { eventType: 'notes.note.shared', title: 'Nota compartida', description: 'Cuando comparten una nota contigo.', icon: Users },
-  { eventType: 'files.folder.shared', title: 'Carpeta compartida', description: 'Cuando comparten una carpeta de Archivos contigo.', icon: Users },
-  { eventType: 'inventory.item.mention', title: 'Mención en inventario', description: 'Cuando te mencionan en un comentario de inventario.', icon: CheckSquare2 },
-  {
-    eventType: "chat.message.new",
-    title: "Mensaje de chat",
-    description:
-      "Aviso por cada mensaje directo o de grupo. El correo solo se envia cuando llevas un rato sin abrir la conversacion, no en cada mensaje.",
-    icon: MessageCircle,
-  },
-  {
-    eventType: "chat.call.incoming",
-    title: "Llamada entrante",
-    description: "Cuando alguien te llama o inicia una videollamada.",
-    icon: PhoneCall,
-  },
-  // runly.projects
-  {
-    eventType: "projects.member.added",
-    title: "Nuevo miembro en proyecto",
-    description: "Cuando te agregan como miembro a un proyecto.",
-    icon: Users,
-  },
-  {
-    eventType: "projects.task.assigned",
-    title: "Tarea asignada",
-    description: "Cuando te asignan una tarea.",
-    icon: CheckSquare2,
-  },
-  {
-    eventType: "projects.task.unassigned",
-    title: "Removido de tarea",
-    description: "Cuando te quitan de una tarea asignada.",
-    icon: CheckSquare2,
-  },
-  {
-    eventType: "projects.task.comment",
-    title: "Comentario en tarea",
-    description: "Nuevo comentario en una tarea asignada a ti.",
-    icon: CheckSquare2,
-  },
-  {
-    eventType: "projects.task.mention",
-    title: "Mencion en comentario",
-    description: "Alguien te menciono con @ en un comentario.",
-    icon: CheckSquare2,
-  },
-  {
-    eventType: "projects.task.due_soon",
-    title: "Tarea por vencer",
-    description: "Una tarea tuya vence en menos de 24 horas.",
-    icon: CheckSquare2,
-  },
-  {
-    eventType: "projects.task.status_changed",
-    title: "Cambio de estado en tarea",
-    description: "El estado de una tarea asignada a ti cambio.",
-    icon: CheckSquare2,
-  },
-  // runly.calendar
-  {
-    eventType: "calendar.event.reminder",
-    title: "Recordatorio de calendario",
-    description: "Alerta cuando un evento esta por comenzar.",
-    icon: CalendarClock,
-  },
-  // runly.website
-  {
-    eventType: "website.sale.confirmed",
-    title: "Venta confirmada",
-    description: "Notifica nuevas ventas confirmadas en website.",
-    icon: Globe2,
-  },
-  {
-    eventType: "website.payment.failed",
-    title: "Pago fallido",
-    description: "Avisa si una transaccion falla en checkout.",
-    icon: Globe2,
-  },
-  // sistema
-  {
-    eventType: "system.alert",
-    title: "Alerta de sistema",
-    description: "Eventos criticos de operacion o integraciones.",
-    icon: ShieldAlert,
-  },
-];
-
-function PreferencesSkeleton() {
-  return (
-    <div className="space-y-3">
-      {Array.from({ length: 4 }).map((_, index) => (
-        <div
-          key={index}
-          className="rounded-2xl border border-[hsl(var(--border))] p-4 space-y-3"
-        >
-          <Skeleton className="h-4 w-56" />
-          <Skeleton className="h-3.5 w-3/4" />
-          <div className="grid grid-cols-3 gap-2">
-            <Skeleton className="h-10 rounded-lg" />
-            <Skeleton className="h-10 rounded-lg" />
-            <Skeleton className="h-10 rounded-lg" />
-          </div>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 export default function NotificationSettingsScreen() {
   const queryClient = useQueryClient();
   const { session, userProfile } = useAuth();
@@ -166,6 +40,7 @@ export default function NotificationSettingsScreen() {
       (userProfile?.permissions ?? []).includes("notifications.read"),
   );
 
+  const [tab, setTab] = useState("events");
   const [pendingKey, setPendingKey] = useState(null);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState("default");
@@ -220,14 +95,7 @@ export default function NotificationSettingsScreen() {
 
   const catalogRows = useMemo(() => {
     const known = new Set(EVENT_CATALOG.map((item) => item.eventType));
-    const extras = [...preferencesMap.keys()]
-      .filter((eventType) => !known.has(eventType))
-      .map((eventType) => ({
-        eventType,
-        title: eventType,
-        description: "Evento registrado por un modulo.",
-        icon: BellRing,
-      }));
+    const extras = [...preferencesMap.keys()].filter((e) => !known.has(e)).map(fallbackEvent);
     return [...EVENT_CATALOG, ...extras];
   }, [preferencesMap]);
 
@@ -275,16 +143,21 @@ export default function NotificationSettingsScreen() {
     };
   }
 
-  function updatePreference(eventType, patch) {
-    const current = getPreference(eventType);
-    setPendingKey(`${eventType}:${Object.keys(patch)[0]}`);
-    upsertMutation.mutate({
-      eventType,
-      inAppEnabled: current.inAppEnabled,
-      emailEnabled: current.emailEnabled,
-      pushEnabled: current.pushEnabled,
-      ...patch,
-    });
+  // Applies one patch to several events (single toggle or bulk group action).
+  function updatePreferences(eventTypes, patch) {
+    setPendingKey(`${eventTypes[0]}:${Object.keys(patch)[0]}`);
+    Promise.all(
+      eventTypes.map((eventType) => {
+        const current = getPreference(eventType);
+        return upsertMutation.mutateAsync({
+          eventType,
+          inAppEnabled: current.inAppEnabled,
+          emailEnabled: current.emailEnabled,
+          pushEnabled: current.pushEnabled,
+          ...patch,
+        });
+      }),
+    ).catch(() => {});
   }
 
   async function handleSubscribeCurrentDevice() {
@@ -345,6 +218,37 @@ export default function NotificationSettingsScreen() {
         description="Controla que eventos reciben notificacion en plataforma, correo y push."
       />
 
+      <SegmentedControl
+        ariaLabel="Secciones de notificaciones"
+        size="lg"
+        variant="subtle"
+        value={tab}
+        onChange={setTab}
+        options={[
+          { value: "events", label: "Eventos" },
+          { value: "schedule", label: "Horarios" },
+          { value: "devices", label: "Dispositivos" },
+        ]}
+      />
+      {tab === "events" && (
+      <NotificationPreferencesPanel
+        rows={catalogRows}
+        getPreference={getPreference}
+        pendingKey={pendingKey}
+        onChange={updatePreferences}
+        isLoading={isPreferencesLoading}
+        isError={isPreferencesError}
+        onRetry={() => refetchPreferences()}
+      />
+      )}
+      {tab === "schedule" && (
+        <>
+          <QuietHoursCard />
+          <DigestCard token={token} />
+        </>
+      )}
+      {tab === "devices" && (
+        <>
       <Card>
         <CardHeader>
           <CardTitle>Push web en este dispositivo</CardTitle>
@@ -388,6 +292,7 @@ export default function NotificationSettingsScreen() {
               <div className="flex flex-wrap gap-2">
                 <Button
                   type="button"
+                  className="min-h-11 sm:min-h-0"
                   onClick={handleSubscribeCurrentDevice}
                   disabled={pushBusy || pushPermission === "denied"}
                 >
@@ -396,6 +301,7 @@ export default function NotificationSettingsScreen() {
                 <Button
                   type="button"
                   variant="outline"
+                  className="min-h-11 sm:min-h-0"
                   onClick={handleUnsubscribeCurrentDevice}
                   disabled={
                     pushBusy || (!hasBrowserPushSubscription && !pushSubscriptionId)
@@ -408,99 +314,10 @@ export default function NotificationSettingsScreen() {
           )}
         </CardContent>
       </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Preferencias por evento</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {isPreferencesLoading ? (
-            <PreferencesSkeleton />
-          ) : isPreferencesError ? (
-            <ErrorState
-              title="No se pudieron cargar las preferencias"
-              onRetry={() => refetchPreferences()}
-            />
-          ) : catalogRows.length === 0 ? (
-            <EmptyState
-              icon={BellRing}
-              title="Sin eventos"
-              description="Aun no hay eventos configurables."
-            />
-          ) : (
-            catalogRows.map((row) => {
-              const pref = getPreference(row.eventType);
-              const Icon = row.icon ?? BellRing;
-              return (
-                <div
-                  key={row.eventType}
-                  className="rounded-2xl border border-[hsl(var(--border))] p-4"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="h-9 w-9 rounded-xl bg-[hsl(var(--muted))] flex items-center justify-center shrink-0">
-                      <Icon className="h-4 w-4 text-[hsl(var(--muted-foreground))]" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="text-sm font-semibold text-[hsl(var(--foreground))]">
-                        {row.title}
-                      </p>
-                      <p className="text-xs text-[hsl(var(--muted-foreground))] mt-0.5">
-                        {row.description}
-                      </p>
-                      <p className="text-[11px] text-[hsl(var(--muted-foreground))] mt-1 font-mono">
-                        {row.eventType}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
-                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                        En plataforma
-                      </span>
-                      <Switch
-                        checked={Boolean(pref.inAppEnabled)}
-                        disabled={pendingKey === `${row.eventType}:inAppEnabled`}
-                        onCheckedChange={(checked) =>
-                          updatePreference(row.eventType, { inAppEnabled: checked })
-                        }
-                      />
-                    </div>
-                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                        Correo
-                      </span>
-                      <Switch
-                        checked={Boolean(pref.emailEnabled)}
-                        disabled={pendingKey === `${row.eventType}:emailEnabled`}
-                        onCheckedChange={(checked) =>
-                          updatePreference(row.eventType, { emailEnabled: checked })
-                        }
-                      />
-                    </div>
-                    <div className="rounded-lg border border-[hsl(var(--border))] px-3 py-2 flex items-center justify-between">
-                      <span className="text-xs text-[hsl(var(--muted-foreground))]">
-                        Push web
-                      </span>
-                      <Switch
-                        checked={Boolean(pref.pushEnabled)}
-                        disabled={pendingKey === `${row.eventType}:pushEnabled`}
-                        onCheckedChange={(checked) =>
-                          updatePreference(row.eventType, { pushEnabled: checked })
-                        }
-                      />
-                    </div>
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </CardContent>
-      </Card>
-      <QuietHoursCard />
-      <DigestCard token={token} />
-      <DeliveryCheckCard token={token} />
-      <PushDiagnosticsCard token={token} />
+          <DeliveryCheckCard token={token} />
+          <PushDiagnosticsCard token={token} />
+        </>
+      )}
     </div>
   );
 }

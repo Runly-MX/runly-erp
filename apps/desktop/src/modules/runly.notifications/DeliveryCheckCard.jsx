@@ -35,7 +35,7 @@ function HealthPanel({ health }) {
         ))}
       </ul>
       {health.channels.length === 0 ? <p className="text-sm text-[hsl(var(--muted-foreground))]">Aún no hay envíos por correo o push en este periodo.</p> : (
-        <table className="w-full text-sm">
+        <div className="overflow-x-auto"><table className="w-full min-w-[280px] text-sm">
           <thead><tr className="text-left text-xs text-[hsl(var(--muted-foreground))]"><th className="pb-1 font-medium">Canal</th><th className="pb-1 text-right font-medium">Enviados</th><th className="pb-1 text-right font-medium">Fallidos</th><th className="pb-1 text-right font-medium">En cola</th></tr></thead>
           <tbody>
             {health.channels.map((row) => (
@@ -45,7 +45,7 @@ function HealthPanel({ health }) {
               </tr>
             ))}
           </tbody>
-        </table>
+        </table></div>
       )}
       {health.failures.length > 0 && (
         <ul className="space-y-2">
@@ -98,7 +98,7 @@ export default function DeliveryCheckCard({ token }) {
               <div className="flex items-center gap-3">
                 <Icon size={16} aria-hidden className="shrink-0" />
                 <span className="min-w-0 flex-1 text-sm">{label}</span>
-                <Button size="sm" variant="outline" disabled={Boolean(busy)} onClick={() => probe(key)}>{busy === key ? "Enviando..." : "Probar"}</Button>
+                <Button size="sm" variant="outline" className="min-h-11 sm:min-h-0" disabled={Boolean(busy)} onClick={() => probe(key)}>{busy === key ? "Enviando..." : "Probar"}</Button>
               </div>
               <Result result={results[key]} />
             </div>
