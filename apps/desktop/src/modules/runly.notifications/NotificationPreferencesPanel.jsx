@@ -13,6 +13,10 @@ import {
 import { BellRing, ChevronDown, Mail, Monitor, Smartphone } from "lucide-react";
 import { moduleOf } from "./notificationCatalog";
 
+// Events declared by an installed module carry its real name; the rest fall back to the prefix.
+const moduleOfRow = (row) =>
+  row.moduleName ? { id: row.moduleKey ?? row.moduleName, label: row.moduleName } : moduleOf(row.eventType);
+
 const CHANNELS = [
   { key: "inAppEnabled", label: "Plataforma", short: "App", icon: Monitor },
   { key: "emailEnabled", label: "Correo", short: "Correo", icon: Mail },
@@ -53,7 +57,7 @@ function EventRow({ row, pref, pendingKey, onChange, showModule, channels }) {
           <p className="mt-0.5 text-xs text-[hsl(var(--muted-foreground))]">{row.description}</p>
           {showModule ? (
             <p className="mt-1 text-[11px] text-[hsl(var(--muted-foreground))]">
-              {moduleOf(row.eventType).label}
+              {moduleOfRow(row).label}
             </p>
           ) : null}
         </div>
@@ -168,7 +172,7 @@ export default function NotificationPreferencesPanel({
       if (status === "active" && !isOn(pref)) return false;
       if (status === "muted" && isOn(pref)) return false;
       if (!q) return true;
-      return `${row.title} ${row.description} ${moduleOf(row.eventType).label}`
+      return `${row.title} ${row.description} ${moduleOfRow(row).label}`
         .toLowerCase()
         .includes(q);
     });
@@ -180,7 +184,7 @@ export default function NotificationPreferencesPanel({
     }
     const map = new Map();
     for (const row of filtered) {
-      const m = moduleOf(row.eventType);
+      const m = moduleOfRow(row);
       if (!map.has(m.id)) map.set(m.id, { id: m.id, title: m.label, rows: [], channels: CHANNELS });
       map.get(m.id).rows.push(row);
     }

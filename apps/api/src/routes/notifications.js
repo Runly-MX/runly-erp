@@ -130,6 +130,33 @@ export function createNotificationsRouter({ prisma, requirePermission, supabaseA
     },
   );
 
+  // Events declared by installed modules (manifest.notificationEvents), so the
+  // preferences screen lists a new module's events without a client release.
+  app.get(
+    "/notifications/events",
+    requirePermission("notifications.read"),
+    async (c) => {
+      try {
+        const modules = await prisma.runlyModule.findMany({
+          where: { status: "INSTALLED", enabled: true },
+          select: { key: true, name: true, manifest: true },
+        });
+        const data = modules.flatMap((mod) =>
+          (Array.isArray(mod.manifest?.notificationEvents) ? mod.manifest.notificationEvents : []).map((event) => ({
+            moduleKey: mod.key,
+            moduleName: mod.name,
+            eventType: event.eventType,
+            title: event.title,
+            description: event.description ?? "",
+          })),
+        );
+        return c.json({ data });
+      } catch (err) {
+        return handleError(c, err, "GET /notifications/events");
+      }
+    },
+  );
+
   app.get(
     "/notifications/preferences",
     requirePermission("notifications.read"),

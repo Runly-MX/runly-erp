@@ -2131,6 +2131,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
             headers: withAuthHeaders(token),
           },
         ),
+      listEvents: (token) =>
+        request("/notifications/events", { headers: withAuthHeaders(token) }),
       listPreferences: (token) =>
         request("/notifications/preferences", {
           headers: withAuthHeaders(token),

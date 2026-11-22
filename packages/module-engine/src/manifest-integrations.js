@@ -33,6 +33,7 @@ const DOCUMENT_KIND_NAME_RE = /^[a-z][a-z0-9_]{1,40}$/
 const DOCUMENT_KIND_TAG_RE = /^[a-z][a-z0-9_]{0,60}$/
 export const DOCUMENT_KINDS_MAX = 10
 export const HOME_WIDGETS_MAX = 5
+export const NOTIFICATION_EVENTS_MAX = 20
 export const HOME_WIDGET_KINDS = Object.freeze(['count', 'list'])
 export const HOME_WIDGET_OPS = Object.freeze(['equals', 'not_equals', 'contains', 'gt', 'lt', 'filled'])
 const HOME_WIDGET_KEY_RE = /^[a-z][a-z0-9_]{1,40}$/
@@ -111,7 +112,28 @@ function validateHomeWidgets(manifest, errors) {
   })
 }
 
+// manifest.notificationEvents (events of this module that people can switch on or off in
+// Notificaciones > Eventos): [{ eventType: 'orders.order.shipped', title, description? }]
+const NOTIFICATION_EVENT_RE = /^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*){1,3}$/
+function validateNotificationEvents(manifest, errors) {
+  const list = manifest?.notificationEvents
+  if (list === undefined) return
+  if (!Array.isArray(list)) { errors.push('notificationEvents must be an array'); return }
+  if (list.length > NOTIFICATION_EVENTS_MAX) errors.push(`notificationEvents: at most ${NOTIFICATION_EVENTS_MAX} events`)
+  const seen = new Set()
+  list.forEach((event, index) => {
+    const base = `notificationEvents[${index}]`
+    if (!isPlainObject(event)) { errors.push(`${base} must be an object`); return }
+    if (!NOTIFICATION_EVENT_RE.test(String(event.eventType ?? ''))) errors.push(`${base}.eventType must look like "orders.order.shipped"`)
+    else if (seen.has(event.eventType)) errors.push(`${base}.eventType "${event.eventType}" is duplicated`)
+    seen.add(event.eventType)
+    if (typeof event.title !== 'string' || !event.title.trim() || event.title.length > 60) errors.push(`${base}.title is required (max 60 chars)`)
+    if (event.description !== undefined && (typeof event.description !== 'string' || event.description.length > 160)) errors.push(`${base}.description must be text (max 160 chars)`)
+  })
+}
+
 export function validateIntegrations(manifest, errors) {
+  validateNotificationEvents(manifest, errors)
   validateSchedules(manifest, errors)
   validateHomeWidgets(manifest, errors)
   validateDocumentKinds(manifest, errors)

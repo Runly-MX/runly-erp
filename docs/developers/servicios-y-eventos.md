@@ -195,6 +195,19 @@ Un módulo del Builder puede mostrar en **Inicio** un contador o una lista corta
 
 El contrato completo (argumentos, tipos, límites y campos de respuesta) se publica en `@runly/module-engine/contracts` como `SERVICE_CONTRACTS`; el Developer Hub simula los servicios con ese mismo contrato.
 
+## Dejar que cada persona elija tus notificaciones
+
+Declara en el manifiesto los eventos que tu módulo publica como notificación; aparecen agrupados bajo el nombre de tu módulo en **Notificaciones > Configuración > Eventos**, donde cada persona activa o silencia plataforma, correo y push por evento:
+
+```js
+notificationEvents: [
+  { eventType: 'orders.order.shipped', title: 'Orden enviada', description: 'Cuando una orden tuya sale a entrega.' },
+]
+```
+
+- `eventType`: de 2 a 4 partes en minúsculas separadas por punto (`modulo.entidad.accion`); debe ser el mismo que usas al publicar la notificación. Máximo 20 por módulo; `title` hasta 60 caracteres y `description` hasta 160.
+- Sin esta declaración el evento igual aparece una vez que alguien lo configure, pero con un título genérico.
+
 ## Eventos
 
 Suscríbete en el manifiesto y maneja los eventos en `api/events.js`. Además de `prisma` (para **tus** tablas), cada handler recibe `services`: los mismos servicios, en la empresa del evento y sin usuario.

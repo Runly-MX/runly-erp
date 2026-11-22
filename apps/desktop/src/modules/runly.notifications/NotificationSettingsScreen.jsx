@@ -40,7 +40,13 @@ export default function NotificationSettingsScreen() {
       (userProfile?.permissions ?? []).includes("notifications.read"),
   );
 
-  const [tab, setTab] = useState("events");
+  const [tab, setTabState] = useState(() => {
+    try { return sessionStorage.getItem("notifications.settings.tab") || "events"; } catch { return "events"; }
+  });
+  const setTab = (value) => {
+    setTabState(value);
+    try { sessionStorage.setItem("notifications.settings.tab", value); } catch { /* storage unavailable */ }
+  };
   const [pendingKey, setPendingKey] = useState(null);
   const [pushSupported, setPushSupported] = useState(false);
   const [pushPermission, setPushPermission] = useState("default");
@@ -88,16 +94,25 @@ export default function NotificationSettingsScreen() {
     onSettled: () => setPendingKey(null),
   });
 
+  // Events declared by installed modules (manifest.notificationEvents).
+  const { data: declaredEvents } = useQuery({
+    queryKey: ["notification-events", token],
+    queryFn: () => runly.notifications.listEvents(token),
+    enabled: Boolean(token) && canRead,
+    staleTime: 5 * 60 * 1000,
+  });
+
   const preferencesMap = useMemo(() => {
     const rows = preferencesData?.data ?? [];
     return new Map(rows.map((row) => [row.eventType, row]));
   }, [preferencesData]);
 
   const catalogRows = useMemo(() => {
-    const known = new Set(EVENT_CATALOG.map((item) => item.eventType));
+    const declared = (declaredEvents?.data ?? []).map((e) => ({ ...e, icon: BellRing }));
+    const known = new Set([...EVENT_CATALOG, ...declared].map((item) => item.eventType));
     const extras = [...preferencesMap.keys()].filter((e) => !known.has(e)).map(fallbackEvent);
-    return [...EVENT_CATALOG, ...extras];
-  }, [preferencesMap]);
+    return [...EVENT_CATALOG, ...declared.filter((d) => !EVENT_CATALOG.some((e) => e.eventType === d.eventType)), ...extras];
+  }, [preferencesMap, declaredEvents]);
 
   useEffect(() => {
     let cancelled = false;
