@@ -18,7 +18,7 @@ export async function buildWebsitePublicRuntime(output,{atlasRoot}={}) {
   const alias=await candidateAliases(atlasRoot)
   const packageFile=atlasRoot?resolve(atlasRoot,'package.json'):resolve(dirname(requireDesktop.resolve('@raulbellosom/atlas-web-builder')),'..','package.json')
   const rendererVersion=JSON.parse(await readFile(packageFile,'utf8')).version
-  if(!alias&&!['0.3.5','0.4.0','0.5.0','0.5.1','0.6.0','0.6.1','0.6.2','0.6.3','0.8.1','0.8.2'].includes(rendererVersion))throw new Error(`Builder version ${rendererVersion} requires an explicitly reviewed runtime update`)
+  if(!alias&&!['0.3.5','0.4.0','0.5.0','0.5.1','0.6.0','0.6.1','0.6.2','0.6.3','0.8.1','0.8.2','0.9.0'].includes(rendererVersion))throw new Error(`Builder version ${rendererVersion} requires an explicitly reviewed runtime update`)
   const result=await build({alias,absWorkingDir:root,entryPoints:['apps/desktop/src/website/public-release-entry.jsx'],bundle:true,write:false,outdir:'runtime',platform:'browser',format:'esm',jsx:'automatic',minify:true,metafile:true,define:{'process.env.NODE_ENV':'"production"','import.meta.env':'{"PROD":true,"DEV":false}'},loader:{'.woff2':'dataurl','.woff':'dataurl','.ttf':'dataurl'}})
   const inputs=Object.keys(result.metafile.inputs)
   if(inputs.some(p=>/AuthProvider|supabaseClient|shell\/|modules\/runly\./.test(p)))throw new Error('Public runtime imports an administrative entry')

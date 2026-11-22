@@ -1,11 +1,11 @@
 import {createHash} from 'node:crypto'
 import {z} from 'zod'
-import {inspectWebsiteTemplate} from '@runly/studio-interchange/website-template'
+import {inspectWebsiteTemplate,resolveWebsiteCatalog} from '@runly/studio-interchange/website-template'
 import {sectionsToAtlasPage,websiteThemeToAtlasTokens} from '@runly/studio-interchange/website-document'
 import {resourceRefSchema} from './marketplace-import-gate.js'
 import {assertWebsiteAccess} from '../website-authorization-service.js'
 import {WebsiteServiceError,notFound} from '../../routes/website/service-helpers.js'
-import {WEBSITE_BUILDER_CATALOGS} from '../../routes/website/builder-catalogs.js'
+import {WEBSITE_BUILDER_CATALOGS,WEBSITE_BUILDER_CATALOG_IDENTITIES} from '../../routes/website/builder-catalogs.js'
 import {createWebsiteDraftService,websiteDocumentHash} from '../website-draft-service.js'
 import {createWebsiteTemplateService} from '../website-template-service.js'
 import {createWebsiteTemplatePreparationService} from '../website-template-preparation-service.js'
@@ -27,13 +27,13 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
  }
  async function inspect(a,ref) {
   const site=await authorize(a),download=await gate.download(ref,'website_template',{companyId:a.companyId,actorId:a.access.actorId})
-  const inspected=await inspectWebsiteTemplate(download.bytes,{builderCatalogs:catalogs})
+  const inspected=await inspectWebsiteTemplate(download.bytes,{builderCatalogs:catalogs,builderCatalogIdentities:WEBSITE_BUILDER_CATALOG_IDENTITIES})
   if(!inspected.ok)throw Object.assign(fail('website_template_invalid',422),{details:{errors:inspected.errors}})
   archives.set(inspected,download.bytes)
   if(inspected.content.assets.some(asset=>asset.bytes>8*1024*1024))throw fail('asset_too_large',422)
   const existing=await prisma.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true,enabled:true,status:true}})
   const {content,...validation}=inspected
-  return {source:download.source,validation,expectedRevision:site.draftRevision,catalog:BLOCK_CATALOG,
+  return {source:download.source,validation,expectedRevision:site.draftRevision,catalog:resolveWebsiteCatalog(catalogs,WEBSITE_BUILDER_CATALOG_IDENTITIES,inspected.manifest.builder.min,inspected.manifest.builder.catalogDigest),
    pages:content.pages.map(p=>({...p,document:sectionsToAtlasPage(p),sections:undefined,conflict:existing.some(row=>row.routePath===p.path||row.draftMetadata?.routePath===p.path)})),
    themeTokens:websiteThemeToAtlasTokens(content.theme??{}),assets:content.assets.map(({data,...asset})=>({...asset,base64:Buffer.from(data).toString('base64')})),licenses:content.licenses,
    requirements:{forms:inspected.manifest.forms,legacyPublicBaseline:!site.activeReleaseId&&existing.some(p=>p.enabled&&p.status==='published'),formsLocal:a.access.can('website.forms.create'),home:a.access.can('website.site.update'),theme:a.access.can('website.site.update')&&a.access.can('website.theme.update'),files:a.access.can('files.assets.create')},
@@ -101,7 +101,7 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
     const site=await authorize(a,tx);drafts.expected(site.draftRevision,body.expectedRevision)
     for(const file of reused){await tx.$queryRaw`SELECT id FROM file_asset WHERE id=${file.id}::uuid FOR UPDATE`;const latest=await tx.fileAsset.findUnique({where:{id:file.id}});if(!latest?.enabled||latest.contentRevision!==file.contentRevision||latest.objectKey!==file.objectKey||latest.checksum!==file.checksum)throw fail('asset_changed')}
     for(const item of staged){const file=await tx.fileAsset.create({data:item.asset});bindings[item.sha256]=file.id}
-    const preparation=createWebsiteTemplatePreparationService({prisma:tx,files,readFile,builderCatalogs:catalogs})
+    const preparation=createWebsiteTemplatePreparationService({prisma:tx,files,readFile,builderCatalogs:catalogs,builderCatalogIdentities:WEBSITE_BUILDER_CATALOG_IDENTITIES})
     const prepared=await preparation.prepare({...a,bytes:archives.get(data),bindings})
     const pages=prepared.pages.filter(p=>body.pageIds.includes(p.path)).map(p=>({id:p.path,label:p.title,routePath:p.path,document:p.document}))
     const applied=await templates.applyBundle({...a,...body},{source:preview.source,title:data.manifest.title,pages,themeTokens:prepared.themeTokens},tx)

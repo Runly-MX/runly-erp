@@ -35,6 +35,13 @@ export function catalogDigest(catalog) {
   return createHash('sha256').update(JSON.stringify(sort(catalog))).digest('hex')
 }
 
+// A published builder version can have historical host-specific catalogs.
+// Select only an explicitly registered identity, never relax field validation.
+export function resolveWebsiteCatalog(catalogs, identities, version, digest) {
+  const catalog = identities?.[version]?.[digest] ?? catalogs?.[version]
+  return catalog && catalogDigest(catalog) === digest ? catalog : null
+}
+
 const SITE_GROUPS = { website: [], landing: [], blog: [], ecommerce: ['ecommerce'], bookings: ['bookings'], restaurant: ['restaurant'] }
 // Blocks that embed third-party media or tie the page to a live commerce/account system never ship in a template.
 const EXCLUDED_BLOCKS = new Set(['VideoBlock', 'CartBlock', 'CartPageBlock', 'AccountPortalBlock'])
@@ -185,9 +192,9 @@ async function validateCore(input, options) {
 
   const catalogs = options.builderCatalogs
   if (!catalogs || typeof catalogs !== 'object') throw new TypeError('BUILDER_CATALOGS_REQUIRED')
-  const catalog = catalogs[manifest.builder.min]
-  if (!catalog) throw packageError('builder_unsupported', `La plantilla requiere el builder ${manifest.builder.min}, que esta versión de Runly no incluye.`, { manifest })
-  if (catalogDigest(catalog) !== manifest.builder.catalogDigest) throw packageError('catalog_digest_mismatch', 'La plantilla se creó con otra versión del catálogo de bloques.', { manifest })
+  if (!catalogs[manifest.builder.min] && !options.builderCatalogIdentities?.[manifest.builder.min]) throw packageError('builder_unsupported', `La plantilla requiere el builder ${manifest.builder.min}, que esta versión de Runly no incluye.`, { manifest })
+  const catalog = resolveWebsiteCatalog(catalogs, options.builderCatalogIdentities, manifest.builder.min, manifest.builder.catalogDigest)
+  if (!catalog) throw packageError('catalog_digest_mismatch', 'La plantilla se creó con otra versión del catálogo de bloques.', { manifest })
 
   // Inventory: every file but mimetype and manifest is declared, with its hash.
   const declared = new Map()

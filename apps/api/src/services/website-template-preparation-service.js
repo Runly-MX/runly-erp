@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto'
-import { inspectWebsiteTemplate } from '@runly/studio-interchange/website-template'
+import { inspectWebsiteTemplate, resolveWebsiteCatalog } from '@runly/studio-interchange/website-template'
 import { sectionsToAtlasPage, mapWebsiteImages, websiteThemeToAtlasTokens } from '@runly/studio-interchange/website-document'
 import { normalizeWebsiteDocument } from './website-draft-service.js'
 import { assertWebsiteAccess } from './website-authorization-service.js'
@@ -7,12 +7,12 @@ import { WebsiteServiceError, notFound } from '../routes/website/service-helpers
 
 // W1 preparation only: no route, installer, writes or publication. W3 persists via Files
 // and supplies same-site bindings; the existing release service snapshots file:<id> privately.
-export function createWebsiteTemplatePreparationService({ prisma, files, readFile, builderCatalogs }) {
+export function createWebsiteTemplatePreparationService({ prisma, files, readFile, builderCatalogs, builderCatalogIdentities }) {
   async function prepare({ bytes, companyId, siteId, access, bindings = {} }) {
     assertWebsiteAccess(access, companyId, 'website.pages.create')
     const site = await prisma.websiteSite.findFirst({ where: { id: siteId, companyId, enabled: true } })
     if (!site) throw notFound('Recurso')
-    const inspected = await inspectWebsiteTemplate(bytes, { builderCatalogs })
+    const inspected = await inspectWebsiteTemplate(bytes, { builderCatalogs, builderCatalogIdentities })
     if (!inspected.ok) return { readyForDraft: false, validation: inspected }
     const { content, ...validation } = inspected
     const mapped = new Map(), missingAssets = [], assetBindings = []
@@ -32,7 +32,7 @@ export function createWebsiteTemplatePreparationService({ prisma, files, readFil
       mapped.set(`asset:${asset.sha256}`, `file:${file.id}`)
       assetBindings.push({ sha256: asset.sha256, fileId: file.id, contentRevision: file.contentRevision })
     }
-    const catalog = builderCatalogs[inspected.manifest.builder.min]
+    const catalog = resolveWebsiteCatalog(builderCatalogs, builderCatalogIdentities, inspected.manifest.builder.min, inspected.manifest.builder.catalogDigest)
     const pages = content.pages.map(page => ({ path: page.path, title: page.title, isHome: page.isHome, document: normalizeWebsiteDocument(mapWebsiteImages(sectionsToAtlasPage(page), catalog, ref => mapped.get(ref) ?? ref), { strict: true }) }))
     // W3 pins background.url in releases and consumes font.heading in the trusted renderer stylesheet.
     return { validation, pages, portableTheme: content.theme, themeTokens: websiteThemeToAtlasTokens(content.theme ?? {}), assets: inspected.manifest.assets, assetBindings, missingAssets, requiredForms: inspected.manifest.forms, requiredCapabilities: [], readyForDraft: missingAssets.length === 0 && inspected.manifest.forms.length === 0, expectedRevision: site.draftRevision }

@@ -4,12 +4,14 @@
 // Run after adding or changing a block:
 //   node scripts/generate-website-block-catalog.mjs
 import { writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { createRequire, Module } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { dirname, resolve } from 'node:path';
 
-const desktopRoot = fileURLToPath(new URL('../apps/desktop/', import.meta.url));
-const { createServer } = await import(pathToFileURL(createRequire(`${desktopRoot}package.json`).resolve('vite')).href);
-const server = await createServer({ root: desktopRoot, configFile: false, logLevel: 'error', server: { middlewareMode: true }, appType: 'custom', optimizeDeps: { noDiscovery: true } });
+const root = fileURLToPath(new URL('../', import.meta.url));
+const desktopRoot = resolve(root, 'apps/desktop');
+const requireDesktop = createRequire(resolve(desktopRoot, 'package.json'));
+const { build } = createRequire(new URL('../apps/api/package.json', import.meta.url))('esbuild');
 
 function field(definition) {
   const out = { type: definition.type, label: definition.label ?? '' };
@@ -18,9 +20,13 @@ function field(definition) {
   return out;
 }
 
-try {
-  const builder = await server.ssrLoadModule('@raulbellosom/atlas-web-builder');
-  const runly = await server.ssrLoadModule('/src/website/runlyBlocks/index.js');
+{
+  const builder = requireDesktop('@raulbellosom/atlas-web-builder');
+  const bundle = await build({ entryPoints: [resolve(root, 'packages/website-blocks/src/index.js')], bundle: true, write: false, platform: 'node', format: 'cjs', packages: 'external', jsx: 'automatic', loader: { '.css': 'empty' }, logLevel: 'silent' });
+  const filename = resolve(desktopRoot, '.website-catalog.cjs'), compiled = new Module(filename);
+  compiled.filename = filename; compiled.paths = Module._nodeModulePaths(dirname(filename));
+  compiled._compile(bundle.outputFiles[0].text, filename);
+  const runly = compiled.exports;
   const groups = [['base', builder.baseBlocks], ['universal', runly.universalRunlyBlocks], ['ecommerce', runly.ecommerceRunlyBlocks], ['bookings', runly.bookingsRunlyBlocks], ['restaurant', runly.restaurantRunlyBlocks]];
   const blocks = [];
   for (const [group, list] of groups) {
@@ -36,6 +42,4 @@ try {
   const catalog = { generatedBy: 'scripts/generate-website-block-catalog.mjs', schemaVersion: builder.CURRENT_SCHEMA_VERSION, blocks };
   await writeFile(new URL('../apps/api/src/routes/website/block-catalog.json', import.meta.url), `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(`block-catalog.json: ${blocks.length} blocks`);
-} finally {
-  await server.close();
 }

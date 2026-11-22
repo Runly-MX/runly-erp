@@ -307,7 +307,7 @@ importers:
         version: 3.2.2(react@19.3.1)
       '@excalidraw/excalidraw':
         specifier: 0.18.1
-        version: 0.18.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+        version: 0.18.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@ffmpeg/core':
         specifier: ^0.12.10
         version: 0.12.10
@@ -318,8 +318,8 @@ importers:
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@raulbellosom/atlas-web-builder':
-        specifier: 0.8.2
-        version: 0.8.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        specifier: 0.9.0
+        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
       '@runly/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -517,7 +517,7 @@ importers:
         version: 13.6.31
       zustand:
         specifier: latest
-        version: 5.0.15(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        version: 5.0.15(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
     devDependencies:
       '@tailwindcss/postcss':
         specifier: ^4.2.4
@@ -801,8 +801,8 @@ importers:
   packages/website-blocks:
     dependencies:
       '@raulbellosom/atlas-web-builder':
-        specifier: 0.8.2
-        version: 0.8.2(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        specifier: 0.9.0
+        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
       react:
         specifier: '>=18'
         version: 19.3.1
@@ -3271,6 +3271,13 @@ packages:
 
   '@raulbellosom/atlas-web-builder@0.8.2':
     resolution: {integrity: sha512-nxyxQVqQMgZlv6TByGQdhqcpuAC0JBT/A4cjgk+3VlXsGN5itAVTOZILl8ATOGm1v18KGjN55LR42JGOUrOIjg==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      react: '>=18.0.0'
+      react-dom: '>=18.0.0'
+
+  '@raulbellosom/atlas-web-builder@0.9.0':
+    resolution: {integrity: sha512-qqN0xoSaS+8m2O4i3LC2otA1lI+hgx0kY8IniLzx753p/WZy1eFiQj0bc1YtelGls9cmhvSW4VpDKtmnSN2x7Q==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18.0.0'
@@ -6055,6 +6062,15 @@ packages:
       '@types/react':
         optional: true
 
+  lucide-react@1.77.0:
+    resolution: {integrity: sha512-VS6sOi8ZUH1qm6swBL/tpI4xAhB6pFTdHvw3pfCJD+DaTJwpyynVzfOS6mdyMZ+OCdY/GMSQbqinOMOPbNSrQA==}
+    peerDependencies:
+      '@types/react': '*'
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0 || ^19.0.0
+    peerDependenciesMeta:
+      '@types/react':
+        optional: true
+
   lucide-static@1.63.0:
     resolution: {integrity: sha512-rTBVdPw3vlBsjxfdqm5Tvaa0jI8TMlVAeGefHRIvzUBnEyUE866zSZN34FwpJkXiGN8ER+sy1JCB0XOBEe/QgA==}
 
@@ -8433,7 +8449,7 @@ snapshots:
       '@eslint/core': 0.17.0
       levn: 0.4.1
 
-  '@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@11.1.8)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+  '@excalidraw/excalidraw@0.18.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(immer@10.2.0)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
     dependencies:
       '@braintree/sanitize-url': 6.0.2
       '@excalidraw/laser-pointer': 1.3.1
@@ -8467,7 +8483,7 @@ snapshots:
       react-dom: 19.3.1(react@19.3.1)
       roughjs: 4.6.4
       sass: 1.51.0
-      tunnel-rat: 0.1.2(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1)
+      tunnel-rat: 0.1.2(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)
     transitivePeerDependencies:
       - '@types/react'
       - '@types/react-dom'
@@ -10982,6 +10998,29 @@ snapshots:
       dompurify: 3.4.16
       immer: 10.2.0
       lucide-react: 1.73.0(@types/react@19.2.14)(react@19.3.1)
+      nanoid: 5.1.16
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
+      zundo: 2.3.0(zustand@5.1.0(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)))
+      zustand: 5.1.0(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+    transitivePeerDependencies:
+      - '@types/react'
+      - '@types/react-dom'
+      - use-sync-external-store
+
+  '@raulbellosom/atlas-web-builder@0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))':
+    dependencies:
+      '@dnd-kit/core': 6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
+      '@dnd-kit/utilities': 3.2.2(react@19.3.1)
+      '@radix-ui/react-dialog': 1.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@radix-ui/react-dropdown-menu': 2.2.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@radix-ui/react-popover': 1.3.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      '@radix-ui/react-tooltip': 1.4.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
+      clsx: 2.1.1
+      dompurify: 3.4.16
+      immer: 10.2.0
+      lucide-react: 1.77.0(@types/react@19.2.14)(react@19.3.1)
       nanoid: 5.1.16
       react: 19.3.1
       react-dom: 19.3.1(react@19.3.1)
@@ -13912,6 +13951,12 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.14
 
+  lucide-react@1.77.0(@types/react@19.2.14)(react@19.3.1):
+    dependencies:
+      react: 19.3.1
+    optionalDependencies:
+      '@types/react': 19.2.14
+
   lucide-static@1.63.0: {}
 
   magic-string@0.30.21:
@@ -15825,9 +15870,9 @@ snapshots:
 
   tslib@2.8.1: {}
 
-  tunnel-rat@0.1.2(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1):
+  tunnel-rat@0.1.2(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1):
     dependencies:
-      zustand: 4.5.7(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1)
+      zustand: 4.5.7(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)
     transitivePeerDependencies:
       - '@types/react'
       - immer
@@ -16275,12 +16320,12 @@ snapshots:
     dependencies:
       zustand: 5.1.0(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
 
-  zustand@4.5.7(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1):
+  zustand@4.5.7(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1):
     dependencies:
       use-sync-external-store: 1.6.0(react@19.3.1)
     optionalDependencies:
       '@types/react': 19.2.14
-      immer: 11.1.8
+      immer: 10.2.0
       react: 19.3.1
 
   zustand@5.0.14(@types/react@19.2.14)(immer@11.1.8)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7)):
@@ -16290,10 +16335,10 @@ snapshots:
       react: 19.2.7
       use-sync-external-store: 1.6.0(react@19.2.7)
 
-  zustand@5.0.15(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)):
+  zustand@5.0.15(@types/react@19.2.14)(immer@10.2.0)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1)):
     optionalDependencies:
       '@types/react': 19.2.14
-      immer: 11.1.8
+      immer: 10.2.0
       react: 19.3.1
       use-sync-external-store: 1.6.0(react@19.3.1)
 
