@@ -7,7 +7,7 @@ closes and the user asks for it.
 |---|---|---|---|
 | F6B Core | Migration and Prisma models (event, session, type, quota, order, ticket, admission, history, idempotency); manifest `runly.ticketing` (official, core: false), permissions; services: events, sessions on the engine space (`booking_session`), types and quotas; reserve/confirm/cancel for **free** tickets in one transaction with the engine (`createTx`, `source`); credential issue (random secret, SHA-256 at rest), reissue, transfer; outbox events `ticketing.*` (hidden from triggers until F6E); worker hold expiry. | Bookings phases 0-5 | PostgreSQL suite: 50 concurrent buyers for the last 5 seats (type quota and session capacity) issue exactly 5; idempotent retry and reused key 422; cross-company isolation; reissue invalidates the old credential; no contact data in events. |
 | F6C Box office and paid tickets | Backoffice screens (events, sessions, types, attendees, taquilla) with `@runly/ui`; paid flow: order `PENDING_PAYMENT` → Caja sale from the order (D2) → server confirmation reading the POS order (`PAID`, lines and amounts match, not linked twice) → issue; refund-then-void cancellation; engine "reduce party size" command (D3). | F6B, D2 (POS read endpoint and Caja `?boletos=`) | Confirmation without a paid order is refused; a paid order cannot issue twice (concurrent confirm); refund required before void; commerce suites (`scripts/test-commerce-current-schema.mjs`) and bookings suites green; browser walkthrough on desktop and phone. |
-| F6D Check-in | Admission endpoint (row lock + partial unique index), result reasons, admission window, rate limits per device, check-in screen with the zxing scanner and manual entry, live counters. | F6B | Two simultaneous scans of one QR admit once (PostgreSQL + two browsers); forged/unknown QR uniform rejection; wrong session and outside window rejected; phone camera walkthrough; operator without `ticketing.checkin` refused. |
+| F6D Check-in (closed 2026-11-21) | Admission endpoint (row lock + partial unique index), result reasons, admission window, rate limits per device, check-in screen with the zxing scanner and manual entry, live counters. | F6B | Two simultaneous scans of one QR admit once (PostgreSQL + two browsers); forged/unknown QR uniform rejection; wrong session and outside window rejected; phone camera walkthrough; operator without `ticketing.checkin` refused. |
 | F6E Distribution and integration | Public event portal (`/app/p/boletos/<slug>`, free tickets online, paid shown as box office until D1), emails with QR via the outbox, Website block and embeds (bookings phase 4 contracts), calendar projection of sessions, Automations triggers enabled. | F6B-F6D; bookings phase 4 | Portal E2E on phone (book free tickets, receive QR, admit it); embed allowed/blocked by origin; events in Automations without contact data; calendar shows sessions once. |
 | Later | Online paid tickets | D1 Commerce online payments (verified webhooks) | Separate spec. |
 
@@ -60,6 +60,36 @@ closes and the user asks for it.
   outbox mail worker decrypts it, to render the email; no API ever returns it, and validation (F6D) keeps comparing
   hashes. A database leak alone still yields no valid QR. Reissue drops the old ciphertext with the old hash.
 - Until F6E, staff hand over QRs when they are created (dialog with print); a lost QR is reissued.
+
+## F6D status (2026-11-21): closed
+
+- Migration `20270110300000_ticketing_checkin`: `ticket_admission` append-only (trigger), `ticket_id` nullable for
+  unknown QRs (an admitted row always has one), `reason` adds `not_issued`, `method` (`qr|code`), `credential_version`;
+  `ticket_credential_revoked` keeps the SHA-256 of every credential that died (reissue, transfer, cancel, expiry), so
+  an old QR answers "reemplazado"/"cancelado" while a forged one stays a uniform "no válido". No secret is stored.
+- Engine `ticketing-checkin-service.js`: one transaction locks the ticket row (`FOR UPDATE`), so concurrent gates,
+  reissues and transfers serialize on it; the partial unique index `ticket_admission_once_key` backs the lock (a
+  23505 is retried once and reads `already_used`). Order of answers: unknown, revoked/cancelled/not issued, wrong
+  function, already used (with first entry time, operator and reader), outside window (`doors_open_at` or
+  `admit_before_minutes` before the start, until `admit_after_minutes` after it), admitted. `admit: false` validates
+  without consuming. Ticket details are returned only for genuine credentials of this event.
+- API: `GET /ticketing/checkin/sessions`, `GET /ticketing/checkin/sessions/:id` (counters + last 30 scans),
+  `POST /ticketing/checkin/sessions/:id/scan` (`text` RT1 or `code`, `deviceId`, `admit`). `ticketing.checkin` plus a
+  place on the event team; other companies get 404. Shared PostgreSQL buckets per operator and per reader (429).
+- Screen "Control de acceso" (`/checkin`, `/checkin/:sessionId`, nav item gated by `ticketing.checkin`): full screen,
+  zxing camera (back camera, switch when several, explicit HTTPS/permission/busy/no-camera states), "Registrar entrada"
+  or "Solo verificar", manual code that always validates first, big result panel, live counters (5 s poll), recent
+  scans, online/offline state; a failed or timed-out request shows "Sin conexión", never an admission. A QR kept in
+  view is sent once. The function dialog sets the admission window. Manifest 0.3.0 (sync after deploy).
+- Known limit: a typed ticket code identifies the ticket, not the credential version, so after a reissue the code
+  still admits; staff check the holder name shown before "Registrar entrada", and the audit marks `method = code`.
+- Verification: `node scripts/verify-ticketing-checkin.mjs` (disposable stack, real auth, real Chromium with a fake
+  camera playing the ticket QR): 33/33 on 2026-11-21, including the ticketing PostgreSQL suites (28/28; check-in
+  11/11: two and twenty simultaneous gates admit once, a reissue racing a scan of the old QR never lets both succeed,
+  forged/foreign/garbage QRs uniform, window open/closed, permissions, isolation, append-only audit, rate limit) and
+  the Booking Engine suites (40/40); over HTTP two operators on one QR (one `ok`, one `already_used`); in the browser
+  manual entry, offline (nothing written), phone dark camera admission, two browsers on one QR (exactly one admitted
+  row), counters equal to the database, desktop/tablet/phone without overflow. Physical devices not yet tested.
 
 Ground rules for every phase: one writer per capacity (engine seats, ticket quota counters), idempotency key on every
 write, history and outbox in the same transaction, no new availability or payment engine, versioned verification

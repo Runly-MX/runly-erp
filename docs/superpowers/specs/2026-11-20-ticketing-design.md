@@ -70,6 +70,11 @@ tickets, its Commerce order is `PAID` and not refunded for that ticket.
 - `ticket_admission`: ticket_id, session_id, `result` (`admitted|rejected`), `reason` (`ok|already_used|cancelled|
   wrong_session|outside_window|unknown|revoked`), device_id, operator_id, scanned_at, `offline` (bool), unique
   (ticket_id) WHERE result = 'admitted' (one entry per ticket in v1; re-entry is a later specialization).
+  F6D: append-only; `ticket_id` nullable for unknown QRs; `reason` adds `not_issued`; `method` (`qr|code`),
+  `credential_version`.
+- `ticket_credential_revoked` (F6D): ticket_id, credential_version, `credential_hash` (SHA-256 of a dead secret),
+  `reason` (`reissued|transferred|cancelled|expired`). Lets a gate answer "reemplazado"/"cancelado" for an old QR
+  while a forged one stays a uniform "no válido"; holds no usable secret.
 - `ticket_history`: entity, entity_id, action, actor, before/after (append-only), like `booking_history`.
 - Device registry for check-in reuses the POS device-link pattern later (offline, section 8); v1 check-in runs in the
   logged-in app.
