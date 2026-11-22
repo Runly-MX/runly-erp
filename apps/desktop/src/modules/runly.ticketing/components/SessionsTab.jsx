@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, NumberField, SectionCard } from '@runly/ui'
-import { CalendarDays, CalendarPlus, Loader2 } from 'lucide-react'
+import { Button, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, EmptyState, NumberField, SectionCard, StatusPill } from '@runly/ui'
+import { CalendarClock, CalendarDays, CalendarPlus, CalendarX2, Loader2 } from 'lucide-react'
 import { runly } from '../../../lib/runly.js'
 import { WallTimeFields, wallValueToIso } from '../../runly.bookings/components/WallTimeFields.jsx'
 import { dayKey } from '../../runly.bookings/lib/bookingsTime.js'
@@ -11,6 +11,9 @@ import { SessionRow } from './EventOverview.jsx'
 // capacity is the hard limit for every ticket type together.
 export function SessionsTab({ event, canEdit }) {
   const [open, setOpen] = useState(false)
+  const [moving, setMoving] = useState(null)
+  const [cancelling, setCancelling] = useState(null)
+  const cancelSession = useTicketingMutation((t, sessionId) => runly.ticketing.cancelSession(sessionId, t), { success: 'Función cancelada.' })
   const sessions = event.sessions ?? []
   const add = canEdit ? <Button type="button" onClick={() => setOpen(true)}><CalendarPlus />Nueva función</Button> : null
   return (
@@ -18,10 +21,61 @@ export function SessionsTab({ event, canEdit }) {
       {!sessions.length ? (
         <EmptyState icon={CalendarDays} title="Sin funciones" description={canEdit ? 'Agrega la primera función para poder emitir boletos.' : 'Quien administra el evento aún no agrega funciones.'} action={add} />
       ) : (
-        <ul className="divide-y divide-[hsl(var(--border))]">{sessions.map((s) => <SessionRow key={s.id} session={s} timezone={event.timezone} />)}</ul>
+        <ul className="divide-y divide-[hsl(var(--border))]">{sessions.map((s) => (
+          <SessionRow key={s.id} session={s} timezone={event.timezone} action={canEdit && s.status === 'scheduled' ? (
+            <div className="flex gap-1">
+              <Button type="button" variant="ghost" size="sm" onClick={() => setMoving(s)}><CalendarClock />Mover</Button>
+              <Button type="button" variant="ghost" size="sm" onClick={() => setCancelling(s)}><CalendarX2 />Cancelar</Button>
+            </div>
+          ) : s.status === 'cancelled' ? <StatusPill tone="danger" size="sm">Cancelada</StatusPill> : null} />
+        ))}</ul>
       )}
       {open ? <SessionDialog event={event} onClose={() => setOpen(false)} /> : null}
+      {moving ? <MoveDialog event={event} session={moving} onClose={() => setMoving(null)} /> : null}
+      <ConfirmDialog
+        open={Boolean(cancelling)}
+        onOpenChange={(v) => { if (!v) setCancelling(null) }}
+        title="Cancelar función"
+        description="La función deja de vender y desaparece del portal público y de Calendario. Solo se puede cancelar si ya no tiene boletos vigentes."
+        confirmLabel="Cancelar función"
+        cancelLabel="Volver"
+        loading={cancelSession.isPending}
+        onConfirm={() => cancelSession.mutateAsync(cancelling.id).then(() => setCancelling(null)).catch(() => {})}
+      />
     </SectionCard>
+  )
+}
+
+// Moving a function moves its seats and every ticket order with it; QR codes do not change.
+function MoveDialog({ event, session, onClose }) {
+  const tz = event.timezone ?? 'UTC'
+  const [start, setStart] = useState({ date: dayKey(new Date(session.startsAt), tz), time: new Intl.DateTimeFormat('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(new Date(session.startsAt)) })
+  const [error, setError] = useState(null)
+  const move = useTicketingMutation((t, startsAt) => runly.ticketing.moveSession(session.id, startsAt, t), { success: 'Función movida. Calendario se actualiza solo.' })
+  async function submit(e) {
+    e.preventDefault()
+    const startsAt = wallValueToIso(start, tz)
+    if (!startsAt || new Date(startsAt).getTime() < Date.now()) { setError('Elige una fecha y hora futuras.'); return }
+    if (await move.mutateAsync(startsAt).then(() => true).catch(() => false)) onClose()
+  }
+  return (
+    <Dialog open onOpenChange={(v) => !v && onClose()}>
+      <DialogContent scrollable size="md" className="gap-0 p-0 md:p-0 md:pt-0!">
+        <form onSubmit={submit} className="flex min-h-0 flex-1 flex-col" noValidate>
+          <DialogHeader icon={CalendarClock} className="mb-0 shrink-0 px-5 pt-4 pb-3">
+            <DialogTitle>Mover función</DialogTitle>
+            <DialogDescription>Los boletos emitidos siguen siendo válidos para la nueva fecha y hora.</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
+            <WallTimeFields label="Nuevo inicio" timeZone={tz} value={start} onChange={setStart} error={error} />
+          </div>
+          <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
+            <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" disabled={move.isPending}>{move.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : null}Mover función</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 

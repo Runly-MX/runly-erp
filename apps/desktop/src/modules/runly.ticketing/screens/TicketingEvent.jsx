@@ -1,10 +1,11 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle, BackButton, Button, ChipTabs, ErrorState, LoadingState, NotFoundState, PageHeader } from '@runly/ui'
-import { CalendarDays, LayoutDashboard, ListChecks, Pencil, ScanLine, ShieldCheck, Store, Ticket } from 'lucide-react'
+import { CalendarDays, LayoutDashboard, ListChecks, Megaphone, Pencil, ScanLine, ShieldCheck, Store, Ticket } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { BoxOfficeTab } from '../components/BoxOfficeTab.jsx'
 import { EventOverview } from '../components/EventOverview.jsx'
 import { OrdersTab } from '../components/OrdersTab.jsx'
+import { PublicationTab } from '../components/PublicationTab.jsx'
 import { SessionsTab } from '../components/SessionsTab.jsx'
 import { TeamTab } from '../components/TeamTab.jsx'
 import { TypesTab } from '../components/TypesTab.jsx'
@@ -20,6 +21,7 @@ const TABS = [
   { value: 'types', label: 'Boletos', icon: Ticket },
   { value: 'box-office', label: 'Taquilla', icon: Store },
   { value: 'orders', label: 'Órdenes y asistentes', icon: ListChecks },
+  { value: 'publication', label: 'Publicación', icon: Megaphone },
   { value: 'team', label: 'Equipo', icon: ShieldCheck },
 ]
 
@@ -81,6 +83,7 @@ function EventScreen({ eventId }) {
       {current === 'types' ? <TypesTab event={e} canEdit={isAdmin} /> : null}
       {current === 'box-office' ? <BoxOfficeTab event={e} /> : null}
       {current === 'orders' ? <OrdersTab event={e} /> : null}
+      {current === 'publication' ? <PublicationTab event={e} canEdit={isAdmin} /> : null}
       {current === 'team' ? <TeamTab event={e} canEdit={isAdmin} /> : null}
     </PageShell>
   )

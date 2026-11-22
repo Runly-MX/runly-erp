@@ -46,6 +46,8 @@ const MAP = {
   booking_page_required: { title: 'Reservaciones sin página', message: 'Un bloque de Reservaciones no tiene página elegida. Elige una página de reservaciones publicada o quita el bloque.', tone: 'warning', blocker: true },
   booking_page_unpublished: { title: 'Página de reservaciones sin publicar', message: 'Un bloque de Reservaciones usa una página que no está en línea. Publícala en Reservaciones > Reservas online.', tone: 'warning', blocker: true },
   booking_service_unavailable: { title: 'Servicio no disponible', message: 'Un bloque de Reservaciones eligió un servicio que su página ya no ofrece.', tone: 'warning', blocker: true },
+  ticket_event_required: { title: 'Bloque de boletos sin evento', message: 'Un bloque «Evento con boletos» no tiene evento elegido. Elige un evento publicado o quita el bloque.', tone: 'warning', blocker: true },
+  ticket_event_unpublished: { title: 'Evento sin publicar', message: 'Un bloque «Evento con boletos» usa un evento que no está publicado. Publícalo en Eventos > Publicación.', tone: 'warning', blocker: true },
   release_not_ready: { title: 'La versión no está lista', message: 'Esa versión todavía no terminó de prepararse.', tone: 'warning', reload: true },
   rollback_not_published: { title: 'Versión nunca publicada', message: 'Solo se puede volver a versiones que estuvieron publicadas.', tone: 'warning' },
   runtime_unavailable: { title: 'Servicio de publicación no disponible', message: 'Tu sitio publicado no cambió. Intenta de nuevo en unos minutos.', tone: 'danger', retry: true },

@@ -69,6 +69,8 @@ const LmsSharedCourseScreen = lazy(() => import("../modules/runly.lms/public/Sha
 const LmsEvaluationPublicScreen = lazy(() => import("../modules/runly.lms/public/EvaluationPublicScreen.jsx"));
 const BookingPortalScreen = lazy(() => import("../modules/runly.bookings/public/PublicBookingScreen.jsx"));
 const BookingManageScreen = lazy(() => import("../modules/runly.bookings/public/ManageBookingScreen.jsx"));
+const TicketPortalScreen = lazy(() => import("../modules/runly.ticketing/public/TicketPortalScreen.jsx"));
+const MyTicketsScreen = lazy(() => import("../modules/runly.ticketing/public/MyTicketsScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
 import "../styles.css";
 
@@ -98,7 +100,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
   // The booking portal (and its embeds) renders at once, without the ERP loader.
   const skipBrandWait = typeof window === 'undefined'
     ? false
-    : !isAtlasInternalPath(window.location.pathname) || window.location.pathname.startsWith('/app/p/reservar/');
+    : !isAtlasInternalPath(window.location.pathname) || window.location.pathname.startsWith('/app/p/reservar/') || window.location.pathname.startsWith('/app/p/boletos/');
 
   useCallSoundUnlock();
   useBootLoader('brand', !requiresServerSetup && !brandReady && !skipBrandWait);
@@ -225,6 +227,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     {/* runly.bookings: public Booking Portal and the customer manage link (token in the #fragment) */}
                     <Route path="reservar/gestion" element={<Suspense fallback={null}><BookingManageScreen /></Suspense>} />
                     <Route path="reservar/:slug" element={<Suspense fallback={null}><BookingPortalScreen /></Suspense>} />
+                    <Route path="boletos/:slug" element={<Suspense fallback={null}><TicketPortalScreen /></Suspense>} />
+                    <Route path="mis-boletos" element={<Suspense fallback={null}><MyTicketsScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
                     <Route path="/app/mcp" element={<McpConnectionScreen />} />

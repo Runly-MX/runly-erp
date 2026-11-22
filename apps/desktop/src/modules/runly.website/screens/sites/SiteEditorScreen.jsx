@@ -20,7 +20,7 @@ import { companyFetch } from '../../../../lib/companyFetch.js'
 import { buildRunlyBlocks, buildRunlyTemplates } from '../../../../website/runlyBlocks/index.js'
 import { usePrivateWebsiteAssets } from '../../../../website/usePrivateWebsiteAssets.js'
 import { newIdempotencyKey } from '../../lib/websiteApi.js'
-import { withBookingFields } from '../../lib/bookingBlockFields.js'
+import { withBookingFields, withTicketingFields } from '../../lib/bookingBlockFields.js'
 import { describeError, isRevisionConflict } from '../../lib/websiteErrors.js'
 import { deriveEditorStatus } from '../../lib/siteState.js'
 import { clearBackup, writeBackup } from '../../lib/localBackup.js'
@@ -163,8 +163,19 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
     enabled: ready && Boolean(token),
     staleTime: 60_000,
   })
+  // Published events for the Boletos block (same rule: a saved reference stays visible).
+  const ticketEventsQuery = useQuery({
+    queryKey: ['website', companyId, 'ticket-events'],
+    queryFn: async ({ signal }) => {
+      const res = await companyFetch(`${getApiUrl()}/ticketing/events-published`, { headers: { Authorization: `Bearer ${token}` }, signal })
+      return res.ok ? (await res.json()).data ?? [] : []
+    },
+    enabled: ready && Boolean(token),
+    staleTime: 60_000,
+  })
   const blocks = useMemo(() => [...baseBlocks, ...buildRunlyBlocks(site.data?.siteType ?? 'website')].map((block) => {
     if (block.type === 'BookingPortalBlock') return withBookingFields(block, bookingPagesQuery.data, Object.values(draft?.document?.blocks ?? {}))
+    if (block.type === 'TicketingEventBlock') return withTicketingFields(block, ticketEventsQuery.data, Object.values(draft?.document?.blocks ?? {}))
     if (block.type !== 'ContactFormBlock') return block
     const forms = formsQuery.data ?? []
     const options = forms.map((form) => ({ value: form.id, label: `${form.name} (${form.publishability?.state ?? 'pendiente'})` }))
@@ -173,7 +184,7 @@ export default function SiteEditorScreen({ siteId, pageId, standalone = false })
       if (id && !options.some((option) => option.value === id)) options.push({ value: id, label: 'Referencia no disponible' })
     }
     return { ...block, fields: { ...block.fields, formId: { type: 'select', label: 'Formulario del sitio', allowEmpty: true, options } } }
-  }), [site.data?.siteType, formsQuery.data, bookingPagesQuery.data, draft])
+  }), [site.data?.siteType, formsQuery.data, bookingPagesQuery.data, ticketEventsQuery.data, draft])
   const templates = useMemo(() => buildRunlyTemplates(site.data?.siteType ?? 'website'), [site.data?.siteType])
   const assets = useMemo(() => createAssetSource(token), [token])
 

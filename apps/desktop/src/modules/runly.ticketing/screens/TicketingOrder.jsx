@@ -4,7 +4,7 @@ import {
   Alert, AlertDescription, AlertTitle, BackButton, Button, CheckboxField, ConfirmDialog, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader,
   DialogTitle, ErrorState, LoadingState, NotFoundState, PageHeader, SectionCard, Skeleton, TextField, TextareaField,
 } from '@runly/ui'
-import { ArrowRightLeft, History, Loader2, QrCode, Receipt, Ticket, Wallet, XCircle } from 'lucide-react'
+import { ArrowRightLeft, History, Loader2, QrCode, Receipt, Send, Ticket, Wallet, XCircle } from 'lucide-react'
 import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { runly } from '../../../lib/runly.js'
 import { formatDateTime } from '../../runly.bookings/lib/bookingsTime.js'
@@ -13,7 +13,7 @@ import { OrderStatus, PageShell, TicketStatus } from '../components/shared.jsx'
 import { newKey, useEvent, useOrder, useOrderHistory, usePaymentCandidates, useTicketingMutation } from '../hooks/useTicketing.js'
 import { CHANNEL, MUTED, money, ticketingPath } from '../lib/ticketingLabels.js'
 
-const ACTION = { create: 'Orden creada', confirm_payment: 'Pago confirmado', cancel: 'Orden cancelada', cancel_tickets: 'Boletos cancelados', expire: 'Apartado vencido', reissue: 'QR reemitido', transfer: 'Boleto transferido' }
+const ACTION = { create: 'Orden creada', confirm_payment: 'Pago confirmado', cancel: 'Orden cancelada', cancel_tickets: 'Boletos cancelados', expire: 'Apartado vencido', reissue: 'QR reemitido', transfer: 'Boleto transferido', resend: 'Boletos reenviados por correo' }
 
 export default function TicketingOrder({ eventId, orderId }) {
   const navigate = useNavigate()
@@ -46,6 +46,8 @@ function OrderScreen({ event, order, onBack }) {
   const paidOrder = Boolean(Number(order.totals?.amount ?? 0)) && !pending
   const cancel = useTicketingMutation((t, data) => runly.ticketing.cancelOrder(order.id, data, t, cancelKey), { success: (r) => (r.data.status === 'CONFIRMED' ? 'Boletos cancelados.' : 'Orden cancelada.') })
   const reissue = useTicketingMutation((t, ticket) => runly.ticketing.reissue(ticket.id, t, newKey()))
+  // Resend (F6E): the same QR again to the address on file; reissue changes it.
+  const resend = useTicketingMutation((t, ticket) => runly.ticketing.resend(order.id, [ticket.id], t), { success: 'Reenvío en camino. El QR no cambia.' })
   const label = (ticketId) => { const t = order.tickets.find((x) => x.id === ticketId); return [typeName.get(t?.typeId), t?.holderName].filter(Boolean).join(' · ') }
 
   async function confirmCancel() {
@@ -87,6 +89,7 @@ function OrderScreen({ event, order, onBack }) {
                     {canAct && t.status === 'ISSUED' ? (
                       <div className="flex gap-1">
                         <Button type="button" variant="ghost" size="sm" disabled={reissue.isPending} onClick={async () => { const r = await reissue.mutateAsync(t).catch(() => null); if (r?.credential) setCredentials([{ ...r.credential, label: label(t.id) }]) }}><QrCode />Reemitir</Button>
+                        {t.holderEmail || order.buyerEmail ? <Button type="button" variant="ghost" size="sm" disabled={resend.isPending} onClick={() => resend.mutate(t)}><Send />Reenviar</Button> : null}
                         {event.policy.transferAllowed ? <Button type="button" variant="ghost" size="sm" onClick={() => setTransferring(t)}><ArrowRightLeft />Transferir</Button> : null}
                       </div>
                     ) : null}

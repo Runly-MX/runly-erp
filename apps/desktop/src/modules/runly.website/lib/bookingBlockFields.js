@@ -20,3 +20,14 @@ export function withBookingFields(block, pages = [], savedBlocks = []) {
     },
   }
 }
+
+// Boletos block (F6E): the company's published events, same rule for saved references.
+export function withTicketingFields(block, events = [], savedBlocks = []) {
+  if (block.type !== 'TicketingEventBlock') return block
+  const options = events.map((e) => ({ value: e.slug, label: e.title }))
+  for (const saved of savedBlocks) {
+    const slug = saved?.type === block.type && saved.props?.event
+    if (slug && !options.some((o) => o.value === slug)) options.push({ value: slug, label: 'Evento no disponible o sin publicar' })
+  }
+  return { ...block, fields: { ...block.fields, event: { type: 'select', label: 'Evento publicado', allowEmpty: true, options } } }
+}
