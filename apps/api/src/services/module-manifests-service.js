@@ -18,6 +18,12 @@ export function isOfficialModuleKey(key) {
   return officialKeys.has(getLegacyModuleKey(key));
 }
 
+// Provenance, independent of `core`: core:false only means "installable", not "community".
+export function getModuleOrigin(key, row = {}) {
+  if (row.core === true || isOfficialCoreModuleKey(key)) return 'official-required';
+  return isOfficialModuleKey(key) ? 'official-optional' : 'custom';
+}
+
 export function listOfficialFallbackManifests(discoveredKeys = new Set()) {
   return listOfficialModuleManifests().filter(manifest => !getModuleKeyAliases(manifest.key).some(key => discoveredKeys.has(key)));
 }

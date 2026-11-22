@@ -3,6 +3,7 @@ import { createAutomationSandboxService } from "../services/automation-sandbox-s
 import { buildRunsFile } from "../services/automation-runs-export.js";
 import { createAutomationJobsService } from "../services/automation-jobs-service.js";
 import { Hono } from "hono";
+import { getModuleOrigin } from "../services/module-manifests-service.js";
 import { resolvePersistedModuleKey } from '../services/module-key-alias.js';
 import { fileURLToPath } from "node:url";
 import { createHash } from "node:crypto";
@@ -207,6 +208,7 @@ function serializeModule(moduleRow) {
     kind: moduleRow.kind,
     status: moduleRow.status,
     core: moduleRow.core,
+    origin: getModuleOrigin(moduleRow.key, moduleRow),
     uninstallable: moduleRow.uninstallable,
     enabled: moduleRow.enabled,
     installedAt: moduleRow.installedAt,

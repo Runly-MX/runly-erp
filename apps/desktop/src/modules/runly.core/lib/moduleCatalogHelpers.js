@@ -57,6 +57,7 @@ export function statusLabel(module) {
 
 export function getPublisher(module) {
   if (module.core || module.kind === "CORE") return "Runly ERP";
+  if (module.origin === "official-optional") return "Oficial Runly";
   return module.publisher ?? "Comunidad";
 }
 
