@@ -177,14 +177,15 @@ export function createLmsGuestService({
   // The one place a guest learner is created: learner (token hash only, intake
   // answers in guest_profile) plus its share enrollment. `afterCreate(tx, learner)`
   // runs in the same transaction (the invite links its learner there).
-  async function createGuestLearner({ course, name, email = null, profile = null, afterCreate = null }) {
+  // enrollment: extra enrollment fields (the evaluation consent).
+  async function createGuestLearner({ course, name, email = null, profile = null, afterCreate = null, enrollment: extra = null }) {
     const guestToken = newGuestToken()
     const enrollment = await prisma.$transaction(async (tx) => {
       const learner = await tx.lmsLearner.create({
         data: { companyId: course.companyId, displayName: name, email, guestProfile: profile ?? {}, guestTokenHash: hashGuestToken(guestToken) },
       })
       if (afterCreate) await afterCreate(tx, learner)
-      return tx.lmsEnrollment.create({ data: { companyId: course.companyId, courseId: course.id, learnerId: learner.id, source: 'share' } })
+      return tx.lmsEnrollment.create({ data: { companyId: course.companyId, courseId: course.id, learnerId: learner.id, source: 'share', ...(extra ?? {}) } })
     }, TX_OPTS)
     return { guestToken, enrollment }
   }

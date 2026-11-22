@@ -32,6 +32,37 @@ function createGuestApi(request) {
   }
 }
 
+// Public evaluation link (/public/lms/evaluacion/:token) and the running session
+// of an external participant: `Authorization: Guest <guestToken>`, no user session.
+// The session calls mirror the internal ones so the runner works with either.
+function createEvaluationGuestApi(request) {
+  const base = (linkToken) => `/public/lms/evaluacion/${id(linkToken)}`
+  const sess = (sessionId) => `/public/lms/evaluation-sessions/${id(sessionId)}`
+  const call = (method, path, guestToken, data) => request(path, {
+    method,
+    onlineOnly: true,
+    headers: guestToken ? { Authorization: `Guest ${guestToken}` } : {},
+    ...(data === undefined ? {} : { body: JSON.stringify(data) }),
+  })
+  return {
+    getEvaluation: (linkToken) => call('GET', base(linkToken)),
+    register: (linkToken, data, guestToken) => call('POST', `${base(linkToken)}/register`, guestToken, data ?? {}),
+    access: (linkToken, data) => call('POST', `${base(linkToken)}/access`, null, data ?? {}),
+    resume: (linkToken, data) => call('POST', `${base(linkToken)}/resume`, null, data ?? {}),
+    me: (linkToken, guestToken) => call('GET', `${base(linkToken)}/me`, guestToken),
+    start: (linkToken, guestToken) => call('POST', `${base(linkToken)}/start`, guestToken, {}),
+    getSession: (sessionId, guestToken) => call('GET', sess(sessionId), guestToken),
+    submitSession: (sessionId, guestToken) => call('POST', `${sess(sessionId)}/submit`, guestToken, {}),
+    getSessionAttempt: (sessionId, attemptId, guestToken) => call('GET', `${sess(sessionId)}/attempts/${id(attemptId)}`, guestToken),
+    saveSessionAnswers: (sessionId, attemptId, answers, guestToken) => call('PUT', `${sess(sessionId)}/attempts/${id(attemptId)}/answers`, guestToken, { answers }),
+    saveSessionDraft: (sessionId, activityId, data, guestToken) => call('PUT', `${sess(sessionId)}/activities/${id(activityId)}/draft`, guestToken, data ?? {}),
+    presignSessionUpload: (sessionId, data, guestToken) => call('POST', `${sess(sessionId)}/uploads/presign`, guestToken, data ?? {}),
+    confirmSessionUpload: (sessionId, fileId, guestToken) => call('POST', `${sess(sessionId)}/uploads/${id(fileId)}/confirm`, guestToken, {}),
+    removeSessionFile: (sessionId, fileId, guestToken) => call('DELETE', `${sess(sessionId)}/files/${id(fileId)}`, guestToken),
+    downloadSessionResource: (sessionId, resourceId, guestToken) => call('POST', `${sess(sessionId)}/resources/${id(resourceId)}/download`, guestToken, {}),
+  }
+}
+
 export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQueryString }) {
   const send = (method, path, data, token) => request(path, {
     method,
@@ -199,8 +230,18 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     resendShareInvite: (courseId, inviteId, token) => send('POST', `/lms/courses/${id(courseId)}/share/invites/${id(inviteId)}/resend`, {}, token),
     revokeShareInvite: (courseId, inviteId, token) => send('POST', `/lms/courses/${id(courseId)}/share/invites/${id(inviteId)}/revoke`, {}, token),
 
+    // Evaluation public link (manager, lms.course.manage): same contract as courses.
+    getAssessmentShare: (assessmentId, token) => send('GET', `/lms/assessments/${id(assessmentId)}/share`, undefined, token),
+    updateAssessmentShare: (assessmentId, data, token) => send('PUT', `/lms/assessments/${id(assessmentId)}/share`, data, token),
+    rotateAssessmentShare: (assessmentId, token) => send('POST', `/lms/assessments/${id(assessmentId)}/share/rotate`, {}, token),
+    listAssessmentInvites: (assessmentId, token) => send('GET', `/lms/assessments/${id(assessmentId)}/share/invites`, undefined, token),
+    createAssessmentInvites: (assessmentId, invites, token) => send('POST', `/lms/assessments/${id(assessmentId)}/share/invites`, { invites }, token),
+    resendAssessmentInvite: (assessmentId, inviteId, token) => send('POST', `/lms/assessments/${id(assessmentId)}/share/invites/${id(inviteId)}/resend`, {}, token),
+    revokeAssessmentInvite: (assessmentId, inviteId, token) => send('POST', `/lms/assessments/${id(assessmentId)}/share/invites/${id(inviteId)}/revoke`, {}, token),
+
     // Guest player on a share link: no user session, only `Authorization: Guest <guestToken>`.
     guest: createGuestApi(request),
+    evaluationGuest: createEvaluationGuestApi(request),
     publicCertificatePdfUrl: (certToken) => `/public/lms/certificates/${id(certToken)}/pdf`,
   }
 }

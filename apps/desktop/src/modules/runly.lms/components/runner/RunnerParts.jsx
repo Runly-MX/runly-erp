@@ -159,7 +159,7 @@ export function SubmitDialog({ open, onOpenChange, activities, onSubmit, pending
 }
 
 // After the session closed (submitted, out of time or graded).
-export function RunnerDone({ payload, onExit }) {
+export function RunnerDone({ payload, onExit, exitLabel = 'Volver a Aprendizaje' }) {
   const { session, assessment, activities } = payload
   const timeout = session.closedReason === 'timeout'
   return (
@@ -174,6 +174,7 @@ export function RunnerDone({ payload, onExit }) {
       <dl className="mx-auto grid max-w-md grid-cols-2 gap-3 text-left text-sm">
         <div className="rounded-md bg-[hsl(var(--muted)/0.6)] p-3"><dt className={MUTED}>Estado</dt><dd className="font-medium">{SESSION_STATUS_LABELS[session.status] ?? session.status}</dd></div>
         <div className="rounded-md bg-[hsl(var(--muted)/0.6)] p-3"><dt className={MUTED}>Entregada</dt><dd className="font-medium">{dateTime(session.submittedAt) ?? '—'}</dd></div>
+        {session.folio ? <div className="col-span-2 rounded-md bg-[hsl(var(--muted)/0.6)] p-3"><dt className={MUTED}>Folio de entrega</dt><dd className="font-mono text-base font-semibold tracking-wider" data-testid="session-folio">{session.folio}</dd></div> : null}
         {session.scorePoints !== undefined ? (
           <div className="col-span-2 rounded-md bg-[hsl(var(--muted)/0.6)] p-3"><dt className={MUTED}>Resultado</dt><dd className="text-lg font-semibold tabular-nums">{session.scorePoints} de {session.maxPoints} puntos</dd></div>
         ) : null}
@@ -181,7 +182,7 @@ export function RunnerDone({ payload, onExit }) {
       <ul className="mx-auto max-w-md space-y-1 text-left text-sm">
         {activities.map((item) => <li key={item.id} className="flex justify-between gap-3"><span className="truncate">{item.title}</span><span className={MUTED}>{activityProgress(item).label}</span></li>)}
       </ul>
-      <Button variant="outline" onClick={onExit}>Volver a Aprendizaje</Button>
+      {onExit ? <Button variant="outline" onClick={onExit}>{exitLabel}</Button> : null}
     </div>
   )
 }

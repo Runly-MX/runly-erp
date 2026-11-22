@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   activityFormToPayload, activityToForm, activityTypeLabel, assessmentFormToPayload, assessmentToForm, formatPoints, formatTimeLimit,
-  isoToLocalInput, localInputToIso, moveActivity, validateActivityForm, validateAssessmentForm,
+  formatInZone, isoToLocalInput, localInputToIso, moveActivity, validateActivityForm, validateAssessmentForm,
 } from './lmsAssessment.js'
 
 test('activity type label follows what the activity accepts', () => {
@@ -26,6 +26,13 @@ test('local datetime input round-trips through ISO', () => {
   assert.equal(isoToLocalInput(localInputToIso(local)), local)
   assert.equal(localInputToIso(''), null)
   assert.equal(isoToLocalInput(null), '')
+})
+
+test('dates are written on the evaluation zone wall clock and stored as UTC instants', () => {
+  assert.equal(localInputToIso('2026-12-01T09:00', 'America/Mexico_City'), '2026-12-01T15:00:00.000Z')
+  assert.equal(localInputToIso('2026-12-01T09:00', 'America/Bogota'), '2026-12-01T14:00:00.000Z')
+  assert.equal(isoToLocalInput('2026-12-01T15:00:00.000Z', 'America/Mexico_City'), '2026-12-01T09:00')
+  assert.match(formatInZone('2026-12-01T15:00:00.000Z', 'America/Mexico_City'), /9:00/)
 })
 
 test('assessment form: limited time, validation and payload', () => {

@@ -23,7 +23,7 @@ const MAIL_ERRORS = {
 // created and the response carries the link and code to share by hand.
 export function createLmsInviteService({
   prisma, sendMail = null, buildMail = null, getBrand = null, appBaseUrl = () => resolveAppBaseUrl(process.env),
-  newCode = newAccessCode, newLink = newInviteLinkToken, isMailConfigured = null,
+  newCode = newAccessCode, newLink = newInviteLinkToken, isMailConfigured = null, kind = 'course', pathFor = undefined,
 }) {
   // isMailConfigured(companyId) checks real SMTP settings (company, website or
   // platform); without it, having a sender is taken as configured.
@@ -34,8 +34,8 @@ export function createLmsInviteService({
   }
 
   async function findCourse(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, select: { id: true, companyId: true, title: true, shareToken: true } })
-    if (!course) throw new LmsError('El curso no existe.', 404)
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind }, select: { id: true, companyId: true, title: true, shareToken: true } })
+    if (!course) throw new LmsError(kind === 'assessment' ? 'La evaluación no existe.' : 'El curso no existe.', 404)
     return course
   }
 
@@ -46,7 +46,7 @@ export function createLmsInviteService({
   }
 
   const requireLink = (course) => {
-    if (!course.shareToken) throw new LmsError('Activa el enlace público del curso antes de invitar.', 409, 'SHARE_DISABLED')
+    if (!course.shareToken) throw new LmsError(`Activa el enlace público ${kind === 'assessment' ? 'de la evaluación' : 'del curso'} antes de invitar.`, 409, 'SHARE_DISABLED')
   }
 
   async function serialize(rows) {
@@ -69,14 +69,14 @@ export function createLmsInviteService({
 
   // Sends one invite. Never throws: a mail failure leaves sentAt empty and the
   // caller shows the link and code instead.
-  async function deliver(course, invite, code, brand) {
+  async function deliver(course, invite, code, brand, variant = kind) {
     const base = appBaseUrl()
-    const link = inviteUrl(base, course.shareToken, invite.linkToken)
+    const link = inviteUrl(base, course.shareToken, invite.linkToken, pathFor)
     const manual = (reason) => ({ sent: false, link, code: formatAccessCode(code), mailError: { code: reason, message: MAIL_ERRORS[reason] } })
     if (!(await mailConfigured(course.companyId))) return { row: invite, ...manual('MAIL_OFF') }
     if (!base) return { row: invite, ...manual('NO_BASE_URL') }
     try {
-      const mail = buildMail({ courseTitle: course.title, inviteUrl: link, accessCode: formatAccessCode(code), name: invite.name, brand })
+      const mail = buildMail({ courseTitle: course.title, inviteUrl: link, accessCode: formatAccessCode(code), name: invite.name, brand, variant })
       await sendMail({ to: invite.email, subject: mail.subject, html: mail.html, text: mail.text, fromName: brand?.name ?? undefined, companyId: course.companyId })
     } catch (error) {
       if (/no configurado/i.test(error?.message ?? '')) return { row: invite, ...manual('MAIL_OFF') }
@@ -150,5 +150,16 @@ export function createLmsInviteService({
     return serializeOne(row)
   }
 
-  return { listInvites, createInvites, resendInvite, revokeInvite, mailConfigured }
+  // A person who registered on a public evaluation asks for a code to continue on
+  // another device: a new code goes to the invite's own email (never shown in
+  // the response). Callers answer the same whatever the outcome (no enumeration).
+  async function sendResumeCode(course, invite) {
+    if (invite.revokedAt || !invite.learnerId) return false
+    const code = newCode()
+    const row = await prisma.lmsGuestInvite.update({ where: { id: invite.id }, data: { codeHash: hashAccessCode(code, invite.linkToken) } })
+    const result = await deliver(course, row, code, await brandFor(course.companyId), 'resume')
+    return result.sent
+  }
+
+  return { listInvites, createInvites, resendInvite, revokeInvite, mailConfigured, sendResumeCode }
 }

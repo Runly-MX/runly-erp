@@ -6453,6 +6453,7 @@ model LmsEnrollment {
   progressPct  Int       @default(0) @map("progress_pct")
   lastLessonId String?   @map("last_lesson_id") @db.Uuid
   extraSessions Int      @default(0) @map("extra_sessions") // evaluations: sessions granted over maxSessions
+  consent      Json?     // public evaluation registration: { version, acceptedAt, text } of the accepted notice
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 

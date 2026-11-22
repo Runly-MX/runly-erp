@@ -372,18 +372,31 @@ export function buildAttendancePhoneInviteEmail({ inviteUrl, inviteCode, employe
 // Learning: invitation to a course shared by email (invite-only share link).
 // `inviteUrl` is the personal link; the access code also works from any device
 // with the guest's email on the course page.
-export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, name = null, brand = null, env = process.env }) {
+// variant: 'course' (invitation to a course), 'assessment' (invitation to a
+// standalone evaluation) or 'resume' (a person already registered on a public
+// evaluation asked for a code to continue on another device).
+const LMS_INVITE_COPY = {
+  course: { kicker: "Cursos", what: "tomar el curso", heading: (t) => `Te invitaron a ${t}`, cta: "Abrir el curso", subject: (t) => `Invitación al curso ${t}`, again: "Para continuar en otro dispositivo, entra al curso con tu correo y el mismo código." },
+  assessment: { kicker: "Evaluaciones", what: "presentar la evaluación", heading: (t) => `Te invitaron a ${t}`, cta: "Abrir la evaluación", subject: (t) => `Invitación a la evaluación ${t}`, again: "Para continuar en otro dispositivo, entra con tu correo y el mismo código." },
+  resume: { kicker: "Evaluaciones", what: null, heading: (t) => `Tu código para continuar ${t}`, cta: "Continuar la evaluación", subject: (t) => `Código para continuar ${t}`, again: "Si no pediste este código, ignora este correo: nadie puede entrar sin él." },
+};
+
+export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, name = null, brand = null, variant = "course", env = process.env }) {
+  const copy = LMS_INVITE_COPY[variant] ?? LMS_INVITE_COPY.course;
   const orgName = brand?.name ? brand.name : "Una empresa";
   const hello = name ? `Hola ${escapeHtml(name)},` : "Hola,";
+  const lead = copy.what
+    ? `${hello} <strong>${escapeHtml(orgName)}</strong> te invitó a ${copy.what} <strong>${escapeHtml(courseTitle)}</strong>. No necesitas crear una cuenta.`
+    : `${hello} pediste continuar <strong>${escapeHtml(courseTitle)}</strong> en este dispositivo. Abre el enlace y escribe este código.`;
   const bodyHtml = `
         <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">
-          ${hello} <strong>${escapeHtml(orgName)}</strong> te invitó a tomar el curso <strong>${escapeHtml(courseTitle)}</strong>. No necesitas crear una cuenta.
+          ${lead}
         </p>
-        <ol style="margin:0 0 16px 18px;padding:0;font-size:14px;line-height:1.7;color:#334155">
+        ${copy.what ? `<ol style="margin:0 0 16px 18px;padding:0;font-size:14px;line-height:1.7;color:#334155">
           <li>Abre tu enlace personal con el botón.</li>
           <li>Escribe tu código de acceso. La primera vez te pediremos algunos datos.</li>
-          <li>Para continuar en otro dispositivo, entra al curso con tu correo y el mismo código.</li>
-        </ol>
+          <li>${escapeHtml(copy.again)}</li>
+        </ol>` : ""}
         <div style="font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:#6b7280">Tu código de acceso</div>
         <div style="display:inline-block;margin:4px 0 14px 0;padding:10px 14px;border:1px solid #e4e7ec;border-radius:10px;background:#f8fafc;font-family:Consolas,Menlo,monospace;font-size:20px;font-weight:700;letter-spacing:.14em;color:#0c172d">${escapeHtml(accessCode)}</div>
         <p style="margin:0 0 18px 0;font-size:13px;line-height:1.6;color:#64748b">
@@ -391,25 +404,27 @@ export function buildLmsCourseInviteEmail({ courseTitle, inviteUrl, accessCode, 
           <span style="word-break:break-all;color:#334155">${escapeHtml(inviteUrl)}</span>
         </p>`;
   const html = renderRunlyEmailLayout({
-    kicker: "Cursos",
-    heading: `Te invitaron a ${courseTitle}`,
+    kicker: copy.kicker,
+    heading: copy.heading(courseTitle),
     bodyHtml,
-    cta: { label: "Abrir el curso", url: inviteUrl },
-    footnote: "El código es personal: no lo compartas. Al entrar en otro dispositivo se cierra la sesión anterior. Si no esperabas este correo, puedes ignorarlo.",
+    cta: { label: copy.cta, url: inviteUrl },
+    footnote: copy.what
+      ? "El código es personal: no lo compartas. Al entrar en otro dispositivo se cierra la sesión anterior. Si no esperabas este correo, puedes ignorarlo."
+      : `${copy.again} Al entrar con el código se cierra la sesión en el dispositivo anterior.`,
     brand,
     env,
   });
   const text = [
-    `Te invitaron a ${courseTitle}`,
+    copy.heading(courseTitle),
     "",
-    `${name ? `Hola ${name}, ` : ""}${orgName} te invitó a tomar el curso ${courseTitle}.`,
+    copy.what ? `${name ? `Hola ${name}, ` : ""}${orgName} te invitó a ${copy.what} ${courseTitle}.` : `${name ? `Hola ${name}, ` : ""}pediste continuar ${courseTitle} en otro dispositivo.`,
     "",
     `Tu enlace personal: ${inviteUrl}`,
     `Tu código de acceso: ${accessCode}`,
     "",
-    "Para continuar en otro dispositivo, entra al curso con tu correo y el mismo código.",
+    copy.again,
   ].join("\n");
-  return { subject: `Invitación al curso ${courseTitle}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
+  return { subject: `${copy.subject(courseTitle)}${brand?.name ? ` · ${brand.name}` : ""}`, html, text };
 }
 
 // Inventory: invitation of an external supplier to the areas shared with them (magic link; the access

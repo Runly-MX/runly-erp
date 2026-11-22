@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import { Button, DateTimeField, MarkdownField, NumberField, SectionCard, SwitchField, TextField } from '@runly/ui'
+import { Button, DateTimeField, MarkdownField, NumberField, SectionCard, SelectField, SwitchField, TextField } from '@runly/ui'
 import { Loader2, Undo2 } from 'lucide-react'
 import { useUpdateAssessment } from '../../hooks/useLmsAssessments.js'
-import { assessmentFormToPayload, assessmentToForm, validateAssessmentForm } from '../../lib/lmsAssessment.js'
+import { assessmentFormToPayload, assessmentToForm, timeZoneOptions, validateAssessmentForm } from '../../lib/lmsAssessment.js'
 
 const INT = { allowNegative: false, allowDecimal: false }
 
@@ -54,7 +54,11 @@ export function AssessmentSettingsForm({ assessment, readOnly }) {
         </div>
       </SectionCard>
       <SectionCard title="Disponibilidad">
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+          <SelectField
+            label="Zona horaria" options={timeZoneOptions(form.timeZone)} value={form.timeZone} onValueChange={set('timeZone')} disabled={readOnly}
+            hint="Las fechas se escriben y se muestran en esta zona."
+          />
           <DateTimeField label="Abre" value={form.opensAt} onChange={setText('opensAt')} disabled={readOnly} hint="Vacío: disponible al publicar." />
           <DateTimeField label="Cierra" value={form.closesAt} onChange={setText('closesAt')} error={errors.closesAt} disabled={readOnly} hint="Vacío: sin fecha de cierre." />
         </div>

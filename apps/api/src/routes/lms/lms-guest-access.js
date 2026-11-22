@@ -72,6 +72,7 @@ export function createLmsGuestAccess({ prisma, sharedCourse, createGuestLearner,
       name: joinInput.name,
       email: invite.email,
       profile: joinInput.profile,
+      input: body, // evaluations read the consent from it
       // Guards two first entries racing: only one links its learner.
       afterCreate: async (tx, learner) => {
         const result = await tx.lmsGuestInvite.updateMany({

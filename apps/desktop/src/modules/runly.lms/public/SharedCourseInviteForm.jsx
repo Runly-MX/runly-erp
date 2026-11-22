@@ -18,9 +18,11 @@ function accessError(error) {
 // Invite-only course: the guest types the access code (plus the email when the
 // personal link `?i=` is missing). The first time, the intake form follows; the
 // server then returns the guest token. Entering on another device signs out
-// the previous one.
-export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = [], disabled = false, onJoined }) {
-  const access = useGuestAccess(shareToken)
+// the previous one. Evaluations pass their own `access` mutation, `noun`, and a
+// `consent` slot ({ node, body(), error() }) shown on the first-entry step.
+export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = [], disabled = false, onJoined, access: accessOverride = null, noun = 'curso', consent = null, title = 'Entrar con tu invitación', hint = null }) {
+  const courseAccess = useGuestAccess(shareToken)
+  const access = accessOverride ?? courseAccess
   const [step, setStep] = useState('code')
   const [credentials, setCredentials] = useState({ email: '', code: '' })
   const [profile, setProfile] = useState({ name: '', answers: {} })
@@ -57,8 +59,9 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
   function submitProfile(event) {
     event.preventDefault()
     const result = validateIntakeForm(profile, fields, { skip: [EMAIL_KEY] })
-    setErrors(result.errors)
-    if (!Object.keys(result.errors).length) send({ ...base(), name: result.values.name, answers: result.values.answers })
+    const consentError = consent?.error?.() ?? null
+    setErrors(consentError ? { ...result.errors, consent: consentError } : result.errors)
+    if (!Object.keys(result.errors).length && !consentError) send({ ...base(), name: result.values.name, answers: result.values.answers, ...(consent?.body?.() ?? {}) })
   }
 
   const busy = disabled || access.isPending
@@ -72,7 +75,8 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
           <p className={MUTED}>Solo la primera vez. Entras como {invited?.email}.</p>
         </div>
         <GuestIntakeFields fields={fields} values={profile} errors={errors} onChange={setProfile} skip={[EMAIL_KEY]} disabled={busy} />
-        <Button type="submit" className="w-full max-sm:h-11" disabled={busy}>{icon}Entrar al curso</Button>
+        {consent?.node ? consent.node(errors.consent) : null}
+        <Button type="submit" className="w-full max-sm:h-11" disabled={busy}>{icon}{noun === 'curso' ? 'Entrar al curso' : 'Continuar'}</Button>
         <Button type="button" variant="ghost" className="w-full max-sm:h-11" onClick={() => setStep('code')} disabled={busy}>Volver</Button>
       </form>
     )
@@ -82,9 +86,9 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
   return (
     <form onSubmit={submitCode} onFocus={keepFieldVisible} className={JOIN_FORM_CLASS} noValidate>
       <div>
-        <h2 className="flex items-center gap-2 text-base font-semibold"><KeyRound className="h-4 w-4" aria-hidden="true" />Entrar con tu invitación</h2>
+        <h2 className="flex items-center gap-2 text-base font-semibold"><KeyRound className="h-4 w-4" aria-hidden="true" />{title}</h2>
         <p className={MUTED}>
-          {linkToken ? 'Escribe el código de acceso que recibiste por correo.' : 'Escribe tu correo y el código de acceso que recibiste por correo.'}
+          {hint ?? (linkToken ? 'Escribe el código de acceso que recibiste por correo.' : 'Escribe tu correo y el código de acceso que recibiste por correo.')}
         </p>
       </div>
       {!linkToken ? <TextField label="Correo" type="email" required value={credentials.email} onChange={set('email')} error={errors.email} maxLength={200} autoComplete="email" disabled={busy} /> : null}
@@ -93,7 +97,7 @@ export function SharedCourseInviteForm({ shareToken, linkToken = null, fields = 
         autoComplete="one-time-code" autoCapitalize="characters" autoCorrect="off" spellCheck={false} placeholder="ABCD-EFGH" className="font-mono uppercase tracking-widest" disabled={busy}
       />
       <Button type="submit" className="w-full max-sm:h-11" disabled={busy}>{icon}Entrar</Button>
-      <p className="text-xs text-[hsl(var(--muted-foreground))]">Puedes continuar en cualquier dispositivo con tu correo y código. Al entrar en otro dispositivo se cierra la sesión anterior.</p>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Puedes continuar en cualquier dispositivo con tu correo y un código. Al entrar en otro dispositivo se cierra la sesión anterior{noun === 'curso' ? '' : '; el tiempo de la evaluación sigue corriendo'}.</p>
     </form>
   )
 }

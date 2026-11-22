@@ -26,8 +26,21 @@ function useShareMutation(fn, successMessage) {
 export const useUpdateCourseShare = () => useShareMutation((courseId, data, t) => runly.lms.updateCourseShare(courseId, data, t), 'Enlace actualizado.')
 export const useRotateCourseShare = () => useShareMutation((courseId, _data, t) => runly.lms.rotateCourseShare(courseId, t), 'Nuevo enlace generado. El anterior ya no funciona.')
 
+// Evaluations reuse the same link contract (phase 4 of the evaluations spec).
+export const useAssessmentShare = (assessmentId, options = {}) => useRead(['share', assessmentId], (t) => runly.lms.getAssessmentShare(assessmentId, t), {
+  enabled: Boolean(assessmentId) && (options.enabled ?? true), retry: false, refetchOnWindowFocus: false,
+})
+export const useUpdateAssessmentShare = () => useShareMutation((id, data, t) => runly.lms.updateAssessmentShare(id, data, t), 'Enlace actualizado.')
+export const useRotateAssessmentShare = () => useShareMutation((id, _data, t) => runly.lms.rotateAssessmentShare(id, t), 'Nuevo enlace generado. El anterior ya no funciona.')
+
 // ---- Manager: guest email invitations ------------------------------------------
-export const useShareInvites = (courseId, options = {}) => useRead(['share-invites', courseId], (t) => runly.lms.listShareInvites(courseId, t), {
+// kind 'assessment': the same invitations on an evaluation link (there they also
+// list open registrations, which can be revoked).
+const INVITE_API = {
+  course: { list: 'listShareInvites', create: 'createShareInvites', resend: 'resendShareInvite', revoke: 'revokeShareInvite' },
+  assessment: { list: 'listAssessmentInvites', create: 'createAssessmentInvites', resend: 'resendAssessmentInvite', revoke: 'revokeAssessmentInvite' },
+}
+export const useShareInvites = (courseId, options = {}, kind = 'course') => useRead(['share-invites', courseId], (t) => runly.lms[INVITE_API[kind].list](courseId, t), {
   enabled: Boolean(courseId) && (options.enabled ?? true), retry: false, refetchOnWindowFocus: false,
 })
 
@@ -40,9 +53,9 @@ function useInviteMutation(fn, errorMessage) {
   })
 }
 
-export const useCreateShareInvites = () => useInviteMutation((courseId, { invites }, t) => runly.lms.createShareInvites(courseId, invites, t), 'No se pudieron crear las invitaciones.')
-export const useResendShareInvite = () => useInviteMutation((courseId, { inviteId }, t) => runly.lms.resendShareInvite(courseId, inviteId, t), 'No se pudo reenviar la invitación.')
-export const useRevokeShareInvite = () => useInviteMutation((courseId, { inviteId }, t) => runly.lms.revokeShareInvite(courseId, inviteId, t), 'No se pudo revocar la invitación.')
+export const useCreateShareInvites = (kind = 'course') => useInviteMutation((courseId, { invites }, t) => runly.lms[INVITE_API[kind].create](courseId, invites, t), 'No se pudieron crear las invitaciones.')
+export const useResendShareInvite = (kind = 'course') => useInviteMutation((courseId, { inviteId }, t) => runly.lms[INVITE_API[kind].resend](courseId, inviteId, t), 'No se pudo reenviar la invitación.')
+export const useRevokeShareInvite = (kind = 'course') => useInviteMutation((courseId, { inviteId }, t) => runly.lms[INVITE_API[kind].revoke](courseId, inviteId, t), 'No se pudo revocar la invitación.')
 
 // ---- Guest (public share page, no session) ---------------------------------------
 const guestApi = () => runly.lms.guest

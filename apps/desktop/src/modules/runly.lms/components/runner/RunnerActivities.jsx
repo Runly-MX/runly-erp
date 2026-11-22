@@ -3,8 +3,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { ErrorState, MarkdownViewer, Skeleton, TextareaField, cn } from '@runly/ui'
 import { Check } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../../lib/runly.js'
-import { KEY, useToken } from '../../hooks/useLmsData.js'
+import { KEY } from '../../hooks/useLmsData.js'
+import { useSessionSource } from '../../hooks/useSessionSource.js'
 import { LmsQuizSourceContext, errorCode } from '../../hooks/useLmsEval.js'
 import { useSaveDraft, useSessionAttempt } from '../../hooks/useLmsSession.js'
 import { QuizAttempt } from '../quiz/QuizAttempt.jsx'
@@ -21,13 +21,13 @@ function Instructions({ body }) {
 // Quiz inside a session: the shared quiz components, saving through the
 // session endpoints (the server refuses answers after the deadline).
 export function QuizActivity({ sessionId, activity, disabled, onClosed, onAnswered }) {
-  const token = useToken()
+  const session = useSessionSource()
   const query = useSessionAttempt(sessionId, activity.attempt?.id)
   const source = useMemo(() => ({
-    getAttempt: (attemptId) => runly.lms.getSessionAttempt(sessionId, attemptId, token),
-    saveAnswers: (attemptId, answers) => runly.lms.saveSessionAnswers(sessionId, attemptId, answers, token),
+    getAttempt: (attemptId) => session.getSessionAttempt(sessionId, attemptId),
+    saveAnswers: (attemptId, answers) => session.saveSessionAnswers(sessionId, attemptId, answers),
     submitAttempt: () => { throw new Error('La evaluación se entrega completa.') },
-  }), [sessionId, token])
+  }), [sessionId, session])
 
   if (query.isLoading) return <div className="space-y-3"><Skeleton className="h-24 rounded-md" /><Skeleton className="h-40 rounded-md" /></div>
   if (query.isError || !query.data) return <ErrorState title="No se pudo cargar el cuestionario" description={query.error?.message} onRetry={() => query.refetch()} />

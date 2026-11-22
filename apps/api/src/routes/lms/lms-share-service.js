@@ -6,16 +6,22 @@ import { newShareToken, normalizeShareInput, normalizeShareSettings, sharePath }
 
 const SHARE_SELECT = { id: true, status: true, shareEnabled: true, shareToken: true, shareSettings: true, certificateTemplateId: true }
 
-export function createLmsShareService({ prisma, appBaseUrl = () => resolveAppBaseUrl(process.env), newToken = newShareToken }) {
+// kind 'assessment' (phase 4 of the evaluations spec) reuses the same columns
+// with its own settings normalizers and public path.
+export function createLmsShareService({
+  prisma, appBaseUrl = () => resolveAppBaseUrl(process.env), newToken = newShareToken,
+  kind = 'course', readSettings = normalizeShareSettings, readInput = normalizeShareInput, pathFor = sharePath,
+}) {
+  const missing = kind === 'assessment' ? 'La evaluación no existe.' : 'El curso no existe.'
   async function findCourse(companyId, courseId) {
-    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind: 'course' }, select: SHARE_SELECT })
-    if (!course) throw new LmsError('El curso no existe.', 404)
+    const course = await prisma.lmsCourse.findFirst({ where: { id: courseId, companyId, enabled: true, kind }, select: SHARE_SELECT })
+    if (!course) throw new LmsError(missing, 404)
     return course
   }
 
   // url is absolute when the app URL is configured; otherwise the client prefixes its origin.
   function shape(course) {
-    const path = course.shareToken ? sharePath(course.shareToken) : null
+    const path = course.shareToken ? pathFor(course.shareToken) : null
     const base = appBaseUrl()
     return {
       enabled: course.shareEnabled === true,
@@ -23,7 +29,7 @@ export function createLmsShareService({ prisma, appBaseUrl = () => resolveAppBas
       path,
       published: course.status === 'published',
       hasCertificateTemplate: Boolean(course.certificateTemplateId),
-      settings: normalizeShareSettings(course.shareSettings),
+      settings: readSettings(course.shareSettings),
     }
   }
 
@@ -33,7 +39,7 @@ export function createLmsShareService({ prisma, appBaseUrl = () => resolveAppBas
 
   async function updateShare(companyId, courseId, body = {}) {
     const course = await findCourse(companyId, courseId)
-    const { enabled, settings } = normalizeShareInput(body, course.shareSettings)
+    const { enabled, settings } = readInput(body, course.shareSettings)
     const data = { shareSettings: settings }
     if (enabled !== null) data.shareEnabled = enabled
     if ((enabled ?? course.shareEnabled) && !course.shareToken) data.shareToken = newToken()

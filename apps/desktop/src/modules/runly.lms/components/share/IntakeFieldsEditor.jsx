@@ -21,7 +21,13 @@ function Required({ field, disabled, onChange }) {
 // "Formulario" tab of the share dialog: what guests fill in before entering.
 // The name is always asked. Edits are a local draft saved with one button; the
 // parent keys this component by the stored list so a save resets the draft.
-export function IntakeFieldsEditor({ fields = [], accessMode = 'open', disabled = false, saving = false, onSave }) {
+// Evaluations: up to 10 custom fields, no certificate tags, and the email
+// locked as required while one registration per email is enforced.
+export function IntakeFieldsEditor({
+  fields = [], accessMode = 'open', disabled = false, saving = false, onSave,
+  maxCustom = MAX_CUSTOM_FIELDS, certTags = true, lockedEmail = false,
+  intro = 'Lo que cada invitado escribe antes de entrar. Las respuestas aparecen en Alumnos, en la exportación CSV y pueden imprimirse en el certificado.',
+}) {
   const [draft, setDraft] = useState(fields)
   const [newLabel, setNewLabel] = useState('')
   const [error, setError] = useState(null)
@@ -31,7 +37,7 @@ export function IntakeFieldsEditor({ fields = [], accessMode = 'open', disabled 
   const update = (fn) => { setDraft((current) => fn(current)); setError(null) }
 
   function add() {
-    const result = addCustomField(draft, newLabel)
+    const result = addCustomField(draft, newLabel, maxCustom)
     if (result.error) return setError(result.error)
     setDraft(result.fields)
     setNewLabel('')
@@ -46,28 +52,28 @@ export function IntakeFieldsEditor({ fields = [], accessMode = 'open', disabled 
 
   return (
     <div className="space-y-4">
-      <p className="text-sm text-[hsl(var(--muted-foreground))]">
-        Lo que cada invitado escribe antes de entrar. Las respuestas aparecen en Alumnos, en la exportación CSV y pueden imprimirse en el certificado.
-      </p>
+      <p className="text-sm text-[hsl(var(--muted-foreground))]">{intro}</p>
       <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
         <li className={ROW}>
           <span className="min-w-0 flex-1 text-sm font-medium">Nombre completo</span>
-          <span className={MUTED}>Siempre obligatorio · {'{{alumno}}'}</span>
+          <span className={MUTED}>Siempre obligatorio{certTags ? ` · {{alumno}}` : ''}</span>
         </li>
         {INTAKE_PRESETS.map((preset) => {
           const field = draft.find((item) => item.key === preset.key)
-          const tag = certTagFor(preset.key)
+          const tag = certTags ? certTagFor(preset.key) : null
+          const locked = lockedEmail && preset.key === 'correo'
           return (
             <li key={preset.key} className={ROW}>
               <div className="min-w-0 flex-1">
                 <CheckboxField
-                  label={preset.label} checked={presetEnabled(draft, preset.key)} disabled={disabled}
+                  label={preset.label} checked={locked || presetEnabled(draft, preset.key)} disabled={disabled || locked}
                   onChange={(event) => update((current) => togglePreset(current, preset.key, event.target.checked))}
                 />
-                {preset.key === 'correo' && accessMode === 'invite' ? <p className={`${MUTED} pl-6`}>En cursos por invitación se toma del correo invitado.</p> : null}
+                {preset.key === 'correo' && accessMode === 'invite' ? <p className={`${MUTED} pl-6`}>Con acceso por invitación se toma del correo invitado.</p> : null}
+                {locked ? <p className={`${MUTED} pl-6`}>Obligatorio: identifica a cada persona y evita registros duplicados.</p> : null}
               </div>
               {tag && field ? <span className={`${MUTED} font-mono`}>{`{{${tag}}}`}</span> : null}
-              {field ? <Required field={field} disabled={disabled} onChange={update} /> : null}
+              {field && !locked ? <Required field={field} disabled={disabled} onChange={update} /> : null}
             </li>
           )
         })}
@@ -79,7 +85,7 @@ export function IntakeFieldsEditor({ fields = [], accessMode = 'open', disabled 
                 onChange={(event) => update((current) => setFieldLabel(current, field.key, event.target.value))}
               />
             </div>
-            <span className={`${MUTED} font-mono`}>{`{{campo_${field.key}}}`}</span>
+            {certTags ? <span className={`${MUTED} font-mono`}>{`{{campo_${field.key}}}`}</span> : null}
             <Required field={field} disabled={disabled} onChange={update} />
             <Button type="button" variant="ghost" size="icon-sm" aria-label={`Quitar ${field.label}`} disabled={disabled} onClick={() => update((current) => removeField(current, field.key))}>
               <Trash2 />
@@ -90,13 +96,13 @@ export function IntakeFieldsEditor({ fields = [], accessMode = 'open', disabled 
       <div className="flex items-end gap-2">
         <div className="min-w-0 flex-1">
           <TextField
-            label={`Campo personalizado (${customs.length}/${MAX_CUSTOM_FIELDS})`} placeholder="Ej. Planta, Turno, Área" value={newLabel}
-            maxLength={LABEL_MAX} disabled={disabled || customs.length >= MAX_CUSTOM_FIELDS}
+            label={`Campo personalizado (${customs.length}/${maxCustom})`} placeholder="Ej. Planta, Turno, Área" value={newLabel}
+            maxLength={LABEL_MAX} disabled={disabled || customs.length >= maxCustom}
             onChange={(event) => setNewLabel(event.target.value)}
             onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); add() } }}
           />
         </div>
-        <Button type="button" variant="outline" onClick={add} disabled={disabled || customs.length >= MAX_CUSTOM_FIELDS || !newLabel.trim()}><Plus />Agregar</Button>
+        <Button type="button" variant="outline" onClick={add} disabled={disabled || customs.length >= maxCustom || !newLabel.trim()}><Plus />Agregar</Button>
       </div>
       {error ? <p className="text-sm text-[hsl(var(--destructive))]" role="alert">{error}</p> : null}
       <div className="flex items-center justify-end gap-2">

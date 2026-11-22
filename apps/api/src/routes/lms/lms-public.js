@@ -10,6 +10,9 @@ import { createLmsMedia } from './lms-media.js'
 import { registerLmsAssessmentPublicRoutes } from './lms-assessment-public.js'
 import { GUEST_PARTICIPANTS, createLmsSessionService } from './lms-session-service.js'
 import { createLmsNotifier } from './lms-notify.js'
+import { createLmsInviteService } from './lms-invite-service.js'
+import { createLmsAssessmentGuestService } from './lms-assessment-guest-service.js'
+import { evaluationPath } from './lms-assessment-share-core.js'
 
 const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
 
@@ -23,6 +26,7 @@ function fail(c, error, fallback) {
 // share a bucket, so the share limiter is wider than the certificate one.
 export function createLmsPublicRouter({
   prisma, signFile = null, supabaseAdmin = null, bucket = 'runly-files', notificationService = null, service = null, guestService = null, documentsHub = null,
+  sendMail = null, isMailConfigured = null, buildMail = null, getBrand = null, appBaseUrl = undefined,
   limiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
   shareLimiter = createTokenBucketLimiter({ capacity: 300, refillPerSecond: 5 }),
   joinLimiter = createTokenBucketLimiter({ capacity: 20, refillPerSecond: 0.2 }),
@@ -66,7 +70,10 @@ export function createLmsPublicRouter({
 
   // Evaluation sessions of external participants (spec 2026-11-21, phases 3-4).
   const sessions = guestSessions ?? createLmsSessionService({ prisma, signFile, media, participants: GUEST_PARTICIPANTS, notifier: createLmsNotifier({ notificationService }) })
-  registerLmsAssessmentPublicRoutes(app, { prisma, sessions, limiter: shareLimiter, downloadLimiter, clientKey, fail })
+  // Resume codes go by email with the invite machinery (evaluation wording and path).
+  const invites = createLmsInviteService({ prisma, sendMail, isMailConfigured, buildMail, getBrand, kind: 'assessment', pathFor: evaluationPath, ...(appBaseUrl ? { appBaseUrl } : {}) })
+  const link = createLmsAssessmentGuestService({ prisma, guest, sessions, invites, signFile })
+  registerLmsAssessmentPublicRoutes(app, { prisma, sessions, link, limiter: shareLimiter, joinLimiter, accessLimiter, downloadLimiter, clientKey, fail })
 
   return app
 }

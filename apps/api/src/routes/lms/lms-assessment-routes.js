@@ -3,13 +3,16 @@
 import { createLmsAssessmentService } from './lms-assessment-service.js'
 import { createLmsSessionService } from './lms-session-service.js'
 import { createLmsNotifier } from './lms-notify.js'
+import { createLmsShareService } from './lms-share-service.js'
+import { createLmsInviteService } from './lms-invite-service.js'
+import { evaluationPath, normalizeAssessmentShareInput, normalizeAssessmentShareSettings } from './lms-assessment-share-core.js'
 
 const companyId = (c) => c.get('companyId')
 const actorId = (c) => c.get('userContext')?.profile?.id ?? null
 const body = (c) => c.req.json().catch(() => ({}))
 
 export function registerLmsAssessmentRoutes(app, {
-  prisma, requirePermission, signFile = null, run, service = null, sessionService = null, learners = null, media = null, notificationService = null,
+  prisma, requirePermission, signFile = null, run, service = null, sessionService = null, learners = null, media = null, notificationService = null, mail = {},
 }) {
   const sessions = sessionService ?? createLmsSessionService({ prisma, signFile, media, notifier: createLmsNotifier({ notificationService }) })
   const svc = service ?? createLmsAssessmentService({ prisma, signFile, learners, sessions })
@@ -28,6 +31,18 @@ export function registerLmsAssessmentRoutes(app, {
   app.post('/lms/assessments/:id/activities/reorder', manage, run('Error al ordenar las actividades.', async (c) => c.json({ data: await svc.reorderActivities(companyId(c), id(c), await body(c)) })))
   app.patch('/lms/activities/:id', manage, run('Error al guardar la actividad.', async (c) => c.json({ data: await svc.updateActivity(companyId(c), id(c), await body(c)) })))
   app.delete('/lms/activities/:id', manage, run('Error al eliminar la actividad.', async (c) => c.json({ data: await svc.deleteActivity(companyId(c), id(c)) })))
+
+  // ---- public link and invitations (phase 4): the course share machinery ------
+  const share = createLmsShareService({ prisma, kind: 'assessment', readSettings: normalizeAssessmentShareSettings, readInput: normalizeAssessmentShareInput, pathFor: evaluationPath, ...(mail.appBaseUrl ? { appBaseUrl: mail.appBaseUrl } : {}) })
+  const invites = createLmsInviteService({ prisma, ...mail, kind: 'assessment', pathFor: evaluationPath })
+  const inviteId = (c) => c.req.param('inviteId')
+  app.get('/lms/assessments/:id/share', manage, run('Error al cargar el enlace.', async (c) => c.json({ data: await share.getShare(companyId(c), id(c)) })))
+  app.put('/lms/assessments/:id/share', manage, run('Error al guardar el enlace.', async (c) => c.json({ data: await share.updateShare(companyId(c), id(c), await body(c)) })))
+  app.post('/lms/assessments/:id/share/rotate', manage, run('Error al generar el enlace.', async (c) => c.json({ data: await share.rotateShare(companyId(c), id(c)) })))
+  app.get('/lms/assessments/:id/share/invites', manage, run('Error al cargar las invitaciones.', async (c) => c.json({ data: await invites.listInvites(companyId(c), id(c)) })))
+  app.post('/lms/assessments/:id/share/invites', manage, run('Error al crear las invitaciones.', async (c) => c.json({ data: await invites.createInvites(companyId(c), actorId(c), id(c), await body(c)) }, 201)))
+  app.post('/lms/assessments/:id/share/invites/:inviteId/resend', manage, run('Error al reenviar la invitación.', async (c) => c.json({ data: await invites.resendInvite(companyId(c), id(c), inviteId(c)) })))
+  app.post('/lms/assessments/:id/share/invites/:inviteId/revoke', manage, run('Error al revocar el acceso.', async (c) => c.json({ data: await invites.revokeInvite(companyId(c), id(c), inviteId(c)) })))
 
   // ---- participants ---------------------------------------------------------
   app.get('/lms/assessments/:id/participants', enrollments, run('Error al cargar los participantes.', async (c) => c.json({ data: await svc.listParticipants(companyId(c), id(c)) })))

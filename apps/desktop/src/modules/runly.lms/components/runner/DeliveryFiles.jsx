@@ -5,8 +5,8 @@ import {
 } from '@runly/ui'
 import { AlertCircle, CheckCircle2, Download, FileText, Loader2, RefreshCw, Replace, Trash2, X } from 'lucide-react'
 import { toast } from 'sonner'
-import { runly } from '../../../../lib/runly.js'
-import { KEY, unwrap, useToken } from '../../hooks/useLmsData.js'
+import { KEY, unwrap } from '../../hooks/useLmsData.js'
+import { useSessionSource } from '../../hooks/useSessionSource.js'
 import { errorCode } from '../../hooks/useLmsEval.js'
 import { REJECTED_CODES, RETRY_SAME_AUTH, acceptAttr, formatsLabel, precheckFile, putWithProgress, sha256Hex } from '../../lib/lmsSessionFiles.js'
 
@@ -17,13 +17,13 @@ const time = (iso) => (iso ? new Date(iso).toLocaleTimeString('es-MX', { hour: '
 
 // Material of the activity: each download asks the server for a 2-minute URL.
 export function MaterialList({ sessionId, resources, disabled }) {
-  const token = useToken()
+  const source = useSessionSource()
   const [busy, setBusy] = useState(null)
   if (!resources?.length) return null
   async function download(resource) {
     setBusy(resource.id)
     try {
-      const { url } = unwrap(await runly.lms.downloadSessionResource(sessionId, resource.id, token))
+      const { url } = unwrap(await source.downloadSessionResource(sessionId, resource.id))
       const link = Object.assign(document.createElement('a'), { href: url, rel: 'noopener' })
       document.body.appendChild(link); link.click(); link.remove()
     } catch (error) {
@@ -54,7 +54,7 @@ export function MaterialList({ sessionId, resources, disabled }) {
 // Delivered files: confirmed versions come from the server (they survive a
 // reload); uploads in flight, failed or rejected live here until resolved.
 export function DeliveryFiles({ sessionId, activity, disabled, onClosed }) {
-  const token = useToken()
+  const source = useSessionSource()
   const client = useQueryClient()
   const settings = activity.settings ?? {}
   const files = activity.files ?? []
@@ -82,9 +82,9 @@ export function DeliveryFiles({ sessionId, activity, disabled, onClosed }) {
       const buffer = await file.arrayBuffer()
       if (!job.auth) {
         const sha256 = await sha256Hex(buffer)
-        job.auth = unwrap(await runly.lms.presignSessionUpload(sessionId, {
+        job.auth = unwrap(await source.presignSessionUpload(sessionId, {
           activityId: activity.id, fileName: file.name, sizeBytes: file.size, sha256, replaceFileId: job.replaceFileId ?? undefined,
-        }, token))
+        }))
       }
       if (!job.stored) {
         patch(key, { status: 'uploading' })
@@ -92,7 +92,7 @@ export function DeliveryFiles({ sessionId, activity, disabled, onClosed }) {
         job.stored = true
       }
       patch(key, { status: 'confirming' })
-      const version = unwrap(await runly.lms.confirmSessionUpload(sessionId, job.auth.fileId, token))
+      const version = unwrap(await source.confirmSessionUpload(sessionId, job.auth.fileId))
       setFiles((list) => [...list.filter((item) => item.slot !== version.slot), version].sort((a, b) => a.slot - b.slot))
       drop(key)
       toast.success(`«${file.name}» recibido.`)
@@ -127,7 +127,7 @@ export function DeliveryFiles({ sessionId, activity, disabled, onClosed }) {
   async function confirmRemove() {
     setRemovePending(true)
     try {
-      await runly.lms.removeSessionFile(sessionId, removing.fileId, token)
+      await source.removeSessionFile(sessionId, removing.fileId)
       setFiles((list) => list.filter((item) => item.fileId !== removing.fileId))
       setRemoving(null)
     } catch (error) {

@@ -12,6 +12,7 @@ export const INTAKE_PRESETS = [
   { key: 'puesto', label: 'Puesto', type: 'text' },
   { key: 'correo', label: 'Correo', type: 'email' },
   { key: 'telefono', label: 'Teléfono', type: 'phone' },
+  { key: 'ciudad', label: 'Ciudad', type: 'text' },
 ]
 const PRESET_KEYS = new Set(INTAKE_PRESETS.map((preset) => preset.key))
 export const isPresetKey = (key) => PRESET_KEYS.has(key)
@@ -61,11 +62,11 @@ export const removeField = (fields, key) => (fields ?? []).filter((field) => fie
 
 // Adds a custom text field; returns { fields, error }. The key is fixed at
 // creation so a later label change does not orphan stored answers.
-export function addCustomField(fields, label) {
+export function addCustomField(fields, label, max = MAX_CUSTOM_FIELDS) {
   const text = clean(label)
   if (!text) return { fields, error: 'Escribe la etiqueta del campo.' }
   if (text.length > LABEL_MAX) return { fields, error: `Máximo ${LABEL_MAX} caracteres.` }
-  if (customFields(fields).length >= MAX_CUSTOM_FIELDS) return { fields, error: `Máximo ${MAX_CUSTOM_FIELDS} campos personalizados.` }
+  if (customFields(fields).length >= max) return { fields, error: `Máximo ${max} campos personalizados.` }
   const base = slugifyFieldKey(text)
   if (!base) return { fields, error: 'Usa letras o números en la etiqueta.' }
   const taken = new Set([...(fields ?? []).map((field) => field.key), ...PRESET_KEYS, 'nombre'])

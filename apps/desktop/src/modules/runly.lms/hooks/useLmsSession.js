@@ -3,10 +3,11 @@ import { toast } from 'sonner'
 import { runly } from '../../../lib/runly.js'
 import { clockOffset } from '../lib/lmsSession.js'
 import { KEY, unwrap, useAction, useRead, useToken } from './useLmsData.js'
+import { useSessionSource } from './useSessionSource.js'
 
 // Every session payload carries serverNow; `offset` (server - device) keeps the
 // countdown on the server clock whatever time the device shows.
-async function timed(call) {
+export async function timed(call) {
   const sentAt = Date.now()
   const data = unwrap(await call())
   const receivedAt = Date.now()
@@ -26,11 +27,11 @@ export function useAssessmentOverview(assessmentId) {
 
 // refetchInterval: polled after time runs out until the server closes it.
 export function useSession(sessionId, { refetchInterval = false } = {}) {
-  const token = useToken()
+  const source = useSessionSource()
   return useQuery({
     queryKey: [KEY, 'session', sessionId],
-    queryFn: () => timed(() => runly.lms.getSession(sessionId, token)),
-    enabled: Boolean(token && sessionId), retry: false, refetchOnWindowFocus: true, refetchInterval,
+    queryFn: () => timed(() => source.getSession(sessionId)),
+    enabled: Boolean(source.ready && sessionId), retry: false, refetchOnWindowFocus: true, refetchInterval,
   })
 }
 
@@ -47,9 +48,9 @@ export function useStartSession(assessmentId) {
 }
 
 export function useSubmitSession(sessionId) {
-  const token = useToken(), client = useQueryClient()
+  const source = useSessionSource(), client = useQueryClient()
   return useMutation({
-    mutationFn: () => timed(() => runly.lms.submitSession(sessionId, token)),
+    mutationFn: () => timed(() => source.submitSession(sessionId)),
     onSuccess: (data) => {
       client.setQueryData([KEY, 'session', sessionId], data)
       client.invalidateQueries({ queryKey: [KEY, 'my-assessments'] })
@@ -59,18 +60,18 @@ export function useSubmitSession(sessionId) {
 }
 
 export function useSessionAttempt(sessionId, attemptId) {
-  const token = useToken()
+  const source = useSessionSource()
   return useQuery({
     queryKey: [KEY, 'session-attempt', sessionId, attemptId],
-    queryFn: async () => unwrap(await runly.lms.getSessionAttempt(sessionId, attemptId, token)),
-    enabled: Boolean(token && sessionId && attemptId), retry: false, refetchOnWindowFocus: false, refetchOnMount: 'always',
+    queryFn: async () => unwrap(await source.getSessionAttempt(sessionId, attemptId)),
+    enabled: Boolean(source.ready && sessionId && attemptId), retry: false, refetchOnWindowFocus: false, refetchOnMount: 'always',
   })
 }
 
 // Errors are handled by the caller (autosave shows its own state).
 export function useSaveDraft(sessionId) {
-  const token = useToken()
-  return useMutation({ mutationFn: async ({ activityId, ...data }) => unwrap(await runly.lms.saveSessionDraft(sessionId, activityId, data, token)) })
+  const source = useSessionSource()
+  return useMutation({ mutationFn: async ({ activityId, ...data }) => unwrap(await source.saveSessionDraft(sessionId, activityId, data)) })
 }
 
 export const useParticipants = (assessmentId) => useRead(['participants', assessmentId], (t) => runly.lms.listParticipants(assessmentId, t), { enabled: Boolean(assessmentId) })

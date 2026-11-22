@@ -43,8 +43,8 @@ export function verifyAccessCode(typed, salt, storedHash) {
   return Boolean(code) && expected.length === actual.length && crypto.timingSafeEqual(expected, actual)
 }
 
-export const invitePath = (shareToken, linkToken) => `${sharePath(shareToken)}?i=${linkToken}`
-export const inviteUrl = (base, shareToken, linkToken) => `${base ?? ''}${invitePath(shareToken, linkToken)}`
+export const invitePath = (shareToken, linkToken, pathFor = sharePath) => `${pathFor(shareToken)}?i=${linkToken}`
+export const inviteUrl = (base, shareToken, linkToken, pathFor = sharePath) => `${base ?? ''}${invitePath(shareToken, linkToken, pathFor)}`
 
 export function inviteStatus(invite) {
   if (invite?.revokedAt) return 'revoked'

@@ -95,7 +95,7 @@ export function createLmsRouter({ prisma, requirePermission, supabaseAdmin = nul
   registerLmsCertRoutes(app, { prisma, requirePermission, signFile, supabaseAdmin, bucket, run, service: certService, hub: documentsHub })
 
   // ---- standalone evaluations (spec 2026-11-21) ----------------------------
-  registerLmsAssessmentRoutes(app, { prisma, requirePermission, signFile, run, service: assessmentService, sessionService, learners: svc, media: files, notificationService })
+  registerLmsAssessmentRoutes(app, { prisma, requirePermission, signFile, run, service: assessmentService, sessionService, learners: svc, media: files, notificationService, mail: { sendMail, isMailConfigured, buildMail, getBrand, ...(appBaseUrl ? { appBaseUrl } : {}) } })
 
   return app
 }

@@ -234,6 +234,61 @@ Acceptance and tests: registering never starts the clock; consent required when 
 refused and resume works on a second browser; window enforced server-side; rate limits active; payloads
 carry no internal ids beyond the existing ones; E2E full guest flow on 360 px.
 
+Status:
+- [x] Phase 4 done. Verified: 2026-11-22 (local test DB and company only).
+  - Migration `20270110300000_lms_enrollment_consent` (`lms_enrollment.consent JSONB`: version, acceptedAt, text)
+    applied locally with `db execute` + `migrate resolve` (other sessions' pending migrations untouched).
+    RLS audit: 18/18 tables, 0 client access.
+  - API:
+    - `lms-assessment-share-core.js`: link settings, consent version (sha256 of the notice, 12 hex), window.
+    - `lms-assessment-guest-service.js` on `/public/lms/evaluacion/:token`: summary, register, access, resume,
+      me, start. Replaces the phase 3 id-based `/public/lms/evaluations/:id` overview/start.
+    - Manager routes `/lms/assessments/:id/share`, `/share/rotate`, `/share/invites*` reuse the course share and
+      invite services (now kind-aware).
+    - One registration per email through the `lms_guest_invite (course_id, email)` unique index (race-safe).
+      Resume = a code emailed to that row, then the existing access-code flow (rotates the guest token).
+    - `GUEST_PARTICIPANTS` refuses every session call when the link is disabled or the access was revoked.
+    - Settings gain `timeZone` (IANA); intake gains the `ciudad` preset and 10 custom fields on evaluations.
+    - Session summary gains `folio` (EV- + hash, not the id). Invite mail has evaluation and resume variants.
+  - UI:
+    - Public page `/app/p/lms/evaluacion/:token`: information, registration with consent, continue with a code,
+      invited entry.
+    - The runner is shared through `SessionSourceContext`: the same `SessionView` serves internal and guest
+      participants.
+    - Editor: "Compartir" tab (link, access mode, one registration per email, privacy notice, form,
+      registrations or invitations with revoke). Settings: time zone selector, dates entered in that zone.
+  - Tests:
+    - `node --test`: LMS API + file-integrity + office LMS 179/179, desktop LMS lib 96/96, MCP LMS 10/10.
+    - `.e2e/lms-public-e2e.mjs` 62/62:
+      - Anonymous page without questions, bodies, uuids or storage keys.
+      - Required fields, consent required / changed, valid registration with consent stored.
+      - Duplicate email (case-insensitive) and 3 simultaneous registrations: exactly one wins.
+      - Registering does not start the clock. 3 simultaneous starts: one session, one 60-minute clock.
+      - Resume answers the same for unknown emails. Code on a second device signs out the first and keeps the
+        session and deadline.
+      - Excel download and delivery, submit with confirmation; material and uploads refused after submitting.
+      - Attempt limit cannot be bypassed by re-registering. Expiry closes the session.
+      - Revocation and a disabled link stop a running session; a rotated link stops the old URL.
+      - Not yet open / closed for registration and start. Invite-only with consent on first entry.
+      - Course share route unaffected. Registration rate limited.
+    - `.e2e/lms-public-ui.mjs` 19/19 (signed out, 1366 and 360 px): information, consent, registration, reload,
+      double-click start, reload resume, download, delivery, folio; phone duplicate email, second person, no
+      horizontal scroll.
+    - `.e2e/lms-assessment-share-ui.mjs` 10/10 (Compartir tab, desktop and 360 px).
+    - Regression passed: `lms-files-e2e` 41 (moved to token routes), `lms-session-e2e`, `lms-assessment-e2e`,
+      `lms-e2e`, `lms-eval-e2e`, `lms-share-e2e`, `lms-intake-e2e`, `lms-social-e2e`; UI `lms-files-ui`,
+      `lms-session-ui`, `lms-assessment-ui`, `lms-course-quiz-ui`, `lms-share-ui`.
+  - Deviations from the spec:
+    - The company has no time zone setting: each evaluation stores an IANA `timeZone` (default
+      America/Mexico_City); instants stay UTC.
+    - Registration is refused before `opensAt` (no data taken before availability), not only the start.
+    - No material preview before starting (the optional "vista previa" setting was not added).
+    - Rotating the link breaks the stored browser token (keyed by link); registered people continue from the
+      new link with an emailed code.
+  - Known risk (pre-existing, all LMS public routes): rate limits key on the first `X-Forwarded-For` entry,
+    which a client can set. Moving to `mcp/client-ip.js` needs `RUNLY_TRUSTED_PROXIES` on every instance first;
+    left for phase 8. Evaluation protections do not rely on the IP alone (email dedupe, per-invite code lock).
+
 ## Phase 5 — Consolidated grading and results
 
 Depends on: 2, 3. Risks: concurrent grading; preserving legacy course grades.

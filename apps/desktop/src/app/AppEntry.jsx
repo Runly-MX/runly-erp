@@ -66,6 +66,7 @@ const PublicInventoryItemScreen = lazy(() => import("../modules/runly.inventory/
 const GrowthStatusPageScreen = lazy(() => import("../modules/runly.growth/public/StatusPageScreen.jsx"));
 const LmsCertificateVerifyScreen = lazy(() => import("../modules/runly.lms/public/CertificateVerifyScreen.jsx"));
 const LmsSharedCourseScreen = lazy(() => import("../modules/runly.lms/public/SharedCourseScreen.jsx"));
+const LmsEvaluationPublicScreen = lazy(() => import("../modules/runly.lms/public/EvaluationPublicScreen.jsx"));
 const BookingPortalScreen = lazy(() => import("../modules/runly.bookings/public/PublicBookingScreen.jsx"));
 const BookingManageScreen = lazy(() => import("../modules/runly.bookings/public/ManageBookingScreen.jsx"));
 import { useCallSoundUnlock } from "../modules/runly.chat/calls/useCallSoundUnlock.js";
@@ -220,6 +221,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="lms/cert/:token" element={<Suspense fallback={null}><LmsCertificateVerifyScreen /></Suspense>} />
                     {/* runly.lms: public course share link for external guests */}
                     <Route path="lms/curso/:token" element={<Suspense fallback={null}><LmsSharedCourseScreen /></Suspense>} />
+                    <Route path="lms/evaluacion/:token" element={<Suspense fallback={null}><LmsEvaluationPublicScreen /></Suspense>} />
                     {/* runly.bookings: public Booking Portal and the customer manage link (token in the #fragment) */}
                     <Route path="reservar/gestion" element={<Suspense fallback={null}><BookingManageScreen /></Suspense>} />
                     <Route path="reservar/:slug" element={<Suspense fallback={null}><BookingPortalScreen /></Suspense>} />

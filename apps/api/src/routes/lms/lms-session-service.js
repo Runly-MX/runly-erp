@@ -2,6 +2,7 @@
 // evaluation with a single server clock shared by every activity. Quiz answers
 // go through the quiz service (its sanitizing, expiry and scoring); deliveries
 // are lms_submission drafts owned by the session. The server decides expiry.
+import { createHash } from 'node:crypto'
 import { ASSESSMENT_ONLY, LmsError } from './lms-core.js'
 import { drawQuestions, normalizeAssignmentSettings, normalizeQuizSettings } from './lms-eval-core.js'
 import { activityMaxPoints, readAssessmentSettings } from './lms-assessment-core.js'
@@ -47,9 +48,19 @@ export const GUEST_PARTICIPANTS = {
     const learner = guest?.learner
     if (!learner?.enabled || learner.companyId !== companyId) return null
     const enrollment = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: assessmentId, learnerId: learner.id } }, include: { learner: true } })
-    return enrollment ? { learner, enrollment, actor: guest } : null
+    if (!enrollment) return null
+    // A disabled public link or a revoked registration stops everything at once
+    // (also downloads and uploads), not only new registrations.
+    const course = await prisma.lmsCourse.findUnique({ where: { id: assessmentId }, select: { shareEnabled: true } })
+    if (!course?.shareEnabled) throw new LmsError('El enlace de esta evaluación fue desactivado.', 404, 'SHARE_NOT_FOUND')
+    const invite = await prisma.lmsGuestInvite.findFirst({ where: { courseId: assessmentId, learnerId: learner.id }, select: { revokedAt: true } })
+    if (invite?.revokedAt) throw new LmsError('Tu acceso a esta evaluación fue retirado.', 403, 'GUEST_REMOVED')
+    return { learner, enrollment, actor: guest }
   },
 }
+
+// Delivery folio shown to the participant: stable, short, and not the row id.
+export const sessionFolio = (row) => `EV-${createHash('sha256').update(`lms-session:${row.id}`).digest('hex').slice(0, 8).toUpperCase()}`
 
 function sessionSummary(row, now) {
   return {
@@ -62,6 +73,7 @@ function sessionSummary(row, now) {
     closedReason: row.closedReason,
     timeLimitMinutes: row.timeLimitMinutes,
     remainingMs: row.status === 'in_progress' ? remainingMs(row, now) : null,
+    folio: row.submittedAt ? sessionFolio(row) : null,
   }
 }
 
@@ -182,6 +194,22 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     }
   }
 
+  // What the activities are before starting (titles, points, formats, material
+  // count): no questions, bodies or files. Also shown on the public page.
+  async function activityCatalog(assessmentId) {
+    const lessons = await activityRows(assessmentId)
+    const quizIds = lessons.filter((row) => row.kind === 'quiz').map((row) => row.id)
+    const stats = quizIds.length
+      ? new Map((await prisma.lmsQuizQuestion.groupBy({ by: ['lessonId'], where: { lessonId: { in: quizIds }, enabled: true }, _count: { _all: true }, _sum: { points: true } }))
+        .map((row) => [row.lessonId, { questionCount: row._count._all, questionPoints: row._sum.points ?? 0 }]))
+      : new Map()
+    const resourceCounts = new Map((await prisma.lmsLessonResource.groupBy({ by: ['lessonId'], where: { lessonId: { in: lessons.map((row) => row.id) } }, _count: { _all: true } })).map((row) => [row.lessonId, row._count._all]))
+    return lessons.map((row) => ({
+      id: row.id, kind: row.kind, title: row.title, maxPoints: activityMaxPoints(row, stats.get(row.id)),
+      settings: publicSettings(row), resourceCount: resourceCounts.get(row.id) ?? 0,
+    }))
+  }
+
   // ---- participant ----------------------------------------------------------
   async function overview(companyId, actor, assessmentId) {
     const assessment = await findAssessment(companyId, assessmentId)
@@ -189,13 +217,7 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     let sessions = await sessionsOf(p.enrollment.id)
     const open = sessions.find((row) => row.status === 'in_progress')
     if (open && (await settle(open)).status !== 'in_progress') sessions = await sessionsOf(p.enrollment.id)
-    const lessons = await activityRows(assessment.id)
-    const quizIds = lessons.filter((row) => row.kind === 'quiz').map((row) => row.id)
-    const stats = quizIds.length
-      ? new Map((await prisma.lmsQuizQuestion.groupBy({ by: ['lessonId'], where: { lessonId: { in: quizIds }, enabled: true }, _count: { _all: true }, _sum: { points: true } }))
-        .map((row) => [row.lessonId, { questionCount: row._count._all, questionPoints: row._sum.points ?? 0 }]))
-      : new Map()
-    const resourceCounts = new Map((await prisma.lmsLessonResource.groupBy({ by: ['lessonId'], where: { lessonId: { in: lessons.map((row) => row.id) } }, _count: { _all: true } })).map((row) => [row.lessonId, row._count._all]))
+    const activities = await activityCatalog(assessment.id)
     const now = clock()
     const current = sessions.find((row) => row.status === 'in_progress') ?? null
     const blocker = current ? null : startBlocker({ assessment, enrollment: p.enrollment, sessions, now })
@@ -209,12 +231,10 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
         timeLimitMinutes: assessment.settings.timeLimitMinutes,
         opensAt: assessment.settings.opensAt,
         closesAt: assessment.settings.closesAt,
+        timeZone: assessment.settings.timeZone,
       },
       // Formats, limits and material count are shown before starting.
-      activities: lessons.map((row) => ({
-        id: row.id, kind: row.kind, title: row.title, maxPoints: activityMaxPoints(row, stats.get(row.id)),
-        settings: publicSettings(row), resourceCount: resourceCounts.get(row.id) ?? 0,
-      })),
+      activities,
       sessions: sessions.map((row) => sessionSummary(row, now)),
       sessionsAllowed: sessionsAllowed(assessment.settings, p.enrollment),
       openSessionId: current?.id ?? null,
@@ -452,6 +472,6 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     overview, start, getSession, getAttempt, saveAnswers, saveDraft, presignUpload, confirmUpload, removeFile, downloadResource, submit,
     reviewFiles: (companyId, sessionId) => files.reviewFiles(companyId, sessionId),
     reviewDownload: (companyId, versionId) => files.reviewDownload(companyId, versionId),
-    closeSession, refreshGrading, sweepExpired, myAssessments,
+    closeSession, refreshGrading, sweepExpired, myAssessments, activityCatalog,
   }
 }

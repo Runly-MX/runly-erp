@@ -6,7 +6,7 @@ const INPUT = {
   phone: { type: 'tel', autoComplete: 'tel', maxLength: 25 },
   text: { type: 'text', maxLength: VALUE_MAX },
 }
-const AUTOCOMPLETE = { empresa: 'organization', puesto: 'organization-title' }
+const AUTOCOMPLETE = { empresa: 'organization', puesto: 'organization-title', ciudad: 'address-level2' }
 
 // Name + the course intake fields. values = { name, answers }; `skip` hides
 // keys the guest does not fill (the invited email).

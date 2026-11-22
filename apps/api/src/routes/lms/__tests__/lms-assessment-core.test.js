@@ -6,7 +6,7 @@ import {
 
 test('settings: defaults, partial merge, validation and window order', () => {
   assert.deepEqual(readAssessmentSettings(null), {
-    timeLimitMinutes: null, maxSessions: 1, opensAt: null, closesAt: null, passingPoints: null,
+    timeZone: 'America/Mexico_City', timeLimitMinutes: null, maxSessions: 1, opensAt: null, closesAt: null, passingPoints: null,
     showResultsToCandidate: false, materialAfterSubmit: false, sourceCourseId: null,
   })
   const merged = mergeAssessmentSettings({ timeLimitMinutes: 60 }, { maxSessions: 2, sourceCourseId: 'keep' })
@@ -18,6 +18,8 @@ test('settings: defaults, partial merge, validation and window order', () => {
   assert.throws(() => mergeAssessmentSettings({ timeLimitMinutes: 0 }, {}), /entre 1 y 600/)
   assert.throws(() => mergeAssessmentSettings({ opensAt: '2026-12-02', closesAt: '2026-12-01' }, {}), /posterior/)
   assert.throws(() => mergeAssessmentSettings('x', {}), /inválida/)
+  assert.equal(mergeAssessmentSettings({ timeZone: 'America/Bogota' }, {}).timeZone, 'America/Bogota')
+  assert.throws(() => mergeAssessmentSettings({ timeZone: 'Marte/Olympus' }, {}), /Zona horaria/)
 })
 
 test('activity draft: presets map onto quiz and assignment, other kinds refused', () => {

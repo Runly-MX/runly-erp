@@ -2301,7 +2301,7 @@ const bookingsCalendar = createBookingsCalendarProjection({ prisma });
 app.route("/", createBookingsPortalRouter({ prisma, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), onChanged: bookingsCalendar.projectQuietly }));
 
 // Learning: certificate verification and course share links for guests, /public/lms/* (token in the path, no user auth).
-app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService }));
+app.route("/", createLmsPublicRouter({ prisma, documentsHub, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));
 
 // File view/download public links: /public/files/:token (path-scoped, no auth).
 app.route("/", createFilesPublicRouter({

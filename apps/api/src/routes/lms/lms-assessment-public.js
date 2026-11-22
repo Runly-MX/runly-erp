@@ -1,9 +1,10 @@
-// /public/lms/evaluations/* and /public/lms/evaluation-sessions/* — the
-// evaluation session for external participants (no Runly account). The guest
-// sends `Authorization: Guest <token>`; only sha256(token) is stored. Access is
-// decided by the guest's enrollment in that evaluation (created by the public
-// registration of phase 4), so a course guest token opens nothing here.
-// Rate limited per client IP; material downloads have a stricter bucket.
+// /public/lms/evaluacion/:token/* (the public link: information, registration,
+// access code, resume, overview, start) and /public/lms/evaluation-sessions/*
+// (the running session) for external participants without a Runly account. The
+// guest sends `Authorization: Guest <token>`; only sha256(token) is stored.
+// Access is decided by the guest's enrollment in that evaluation, so a course
+// guest token opens nothing here. Rate limited per client IP: registration and
+// code checks have stricter buckets, material downloads their own.
 import { LmsError } from './lms-error.js'
 import { hashGuestToken, parseGuestAuthorization } from './lms-share-core.js'
 
@@ -19,7 +20,8 @@ function limit(limiter, clientKey) {
 }
 
 // sessions: createLmsSessionService({ participants: GUEST_PARTICIPANTS, ... }).
-export function registerLmsAssessmentPublicRoutes(app, { prisma, sessions, limiter, downloadLimiter, clientKey, fail }) {
+// link: createLmsAssessmentGuestService.
+export function registerLmsAssessmentPublicRoutes(app, { prisma, sessions, link, limiter, joinLimiter, accessLimiter, downloadLimiter, clientKey, fail }) {
   const body = (c) => c.req.json().catch(() => ({}))
   const sid = (c) => c.req.param('sessionId')
 
@@ -38,12 +40,24 @@ export function registerLmsAssessmentPublicRoutes(app, { prisma, sessions, limit
     } catch (error) { return fail(c, error, fallback) }
   }
 
-  app.use('/public/lms/evaluations/*', limit(limiter, clientKey))
+  app.use('/public/lms/evaluacion/*', limit(limiter, clientKey))
   app.use('/public/lms/evaluation-sessions/*', limit(limiter, clientKey))
 
-  app.get('/public/lms/evaluations/:id', run('No se pudo cargar la evaluación.', (c, companyId, guest) => sessions.overview(companyId, guest, c.req.param('id'))))
-  app.post('/public/lms/evaluations/:id/sessions', run('No se pudo iniciar la evaluación.', async (c, companyId, guest) => {
-    const { session, resumed } = await sessions.start(companyId, guest, c.req.param('id'))
+  // The link: the company comes from the link token, never from the request.
+  const pub = (fallback, fn, status = 200) => async (c) => {
+    c.header('Cache-Control', 'no-store')
+    try { return c.json({ data: await fn(c) }, status) } catch (error) { return fail(c, error, fallback) }
+  }
+  const token = (c) => c.req.param('token')
+  const auth = (c) => c.req.header('authorization')
+  const linkBase = '/public/lms/evaluacion/:token'
+  app.get(linkBase, pub('No se pudo abrir la evaluación.', (c) => link.summary(token(c))))
+  app.post(`${linkBase}/register`, limit(joinLimiter, clientKey), pub('No se pudo completar el registro.', async (c) => link.register(token(c), await body(c), auth(c)), 201))
+  app.post(`${linkBase}/access`, limit(accessLimiter, clientKey), pub('No se pudo validar tu código.', async (c) => link.access(token(c), await body(c))))
+  app.post(`${linkBase}/resume`, limit(accessLimiter, clientKey), pub('No se pudo enviar el código.', async (c) => link.resume(token(c), await body(c))))
+  app.get(`${linkBase}/me`, pub('No se pudo cargar la evaluación.', (c) => link.me(token(c), auth(c))))
+  app.post(`${linkBase}/start`, pub('No se pudo iniciar la evaluación.', async (c) => {
+    const { session, resumed } = await link.start(token(c), auth(c))
     return { ...session, resumed }
   }))
 

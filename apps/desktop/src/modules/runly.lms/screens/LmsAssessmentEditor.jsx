@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, Button, ChipTabPanel, ChipTabs, ConfirmDialog, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { Archive, EyeOff, Globe, ListChecks, RotateCcw, Settings2, Users } from 'lucide-react'
+import { Archive, EyeOff, Globe, Link2, ListChecks, RotateCcw, Settings2, Users } from 'lucide-react'
 import { ActivitiesPanel } from '../components/assessment/ActivitiesPanel.jsx'
 import { AssessmentStatusBadge } from '../components/assessment/AssessmentParts.jsx'
 import { AssessmentSettingsForm } from '../components/assessment/AssessmentSettingsForm.jsx'
 import { ParticipantsPanel } from '../components/assessment/ParticipantsPanel.jsx'
+import { AssessmentSharePanel } from '../components/assessment/AssessmentSharePanel.jsx'
 import { PageShell, useRouteId } from '../components/shared.jsx'
 import { useArchiveAssessment, useAssessment, useUpdateAssessment } from '../hooks/useLmsAssessments.js'
 import { useLmsPermissions } from '../hooks/useLmsData.js'
@@ -15,9 +16,10 @@ const TABS = [
   { value: 'activities', label: 'Actividades', icon: ListChecks, description: 'Cuestionarios, entregas y actividades prácticas, en el orden en que se presentan.' },
   { value: 'settings', label: 'Configuración', icon: Settings2, description: 'Instrucciones, tiempo límite, intentos, disponibilidad y resultados.' },
   { value: 'participants', label: 'Participantes', icon: Users, description: 'Quiénes la presentan, cuándo empezaron y cuándo entregaron.' },
+  { value: 'share', label: 'Compartir', icon: Link2, description: 'Enlace público para personas sin cuenta: registro, aviso de privacidad e invitaciones.' },
 ]
 
-// Evaluation editor: /assessments/:id. Sharing, results and graders arrive in later phases.
+// Evaluation editor: /assessments/:id. Results and graders arrive in later phases.
 export default function LmsAssessmentEditor() {
   const navigate = useNavigate()
   const id = useRouteId()
@@ -88,6 +90,9 @@ export default function LmsAssessmentEditor() {
           <ParticipantsPanel assessmentId={assessment.id} readOnly={archived} />
         </ChipTabPanel>
       ) : null}
+      <ChipTabPanel value="share" active={tab === 'share'}>
+        {tab === 'share' ? <AssessmentSharePanel assessmentId={assessment.id} readOnly={archived} /> : null}
+      </ChipTabPanel>
       <ConfirmDialog
         open={confirmArchive} onOpenChange={setConfirmArchive} icon={Archive} title="Archivar evaluación"
         description={`«${assessment.title}» dejará de estar disponible. Sus actividades y resultados se conservan.`}

@@ -41,10 +41,15 @@ function InviteRow({ invite, disabled, onResend, onRevoke }) {
 }
 
 // "Invitaciones" tab of the share dialog (invite-only links): add people by
-// email, see who entered, resend (new code) and revoke.
-export function GuestInvitesPanel({ courseId, linkReady, disabled = false }) {
-  const invites = useShareInvites(courseId)
-  const create = useCreateShareInvites(), resend = useResendShareInvite(), revoke = useRevokeShareInvite()
+// email, see who entered, resend (new code) and revoke. kind 'assessment': an
+// evaluation link, where the list also shows open registrations.
+const REVOKE_COPY = {
+  course: 'dejará de ver el curso de inmediato y su código ya no funcionará. Su avance se conserva en Alumnos; puedes invitarla de nuevo después.',
+  assessment: 'dejará de tener acceso a la evaluación de inmediato, incluida una sesión en curso, y su código ya no funcionará. Lo que entregó se conserva.',
+}
+export function GuestInvitesPanel({ courseId, linkReady, disabled = false, kind = 'course', canInvite = true, listLabel = 'Invitados', empty = { title: 'Sin invitaciones', description: 'Las personas que invites aparecerán aquí con su estado y último acceso.' } }) {
+  const invites = useShareInvites(courseId, {}, kind)
+  const create = useCreateShareInvites(kind), resend = useResendShareInvite(kind), revoke = useRevokeShareInvite(kind)
   const [text, setText] = useState('')
   const [error, setError] = useState(null)
   const [manual, setManual] = useState([])
@@ -90,7 +95,7 @@ export function GuestInvitesPanel({ courseId, linkReady, disabled = false }) {
       {invites.data && !invites.data.mailConfigured ? (
         <Alert><AlertDescription>El envío de correo no está configurado. Al invitar verás el enlace y el código de cada persona para enviarlos tú.</AlertDescription></Alert>
       ) : null}
-      <div className="space-y-2">
+      {canInvite ? <div className="space-y-2">
         <TextareaField
           label="Invitar por correo" rows={4} value={text} onChange={(event) => setText(event.target.value)} error={error ?? undefined}
           placeholder={'ana@empresa.com\nLeo Ruiz <leo@empresa.com>'} disabled={busy || !linkReady}
@@ -101,12 +106,12 @@ export function GuestInvitesPanel({ courseId, linkReady, disabled = false }) {
             {create.isPending ? <Loader2 className="animate-spin motion-reduce:animate-none" /> : <MailPlus />}Invitar
           </Button>
         </div>
-      </div>
+      </div> : null}
       <div className="space-y-1.5">
-        <p className="text-sm font-medium">Invitados{list.length ? ` (${list.length})` : ''}</p>
+        <p className="text-sm font-medium">{listLabel}{list.length ? ` (${list.length})` : ''}</p>
         {invites.isLoading ? <Skeleton className="h-24 rounded-md" /> : null}
         {invites.isError ? <ErrorState title="No se pudieron cargar las invitaciones" description={invites.error?.message} onRetry={() => invites.refetch()} /> : null}
-        {invites.data && !list.length ? <EmptyState icon={Users} title="Sin invitaciones" description="Las personas que invites aparecerán aquí con su estado y último acceso." /> : null}
+        {invites.data && !list.length ? <EmptyState icon={Users} title={empty.title} description={empty.description} /> : null}
         {list.length ? (
           <ul className="divide-y divide-[hsl(var(--border))] rounded-md border border-[hsl(var(--border))]">
             {list.map((invite) => <InviteRow key={invite.id} invite={invite} disabled={busy} onResend={doResend} onRevoke={setRevokeFor} />)}
@@ -117,7 +122,7 @@ export function GuestInvitesPanel({ courseId, linkReady, disabled = false }) {
       <ConfirmDialog
         open={Boolean(revokeFor)} onOpenChange={(open) => { if (!open) setRevokeFor(null) }}
         icon={Ban} title="Revocar acceso"
-        description={`${revokeFor?.name || revokeFor?.email || 'La persona'} dejará de ver el curso de inmediato y su código ya no funcionará. Su avance se conserva en Alumnos; puedes invitarla de nuevo después.`}
+        description={`${revokeFor?.name || revokeFor?.email || 'La persona'} ${REVOKE_COPY[kind] ?? REVOKE_COPY.course}`}
         confirmLabel="Revocar" loading={revoke.isPending} onConfirm={doRevoke}
       />
     </div>

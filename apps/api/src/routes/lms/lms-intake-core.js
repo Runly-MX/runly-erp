@@ -18,6 +18,7 @@ export const INTAKE_PRESETS = [
   { key: 'puesto', label: 'Puesto', type: 'text', tag: 'puesto' },
   { key: 'correo', label: 'Correo', type: 'email', tag: null },
   { key: 'telefono', label: 'Teléfono', type: 'phone', tag: null },
+  { key: 'ciudad', label: 'Ciudad', type: 'text', tag: null },
 ]
 const PRESET_BY_KEY = new Map(INTAKE_PRESETS.map((preset) => [preset.key, preset]))
 export const EMAIL_FIELD_KEY = 'correo'
@@ -41,8 +42,9 @@ export function slugifyFieldKey(label) {
 }
 
 // Stored JSON -> clean list (never throws; unknown rows are dropped).
-export function readIntakeFields(value) {
-  if (!Array.isArray(value)) return DEFAULT_INTAKE_FIELDS.map((field) => ({ ...field }))
+// maxCustom: 5 on courses, 10 on evaluations.
+export function readIntakeFields(value, { maxCustom = MAX_CUSTOM_FIELDS, fallback = DEFAULT_INTAKE_FIELDS } = {}) {
+  if (!Array.isArray(value)) return fallback.map((field) => ({ ...field }))
   const seen = new Set()
   const out = []
   let custom = 0
@@ -54,7 +56,7 @@ export function readIntakeFields(value) {
       out.push({ key, label: preset.label, type: preset.type, required: raw.required === true, preset: true })
     } else {
       const label = String(raw?.label ?? '').replace(/\s+/g, ' ').trim().slice(0, INTAKE_LABEL_MAX)
-      if (!label || custom >= MAX_CUSTOM_FIELDS) continue
+      if (!label || custom >= maxCustom) continue
       custom += 1
       out.push({ key, label, type: INTAKE_TYPES.includes(raw.type) ? raw.type : 'text', required: raw.required === true, preset: false })
     }
@@ -64,9 +66,9 @@ export function readIntakeFields(value) {
 }
 
 // PUT /share body.intakeFields -> validated list. Throws LmsError 400.
-export function normalizeIntakeFields(input) {
+export function normalizeIntakeFields(input, { maxCustom = MAX_CUSTOM_FIELDS } = {}) {
   if (!Array.isArray(input)) throw bad('Envía la lista de campos del formulario.')
-  if (input.length > INTAKE_PRESETS.length + MAX_CUSTOM_FIELDS) throw bad('Demasiados campos en el formulario.')
+  if (input.length > INTAKE_PRESETS.length + maxCustom) throw bad('Demasiados campos en el formulario.')
   const seen = new Set()
   let custom = 0
   const fields = input.map((raw) => {
@@ -86,7 +88,7 @@ export function normalizeIntakeFields(input) {
     if (seen.has(key)) throw bad(`La clave «${key}» está repetida.`)
     seen.add(key)
     custom += 1
-    if (custom > MAX_CUSTOM_FIELDS) throw bad(`Máximo ${MAX_CUSTOM_FIELDS} campos personalizados.`)
+    if (custom > maxCustom) throw bad(`Máximo ${maxCustom} campos personalizados.`)
     const type = raw?.type === undefined ? 'text' : raw.type
     if (!INTAKE_TYPES.includes(type)) throw bad(`Tipo de campo inválido para «${label}».`)
     return { key, label, type, required: raw?.required === true, preset: false }

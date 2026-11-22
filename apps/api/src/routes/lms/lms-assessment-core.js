@@ -31,7 +31,16 @@ function dateOrNull(value, label) {
   return date.toISOString()
 }
 
+// IANA zone the dates are written and shown in (instants are stored in UTC).
+// The company has no zone setting yet; this mirrors the default used elsewhere.
+export const DEFAULT_TIME_ZONE = 'America/Mexico_City'
+export function isTimeZone(value) {
+  if (typeof value !== 'string' || !value || value.length > 64) return false
+  try { new Intl.DateTimeFormat('en-US', { timeZone: value }); return true } catch { return false }
+}
+
 const SETTING_DEFAULTS = {
+  timeZone: DEFAULT_TIME_ZONE,
   timeLimitMinutes: null,
   maxSessions: 1,
   opensAt: null,
@@ -47,6 +56,7 @@ export function readAssessmentSettings(raw) {
   const src = isObject(raw) ? raw : {}
   const safe = (fn, fallback) => { try { return fn() } catch { return fallback } }
   return {
+    timeZone: isTimeZone(src.timeZone) ? src.timeZone : DEFAULT_TIME_ZONE,
     timeLimitMinutes: safe(() => intOrNull(src.timeLimitMinutes, 1, 600, 'x'), null),
     maxSessions: safe(() => intOrNull(src.maxSessions, 1, 20, 'x'), null) ?? 1,
     opensAt: safe(() => dateOrNull(src.opensAt, 'x'), null),
@@ -65,6 +75,10 @@ export function mergeAssessmentSettings(input, current = {}) {
   if (!isObject(input)) throw new LmsError('Configuración inválida.', 400)
   const next = { ...SETTING_DEFAULTS, ...readAssessmentSettings(current) }
   const has = (key) => Object.prototype.hasOwnProperty.call(input, key)
+  if (has('timeZone')) {
+    if (!isTimeZone(input.timeZone)) throw new LmsError('Zona horaria inválida.', 400)
+    next.timeZone = input.timeZone
+  }
   if (has('timeLimitMinutes')) next.timeLimitMinutes = intOrNull(input.timeLimitMinutes, 1, 600, 'El tiempo límite (minutos)')
   if (has('maxSessions')) next.maxSessions = intOrNull(input.maxSessions, 1, 20, 'Los intentos') ?? 1
   if (has('opensAt')) next.opensAt = dateOrNull(input.opensAt, 'La fecha de apertura')

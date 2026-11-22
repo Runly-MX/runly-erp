@@ -1,5 +1,6 @@
 // Pure helpers for the evaluation screens (spec 2026-11-21): labels, the
 // settings form <-> API values, activity forms and points display.
+import { zonedLocalToDate } from '@runly/core'
 import { lmsPath } from './lmsLabels.js'
 
 export const assessmentsPath = (suffix = '') => lmsPath(`/assessments${suffix}`)
@@ -43,17 +44,51 @@ export function formatTimeLimit(minutes) {
 }
 
 const pad = (n) => String(n).padStart(2, '0')
-// ISO instant -> "YYYY-MM-DDTHH:mm" in the viewer's local time (DateTimeField value).
-export function isoToLocalInput(iso) {
+export const DEFAULT_TIME_ZONE = 'America/Mexico_City'
+// The zones a company usually needs; the browser's own is added when missing.
+export const TIME_ZONE_OPTIONS = [
+  { value: 'America/Mexico_City', label: 'Ciudad de México (centro)' },
+  { value: 'America/Cancun', label: 'Cancún (sureste)' },
+  { value: 'America/Chihuahua', label: 'Chihuahua' },
+  { value: 'America/Mazatlan', label: 'Mazatlán (pacífico)' },
+  { value: 'America/Hermosillo', label: 'Hermosillo' },
+  { value: 'America/Tijuana', label: 'Tijuana (noroeste)' },
+  { value: 'America/Bogota', label: 'Bogotá' },
+  { value: 'America/Lima', label: 'Lima' },
+  { value: 'America/Santiago', label: 'Santiago' },
+  { value: 'America/Argentina/Buenos_Aires', label: 'Buenos Aires' },
+  { value: 'America/New_York', label: 'Nueva York' },
+  { value: 'America/Los_Angeles', label: 'Los Ángeles' },
+  { value: 'Europe/Madrid', label: 'Madrid' },
+  { value: 'UTC', label: 'UTC' },
+]
+export function timeZoneOptions(current, browser = globalThis.Intl?.DateTimeFormat?.().resolvedOptions?.().timeZone) {
+  const extra = [current, browser].filter((zone, index, list) => zone && list.indexOf(zone) === index && !TIME_ZONE_OPTIONS.some((item) => item.value === zone))
+  return [...TIME_ZONE_OPTIONS, ...extra.map((zone) => ({ value: zone, label: zone.replace(/_/g, ' ') }))]
+}
+
+// ISO instant -> "YYYY-MM-DDTHH:mm" on the wall clock of `timeZone` (DateTimeField
+// value); without a zone, the viewer's own. Instants are always stored in UTC.
+export function isoToLocalInput(iso, timeZone = undefined) {
   if (!iso) return ''
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return ''
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  if (!timeZone) return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`
+  const p = Object.fromEntries(new Intl.DateTimeFormat('en-CA', { timeZone, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }).formatToParts(d).map((x) => [x.type, x.value]))
+  return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}`
 }
-export function localInputToIso(value) {
+export function localInputToIso(value, timeZone = undefined) {
   if (!value) return null
-  const d = new Date(value)
-  return Number.isNaN(d.getTime()) ? null : d.toISOString()
+  const d = timeZone ? zonedLocalToDate(value, timeZone) : new Date(value)
+  return !d || Number.isNaN(d.getTime()) ? null : d.toISOString()
+}
+
+// An instant as people read it in the evaluation's zone, with the zone named.
+export function formatInZone(iso, timeZone = DEFAULT_TIME_ZONE) {
+  if (!iso) return null
+  try {
+    return new Intl.DateTimeFormat('es-MX', { timeZone, dateStyle: 'long', timeStyle: 'short', timeZoneName: 'short' }).format(new Date(iso))
+  } catch { return new Date(iso).toLocaleString('es-MX') }
 }
 
 const text = (value) => (value === null || value === undefined ? '' : String(value))
@@ -68,8 +103,9 @@ export function assessmentToForm(assessment) {
     limited: Boolean(s.timeLimitMinutes),
     timeLimitMinutes: text(s.timeLimitMinutes ?? 60),
     maxSessions: text(s.maxSessions ?? 1),
-    opensAt: isoToLocalInput(s.opensAt),
-    closesAt: isoToLocalInput(s.closesAt),
+    timeZone: s.timeZone ?? DEFAULT_TIME_ZONE,
+    opensAt: isoToLocalInput(s.opensAt, s.timeZone ?? DEFAULT_TIME_ZONE),
+    closesAt: isoToLocalInput(s.closesAt, s.timeZone ?? DEFAULT_TIME_ZONE),
     passingPoints: text(s.passingPoints),
     showResultsToCandidate: s.showResultsToCandidate === true,
     materialAfterSubmit: s.materialAfterSubmit === true,
@@ -82,7 +118,7 @@ export function validateAssessmentForm(form) {
   if (form.limited && !intIn(form.timeLimitMinutes, 1, 600)) errors.timeLimitMinutes = 'Escribe de 1 a 600 minutos.'
   if (!intIn(form.maxSessions, 1, 20)) errors.maxSessions = 'Escribe de 1 a 20 intentos.'
   if (!blank(form.passingPoints) && !(Number(form.passingPoints) >= 0)) errors.passingPoints = 'Escribe un número de 0 en adelante, o déjalo vacío.'
-  const opens = localInputToIso(form.opensAt), closes = localInputToIso(form.closesAt)
+  const opens = localInputToIso(form.opensAt, form.timeZone), closes = localInputToIso(form.closesAt, form.timeZone)
   if (opens && closes && Date.parse(closes) <= Date.parse(opens)) errors.closesAt = 'El cierre debe ser después de la apertura.'
   return errors
 }
@@ -94,8 +130,9 @@ export function assessmentFormToPayload(form) {
     settings: {
       timeLimitMinutes: form.limited ? Number(form.timeLimitMinutes) : null,
       maxSessions: Number(form.maxSessions),
-      opensAt: localInputToIso(form.opensAt),
-      closesAt: localInputToIso(form.closesAt),
+      timeZone: form.timeZone,
+      opensAt: localInputToIso(form.opensAt, form.timeZone),
+      closesAt: localInputToIso(form.closesAt, form.timeZone),
       passingPoints: blank(form.passingPoints) ? null : Number(form.passingPoints),
       showResultsToCandidate: form.showResultsToCandidate === true,
       materialAfterSubmit: form.materialAfterSubmit === true,
