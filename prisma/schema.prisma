@@ -6317,6 +6317,8 @@ model LmsCourse {
   sections            LmsSection[]
   enrollments         LmsEnrollment[]
   sessions            LmsAssessmentSession[]
+  graders             LmsCourseGrader[]
+  gradeEvents         LmsGradeEvent[]
   reviews             LmsReview[]
   announcements       LmsAnnouncement[]
   certificateTemplate LmsCertificateTemplate? @relation(fields: [certificateTemplateId], references: [id], onDelete: SetNull)
@@ -6535,6 +6537,7 @@ model LmsQuizAttempt {
   updatedAt    DateTime  @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   sessionId    String?   @map("session_id") @db.Uuid // evaluation session that owns the clock
+  questionFeedback Json  @default("{}") @map("question_feedback") // evaluations: grader comment per question
   enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   session    LmsAssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
@@ -6609,6 +6612,48 @@ model LmsSubmissionFile {
   @@map("lms_submission_file")
 }
 
+// Evaluations (spec 2026-11-21 phase 5): who reviews an evaluation. With grader
+// rows, only those people (plus managers) review it; a reader only reads results.
+model LmsCourseGrader {
+  companyId     String   @map("company_id") @db.Uuid
+  courseId      String   @map("course_id") @db.Uuid
+  userProfileId String   @map("user_profile_id") @db.Uuid
+  role          String   @default("grader") // grader | reader
+  addedById     String?  @map("added_by_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  course LmsCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@id([courseId, userProfileId])
+  @@index([companyId, userProfileId])
+  @@map("lms_course_grader")
+}
+
+// Append-only grading history (a trigger refuses updates): grades, regrades,
+// comments, decisions and session incidents, with before/after and the reason.
+model LmsGradeEvent {
+  id           String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String   @map("company_id") @db.Uuid
+  courseId     String   @map("course_id") @db.Uuid
+  sessionId    String?  @map("session_id") @db.Uuid
+  enrollmentId String?  @map("enrollment_id") @db.Uuid
+  sourceType   String   @map("source_type") // attempt | submission | session | enrollment
+  sourceId     String?  @map("source_id") @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid
+  action       String
+  before       Json?
+  after        Json?
+  reason       String?
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  course  LmsCourse             @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  session LmsAssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+
+  @@index([sessionId, createdAt])
+  @@index([courseId, createdAt])
+  @@map("lms_grade_event")
+}
+
 // One attempt at a standalone evaluation (spec 2026-11-21 section 6): owns the
 // single clock of every activity. Partial unique index (SQL only): one
 // in_progress session per enrollment.
@@ -6640,6 +6685,7 @@ model LmsAssessmentSession {
   enrollment  LmsEnrollment    @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   attempts    LmsQuizAttempt[]
   submissions LmsSubmission[]
+  gradeEvents LmsGradeEvent[]
 
   @@unique([enrollmentId, number])
   @@index([courseId])

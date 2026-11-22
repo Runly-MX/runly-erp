@@ -335,6 +335,9 @@ const SCREEN_MAP = {
   "runly.lms:/assessments/:assessmentId/activities/:activityId": lazy(() => import("../modules/runly.lms/screens/LmsAssessmentActivityEditor.jsx")),
   "runly.lms:/evaluate/:assessmentId": lazy(() => import("../modules/runly.lms/screens/LmsAssessmentRunner.jsx")),
   "runly.lms:/review": lazy(() => import("../modules/runly.lms/screens/LmsReview.jsx")),
+  "runly.lms:/results": lazy(() => import("../modules/runly.lms/screens/LmsResults.jsx")),
+  "runly.lms:/results/:assessmentId": lazy(() => import("../modules/runly.lms/screens/LmsAssessmentResults.jsx")),
+  "runly.lms:/results/:assessmentId/sessions/:sessionId": lazy(() => import("../modules/runly.lms/screens/LmsCandidateRecord.jsx")),
   "runly.lms:/certificates": lazy(() => import("../modules/runly.lms/screens/LmsCertificates.jsx")),
   // Office (Collabora) editor for LMS submission files and certificate templates.
   "runly.lms:/files/:id/edit": lazy(() => import("../modules/runly.files/screens/OfficeEditorScreen.jsx")),

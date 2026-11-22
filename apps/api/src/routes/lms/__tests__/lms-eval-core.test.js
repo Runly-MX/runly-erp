@@ -25,7 +25,7 @@ test('quiz and assignment settings: defaults and clamps', () => {
   assert.equal(quiz.drawCount, null)
   assert.equal(quiz.showAnswers, 'after_submit')
   assert.equal(quiz.shuffleOptions, false)
-  assert.deepEqual(normalizeAssignmentSettings({}), { allowText: true, allowFiles: true, maxFiles: 5, dueDaysAfterEnroll: null, passingScore: null, maxPoints: 100, acceptedTypes: null, maxFileMb: 50 })
+  assert.deepEqual(normalizeAssignmentSettings({}), { allowText: true, allowFiles: true, maxFiles: 5, dueDaysAfterEnroll: null, passingScore: null, maxPoints: 100, rubric: [], acceptedTypes: null, maxFileMb: 50 })
   assert.equal(normalizeAssignmentSettings({ maxFiles: 50 }).maxFiles, 10)
   assert.equal(normalizeAssignmentSettings({ passingScore: -5 }).passingScore, 0)
 })

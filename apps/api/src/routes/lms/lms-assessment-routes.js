@@ -1,10 +1,11 @@
 // runly.lms standalone evaluations: authoring, participants and the
-// participant session (spec 2026-11-21, phases 1-2).
+// participant session (spec 2026-11-21, phases 1-5).
 import { createLmsAssessmentService } from './lms-assessment-service.js'
 import { createLmsSessionService } from './lms-session-service.js'
 import { createLmsNotifier } from './lms-notify.js'
 import { createLmsShareService } from './lms-share-service.js'
 import { createLmsInviteService } from './lms-invite-service.js'
+import { registerLmsAssessmentReviewRoutes } from './lms-assessment-review-routes.js'
 import { evaluationPath, normalizeAssessmentShareInput, normalizeAssessmentShareSettings } from './lms-assessment-share-core.js'
 
 const companyId = (c) => c.get('companyId')
@@ -12,7 +13,7 @@ const actorId = (c) => c.get('userContext')?.profile?.id ?? null
 const body = (c) => c.req.json().catch(() => ({}))
 
 export function registerLmsAssessmentRoutes(app, {
-  prisma, requirePermission, signFile = null, run, service = null, sessionService = null, learners = null, media = null, notificationService = null, mail = {},
+  prisma, requirePermission, requireAnyPermission = null, signFile = null, run, service = null, sessionService = null, learners = null, media = null, notificationService = null, mail = {},
 }) {
   const sessions = sessionService ?? createLmsSessionService({ prisma, signFile, media, notifier: createLmsNotifier({ notificationService }) })
   const svc = service ?? createLmsAssessmentService({ prisma, signFile, learners, sessions })
@@ -66,10 +67,8 @@ export function registerLmsAssessmentRoutes(app, {
   app.delete('/lms/learn/sessions/:sessionId/files/:fileId', access, run('Error al quitar el archivo.', async (c) => c.json({ data: await sessions.removeFile(companyId(c), actorId(c), sid(c), c.req.param('fileId')) })))
   app.post('/lms/learn/sessions/:sessionId/resources/:resourceId/download', access, run('Error al preparar la descarga.', async (c) => c.json({ data: await sessions.downloadResource(companyId(c), actorId(c), sid(c), c.req.param('resourceId')) })))
 
-  // ---- graders: delivered files with their versions and integrity -------------
-  const grade = requirePermission('lms.grade')
-  app.get('/lms/review/sessions/:sessionId/files', grade, run('Error al cargar las entregas.', async (c) => c.json({ data: await sessions.reviewFiles(companyId(c), sid(c)) })))
-  app.post('/lms/review/session-files/:versionId/download', grade, run('Error al preparar la descarga.', async (c) => c.json({ data: await sessions.reviewDownload(companyId(c), c.req.param('versionId')) })))
+  // ---- results, records, grading, files, incidents (phase 5) -----------------
+  registerLmsAssessmentReviewRoutes(app, { prisma, requirePermission, requireAnyPermission, run, sessions })
 
   return { sessions }
 }

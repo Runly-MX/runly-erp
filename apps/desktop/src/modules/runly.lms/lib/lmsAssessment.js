@@ -6,6 +6,9 @@ import { lmsPath } from './lmsLabels.js'
 export const assessmentsPath = (suffix = '') => lmsPath(`/assessments${suffix}`)
 export const assessmentPath = (id) => assessmentsPath(`/${id}`)
 export const activityPath = (assessmentId, activityId) => assessmentsPath(`/${assessmentId}/activities/${activityId}`)
+// Results (phase 5): reachable by reviewers who cannot edit the evaluation.
+export const resultsPath = (assessmentId = null) => lmsPath(assessmentId ? `/results/${assessmentId}` : '/results')
+export const recordPath = (assessmentId, sessionId) => lmsPath(`/results/${assessmentId}/sessions/${sessionId}`)
 
 // Creation presets (the API maps them onto quiz / assignment).
 export const ACTIVITY_TYPES = [
@@ -159,8 +162,14 @@ export function activityToForm(activity) {
     acceptedTypes: Array.isArray(s.acceptedTypes) ? s.acceptedTypes : [],
     maxFileMb: text(s.maxFileMb ?? 50),
     maxPoints: text(s.maxPoints ?? 100),
+    // Rubric criteria (inputs as strings); with criteria the points are their sum.
+    rubric: Array.isArray(s.rubric) ? s.rubric.map((item) => ({ id: item.id, label: item.label ?? '', points: text(item.points), description: item.description ?? '' })) : [],
   }
 }
+
+export const RUBRIC_MAX = 15
+export const newCriterionId = () => `r${Math.random().toString(36).slice(2, 10)}`
+export const rubricSum = (rubric) => Math.round((rubric ?? []).reduce((sum, item) => sum + (Number(item.points) || 0), 0) * 100) / 100
 
 export function validateActivityForm(form) {
   const errors = {}
@@ -170,7 +179,11 @@ export function validateActivityForm(form) {
     if (!form.allowText && !form.allowFiles) errors.allowText = 'Permite texto, archivos o ambos.'
     if (form.allowFiles && !intIn(form.maxFiles, 1, 10)) errors.maxFiles = 'Escribe de 1 a 10.'
     if (form.allowFiles && !intIn(form.maxFileMb, 1, 50)) errors.maxFileMb = 'Escribe de 1 a 50 MB.'
-    if (!intIn(form.maxPoints, 1, 1000)) errors.maxPoints = 'Escribe de 1 a 1000 puntos.'
+    if (form.rubric?.length) {
+      if (form.rubric.length > RUBRIC_MAX) errors.rubric = `Máximo ${RUBRIC_MAX} criterios.`
+      else if (form.rubric.some((item) => blank(item.label))) errors.rubric = 'Cada criterio necesita un nombre.'
+      else if (form.rubric.some((item) => !(Number(item.points) > 0 && Number(item.points) <= 1000))) errors.rubric = 'Cada criterio vale de 0.5 a 1000 puntos.'
+    } else if (!intIn(form.maxPoints, 1, 1000)) errors.maxPoints = 'Escribe de 1 a 1000 puntos.'
     if (blank(form.body)) errors.body = 'Escribe las instrucciones de la actividad.'
   }
   return errors
@@ -183,6 +196,8 @@ export function activityFormToPayload(form) {
       allowText: form.allowText, allowFiles: form.allowFiles, maxFiles: Number(form.maxFiles), maxPoints: Number(form.maxPoints),
       // Empty list: any common format (the server checks the real content either way).
       acceptedTypes: form.acceptedTypes?.length ? [...form.acceptedTypes] : null, maxFileMb: Number(form.maxFileMb),
+      rubric: (form.rubric ?? []).map((item) => ({ id: item.id, label: String(item.label).trim(), points: Number(item.points), ...(String(item.description ?? '').trim() ? { description: String(item.description).trim() } : {}) })),
+      ...(form.rubric?.length ? { maxPoints: rubricSum(form.rubric) } : {}),
     }
   return { title: String(form.title ?? '').trim(), body: String(form.body ?? '').trim() || null, settings }
 }

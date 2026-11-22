@@ -6,8 +6,11 @@ import { isUuid, learnerShape, loadAttemptQuestions, quizOutcome, serializeAttem
 import { createLmsSerializers } from './lms-serialize.js'
 import { learnerKind } from './lms-share-core.js'
 import { setLessonOutcome, TX_OPTS } from './lms-progress.js'
+import { ROLE_RANK, resolveRole } from './lms-assessment-access.js'
 
 const HISTORY_LIMIT = 500
+// Evaluation items are graded in the candidate record (points, rubric, history), never here.
+const sessionItem = () => new LmsError('Esta actividad es de una evaluación: califícala desde el expediente del participante.', 409, 'SESSION_ITEM')
 
 const CONTEXT = { enrollment: { include: { learner: true, course: true } }, lesson: true }
 const iso = (value) => (value ? new Date(value).toISOString() : null)
@@ -39,7 +42,9 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
 
   // Pending queue (default) or `view=history`: work already graded by a
   // person, newest first (capped), with the result and who graded it.
-  async function queue(companyId, query = {}) {
+  // user ({ profileId, isAdmin, permissions }): evaluation items are listed only
+  // to people who may grade that evaluation; they open the candidate record.
+  async function queue(companyId, query = {}, user = null) {
     const courseId = query.courseId ? String(query.courseId) : null
     if (courseId && !isUuid(courseId)) throw new LmsError('Curso inválido.', 400)
     const history = query.view === 'history'
@@ -82,7 +87,24 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
         graderName: graders.get(row.gradedById) ?? null,
       } : {}),
     })
-    const items = [...submissions.map((row) => item('submission', row)), ...attempts.map((row) => item('attempt', row))]
+    const sessionIds = [...new Set([...submissions, ...attempts].map((row) => row.sessionId).filter(Boolean))]
+    const sessions = sessionIds.length ? new Map((await prisma.lmsAssessmentSession.findMany({ where: { id: { in: sessionIds } }, select: { id: true, courseId: true, status: true } })).map((row) => [row.id, row])) : new Map()
+    const courseIds = [...new Set([...sessions.values()].map((row) => row.courseId))]
+    const members = courseIds.length ? await prisma.lmsCourseGrader.findMany({ where: { courseId: { in: courseIds } } }) : []
+    const mayGrade = (courseId) => {
+      if (!user) return false
+      const role = resolveRole(user, members.filter((row) => row.courseId === courseId))
+      return Boolean(role) && ROLE_RANK[role] >= ROLE_RANK.grader
+    }
+    const keep = (row) => {
+      if (!row.sessionId) return true
+      const session = sessions.get(row.sessionId)
+      if (!session || ['in_progress', 'voided'].includes(session.status) || !mayGrade(session.courseId)) return false
+      // In a session a delivery stays "submitted": it is pending while it has no points.
+      return history ? row.gradedAt : row.points === undefined || row.points === null
+    }
+    const withSession = (type, row) => ({ ...item(type, row), ...(row.sessionId ? { assessment: { id: sessions.get(row.sessionId).courseId, sessionId: row.sessionId } } : {}) })
+    const items = [...submissions.filter(keep).map((row) => withSession('submission', row)), ...attempts.filter(keep).map((row) => withSession('attempt', row))]
     return history
       ? items.sort((a, b) => Date.parse(b.gradedAt ?? 0) - Date.parse(a.gradedAt ?? 0)).slice(0, HISTORY_LIMIT)
       : items.sort((a, b) => Date.parse(a.submittedAt ?? 0) - Date.parse(b.submittedAt ?? 0))
@@ -101,11 +123,14 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
   }
 
   async function getAttempt(companyId, attemptId) {
-    return reviewAttemptPayload(await findAttempt(companyId, attemptId))
+    const row = await findAttempt(companyId, attemptId)
+    if (row.sessionId) throw sessionItem()
+    return reviewAttemptPayload(row)
   }
 
   async function gradeAttempt(companyId, graderId, attemptId, body = {}) {
     const row = await findAttempt(companyId, attemptId)
+    if (row.sessionId) throw sessionItem()
     if (row.status === 'in_progress') throw new LmsError('El alumno todavía no envía este intento.', 409, 'NOT_SUBMITTED')
     if (row.status !== 'submitted') throw new LmsError('Este intento ya fue calificado.', 409, 'ALREADY_GRADED')
     const byId = await loadAttemptQuestions(prisma, [row])
@@ -167,6 +192,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
 
   async function getSubmission(companyId, submissionId) {
     const row = await findSubmission(companyId, submissionId)
+    if (row.sessionId) throw sessionItem()
     const others = await prisma.lmsSubmission.findMany({
       where: { enrollmentId: row.enrollmentId, lessonId: row.lessonId, id: { not: row.id } },
       orderBy: { number: 'desc' },
@@ -177,6 +203,7 @@ export function createLmsReviewService({ prisma, notifier, signFile = null, gues
 
   async function gradeSubmission(companyId, graderId, submissionId, body = {}) {
     const row = await findSubmission(companyId, submissionId)
+    if (row.sessionId) throw sessionItem()
     if (row.status !== 'submitted') throw new LmsError('Esta entrega ya fue revisada.', 409, 'ALREADY_GRADED')
     const { decision, grade } = validateGradeDecision(body ?? {}, row.lesson.settings)
     const feedback = feedbackText(body?.feedback)

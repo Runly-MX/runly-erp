@@ -1,12 +1,13 @@
 import { useMemo, useState } from 'react'
 import { Badge, Button, DataTable } from '@runly/ui'
 import { FileStack, UserPlus, Users } from 'lucide-react'
+import { Link } from 'react-router-dom'
+import { recordPath } from '../../lib/lmsAssessment.js'
 import { toast } from 'sonner'
 import { useAddParticipants, useParticipants } from '../../hooks/useLmsSession.js'
 import { formatPoints } from '../../lib/lmsAssessment.js'
 import { SESSION_STATUS_LABELS } from '../../lib/lmsSession.js'
 import { AssignLearnersDialog } from '../AssignLearnersDialog.jsx'
-import { SessionFilesDialog } from './SessionFilesDialog.jsx'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 const VARIANTS = { in_progress: 'warning', submitted: 'secondary', expired: 'secondary', graded: 'success', voided: 'outline' }
@@ -24,7 +25,6 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
   const query = useParticipants(assessmentId)
   const add = useAddParticipants()
   const [open, setOpen] = useState(false)
-  const [filesOf, setFilesOf] = useState(null) // { session, name }
   const rows = query.data ?? []
 
   const columns = useMemo(() => [
@@ -59,10 +59,10 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
       id: 'files', header: '', enableSorting: false,
       cell: ({ row }) => {
         const s = row.original.sessions[0]
-        return s ? <Button variant="ghost" size="sm" onClick={() => setFilesOf({ session: s, name: row.original.learner.displayName })}><FileStack />Entregas</Button> : null
+        return s ? <Button variant="ghost" size="sm" asChild><Link to={recordPath(assessmentId, s.id)}><FileStack />Expediente</Link></Button> : null
       },
     },
-  ], [])
+  ], [assessmentId])
 
   async function assign(userProfileIds) {
     const result = await add.mutateAsync({ assessmentId, userProfileIds })
@@ -84,7 +84,6 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
         open={open} onOpenChange={setOpen} enrollments={rows.map((r) => ({ status: r.status, learner: r.learner }))}
         onAssign={assign} pending={add.isPending} copy={COPY}
       />
-      <SessionFilesDialog session={filesOf?.session ?? null} participant={filesOf?.name} onOpenChange={(value) => { if (!value) setFilesOf(null) }} />
     </section>
   )
 }

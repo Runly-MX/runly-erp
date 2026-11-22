@@ -73,17 +73,7 @@ export const closedStatus = (reason) => (reason === 'timeout' ? 'expired' : 'sub
 // A draft delivery becomes submitted when it has anything, missing otherwise.
 export const draftOutcome = (draft) => ((String(draft?.text ?? '').trim() || (draft?.fileIds ?? []).length) ? 'submitted' : 'missing')
 
-// Graded once nothing waits for a person: every quiz attempt graded and every
-// delivery missing (assignments are always graded by hand). Points of graded
-// work: quiz scorePoints, assignment points; missing counts 0.
-export function gradingState(attempts = [], submissions = []) {
-  const pendingAttempt = attempts.some((row) => row.status !== 'graded')
-  const pendingSubmission = submissions.some((row) => row.status !== 'missing' && (row.points === null || row.points === undefined))
-  if (pendingAttempt || pendingSubmission) return { graded: false, scorePoints: null }
-  const sum = attempts.reduce((acc, row) => acc + (Number(row.scorePoints) || 0), 0)
-    + submissions.reduce((acc, row) => acc + (Number(row.points) || 0), 0)
-  return { graded: true, scorePoints: Math.round(sum * 100) / 100 }
-}
+// Grading totals: lms-grading-core.js (frozen basis, phase 5).
 
 // PUT draft body { text?, fileIds? } against the activity settings. Missing keys keep the stored value.
 export function normalizeDraftInput(body = {}, settings, current = {}) {

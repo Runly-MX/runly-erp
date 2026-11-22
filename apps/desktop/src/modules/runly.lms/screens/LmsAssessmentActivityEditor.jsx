@@ -3,12 +3,12 @@ import { useNavigate } from 'react-router-dom'
 import {
   Badge, Button, CheckboxField, ConfirmDialog, EmptyState, ErrorState, MarkdownField, NumberField, PageHeader, SectionCard, SelectField, Skeleton, SwitchField, TextField,
 } from '@runly/ui'
-import { FileQuestion, Loader2, Undo2 } from 'lucide-react'
+import { FileQuestion, Loader2, Plus, Trash2, Undo2 } from 'lucide-react'
 import { LessonResourcesEditor } from '../components/lesson-editor/LessonResourcesEditor.jsx'
 import { QuizQuestionsEditor } from '../components/lesson-editor/QuizQuestionsEditor.jsx'
 import { PageShell, useRouteSegment } from '../components/shared.jsx'
 import { useAssessment, useUpdateActivity } from '../hooks/useLmsAssessments.js'
-import { DELIVERY_FILE_TYPES, activityFormToPayload, activityToForm, activityTypeLabel, assessmentPath, formatPoints, isActivityDirty, validateActivityForm } from '../lib/lmsAssessment.js'
+import { DELIVERY_FILE_TYPES, RUBRIC_MAX, newCriterionId, rubricSum, activityFormToPayload, activityToForm, activityTypeLabel, assessmentPath, formatPoints, isActivityDirty, validateActivityForm } from '../lib/lmsAssessment.js'
 
 const INT = { allowNegative: false, allowDecimal: false }
 const LAYOUT_OPTIONS = [{ value: 'one', label: 'Una pregunta a la vez' }, { value: 'all', label: 'Todas en una página' }]
@@ -28,6 +28,34 @@ function QuizFields({ form, set, errors, readOnly }) {
         <SwitchField id="lms-activity-shuffle-q" label="Mezclar el orden de las preguntas" checked={form.shuffleQuestions} onChange={set('shuffleQuestions')} disabled={readOnly} />
         <SwitchField id="lms-activity-shuffle-o" label="Mezclar el orden de las opciones" checked={form.shuffleOptions} onChange={set('shuffleOptions')} disabled={readOnly} />
         <p className="text-sm text-[hsl(var(--muted-foreground))]">El tiempo y los intentos se configuran en la evaluación. Las respuestas correctas no se muestran al participante.</p>
+      </div>
+    </SectionCard>
+  )
+}
+
+// Criteria the evaluator scores one by one; the activity is worth their sum.
+// Sessions already started keep the rubric they started with.
+function RubricFields({ form, set, errors, readOnly }) {
+  const rubric = form.rubric ?? []
+  const update = (index, key) => (event) => set('rubric')(rubric.map((item, i) => (i === index ? { ...item, [key]: event.target.value } : item)))
+  return (
+    <SectionCard title="Rúbrica" description="Opcional. Con criterios, el evaluador califica cada uno y la actividad vale la suma.">
+      <div className="space-y-3">
+        {rubric.map((item, index) => (
+          <div key={item.id} className="grid gap-2 rounded-md border border-[hsl(var(--border))] p-3 sm:grid-cols-[minmax(0,1fr)_8rem_auto] sm:items-start">
+            <TextField label={`Criterio ${index + 1}`} value={item.label} onChange={update(index, 'label')} maxLength={120} disabled={readOnly} />
+            <NumberField label="Puntos" value={item.points} onChange={update(index, 'points')} min={0.5} max={1000} allowNegative={false} disabled={readOnly} />
+            {!readOnly ? <Button type="button" variant="ghost" size="icon" className="sm:mt-6" aria-label={`Quitar criterio ${index + 1}`} onClick={() => set('rubric')(rubric.filter((_, i) => i !== index))}><Trash2 /></Button> : null}
+            <div className="sm:col-span-3"><TextField label="Qué se espera (opcional)" value={item.description} onChange={update(index, 'description')} maxLength={500} disabled={readOnly} /></div>
+          </div>
+        ))}
+        {errors.rubric ? <p className="text-sm text-[hsl(var(--destructive))]" role="alert">{errors.rubric}</p> : null}
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <span className="text-sm tabular-nums text-[hsl(var(--muted-foreground))]">{rubric.length ? `Total: ${rubricSum(rubric)} puntos` : 'Sin rúbrica: se califica con puntos directos.'}</span>
+          {!readOnly && rubric.length < RUBRIC_MAX ? (
+            <Button type="button" variant="outline" onClick={() => set('rubric')([...rubric, { id: newCriterionId(), label: '', points: '10', description: '' }])}><Plus />Agregar criterio</Button>
+          ) : null}
+        </div>
       </div>
     </SectionCard>
   )
@@ -61,7 +89,11 @@ function AssignmentFields({ form, set, errors, readOnly }) {
               <NumberField label="Tamaño máximo por archivo (MB)" required value={form.maxFileMb} onChange={(event) => set('maxFileMb')(event.target.value)} error={errors.maxFileMb} min={1} max={50} {...INT} disabled={readOnly} hint="De 1 a 50 MB." />
             </>
           ) : null}
-          <NumberField label="Puntos de la actividad" required value={form.maxPoints} onChange={(event) => set('maxPoints')(event.target.value)} error={errors.maxPoints} min={1} max={1000} {...INT} disabled={readOnly} hint="Se califica a mano, de 0 a este valor." />
+          <NumberField
+            label="Puntos de la actividad" required value={form.rubric?.length ? String(rubricSum(form.rubric)) : form.maxPoints} onChange={(event) => set('maxPoints')(event.target.value)}
+            error={errors.maxPoints} min={1} max={1000} {...INT} disabled={readOnly || Boolean(form.rubric?.length)}
+            hint={form.rubric?.length ? 'Suma de la rúbrica.' : 'Se califica a mano, de 0 a este valor.'}
+          />
         </div>
       </div>
     </SectionCard>
@@ -162,6 +194,7 @@ export default function LmsAssessmentActivityEditor() {
           </div>
         </SectionCard>
         {form.kind === 'quiz' ? <QuizFields form={form} set={set} errors={errors} readOnly={readOnly} /> : <AssignmentFields form={form} set={set} errors={errors} readOnly={readOnly} />}
+        {form.kind === 'assignment' ? <RubricFields form={form} set={set} errors={errors} readOnly={readOnly} /> : null}
         {form.kind === 'quiz' ? <QuizQuestionsEditor lessonId={activity.id} readOnly={readOnly} onDirtyChange={setQuestionsDirty} /> : null}
         <LessonResourcesEditor lessonId={activity.id} readOnly={readOnly} />
       </div>

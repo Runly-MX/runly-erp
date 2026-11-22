@@ -40,8 +40,31 @@ export function normalizeQuizSettings(raw) {
   }
 }
 
+// Evaluation rubric: up to 15 criteria { id, label, points, description }.
+// Stored JSON -> clean list (never throws; invalid rows are dropped).
+export const RUBRIC_MAX = 15
+const RUBRIC_ID = /^[a-z0-9_-]{1,32}$/i
+export function readRubric(value) {
+  if (!Array.isArray(value)) return []
+  const seen = new Set()
+  const out = []
+  for (const [index, raw] of value.entries()) {
+    if (out.length >= RUBRIC_MAX || !isObject(raw)) continue
+    const label = String(raw.label ?? '').replace(/\s+/g, ' ').trim().slice(0, 120)
+    const points = round2(Number(raw.points))
+    if (!label || !Number.isFinite(points) || points <= 0 || points > 1000) continue
+    let id = RUBRIC_ID.test(String(raw.id ?? '')) ? String(raw.id) : `c${index + 1}`
+    while (seen.has(id)) id = `${id}_`
+    seen.add(id)
+    const description = String(raw.description ?? '').trim().slice(0, 500)
+    out.push({ id, label, points, ...(description ? { description } : {}) })
+  }
+  return out
+}
+
 export function normalizeAssignmentSettings(raw) {
   const src = isObject(raw) ? raw : {}
+  const rubric = readRubric(src.rubric)
   return {
     allowText: src.allowText !== false,
     allowFiles: src.allowFiles !== false,
@@ -49,7 +72,9 @@ export function normalizeAssignmentSettings(raw) {
     dueDaysAfterEnroll: clampInt(src.dueDaysAfterEnroll, 1, 3650, null),
     passingScore: clampInt(src.passingScore, 0, 100, null),
     // Points the activity is worth inside an evaluation (courses keep grading 0-100).
-    maxPoints: clampInt(src.maxPoints, 1, 1000, 100),
+    // With a rubric the activity is worth exactly the sum of its criteria.
+    maxPoints: rubric.length ? round2(rubric.reduce((sum, item) => sum + item.points, 0)) : clampInt(src.maxPoints, 1, 1000, 100),
+    rubric,
     // Evaluation deliveries: accepted types (FILE_TYPES keys; null = any known type) and size per file.
     acceptedTypes: Array.isArray(src.acceptedTypes) && src.acceptedTypes.some((key) => FILE_TYPE_KEYS.includes(key))
       ? [...new Set(src.acceptedTypes.filter((key) => FILE_TYPE_KEYS.includes(key)))]

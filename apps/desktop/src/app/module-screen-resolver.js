@@ -251,7 +251,9 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     return null;
   }
   if (moduleKey === "runly.lms") {
-    if (subPath === "/" || subPath === "/courses" || subPath === "/assessments" || subPath === "/review" || subPath === "/certificates") return screenMap[`runly.lms:${subPath}`] ?? null;
+    if (subPath === "/" || subPath === "/courses" || subPath === "/assessments" || subPath === "/review" || subPath === "/results" || subPath === "/certificates") return screenMap[`runly.lms:${subPath}`] ?? null;
+    if (/^\/results\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/results/:assessmentId"] ?? null;
+    if (/^\/results\/[^/]+\/sessions\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/results/:assessmentId/sessions/:sessionId"] ?? null;
     if (/^\/assessments\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/assessments/:assessmentId"] ?? null;
     if (/^\/assessments\/[^/]+\/activities\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/assessments/:assessmentId/activities/:activityId"] ?? null;
     if (/^\/evaluate\/[^/]+\/?$/.test(subPath)) return screenMap["runly.lms:/evaluate/:assessmentId"] ?? null;

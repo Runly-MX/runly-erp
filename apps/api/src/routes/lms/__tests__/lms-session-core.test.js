@@ -2,7 +2,7 @@ import { test } from 'node:test'
 import assert from 'node:assert/strict'
 import {
   SESSION_GRACE_MS, UPLOAD_GRACE_MS, assertSessionWritable, canConfirmUpload, canPresignUpload, closedStatus, draftOutcome, expiresAtFor,
-  gradingState, isSessionExpired, normalizeDraftInput, remainingMs, sessionsAllowed, startBlocker,
+  isSessionExpired, normalizeDraftInput, remainingMs, sessionsAllowed, startBlocker,
 } from '../lms-session-core.js'
 
 const T0 = new Date('2026-12-01T10:00:00Z')
@@ -60,13 +60,6 @@ test('close policy: timeout = expired, drafts with content are delivered, empty 
   assert.equal(draftOutcome({ text: '  ', fileIds: [] }), 'missing')
   assert.equal(draftOutcome({ text: 'respuesta', fileIds: [] }), 'submitted')
   assert.equal(draftOutcome({ text: null, fileIds: ['f'] }), 'submitted')
-})
-
-test('grading state: graded only when nothing waits for a person; totals over 100', () => {
-  assert.deepEqual(gradingState([{ status: 'graded', scorePoints: 100 }], [{ status: 'missing' }]), { graded: true, scorePoints: 100 })
-  assert.equal(gradingState([{ status: 'submitted' }], []).graded, false)
-  assert.equal(gradingState([{ status: 'graded', scorePoints: 90 }], [{ status: 'submitted', points: null }]).graded, false)
-  assert.deepEqual(gradingState([{ status: 'graded', scorePoints: 90 }], [{ status: 'submitted', points: 95.5 }]), { graded: true, scorePoints: 185.5 })
 })
 
 test('draft input: text and files validated against the activity settings', () => {

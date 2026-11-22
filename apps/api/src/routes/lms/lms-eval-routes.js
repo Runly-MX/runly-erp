@@ -2,6 +2,7 @@
 import { createLmsQuizService } from './lms-quiz-service.js'
 import { createLmsAssignmentService } from './lms-assignment-service.js'
 import { createLmsReviewService } from './lms-review-service.js'
+import { userFrom } from './lms-assessment-access.js'
 import { createLmsNotifier } from './lms-notify.js'
 import { createLmsGuestGradeMailer } from './lms-guest-mail.js'
 
@@ -51,7 +52,7 @@ export function registerLmsEvalRoutes(app, { prisma, requirePermission, signFile
   app.post('/lms/learn/uploads/:fileId/confirm', access, run('Error al confirmar la subida.', async (c) => c.json({ data: await assignment.confirmUpload(companyId(c), actorId(c), c.req.param('fileId')) })))
 
   // ---- grading ------------------------------------------------------------
-  app.get('/lms/review', grade, run('Error al cargar las entregas por revisar.', async (c) => c.json({ data: await review.queue(companyId(c), c.req.query()) })))
+  app.get('/lms/review', grade, run('Error al cargar las entregas por revisar.', async (c) => c.json({ data: await review.queue(companyId(c), c.req.query(), userFrom(c)) })))
   app.get('/lms/review/attempts/:id', grade, run('Error al cargar el intento.', async (c) => c.json({ data: await review.getAttempt(companyId(c), id(c)) })))
   app.post('/lms/review/attempts/:id/grade', grade, run('Error al calificar el intento.', async (c) => c.json({ data: await review.gradeAttempt(companyId(c), actorId(c), id(c), await body(c)) })))
   app.get('/lms/review/submissions/:id', grade, run('Error al cargar la entrega.', async (c) => c.json({ data: await review.getSubmission(companyId(c), id(c)) })))

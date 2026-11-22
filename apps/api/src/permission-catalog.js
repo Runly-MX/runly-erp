@@ -1503,6 +1503,12 @@ export const PERMISSION_CATALOG = {
   "lms.grade": {
     displayNameEs: "Calificar actividades y tareas", descriptionEs: "Permite revisar y calificar exámenes con respuestas abiertas y entregas de tareas, y otorgar intentos extra.", groupKey: "lms", order: 40,
   },
+  "lms.assessment.results": {
+    displayNameEs: "Ver resultados de evaluaciones", descriptionEs: "Permite consultar resultados, expedientes y archivos de las evaluaciones y exportarlos, sin calificar. Si una evaluación tiene evaluadores asignados, solo los de la lista.", groupKey: "lms", order: 50,
+  },
+  "lms.assessment.decide": {
+    displayNameEs: "Registrar decisiones de evaluación", descriptionEs: "Permite registrar la decisión sobre un participante (avanza, en espera, no avanza), separada de su calificación.", groupKey: "lms", order: 60,
+  },
   "bookings.access": {
     displayNameEs: "Acceder a Reservaciones", descriptionEs: "Permite entrar a los sistemas de reservaciones donde la persona es administradora, agente o lectora.", groupKey: "bookings", order: 10,
   },

@@ -8,11 +8,12 @@ import { drawQuestions, normalizeAssignmentSettings, normalizeQuizSettings } fro
 import { activityMaxPoints, readAssessmentSettings } from './lms-assessment-core.js'
 import {
   SESSION_GRACE_MS, assertSessionWritable, canPresignUpload, closedStatus, draftOutcome, expiresAtFor,
-  gradingState, isSessionExpired, normalizeDraftInput, remainingMs, sessionsAllowed, startBlocker,
+  isSessionExpired, normalizeDraftInput, remainingMs, sessionsAllowed, startBlocker,
 } from './lms-session-core.js'
 import { isUuid, serializeSubmissions } from './lms-eval-shared.js'
 import { createLmsQuizService } from './lms-quiz-service.js'
 import { GUEST_OWNER, PROFILE_OWNER } from './lms-assignment-service.js'
+import { applySessionTotals } from './lms-session-scores.js'
 import { createLmsSessionFiles, versionShape, acceptedTypesOf } from './lms-session-files.js'
 import { FILE_TYPES } from '../../lib/file-integrity.js'
 import { createLmsSerializers } from './lms-serialize.js'
@@ -266,16 +267,24 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     const expiresAt = expiresAtFor(now, assessment.settings.timeLimitMinutes)
     // Draws happen once, at start; their points freeze the activity maximum.
     const plan = lessons.map((lesson) => {
-      if (lesson.kind !== 'quiz') return { lesson, maxPoints: normalizeAssignmentSettings(lesson.settings).maxPoints }
+      if (lesson.kind !== 'quiz') {
+        const settings = normalizeAssignmentSettings(lesson.settings)
+        return { lesson, maxPoints: settings.maxPoints, rubric: settings.rubric }
+      }
       const pool = questions.filter((row) => row.lessonId === lesson.id)
       if (!pool.length) throw new LmsError(`«${lesson.title}» todavía no tiene preguntas.`, 409, 'NO_QUESTIONS')
       const drawn = drawQuestions(pool, lesson.settings)
       const points = new Map(pool.map((row) => [row.id, row.points]))
-      return { lesson, drawn, maxPoints: drawn.questionIds.reduce((sum, id) => sum + (points.get(id) ?? 0), 0) }
+      const questionPoints = Object.fromEntries(drawn.questionIds.map((id) => [id, points.get(id) ?? 0]))
+      return { lesson, drawn, questionPoints, maxPoints: drawn.questionIds.reduce((sum, id) => sum + (points.get(id) ?? 0), 0) }
     })
     const snapshot = {
       timeLimitMinutes: assessment.settings.timeLimitMinutes,
-      activities: plan.map(({ lesson, maxPoints }) => ({ lessonId: lesson.id, kind: lesson.kind, title: lesson.title, maxPoints })),
+      // Frozen grading basis (phase 5): question points and rubric as they were at start.
+      activities: plan.map(({ lesson, maxPoints, questionPoints, rubric }) => ({
+        lessonId: lesson.id, kind: lesson.kind, title: lesson.title, maxPoints,
+        ...(questionPoints ? { questionPoints } : {}), ...(rubric?.length ? { rubric } : {}),
+      })),
     }
     try {
       const session = await prisma.$transaction(async (tx) => {
@@ -416,19 +425,13 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     return true
   }
 
-  // Marks a closed session graded (with its total) once nothing waits for a person.
+  // Marks a closed session graded (with its total on the frozen basis) once
+  // nothing waits for a person.
   async function refreshGrading(sessionId) {
-    const [attempts, submissions] = await Promise.all([
-      prisma.lmsQuizAttempt.findMany({ where: { sessionId }, select: { status: true, scorePoints: true } }),
-      prisma.lmsSubmission.findMany({ where: { sessionId }, select: { status: true, points: true } }),
-    ])
-    const state = gradingState(attempts, submissions)
-    if (!state.graded) return false
-    const { count } = await prisma.lmsAssessmentSession.updateMany({
-      where: { id: sessionId, status: { in: ['submitted', 'expired'] } },
-      data: { status: 'graded', gradedAt: clock(), scorePoints: state.scorePoints },
-    })
-    return count > 0
+    const session = await reload(sessionId)
+    if (!session) return false
+    const totals = await applySessionTotals(prisma, session, clock())
+    return totals.complete && ['submitted', 'expired'].includes(session.status)
   }
 
   // Worker and manager views: closes sessions past deadline + grace even when

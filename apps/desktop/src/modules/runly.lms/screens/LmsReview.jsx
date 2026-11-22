@@ -1,13 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { Link, useSearchParams } from 'react-router-dom'
 import { Badge, Button, ComboboxField, DataTable, PageHeader, SegmentedControl } from '@runly/ui'
-import { ClipboardCheck, History, Paperclip } from 'lucide-react'
+import { BarChart3, ClipboardCheck, History, Paperclip } from 'lucide-react'
 import { GradeAttemptSheet } from '../components/review/GradeAttemptSheet.jsx'
 import { GradeSubmissionSheet } from '../components/review/GradeSubmissionSheet.jsx'
 import { PageShell } from '../components/shared.jsx'
 import { useReviewQueue } from '../hooks/useLmsEval.js'
 import { REVIEW_TYPE_LABELS, formatShortDate } from '../lib/lmsLabels.js'
 import { filesCountText, parseReviewParam, reviewParam } from '../lib/lmsReview.js'
+import { recordPath, resultsPath } from '../lib/lmsAssessment.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 
@@ -65,8 +66,8 @@ export default function LmsReview() {
 
   const columns = useMemo(() => [
     { id: 'type', header: 'Tipo', accessorFn: (r) => REVIEW_TYPE_LABELS[r.type] ?? r.type, cell: ({ getValue }) => <Badge variant="secondary">{getValue()}</Badge> },
-    { id: 'course', header: 'Curso', accessorFn: (r) => r.courseTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate">{getValue() || '—'}</span> },
-    { id: 'lesson', header: 'Lección', accessorFn: (r) => r.lessonTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate font-medium">{getValue() || '—'}</span> },
+    { id: 'course', header: 'Curso o evaluación', accessorFn: (r) => r.courseTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate">{getValue() || '—'}</span> },
+    { id: 'lesson', header: 'Lección o actividad', accessorFn: (r) => r.lessonTitle ?? '', cell: ({ getValue }) => <span className="block max-w-56 truncate font-medium">{getValue() || '—'}</span> },
     { id: 'learner', header: 'Alumno', accessorFn: (r) => (r.learner?.displayName ? `${r.learner.displayName}${r.learner.kind === 'guest' ? ' (invitado)' : ''}` : ''), cell: ({ getValue }) => <span className="block max-w-48 truncate">{getValue() || '—'}</span> },
     { id: 'submitted', header: 'Enviado', accessorFn: (r) => r.submittedAt ?? '', cell: ({ row }) => <span className={MUTED}>{formatShortDate(row.original.submittedAt) || '—'}</span> },
     {
@@ -85,7 +86,10 @@ export default function LmsReview() {
     { id: 'late', header: 'Tarde', accessorFn: (r) => (r.late ? 1 : 0), cell: ({ row }) => (row.original.late ? <Badge variant="warning">Tardía</Badge> : <span className={MUTED}>—</span>) },
     {
       id: 'actions', header: '', enableSorting: false,
-      cell: ({ row }) => <Button variant="outline" size="sm" onClick={() => setOpen({ type: row.original.type, id: row.original.id })}>{history ? 'Ver' : 'Calificar'}</Button>,
+      // Evaluation work is graded in the candidate record (points, rubric, history).
+      cell: ({ row }) => (row.original.assessment
+        ? <Button variant="outline" size="sm" asChild><Link to={recordPath(row.original.assessment.id, row.original.assessment.sessionId)}>{history ? 'Ver expediente' : 'Abrir expediente'}</Link></Button>
+        : <Button variant="outline" size="sm" onClick={() => setOpen({ type: row.original.type, id: row.original.id })}>{history ? 'Ver' : 'Calificar'}</Button>),
     },
   ], [setOpen, history])
 
@@ -97,7 +101,12 @@ export default function LmsReview() {
         title="Revisión"
         description="Califica las tareas entregadas y las respuestas abiertas de los exámenes."
         className="mb-2 pb-0"
-        actions={<SegmentedControl ariaLabel="Vista" options={VIEWS} value={view} onChange={(next) => { setView(next); setCourseId(null) }} className="w-auto" />}
+        actions={(
+          <div className="flex flex-wrap items-center gap-2">
+            <Button variant="outline" asChild><Link to={resultsPath()}><BarChart3 />Resultados de evaluaciones</Link></Button>
+            <SegmentedControl ariaLabel="Vista" options={VIEWS} value={view} onChange={(next) => { setView(next); setCourseId(null) }} className="w-auto" />
+          </div>
+        )}
       />
       <DataTable
         columns={columns}

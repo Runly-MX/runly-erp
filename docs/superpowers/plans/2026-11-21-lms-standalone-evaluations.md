@@ -303,6 +303,82 @@ Acceptance and tests: totals over 100 (case A = 200) never renormalized; snapsho
 edits; regrade writes before/after; second concurrent grader gets 409; unlisted grader 403; decision separate
 from score and audited; course assignment grading unchanged (existing tests); export columns verified.
 
+Status:
+- [x] Phase 5 done. Verified: 2026-11-22 (local test DB and company only).
+  - Migration `20270111100000_lms_grading` applied locally (`db execute` + `migrate resolve`; other sessions'
+    pending migrations untouched).
+    - `lms_course_grader`: per-evaluation reviewers with role grader or reader.
+    - `lms_grade_event`: append-only; a trigger refuses updates other than the FK set-null.
+    - `lms_quiz_attempt.question_feedback`: the grader's comment per question.
+    - RLS on, no client access.
+  - Permissions `lms.assessment.results` (results reader) and `lms.assessment.decide` (decision) are in the
+    catalog and the manifest. The nav gains "Resultados" (`/results`). Needs `POST /modules/sync` per instance.
+  - API:
+    - `lms-grading-core.js` (pure): frozen basis, partial manual points, rubric, totals, incident rules.
+    - `lms-session-scores.js`: totals recomputed from stored values in the grade transaction. It replaces the
+      old `gradingState`.
+    - `lms-assessment-access.js`: roles manager / grader / reader, with the per-evaluation list.
+    - `lms-assessment-grading-service.js`: record, quiz and delivery grading.
+      - Optimistic concurrency on `updatedAt`, with millisecond window matching.
+      - A reason is required to change a final grade; a final grade cannot be left unscored.
+    - `lms-session-admin-service.js`: extend (guarded deadline + `updatedAt`), void (idempotent), extra attempt
+      (expected count), decision, reviewers.
+    - `lms-assessment-results-service.js`: batch-loaded results and the CSV/XLSX export, with formula cells
+      neutralised.
+    - Routes in `lms-assessment-review-routes.js`, gated with `requireAnyPermission` plus the role check inside.
+    - The phase 3 file routes now require access to that evaluation.
+    - The old course review endpoints refuse evaluation items (`SESSION_ITEM`). The Revisión queue lists them
+      only to people who may grade that evaluation, with a link to the record.
+    - The session snapshot now freezes question points and the rubric at start.
+  - UI:
+    - Editor tabs Resultados (ResultsPanel) and Evaluadores (GradersPanel). Rubric editor in the activity editor.
+    - Results panel: status filters, search, per-activity scores, total with a comparison bar, decision column,
+      CSV and Excel export; cards at 360 px.
+    - Full-page candidate record `/results/:assessmentId/sessions/:sessionId`:
+      - Registration data, folio and times.
+      - Answers via `QuestionReview` with points and a comment per open question.
+      - Delivery text, files and versions, and the rubric with a live total.
+      - Save state, regrade reason, totals, decision, history, and an incidents menu.
+    - "Resultados" list `/results` for reviewers. Revisión links evaluation work to the record.
+    - The participants table links to the record (the phase 3 files dialog was removed; the record shows the
+      versions).
+  - Tests:
+    - `node --test`: LMS API + file-integrity + office LMS 185/185 (new `lms-grading-core.test.js`), desktop LMS
+      lib 100/100 (new `lmsResults.test.js`).
+    - `.e2e/lms-grading-e2e.mjs` 50/50, against the real API and DB. Unauthorised users and another company run
+      in-process on the same DB, since there is only one E2E user.
+      - Frozen basis; auto + partial manual grading; out-of-range points; concurrent graders → 409.
+      - Rubric partial and complete; total over 100 (of 200) never renormalized.
+      - Regrade needs a reason; history before/after; append-only enforced by the DB; frozen weights after edits.
+      - Missing delivery = 0; results and summary; CSV with neutralised formulas; XLSX parsed.
+      - Old review path refused; queue routing; decision apart from the score.
+      - Incidents:
+        - Extend: a concurrent double extension leaves one; one clock; no revival after the deadline.
+        - Void: a concurrent double void voids once; answers kept; graded sessions are refused.
+        - Extra attempt: a concurrent double grant gives one, and a new session starts.
+      - Access: reviewer list; outsider 403 on record, files and grading; listed reader read-only; decide and
+        incident permissions; another company 404.
+    - `.e2e/lms-grading-ui.mjs` 23/23 (Playwright, 1366 and 360 px):
+      - Results tab and CSV; the record with a partial total; partial save.
+      - Quiz 85/100, rubric live total, file download, 170/200.
+      - Regrade reason and history; decision; extra attempt; reviewers tab; Revisión link.
+      - Phone: record and cards without horizontal scroll, score on top.
+    - Regression passed: `lms-public-e2e` 62, `lms-files-e2e` 41, `lms-session-e2e` 32, `lms-assessment-e2e` 35,
+      `lms-e2e` 47, `lms-eval-e2e` 48, `lms-share-e2e` 23, `lms-intake-e2e` 8, plus `lms-social-e2e` and the UI
+      suites (see the phase report).
+  - Deviations from the spec:
+    - The record is a full page, not a wide sheet (requested for long answers and spreadsheets).
+    - Readers are a role on the list plus a company permission (`lms.assessment.results`); the spec only had
+      graders.
+    - Voiding a graded session is refused (the spec allows voiding any non-graded state; same rule).
+    - Auto-graded questions cannot be overridden by hand; only open answers.
+    - Course grading (0-100 `grade`) is unchanged.
+  - Blocking before public production (phase 8):
+    - `X-Forwarded-For` / `RUNLY_TRUSTED_PROXIES`.
+    - Real SMTP delivery of resume codes.
+    - RLS audit on production.
+    - `POST /modules/sync` after deploy (nav entries and the two new permissions).
+
 ## Phase 6 — UX pass
 
 Depends on: 1–5. Risk: scope creep into course screens (`feedback_redesign_scope`).

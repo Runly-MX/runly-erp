@@ -1,12 +1,14 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Alert, AlertDescription, Button, ChipTabPanel, ChipTabs, ConfirmDialog, ErrorState, PageHeader, Skeleton } from '@runly/ui'
-import { Archive, EyeOff, Globe, Link2, ListChecks, RotateCcw, Settings2, Users } from 'lucide-react'
+import { Archive, BarChart3, EyeOff, Globe, Link2, ListChecks, RotateCcw, Settings2, UserCheck, Users } from 'lucide-react'
 import { ActivitiesPanel } from '../components/assessment/ActivitiesPanel.jsx'
 import { AssessmentStatusBadge } from '../components/assessment/AssessmentParts.jsx'
 import { AssessmentSettingsForm } from '../components/assessment/AssessmentSettingsForm.jsx'
 import { ParticipantsPanel } from '../components/assessment/ParticipantsPanel.jsx'
 import { AssessmentSharePanel } from '../components/assessment/AssessmentSharePanel.jsx'
+import { GradersPanel } from '../components/assessment/GradersPanel.jsx'
+import { ResultsPanel } from '../components/results/ResultsPanel.jsx'
 import { PageShell, useRouteId } from '../components/shared.jsx'
 import { useArchiveAssessment, useAssessment, useUpdateAssessment } from '../hooks/useLmsAssessments.js'
 import { useLmsPermissions } from '../hooks/useLmsData.js'
@@ -16,10 +18,12 @@ const TABS = [
   { value: 'activities', label: 'Actividades', icon: ListChecks, description: 'Cuestionarios, entregas y actividades prácticas, en el orden en que se presentan.' },
   { value: 'settings', label: 'Configuración', icon: Settings2, description: 'Instrucciones, tiempo límite, intentos, disponibilidad y resultados.' },
   { value: 'participants', label: 'Participantes', icon: Users, description: 'Quiénes la presentan, cuándo empezaron y cuándo entregaron.' },
+  { value: 'results', label: 'Resultados', icon: BarChart3, description: 'Puntajes de cada participante, revisión pendiente, expedientes y exportación.' },
+  { value: 'graders', label: 'Evaluadores', icon: UserCheck, description: 'Quiénes califican o solo consultan los resultados de esta evaluación.' },
   { value: 'share', label: 'Compartir', icon: Link2, description: 'Enlace público para personas sin cuenta: registro, aviso de privacidad e invitaciones.' },
 ]
 
-// Evaluation editor: /assessments/:id. Results and graders arrive in later phases.
+// Evaluation editor: /assessments/:id.
 export default function LmsAssessmentEditor() {
   const navigate = useNavigate()
   const id = useRouteId()
@@ -90,6 +94,12 @@ export default function LmsAssessmentEditor() {
           <ParticipantsPanel assessmentId={assessment.id} readOnly={archived} />
         </ChipTabPanel>
       ) : null}
+      <ChipTabPanel value="results" active={tab === 'results'}>
+        {tab === 'results' ? <ResultsPanel assessmentId={assessment.id} /> : null}
+      </ChipTabPanel>
+      <ChipTabPanel value="graders" active={tab === 'graders'}>
+        {tab === 'graders' ? <GradersPanel assessmentId={assessment.id} readOnly={archived} /> : null}
+      </ChipTabPanel>
       <ChipTabPanel value="share" active={tab === 'share'}>
         {tab === 'share' ? <AssessmentSharePanel assessmentId={assessment.id} readOnly={archived} /> : null}
       </ChipTabPanel>
