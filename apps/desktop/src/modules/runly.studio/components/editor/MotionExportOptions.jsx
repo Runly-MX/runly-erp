@@ -30,13 +30,13 @@ export function MotionExportOptions({ type, value, onChange, plan, pageScope }) 
       {gif ? (
         <div className="space-y-1.5">
           <p className="text-sm font-medium">Repetición</p>
-          <SegmentedControl ariaLabel="Repetición del GIF" value={value.loop === false ? 'once' : 'loop'} onChange={loop => onChange({ loop: loop === 'loop' })} className="w-full [&_button]:min-w-0"
+          <SegmentedControl variant="subtle" ariaLabel="Repetición del GIF" value={value.loop === false ? 'once' : 'loop'} onChange={loop => onChange({ loop: loop === 'loop' })} className="w-full [&_button]:min-w-0"
             options={[{ value: 'loop', label: 'Repetir siempre' }, { value: 'once', label: 'Una vez' }]} />
         </div>
       ) : (
         <div className="space-y-1.5">
           <p className="text-sm font-medium">Calidad</p>
-          <SegmentedControl ariaLabel="Calidad del video" value={value.quality ?? 'standard'} onChange={quality => onChange({ quality })} className="w-full [&_button]:min-w-0"
+          <SegmentedControl variant="subtle" ariaLabel="Calidad del video" value={value.quality ?? 'standard'} onChange={quality => onChange({ quality })} className="w-full [&_button]:min-w-0"
             options={[{ value: 'standard', label: 'Normal' }, { value: 'high', label: 'Alta' }]} />
         </div>
       )}

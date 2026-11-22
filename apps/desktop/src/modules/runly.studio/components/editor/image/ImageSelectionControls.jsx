@@ -31,7 +31,7 @@ export function ImageSelectionControls({ selection, disabled, tools }) {
       {!shape ? (
         <Popover open={framesOpen} onOpenChange={setFramesOpen}>
           <PopoverTrigger asChild>
-            <ToolButton label="Marcos" side="bottom" disabled={disabled} active={props.mask !== 'rectangle' || props.border.width > 0}><Squircle /></ToolButton>
+            <ToolButton tone="soft" label="Marcos" side="bottom" disabled={disabled} active={props.mask !== 'rectangle' || props.border.width > 0}><Squircle /></ToolButton>
           </PopoverTrigger>
           <PopoverContent align="center" className="max-h-[min(70dvh,560px)] w-80 overflow-y-auto p-3">
             <FramesGrid activeKey={activeFrame(props)?.key} imageUrl={tools.imageUrl} disabled={disabled} onPick={preset => tools.frame(preset)} />

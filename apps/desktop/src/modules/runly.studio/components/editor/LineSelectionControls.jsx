@@ -28,7 +28,7 @@ function CapMenu({ end, value, disabled, onPatch }) {
   const label = end === 'start' ? 'Extremo inicial' : 'Extremo final'
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild><ToolButton label={`${label}: ${LINE_CAP_OPTIONS.find(option => option.value === value)?.label}`} side="bottom" disabled={disabled} active={value !== 'none'}><CapIcon cap={value} end={end} /></ToolButton></DropdownMenuTrigger>
+      <DropdownMenuTrigger asChild><ToolButton tone="soft" label={`${label}: ${LINE_CAP_OPTIONS.find(option => option.value === value)?.label}`} side="bottom" disabled={disabled} active={value !== 'none'}><CapIcon cap={value} end={end} /></ToolButton></DropdownMenuTrigger>
       <DropdownMenuContent align="center" className="min-w-48">
         <DropdownMenuLabel>{label}</DropdownMenuLabel>
         <DropdownMenuRadioGroup value={value} onValueChange={cap => onPatch({ [`${end}Cap`]: cap })}>

@@ -4,7 +4,7 @@ import { StudioFontPicker } from '../StudioFontPicker.jsx'
 import { draggable } from '../../lib/studio-drag.js'
 
 // Shapes, lines, blocks and frames live in elements/ElementsLibrary.jsx.
-const TILE = 'select-none [-webkit-touch-callout:none] flex items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] transition-[transform,background-color,border-color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+const TILE = 'select-none [-webkit-touch-callout:none] flex items-center justify-center rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] transition-[transform,background-color,border-color] duration-150 hover:border-[hsl(var(--foreground)/0.2)] hover:bg-[hsl(var(--muted))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
 
 function Heading({ children }) {
   return <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{children}</p>

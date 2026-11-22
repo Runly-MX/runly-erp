@@ -18,32 +18,36 @@ export function EffectGallery({ kind, applied, disabled, reducedMotion, onPrevie
   }, [options, query])
   const groups = EFFECT_GROUPS.map(group => [group, visible.filter(option => option.group === group)]).filter(([, list]) => list.length)
   const chosen = options.find(option => option.value === candidate)
+  // One miniature plays at a time: the hovered card, else the one being tried.
+  const playing = hovered ?? candidate
   const preview = value => { setCandidate(value); setReplay(count => count + 1); if (!reducedMotion) onPreview(value) }
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="relative">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-[hsl(var(--muted-foreground))]" aria-hidden />
         <Input value={query} onChange={event => setQuery(event.target.value)} placeholder="Buscar efecto" aria-label="Buscar efecto" className="pl-8" />
       </div>
       {reducedMotion ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Tu sistema pide reducir el movimiento: las miniaturas muestran la estela del efecto sin reproducirlo.</p> : null}
       {groups.length ? groups.map(([group, list]) => (
-        <section key={group} aria-label={group} className="space-y-1.5">
+        <section key={group} aria-label={group} className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{group}</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          {/* As many columns as fit at a readable width (two in the side panel, more in wide sheets). */}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(7.25rem,1fr))] gap-2">
             {list.map(option => {
               const isApplied = applied === option.value, isCandidate = candidate === option.value
               return (
                 <button key={option.value} type="button" data-effect-card={option.value} aria-pressed={isCandidate} aria-label={`${option.label}${isApplied ? ' (aplicado)' : ''}`}
                   onClick={() => preview(option.value)}
                   onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(option.value) }} onPointerLeave={() => setHovered(null)}
-                  className={cn('group relative flex min-h-[4.75rem] flex-col items-stretch gap-1 rounded-md border p-1 text-left text-[11px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
-                    isCandidate ? 'border-fuchsia-500 bg-fuchsia-500/10' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}>
-                  <span className="aspect-[16/10] w-full overflow-hidden rounded-[5px]">
-                    <EffectThumb key={isCandidate ? `${option.value}:${replay}` : option.value} kind={kind} choice={option.value} playing={!reducedMotion && (hovered === option.value || isCandidate)} />
+                  className={cn('group relative flex flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
+                    isCandidate ? 'border-[hsl(var(--foreground)/0.5)] bg-[hsl(var(--muted)/0.6)]'
+                      : isApplied ? 'border-fuchsia-500/60 dark:border-fuchsia-400/60' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--foreground)/0.25)] hover:bg-[hsl(var(--muted)/0.5)]')}>
+                  <span className="relative aspect-[16/10] w-full overflow-hidden rounded-md">
+                    <EffectThumb key={isCandidate ? `${option.value}:${replay}` : option.value} kind={kind} choice={option.value} playing={!reducedMotion && playing === option.value} />
+                    {isApplied ? <span className="absolute left-1 top-1 inline-flex items-center gap-0.5 rounded bg-fuchsia-600 px-1 py-px text-[10px] font-semibold text-white"><Check className="h-2.5 w-2.5" aria-hidden />Aplicado</span> : null}
                   </span>
-                  <span className="line-clamp-2 px-0.5">{option.label}</span>
-                  {isApplied ? <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fuchsia-600 text-white"><Check className="h-3 w-3" aria-hidden /></span> : null}
+                  <span className="line-clamp-2 min-h-[2rem] px-0.5 text-xs leading-4 text-[hsl(var(--foreground))] [text-wrap:balance]">{option.label}</span>
                 </button>
               )
             })}

@@ -548,7 +548,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `Textarea` | Multi-line text input |
 | `Checkbox` | Checkbox control |
 | `TagsComboboxField` | Multi-value creatable tag input with suggestion dropdown (unlike `TagsField`, which is free-entry only); props `value` (string[]), `onChange`, `suggestions`, `onSearchChange`. Case-insensitive dedupe |
-| `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange`, `size` (`"lg"` = 44px touch targets for POS screens) |
+| `SegmentedControl` | Pill single-choice control for short fixed sets; props `options`, `value`, `onChange`, `size` (`"lg"` = 44px touch targets for POS screens), `variant` (`"subtle"` = neutral raised active option without minimum width, for dense editor panels) |
 | `StatusPill` | Operational state as icon + text on a soft fill that keeps WCAG AA in light and dark (use it instead of the solid `Badge` success/warning/destructive for small state labels); props `tone` (`success`, `warning`, `danger`, `brand`, `neutral`), `icon` (lucide component), `size` (`md` / `sm`), `title` |
 | `SortableList` | Drag-and-drop reordering with pointer, touch and keyboard (Spanish screen reader announcements); props `items`, `onReorder(nextItems)`, `renderItem(item, { dragHandleProps, isDragging, index })`, `getId`, `labelOf`, `disabled`, `layout` (`vertical` default, `grid` for tiles inside a caller-provided grid) |
 | `DetailViewDesigner` | Company-wide editor for a DETAIL blueprint: cards in main/side columns, fields dragged between cards or to a "sin tarjeta" tray, module sections moved or hidden; props `open`, `onOpenChange`, `blueprint`, `view` (stored schema or null), `extraFields` (e.g. `custom:<id>` defs), `onSave(view)`, `onReset()`, `saving`. Apply the stored view with `applyDetailView(blueprint, view, extraFields)`; storage is `GET/PUT/DELETE /detail-views/:viewKey` (spec 2026-11-05-custom-detail-views) |
@@ -655,7 +655,7 @@ For the visual identity rules (glass tiers, radius/z-index scales, brand-token u
 | `DynamicTable` | Blueprint-driven table renderer |
 | `DynamicForm` | Blueprint-driven form renderer |
 | `ActionMenu` | Row action dropdown button |
-| `ToolButton` | Icon-only editor tool button with tooltip label and optional `shortcut` kbd; `active` paints the brand fill and sets `aria-pressed`. Props: `label`, `shortcut?`, `active?`, `side?` (tooltip side), plus `Button` props. Used by the Canvas and Studio editors. |
+| `ToolButton` | Icon-only editor tool button with tooltip label and optional `shortcut` kbd; `active` paints the brand fill and sets `aria-pressed`; `tone="soft"` tints it instead (editors where several toggles can be on). Props: `label`, `shortcut?`, `active?`, `tone?`, `side?` (tooltip side), plus `Button` props. Used by the Canvas and Studio editors. |
 | `SliderRow` | Labelled range with a 44px touch lane; tapping the value resets to `zero`. Props: `label`, `value`, `min`, `max`, `step?`, `zero?`, `format?`, `disabled?`, `onChange`, `onStart?`/`onCommit?` (bracket one drag or key burst, e.g. one undo step). Keeps the local value until an asynchronous owner echoes it back. Used by the image editor and Studio photo/text tools. |
 | `ConfirmDialog` | Confirmation dialog with destructive variant |
 | `BackButton` | "Back" arrow for headers and sub-panels: 44px touch target on phones (pulled into the gutter, layout unchanged), compact 32px on md+. Props: `onClick`, `label` (default "Volver"), `className`, `iconClassName`. |

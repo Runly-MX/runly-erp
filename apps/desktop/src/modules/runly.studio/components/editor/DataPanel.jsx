@@ -24,7 +24,7 @@ export function DataPanel({ value, onChange, fields, source, disabled, onInsert 
   if (!value) return (
     <div className="space-y-3">
       <p className="flex gap-2 rounded-md bg-[hsl(var(--muted)/0.5)] p-2.5 text-xs text-[hsl(var(--muted-foreground))]"><Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden /><span>{HINT}</span></p>
-      <SegmentedControl ariaLabel="Origen de los datos" value={origin} onChange={setOrigin} className="w-full [&_button]:min-w-0"
+      <SegmentedControl variant="subtle" ariaLabel="Origen de los datos" value={origin} onChange={setOrigin} className="w-full [&_button]:min-w-0"
         options={[{ value: 'file', label: 'Archivo' }, { value: 'module', label: 'Desde un módulo' }]} />
       {origin === 'module'
         ? <ModuleSourcePicker loadSources={source.sources} loadRows={source.moduleRows} rememberKey={source.rememberKey}
@@ -49,7 +49,7 @@ export function DataPanel({ value, onChange, fields, source, disabled, onInsert 
 
       <section className="space-y-2">
         <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Insertar columna en la página</p>
-        <SegmentedControl ariaLabel="Insertar como" value={as} onChange={setAs} className="w-full [&_button]:min-w-0" options={INSERT_AS} />
+        <SegmentedControl variant="subtle" ariaLabel="Insertar como" value={as} onChange={setAs} className="w-full [&_button]:min-w-0" options={INSERT_AS} />
         <div className="flex flex-wrap gap-1.5">
           {value.headers.map(header => (
             <button key={header} type="button" disabled={disabled} onClick={() => onInsert(as, header)} title={`Insertar {{${header}}}`}

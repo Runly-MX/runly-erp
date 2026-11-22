@@ -9,7 +9,7 @@ import { DynamicCodes } from './DynamicCodes.jsx'
 import { FramesGrid } from '../image/FramesGrid.jsx'
 import { FRAMES } from '../../../lib/frame-shapes.js'
 
-const TILE = 'group select-none [-webkit-touch-callout:none] flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-[transform,background-color,border-color,color] duration-150 hover:border-fuchsia-500/40 hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
+const TILE = 'group select-none [-webkit-touch-callout:none] flex flex-col items-center justify-center gap-1.5 rounded-xl border border-[hsl(var(--border))] bg-[hsl(var(--muted)/0.4)] p-2 text-[11px] font-medium text-[hsl(var(--muted-foreground))] transition-[transform,background-color,border-color,color] duration-150 hover:border-[hsl(var(--foreground)/0.2)] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none'
 
 function Section({ title, count, initial = 8, children, render }) {
   const [open, setOpen] = useState(false)
@@ -20,7 +20,7 @@ function Section({ title, count, initial = 8, children, render }) {
         <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{title}</p>
         {count > initial ? (
           <button type="button" onClick={() => setOpen(value => !value)} aria-expanded={open}
-            className="flex min-h-8 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-fuchsia-700 hover:bg-fuchsia-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] dark:text-fuchsia-300">
+            className="flex min-h-8 items-center gap-1 rounded-md px-1.5 text-xs font-medium text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
             {open ? 'Ver menos' : `Ver todo (${count})`}<ChevronDown className={cn('h-3.5 w-3.5 transition-transform duration-200 motion-reduce:transition-none', open && 'rotate-180')} />
           </button>
         ) : null}
@@ -77,7 +77,7 @@ function VisualChoice({ label, options, value, onChange }) {
             <TooltipTrigger asChild>
               <button type="button" role="radio" aria-checked={active} aria-label={option.label} onClick={() => onChange(option.value)}
                 className={cn('flex h-9 flex-1 items-center justify-center rounded-lg transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
-                  active ? 'bg-fuchsia-600 text-white shadow-sm' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
+                  active ? 'bg-[hsl(var(--card))] text-[hsl(var(--foreground))] shadow-sm ring-1 ring-[hsl(var(--border))]' : 'text-[hsl(var(--muted-foreground))] hover:bg-[hsl(var(--muted))] hover:text-[hsl(var(--foreground))]')}>
                 {option.icon}
               </button>
             </TooltipTrigger>
@@ -135,7 +135,7 @@ export function ElementsLibrary({ disabled, onAddPrimitive, onAddFigure, onAddLi
   const frames = query ? FRAMES.filter(item => matches(item.label, query)) : FRAMES
   const nothing = query && !basics.length && !figures.length && !lines.length && !blocks.length && !codes.length && !frames.length
   return (
-    <div className="space-y-5">
+    <div className="space-y-6">
       <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar formas, líneas, bloques…" aria-label="Buscar elementos" maxLength={60} />
       <div role="radiogroup" aria-label="Color para los nuevos elementos" className="flex flex-wrap gap-1.5">
         {[...new Set([...ELEMENT_COLORS, ...recent])].slice(0, 20).map(hex => (

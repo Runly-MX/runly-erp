@@ -16,7 +16,7 @@ export function PageSwitcher({ index, total, label, compact, navigatorOpen, onPr
       </span>
       {single ? null : <ToolButton label="Página siguiente" side="top" disabled={disabled || index >= total - 1} onClick={onNext} className="h-8 w-8"><ChevronRight /></ToolButton>}
       <span aria-hidden className="mx-0.5 h-5 w-px bg-[hsl(var(--border))]" />
-      <ToolButton data-page-browse label={navigatorOpen ? 'Volver al lienzo' : 'Ver todas las páginas'} side="top" active={navigatorOpen} onClick={onBrowse} className="h-8 w-8"><LayoutGrid /></ToolButton>
+      <ToolButton tone="soft" data-page-browse label={navigatorOpen ? 'Volver al lienzo' : 'Ver todas las páginas'} side="top" active={navigatorOpen} onClick={onBrowse} className="h-8 w-8"><LayoutGrid /></ToolButton>
     </div>
   )
 }

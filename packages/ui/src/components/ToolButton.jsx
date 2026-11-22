@@ -4,8 +4,9 @@ import { cn } from '../lib/utils.js'
 
 // Icon-only editor tool: ghost icon button with a tooltip that shows the
 // label and an optional keyboard shortcut. `active` paints the brand fill and
-// sets aria-pressed (tool pickers, panel toggles).
-export function ToolButton({ label, shortcut, active, className, side = 'top', children, ...props }) {
+// sets aria-pressed (tool pickers, panel toggles); tone="soft" tints it instead
+// (dense editors where several toggles may be on at once).
+export function ToolButton({ label, shortcut, active, tone = 'solid', className, side = 'top', children, ...props }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -17,7 +18,9 @@ export function ToolButton({ label, shortcut, active, className, side = 'top', c
           aria-pressed={active}
           className={cn(
             'rounded-lg text-[hsl(var(--muted-foreground))] hover:text-[hsl(var(--foreground))]',
-            active && 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground',
+            active && (tone === 'soft'
+              ? 'bg-[color-mix(in_srgb,var(--brand-primary)_14%,transparent)] text-[var(--brand-primary-computed)] hover:bg-[color-mix(in_srgb,var(--brand-primary)_20%,transparent)] hover:text-[var(--brand-primary-computed)]'
+              : 'bg-primary text-primary-foreground hover:bg-primary hover:text-primary-foreground'),
             className,
           )}
           {...props}

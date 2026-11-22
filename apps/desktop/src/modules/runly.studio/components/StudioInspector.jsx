@@ -45,7 +45,7 @@ function Alignment({ count, disabled, onAlign }) {
   const [target, setTarget] = useState('page')
   return (
     <Section title="Alinear">
-      <SegmentedControl ariaLabel="Alinear respecto a" value={target} onChange={setTarget} disabled={disabled}
+      <SegmentedControl variant="subtle" ariaLabel="Alinear respecto a" value={target} onChange={setTarget} disabled={disabled}
         options={[{ value: 'page', label: 'A la página' }, { value: 'selection', label: 'Entre sí' }]} />
       <div className="grid grid-cols-4 gap-1">
         {ALIGN.map(([action, label, Icon]) => (
@@ -137,10 +137,10 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
   return (
     <div>
       <div className="flex items-center gap-2 border-b border-[hsl(var(--border))] px-4 py-3">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-fuchsia-500/12 text-fuchsia-600 dark:text-fuchsia-300"><Icon className="h-4 w-4" /></span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[hsl(var(--muted))] text-[hsl(var(--foreground))]"><Icon className="h-4 w-4" /></span>
         <p className="min-w-0 flex-1 truncate text-sm font-semibold">{meta.label}</p>
         <ToolButton label={selection.hidden ? 'Mostrar' : 'Ocultar'} side="bottom" disabled={disabled} onClick={() => onPatch({ hidden: !selection.hidden })}>{selection.hidden ? <EyeOff /> : <Eye />}</ToolButton>
-        <ToolButton label={locked ? 'Desbloquear' : 'Bloquear'} side="bottom" active={locked} disabled={disabled} onClick={() => onPatch({ locked: !locked })}>{locked ? <Lock /> : <Unlock />}</ToolButton>
+        <ToolButton tone="soft" label={locked ? 'Desbloquear' : 'Bloquear'} side="bottom" active={locked} disabled={disabled} onClick={() => onPatch({ locked: !locked })}>{locked ? <Lock /> : <Unlock />}</ToolButton>
       </div>
       {photoTools && !locked ? <div className="border-b border-[hsl(var(--border))] px-4 py-4">{photoTools}</div> : null}
       {selection.type === 'text' ? (

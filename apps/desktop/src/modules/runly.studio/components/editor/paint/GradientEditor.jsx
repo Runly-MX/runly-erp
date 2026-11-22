@@ -90,7 +90,7 @@ export function GradientEditor({ paint, disabled, api, onError, compact = false,
 
   return (
     <div className="space-y-3">
-      <SegmentedControl ariaLabel="Tipo de degradado" value={paint.gradientType} disabled={disabled}
+      <SegmentedControl variant="subtle" ariaLabel="Tipo de degradado" value={paint.gradientType} disabled={disabled}
         onChange={type => { if (type !== paint.gradientType) serial.then(() => api.set(type === 'radial' ? toRadial(paint) : toLinear(paint))) }}
         options={[{ value: 'linear', label: 'Lineal' }, { value: 'radial', label: 'Radial' }]} className="w-full [&_button]:min-w-0" />
       <div className="px-2 pb-1 pt-1">

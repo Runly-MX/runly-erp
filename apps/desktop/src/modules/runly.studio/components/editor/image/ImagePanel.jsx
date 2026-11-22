@@ -89,15 +89,15 @@ function CropTab({ props, disabled, api }) {
         <div className="grid grid-cols-4 gap-1">
           <ToolButton label="Girar a la izquierda" side="bottom" disabled={disabled} onClick={() => rotate(-90)} className="h-11 w-full"><RotateCcw /></ToolButton>
           <ToolButton label="Girar a la derecha" side="bottom" disabled={disabled} onClick={() => rotate(90)} className="h-11 w-full"><RotateCw /></ToolButton>
-          <ToolButton label="Voltear en horizontal" side="bottom" active={props.flipX} disabled={disabled} onClick={() => api.image({ flipX: !props.flipX })} className="h-11 w-full"><FlipHorizontal2 /></ToolButton>
-          <ToolButton label="Voltear en vertical" side="bottom" active={props.flipY} disabled={disabled} onClick={() => api.image({ flipY: !props.flipY })} className="h-11 w-full"><FlipVertical2 /></ToolButton>
+          <ToolButton tone="soft" label="Voltear en horizontal" side="bottom" active={props.flipX} disabled={disabled} onClick={() => api.image({ flipX: !props.flipX })} className="h-11 w-full"><FlipHorizontal2 /></ToolButton>
+          <ToolButton tone="soft" label="Voltear en vertical" side="bottom" active={props.flipY} disabled={disabled} onClick={() => api.image({ flipY: !props.flipY })} className="h-11 w-full"><FlipVertical2 /></ToolButton>
         </div>
         <SliderRow label="Enderezar" min={-45} max={45} zero={0} value={straighten} format={value => `${value}°`} disabled={disabled}
           onStart={api.begin} onCommit={api.end} onChange={value => api.image({ rotation: Math.round(props.rotation / 90) * 90 + value })} />
       </div>
       <div className="space-y-2">
         <Heading>Foto en el marco</Heading>
-        <SegmentedControl ariaLabel="Ajuste de la foto en el marco" value={props.fit} disabled={disabled} onChange={fit => api.image({ fit })}
+        <SegmentedControl variant="subtle" ariaLabel="Ajuste de la foto en el marco" value={props.fit} disabled={disabled} onChange={fit => api.image({ fit })}
           options={[{ value: 'cover', label: 'Rellenar' }, { value: 'contain', label: 'Completa' }]} />
         <SliderRow label="Zoom" min={50} max={400} zero={100} step={5} value={Math.round(props.zoom * 100)} format={value => `${value} %`} disabled={disabled}
           onStart={api.begin} onCommit={api.end} onChange={value => api.image({ zoom: value / 100 })} />
@@ -137,7 +137,7 @@ function Effects({ selection, props, shape, disabled, api }) {
       )}
       <div className="space-y-2">
         <Heading>Sombra</Heading>
-        <SegmentedControl ariaLabel="Sombra" options={SHADOWS} value={shadow} disabled={disabled}
+        <SegmentedControl variant="subtle" ariaLabel="Sombra" options={SHADOWS} value={shadow} disabled={disabled}
           onChange={value => api.image({ shadow: SHADOWS.find(option => option.value === value).shadow })} />
       </div>
     </div>
@@ -155,7 +155,7 @@ export function ImagePanel({ selection, imageUrl, tab, onTab, disabled, api }) {
   const props = imageProperties(photo.image)
   return (
     <div className="space-y-4">
-      <SegmentedControl ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
+      <SegmentedControl variant="subtle" ariaLabel="Herramientas de imagen" options={TABS} value={tab} onChange={onTab} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
       {tab === 'crop' ? <CropTab props={props} disabled={disabled} api={api} /> : null}
       {tab === 'filters' ? (
         <>

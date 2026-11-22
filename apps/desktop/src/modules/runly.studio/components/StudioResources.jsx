@@ -88,7 +88,7 @@ export function StudioResources({ token, disabled, onInsert, uploader }) {
   return (
     <section aria-label="Imágenes" className="space-y-3">
       {uploader}
-      <SegmentedControl ariaLabel="Biblioteca de imágenes" value={workspace} onChange={value => { setWorkspace(value); setPage(1) }}
+      <SegmentedControl variant="subtle" ariaLabel="Biblioteca de imágenes" value={workspace} onChange={value => { setWorkspace(value); setPage(1) }}
         options={[{ value: 'mine', label: 'Mis imágenes' }, { value: 'company', label: 'Empresa' }]} />
       <div className="flex items-center gap-1.5">
         <SearchInput value={search} onChange={event => setSearch(event.target.value)} onClear={() => setSearch('')} placeholder="Buscar por nombre" aria-label="Buscar imágenes por nombre" maxLength={80} className="min-w-0 flex-1" />

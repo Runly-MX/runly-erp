@@ -2,7 +2,9 @@
 // canonical document primitives; "figures" are real Tabler icons (MIT) imported
 // through the creative catalog, so they keep their source and license.
 
-export const ELEMENT_COLORS = ['#d946ef', '#7c3aed', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#facc15', '#f97316', '#ef4444', '#ec4899', '#0f172a', '#ffffff']
+// The first color is the default for new elements: a neutral slate, so the library reads as
+// a catalog and the brand fuchsia stays an explicit choice (it remains in the palette).
+export const ELEMENT_COLORS = ['#64748b', '#d946ef', '#7c3aed', '#2563eb', '#0ea5e9', '#14b8a6', '#22c55e', '#facc15', '#f97316', '#ef4444', '#ec4899', '#0f172a', '#ffffff']
 
 export const BASIC_SHAPES = [
   { key: 'square', label: 'Cuadrado', type: 'rectangle', width: 260, height: 260 },

@@ -21,7 +21,7 @@ export function FillSwatch({ item, className }) {
 }
 
 function KindTabs({ item, disabled, paint }) {
-  return <SegmentedControl ariaLabel="Tipo de relleno" options={kindsFor(item)} value={fillKind(item)} disabled={disabled} onChange={paint.setKind}
+  return <SegmentedControl variant="subtle" ariaLabel="Tipo de relleno" options={kindsFor(item)} value={fillKind(item)} disabled={disabled} onChange={paint.setKind}
     className="w-full [&_button]:min-w-0 [&_button]:px-1 [&_button]:text-[11px]" />
 }
 

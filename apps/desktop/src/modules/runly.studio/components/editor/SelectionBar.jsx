@@ -29,7 +29,7 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
               : <ColorPopover value={selection.fill} disabled={editable} onChange={fill => onPatch({ fill })} />}
           {selection.type !== 'image' && imageTools ? (
             <Popover>
-              <PopoverTrigger asChild><ToolButton label="Transparencia" side="bottom" disabled={editable} active={(selection.opacity ?? 1) < 1} className="shrink-0"><Blend /></ToolButton></PopoverTrigger>
+              <PopoverTrigger asChild><ToolButton tone="soft" label="Transparencia" side="bottom" disabled={editable} active={(selection.opacity ?? 1) < 1} className="shrink-0"><Blend /></ToolButton></PopoverTrigger>
               <PopoverContent align="center" className="w-64 p-3">
                 <SliderRow label="Opacidad" min={0} max={100} zero={100} value={Math.round((selection.opacity ?? 1) * 100)} format={value => `${value} %`} disabled={editable}
                   onStart={imageTools.begin} onCommit={imageTools.end} onChange={value => imageTools.patch({ opacity: value / 100 })} />
@@ -52,7 +52,7 @@ export function SelectionBar({ selection, selectedCount, disabled, onPatch, onAc
               {ORDER.map(([key, label, Icon]) => <DropdownMenuItem key={key} onSelect={() => onOrder(key)} className="gap-2.5"><Icon className="h-4 w-4" />{label}</DropdownMenuItem>)}
             </DropdownMenuContent>
           </DropdownMenu>
-          <ToolButton label={locked ? 'Desbloquear' : 'Bloquear'} side="bottom" active={locked} disabled={disabled} onClick={() => onPatch({ locked: !locked })} className="shrink-0">{locked ? <Lock /> : <Unlock />}</ToolButton>
+          <ToolButton tone="soft" label={locked ? 'Desbloquear' : 'Bloquear'} side="bottom" active={locked} disabled={disabled} onClick={() => onPatch({ locked: !locked })} className="shrink-0">{locked ? <Lock /> : <Unlock />}</ToolButton>
         </>
       ) : null}
       <ToolButton label="Eliminar" shortcut="Supr" side="bottom" disabled={editable} onClick={onRemove} className="shrink-0 hover:bg-destructive/10 hover:text-destructive"><Trash2 /></ToolButton>

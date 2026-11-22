@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { Button, ErrorState, NumberStepper, SegmentedControl, SelectField } from '@runly/ui'
-import { Play, Sparkles, Trash2 } from 'lucide-react'
+import { Button, EmptyState, ErrorState, NumberStepper, SegmentedControl, SelectField } from '@runly/ui'
+import { MousePointerClick, Play, Sparkles, Trash2 } from 'lucide-react'
+import { OBJECT_META, describeObject } from '../LayersPanel.jsx'
 import { MOTION_LIMITS } from '../../../../../../../shared/studio/motion.js'
 import { EFFECTS_BY_KIND, EFFECT_DEFAULTS, choiceOf, effectFor } from '../../../lib/effect-catalog.js'
 import { EffectGallery } from './EffectGallery.jsx'
@@ -48,12 +49,46 @@ function EffectTiming({ title, value, emphasis, slideDuration, disabled, onChang
   )
 }
 
+// Nothing selected: say what to do and offer the page's elements (on a phone the sheet
+// covers the canvas, so picking here is the quickest way in).
+function PickTarget({ objects, onSelect }) {
+  const candidates = [...objects].reverse().filter(object => !object.hidden).slice(0, 8)
+  return (
+    <div className="space-y-4">
+      <EmptyState variant="compact" icon={MousePointerClick} title="Selecciona un elemento"
+        description="Toca una forma, texto o imagen del lienzo y aquí verás sus efectos de entrada, énfasis y salida." />
+      {onSelect && candidates.length ? (
+        <section aria-label="Elementos de la página" className="space-y-1.5">
+          <p className="text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">En esta página</p>
+          <ul className="space-y-0.5">
+            {candidates.map(object => {
+              const Icon = OBJECT_META[object.type]?.icon ?? Sparkles, effects = ['enter', 'emphasis', 'exit'].filter(kind => object[kind]).length
+              return (
+                <li key={object.id}>
+                  <button type="button" onClick={() => onSelect(object.id)}
+                    className="flex min-h-10 w-full items-center gap-2.5 rounded-md px-2 text-left text-sm hover:bg-[hsl(var(--muted))] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]">
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]"><Icon className="h-3.5 w-3.5" aria-hidden /></span>
+                    <span className="min-w-0 flex-1 truncate">{describeObject(object)}</span>
+                    {effects ? <span className="shrink-0 text-xs text-[hsl(var(--muted-foreground))]">{effects === 1 ? '1 efecto' : `${effects} efectos`}</span> : null}
+                  </button>
+                </li>
+              )
+            })}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  )
+}
+
 // Animation of the selected element (or every member of the selected group): a gallery per
 // kind; trying a card previews it on the element without writing, Aplicar writes one undo step.
-export function AnimationPanel({ targets, slideDuration, disabled, lockedReason, onApply, onPreview, onPreviewEffect }) {
-  const [error, setError] = useState(''), [busy, setBusy] = useState(false), [kind, setKind] = useState('enter'), [reducedMotion] = useState(reducedMotionQuery)
+// The open kind lives in the workspace so it survives switching panels.
+export function AnimationPanel({ targets, objects = [], onSelect, kind: shownKind, onKind, slideDuration, disabled, lockedReason, onApply, onPreview, onPreviewEffect }) {
+  const [error, setError] = useState(''), [busy, setBusy] = useState(false), [ownKind, setOwnKind] = useState('enter'), [reducedMotion] = useState(reducedMotionQuery)
+  const kind = shownKind ?? ownKind, setKind = onKind ?? setOwnKind
   const item = targets[0]
-  if (!item) return <p className="text-sm text-[hsl(var(--muted-foreground))]">Selecciona un elemento para animarlo.</p>
+  if (!item) return <PickTarget objects={objects} onSelect={onSelect} />
   async function run(patch) {
     try { setBusy(true); setError(''); await onApply(patch) } catch (failure) { setError(failure.message) } finally { setBusy(false) }
   }
@@ -66,7 +101,7 @@ export function AnimationPanel({ targets, slideDuration, disabled, lockedReason,
     <div className="space-y-4">
       {targets.length > 1 ? <p className="text-xs text-[hsl(var(--muted-foreground))]">Se aplica a los {targets.length} elementos del grupo; giran y escalan alrededor del centro del grupo.</p> : null}
       {lockedReason ? <p className="rounded-md bg-[hsl(var(--muted))] p-2.5 text-xs text-[hsl(var(--muted-foreground))]">{lockedReason}</p> : null}
-      <SegmentedControl ariaLabel="Tipo de efecto" size="sm" options={tabs} value={kind} onChange={setKind} />
+      <SegmentedControl ariaLabel="Tipo de efecto" variant="subtle" options={tabs} value={kind} onChange={setKind} />
       {value ? (
         <div className="space-y-2">
           <p className="text-xs"><span className="text-[hsl(var(--muted-foreground))]">Aplicado: </span><span className="font-medium">{EFFECTS_BY_KIND[kind].find(option => option.value === applied)?.label}</span></p>

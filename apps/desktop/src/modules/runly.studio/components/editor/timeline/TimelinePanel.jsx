@@ -60,7 +60,7 @@ export function TimelinePanel({ timeline: t, objects, selectedIds, phone, onSele
       )}
       {/* One row on phones (scrolls sideways) so the tracks keep their room. */}
       <div className={cn('flex shrink-0 items-center gap-1 border-b border-[hsl(var(--border))] px-2 py-1', phone ? 'flex-nowrap overflow-x-auto overscroll-contain' : 'flex-wrap')}>
-        <SegmentedControl ariaLabel="Modo de edición" size="sm" options={MODES} value={t.mode} onChange={mode => { t.setMode(mode); if (mode === 'design') t.setPlaying(false) }} className="w-auto shrink-0 flex-nowrap" />
+        <SegmentedControl variant="subtle" ariaLabel="Modo de edición" size="sm" options={MODES} value={t.mode} onChange={mode => { t.setMode(mode); if (mode === 'design') t.setPlaying(false) }} className="w-auto shrink-0 flex-nowrap" />
         <span aria-hidden className="mx-1 h-6 w-px bg-[hsl(var(--border))]" />
         <ToolButton label="Ir al inicio" shortcut="Inicio" side="top" onClick={() => t.setTime(0)}><SkipBack /></ToolButton>
         <ToolButton label={t.playing ? 'Pausar' : 'Reproducir'} shortcut="Espacio" side="top" onClick={t.toggle}>{t.playing ? <Pause /> : <Play />}</ToolButton>
@@ -71,7 +71,7 @@ export function TimelinePanel({ timeline: t, objects, selectedIds, phone, onSele
         <ToolButton label="Añadir keyframe en el cabezal" shortcut="K" side="top" disabled={!editable} onClick={addKeyframe}><Diamond className="fill-current" /></ToolButton>
         <ToolButton label="Keyframe siguiente" shortcut="]" side="top" onClick={() => jump(1)}><Diamond /><span className="sr-only">siguiente</span></ToolButton>
         <div className="ml-auto flex shrink-0 items-center gap-1">
-          <ToolButton label="Imán" side="top" active={t.snap} onClick={() => t.setSnap(!t.snap)}><Magnet /></ToolButton>
+          <ToolButton tone="soft" label="Imán" side="top" active={t.snap} onClick={() => t.setSnap(!t.snap)}><Magnet /></ToolButton>
           <ToolButton label="Alejar" side="top" disabled={zoom <= ZOOM_LIMITS.min} onClick={() => t.setZoom(zoom / ZOOM_LIMITS.step)}><ZoomOut /></ToolButton>
           <ToolButton label="Acercar" side="top" disabled={zoom >= ZOOM_LIMITS.max} onClick={() => t.setZoom(zoom * ZOOM_LIMITS.step)}><ZoomIn /></ToolButton>
           <ToolButton label="Ajustar a la diapositiva" side="top" onClick={() => t.setZoom(fitZoom(t.duration, scroll.current.clientWidth - labelWidth))}><StretchHorizontal /></ToolButton>

@@ -20,7 +20,7 @@ export function ShapeStyleFields({ selection, disabled, tools }) {
             onChange={strokeWidth => tools.shapeStyle({ strokeWidth })} />
           <ColorPopover label="Color del borde" value={style.strokeColor} disabled={disabled || !border} onChange={strokeColor => tools.shapeStyle({ strokeColor })} />
         </div>
-        <SegmentedControl ariaLabel="Tipo de borde" value={style.dash} disabled={disabled || !border} onChange={dash => tools.shapeStyle({ dash })}
+        <SegmentedControl variant="subtle" ariaLabel="Tipo de borde" value={style.dash} disabled={disabled || !border} onChange={dash => tools.shapeStyle({ dash })}
           options={LINE_DASHES} className="w-full [&_button]:min-w-0 [&_button]:px-1.5 [&_button]:text-xs" />
       </div>
       {selection.type === 'rectangle' ? (
@@ -44,7 +44,7 @@ export function ShapeSelectionControls({ selection, disabled, onPatch, tools, on
       {photo ? <ImageSelectionControls selection={selection} disabled={disabled} tools={tools} /> : null}
       <Popover>
         <PopoverTrigger asChild>
-          <ToolButton label="Borde y esquinas" side="bottom" disabled={disabled} active={style.strokeWidth > 0 || style.radius > 0}><SquareDashed /></ToolButton>
+          <ToolButton tone="soft" label="Borde y esquinas" side="bottom" disabled={disabled} active={style.strokeWidth > 0 || style.radius > 0}><SquareDashed /></ToolButton>
         </PopoverTrigger>
         <PopoverContent align="center" className="w-72 p-3">
           <ShapeStyleFields selection={selection} disabled={disabled} tools={tools} />

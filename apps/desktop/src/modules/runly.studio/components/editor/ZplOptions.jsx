@@ -26,7 +26,7 @@ export function ZplOptions({ page, options, set, loadPrinters, onPrinters }) {
       {printer ? null : (
         <div className="space-y-1.5">
           <p className="text-sm font-medium">Resolución de la impresora</p>
-          <SegmentedControl ariaLabel="Resolución de la impresora" value={String(options.dpi)} onChange={value => set({ dpi: Number(value) })} className="w-full [&_button]:min-w-0"
+          <SegmentedControl variant="subtle" ariaLabel="Resolución de la impresora" value={String(options.dpi)} onChange={value => set({ dpi: Number(value) })} className="w-full [&_button]:min-w-0"
             options={ZPL_DPI.map(value => ({ value: String(value), label: `${value} dpi` }))} />
           <p className="text-xs text-[hsl(var(--muted-foreground))]">Revisa la etiqueta de tu Zebra: la mayoría son de 203 dpi; las de alta definición, 300.</p>
         </div>

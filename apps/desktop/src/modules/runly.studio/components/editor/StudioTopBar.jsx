@@ -19,7 +19,7 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
       className="h-9 w-full min-w-0 truncate border-transparent bg-transparent px-2 font-semibold shadow-none hover:border-[hsl(var(--border))] disabled:opacity-100 sm:text-sm" />
   )
   const history_ = canEdit ? (
-    <div role="group" aria-label="Historial" className="flex items-center">
+    <div role="group" aria-label="Historial" className="flex items-center gap-0.5">
       <ToolButton label="Deshacer" shortcut="Ctrl+Z" side="bottom" disabled={!history.canUndo} onClick={onUndo} className={phone ? 'h-10 w-10' : undefined}><Undo2 /></ToolButton>
       <ToolButton label="Rehacer" shortcut="Ctrl+Y" side="bottom" disabled={!history.canRedo} onClick={onRedo} className={phone ? 'h-10 w-10' : undefined}><Redo2 /></ToolButton>
     </div>
@@ -82,9 +82,10 @@ export function StudioTopBar({ phone, name, onName, nameDisabled, syncState, liv
         </DropdownMenuContent>
       </DropdownMenu>
       {exportDialog}
-      <div className="flex items-center">
-        {onTimeline ? <ToolButton label={timelineOpen ? 'Cerrar línea de tiempo' : 'Línea de tiempo'} side="bottom" active={timelineOpen} onClick={onTimeline}><GanttChart /></ToolButton> : null}
-        {inspectorToggle ? <ToolButton label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
+      <span aria-hidden className="h-6 w-px bg-[hsl(var(--border))]" />
+      <div role="group" aria-label="Paneles y vista" className="flex items-center gap-1">
+        {onTimeline ? <ToolButton tone="soft" label={timelineOpen ? 'Cerrar línea de tiempo' : 'Línea de tiempo'} side="bottom" active={timelineOpen} onClick={onTimeline}><GanttChart /></ToolButton> : null}
+        {inspectorToggle ? <ToolButton tone="soft" label={inspectorOpen ? 'Ocultar propiedades' : 'Propiedades'} side="bottom" active={inspectorOpen} onClick={onToggleInspector}><PanelRight /></ToolButton> : null}
         <ToolButton label={VIEW_LABELS[viewMode]} side="bottom" onClick={onCycleViewMode}>
           {viewMode === 'normal' ? <Maximize2 /> : viewMode === 'clean' ? <Fullscreen /> : <Minimize2 />}
         </ToolButton>

@@ -304,6 +304,8 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   }
   // Photo tools: contextual "image" panel (not a rail item), framing mode, frames.
   const [imageTab, setImageTab] = useState('filters')
+  // Entrada / Énfasis / Salida stays put while the person moves between panels or elements.
+  const [animationKind, setAnimationKind] = useState('enter')
   // Photo tools live in Propiedades when it is docked; otherwise in the left panel / sheet.
   const openImagePanel = (tab, key = 'image') => {
     if (tab) setImageTab(tab)
@@ -339,7 +341,8 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
       onSelect={id => editorRef.current?.select(id)} onSelectGroup={id => editorRef.current?.selectGroup(id)} onToggleMany={ids => editorRef.current?.selectMany(ids)}
       onPatchObject={(id, patch) => attempt(async () => { editorRef.current.select(id, { individual: true }); editorRef.current.patch(patch) })} />,
     pages: <PagesPanel {...pagesProps} layout={phone ? 'grid' : 'list'} />,
-    animation: <AnimationPanel targets={selectedObjects} slideDuration={slideDuration(page)} disabled={readOnly || !ready}
+    animation: <AnimationPanel targets={selectedObjects} objects={objects} onSelect={id => editorRef.current?.select(id)} kind={animationKind} onKind={setAnimationKind}
+      slideDuration={slideDuration(page)} disabled={readOnly || !ready}
       lockedReason={selectedObjects.some(object => object.locked) ? 'Desbloquea el elemento para cambiar su animación.' : ''}
       onApply={patch => (selectedObjects.length === 1 ? attempt(async () => editorRef.current.patch(patch)) : attempt(() => patchMany(selectedObjects.map(object => object.id), patch)))}
       onPreview={() => setPreviewing(true)} onPreviewEffect={({ kind, effect }) => setEffectPreview({ kind, effect, ids: selectedObjects.map(object => object.id) })} />,

@@ -105,7 +105,7 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert,status,onRefreshS
     <ul className={RESOURCE_GRID}>
       {result?.data.map(resource=><li key={resource.id}><div className="group relative w-full text-left">
         <button type="button" onClick={()=>setPreview(resource)} aria-label={`Ver recurso ${resource.title}`} title={resource.title} className="absolute inset-0 z-10 rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]"/>
-        <div className="pointer-events-none relative z-20 aspect-square overflow-hidden rounded-xl ring-1 ring-[hsl(var(--border))] transition-[box-shadow] group-hover:ring-2 group-hover:ring-fuchsia-500/50 group-focus-visible:ring-2 group-focus-visible:ring-[hsl(var(--ring))]">
+        <div className="pointer-events-none relative z-20 aspect-square overflow-hidden rounded-xl ring-1 ring-[hsl(var(--border))] transition-[box-shadow] group-hover:ring-[hsl(var(--foreground)/0.25)] group-focus-visible:ring-2 group-focus-visible:ring-[hsl(var(--ring))]">
           <div className="h-full w-full transition-transform duration-300 group-hover:scale-105 motion-reduce:transition-none motion-reduce:group-hover:scale-100"><CatalogImage resource={resource} token={token}/></div>
         </div>
         <p className="truncate px-0.5 pt-1.5 text-xs text-[hsl(var(--muted-foreground))] group-hover:text-[hsl(var(--foreground))]">{resource.title}</p>
@@ -131,7 +131,7 @@ function ProviderCatalog({tab,token,designId,disabled,onInsert,status,onRefreshS
 export function StudioCreativeResources({token,designId,disabled,onFileInsert,onVectorInsert,uploader}) {
   const [tab,setTab]=useState('files'),[status,refreshStatus]=useCatalogStatus(token)
   return <div className="space-y-4">
-    <SegmentedControl ariaLabel="Tipo de recursos" value={tab} onChange={setTab} options={[{value:'files',label:'Archivos'},{value:'openverse',label:'Fotos'},{value:'illustrations',label:'Ilustraciones'},{value:'iconify',label:'Iconos'}]}/>
+    <SegmentedControl ariaLabel="Tipo de recursos" variant="subtle" value={tab} onChange={setTab} options={[{value:'files',label:'Archivos'},{value:'openverse',label:'Fotos'},{value:'illustrations',label:'Ilustraciones'},{value:'iconify',label:'Iconos'}]}/>
     {tab==='files'?<StudioResources token={token} disabled={disabled} uploader={uploader} onInsert={onFileInsert}/>:<ProviderCatalog key={tab} tab={tab} status={status} onRefreshStatus={refreshStatus} token={token} designId={designId} disabled={disabled} onInsert={async result=>{if(result.object)await onVectorInsert(result.object);else await onFileInsert(result.file)}}/>}
   </div>
 }

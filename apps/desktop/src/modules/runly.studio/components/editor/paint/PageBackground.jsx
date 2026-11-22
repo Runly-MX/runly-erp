@@ -13,7 +13,7 @@ export function PageBackground({ page, disabled, paint, canApplyToSelection, onE
   return (
     <section aria-label="Fondo" className="space-y-3">
       <p className="text-xs font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">Fondo</p>
-      <SegmentedControl ariaLabel="Tipo de fondo" value={gradient ? 'gradient' : 'solid'} disabled={disabled} className="w-full [&_button]:min-w-0"
+      <SegmentedControl variant="subtle" ariaLabel="Tipo de fondo" value={gradient ? 'gradient' : 'solid'} disabled={disabled} className="w-full [&_button]:min-w-0"
         options={[{ value: 'solid', label: 'Color' }, { value: 'gradient', label: 'Degradado' }]}
         onChange={value => (value === 'gradient' ? paint.pageGradient(gradient ?? DEFAULT_GRADIENT) : paint.setPageColor(page.background))} />
       {gradient ? (

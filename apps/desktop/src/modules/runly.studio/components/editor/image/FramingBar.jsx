@@ -9,7 +9,7 @@ const clamp = (value, min, max) => Math.min(max, Math.max(min, value))
 export function FramingBar({ props, disabled, onZoom, onFit, onReset, onReplace, onCancel, onDone }) {
   const zoom = Math.round(props.zoom * 100)
   const fitButton = (value, label, Icon) => (
-    <ToolButton label={label} side="bottom" active={props.fit === value} disabled={disabled} onClick={() => onFit(value)} className="h-9 w-9"><Icon /></ToolButton>
+    <ToolButton tone="soft" label={label} side="bottom" active={props.fit === value} disabled={disabled} onClick={() => onFit(value)} className="h-9 w-9"><Icon /></ToolButton>
   )
   return (
     <div role="toolbar" aria-label="Editar encuadre"

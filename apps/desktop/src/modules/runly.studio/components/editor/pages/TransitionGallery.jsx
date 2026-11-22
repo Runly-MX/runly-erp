@@ -34,7 +34,7 @@ export function TransitionThumb({ type, playing }) {
   return (
     <span aria-hidden className="relative block aspect-[16/10] w-full overflow-hidden rounded-[5px] bg-black">
       {card('outgoing', 'bg-[hsl(var(--muted))] text-[hsl(var(--muted-foreground))]', 'A')}
-      {card('incoming', 'bg-fuchsia-500 text-white', 'B')}
+      {card('incoming', 'bg-[hsl(var(--foreground)/0.62)] text-[hsl(var(--background))]', 'B')}
     </span>
   )
 }
@@ -43,22 +43,23 @@ export function TransitionThumb({ type, playing }) {
 export function TransitionGallery({ applied, candidate, onCandidate, reducedMotion }) {
   const [hovered, setHovered] = useState(null), [replay, setReplay] = useState(0)
   return (
-    <div className="space-y-2.5">
+    <div className="space-y-4">
       {GROUPS.map(group => (
-        <section key={group} aria-label={group} className="space-y-1.5">
+        <section key={group} aria-label={group} className="space-y-2">
           <p className="text-[11px] font-semibold uppercase tracking-wide text-[hsl(var(--muted-foreground))]">{group}</p>
-          <div className="grid grid-cols-3 gap-1.5">
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(7.25rem,1fr))] gap-2">
             {TRANSITION_OPTIONS.filter(option => option.group === group).map(option => {
               const isApplied = applied === option.value, isCandidate = candidate === option.value
               return (
                 <button key={option.value} type="button" data-transition-card={option.value} aria-pressed={isCandidate} aria-label={`${option.label}${isApplied ? ' (aplicada)' : ''}`}
                   onClick={() => { onCandidate(option.value); setReplay(count => count + 1) }}
                   onPointerEnter={event => { if (event.pointerType === 'mouse') setHovered(option.value) }} onPointerLeave={() => setHovered(null)}
-                  className={cn('relative flex min-h-[4.75rem] flex-col gap-1 rounded-md border p-1 text-left text-[11px] leading-tight transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
-                    isCandidate ? 'border-fuchsia-500 bg-fuchsia-500/10' : 'border-[hsl(var(--border))] hover:bg-[hsl(var(--muted))]')}>
-                  <TransitionThumb key={isCandidate ? `${option.value}:${replay}` : option.value} type={option.value} playing={!reducedMotion && (hovered === option.value || isCandidate)} />
-                  <span className="line-clamp-2 px-0.5">{option.label}</span>
-                  {isApplied ? <span className="absolute right-1 top-1 flex h-4 w-4 items-center justify-center rounded-full bg-fuchsia-600 text-white"><Check className="h-3 w-3" aria-hidden /></span> : null}
+                  className={cn('relative flex flex-col gap-1.5 rounded-lg border p-1.5 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))]',
+                    isCandidate ? 'border-[hsl(var(--foreground)/0.5)] bg-[hsl(var(--muted)/0.6)]'
+                      : isApplied ? 'border-fuchsia-500/60 dark:border-fuchsia-400/60' : 'border-[hsl(var(--border))] hover:border-[hsl(var(--foreground)/0.25)] hover:bg-[hsl(var(--muted)/0.5)]')}>
+                  <TransitionThumb key={isCandidate ? `${option.value}:${replay}` : option.value} type={option.value} playing={!reducedMotion && (hovered ?? candidate) === option.value} />
+                  <span className="line-clamp-2 min-h-[2rem] px-0.5 text-xs leading-4 [text-wrap:balance]">{option.label}</span>
+                  {isApplied ? <span className="absolute left-2.5 top-2.5 z-10 inline-flex items-center gap-0.5 rounded bg-fuchsia-600 px-1 py-px text-[10px] font-semibold text-white"><Check className="h-2.5 w-2.5" aria-hidden />Aplicada</span> : null}
                 </button>
               )
             })}

@@ -118,7 +118,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
   const pageScope = multiple ? (
     <div className="space-y-1.5">
       <p className="text-sm font-medium">Páginas</p>
-      <SegmentedControl ariaLabel="Páginas a incluir" value={scope} onChange={setScope} className="w-full [&_button]:min-w-0"
+      <SegmentedControl variant="subtle" ariaLabel="Páginas a incluir" value={scope} onChange={setScope} className="w-full [&_button]:min-w-0"
         options={[{ value: 'current', label: 'Actual' }, { value: 'all', label: `Todas (${entries.length})` }, { value: 'range', label: 'Rango' }]} />
       {scope === 'range' ? <TextField id="studio-export-range" label="Rango de páginas" value={range} placeholder="1-3, 5" autoComplete="off" onChange={event => setRange(event.target.value)}
         hint={`Del 1 al ${entries.length}. Se incluyen en el orden del diseño.`} error={parsed?.error && range.trim() ? parsed.error : undefined} /> : null}
@@ -200,7 +200,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
                 <span>{options.type.toUpperCase()} descarga una sola página: {entries.find(item => item.active)?.label}. Para varias páginas en un archivo elige PDF para imprimir.</span></p> : null}
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Tamaño</p>
-                <SegmentedControl ariaLabel="Tamaño de exportación" value={String(options.scale)} onChange={value => set({ scale: Number(value) })} className="w-full [&_button]:min-w-0"
+                <SegmentedControl variant="subtle" ariaLabel="Tamaño de exportación" value={String(options.scale)} onChange={value => set({ scale: Number(value) })} className="w-full [&_button]:min-w-0"
                   options={[1, 2, 3].map(factor => ({ value: String(factor), label: `×${factor}` }))} />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">×1 es el tamaño del diseño ({page.width} × {page.height} px); ×2 y ×3 lo amplían para pantallas de alta densidad.</p>
               </div>
@@ -216,7 +216,7 @@ export function ExportDialog({ open, onOpenChange, page, pages = [], pageCount =
               {versions ? null : <>
               <div className="space-y-1.5">
                 <p className="text-sm font-medium">Perfil de color</p>
-                <SegmentedControl ariaLabel="Perfil de color" value={options.profile} onChange={profile => set({ profile })} className="w-full [&_button]:min-w-0"
+                <SegmentedControl variant="subtle" ariaLabel="Perfil de color" value={options.profile} onChange={profile => set({ profile })} className="w-full [&_button]:min-w-0"
                   options={[{ value: 'cmyk', label: 'CMYK' }, { value: 'rgb', label: 'RGB' }]} />
                 <p className="text-xs text-[hsl(var(--muted-foreground))]">{options.profile === 'cmyk'
                   ? 'Usa una conversión genérica de RGB a CMYK, no el perfil ICC de tu imprenta. Los colores muy brillantes pueden verse más apagados. Si tu imprenta pide un perfil ICC concreto, descarga en RGB y conviértelo con el suyo.'

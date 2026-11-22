@@ -36,11 +36,11 @@ function Paragraph({ selection, disabled, onPatch, live }) {
       <PopoverContent align="center" className="w-72 space-y-3 p-3">
         <div className="flex items-center justify-between gap-1" role="group" aria-label="Alineación del párrafo">
           {ALIGN.map(([value, label, AlignIcon]) => (
-            <ToolButton key={value} label={label} side="bottom" active={(selection.textAlign ?? 'left') === value} disabled={disabled} onClick={() => onPatch({ textAlign: value })}><AlignIcon /></ToolButton>
+            <ToolButton tone="soft" key={value} label={label} side="bottom" active={(selection.textAlign ?? 'left') === value} disabled={disabled} onClick={() => onPatch({ textAlign: value })}><AlignIcon /></ToolButton>
           ))}
           <span aria-hidden className="mx-0.5 h-6 w-px bg-[hsl(var(--border))]" />
-          <ToolButton label="Subrayado" side="bottom" active={Boolean(selection.underline)} disabled={disabled} onClick={() => onPatch({ underline: !selection.underline })}><Underline /></ToolButton>
-          <ToolButton label="Tachado" side="bottom" active={Boolean(selection.linethrough)} disabled={disabled} onClick={() => onPatch({ linethrough: !selection.linethrough })}><Strikethrough /></ToolButton>
+          <ToolButton tone="soft" label="Subrayado" side="bottom" active={Boolean(selection.underline)} disabled={disabled} onClick={() => onPatch({ underline: !selection.underline })}><Underline /></ToolButton>
+          <ToolButton tone="soft" label="Tachado" side="bottom" active={Boolean(selection.linethrough)} disabled={disabled} onClick={() => onPatch({ linethrough: !selection.linethrough })}><Strikethrough /></ToolButton>
         </div>
         <SliderRow label="Interlineado" min={50} max={300} step={2} zero={116} value={Math.round((selection.lineHeight ?? 1.16) * 100)} format={value => (value / 100).toFixed(2)} disabled={disabled}
           onStart={live?.begin} onCommit={live?.end} onChange={value => (live ? live.patch : onPatch)({ lineHeight: value / 100 })} />

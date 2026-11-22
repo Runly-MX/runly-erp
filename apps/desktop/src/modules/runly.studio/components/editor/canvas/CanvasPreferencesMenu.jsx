@@ -12,11 +12,11 @@ export function CanvasPreferencesMenu({ canvas, compact = false }) {
   const size = compact ? 'h-10 w-10' : undefined
   return (
     <>
-      <ToolButton label={snapping.enabled ? 'Ajuste magnético activado (mantén Alt para mover libre)' : 'Ajuste magnético desactivado'} active={snapping.enabled}
+      <ToolButton tone="soft" label={snapping.enabled ? 'Ajuste magnético activado (mantén Alt para mover libre)' : 'Ajuste magnético desactivado'} active={snapping.enabled}
         aria-pressed={snapping.enabled} onClick={toggle.snapping} className={size}><Magnet /></ToolButton>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <ToolButton label="Cuadrícula, reglas y guías" active={p.grid.visible || p.grid.rulers} className={size}><Grid3x3 /></ToolButton>
+          <ToolButton tone="soft" label="Cuadrícula, reglas y guías" active={p.grid.visible || p.grid.rulers} className={size}><Grid3x3 /></ToolButton>
         </DropdownMenuTrigger>
         <DropdownMenuContent side="top" align="end" className="min-w-60">
           <DropdownMenuLabel>Ajuste magnético</DropdownMenuLabel>
