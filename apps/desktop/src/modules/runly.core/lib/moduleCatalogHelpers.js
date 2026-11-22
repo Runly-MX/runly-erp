@@ -57,7 +57,9 @@ export function statusLabel(module) {
 
 export function getPublisher(module) {
   if (module.core || module.kind === "CORE") return "Runly ERP";
-  if (module.origin === "official-optional") return "Oficial Runly";
+  // An API without `origin` (older than this web build) must not demote official modules: only custom.* are community.
+  const origin = module.origin ?? (String(module.key ?? "").startsWith("custom.") ? "custom" : "official-optional");
+  if (origin === "official-optional") return "Oficial Runly";
   return module.publisher ?? "Comunidad";
 }
 
