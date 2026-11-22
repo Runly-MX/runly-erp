@@ -57,6 +57,7 @@ test('las excepciones SSRF conservan los casos adversariales sin permitir otros 
     'apps/api/src/routes/notes/__tests__/append-images.test.js',
     'apps/api/src/routes/notes/__tests__/append-to-note.test.js',
     'apps/api/src/services/__tests__/automation-http-service.test.js',
+    'apps/api/src/services/__tests__/growth-monitor.test.js',
     'apps/api/src/services/catalog/__tests__/catalog-security.test.js',
   ]
   const unknown = [172, 30, 4, 5].join('.')

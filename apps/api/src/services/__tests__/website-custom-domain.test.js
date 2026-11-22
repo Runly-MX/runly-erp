@@ -51,7 +51,7 @@ function fake(options = {}) {
 test('hostnames are normalized and unsafe ones refused', () => {
   assert.equal(normalizeCustomHostname('https://WWW.MiTienda.mx/ruta?x=1'), 'www.mitienda.mx')
   assert.equal(normalizeCustomHostname('tienda.mx.'), 'tienda.mx')
-  for (const bad of ['', 'localhost', '192.168.0.1', 'a b.com', 'http://[::1]/', `${'x'.repeat(300)}.com`, 'bad_host.com']) {
+  for (const bad of ['', 'localhost', '192.0.2.1', 'a b.com', 'http://[::1]/', `${'x'.repeat(300)}.com`, 'bad_host.com']) {
     assert.throws(() => normalizeCustomHostname(bad), (e) => e.code === 'invalid_hostname', bad)
   }
 })

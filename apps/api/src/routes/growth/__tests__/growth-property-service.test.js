@@ -116,14 +116,14 @@ test("createExternalProperty + verifyProperty happy path", async () => {
 });
 
 test("verifyProperty re-judges a stale ping origin against the current domain", async () => {
-  const property = { id: "p1", companyId: COMPANY_ID, domain: "racoondevs.com", status: "pending_verification", enabled: true };
+  const property = { id: "p1", companyId: COMPANY_ID, domain: "example.com", status: "pending_verification", enabled: true };
   const prisma = createPrismaStub({ growthProperties: [property] });
-  const stale = { at: "2026-11-15T00:00:00Z", state: "ok", origin: "https://www.racoondevs.com", originAllowed: false };
+  const stale = { at: "2026-11-15T00:00:00Z", state: "ok", origin: "https://www.example.com", originAllowed: false };
   prisma.instanceConfig.findUnique = async () => ({ value: JSON.stringify(stale) });
   const service = createGrowthPropertyService({ prisma });
   const ok = await service.verifyProperty({ companyId: COMPANY_ID, propertyId: "p1" });
   assert.equal(ok.diagnostic.originAllowed, true);
-  property.domain = "tienda.racoondevs.com";
+  property.domain = "tienda.example.com";
   const other = await service.verifyProperty({ companyId: COMPANY_ID, propertyId: "p1" });
   assert.equal(other.diagnostic.originAllowed, false);
 });

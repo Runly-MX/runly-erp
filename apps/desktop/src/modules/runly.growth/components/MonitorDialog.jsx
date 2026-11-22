@@ -160,7 +160,7 @@ export function MonitorDialog({ open, onOpenChange, monitor, properties, onSave,
                 options={["A", "AAAA", "CNAME", "MX", "TXT"].map((v) => ({ value: v, label: v }))}
                 onValueChange={(value) => set("recordType", value)}
               />
-              <TextField label="Debe contener (opcional)" value={form.expected} onChange={(e) => set("expected", e.target.value)} placeholder="76.76.21.21" />
+              <TextField label="Debe contener (opcional)" value={form.expected} onChange={(e) => set("expected", e.target.value)} placeholder="192.0.2.21" />
             </>
           ) : null}
           {["http", "keyword", "api"].includes(form.type) ? (

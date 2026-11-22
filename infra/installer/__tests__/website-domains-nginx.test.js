@@ -3,17 +3,17 @@ import assert from 'node:assert/strict'
 import { isSafeHostname, ownedSiteConf, planSync, renderAcmeBlock, renderNamespaceBlock, renderSiteBlock, siteConfName, assertSafeUpstream, assertSafePrefix, RETRY_AFTER_FAILURE_MS } from '../lib/website-domains-nginx.mjs'
 
 test('hostnames from the database are validated before reaching nginx, certbot or a file name', () => {
-  for (const ok of ['villa-om.dimare.mx', 'www.mitienda.com.mx', 'a1.io']) assert.equal(isSafeHostname(ok), true, ok)
-  for (const bad of ['x.mx; include /etc/passwd', 'evil.mx\n}', '../etc.mx', 'UPPER.mx', '-a.mx', 'a..mx', '*.mx', 'localhost', 'a.mx ', '1.2.3.4', '']) assert.equal(isSafeHostname(bad), false, JSON.stringify(bad))
+  for (const ok of ['site.example.com', 'www.mitienda.com.mx', 'a1.io']) assert.equal(isSafeHostname(ok), true, ok)
+  for (const bad of ['x.mx; include /etc/passwd', 'evil.mx\n}', '../etc.mx', 'UPPER.mx', '-a.mx', 'a..mx', '*.mx', 'localhost', 'a.mx ', '192.0.2.4', '']) assert.equal(isSafeHostname(bad), false, JSON.stringify(bad))
   assert.throws(() => renderSiteBlock({ hostname: 'x.mx;}', upstream: 'http://127.0.0.1:5173' }))
   assert.throws(() => assertSafeUpstream('http://127.0.0.1:5173; return 200'))
   assert.throws(() => assertSafePrefix('../runly'))
 })
 
 test('rendered blocks proxy to the instance upstream with the Host header and the right certificate', () => {
-  const site = renderSiteBlock({ hostname: 'villa-om.dimare.mx', upstream: 'http://127.0.0.1:5173' })
-  assert.match(site, /server_name villa-om\.dimare\.mx;/)
-  assert.match(site, /ssl_certificate +\/etc\/letsencrypt\/live\/villa-om\.dimare\.mx\/fullchain\.pem;/)
+  const site = renderSiteBlock({ hostname: 'site.example.com', upstream: 'http://127.0.0.1:5173' })
+  assert.match(site, /server_name site\.example\.com;/)
+  assert.match(site, /ssl_certificate +\/etc\/letsencrypt\/live\/site\.example\.com\/fullchain\.pem;/)
   assert.match(site, /proxy_pass http:\/\/127\.0\.0\.1:5173;/)
   assert.match(site, /proxy_set_header Host \$host;/)
   assert.match(renderNamespaceBlock({ root: 'sites.example.com', upstream: 'http://127.0.0.1:5173', certDir: '/etc/letsencrypt/live/sites.example.com' }), /server_name \*\.sites\.example\.com;/)

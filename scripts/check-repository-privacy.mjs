@@ -20,6 +20,9 @@ const hash = (value) => createHash('sha256').update(value).digest('hex')
 // Reviewed SSRF classification constants and adversarial fixtures, never connection
 // defaults. Keep each exception bound to its exact file and address.
 const ssrfAddresses = new Map([
+  // Injected DNS/request stubs need public sentinels: RFC 5737 addresses are
+  // deliberately denied by isPublicAddress. These fixtures never connect to them.
+  ['apps/api/src/services/__tests__/growth-monitor.test.js', new Set([[93, 184, 216, 34], [93, 184, 216, 35], [8, 8, 8, 8]].map(parts => parts.join('.')))],
   ['apps/api/src/routes/notes/append-images.js', new Set([[10, 0, 0, 0], [100, 64, 0, 0], [169, 254, 0, 0], [172, 16, 0, 0], [192, 0, 0, 0], [192, 168, 0, 0], [198, 18, 0, 0], [224, 0, 0, 0], [255, 255, 255, 255]].map(parts => parts.join('.')))],
   ['apps/api/src/services/automation-http-service.js', new Set([[10, 0, 0, 0], [100, 64, 0, 0], [169, 254, 0, 0], [172, 16, 0, 0], [192, 0, 0, 0], [192, 168, 0, 0], [198, 18, 0, 0], [224, 0, 0, 0], [240, 0, 0, 0]].map(parts => parts.join('.')))],
   ['apps/api/src/routes/notes/__tests__/append-images.test.js', new Set([[93, 184, 216, 34], [10, 1, 2, 3], [172, 16, 0, 1], [172, 31, 255, 255], [192, 168, 1, 1], [169, 254, 169, 254], [100, 64, 0, 1], [224, 0, 0, 1], [255, 255, 255, 255], [8, 8, 8, 8], [172, 32, 0, 1], [100, 63, 0, 1], [10, 0, 0, 5]].map(parts => parts.join('.')))],

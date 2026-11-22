@@ -12,7 +12,7 @@ const publicLookup = async () => [{ address: "93.184.216.34", family: 4 }];
 
 test("probeHttp refuses hosts that resolve to private addresses", async () => {
   const probes = createGrowthMonitorProbes({
-    resolveHost: async () => [{ address: "10.0.0.5", family: 4 }],
+    resolveHost: async () => [{ address: "127.0.0.5", family: 4 }],
     request: async () => assert.fail("must not connect"),
   });
   const result = await probes.probeHttp({ url: "https://internal.example/" });
@@ -194,11 +194,11 @@ test("registrable domain, domain/tcp/dns evaluators and Spanish network errors",
   assert.equal(p.evaluateTcpCheck({ connected: true }).ok, true);
   assert.equal(p.evaluateTcpCheck({ connected: false, error: "x" }).ok, false);
   assert.equal(p.evaluateDnsCheck({ values: [] }).ok, false);
-  assert.equal(p.evaluateDnsCheck({ values: ["1.2.3.4"] }, { expected: "1.2.3.4" }).ok, true);
-  assert.equal(p.evaluateDnsCheck({ values: ["1.2.3.4"] }, { expected: "9.9.9.9" }).ok, false);
+  assert.equal(p.evaluateDnsCheck({ values: ["192.0.2.4"] }, { expected: "192.0.2.4" }).ok, true);
+  assert.equal(p.evaluateDnsCheck({ values: ["192.0.2.4"] }, { expected: "198.51.100.9" }).ok, false);
 
   const probes = p.createGrowthMonitorProbes({
-    resolveHost: async () => [{ address: "10.0.0.1", family: 4 }],
+    resolveHost: async () => [{ address: "127.0.0.1", family: 4 }],
     rdapFetch: async (url) => ({ ok: true, json: async () => String(url).includes("iana.org") ? { services: [[["com"], ["https://rdap.example-registry.com/com/v1/"]]] } : { events: [{ eventAction: "expiration", eventDate: at(40) }] } }),
   });
   assert.equal((await probes.probeTcp({ host: "x.example", port: 25 })).connected, false, "tcp refuses private addresses");
@@ -288,7 +288,7 @@ test("review fixes: custom headers are not re-sent after an https to http redire
 });
 
 test("review fixes: DNS monitor never returns private A/AAAA answers", async () => {
-  const probes = createGrowthMonitorProbes({ resolveDns: async () => ["10.0.0.5", "8.8.8.8", "fd00::1"] });
+  const probes = createGrowthMonitorProbes({ resolveDns: async () => ["127.0.0.5", "8.8.8.8", "fd00::1"] });
   assert.deepEqual((await probes.probeDns({ host: "x.example", recordType: "A" })).values, ["8.8.8.8"]);
   const txt = createGrowthMonitorProbes({ resolveDns: async () => [["v=spf1 -all"]] });
   assert.deepEqual((await txt.probeDns({ host: "x.example", recordType: "TXT" })).values, ["v=spf1 -all"]);
