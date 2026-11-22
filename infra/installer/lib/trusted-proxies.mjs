@@ -5,6 +5,7 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { isIP } from 'node:net';
+import { spawnSync } from 'node:child_process';
 
 export const TRUSTED_PROXY_KEYS = ['RUNLY_TRUSTED_PROXIES', 'RUNLY_MCP_TRUSTED_PROXIES'];
 const SHORTCUTS = new Set(['private', 'loopback']);
@@ -75,4 +76,37 @@ export async function restoreLatestEnvBackup(envFile, { root = path.dirname(envF
   if (!files.length) throw new Error('No hay respaldos de configuracion.');
   await fs.copyFile(path.join(dir, files.at(-1)), envFile);
   return path.join(dir, files.at(-1));
+}
+
+// Docker networks of an existing container as network CIDRs (IPv4). Read-only.
+export function dockerNetworkCidrs(container) {
+  const r = spawnSync('docker', ['inspect', container, '--format', '{{range .NetworkSettings.Networks}}{{.IPAddress}}/{{.IPPrefixLen}} {{end}}'], { encoding: 'utf8' });
+  if (r.status !== 0) return [];
+  return [...new Set(r.stdout.trim().split(/\s+/).map(entry => {
+    const [ip, bits] = entry.split('/'), n = Number(bits), p = ip.split('.').map(Number);
+    if (p.length !== 4 || p.some(x => !(x >= 0 && x <= 255)) || !(n >= 8 && n <= 30)) return null;
+    const value = ((p[0] << 24) | (p[1] << 16) | (p[2] << 8) | p[3]) >>> 0, mask = (0xffffffff << (32 - n)) >>> 0, net = (value & mask) >>> 0;
+    return `${net >>> 24}.${(net >>> 16) & 255}.${(net >>> 8) & 255}.${net & 255}/${n}`;
+  }).filter(Boolean))];
+}
+
+// Assisted, idempotent migration. Only when a key is ABSENT: write the Docker
+// network(s) of the already-running API container (the stack's own trust
+// boundary, never every private range); with no running container write it blank
+// (socket IP, safe) and say what to do. Existing values, even empty, are kept.
+export async function ensureTrustedProxiesDefault(envFile, { mode, container, cidrs = dockerNetworkCidrs, log = console.info } = {}) {
+  let text = '';
+  try { text = await fs.readFile(envFile, 'utf8'); } catch (error) { if (error.code !== 'ENOENT') throw error; }
+  const missing = TRUSTED_PROXY_KEYS.filter(key => readEnvValue(text, key) === undefined);
+  if (!missing.length) return { added: [] };
+  const name = container ?? (mode ? `${readEnvValue(text, "RUNLY_CONTAINER_PREFIX") || "runly"}-api-${mode}` : null);
+  const detected = name ? cidrs(name) : [];
+  const value = detected.join(',');
+  const eol = text.includes('\r\n') ? '\r\n' : '\n';
+  const lines = missing.map(key => `${key}=${value}`);
+  await fs.appendFile(envFile, (text && !text.endsWith('\n') ? eol : '') + lines.join(eol) + eol, { encoding: 'utf8', mode: 0o600 });
+  log(value
+    ? `[runly-proxies] ${missing.join(', ')} no estaba definido: se agrego la red Docker del stack (${value}). Revisa que incluya al proxy del host si existe.`
+    : `[runly-proxies] ${missing.join(', ')} no estaba definido y no hay contenedor en ejecucion para detectar la red: se dejo vacio (se usa la IP del socket). Tras levantar el stack ejecuta: node diagnose-trusted-proxies.mjs`);
+  return { added: missing, value };
 }

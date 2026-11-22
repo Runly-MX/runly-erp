@@ -26,7 +26,7 @@ El contenedor web agrega la IP que ve con `proxy_add_x_forwarded_for`, de modo q
 
 ## Que hace el instalador y el actualizador
 
-- Plantillas `.env.local.example` / `.env.external.example`: `RUNLY_TRUSTED_PROXIES=private` solo se agrega si la clave **no existe**. Un valor propio, o vacio explicito, no se toca.
+- Las plantillas ya no traen `private`. Solo si la clave (`RUNLY_TRUSTED_PROXIES` o `RUNLY_MCP_TRUSTED_PROXIES`) **no existe**, el actualizador escribe la red Docker del propio stack, detectada del contenedor de la API en ejecucion (nunca todas las redes privadas). Sin contenedor en ejecucion (instalacion nueva) la deja vacia, y tras levantar el stack el diagnostico indica que valor poner. Un valor existente, incluso vacio o `private`, no se toca. Es idempotente.
 - `setup-local.mjs` / `setup-external.mjs` (lo que ejecutan `./update-local.sh` y `./update-external.sh`): antes de reiniciar, respaldan el archivo `.env.*` en `.runly-installer/env-backups/` (5 versiones, sin duplicar si no cambio) y validan estrictamente la clave. Un valor invalido aborta sin modificar el archivo ni reiniciar contenedores.
 - No tocan dominios, certificados, secretos, nginx ni compose.
 - Es idempotente: repetir el actualizador no duplica variables.
@@ -37,8 +37,10 @@ Desde la carpeta del instalador:
 
 ```bash
 node diagnose-trusted-proxies.mjs --mode local      # o --mode external
-node diagnose-trusted-proxies.mjs --mode external --probe https://api.example.com
+node diagnose-trusted-proxies.mjs --mode external --probe https://api.example.com --yes
 ```
+
+El diagnostico imprime solo las claves de proxies, nombres de contenedor y las IP/gateway de sus redes Docker; no lee ni imprime otras variables. La sonda exige `--yes` y solo golpea `/public/lms/certificates/*` (limite de 30 solicitudes por IP, sin login ni datos). Uso controlado: primero en staging o en una instancia aislada; en la real, una sola vez, desde una IP externa, fuera de horas pico. Efecto: esa IP queda limitada unos 60 s en la verificacion de certificados; si los proxies estuvieran mal configurados (cuota compartida), esa verificacion publica se limitaria ~60 s para todos, sin afectar login, cursos ni evaluaciones.
 
 Sin `--probe` solo lee la clave, valida el formato, compara con lo que ve el contenedor de la API y lista las redes Docker. Con `--probe` envia 40 solicitudes con `X-Forwarded-For` distinto a un endpoint publico con limite; si el limite no se activa, una cabecera falsificada cambia la identidad. Ejecutalo desde fuera del servidor: desde una IP privada confiable el resultado puede ser un falso positivo. La sonda deja limitada brevemente la IP desde la que se ejecuta.
 

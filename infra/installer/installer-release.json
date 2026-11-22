@@ -1,10 +1,10 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.22.1",
+  "version": "2026.11.22.2",
   "files": {
     ".env.local.example": {
-      "sha256": "f050147cdb1aac3d1d0b9c893dcd967a9fc1edf325208b7168f3266b821cf5e3",
+      "sha256": "f14fce75ddc7c65eaf60eb3742c6e71e84089a135415aed5ddda8004089ace2a",
       "modes": [
         "local"
       ],
@@ -14,6 +14,7 @@
         "0640e1d5b0bd4f1b508e1b01092485d0e90a43f3",
         "077646628450052dac4f7f9805a1b19439f47348",
         "0c0df8eff2a6fa1752f7b40c717b6e3c8bea76bc",
+        "11d2c4d074a118b538d577c6d12fac5c3d2d21bd",
         "147c4dbb76106148e19e716eb043b6fb9466421a",
         "18b43ff4c7dc96b1a9a40426513fc30f924259c3",
         "221f79cf5ced3dfd30aced7c9c8c175312357f16",
@@ -219,25 +220,28 @@
       ]
     },
     "lib/env-compat.mjs": {
-      "sha256": "79048d946108b17a116c1ba960d6673f19045927f90d940850660723f6a48c52",
+      "sha256": "266c0d6b9540fbcc5eaa76db3224b2758118fc71101dc200759dde8910e8217c",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": [
         "04642e28e2816c592bc6f4b4abee7c4a40bad440",
+        "346d4d8e1a366c345e6f185833cf0b2fe3d3caca",
         "6c301a8eb0ade8c480b421df514fdbeb4e7ea0e5",
         "76344d6c84a795d7ab40c4e68491e91aec21795b",
         "c5803ed5230b68e98cd869a586f50fc276638d10"
       ]
     },
     "lib/trusted-proxies.mjs": {
-      "sha256": "9deb2ed098e8cfac5725181bb786d0c10e7b08e78e09cd3f2a29fd672a55e33f",
+      "sha256": "c641f744d7fc43a43bfc809d7c3706d089391f6277e8d5de10f4ad8b433f4b9d",
       "modes": [
         "local",
         "external"
       ],
-      "legacyGitBlobs": []
+      "legacyGitBlobs": [
+        "604b58301dca12dc113aafa949cbd9624e06a118"
+      ]
     },
     "lib/firebase-config.mjs": {
       "sha256": "3d78d30e90628c3699eb43f94d7bdd695ae0e9647506a226bed709ce11cdd210",
@@ -387,7 +391,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "492f0dd14a516bcc02fe6154673cc4353e76eb149d907b8f9fd959dc3f2a8260",
+      "sha256": "86311523c94ac3b2b680451fd0dd07309dc91c58f6217b88987e51430eaa62ba",
       "modes": [
         "local"
       ],
@@ -439,6 +443,7 @@
         "a29ae3c6abdfcd36760bf561845d020f2dde6cb4",
         "a36f66bcc8e51ec45ac79688e8db3cb7166ed9cd",
         "a7769846473aa5be227aac6034f4bfbc116e0861",
+        "ad1a21df4f41dd7c83075bcae4ca35324f43ff22",
         "ae2f675ac363d77374f932b6017d23f6dd1349b9",
         "af997a064a788c84682ba2598f5bc03c521a3be8",
         "b08dedb79143eb6b6150e72d400fcbff54f58f8f",
@@ -600,12 +605,14 @@
       ]
     },
     "diagnose-trusted-proxies.mjs": {
-      "sha256": "15c9c8e0b4af5a82df2b54576ef477bfa1fa1285c58e823a87d199a41c4a42f9",
+      "sha256": "b761da018ec298629465006f0cb020e716b55b98018e33f5fe2293e2efc64562",
       "modes": [
         "local",
         "external"
       ],
-      "legacyGitBlobs": []
+      "legacyGitBlobs": [
+        "3234263af2ae877d1d0e18cb1bf16c3b732c9a2a"
+      ]
     },
     "update-installer.mjs": {
       "sha256": "84216be9baae306611d01f800685146d00e364d94a71438f3eced4a0d9743650",
@@ -653,7 +660,7 @@
       "legacyGitBlobs": []
     },
     ".env.external.example": {
-      "sha256": "967eb0a0680084310efed64db2fd6817ebc0bc5aba00d27bc740eaa3e01170cb",
+      "sha256": "71899d6c5dc36d80d934919a60528146276bf7cd85f2b89f25cc455197626b0d",
       "modes": [
         "external"
       ],
@@ -681,6 +688,7 @@
         "58e43f33662c7a517f39c4e5018af156e04f583e",
         "60ff657208e0fd9578629d7e67b9a6152c131e65",
         "6ac5e5988c30b616c96dbfafd42444c201bbf7af",
+        "7b9efd14a84fd034fce524d940844dbcd0516b7e",
         "7d066af75fd3bb99771d43a48444c21ec8a6f32a",
         "7f4d1bfac6def282e8d3deec8de79523141d4ce9",
         "a8928a882573b4cfe2ebc83438740f2ce044aa58",
@@ -699,7 +707,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "488e0a0e21278c9b48b571483233d74155dfbb954449e90fe15c4278348ce959",
+      "sha256": "af3a5e09584b0b7d4a1219c18dbd89ce944547c4dfa39a45864c4a385babfd37",
       "modes": [
         "external"
       ],
@@ -753,6 +761,7 @@
         "c8a8f6a9e79890bf9dcb3a6a9829c448e055862c",
         "cd6092857852d3fa40de61275fbd45e4d34ac659",
         "d60572a485e151bf0899a7bd452af532476beace",
+        "d662134131f8f383a76a4b3686deee7081f34843",
         "ebc1913ae95fed91b2c11b6a2f5a14eb92c4b8a1",
         "ef499e3d1e5b8a84eba1543b9ba6fd42a3925f48"
       ]

@@ -4,7 +4,7 @@
 // Docker networks to compare against. `--probe <URL publica de la API, RUNLY_API_URL>` additionally sends
 // ~40 forged-header requests to a rate-limited public endpoint to verify behavior
 // (it briefly rate-limits the machine running it).
-//   node diagnose-trusted-proxies.mjs [--mode local|external] [--probe https://api.example.com]
+//   node diagnose-trusted-proxies.mjs [--mode local|external] [--probe https://api.example.com --yes]
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -51,6 +51,7 @@ else {
 }
 
 const target = opt('--probe');
+if (target && !args.includes('--yes')) { console.error('La sonda envia 40 solicitudes y limita brevemente la IP de origen. Pruebala primero en staging o aislada; para ejecutarla agrega --yes.'); process.exit(2); }
 if (target) {
   const url = `${target.replace(/\/$/, '')}/public/lms/certificates/diagnostico-${Date.now()}`;
   const statuses = [];

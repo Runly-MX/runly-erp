@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { backupEnvFile, assertTrustedProxiesEnv } from "./lib/trusted-proxies.mjs";
+import { backupEnvFile, assertTrustedProxiesEnv, ensureTrustedProxiesDefault } from "./lib/trusted-proxies.mjs";
 import { withRunlyEnvAliases, canonicalizeRunlyEnvText, mergeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { configureOffice, checkOfficeRuntime, OFFICE_ENV_KEYS, parseOfficeEnv } from "./lib/office-config.mjs";
@@ -1126,8 +1126,9 @@ BACKUP_STORAGE_S3_REGION=${backup.storageS3Region}
 
   await backupEnvFile(localEnvFile);
   await fs.writeFile(localEnvFile, preserveEnvAssignments(mergeRunlyEnvText(envContent, existingEnvContent, process.env), existingEnvContent), { encoding: "utf8", mode: 0o600 });
-  await syncMissingEnvFile(localEnvFile, path.resolve(installerDir, '.env.local.example'));
   await assertTrustedProxiesEnv(localEnvFile);
+  await ensureTrustedProxiesDefault(localEnvFile, { mode: "local" });
+  await syncMissingEnvFile(localEnvFile, path.resolve(installerDir, '.env.local.example'));
   try { await fs.chmod(localEnvFile, 0o600); } catch { /* Windows does not apply POSIX modes. */ }
 
   // Docker Compose auto-loads a file named exactly ".env" in the same directory
