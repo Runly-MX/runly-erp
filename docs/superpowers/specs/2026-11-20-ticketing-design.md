@@ -1,7 +1,7 @@
 # runly.ticketing (Boletos): architecture and design (F6A)
 
 Date: 2026-11-20
-Status: design for review. Implementation (F6B-F6E) starts only when approved; nothing here is built yet.
+Status: F6B-F6E built and verified locally (2026-11-21/22); v1 release candidate in `docs/releases/TICKETING_V1_RELEASE_CANDIDATE.md`. Section 12 records F6E as built.
 Plan: `docs/superpowers/plans/2026-11-20-ticketing-implementation.md`.
 
 ## 1. Goal
@@ -196,7 +196,50 @@ operator's event permission. Attendee lists are visible only to event members; e
 | Calendar projection of sessions, Automations events | Recurring event templates, series passes |
 | Website block and embeds (bookings phase 4 pattern) | Dynamic pricing, fees, taxes per ticket |
 
-## 12. Acceptance criteria per phase
+## 12. F6E as built (2026-11-22)
+
+- **Portal** `/app/p/boletos/<slug>` (`ticketing-public-service.js`, `/public/ticketing/*`): the company comes only from
+  a published, enabled event slug; unpublished events answer like missing ones; a 30-minute HMAC preview link shows an
+  unpublished page read-only. Free public types are issued through the same `reserve` transaction as the box office
+  (quota + engine seats), so availability on the page is informative and the server re-checks. Paid types are shown
+  with their price and "se compra en taquilla" (`PAID_AT_BOX_OFFICE`): no online checkout until D1. Counts are exact
+  only when 10 or fewer are left. Guards: own origins, honeypot, policy version, `Idempotency-Key` (portal scope),
+  shared PostgreSQL buckets per IP+event (6 orders, refill 1 per 2 min), per event, and for resends.
+- **Buyer link**: HMAC of (order id, version) with `TICKETING_LINK_SECRET` (fallback `BOOKINGS_LINK_SECRET`/
+  `JWT_SECRET`), only its SHA-256 stored, expiring a month after the function; it travels in the fragment of
+  `/app/p/mis-boletos` (its own path, so no event slug can shadow it). The page shows tickets and states, never codes,
+  QR or hashes. Without a secret an order simply has no link (issuing never depends on it).
+- **Credential vault** (`ticketing-vault.js`, table `ticket_credential_secret`): the current QR secret sealed with
+  AES-256-GCM, random 12-byte nonce, tag, AAD = company + ticket + credential version, key id stored for rotation;
+  keys only in `TICKETING_CREDENTIAL_KEYS` (`id:base64,...`, first seals, all open). Reissue and transfer replace the
+  row, cancel/expiry/admission delete it. Only the mail worker opens it (and re-checks the SHA-256 against the ticket);
+  gates keep comparing hashes. Without keys nothing is sealed and resend answers `REISSUE_REQUIRED`.
+- **Tickets issued before F6E** have only their hash: never reissued or invalidated automatically. Resend refuses
+  them with `REISSUE_REQUIRED`; staff decide to reissue (new QR delivered by email, old one revoked).
+- **Delivery** (`ticket_notification` outbox, `ticketing-notifications.js`, worker): enqueued in the issuing,
+  reissue, transfer and resend transactions; the buyer gets the order, a holder with another address gets only theirs;
+  dedupe keys per kind + stamp (credential version, or the minute for resends). Rendered at send time only for tickets
+  still `ISSUED`; QR as inline PNG parts (`cid`), HTML + text, no credential text anywhere. Resend never changes the
+  credential; reissue/transfer do (section 5).
+- **Functions**: engine `rescheduleSessionTx` moves a session and every booking in it in one transaction (exclusion
+  constraint applies when a room is assigned) and `cancelSessionTx` became the transactional core of `cancelSession`.
+  Ticketing exposes move (not after admissions) and cancel (only without live tickets).
+- **Calendar** (`ticketing-calendar.js`): one event per function in the event team's space calendar, fingerprinted,
+  advisory-locked, after each change and by the worker; never tickets or attendees.
+- **Automations**: `ticketing.*` unhidden; `ticketing.ticket.admitted` added (ids, credential version, method) since
+  no existing event covered admissions. Payloads stay ids, states and counts.
+- **Website**: `TicketingEventBlock` (`event` slug; display card, portal, button or link). Publication binds
+  `{kind: 'ticketing', eventId, slug}` (company's own, published, enabled event) and pins the portal URL; the site's CSP
+  opens `frame-src` to the ERP origin only when the release has such a binding. The card and portal displays embed the
+  live ERP page, so a site on any domain never calls the ERP API cross-origin. nginx `location ^~ /app/p/boletos/`
+  asks `/public/ticketing/frame-policy` for `frame-ancestors` (listed sites + company Runly domains, `?embed=1` only).
+- **Known F6D risk, typed code after reissue**: the code identifies the ticket, not the credential version, so after a
+  reissue the old printed code still admits. Proposed mitigation before a real pilot (not built, needs approval):
+  rotate the human `code` on reissue/transfer (new unique code, the old one recorded in `ticket_credential_revoked`
+  so a gate answers "reemplazado"), and show the code only in the email/QR card of the current version. Until then
+  staff check the holder name the gate shows and the audit marks `method = code`.
+
+## 13. Acceptance criteria per phase
 
 See the plan. Common to all: real PostgreSQL concurrency tests (last seat, duplicate scans, retries), isolation
 tests, no contact data in events, browser verification on phone and desktop, previous bookings suites green.

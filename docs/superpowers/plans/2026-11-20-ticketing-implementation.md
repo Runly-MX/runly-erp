@@ -94,3 +94,27 @@ closes and the user asks for it.
 Ground rules for every phase: one writer per capacity (engine seats, ticket quota counters), idempotency key on every
 write, history and outbox in the same transaction, no new availability or payment engine, versioned verification
 script per phase, previous bookings verifications re-run when the engine or shared code changes.
+
+## F6E status (2026-11-22): closed locally (MVP complete, not deployed)
+
+- Migration `20270112100000_ticketing_distribution`: `ticket_event.embed_origins|published_at`,
+  `ticket_order.manage_token_expires_at`, `ticket_credential_secret` (AES-256-GCM copy of the current QR secret),
+  `ticket_notification` (email outbox), `ticket_session_calendar_sync`; RLS with client roles revoked. Manifest 0.4.0
+  (help, owned entities; module sync after deploy). Design decisions: spec section 12.
+- API: public `/public/ticketing/*` (event, free orders, buyer link, resend, frame policy), internal publication
+  fields, preview link, function move/cancel (engine `rescheduleSessionTx`/`cancelSessionTx`), staff resend,
+  `/ticketing/events-published`; vault (`TICKETING_CREDENTIAL_KEYS`), notifier and Calendar projection in the worker;
+  `ticketing.*` triggers enabled plus `ticketing.ticket.admitted`; Website `TicketingEventBlock` with publication
+  binding and CSP; nginx `/app/p/boletos/` frame gate; CORS allows `X-Ticket-Token`.
+- UI: `/app/p/boletos/<slug>` (event page, function tiles, steppers, buyer/holder form, confirmation with QR; compact
+  card and embed modes), `/app/p/mis-boletos` (status and resend), backoffice tab Publicación, Mover/Cancelar in
+  Funciones, Reenviar in the order; Website editor event picker.
+- Verification: `node scripts/verify-ticketing-distribution.mjs` (disposable stack, real auth, Chromium, nodemailer
+  MIME, Chromium fake camera on the email's QR image): 40/40 on 2026-11-22. Regressions in the same run: ticketing
+  PostgreSQL suites 39/39 (F6E distribution 9/9 and Website publication 2/2 included), bookings 66/66, Automations +
+  Website unit suites 286/286, Calendar 123/123. Bugs found by the browser run and fixed: switches without accessible
+  names, cover upload (entity type not allowed by Files and wrong ownership column), function tiles overflowing on
+  phones, `X-Ticket-Token` missing from CORS.
+- Not verified: real SMTP delivery and inboxes, physical phones/readers, nginx headers on a real web image (the
+  frame-policy endpoint and the client guard are verified), payment of paid tickets online (out of scope, D1).
+- Release candidate: `docs/releases/TICKETING_V1_RELEASE_CANDIDATE.md`.
