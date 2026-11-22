@@ -34,3 +34,20 @@ export const slugOf = (title) => title.normalize('NFD').replace(/[̀-ͯ]/g, '').
 export function ticketingError(error, fallback = 'No se pudo completar la operación.') {
   return error?.message || error?.body?.error || fallback
 }
+
+// Check-in outcomes: reason from the server, plus the client-only network/limit states.
+// tone: success (pass), warning (stop and look), danger (do not pass), neutral (not confirmed).
+export const SCAN_RESULT = {
+  ok: { title: 'Acceso permitido', tone: 'success' },
+  valid: { title: 'Boleto válido', tone: 'info', text: 'Aún no se registra la entrada.' },
+  already_used: { title: 'Ya utilizado', tone: 'warning', text: 'Esta entrada ya se registró.' },
+  cancelled: { title: 'Boleto cancelado', tone: 'danger', text: 'Este boleto ya no es válido.' },
+  revoked: { title: 'Boleto reemplazado', tone: 'danger', text: 'Este QR se sustituyó por uno nuevo (reemisión o transferencia).' },
+  not_issued: { title: 'Boleto sin pagar', tone: 'danger', text: 'La orden aún no se cobra en Caja.' },
+  wrong_session: { title: 'Función incorrecta', tone: 'warning', text: 'El boleto es para otra función.' },
+  outside_window: { title: 'Fuera de horario', tone: 'warning', text: 'La admisión de esta función no está abierta.' },
+  unknown: { title: 'QR no válido', tone: 'danger', text: 'No corresponde a un boleto vigente de este evento.' },
+  network: { title: 'Sin conexión', tone: 'neutral', text: 'No se pudo confirmar el acceso. No permitas el paso hasta validar de nuevo.' },
+  rate_limited: { title: 'Demasiadas lecturas', tone: 'neutral', text: 'Espera un momento y vuelve a escanear.' },
+  error: { title: 'No se pudo validar', tone: 'neutral', text: 'El servidor no confirmó el acceso. Inténtalo de nuevo.' },
+}

@@ -247,6 +247,7 @@ export function resolveScreen(screenMap, requestedModuleKey, subPath, blueprintS
     if (subPath === "/" || subPath === "/events") return screenMap["runly.ticketing:/"] ?? null;
     // Event screen also hosts /events/new, /events/:id/edit and /events/:id/orders/:orderId.
     if (/^\/events\/[^/]+(\/(edit|orders\/[^/]+))?\/?$/.test(subPath)) return screenMap["runly.ticketing:/events/:eventId"] ?? null;
+    if (/^\/checkin(\/[^/]+)?\/?$/.test(subPath)) return screenMap["runly.ticketing:/checkin"] ?? null;
     return null;
   }
   if (moduleKey === "runly.lms") {

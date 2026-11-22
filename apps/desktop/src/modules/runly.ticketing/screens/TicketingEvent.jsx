@@ -1,6 +1,7 @@
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { Alert, AlertDescription, AlertTitle, BackButton, Button, ChipTabs, ErrorState, LoadingState, NotFoundState, PageHeader } from '@runly/ui'
-import { CalendarDays, LayoutDashboard, ListChecks, Pencil, ShieldCheck, Store, Ticket } from 'lucide-react'
+import { CalendarDays, LayoutDashboard, ListChecks, Pencil, ScanLine, ShieldCheck, Store, Ticket } from 'lucide-react'
+import { useAuth } from '../../../auth/AuthProvider.jsx'
 import { BoxOfficeTab } from '../components/BoxOfficeTab.jsx'
 import { EventOverview } from '../components/EventOverview.jsx'
 import { OrdersTab } from '../components/OrdersTab.jsx'
@@ -38,6 +39,8 @@ function EventScreen({ eventId }) {
   const tab = TABS.some((t) => t.value === params.get('tab')) ? params.get('tab') : 'overview'
   const setTab = (value) => setParams((p) => { const n = new URLSearchParams(p); n.set('tab', value); return n }, { replace: true })
   const event = useEvent(eventId)
+  const { userProfile } = useAuth()
+  const canCheckin = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('ticketing.checkin'))
 
   if (event.isPending) return <PageShell><LoadingState /></PageShell>
   if (event.isError) {
@@ -64,6 +67,7 @@ function EventScreen({ eventId }) {
         actions={(
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             {isAdmin ? <Button type="button" variant="outline" onClick={() => navigate(ticketingPath(`/events/${e.id}/edit`))}><Pencil />Editar evento</Button> : null}
+            {canCheckin && e.enabled && e.sessions?.length ? <Button type="button" variant="outline" onClick={() => navigate(ticketingPath('/checkin'))}><ScanLine />Control de acceso</Button> : null}
             {canSell && e.enabled ? <Button type="button" onClick={() => setTab('box-office')}><Store />Taquilla</Button> : null}
           </div>
         )}

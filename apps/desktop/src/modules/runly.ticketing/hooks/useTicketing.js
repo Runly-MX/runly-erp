@@ -44,3 +44,8 @@ export function useTicketingMutation(fn, { success } = {}) {
 
 // One key per logical attempt: a retry after a lost response replays it.
 export const newKey = () => crypto.randomUUID()
+
+// Check-in: functions this person controls, and one function's live board (counters
+// and recent scans). The board polls so several gates see each other's entries.
+export const useCheckinSessions = () => useRead(['checkin-sessions'], async (t) => unwrap(await api.checkinSessions(t)) ?? [], { staleTime: 30_000, retry: (count, error) => !error?.status && count < 2 })
+export const useCheckinBoard = (sessionId) => useRead(['checkin-board', sessionId], async (t) => unwrap(await api.checkinBoard(sessionId, t)), { enabled: Boolean(sessionId), refetchInterval: 5000, retry: false })

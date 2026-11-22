@@ -29,6 +29,8 @@ function SessionDialog({ event, onClose }) {
   const tz = event.timezone ?? 'UTC'
   const [start, setStart] = useState({ date: dayKey(new Date(Date.now() + 7 * 86400000), tz), time: '20:00' })
   const [capacity, setCapacity] = useState('100')
+  const [before, setBefore] = useState('120')
+  const [after, setAfter] = useState('60')
   const [errors, setErrors] = useState({})
   const create = useTicketingMutation((t, data) => runly.ticketing.createSession(event.id, data, t), { success: 'Función agregada.' })
 
@@ -38,9 +40,12 @@ function SessionDialog({ event, onClose }) {
     if (!startsAt) next.start = 'Elige fecha y hora.'
     else if (new Date(startsAt).getTime() < Date.now()) next.start = 'La función debe ser en el futuro.'
     if (!(cap >= 1 && cap <= 100000)) next.capacity = 'Entre 1 y 100000 lugares.'
+    const admitBeforeMinutes = Number.parseInt(before, 10), admitAfterMinutes = Number.parseInt(after, 10)
+    if (!(admitBeforeMinutes >= 0 && admitBeforeMinutes <= 1440)) next.before = 'Entre 0 y 1440 minutos.'
+    if (!(admitAfterMinutes >= 0 && admitAfterMinutes <= 1440)) next.after = 'Entre 0 y 1440 minutos.'
     setErrors(next)
     if (Object.keys(next).length) return
-    if (await create.mutateAsync({ startsAt, capacity: cap }).then(() => true).catch(() => false)) onClose()
+    if (await create.mutateAsync({ startsAt, capacity: cap, admitBeforeMinutes, admitAfterMinutes }).then(() => true).catch(() => false)) onClose()
   }
 
   return (
@@ -54,6 +59,11 @@ function SessionDialog({ event, onClose }) {
           <div className="min-h-0 flex-1 space-y-5 overflow-y-auto px-5 py-4">
             <WallTimeFields label="Inicio" timeZone={tz} value={start} onChange={setStart} error={errors.start} />
             <NumberField label="Lugares de la sala" suffix="lugares" icon={null} min={1} max={100000} allowDecimal={false} value={capacity} onChange={(e) => setCapacity(e.target.value)} error={errors.capacity} className="pr-20" />
+            <div className="grid gap-4 sm:grid-cols-2">
+              <NumberField label="Admisión desde" suffix="min antes" icon={null} min={0} max={1440} allowDecimal={false} value={before} onChange={(e) => setBefore(e.target.value)} error={errors.before} className="pr-24" />
+              <NumberField label="Admisión hasta" suffix="min después" icon={null} min={0} max={1440} allowDecimal={false} value={after} onChange={(e) => setAfter(e.target.value)} error={errors.after} className="pr-28" />
+            </div>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">Control de acceso admite boletos solo dentro de este horario, contado desde el inicio de la función.</p>
           </div>
           <DialogFooter className="mt-0 shrink-0 border-t border-[hsl(var(--border))] px-5 py-3">
             <Button type="button" variant="outline" onClick={onClose}>Cancelar</Button>
