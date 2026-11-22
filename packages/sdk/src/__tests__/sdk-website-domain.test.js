@@ -21,6 +21,10 @@ describe("atlas SDK - website domain extraction", () => {
     });
 
     assert.deepEqual(Object.keys(domain).sort(), [
+      "addCustomDomain", "checkCustomDomainHttps", "customDomainStatus", "deleteAccount",
+      "getAccountSettings", "inspectMarketplaceTemplate", "installMarketplaceTemplate",
+      "listAccounts", "listCustomDomains", "marketplaceTemplates", "releaseCustomDomain",
+      "revokeAccountSessions", "setAccountStatus", "updateAccountSettings", "verifyCustomDomain",
       "listSiteCatalogProducts", "setSiteCatalogProduct", "setSiteCatalogSelection", "getCatalogProductUsage", "applySiteTemplate",
       "getSiteState", "hostnameAvailability", "hostnameStatus", "activateHostname", "releaseHostname", "getPublicationIntegrity", "preflightRelease", "listSiteForms", "resolveFormScope",
       "activateRelease", "createImport", "createPage", "createPreview", "createSite",
@@ -68,5 +72,17 @@ describe("atlas SDK - website domain extraction", () => {
     assert.equal(calls[2].options.method,'PUT');
     assert.equal(calls[2].options.headers.Authorization,'Bearer token');
     assert.equal(calls[2].options.headers['Idempotency-Key'],'attempt-for-draft-0001');
+  });
+
+  it('preserves account, domain and Marketplace request contracts',async()=>{
+    const calls=[];
+    const domain=createWebsiteDomain({request:async(path,options)=>{calls.push({path,options});return{}},withAuthHeaders:token=>({Authorization:`Bearer ${token}`})});
+    await domain.revokeAccountSessions('site/one','account/two','tok');
+    await domain.verifyCustomDomain('site/one','shop.example.test','tok');
+    await domain.installMarketplaceTemplate('site/one',{resourceId:'template'},'attempt-template-0001','tok');
+    assert.deepEqual(calls.map(c=>c.path),['/website/sites/site%2Fone/accounts/account%2Ftwo/revoke-sessions','/website/sites/site%2Fone/custom-domains/shop.example.test/verify','/website/sites/site%2Fone/marketplace/install']);
+    for(const call of calls){assert.equal(call.options.method,'POST');assert.equal(call.options.headers.Authorization,'Bearer tok');}
+    assert.equal(calls[2].options.headers['Idempotency-Key'],'attempt-template-0001');
+    assert.deepEqual(JSON.parse(calls[2].options.body),{resourceId:'template'});
   });
 });

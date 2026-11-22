@@ -23,6 +23,10 @@ describe("atlas SDK - growth domain", () => {
       toQueryString: () => "",
     });
     assert.deepEqual(Object.keys(domain).sort(), [
+      "checkMonitorNow", "createMonitor", "disableMonitor", "discoverMonitors",
+      "getPublicStatusPage", "listMonitorIncidents", "listMonitors", "listRealErrors",
+      "listStatusPages", "regenerateMonitorToken", "regenerateStatusPageLink",
+      "saveStatusPage", "setMonitorMaintenance", "updateMonitor",
       "resolveFormScope",
       "addLeadNote",
       "convertLead",
@@ -57,7 +61,7 @@ describe("atlas SDK - growth domain", () => {
     ].sort());
   });
 
-  it("sends the expected request shape for every method", async () => {
+  it("sends the expected lead and analytics request shapes", async () => {
     const fetchMock = makeFetch();
     globalThis.fetch = fetchMock;
     const client = createRunlyClient({ baseUrl: "http://api" });
@@ -184,5 +188,20 @@ describe("atlas SDK - growth domain", () => {
     }
 
     fetchMock.mock.restore();
+  });
+
+  it("preserves monitor authentication and the public status boundary", async () => {
+    const calls=[];
+    const domain=createGrowthDomain({request:async(path,options)=>{calls.push({path,options});return{}},withAuthHeaders:token=>({Authorization:`Bearer ${token}`})});
+    await domain.setMonitorMaintenance('monitor/one',15,'tok');
+    await domain.regenerateMonitorToken('monitor/one','tok');
+    await domain.saveStatusPage('property/one',{title:'Estado'},'tok');
+    await domain.getPublicStatusPage('status/one');
+    assert.deepEqual(calls.map(c=>c.path),['/growth/monitors/monitor%2Fone/maintenance','/growth/monitors/monitor%2Fone/token','/growth/status-pages/property%2Fone','/public/status/status%2Fone']);
+    assert.deepEqual(calls.slice(0,3).map(c=>c.options.method),['POST','POST','PUT']);
+    for(const call of calls.slice(0,3))assert.equal(call.options.headers.Authorization,'Bearer tok');
+    assert.deepEqual(JSON.parse(calls[0].options.body),{minutes:15});
+    assert.deepEqual(JSON.parse(calls[2].options.body),{title:'Estado'});
+    assert.equal(calls[3].options,undefined);
   });
 });
