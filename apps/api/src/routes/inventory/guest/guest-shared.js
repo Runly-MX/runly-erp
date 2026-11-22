@@ -1,11 +1,8 @@
 // Helpers shared by the supplier-portal routers (public session + /inventory/guest/*).
 import { InventoryServiceError } from '../../../services/inventory-guards.js';
+import { clientIp as sharedClientIp } from "../../../lib/client-ip.js";
 
-export function clientIp(c) {
-  const forwarded = c.req.header('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return c.req.header('x-real-ip') ?? 'local';
-}
+export const clientIp = (c) => sharedClientIp(c)
 
 // Per-IP token-bucket guard; 429 with Retry-After when the bucket is empty.
 export const rateLimit = (limiter) => async (c, next) => {

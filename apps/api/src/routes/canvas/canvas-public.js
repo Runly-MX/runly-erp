@@ -15,6 +15,7 @@ import { Hono } from 'hono'
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js'
 import { linkStatus } from '../../services/module-public-links-service.js'
 import { CanvasServiceError } from './canvas-service.js'
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 export const CANVAS_MODULE_KEY = 'runly.canvas'
 export const BOARD_RESOURCE = 'board.view'
@@ -63,11 +64,7 @@ export function createCanvasPublicLinksService({ prisma, canvas }) {
   return { list, create, revoke }
 }
 
-function clientIp(c) {
-  const forwarded = c.req.header('x-forwarded-for')
-  if (forwarded) return forwarded.split(',')[0].trim()
-  return c.req.header('x-real-ip') ?? 'local'
-}
+const clientIp = (c) => sharedClientIp(c)
 
 // Public router — path-scoped only; never add a root use('*') (see the
 // load-bearing note next to the chat/calls routers in index.js).

@@ -12,6 +12,7 @@ import {
   createStorefrontCaptureService,
 } from "../../services/storefront-capture-service.js";
 import { createNotificationService } from "../../services/notification-service.js";
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 const LEGACY_SUNSET = "Wed, 30 Sep 2026 00:00:00 GMT";
 
@@ -75,9 +76,7 @@ export function createPublicFormsRouter({
       }
 
       const address =
-        c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
-        c.req.header("X-Real-IP") ||
-        "unknown";
+        sharedClientIp(c);
       const rate = limiter.consume(
         `legacy:${form.companyId}:${form.siteId}:${address}`,
       );

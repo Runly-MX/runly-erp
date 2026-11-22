@@ -4,6 +4,7 @@ import { AttendanceError, verifySelfRequest } from './attendance-core.js'
 import { createAttendanceHours } from './attendance-hours-service.js'
 import { createAttendanceEvents } from './attendance-events.js'
 import { createAttendanceKioskService } from './attendance-kiosk-service.js'
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 function fail(c, error, fallback) {
   if (error instanceof AttendanceError) return c.json({ error: error.message, code: error.code }, error.status)
@@ -11,7 +12,7 @@ function fail(c, error, fallback) {
   return c.json({ error: fallback }, 500)
 }
 
-const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
+const clientKey = (c) => sharedClientIp(c)
 const deviceToken = (c) => (c.req.header('authorization') ?? '').replace(/^Kiosk\s+/i, '') || null
 
 // /public/attendance/* — path-scoped and unauthenticated. The kiosk link only

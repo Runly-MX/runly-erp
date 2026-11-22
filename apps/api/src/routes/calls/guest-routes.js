@@ -1,5 +1,6 @@
 import { Hono } from "hono";
 import { callGuestJoinSchema, callGuestLinkInfoSchema, callRoomMessageSchema, callGuestAttachmentPresignSchema } from "@runly/validators";
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 function guestToken(c) {
   const auth = c.req.header("authorization") || c.req.header("Authorization");
@@ -22,8 +23,7 @@ export function createGuestCallRouter({ guestService, messagesService }) {
   app.post("/join", async (c) => {
     try {
       const payload = callGuestJoinSchema.parse(await c.req.json());
-      const ip = c.req.header("x-forwarded-for")?.split(",")[0]?.trim()
-        || c.req.header("cf-connecting-ip") || c.req.header("x-real-ip") || "unknown";
+      const ip = sharedClientIp(c);
       const userAgent = c.req.header("user-agent") ?? null;
       const data = await guestService.joinAsGuest({ ...payload, ip, userAgent });
       return c.json({ data });

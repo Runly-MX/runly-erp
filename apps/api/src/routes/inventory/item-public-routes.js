@@ -5,12 +5,9 @@
 import { Hono } from 'hono';
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js';
 import { createInventoryPublicService } from '../../services/inventory-public-service.js';
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
-function clientIp(c) {
-  const forwarded = c.req.header('x-forwarded-for');
-  if (forwarded) return forwarded.split(',')[0].trim();
-  return c.req.header('x-real-ip') ?? 'local';
-}
+const clientIp = (c) => sharedClientIp(c)
 
 export function createInventoryItemPublicRouter({
   prisma,

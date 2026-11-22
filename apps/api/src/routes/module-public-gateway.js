@@ -6,16 +6,13 @@
 import { Hono } from "hono";
 import { createTokenBucketLimiter } from "../lib/token-bucket-limiter.js";
 import { ModulePublicLinkError } from "../services/module-public-links-service.js";
+import { clientIp as sharedClientIp } from "../lib/client-ip.js";
 
 export const PUBLIC_BODY_LIMIT = 64 * 1024;
 const READ_METHODS = new Set(["GET", "HEAD"]);
 const UNAVAILABLE = "Enlace no disponible";
 
-function clientIp(c) {
-  const forwarded = c.req.header("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return c.req.header("x-real-ip") ?? "local";
-}
+const clientIp = (c) => sharedClientIp(c)
 
 export function createModulePublicGateway({
   linksService,

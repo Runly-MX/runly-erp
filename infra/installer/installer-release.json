@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.16.2",
+  "version": "2026.11.22.1",
   "files": {
     ".env.local.example": {
       "sha256": "f050147cdb1aac3d1d0b9c893dcd967a9fc1edf325208b7168f3266b821cf5e3",
@@ -231,6 +231,14 @@
         "c5803ed5230b68e98cd869a586f50fc276638d10"
       ]
     },
+    "lib/trusted-proxies.mjs": {
+      "sha256": "9deb2ed098e8cfac5725181bb786d0c10e7b08e78e09cd3f2a29fd672a55e33f",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
     "lib/firebase-config.mjs": {
       "sha256": "3d78d30e90628c3699eb43f94d7bdd695ae0e9647506a226bed709ce11cdd210",
       "modes": [
@@ -379,7 +387,7 @@
       ]
     },
     "setup-local.mjs": {
-      "sha256": "a4342071447712fe0c5d7968cea50b8add544cbe950daf035d2fa2c27b814fd1",
+      "sha256": "492f0dd14a516bcc02fe6154673cc4353e76eb149d907b8f9fd959dc3f2a8260",
       "modes": [
         "local"
       ],
@@ -430,6 +438,7 @@
         "9fc8c465ef5588485817ce88ed57a0aaa2c2d5ac",
         "a29ae3c6abdfcd36760bf561845d020f2dde6cb4",
         "a36f66bcc8e51ec45ac79688e8db3cb7166ed9cd",
+        "a7769846473aa5be227aac6034f4bfbc116e0861",
         "ae2f675ac363d77374f932b6017d23f6dd1349b9",
         "af997a064a788c84682ba2598f5bc03c521a3be8",
         "b08dedb79143eb6b6150e72d400fcbff54f58f8f",
@@ -590,6 +599,14 @@
         "cf19b9e8dad99f854be5572d3c9b2438c254dbff"
       ]
     },
+    "diagnose-trusted-proxies.mjs": {
+      "sha256": "15c9c8e0b4af5a82df2b54576ef477bfa1fa1285c58e823a87d199a41c4a42f9",
+      "modes": [
+        "local",
+        "external"
+      ],
+      "legacyGitBlobs": []
+    },
     "update-installer.mjs": {
       "sha256": "84216be9baae306611d01f800685146d00e364d94a71438f3eced4a0d9743650",
       "modes": [
@@ -682,7 +699,7 @@
       ]
     },
     "setup-external.mjs": {
-      "sha256": "724a22c4eaecb4ef07213c03b0c260e761503d7ca26b2c13906eb6d269642e2a",
+      "sha256": "488e0a0e21278c9b48b571483233d74155dfbb954449e90fe15c4278348ce959",
       "modes": [
         "external"
       ],
@@ -719,6 +736,7 @@
         "9765b441b65698338a900d3e1d3ce15f84b94250",
         "9819136fa393af61862787490e50c045385f64be",
         "a3314d1d9029276d9b1c4c419c24c3933127a4af",
+        "a4fde8ed07884b5b4171d599e48a587176aa8629",
         "a72ec0c8aa5ae6ba10d1b048a1b2f5d375349fe8",
         "aacf0c34821b2a12a4e44fe6c0b82470e4e7b729",
         "ab37869137d020baca592be98a3f1897d8feed2f",

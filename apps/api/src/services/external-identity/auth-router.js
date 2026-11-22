@@ -8,6 +8,7 @@ import { bodyLimit } from 'hono/body-limit'
 import { createTokenBucketLimiter } from '../../lib/token-bucket-limiter.js'
 import { ExternalIdentityError, PASSWORD_MAX, PASSWORD_MIN, publicAccount } from './identity-service.js'
 import { MAX_UPLOAD_BYTES } from './files-service.js'
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 const email = z.string().trim().email().max(254)
 const password = z.string().min(PASSWORD_MIN).max(PASSWORD_MAX)
@@ -24,7 +25,7 @@ export const externalAuthSchemas = {
   reset: z.object({ token: z.string().min(16).max(200), password }).strict(),
 }
 
-const clientIp = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || c.req.header('x-real-ip') || 'local'
+const clientIp = (c) => sharedClientIp(c)
 const isHttps = (c) => new URL(c.req.url).protocol === 'https:' || c.req.header('x-forwarded-proto') === 'https'
 // __Host- pins the cookie to this exact host over HTTPS; plain http (local dev) cannot use the prefix.
 const cookieName = (c) => isHttps(c) ? '__Host-rx_session' : 'rx_session'

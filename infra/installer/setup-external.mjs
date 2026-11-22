@@ -1,4 +1,5 @@
 #!/usr/bin/env node
+import { backupEnvFile, assertTrustedProxiesEnv } from "./lib/trusted-proxies.mjs";
 import { canonicalizeRunlyEnvText, preserveEnvAssignments, syncMissingEnvFile } from "./lib/env-compat.mjs";
 import { resolveDevKitDir } from './lib/devkit-installer.mjs';
 import { prepareExternalStudioRealtime } from './lib/studio-realtime-external.mjs';
@@ -1098,11 +1099,13 @@ async function main() {
   }
 
   // ── 2. Validate Docker ─────────────────────────────────────────────────────
+  await backupEnvFile(envFile);
   const office = await configureOffice({ envFile, composeEnvFile: path.resolve(installerDir, ".env") });
   await configureFirebase({ envFile });
   // Resolve existing optional-service fallbacks first. A new empty declaration
   // must not mask a process value that those resolvers still need to consume.
   await syncMissingEnvFile(envFile, envExampleFile);
+  await assertTrustedProxiesEnv(envFile);
   console.log("[2/5] Validating Docker...");
   run("docker", ["compose", "version"]);
 

@@ -7,16 +7,13 @@ import { createTokenBucketLimiter } from "../lib/token-bucket-limiter.js";
 import { linkStatus } from "../services/module-public-links-service.js";
 import { FILES_LINK_MODULE, FILE_LINK_RESOURCE } from "../services/files/public-links.js";
 import { FOLDER_LINK_RESOURCE } from "../services/files/folders.js";
+import { clientIp as sharedClientIp } from "../lib/client-ip.js";
 
 const PUBLIC_URL_SECONDS = 300;
 const WEBSITE_BUCKET_NAME = "runly-website";
 const FOLDER_PAGE_FILES = 200;
 
-function clientIp(c) {
-  const forwarded = c.req.header("x-forwarded-for");
-  if (forwarded) return forwarded.split(",")[0].trim();
-  return c.req.header("x-real-ip") ?? "local";
-}
+const clientIp = (c) => sharedClientIp(c)
 
 export function createFilesPublicRouter({
   prisma,

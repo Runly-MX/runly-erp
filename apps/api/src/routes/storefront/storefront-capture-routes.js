@@ -4,6 +4,7 @@ import { decryptPassword } from "../../services/smtp-service.js";
 import { StorefrontCaptureError } from "../../services/storefront-capture-service.js";
 import { getCompanySlugHeader, getSiteIdHeader } from "../../lib/public-request-headers.js";
 import { createTokenBucketLimiter } from "../../lib/token-bucket-limiter.js";
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
 const DEFAULT_BODY_LIMIT = 64 * 1024;
 
@@ -69,11 +70,7 @@ function requestScope(c, { allowQuery = false } = {}) {
 }
 
 function clientAddress(c) {
-  return (
-    c.req.header("X-Forwarded-For")?.split(",")[0]?.trim() ||
-    c.req.header("X-Real-IP") ||
-    "unknown"
-  );
+  return sharedClientIp(c);
 }
 
 function limiterKey(c, kind) {

@@ -44,3 +44,11 @@ export function resolveClientIp(peer, forwardedFor, trusted) {
   }
   return hops.length && hops[0] ? hops[0] : direct;
 }
+
+// Strict check for installers and diagnostics: every entry must be an IP, a CIDR
+// or a known shortcut. Returns the offending entries instead of ignoring them.
+export function validateTrustedProxies(value = '') {
+  const entries = String(value).split(',').map(entry => entry.trim().toLowerCase()).filter(Boolean);
+  const invalid = entries.filter(entry => { let bad = false; parseTrustedProxies(entry, () => { bad = true; }); return bad; });
+  return { entries, invalid, ok: invalid.length === 0 };
+}

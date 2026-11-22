@@ -13,8 +13,9 @@ import { createLmsNotifier } from './lms-notify.js'
 import { createLmsInviteService } from './lms-invite-service.js'
 import { createLmsAssessmentGuestService } from './lms-assessment-guest-service.js'
 import { evaluationPath } from './lms-assessment-share-core.js'
+import { clientIp as sharedClientIp } from "../../lib/client-ip.js";
 
-const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
+const clientKey = (c) => sharedClientIp(c)
 
 function fail(c, error, fallback) {
   if (error instanceof LmsError) return c.json({ error: error.message, ...(error.code ? { code: error.code } : {}) }, error.status)

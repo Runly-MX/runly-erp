@@ -9,6 +9,7 @@ import * as livekit from "../lib/livekit-config.mjs";
 import * as envCompat from "../lib/env-compat.mjs";
 import { parseOfficeEnv, OFFICE_ENV_KEYS } from "../lib/office-config.mjs";
 import * as backupConfig from "../lib/backup-config.mjs";
+import * as trustedProxies from "../lib/trusted-proxies.mjs";
 
 // Evaluate only selected top-level declarations, never imports or main().
 // The tested env readers, writers and artifact generator are the actual source.
@@ -35,7 +36,7 @@ async function harness(t, deployment, { isLinux = true, environment = {} } = {})
   const envExampleFile = path.join(root, `.env.${deployment}.example`);
   await fs.copyFile(new URL(`../.env.${deployment}.example`, import.meta.url), envExampleFile);
   const context = vm.createContext({
-    fs, path, crypto, ...livekit, ...envCompat, ...backupConfig, parseOfficeEnv, OFFICE_ENV_KEYS,
+    fs, path, crypto, ...livekit, ...envCompat, ...backupConfig, ...trustedProxies, parseOfficeEnv, OFFICE_ENV_KEYS,
     process: { env: { ...environment } }, console: { log() {}, warn() {} },
     isLinux, installerDir: root, localEnvFile: envFile, envExampleFile,
     liveKitConfigFile: yamlFile,

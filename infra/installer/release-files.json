@@ -1,5 +1,5 @@
 {
-  "version": "2026.11.16.2",
+  "version": "2026.11.22.1",
   "modes": {
     "local": [
       ".env.local.example",
@@ -12,6 +12,7 @@
       "lib/backup-config.mjs",
       "lib/devkit-installer.mjs",
       "lib/env-compat.mjs",
+      "lib/trusted-proxies.mjs",
       "lib/firebase-config.mjs",
       "lib/hairpin-nat.mjs",
       "lib/installer-runtime.mjs",
@@ -43,6 +44,7 @@
       "supabase/volumes/db/studio-realtime-role.sql",
       "supabase/volumes/db/webhooks.sql",
       "update-external.sh",
+      "diagnose-trusted-proxies.mjs",
       "update-installer.mjs",
       "update-local.sh",
       "website-domains.mjs",
@@ -60,6 +62,7 @@
       "lib/backup-config.mjs",
       "lib/devkit-installer.mjs",
       "lib/env-compat.mjs",
+      "lib/trusted-proxies.mjs",
       "lib/firebase-config.mjs",
       "lib/hairpin-nat.mjs",
       "lib/installer-runtime.mjs",
@@ -80,6 +83,7 @@
       "supabase/volumes/db/notes-private-storage-owner.sql",
       "supabase/volumes/db/studio-realtime-role.sql",
       "update-external.sh",
+      "diagnose-trusted-proxies.mjs",
       "update-installer.mjs",
       "update-local.sh",
       "website-domains.mjs",
