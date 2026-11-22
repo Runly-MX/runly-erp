@@ -1,14 +1,14 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import {
-  Badge, Button, ConfirmDialog, EmptyState, ErrorState, MarkdownField, NumberField, PageHeader, SectionCard, SelectField, Skeleton, SwitchField, TextField,
+  Badge, Button, CheckboxField, ConfirmDialog, EmptyState, ErrorState, MarkdownField, NumberField, PageHeader, SectionCard, SelectField, Skeleton, SwitchField, TextField,
 } from '@runly/ui'
 import { FileQuestion, Loader2, Undo2 } from 'lucide-react'
 import { LessonResourcesEditor } from '../components/lesson-editor/LessonResourcesEditor.jsx'
 import { QuizQuestionsEditor } from '../components/lesson-editor/QuizQuestionsEditor.jsx'
 import { PageShell, useRouteSegment } from '../components/shared.jsx'
 import { useAssessment, useUpdateActivity } from '../hooks/useLmsAssessments.js'
-import { activityFormToPayload, activityToForm, activityTypeLabel, assessmentPath, formatPoints, isActivityDirty, validateActivityForm } from '../lib/lmsAssessment.js'
+import { DELIVERY_FILE_TYPES, activityFormToPayload, activityToForm, activityTypeLabel, assessmentPath, formatPoints, isActivityDirty, validateActivityForm } from '../lib/lmsAssessment.js'
 
 const INT = { allowNegative: false, allowDecimal: false }
 const LAYOUT_OPTIONS = [{ value: 'one', label: 'Una pregunta a la vez' }, { value: 'all', label: 'Todas en una página' }]
@@ -38,10 +38,28 @@ function AssignmentFields({ form, set, errors, readOnly }) {
     <SectionCard title="Entrega y puntos">
       <div className="space-y-4">
         <SwitchField id="lms-activity-text" label="Respuesta escrita" description="La persona puede escribir su respuesta." checked={form.allowText} onChange={set('allowText')} disabled={readOnly} error={errors.allowText} />
-        <SwitchField id="lms-activity-files" label="Archivos" description="PDF, Word, Excel, PowerPoint, imágenes o ZIP, hasta 50 MB cada uno." checked={form.allowFiles} onChange={set('allowFiles')} disabled={readOnly} />
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <SwitchField id="lms-activity-files" label="Archivos" description="La persona sube archivos; el servidor verifica su contenido real, tamaño y huella." checked={form.allowFiles} onChange={set('allowFiles')} disabled={readOnly} />
+        {form.allowFiles ? (
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium">Formatos admitidos</legend>
+            <div className="grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-3">
+              {DELIVERY_FILE_TYPES.map((type) => (
+                <CheckboxField
+                  key={type.value} id={`lms-activity-type-${type.value}`} label={type.label} disabled={readOnly}
+                  checked={form.acceptedTypes.includes(type.value)}
+                  onChange={(event) => set('acceptedTypes')(event.target.checked ? [...form.acceptedTypes, type.value] : form.acceptedTypes.filter((key) => key !== type.value))}
+                />
+              ))}
+            </div>
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">Sin marcar ninguno: cualquier formato común (Office, PDF, CSV, imágenes, ZIP).</p>
+          </fieldset>
+        ) : null}
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           {form.allowFiles ? (
-            <NumberField label="Máximo de archivos" required value={form.maxFiles} onChange={(event) => set('maxFiles')(event.target.value)} error={errors.maxFiles} min={1} max={10} {...INT} disabled={readOnly} hint="De 1 a 10." />
+            <>
+              <NumberField label="Máximo de archivos" required value={form.maxFiles} onChange={(event) => set('maxFiles')(event.target.value)} error={errors.maxFiles} min={1} max={10} {...INT} disabled={readOnly} hint="De 1 a 10." />
+              <NumberField label="Tamaño máximo por archivo (MB)" required value={form.maxFileMb} onChange={(event) => set('maxFileMb')(event.target.value)} error={errors.maxFileMb} min={1} max={50} {...INT} disabled={readOnly} hint="De 1 a 50 MB." />
+            </>
           ) : null}
           <NumberField label="Puntos de la actividad" required value={form.maxPoints} onChange={(event) => set('maxPoints')(event.target.value)} error={errors.maxPoints} min={1} max={1000} {...INT} disabled={readOnly} hint="Se califica a mano, de 0 a este valor." />
         </div>

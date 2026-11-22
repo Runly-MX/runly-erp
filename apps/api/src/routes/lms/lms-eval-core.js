@@ -1,6 +1,7 @@
 // Pure rules for runly.lms evaluation (quizzes and assignments). No I/O.
 import { randomInt } from 'node:crypto'
 import { LmsError } from './lms-error.js'
+import { FILE_TYPE_KEYS } from '../../lib/file-integrity.js'
 import { QUESTION_KINDS, normalizeOptionsFor, readOptions } from './lms-question-input.js'
 import { displayOrder, learnerQuestion, revealedQuestion, sanitizeAnswer, scoreQuestion } from './lms-question-attempt.js'
 
@@ -49,6 +50,11 @@ export function normalizeAssignmentSettings(raw) {
     passingScore: clampInt(src.passingScore, 0, 100, null),
     // Points the activity is worth inside an evaluation (courses keep grading 0-100).
     maxPoints: clampInt(src.maxPoints, 1, 1000, 100),
+    // Evaluation deliveries: accepted types (FILE_TYPES keys; null = any known type) and size per file.
+    acceptedTypes: Array.isArray(src.acceptedTypes) && src.acceptedTypes.some((key) => FILE_TYPE_KEYS.includes(key))
+      ? [...new Set(src.acceptedTypes.filter((key) => FILE_TYPE_KEYS.includes(key)))]
+      : null,
+    maxFileMb: clampInt(src.maxFileMb, 1, 50, 50),
   }
 }
 

@@ -168,6 +168,58 @@ Acceptance and tests: presign after expiry 409; confirm in grace ok, after 409; 
 asset disabled; guest cannot download outside an open session or another guest's files; versions listed;
 no storage path or file id in public payloads (payload snapshot test); E2E upload + replace + timeout.
 
+Status:
+- [x] Phase 3 done. Verified: 2026-11-21 (local test DB and company only).
+  - Migration `20270110200000_lms_submission_files` applied locally.
+    - Creates `lms_submission_file`: slot, version, status `active|replaced|removed`, SHA-256 check, `presigned_at`
+      and `after_close`.
+    - Unique indexes: `file_id` (idempotent confirm) and one active version per slot (partial index, so concurrent
+      replacements cannot both win).
+    - RLS audit: 18/18 tables, 0 client access.
+  - Code:
+    - `lib/file-integrity.js`: generic helper. The real type comes from the bytes (OOXML part, OLE, PDF, text),
+      plus exact size and SHA-256.
+    - `lms-session-files.js` covers presign, confirm, remove, material download and the grader list/download.
+    - Guest routes are in `lms-assessment-public.js`, with a separate download rate limit.
+    - Assignment settings: `acceptedTypes` and `maxFileMb`.
+    - Runner `DeliveryFiles`: material, XHR progress, client SHA-256, retry, replace dialog, remove confirm, and
+      rejected/error rows.
+    - Intro shows formats, limits and material. Editor: formats checkboxes and MB limit.
+    - Participants: an "Entregas" dialog with every version, its status, date and SHA-256, and a download.
+  - `node --test`: LMS API + file-integrity + office LMS, 174/174. Desktop LMS lib, 95/95 (new
+    `lmsSessionFiles.test.js`).
+  - `.e2e/lms-files-e2e.mjs` 38/38 on a temporary API.
+    - Guest access: guests (no Runly session) download the material through a 120 s URL with no bucket/key in
+      payloads. Other participants, companies and internal users are refused.
+    - Forged files: a forged extension or MIME is rejected by content and the asset is disabled. An oversized file
+      gets 413; SIZE_MISMATCH and HASH_MISMATCH are reported.
+    - Transfers: an incomplete transfer answers 409 NOT_UPLOADED and can be retried with the same authorization.
+      Duplicate confirms are idempotent.
+    - Versions: MAX_FILES enforced; a replacement becomes v2 and the old one is kept. Concurrent replacements leave
+      exactly one current version; a removed file is kept as `removed`.
+    - Deadline: uploads and material are refused after the deadline. A URL issued earlier still works; an expired
+      signed URL fails. A file presigned before the deadline confirms after close inside 5 min, and is refused after.
+    - Voided session: material refused. Graders download replaced versions.
+  - `.e2e/lms-files-ui.mjs` 17/17 (Playwright, 1366 and 360 px).
+    - Intro limits; the material download; upload received with its hash in the DB.
+    - A PDF renamed .xlsx is shown as rejected; replace dialog leads to v2.
+    - Phone: reload recovery, no horizontal scroll, 44 px targets.
+    - Submit; the grader sees and downloads the replaced version.
+  - Regression:
+    - `lms-session-e2e` (updated to the versioned contract) passed.
+    - Course and assignment suites passed: `lms-assessment-e2e` 35, `lms-e2e` 47, `lms-eval-e2e` 48 (course
+      assignment files), `lms-share-e2e` 23, `lms-intake-e2e` 8 and `lms-social-e2e` 29.
+    - UI suites passed: `lms-session-ui` 20 (fixture is now a real OOXML shape), `lms-assessment-ui` 18,
+      `lms-course-quiz-ui` 4, and the `lms-ui` smoke (only the known website/resolve 404).
+  - Deviations from the spec, kept small on purpose:
+    - SHA-256 is computed at confirm, not by a worker job. The bytes are already read for the type check, and
+      the hash is mandatory (NOT NULL).
+    - Evaluation-level material (`lms_lesson_resource.course_id`) was not added. Material hangs on the activity
+      (the PVR case attaches the Excel to the exercise); add it only if a real case needs it.
+    - Participants see their own `fileId` (needed to replace or remove); resources never expose file ids.
+  - Not done: uploads in flight are not resumed after a reload (the server state is what shows); the public UI for
+    guests comes with phase 4 registration.
+
 ## Phase 4 — Public registration and links
 
 Depends on: 2 (3 for material). Risks: privacy of intake data; abuse.

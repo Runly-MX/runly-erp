@@ -6,13 +6,14 @@ import { ASSESSMENT_ONLY, LmsError } from './lms-core.js'
 import { drawQuestions, normalizeAssignmentSettings, normalizeQuizSettings } from './lms-eval-core.js'
 import { activityMaxPoints, readAssessmentSettings } from './lms-assessment-core.js'
 import {
-  SESSION_GRACE_MS, assertSessionWritable, canConfirmUpload, canPresignUpload, closedStatus, draftOutcome, expiresAtFor,
+  SESSION_GRACE_MS, assertSessionWritable, canPresignUpload, closedStatus, draftOutcome, expiresAtFor,
   gradingState, isSessionExpired, normalizeDraftInput, remainingMs, sessionsAllowed, startBlocker,
 } from './lms-session-core.js'
 import { isUuid, serializeSubmissions } from './lms-eval-shared.js'
 import { createLmsQuizService } from './lms-quiz-service.js'
-import { PROFILE_OWNER, assertSubmissionFiles } from './lms-assignment-service.js'
-import { SUBMISSION_UPLOAD } from './lms-media.js'
+import { GUEST_OWNER, PROFILE_OWNER } from './lms-assignment-service.js'
+import { createLmsSessionFiles, versionShape, acceptedTypesOf } from './lms-session-files.js'
+import { FILE_TYPES } from '../../lib/file-integrity.js'
 import { createLmsSerializers } from './lms-serialize.js'
 import { TX_OPTS } from './lms-progress.js'
 import { createLmsNotifier } from './lms-notify.js'
@@ -37,6 +38,19 @@ export const PROFILE_PARTICIPANTS = {
   },
 }
 
+// External participants without a Runly account: the guest token (hashed at
+// rest, `Authorization: Guest <token>`) identifies the learner; the evaluation
+// enrollment decides access. Files are owned through metadata.guestLearnerId.
+export const GUEST_PARTICIPANTS = {
+  owner: GUEST_OWNER,
+  async resolve(prisma, companyId, guest, assessmentId) {
+    const learner = guest?.learner
+    if (!learner?.enabled || learner.companyId !== companyId) return null
+    const enrollment = await prisma.lmsEnrollment.findUnique({ where: { courseId_learnerId: { courseId: assessmentId, learnerId: learner.id } }, include: { learner: true } })
+    return enrollment ? { learner, enrollment, actor: guest } : null
+  },
+}
+
 function sessionSummary(row, now) {
   return {
     id: row.id,
@@ -55,7 +69,10 @@ function sessionSummary(row, now) {
 function publicSettings(lesson) {
   if (lesson.kind === 'quiz') return { layout: normalizeQuizSettings(lesson.settings).layout }
   const s = normalizeAssignmentSettings(lesson.settings)
-  return { allowText: s.allowText, allowFiles: s.allowFiles, maxFiles: s.maxFiles }
+  return {
+    allowText: s.allowText, allowFiles: s.allowFiles, maxFiles: s.maxFiles, maxFileMb: s.maxFileMb,
+    acceptedTypes: acceptedTypesOf(s).map((key) => ({ key, label: FILE_TYPES[key].label, ext: FILE_TYPES[key].ext[0] })),
+  }
 }
 
 const answered = (value) => value !== null && value !== undefined && !['""', '{}', '[]', 'null'].includes(JSON.stringify(value))
@@ -75,6 +92,7 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     learn: { lessonContext: () => { throw new LmsError('La actividad se abre desde su evaluación.', 404) } },
     ownsAttempt: (row, ctx) => Boolean(ctx?.sessionId) && row.sessionId === ctx.sessionId && row.enrollmentId === ctx.enrollmentId,
   })
+  const files = createLmsSessionFiles({ prisma, media, owner, clock })
 
   // Drafts are invisible to participants and graders until published.
   async function findAssessment(companyId, id, { includeDraft = false } = {}) {
@@ -132,6 +150,8 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     ])
     const lessonById = new Map(lessons.map((row) => [row.id, row]))
     const subById = new Map((await serializeSubmissions(submissions, ser)).map((row) => [row.lessonId, row]))
+    const versions = submissions.length ? await prisma.lmsSubmissionFile.findMany({ where: { submissionId: { in: submissions.map((row) => row.id) }, status: 'active' }, orderBy: { slot: 'asc' } }) : []
+    const resources = await files.resourcesFor(ids)
     const showResult = assessment.settings.showResultsToCandidate && session.status === 'graded'
     return {
       serverNow: now.toISOString(),
@@ -154,6 +174,9 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
             answeredCount: Object.values(attempt.answers ?? {}).filter(answered).length,
           } : null,
           submission: subById.get(item.lessonId) ?? null,
+          // Current verified files of the delivery (what will be graded).
+          files: versions.filter((row) => submissions.find((sub) => sub.id === row.submissionId)?.lessonId === item.lessonId).map(versionShape),
+          resources: resources.get(item.lessonId) ?? [],
         }
       }),
     }
@@ -172,6 +195,7 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
       ? new Map((await prisma.lmsQuizQuestion.groupBy({ by: ['lessonId'], where: { lessonId: { in: quizIds }, enabled: true }, _count: { _all: true }, _sum: { points: true } }))
         .map((row) => [row.lessonId, { questionCount: row._count._all, questionPoints: row._sum.points ?? 0 }]))
       : new Map()
+    const resourceCounts = new Map((await prisma.lmsLessonResource.groupBy({ by: ['lessonId'], where: { lessonId: { in: lessons.map((row) => row.id) } }, _count: { _all: true } })).map((row) => [row.lessonId, row._count._all]))
     const now = clock()
     const current = sessions.find((row) => row.status === 'in_progress') ?? null
     const blocker = current ? null : startBlocker({ assessment, enrollment: p.enrollment, sessions, now })
@@ -186,7 +210,11 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
         opensAt: assessment.settings.opensAt,
         closesAt: assessment.settings.closesAt,
       },
-      activities: lessons.map((row) => ({ id: row.id, kind: row.kind, title: row.title, maxPoints: activityMaxPoints(row, stats.get(row.id)) })),
+      // Formats, limits and material count are shown before starting.
+      activities: lessons.map((row) => ({
+        id: row.id, kind: row.kind, title: row.title, maxPoints: activityMaxPoints(row, stats.get(row.id)),
+        settings: publicSettings(row), resourceCount: resourceCounts.get(row.id) ?? 0,
+      })),
       sessions: sessions.map((row) => sessionSummary(row, now)),
       sessionsAllowed: sessionsAllowed(assessment.settings, p.enrollment),
       openSessionId: current?.id ?? null,
@@ -283,53 +311,42 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
     return { ...result, serverNow: clock().toISOString() }
   }
 
+  // Text only: files go through presign/confirm (verified and versioned).
   async function saveDraft(companyId, actor, sessionId, activityId, body = {}) {
-    const { session, p } = await ownSession(companyId, actor, sessionId)
+    const { session } = await ownSession(companyId, actor, sessionId)
     writable(session)
     const draft = isUuid(activityId) ? await prisma.lmsSubmission.findFirst({ where: { sessionId: session.id, lessonId: activityId } }) : null
     if (!draft) throw new LmsError('La actividad no existe.', 404)
     if (draft.status !== 'draft') throw new LmsError('La evaluación ya fue entregada.', 409, 'SESSION_CLOSED')
     const lesson = await prisma.lmsLesson.findUnique({ where: { id: activityId } })
-    const input = normalizeDraftInput(body ?? {}, normalizeAssignmentSettings(lesson?.settings), draft)
-    await assertSubmissionFiles(prisma, owner, companyId, p.actor, input.fileIds)
-    const { count } = await prisma.lmsSubmission.updateMany({ where: { id: draft.id, status: 'draft' }, data: input })
+    const { text } = normalizeDraftInput({ text: body?.text }, normalizeAssignmentSettings(lesson?.settings), draft)
+    const { count } = await prisma.lmsSubmission.updateMany({ where: { id: draft.id, status: 'draft' }, data: { text } })
     if (!count) throw new LmsError('La evaluación ya fue entregada.', 409, 'SESSION_CLOSED')
-    const [row] = await serializeSubmissions([await prisma.lmsSubmission.findUnique({ where: { id: draft.id } })], ser)
-    return { submission: row, savedAt: clock().toISOString(), serverNow: clock().toISOString() }
+    return { text, savedAt: clock().toISOString(), serverNow: clock().toISOString() }
   }
 
   async function presignUpload(companyId, actor, sessionId, body = {}) {
     const { session, p } = await ownSession(companyId, actor, sessionId)
     if (!canPresignUpload(session, clock())) writable(session)
-    if (!canPresignUpload(session, clock())) throw new LmsError('Se terminó el tiempo para subir archivos.', 409, 'EXPIRED')
-    if (!media) throw new LmsError('La subida de archivos no está disponible.', 503)
-    const { fileId, uploadUrl } = await media.presign(companyId, owner.uploadedById(p.actor), body, SUBMISSION_UPLOAD, { ...(owner.metadata(p.actor) ?? {}), sessionId: session.id })
-    return { fileId, uploadUrl }
+    return files.presign({ session, p, companyId }, body)
   }
 
-  // A file presigned in time is accepted for UPLOAD_GRACE_MS after the deadline.
-  // When the session already closed, it joins the activity's delivery directly.
-  async function confirmUpload(companyId, actor, sessionId, fileId, body = {}) {
+  // A file presigned in time is accepted for UPLOAD_GRACE_MS after the deadline
+  // and joins the delivery even if the session closed meanwhile.
+  async function confirmUpload(companyId, actor, sessionId, fileId) {
     const { session, p } = await ownSession(companyId, actor, sessionId)
-    const asset = isUuid(fileId) ? await prisma.fileAsset.findFirst({ where: { id: fileId, moduleKey: 'runly.lms', enabled: true } }) : null
-    if (!asset || asset.metadata?.sessionId !== session.id) throw new LmsError('El archivo no existe.', 404)
-    if (!canConfirmUpload(session, asset, clock())) throw new LmsError('Se terminó el tiempo para subir archivos.', 409, 'EXPIRED')
-    if (!media) throw new LmsError('La subida de archivos no está disponible.', 503)
-    const confirmed = await media.confirm(companyId, asset.id, { entityType: SUBMISSION_UPLOAD.entityType, uploadedById: owner.uploadedById(p.actor), ...(owner.metadata(p.actor) ?? {}) })
-    let attached = false
-    if (session.status !== 'in_progress' && isUuid(body?.activityId)) {
-      const sub = await prisma.lmsSubmission.findFirst({ where: { sessionId: session.id, lessonId: body.activityId, status: { in: ['submitted', 'missing'] } } })
-      const lesson = sub ? await prisma.lmsLesson.findUnique({ where: { id: sub.lessonId } }) : null
-      const max = normalizeAssignmentSettings(lesson?.settings).maxFiles
-      if (sub && !sub.fileIds.includes(asset.id) && sub.fileIds.length < max) {
-        const { count } = await prisma.lmsSubmission.updateMany({
-          where: { id: sub.id, status: sub.status, gradedAt: null },
-          data: { fileIds: [...sub.fileIds, asset.id], status: 'submitted' },
-        })
-        attached = count > 0
-      }
-    }
-    return { ...confirmed, attached }
+    return { ...(await files.confirm({ session, p }, fileId)), serverNow: clock().toISOString() }
+  }
+
+  async function removeFile(companyId, actor, sessionId, fileId) {
+    const { session, p } = await ownSession(companyId, actor, sessionId)
+    writable(session)
+    return files.remove({ session, p }, fileId)
+  }
+
+  async function downloadResource(companyId, actor, sessionId, resourceId) {
+    const { session, assessment } = await ownSession(companyId, actor, sessionId)
+    return files.downloadResource({ session, assessment }, resourceId)
   }
 
   async function submit(companyId, actor, sessionId) {
@@ -432,7 +449,9 @@ export function createLmsSessionService({ prisma, signFile = null, media = null,
   }
 
   return {
-    overview, start, getSession, getAttempt, saveAnswers, saveDraft, presignUpload, confirmUpload, submit,
+    overview, start, getSession, getAttempt, saveAnswers, saveDraft, presignUpload, confirmUpload, removeFile, downloadResource, submit,
+    reviewFiles: (companyId, sessionId) => files.reviewFiles(companyId, sessionId),
+    reviewDownload: (companyId, versionId) => files.reviewDownload(companyId, versionId),
     closeSession, refreshGrading, sweepExpired, myAssessments,
   }
 }

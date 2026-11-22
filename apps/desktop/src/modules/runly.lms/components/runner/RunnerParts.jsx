@@ -5,9 +5,20 @@ import {
 import { CheckCircle2, CircleDashed, Clock, Hourglass, Loader2, Send } from 'lucide-react'
 import { toast } from 'sonner'
 import { formatPoints, formatTimeLimit } from '../../lib/lmsAssessment.js'
+import { formatsLabel } from '../../lib/lmsSessionFiles.js'
 import { SESSION_STATUS_LABELS, activityProgress, crossedWarning, formatClock, isLowTime, remainingFrom } from '../../lib/lmsSession.js'
 
 const MUTED = 'text-sm text-[hsl(var(--muted-foreground))]'
+// What the participant must know before starting: material and accepted files.
+function activityLimits(item) {
+  const s = item.settings ?? {}
+  const parts = []
+  if (item.resourceCount) parts.push(`${item.resourceCount} ${item.resourceCount === 1 ? 'archivo de material' : 'archivos de material'}`)
+  if (item.kind !== 'quiz' && s.allowFiles) {
+    parts.push(`Entrega ${s.acceptedTypes?.length ? formatsLabel(s.acceptedTypes) : 'archivos'}, hasta ${s.maxFiles} de ${s.maxFileMb ?? 50} MB`)
+  }
+  return parts.join(' · ')
+}
 const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : null)
 
 // Countdown on the server clock (expiresAt + offset), never the device time.
@@ -73,7 +84,10 @@ export function RunnerIntro({ overview, onStart, starting }) {
         {activities.map((item, index) => (
           <li key={item.id} className="flex items-center gap-3 rounded-lg border border-[hsl(var(--border))] px-4 py-3">
             <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[hsl(var(--muted))] text-sm font-semibold tabular-nums" aria-hidden="true">{index + 1}</span>
-            <span className="min-w-0 flex-1 truncate font-medium">{item.title}</span>
+            <span className="min-w-0 flex-1">
+              <span className="block truncate font-medium">{item.title}</span>
+              {activityLimits(item) ? <span className="block text-xs text-[hsl(var(--muted-foreground))]">{activityLimits(item)}</span> : null}
+            </span>
             <span className={cn(MUTED, 'shrink-0 tabular-nums')}>{formatPoints(item.maxPoints)}</span>
           </li>
         ))}

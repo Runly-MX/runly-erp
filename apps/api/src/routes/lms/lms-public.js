@@ -7,6 +7,9 @@ import { createLmsGuestService } from './lms-guest-service.js'
 import { registerLmsSharePublicRoutes } from './lms-share-public.js'
 import { createLmsHls } from './lms-hls.js'
 import { createLmsMedia } from './lms-media.js'
+import { registerLmsAssessmentPublicRoutes } from './lms-assessment-public.js'
+import { GUEST_PARTICIPANTS, createLmsSessionService } from './lms-session-service.js'
+import { createLmsNotifier } from './lms-notify.js'
 
 const clientKey = (c) => c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 'local'
 
@@ -25,6 +28,9 @@ export function createLmsPublicRouter({
   joinLimiter = createTokenBucketLimiter({ capacity: 20, refillPerSecond: 0.2 }),
   // Invite code checks: 10 per IP, then one every 30 s.
   accessLimiter = createTokenBucketLimiter({ capacity: 10, refillPerSecond: 1 / 30 }),
+  // Evaluation material downloads (each one signs a storage URL).
+  downloadLimiter = createTokenBucketLimiter({ capacity: 30, refillPerSecond: 0.5 }),
+  guestSessions = null,
 }) {
   const app = new Hono()
   const certs = service ?? createLmsCertService({ prisma, signFile, hub: documentsHub })
@@ -57,6 +63,10 @@ export function createLmsPublicRouter({
   })
 
   registerLmsSharePublicRoutes(app, { guest, limiter: shareLimiter, joinLimiter, accessLimiter, clientKey, fail })
+
+  // Evaluation sessions of external participants (spec 2026-11-21, phases 3-4).
+  const sessions = guestSessions ?? createLmsSessionService({ prisma, signFile, media, participants: GUEST_PARTICIPANTS, notifier: createLmsNotifier({ notificationService }) })
+  registerLmsAssessmentPublicRoutes(app, { prisma, sessions, limiter: shareLimiter, downloadLimiter, clientKey, fail })
 
   return app
 }

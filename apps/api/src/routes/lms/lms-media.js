@@ -30,6 +30,20 @@ export const SUBMISSION_UPLOAD = {
   prepareError: 'No se pudo preparar la subida del archivo.',
 }
 
+// Evaluation deliveries: the type check happens on the stored bytes at confirm
+// (lib/file-integrity); the MIME sent here is the one the server derived from the
+// accepted type, never the browser's.
+export const DELIVERY_UPLOAD = {
+  entityType: 'LmsDelivery',
+  folder: 'lmsdelivery',
+  mime: [/^[a-z]+\/[a-z0-9.+-]+$/],
+  maxBytes: SUBMISSION_MAX_BYTES,
+  typeError: 'Ese tipo de archivo no se admite.',
+  tooBig: 'El archivo supera 50 MB.',
+  defaultExt: 'bin',
+  prepareError: 'No se pudo preparar la subida del archivo.',
+}
+
 export function validateUpload({ fileName, mimeType, sizeBytes } = {}, purpose = VIDEO_UPLOAD) {
   const name = String(fileName ?? '').trim()
   const type = String(mimeType ?? '').trim().toLowerCase()
@@ -97,5 +111,22 @@ export function createLmsMedia({ prisma, supabaseAdmin, bucket }) {
     return { fileId: asset.id, fileName: asset.originalName }
   }
 
-  return { presign, confirm, presignHls: hls.presign, manifestFor: hls.manifestFor }
+  // Evaluation deliveries (phase 3): the server reads the stored bytes to check
+  // type, size and hash; rejected uploads are removed from storage.
+  async function readObject(asset) {
+    const { data, error } = await supabaseAdmin.storage.from(asset.bucket).download(asset.objectKey)
+    if (error || !data) return null
+    return Buffer.from(await data.arrayBuffer())
+  }
+
+  // Short-lived download URL; the payload never carries the bucket or object key.
+  async function signDownload(asset, seconds, fileName = asset.originalName) {
+    const { data, error } = await supabaseAdmin.storage.from(asset.bucket).createSignedUrl(asset.objectKey, seconds, { download: fileName || true })
+    if (error || !data?.signedUrl) throw new LmsError('No se pudo preparar la descarga.', 502)
+    return data.signedUrl
+  }
+
+  const removeObject = (asset) => supabaseAdmin.storage.from(asset.bucket).remove([asset.objectKey]).catch(() => null)
+
+  return { presign, confirm, presignHls: hls.presign, manifestFor: hls.manifestFor, readObject, signDownload, removeObject }
 }

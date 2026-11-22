@@ -6571,12 +6571,41 @@ model LmsSubmission {
   enrollment LmsEnrollment @relation(fields: [enrollmentId], references: [id], onDelete: Cascade)
   lesson     LmsLesson     @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   session    LmsAssessmentSession? @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  versions   LmsSubmissionFile[]
 
   // The unique index also serves (enrollment_id, lesson_id) lookups.
   @@unique([enrollmentId, lessonId, number])
   @@index([companyId, status])
   @@index([sessionId])
   @@map("lms_submission")
+}
+
+// Files delivered in an evaluation session, versioned per slot (spec 2026-11-21
+// phase 3). Partial unique index (SQL only): one active version per slot.
+model LmsSubmissionFile {
+  id           String    @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId    String    @map("company_id") @db.Uuid
+  submissionId String    @map("submission_id") @db.Uuid
+  fileId       String    @unique @map("file_id") @db.Uuid
+  slot         Int
+  version      Int
+  status       String    @default("active") // active | replaced | removed
+  fileName     String    @map("file_name")
+  fileType     String    @map("file_type") // xlsx | xls | csv | pdf | docx | pptx | ... (detected by content)
+  mimeType     String    @map("mime_type")
+  sizeBytes    BigInt    @map("size_bytes")
+  sha256       String
+  presignedAt  DateTime  @map("presigned_at") @db.Timestamptz(6)
+  confirmedAt  DateTime  @default(now()) @map("confirmed_at") @db.Timestamptz(6)
+  replacedAt   DateTime? @map("replaced_at") @db.Timestamptz(6)
+  afterClose   Boolean   @default(false) @map("after_close")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  submission LmsSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+
+  @@unique([submissionId, slot, version])
+  @@index([companyId])
+  @@map("lms_submission_file")
 }
 
 // One attempt at a standalone evaluation (spec 2026-11-21 section 6): owns the

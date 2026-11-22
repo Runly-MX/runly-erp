@@ -14,6 +14,13 @@ export const ACTIVITY_TYPES = [
   { value: 'practical', label: 'Actividad práctica', description: 'Material descargable, texto y archivos.' },
 ]
 
+// Formats an evaluation delivery can require (keys of the server's file-integrity table).
+export const DELIVERY_FILE_TYPES = [
+  { value: 'xlsx', label: 'Excel (.xlsx)' }, { value: 'xls', label: 'Excel 97-2003 (.xls)' }, { value: 'csv', label: 'CSV (.csv)' },
+  { value: 'pdf', label: 'PDF (.pdf)' }, { value: 'docx', label: 'Word (.docx)' }, { value: 'pptx', label: 'PowerPoint (.pptx)' },
+  { value: 'jpg', label: 'Imagen JPG' }, { value: 'png', label: 'Imagen PNG' }, { value: 'zip', label: 'ZIP (.zip)' },
+]
+
 // The label follows what the activity really accepts, not how it was created.
 export function activityTypeLabel(activity) {
   if (activity?.kind === 'quiz') return 'Cuestionario'
@@ -112,6 +119,8 @@ export function activityToForm(activity) {
     allowText: s.allowText !== false,
     allowFiles: s.allowFiles !== false,
     maxFiles: text(s.maxFiles ?? 5),
+    acceptedTypes: Array.isArray(s.acceptedTypes) ? s.acceptedTypes : [],
+    maxFileMb: text(s.maxFileMb ?? 50),
     maxPoints: text(s.maxPoints ?? 100),
   }
 }
@@ -123,6 +132,7 @@ export function validateActivityForm(form) {
   if (form.kind === 'assignment') {
     if (!form.allowText && !form.allowFiles) errors.allowText = 'Permite texto, archivos o ambos.'
     if (form.allowFiles && !intIn(form.maxFiles, 1, 10)) errors.maxFiles = 'Escribe de 1 a 10.'
+    if (form.allowFiles && !intIn(form.maxFileMb, 1, 50)) errors.maxFileMb = 'Escribe de 1 a 50 MB.'
     if (!intIn(form.maxPoints, 1, 1000)) errors.maxPoints = 'Escribe de 1 a 1000 puntos.'
     if (blank(form.body)) errors.body = 'Escribe las instrucciones de la actividad.'
   }
@@ -132,7 +142,11 @@ export function validateActivityForm(form) {
 export function activityFormToPayload(form) {
   const settings = form.kind === 'quiz'
     ? { layout: form.layout, shuffleQuestions: form.shuffleQuestions, shuffleOptions: form.shuffleOptions, drawCount: blank(form.drawCount) ? null : Number(form.drawCount), showAnswers: 'never' }
-    : { allowText: form.allowText, allowFiles: form.allowFiles, maxFiles: Number(form.maxFiles), maxPoints: Number(form.maxPoints) }
+    : {
+      allowText: form.allowText, allowFiles: form.allowFiles, maxFiles: Number(form.maxFiles), maxPoints: Number(form.maxPoints),
+      // Empty list: any common format (the server checks the real content either way).
+      acceptedTypes: form.acceptedTypes?.length ? [...form.acceptedTypes] : null, maxFileMb: Number(form.maxFileMb),
+    }
   return { title: String(form.title ?? '').trim(), body: String(form.body ?? '').trim() || null, settings }
 }
 

@@ -41,7 +41,9 @@ test('assessment form: limited time, validation and payload', () => {
 test('activity form: assignment points and files, quiz never reveals answers', () => {
   const task = activityToForm({ kind: 'assignment', title: 'Excel', body: 'Resuelve', settings: { allowText: false, allowFiles: true, maxFiles: 2, maxPoints: 100 } })
   assert.deepEqual(validateActivityForm(task), {})
-  assert.deepEqual(activityFormToPayload(task).settings, { allowText: false, allowFiles: true, maxFiles: 2, maxPoints: 100 })
+  assert.deepEqual(activityFormToPayload(task).settings, { allowText: false, allowFiles: true, maxFiles: 2, maxPoints: 100, acceptedTypes: null, maxFileMb: 50 })
+  assert.deepEqual(activityFormToPayload({ ...task, acceptedTypes: ['xlsx', 'pptx'], maxFileMb: '20' }).settings.acceptedTypes, ['xlsx', 'pptx'])
+  assert.ok(validateActivityForm({ ...task, maxFileMb: '80' }).maxFileMb)
   assert.ok(validateActivityForm({ ...task, allowFiles: false }).allowText)
   assert.ok(validateActivityForm({ ...task, maxPoints: '0' }).maxPoints)
   const quiz = activityToForm({ kind: 'quiz', title: 'Q', settings: {} })

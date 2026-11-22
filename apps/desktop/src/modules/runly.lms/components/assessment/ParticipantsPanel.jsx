@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react'
 import { Badge, Button, DataTable } from '@runly/ui'
-import { UserPlus, Users } from 'lucide-react'
+import { FileStack, UserPlus, Users } from 'lucide-react'
 import { toast } from 'sonner'
 import { useAddParticipants, useParticipants } from '../../hooks/useLmsSession.js'
 import { formatPoints } from '../../lib/lmsAssessment.js'
 import { SESSION_STATUS_LABELS } from '../../lib/lmsSession.js'
 import { AssignLearnersDialog } from '../AssignLearnersDialog.jsx'
+import { SessionFilesDialog } from './SessionFilesDialog.jsx'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 const VARIANTS = { in_progress: 'warning', submitted: 'secondary', expired: 'secondary', graded: 'success', voided: 'outline' }
@@ -23,6 +24,7 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
   const query = useParticipants(assessmentId)
   const add = useAddParticipants()
   const [open, setOpen] = useState(false)
+  const [filesOf, setFilesOf] = useState(null) // { session, name }
   const rows = query.data ?? []
 
   const columns = useMemo(() => [
@@ -53,6 +55,13 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
         return s?.scorePoints !== null && s?.scorePoints !== undefined ? <span className="tabular-nums">{s.scorePoints} / {s.maxPoints}</span> : <span className={MUTED}>{s ? `Máx. ${formatPoints(s.maxPoints)}` : '—'}</span>
       },
     },
+    {
+      id: 'files', header: '', enableSorting: false,
+      cell: ({ row }) => {
+        const s = row.original.sessions[0]
+        return s ? <Button variant="ghost" size="sm" onClick={() => setFilesOf({ session: s, name: row.original.learner.displayName })}><FileStack />Entregas</Button> : null
+      },
+    },
   ], [])
 
   async function assign(userProfileIds) {
@@ -75,6 +84,7 @@ export function ParticipantsPanel({ assessmentId, readOnly }) {
         open={open} onOpenChange={setOpen} enrollments={rows.map((r) => ({ status: r.status, learner: r.learner }))}
         onAssign={assign} pending={add.isPending} copy={COPY}
       />
+      <SessionFilesDialog session={filesOf?.session ?? null} participant={filesOf?.name} onOpenChange={(value) => { if (!value) setFilesOf(null) }} />
     </section>
   )
 }

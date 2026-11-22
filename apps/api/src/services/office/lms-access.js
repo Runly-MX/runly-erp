@@ -8,7 +8,10 @@ import { OfficeError } from './errors.js';
 //    access is decided by the submission that lists the file, never by uploader.
 //  - LmsCertificateTemplate: editable with lms.course.manage, only while the
 //    file is the template's current one (replaced files are refused).
-const LMS_OFFICE_ENTITIES = new Set(['LmsSubmission', 'LmsCertificateTemplate']);
+//  - LmsDelivery: evaluation deliveries (phase 3), same rule; only the current
+//    versions are listed in file_ids, replaced ones are reached by graders only
+//    through the audit download.
+const LMS_OFFICE_ENTITIES = new Set(['LmsSubmission', 'LmsDelivery', 'LmsCertificateTemplate']);
 const TAGGED_SOURCES = new Set(['docx', 'pptx']);
 
 export function isLmsOfficeFile(file) {

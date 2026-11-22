@@ -77,7 +77,12 @@ export function createLmsDomain({ request, requestBlob, withAuthHeaders, toQuery
     saveSessionAnswers: (sessionId, attemptId, answers, token) => send('PUT', `/lms/learn/sessions/${id(sessionId)}/attempts/${id(attemptId)}/answers`, { answers }, token),
     saveSessionDraft: (sessionId, activityId, data, token) => send('PUT', `/lms/learn/sessions/${id(sessionId)}/activities/${id(activityId)}/draft`, data, token),
     presignSessionUpload: (sessionId, data, token) => send('POST', `/lms/learn/sessions/${id(sessionId)}/uploads/presign`, data, token),
-    confirmSessionUpload: (sessionId, fileId, data, token) => send('POST', `/lms/learn/sessions/${id(sessionId)}/uploads/${id(fileId)}/confirm`, data ?? {}, token),
+    confirmSessionUpload: (sessionId, fileId, token) => send('POST', `/lms/learn/sessions/${id(sessionId)}/uploads/${id(fileId)}/confirm`, {}, token),
+    removeSessionFile: (sessionId, fileId, token) => send('DELETE', `/lms/learn/sessions/${id(sessionId)}/files/${id(fileId)}`, undefined, token),
+    downloadSessionResource: (sessionId, resourceId, token) => send('POST', `/lms/learn/sessions/${id(sessionId)}/resources/${id(resourceId)}/download`, {}, token),
+    // Graders: delivered files of a session with every version.
+    getSessionFiles: (sessionId, token) => send('GET', `/lms/review/sessions/${id(sessionId)}/files`, undefined, token),
+    downloadSessionFileVersion: (versionId, token) => send('POST', `/lms/review/session-files/${id(versionId)}/download`, {}, token),
     createSection: (courseId, data, token) => send('POST', `/lms/courses/${id(courseId)}/sections`, data, token),
     updateSection: (sectionId, data, token) => send('PATCH', `/lms/sections/${id(sectionId)}`, data, token),
     deleteSection: (sectionId, token) => send('DELETE', `/lms/sections/${id(sectionId)}`, undefined, token),

@@ -47,7 +47,14 @@ export function registerLmsAssessmentRoutes(app, {
   app.put('/lms/learn/sessions/:sessionId/attempts/:attemptId/answers', access, run('Error al guardar las respuestas.', async (c) => c.json({ data: await sessions.saveAnswers(companyId(c), actorId(c), sid(c), c.req.param('attemptId'), await body(c)) })))
   app.put('/lms/learn/sessions/:sessionId/activities/:activityId/draft', access, run('Error al guardar la entrega.', async (c) => c.json({ data: await sessions.saveDraft(companyId(c), actorId(c), sid(c), c.req.param('activityId'), await body(c)) })))
   app.post('/lms/learn/sessions/:sessionId/uploads/presign', access, run('Error al preparar la subida.', async (c) => c.json({ data: await sessions.presignUpload(companyId(c), actorId(c), sid(c), await body(c)) })))
-  app.post('/lms/learn/sessions/:sessionId/uploads/:fileId/confirm', access, run('Error al confirmar la subida.', async (c) => c.json({ data: await sessions.confirmUpload(companyId(c), actorId(c), sid(c), c.req.param('fileId'), await body(c)) })))
+  app.post('/lms/learn/sessions/:sessionId/uploads/:fileId/confirm', access, run('Error al confirmar la subida.', async (c) => c.json({ data: await sessions.confirmUpload(companyId(c), actorId(c), sid(c), c.req.param('fileId')) })))
+  app.delete('/lms/learn/sessions/:sessionId/files/:fileId', access, run('Error al quitar el archivo.', async (c) => c.json({ data: await sessions.removeFile(companyId(c), actorId(c), sid(c), c.req.param('fileId')) })))
+  app.post('/lms/learn/sessions/:sessionId/resources/:resourceId/download', access, run('Error al preparar la descarga.', async (c) => c.json({ data: await sessions.downloadResource(companyId(c), actorId(c), sid(c), c.req.param('resourceId')) })))
+
+  // ---- graders: delivered files with their versions and integrity -------------
+  const grade = requirePermission('lms.grade')
+  app.get('/lms/review/sessions/:sessionId/files', grade, run('Error al cargar las entregas.', async (c) => c.json({ data: await sessions.reviewFiles(companyId(c), sid(c)) })))
+  app.post('/lms/review/session-files/:versionId/download', grade, run('Error al preparar la descarga.', async (c) => c.json({ data: await sessions.reviewDownload(companyId(c), c.req.param('versionId')) })))
 
   return { sessions }
 }

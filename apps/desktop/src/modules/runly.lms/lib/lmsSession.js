@@ -40,7 +40,8 @@ export function activityProgress(activity) {
     return { done, total, complete: total > 0 && done >= total, label: `${done} de ${total} respondidas` }
   }
   const sub = activity.submission ?? {}
-  const files = sub.files?.length ?? 0
+  // Verified current versions (phase 3); older payloads only had the submission files.
+  const files = (activity.files ?? sub.files)?.length ?? 0
   const text = Boolean(String(sub.text ?? '').trim())
   const parts = [text ? 'Texto escrito' : null, files ? `${files} ${files === 1 ? 'archivo' : 'archivos'}` : null].filter(Boolean)
   return { done: text || files ? 1 : 0, total: 1, complete: Boolean(text || files), label: parts.length ? parts.join(' · ') : 'Sin entregar' }
