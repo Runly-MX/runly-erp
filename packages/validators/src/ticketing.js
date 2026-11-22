@@ -97,3 +97,13 @@ export const ticketCancelSchema = z.object({ reason: optionalText(500), ticketId
 export const ticketConfirmPaymentSchema = z.object({ posOrderId: z.string().uuid() }).strict();
 export const ticketMemberSchema = z.object({ role: z.enum(['admin', 'agent', 'viewer']) }).strict();
 export const ticketTransferSchema = z.object({ holderName: text(160), holderEmail: email.optional().nullable() }).strict();
+
+// Check-in (F6D): the scanned RT1 text, or the printed ticket code typed by staff.
+// admit = false validates without consuming the entry. deviceId is a random id of the
+// reader (not a credential), used for rate limits and the audit.
+export const ticketScanSchema = z.object({
+  text: z.string().max(512).optional(),
+  code: z.string().trim().toUpperCase().regex(/^[0-9A-F]{10}$/, 'El código tiene 10 caracteres (0-9, A-F).').optional(),
+  deviceId: z.string().regex(/^[A-Za-z0-9_-]{8,64}$/).optional().nullable(),
+  admit: z.boolean().default(true),
+}).strict().refine((v) => Boolean(v.text) !== Boolean(v.code), 'Envía el QR o el código del boleto.');

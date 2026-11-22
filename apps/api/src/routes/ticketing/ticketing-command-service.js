@@ -132,6 +132,12 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
       await tx.$executeRaw`UPDATE ticket_quota SET issued = issued - ${byType.get(typeId)}, updated_at = now() WHERE ticket_type_id = ${typeId}::uuid AND session_id = ${order.session_id}::uuid`
     }
     for (const t of target) {
+      // Kept so a gate can answer "cancelado" for this QR instead of "no válido".
+      await tx.$executeRaw`
+        INSERT INTO ticket_credential_revoked (company_id, ticket_id, credential_version, credential_hash, reason)
+        SELECT company_id, id, credential_version, credential_hash, ${ticketStatus === 'EXPIRED' ? 'expired' : 'cancelled'}
+          FROM ticket WHERE id = ${t.id}::uuid AND credential_hash IS NOT NULL
+        ON CONFLICT DO NOTHING`
       await tx.$executeRaw`
         UPDATE ticket SET status = ${ticketStatus}, credential_hash = NULL, cancelled_at = now(), pos_refund_id = ${refundIds[t.type_id] ?? null}::uuid,
                version = version + 1, updated_at = now()
@@ -245,6 +251,9 @@ export function createTicketingCommandService({ prisma, engine, now = () => Date
   // New secret, credential_version + 1: every earlier QR of this ticket stops matching.
   async function rotate(tx, { companyId, actorId, ticket, action, holder = null, idempotency }) {
     const issue = newSecret()
+    await tx.$executeRaw`
+      INSERT INTO ticket_credential_revoked (company_id, ticket_id, credential_version, credential_hash, reason)
+      VALUES (${companyId}::uuid, ${ticket.id}::uuid, ${ticket.credential_version}, ${ticket.credential_hash}, ${action === 'reissue' ? 'reissued' : 'transferred'})`
     const updated = (await tx.$queryRaw`
       UPDATE ticket SET credential_hash = ${issue.hash}, credential_version = credential_version + 1, version = version + 1, updated_at = now(),
              holder_name = ${holder ? holder.name : ticket.holder_name}, holder_email = ${holder ? holder.email ?? null : ticket.holder_email}

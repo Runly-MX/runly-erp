@@ -16,6 +16,7 @@ export const ENGINE_CHANNEL = { box_office: 'backoffice', portal: 'portal', webs
 // database alone never yields a valid QR. A new secret replaces the old one.
 const QR = /^RT1\.([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\.([A-Za-z0-9_-]{43})$/
 const sha256 = (value) => crypto.createHash('sha256').update(value).digest('hex')
+export const hashSecret = sha256
 
 export function newSecret() {
   const secret = crypto.randomBytes(32).toString('base64url')

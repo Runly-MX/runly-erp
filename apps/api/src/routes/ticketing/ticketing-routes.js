@@ -3,22 +3,28 @@
 // box office, admin configures the event; ticketing.events.manage creates events.
 import { Hono } from 'hono'
 import {
-  ticketCancelSchema, ticketConfirmPaymentSchema, ticketMemberSchema, ticketEventCreateSchema, ticketEventUpdateSchema, ticketOrderCreateSchema, ticketQuotaSchema,
+  ticketCancelSchema, ticketConfirmPaymentSchema, ticketScanSchema, ticketMemberSchema, ticketEventCreateSchema, ticketEventUpdateSchema, ticketOrderCreateSchema, ticketQuotaSchema,
   ticketSessionCreateSchema, ticketTransferSchema, ticketTypeCreateSchema, ticketTypeUpdateSchema,
 } from '@runly/validators'
 import { createBookingsCommandService } from '../bookings/bookings-command-service.js'
-import { TicketingError, canCreateEvents, notFound, requireEventRole, serializeEvent } from './ticketing-core.js'
+import { createSharedBucket } from '../bookings/bookings-rate-limit.js'
+import { TicketingError, canCreateEvents, isTicketingAdmin, notFound, requireEventRole, serializeEvent } from './ticketing-core.js'
+import { createTicketingCheckinService } from './ticketing-checkin-service.js'
 import { createTicketingCommandService } from './ticketing-command-service.js'
 import { createTicketingConfigService } from './ticketing-config-service.js'
 import { createTicketingPaymentService } from './ticketing-payment-service.js'
 
-export function createTicketingRouter({ prisma, requirePermission, requireAnyPermission = null, engine = null, commands = null, payments = null }) {
+export function createTicketingRouter({ prisma, requirePermission, requireAnyPermission = null, engine = null, commands = null, payments = null, checkin = null, scanLimit = [60, 3] }) {
   const app = new Hono()
   const bookings = engine ?? createBookingsCommandService({ prisma })
   const config = createTicketingConfigService({ prisma, engine: bookings })
   const cmd = commands ?? createTicketingCommandService({ prisma, engine: bookings })
   const pay = payments ?? createTicketingPaymentService({ prisma })
+  const gate = checkin ?? createTicketingCheckinService({ prisma })
   const access = requirePermission('ticketing.access')
+  const checkinAccess = requirePermission('ticketing.checkin')
+  // Shared PostgreSQL buckets (all API instances): per operator and per reader device.
+  const scanBucket = createSharedBucket({ prisma, capacity: scanLimit[0], refillPerSecond: scanLimit[1], namespace: 'tk-scan' })
   // Caja confirms the sale it just charged: cashiers without Boletos access may load
   // the order's lines and confirm it (the server proves the payment either way).
   const accessOrCashier = requireAnyPermission ? requireAnyPermission(['ticketing.access', 'pos.caja.operate']) : access
@@ -166,6 +172,24 @@ export function createTicketingRouter({ prisma, requirePermission, requireAnyPer
     await role(c, await eventOf(c, 'ticket', c.req.param('ticketId')), 'agent')
     const result = await cmd.transfer({ companyId: companyId(c), actorId: userId(c), ticketId: c.req.param('ticketId'), input: await parse(c, ticketTransferSchema), idempotencyKey: key(c) })
     return c.json({ data: result.ticket, credential: result.credential, replayed: result.replayed })
+  }))
+
+  // Check-in (F6D): ticketing.checkin plus a place on the event's team (any role).
+  app.get('/ticketing/checkin/sessions', checkinAccess, run(async (c) => c.json({ data: await gate.checkinSessions({ companyId: companyId(c), userId: userId(c), all: isTicketingAdmin(ctx(c)) }) })))
+  app.get('/ticketing/checkin/sessions/:sessionId', checkinAccess, run(async (c) => {
+    await role(c, await eventOf(c, 'session', c.req.param('sessionId')), 'viewer')
+    return c.json({ data: await gate.sessionBoard({ companyId: companyId(c), sessionId: c.req.param('sessionId') }) })
+  }))
+  app.post('/ticketing/checkin/sessions/:sessionId/scan', checkinAccess, run(async (c) => {
+    await role(c, await eventOf(c, 'session', c.req.param('sessionId')), 'viewer')
+    const input = await parse(c, ticketScanSchema)
+    const checks = [scanBucket.consume(`op:${companyId(c)}:${userId(c)}`), ...(input.deviceId ? [scanBucket.consume(`dev:${companyId(c)}:${input.deviceId}`)] : [])]
+    const limited = (await Promise.all(checks)).find((r) => !r.allowed)
+    if (limited) {
+      c.header('Retry-After', String(limited.retryAfter))
+      throw new TicketingError('Demasiadas lecturas seguidas. Espera un momento.', 429, 'RATE_LIMITED')
+    }
+    return c.json({ data: await gate.scan({ companyId: companyId(c), operatorId: userId(c), sessionId: c.req.param('sessionId'), text: input.text ?? null, code: input.code ?? null, deviceId: input.deviceId ?? null, admit: input.admit }) })
   }))
 
   return app

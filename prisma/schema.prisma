@@ -7534,17 +7534,34 @@ model Ticket {
 model TicketAdmission {
   id         String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
   companyId  String   @map("company_id") @db.Uuid
-  ticketId   String   @map("ticket_id") @db.Uuid
+  ticketId   String?  @map("ticket_id") @db.Uuid // null for an unknown QR (rejected)
   sessionId  String   @map("session_id") @db.Uuid
   result     String // admitted | rejected
-  reason     String // ok | already_used | cancelled | wrong_session | outside_window | unknown | revoked
+  reason     String // ok | already_used | cancelled | wrong_session | outside_window | unknown | revoked | not_issued
+  method     String   @default("qr") // qr | code
+  credentialVersion Int? @map("credential_version")
   deviceId   String?  @map("device_id")
   operatorId String?  @map("operator_id") @db.Uuid
   offline    Boolean  @default(false)
   scannedAt  DateTime @default(now()) @map("scanned_at") @db.Timestamptz(6)
 
   @@index([sessionId, scannedAt], map: "ticket_admission_session_idx")
+  @@index([ticketId], map: "ticket_admission_ticket_idx")
   @@map("ticket_admission")
+}
+
+// Hashes of credentials that stopped validating (reissue, transfer, cancellation), F6D.
+model TicketCredentialRevoked {
+  id                String   @id @default(dbgenerated("uuidv7()")) @db.Uuid
+  companyId         String   @map("company_id") @db.Uuid
+  ticketId          String   @map("ticket_id") @db.Uuid
+  credentialVersion Int      @map("credential_version")
+  credentialHash    String   @map("credential_hash")
+  reason            String // reissued | transferred | cancelled | expired
+  revokedAt         DateTime @default(now()) @map("revoked_at") @db.Timestamptz(6)
+
+  @@unique([ticketId, credentialHash], map: "ticket_credential_revoked_hash_key")
+  @@map("ticket_credential_revoked")
 }
 
 model TicketHistory {

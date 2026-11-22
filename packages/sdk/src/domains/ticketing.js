@@ -33,5 +33,9 @@ export function createTicketingDomain({ request, withAuthHeaders, toQueryString 
     cancelOrder: (orderId, data, token, idempotencyKey) => send('POST', `${order(orderId)}/cancel`, data, token, idempotencyKey),
     reissue: (ticketId, token, idempotencyKey) => send('POST', `/ticketing/tickets/${id(ticketId)}/reissue`, {}, token, idempotencyKey),
     transfer: (ticketId, data, token, idempotencyKey) => send('POST', `/ticketing/tickets/${id(ticketId)}/transfer`, data, token, idempotencyKey),
+    // Check-in: the server decides every admission; a failed request never admits.
+    checkinSessions: (token) => send('GET', '/ticketing/checkin/sessions', undefined, token),
+    checkinBoard: (sessionId, token) => send('GET', `/ticketing/checkin/sessions/${id(sessionId)}`, undefined, token),
+    scan: (sessionId, data, token) => send('POST', `/ticketing/checkin/sessions/${id(sessionId)}/scan`, data, token),
   }
 }
