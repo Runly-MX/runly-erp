@@ -1,5 +1,9 @@
 # Website Responsive Foundation — segunda entrega local
 
+La publicación y los bloqueadores comprobados posteriormente se documentan en la
+[fase 3](website-responsive-foundation-phase-3.md). Este informe conserva el estado
+histórico del cierre local de la segunda entrega.
+
 Continúa la [primera entrega](website-responsive-foundation.md). Estado: candidato
 local verificable; **no aprobado para producción**. No se publicaron paquetes, no
 se hizo push ni despliegue y no se modificó SENDA. Se conservaron los cambios de
