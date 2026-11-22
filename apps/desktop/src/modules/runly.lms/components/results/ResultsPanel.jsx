@@ -7,6 +7,7 @@ import { useToken } from '../../hooks/useLmsData.js'
 import { saveBlob } from '../../hooks/useLmsCerts.js'
 import { downloadResults, useAssessmentResults } from '../../hooks/useLmsResults.js'
 import { recordPath } from '../../lib/lmsAssessment.js'
+import { lmsPath } from '../../lib/lmsLabels.js'
 import { DECISION_VARIANTS, RESULT_FILTERS, RESULT_STATUS, decisionLabel, filterRows, percent, scoreText } from '../../lib/lmsResults.js'
 
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
@@ -108,6 +109,14 @@ export function ResultsPanel({ assessmentId }) {
             <div key={label} className="rounded-md bg-[hsl(var(--muted)/0.5)] px-3 py-2"><dt className={MUTED}>{label}</dt><dd className="text-xl font-semibold tabular-nums">{value}</dd></div>
           ))}
         </dl>
+      ) : null}
+      {data?.assessment?.sourceCourseId ? (
+        <Alert data-testid="source-course-note">
+          <AlertDescription>
+            Esta evaluación se copió de un curso. Los participantes, intentos y entregas anteriores siguen en el curso original, sin cambios.{' '}
+            <Link to={lmsPath(`/courses/${data.assessment.sourceCourseId}`)} className="font-medium underline underline-offset-2">Ver historial del curso original</Link>
+          </AlertDescription>
+        </Alert>
       ) : null}
       <Alert><AlertDescription>La calificación mide el desempeño en la evaluación. La decisión de cada participante (avanza, en espera, no avanza) la registra una persona en su expediente y nunca se calcula a partir del puntaje.</AlertDescription></Alert>
       <ChipTabs tabs={RESULT_FILTERS} value={filter} onChange={setFilter} tone="violet" ariaLabel="Filtrar por estado" showDescription={false} />

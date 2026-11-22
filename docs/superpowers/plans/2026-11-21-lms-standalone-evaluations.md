@@ -432,6 +432,53 @@ assignment with 7 items / 100 points and an Excel resource); results view "histo
 Handoff: exact commands for the product owner to run the dry run on production after deploy and send back the
 report; mapping adjusted from it before `--apply`.
 
+### Phase 7 status (2026-11-22)
+
+- Script `scripts/lms-clone-course-to-assessment.mjs` with pure planning in
+  `apps/api/src/routes/lms/lms-clone-core.js` (unit tests `__tests__/lms-clone-core.test.js`).
+  - Dry run (default) reads only and prints: lesson/question counts, learner activity kept in the course,
+    source fingerprint, the planned activities with points per question, material files (name, type,
+    size), every exam adjustment, lessons not carried, and the content checksum. `--write-map` writes the
+    editable mapping.
+  - `--apply` creates a draft evaluation in one transaction: questions copied verbatim (prompt, options,
+    explanation, points, order), material linked by the same FileAsset ids (no file copies),
+    `settings.sourceCourseId` set. The copy is read back inside the transaction and the transaction aborts
+    if its content checksum differs from the plan. The source content fingerprint is compared before and
+    after; learner activity during the run is reported apart (it may move on a live instance).
+  - `--rollback <assessmentId>` archives a script-made copy (`enabled = false`) only while it has no
+    sessions; otherwise it refuses.
+  - Default mapping: quiz lessons become questionnaires, assignment lessons become practical activities,
+    file lessons become material of the practical activity. The map can rename, choose lessons, set the
+    7-criterion rubric (must add up to the declared points or the run is refused), file types and count.
+  - Justified differences, always printed: questionnaire `showAnswers` becomes `never`, per-quiz
+    `timeLimitMinutes`/`maxAttempts` are removed (the evaluation's single 60-minute clock and single session
+    govern), assignment `dueDaysAfterEnroll` removed, practical accepts Excel/presentation files.
+- Results of a copied evaluation show "Ver historial del curso original" (link to the course, whose
+  enrollments, attempts and submissions stay there unchanged).
+- The real course is not in the local database (B1 open). Local rehearsal `.e2e/lms-clone-rehearsal.mjs`
+  (39/39) on a disposable course of the same shape: 10 open questions 15+10+10+10+10+10+10+10+5+10 = 100,
+  Excel as a file lesson, assignment with 7 items, a published share link and learner history. It covers
+  the dry run without writes, a refused bad rubric, apply with verified checksum, identical questions, the
+  Excel linked by id, a rollback, the public registration and the whole candidate run (10 answers, Excel
+  download, Excel + presentation delivery, folio), one 60-minute clock for both activities, 200 frozen
+  points, the manager grading 85 + 87 = 172 / 200, decision, CSV and Excel export, rollback refused once a
+  session exists, and the source course byte-for-byte unchanged at the end.
+
+#### Production run (product owner, after the phase 8 deploy; never by Claude)
+
+Get the course id from the app: open the course, the address ends in `/courses/<courseId>`.
+
+1. Dry run, send the output back: `node --env-file=.env scripts/lms-clone-course-to-assessment.mjs --source <courseId> --write-map pvr-map.json`
+2. Check in the output: 10 questions and their points as in the course, 200 points, the Excel listed as
+   material with its real file name, nothing important under "not carried". Edit `pvr-map.json` if the 7
+   Excel items need a rubric (B1), then repeat step 1 with `--map pvr-map.json`.
+3. Apply: `node --env-file=.env scripts/lms-clone-course-to-assessment.mjs --source <courseId> --map pvr-map.json --apply --out pvr-clone-report.json`.
+   The report must say `"sourceUntouched": true` and `"totalPoints": 200`.
+4. In the app, on the new draft: Compartir (registro, aviso de privacidad), Evaluadores (commercial manager),
+   check the two activities and their points, then Publicar.
+5. Rollback before anyone takes it: `node --env-file=.env scripts/lms-clone-course-to-assessment.mjs --rollback <assessmentId>`.
+   After the first session it refuses; archive or unpublish from the app instead. The course is never changed.
+
 ## Phase 8 — Hardening and regression
 
 Depends on: all. Tasks: security pass (company isolation, guest isolation, timer tampering, concurrent

@@ -62,7 +62,8 @@ export function createLmsAssessmentResultsService({ prisma, access, clock = () =
     }
     const columns = sessions[0]?.snapshot?.activities?.map((item) => ({ lessonId: item.lessonId, title: item.title, kind: item.kind, maxPoints: Number(item.maxPoints) || 0 })) ?? []
     return {
-      assessment: { id: assessment.id, title: assessment.title, status: assessment.status },
+      // sourceCourseId: set by the clone script; the course keeps its own enrollments and results.
+      assessment: { id: assessment.id, title: assessment.title, status: assessment.status, sourceCourseId: assessment.settings?.sourceCourseId ?? null },
       role,
       fields: fields.map((field) => ({ key: field.key, label: field.label })),
       columns,
