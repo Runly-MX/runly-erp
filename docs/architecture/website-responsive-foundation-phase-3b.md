@@ -1,5 +1,9 @@
 # Website Responsive Foundation — fase 3B
 
+La ejecución posterior y los bloqueadores vigentes se documentan en la
+[fase 3C](website-responsive-foundation-phase-3c.md). Este informe conserva el
+estado histórico de la fase 3B.
+
 Continuación de la [fase 3](website-responsive-foundation-phase-3.md).
 **Cierre parcial: compatibilidad e integración implementadas; publicación
 compartida, adopción del Hub y staging pendientes.** Atlas 0.9.0 no se modificó
