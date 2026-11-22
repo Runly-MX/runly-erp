@@ -129,6 +129,10 @@ El análisis de los seis archivos preparados para este commit no encontró halla
 
 ## Pendientes del proyecto original
 
+Este listado corresponde al cierre de la primera entrega. La implementación,
+pruebas y bloqueadores actuales se detallan en la
+[segunda entrega local](website-responsive-foundation-delivery-2.md).
+
 - Verificar versiones y configuración del entorno desplegado y abrir SENDA 21
   en modo de lectura para establecer sus capturas de referencia.
 - Auditar individualmente todos los bloques especializados, carruseles, imágenes,
