@@ -1,5 +1,9 @@
 # Website Responsive Foundation — fase 3
 
+La continuación implementada y los bloqueadores vigentes se documentan en la
+[fase 3B](website-responsive-foundation-phase-3b.md). Este informe conserva el
+estado histórico de la fase 3.
+
 Fecha de verificación: 22 de noviembre de 2026. **Cierre parcial verificable**:
 Atlas 0.9.0 se publicó y verificó. No se adoptó en ERP/Hub ni se desplegó a staging
 o producción. Las cadenas dependientes se detuvieron al fallar sus requisitos.
