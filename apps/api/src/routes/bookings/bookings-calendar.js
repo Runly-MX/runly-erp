@@ -23,6 +23,17 @@ export function calendarEventOf(row) {
   }
 }
 
+// Room and equipment reservations (v1.2 R1): the motive and the resource, the organizer.
+export function roomEventOf(row) {
+  return {
+    title: `${PREFIX[row.status] ?? ''}${row.title || 'Reservación'} · ${row.resource_name ?? row.space_name}${SUFFIX[row.status] ?? ''}`,
+    description: [`Folio: ${row.reference}`, `Estado: ${STATUS[row.status]}`, row.organizer_name ? `Organiza: ${row.organizer_name}` : null, row.party_size > 1 ? `Personas: ${row.party_size}` : null, `Reservado en ${row.space_name}`].filter(Boolean).join('\n'),
+    location: row.resource_name ?? null,
+    startAt: new Date(row.starts_at),
+    endAt: new Date(row.ends_at),
+  }
+}
+
 export function createBookingsCalendarProjection({ prisma, log = console.error }) {
   const configKey = (spaceId) => `bookings.calendarId.${spaceId}`
 
@@ -54,27 +65,44 @@ export function createBookingsCalendarProjection({ prisma, log = console.error }
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`bookings.calendar:${bookingId}`}, 0))::text`
       const row = (await tx.$queryRaw`
         SELECT b.id, b.company_id, b.status::text AS status, b.starts_at, b.ends_at, b.party_size, b.reference, b.channel, b.guest_name, b.version, b.source_module,
-               sv.name AS service_name, s.id AS space_id, s.name AS space_name
+               b.title, b.organizer_id, sv.name AS service_name, s.id AS space_id, s.name AS space_name, s.purpose, p.display_name AS organizer_name,
+               (SELECT r.name FROM booking_allocation a JOIN booking_resource r ON r.id = a.resource_id WHERE a.booking_id = b.id ORDER BY a.active DESC, a.id DESC LIMIT 1) AS resource_name
           FROM booking b
+          LEFT JOIN user_profile p ON p.id = b.organizer_id
           JOIN booking_service sv ON sv.id = b.service_id AND sv.company_id = b.company_id
           JOIN booking_space s ON s.id = b.space_id AND s.company_id = b.company_id
          WHERE b.id = ${bookingId}::uuid`)[0]
       if (!row) return 'missing'
       const synced = (await tx.$queryRaw`SELECT version FROM booking_calendar_sync WHERE booking_id = ${bookingId}::uuid`)[0]
       if (synced && synced.version >= row.version) return 'current'
-      const existing = await tx.calendarEvent.findMany({ where: { sourceModule: SOURCE, sourceEntityId: row.id }, orderBy: { createdAt: 'asc' }, select: { id: true } })
+      const existing = await tx.calendarEvent.findMany({ where: { sourceModule: SOURCE, sourceEntityId: row.id }, orderBy: { createdAt: 'asc' }, select: { id: true, calendarId: true } })
       let outcome = 'removed'
       // Ticket orders hold seats through the engine but are not calendar entries (ticketing spec section 2).
       if (SHOWN.has(row.status) && row.source_module !== 'runly.ticketing') {
         // shortcut: a space without members has no calendar owner; its bookings are marked
         // synced and appear once they change again after someone joins the space.
         const calendar = await calendarFor(tx, { id: row.space_id, name: row.space_name, companyId: row.company_id })
-        if (calendar) {
-          const data = { calendarId: calendar.id, color: COLOR, allDay: false, sourceModule: SOURCE, sourceEntityId: row.id, ...calendarEventOf(row) }
-          if (existing[0]) await tx.calendarEvent.update({ where: { id: existing[0].id }, data })
-          else await tx.calendarEvent.create({ data })
-          if (existing.length > 1) await tx.calendarEvent.deleteMany({ where: { id: { in: existing.slice(1).map((e) => e.id) } } })
-          outcome = existing[0] ? 'updated' : 'created'
+        const room = row.purpose === 'resources'
+        // A room reservation also lands in the default calendar of its organizer and
+        // participants (people without one are skipped); one event per calendar.
+        const people = room ? [row.organizer_id, ...(await tx.$queryRaw`SELECT user_id FROM booking_participant WHERE booking_id = ${row.id}::uuid`).map((p) => p.user_id)].filter(Boolean) : []
+        const personal = people.length ? await tx.calendarCalendar.findMany({ where: { companyId: row.company_id, ownerId: { in: people }, isDefault: true, enabled: true }, select: { id: true, ownerId: true } }) : []
+        // Someone who never opened Calendar gets the same default calendar it would create.
+        for (const ownerId of new Set(people)) {
+          if (!personal.some((c) => c.ownerId === ownerId)) personal.push(await tx.calendarCalendar.create({ data: { ownerId, companyId: row.company_id, name: 'Mi calendario', color: '#6B46C1', isDefault: true }, select: { id: true, ownerId: true } }))
+        }
+        const targets = [...new Set([calendar?.id, ...personal.map((c) => c.id)].filter(Boolean))]
+        if (targets.length) {
+          const data = { color: COLOR, allDay: false, sourceModule: SOURCE, sourceEntityId: row.id, ...(room ? roomEventOf(row) : calendarEventOf(row)) }
+          const kept = new Set()
+          for (const calendarId of targets) {
+            const current = existing.find((e) => e.calendarId === calendarId && !kept.has(e.id))
+            if (current) { kept.add(current.id); await tx.calendarEvent.update({ where: { id: current.id }, data: { ...data, calendarId } }) }
+            else await tx.calendarEvent.create({ data: { ...data, calendarId } })
+          }
+          const stale = existing.filter((e) => !kept.has(e.id)).map((e) => e.id)
+          if (stale.length) await tx.calendarEvent.deleteMany({ where: { id: { in: stale } } })
+          outcome = existing.length ? 'updated' : 'created'
         } else outcome = 'no-calendar'
       } else if (existing.length) {
         await tx.calendarEvent.deleteMany({ where: { sourceModule: SOURCE, sourceEntityId: row.id } })

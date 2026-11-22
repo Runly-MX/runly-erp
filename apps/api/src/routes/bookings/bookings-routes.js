@@ -95,7 +95,7 @@ export function createBookingsRouter({ prisma, requirePermission, commands = nul
   }))
   app.get('/bookings/spaces/:spaceId', access, run(async (c) => {
     const { space: row, role } = await space(c, c.req.param('spaceId'), 'viewer')
-    return c.json({ data: { id: row.id, name: row.name, slug: row.slug, description: row.description, mode: row.mode, timezone: row.timezone, published: row.published, policy: row.policy, enabled: row.enabled, role, ownerModule: row.owner_module ?? null, ownerId: row.owner_id ?? null } })
+    return c.json({ data: { id: row.id, name: row.name, slug: row.slug, description: row.description, mode: row.mode, timezone: row.timezone, published: row.published, policy: row.policy, enabled: row.enabled, role, purpose: row.purpose ?? 'services', ownerModule: row.owner_module ?? null, ownerId: row.owner_id ?? null } })
   }))
   app.patch('/bookings/spaces/:spaceId', access, run(async (c) => {
     await space(c, c.req.param('spaceId'), 'admin')

@@ -26,8 +26,17 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
   async function createSpace({ companyId, userId, input }) {
     await assertTimezone(input.timezone)
     return prisma.$transaction(async (tx) => {
-      const space = await tx.bookingSpace.create({ data: { companyId, name: input.name, slug: input.slug, description: input.description ?? null, mode: input.mode, timezone: input.timezone, policy: input.policy ?? {}, createdById: userId } })
+      const resources = input.purpose === 'resources'
+      const space = await tx.bookingSpace.create({ data: { companyId, name: input.name, slug: input.slug, description: input.description ?? null, mode: input.mode, timezone: input.timezone, policy: input.policy ?? {}, purpose: resources ? 'resources' : 'services', createdById: userId } })
       await tx.bookingSpaceMember.create({ data: { companyId, spaceId: space.id, userId, role: 'admin' } })
+      if (resources) {
+        // Rooms and equipment: one hidden service nobody configures, and office hours
+        // (Mon-Fri 08:00-20:00) the admin can change in Horario.
+        await tx.bookingService.create({ data: { companyId, spaceId: space.id, name: 'Reservación', kind: 'appointment', durationMinutes: 60, slotStepMinutes: 15, capacity: 1, minParty: 1, maxParty: 1000, internal: true } })
+        for (let weekday = 1; weekday <= 5; weekday++) {
+          await tx.$executeRaw`INSERT INTO booking_schedule_rule (company_id, space_id, weekday, start_time, end_time) VALUES (${companyId}::uuid, ${space.id}::uuid, ${weekday}, '08:00'::time, '20:00'::time)`
+        }
+      }
       await syncAccessGrant(tx, { companyId, userId, actorId: userId })
       return space
     }).catch(uniqueSlug)
@@ -136,22 +145,38 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
       prisma.bookingSpaceResource.deleteMany({ where: { companyId, spaceId, resourceId: { notIn: resourceIds } } }),
       prisma.bookingSpaceResource.createMany({ data: [...new Set(resourceIds)].map((resourceId) => ({ companyId, spaceId, resourceId })), skipDuplicates: true }),
     ])
+    // A resources space reserves every linked resource through its internal service.
+    const internal = await prisma.bookingService.findFirst({ where: { companyId, spaceId, internal: true }, select: { id: true } })
+    if (internal) {
+      await prisma.$transaction([
+        prisma.bookingServiceResource.deleteMany({ where: { companyId, serviceId: internal.id, resourceId: { notIn: resourceIds } } }),
+        prisma.bookingServiceResource.createMany({ data: [...new Set(resourceIds)].map((resourceId) => ({ companyId, serviceId: internal.id, resourceId })), skipDuplicates: true }),
+      ])
+    }
     return prisma.bookingSpaceResource.findMany({ where: { companyId, spaceId } })
   }
 
   async function listServices({ companyId, spaceId }) {
-    const services = await prisma.bookingService.findMany({ where: { companyId, spaceId }, orderBy: { name: 'asc' } })
+    const services = await prisma.bookingService.findMany({ where: { companyId, spaceId, internal: false }, orderBy: { name: 'asc' } })
     const links = await prisma.bookingServiceResource.findMany({ where: { companyId, serviceId: { in: services.map((s) => s.id) } }, select: { serviceId: true, resourceId: true } })
     return services.map((s) => ({ ...s, resourceIds: links.filter((l) => l.serviceId === s.id).map((l) => l.resourceId) }))
   }
 
   async function getService({ companyId, serviceId }) {
-    const service = await prisma.bookingService.findFirst({ where: { id: serviceId, companyId } })
+    // The internal service of a resources space is managed by the engine only.
+    const service = await prisma.bookingService.findFirst({ where: { id: serviceId, companyId, internal: false } })
     if (!service) throw notFound('Servicio')
     return service
   }
 
+  // Resources spaces reserve rooms and equipment only: no commercial services or portal pages.
+  async function assertServicesSpace(companyId, spaceId) {
+    const space = await prisma.bookingSpace.findFirst({ where: { id: spaceId, companyId }, select: { purpose: true } })
+    if (space?.purpose === 'resources') throw new BookingError('Un sistema de salas y recursos no usa servicios ni páginas públicas.', 422, 'RESOURCE_SPACE')
+  }
+
   async function createService({ companyId, spaceId, input }) {
+    await assertServicesSpace(companyId, spaceId)
     return prisma.bookingService.create({ data: { companyId, spaceId, ...input, capacity: input.kind === 'session' ? input.capacity : 1 } })
   }
 
@@ -305,7 +330,7 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
   }
 
   async function assertServices(companyId, spaceId, serviceIds = []) {
-    const found = await prisma.bookingService.count({ where: { companyId, spaceId, id: { in: serviceIds } } })
+    const found = await prisma.bookingService.count({ where: { companyId, spaceId, internal: false, id: { in: serviceIds } } })
     if (found !== new Set(serviceIds).size) throw notFound('Servicio')
   }
 
@@ -318,6 +343,7 @@ export function createBookingsConfigService({ prisma, cacheDel = null }) {
   }
 
   async function createPage({ companyId, spaceId, input }) {
+    await assertServicesSpace(companyId, spaceId)
     await assertServices(companyId, spaceId, input.serviceIds)
     return prisma.bookingPage.create({ data: { companyId, spaceId, ...pageData(input) } }).catch(slugTaken)
   }

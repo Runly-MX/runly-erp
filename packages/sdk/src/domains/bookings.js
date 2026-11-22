@@ -44,6 +44,13 @@ export function createBookingsDomain({ request, requestBlob, withAuthHeaders, to
     // Resources
     listResources: (token) => send('GET', '/bookings/resources', undefined, token),
     createResource: (data, token) => send('POST', '/bookings/resources', data, token),
+    // Rooms and equipment reserved by employees (v1.2 R1).
+    listRooms: (token) => send('GET', '/bookings/rooms', undefined, token),
+    myRoomReservations: (token) => send('GET', '/bookings/rooms/mine', undefined, token),
+    roomAgenda: (spaceId, query, token) => send('GET', `/bookings/rooms/${encodeURIComponent(spaceId)}/agenda${toQueryString(query)}`, undefined, token),
+    reserveRoom: (spaceId, data, token, idempotencyKey) => send('POST', `/bookings/rooms/${encodeURIComponent(spaceId)}/reservations`, data, token, idempotencyKey),
+    cancelRoomReservation: (id, data, token, idempotencyKey) => send('POST', `/bookings/rooms/reservations/${encodeURIComponent(id)}/cancel`, data ?? {}, token, idempotencyKey),
+    rescheduleRoomReservation: (id, data, token, idempotencyKey) => send('POST', `/bookings/rooms/reservations/${encodeURIComponent(id)}/reschedule`, data, token, idempotencyKey),
     updateResource: (resourceId, data, token) => send('PATCH', `/bookings/resources/${id(resourceId)}`, data, token),
     getResourceSchedule: (resourceId, token) => send('GET', `/bookings/resources/${id(resourceId)}/schedule`, undefined, token),
     setResourceSchedule: (resourceId, rules, token) => send('PUT', `/bookings/resources/${id(resourceId)}/schedule`, { rules }, token),

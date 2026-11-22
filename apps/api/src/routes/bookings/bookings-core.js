@@ -76,6 +76,8 @@ export function serializeBooking(row, resourceIds = undefined) {
     channel: row.channel,
     holdExpiresAt: row.hold_expires_at,
     createdById: row.created_by_id,
+    title: row.title ?? null,
+    organizerId: row.organizer_id ?? null,
     version: row.version,
     createdAt: row.created_at,
     updatedAt: row.updated_at,

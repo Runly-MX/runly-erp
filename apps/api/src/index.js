@@ -120,7 +120,7 @@ import { createStudioRouter } from './routes/studio/index.js';
 import { createAttendanceRouter, createAttendancePublicRouter } from "./routes/attendance/index.js";
 import { createAttendanceEvents } from "./routes/attendance/attendance-events.js";
 import { createLmsRouter, createLmsPublicRouter } from "./routes/lms/index.js";
-import { createBookingsRouter, createBookingsPortalRouter, createBookingsCalendarProjection } from "./routes/bookings/index.js";
+import { createBookingsRouter, createBookingsPortalRouter, createBookingsCalendarProjection, createBookingsRoomsRouter } from "./routes/bookings/index.js";
 import { createTicketingRouter } from "./routes/ticketing/index.js";
 import { createCertTemplateOfficeRescan } from "./routes/lms/lms-cert-templates.js";
 import { createCanvasDataSources } from "./routes/canvas/canvas-data-sources.js";
@@ -2625,6 +2625,8 @@ mountWithAuth(app, createStudioRouter({ prisma, requirePermission, filesService,
 mountWithAuth(app, createAttendanceRouter({ prisma, sendMail: (mail) => createSmtpService({ prisma }).sendEmail(mail), buildInviteMail: buildAttendancePhoneInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env), requirePermission, requireAnyPermission, broadcaster, events: attendanceEvents, signFile: createCachedFileSigner({ prisma, supabaseAdmin }) }));
 // Booking engine (runly.bookings phase 1): internal API only, /bookings/*.
 mountWithAuth(app, createBookingsRouter({ prisma, requirePermission, cacheDel, onChanged: bookingsCalendar.projectQuietly }));
+// Rooms and equipment reserved by employees (v1.2 R1): bookings.reserve or bookings.access.
+mountWithAuth(app, createBookingsRoomsRouter({ prisma, requireAnyPermission, onChanged: bookingsCalendar.projectQuietly }));
 // Boletos (runly.ticketing, F6B): events, functions on the Booking Engine, free issuance, credentials.
 mountWithAuth(app, createTicketingRouter({ prisma, requirePermission, requireAnyPermission }));
 mountWithAuth(app, createLmsRouter({ prisma, requirePermission, documentsHub, supabaseAdmin, bucket: STORAGE_BUCKET_NAME, notificationService, signFile: createCachedFileSigner({ prisma, supabaseAdmin }), sendMail: (mail) => createCompanyMailer({ prisma }).sendEmail(mail), isMailConfigured: (companyId) => createCompanyMailer({ prisma }).isConfigured(companyId), buildMail: buildLmsCourseInviteEmail, getBrand: (companyId) => companyBrandService.getBrandForCompany(companyId), appBaseUrl: () => resolveAppBaseUrl(process.env) }));

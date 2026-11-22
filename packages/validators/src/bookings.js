@@ -17,6 +17,9 @@ export const bookingPolicySchema = z.object({
   holdMinutes: minutes(1, 10080).optional().nullable(),
   cancelUntilMinutes: minutes(0, 525600).optional().nullable(),
   rescheduleUntilMinutes: minutes(0, 525600).optional().nullable(),
+  // Resource spaces (v1.2 R1): who may reserve and the longest reservation.
+  reservers: z.enum(['company', 'members']).optional(),
+  maxMinutes: minutes(15, 720).optional(),
 }).strict();
 
 // Update schemas are built from shapes WITHOUT defaults: zod applies `.default()`
@@ -29,7 +32,7 @@ const spaceShape = {
   timezone: z.string().trim().min(1).max(64),
   policy: bookingPolicySchema,
 };
-export const bookingSpaceCreateSchema = z.object({ ...spaceShape, mode: spaceShape.mode.default('internal'), policy: spaceShape.policy.default({}) });
+export const bookingSpaceCreateSchema = z.object({ ...spaceShape, mode: spaceShape.mode.default('internal'), policy: spaceShape.policy.default({}), purpose: z.enum(['services', 'resources']).default('services') });
 export const bookingSpaceUpdateSchema = z.object(spaceShape).partial().extend({
   published: z.boolean().optional(),
   enabled: z.boolean().optional(),
@@ -242,3 +245,22 @@ export const bookingSearchQuerySchema = bookingListQuerySchema.extend({
   limit: z.coerce.number().int().min(1).max(500).default(50),
   offset: z.coerce.number().int().min(0).max(100000).default(0),
 });
+
+// Room and equipment reservations by employees (v1.2 R1). Times on a 15-minute grid;
+// participants are company users; headcount counts people who need a seat.
+const quarter = instant.refine((d) => d.getTime() % 900000 === 0, 'Usa intervalos de 15 minutos');
+const roomTimes = { startsAt: quarter, endsAt: quarter };
+const endsAfter = (v) => !v.startsAt || !v.endsAt || v.endsAt > v.startsAt;
+export const roomReservationCreateSchema = z.object({
+  resourceId: z.string().uuid(),
+  title: z.string().trim().min(1, 'Escribe el motivo').max(200),
+  ...roomTimes,
+  organizerId: z.string().uuid().optional().nullable(),
+  participantIds: z.array(z.string().uuid()).max(200).default([]),
+  headcount: z.coerce.number().int().min(1).max(1000).optional().nullable(),
+  notes: optionalText(2000),
+}).strict().refine(endsAfter, { message: 'El fin debe ser después del inicio', path: ['endsAt'] });
+export const roomReservationRescheduleSchema = z.object({
+  ...roomTimes,
+  resourceId: z.string().uuid().optional(),
+}).strict().refine(endsAfter, { message: 'El fin debe ser después del inicio', path: ['endsAt'] });
