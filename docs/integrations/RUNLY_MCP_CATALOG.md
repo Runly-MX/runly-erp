@@ -313,6 +313,34 @@ Grabaciones: solo metadatos y enlace, nunca el video ni URLs firmadas. Transcrip
 | `lms.question.delete` | Escritura aprobada | `lms.course.manage` |
 | `lms.question.reorder` | Escritura aprobada | `lms.course.manage` |
 | `lms.certificate_template.create` | Escritura aprobada | `lms.course.manage` |
+| `lms_assessments` | Lectura | `lms.course.manage` |
+| `lms_assessment_detail` | Lectura | `lms.course.manage` |
+| `lms_assessment_activity_detail` | Lectura | `lms.course.manage` |
+| `lms_assessment_questions` | Lectura | `lms.course.manage` |
+| `lms_assessment_participants` | Lectura | `lms.enrollment.manage` |
+| `lms_assessment_results` | Lectura | `lms.assessment.results` |
+| `lms_assessment_review` | Lectura | `lms.assessment.results` |
+| `lms_assessment_graders` | Lectura | `lms.course.manage` |
+| `lms_assessment_share` | Lectura | `lms.course.manage` |
+| `lms.assessment.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.status` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.build` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.activity.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.activity.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.activity.delete` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.activity.reorder` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.rubric.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.question.create` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.question.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.question.delete` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.question.reorder` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.material.attach` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.material.remove` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.share.update` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.share.rotate` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.grader.assign` | Escritura aprobada | `lms.course.manage` |
+| `lms.assessment.grader.remove` | Escritura aprobada | `lms.course.manage` |
 
 ## runly.studio
 

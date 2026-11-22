@@ -61,8 +61,9 @@ test('sensibilidad declarada por adaptador: misma matriz que la confirmación we
         assert.equal(isSensitive(adapter, definition, { data: {} }), false);
         assert.equal(isSensitive(adapter, definition, { data: { published: true } }), true, 'Publicar producto es sensible');
       } else if (moduleKey === 'runly.lms') {
-        assert.equal(isSensitive(adapter, definition, { data: {} }), definition.key === 'lms.section.delete', `${definition.key}`);
-        if (definition.key === 'lms.course.status') {
+        assert.equal(isSensitive(adapter, definition, { data: {} }), ['lms.section.delete', 'lms.assessment.share.rotate', 'lms.assessment.grader.remove', 'lms.assessment.activity.delete'].includes(definition.key), `${definition.key}`);
+        if (definition.key === 'lms.assessment.share.update') { assert.equal(isSensitive(adapter, definition, { enabled: true }), true); assert.equal(isSensitive(adapter, definition, { enabled: false }), false); }
+        if (definition.key === 'lms.course.status' || definition.key === 'lms.assessment.status') {
           for (const status of ['published', 'archived']) assert.equal(isSensitive(adapter, definition, { status }), true, `${status} es sensible`);
           assert.equal(isSensitive(adapter, definition, { status: 'draft' }), false);
         }

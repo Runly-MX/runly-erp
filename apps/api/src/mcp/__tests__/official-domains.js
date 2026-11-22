@@ -333,6 +333,8 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
     const course = await prisma.lmsCourse.create({ data: { companyId: company.id, title: 'Curso MCP', createdById: user.id } });
     const section = await prisma.lmsSection.create({ data: { companyId: company.id, courseId: course.id, title: 'Introducción', position: 1 } });
     const quizLesson = await prisma.lmsLesson.create({ data: { companyId: company.id, courseId: course.id, sectionId: section.id, title: 'Examen', kind: 'quiz', position: 1, settings: {} } });
+    const assessment = await prisma.lmsCourse.create({ data: { companyId: company.id, title: 'Evaluación MCP', kind: 'assessment', createdById: user.id } });
+    const activity = await prisma.lmsLesson.create({ data: { companyId: company.id, courseId: assessment.id, title: 'Cuestionario', kind: 'quiz', position: 1, settings: {} } });
     const site = await prisma.websiteSite.create({ data: { companyId: company.id, name: 'Sitio MCP' } });
     const sitePage = await prisma.websitePage.create({ data: { companyId: company.id, siteId: site.id, title: 'Inicio', slug: 'inicio', routePath: '/' } });
     const product = await prisma.catalogProduct.create({ data: { companyId: company.id, name: 'Producto MCP', slug: 'producto-mcp', price: 100 } });
@@ -343,10 +345,13 @@ export async function officialDomainTests(t, { prisma, url, config, company, oth
       calendar_list_events: { from: '2026-10-01', to: '2026-10-31' }, calendar_summary: { from: '2026-10-01', to: '2026-10-31' }, calendar_free_slots: { from: '2026-10-19', to: '2026-10-20' }, calendar_events_page: { start: '2026-10-01T00:00:00Z', end: '2026-10-31T23:59:59Z' },
       files_metadata: { fileId: file.id }, documents_metadata: { fileId: file.id }, files_record_attachments: { target: { type: 'hr.employee', id: ids.hr } }, attendance_person_status: { search: 'Fixture inexistente' }, attendance_overtime: { from: '2026-10-01', to: '2026-10-07' },
       lms_course_detail: { courseId: course.id }, lms_lesson_detail: { lessonId: quizLesson.id }, lms_quiz_questions: { lessonId: quizLesson.id }, lms_enrollments: { courseId: course.id },
+      lms_assessment_detail: { assessmentId: assessment.id }, lms_assessment_activity_detail: { activityId: activity.id }, lms_assessment_questions: { activityId: activity.id }, lms_assessment_participants: { assessmentId: assessment.id },
+      lms_assessment_results: { assessmentId: assessment.id }, lms_assessment_graders: { assessmentId: assessment.id }, lms_assessment_share: { assessmentId: assessment.id },
       website_page_detail: { pageId: sitePage.id }, catalog_product_detail: { productId: product.id },
       studio_design_detail:{designId:studioFixtures.designId},studio_template_detail:{templateId:studioFixtures.templateId},studio_review_design:{designId:studioFixtures.designId},
     };
     for (const moduleKey of registry.moduleKeys.filter(key => key !== 'runly.chat')) for (const query of registry.create(moduleKey).queries) await t.test(query.name, async () => {
+      if (query.name === 'lms_assessment_review') return; // needs a participant session; covered by the evaluation REST tests
       const result = await run(moduleKey.slice(6), 'query', { request: { operation: query.name, input: inputs[query.name] ?? {} } });
       assert.equal(result.operation, query.name);
       if (moduleKey === 'runly.files' || moduleKey === 'runly.documents') {

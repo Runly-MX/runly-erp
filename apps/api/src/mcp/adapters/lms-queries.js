@@ -17,7 +17,8 @@ export const LMS_GUIDE = [
   'Escribe contenido real en español y en markdown; nada de lorem ipsum. Cada propuesta debe ser revisable: hasta 20 lecciones y 50 preguntas por lección.',
   'Las preguntas se describen en lms.question.create; usa lms_quiz_questions para ver la forma exacta antes de editar.',
   'Certificados: lms_certificate_templates lista las plantillas con sus etiquetas; una plantilla nueva se sube como archivo .docx/.pptx/.pdf (runly_files_import_* sin destino y luego lms.certificate_template.create) y se asigna con lms.course.update certificateTemplateId.',
-  'Calificar, emitir certificados, enlaces compartidos e invitaciones se hacen en la app.',
+  'Evaluaciones independientes (no son cursos): lms_assessments y lms.assessment.build; su guía completa viene en lms_assessments.',
+  'Calificar, emitir certificados, enlaces compartidos de cursos e invitaciones se hacen en la app.',
 ];
 
 const MANAGE = 'lms.course.manage';
