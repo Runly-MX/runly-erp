@@ -1,13 +1,13 @@
 import { runly } from "../../../lib/runly";
-import { WidgetFrame, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { WidgetFrame, WidgetLink, unwrap, useWidgetQuery } from "./WidgetFrame";
 
-function Stat({ label, value, note }) {
+function Stat({ label, value, note, to }) {
   return (
-    <div className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2">
+    <WidgetLink to={to} className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2">
       <p className="text-xl font-bold tabular-nums leading-none text-[hsl(var(--foreground))]">{value}</p>
       <p className="mt-1 text-xs leading-tight text-[hsl(var(--muted-foreground))]">{label}</p>
       {note && <p className="text-[11px] font-medium text-amber-600 dark:text-amber-400">{note}</p>}
-    </div>
+    </WidgetLink>
   );
 }
 
@@ -29,10 +29,10 @@ export function InventoryWidget({ module }) {
       emptyText="Aún no hay activos en el inventario."
     >
       <div className="grid grid-cols-2 gap-2">
-        <Stat label="Vigentes" value={d.activeCount ?? 0} />
-        <Stat label="Asignados" value={d.assignedCount ?? 0} />
-        <Stat label="Propuestas pendientes" value={pending} note={pending ? "Requieren revisión" : null} />
-        <Stat label="Garantías vencen en 30 días" value={expiring} note={expiring ? "Por vencer" : null} />
+        <Stat label="Vigentes" value={d.activeCount ?? 0} to="/app/m/runly.inventory/inventory" />
+        <Stat label="Asignados" value={d.assignedCount ?? 0} to="/app/m/runly.inventory/inventory/assignments" />
+        <Stat label="Propuestas pendientes" to="/app/m/runly.inventory/inventory/summary" value={pending} note={pending ? "Requieren revisión" : null} />
+        <Stat label="Garantías vencen en 30 días" to="/app/m/runly.inventory/inventory/summary" value={expiring} note={expiring ? "Por vencer" : null} />
       </div>
     </WidgetFrame>
   );

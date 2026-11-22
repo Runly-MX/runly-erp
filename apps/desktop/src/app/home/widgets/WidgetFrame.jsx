@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, Lock, TriangleAlert } from "lucide-react";
 import { Skeleton } from "@runly/ui";
@@ -114,6 +114,20 @@ export function WidgetFrame({ module, title, subtitle, query, isEmpty, emptyText
       </header>
       <div className="min-h-0 flex-1 overflow-hidden px-4 pb-4">{body}</div>
     </section>
+  );
+}
+
+// Clickable row/tile inside a widget: deep-links into the owning module.
+export function WidgetLink({ to, className = "", children }) {
+  const navigate = useNavigate();
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(to)}
+      className={`w-full cursor-pointer rounded-md text-left transition-colors hover:bg-[hsl(var(--muted))] ${className}`}
+    >
+      {children}
+    </button>
   );
 }
 

@@ -1,14 +1,14 @@
 import { runly } from "../../../lib/runly";
-import { WidgetFrame, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { WidgetFrame, WidgetLink, unwrap, useWidgetQuery } from "./WidgetFrame";
 
-function Stat({ label, value, note, tone }) {
+function Stat({ label, value, note, tone, to }) {
   const noteClass = tone === "bad" ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400";
   return (
-    <div className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2">
+    <WidgetLink to={to} className="rounded-xl bg-[hsl(var(--muted))]/60 px-3 py-2">
       <p className="text-xl font-bold tabular-nums leading-none text-[hsl(var(--foreground))]">{value}</p>
       <p className="mt-1 text-xs leading-tight text-[hsl(var(--muted-foreground))]">{label}</p>
       {note && <p className={`text-[11px] font-medium ${noteClass}`}>{note}</p>}
-    </div>
+    </WidgetLink>
   );
 }
 
@@ -28,10 +28,10 @@ export function AttendanceWidget({ module }) {
       emptyText="Aún no hay personal registrado en Asistencia."
     >
       <div className="grid grid-cols-2 gap-2">
-        <Stat label="Presentes ahora" value={d.present?.total ?? 0} />
-        <Stat label="Cuotas en incumplimiento" value={failing} note={failing ? "Faltan elementos" : null} tone="bad" />
-        <Stat label="Checadas por revisar (7 días)" value={flagged} note={flagged ? "Revisar marcas" : null} />
-        <Stat label="Cuotas configuradas" value={d.quotas?.total ?? 0} />
+        <Stat to="/app/m/runly.attendance/people" label="Presentes ahora" value={d.present?.total ?? 0} />
+        <Stat to="/app/m/runly.attendance/setup" label="Cuotas en incumplimiento" value={failing} note={failing ? "Faltan elementos" : null} tone="bad" />
+        <Stat to="/app/m/runly.attendance/punches" label="Checadas por revisar (7 días)" value={flagged} note={flagged ? "Revisar marcas" : null} />
+        <Stat to="/app/m/runly.attendance/setup" label="Cuotas configuradas" value={d.quotas?.total ?? 0} />
       </div>
     </WidgetFrame>
   );

@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { runly } from "../../../lib/runly";
-import { WidgetFrame, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { WidgetFrame, WidgetLink, unwrap, useWidgetQuery } from "./WidgetFrame";
 
 const MAX_EVENTS = 4;
 const DAY_MS = 86_400_000;
@@ -69,7 +69,7 @@ export function AgendaWidget({ module }) {
                   {label}
                 </p>
               )}
-              <div className="flex items-center gap-2.5 py-0.5">
+              <WidgetLink to={`/app/m/runly.calendar/calendar?open=event:${ev.id}`} className="flex items-center gap-2.5 py-0.5">
                 <span
                   aria-hidden
                   className="h-7 w-1 shrink-0 rounded-full"
@@ -84,7 +84,7 @@ export function AgendaWidget({ module }) {
                     {ev.location ? ` · ${ev.location}` : ""}
                   </p>
                 </div>
-              </div>
+              </WidgetLink>
             </li>
           );
         })}

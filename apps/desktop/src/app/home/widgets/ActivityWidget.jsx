@@ -1,6 +1,7 @@
 import { PersonAvatar } from "@runly/ui";
+import { getModuleLaunchPath } from "../../../lib/runtimeModules";
 import { runly } from "../../../lib/runly";
-import { WidgetFrame, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { WidgetFrame, WidgetLink, unwrap, useWidgetQuery } from "./WidgetFrame";
 
 const rtf = new Intl.RelativeTimeFormat("es-MX", { numeric: "auto", style: "short" });
 
@@ -27,7 +28,8 @@ export function ActivityWidget({ module }) {
     >
       <ul className="space-y-2">
         {items.slice(0, 4).map((item) => (
-          <li key={item.id} className="flex items-start gap-2.5">
+          <li key={item.id}>
+            <WidgetLink to={getModuleLaunchPath(module)} className="flex items-start gap-2.5 px-1 py-0.5">
             <PersonAvatar
               name={item.actor?.displayName ?? "Sistema"}
               src={item.actor?.avatarUrl ?? null}
@@ -40,6 +42,7 @@ export function ActivityWidget({ module }) {
               </p>
               <p className="text-[11px] text-[hsl(var(--muted-foreground))]">{timeAgo(item.createdAt)}</p>
             </div>
+            </WidgetLink>
           </li>
         ))}
       </ul>

@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Minus } from "lucide-react";
 import { runly } from "../../../lib/runly";
-import { HeadlineStat, WidgetFrame, formatMoney, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { HeadlineStat, WidgetFrame, WidgetLink, formatMoney, unwrap, useWidgetQuery } from "./WidgetFrame";
 
 // Expense change vs previous month, always shown with an icon + words.
 function ExpenseDelta({ current, previous }) {
@@ -54,7 +54,8 @@ export function PfmWidget({ module }) {
       <ExpenseDelta current={Number(s.monthExpense) || 0} previous={Number(s.prevMonthExpense) || 0} />
       <ul className="mt-2 space-y-1">
         {top.map((w) => (
-          <li key={w.id} className="flex items-center gap-2 text-xs">
+          <li key={w.id}>
+            <WidgetLink to={`/app/m/runly.pfm/wallets/${w.id}`} className="flex items-center gap-2 px-1 py-1 text-xs">
             <span
               aria-hidden
               className="h-2 w-2 shrink-0 rounded-full"
@@ -64,6 +65,7 @@ export function PfmWidget({ module }) {
             <span className="font-medium tabular-nums text-[hsl(var(--foreground))]">
               {formatMoney(w.currentBalance, w.currency)}
             </span>
+            </WidgetLink>
           </li>
         ))}
       </ul>

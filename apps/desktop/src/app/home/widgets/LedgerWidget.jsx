@@ -1,5 +1,5 @@
 import { runly } from "../../../lib/runly";
-import { HeadlineStat, WidgetFrame, formatMoney, unwrap, useWidgetQuery } from "./WidgetFrame";
+import { HeadlineStat, WidgetFrame, WidgetLink, formatMoney, unwrap, useWidgetQuery } from "./WidgetFrame";
 
 const MAX_ACCOUNTS = 4;
 
@@ -38,7 +38,8 @@ export function LedgerWidget({ module }) {
       />
       <ul className="mt-3 divide-y divide-[hsl(var(--border))]">
         {top.map((a) => (
-          <li key={a.id} className="flex items-center gap-2 py-1.5 text-sm">
+          <li key={a.id}>
+            <WidgetLink to={`/app/m/runly.ledger/accounts/${a.id}`} className="flex items-center gap-2 px-1 py-1.5 text-sm">
             <div className="min-w-0 flex-1">
               <p className="truncate font-medium leading-tight text-[hsl(var(--foreground))]">{a.name}</p>
               {a.bank && (
@@ -48,6 +49,7 @@ export function LedgerWidget({ module }) {
             <span className="shrink-0 text-sm font-semibold tabular-nums text-[hsl(var(--foreground))]">
               {formatMoney(balanceOf(a), a.currency)}
             </span>
+            </WidgetLink>
           </li>
         ))}
       </ul>
