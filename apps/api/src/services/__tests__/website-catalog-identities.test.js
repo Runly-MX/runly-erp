@@ -1,11 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {createRequire} from 'node:module'
 import {WEBSITE_BUILDER_CATALOGS as catalogs, WEBSITE_BUILDER_CATALOG_IDENTITIES as identities} from '../../routes/website/builder-catalogs.js'
 import {catalogDigest,inspectWebsiteTemplate,resolveWebsiteCatalog} from '@runly/studio-interchange/website-template'
 import {exportWebsiteTemplate} from '@runly/studio-interchange/website-write'
 import {sectionsToAtlasPage,atlasPageToSections} from '@runly/studio-interchange/website-document'
 
 const options={builderCatalogs:catalogs,builderCatalogIdentities:identities}
+test('API, desktop y Website Blocks declaran y resuelven Atlas 0.9.0',()=>{
+  for(const manifest of ['../../../package.json','../../../../desktop/package.json','../../../../../packages/website-blocks/package.json']){
+    const require=createRequire(new URL(manifest,import.meta.url))
+    assert.equal(require('./package.json').dependencies['@raulbellosom/atlas-web-builder'],'0.9.0')
+    assert.equal(require('@raulbellosom/atlas-web-builder/package.json').version,'0.9.0')
+  }
+})
 for(const [label,version,catalog] of [
   ['Hub histórico','0.8.2',identities['0.8.2']['2d7c84c46d74164981abb6028d6d278f5a9774a9eef32fb86a639cbe18c5d318']],
   ['ERP histórico','0.8.2',identities['0.8.2']['cdb67dabfee8e546f4fb453935ac7a791bebba294ace9035e3159e3fb84126d1']],
