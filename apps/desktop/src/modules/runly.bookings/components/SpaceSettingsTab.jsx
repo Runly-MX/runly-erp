@@ -13,6 +13,7 @@ const fromSpace = (s) => ({
   requiresApproval: Boolean(s.policy?.requiresApproval), holdMinutes: s.policy?.holdMinutes == null ? '' : String(s.policy.holdMinutes),
   cancelUntilHours: s.policy?.cancelUntilMinutes == null ? '' : String(s.policy.cancelUntilMinutes / 60),
   rescheduleUntilHours: s.policy?.rescheduleUntilMinutes == null ? '' : String(s.policy.rescheduleUntilMinutes / 60),
+  reservers: s.policy?.reservers ?? 'company', maxHours: String((s.policy?.maxMinutes ?? 480) / 60),
 })
 const hoursToMinutes = (v) => (v === '' ? null : Math.round(Number(v) * 60))
 
@@ -46,11 +47,14 @@ export function SpaceSettingsTab({ space, canEdit }) {
     const cancelUntil = hoursToMinutes(form.cancelUntilHours), rescheduleUntil = hoursToMinutes(form.rescheduleUntilHours)
     if (cancelUntil !== null && !(cancelUntil >= 0 && cancelUntil <= 525600)) next.cancelUntilHours = 'Entre 0 y 8760 horas, o vacío.'
     if (rescheduleUntil !== null && !(rescheduleUntil >= 0 && rescheduleUntil <= 525600)) next.rescheduleUntilHours = 'Entre 0 y 8760 horas, o vacío.'
+    const rooms = space.purpose === 'resources'
+    const maxMinutes = Math.round(Number(form.maxHours) * 60)
+    if (rooms && !(maxMinutes >= 15 && maxMinutes <= 720 && maxMinutes % 15 === 0)) next.maxHours = 'Entre 0.25 y 12 horas, en cuartos de hora.'
     setErrors(next)
     if (Object.keys(next).length) return
     const saved = await save.mutateAsync({
       name: form.name.trim(), description: form.description.trim() || null, mode: form.mode, timezone: form.timezone, enabled: form.enabled,
-      policy: { leadMinutes: lead, horizonDays: horizon, requiresApproval: form.requiresApproval, holdMinutes: hold, cancelUntilMinutes: cancelUntil, rescheduleUntilMinutes: rescheduleUntil },
+      policy: { leadMinutes: lead, horizonDays: horizon, requiresApproval: form.requiresApproval, holdMinutes: hold, cancelUntilMinutes: cancelUntil, rescheduleUntilMinutes: rescheduleUntil, ...(rooms ? { reservers: form.reservers, maxMinutes } : {}) },
     }).then(() => true).catch(() => false)
     // Baseline = what was saved; the refetch then confirms it without a flash.
     if (saved) setInitial(form)
@@ -77,12 +81,20 @@ export function SpaceSettingsTab({ space, canEdit }) {
             <NumberField label="Reservar con hasta" suffix="días" icon={null} min={1} max={730} allowDecimal={false} value={form.horizonDays} onChange={set('horizonDays')} error={errors.horizonDays} disabled={!canEdit} hint="Qué tan lejos en el futuro se puede reservar." />
           </div>
           <SwitchField id="bookings-space-approval" label="Requiere aprobación" description="Las reservaciones nuevas quedan Pendientes hasta que alguien del equipo las confirme." checked={form.requiresApproval} onChange={(requiresApproval) => setForm((f) => ({ ...f, requiresApproval }))} disabled={!canEdit} />
+          {space.purpose === 'resources' ? (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <SelectField label="Quién puede reservar" options={[{ value: 'company', label: 'Toda la empresa' }, { value: 'members', label: 'Solo el equipo del sistema' }]} value={form.reservers} onValueChange={(reservers) => setForm((f) => ({ ...f, reservers }))} disabled={!canEdit}
+                hint={form.reservers === 'company' ? 'Cualquier persona con permiso para reservar salas.' : 'Solo quienes están en la pestaña Equipo.'} />
+              <NumberField label="Duración máxima" suffix="horas" icon={null} min={0.25} max={12} value={form.maxHours} onChange={set('maxHours')} error={errors.maxHours} disabled={!canEdit} className="pr-20" />
+            </div>
+          ) : null}
           {form.requiresApproval ? (
             <NumberField label="Vencer pendientes después de" suffix="min" icon={null} min={1} max={10080} allowDecimal={false} value={form.holdMinutes} onChange={set('holdMinutes')} error={errors.holdMinutes} disabled={!canEdit}
               hint="Vacío: la pendiente aparta el horario hasta que se confirme o rechace." className="sm:max-w-xs" />
           ) : null}
         </div>
       </SectionCard>
+      {space.purpose !== 'resources' ? (<>
       <SectionCard title="Cambios del cliente en línea" icon={CalendarClock} description="Hasta cuándo puede el cliente cancelar o reprogramar desde su enlace. Tu equipo siempre puede hacerlo.">
         <div className="space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -101,6 +113,7 @@ export function SpaceSettingsTab({ space, canEdit }) {
           {space.published ? 'Este sistema está publicado.' : 'Este sistema no está publicado.'} Las páginas públicas, sus textos y el enlace se administran en la pestaña Reservas online.
         </AlertDescription>
       </Alert>
+      </>) : null}
       {canEdit ? (
         <FormActionBar
           status={dirty ? <span className="font-medium text-[hsl(var(--foreground))]">Cambios sin guardar</span> : 'Sin cambios'}

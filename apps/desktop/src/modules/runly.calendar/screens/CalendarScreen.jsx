@@ -10,6 +10,7 @@ import { ConfirmDialog } from "@runly/ui";
 import { toast } from "sonner";
 import { useCalendarStore } from "../stores/useCalendarStore";
 import CalendarToolbar from "../components/CalendarToolbar";
+import { useCalendarRoomReservation } from "../components/CalendarRoomReservation";
 import CalendarLeftSidebar from "../components/CalendarLeftSidebar";
 import CalendarRightSidebar from "../components/CalendarRightSidebar";
 import MonthView from "../components/MonthView";
@@ -51,6 +52,7 @@ export default function CalendarScreen() {
   } = useCalendarStore();
 
   const isNarrow = useNarrow();
+  const roomReservation = useCalendarRoomReservation(selectedDate);
   // From this width the event detail opens as a side panel that pushes the grid.
   const isWide = !useNarrow(1024);
 
@@ -185,7 +187,7 @@ export default function CalendarScreen() {
         </button>
 
         <div className="flex-1 min-w-0">
-          <CalendarToolbar onNewEvent={openNewEvent} onToggleSidebar={toggleLeftSidebar} />
+          <CalendarToolbar onNewEvent={openNewEvent} onToggleSidebar={toggleLeftSidebar} onReserveRoom={roomReservation.available ? roomReservation.open : null} />
         </div>
 
         <button type="button"
@@ -350,6 +352,7 @@ export default function CalendarScreen() {
         onConfirm={handleConfirmDeleteCalendar}
         loading={deleteCalendarMutation.isPending}
       />
+      {roomReservation.dialog}
     </div>
   );
 }

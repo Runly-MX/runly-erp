@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SelectField, TextField, TextareaField,
+  Button, Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, SegmentedControl, SelectField, TextField, TextareaField,
 } from '@runly/ui'
 import { CalendarClock, Loader2 } from 'lucide-react'
 import { MODE, MODE_HINT, optionsOf } from '../lib/bookingsLabels.js'
@@ -12,15 +12,16 @@ export function useTimeZoneOptions() {
   return useMemo(() => supportedTimeZones().map((tz) => ({ value: tz, label: tz.replaceAll('_', ' ') })), [])
 }
 
-// "Nuevo sistema": identity, mode and time zone; policies live in Configuración.
-export function SpaceFormDialog({ open, onOpenChange, onSubmit, pending }) {
+// "Nuevo sistema": what it is for, identity, mode and time zone; policies live in Configuración.
+// "Salas y recursos" needs no services: employees reserve rooms and equipment directly.
+export function SpaceFormDialog({ open, onOpenChange, onSubmit, pending, defaultPurpose = 'services' }) {
   const zones = useTimeZoneOptions()
-  const [form, setForm] = useState({ name: '', slug: '', description: '', mode: 'internal', timezone: browserTimeZone() })
+  const [form, setForm] = useState({ name: '', slug: '', description: '', mode: 'internal', timezone: browserTimeZone(), purpose: defaultPurpose })
   const [slugTouched, setSlugTouched] = useState(false)
   const [errors, setErrors] = useState({})
   useEffect(() => {
-    if (open) { setForm({ name: '', slug: '', description: '', mode: 'internal', timezone: browserTimeZone() }); setSlugTouched(false); setErrors({}) }
-  }, [open])
+    if (open) { setForm({ name: '', slug: '', description: '', mode: 'internal', timezone: browserTimeZone(), purpose: defaultPurpose }); setSlugTouched(false); setErrors({}) }
+  }, [open, defaultPurpose])
 
   const setName = (event) => {
     const name = event.target.value
@@ -35,7 +36,7 @@ export function SpaceFormDialog({ open, onOpenChange, onSubmit, pending }) {
     if (!form.timezone) next.timezone = 'Elige la zona horaria.'
     setErrors(next)
     if (Object.keys(next).length) return
-    await onSubmit({ name: form.name.trim(), slug: form.slug, description: form.description.trim() || null, mode: form.mode, timezone: form.timezone })
+    await onSubmit({ name: form.name.trim(), slug: form.slug, description: form.description.trim() || null, mode: form.purpose === 'resources' ? 'internal' : form.mode, timezone: form.timezone, purpose: form.purpose })
   }
 
   return (
@@ -47,7 +48,10 @@ export function SpaceFormDialog({ open, onOpenChange, onSubmit, pending }) {
             <DialogDescription>Cada sistema tiene sus propios servicios, horarios, equipo y políticas.</DialogDescription>
           </DialogHeader>
           <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-4">
-            <TextField label="Nombre" required value={form.name} onChange={setName} maxLength={160} error={errors.name} placeholder="Ej. Consultorio Centro" autoComplete="off" />
+            <SegmentedControl ariaLabel="Tipo de sistema" className="w-full" value={form.purpose} onChange={(purpose) => setForm((f) => ({ ...f, purpose }))}
+              options={[{ value: 'services', label: 'Servicios y citas' }, { value: 'resources', label: 'Salas y recursos' }]} />
+            <p className="text-xs text-[hsl(var(--muted-foreground))]">{form.purpose === 'resources' ? 'Tu equipo reserva salas, espacios o equipos sin configurar servicios.' : 'Tus clientes o tu equipo agendan servicios con horarios y personal.'}</p>
+            <TextField label="Nombre" required value={form.name} onChange={setName} maxLength={160} error={errors.name} placeholder={form.purpose === 'resources' ? 'Ej. Salas Piso 3' : 'Ej. Consultorio Centro'} autoComplete="off" />
             <TextField
               label="Identificador"
               required
@@ -59,7 +63,7 @@ export function SpaceFormDialog({ open, onOpenChange, onSubmit, pending }) {
             />
             <TextareaField label="Descripción" value={form.description} onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))} rows={2} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <SelectField label="Modalidad" options={optionsOf(MODE)} value={form.mode} onValueChange={(mode) => setForm((f) => ({ ...f, mode }))} hint={MODE_HINT[form.mode]} />
+              {form.purpose === 'services' ? <SelectField label="Modalidad" options={optionsOf(MODE)} value={form.mode} onValueChange={(mode) => setForm((f) => ({ ...f, mode }))} hint={MODE_HINT[form.mode]} /> : null}
               <SelectField label="Zona horaria" options={zones} value={form.timezone} onValueChange={(timezone) => setForm((f) => ({ ...f, timezone }))} error={errors.timezone} />
             </div>
           </div>

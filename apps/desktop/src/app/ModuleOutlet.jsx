@@ -320,6 +320,7 @@ const SCREEN_MAP = {
   "runly.bookings:/agenda": lazy(() => import("../modules/runly.bookings/screens/BookingsAgenda.jsx")),
   "runly.bookings:/reservations": lazy(() => import("../modules/runly.bookings/screens/BookingsReservations.jsx")),
   "runly.bookings:/resources": lazy(() => import("../modules/runly.bookings/screens/BookingsResources.jsx")),
+  "runly.bookings:/rooms": lazy(() => import("../modules/runly.bookings/screens/BookingsRooms.jsx")),
   "runly.ticketing:/": lazy(() => import("../modules/runly.ticketing/screens/TicketingEvents.jsx")),
   "runly.ticketing:/events/:eventId": lazy(() => import("../modules/runly.ticketing/screens/TicketingEvent.jsx")),
   "runly.ticketing:/checkin": lazy(() => import("../modules/runly.ticketing/screens/TicketingCheckin.jsx")),

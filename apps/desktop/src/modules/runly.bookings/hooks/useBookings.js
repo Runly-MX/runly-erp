@@ -99,3 +99,11 @@ export function useBookingRole(space) {
   const role = space?.role ?? null
   return { role, canOperate: role === 'admin' || role === 'agent', canConfigure: role === 'admin' }
 }
+
+// Rooms and equipment reserved by employees (v1.2 R1). The agenda refreshes often:
+// colleagues reserve the same rooms.
+export const useRooms = (options = {}) => useRead(['rooms'], async (t) => unwrap(await api.listRooms(t)) ?? [], { staleTime: 30_000, retry: false, ...options })
+export const useMyRoomReservations = () => useRead(['rooms-mine'], async (t) => unwrap(await api.myRoomReservations(t)) ?? [], { staleTime: 10_000 })
+export const useRoomAgenda = (spaceId, from, to) => useRead(['rooms-agenda', spaceId, from, to], async (t) => unwrap(await api.roomAgenda(spaceId, { from, to }, t)), {
+  enabled: Boolean(spaceId && from && to), refetchInterval: 30_000, placeholderData: keepPreviousData,
+})

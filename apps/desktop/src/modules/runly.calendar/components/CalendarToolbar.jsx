@@ -1,4 +1,4 @@
-import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, PanelLeftOpen, Plus } from 'lucide-react'
+import { ChevronLeft, ChevronRight, ChevronUp, ChevronDown, DoorOpen, PanelLeftOpen, Plus } from 'lucide-react'
 import { useCalendarStore } from '../stores/useCalendarStore'
 import CalendarAppearanceMenu from './CalendarAppearanceMenu'
 
@@ -47,7 +47,8 @@ function formatTitle(view, dateStr) {
 
 const phoneIconButton = 'flex h-10 shrink-0 items-center justify-center rounded-md text-[hsl(var(--muted-foreground))] transition-colors active:bg-[hsl(var(--muted))]'
 
-export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
+// onReserveRoom: present when the person can reserve rooms (Reservaciones, through the engine).
+export default function CalendarToolbar({ onNewEvent, onToggleSidebar, onReserveRoom = null }) {
   const { activeView, selectedDate, setActiveView, navigatePrev, navigateNext, navigateToday } = useCalendarStore()
   const vertical = activeView === 'month'
   const title = phoneTitle(activeView, selectedDate)
@@ -73,6 +74,11 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
           <button type="button" onClick={navigateToday} className="ml-1 h-10 shrink-0 rounded-md border border-[hsl(var(--border))] px-3 text-xs font-semibold text-[hsl(var(--foreground))] transition-colors active:bg-[hsl(var(--muted))]">
             Hoy
           </button>
+          {onReserveRoom ? (
+            <button type="button" onClick={onReserveRoom} aria-label="Reservar sala" className={`${phoneIconButton} ml-1 w-10`}>
+              <DoorOpen size={18} aria-hidden />
+            </button>
+          ) : null}
           <button type="button" onClick={onNewEvent} aria-label="Nuevo evento" className="ml-1.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-linear-to-br from-violet-500 to-fuchsia-500 text-white shadow-md shadow-violet-500/30 transition-transform active:scale-95">
             <Plus size={19} aria-hidden />
           </button>
@@ -149,6 +155,13 @@ export default function CalendarToolbar({ onNewEvent, onToggleSidebar }) {
           ))}
         </div>
 
+        {onReserveRoom ? (
+          <button type="button" onClick={onReserveRoom}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg border border-[hsl(var(--border))] text-xs font-medium text-[hsl(var(--foreground))] hover:bg-[hsl(var(--muted))] shrink-0">
+            <DoorOpen size={14} aria-hidden />
+            <span>Reservar sala</span>
+          </button>
+        ) : null}
         <button type="button"
           onClick={onNewEvent}
           className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium shrink-0"

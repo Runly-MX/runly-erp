@@ -65,6 +65,8 @@ export default function BookingsSpace() {
     )
   }
   const s = space.data
+  // A rooms and equipment system has no services or portal: employees reserve in /rooms.
+  const rooms = s.purpose === 'resources'
   const spaceResources = (resources.data ?? []).filter((r) => (linked.data ?? []).includes(r.id))
   if (editorKind === 'services' && editorId) {
     return <BookingsServiceEditor space={s} serviceId={editorId} services={services} resources={resources} linkedIds={linked} canConfigure={canConfigure} canManageCatalog={Boolean(me.data?.canManageCatalog)} />
@@ -81,7 +83,8 @@ export default function BookingsSpace() {
         actions={(
           <div className="flex w-full flex-wrap gap-2 sm:w-auto">
             <Button type="button" variant="outline" onClick={() => navigate(bookingsPath(`/agenda?space=${s.id}`))}><CalendarDays />Agenda</Button>
-            {canOperate && s.enabled ? <Button type="button" onClick={() => setBooking(true)}><CalendarPlus />Nueva reservación</Button> : null}
+            {rooms && s.enabled ? <Button type="button" onClick={() => navigate(bookingsPath(`/rooms?space=${s.id}`))}><CalendarPlus />Reservar sala</Button> : null}
+            {!rooms && canOperate && s.enabled ? <Button type="button" onClick={() => setBooking(true)}><CalendarPlus />Nueva reservación</Button> : null}
           </div>
         )}
       />
@@ -95,13 +98,13 @@ export default function BookingsSpace() {
           </AlertDescription>
         </Alert>
       ) : null}
-      <ChipTabs tabs={TABS} value={tab} onChange={setTab} tone="teal" ariaLabel="Secciones del sistema" />
+      <ChipTabs tabs={rooms ? TABS.filter((t) => !['services', 'online'].includes(t.value)) : TABS} value={tab} onChange={setTab} tone="teal" ariaLabel="Secciones del sistema" />
       {tab === 'overview' ? <Overview space={s} onOpenList={() => navigate(bookingsPath(`/reservations?space=${s.id}`))} /> : null}
-      {tab === 'services' ? <SpaceServicesTab space={s} services={services.data ?? []} resources={spaceResources} canEdit={canConfigure} /> : null}
+      {tab === 'services' && !rooms ? <SpaceServicesTab space={s} services={services.data ?? []} resources={spaceResources} canEdit={canConfigure} /> : null}
       {tab === 'resources' ? <ResourcesTab space={s} resources={resources} linkedIds={linked.data ?? []} canEdit={canConfigure} canManageCatalog={Boolean(me.data?.canManageCatalog)} /> : null}
       {tab === 'availability' ? <AvailabilityTab space={s} services={services.data ?? []} resources={spaceResources} canEdit={canConfigure} canEditResources={Boolean(me.data?.canManageCatalog)} /> : null}
       {tab === 'team' ? <MembersPanel space={s} canEdit={canConfigure} /> : null}
-      {tab === 'online' ? <OnlinePanel space={s} services={services.data ?? []} canEdit={canConfigure} /> : null}
+      {tab === 'online' && !rooms ? <OnlinePanel space={s} services={services.data ?? []} canEdit={canConfigure} /> : null}
       {tab === 'settings' ? <SpaceSettingsTab space={s} canEdit={canConfigure} /> : null}
       {canOperate ? <BookingFormDialog open={booking} onOpenChange={setBooking} space={s} services={services.data ?? []} resources={spaceResources} /> : null}
     </PageShell>

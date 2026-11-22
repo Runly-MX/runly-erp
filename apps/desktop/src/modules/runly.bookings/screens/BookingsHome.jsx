@@ -19,7 +19,7 @@ export default function BookingsHome() {
   const canCreate = Boolean(me.data?.canManageCatalog)
   const create = useBookingsMutation((t, data) => runly.bookings.createSpace(data, t), { success: 'Sistema creado.' })
   useEffect(() => {
-    if (params.get('new') === '1' && canCreate) { setOpen(true); setParams((p) => { const n = new URLSearchParams(p); n.delete('new'); return n }, { replace: true }) }
+    if (['1', 'resources'].includes(params.get('new')) && canCreate) { setOpen(params.get('new') === 'resources' ? 'resources' : 'services'); setParams((p) => { const n = new URLSearchParams(p); n.delete('new'); return n }, { replace: true }) }
   }, [params, canCreate, setParams])
 
   async function submit(data) {
@@ -47,7 +47,7 @@ export default function BookingsHome() {
               {spaces.data.map((space) => <SpaceCard key={space.id} space={space} onOpen={() => navigate(bookingsPath(`/spaces/${space.id}`))} />)}
             </div>
           )}
-      <SpaceFormDialog open={open} onOpenChange={setOpen} onSubmit={submit} pending={create.isPending} />
+      <SpaceFormDialog open={Boolean(open)} defaultPurpose={typeof open === 'string' ? open : 'services'} onOpenChange={setOpen} onSubmit={submit} pending={create.isPending} />
     </PageShell>
   )
 }
