@@ -156,4 +156,5 @@ apps/api/public/website-runtime/
 # Local Website acceptance packages contain user-supplied assets and notices.
 /.artifacts/website-w1/
 .artifacts/website-w3/
+.artifacts/website-responsive-foundation/
 .artifacts/website-integration/

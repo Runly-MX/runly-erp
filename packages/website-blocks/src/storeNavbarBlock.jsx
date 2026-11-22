@@ -1,5 +1,5 @@
 // Store navbar: same look as NavbarBlock plus a "Carrito" link with a live item count read from the browser cart.
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import { defineBlock, BrandIdentity, brandIdentityDefaults, brandIdentityFields, brandIdentityHref } from '@raulbellosom/atlas-web-builder'
 import { useCartLines } from './storeCart.js'
 import { ACCENT, INK, LINE, PAPER, SANS, SERIF } from './storeUi.jsx'
@@ -7,7 +7,7 @@ import { ACCENT, INK, LINE, PAPER, SANS, SERIF } from './storeUi.jsx'
 const parseLinks = (raw) => String(raw ?? '').split('\n').map((l) => l.split('|').map((p) => p.trim())).filter(([label]) => label).slice(0, 8).map(([label, href]) => ({ label, href: href || '#' }))
 
 // The Atlas editor can render a 390px page in a much wider browser viewport.
-// Query the actual page container; a viewport fallback also covers standalone storefronts.
+// Query this navbar's available width, including embeds without an Atlas page wrapper.
 const COMPACT_NAV_CSS = `.sn-burger{display:inline-flex}
 .sn-links{display:none!important}
 .sn-bar nav{gap:12px!important;padding-inline:16px!important}
@@ -15,9 +15,9 @@ const COMPACT_NAV_CSS = `.sn-burger{display:inline-flex}
 .sn-links a{min-height:44px}`
 const CSS = `.sn-bar a,.sn-bar button{outline-offset:2px}.sn-bar a:focus-visible,.sn-bar button:focus-visible{outline:3px solid ${ACCENT}}
 .sn-link{transition:opacity .18s ease}.sn-link:hover{opacity:.7}.sn-burger{display:none}
-.sn-bar{min-width:0;max-width:100%}.sn-bar nav{box-sizing:border-box;min-width:0}.sn-bar .sn-links{min-width:0}
-@container atlas-page (max-width:859px){${COMPACT_NAV_CSS}}
-@media (max-width:859px){${COMPACT_NAV_CSS}}
+.sn-bar{container-type:inline-size;container-name:runly-store-navbar;min-width:0;max-width:100%}.sn-bar nav{box-sizing:border-box;min-width:0}.sn-bar .sn-links{min-width:0;flex-wrap:wrap;justify-content:flex-end}.sn-links a{min-width:0;overflow-wrap:anywhere}.sn-brand{flex:1;overflow-wrap:anywhere}.sn-cart,.sn-burger{flex-shrink:0}.sn-cart{max-width:40%;overflow-wrap:anywhere}
+@container runly-store-navbar (max-width:859px){${COMPACT_NAV_CSS}}
+@supports not (container-type:inline-size){@media (max-width:859px){${COMPACT_NAV_CSS}}}
 @media (prefers-reduced-motion:reduce){.sn-link{transition:none}}`
 
 function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky, ...identity }) {
@@ -28,6 +28,7 @@ function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky, ...id
   const [open, setOpen] = useState(false)
   const barRef = useRef(null)
   const toggleRef = useRef(null)
+  const menuId = useId()
 
   useEffect(() => {
     if (!open) return undefined
@@ -42,15 +43,15 @@ function StoreNavbar({ variant, brand, links, cartLabel, cartHref, sticky, ...id
     <header ref={barRef} className="sn-bar" data-open={open} style={{ '--sn-bg': bg, position: sticky ? 'sticky' : 'relative', top: 0, zIndex: 40, background: bg, color: fg, borderBottom: `1px solid ${dark ? 'rgba(250,247,242,.18)' : LINE}` }}>
       <style>{CSS}</style>
       <nav aria-label="Principal" style={{ maxWidth: 1280, marginInline: 'auto', padding: '0 24px', minHeight: 64, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 24 }}>
-        <a href={brandIdentityHref(identity.brandHref)} style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: fg, textDecoration: 'none', minWidth:0 }}><BrandIdentity {...identity} brand={brand}/></a>
-        <div id="sn-links" className="sn-links" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-          {parseLinks(links).map((l) => <a key={l.label + l.href} className="sn-link" href={l.href} style={linkStyle}>{l.label}</a>)}
-          <a className="sn-link" href={cartHref || '/carrito'} style={{ ...linkStyle, gap: 8 }} aria-label={count ? `${cartLabel}, ${count} artículos` : cartLabel}>
+        <a className="sn-brand" href={brandIdentityHref(identity.brandHref)} style={{ fontFamily: SERIF, fontSize: 22, fontWeight: 500, color: fg, textDecoration: 'none', minWidth:0 }}><BrandIdentity {...identity} brand={brand}/></a>
+        <div id={menuId} className="sn-links" style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
+          {parseLinks(links).map((l) => <a key={l.label + l.href} className="sn-link" href={l.href} style={linkStyle} onClick={() => setOpen(false)}>{l.label}</a>)}
+        </div>
+          <a className="sn-link sn-cart" href={cartHref || '/carrito'} style={{ ...linkStyle, gap: 8 }} aria-label={count ? `${cartLabel}, ${count} artículos` : cartLabel}>
             {cartLabel}
             {count > 0 && <span aria-hidden="true" style={{ minWidth: 22, height: 22, padding: '0 6px', borderRadius: 999, background: ACCENT, color: '#fff', fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontVariantNumeric: 'tabular-nums' }}>{count > 99 ? '99+' : count}</span>}
           </a>
-        </div>
-        <button ref={toggleRef} type="button" className="sn-burger" aria-expanded={open} aria-controls="sn-links" aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((v) => !v)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', border: 0, background: 'transparent', color: fg, cursor: 'pointer' }}>
+        <button ref={toggleRef} type="button" className="sn-burger" aria-expanded={open} aria-controls={menuId} aria-label={open ? 'Cerrar menú' : 'Abrir menú'} onClick={() => setOpen((v) => !v)} style={{ width: 44, height: 44, alignItems: 'center', justifyContent: 'center', border: 0, background: 'transparent', color: fg, cursor: 'pointer' }}>
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">{open ? <path d="M6 6l12 12M18 6L6 18" /> : <path d="M4 7h16M4 12h16M4 17h16" />}</svg>
         </button>
       </nav>
