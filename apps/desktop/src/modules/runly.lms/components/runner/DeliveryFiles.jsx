@@ -166,18 +166,21 @@ export function DeliveryFiles({ sessionId, activity, disabled, onClosed }) {
           )
         })}
         {uploads.map((item) => (
-          <li key={item.key} className={cn(ROW, item.status === 'rejected' || item.status === 'error' ? 'border-[hsl(var(--destructive)/0.5)]' : null)} data-testid="delivery-upload" data-status={item.status}>
+          <li key={item.key} className={cn(ROW, 'flex-wrap', item.status === 'rejected' || item.status === 'error' ? 'border-[hsl(var(--destructive)/0.5)]' : null)} data-testid="delivery-upload" data-status={item.status}>
             {item.status === 'rejected' || item.status === 'error'
               ? <AlertCircle className="h-5 w-5 shrink-0 text-[hsl(var(--destructive))]" aria-hidden="true" />
               : <Loader2 className="h-5 w-5 shrink-0 animate-spin text-[hsl(var(--muted-foreground))] motion-reduce:animate-none" aria-hidden="true" />}
-            <div className="min-w-0 flex-1 space-y-1">
+            {/* min width: on phones the actions wrap below instead of squeezing the message. */}
+            <div className="min-w-[11rem] flex-1 space-y-1">
               <p className="truncate text-sm font-medium">{item.name}{item.replaceFileId ? <span className={MUTED}> (reemplazo)</span> : null}</p>
               {item.status === 'uploading' ? <ProgressBar value={item.progress} aria-label={`Subiendo ${item.name}`} /> : null}
+              {/* A failed transfer must never read as saved: say it was not received and what to do. */}
+              {item.status === 'error' ? <p className="text-xs font-semibold text-[hsl(var(--destructive))]">No se recibió. Reintenta o vuelve a seleccionar el archivo.</p> : null}
               <p className={cn('text-xs', item.message ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]')}>
                 {item.message ?? (item.status === 'uploading' ? `${STAGE_LABELS.uploading} ${item.progress}% · ${formatBytes(item.size)}` : STAGE_LABELS[item.status])}
               </p>
             </div>
-            {item.retry && !disabled ? <Button variant="outline" size="sm" className="min-h-11 sm:min-h-9" onClick={() => run(item.key)}><RefreshCw />Reintentar</Button> : null}
+            {item.retry && !disabled ? <Button variant="outline" size="sm" className="ml-auto min-h-11 sm:min-h-9" onClick={() => run(item.key)}><RefreshCw />Reintentar</Button> : null}
             {item.status === 'rejected' || item.status === 'error'
               ? <Button variant="ghost" size="icon" className="h-11 w-11 sm:h-9 sm:w-9" aria-label={`Descartar ${item.name}`} onClick={() => drop(item.key)}><X /></Button>
               : null}

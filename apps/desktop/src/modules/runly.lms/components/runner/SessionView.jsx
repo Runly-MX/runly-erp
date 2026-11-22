@@ -92,11 +92,13 @@ export function SessionView({ sessionId, onExit, exitLabel }) {
                 : <DeliveryActivity sessionId={sessionId} activity={item} disabled={locked} onClosed={refresh} />}
             </div>
           ))}
-          <div className="flex items-center justify-between gap-2 border-t border-[hsl(var(--border))] pt-4">
-            <Button variant="outline" onClick={() => setCurrent((i) => Math.max(0, i - 1))} disabled={current === 0}><ChevronLeft />Anterior</Button>
+          {/* "Actividad" on both sides: quizzes have their own Anterior/Siguiente for questions just above.
+              Phones: two equal columns whose labels may wrap, never wider than the screen. */}
+          <div className="grid grid-cols-2 gap-2 border-t border-[hsl(var(--border))] pt-4 sm:flex sm:items-center sm:justify-between">
+            <Button variant="outline" className="h-auto min-h-11 whitespace-normal sm:min-h-9" onClick={() => setCurrent((i) => Math.max(0, i - 1))} disabled={current === 0}><ChevronLeft />Actividad anterior</Button>
             {current < activities.length - 1
-              ? <Button variant="outline" onClick={() => setCurrent((i) => i + 1)}>Siguiente actividad<ChevronRight /></Button>
-              : <Button onClick={() => setReviewOpen(true)} disabled={locked}><Send />Revisar y entregar</Button>}
+              ? <Button variant="outline" className="h-auto min-h-11 whitespace-normal sm:min-h-9" onClick={() => setCurrent((i) => i + 1)}>Siguiente actividad<ChevronRight /></Button>
+              : <Button className="h-auto min-h-11 whitespace-normal sm:min-h-9" onClick={() => setReviewOpen(true)} disabled={locked}><Send />Revisar y entregar</Button>}
           </div>
         </main>
       </div>

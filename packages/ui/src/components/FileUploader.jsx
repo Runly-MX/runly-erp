@@ -190,6 +190,9 @@ export function FileUploader({
               multiple={multiple}
               accept={accept}
               className="sr-only"
+              // Reached through the "Seleccionar archivo" button: no second, unnamed tab stop.
+              tabIndex={-1}
+              aria-hidden="true"
               onChange={(event) => handleFiles(event.target.files)}
             />
             <Button

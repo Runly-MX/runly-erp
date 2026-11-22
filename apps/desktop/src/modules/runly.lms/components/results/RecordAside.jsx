@@ -22,9 +22,9 @@ export function TotalsCard({ record }) {
         <p className={MUTED}>{totals.complete ? 'Calificación final de la sesión.' : `Parcial: ${totals.pendingCount === 1 ? 'falta 1 actividad' : `faltan ${totals.pendingCount} actividades`} por revisar.`}</p>
         <ul className="space-y-1.5">
           {activities.map((item) => (
-            <li key={item.lessonId} className="flex items-center justify-between gap-3 text-sm">
-              <span className="min-w-0 truncate">{item.title}</span>
-              <span className="shrink-0 tabular-nums">{scoreText(item.score, item.maxPoints)}{item.pending ? <Badge variant="secondary" className="ml-1.5">Por revisar</Badge> : null}</span>
+            <li key={item.lessonId} className="flex items-start justify-between gap-3 text-sm">
+              <span className="line-clamp-2 min-w-0" title={item.title}>{item.title}</span>
+              <span className="flex shrink-0 flex-col items-end gap-1 tabular-nums">{scoreText(item.score, item.maxPoints)}{item.pending ? <Badge variant="secondary" className="whitespace-nowrap">Por revisar</Badge> : null}</span>
             </li>
           ))}
         </ul>

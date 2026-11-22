@@ -84,18 +84,19 @@ export function DeliveryActivity({ sessionId, activity, disabled, onClosed }) {
       <Instructions body={activity.body} />
       <MaterialList sessionId={sessionId} resources={activity.resources} disabled={disabled} />
       {settings.allowText ? (
-        <TextareaField
-          label="Tu respuesta" value={text} rows={10} maxLength={50000} disabled={disabled}
-          onChange={(event) => { dirty.current = true; setText(event.target.value) }}
-          hint="Se guarda sola mientras escribes."
-        />
+        <div className="space-y-1">
+          <TextareaField
+            label="Tu respuesta" value={text} rows={10} maxLength={50000} disabled={disabled}
+            onChange={(event) => { dirty.current = true; setText(event.target.value) }}
+            hint="Se guarda sola mientras escribes."
+          />
+          {/* Next to the text it describes (it only covers the text, files have their own state). */}
+          <p className={cn('flex min-h-4 items-center gap-1 text-xs', state === 'error' ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]')} aria-live="polite" data-testid="delivery-text-state">
+            {state === 'saved' ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}{state ? `Texto: ${SAVE_LABELS[state].toLowerCase()}` : null}
+          </p>
+        </div>
       ) : null}
       {settings.allowFiles ? <DeliveryFiles sessionId={sessionId} activity={activity} disabled={disabled} onClosed={onClosed} /> : null}
-      {state ? (
-        <p className={cn('flex items-center gap-1 text-xs', state === 'error' ? 'text-[hsl(var(--destructive))]' : 'text-[hsl(var(--muted-foreground))]')} aria-live="polite">
-          {state === 'saved' ? <Check className="h-3.5 w-3.5" aria-hidden="true" /> : null}{SAVE_LABELS[state]}
-        </p>
-      ) : null}
     </div>
   )
 }

@@ -83,7 +83,8 @@ export function SortableList({ items, onReorder, renderItem, getId = (item) => i
   return (
     <DndContext
       sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}
-      accessibility={{ announcements, screenReaderInstructions: SCREEN_READER }}
+      // Live region portaled to <body>: callers often wrap items in role="list", which may only hold listitems.
+      accessibility={{ announcements, screenReaderInstructions: SCREEN_READER, container: typeof document === 'undefined' ? undefined : document.body }}
     >
       <SortableContext items={ids} strategy={layout === 'grid' ? rectSortingStrategy : verticalListSortingStrategy} disabled={disabled}>
         {items.map((item, index) => (

@@ -35,8 +35,9 @@ export function SessionTimer({ expiresAt, offset, onTimeUp }) {
       const warning = crossedWarning(previous.current, next)
       if (warning) {
         const message = warning === 1 ? 'Queda 1 minuto.' : `Quedan ${warning} minutos.`
+        // The toast region already announces politely; only the last minute interrupts a screen reader.
         toast.warning(message)
-        setAnnounce(message)
+        if (warning === 1) setAnnounce(message)
       }
       previous.current = next
       setLeft(next)
@@ -140,7 +141,7 @@ export function SubmitDialog({ open, onOpenChange, activities, onSubmit, pending
                   ? <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" />
                   : <CircleDashed className="mt-0.5 h-5 w-5 shrink-0 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />}
                 <div className="min-w-0">
-                  <p className="truncate font-medium">{item.title}</p>
+                  <p className="break-words font-medium">{item.title}</p>
                   <p className="text-xs text-[hsl(var(--muted-foreground))]">{progress.label}</p>
                 </div>
               </li>
@@ -162,11 +163,15 @@ export function SubmitDialog({ open, onOpenChange, activities, onSubmit, pending
 export function RunnerDone({ payload, onExit, exitLabel = 'Volver a Aprendizaje' }) {
   const { session, assessment, activities } = payload
   const timeout = session.closedReason === 'timeout'
+  const heading = useRef(null)
+  // The page content is replaced after submitting: move focus to the outcome so it is announced.
+  useEffect(() => { heading.current?.focus() }, [])
+  const Icon = timeout ? Hourglass : CheckCircle2
   return (
     <div className="mx-auto w-full max-w-2xl space-y-5 px-4 py-10 text-center sm:px-6">
-      <CheckCircle2 className="mx-auto h-12 w-12 text-[hsl(var(--primary))]" aria-hidden="true" />
+      <Icon className={cn('mx-auto h-12 w-12', timeout ? 'text-[hsl(var(--muted-foreground))]' : 'text-[hsl(var(--primary))]')} aria-hidden="true" />
       <div className="space-y-1">
-        <h1 className="text-2xl font-semibold">{timeout ? 'Se terminó el tiempo' : 'Evaluación entregada'}</h1>
+        <h1 ref={heading} tabIndex={-1} className="text-2xl font-semibold outline-none">{timeout ? 'Se terminó el tiempo' : 'Evaluación entregada'}</h1>
         <p className={MUTED}>
           {timeout ? 'Entregamos todo lo que tenías guardado.' : 'Tus respuestas y archivos quedaron registrados.'} {assessment.title}.
         </p>
@@ -179,9 +184,15 @@ export function RunnerDone({ payload, onExit, exitLabel = 'Volver a Aprendizaje'
           <div className="col-span-2 rounded-md bg-[hsl(var(--muted)/0.6)] p-3"><dt className={MUTED}>Resultado</dt><dd className="text-lg font-semibold tabular-nums">{session.scorePoints} de {session.maxPoints} puntos</dd></div>
         ) : null}
       </dl>
-      <ul className="mx-auto max-w-md space-y-1 text-left text-sm">
-        {activities.map((item) => <li key={item.id} className="flex justify-between gap-3"><span className="truncate">{item.title}</span><span className={MUTED}>{activityProgress(item).label}</span></li>)}
+      <ul className="mx-auto max-w-md space-y-1.5 text-left text-sm">
+        {activities.map((item) => <li key={item.id} className="flex items-start justify-between gap-3"><span className="min-w-0 break-words">{item.title}</span><span className={cn(MUTED, 'shrink-0 whitespace-nowrap pt-0.5')}>{activityProgress(item).label}</span></li>)}
       </ul>
+      {/* What happens next: the candidate leaves knowing nobody expects anything else from them. */}
+      {session.scorePoints === undefined ? (
+        <p className={cn(MUTED, 'mx-auto max-w-md')} data-testid="session-next-steps">
+          Ya no tienes que hacer nada más. Quien organiza la evaluación revisará tu entrega y te contactará con los datos que registraste. Guarda tu folio por si necesitas hacer una aclaración{onExit ? '.' : '; ya puedes cerrar esta página.'}
+        </p>
+      ) : null}
       {onExit ? <Button variant="outline" onClick={onExit}>{exitLabel}</Button> : null}
     </div>
   )

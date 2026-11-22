@@ -102,6 +102,10 @@ export function useColumnResize(storageKey, { min = COLUMN_MIN_WIDTH, max = COLU
       ...(resized ? { style: { width: widthFor(key), minWidth: widthFor(key), maxWidth: widthFor(key) } } : {}),
     }),
     handleProps: (key) => ({
+      // A focusable separator must expose its value (WCAG 4.1.2 / axe aria-required-attr).
+      "aria-valuenow": Math.round(widthFor(key)),
+      "aria-valuemin": min,
+      "aria-valuemax": max,
       onPointerDown: (event) => startResize(event, key),
       onDoubleClick: reset,
       onKeyDown: (event) => {

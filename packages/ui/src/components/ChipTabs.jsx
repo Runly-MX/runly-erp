@@ -172,7 +172,8 @@ export function ChipTabs({ tabs = [], value, onChange, tone = 'brand', ariaLabel
                   role="tab"
                   id={`${baseId}-tab-${tab.value}`}
                   aria-selected={selected}
-                  aria-controls={`${baseId}-panel-${tab.value}`}
+                  // No aria-controls: panels are usually rendered outside this provider (other ids)
+                  // and only the active one is mounted, so the reference would point nowhere (invalid ARIA).
                   tabIndex={selected ? 0 : -1}
                   onClick={() => onChange?.(tab.value)}
                   className={cn(
@@ -261,8 +262,8 @@ export function ChipTabPanel({ value, active, children, className }) {
   return (
     <div
       role="tabpanel"
-      id={`${baseId}-panel-${value}`}
-      aria-labelledby={`${baseId}-tab-${value}`}
+      id={baseId ? `${baseId}-panel-${value}` : undefined}
+      aria-labelledby={baseId ? `${baseId}-tab-${value}` : undefined}
       className={cn(
         'transition duration-200 ease-out motion-reduce:transition-none',
         entered ? 'translate-y-0 opacity-100' : 'translate-y-1 opacity-0 motion-reduce:translate-y-0 motion-reduce:opacity-100',

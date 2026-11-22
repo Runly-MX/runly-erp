@@ -386,6 +386,43 @@ Tasks: 14-aspect checklist (`docs/ai-context/ui-screen-audit-checklist.md`) on e
 phone layouts; keyboard and screen reader pass (timer `aria-live`, stepper roles); light/dark; empty, loading,
 error and recovery states. Evidence: screenshots at 360/768/1280 in both themes.
 
+### Phase 6 status (2026-11-22)
+
+- Audit harness: `.e2e/lms-ux-audit.mjs` (git-ignored, local). Every evaluation screen at 360/768/1280 px in
+  light and dark: full-height screenshot, horizontal-overflow check, axe-core 4.10 with the WCAG 2.0/2.1/2.2
+  A/AA tags, touch targets under 24 px, and a Tab walk recording stops without a visible focus indicator.
+  The candidate journey runs end to end through the public link in all six variants (information,
+  registration errors, consent, intro, start confirmation, quiz, activity switch, Excel download, an
+  interrupted upload, upload, replacement, review, submit, folio) plus a server-side expiry. Manager side:
+  home, list, create dialog, the six editor tabs, both activity editors, results (all and per evaluation),
+  record, unsaved grading, incident dialog, review queue, empty editor, empty results and a forced error.
+  `REUSE=<assessmentId>` reruns the manager side only.
+- Fixed (candidate):
+  - Interrupted upload now says "No se recibió. Reintenta o vuelve a seleccionar el archivo." and the row
+    wraps on phones instead of squeezing the message.
+  - Activity navigation renamed "Actividad anterior" / "Siguiente actividad" (the quiz shows its own
+    Anterior/Siguiente for questions just above); two equal columns on phones.
+  - Delivery text save state sits under the text field and says "Texto: guardado".
+  - Final screen: says what happens next and to keep the folio, takes the focus (announced), timeout uses an
+    hourglass instead of the success check, long titles wrap.
+  - Public evaluation page allows pinch zoom (the app-wide viewport meta blocks it; lifted only while the
+    public page is mounted).
+  - Fact list markup (`dt`/`dd` direct children), dark-mode red text contrast (`.dark .text-destructive`).
+  - Timer warnings: the toast announces 10 and 5 minutes politely; only the last minute interrupts.
+- Fixed (shared @runly/ui, visible on the evaluation screens):
+  - Light badges `success`/`warning`/`destructive` darkened to >= 4.5:1 with white text (app-wide).
+  - `ChipTabs`: no `aria-controls` to unmounted/foreign panel ids.
+  - `ColumnResizeHandle`: `aria-valuenow/min/max` on the focusable separator.
+  - `SortableList`: dnd-kit live region portaled to `<body>` (was inside `role="list"`).
+  - `FileUploader`: hidden file input out of the tab order and the accessibility tree.
+- Fixed (manager): record facts (name, email, consent) take the full row on phones; totals card titles wrap.
+- Not fixed, out of scope (app shell / third party), recorded as findings: notification counter and company
+  badge contrast, top-bar search text in dark mode, shell buttons without focus ring (status, company,
+  notifications, account), app-wide `maximum-scale=1`, MDXEditor "Tipo de bloque" placeholder contrast.
+- Blocking before public production (unchanged, not verified here): `RUNLY_TRUSTED_PROXIES` /
+  `X-Forwarded-For`; real SMTP delivery; RLS audit per instance; pending migrations per instance; module
+  sync (nav and permissions); expiry worker; Marketplace test failure (independent).
+
 ## Phase 7 — Acceptance case and controlled clone
 
 Depends on: 1–5. Risk: B1 (real course content unknown).

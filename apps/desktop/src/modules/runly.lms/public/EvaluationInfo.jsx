@@ -35,9 +35,10 @@ function requirements(activities) {
 
 function Fact({ icon: Icon, label, children }) {
   return (
-    <div className="flex items-start gap-3 rounded-md bg-[hsl(var(--muted)/0.5)] px-3 py-2.5">
-      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" />
-      <div className="min-w-0"><dt className="text-xs text-[hsl(var(--muted-foreground))]">{label}</dt><dd className="text-sm font-medium">{children}</dd></div>
+    // dt/dd must be direct children of the dl group (axe definition-list); the icon lives in the dt.
+    <div className="min-w-0 rounded-md bg-[hsl(var(--muted)/0.5)] px-3 py-2.5">
+      <dt className="flex items-center gap-3 text-xs text-[hsl(var(--muted-foreground))]"><Icon className="h-4 w-4 shrink-0 text-[hsl(var(--primary))]" aria-hidden="true" />{label}</dt>
+      <dd className="pl-7 text-sm font-medium">{children}</dd>
     </div>
   )
 }

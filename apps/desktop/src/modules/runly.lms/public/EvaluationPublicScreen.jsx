@@ -12,7 +12,7 @@ import { SessionSourceContext, bindSessionSource } from '../hooks/useSessionSour
 import { readGuestToken, writeGuestToken } from '../lib/lmsShare.js'
 import { EvaluationEntry } from './EvaluationEntry.jsx'
 import { EvaluationInfo } from './EvaluationInfo.jsx'
-import { PUBLIC_PAGE_CLASS } from './keyboardSafeFocus.js'
+import { PUBLIC_PAGE_CLASS, useZoomableViewport } from './keyboardSafeFocus.js'
 
 const code = (error) => error?.details?.code ?? null
 const storageKey = (linkToken) => `evaluacion:${linkToken}`
@@ -74,6 +74,7 @@ function GuestRunner({ linkToken, guestToken, me, onSignOut }) {
 // runner internal participants use. The guest token lives in this browser only;
 // another device continues with a code sent by email.
 export default function EvaluationPublicScreen() {
+  useZoomableViewport()
   const { token } = useParams()
   const [search] = useSearchParams()
   const inviteLink = /^[A-Za-z0-9_-]{32}$/.test(search.get('i') ?? '') ? search.get('i') : null

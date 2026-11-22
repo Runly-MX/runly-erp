@@ -15,8 +15,9 @@ import { RESULT_STATUS, scoreText } from '../lib/lmsResults.js'
 const MUTED = 'text-xs text-[hsl(var(--muted-foreground))]'
 const dateTime = (iso) => (iso ? new Date(iso).toLocaleString('es-MX', { dateStyle: 'medium', timeStyle: 'short' }) : '—')
 
-function Fact({ label, children }) {
-  return <div className="min-w-0"><dt className={MUTED}>{label}</dt><dd className="break-words text-sm font-medium">{children}</dd></div>
+// wide: long values (name, email, consent) take the whole row on phones instead of breaking mid-word.
+function Fact({ label, children, wide }) {
+  return <div className={wide ? 'col-span-2 min-w-0 sm:col-span-1' : 'min-w-0'}><dt className={MUTED}>{label}</dt><dd className="break-words text-sm font-medium">{children}</dd></div>
 }
 
 function Registration({ record }) {
@@ -24,15 +25,15 @@ function Registration({ record }) {
   return (
     <SectionCard title="Participante">
       <dl className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
-        <Fact label="Nombre">{participant.name}</Fact>
-        <Fact label="Correo">{participant.email || '—'}</Fact>
+        <Fact label="Nombre" wide>{participant.name}</Fact>
+        <Fact label="Correo" wide>{participant.email || '—'}</Fact>
         {participant.answers.filter((item) => item.key !== 'correo').map((item) => <Fact key={item.key} label={item.label}>{item.value}</Fact>)}
         <Fact label="Folio">{session.folio ?? '—'}</Fact>
         <Fact label="Intento">{session.number}</Fact>
         <Fact label="Inicio">{dateTime(session.startedAt)}</Fact>
         <Fact label={session.closedReason === 'timeout' ? 'Venció' : 'Entrega'}>{dateTime(session.submittedAt)}</Fact>
         <Fact label="Tiempo usado">{session.usedMinutes === null ? '—' : `${session.usedMinutes} min${session.timeLimitMinutes ? ` de ${session.timeLimitMinutes + (session.extendedMinutes ?? 0)}` : ''}`}</Fact>
-        <Fact label="Aviso de privacidad">{participant.consent ? `Aceptó v. ${participant.consent.version} · ${dateTime(participant.consent.acceptedAt)}` : 'No se pidió'}</Fact>
+        <Fact label="Aviso de privacidad" wide>{participant.consent ? `Aceptó v. ${participant.consent.version} · ${dateTime(participant.consent.acceptedAt)}` : 'No se pidió'}</Fact>
       </dl>
     </SectionCard>
   )

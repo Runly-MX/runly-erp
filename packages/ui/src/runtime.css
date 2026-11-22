@@ -566,19 +566,20 @@ body,
    These are defined here — not in the ui package — to guarantee Tailwind
    always emits the rules regardless of package-boundary scanning. */
 
-/* Light mode: solid saturated pill, white text — always readable at 12px */
+/* Light mode: solid pill, white text. Shades chosen for >= 4.5:1 with white at
+   12px (WCAG 1.4.3): emerald-700 5.5:1, amber-700 5.0:1, red-600 4.8:1. */
 .badge-success {
-  background: #10b981;
+  background: #047857;
   border-color: transparent;
   color: #fff;
 }
 .badge-warning {
-  background: #f59e0b;
+  background: #b45309;
   border-color: transparent;
   color: #fff;
 }
 .badge-destructive {
-  background: #ef4444;
+  background: #dc2626;
   border-color: transparent;
   color: #fff;
 }
@@ -598,6 +599,13 @@ body,
   background: rgba(248, 113, 113, 0.18);
   border-color: rgba(248, 113, 113, 0.35);
   color: #fca5a5;
+}
+/* Dark mode: red TEXT (field errors, failed uploads) needs a lighter red to reach
+   4.5:1 on the dark background (WCAG 1.4.3); red fills keep --destructive so
+   white text on destructive buttons keeps its contrast. */
+.dark .text-destructive,
+.dark .text-\[hsl\(var\(--destructive\)\)\] {
+  color: #f87171;
 }
 
 /* ── Prevent iOS Safari auto-zoom on input focus ─────────── */
