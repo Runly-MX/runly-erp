@@ -4,6 +4,7 @@
 // (no SMTP). "sent" means the SMTP server accepted it, not that it was read.
 import { escapeHtml, renderRunlyEmailLayout } from '../../services/email-templates.js'
 import { manageToken, manageUrl } from './bookings-links.js'
+import { createBookingsCalendarFiles } from './bookings-ics.js'
 
 const MAX_ATTEMPTS = 6
 const backoffMs = (attempts) => Math.min(6 * 3600000, 60000 * 2 ** Math.max(0, attempts - 1))
@@ -24,7 +25,9 @@ function when(date, timeZone) {
 // Emails that carry the way in to an online appointment (never cancel/reject ones).
 const MEETING_KINDS = new Set(['confirmed', 'rescheduled', 'manage_link'])
 
-export function buildBookingEmail({ kind, booking, serviceName, spaceName, location, timezone, link, meeting = null, brand = null, env = process.env }) {
+const CALENDAR_NOTE = 'Google y Outlook guardan una copia que no se actualiza sola; el archivo adjunto actualiza los calendarios compatibles (Apple, Outlook y otros) si cambia tu cita.'
+
+export function buildBookingEmail({ kind, booking, serviceName, spaceName, location, timezone, link, meeting = null, calendar = null, brand = null, env = process.env }) {
   const copy = COPY[kind]
   const online = meeting && MEETING_KINDS.has(kind) ? meeting : null
   const rows = [
@@ -34,6 +37,10 @@ export function buildBookingEmail({ kind, booking, serviceName, spaceName, locat
     ['Lugar', online ? 'En línea' : location || spaceName],
     ['Personas', String(booking.party_size)],
   ].filter(([, v]) => v)
+  // Confirmed or updated bookings only (the caller passes links only while confirmed).
+  const addTo = calendar && MEETING_KINDS.has(kind)
+    ? [['Google Calendar', calendar.google], ['Outlook', calendar.outlook], ['Descargar .ics', calendar.ics]].filter(([, url]) => url)
+    : null
   const lobbyNote = online?.kind === 'runly' ? ' Entrarás a una sala de espera y el negocio te admitirá.' : ''
   const bodyHtml = `
     <p style="margin:0 0 14px 0;font-size:15px;line-height:1.6;color:#334155">Hola ${escapeHtml(booking.guest_name ?? '')}, ${copy.lead}</p>
@@ -41,6 +48,7 @@ export function buildBookingEmail({ kind, booking, serviceName, spaceName, locat
       ${rows.map(([k, v]) => `<tr><td style="padding:6px 0;color:#64748b;width:38%">${escapeHtml(k)}</td><td style="padding:6px 0;font-weight:600">${escapeHtml(v)}</td></tr>`).join('')}
     </table>
     ${online ? `<p style="margin:0 0 16px 0;font-size:14px;line-height:1.6;color:#334155"><strong>Unirse a la reunión:</strong> <a href="${escapeHtml(online.url)}" style="color:#0f766e;word-break:break-all">${escapeHtml(online.url)}</a><br /><span style="font-size:13px;color:#64748b">Usa este enlace a la hora de tu cita.${lobbyNote}</span></p>` : ''}
+    ${addTo ? `<p style="margin:0 0 6px 0;font-size:14px;line-height:1.6;color:#334155"><strong>Agregar a mi calendario:</strong> ${addTo.map(([label, url]) => `<a href="${escapeHtml(url)}" style="color:#0f766e">${label}</a>`).join(' · ')}</p><p style="margin:0 0 16px 0;font-size:12px;line-height:1.5;color:#64748b">${CALENDAR_NOTE}</p>` : ''}
     ${link ? `<p style="margin:0 0 16px 0;font-size:13px;line-height:1.6;color:#64748b">Si el botón no funciona, copia este enlace:<br /><span style="word-break:break-all;color:#334155">${escapeHtml(link)}</span></p>` : ''}`
   const html = renderRunlyEmailLayout({
     kicker: copy.kicker, heading: copy.heading, bodyHtml,
@@ -48,11 +56,12 @@ export function buildBookingEmail({ kind, booking, serviceName, spaceName, locat
     footnote: 'El enlace es personal: cualquiera que lo tenga puede ver y cambiar tu reservación. No lo compartas.',
     brand, env,
   })
-  const text = [copy.heading, '', ...rows.map(([k, v]) => `${k}: ${v}`), ...(online ? ['', `Unirse a la reunión: ${online.url}`] : []), ...(link ? ['', `Gestionar: ${link}`] : [])].join('\n')
+  const text = [copy.heading, '', ...rows.map(([k, v]) => `${k}: ${v}`), ...(online ? ['', `Unirse a la reunión: ${online.url}`] : []), ...(addTo ? ['', 'Agregar a mi calendario:', ...addTo.map(([label, url]) => `${label}: ${url}`), CALENDAR_NOTE] : []), ...(link ? ['', `Gestionar: ${link}`] : [])].join('\n')
   return { subject: `${copy.subject} · ${booking.reference}`, html, text }
 }
 
 export function createBookingsNotifier({ prisma, sendMail, getBrand = async () => null, env = process.env, meetings = null }) {
+  const calendarFiles = createBookingsCalendarFiles({ prisma, env, meetings })
   async function claim(limit) {
     return prisma.$queryRaw`
       UPDATE booking_notification SET status = 'sending', attempts = attempts + 1, locked_until = now() + interval '5 minutes', updated_at = now()
@@ -74,7 +83,12 @@ export function createBookingsNotifier({ prisma, sendMail, getBrand = async () =
     const brand = await getBrand(n.company_id).catch(() => null)
     // ensure: the room is prepared before the email goes out, even if the projection has not run yet.
     const meeting = meetings && MEETING_KINDS.has(n.kind) ? await meetings.guestJoin(row.id, { ensure: true }) : null
-    return buildBookingEmail({ kind: n.kind, booking: row, serviceName: row.service_name, spaceName: row.space_name, location: row.location, timezone: row.timezone, link, meeting, brand, env })
+    // Calendar (v1.2 R3): links while confirmed, plus an iTIP file of the booking's current state
+    // (REQUEST to add or update, CANCEL to remove), rendered here, outside any transaction.
+    const calendar = MEETING_KINDS.has(n.kind) ? await calendarFiles.linksFor(row.id, { brand }) : null
+    const invite = await calendarFiles.attachmentFor(await calendarFiles.load(row.id), n.kind, brand)
+    const mail = buildBookingEmail({ kind: n.kind, booking: row, serviceName: row.service_name, spaceName: row.space_name, location: row.location, timezone: row.timezone, link, meeting, calendar, brand, env })
+    return invite ? { ...mail, attachments: [invite] } : mail
   }
 
   async function processDue({ limit = 25 } = {}) {

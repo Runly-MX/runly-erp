@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Alert, AlertDescription, Button, CheckboxField, EmptyState, NumberField, SelectField, Skeleton, TextField, TextareaField } from '@runly/ui'
 import { AlertTriangle, CalendarCheck, CalendarX2, CheckCircle2, ChevronLeft, Clock3, ExternalLink, Loader2, RotateCcw, ShieldAlert } from 'lucide-react'
 import { addDays, dayKey, formatDateTime, formatTime } from '../lib/bookingsTime.js'
-import { Card, LocationLines, MeetingJoin, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
+import { AddToCalendar, Card, LocationLines, MeetingJoin, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
 import { accentStyle, embedState, isNetworkError, portalApi, portalError, unwrap, useAttemptKey, useReportHeight } from './portalLib.js'
 
 const STEPS = ['service', 'slot', 'details', 'review']
@@ -202,6 +202,7 @@ function Result({ booking, token, page, framed, onAgain }) {
         ['Profesional', booking.resourceNames?.join(', ')], ['Nombre', booking.guestName], ['Correo', booking.guestEmail],
       ]} />
       {booking.meeting ? <MeetingJoin meeting={booking.meeting} /> : <LocationLines location={page.location} instructions={page.instructions} />}
+      <AddToCalendar calendar={booking.calendar} />
       <div className="flex flex-wrap gap-2">
         {/* Manage links are never framed: from an embed they open in a new tab. */}
         <Button asChild>{framed

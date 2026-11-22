@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Button, ErrorState, Skeleton, cn } from '@runly/ui'
-import { ChevronLeft, ChevronRight, Clock, MapPin, Video } from 'lucide-react'
+import { CalendarPlus, ChevronLeft, ChevronRight, Clock, MapPin, Video } from 'lucide-react'
 import { addDays, dayKey, daysRange, formatKey, formatTime } from '../lib/bookingsTime.js'
 import { formatPolicyMinutes, portalError, unwrap } from './portalLib.js'
 
@@ -55,6 +55,30 @@ export function SummaryRows({ rows }) {
 export const LocationLines = ({ location, instructions }) => (
   <div className="space-y-1.5"><InfoLine icon={MapPin}>{location}</InfoLine><InfoLine icon={Clock}>{instructions}</InfoLine></div>
 )
+
+// "Agregar a mi calendario": the API sends these links only for confirmed bookings, and
+// none carries the manage token. Google/Outlook copy the event once; the .ics follows updates.
+export function AddToCalendar({ calendar }) {
+  if (!calendar) return null
+  const options = [
+    ['Google Calendar', calendar.google],
+    ['Outlook', calendar.outlook],
+    ['Apple y otros (.ics)', calendar.ics],
+  ].filter(([, url]) => url)
+  return (
+    <div className="space-y-2">
+      <p className="flex items-center gap-2 text-sm font-semibold"><CalendarPlus className="h-4 w-4 text-[hsl(var(--muted-foreground))]" aria-hidden="true" />Agregar a mi calendario</p>
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+        {options.map(([label, url]) => (
+          <Button key={label} asChild variant="outline" className="w-full">
+            <a href={url} target="_blank" rel="noopener noreferrer">{label}</a>
+          </Button>
+        ))}
+      </div>
+      <p className="text-xs text-[hsl(var(--muted-foreground))]">Google y Outlook guardan una copia que no se actualiza sola. Si tu cita cambia, te enviaremos por correo el evento actualizado.</p>
+    </div>
+  )
+}
 
 // Online appointment: the guest's way in (lobby link or the business's external URL).
 // The API only sends it for confirmed bookings. Opens in a new tab, so it works framed too.

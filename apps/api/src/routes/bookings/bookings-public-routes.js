@@ -105,6 +105,14 @@ export function createBookingsPortalRouter({ prisma, getBrand, env = process.env
     return c.json({ data: result.booking, manageToken: result.manageToken, replayed: result.replayed }, result.replayed ? 200 : 201)
   }))
 
+  // Calendar file (v1.2 R3): signed with its own HMAC, opened by browsers and calendar apps.
+  app.get('/public/bookings/calendar/:bookingId/:file', run(async (c) => {
+    const file = await svc.calendarFile(c.req.param('bookingId'), c.req.param('file').replace(/\.ics$/, ''))
+    if (!file) return c.json({ error: 'El enlace no es válido o ya venció.', code: 'LINK_INVALID' }, 404)
+    c.header('X-Robots-Tag', 'noindex')
+    return c.body(file.body, 200, { 'Content-Type': 'text/calendar; charset=utf-8', 'Content-Disposition': `attachment; filename="${file.filename}"` })
+  }))
+
   app.get('/public/bookings/manage', run(async (c) => c.json({ data: await svc.manage(token(c)) })))
   app.get('/public/bookings/manage/availability', run(async (c) => {
     const query = await parse(c, publicManageAvailabilitySchema, 'query')

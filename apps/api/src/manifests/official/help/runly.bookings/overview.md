@@ -58,6 +58,14 @@ En el servicio, **Dónde se atiende** puede ser **En persona**, **Runly Chat** o
 - Si se reprograma, la sala y el enlace siguen siendo los mismos. Si se cancela o se rechaza, el enlace deja de funcionar y los invitados que esperaban salen de la sala.
 - La opción Runly Chat solo aparece disponible si las llamadas están configuradas en tu instancia.
 
+### Calendario personal del cliente
+
+Cuando una reservación está confirmada, el cliente ve **Agregar a mi calendario** en la confirmación, en la página de su reservación y en su correo: **Google Calendar**, **Outlook** y **Apple y otros (.ics)**. Las reservaciones pendientes no se ofrecen como evento.
+
+- Los correos de confirmación y reprogramación llevan el evento adjunto; el de cancelación lleva la cancelación del evento. Los calendarios que procesan invitaciones (Apple, Outlook y otros) actualizan o quitan la cita solos.
+- Google y Outlook, desde sus botones, guardan una copia que no se actualiza sola: si la cita cambia, el cliente debe usar el evento del correo nuevo.
+- Ningún enlace de calendario incluye el enlace personal de gestión. Si envías un nuevo enlace al cliente, el enlace del calendario anterior también deja de funcionar.
+
 ### Compartir e integrar
 
 En cada página pública, **Compartir e integrar** te da tres formas de llevarla a tus clientes:

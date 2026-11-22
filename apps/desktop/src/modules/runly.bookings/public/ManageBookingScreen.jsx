@@ -5,7 +5,7 @@ import { Alert, AlertDescription, Button, ConfirmDialog, EmptyState, Skeleton, S
 import { AlertTriangle, CalendarSync, Link2Off, Loader2, XCircle } from 'lucide-react'
 import { STATUS } from '../lib/bookingsLabels.js'
 import { addDays, dayKey, formatDateTime } from '../lib/bookingsTime.js'
-import { Card, LocationLines, MeetingJoin, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
+import { AddToCalendar, Card, LocationLines, MeetingJoin, PoliciesList, PortalHeader, SlotChooser, SummaryRows } from './PortalParts.jsx'
 import { Shell } from './PublicBookingScreen.jsx'
 import { isNetworkError, portalApi, portalError, unwrap, useAttemptKey } from './portalLib.js'
 
@@ -65,6 +65,7 @@ export default function ManageBookingScreen() {
           ['Personas', b.partySize > 1 ? String(b.partySize) : null], ['Nombre', b.guestName], ['Correo', b.guestEmail], ['Teléfono', b.guestPhone],
         ]} />
         {b.meeting ? <MeetingJoin meeting={b.meeting} /> : page ? <LocationLines location={page.location} instructions={page.instructions} /> : null}
+        {mode === 'view' ? <AddToCalendar calendar={b.calendar} /> : null}
         {mode === 'view' && actions.length ? (
           <div className="flex flex-wrap gap-2">
             {actions.includes('reschedule') ? <Button type="button" onClick={() => setMode('reschedule')}><CalendarSync />Reprogramar</Button> : null}

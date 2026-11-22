@@ -4,6 +4,7 @@
 import crypto from 'node:crypto'
 import { BookingError, eligibleResources, policyOf } from './bookings-core.js'
 import { createBookingsAvailabilityService } from './bookings-availability-service.js'
+import { createBookingsCalendarFiles } from './bookings-ics.js'
 import { hashToken, isTokenShape, manageToken, verifyPreview } from './bookings-links.js'
 
 const OCCUPYING = new Set(['PENDING', 'CONFIRMED'])
@@ -12,6 +13,7 @@ const badLink = () => new BookingError('El enlace no es válido o ya venció.', 
 
 export function createBookingsPortalService({ prisma, commands, getBrand = async () => null, env = process.env, now = () => Date.now(), meetings = null }) {
   const availabilitySvc = createBookingsAvailabilityService({ prisma })
+  const calendarFiles = createBookingsCalendarFiles({ prisma, env, meetings })
 
   const isLive = (p) => Boolean(p.published && p.space_published && p.space_enabled && p.company_enabled)
   const spaceOf = (p) => ({ id: p.space_id, timezone: p.timezone, policy: p.policy, enabled: p.space_enabled })
@@ -132,6 +134,8 @@ export function createBookingsPortalService({ prisma, commands, getBrand = async
       guestName: row.guest_name, guestEmail: row.guest_email, guestPhone: row.guest_phone, notes: row.notes,
       // Online appointment (v1.2 R2): only the guest lobby link, and only once confirmed.
       meeting: meetings ? await meetings.guestJoin(row.id, { ensure: true }) : null,
+      // "Agregar a mi calendario" (v1.2 R3): confirmed bookings only; no manage token inside.
+      calendar: await calendarFiles.linksFor(row.id),
     }
   }
 
@@ -232,5 +236,5 @@ export function createBookingsPortalService({ prisma, commands, getBrand = async
     return manage(token)
   }
 
-  return { getPage, availability, create, manage, manageAvailability, cancel, reschedule, frameAncestors }
+  return { getPage, availability, create, manage, manageAvailability, cancel, reschedule, frameAncestors, calendarFile: calendarFiles.file }
 }

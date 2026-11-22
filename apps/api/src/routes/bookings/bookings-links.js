@@ -2,7 +2,7 @@
 // version): nothing secret is stored (only its SHA-256), emails can rebuild it,
 // and rotating a link is bumping the version. Preview links are short-lived HMACs.
 import crypto from 'node:crypto'
-import { resolveAppBaseUrl } from '../../services/email-templates.js'
+import { resolveApiBaseUrl, resolveAppBaseUrl } from '../../services/email-templates.js'
 
 export const MANAGE_LINK_DAYS = 30
 const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/
@@ -28,6 +28,20 @@ export function manageUrl(token, env = process.env) {
 export function pageUrl(slug, env = process.env) {
   const base = resolveAppBaseUrl(env)
   return base ? `${base}/app/p/reservar/${slug}` : null
+}
+
+// Calendar file link (v1.2 R3): its own HMAC, never the manage token (which cannot be
+// derived from it). Tied to the manage link version, so rotating a leaked manage link
+// also kills the calendar link; a reschedule keeps it (the file always shows the current time).
+export const icsToken = (bookingId, manageVersion, env) => hmac(`booking-ics:${bookingId}:${manageVersion}`, env)
+export function verifyIcsToken(token, bookingId, manageVersion, env) {
+  if (!isTokenShape(token) || !(manageVersion > 0)) return false
+  const expected = icsToken(bookingId, manageVersion, env)
+  return crypto.timingSafeEqual(Buffer.from(expected), Buffer.from(token))
+}
+export function icsUrl(bookingId, token, env = process.env) {
+  const base = resolveApiBaseUrl(env)
+  return base ? `${base}/public/bookings/calendar/${bookingId}/${token}.ics` : null
 }
 
 // "<expiresEpochSeconds>.<hmac>" valid for one page for 30 minutes.
