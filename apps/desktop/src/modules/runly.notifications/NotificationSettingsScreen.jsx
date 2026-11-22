@@ -246,6 +246,10 @@ export default function NotificationSettingsScreen() {
         ]}
       />
       {tab === "events" && (
+        <>
+          <p className="text-xs text-[hsl(var(--muted-foreground))]">
+            Los correos a direcciones externas de una propiedad de Crecimiento se configuran en la propia propiedad y no dependen de estas preferencias.
+          </p>
       <NotificationPreferencesPanel
         rows={catalogRows}
         getPreference={getPreference}
@@ -255,6 +259,7 @@ export default function NotificationSettingsScreen() {
         isError={isPreferencesError}
         onRetry={() => refetchPreferences()}
       />
+        </>
       )}
       {tab === "schedule" && (
         <>

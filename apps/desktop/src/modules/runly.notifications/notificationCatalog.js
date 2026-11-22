@@ -3,7 +3,7 @@
 // registerNotificationEvents at module load) and, optionally, give it a label in
 // registerNotificationModule. Events not registered here still appear, grouped under
 // their prefix with a humanized title, so nothing silently disappears from the panel.
-import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall, ShieldAlert, Users } from "lucide-react";
+import { BellRing, CalendarClock, CheckSquare2, Globe2, MessageCircle, PhoneCall, ShieldAlert, TrendingUp, Users } from "lucide-react";
 
 export const EVENT_CATALOG = [
   { eventType: 'calendar.event.invite', title: 'Invitación a evento', description: 'Cuando te invitan a un evento.', icon: CalendarClock },
@@ -109,6 +109,13 @@ export const EVENT_CATALOG = [
     description: "Eventos criticos de operacion o integraciones.",
     icon: ShieldAlert,
   },
+  // runly.growth
+  { eventType: "growth.monitor.down", title: "Sitio caido", description: "Un monitor detecta que un sitio o servicio dejo de responder.", icon: TrendingUp },
+  { eventType: "growth.monitor.recovered", title: "Sitio recuperado", description: "Un sitio que estaba caido vuelve a responder.", icon: TrendingUp },
+  { eventType: "growth.monitor.ssl_expiring", title: "Certificado SSL por vencer", description: "Un certificado esta cerca de su fecha de vencimiento.", icon: ShieldAlert },
+  { eventType: "growth.monitor.domain_expiring", title: "Dominio por vencer", description: "Un dominio monitoreado esta cerca de vencer.", icon: ShieldAlert },
+  { eventType: "growth.errors.spike", title: "Visitantes con errores", description: "Muchos visitantes ven errores en una misma pagina de tu sitio.", icon: TrendingUp },
+  { eventType: "growth.property.inactive", title: "Sitio sin visitas", description: "Una propiedad deja de registrar actividad.", icon: TrendingUp },
 ];
 
 const MODULES = {
