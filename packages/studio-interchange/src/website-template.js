@@ -64,7 +64,9 @@ export function resolveWebsiteCatalog(catalogs, identities, version, digest) {
 
 const SITE_GROUPS = { website: [], landing: [], blog: [], ecommerce: ['ecommerce'], bookings: ['bookings'], restaurant: ['restaurant'] }
 // Blocks that embed third-party media or tie the page to a live commerce/account system never ship in a template.
-const EXCLUDED_BLOCKS = new Set(['VideoBlock', 'CartBlock', 'CartPageBlock', 'AccountPortalBlock'])
+// Cart, cart page and account portal are MARKERS: they carry no destination and are wired to the installing site's own catalog, Stripe
+// and customer accounts (`CartBlock.siteId` must stay empty). Embedded video stays out of templates.
+const EXCLUDED_BLOCKS = new Set(['VideoBlock'])
 const FORM_MARKERS = ['@contact', '@newsletter']
 const TEXT_LIMITS = { text: 2000, textarea: 8000, 'rich-text': 20000 }
 const SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i
@@ -193,6 +195,7 @@ function checkBlock(section, path, depth, ctx, page) {
     if (ctx.version === 1 && (value === null || value === undefined || JSON.stringify(value) === JSON.stringify(definition.defaultProps[key]))) continue
     // Forms are markers, calendars are bound by the ERP: a template never carries a destination.
     if (key === 'formId') { if (!FORM_MARKERS.includes(value) && value !== '') ctx.error(typeof value === 'string' && value.startsWith('@') ? 'form_marker_unknown' : 'prop_invalid', `${at}: usa @contact o @newsletter`, at); else if (value) ctx.forms.add(value); continue }
+    if (key === 'siteId' && definition.type === 'CartBlock') { if (value !== '') ctx.error('prop_invalid', `${at}: el carrito se vincula al sitio donde se instala la plantilla`, at); continue }
     if (key === 'calendarId') { if (value !== '') ctx.error('prop_invalid', `${at}: el calendario lo enlaza Runly al aplicar la plantilla`, at); continue }
     checkProp(field, value, at, ctx)
   }

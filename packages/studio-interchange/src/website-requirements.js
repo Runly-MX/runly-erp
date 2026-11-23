@@ -10,13 +10,18 @@ export const REQUIREMENT_LABELS = Object.freeze({
   motion: 'animaciones y efectos de movimiento',
   'fluid-type': 'tipografía fluida',
   'focal-point': 'punto focal de imágenes',
+  commerce: 'carrito y pagos',
+  accounts: 'cuentas de clientes',
 })
+
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value)
 
 function scan(node, found, depth = 0) {
   if (!isObject(node) || depth > 12 || found.size === Object.keys(REQUIREMENT_LABELS).length) return
   if (node.type === 'ComponentRefBlock') found.add('components')
+  if (node.type === 'CartBlock' || node.type === 'CartPageBlock') found.add('commerce')
+  if (node.type === 'AccountPortalBlock') found.add('accounts')
   for (const [key, value] of Object.entries(isObject(node.props) ? node.props : {})) {
     if (MOTION.has(key)) found.add('motion')
     else if (key === 'fluidType' && value === true) found.add('fluid-type')
