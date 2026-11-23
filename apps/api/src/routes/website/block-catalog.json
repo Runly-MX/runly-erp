@@ -9394,7 +9394,9 @@
         "caption": "",
         "link": "",
         "loading": "lazy",
-        "draggable": false
+        "draggable": false,
+        "vector": false,
+        "tint": "none"
       },
       "fields": {
         "src": {
@@ -9494,6 +9496,24 @@
         "draggable": {
           "type": "toggle",
           "label": "Arrastrable por el usuario"
+        },
+        "tint": {
+          "type": "select",
+          "label": "Color (solo SVG; requiere CORS en el origen de la imagen)",
+          "options": [
+            "none",
+            "primary",
+            "primaryFg",
+            "bg",
+            "fg",
+            "muted",
+            "accent",
+            "danger"
+          ]
+        },
+        "vector": {
+          "type": "toggle",
+          "label": "Imagen vectorial (SVG)"
         }
       }
     },

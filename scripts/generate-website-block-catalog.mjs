@@ -31,11 +31,13 @@ function field(definition) {
   const blocks = [];
   for (const [group, list] of groups) {
     for (const block of list) {
+      // The picker stores this renderer flag without exposing it as an Inspector control.
+      const fields = block.type === 'ImageBlock' && 'vector' in block.defaultProps ? { ...block.fields, vector: { type: 'toggle', label: 'Imagen vectorial (SVG)' } } : block.fields;
       blocks.push({
         type: block.type, label: block.label ?? block.type, category: block.category ?? null, group,
         slots: Object.keys(block.slots ?? {}),
-        defaultProps: JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(block.defaultProps ?? {}).filter(([key]) => key in (block.fields ?? {}))))),
-        fields: Object.fromEntries(Object.entries(block.fields ?? {}).map(([key, definition]) => [key, field(definition)])),
+        defaultProps: JSON.parse(JSON.stringify(Object.fromEntries(Object.entries(block.defaultProps ?? {}).filter(([key]) => key in (fields ?? {}))))),
+        fields: Object.fromEntries(Object.entries(fields ?? {}).map(([key, definition]) => [key, field(definition)])),
       });
     }
   }

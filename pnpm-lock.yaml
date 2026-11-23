@@ -144,8 +144,8 @@ importers:
         specifier: ^7.8.0
         version: 7.8.0(prisma@7.8.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1))
       '@raulbellosom/atlas-web-builder':
-        specifier: 0.9.0
-        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        specifier: 0.9.1
+        version: 0.9.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
       '@runly/core':
         specifier: workspace:^
         version: link:../../packages/core
@@ -318,8 +318,8 @@ importers:
         specifier: ^1.1.15
         version: 1.1.15(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@raulbellosom/atlas-web-builder':
-        specifier: 0.9.0
-        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        specifier: 0.9.1
+        version: 0.9.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
       '@runly/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -801,8 +801,8 @@ importers:
   packages/website-blocks:
     dependencies:
       '@raulbellosom/atlas-web-builder':
-        specifier: 0.9.0
-        version: 0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
+        specifier: 0.9.1
+        version: 0.9.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
       react:
         specifier: '>=18'
         version: 19.3.1
@@ -3276,8 +3276,8 @@ packages:
       react: '>=18.0.0'
       react-dom: '>=18.0.0'
 
-  '@raulbellosom/atlas-web-builder@0.9.0':
-    resolution: {integrity: sha512-qqN0xoSaS+8m2O4i3LC2otA1lI+hgx0kY8IniLzx753p/WZy1eFiQj0bc1YtelGls9cmhvSW4VpDKtmnSN2x7Q==}
+  '@raulbellosom/atlas-web-builder@0.9.1':
+    resolution: {integrity: sha512-N+zp8lOkN/yTLaC8PqwxlRDcnD5yW4t5vTphFdC2USjmN4St7E4BaxH51k98Oq8YE9D0VL7xhKoJxw6+88dIxA==}
     engines: {node: '>=20'}
     peerDependencies:
       react: '>=18.0.0'
@@ -11008,7 +11008,7 @@ snapshots:
       - '@types/react-dom'
       - use-sync-external-store
 
-  '@raulbellosom/atlas-web-builder@0.9.0(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))':
+  '@raulbellosom/atlas-web-builder@0.9.1(@types/react-dom@19.2.3(@types/react@19.2.14))(@types/react@19.2.14)(react-dom@19.3.1(react@19.3.1))(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))':
     dependencies:
       '@dnd-kit/core': 6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       '@dnd-kit/sortable': 8.0.0(@dnd-kit/core@6.3.1(react-dom@19.3.1(react@19.3.1))(react@19.3.1))(react@19.3.1)
