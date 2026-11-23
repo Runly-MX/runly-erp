@@ -106,10 +106,10 @@ export function createGrowthMonitorService({ prisma, worker, now = () => new Dat
 
   async function listMonitors({ companyId, propertyId = null }) {
     await ensureDefaultMonitors(companyId);
-    // Monitors of disabled sites stay stored but are not listed.
+    // Monitors of disabled sites, and removed (disabled) monitors, stay stored but are not listed.
     const live = await prisma.growthProperty.findMany({ where: { companyId, enabled: true }, select: { id: true } });
     const monitors = await prisma.growthMonitor.findMany({
-      where: { companyId, propertyId: propertyId ? { equals: propertyId, in: live.map((p) => p.id) } : { in: live.map((p) => p.id) } },
+      where: { companyId, enabled: true, propertyId: propertyId ? { equals: propertyId, in: live.map((p) => p.id) } : { in: live.map((p) => p.id) } },
       orderBy: [{ propertyId: "asc" }, { createdAt: "asc" }],
     });
     const at = now();

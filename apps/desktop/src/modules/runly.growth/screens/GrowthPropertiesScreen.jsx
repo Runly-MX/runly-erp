@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Badge,
   Button,
+  ConfirmDialog,
   DataTable,
   Dialog,
   DialogContent,
@@ -11,7 +12,7 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Code2, Globe, HelpCircle, Pencil, Plus, RefreshCw } from "lucide-react";
+import { Code2, Globe, HelpCircle, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 import { describeVerification } from "../lib/verify-message.js";
@@ -20,6 +21,7 @@ import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { useActiveCompany } from "../../../company/ActiveCompanyProvider.jsx";
 import { runly } from "../../../lib/runly.js";
 import { ConnectExternalSiteDialog } from "../components/ConnectExternalSiteDialog.jsx";
+import { GrowthCard } from "../components/GrowthMobileCards.jsx";
 import { EditPropertyDialog } from "../components/EditPropertyDialog.jsx";
 
 const KIND_LABEL = {
@@ -104,6 +106,7 @@ export default function GrowthPropertiesScreen() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [snippetTarget, setSnippetTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   const { data, isLoading, isError, error, refetch } = useQuery({
     queryKey: ["growth", "properties"],
@@ -139,7 +142,40 @@ export default function GrowthPropertiesScreen() {
     onError: (err) => toast.error(err?.message || "No se pudo guardar el sitio"),
   });
 
+  // Soft delete: the site (and its monitors) disappear from every Growth list; stored history is kept.
+  const deleteMutation = useMutation({
+    mutationFn: (propertyId) => runly.growth.updateProperty(propertyId, { enabled: false }, token),
+    onSuccess: () => {
+      toast.success("Sitio eliminado");
+      setDeleteTarget(null);
+      queryClient.invalidateQueries({ queryKey: ["growth"] });
+    },
+    onError: (err) => toast.error(err?.message || "No se pudo eliminar el sitio"),
+  });
+
   const properties = data?.data ?? [];
+
+  // Same buttons in the table and in the phone cards. Module sites are managed from runly.website.
+  const propertyActions = (p) => [
+    p.kind === "external_sdk" && p.status === "pending_verification" ? (
+      <Button key="verify" type="button" variant="outline" size="sm" disabled={verifyMutation.isPending} onClick={() => handleVerify(p.id)}>
+        <RefreshCw className="mr-1.5 h-3.5 w-3.5" />Verificar
+      </Button>
+    ) : null,
+    p.kind === "external_sdk" ? (
+      <Button key="code" type="button" variant="outline" size="sm" onClick={() => setSnippetTarget(p)}>
+        <Code2 className="mr-1.5 h-3.5 w-3.5" />Ver codigo
+      </Button>
+    ) : null,
+    <Button key="edit" type="button" variant="outline" size="sm" onClick={() => setEditTarget(p)}>
+      <Pencil className="mr-1.5 h-3.5 w-3.5" />Editar
+    </Button>,
+    p.kind === "external_sdk" ? (
+      <Button key="delete" type="button" variant="outline" size="sm" onClick={() => setDeleteTarget(p)}>
+        <Trash2 className="mr-1.5 h-3.5 w-3.5" />Eliminar
+      </Button>
+    ) : null,
+  ];
 
   const columns = useMemo(
     () => [
@@ -164,46 +200,13 @@ export default function GrowthPropertiesScreen() {
             {
               id: "actions",
               header: "",
-              cell: ({ row }) => (
-                <div className="flex gap-2 justify-end">
-                  {row.original.kind === "external_sdk" && row.original.status === "pending_verification" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      disabled={verifyMutation.isPending}
-                      onClick={() => handleVerify(row.original.id)}
-                    >
-                      <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                      Verificar
-                    </Button>
-                  )}
-                  {row.original.kind === "external_sdk" && (
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSnippetTarget(row.original)}
-                    >
-                      <Code2 className="mr-1.5 h-3.5 w-3.5" />
-                      Ver codigo
-                    </Button>
-                  )}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setEditTarget(row.original)}
-                  >
-                    <Pencil className="mr-1.5 h-3.5 w-3.5" />
-                    Editar
-                  </Button>
-                </div>
-              ),
+              cell: ({ row }) => <div className="flex flex-wrap justify-end gap-2">{propertyActions(row.original)}</div>,
             },
           ]
         : []),
     ],
+    // propertyActions only reads state setters and verifyMutation.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [canManage, verifyMutation.isPending],
   );
 
@@ -223,7 +226,7 @@ export default function GrowthPropertiesScreen() {
         title="Sitios conectados"
         description="Sitios rastreados por Growth, ya sea publicados con el modulo Web o conectados externamente via SDK."
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <ConnectHelpDialog />
             {canManage ? (
               <Button type="button" onClick={() => setDialogOpen(true)}>
@@ -246,6 +249,16 @@ export default function GrowthPropertiesScreen() {
           emptyTitle="Sin sitios conectados"
           emptyDescription="Conecta un sitio externo o instala el modulo Web para empezar a rastrear."
           searchPlaceholder="Buscar sitio..."
+          mobileCards
+          renderCard={(p) => (
+            <GrowthCard
+              title={p.name}
+              subtitle={p.domain}
+              badge={<Badge variant={STATUS_VARIANT[p.status] ?? "secondary"}>{STATUS_LABEL[p.status] ?? p.status}</Badge>}
+              rows={[["Tipo", KIND_LABEL[p.kind] ?? p.kind]]}
+              actions={canManage ? propertyActions(p) : null}
+            />
+          )}
         />
       )}
 
@@ -263,6 +276,16 @@ export default function GrowthPropertiesScreen() {
         verifying={verifyMutation.isPending}
         onCreate={(payload) => createMutation.mutateAsync(payload).then((res) => res.data)}
         onVerify={(propertyId) => verifyMutation.mutateAsync(propertyId)}
+      />
+
+      <ConfirmDialog
+        open={Boolean(deleteTarget)}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        title="Eliminar sitio"
+        description={`Dejaremos de rastrear "${deleteTarget?.name ?? ""}" y se quitaran sus monitores. El historial se conserva. Si pegaste el codigo en el sitio, quitalo tambien.`}
+        confirmLabel="Eliminar"
+        loading={deleteMutation.isPending}
+        onConfirm={() => deleteMutation.mutate(deleteTarget.id)}
       />
 
       <EditPropertyDialog

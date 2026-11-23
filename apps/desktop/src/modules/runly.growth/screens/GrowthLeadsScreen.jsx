@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   RunlyTable,
@@ -6,6 +6,7 @@ import {
   ErrorState,
   PageHeader,
   StatCard,
+  useIsMobile,
 } from "@runly/ui";
 import {
   CircleCheckBig,
@@ -82,6 +83,12 @@ export default function GrowthLeadsScreen() {
     Boolean(userProfile?.isAdmin || permissions.includes(key));
   const canRead = hasPermission("growth.leads.read");
   const canCreate = hasPermission("growth.leads.create");
+  const isMobile = useIsMobile();
+  // Phones open on cards; a view the user picked is remembered and wins.
+  const blueprint = useMemo(
+    () => ({ ...LEADS_BLUEPRINT, schema: { ...LEADS_BLUEPRINT.schema, defaultViewMode: isMobile ? "cards" : "table" } }),
+    [isMobile],
+  );
   const [createOpen, setCreateOpen] = useState(false);
   const [refreshSignal, setRefreshSignal] = useState(0);
 
@@ -158,7 +165,7 @@ export default function GrowthLeadsScreen() {
       </div>
 
       <RunlyTable
-        blueprint={LEADS_BLUEPRINT}
+        blueprint={blueprint}
         token={token}
         companyId={activeCompanyId}
         apiBaseUrl={API_BASE_URL}

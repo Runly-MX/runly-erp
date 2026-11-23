@@ -13,6 +13,7 @@ import { toast } from "sonner";
 
 import { useAuth } from "../../../auth/AuthProvider.jsx";
 import { runly } from "../../../lib/runly.js";
+import { GrowthCard } from "../components/GrowthMobileCards.jsx";
 import { MonitorConnectionDialog } from "../components/MonitorConnectionDialog.jsx";
 import { MonitorDetectDialog } from "../components/MonitorDetectDialog.jsx";
 import { MonitorDialog } from "../components/MonitorDialog.jsx";
@@ -49,6 +50,18 @@ const pct = (value) => (value == null ? "-" : `${value}%`);
 
 function formatDateTime(value) {
   return value ? new Date(value).toLocaleString("es-MX", { dateStyle: "short", timeStyle: "short" }) : "-";
+}
+
+function statusBadge(monitor) {
+  if (monitor.config?.maintenanceUntil && new Date(monitor.config.maintenanceUntil) > new Date()) {
+    return <Badge variant="secondary">En mantenimiento</Badge>;
+  }
+  return <Badge variant={STATUS_VARIANT[monitor.status] ?? "secondary"}>{STATUS_LABEL[monitor.status] ?? monitor.status}</Badge>;
+}
+
+function metricText(m) {
+  if (m.type === "ssl" || m.type === "domain") return m.sslDaysLeft == null ? "-" : `${m.sslDaysLeft} dias`;
+  return m.latestLatencyMs == null ? "-" : `${m.latestLatencyMs} ms`;
 }
 
 export default function GrowthMonitorsScreen() {
@@ -142,11 +155,11 @@ export default function GrowthMonitorsScreen() {
   const disableMutation = useMutation({
     mutationFn: (id) => runly.growth.disableMonitor(id, token),
     onSuccess: () => {
-      toast.success("Monitor desactivado");
+      toast.success("Monitor eliminado");
       setDeleteTarget(null);
       refresh();
     },
-    onError: (err) => toast.error(err?.message || "No se pudo desactivar el monitor"),
+    onError: (err) => toast.error(err?.message || "No se pudo eliminar el monitor"),
   });
 
   const regenerateMutation = useMutation({
@@ -204,6 +217,23 @@ export default function GrowthMonitorsScreen() {
     [monitorsQuery.data],
   );
 
+  // Same buttons in the table (icons) and in the phone cards (icon + label, 44px targets).
+  const monitorActions = (m, labeled) => {
+    const btn = (label, Icon, onClick, extra = {}) => (
+      <Button key={label} type="button" variant="outline" size={labeled ? "default" : "icon"} title={label} aria-label={label} onClick={onClick} {...extra}>
+        <Icon className="h-4 w-4" />
+        {labeled ? <span className="ml-2">{label}</span> : null}
+      </Button>
+    );
+    return [
+      btn("Probar ahora", Play, () => handleCheckNow(m), { disabled: checkingId === m.id }),
+      m.type === "heartbeat" ? btn("Conexion", Link2, () => setConnection({ monitor: m, token: null })) : null,
+      btn("Mantenimiento", Wrench, () => setMaintenanceTarget(m)),
+      btn("Editar", Pencil, () => setDialogTarget(m)),
+      m.enabled ? btn("Eliminar", Trash2, () => setDeleteTarget(m)) : null,
+    ];
+  };
+
   const columns = useMemo(
     () => [
       { accessorKey: "name", header: "Monitor" },
@@ -214,13 +244,7 @@ export default function GrowthMonitorsScreen() {
         header: "Estado",
         cell: ({ row }) => (
           <div className="space-y-0.5">
-            {row.original.config?.maintenanceUntil && new Date(row.original.config.maintenanceUntil) > new Date() ? (
-              <Badge variant="secondary">En mantenimiento</Badge>
-            ) : (
-              <Badge variant={STATUS_VARIANT[row.original.status] ?? "secondary"}>
-                {STATUS_LABEL[row.original.status] ?? row.original.status}
-              </Badge>
-            )}
+            {statusBadge(row.original)}
             {row.original.lastError ? (
               <p className="max-w-64 truncate text-xs text-[hsl(var(--muted-foreground))]" title={row.original.lastError}>
                 {row.original.lastError}
@@ -234,10 +258,7 @@ export default function GrowthMonitorsScreen() {
         id: "metric",
         accessorFn: (m) => (m.type === "ssl" || m.type === "domain" ? m.sslDaysLeft : m.latestLatencyMs) ?? -1,
         header: "Latencia",
-        cell: ({ row }) =>
-          row.original.type === "ssl" || row.original.type === "domain"
-            ? row.original.sslDaysLeft == null ? "-" : `${row.original.sslDaysLeft} dias`
-            : row.original.latestLatencyMs == null ? "-" : `${row.original.latestLatencyMs} ms`,
+        cell: ({ row }) => metricText(row.original),
       },
       { id: "checked", accessorFn: (m) => m.lastCheckedAt ?? "", header: "Revision", cell: ({ row }) => formatDateTime(row.original.lastCheckedAt) },
       ...(canManage
@@ -245,29 +266,7 @@ export default function GrowthMonitorsScreen() {
             {
               id: "actions",
               header: "",
-              cell: ({ row }) => (
-                <div className="flex justify-end gap-1.5">
-                  <Button type="button" variant="outline" size="icon" title="Probar ahora" aria-label="Probar ahora" disabled={checkingId === row.original.id} onClick={() => handleCheckNow(row.original)}>
-                    <Play className="h-4 w-4" />
-                  </Button>
-                  {row.original.type === "heartbeat" ? (
-                    <Button type="button" variant="outline" size="icon" title="Conexion" aria-label="Conexion" onClick={() => setConnection({ monitor: row.original, token: null })}>
-                      <Link2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                  <Button type="button" variant="outline" size="icon" title="Mantenimiento" aria-label="Mantenimiento" onClick={() => setMaintenanceTarget(row.original)}>
-                    <Wrench className="h-4 w-4" />
-                  </Button>
-                  <Button type="button" variant="outline" size="icon" title="Editar" aria-label="Editar" onClick={() => setDialogTarget(row.original)}>
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  {row.original.enabled ? (
-                    <Button type="button" variant="outline" size="icon" title="Desactivar" aria-label="Desactivar monitor" onClick={() => setDeleteTarget(row.original)}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  ) : null}
-                </div>
-              ),
+              cell: ({ row }) => <div className="flex justify-end gap-1.5">{monitorActions(row.original, false)}</div>,
             },
           ]
         : []),
@@ -296,7 +295,7 @@ export default function GrowthMonitorsScreen() {
         description="Revisiones activas de tus sitios: disponibilidad y certificado SSL. Recibes un aviso cuando un sitio cae, se recupera o su certificado esta por vencer."
         actions={
           canManage ? (
-            <div className="flex items-center gap-2">
+            <div className="flex flex-wrap items-center gap-2">
               <Button type="button" variant="outline" onClick={() => setAlertsOpen(true)}>
                 <BellRing className="mr-2 h-4 w-4" />
                 Alertas
@@ -329,6 +328,22 @@ export default function GrowthMonitorsScreen() {
           emptyTitle="Sin monitores"
           emptyDescription="Conecta un sitio con dominio en Sitios conectados y crearemos sus monitores automaticamente."
           searchPlaceholder="Buscar..."
+          mobileCards
+          renderCard={(m) => (
+            <GrowthCard
+              title={m.name}
+              subtitle={propertyName.get(m.propertyId)}
+              badge={statusBadge(m)}
+              rows={[
+                ["Tipo", TYPE_LABEL[m.type] ?? m.type],
+                ["Uptime 24h / 30d", `${pct(m.uptime24h)} / ${pct(m.uptime30d)}`],
+                [m.type === "ssl" || m.type === "domain" ? "Vence en" : "Latencia", metricText(m)],
+                ["Revision", formatDateTime(m.lastCheckedAt)],
+                ...(m.lastError ? [["Detalle", m.lastError]] : []),
+              ]}
+              actions={canManage ? monitorActions(m, true) : null}
+            />
+          )}
         />
       )}
 
@@ -357,6 +372,18 @@ export default function GrowthMonitorsScreen() {
           emptyTitle="Sin incidentes"
           emptyDescription="Cuando un sitio deje de responder aparecera aqui con su duracion."
           searchPlaceholder="Buscar..."
+          mobileCards
+          renderCard={(i) => (
+            <GrowthCard
+              title={monitorName.get(i.monitorId) ?? "-"}
+              badge={i.resolvedAt ? <Badge variant="success">Resuelto</Badge> : <Badge variant="destructive">Abierto</Badge>}
+              rows={[
+                ["Inicio", formatDateTime(i.startedAt)],
+                ["Resuelto", formatDateTime(i.resolvedAt)],
+                ["Causa", i.cause],
+              ]}
+            />
+          )}
         />
       </section>
 
@@ -396,6 +423,15 @@ export default function GrowthMonitorsScreen() {
           emptyTitle="Sin errores reportados"
           emptyDescription="Cuando un visitante encuentre una falla del servidor, aparecera aqui agrupada por ruta."
           searchPlaceholder="Buscar..."
+          mobileCards
+          renderCard={(e) => (
+            <GrowthCard
+              title={`${e.host ?? ""}${e.path ?? ""}`}
+              subtitle={e.siteName}
+              badge={<Badge variant="destructive">{e.kind === "network" ? "Sin conexion" : `HTTP ${e.status}`}</Badge>}
+              rows={[["Reportes", e.total], ["Visitantes", e.sessions], ["Ultimo", formatDateTime(e.lastSeen)]]}
+            />
+          )}
         />
       </section>
 
@@ -446,9 +482,10 @@ export default function GrowthMonitorsScreen() {
       <ConfirmDialog
         open={Boolean(deleteTarget)}
         onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
-        title="Desactivar monitor"
-        description={`Dejaremos de revisar "${deleteTarget?.name ?? ""}". El historial se conserva.`}
-        confirmLabel="Desactivar"
+        title="Eliminar monitor"
+        description={`Dejaremos de revisar "${deleteTarget?.name ?? ""}" y desaparecera de la lista. El historial se conserva.`}
+        confirmLabel="Eliminar"
+        loading={disableMutation.isPending}
         onConfirm={() => disableMutation.mutate(deleteTarget.id)}
       />
     </div>

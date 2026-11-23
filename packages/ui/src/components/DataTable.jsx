@@ -23,6 +23,7 @@ import { ErrorState } from './ErrorState.jsx'
 import { PageFooter } from './PageFooter.jsx'
 import { isAllPageSize } from '../lib/page-size.js'
 import { ViewModeSwitch, getStoredViewMode } from './ViewModeSwitch.jsx'
+import { useIsMobile } from '../hooks/useIsMobile.js'
 import { cn } from '../lib/utils.js'
 
 const GRID_CLASSES = {
@@ -58,6 +59,30 @@ function matchesFilter(spec, row, values) {
   return spec.match ? spec.match(row, active) : String(row[spec.key]) === String(active)
 }
 
+// Generic phone card: first column is the title, the rest are label/value pairs, header-less columns (actions) go last.
+function ColumnsCard({ row }) {
+  const cells = row.getVisibleCells()
+  const labeled = cells.filter((c, i) => i > 0 && typeof c.column.columnDef.header === 'string' && c.column.columnDef.header)
+  const extra = cells.filter((c, i) => i > 0 && !labeled.includes(c))
+  const render = (cell) => flexRender(cell.column.columnDef.cell, cell.getContext())
+  return (
+    <div className="min-w-0 space-y-3 rounded-2xl surface-card p-4">
+      {cells[0] ? <div className="break-words font-medium">{render(cells[0])}</div> : null}
+      {labeled.length ? (
+        <dl className="grid grid-cols-2 gap-x-3 gap-y-2 text-sm">
+          {labeled.map((cell) => (
+            <div key={cell.id} className="min-w-0">
+              <dt className="text-xs text-[hsl(var(--muted-foreground))]">{cell.column.columnDef.header}</dt>
+              <dd className="break-words">{render(cell)}</dd>
+            </div>
+          ))}
+        </dl>
+      ) : null}
+      {extra.length ? <div className="flex flex-wrap gap-2 border-t border-[hsl(var(--border))] pt-3">{extra.map((cell) => <Fragment key={cell.id}>{render(cell)}</Fragment>)}</div> : null}
+    </div>
+  )
+}
+
 export function DataTable({
   columns,
   data,
@@ -89,6 +114,9 @@ export function DataTable({
   stateKey,
   defaultViewMode,
   renderCard,
+  // Below 768px always show cards (wide tables don't fit a phone) and hide the Tabla/Tarjetas switch.
+  // Without renderCard each row becomes a generic card built from its columns.
+  mobileCards = false,
   cardGridClassName,
   filtersLayout = 'menu',
 }) {
@@ -107,10 +135,12 @@ export function DataTable({
 
   // Optional Tabla / Tarjetas toggle. Controlled via viewMode + onViewModeChange, otherwise
   // uncontrolled and persisted under viewStorageKey. Only active when renderCard is provided.
-  const switchModes = renderCard && viewModes?.length > 1 ? viewModes : null
+  const isMobile = useIsMobile()
+  const autoCards = Boolean(mobileCards && isMobile)
+  const switchModes = !autoCards && renderCard && viewModes?.length > 1 ? viewModes : null
   const [storedViewMode, setStoredViewMode] = useState(() => getStoredViewMode(viewStorageKey, defaultViewMode ?? viewModes?.[0] ?? 'table'))
   const requestedMode = controlledViewMode ?? storedViewMode
-  const currentViewMode = switchModes ? (switchModes.includes(requestedMode) ? requestedMode : (defaultViewMode ?? switchModes[0])) : 'table'
+  const currentViewMode = autoCards ? 'cards' : switchModes ? (switchModes.includes(requestedMode) ? requestedMode : (defaultViewMode ?? switchModes[0])) : 'table'
   const cardsActive = currentViewMode !== 'table'
   const changeViewMode = (mode) => {
     if (controlledViewMode === undefined) setStoredViewMode(mode)
@@ -233,7 +263,7 @@ export function DataTable({
           <EmptyState icon={emptyIcon ?? FileSearch} title={emptyTitle} description={emptyDescription} action={emptyAction} />
         ) : (
           <div className={cn('grid gap-4', cardGridClassName ?? GRID_CLASSES[currentViewMode] ?? GRID_CLASSES.cards)}>
-            {rows.map((row) => <Fragment key={row.id}>{renderCard(row.original, row)}</Fragment>)}
+            {rows.map((row) => <Fragment key={row.id}>{renderCard ? renderCard(row.original, row) : <ColumnsCard row={row} />}</Fragment>)}
           </div>
         )
       ) : (

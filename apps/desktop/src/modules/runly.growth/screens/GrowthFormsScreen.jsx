@@ -254,7 +254,7 @@ export default function GrowthFormsScreen() {
                     <button
                       type="button"
                       onClick={() => setDeleteTarget(selectedForm)}
-                      className="flex items-center gap-1.5 shrink-0 text-xs text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.1)] px-2.5 py-1.5 rounded-md transition-colors"
+                      className="flex min-h-11 items-center gap-1.5 shrink-0 text-xs text-[hsl(var(--destructive))] hover:bg-[hsl(var(--destructive)/0.1)] px-3 rounded-md md:min-h-0 md:px-2.5 md:py-1.5 transition-colors"
                     >
                       <Trash2 size={12} />Eliminar
                     </button>

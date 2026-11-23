@@ -7,6 +7,7 @@ import {
   DataTable,
   EmptyState,
   StatCard,
+  useIsMobile,
 } from "@runly/ui";
 import {
   Activity,
@@ -314,6 +315,7 @@ function AcquisitionReport({ data }) {
         )}
       </ReportCard>
       <DataTable
+        mobileCards
         columns={funnelColumns}
         data={data.funnel ?? []}
         searchPlaceholder="Buscar paso del embudo..."
@@ -323,6 +325,7 @@ function AcquisitionReport({ data }) {
         pageSize={10}
       />
       <DataTable
+        mobileCards
         columns={acquisitionColumns}
         data={data.rows ?? []}
         searchPlaceholder="Buscar fuente, medio o campana..."
@@ -332,6 +335,7 @@ function AcquisitionReport({ data }) {
         pageSize={15}
       />
       <DataTable
+        mobileCards
         columns={landingColumns}
         data={data.landingPages ?? []}
         searchPlaceholder="Buscar pagina de entrada..."
@@ -345,6 +349,7 @@ function AcquisitionReport({ data }) {
 }
 
 function ContentReport({ data }) {
+  const isMobile = useIsMobile();
   return (
     <div className="space-y-6">
       <ReportCard title="Contenido mas visto">
@@ -353,7 +358,7 @@ function ContentReport({ data }) {
             <BarChart data={data.rows.slice(0, 10)} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="path" width={120} />
+              <YAxis type="category" dataKey="path" width={isMobile ? 80 : 120} />
               <Tooltip />
               <Bar dataKey="pageviews" name="Vistas" fill={COLORS.secondary} />
             </BarChart>
@@ -363,6 +368,7 @@ function ContentReport({ data }) {
         )}
       </ReportCard>
       <DataTable
+        mobileCards
         columns={pageColumns}
         data={data.rows ?? []}
         searchPlaceholder="Buscar ruta..."
@@ -372,6 +378,7 @@ function ContentReport({ data }) {
         pageSize={15}
       />
       <DataTable
+        mobileCards
         columns={ctaColumns}
         data={data.ctas ?? []}
         searchPlaceholder="Buscar CTA..."
@@ -385,6 +392,7 @@ function ContentReport({ data }) {
 }
 
 function ConversionsReport({ data }) {
+  const isMobile = useIsMobile();
   return (
     <div className="space-y-6">
       <ReportCard
@@ -396,7 +404,7 @@ function ConversionsReport({ data }) {
             <BarChart data={data.funnel} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" horizontal={false} />
               <XAxis type="number" allowDecimals={false} />
-              <YAxis type="category" dataKey="label" width={150} />
+              <YAxis type="category" dataKey="label" width={isMobile ? 90 : 150} />
               <Tooltip />
               <Bar dataKey="count" name="Personas" fill={COLORS.success} />
             </BarChart>
@@ -406,6 +414,7 @@ function ConversionsReport({ data }) {
         )}
       </ReportCard>
       <DataTable
+        mobileCards
         columns={formColumns}
         data={data.rows ?? []}
         searchPlaceholder="Buscar formulario..."
@@ -415,6 +424,7 @@ function ConversionsReport({ data }) {
         pageSize={15}
       />
       <DataTable
+        mobileCards
         columns={campaignColumns}
         data={data.campaigns ?? []}
         searchPlaceholder="Buscar campana o fuente..."
@@ -498,6 +508,7 @@ function RetentionReport({ data }) {
         )}
       </ReportCard>
       <DataTable
+        mobileCards
         columns={retentionColumns}
         data={data.rows ?? []}
         searchPlaceholder="Buscar cohorte..."
