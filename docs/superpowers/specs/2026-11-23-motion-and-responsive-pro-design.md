@@ -6,7 +6,7 @@ Motion Engine and Responsive Pro for the Atlas Web Builder, the Website portable
 
 ## 2. Status
 
-Proposed (2026-11-23). Implementation starts only after approval of this spec and `docs/superpowers/plans/2026-11-23-motion-and-responsive-pro.md`.
+Approved (2026-11-23). Implementation follows `docs/superpowers/plans/2026-11-23-motion-and-responsive-pro.md`.
 
 ## 3. Context
 
