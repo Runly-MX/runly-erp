@@ -6,7 +6,7 @@ Cart, checkout, orders and customer accounts as connections any Website template
 
 ## 2. Status
 
-Approved (2026-11-24, by the owner: "todo de una vez", accounts available to any template, templates connect but do not create data).
+Implemented and rehearsed, not published (2026-11-24; approved by the owner: "todo de una vez", accounts available to any template, templates connect but do not create data).
 
 ## 3. Context
 

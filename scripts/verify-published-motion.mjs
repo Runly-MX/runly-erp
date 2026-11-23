@@ -43,6 +43,12 @@ try {
   assert.ok(html.includes('Texto de entrada visible desde el servidor'))
   assert.ok(!/opacity:\s*0(?![.\d])/.test(html) && !html.includes('atlas-reveal--pending') && !/visibility:\s*hidden/.test(html), 'published server HTML hides content')
 
+  // Commerce and account markers render on the server without a site configured (no network, no hidden content).
+  const commerce = { schemaVersion: 1, id: 'c', slug: '/carrito', title: 'Carrito', visibility: 'public', seo: {}, regions: { main: { id: 'main', children: ['cart', 'thanks', 'account'] } }, blocks: {
+    cart: { id: 'cart', type: 'CartPageBlock', props: { mode: 'cart' }, children: {} }, thanks: { id: 'thanks', type: 'CartPageBlock', props: { mode: 'thanks' }, children: {} }, account: { id: 'account', type: 'AccountPortalBlock', props: {}, children: {} } } }
+  const shop = renderPage({ page: { id: 'p2', title: 'Carrito', routePath: '/carrito', publishedBuilderData: commerce }, theme, config: { company: 'demo', apiUrl: 'http://localhost' } }).html
+  assert.ok(shop.includes('Gracias por tu compra') && !/opacity:\s*0(?![.\d])/.test(shop), 'commerce markers render on the server')
+
   const document = (withScript) => `<!doctype html><html lang="es" data-release="rehearsal"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><link rel="stylesheet" href="/style.css"></head><body style="margin:0"><div id="runly-public-root" data-ssr="hydrate">${html}</div>${withScript ? '<script type="module" src="/entry.js"></script>' : ''}</body></html>`
   server = await serve({
     '/': { body: document(true) }, '/nojs': { body: document(false) },
