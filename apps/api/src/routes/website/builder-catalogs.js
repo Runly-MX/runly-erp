@@ -4,6 +4,7 @@ const require=createRequire(import.meta.url)
 // ZIP digests are immutable: retain the legacy snapshot separately from the
 // current editing catalog so installing a newer renderer never rewrites history.
 export const WEBSITE_BUILDER_CATALOGS=Object.freeze({
+  '0.10.0':require('./builder-catalogs/0.10.0.json'),
   '0.9.3':require('./builder-catalogs/0.9.3.json'),
   '0.9.2':require('./builder-catalogs/0.9.2.json'),
   '0.9.1':require('./builder-catalogs/0.9.1.json'),
@@ -20,6 +21,10 @@ export const WEBSITE_BUILDER_CATALOGS=Object.freeze({
 })
 
 export const WEBSITE_BUILDER_CATALOG_IDENTITIES=Object.freeze({
+  '0.10.0': Object.freeze({
+    'e1fab8bba0ee7c34b53ba9c50dabc97fc1bfdfe7630e17ed216e800a24541672':require('./builder-catalogs/0.10.0.json'),
+    'accc3b87704f9bc9559db1dcf601924e6cedd6954f54ccb25c91db99d0ff8334':require('./builder-catalogs/0.10.0-erp.json'),
+  }),
   '0.9.3': Object.freeze({
     'bef1f8ef8e59918550911f2f98e078c36d576375359e2b6f2ee96f8595d092fd':require('./builder-catalogs/0.9.3.json'),
     'b1a09aee08578047cc2a7f8c1f5f902379e8057c55a6b0d3559417457042c0ca':require('./builder-catalogs/0.9.3-erp.json'),

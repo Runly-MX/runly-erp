@@ -1,6 +1,273 @@
 {
   "generatedBy": "scripts/generate-website-block-catalog.mjs",
   "schemaVersion": 1,
+  "capabilities": {
+    "motion": 1,
+    "responsive": 1
+  },
+  "universalProps": {
+    "_animation": {
+      "type": "object",
+      "keys": {
+        "preset": {
+          "type": "enum",
+          "values": [
+            "none",
+            "fade-in",
+            "slide-up",
+            "slide-down",
+            "slide-left",
+            "slide-right",
+            "zoom-in",
+            "zoom-out",
+            "blur-in",
+            "rotate-in",
+            "flip-up",
+            "slide-fade-up",
+            "slide-fade-down",
+            "slide-fade-left",
+            "slide-fade-right"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "min": 0,
+          "max": 5000
+        },
+        "delay": {
+          "type": "number",
+          "min": 0,
+          "max": 5000
+        },
+        "easing": {
+          "type": "enum",
+          "values": [
+            "ease-out",
+            "ease",
+            "ease-in",
+            "ease-in-out",
+            "linear"
+          ]
+        },
+        "distance": {
+          "type": "number",
+          "min": 0,
+          "max": 400
+        },
+        "scaleFrom": {
+          "type": "number",
+          "min": 0.5,
+          "max": 1.5
+        },
+        "blur": {
+          "type": "number",
+          "min": 0,
+          "max": 40
+        },
+        "once": {
+          "type": "boolean"
+        }
+      }
+    },
+    "_scrollReveal": {
+      "type": "boolean"
+    },
+    "_kenburns": {
+      "type": "object",
+      "keys": {
+        "zoom": {
+          "type": "number",
+          "min": 1,
+          "max": 1.5
+        },
+        "direction": {
+          "type": "enum",
+          "values": [
+            "in",
+            "out"
+          ]
+        },
+        "pan": {
+          "type": "enum",
+          "values": [
+            "none",
+            "left",
+            "right",
+            "up",
+            "down",
+            "center"
+          ]
+        },
+        "duration": {
+          "type": "number",
+          "min": 3000,
+          "max": 30000
+        },
+        "easing": {
+          "type": "enum",
+          "values": [
+            "ease-out",
+            "ease",
+            "ease-in",
+            "ease-in-out",
+            "linear"
+          ]
+        }
+      }
+    },
+    "_pressed": {
+      "type": "object",
+      "keys": {
+        "scale": {
+          "type": "number",
+          "min": 0.9,
+          "max": 1
+        },
+        "brightness": {
+          "type": "number",
+          "min": 50,
+          "max": 150
+        }
+      }
+    },
+    "_stagger": {
+      "type": "number",
+      "min": 0,
+      "max": 1000
+    },
+    "_parallax": {
+      "type": "object",
+      "keys": {
+        "speed": {
+          "type": "number",
+          "min": -0.5,
+          "max": 0.5
+        }
+      }
+    },
+    "_hover": {
+      "type": "object",
+      "keys": {
+        "scale": {
+          "type": "string",
+          "pattern": "^$|^[01]\\.\\d{1,2}$"
+        },
+        "shadow": {
+          "type": "enum",
+          "values": [
+            "",
+            "sm",
+            "md",
+            "lg"
+          ]
+        },
+        "brightness": {
+          "type": "number",
+          "min": 50,
+          "max": 150
+        },
+        "duration": {
+          "type": "number",
+          "min": 0,
+          "max": 2000
+        },
+        "easing": {
+          "type": "enum",
+          "values": [
+            "ease",
+            "ease-out",
+            "ease-in-out"
+          ]
+        }
+      }
+    },
+    "_transform": {
+      "type": "object",
+      "keys": {
+        "rotate": {
+          "type": "number",
+          "min": -360,
+          "max": 360
+        },
+        "skewX": {
+          "type": "number",
+          "min": -89,
+          "max": 89
+        },
+        "skewY": {
+          "type": "number",
+          "min": -89,
+          "max": 89
+        }
+      }
+    },
+    "_filter": {
+      "type": "object",
+      "keys": {
+        "blur": {
+          "type": "number",
+          "min": 0,
+          "max": 50
+        },
+        "brightness": {
+          "type": "number",
+          "min": 0,
+          "max": 300
+        },
+        "contrast": {
+          "type": "number",
+          "min": 0,
+          "max": 300
+        },
+        "grayscale": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        },
+        "sepia": {
+          "type": "number",
+          "min": 0,
+          "max": 100
+        }
+      }
+    },
+    "_opacity": {
+      "type": "number",
+      "min": 0,
+      "max": 1
+    },
+    "_cursor": {
+      "type": "enum",
+      "values": [
+        "auto",
+        "default",
+        "pointer",
+        "grab",
+        "zoom-in",
+        "zoom-out",
+        "crosshair",
+        "not-allowed",
+        "text"
+      ]
+    },
+    "_zIndex": {
+      "type": "number",
+      "min": -1000,
+      "max": 1000,
+      "integer": true
+    },
+    "_sticky": {
+      "type": "boolean"
+    },
+    "_lazy": {
+      "type": "boolean"
+    },
+    "_lazyMinHeight": {
+      "type": "number",
+      "min": 0,
+      "max": 4000
+    }
+  },
   "blocks": [
     {
       "type": "BoxBlock",
@@ -1314,6 +1581,34 @@
             "break-word"
           ]
         },
+        "fluidType": {
+          "type": "toggle",
+          "label": "Tamaño fluido (se adapta al ancho)"
+        },
+        "fontSizeMin": {
+          "type": "number",
+          "label": "Tamaño mínimo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontSizeMax": {
+          "type": "number",
+          "label": "Tamaño máximo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fluidMinViewport": {
+          "type": "number",
+          "label": "Ancho donde empieza (px)",
+          "min": 280,
+          "max": 1024
+        },
+        "fluidMaxViewport": {
+          "type": "number",
+          "label": "Ancho donde termina (px)",
+          "min": 600,
+          "max": 2560
+        },
         "stylePreset": {
           "type": "select",
           "label": "Estilo inicial",
@@ -2381,6 +2676,34 @@
             "anywhere",
             "break-word"
           ]
+        },
+        "fluidType": {
+          "type": "toggle",
+          "label": "Tamaño fluido (se adapta al ancho)"
+        },
+        "fontSizeMin": {
+          "type": "number",
+          "label": "Tamaño mínimo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontSizeMax": {
+          "type": "number",
+          "label": "Tamaño máximo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fluidMinViewport": {
+          "type": "number",
+          "label": "Ancho donde empieza (px)",
+          "min": 280,
+          "max": 1024
+        },
+        "fluidMaxViewport": {
+          "type": "number",
+          "label": "Ancho donde termina (px)",
+          "min": 600,
+          "max": 2560
         },
         "stylePreset": {
           "type": "select",
@@ -3450,6 +3773,34 @@
             "break-word"
           ]
         },
+        "fluidType": {
+          "type": "toggle",
+          "label": "Tamaño fluido (se adapta al ancho)"
+        },
+        "fontSizeMin": {
+          "type": "number",
+          "label": "Tamaño mínimo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontSizeMax": {
+          "type": "number",
+          "label": "Tamaño máximo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fluidMinViewport": {
+          "type": "number",
+          "label": "Ancho donde empieza (px)",
+          "min": 280,
+          "max": 1024
+        },
+        "fluidMaxViewport": {
+          "type": "number",
+          "label": "Ancho donde termina (px)",
+          "min": 600,
+          "max": 2560
+        },
         "stylePreset": {
           "type": "select",
           "label": "Estilo inicial",
@@ -4291,6 +4642,42 @@
           "label": "Alto de imagen (px)",
           "min": 1,
           "max": 4000
+        },
+        "focalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "focalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
+        },
+        "tabletFocalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "mobileFocalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "tabletFocalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
+        },
+        "mobileFocalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
         },
         "stylePreset": {
           "type": "select",
@@ -5421,6 +5808,34 @@
             "anywhere",
             "break-word"
           ]
+        },
+        "fluidType": {
+          "type": "toggle",
+          "label": "Tamaño fluido (se adapta al ancho)"
+        },
+        "fontSizeMin": {
+          "type": "number",
+          "label": "Tamaño mínimo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fontSizeMax": {
+          "type": "number",
+          "label": "Tamaño máximo (px)",
+          "min": 8,
+          "max": 200
+        },
+        "fluidMinViewport": {
+          "type": "number",
+          "label": "Ancho donde empieza (px)",
+          "min": 280,
+          "max": 1024
+        },
+        "fluidMaxViewport": {
+          "type": "number",
+          "label": "Ancho donde termina (px)",
+          "min": 600,
+          "max": 2560
         },
         "stylePreset": {
           "type": "select",
@@ -10417,6 +10832,42 @@
             "accent",
             "danger"
           ]
+        },
+        "focalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "focalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
+        },
+        "tabletFocalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "mobileFocalX": {
+          "type": "number",
+          "label": "Punto focal horizontal (%)",
+          "min": 0,
+          "max": 100
+        },
+        "tabletFocalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
+        },
+        "mobileFocalY": {
+          "type": "number",
+          "label": "Punto focal vertical (%)",
+          "min": 0,
+          "max": 100
         },
         "vector": {
           "type": "toggle",
