@@ -34,6 +34,13 @@ export const WEBSITE_RESPONSIVE = Object.freeze({
   focalPoint: Object.freeze({ props: Object.freeze(['focalX', 'focalY', 'tabletFocalX', 'tabletFocalY', 'mobileFocalX', 'mobileFocalY']), range: Object.freeze([0, 100]) }),
   overflowAudit: Object.freeze({ widths: Object.freeze([320, 375, 414, 768, 1024, 1280, 1440, 1920]) }),
 })
+// Commerce and customer accounts as template markers (spec 2026-11-24): what a template may carry and how the host wires it.
+export const WEBSITE_COMMERCE = Object.freeze({
+  version: 1,
+  markers: Object.freeze({ cart: 'CartBlock', cartPage: 'CartPageBlock', accounts: 'AccountPortalBlock' }),
+  rules: Object.freeze({ cartSiteId: 'must-be-empty', cartRequiresSiteKind: 'ecommerce', accountsAnySiteKind: true, createsDataOnInstall: false }),
+  installOptions: Object.freeze({ accountsMode: Object.freeze(['keep', 'enable']) }),
+})
 export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name])
 export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
 export const WEBSITE_LIMITS_VERSION = 2
