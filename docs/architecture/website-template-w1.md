@@ -11,6 +11,7 @@ Se evoluciona **el mismo** `runly.website-template`, con el mismo MIME `applicat
 | v1, sin imágenes | Aceptado con el catálogo correcto | Aceptado |
 | v1, imágenes por opt-in experimental | Rechazado: `asset_limit` incluso con límites elevados | Solo algunas llamadas experimentales podían abrirlo |
 | v2, `minReaderVersion: 2`, `assetPolicy: packaged-raster-v1` | Imágenes PNG/JPEG/WebP dentro de límites; licencias e inventario verificados | Rechazo `format_unsupported`, comprobado con el lector E1b real |
+| v2, `minReaderVersion: 2`, `assetPolicy: packaged-media-v2` | Igual que raster v1 más SVG maestro sanitizado (`image/svg+xml`, `assets/<sha256>.svg`) | Solo se declara cuando el paquete lleva al menos un SVG; un lector que solo conoce raster v1 lo rechaza con `format_unsupported`. Spec: `docs/superpowers/specs/2026-11-23-native-svg-media-design.md` |
 | v2 sin política conocida / versión futura | Rechazado | Rechazado |
 
 `WEBSITE_TEMPLATE.formatVersion` y `minReaderVersion` pasan a 2; `WEBSITE_MANIFEST_READERS` conserva el esquema v1. `websiteManifestSchema` discrimina por versión. `WEBSITE_LIMITS_VERSION = 2`; `WEBSITE_ASSET_POLICY = { name: 'packaged-raster-v1', version: 1 }`. Un manifiesto v2 no se consigue renombrando un ZIP estático: siguen siendo obligatorios `mimetype` primero y sin comprimir, manifiesto, páginas declarativas e inventario completo.

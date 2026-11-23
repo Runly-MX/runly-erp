@@ -16,6 +16,11 @@ export const WEBSITE_TEMPLATE = Object.freeze({
 const MiB = 1024 * 1024
 // W1 is an explicit reader/policy revision. Legacy v1 remains image-free.
 export const WEBSITE_ASSET_POLICY = Object.freeze({ name: 'packaged-raster-v1', version: 1 })
+// v2 = raster v1 + sanitized SVG masters. Only documents that carry an SVG declare it, so historical
+// templates keep their exact bytes; a reader that only knows v1 refuses it with format_unsupported.
+export const WEBSITE_MEDIA_POLICY = Object.freeze({ name: 'packaged-media-v2', version: 2 })
+export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name])
+export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
 export const WEBSITE_LIMITS_VERSION = 2
 export const WEBSITE_LIMITS_CEILING = Object.freeze({ compressed: 25 * MiB, expanded: 128 * MiB, entry: 10 * MiB, entries: 256, ratio: 200, folders: 32, depth: 3, pages: 24, blocksPerPage: 300, blocksTotal: 1500, blockDepth: 6, assets: 100, assetBytes: 64 * MiB, jsonBytes: 4 * MiB, previews: 6, previewBytes: MiB, previewSide: 1920 })
 export const WEBSITE_LIMITS = WEBSITE_LIMITS_CEILING
@@ -57,7 +62,7 @@ const SEMVER = /^\d{1,9}\.\d{1,9}\.\d{1,9}(?:[-+][0-9A-Za-z.-]{1,100})?$/
 const ASSET_REF = /^asset:([a-f0-9]{64})$/
 const digest = z.string().regex(shaPattern)
 const inventory = z.strictObject({ path: z.string().max(160), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest })
-const asset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(['image/png', 'image/jpeg', 'image/webp']), width: z.number().int().positive().max(8192), height: z.number().int().positive().max(8192), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest, license: z.string().max(120) })
+const asset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(Object.keys(WEBSITE_ASSET_EXTENSIONS)), width: z.number().int().positive().max(8192), height: z.number().int().positive().max(8192), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest, license: z.string().max(120) })
 const manifestV1 = z.strictObject({
   format: z.literal('runly.website-template'), formatVersion: z.literal(1), minReaderVersion: z.literal(1),
   builder: z.strictObject({ name: z.literal(WEBSITE_TEMPLATE.builder), min: z.string().regex(SEMVER), catalogDigest: digest }),
@@ -69,7 +74,7 @@ const manifestV1 = z.strictObject({
   document: z.strictObject({ files: z.array(inventory).max(256) }),
   licenses: z.array(z.strictObject({ id: z.string().regex(/^[a-z0-9_-]{1,60}$/), path: z.string().regex(/^licenses\/[a-z0-9_-]+\.txt$/), redistribution: z.enum(['allowed', 'unknown', 'forbidden']) })).max(100),
 })
-const manifestV2 = manifestV1.extend({ formatVersion: z.literal(2), minReaderVersion: z.literal(2), assetPolicy: z.literal(WEBSITE_ASSET_POLICY.name) })
+const manifestV2 = manifestV1.extend({ formatVersion: z.literal(2), minReaderVersion: z.literal(2), assetPolicy: z.enum(WEBSITE_ASSET_POLICIES) })
 export const WEBSITE_MANIFEST_READERS = Object.freeze({ 1: manifestV1, 2: manifestV2 })
 export const websiteManifestSchema = z.discriminatedUnion('formatVersion', [manifestV1, manifestV2])
 const hexColor = /^#[0-9a-fA-F]{6}(?:[0-9a-fA-F]{2})?$/
@@ -185,10 +190,13 @@ async function validateCore(input, options) {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.format !== WEBSITE_TEMPLATE.format) throw packageError('manifest_invalid', 'El manifiesto no es de una plantilla Website.')
   if (!Number.isInteger(raw.formatVersion) || raw.formatVersion < 1) throw packageError('manifest_invalid', 'Versión de formato no válida.')
   if (raw.formatVersion > WEBSITE_TEMPLATE.formatVersion || raw.minReaderVersion > WEBSITE_TEMPLATE.formatVersion) throw packageError('format_unsupported', 'La plantilla es de una versión más nueva de Runly. Actualiza Runly para usarla.', { manifest: { format: raw.format, formatVersion: raw.formatVersion, minReaderVersion: raw.minReaderVersion } })
-  if (raw.formatVersion === 2 && raw.assetPolicy !== WEBSITE_ASSET_POLICY.name) throw packageError('format_unsupported', 'La política de imágenes de esta plantilla no está soportada.')
+  if (raw.formatVersion === 2 && !WEBSITE_ASSET_POLICIES.includes(raw.assetPolicy)) throw packageError('format_unsupported', 'La política de imágenes de esta plantilla no está soportada.')
   let manifest
   try { manifest = websiteManifestSchema.parse(raw) } catch { throw packageError('manifest_invalid', 'El manifiesto de la plantilla no es válido.') }
   if (manifest.formatVersion === 1) limits = { ...limits, assets: 0 }
+  // The policy must say exactly what the package carries: SVG needs v2, and v2 without SVG is not produced.
+  const hasSvg = manifest.assets.some((a) => a.mime === 'image/svg+xml')
+  if (hasSvg !== (manifest.assetPolicy === WEBSITE_MEDIA_POLICY.name)) throw packageError('manifest_invalid', hasSvg ? 'Un SVG requiere la política de medios packaged-media-v2.' : 'La política packaged-media-v2 solo se declara con SVG.')
 
   const catalogs = options.builderCatalogs
   if (!catalogs || typeof catalogs !== 'object') throw new TypeError('BUILDER_CATALOGS_REQUIRED')
@@ -236,7 +244,7 @@ async function validateCore(input, options) {
   const licensesById = new Map(manifest.licenses.map(l => [l.id, l]))
   let assetBytes = 0
   for (const a of manifest.assets) {
-    const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[a.mime]
+    const ext = WEBSITE_ASSET_EXTENSIONS[a.mime]
     if (a.id !== `asset-${a.sha256}` || a.path !== `assets/${a.sha256}.${ext}` || !declared.has(a.path)) throw packageError('asset_missing', 'Un activo no coincide con su identificador o ruta.')
     const record = declared.get(a.path), bytes = files.get(a.path)
     if (record.sha256 !== a.sha256 || record.bytes !== a.bytes || bytes.length !== a.bytes || sha(bytes) !== a.sha256) throw packageError('checksum_mismatch', 'El inventario del activo no coincide con sus bytes.')

@@ -3,7 +3,7 @@ import { StudioError } from './studio/document.js'
 // Stable machine codes (the contract). Messages are Spanish, for people.
 export const REASONS = Object.freeze([
   'zip_invalid', 'zip_limit_exceeded', 'zip_unsafe_entry', 'manifest_invalid', 'format_unsupported', 'checksum_mismatch', 'undeclared_entry',
-  'image_invalid', 'image_limit', 'font_unavailable', 'license_forbidden', 'document_invalid', 'page_count_mismatch',
+  'image_invalid', 'image_limit', 'svg_invalid_xml', 'svg_forbidden_content', 'svg_too_complex', 'svg_no_viewbox', 'font_unavailable', 'license_forbidden', 'document_invalid', 'page_count_mismatch',
 ])
 
 // Still a StudioError with the historical HTTP code, so the existing Studio

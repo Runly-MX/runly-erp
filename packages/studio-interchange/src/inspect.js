@@ -7,6 +7,7 @@ import { STUDIO_FONTS, studioFontStyle } from './studio/fonts.js'
 import { FORMAT, LIMITS_VERSION, PACKAGE_FOR_DOCUMENT, PACKAGE_LIMITS, resolveLimits } from './limits.js'
 import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
+import { validateSvg } from './svg.js'
 
 // Pure inspection of a portable Studio package: no Prisma, Storage, network,
 // filesystem or persistence. Safe to run on hostile bytes.
@@ -90,6 +91,8 @@ export async function validateImage(input, mime, limits = PACKAGE_LIMITS) {
 async function decodeImage(bytes, mime, limits) {
   if (!bytes.length) throw packageError('image_invalid', 'La imagen está vacía.')
   if (bytes.length > limits.entry) throw packageError('image_limit', 'Imagen demasiado grande.')
+  // Vector master: already canonical sanitized bytes; dimensions are the viewBox's logical size.
+  if (mime === 'image/svg+xml') { const { width, height } = validateSvg(bytes); return { width, height } }
   const format = mime === 'image/png' && bytes.subarray(0, 8).equals(PNG) ? 'png' : mime === 'image/jpeg' && bytes[0] === 255 && bytes[1] === 216 && bytes[2] === 255 ? 'jpeg' : mime === 'image/webp' && bytes.toString('ascii', 0, 4) === 'RIFF' && bytes.toString('ascii', 8, 12) === 'WEBP' ? 'webp' : null
   if (!format) throw packageError('image_invalid', 'La firma de la imagen no coincide con su MIME.')
   let metadata

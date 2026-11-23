@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { writePackageZip } from './write.js'
 import { validateImage } from './inspect.js'
 import { packageError } from './errors.js'
-import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_LIMITS, catalogDigest, validateWebsiteTemplate } from './website-template.js'
+import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_MEDIA_POLICY, WEBSITE_ASSET_EXTENSIONS, WEBSITE_LIMITS, catalogDigest, validateWebsiteTemplate } from './website-template.js'
 
 // Same format, same ZIP writer, same validator. No filesystem, network or template execution.
 export async function exportWebsiteTemplate({ title, summary = '', locale = 'en', siteKind = 'website', pages, theme, assets = [], licenses = [], catalog, builderVersion = '0.3.5' }) {
@@ -25,7 +25,8 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
   if (theme) entries.set('theme.json', Buffer.from(JSON.stringify(theme)))
   for (const asset of assets) {
     const data = Buffer.from(asset.data), sha256 = sha(data), size = await validateImage(data, asset.mime)
-    const ext = { 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp' }[asset.mime]
+    const ext = WEBSITE_ASSET_EXTENSIONS[asset.mime]
+    if (!ext) throw packageError('image_invalid', 'Formato de imagen no admitido.')
     const path = `assets/${sha256}.${ext}`
     if (records.some(a => a.sha256 === sha256)) throw packageError('manifest_invalid', 'El exportador recibió un activo duplicado.')
     records.push({ id: `asset-${sha256}`, path, mime: asset.mime, ...size, bytes: data.length, sha256, license: asset.license })
@@ -36,7 +37,7 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
     entries.set(`licenses/${license.id}.txt`, Buffer.from(license.notice))
   }
   const manifest = {
-    format: WEBSITE_TEMPLATE.format, formatVersion: 2, minReaderVersion: 2, assetPolicy: WEBSITE_ASSET_POLICY.name,
+    format: WEBSITE_TEMPLATE.format, formatVersion: 2, minReaderVersion: 2, assetPolicy: records.some(a => a.mime === 'image/svg+xml') ? WEBSITE_MEDIA_POLICY.name : WEBSITE_ASSET_POLICY.name,
     builder: { name: WEBSITE_TEMPLATE.builder, min: builderVersion, catalogDigest: catalogDigest(catalog) },
     title, summary, locale, siteKind,
     pages: pages.map((page, index) => ({ path: page.path, title: page.title, isHome: page.isHome, file: `pages/page-${index + 1}.json` })),
