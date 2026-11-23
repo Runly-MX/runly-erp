@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto'
 import {assertWebsiteAccess} from './website-authorization-service.js'
 import { WebsiteServiceError, notFound } from '../routes/website/service-helpers.js'
+import { BLOCK_CATALOG } from '../routes/website/page-document.js'
+import { componentCatalogErrors, componentUsage, validateComponentDefinitions } from '@runly/studio-interchange/website-components'
 
 const fail = (message, code = 'validation_failed', status = 422) => new WebsiteServiceError(message, status, code)
 const plain = value => value !== null && typeof value === 'object' && !Array.isArray(value)
@@ -125,6 +127,35 @@ export function createWebsiteDraftService({ prisma }) {
       })
     })
   }
+  // Site-level synced components live in the draft identity, so they share the site draft revision, locking,
+  // idempotency receipts and release snapshot with the rest of the site draft.
+  async function getComponents(args) {
+    const current = await prisma.websiteSite.findFirst({ where: { id: args.siteId, companyId: args.companyId, enabled: true } })
+    if (!current) throw notFound('Recurso')
+    return { components: current.draftIdentity?.components ?? {}, draftRevision: current.draftRevision ?? 0 }
+  }
+  async function saveComponents(args) {
+    if (args.expectedRevision === undefined) throw fail('expectedRevision requerida.')
+    const components = args.components ?? {}
+    const problems = [...validateComponentDefinitions(components), ...componentCatalogErrors(components, BLOCK_CATALOG)]
+    if (problems.length) throw Object.assign(fail(`Componentes no válidos: ${problems[0].message}`, problems[0].code), { details: problems.slice(0, 20) })
+    return prisma.$transaction(async tx => {
+      await lockSite(tx, args.companyId, args.siteId)
+      return receipt(tx, args, `site.components:${args.siteId}`, { components, expectedRevision: args.expectedRevision }, async () => {
+        const current = await tx.websiteSite.findFirst({ where: { id: args.siteId, companyId: args.companyId, enabled: true } })
+        expected(current.draftRevision, args.expectedRevision)
+        // A definition cannot disappear while a page draft still references it.
+        const pages = await tx.websitePage.findMany({ where: { companyId: args.companyId, siteId: args.siteId, enabled: true }, select: { id: true, title: true, draftBuilderData: true } })
+        const usage = componentUsage(pages.map(page => ({ id: page.id, page: page.draftBuilderData })))
+        const inUse = Object.keys(usage).filter(id => !Object.hasOwn(components, id))
+        if (inUse.length) throw Object.assign(fail(`El componente "${inUse[0]}" sigue en uso en ${usage[inUse[0]].length} página(s).`, 'component_in_use', 409), { details: inUse.map(id => ({ componentId: id, pageIds: usage[id] })) })
+        const identity = current.draftIdentity ?? { name: current.name, siteType: current.siteType, settings: current.settings, seoDefaults: current.seoDefaults, themeId: current.themeId, homepagePageId: current.homepagePageId }
+        const saved = await tx.websiteSite.update({ where: { id: args.siteId, companyId: args.companyId, draftRevision: current.draftRevision }, data: { draftIdentity: { ...identity, components }, draftRevision: { increment: 1 } } })
+        await tx.auditLog.create({ data: { actorId: args.actorId, moduleKey: 'runly.website', entityType: 'website.site', entityId: args.siteId, action: 'site.components.save_draft', metadata: { companyId: args.companyId, revision: saved.draftRevision, components: Object.keys(components).length } } })
+        return { components, draftRevision: saved.draftRevision }
+      })
+    })
+  }
   async function createSite(args, create) {
     return prisma.$transaction(async tx => {
       await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${args.companyId}::text,0))::text`
@@ -134,5 +165,5 @@ export function createWebsiteDraftService({ prisma }) {
       })
     })
   }
-  return { save, saveSite, createSite, lockSite, receipt, expected }
+  return { save, saveSite, getComponents, saveComponents, createSite, lockSite, receipt, expected }
 }

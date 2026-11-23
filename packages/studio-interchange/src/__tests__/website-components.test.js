@@ -108,3 +108,42 @@ test('components: invalid definitions never expand and hostile input never throw
   assert.doesNotThrow(() => resolveComponents([null, 5, 'x', ref(null), ref([]), { type: 'SectionBlock', children: { c: 'no' } }], null))
   assert.deepEqual(resolveComponents([], undefined), { sections: [], errors: [] })
 })
+
+import { componentCatalogErrors, componentUsage, resolvePageComponents } from '../website-components.js'
+const pageOf = (blocks, children = Object.keys(blocks)) => ({ schemaVersion: 1, id: 'p', slug: '/', title: 'p', visibility: 'public', regions: { main: { id: 'main', children } }, blocks })
+
+test('components (page form): expands like the renderer, keeps other blocks and never mutates the input', () => {
+  const page = pageOf({ a: { id: 'a', type: 'TextBlock', props: { text: 'Antes' } }, r: { id: 'r', type: COMPONENT_REF_TYPE, props: { componentId: 'footer', overrides: { 'root/children/0': { text: 'Otro' } } } } })
+  const snapshot = JSON.stringify(page)
+  const { page: out, errors } = resolvePageComponents(page, { footer }, { overridable })
+  assert.deepEqual(errors, [])
+  assert.equal(JSON.stringify(page), snapshot)
+  const [first, second] = out.regions.main.children
+  assert.equal(first, 'a')
+  assert.equal(out.blocks[second].type, 'SectionBlock')
+  assert.equal(out.blocks[out.blocks[second].children.children[0]].props.text, 'Otro')
+  assert.equal(out.blocks.r, undefined)
+  const plain = pageOf({ a: { id: 'a', type: 'TextBlock' } })
+  assert.equal(resolvePageComponents(plain, {}).page, plain)
+})
+
+test('components (page form): broken references are dropped with stable codes and the block limit holds', () => {
+  const page = pageOf({ k: { id: 'k', type: 'TextBlock' }, r: { id: 'r', type: COMPONENT_REF_TYPE, props: { componentId: '__proto__' } }, m: { id: 'm', type: COMPONENT_REF_TYPE, props: { componentId: 'gone' } } })
+  const { page: out, errors } = resolvePageComponents(page, { footer })
+  assert.deepEqual(errors.map((e) => e.code), ['component_id_invalid', 'component_missing'])
+  assert.deepEqual(out.regions.main.children, ['k'])
+  const big = { name: 'Grande', section: { type: 'SectionBlock', children: { c: Array.from({ length: 100 }, () => ({ type: 'TextBlock', props: { text: 'x' } })) } } }
+  const refs = Object.fromEntries(Array.from({ length: 10 }, (_, i) => [`r${i}`, { id: `r${i}`, type: COMPONENT_REF_TYPE, props: { componentId: 'big' } }]))
+  const limited = resolvePageComponents(pageOf(refs), { big })
+  assert.equal(limited.page.regions.main.children.length, 2)
+  assert.deepEqual(limited.errors.map((e) => e.code), ['component_limit'])
+})
+
+test('components: usage index and catalog check of definitions', () => {
+  const ref = (componentId) => ({ id: 'r', type: COMPONENT_REF_TYPE, props: { componentId } })
+  const pages = [{ id: 'p1', page: pageOf({ r: ref('footer') }) }, { id: 'p2', page: pageOf({ r: ref('footer'), s: { ...ref('x'), id: 's' } }) }, { id: 'p3', page: pageOf({}) }]
+  assert.deepEqual(componentUsage(pages), { footer: ['p1', 'p2'], x: ['p2'] })
+  assert.deepEqual(componentCatalogErrors({ footer }, catalog), [])
+  assert.deepEqual(componentCatalogErrors({ a: { name: 'x', section: { type: 'Nope' } } }, catalog).map((e) => e.code), ['block_unknown'])
+  assert.deepEqual(componentCatalogErrors({ a: { name: 'x', section: { type: 'TextBlock', props: { zzz: 1 } } } }, catalog).map((e) => e.code), ['prop_unknown'])
+})

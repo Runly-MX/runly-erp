@@ -576,9 +576,11 @@ export function createWebsiteService({ prisma, publicationContext, supabaseAdmin
     return rows.map(publicSite)
   }
   async function saveSiteDraft(args) { return publicSite(await drafts.saveSite(args)) }
+  async function getSiteComponents(args) { return drafts.getComponents(args) }
+  async function saveSiteComponents(args) { return drafts.saveComponents(args) }
 
   return secureWebsiteMethods({
-    listSites, saveSiteDraft,
+    listSites, saveSiteDraft, getSiteComponents, saveSiteComponents,
     getSite,
     getDefaultPageSite,
     createSite,

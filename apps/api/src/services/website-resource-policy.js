@@ -4,7 +4,7 @@ import { assertWebsiteAccess } from './website-authorization-service.js'
 import { createFileAccess } from './files/access.js'
 
 export const WEBSITE_METHOD_PERMISSIONS = Object.freeze({
-  listSites: 'website.site.read', saveSiteDraft: 'website.site.update',
+  listSites: 'website.site.read', saveSiteDraft: 'website.site.update', getSiteComponents: 'website.site.read', saveSiteComponents: 'website.site.update',
   getSite: 'website.site.read', getDefaultPageSite: 'website.pages.read', createSite: 'website.site.update', updateSite: 'website.site.update', deleteSite: 'website.site.update', restoreSite: 'website.site.update', purgeSite: 'website.site.update',
   listPages: 'website.pages.read', getPage: 'website.pages.read', getPageByPath: 'website.pages.read',
   createPage: 'website.pages.create', updatePage: 'website.pages.update', saveDraft: 'website.pages.update',
@@ -68,7 +68,7 @@ export function createWebsiteResourcePolicy({ prisma }) {
   async function before(name, args) {
     const { companyId } = args
     const requiredIds = {
-      saveSiteDraft: 'siteId',
+      saveSiteDraft: 'siteId', getSiteComponents: 'siteId', saveSiteComponents: 'siteId',
       updateSite: 'siteId', deleteSite: 'siteId', restoreSite: 'siteId', purgeSite: 'siteId', getPage: 'pageId', updatePage: 'pageId', saveDraft: 'pageId', publishPage: 'pageId', softDeletePage: 'pageId',
       getTheme: 'themeId', updateTheme: 'themeId', updateMenu: 'menuId', softDeleteMenu: 'menuId', createMenuItem: 'menuId', reorderMenuItems: 'menuId',
       updateMenuItem: 'itemId', softDeleteMenuItem: 'itemId', updateBlogCategory: 'categoryId', softDeleteBlogCategory: 'categoryId',

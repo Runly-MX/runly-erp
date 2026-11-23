@@ -11,10 +11,18 @@ import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
 import { eventUrl as ticketEventUrl } from '../routes/ticketing/ticketing-links.js'
 import { createFileAccess } from './files/access.js'
 import { PUBLISHABLE_IMAGE_MIME, imageSignatureMatches } from './website-image-signature.js'
+import { overridableFromCatalog, resolvePageComponents } from '@runly/studio-interchange/website-components'
 import { z } from 'zod'
 import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
 
 const failure=(code,status=409)=>new WebsiteServiceError('No se pudo completar la publicación.',status,code)
+// Published pages carry the expanded component tree: a release never depends on a live lookup of the definitions.
+const overridableContent=overridableFromCatalog(BLOCK_CATALOG)
+export function expandSyncedComponents(document,components){
+  const expanded=resolvePageComponents(document,components,{overridable:overridableContent})
+  if(expanded.errors.length)throw failure('component_unresolved',422)
+  return expanded.page
+}
 // runly.bookings block: the page (and service) must belong to this company and be
 // live; the release pins the portal address so the site never guesses the ERP host.
 async function bookingBinding(prisma,companyId,props) {
@@ -163,7 +171,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         const p=captured.pages.find(p=>p.id===id);if(!p)throw notFound('Recurso')
         const meta=p.draftMetadata??p
         if(meta.visibility!=='public')throw failure('page_not_public',422)
-        routes.push({path:meta.routePath,sourceKind:'page',sourceId:p.id,revision:p.revision,document:normalizeWebsiteDocument(p.draftBuilderData,{strict:true}),seo:p.draftSeo??p.seo??{},title:meta.title,slug:meta.slug,visibility:meta.visibility})
+        routes.push({path:meta.routePath,sourceKind:'page',sourceId:p.id,revision:p.revision,document:expandSyncedComponents(normalizeWebsiteDocument(p.draftBuilderData,{strict:true}),captured.identity?.components),seo:p.draftSeo??p.seo??{},title:meta.title,slug:meta.slug,visibility:meta.visibility})
       }
       for(const p of captured.posts.filter(p=>!removedPosts.has(p.id)&&((a.changes.publishPostIds??[]).includes(p.id)||(!captured.base&&p.status==='published')))) {
         routes=routes.filter(r=>r.sourceId!==p.id)

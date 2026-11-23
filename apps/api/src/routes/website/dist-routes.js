@@ -74,6 +74,23 @@ export function createDistRoutes({ prisma, supabaseAdmin, requirePermission, web
     }
   )
 
+  // Site-level synced components (stage 2B-3): definitions are part of the site draft and its revision.
+  app.get('/website/sites/:siteId/components', requirePermission('website.site.read'), async (c) => {
+    try {
+      const { siteId } = c.req.param()
+      return c.json({ data: await websiteSvc.getSiteComponents({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), siteId }) })
+    } catch (err) { return websiteErrorHandler(err, c) }
+  })
+  app.put('/website/sites/:siteId/components', requirePermission('website.site.update'), async (c) => {
+    try {
+      const { siteId } = c.req.param()
+      const body = await c.req.json().catch(() => ({}))
+      if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).some(key => !['components', 'expectedRevision'].includes(key)) || !Number.isSafeInteger(body.expectedRevision) || body.expectedRevision < 0 || body.components === null || typeof body.components !== 'object' || Array.isArray(body.components)) return c.json({ error: 'Datos inválidos.', code: 'validation_failed' }, 422)
+      const saved = await websiteSvc.saveSiteComponents({ access: websiteAccessFromRequest(c), companyId: c.get('companyId'), actorId: c.get('userId') ?? null, siteId, components: body.components, expectedRevision: body.expectedRevision, idempotencyKey: c.req.header('Idempotency-Key') })
+      return c.json({ data: saved })
+    } catch (err) { return websiteErrorHandler(err, c) }
+  })
+
   app.patch(
     '/website/sites/:siteId',
     requirePermission('website.site.update'),

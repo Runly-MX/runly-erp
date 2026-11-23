@@ -3,6 +3,10 @@ import {WebsiteServiceError} from '../routes/website/service-helpers.js'
 import {normalizeWebsiteDocument,websiteDocumentHash as hash} from './website-draft-service.js'
 import {createWebsiteFormScopeService} from './website-form-scope-service.js'
 import {releaseBytesHash} from './website-release-storage.js'
+import {overridableFromCatalog,resolvePageComponents} from '@runly/studio-interchange/website-components'
+import {BLOCK_CATALOG} from '../routes/website/page-document.js'
+
+const overridableContent=overridableFromCatalog(BLOCK_CATALOG)
 
 export function createWebsiteAdminContractService({prisma,isolation,namespaceRoot,readFile,customDomainTarget=process.env.RUNLY_WEBSITE_CUSTOM_DOMAIN_TARGET}) {
   const scopes=createWebsiteFormScopeService({prisma})
@@ -53,9 +57,16 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
     if(result&&typeof result==='object')delete result.updatedAt
     return result
   }
-  function pageProjection(row,manifest,published=false) {
+  // A draft is compared with the published page after expanding its synced components, so editing a component marks
+  // every page that uses it as changed (published documents already carry the expanded tree).
+  function expandedDraft(value,components){
+    if(!components||!value||typeof value!=='object')return value
+    const expanded=resolvePageComponents(value,components,{overridable:overridableContent})
+    return expanded.errors.length?value:expanded.page
+  }
+  function pageProjection(row,manifest,published=false,components=undefined) {
     const meta=published?row:row.draftMetadata??row
-    return {document:document(published?row.document:row.draftBuilderData,manifest),seo:published?row.seo??{}:row.draftSeo??row.seo??{},title:meta.title,slug:meta.slug,path:published?row.path:meta.routePath,visibility:meta.visibility}
+    return {document:document(published?row.document:expandedDraft(row.draftBuilderData,components),manifest),seo:published?row.seo??{}:row.draftSeo??row.seo??{},title:meta.title,slug:meta.slug,path:published?row.path:meta.routePath,visibility:meta.visibility}
   }
   async function state(a) {
     await owned(a)
@@ -64,11 +75,12 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       const release=site.activeReleaseId?await db.websiteRelease.findFirst({where:{id:site.activeReleaseId,companyId:a.companyId,siteId:a.siteId}}):null
       const manifest=release&&releaseDTO(release).integrityMode==='sealed'?release.manifest:null
       const rows=await db.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId,enabled:true}})
+      const siteComponents=(site.draftIdentity??{}).components
       const pages=rows.map(row=>{
         const published=manifest?.routes?.find(r=>r.sourceKind==='page'&&r.sourceId===row.id)
         let changed=true,documentHash=null,changedFields=[]
         try{
-          const draft=pageProjection(row,manifest);documentHash=hash(draft.document)
+          const draft=pageProjection(row,manifest,false,siteComponents);documentHash=hash(draft.document)
           const live=published&&pageProjection(published,manifest,true)
           changed=!published||hash(draft)!==hash(live)
           if(live)changedFields=Object.keys(draft).filter(k=>hash(draft[k])!==hash(live[k]))

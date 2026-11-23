@@ -109,3 +109,74 @@ export function resolveComponents(sections, components = {}, { overridable = () 
   }
   return { sections: expand(structuredClone(sections), 'sections'), errors }
 }
+
+/**
+ * Same expansion for an Atlas Page (`regions` + flat `blocks` map), used by hosts that store pages in that shape
+ * (ERP drafts and releases). Mirrors the renderer resolver in Atlas; returns `{ page, errors }`, never mutates
+ * the input, and returns the same object when the page has no reference.
+ */
+export function resolvePageComponents(page, components = {}, { overridable = () => false, maxBlocks = COMPONENT_LIMITS.blocks } = {}) {
+  const errors = []
+  if (!isObject(page) || !isObject(page.blocks) || !isObject(page.regions)) return { page, errors }
+  if (!Object.values(page.blocks).some((block) => block?.type === COMPONENT_REF_TYPE)) return { page, errors }
+  const defs = isObject(components) ? components : {}
+  const blocks = {}
+  let total = 0, limited = false, serial = 0
+  function instantiate(section, prefix) {
+    const id = `${prefix}~${++serial}`, children = {}
+    for (const [slot, list] of Object.entries(isObject(section.children) ? section.children : {})) children[slot] = list.map((child) => instantiate(child, prefix))
+    blocks[id] = { id, type: section.type, props: isObject(section.props) ? section.props : {}, ...(Object.keys(children).length ? { children } : {}) }
+    return id
+  }
+  function expandIds(ids, path) {
+    const out = []
+    for (const [index, id] of (Array.isArray(ids) ? ids : []).entries()) {
+      const block = page.blocks[id], at = `${path}[${index}]`
+      if (!isObject(block)) { out.push(id); continue }
+      if (block.type === COMPONENT_REF_TYPE) {
+        const props = isObject(block.props) ? block.props : {}, componentId = props.componentId
+        if (typeof componentId !== 'string' || !ID.test(componentId)) { errors.push(error('component_id_invalid', 'Identificador de componente no válido.', at)); continue }
+        if (!Object.hasOwn(defs, componentId) || !isObject(defs[componentId]) || validateComponentDefinitions({ [componentId]: defs[componentId] }).length) { errors.push(error('component_missing', `El componente "${componentId}" no existe o no es válido.`, at)); continue }
+        const clone = structuredClone(defs[componentId].section), cost = sizeOf(clone)
+        if (total + cost > maxBlocks) { if (!limited) errors.push(error('component_limit', `La página supera ${maxBlocks} bloques al expandir componentes.`, at)); limited = true; continue }
+        applyOverrides(clone, props.overrides, overridable, at, errors)
+        total += cost
+        out.push(instantiate(clone, id))
+        continue
+      }
+      total += 1
+      const copy = { ...block }
+      if (isObject(block.children)) copy.children = Object.fromEntries(Object.entries(block.children).map(([slot, list]) => [slot, expandIds(list, `${at}.children.${slot}`)]))
+      blocks[id] = copy
+      out.push(id)
+    }
+    return out
+  }
+  const regions = Object.fromEntries(Object.entries(page.regions).map(([name, region]) => [name, { ...region, children: expandIds(region?.children, `regions.${name}`) }]))
+  return { page: { ...page, regions, blocks }, errors }
+}
+
+/** Which pages reference each component (for "in use" checks before a definition is removed). */
+export function componentUsage(pages) {
+  const usage = {}
+  for (const { id, page } of pages) for (const block of Object.values(isObject(page?.blocks) ? page.blocks : {})) {
+    const componentId = block?.type === COMPONENT_REF_TYPE ? block.props?.componentId : null
+    if (typeof componentId === 'string') (usage[componentId] ??= new Set()).add(id)
+  }
+  return Object.fromEntries(Object.entries(usage).map(([componentId, ids]) => [componentId, [...ids]]))
+}
+
+/** Catalog check of component definitions (block types and prop names). */
+export function componentCatalogErrors(components, catalog) {
+  if (!isObject(components)) return []
+  const blocks = new Map((catalog?.blocks ?? []).map((block) => [block.type, block])), errors = []
+  const check = (section, path, depth = 0) => {
+    if (!isObject(section) || depth > COMPONENT_LIMITS.depth + 1) return
+    const definition = blocks.get(section.type)
+    if (!definition) { errors.push(error('block_unknown', `Bloque no permitido "${String(section.type).slice(0, 60)}".`, `${path}.type`)); return }
+    for (const name of Object.keys(isObject(section.props) ? section.props : {})) if (!Object.hasOwn(definition.fields ?? {}, name)) errors.push(error('prop_unknown', `La propiedad "${name.slice(0, 40)}" no existe en ${definition.type}.`, `${path}.props.${name.slice(0, 40)}`))
+    for (const [slot, list] of Object.entries(isObject(section.children) ? section.children : {})) if (Array.isArray(list)) list.forEach((child, index) => check(child, `${path}.children.${slot}[${index}]`, depth + 1))
+  }
+  for (const [id, definition] of Object.entries(components)) check(definition?.section, `components.${id.slice(0, 40)}.section`)
+  return errors
+}
