@@ -5,7 +5,7 @@ import { packageError } from './errors.js'
 import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_MEDIA_POLICY, WEBSITE_ASSET_EXTENSIONS, WEBSITE_LIMITS, catalogDigest, validateWebsiteTemplate } from './website-template.js'
 
 // Same format, same ZIP writer, same validator. No filesystem, network or template execution.
-export async function exportWebsiteTemplate({ title, summary = '', locale = 'en', siteKind = 'website', pages, theme, assets = [], licenses = [], catalog, builderVersion = '0.3.5' }) {
+export async function exportWebsiteTemplate({ title, summary = '', locale = 'en', siteKind = 'website', pages, theme, components, assets = [], licenses = [], catalog, builderVersion = '0.3.5' }) {
   const entries = new Map(), records = []
   const sha = data => createHash('sha256').update(data).digest('hex')
   const definitions = new Map(catalog.blocks.map(block => [block.type, block]))
@@ -23,6 +23,9 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
   }
   for (const [index, page] of pages.entries()) entries.set(`pages/page-${index + 1}.json`, Buffer.from(JSON.stringify(portableDefaults(page.sections))))
   if (theme) entries.set('theme.json', Buffer.from(JSON.stringify(theme)))
+  // Optional site-level synced components; omitted entirely when unused so historical packages keep their exact bytes.
+  const definitions_ = components && Object.keys(components).length ? Object.fromEntries(Object.entries(components).map(([id, def]) => [id, { ...def, section: portableDefaults([def.section])[0] }])) : null
+  if (definitions_) entries.set('components.json', Buffer.from(JSON.stringify(definitions_)))
   for (const asset of assets) {
     const data = Buffer.from(asset.data), sha256 = sha(data), size = await validateImage(data, asset.mime)
     const ext = WEBSITE_ASSET_EXTENSIONS[asset.mime]
@@ -51,6 +54,7 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
     }
   }
   for (const page of pages) forms(page.sections)
+  for (const def of Object.values(definitions_ ?? {})) forms([def.section])
   const bytes = await writePackageZip([['mimetype', Buffer.from(WEBSITE_TEMPLATE.mime)], ['manifest.json', Buffer.from(JSON.stringify(manifest))], ...entries], { limit: WEBSITE_LIMITS.compressed })
   const validation = await validateWebsiteTemplate(bytes, { builderCatalogs: { [builderVersion]: catalog } })
   if (!validation.ok) throw packageError(validation.errors[0].code, validation.errors[0].message)

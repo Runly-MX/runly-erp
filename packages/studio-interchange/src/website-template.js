@@ -5,6 +5,7 @@ import { PACKAGE_LIMITS } from './limits.js'
 import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 import { validateImage } from './inspect.js'
+import { COMPONENT_LIMITS, COMPONENT_REF_TYPE, overridableFromCatalog, resolveComponents, validateComponentDefinitions } from './website-components.js'
 
 // Website template (ERP E1a Annex B + W1): a DECLARATIVE ZIP. Only data: nothing is evaluated,
 // imported or executed, no network is touched, no script/HTML/CSS/SVG/iframe is admitted and
@@ -19,6 +20,9 @@ export const WEBSITE_ASSET_POLICY = Object.freeze({ name: 'packaged-raster-v1', 
 // v2 = raster v1 + sanitized SVG masters. Only documents that carry an SVG declare it, so historical
 // templates keep their exact bytes; a reader that only knows v1 refuses it with format_unsupported.
 export const WEBSITE_MEDIA_POLICY = Object.freeze({ name: 'packaged-media-v2', version: 2 })
+// Synced components: an optional `components.json` in the inventory (site-level definitions). Readers that do not know
+// the file reject the package with undeclared_entry instead of silently dropping the shared sections.
+export const WEBSITE_COMPONENTS = Object.freeze({ file: 'components.json', refType: COMPONENT_REF_TYPE, ...COMPONENT_LIMITS })
 export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name])
 export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
 export const WEBSITE_LIMITS_VERSION = 2
@@ -234,7 +238,7 @@ async function validateCore(input, options) {
   if (manifest.pages.filter((p) => p.isHome).length !== 1 || !manifest.pages.some((p) => p.isHome && p.path === '/')) throw packageError('home_missing', 'Debe haber exactamente una página de inicio en la ruta "/".')
   if (new Set(manifest.pages.map((p) => p.path)).size !== manifest.pages.length || new Set(manifest.pages.map((p) => p.file)).size !== manifest.pages.length) throw packageError('manifest_invalid', 'Las páginas repiten ruta o archivo.')
   const pageFiles = new Set(manifest.pages.map((p) => p.file))
-  const known = new Set([...pageFiles, 'theme.json', ...manifest.assets.map((a) => a.path), ...manifest.licenses.map((l) => l.path)])
+  const known = new Set([...pageFiles, 'theme.json', 'components.json', ...manifest.assets.map((a) => a.path), ...manifest.licenses.map((l) => l.path)])
   for (const path of declared.keys()) if (!known.has(path) && !/^previews\/[a-z0-9_-]+\.png$/.test(path)) throw packageError('undeclared_entry', `La plantilla contiene una entrada no admitida: ${path}`)
   for (const file of pageFiles) if (!declared.has(file)) throw packageError('checksum_mismatch', 'Una página del manifiesto no está en el inventario.')
 
@@ -278,28 +282,46 @@ async function validateCore(input, options) {
     else for (const family of Object.values(parsed.data.fonts)) if (!STUDIO_FONTS.some((f) => f.family === family)) ctx.error('theme_invalid', `theme.json: la fuente "${family}" no está en la lista permitida.`, 'theme.json')
   }
 
+  // Site-level synced components. Pages keep their references (`sections`); validation and import use the
+  // expanded copy (`resolved`), so every block prop is checked exactly as if it had been written in the page.
+  let components = null
+  if (declared.has('components.json')) {
+    components = parseJson(files.get('components.json'), limits.jsonBytes, 'components_invalid')
+    for (const problem of validateComponentDefinitions(components)) ctx.error(problem.code, problem.message, problem.path ?? 'components.json')
+  }
+  const overridable = overridableFromCatalog(catalog), usage = new Map()
+  const countRefs = (list) => { for (const node of Array.isArray(list) ? list : []) { if (node?.type === COMPONENT_REF_TYPE && typeof node.props?.componentId === 'string') usage.set(node.props.componentId, (usage.get(node.props.componentId) ?? 0) + 1); if (node && typeof node.children === 'object') for (const nodes of Object.values(node.children ?? {})) countRefs(nodes) } }
   const reportPages = [], pages = []
   let total = 0
   for (const page of manifest.pages) {
     const content = parseJson(files.get(page.file), limits.jsonBytes, 'prop_invalid')
-    pages.push({ ...page, sections: content })
     const state = { blocks: 0, file: page.file }
+    let resolved = content
+    if (Array.isArray(content)) {
+      countRefs(content)
+      const expansion = resolveComponents(content, components ?? {}, { overridable, maxBlocks: limits.blocksPerPage })
+      for (const problem of expansion.errors) ctx.error(problem.code, `${page.file}: ${problem.message}`, `${page.file}${problem.path ? `:${problem.path}` : ''}`)
+      resolved = expansion.sections
+    }
+    pages.push({ ...page, sections: content, resolved })
     if (!Array.isArray(content) || !content.length) ctx.error('prop_invalid', `${page.file}: se espera una lista de secciones`, page.file)
-    else content.forEach((section, index) => checkBlock(section, `${page.file}[${index}]`, 1, ctx, state))
+    else resolved.forEach((section, index) => checkBlock(section, `${page.file}[${index}]`, 1, ctx, state))
     total += state.blocks
     reportPages.push({ path: page.path, title: page.title, blocks: state.blocks })
   }
   if (total > limits.blocksTotal) ctx.error('page_limit', `La plantilla supera ${limits.blocksTotal} bloques en total.`)
   for (const marker of ctx.forms) if (!manifest.forms.includes(marker)) ctx.error('form_marker_unknown', `El marcador ${marker} se usa pero no está declarado en el manifiesto.`)
+  for (const id of Object.keys(components ?? {})) if (!usage.has(id)) warnings.push({ code: 'component_unused', message: `El componente "${id}" no se usa en ninguna página.`, path: 'components.json' })
   for (const a of manifest.assets) if (!ctxBase.refs.has(a.sha256)) warnings.push({ code: 'asset_unreferenced', message: `El activo ${a.path} no se usa en ninguna página.`, path: a.path })
   const report = {
     pages: reportPages, blockTypes: Object.fromEntries(Object.keys(ctx.types).sort().map((k) => [k, ctx.types[k]])),
     assets: manifest.assets.map((a) => ({ id: a.id, path: a.path, mime: a.mime, width: a.width, height: a.height, bytes: a.bytes })),
     forms: [...manifest.forms].sort(), externalLinks: [...ctxBase.links].sort(), siteKind: manifest.siteKind, builder: { name: manifest.builder.name, min: manifest.builder.min },
+    components: Object.entries(components ?? {}).map(([id, def]) => ({ id, name: def.name, uses: usage.get(id) ?? 0 })).sort((a, b) => (a.id < b.id ? -1 : 1)),
     formatVersion: manifest.formatVersion, assetPolicy: manifest.assetPolicy ?? null, limitsVersion: WEBSITE_LIMITS_VERSION,
     licenses: manifest.licenses.map(l => ({ id: l.id, redistribution: l.redistribution })),
   }
-  return { manifest, report, errors, warnings, content: { pages, theme, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })), licenses: manifest.licenses.map(l => ({ ...l, notice: new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) })) } }
+  return { manifest, report, errors, warnings, content: { pages, theme, components, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })), licenses: manifest.licenses.map(l => ({ ...l, notice: new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) })) } }
 }
 
 // Contract API (Annex B): never throws on hostile input; `digest` is always the sha256 of the bytes.
