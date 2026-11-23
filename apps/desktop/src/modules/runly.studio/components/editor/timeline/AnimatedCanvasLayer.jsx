@@ -19,7 +19,7 @@ function contains(item, [px, py]) {
 // Modo Animación: the paper shows the evaluated scene at the playhead (read-only renderer).
 // Selecting hits the evaluated geometry; dragging moves the animated state (a keyframe
 // draft committed on release), never the design geometry underneath.
-export function AnimatedCanvasLayer({ editor, document, pageId, page, time, zoom = 1, reducedMotion, selectedIds, readOnly, hand, onSelect, onDrag, onDragEnd }) {
+export function AnimatedCanvasLayer({ editor, document, pageId, page, time, zoom = 1, reducedMotion, selectedIds, readOnly, hand, onSelect, onDrag, onDragEnd, children }) {
   const layer = useRef(null), gesture = useRef(null)
   const frame = useMemo(() => sceneAt(document, pageId, time), [document, pageId, time])
   const toPage = event => {
@@ -59,6 +59,8 @@ export function AnimatedCanvasLayer({ editor, document, pageId, page, time, zoom
       <svg aria-hidden className="pointer-events-none absolute inset-0 h-full w-full" viewBox={`0 0 ${page.width} ${page.height}`}>
         {selected.map(item => <polygon key={item.id} points={corners(item).map(p => p.join(',')).join(' ')} fill="none" stroke="#d946ef" strokeWidth={2 / zoom} />)}
       </svg>
+      {/* Editing aids (paths, the drawing tool): inside the paper, so they follow zoom and scroll. */}
+      {children}
     </div>
   )
 }

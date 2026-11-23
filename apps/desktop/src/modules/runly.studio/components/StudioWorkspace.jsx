@@ -52,6 +52,10 @@ import { setKeyframe } from '../../../../../shared/studio/keyframes.js'
 import { useTimeline } from './editor/timeline/useTimeline.js'
 import { TimelinePanel } from './editor/timeline/TimelinePanel.jsx'
 import { AnimatedCanvasLayer } from './editor/timeline/AnimatedCanvasLayer.jsx'
+import { MotionPathOverlay, MotionToolLayer } from './editor/timeline/MotionPathOverlay.jsx'
+import { MotionToolBar } from './editor/timeline/MotionToolBar.jsx'
+import { useMotionPathTool } from './editor/timeline/useMotionPathTool.js'
+import { useAnimationFocus } from './editor/timeline/useAnimationFocus.js'
 import { EffectPreviewLayer } from './editor/animation/EffectPreviewLayer.jsx'
 
 const DOTS = { backgroundImage: 'radial-gradient(hsl(var(--muted-foreground) / 0.2) 1px, transparent 1px)', backgroundSize: '20px 20px' }
@@ -243,6 +247,9 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   // An effect being tried belongs to the page and selection it was started on.
   useEffect(() => { setEffectPreview(null) }, [activePageId, selectedIds.join()])
   const timelineObjects = findPage(timeline.frameDoc, activePageId)?.objects ?? objects
+  // Motion path tools (Dibujar movimiento / Crear trayectoria) and the focused workspace.
+  const pathTool = useMotionPathTool({ timeline, doc, activePageId, selectedIds, readOnly, zoom, onError: setError, applyEntries: entries => attempt(() => patchEach(entries)) })
+  const focus = useAnimationFocus({ open: timeline.open, panel, setPanel, inspectorOpen, setInspectorOpen, viewMode, fit: view.fit })
   // Dragging in Animación writes keyframe positions at the playhead; a grouped element moves its group.
   function dragAnimated(id, dx, dy, final) {
     const scene = findPage(doc, activePageId), hit = scene.objects.find(object => object.id === id)
@@ -264,6 +271,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   }
   function shortcut(event) {
     if (!ready || busy || browsing || event.target.closest('input,textarea,[contenteditable=true]') || editorRef.current?.isEditingText()) return
+    if (event.key === 'Escape' && pathTool.session) { pathTool.cancel(); return }
     if (event.key === 'Escape' && viewMode.isImmersive) { viewMode.stepBack(); return }
     if (event.key === 'F5' || ((event.ctrlKey || event.metaKey) && event.key === 'Enter')) { event.preventDefault(); present(); return }
     if ((event.key === 'Delete' || event.key === 'Backspace') && hasSelection && !readOnly) { event.preventDefault(); setConfirm(true); return }
@@ -356,7 +364,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
   }
   const panelLabel = ({ image: 'Imagen', animation: 'Animación' })[panel ?? shownPanel] ?? RAIL_ITEMS.find(item => item.key === (panel ?? shownPanel))?.label
   const openProperties = wide && inspectorOpen ? null : () => (wide ? setInspectorOpen(true) : setInspectorSheet(true))
-  const inspector = <StudioInspector selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
+  const inspector = <StudioInspector animating={animating} selection={selection} selectedCount={selectedIds.length} page={page} busy={busy || !ready} readOnly={readOnly} canPaste={history.canPaste}
     onPatch={patch => attempt(() => editorRef.current.patch(patch))} onRemove={() => setConfirm(true)}
     onAction={action => attempt(() => editorRef.current[action]())} onOrder={direction => attempt(() => editorRef.current.order(direction))}
     onAlign={(direction, target) => attempt(() => editorRef.current.align(direction, target))} onOpenPage={() => { setPanel('page'); setInspectorSheet(false) }}
@@ -427,7 +435,13 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
                 {animating ? <AnimatedCanvasLayer editor={editorRef.current} document={timeline.frameDoc} pageId={activePageId} page={page} time={timeline.time} zoom={zoom} reducedMotion={timeline.reducedMotion}
                   selectedIds={selectedIds} readOnly={readOnly} hand={view.hand || view.panning}
                   onSelect={id => { const hit = objects.find(object => object.id === id); if (!id) editorRef.current?.deselect(); else if (hit?.groupId) editorRef.current?.selectGroup(hit.groupId); else editorRef.current?.select(id) }}
-                  onDrag={(id, dx, dy) => dragAnimated(id, dx, dy, false)} onDragEnd={(id, dx, dy) => dragAnimated(id, dx, dy, true)} /> : null}
+                  onDrag={(id, dx, dy) => dragAnimated(id, dx, dy, false)} onDragEnd={(id, dx, dy) => dragAnimated(id, dx, dy, true)}>
+                  <MotionPathOverlay objects={timelineObjects} selectedIds={pathTool.session ? pathTool.session.ids : selectedIds} selectedKeyframe={timeline.selectedKeyframe} time={timeline.time} zoom={zoom} page={page}
+                    readOnly={readOnly} tool={pathTool.session ? pathTool : null} onError={setError}
+                    onSelectPoint={(id, at) => { timeline.setSelectedKeyframe({ id, at }); timeline.setTime(at) }}
+                    onDraft={(id, patch, readout) => timeline.setDraft({ id, patch, readout })} onCommit={(id, patch) => timeline.commit(id, patch)} />
+                  {pathTool.session && !view.hand && !view.panning ? <MotionToolLayer tool={pathTool} page={page} /> : null}
+                </AnimatedCanvasLayer> : null}
                 {canvas.preferences.grid.visible ? <GridOverlay page={page} zoom={zoom} step={canvas.references?.grid.displayStep ?? canvas.preferences.grid.size} /> : null}
                 {canvas.preferences.guides ? <GuidesOverlay guides={canvas.guides} page={page} zoom={zoom} /> : null}
                 {drop.target ? <DropFrameHint frame={drop.target} zoom={zoom} /> : null}
@@ -455,7 +469,7 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
               </FadeSwap>
             ) : null}
             {imageKit.pending ? <PendingPhotoBanner pending={imageKit.pending} onCancel={imageKit.cancelPending} /> : null}
-            {hasSelection && !readOnly && ready && !imageKit.framing ? (
+            {hasSelection && !readOnly && ready && !imageKit.framing && !pathTool.session ? (
               <FadeSwap contentKey="selection-bar" className="flex max-w-full justify-center">
                 <SelectionBar selection={selection} selectedCount={selectedIds.length} disabled={blocked} imageTools={tools} grouping={grouping}
                   onPatch={patch => attempt(() => editorRef.current.patch(patch))} onAction={action => attempt(() => editorRef.current[action]())}
@@ -490,7 +504,8 @@ export function StudioWorkspace({ initial, resolveImage, authorizePage, uploadIm
           <p className={cn('pointer-events-none absolute bottom-16 z-10 hidden text-xs tabular-nums text-[hsl(var(--muted-foreground))] md:block', canvas.preferences.grid.rulers ? 'left-8' : 'left-4')}>{page.width} × {page.height} px</p>
           {browsing ? <PageNavigator onClose={() => { setBrowsing(false); requestAnimationFrame(() => document.querySelector('[data-page-browse]')?.focus()) }} {...pagesProps} /> : null}
         </section>
-        <TimelinePanel timeline={timeline} objects={timelineObjects} selectedIds={selectedIds} phone={phone} onError={setError}
+        <TimelinePanel timeline={timeline} tool={pathTool} focus={focus}
+          toolBar={pathTool.session ? <MotionToolBar tool={pathTool} slideDuration={timeline.duration} phone={phone} onPreview={() => timeline.playFrom(pathTool.session.start)} /> : null} objects={timelineObjects} selectedIds={selectedIds} phone={phone} onError={setError}
           onSelect={id => editorRef.current?.select(id, { individual: true })} onSelectGroup={groupId => editorRef.current?.selectGroup(groupId)} onOpenEffect={() => setPanel('animation')} />
         </div>
         {wide ? (

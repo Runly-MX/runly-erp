@@ -89,7 +89,7 @@ function GroupTransform({ disabled, onTransform }) {
 // first for photos (frames and shape fills). `shapeTools`: shape photo, fill
 // (none/solid/gradient/photo), border and radius operations (useImageTools).
 // `group`: {id, count} when the selection is exactly one flat group.
-export function StudioInspector({ selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools,
+export function StudioInspector({ animating = false, selection, selectedCount, page, busy, readOnly, canPaste, onPatch, onRemove, onAction, onOrder, onAlign, onOpenPage, photoTools, shapeTools,
   group, grouping, onTransformGroup, onError, animation }) {
   const locked = Boolean(selection?.locked), disabled = busy || readOnly
   if (!selection && selectedCount < 2) {
@@ -175,7 +175,9 @@ export function StudioInspector({ selection, selectedCount, page, busy, readOnly
           </Section>
         </>
       ) : null}
-      <Section title="Posición y tamaño">
+      <Section title={animating ? 'Posición base (Diseño)' : 'Posición y tamaño'}>
+        {/* In Animación the paper shows the playhead instant; these fields stay the design geometry. */}
+        {animating && selection.keyframes ? <p className="text-xs text-[hsl(var(--muted-foreground))]">La posición en cada instante se edita en los keyframes de la línea de tiempo o arrastrando los puntos de la trayectoria.</p> : null}
         <div className="grid grid-cols-2 gap-2">
           {['x', 'y', 'width', selection.type === 'text' ? null : 'height', 'rotation'].filter(Boolean).map(key => (
             <Metric key={key} name={key} value={selection[key]} disabled={editable} onCommit={value => onPatch({ [key]: value })} />

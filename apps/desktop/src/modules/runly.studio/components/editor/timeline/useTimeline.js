@@ -23,24 +23,34 @@ export function useTimeline({ editorRef, doc, activePageId, readOnly, attempt })
   // The document drawn on the animated canvas: the editor's document plus the drag in progress.
   const frameDoc = useMemo(() => {
     if (!draft) return doc
+    // `patches` (id → patch) previews several elements at once (a group's drawn path).
+    const patchOf = object => (draft.patches ? draft.patches[object.id] : object.id === draft.id ? draft.patch : null)
     return withPages(doc, documentPages(doc).map(page => idOf(page) !== activePageId ? page : { ...page, objects: page.objects.map(object => {
-      if (object.id !== draft.id) return object
-      const next = { ...object, ...draft.patch }
-      for (const [key, value] of Object.entries(draft.patch)) if (value === undefined) delete next[key]
+      const patch = patchOf(object)
+      if (!patch) return object
+      const next = { ...object, ...patch }
+      for (const [key, value] of Object.entries(patch)) if (value === undefined) delete next[key]
       return next
     }) }))
   }, [doc, draft, activePageId])
 
-  const setTime = useCallback(value => { setTimeState(Math.max(0, Math.min(end, Math.round(value)))); setMode('animation') }, [end])
+  // Playback: time is read from a stable clock, never accumulated, and stops at the slide end.
+  // A seek while playing moves the clock's origin, so the chosen instant becomes the new reference.
+  const origin = useRef(0), playingRef = useRef(false)
+  playingRef.current = playing
+  const setTime = useCallback(value => {
+    const next = Math.max(0, Math.min(end, Math.round(value)))
+    if (playingRef.current) origin.current = performance.now() - next
+    setTimeState(next); setMode('animation')
+  }, [end])
   const setZoom = useCallback(value => setZoomState(clampZoom(value)), [])
   const setHeight = useCallback(value => {
-    const next = Math.round(Math.min(480, Math.max(160, value)))
+    const max = Math.max(480, Math.round((typeof window === 'undefined' ? 800 : window.innerHeight) * 0.6))
+    const next = Math.round(Math.min(max, Math.max(160, value)))
     setHeightState(next)
     try { localStorage.setItem(HEIGHT_KEY, String(next)) } catch { /* per-viewer convenience only */ }
   }, [])
 
-  // Playback: time is read from a stable clock, never accumulated, and stops at the slide end.
-  const origin = useRef(0)
   useEffect(() => {
     if (!playing) return undefined
     let frame
@@ -55,6 +65,8 @@ export function useTimeline({ editorRef, doc, activePageId, readOnly, attempt })
     return () => cancelAnimationFrame(frame)
   }, [playing]) // eslint-disable-line react-hooks/exhaustive-deps
   const toggle = useCallback(() => { setMode('animation'); setPlaying(value => !value) }, [])
+  // Restart from an instant (Reproducir desde el inicio, a path preview): the effect re-anchors the clock.
+  const playFrom = useCallback(at => { setPlaying(false); setTimeState(Math.max(0, Math.round(at))); setMode('animation'); requestAnimationFrame(() => setPlaying(true)) }, [])
   useEffect(() => { setPlaying(false); setSelectedKeyframe(null); setSelectedEffect(null); setDraft(null) }, [activePageId])
   useEffect(() => { if (!open) { setPlaying(false); setMode('design'); setDraft(null) } }, [open])
 
@@ -67,7 +79,7 @@ export function useTimeline({ editorRef, doc, activePageId, readOnly, attempt })
   }).finally(() => setDraft(null)), [attempt, editorRef, readOnly])
 
   return {
-    open, setOpen, collapsed, setCollapsed, mode, setMode, time, setTime, playing, toggle, setPlaying,
+    open, setOpen, collapsed, setCollapsed, mode, setMode, time, setTime, playing, toggle, setPlaying, playFrom,
     zoom, setZoom, snap, setSnap, height, setHeight, duration, end, scene, frameDoc, draft, setDraft,
     selectedKeyframe, setSelectedKeyframe, selectedEffect, setSelectedEffect, clipboard, setClipboard, commit,
     reducedMotion: playing && reducedMotion, readOnly,

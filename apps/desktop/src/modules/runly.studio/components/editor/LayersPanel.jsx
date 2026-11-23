@@ -12,6 +12,17 @@ export const OBJECT_META = {
 }
 
 export const describeObject = object => object.type === 'text' ? (object.text.split('\n')[0].slice(0, 40) || 'Texto') : OBJECT_META[object.type].label
+// One label per element for Capas and the timeline: repeated names are numbered in stack order (back to front).
+export function objectLabels(objects) {
+  const totals = new Map(), seen = new Map(), labels = new Map()
+  for (const object of objects) { const name = describeObject(object); totals.set(name, (totals.get(name) ?? 0) + 1) }
+  for (const object of objects) {
+    const name = describeObject(object), n = (seen.get(name) ?? 0) + 1
+    seen.set(name, n)
+    labels.set(object.id, totals.get(name) > 1 ? `${name} ${n}` : name)
+  }
+  return labels
+}
 
 // Top of the list = front of the stack (the document stores back-to-front).
 // Grouped elements get a "Grupo" header (selects the whole group) and indent.
@@ -22,7 +33,7 @@ export function LayersPanel({ objects, selectedIds, remoteSelections = new Map()
   const selected = new Set(selectedIds)
   const counts = objects.reduce((map, object) => object.groupId ? map.set(object.groupId, (map.get(object.groupId) ?? 0) + 1) : map, new Map())
   const groupNumber = new Map([...counts.keys()].map((id, index) => [id, index + 1]))
-  const headed = new Set()
+  const headed = new Set(), labels = objectLabels(objects)
   return (
     <ul className="space-y-1" aria-label="Capas del diseño">
       {[...objects].reverse().flatMap(object => {
@@ -42,14 +53,14 @@ export function LayersPanel({ objects, selectedIds, remoteSelections = new Map()
         if (object.groupId && collapsed.has(object.groupId)) return [header].filter(Boolean)
         return [header, (
           <li key={object.id} className={cn('group flex items-center gap-1.5 rounded-md pl-2 pr-1 transition-colors', object.groupId && 'ml-3 border-l border-[hsl(var(--border))] pl-2.5', active ? 'bg-fuchsia-500/12 text-[hsl(var(--foreground))]' : 'hover:bg-[hsl(var(--muted))]')}>
-            <Checkbox aria-label={`Añadir ${describeObject(object)} a la selección`} disabled={disabled || object.hidden || object.locked} checked={active}
+            <Checkbox aria-label={`Añadir ${labels.get(object.id)} a la selección`} disabled={disabled || object.hidden || object.locked} checked={active}
               onCheckedChange={checked => onToggleMany(checked ? [...selectedIds, object.id] : selectedIds.filter(id => id !== object.id))} />
             <button type="button" onClick={() => onSelect(object.id)} disabled={disabled}
               className={cn('flex min-h-10 min-w-0 flex-1 items-center gap-2 text-left text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[hsl(var(--ring))] rounded-md px-1', object.hidden && 'opacity-50')}>
               <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]">
                 <Icon className="h-3.5 w-3.5" />
               </span>
-              <span className={cn('min-w-0 flex-1 truncate', active && 'font-semibold')}>{describeObject(object)}</span>
+              <span className={cn('min-w-0 flex-1 truncate', active && 'font-semibold')}>{labels.get(object.id)}</span>
               {others.length ? <span className="flex shrink-0 items-center gap-0.5" title={`Seleccionado por ${others.map(person => person.name).join(', ')}`}>
                 {others.slice(0, 3).map(person => <span key={person.userId} aria-hidden className="-ml-1 flex h-4 w-4 items-center justify-center rounded-full text-[9px] font-bold leading-none text-white ring-1 ring-[hsl(var(--card))] first:ml-0" style={{ backgroundColor: person.color }}>{person.isSelf ? 'Tú' : personInitials(person.name)}</span>)}
                 <span className="sr-only">Seleccionado por {others.map(person => person.name).join(', ')}</span>

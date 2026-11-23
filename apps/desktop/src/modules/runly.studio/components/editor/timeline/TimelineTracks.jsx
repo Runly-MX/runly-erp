@@ -1,8 +1,9 @@
 import { useEffect, useRef } from 'react'
 import { cn } from '@runly/ui'
-import { Group } from 'lucide-react'
+import { EyeOff, Group, Lock, Route } from 'lucide-react'
 import { MOTION_LIMITS } from '../../../../../../../shared/studio/motion.js'
 import { moveKeyframe } from '../../../../../../../shared/studio/keyframes.js'
+import { positionPath } from '../../../lib/motion-path.js'
 import { OBJECT_META } from '../LayersPanel.jsx'
 import { effectLabel } from '../animation/AnimationPanel.jsx'
 import { formatClock, formatSeconds, msToPx, pxToMs, rulerTicks, snapTime } from '../../../lib/timeline-math.js'
@@ -11,7 +12,6 @@ import { formatClock, formatSeconds, msToPx, pxToMs, rulerTicks, snapTime } from
 const ROW = 32, RULER = 28, PAD = 8
 const COLORS = { enter: 'bg-fuchsia-500 text-white', emphasis: 'bg-amber-500 text-black', exit: 'bg-sky-500 text-white' }
 const KINDS = ['enter', 'emphasis', 'exit']
-const describe = object => (object.type === 'text' ? object.text.split('\n')[0].slice(0, 40) || 'Texto' : OBJECT_META[object.type].label)
 const clampMs = (value, max) => Math.min(max, Math.max(0, Math.round(value)))
 
 // Rows front-to-back (like Capas), with a header before each group's members.
@@ -25,7 +25,7 @@ function rowsOf(objects) {
   return rows
 }
 
-export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time, snap, readOnly, labelWidth, selectedKeyframe, selectedEffect,
+export function TimelineTracks({ objects, labels, selectedIds, duration, end, zoom, time, snap, readOnly, labelWidth, selectedKeyframe, selectedEffect,
   onTime, onSelectObject, onSelectGroup, onSelectKeyframe, onSelectEffect, onOpenEffect, onDraft, onCommit, onRemoveKeyframe }) {
   const content = useRef(null), drag = useRef(null)
   const lane = msToPx(end, zoom) + PAD, rows = rowsOf(objects), at = ms => PAD + msToPx(ms, zoom)
@@ -62,7 +62,7 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
     let readout
     if (d.part === 'keyframe') {
       const to = clampMs(snapped(d.at + delta), MOTION_LIMITS.maxDelay)
-      try { d.patch = { keyframes: moveKeyframe(object, d.at, to) } } catch { return }
+      try { d.patch = { keyframes: moveKeyframe(object, d.at, to) }; d.to = to } catch { return }
       readout = `Keyframe · ${formatClock(to)}`
     } else {
       const effect = object[d.kind], endAt = effect.delay + effect.duration
@@ -81,7 +81,7 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
     const d = drag.current
     drag.current = null
     if (!d || d.part === 'playhead') return
-    if (d.patch) onCommit(d.object.id, d.patch)
+    if (d.patch) onCommit(d.object.id, d.patch, d.part === 'keyframe' ? { from: d.at, to: d.to } : null)
     else d.select?.()
   }
   // Keyboard on a focused segment or keyframe: arrows move 100 ms (Shift 1 s); Alt+arrows change the duration.
@@ -93,7 +93,7 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
     if (!step || readOnly) return
     event.preventDefault(); event.stopPropagation()
     const { object } = target
-    if (target.at !== undefined) { try { onCommit(object.id, { keyframes: moveKeyframe(object, target.at, clampMs(target.at + step, MOTION_LIMITS.maxDelay)) }) } catch { /* occupied instant */ } return }
+    if (target.at !== undefined) { const to = clampMs(target.at + step, MOTION_LIMITS.maxDelay); try { onCommit(object.id, { keyframes: moveKeyframe(object, target.at, to) }, { from: target.at, to }) } catch { /* occupied instant */ } return }
     const effect = object[target.kind]
     onCommit(object.id, { [target.kind]: event.altKey ? { ...effect, duration: clampMs(effect.duration + step, MOTION_LIMITS.maxEffectDuration) } : { ...effect, delay: clampMs(effect.delay + step, MOTION_LIMITS.maxDelay) } })
   }
@@ -121,11 +121,24 @@ export function TimelineTracks({ objects, selectedIds, duration, end, zoom, time
         </div>
       ) : (() => {
         const object = row.object, active = selectedIds.includes(object.id), locked = readOnly || object.locked
+        const Icon = OBJECT_META[object.type].icon, label = labels.get(object.id), routed = positionPath(object).length >= 2
         return (
           <div key={object.id} data-track={object.id} className={cn('flex border-b border-[hsl(var(--border)/0.5)]', active && 'bg-fuchsia-500/10')} style={{ height: ROW, scrollMarginTop: RULER }}>
-            <button type="button" onClick={() => onSelectObject(object.id)} aria-pressed={active}
-              className={cn('sticky left-0 z-10 flex shrink-0 items-center truncate border-r border-[hsl(var(--border))] px-2 text-left text-xs', object.groupId && 'pl-5', active ? 'bg-fuchsia-50 font-semibold text-fuchsia-900 dark:bg-fuchsia-950 dark:text-fuchsia-100' : 'bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]')}
-              style={{ width: labelWidth }}>{describe(object)}</button>
+            {/* Same name as Capas; type icon, colour and state tell repeated shapes apart. */}
+            <button type="button" onClick={() => onSelectObject(object.id)} aria-pressed={active} title={label}
+              aria-label={`${label}${object.hidden ? ', oculto' : ''}${object.locked ? ', bloqueado' : ''}${routed ? ', con trayectoria' : ''}`}
+              className={cn('sticky left-0 z-10 flex shrink-0 items-center gap-1.5 border-r border-[hsl(var(--border))] px-2 text-left text-xs', object.groupId && 'pl-5',
+                active ? 'bg-fuchsia-50 font-semibold text-fuchsia-900 shadow-[inset_3px_0_0_rgb(192_38_211)] dark:bg-fuchsia-950 dark:text-fuchsia-100' : 'bg-[hsl(var(--card))] hover:bg-[hsl(var(--muted))]', object.hidden && 'opacity-60')}
+              style={{ width: labelWidth }}>
+              <span aria-hidden className="relative flex h-5 w-5 shrink-0 items-center justify-center rounded border border-[hsl(var(--border))] text-[hsl(var(--muted-foreground))]">
+                <Icon className="h-3 w-3" />
+                {object.type !== 'image' && object.type !== 'text' ? <span className="absolute -bottom-0.5 -right-0.5 h-2 w-2 rounded-full ring-1 ring-[hsl(var(--card))]" style={{ backgroundColor: object.fill }} /> : null}
+              </span>
+              <span className="min-w-0 flex-1 truncate">{label}</span>
+              {routed ? <Route aria-hidden className="h-3 w-3 shrink-0 text-fuchsia-600 dark:text-fuchsia-400" /> : null}
+              {object.hidden ? <EyeOff aria-hidden className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" /> : null}
+              {object.locked ? <Lock aria-hidden className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" /> : null}
+            </button>
             <div className="relative" style={{ width: lane }}>
               {KINDS.filter(kind => object[kind]).map(kind => {
                 const effect = object[kind], left = at(effect.delay), width = Math.max(10, msToPx(effect.duration, zoom))
