@@ -42,7 +42,7 @@ export function createWebsiteAdminContractService({prisma,isolation,namespaceRoo
       result[key]=reason?{allowed:false,reason}:{allowed:true}
     }
     result['calendar.publish']={allowed:false,reason:{code:'dynamic_binding_unavailable'}}
-    const sections={overview:['website.site.read'],pages:['website.pages.read'],blog:['website.pages.read'],catalog:['catalog.products.read'],forms:['website.forms.read'],appearance:['website.theme.read'],publishing:['website.pages.read'],domains:['website.site.read'],import:['website.dist.upload'],settings:['website.site.update'],advanced:['website.site.update'],payments:['website.site.update']}
+    const sections={overview:['website.site.read'],pages:['website.pages.read'],blog:['website.pages.read'],catalog:['catalog.products.read'],forms:['website.forms.read'],appearance:['website.theme.read'],publishing:['website.pages.read'],domains:['website.site.read'],import:['website.dist.upload'],settings:['website.site.update'],advanced:['website.site.update'],payments:['website.site.update'],orders:['website.orders.read']}
     const sectionCapabilities=Object.fromEntries(Object.entries(sections).map(([key,required])=>{
       const missing=required.find(p=>!a.access.can(p));return [key,missing?{allowed:false,reason:{code:'permission_denied',requiredPermission:missing}}:{allowed:true}]
     }))

@@ -100,6 +100,8 @@ import {
 import { createPublicFormsRouter } from "./routes/website/forms-public-routes.js";
 import { createPublicBookingsRouter } from "./routes/website/bookings-routes.js";
 import { createPublicCheckoutRouter } from "./routes/website/checkout-routes.js";
+import { createPublicOrdersRouter, createWebsiteOrdersAdminRouter } from "./routes/website/orders-routes.js";
+import { createWebsiteOrdersService } from "./services/website-orders-service.js";
 import { createWebsiteAccountsPublicRouter, createWebsiteIdentity } from "./routes/website/accounts-routes.js";
 import { createExternalFiles, supabaseExternalStorage } from "./services/external-identity/index.js";
 import { createStorefrontRouter } from "./routes/storefront/storefront-router.js";
@@ -2263,8 +2265,11 @@ app.route("/public/website", publicFormsRouter);
 const publicBookingsRouter = createPublicBookingsRouter({ prisma });
 app.route("/public/website", publicBookingsRouter);
 
-const publicCheckoutRouter = createPublicCheckoutRouter({ prisma });
+const websiteOrders = createWebsiteOrdersService({ prisma });
+const websiteOrdersIdentity = createWebsiteIdentity({ prisma, supabaseAdmin });
+const publicCheckoutRouter = createPublicCheckoutRouter({ prisma, orders: websiteOrders, identity: websiteOrdersIdentity });
 app.route("/public/website", publicCheckoutRouter);
+app.route("/public/website", createPublicOrdersRouter({ orders: websiteOrders, identity: websiteOrdersIdentity }));
 
 // Customer accounts of published sites (External Identity realm per site); never Runly users.
 app.route("/public/website/account", createWebsiteAccountsPublicRouter({ prisma, gateway: websitePublication.gateway, identity: createWebsiteIdentity({ prisma, supabaseAdmin }), files: supabaseAdmin ? createExternalFiles({ prisma, storage: supabaseExternalStorage(supabaseAdmin) }) : null }));

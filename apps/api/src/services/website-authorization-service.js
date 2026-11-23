@@ -11,6 +11,9 @@ export const WEBSITE_PERMISSION_ALIASES = Object.freeze({
   // Roles that already configure the site keep managing its customer accounts without a reseed.
   'website.accounts.read': ['website.site.read'],
   'website.accounts.manage': ['website.site.update'],
+  // Same rule for orders: whoever already manages the site keeps seeing and verifying its orders without a reseed.
+  'website.orders.read': ['website.site.read'],
+  'website.orders.manage': ['website.site.update'],
 })
 const issuedAccess = new WeakSet()
 

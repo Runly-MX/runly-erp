@@ -1055,6 +1055,18 @@ export const PERMISSION_CATALOG = {
     groupKey: "website",
     order: 5,
   },
+  "website.orders.read": {
+    displayNameEs: "Ver pedidos de la tienda",
+    descriptionEs: "Permite ver los pedidos que los visitantes hacen en los sitios publicados.",
+    groupKey: "website",
+    order: 6,
+  },
+  "website.orders.manage": {
+    displayNameEs: "Gestionar pedidos de la tienda",
+    descriptionEs: "Permite verificar con el proveedor de pagos el estado de un pedido.",
+    groupKey: "website",
+    order: 7,
+  },
   "website.pages.read": {
     displayNameEs: "Ver paginas",
     descriptionEs: "Permite ver las paginas del sitio web.",

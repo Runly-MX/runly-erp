@@ -2,8 +2,10 @@
 import { Hono } from 'hono'
 import Stripe from 'stripe'
 import { decryptPassword } from '../../services/smtp-service.js'
+import { createWebsiteOrdersService } from '../../services/website-orders-service.js'
+import { accountOfRequest } from './orders-routes.js'
 
-export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryptPasswordImpl = decryptPassword }) {
+export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryptPasswordImpl = decryptPassword, orders = createWebsiteOrdersService({ prisma, StripeImpl, decryptPasswordImpl }), identity = null }) {
   const app = new Hono()
 
   app.post('/checkout', async (c) => {
@@ -79,7 +81,7 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
           }
           unitPrice = variant.price
         }
-        resolvedLines.push({ name: product.name, price: Number(unitPrice), currency: product.currency, qty: Number(item.qty) })
+        resolvedLines.push({ productId: product.id, variantId: item.variantId ? String(item.variantId) : null, name: product.name, price: Number(unitPrice), currency: product.currency, qty: Number(item.qty) })
       }
 
       // Currency comes from each product — all items in a session must share the same currency
@@ -102,16 +104,25 @@ export function createPublicCheckoutRouter({ prisma, StripeImpl = Stripe, decryp
 
       const origin = c.req.header('Origin') ?? ''
 
-      const session = await stripe.checkout.sessions.create({
+      // The order exists BEFORE the payment page: the business sees every attempt and a paid session always has a record.
+      // The signed-in customer (site cookie), when there is one, is linked; guests are fine.
+      const account = identity ? await accountOfRequest({ c, identity, siteId }) : null
+      const order = await orders.place({ companyId: site.company_id, siteId, lines: resolvedLines, accountId: account?.id ?? null })
+      let session
+      try {
+      session = await stripe.checkout.sessions.create({
         mode:        'payment',
+        client_reference_id: order.id,
         // Codes are validated and applied by Stripe on its page; the client never sends prices or discounts.
         allow_promotion_codes: true,
         line_items:  lineItems,
         success_url: `${origin}/gracias?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:  `${origin}/`,
       })
+      await orders.attachSession(order.id, session.id)
+      } catch (error) { await orders.cancel(order.id).catch(() => {}); throw error }
 
-      return c.json({ url: session.url })
+      return c.json({ url: session.url, orderNumber: order.orderNumber })
     } catch (err) {
       // Provider errors can contain private configuration; keep them off the wire.
       return c.json({ error: 'No se pudo completar el pago.' }, 500)
