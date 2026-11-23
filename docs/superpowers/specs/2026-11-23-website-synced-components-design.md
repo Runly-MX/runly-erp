@@ -1,6 +1,6 @@
 # Website synced components (Phase 2B)
 
-Status: draft, not implemented. Follow-up of `2026-11-23-native-svg-media-design.md` and the Phase 2 items
+Status: stage 2B-1 implemented 2026-11-23 (engine only: `packages/studio-interchange/src/website-components.js`, Atlas `src/components/resolve.js` + `AtlasWebRenderer components`, no catalog change, no UI). Stages 2B-2 and 2B-3 pending. Follow-up of `2026-11-23-native-svg-media-design.md` and the Phase 2 items
 "componentes reutilizables" and "sincronización entre páginas" of the KYNTRA evolution report.
 
 ## What exists today (verified 2026-11-23)
@@ -44,7 +44,7 @@ each page can still override or detach them.
 
 ## Phasing
 
-- 2B-1 `resolveComponents` + `ComponentRefBlock` + document schema + tests (Atlas + studio-interchange). No UI.
+- 2B-1 (done) `resolveComponents` on portable sections (interchange) and on Atlas Pages (renderer), definition validation, overrides by path, block-limit anti-amplification, tests in both. `ComponentRefBlock` is deliberately NOT registered yet: references are resolved before block lookup, so no catalog/digest change and no palette entry. Decisions fixed here: override path = `root/<slot>/<index>/...`; error codes `component_missing|component_id_invalid|component_override_invalid|component_ref_nested|component_limit|component_invalid`; expanded page must stay within 300 blocks.
 - 2B-2 Portable format + Hub contract/save + ERP release expansion + migration of existing drafts (none needed:
   `components` is optional).
 - 2B-3 Editor UX.
