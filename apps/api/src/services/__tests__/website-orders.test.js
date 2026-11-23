@@ -173,3 +173,13 @@ test('a site without Stripe cannot confirm and the order service refuses empty c
   await ctx.orders.attachSession(order.id, 'cs_test_abcdefghi')
   await assert.rejects(ctx.orders.confirm({ siteId, sessionId: 'cs_test_abcdefghi' }), { code: 'stripe_not_configured' })
 })
+
+test('install request: accountsMode is optional, limited to keep|enable and never defaulted into the receipt hash', async () => {
+  const { installRequestSchema } = await import('../marketplace/website-import-service.js')
+  const base = { ref: { resourceKey: 'acme.tienda', version: '1.0.0', releaseId: '00000000-0000-4000-8000-000000000003' }, pageIds: ['/'], expectedRevision: 1, includeTheme: true, acceptWarnings: true }
+  const plain = installRequestSchema.safeParse(base)
+  assert.equal(plain.success, true, JSON.stringify(plain.error?.issues))
+  assert.equal(Object.hasOwn(plain.data, 'accountsMode'), false)
+  assert.equal(installRequestSchema.parse({ ...base, accountsMode: 'enable' }).accountsMode, 'enable')
+  assert.equal(installRequestSchema.safeParse({ ...base, accountsMode: 'always' }).success, false)
+})

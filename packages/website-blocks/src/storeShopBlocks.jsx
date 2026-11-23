@@ -5,6 +5,7 @@ import { ImageLightbox, zoomTrigger } from './imageLightbox.jsx'
 import { fetchPublicCatalog, formatCatalogPrice, readAtlasConfig } from './catalogPublicClient.js'
 import { ImageSlot } from './ProductsGridRenderer.jsx'
 import { addToCart, clearCart, removeLine, setQty, startCheckout, useCartLines } from './storeCart.js'
+import { confirmCheckout, formatOrderTotal, sessionIdFromLocation } from './ordersPublicClient.js'
 import { ACCENT, INK, LINE, MUTED, PAPER, SANS, SERIF, Styles, button } from './storeUi.jsx'
 
 const SAMPLE_PRODUCT = { id: 'sample', name: 'Camisa de lino lavado', category_name: 'Ropa', price: 890, currency: 'MXN', description: 'Corte holgado, lino lavado a la piedra y botones de coco. Suave desde el primer uso.', sample: true }
@@ -127,14 +128,23 @@ function CartPage({ mode, checkoutLabel, shopHref, promoNote }) {
   const preview = !readAtlasConfig()?.apiUrl
   const lines = preview ? SAMPLE_LINES : live
 
-  useEffect(() => { if (mode === 'thanks' && !preview) clearCart() }, [mode, preview])
+  // The thanks page asks the server (which asks Stripe) whether the session was really paid; the cart is emptied only then.
+  const [receipt, setReceipt] = useState(null)
+  useEffect(() => {
+    if (mode !== 'thanks' || preview) return undefined
+    const sessionId = sessionIdFromLocation()
+    if (!sessionId) { clearCart(); return undefined }
+    let alive = true
+    confirmCheckout(sessionId).then((order) => { if (alive) { setReceipt(order); if (order.status === 'paid') clearCart() } }).catch(() => { if (alive) setReceipt({ status: 'unconfirmed' }) })
+    return () => { alive = false }
+  }, [mode, preview])
 
   if (mode === 'thanks') {
     return (
       <section style={section}><div style={{ ...wrap, maxWidth: 640, textAlign: 'center', padding: '48px 0' }}>
         <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke={ACCENT} strokeWidth="1.6" aria-hidden="true"><circle cx="12" cy="12" r="10" /><path d="m7.5 12.5 3 3 6-7" /></svg>
         <h1 style={{ fontFamily: SERIF, fontWeight: 500, fontSize: 'clamp(34px, 5cqw, 56px)', color: INK, margin: '16px 0 0' }}>Gracias por tu compra</h1>
-        <p style={{ fontFamily: SANS, fontSize: 17, lineHeight: 1.7, color: MUTED }}>Recibimos tu pedido y te enviaremos la confirmación por correo.</p>
+        <p style={{ fontFamily: SANS, fontSize: 17, lineHeight: 1.7, color: MUTED }}>{receipt?.status === 'paid' ? `Tu pedido n.º ${receipt.number} está pagado (${formatOrderTotal(receipt.total, receipt.currency)}).` : receipt?.status === 'unconfirmed' ? 'Estamos confirmando tu pago con el banco. Si no ves el cambio en unos minutos, escríbenos.' : 'Recibimos tu pedido y te enviaremos la confirmación por correo.'}</p>
         <a className="rs-btn" href={shopHref || '/productos'} style={{ ...button(true), marginTop: 12 }}>Seguir comprando</a>
       </div></section>
     )

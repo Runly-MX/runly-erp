@@ -28,7 +28,7 @@ describe("atlas SDK - website domain extraction", () => {
       "listSiteCatalogProducts", "setSiteCatalogProduct", "setSiteCatalogSelection", "getCatalogProductUsage", "applySiteTemplate",
       "getSiteState", "hostnameAvailability", "hostnameStatus", "activateHostname", "releaseHostname", "getPublicationIntegrity", "preflightRelease", "listSiteForms", "resolveFormScope",
       "activateRelease", "createImport", "createPage", "createPreview", "createSite",
-      "deleteDist",
+      "deleteDist", "getOrder", "listOrders", "verifyOrder",
       "getDraft", "getImport",
       "getRelease", "getSite",
       "listDomains", "listPages", "listReleases", "listSites", "prepareRelease", "reserveHostname", "revokePreview", "rollbackRelease", "saveDraft", "saveSiteDraft",

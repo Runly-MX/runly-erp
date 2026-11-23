@@ -13,7 +13,7 @@ import {createFileAccess} from '../files/access.js'
 import {websiteReleasePath} from '../website-release-service.js'
 
 const catalogs=WEBSITE_BUILDER_CATALOGS, sha=bytes=>createHash('sha256').update(bytes).digest('hex')
-const request=z.strictObject({ref:resourceRefSchema,pageIds:z.array(z.string().max(512)).min(1).max(24),expectedRevision:z.number().int().nonnegative(),includeTheme:z.boolean(),replaceExisting:z.boolean().default(false),formMode:z.enum(['disabled','local']).default('disabled'),acceptWarnings:z.literal(true)})
+export const installRequestSchema=z.strictObject({ref:resourceRefSchema,pageIds:z.array(z.string().max(512)).min(1).max(24),expectedRevision:z.number().int().nonnegative(),includeTheme:z.boolean(),replaceExisting:z.boolean().default(false),formMode:z.enum(['disabled','local']).default('disabled'),accountsMode:z.enum(['keep','enable']).optional(),acceptWarnings:z.literal(true)})
 const messages={import_cancelled:'La instalación se canceló. Revisa de nuevo la plantilla para iniciar otro intento.',import_in_progress:'La instalación sigue en curso o en recuperación. Reintenta con la misma selección más tarde.',idempotency_conflict:'Este intento ya corresponde a otra selección. Revisa de nuevo la plantilla.',cleanup_pending:'La limpieza sigue pendiente. Los borradores no se aplicaron; se reintentará automáticamente.',legacy_public_requires_release:'Sella primero una release del sitio público actual antes de instalar nuevos borradores.'}
 const fail=(code,status=409)=>new WebsiteServiceError(messages[code]??'No se pudo instalar la plantilla. Revisa los conflictos y requisitos.',status,code)
 
@@ -36,7 +36,7 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
   return {source:download.source,validation,expectedRevision:site.draftRevision,catalog:resolveWebsiteCatalog(catalogs,WEBSITE_BUILDER_CATALOG_IDENTITIES,inspected.manifest.builder.min,inspected.manifest.builder.catalogDigest),
    pages:content.pages.map(p=>({...p,document:sectionsToAtlasPage({...p,sections:p.resolved??p.sections}),sections:undefined,resolved:undefined,conflict:existing.some(row=>row.routePath===p.path||row.draftMetadata?.routePath===p.path)})),
    themeTokens:websiteThemeToAtlasTokens(content.theme??{}),assets:content.assets.map(({data,...asset})=>({...asset,base64:Buffer.from(data).toString('base64')})),licenses:content.licenses,
-   requirements:{forms:inspected.manifest.forms,legacyPublicBaseline:!site.activeReleaseId&&existing.some(p=>p.enabled&&p.status==='published'),formsLocal:a.access.can('website.forms.create'),home:a.access.can('website.site.update'),theme:a.access.can('website.site.update')&&a.access.can('website.theme.update'),files:a.access.can('files.assets.create')},
+   requirements:{accounts:a.access.can('website.accounts.manage'),stripe:Boolean(site.stripeSecretKey),forms:inspected.manifest.forms,legacyPublicBaseline:!site.activeReleaseId&&existing.some(p=>p.enabled&&p.status==='published'),formsLocal:a.access.can('website.forms.create'),home:a.access.can('website.site.update'),theme:a.access.can('website.site.update')&&a.access.can('website.theme.update'),files:a.access.can('files.assets.create')},
    _inspected:inspected}
  }
  async function job(a,db=prisma,lock=false) {
@@ -59,7 +59,7 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
  function startCleanup(){if(!timer){timer=setInterval(()=>{void recoverExpired().catch(()=>{})},60000);timer.unref?.()}}
  async function confirm(a,input) {
   await authorize(a)
-  const body=request.parse(input),requestHash=websiteDocumentHash(body)
+  const body=installRequestSchema.parse(input),requestHash=websiteDocumentHash(body)
   if(typeof a.idempotencyKey!=='string'||a.idempotencyKey.length<16||a.idempotencyKey.length>200)throw fail('idempotency_required',422)
   const previous=await job(a)
   if(previous){if(previous.request_hash!==requestHash)throw fail('idempotency_conflict');if(previous.state==='committed')return previous.result;throw fail(previous.state==='cancelled'?'import_cancelled':'import_in_progress')}
@@ -72,6 +72,8 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
   if(body.includeTheme)for(const p of ['website.site.update','website.theme.update'])assertWebsiteAccess(a.access,a.companyId,p)
   if(body.replaceExisting)for(const p of ['website.pages.delete','website.pages.update'])assertWebsiteAccess(a.access,a.companyId,p)
   if(body.formMode==='local')assertWebsiteAccess(a.access,a.companyId,'website.forms.create')
+  // Customer accounts are a per-site switch, never implied by a template: the installer opts in and needs the accounts permission.
+  if(body.accountsMode==='enable')assertWebsiteAccess(a.access,a.companyId,'website.accounts.manage')
   await gate.recheck(preview.source)
   const row=await prisma.$transaction(async tx=>{
    await tx.$queryRaw`SELECT pg_advisory_xact_lock(hashtextextended(${a.companyId}::text,31))::text`
@@ -105,9 +107,11 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
     const prepared=await preparation.prepare({...a,bytes:archives.get(data),bindings})
     const pages=prepared.pages.filter(p=>body.pageIds.includes(p.path)).map(p=>({id:p.path,label:p.title,routePath:p.path,document:p.document}))
     const applied=await templates.applyBundle({...a,...body},{source:preview.source,title:data.manifest.title,pages,themeTokens:prepared.themeTokens},tx)
+    // The accounts realm of the site is switched on in the same transaction as the install (all or nothing); nothing else is created.
+    if(body.accountsMode==='enable')await tx.externalRealm.upsert({where:{moduleKey_ownerId:{moduleKey:'runly.website',ownerId:a.siteId}},create:{companyId:a.companyId,moduleKey:'runly.website',ownerId:a.siteId,enabled:true},update:{enabled:true}})
     const result={...applied,assets:bindings,source:preview.source,jobId:row.id,formsMode:body.formMode,warnings:data.warnings}
     await tx.$queryRaw`UPDATE website_template_job SET state='committed',result=${JSON.stringify(result)}::jsonb,next_cleanup_at=NULL WHERE id=${row.id}::uuid`
-    await tx.auditLog.create({data:{actorId:a.access.actorId,companyId:a.companyId,moduleKey:'runly.website',entityType:'website.site',entityId:a.siteId,action:'template.marketplace.imported',metadata:{source:preview.source,jobId:row.id,pageIds:applied.pages.map(p=>p.id),assetIds:Object.values(bindings),formMode:body.formMode}}})
+    await tx.auditLog.create({data:{actorId:a.access.actorId,companyId:a.companyId,moduleKey:'runly.website',entityType:'website.site',entityId:a.siteId,action:'template.marketplace.imported',metadata:{source:preview.source,jobId:row.id,pageIds:applied.pages.map(p=>p.id),assetIds:Object.values(bindings),formMode:body.formMode,accountsMode:body.accountsMode??'keep'}}})
     return result
    },{timeout:30000})
   }catch(error){await compensate(row.id).catch(()=>{});throw error}finally{clearInterval(heartbeat)}

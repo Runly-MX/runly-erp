@@ -16,6 +16,7 @@ export const SECTIONS = [
   { id: 'settings', label: 'Configuración', icon: 'Settings' },
   { id: 'advanced', label: 'Correo y analítica', icon: 'SlidersHorizontal' },
   { id: 'payments', label: 'Pagos', icon: 'CreditCard' },
+  { id: 'orders', label: 'Pedidos', icon: 'ShoppingBag' },
 ]
 
 const SITE_PATH = new RegExp(`^${PUBLIC_ROUTE_ROOT}/sites/([^/]+)`)

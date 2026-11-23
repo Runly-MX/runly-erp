@@ -5,7 +5,7 @@ import {AtlasWebBuilderProvider,AtlasWebRenderer,baseBlocks,defaultTheme} from '
 import {mapWebsiteImages} from '@runly/studio-interchange/website-document'
 import {buildRunlyBlocks} from './runlyBlocks/index.js'
 import {runly} from '../lib/runly.js'
-import {releaseRef,templateProblem} from '../lib/marketplace-import.js'
+import {releaseRef,templateProblem,usesFeature} from '../lib/marketplace-import.js'
 import {MarketplaceResourcePicker} from '../components/marketplace/MarketplaceResourcePicker.jsx'
 import '@raulbellosom/atlas-web-builder/styles'
 import './runlySite.css'
@@ -23,10 +23,10 @@ export function MarketplaceWebsiteDialog({open,onOpenChange,token,siteId:initial
  const queryClient=useQueryClient(),key=useRef(null)
  const [resource,setResource]=useState(initialResource??null),[siteId,setSiteId]=useState(initialSite??''),[ack,setAck]=useState(false)
  const [report,setReport]=useState(null),[selected,setSelected]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null)
- const [includeTheme,setTheme]=useState(true),[replace,setReplace]=useState(false),[forms,setForms]=useState(false),[accept,setAccept]=useState(false)
+ const [includeTheme,setTheme]=useState(true),[replace,setReplace]=useState(false),[forms,setForms]=useState(false),[accept,setAccept]=useState(false),[accounts,setAccounts]=useState(false)
  const sites=useQuery({queryKey:['website-marketplace-sites',token],queryFn:async()=>(await runly.website.listSites(token)).data,enabled:Boolean(open&&token)})
- async function inspect(){setBusy(true);setError('');try{const r=(await runly.website.inspectMarketplaceTemplate(siteId,releaseRef(resource,ack),token)).data;setReport(r);setSelected(r.pages.map(p=>p.path));setTheme(r.requirements.theme);setAccept(false);setReplace(false);setForms(false);key.current=crypto.randomUUID()}catch(e){setError(templateProblem(e))}finally{setBusy(false)}}
- async function install(){setBusy(true);setError('');try{const r=(await runly.website.installMarketplaceTemplate(siteId,{ref:releaseRef(resource,ack),pageIds:selected,expectedRevision:report.expectedRevision,includeTheme,replaceExisting:replace,formMode:forms?'local':'disabled',acceptWarnings:true},key.current,token)).data;setResult(r);queryClient.invalidateQueries({queryKey:['website-pages']})}catch(e){setError(e.message)}finally{setBusy(false)}}
+ async function inspect(){setBusy(true);setError('');try{const r=(await runly.website.inspectMarketplaceTemplate(siteId,releaseRef(resource,ack),token)).data;setReport(r);setSelected(r.pages.map(p=>p.path));setTheme(r.requirements.theme);setAccept(false);setReplace(false);setForms(false);setAccounts(false);key.current=crypto.randomUUID()}catch(e){setError(templateProblem(e))}finally{setBusy(false)}}
+ async function install(){setBusy(true);setError('');try{const r=(await runly.website.installMarketplaceTemplate(siteId,{ref:releaseRef(resource,ack),pageIds:selected,expectedRevision:report.expectedRevision,includeTheme,replaceExisting:replace,formMode:forms?'local':'disabled',...(accounts?{accountsMode:'enable'}:{}),acceptWarnings:true},key.current,token)).data;setResult(r);queryClient.invalidateQueries({queryKey:['website-pages']})}catch(e){setError(e.message)}finally{setBusy(false)}}
  const conflict=report?.pages.some(p=>selected.includes(p.path)&&p.conflict)
  return <Dialog open={open} onOpenChange={value=>{if(!busy)onOpenChange(value)}}><DialogContent className="max-h-[90vh] overflow-auto sm:max-w-4xl"><DialogHeader><DialogTitle>Usar en Website</DialogTitle><DialogDescription>Crea borradores editables con Atlas. Publicar en el dominio es una acción independiente.</DialogDescription></DialogHeader>
   {error&&<ErrorState title="No se pudo completar la operación" description={error}/>}
@@ -45,6 +45,9 @@ export function MarketplaceWebsiteDialog({open,onOpenChange,token,siteId:initial
     {!report.requirements.files&&report.assets.length>0&&<p role="alert">Necesitas permiso para crear archivos de esta empresa.</p>}
     {!report.requirements.home&&selected.includes('/')&&<p role="alert">Necesitas permiso para cambiar el inicio del sitio.</p>}
     {report.requirements.legacyPublicBaseline&&<p role="alert">Este sitio tiene contenido público anterior al modelo de releases. Sella primero una versión del sitio actual mediante su flujo de publicación; luego podrás instalar borradores sin alterar lo público.</p>}
+    {usesFeature(report,'accounts')&&<CheckboxField label="Activar cuentas de clientes en este sitio (registro, inicio de sesión y Mis pedidos)" checked={accounts} disabled={busy||!report.requirements.accounts} onChange={e=>setAccounts(e.target.checked)}/>}
+    {usesFeature(report,'accounts')&&!report.requirements.accounts&&<p>Necesitas permiso para gestionar cuentas de clientes; la página de cuenta se instalará sin activar.</p>}
+    {usesFeature(report,'commerce')&&!report.requirements.stripe&&<p role="alert">Este sitio no tiene Stripe configurado: el carrito se mostrará, pero no podrá cobrar hasta que lo configures en Pagos.</p>}
     <CheckboxField label="He revisado páginas, conflictos, requisitos y avisos de licencia" checked={accept} disabled={busy} onChange={e=>setAccept(e.target.checked)}/>
     <DialogFooter><Button variant="outline" disabled={busy} onClick={()=>setReport(null)}>Cambiar selección</Button><Button disabled={busy||!accept||!selected.length||(conflict&&!replace)||(!report.requirements.files&&report.assets.length>0)||(!report.requirements.home&&selected.includes('/'))||report.requirements.legacyPublicBaseline} onClick={install}>{busy?'Instalando borrador…':'Confirmar instalación'}</Button></DialogFooter>
    </>}

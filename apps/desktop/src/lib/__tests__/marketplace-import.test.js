@@ -43,3 +43,11 @@ test('templateProblem shows the compatibility explanation the API sends, and fal
   assert.equal(templateProblem(Object.assign(new Error('x'), { details: { details: { errors: [] } } })), 'x')
   assert.equal(templateProblem(null), undefined)
 })
+
+test('usesFeature reads the derived template requirements and is safe on partial reports', async () => {
+  const { usesFeature } = await import('../marketplace-import.js')
+  const report = { validation: { report: { requirements: { features: [{ id: 'commerce' }, { id: 'accounts' }] } } } }
+  assert.equal(usesFeature(report, 'accounts'), true)
+  assert.equal(usesFeature(report, 'motion'), false)
+  for (const bad of [null, undefined, {}, { validation: {} }, { validation: { report: { requirements: { features: null } } } }]) assert.equal(usesFeature(bad, 'accounts'), false)
+})

@@ -51,6 +51,7 @@ export async function startCheckout(lines) {
   if (!cfg?.apiUrl || !cfg?.siteId) throw new Error('config-missing')
   const res = await fetch(`${cfg.apiUrl}/public/website/checkout`, {
     method: 'POST',
+    credentials: 'same-origin', // the signed-in customer (site cookie) is linked to the order
     headers: { 'Content-Type': 'application/json', 'X-Site-Id': cfg.siteId },
     body: JSON.stringify({ items: lines.map((l) => ({ productId: l.productId, ...(l.variantId ? { variantId: l.variantId } : {}), qty: l.qty })) }),
   })

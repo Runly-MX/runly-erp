@@ -3,6 +3,7 @@
 // SSR renders the loading state; the session and the URL are only read in effects. Without a runtime config
 // (the editor preview) it shows a static, non-networked sign-in form.
 import { useEffect, useId, useRef, useState } from 'react'
+import { fetchMyOrders, formatOrderTotal, orderStatusLabel } from './ordersPublicClient.js'
 import { defineBlock } from '@raulbellosom/atlas-web-builder'
 import { readAtlasConfig } from './catalogPublicClient.js'
 import { accountApi, accountErrorMessage, accountFileUrl, deleteAccountFile, uploadAccountFile } from './accountPublicClient.js'
@@ -45,6 +46,26 @@ function Form({ onSubmit, busy, submitLabel, children }) {
 
 const values = (event) => Object.fromEntries(new FormData(event.currentTarget))
 const stripQuery = () => window.history.replaceState(null, '', window.location.pathname)
+
+// Orders of the signed-in customer. A failure or an empty list never blocks the rest of the account page.
+function MyOrders() {
+  const [orders, setOrders] = useState(null)
+  useEffect(() => { let alive = true; fetchMyOrders().then((list) => { if (alive) setOrders(list) }).catch(() => { if (alive) setOrders([]) }); return () => { alive = false } }, [])
+  if (!orders?.length) return null
+  return (
+    <section aria-label="Mis pedidos" style={{ display: 'grid', gap: 10 }}>
+      <h2 style={{ ...h1, fontSize: 22 }}>Mis pedidos</h2>
+      <ul style={{ listStyle: 'none', margin: 0, padding: 0, display: 'grid', gap: 8 }}>
+        {orders.map((order) => (
+          <li key={order.id} style={{ display: 'flex', flexWrap: 'wrap', justifyContent: 'space-between', gap: 8, padding: '12px 14px', borderRadius: 12, border: `1px solid ${LINE}`, background: 'rgba(255,255,255,.6)' }}>
+            <span style={{ ...text, color: INK }}>Pedido n.º {order.number} · {(order.lines ?? []).map((line) => `${line.quantity} × ${line.name}`).join(', ')}</span>
+            <span style={text}>{orderStatusLabel(order.status)} · {formatOrderTotal(order.total, order.currency)}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  )
+}
 
 function AccountPortal() {
   const preview = !readAtlasConfig()?.apiUrl
@@ -195,6 +216,7 @@ function AccountPortal() {
           <form onSubmit={resend}><button type="submit" style={link} disabled={busy}>Reenviar correo</button></form>
         </div>
       )}
+      <MyOrders />
       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 16 }}>
         <input ref={fileRef} type="file" accept="image/jpeg,image/png,image/webp,image/gif" hidden onChange={changePhoto} />
         <button type="button" style={link} disabled={busy} onClick={() => fileRef.current?.click()}>{account.avatarFileId ? 'Cambiar foto' : 'Agregar foto'}</button>

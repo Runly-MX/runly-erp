@@ -23,6 +23,7 @@ const ThemeScreen = lazy(() => import('../WebsiteThemeScreen.jsx'))
 const MenusScreen = lazy(() => import('../WebsiteMenusScreen.jsx'))
 const TemplatesScreen = lazy(() => import('../WebsiteTemplatesScreen.jsx'))
 const PaymentsScreen = lazy(() => import('../WebsitePaymentsScreen.jsx'))
+const OrdersScreen = lazy(() => import('../WebsiteOrdersScreen.jsx'))
 const AdvancedSettingsScreen = lazy(() => import('../WebsiteSettingsScreen.jsx'))
 
 const Lazy = ({ children }) => <Suspense fallback={<LoadingState variant="page" />}>{children}</Suspense>
@@ -90,6 +91,7 @@ export default function SiteWorkspace({ siteId, section = 'overview' }) {
     appearance: <Appearance site={data} siteId={siteId} />,
     advanced: <Lazy><AdvancedSettingsScreen siteId={siteId} /></Lazy>,
     payments: <Lazy><PaymentsScreen siteId={siteId} /></Lazy>,
+    orders: <Lazy><OrdersScreen siteId={siteId} /></Lazy>,
   }[current]
 
   return (

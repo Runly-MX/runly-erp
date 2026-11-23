@@ -81,3 +81,5 @@ export const publisherLabel = (item) => item?.publisher?.displayName || item?.pu
 export const releaseRef = (item, acknowledgeStale = false) => ({ resourceKey: item.resourceKey, version: item.version, releaseId: item.releaseId, ...(acknowledgeStale ? { acknowledgeStale: true } : {}) })
 // A template the installation cannot open explains what it uses (SVG, motion, components...), so the person knows what updating Runly unlocks.
 export const templateProblem = (error) => error?.details?.details?.errors?.[0]?.message ?? error?.message
+// Whether the inspected template uses a requirement feature (`svg`, `components`, `motion`, `commerce`, `accounts`...).
+export const usesFeature = (report, id) => Boolean(report?.validation?.report?.requirements?.features?.some((feature) => feature.id === id))
