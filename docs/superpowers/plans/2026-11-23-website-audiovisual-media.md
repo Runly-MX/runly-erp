@@ -137,3 +137,17 @@ Después: despliegue del usuario y prueba real desde ChatGPT.
   cerrar los bloques 3 y 4. Mientras tanto se usan los enlaces locales de prueba existentes.
 - Los paquetes de hasta 64 MiB aumentan el tiempo de validación en el sandbox del Hub; hay que
   medirlo en el bloque 4 y ajustar `timeoutMs` del escritor si hace falta.
+
+## Estado (2026-11-23)
+
+- Tamaño de biblioteca ampliado antes de la Fase B: audio/video hasta 64 MiB y 180 s (Hub `746751e`,
+  procesador av2). Los límites v3 de plantilla quedan en 64 MiB por archivo, 4 archivos, 128 MiB de
+  audio/video y ZIP de 160 MiB.
+- Bloque 1 hecho: ERP `b7e2a939b` (104/104 pruebas del interchange). Falta republicar el paquete.
+- Bloque 2 hecho: Atlas `6ac1493` + `c08de3e` (0.11.0, 327/327 pruebas, build). Falta publicar en npm.
+- Bloque 3 hecho salvo el pin de Atlas y el catálogo (requieren 0.11.0 publicado): ERP `c8618c622`.
+  Las pruebas `*-postgres` de Website necesitan su runner desechable y no se corrieron.
+- Bloque 4 bloqueado por una decisión: el Hub limita los paquetes `website_template` a 25 MiB
+  (`TYPE_MAX_BYTES`, `WEBSITE_VALIDATION_LIMITS.compressed`) y el escritor aislado intercambia el
+  paquete en base64 con 40 MiB de salida y 512 MB de heap. Un paquete v3 de hasta 160 MiB no pasa por
+  ese camino tal como está.
