@@ -7,11 +7,10 @@ import {exportWebsiteTemplate} from '@runly/studio-interchange/website-write'
 import {sectionsToAtlasPage,atlasPageToSections} from '@runly/studio-interchange/website-document'
 
 const options={builderCatalogs:catalogs,builderCatalogIdentities:identities}
-test('API, desktop y Website Blocks declaran y resuelven Atlas 0.9.3',()=>{
+test('API, desktop y Website Blocks resuelven exactamente la versión de Atlas que declaran',()=>{
   for(const manifest of ['../../../package.json','../../../../desktop/package.json','../../../../../packages/website-blocks/package.json']){
     const require=createRequire(new URL(manifest,import.meta.url))
-    assert.equal(require('./package.json').dependencies['@raulbellosom/atlas-web-builder'],'0.9.3')
-    assert.equal(require('@raulbellosom/atlas-web-builder/package.json').version,'0.9.3')
+    assert.equal(require('@raulbellosom/atlas-web-builder/package.json').version,require('./package.json').dependencies['@raulbellosom/atlas-web-builder'])
   }
 })
 for(const [label,version,catalog] of [
@@ -25,10 +24,14 @@ for(const [label,version,catalog] of [
   ['Atlas SVG publicado','0.9.1',catalogs['0.9.1']],
   ['ERP SVG con Ticketing','0.9.1',identities['0.9.1']['2e6570493f7016886277a35c1567a5acc5f97daf5ae6cc34d4f0b2a7698c36ca']],
   ['ERP con Ticketing','0.9.0',identities['0.9.0']['bf50cd9eb4aeb731c2f35e21af7603f303f9c5c8626b4542b9594ea5f9bb8da1']],
+  ...Object.entries(identities).filter(([version])=>!['0.8.2','0.9.0','0.9.1','0.9.2','0.9.3'].includes(version)).flatMap(([version,variants])=>Object.values(variants).map(catalog=>[`Atlas ${version} ${catalog.blocks.length} bloques`,version,catalog])),
 ])test(`${label}: apertura, edición, validación y reapertura conservan identidad y campos`,async()=>{
   const digest=catalogDigest(catalog)
   const sections=[{type:'TextElementBlock',props:{text:'Documento histórico',fontSize:48,...(version==='0.9.0'?{mobileFontSize:28,mobilePaddingLeft:0,mobileVisibility:'collapsed'}:{})}}]
   if(version==='0.9.1')sections.push({type:'ImageBlock',props:{src:'',vector:true,tint:'primary'}})
+  if(catalog.universalProps)sections.push(
+    {type:'TextElementBlock',props:{text:'Titular fluido',fluidType:true,fontSizeMin:20,fontSizeMax:48,_animation:{preset:'slide-up',distance:60,duration:700},_scrollReveal:true,_pressed:{scale:0.96}}},
+    {type:'ImageBlock',props:{src:'',alt:'Foto',focalX:20,focalY:30,mobileFocalX:60,mobileFocalY:40,_kenburns:{zoom:1.2,pan:'left'}}})
   if(version==='0.9.2')sections.push({type:'IconElementBlock',props:{icon:'heart',label:'Favorito',size:48,strokeWidth:1.5,tone:'primary'}})
   if(catalog.blocks.some(b=>b.type==='BookingPortalBlock'))sections.push({type:'BookingPortalBlock',props:{bookingPage:'/reservar',display:'button',buttonLabel:'Reservar'}})
   if(catalog.blocks.some(b=>b.type==='TicketingEventBlock'))sections.push({type:'TicketingEventBlock',props:{event:'evento-de-prueba',display:'button',buttonLabel:'Obtener boletos'}})
