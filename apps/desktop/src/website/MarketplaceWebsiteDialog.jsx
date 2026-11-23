@@ -13,7 +13,7 @@ import './runlySite.css'
 const disconnected=new Set(['ContactFormBlock','BookingFormBlock','BlogIndexBlock','ProductsGridBlock','ProductCardBlock','ProductDetailBlock','MenuGridBlock'])
 function Disconnected(){return <p>Marcador sin conexión; no recibe envíos ni realiza operaciones.</p>}
 export function WebsiteTemplatePreview({report,pagePath}) {
- const p=report.pages.find(p=>p.path===pagePath)??report.pages[0],urls=new Map(report.assets.map(a=>[`asset:${a.sha256}`,`data:${a.mime};base64,${a.base64}`]))
+ const p=report.pages.find(p=>p.path===pagePath)??report.pages[0],urls=new Map(report.assets.filter(a=>a.base64).map(a=>[`asset:${a.sha256}`,`data:${a.mime};base64,${a.base64}`]))
  const page=mapWebsiteImages(p.document,report.catalog,value=>urls.get(value)??value)
  const blocks=[...new Map([...baseBlocks,...buildRunlyBlocks('website'),...buildRunlyBlocks('ecommerce'),...buildRunlyBlocks('restaurant'),...buildRunlyBlocks('bookings')].map(b=>[b.type,disconnected.has(b.type)?{...b,render:Disconnected}:b])).values()]
  const theme={...defaultTheme,tokens:Object.fromEntries(Object.entries(defaultTheme.tokens).map(([k,v])=>[k,{...v,...report.themeTokens[k]}]))}

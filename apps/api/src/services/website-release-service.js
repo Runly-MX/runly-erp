@@ -10,7 +10,7 @@ import { releaseBytesHash } from './website-release-storage.js'
 import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
 import { eventUrl as ticketEventUrl } from '../routes/ticketing/ticketing-links.js'
 import { createFileAccess } from './files/access.js'
-import { PUBLISHABLE_IMAGE_MIME, imageSignatureMatches } from './website-image-signature.js'
+import { PUBLISHABLE_IMAGE_MIME, PUBLISHABLE_AV_MAX_BYTES, audiovisualSignatureMatches, imageSignatureMatches, isPublishableAudiovisual } from './website-image-signature.js'
 import { overridableFromCatalog, resolvePageComponents } from '@runly/studio-interchange/website-components'
 import { z } from 'zod'
 import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
@@ -191,18 +191,19 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
         if(/<\s*\/?\s*(?:script|iframe|object|embed|style|link|meta|form|base|svg|math)\b|\bon[a-z]+\s*=/i.test(value)||/javascript:|vbscript:|data:text\/html|expression\(/i.test(value.replace(/[\x00-\x20]/g,'')))throw failure('unsafe_content',422)
         if(field==='siteId'&&value&&value!==a.siteId)throw notFound('Recurso')
         if(field==='calendarId'&&value)throw failure('dynamic_binding_unavailable',422)
-        if((/^(?:fileId|imageFileId|logoFileId|faviconFileId|coverAssetId)$/i.test(field)||(/image|src|poster|avatar|logo|^url$/i.test(field)&&value.startsWith('file:')))&&value) {
+        if((/^(?:fileId|imageFileId|logoFileId|faviconFileId|coverAssetId)$/i.test(field)||(/image|src|poster|avatar|logo|^url$|^file$/i.test(field)&&value.startsWith('file:')))&&value) {
           const fileId=value.startsWith('file:')?value.slice(5):value
           const file=await prisma.fileAsset.findFirst({where:{id:fileId,entityId:{in:[a.companyId,a.siteId]},enabled:true}})
           if(!file)throw notFound('Recurso')
           try{await files.assertAccess(file,{profileId:a.actorId,admin:a.access.isAdmin})}catch{throw notFound('Recurso')}
           if(file.visibility!=='PUBLIC'&&file.uploadedById!==a.actorId&&!a.access.isAdmin)throw failure('asset_not_publishable',422)
-          if(!readFile||!PUBLISHABLE_IMAGE_MIME.test(file.mimeType??''))throw failure('asset_not_publishable',422)
-          const bytes=await readFile(file);if(bytes.length>8*1024*1024)throw failure('asset_too_large',422)
+          const audiovisual=isPublishableAudiovisual(file.mimeType)
+          if(!readFile||!(audiovisual||PUBLISHABLE_IMAGE_MIME.test(file.mimeType??'')))throw failure('asset_not_publishable',422)
+          const bytes=await readFile(file);if(bytes.length>(audiovisual?PUBLISHABLE_AV_MAX_BYTES:8*1024*1024))throw failure('asset_too_large',422)
           const latest=await prisma.fileAsset.findFirst({where:{id:file.id,entityId:file.entityId,enabled:true}})
           if(!latest||latest.contentRevision!==file.contentRevision||latest.objectKey!==file.objectKey||latest.checksum!==file.checksum)throw failure('asset_changed')
           if(file.checksum&&(!/^(?:sha256:)?[0-9a-f]{64}$/i.test(file.checksum)||file.checksum.replace(/^sha256:/i,'').toLowerCase()!==releaseBytesHash(bytes)))throw failure('asset_checksum_mismatch',422)
-          const valid=imageSignatureMatches(file.mimeType,bytes)
+          const valid=audiovisual?audiovisualSignatureMatches(file.mimeType,bytes):imageSignatureMatches(file.mimeType,bytes)
           if(!valid)throw failure('asset_type_mismatch',422)
           const ref=await storeObject(a,bytes,file.mimeType);assets[ref.hash]=ref
           // IDs remain stable, URLs are explicit immutable bindings.

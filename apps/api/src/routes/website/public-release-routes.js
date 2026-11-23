@@ -18,6 +18,19 @@ function sendCode(c,hash,bytes,mime) {
   if(!compressed.has(key)){if(compressed.size>64)compressed.delete(compressed.keys().next().value);compressed.set(key,encoding==='br'?brotliCompressSync(bytes,{params:{[zlib.BROTLI_PARAM_QUALITY]:9}}):gzipSync(bytes,{level:9}))}
   c.header('Content-Encoding',encoding);return c.body(compressed.get(key))
 }
+// Single-range responses: browsers seek audio/video with Range (Safari will not play MP4 without it).
+export function sendBytes(c,bytes,mime) {
+  const size=bytes.length,range=c.req.header('range')
+  c.header('Accept-Ranges','bytes')
+  if(!range){c.header('Content-Type',mime);return c.body(bytes)}
+  const m=/^bytes=(\d*)-(\d*)$/.exec(range.trim())
+  let start=NaN,end=NaN
+  if(m&&m[1]!=='')[start,end]=[Number(m[1]),m[2]===''?size-1:Math.min(Number(m[2]),size-1)]
+  else if(m&&m[2]!=='')[start,end]=[size-Number(m[2]),size-1]
+  if(!(start>=0&&start<=end&&start<size)){c.header('Content-Range',`bytes */${size}`);return c.body(null,416)}
+  c.header('Content-Type',mime);c.header('Content-Range',`bytes ${start}-${end}/${size}`)
+  return c.body(bytes.subarray(start,end+1),206)
+}
 const isCode=mime=>/^text\/(?:javascript|css)/.test(mime??'')
 const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,char=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]))
 export function createPublicReleaseRoutes({gateway,runtime}) {
@@ -29,7 +42,7 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
    if(result.kind!=='dist'&&isCode(result.mime))return sendCode(c,c.req.param('hash'),Buffer.from(result.bytes),result.mime)
    // A vector document is only ever an image: no scripts, no styles, no framing context if opened directly.
    if(result.mime==='image/svg+xml')c.header('Content-Security-Policy',"default-src 'none'; style-src 'none'; sandbox")
-   c.header('Content-Type',result.mime);return c.body(result.bytes)
+   return sendBytes(c,Buffer.from(result.bytes),result.mime)
  })
  app.get('/runtime/:hash',async c=>{
    const files=await runtime(), file=Object.values(files).find(f=>f.hash===c.req.param('hash'))

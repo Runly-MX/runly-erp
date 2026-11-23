@@ -40,15 +40,18 @@ export function atlasPageToSections(page) {
 }
 
 // Only catalog-typed image positions are remapped; text that resembles an asset is preserved.
-export function mapWebsiteImages(page, catalog, resolve) {
+// `posterOf(ref)` (optional) returns the resolved poster of a packaged video; it fills an empty `poster` image field.
+export function mapWebsiteImages(page, catalog, resolve, posterOf = () => null) {
   const mapped = structuredClone(page), definitions = new Map(catalog.blocks.map(b => [b.type, b]))
   for (const block of Object.values(mapped.blocks)) {
     const definition = definitions.get(block.type)
     if (!definition) throw new TypeError('UNKNOWN_BLOCK')
     for (const [key, value] of Object.entries(block.props ?? {})) {
       const field = definition.fields[key]
-      if (field?.type === 'image' && value) block.props[key] = resolve(value)
+      if (['image', 'video', 'audio'].includes(field?.type) && value) block.props[key] = resolve(value)
       if (field?.type === 'background' && value?.kind === 'image' && value.url) block.props[key] = { ...value, url: resolve(value.url) }
+      const poster = field?.type === 'video' && value ? posterOf(value) : null
+      if (poster && definition.fields.poster?.type === 'image' && !block.props.poster) block.props.poster = poster
     }
   }
   return mapped

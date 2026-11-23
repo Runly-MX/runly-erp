@@ -84,6 +84,12 @@ const ALLOWED_EXACT_MIME_TYPES = new Set([
 const EXTENSION_FALLBACK_TYPES = new Set(["xml", "zip", "rar", "7z", "dwg"]);
 
 const ALLOWED_MIME_PREFIXES = ["image/", "text/"];
+// Website sites (and the templates installed into them) may also carry audio/video, processed upstream by the
+// Developer Hub; every other module keeps the 10 MB image/document policy.
+const WEBSITE_MEDIA_MODULE = "runly.website";
+const WEBSITE_AV_MIME_TYPES = new Set(["video/mp4", "video/webm", "audio/mp4", "audio/mpeg", "audio/ogg", "audio/wav"]);
+const WEBSITE_AV_MAX_BYTES = 64 * 1024 * 1024;
+const isWebsiteAudiovisual = (mimeType, moduleKey) => moduleKey === WEBSITE_MEDIA_MODULE && WEBSITE_AV_MIME_TYPES.has(mimeType);
 
 class FilesServiceError extends Error {
   constructor(message, status = 500) {
@@ -383,14 +389,15 @@ export function createFilesService({ prisma, supabaseAdmin }) {
       throw new FilesServiceError("Selecciona un archivo válido.", 400);
     }
 
-    if (file.size > MAX_FILE_SIZE_BYTES) {
+    const websiteAudiovisual = isWebsiteAudiovisual(file.type, String(fields.moduleKey ?? "").trim());
+    if (file.size > (websiteAudiovisual ? WEBSITE_AV_MAX_BYTES : MAX_FILE_SIZE_BYTES)) {
       throw new FilesServiceError(
-        "El archivo supera el límite de 10 MB.",
+        websiteAudiovisual ? "El audio o video supera el límite de 64 MB." : "El archivo supera el límite de 10 MB.",
         400,
       );
     }
 
-    if (!isAllowedMimeType(file.type, file.name)) {
+    if (!websiteAudiovisual && !isAllowedMimeType(file.type, file.name)) {
       throw new FilesServiceError(
         "Tipo de archivo no permitido. Usa imagen, PDF, texto u oficina.",
         400,
@@ -988,4 +995,4 @@ export function createFilesService({ prisma, supabaseAdmin }) {
 
 export { FilesServiceError };
 // Upload rules reused by direct uploaders that have no user session (inventory supplier portal).
-export { MAX_FILE_SIZE_BYTES, STORAGE_BUCKET_NAME, buildModuleObjectKey, isAllowedMimeType };
+export { MAX_FILE_SIZE_BYTES, STORAGE_BUCKET_NAME, WEBSITE_AV_MAX_BYTES, buildModuleObjectKey, isAllowedMimeType, isWebsiteAudiovisual };

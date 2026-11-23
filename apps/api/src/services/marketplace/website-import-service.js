@@ -11,6 +11,7 @@ import {createWebsiteTemplateService} from '../website-template-service.js'
 import {createWebsiteTemplatePreparationService} from '../website-template-preparation-service.js'
 import {createFileAccess} from '../files/access.js'
 import {websiteReleasePath} from '../website-release-service.js'
+import {WEBSITE_AV_MAX_BYTES} from '../files-service.js'
 
 const catalogs=WEBSITE_BUILDER_CATALOGS, sha=bytes=>createHash('sha256').update(bytes).digest('hex')
 export const installRequestSchema=z.strictObject({ref:resourceRefSchema,pageIds:z.array(z.string().max(512)).min(1).max(24),expectedRevision:z.number().int().nonnegative(),includeTheme:z.boolean(),replaceExisting:z.boolean().default(false),formMode:z.enum(['disabled','local']).default('disabled'),accountsMode:z.enum(['keep','enable']).optional(),acceptWarnings:z.literal(true)})
@@ -30,12 +31,13 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
   const inspected=await inspectWebsiteTemplate(download.bytes,{builderCatalogs:catalogs,builderCatalogIdentities:WEBSITE_BUILDER_CATALOG_IDENTITIES})
   if(!inspected.ok)throw Object.assign(fail('website_template_invalid',422),{details:{errors:inspected.errors}})
   archives.set(inspected,download.bytes)
-  if(inspected.content.assets.some(asset=>asset.bytes>8*1024*1024))throw fail('asset_too_large',422)
+  if(inspected.content.assets.some(asset=>asset.bytes>(asset.kind?WEBSITE_AV_MAX_BYTES:8*1024*1024)))throw fail('asset_too_large',422)
   const existing=await prisma.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true,enabled:true,status:true}})
   const {content,...validation}=inspected
   return {source:download.source,validation,expectedRevision:site.draftRevision,catalog:resolveWebsiteCatalog(catalogs,WEBSITE_BUILDER_CATALOG_IDENTITIES,inspected.manifest.builder.min,inspected.manifest.builder.catalogDigest),
    pages:content.pages.map(p=>({...p,document:sectionsToAtlasPage({...p,sections:p.resolved??p.sections}),sections:undefined,resolved:undefined,conflict:existing.some(row=>row.routePath===p.path||row.draftMetadata?.routePath===p.path)})),
-   themeTokens:websiteThemeToAtlasTokens(content.theme??{}),assets:content.assets.map(({data,...asset})=>({...asset,base64:Buffer.from(data).toString('base64')})),licenses:content.licenses,
+   themeTokens:websiteThemeToAtlasTokens(content.theme??{}),// Audio/video never travels to the browser as base64: the preview shows the poster (video) or nothing (audio).
+   assets:content.assets.map(({data,posterData,...asset})=>({...asset,...(asset.kind?(posterData?{posterBase64:Buffer.from(posterData).toString('base64')}:{}):{base64:Buffer.from(data).toString('base64')})})),licenses:content.licenses,
    requirements:{accounts:a.access.can('website.accounts.manage'),stripe:Boolean(site.stripeSecretKey),forms:inspected.manifest.forms,legacyPublicBaseline:!site.activeReleaseId&&existing.some(p=>p.enabled&&p.status==='published'),formsLocal:a.access.can('website.forms.create'),home:a.access.can('website.site.update'),theme:a.access.can('website.site.update')&&a.access.can('website.theme.update'),files:a.access.can('files.assets.create')},
    _inspected:inspected}
  }
@@ -87,7 +89,8 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
   const staged=[],bindings={},reused=[]
   const heartbeat=setInterval(()=>{void prisma.$queryRaw`UPDATE website_template_job SET lease_until=now()+interval '2 minutes',next_cleanup_at=now()+interval '2 minutes' WHERE id=${row.id}::uuid AND state='preparing'`.catch(()=>{})},30000);heartbeat.unref?.()
   try{
-   for(const asset of data.content.assets){
+   // A packaged video brings its WebP poster: both become site files.
+   for(const asset of data.content.assets.flatMap(a=>[a,...(a.poster?[{...a.poster,mime:'image/webp',data:a.posterData}]:[])])){
     const existing=await prisma.fileAsset.findFirst({where:{entityId:a.siteId,moduleKey:'runly.website',enabled:true,visibility:'PRIVATE',checksum:`sha256:${asset.sha256}`,metadata:{path:['companyId'],equals:a.companyId},...(a.access.isAdmin?{}:{uploadedById:a.access.actorId})}})
     if(existing){await files.assertAccess(existing,{profileId:a.access.actorId,admin:a.access.isAdmin});const bytes=await readFile(existing);if(bytes.length===asset.bytes&&sha(bytes)===asset.sha256&&existing.mimeType===asset.mime){bindings[asset.sha256]=existing.id;reused.push(existing);continue}}
     const result=await filesService.upload({activeContext:{companyId:a.companyId,profileId:a.access.actorId,isAdmin:a.access.isAdmin},file:new File([asset.data],asset.path.split('/').at(-1),{type:asset.mime}),fields:{moduleKey:'runly.website',entityType:'WebsiteSite',entityId:a.siteId,visibility:'PRIVATE',metadata:{websiteTemplate:{sha256:asset.sha256,source:preview.source,license:data.content.licenses.find(l=>l.id===asset.license)}}},staging:{beforeStorage:async location=>{
