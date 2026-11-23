@@ -45,8 +45,7 @@ each page can still override or detach them.
 ## Phasing
 
 - 2B-1 (done) `resolveComponents` on portable sections (interchange) and on Atlas Pages (renderer), definition validation, overrides by path, block-limit anti-amplification, tests in both. `ComponentRefBlock` is deliberately NOT registered yet: references are resolved before block lookup, so no catalog/digest change and no palette entry. Decisions fixed here: override path = `root/<slot>/<index>/...`; error codes `component_missing|component_id_invalid|component_override_invalid|component_ref_nested|component_limit|component_invalid`; expanded page must stay within 300 blocks.
-- 2B-2 Portable format + Hub contract/save + ERP release expansion + migration of existing drafts (none needed:
-  `components` is optional).
+- 2B-2 (done 2026-11-23) Portable `components.json` (optional inventory entry, reader expands before validating, writer omits it when unused so historical packages keep their bytes), Hub save/open/diagnostics/contract (`document.components`, byte-identical save->open->save), report `components[{id,name,uses}]`. **Deviation from the first draft:** ERP drafts have no site-level storage for components, so installing a template expands components into each page (`resolved`); live sync inside the ERP and release-time expansion move to 2B-3 together with the editor, where the storage decision (Prisma model vs draft metadata) is made. `ComponentRefBlock` stays out of the Builder catalog.
 - 2B-3 Editor UX.
 
 ## Out of scope
