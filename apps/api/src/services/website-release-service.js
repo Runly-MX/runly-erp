@@ -10,6 +10,7 @@ import { releaseBytesHash } from './website-release-storage.js'
 import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
 import { eventUrl as ticketEventUrl } from '../routes/ticketing/ticketing-links.js'
 import { createFileAccess } from './files/access.js'
+import { PUBLISHABLE_IMAGE_MIME, imageSignatureMatches } from './website-image-signature.js'
 import { z } from 'zod'
 import {isStaticWebsiteContent,STATIC_CONTENT_POLICY,isSandboxedWebsiteContent,SANDBOX_CONTENT_POLICY} from './website-static-policy.js'
 
@@ -188,16 +189,12 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
           if(!file)throw notFound('Recurso')
           try{await files.assertAccess(file,{profileId:a.actorId,admin:a.access.isAdmin})}catch{throw notFound('Recurso')}
           if(file.visibility!=='PUBLIC'&&file.uploadedById!==a.actorId&&!a.access.isAdmin)throw failure('asset_not_publishable',422)
-          if(!readFile||!/^image\/(?:png|jpeg|webp|gif|avif)$/.test(file.mimeType??''))throw failure('asset_not_publishable',422)
+          if(!readFile||!PUBLISHABLE_IMAGE_MIME.test(file.mimeType??''))throw failure('asset_not_publishable',422)
           const bytes=await readFile(file);if(bytes.length>8*1024*1024)throw failure('asset_too_large',422)
           const latest=await prisma.fileAsset.findFirst({where:{id:file.id,entityId:file.entityId,enabled:true}})
           if(!latest||latest.contentRevision!==file.contentRevision||latest.objectKey!==file.objectKey||latest.checksum!==file.checksum)throw failure('asset_changed')
           if(file.checksum&&(!/^(?:sha256:)?[0-9a-f]{64}$/i.test(file.checksum)||file.checksum.replace(/^sha256:/i,'').toLowerCase()!==releaseBytesHash(bytes)))throw failure('asset_checksum_mismatch',422)
-          const valid=(file.mimeType==='image/png'&&bytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))) ||
-            (file.mimeType==='image/jpeg'&&bytes.subarray(0,3).equals(Buffer.from([255,216,255]))) ||
-            (file.mimeType==='image/gif'&&bytes.subarray(0,4).toString()==='GIF8') ||
-            (file.mimeType==='image/webp'&&bytes.subarray(0,4).toString()==='RIFF'&&bytes.subarray(8,12).toString()==='WEBP') ||
-            (file.mimeType==='image/avif'&&bytes.subarray(4,12).toString()==='ftypavif')
+          const valid=imageSignatureMatches(file.mimeType,bytes)
           if(!valid)throw failure('asset_type_mismatch',422)
           const ref=await storeObject(a,bytes,file.mimeType);assets[ref.hash]=ref
           // IDs remain stable, URLs are explicit immutable bindings.

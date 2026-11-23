@@ -27,6 +27,8 @@ export function createPublicReleaseRoutes({gateway,runtime}) {
    const result=await gateway.asset(c,c.req.param('releaseId'),c.req.param('hash'))
    if(result.kind==='dist')websiteIsolatedHeaders(c,{manifest:result,mime:result.mime})
    if(result.kind!=='dist'&&isCode(result.mime))return sendCode(c,c.req.param('hash'),Buffer.from(result.bytes),result.mime)
+   // A vector document is only ever an image: no scripts, no styles, no framing context if opened directly.
+   if(result.mime==='image/svg+xml')c.header('Content-Security-Policy',"default-src 'none'; style-src 'none'; sandbox")
    c.header('Content-Type',result.mime);return c.body(result.bytes)
  })
  app.get('/runtime/:hash',async c=>{
