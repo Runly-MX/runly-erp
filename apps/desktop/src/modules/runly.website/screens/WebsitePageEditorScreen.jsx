@@ -12,6 +12,7 @@ import {
   defineTheme,
   useEditorStoreInstance,
 } from "@raulbellosom/atlas-web-builder";
+import * as atlas from "@raulbellosom/atlas-web-builder";
 import "@raulbellosom/atlas-web-builder/styles";
 import "../../../website/runlySite.css";
 import { useAuth } from "../../../auth/AuthProvider.jsx";
@@ -22,6 +23,8 @@ import {
 } from "../../../website/runlyBlocks/index.js";
 import { toast } from "sonner";
 import {usePrivateWebsiteAssets} from '../../../website/usePrivateWebsiteAssets.js';
+import {useSyncedComponents} from '../lib/useSyncedComponents.js';
+import {componentBlocksFrom} from '../lib/syncedComponents.js';
 
 function AtlasThemeBridge({themeRef}) {
   const store=useEditorStoreInstance();
@@ -40,7 +43,7 @@ async function apiFetch(path, token, options = {}) {
   });
   if (!res.ok) {
     const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || `HTTP ${res.status}`);
+    throw Object.assign(new Error(err.error || `HTTP ${res.status}`), { status: res.status, code: err.code });
   }
   return res.json();
 }
@@ -132,6 +135,9 @@ export default function WebsitePageEditorScreen({
   const blockDefinitions=useMemo(()=>[...baseBlocks,...buildRunlyBlocks('website'),...buildRunlyBlocks('ecommerce'),...buildRunlyBlocks('bookings'),...buildRunlyBlocks('restaurant')],[]);
   const privateAssets=usePrivateWebsiteAssets({token,siteId:pageSiteId,blocks:blockDefinitions});
   const toPrivateAssetView=privateAssets.toView;
+  // Synced components need an Atlas release that exports ComponentRefBlock (0.9.3+); older releases get no tab.
+  const componentBlocks=useMemo(()=>componentBlocksFrom(atlas),[]);
+  const syncedComponents=useSyncedComponents({apiFetch,token,siteId:pageSiteId,enabled:componentBlocks.length>0});
   const siteQuery = useQuery({
     queryKey: ["website-site", pageSiteId, token],
     queryFn: () => apiFetch(pageSiteId ? `/website/sites/${pageSiteId}` : "/website/site", token),
@@ -262,7 +268,8 @@ export default function WebsitePageEditorScreen({
       }}
     >
       <AtlasWebBuilderEditor
-        blocks={[...baseBlocks, ...buildRunlyBlocks(siteType)].map(b=>({...b,fields:Object.fromEntries(Object.entries(b.fields??{}).map(([k,f])=>[k,f.type==='image'?{...f,withAssetMeta:false}:f]))}))}
+        syncedComponents={syncedComponents}
+        blocks={[...baseBlocks, ...componentBlocks, ...buildRunlyBlocks(siteType)].map(b=>({...b,fields:Object.fromEntries(Object.entries(b.fields??{}).map(([k,f])=>[k,f.type==='image'?{...f,withAssetMeta:false}:f]))}))}
         templates={buildRunlyTemplates(siteType)}
         initialPage={initialPage}
         theme={resolvedTheme}
