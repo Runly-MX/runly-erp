@@ -5,6 +5,7 @@ import { PACKAGE_LIMITS } from './limits.js'
 import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 import { validateImage } from './inspect.js'
+import { isEffectProp, validateEffectProp } from './website-effects.js'
 import { COMPONENT_LIMITS, COMPONENT_REF_TYPE, overridableFromCatalog, resolveComponents, validateComponentDefinitions } from './website-components.js'
 
 // Website template (ERP E1a Annex B + W1): a DECLARATIVE ZIP. Only data: nothing is evaluated,
@@ -23,6 +24,15 @@ export const WEBSITE_MEDIA_POLICY = Object.freeze({ name: 'packaged-media-v2', v
 // Synced components: an optional `components.json` in the inventory (site-level definitions). Readers that do not know
 // the file reject the package with undeclared_entry instead of silently dropping the shared sections.
 export const WEBSITE_COMPONENTS = Object.freeze({ file: 'components.json', refType: COMPONENT_REF_TYPE, ...COMPONENT_LIMITS })
+// Motion and Responsive Pro (Phase 3). Effects are validated against the catalog `universalProps` table; these constants are what a
+// host advertises (Hub contract, ERP) so tools and older hosts can tell what a reader understands before sending a document.
+export const WEBSITE_EFFECTS = Object.freeze({ version: 1, namespace: '_', table: 'catalog.universalProps', errors: Object.freeze(['effect_invalid', 'effect_unknown']) })
+export const WEBSITE_RESPONSIVE = Object.freeze({
+  version: 1,
+  fluidType: Object.freeze({ props: Object.freeze(['fluidType', 'fontSizeMin', 'fontSizeMax', 'fluidMinViewport', 'fluidMaxViewport']), size: Object.freeze([8, 200]), minViewport: Object.freeze([280, 1024]), maxViewport: Object.freeze([600, 2560]), theme: 'theme.fluid' }),
+  focalPoint: Object.freeze({ props: Object.freeze(['focalX', 'focalY', 'tabletFocalX', 'tabletFocalY', 'mobileFocalX', 'mobileFocalY']), range: Object.freeze([0, 100]) }),
+  overflowAudit: Object.freeze({ widths: Object.freeze([320, 375, 414, 768, 1024, 1280, 1440, 1920]) }),
+})
 export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name])
 export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
 export const WEBSITE_LIMITS_VERSION = 2
@@ -86,6 +96,8 @@ const themeSchema = z.strictObject({
   colors: z.record(z.string().regex(/^[a-zA-Z][\w-]{0,40}$/), z.string().regex(hexColor)).default({}),
   fonts: z.strictObject({ heading: z.string().max(100), body: z.string().max(100) }).partial().default({}),
   radius: z.number().min(0).max(64).optional(), spacing: z.number().min(0).max(64).optional(),
+  // Fluid scale for large font-size tokens (Atlas `tokens.fluid`). Viewport widths are page widths in px.
+  fluid: z.strictObject({ enabled: z.boolean(), minViewport: z.number().int().min(280).max(1024).optional(), maxViewport: z.number().int().min(600).max(2560).optional() }).optional(),
 })
 
 const hostOf = (value) => { try { return new URL(value).host.toLowerCase() } catch { return null } }
@@ -170,6 +182,12 @@ function checkBlock(section, path, depth, ctx, page) {
   if (typeof props !== 'object' || Array.isArray(props)) ctx.error('prop_invalid', `${path}.props: se espera un objeto`, `${path}.props`)
   else for (const [key, value] of Object.entries(props)) {
     const field = definition.fields[key], at = `${path}.props.${key}`
+    // Universal effects (`_animation`, `_hover`...) are not block fields: they are validated against the catalog contract table.
+    if (!field && isEffectProp(key) && ctx.universal) {
+      const result = validateEffectProp(key, value, ctx.universal, at)
+      for (const problem of result.errors) ctx.error(problem.code, `${problem.path}: ${problem.message}`, problem.path)
+      continue
+    }
     if (!field) { ctx.error('prop_unknown', `${at}: no existe en ${definition.type}`, at); continue }
     if (ctx.version === 1 && (value === null || value === undefined || JSON.stringify(value) === JSON.stringify(definition.defaultProps[key]))) continue
     // Forms are markers, calendars are bound by the ERP: a template never carries a destination.
@@ -219,7 +237,7 @@ async function validateCore(input, options) {
   if (files.size !== declared.size + 2) throw packageError('undeclared_entry', 'La plantilla contiene entradas no declaradas.')
 
   const errors = [], warnings = []
-  const ctxBase = { errors, warnings, limits, version: manifest.formatVersion, blocks: indexOf(catalog), groups: new Set(['base', 'universal', ...SITE_GROUPS[manifest.siteKind]]), types: {}, forms: new Set(), links: new Set(), refs: new Set() }
+  const ctxBase = { errors, warnings, limits, version: manifest.formatVersion, blocks: indexOf(catalog), universal: catalog.universalProps ?? null, groups: new Set(['base', 'universal', ...SITE_GROUPS[manifest.siteKind]]), types: {}, forms: new Set(), links: new Set(), refs: new Set() }
   const assetsById = new Map(manifest.assets.map((a) => [a.sha256, a]))
   const ctx = {
     ...ctxBase,

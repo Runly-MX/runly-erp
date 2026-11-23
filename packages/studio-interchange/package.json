@@ -17,7 +17,8 @@
     "./studio/motion": "./src/studio/motion.js",
     "./studio/keyframes": "./src/studio/keyframes.js",
     "./svg": "./src/svg.js",
-    "./website-components": "./src/website-components.js"
+    "./website-components": "./src/website-components.js",
+    "./website-effects": "./src/website-effects.js"
   },
   "dependencies": {
     "jszip": "3.10.1",

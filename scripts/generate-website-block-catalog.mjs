@@ -41,7 +41,9 @@ function field(definition) {
       });
     }
   }
-  const catalog = { generatedBy: 'scripts/generate-website-block-catalog.mjs', schemaVersion: builder.CURRENT_SCHEMA_VERSION, blocks };
+  // Universal `_*` props and capability descriptors travel with the catalog (Atlas 0.10.0+); older packages simply lack them.
+  const contract = builder.UNIVERSAL_PROPS ? { capabilities: JSON.parse(JSON.stringify(builder.UNIVERSAL_CAPABILITIES)), universalProps: JSON.parse(JSON.stringify(builder.UNIVERSAL_PROPS)) } : {};
+  const catalog = { generatedBy: 'scripts/generate-website-block-catalog.mjs', schemaVersion: builder.CURRENT_SCHEMA_VERSION, ...contract, blocks };
   await writeFile(new URL('../apps/api/src/routes/website/block-catalog.json', import.meta.url), `${JSON.stringify(catalog, null, 2)}\n`);
   console.log(`block-catalog.json: ${blocks.length} blocks`);
 }

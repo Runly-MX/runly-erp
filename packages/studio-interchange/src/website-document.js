@@ -55,5 +55,5 @@ export function mapWebsiteImages(page, catalog, resolve) {
 }
 
 export function websiteThemeToAtlasTokens(theme = {}) {
-  return { ...(theme.colors ? { color: structuredClone(theme.colors) } : {}), ...(theme.fonts ? { font: { ...(theme.fonts.body ? { sans: theme.fonts.body } : {}), ...(theme.fonts.heading ? { heading: theme.fonts.heading } : {}) } } : {}), ...(theme.radius === undefined ? {} : { radius: { sm: `${theme.radius}px`, md: `${theme.radius}px`, lg: `${theme.radius}px` } }), ...(theme.spacing === undefined ? {} : { spacing: Object.fromEntries([0, 1, 2, 3, 4, 6, 8, 12, 16].map(n => [n, `${n * theme.spacing}px`])) }) }
+  return { ...(theme.fluid ? { fluid: structuredClone(theme.fluid) } : {}), ...(theme.colors ? { color: structuredClone(theme.colors) } : {}), ...(theme.fonts ? { font: { ...(theme.fonts.body ? { sans: theme.fonts.body } : {}), ...(theme.fonts.heading ? { heading: theme.fonts.heading } : {}) } } : {}), ...(theme.radius === undefined ? {} : { radius: { sm: `${theme.radius}px`, md: `${theme.radius}px`, lg: `${theme.radius}px` } }), ...(theme.spacing === undefined ? {} : { spacing: Object.fromEntries([0, 1, 2, 3, 4, 6, 8, 12, 16].map(n => [n, `${n * theme.spacing}px`])) }) }
 }
