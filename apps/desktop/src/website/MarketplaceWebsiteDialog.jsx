@@ -5,7 +5,7 @@ import {AtlasWebBuilderProvider,AtlasWebRenderer,baseBlocks,defaultTheme} from '
 import {mapWebsiteImages} from '@runly/studio-interchange/website-document'
 import {buildRunlyBlocks} from './runlyBlocks/index.js'
 import {runly} from '../lib/runly.js'
-import {releaseRef} from '../lib/marketplace-import.js'
+import {releaseRef,templateProblem} from '../lib/marketplace-import.js'
 import {MarketplaceResourcePicker} from '../components/marketplace/MarketplaceResourcePicker.jsx'
 import '@raulbellosom/atlas-web-builder/styles'
 import './runlySite.css'
@@ -25,7 +25,7 @@ export function MarketplaceWebsiteDialog({open,onOpenChange,token,siteId:initial
  const [report,setReport]=useState(null),[selected,setSelected]=useState([]),[error,setError]=useState(''),[busy,setBusy]=useState(false),[result,setResult]=useState(null)
  const [includeTheme,setTheme]=useState(true),[replace,setReplace]=useState(false),[forms,setForms]=useState(false),[accept,setAccept]=useState(false)
  const sites=useQuery({queryKey:['website-marketplace-sites',token],queryFn:async()=>(await runly.website.listSites(token)).data,enabled:Boolean(open&&token)})
- async function inspect(){setBusy(true);setError('');try{const r=(await runly.website.inspectMarketplaceTemplate(siteId,releaseRef(resource,ack),token)).data;setReport(r);setSelected(r.pages.map(p=>p.path));setTheme(r.requirements.theme);setAccept(false);setReplace(false);setForms(false);key.current=crypto.randomUUID()}catch(e){setError(e.message)}finally{setBusy(false)}}
+ async function inspect(){setBusy(true);setError('');try{const r=(await runly.website.inspectMarketplaceTemplate(siteId,releaseRef(resource,ack),token)).data;setReport(r);setSelected(r.pages.map(p=>p.path));setTheme(r.requirements.theme);setAccept(false);setReplace(false);setForms(false);key.current=crypto.randomUUID()}catch(e){setError(templateProblem(e))}finally{setBusy(false)}}
  async function install(){setBusy(true);setError('');try{const r=(await runly.website.installMarketplaceTemplate(siteId,{ref:releaseRef(resource,ack),pageIds:selected,expectedRevision:report.expectedRevision,includeTheme,replaceExisting:replace,formMode:forms?'local':'disabled',acceptWarnings:true},key.current,token)).data;setResult(r);queryClient.invalidateQueries({queryKey:['website-pages']})}catch(e){setError(e.message)}finally{setBusy(false)}}
  const conflict=report?.pages.some(p=>selected.includes(p.path)&&p.conflict)
  return <Dialog open={open} onOpenChange={value=>{if(!busy)onOpenChange(value)}}><DialogContent className="max-h-[90vh] overflow-auto sm:max-w-4xl"><DialogHeader><DialogTitle>Usar en Website</DialogTitle><DialogDescription>Crea borradores editables con Atlas. Publicar en el dominio es una acción independiente.</DialogDescription></DialogHeader>
@@ -33,6 +33,7 @@ export function MarketplaceWebsiteDialog({open,onOpenChange,token,siteId:initial
   {result?<><p role="status">Instalación completada: {result.pages.length} páginas y {Object.keys(result.assets).length} imágenes. El sitio público permanece sin cambios.</p><Button onClick={()=>onInstalled(result)}>Editar con Atlas</Button></>:<>
    {!report?<><MarketplaceResourcePicker type="website_template" token={token} value={resource} onChange={setResource} acknowledged={ack} onAcknowledge={setAck} disabled={busy}/><ComboboxField label="Sitio destino" options={(sites.data??[]).map(s=>({value:s.id,label:s.name}))} value={siteId} onChange={setSiteId} disabled={busy}/><Button disabled={busy||!resource||!siteId} onClick={inspect}>Revisar plantilla y conflictos</Button></>:<>
     <p className="font-semibold">{resource.title} · {report.assets.length} imágenes · revisión del sitio {report.expectedRevision}</p>
+    {report.validation?.report?.requirements?.features?.length>0&&<p>Esta plantilla usa {report.validation.report.requirements.features.map(f=>f.label).join(', ')}; tu instalación ya lo admite.</p>}
     <p>Empresa activa · Sitio destino: {(sites.data??[]).find(s=>s.id===siteId)?.name??siteId}</p>
     <Alert><AlertDescription>Derechos según los avisos originales: {report.licenses.map(l=>l.redistribution).join(', ')||'sin imágenes'}. La validación técnica no acredita autorización de redistribución. Revisa los enlaces a páginas no seleccionadas.</AlertDescription></Alert>
     <WebsiteTemplatePreview report={report} pagePath={selected[0]}/>

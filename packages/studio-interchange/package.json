@@ -18,7 +18,8 @@
     "./studio/keyframes": "./src/studio/keyframes.js",
     "./svg": "./src/svg.js",
     "./website-components": "./src/website-components.js",
-    "./website-effects": "./src/website-effects.js"
+    "./website-effects": "./src/website-effects.js",
+    "./website-requirements": "./src/website-requirements.js"
   },
   "dependencies": {
     "jszip": "3.10.1",

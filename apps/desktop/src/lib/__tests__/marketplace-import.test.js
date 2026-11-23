@@ -34,3 +34,12 @@ test('a listed release shows the server reason and the request names only the ex
 test('institutional origin never replaces the registered publisher', () => {
   assert.equal(publisherLabel({ official: true, publisher: { displayName: 'Example Publisher', handle: 'example-publisher' } }), 'Example Publisher')
 })
+
+test('templateProblem shows the compatibility explanation the API sends, and falls back to the plain message', async () => {
+  const { templateProblem } = await import('../marketplace-import.js')
+  const withDetails = Object.assign(new Error('website_template_invalid'), { details: { details: { errors: [{ code: 'builder_unsupported', message: 'La plantilla requiere el builder 0.10.0, que esta versión de Runly no incluye. Usa imágenes SVG. Actualiza Runly para usarla.' }] } } })
+  assert.match(templateProblem(withDetails), /Usa imágenes SVG\. Actualiza Runly/)
+  assert.equal(templateProblem(new Error('Sin red')), 'Sin red')
+  assert.equal(templateProblem(Object.assign(new Error('x'), { details: { details: { errors: [] } } })), 'x')
+  assert.equal(templateProblem(null), undefined)
+})

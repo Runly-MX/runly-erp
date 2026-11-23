@@ -6,6 +6,7 @@ import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 import { validateImage } from './inspect.js'
 import { isEffectProp, validateEffectProp } from './website-effects.js'
+import { describeRequirements, requirementsSentence } from './website-requirements.js'
 import { COMPONENT_LIMITS, COMPONENT_REF_TYPE, overridableFromCatalog, resolveComponents, validateComponentDefinitions } from './website-components.js'
 
 // Website template (ERP E1a Annex B + W1): a DECLARATIVE ZIP. Only data: nothing is evaluated,
@@ -222,9 +223,13 @@ async function validateCore(input, options) {
 
   const catalogs = options.builderCatalogs
   if (!catalogs || typeof catalogs !== 'object') throw new TypeError('BUILDER_CATALOGS_REQUIRED')
-  if (!catalogs[manifest.builder.min] && !options.builderCatalogIdentities?.[manifest.builder.min]) throw packageError('builder_unsupported', `La plantilla requiere el builder ${manifest.builder.min}, que esta versión de Runly no incluye.`, { manifest })
+  // What the template needs from Runly, read from the package itself: attached to compatibility errors so the host can explain
+  // BEFORE installing what an update would unlock (SVG, motion, synced components...).
+  const lenient = (path) => { try { return files.has(path) ? JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(files.get(path))) : null } catch { return null } }
+  const requirementsOf = () => describeRequirements({ manifest, pages: manifest.pages.map((page) => lenient(page.file)), theme: lenient('theme.json'), components: lenient('components.json') })
+  if (!catalogs[manifest.builder.min] && !options.builderCatalogIdentities?.[manifest.builder.min]) { const requirements = requirementsOf(); throw packageError('builder_unsupported', `La plantilla requiere el builder ${manifest.builder.min}, que esta versión de Runly no incluye.${requirementsSentence(requirements)} Actualiza Runly para usarla.`, { manifest, requirements }) }
   const catalog = resolveWebsiteCatalog(catalogs, options.builderCatalogIdentities, manifest.builder.min, manifest.builder.catalogDigest)
-  if (!catalog) throw packageError('catalog_digest_mismatch', 'La plantilla se creó con otra versión del catálogo de bloques.', { manifest })
+  if (!catalog) throw packageError('catalog_digest_mismatch', `La plantilla se creó con otra versión del catálogo de bloques.${requirementsSentence(requirementsOf())}`, { manifest, requirements: requirementsOf() })
 
   // Inventory: every file but mimetype and manifest is declared, with its hash.
   const declared = new Map()
@@ -332,6 +337,7 @@ async function validateCore(input, options) {
   for (const id of Object.keys(components ?? {})) if (!usage.has(id)) warnings.push({ code: 'component_unused', message: `El componente "${id}" no se usa en ninguna página.`, path: 'components.json' })
   for (const a of manifest.assets) if (!ctxBase.refs.has(a.sha256)) warnings.push({ code: 'asset_unreferenced', message: `El activo ${a.path} no se usa en ninguna página.`, path: a.path })
   const report = {
+    requirements: describeRequirements({ manifest, pages: pages.map((page) => page.sections), theme, components }),
     pages: reportPages, blockTypes: Object.fromEntries(Object.keys(ctx.types).sort().map((k) => [k, ctx.types[k]])),
     assets: manifest.assets.map((a) => ({ id: a.id, path: a.path, mime: a.mime, width: a.width, height: a.height, bytes: a.bytes })),
     forms: [...manifest.forms].sort(), externalLinks: [...ctxBase.links].sort(), siteKind: manifest.siteKind, builder: { name: manifest.builder.name, min: manifest.builder.min },

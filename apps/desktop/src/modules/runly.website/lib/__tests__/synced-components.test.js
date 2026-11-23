@@ -59,3 +59,14 @@ test('older Atlas releases (without ComponentRefBlock) simply have no component 
   const block = { type: 'ComponentRefBlock' }
   assert.deepEqual(componentBlocksFrom({ ComponentRefBlock: block }), [block])
 })
+
+test('every code the components, release and SVG paths can answer has user-facing copy', async () => {
+  const { describeCode } = await import('../websiteErrors.js')
+  for (const code of ['component_unresolved', 'component_in_use', 'component_invalid', 'component_ref_nested', 'component_id_invalid', 'block_unknown', 'prop_unknown', 'asset_type_mismatch', 'asset_not_publishable', 'revision_conflict']) {
+    const copy = describeCode(code)
+    assert.ok(copy.title && copy.message && copy.title !== copy.message, code)
+    assert.notEqual(copy.title, 'Algo salió mal', `${code} must not fall back to the generic copy`)
+  }
+  assert.match(describeCode('asset_type_mismatch').message, /SVG/)
+  assert.equal(describeCode('component_unresolved').blocker, true)
+})
