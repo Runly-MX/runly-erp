@@ -7,17 +7,19 @@ import {exportWebsiteTemplate} from '@runly/studio-interchange/website-write'
 import {sectionsToAtlasPage,atlasPageToSections} from '@runly/studio-interchange/website-document'
 
 const options={builderCatalogs:catalogs,builderCatalogIdentities:identities}
-test('API, desktop y Website Blocks declaran y resuelven Atlas 0.9.2',()=>{
+test('API, desktop y Website Blocks declaran y resuelven Atlas 0.9.3',()=>{
   for(const manifest of ['../../../package.json','../../../../desktop/package.json','../../../../../packages/website-blocks/package.json']){
     const require=createRequire(new URL(manifest,import.meta.url))
-    assert.equal(require('./package.json').dependencies['@raulbellosom/atlas-web-builder'],'0.9.2')
-    assert.equal(require('@raulbellosom/atlas-web-builder/package.json').version,'0.9.2')
+    assert.equal(require('./package.json').dependencies['@raulbellosom/atlas-web-builder'],'0.9.3')
+    assert.equal(require('@raulbellosom/atlas-web-builder/package.json').version,'0.9.3')
   }
 })
 for(const [label,version,catalog] of [
   ['Hub histórico','0.8.2',identities['0.8.2']['2d7c84c46d74164981abb6028d6d278f5a9774a9eef32fb86a639cbe18c5d318']],
   ['ERP histórico','0.8.2',identities['0.8.2']['cdb67dabfee8e546f4fb453935ac7a791bebba294ace9035e3159e3fb84126d1']],
   ['Atlas publicado','0.9.0',catalogs['0.9.0']],
+  ['Atlas componentes','0.9.3',catalogs['0.9.3']],
+  ['ERP componentes','0.9.3',identities['0.9.3']['b1a09aee08578047cc2a7f8c1f5f902379e8057c55a6b0d3559417457042c0ca']],
   ['Atlas con iconos','0.9.2',catalogs['0.9.2']],
   ['ERP con iconos y Ticketing','0.9.2',identities['0.9.2']['b1a09aee08578047cc2a7f8c1f5f902379e8057c55a6b0d3559417457042c0ca']],
   ['Atlas SVG publicado','0.9.1',catalogs['0.9.1']],
