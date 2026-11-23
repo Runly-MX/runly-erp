@@ -63,3 +63,14 @@ test('components release: published pages carry the expanded tree and unresolved
   assert.throws(() => expandSyncedComponents(pageDoc({ r: ref('r', 'gone') }), { footer }), { code: 'component_unresolved', status: 422 })
   assert.throws(() => expandSyncedComponents(pageDoc({ r: ref('r', 'footer') }), undefined), { code: 'component_unresolved' })
 })
+
+test('effects survive release expansion untouched, in pages and inside components', () => {
+  const effects = { _animation: { preset: 'slide-up', distance: 60, once: false }, _scrollReveal: true, _kenburns: { zoom: 1.2, pan: 'left' }, _pressed: { scale: 0.96 } }
+  const definitions = { pie: { name: 'Pie', section: { type: 'ContainerBlock', props: { _parallax: { speed: 0.2 } }, children: { children: [{ type: 'TextBlock', props: { text: 'x', ...effects } }] } } } }
+  const page = pageDoc({ a: { id: 'a', type: 'TextBlock', props: { text: 'Antes', ...effects } }, r: ref('r', 'pie') })
+  const out = expandSyncedComponents(page, definitions)
+  const blocks = Object.values(out.blocks)
+  assert.deepEqual(blocks.find((b) => b.id === 'a').props, page.blocks.a.props)
+  assert.deepEqual(blocks.find((b) => b.type === 'ContainerBlock').props._parallax, { speed: 0.2 })
+  assert.deepEqual(blocks.filter((b) => b.type === 'TextBlock' && b.id !== 'a')[0].props, { text: 'x', ...effects })
+})
