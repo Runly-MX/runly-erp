@@ -33,7 +33,7 @@ export function createWebsiteTemplatePreparationService({ prisma, files, readFil
       assetBindings.push({ sha256: asset.sha256, fileId: file.id, contentRevision: file.contentRevision })
     }
     const catalog = resolveWebsiteCatalog(builderCatalogs, builderCatalogIdentities, inspected.manifest.builder.min, inspected.manifest.builder.catalogDigest)
-    const pages = content.pages.map(page => ({ path: page.path, title: page.title, isHome: page.isHome, document: normalizeWebsiteDocument(mapWebsiteImages(sectionsToAtlasPage(page), catalog, ref => mapped.get(ref) ?? ref), { strict: true }) }))
+    const pages = content.pages.map(page => ({ path: page.path, title: page.title, isHome: page.isHome, document: normalizeWebsiteDocument(mapWebsiteImages(sectionsToAtlasPage({ ...page, sections: page.resolved ?? page.sections }), catalog, ref => mapped.get(ref) ?? ref), { strict: true }) }))
     // W3 pins background.url in releases and consumes font.heading in the trusted renderer stylesheet.
     return { validation, pages, portableTheme: content.theme, themeTokens: websiteThemeToAtlasTokens(content.theme ?? {}), assets: inspected.manifest.assets, assetBindings, missingAssets, requiredForms: inspected.manifest.forms, requiredCapabilities: [], readyForDraft: missingAssets.length === 0 && inspected.manifest.forms.length === 0, expectedRevision: site.draftRevision }
   }

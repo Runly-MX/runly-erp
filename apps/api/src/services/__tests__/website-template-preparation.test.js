@@ -62,3 +62,21 @@ test('W1 preparation rejects forged access, foreign sites/assets, changed bytes 
   const raced=createWebsiteTemplatePreparationService({prisma:f.prisma,files:{assertAccess:async()=>{}},readFile:async()=>{f.file.contentRevision++;return f.data},builderCatalogs:{'0.3.5':catalog}})
   await assert.rejects(raced.prepare(args),e=>e.code==='asset_changed')
 })
+
+test('synced components are installed expanded: ERP drafts never receive ComponentRefBlock',async()=>{
+  const footer={name:'Pie',section:{type:'SectionBlock',props:{},children:{children:[{type:'TextBlock',props:{text:'Hecho en Runly'}},{type:'TextBlock',props:{text:'Contacto'}}]}}}
+  const ref=props=>({type:'ComponentRefBlock',props})
+  const {bytes}=await exportWebsiteTemplate({title:'Con componentes',catalog,components:{footer},pages:[
+    {path:'/',title:'Inicio',isHome:true,sections:[{type:'TextBlock',props:{text:'Inicio'}},ref({componentId:'footer'})]},
+    {path:'/contacto',title:'Contacto',isHome:false,sections:[ref({componentId:'footer',overrides:{'root/children/0':{text:'Escríbenos'}}})]},
+  ]})
+  const prisma={websiteSite:{findFirst:async ({where})=>where.companyId===companyId&&where.id===siteId?{id:siteId,draftRevision:3}:null},fileAsset:{findFirst:async()=>null}}
+  const service=createWebsiteTemplatePreparationService({prisma,files:{assertAccess:async()=>{}},readFile:async()=>Buffer.alloc(0),builderCatalogs:{'0.3.5':catalog}})
+  const access=createWebsiteAccess({companyId,actorId,can:p=>p==='website.pages.create'})
+  const prepared=await service.prepare({bytes,companyId,siteId,access})
+  assert.equal(prepared.readyForDraft,true,JSON.stringify(prepared.validation?.errors))
+  const texts=page=>Object.values(page.document.blocks).filter(b=>b.type==='TextBlock').map(b=>b.props.text)
+  assert.deepEqual(texts(prepared.pages[0]),['Inicio','Hecho en Runly','Contacto'])
+  assert.deepEqual(texts(prepared.pages[1]),['Escríbenos','Contacto'])
+  assert.ok(prepared.pages.every(p=>!Object.values(p.document.blocks).some(b=>b.type==='ComponentRefBlock')))
+})

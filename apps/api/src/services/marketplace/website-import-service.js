@@ -34,7 +34,7 @@ export function createWebsiteMarketplaceService({prisma,gate,filesService,supaba
   const existing=await prisma.websitePage.findMany({where:{companyId:a.companyId,siteId:a.siteId},select:{routePath:true,draftMetadata:true,enabled:true,status:true}})
   const {content,...validation}=inspected
   return {source:download.source,validation,expectedRevision:site.draftRevision,catalog:resolveWebsiteCatalog(catalogs,WEBSITE_BUILDER_CATALOG_IDENTITIES,inspected.manifest.builder.min,inspected.manifest.builder.catalogDigest),
-   pages:content.pages.map(p=>({...p,document:sectionsToAtlasPage(p),sections:undefined,conflict:existing.some(row=>row.routePath===p.path||row.draftMetadata?.routePath===p.path)})),
+   pages:content.pages.map(p=>({...p,document:sectionsToAtlasPage({...p,sections:p.resolved??p.sections}),sections:undefined,resolved:undefined,conflict:existing.some(row=>row.routePath===p.path||row.draftMetadata?.routePath===p.path)})),
    themeTokens:websiteThemeToAtlasTokens(content.theme??{}),assets:content.assets.map(({data,...asset})=>({...asset,base64:Buffer.from(data).toString('base64')})),licenses:content.licenses,
    requirements:{forms:inspected.manifest.forms,legacyPublicBaseline:!site.activeReleaseId&&existing.some(p=>p.enabled&&p.status==='published'),formsLocal:a.access.can('website.forms.create'),home:a.access.can('website.site.update'),theme:a.access.can('website.site.update')&&a.access.can('website.theme.update'),files:a.access.can('files.assets.create')},
    _inspected:inspected}
