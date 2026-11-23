@@ -1,7 +1,7 @@
 import yauzl from 'yauzl'
 import { crc32 } from 'node:zlib'
 import { packageError } from './errors.js'
-import { resolveLimits } from './limits.js'
+import { PACKAGE_LIMITS, resolveLimits } from './limits.js'
 
 export const shaPattern = /^[a-f0-9]{64}$/
 
@@ -10,8 +10,8 @@ export const shaPattern = /^[a-f0-9]{64}$/
 // are checked. Every failure is a PackageError with a stable `reason`.
 //   mimetype  exact content of the mandatory first, stored entry
 //   folders   the only directories an archive may declare
-export async function readZip(input, { mimetype, folders, limits: overrides } = {}) {
-  const L = resolveLimits(overrides)
+export async function readZip(input, { mimetype, folders, limits: overrides, ceiling } = {}) {
+  const L = resolveLimits(overrides, ceiling ? { ...PACKAGE_LIMITS, ...ceiling } : PACKAGE_LIMITS)
   if (!(input instanceof Uint8Array)) throw new TypeError('BYTES_MUST_BE_UINT8ARRAY')
   const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input.buffer, input.byteOffset, input.byteLength)
   if (bytes.length > L.compressed) throw packageError('zip_limit_exceeded', 'El paquete supera el tamaño máximo permitido.')

@@ -2,7 +2,8 @@ import { createHash } from 'node:crypto'
 import { writePackageZip } from './write.js'
 import { validateImage } from './inspect.js'
 import { packageError } from './errors.js'
-import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_MEDIA_POLICY, WEBSITE_ASSET_EXTENSIONS, WEBSITE_LIMITS, catalogDigest, validateWebsiteTemplate } from './website-template.js'
+import { WEBSITE_TEMPLATE, WEBSITE_ASSET_POLICY, WEBSITE_MEDIA_POLICY, WEBSITE_AV_POLICY, WEBSITE_AV_LIMITS, WEBSITE_ASSET_EXTENSIONS, WEBSITE_LIMITS, catalogDigest, validateWebsiteTemplate } from './website-template.js'
+import { assertAudiovisual, avKind } from './audiovisual.js'
 
 // Same format, same ZIP writer, same validator. No filesystem, network or template execution.
 export async function exportWebsiteTemplate({ title, summary = '', locale = 'en', siteKind = 'website', pages, theme, components, assets = [], licenses = [], catalog, builderVersion = '0.3.5' }) {
@@ -27,6 +28,21 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
   const definitions_ = components && Object.keys(components).length ? Object.fromEntries(Object.entries(components).map(([id, def]) => [id, { ...def, section: portableDefaults([def.section])[0] }])) : null
   if (definitions_) entries.set('components.json', Buffer.from(JSON.stringify(definitions_)))
   for (const asset of assets) {
+    // Audio/video: { data, mime, license, durationMs } plus, for video, { width, height, poster: { data } } (WebP from the Hub processor).
+    if (avKind(asset.mime)) {
+      const data = assertAudiovisual(asset.data, asset.mime), sha256 = sha(data), kind = avKind(asset.mime), path = `assets/${sha256}.${WEBSITE_ASSET_EXTENSIONS[asset.mime]}`
+      if (records.some(a => a.sha256 === sha256)) throw packageError('manifest_invalid', 'El exportador recibió un activo duplicado.')
+      const record = { id: `asset-${sha256}`, path, mime: asset.mime, kind, durationMs: asset.durationMs, bytes: data.length, sha256, license: asset.license }
+      if (kind === 'video') {
+        if (!asset.poster?.data) throw packageError('av_poster_invalid', 'Un video necesita su póster.')
+        const poster = Buffer.from(asset.poster.data), posterPath = `assets/${sha256}.poster.webp`, posterSize = await validateImage(poster, 'image/webp')
+        Object.assign(record, { width: asset.width, height: asset.height, poster: { path: posterPath, bytes: poster.length, sha256: sha(poster), ...posterSize } })
+        entries.set(posterPath, poster)
+      }
+      records.push(record)
+      entries.set(path, data)
+      continue
+    }
     const data = Buffer.from(asset.data), sha256 = sha(data), size = await validateImage(data, asset.mime)
     const ext = WEBSITE_ASSET_EXTENSIONS[asset.mime]
     if (!ext) throw packageError('image_invalid', 'Formato de imagen no admitido.')
@@ -40,7 +56,8 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
     entries.set(`licenses/${license.id}.txt`, Buffer.from(license.notice))
   }
   const manifest = {
-    format: WEBSITE_TEMPLATE.format, formatVersion: 2, minReaderVersion: 2, assetPolicy: records.some(a => a.mime === 'image/svg+xml') ? WEBSITE_MEDIA_POLICY.name : WEBSITE_ASSET_POLICY.name,
+    // The lowest policy that describes the content, so packages without audio/video or SVG keep their historical bytes.
+    format: WEBSITE_TEMPLATE.format, formatVersion: 2, minReaderVersion: 2, assetPolicy: records.some(a => a.kind) ? WEBSITE_AV_POLICY.name : records.some(a => a.mime === 'image/svg+xml') ? WEBSITE_MEDIA_POLICY.name : WEBSITE_ASSET_POLICY.name,
     builder: { name: WEBSITE_TEMPLATE.builder, min: builderVersion, catalogDigest: catalogDigest(catalog) },
     title, summary, locale, siteKind,
     pages: pages.map((page, index) => ({ path: page.path, title: page.title, isHome: page.isHome, file: `pages/page-${index + 1}.json` })),
@@ -55,7 +72,7 @@ export async function exportWebsiteTemplate({ title, summary = '', locale = 'en'
   }
   for (const page of pages) forms(page.sections)
   for (const def of Object.values(definitions_ ?? {})) forms([def.section])
-  const bytes = await writePackageZip([['mimetype', Buffer.from(WEBSITE_TEMPLATE.mime)], ['manifest.json', Buffer.from(JSON.stringify(manifest))], ...entries], { limit: WEBSITE_LIMITS.compressed })
+  const bytes = await writePackageZip([['mimetype', Buffer.from(WEBSITE_TEMPLATE.mime)], ['manifest.json', Buffer.from(JSON.stringify(manifest))], ...entries], { limit: records.some(a => a.kind) ? WEBSITE_AV_LIMITS.compressed : WEBSITE_LIMITS.compressed })
   const validation = await validateWebsiteTemplate(bytes, { builderCatalogs: { [builderVersion]: catalog } })
   if (!validation.ok) throw packageError(validation.errors[0].code, validation.errors[0].message)
   return { bytes, validation }

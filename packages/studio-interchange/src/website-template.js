@@ -5,6 +5,7 @@ import { PACKAGE_LIMITS } from './limits.js'
 import { PackageError, packageError } from './errors.js'
 import { readZip, shaPattern } from './zip-reader.js'
 import { validateImage } from './inspect.js'
+import { AV_EXTENSIONS, AV_LIMITS, AV_MIMES, assertAudiovisual, avKind } from './audiovisual.js'
 import { isEffectProp, validateEffectProp } from './website-effects.js'
 import { describeRequirements, requirementsSentence } from './website-requirements.js'
 import { COMPONENT_LIMITS, COMPONENT_REF_TYPE, overridableFromCatalog, resolveComponents, validateComponentDefinitions } from './website-components.js'
@@ -22,6 +23,10 @@ export const WEBSITE_ASSET_POLICY = Object.freeze({ name: 'packaged-raster-v1', 
 // v2 = raster v1 + sanitized SVG masters. Only documents that carry an SVG declare it, so historical
 // templates keep their exact bytes; a reader that only knows v1 refuses it with format_unsupported.
 export const WEBSITE_MEDIA_POLICY = Object.freeze({ name: 'packaged-media-v2', version: 2 })
+// v3 = v2 + audio/video (library assets processed by the Hub). Declared only by packages that carry audio or video.
+export const WEBSITE_AV_POLICY = Object.freeze({ name: 'packaged-media-v3', version: 3 })
+// Container ceilings only a v3 package may reach; v1/v2 packages are re-checked against WEBSITE_LIMITS.
+export const WEBSITE_AV_LIMITS = Object.freeze({ entry: AV_LIMITS.bytes, assets: 4, bytes: 128 * 1024 * 1024, compressed: 160 * 1024 * 1024, expanded: 256 * 1024 * 1024, durationMs: AV_LIMITS.durationMs })
 // Synced components: an optional `components.json` in the inventory (site-level definitions). Readers that do not know
 // the file reject the package with undeclared_entry instead of silently dropping the shared sections.
 export const WEBSITE_COMPONENTS = Object.freeze({ file: 'components.json', refType: COMPONENT_REF_TYPE, ...COMPONENT_LIMITS })
@@ -41,8 +46,10 @@ export const WEBSITE_COMMERCE = Object.freeze({
   rules: Object.freeze({ cartSiteId: 'must-be-empty', cartRequiresSiteKind: 'ecommerce', accountsAnySiteKind: true, createsDataOnInstall: false }),
   installOptions: Object.freeze({ accountsMode: Object.freeze(['keep', 'enable']) }),
 })
-export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name])
-export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
+export const WEBSITE_ASSET_POLICIES = Object.freeze([WEBSITE_ASSET_POLICY.name, WEBSITE_MEDIA_POLICY.name, WEBSITE_AV_POLICY.name])
+export const WEBSITE_IMAGE_EXTENSIONS = Object.freeze({ 'image/png': 'png', 'image/jpeg': 'jpg', 'image/webp': 'webp', 'image/svg+xml': 'svg' })
+export const WEBSITE_ASSET_EXTENSIONS = Object.freeze({ ...WEBSITE_IMAGE_EXTENSIONS, ...AV_EXTENSIONS })
+export { AV_MIMES as WEBSITE_AV_MIMES }
 export const WEBSITE_LIMITS_VERSION = 2
 export const WEBSITE_LIMITS_CEILING = Object.freeze({ compressed: 25 * MiB, expanded: 128 * MiB, entry: 10 * MiB, entries: 256, ratio: 200, folders: 32, depth: 3, pages: 24, blocksPerPage: 300, blocksTotal: 1500, blockDepth: 6, assets: 100, assetBytes: 64 * MiB, jsonBytes: 4 * MiB, previews: 6, previewBytes: MiB, previewSide: 1920 })
 export const WEBSITE_LIMITS = WEBSITE_LIMITS_CEILING
@@ -72,8 +79,9 @@ export function resolveWebsiteCatalog(catalogs, identities, version, digest) {
 const SITE_GROUPS = { website: [], landing: [], blog: [], ecommerce: ['ecommerce'], bookings: ['bookings'], restaurant: ['restaurant'] }
 // Blocks that embed third-party media or tie the page to a live commerce/account system never ship in a template.
 // Cart, cart page and account portal are MARKERS: they carry no destination and are wired to the installing site's own catalog, Stripe
-// and customer accounts (`CartBlock.siteId` must stay empty). Embedded video stays out of templates.
-const EXCLUDED_BLOCKS = new Set(['VideoBlock'])
+// and customer accounts (`CartBlock.siteId` must stay empty). Third-party video (YouTube, Vimeo, URLs) stays out: a template
+// VideoBlock only plays a packaged file (`file`), and catalogs without that field keep excluding the block.
+const EXCLUDED_BLOCKS = new Set()
 const FORM_MARKERS = ['@contact', '@newsletter']
 const TEXT_LIMITS = { text: 2000, textarea: 8000, 'rich-text': 20000 }
 const SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i
@@ -85,8 +93,12 @@ const RICH_TAGS = new Set(['p', 'br', 'strong', 'em', 'u', 'ul', 'ol', 'li', 'h2
 const SEMVER = /^\d{1,9}\.\d{1,9}\.\d{1,9}(?:[-+][0-9A-Za-z.-]{1,100})?$/
 const ASSET_REF = /^asset:([a-f0-9]{64})$/
 const digest = z.string().regex(shaPattern)
-const inventory = z.strictObject({ path: z.string().max(160), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest })
-const asset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(Object.keys(WEBSITE_ASSET_EXTENSIONS)), width: z.number().int().positive().max(8192), height: z.number().int().positive().max(8192), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest, license: z.string().max(120) })
+// Entry sizes above 10 MiB are only valid for v3 audio/video files (re-checked after the manifest is read).
+const inventory = z.strictObject({ path: z.string().max(160), bytes: z.number().int().min(0).max(AV_LIMITS.bytes), sha256: digest })
+const imageAsset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(Object.keys(WEBSITE_IMAGE_EXTENSIONS)), width: z.number().int().positive().max(8192), height: z.number().int().positive().max(8192), bytes: z.number().int().min(0).max(10 * MiB), sha256: digest, license: z.string().max(120) })
+const poster = z.strictObject({ path: z.string().max(160), bytes: z.number().int().positive().max(MiB), sha256: digest, width: z.number().int().positive().max(1920), height: z.number().int().positive().max(1920) })
+const avAsset = z.strictObject({ id: z.string().regex(/^asset-[a-f0-9]{64}$/), path: z.string().max(160), mime: z.enum(AV_MIMES), kind: z.enum(['video', 'audio']), durationMs: z.number().int().positive().max(AV_LIMITS.durationMs), width: z.number().int().positive().max(1920).optional(), height: z.number().int().positive().max(1920).optional(), poster: poster.optional(), bytes: z.number().int().positive().max(AV_LIMITS.bytes), sha256: digest, license: z.string().max(120) })
+const asset = z.union([imageAsset, avAsset])
 const manifestV1 = z.strictObject({
   format: z.literal('runly.website-template'), formatVersion: z.literal(1), minReaderVersion: z.literal(1),
   builder: z.strictObject({ name: z.literal(WEBSITE_TEMPLATE.builder), min: z.string().regex(SEMVER), catalogDigest: digest }),
@@ -163,6 +175,7 @@ function checkProp(field, value, path, ctx) {
       return
     }
     case 'image': ctx.asset(value, path); return
+    case 'video': case 'audio': ctx.asset(value, path, field.type); return
     case 'link':
       if (typeof value !== 'string' || value.length > 2048 || CONTROL.test(value)) { bad('href_unsafe', 'enlace no válido'); return }
       if (value !== '' && !SAFE_HREF.test(value)) bad('href_unsafe', 'se admite https, mailto:, tel:, /ruta o #ancla')
@@ -185,6 +198,11 @@ function checkBlock(section, path, depth, ctx, page) {
   const definition = ctx.blocks.get(section.type)
   if (!definition || EXCLUDED_BLOCKS.has(definition.type) || !ctx.groups.has(definition.group)) { ctx.error('block_unknown', `${path}.type: bloque no permitido "${String(section.type).slice(0, 60)}"`, `${path}.type`); return }
   if (depth > ctx.limits.blockDepth) { ctx.error('prop_invalid', `${path}: anidación máxima ${ctx.limits.blockDepth}`, path); return }
+  // Template video is a packaged file: catalogs without `file` (Atlas < 0.11) keep the block out, and a URL is never admitted.
+  if (definition.type === 'VideoBlock') {
+    if (definition.fields.file?.type !== 'video') { ctx.error('block_unknown', `${path}.type: bloque no permitido "VideoBlock"`, `${path}.type`); return }
+    if (section.props?.src || !section.props?.file) ctx.error('prop_invalid', `${path}.props: los videos de plantilla deben ser archivos del paquete (file), no enlaces`, `${path}.props`)
+  }
   page.blocks += 1
   if (page.blocks > ctx.limits.blocksPerPage) { if (page.blocks === ctx.limits.blocksPerPage + 1) ctx.error('page_limit', `${page.file}: máximo ${ctx.limits.blocksPerPage} bloques por página`, page.file); return }
   ctx.types[definition.type] = (ctx.types[definition.type] ?? 0) + 1
@@ -216,9 +234,29 @@ function checkBlock(section, path, depth, ctx, page) {
   }
 }
 
+// Audio/video record: signature, MIME and kind agree; video carries its WebP poster, audio carries no picture.
+async function checkAudiovisualAsset(a, declared, files, ctx, licensesById) {
+  const ext = AV_EXTENSIONS[a.mime], record = declared.get(a.path), bytes = files.get(a.path)
+  if (a.id !== `asset-${a.sha256}` || a.path !== `assets/${a.sha256}.${ext}` || !record) throw packageError('asset_missing', 'Un activo no coincide con su identificador o ruta.')
+  if (record.sha256 !== a.sha256 || record.bytes !== a.bytes || bytes.length !== a.bytes || sha(bytes) !== a.sha256) throw packageError('checksum_mismatch', 'El inventario del activo no coincide con sus bytes.')
+  if (avKind(a.mime) !== a.kind) throw packageError('av_asset_invalid', 'El tipo declarado del audio o video no coincide con su MIME.')
+  assertAudiovisual(bytes, a.mime)
+  if (!licensesById.has(a.license)) ctx.error('license_missing', 'El activo debe referenciar una licencia declarada.', a.path)
+  if (a.kind === 'audio') { if (a.poster || a.width || a.height) throw packageError('av_asset_invalid', 'Un audio no lleva imagen ni dimensiones.'); return }
+  if (!a.width || !a.height || !a.poster) throw packageError('av_poster_invalid', 'Un video necesita dimensiones y póster.')
+  const p = a.poster, data = files.get(p.path), posterRecord = declared.get(p.path)
+  if (p.path !== `assets/${a.sha256}.poster.webp` || !posterRecord || !data || posterRecord.sha256 !== p.sha256 || data.length !== p.bytes || sha(data) !== p.sha256) throw packageError('av_poster_invalid', 'El póster del video no coincide con el inventario.')
+  let size
+  try { size = await validateImage(data, 'image/webp', { ...PACKAGE_LIMITS }) } catch { throw packageError('av_poster_invalid', 'El póster del video no es una imagen WebP válida.') }
+  if (size.width !== p.width || size.height !== p.height) throw packageError('av_poster_invalid', 'Las dimensiones del póster no coinciden.')
+}
+
 async function validateCore(input, options) {
   let limits = resolveWebsiteLimits(options.limits)
-  const files = await readZip(input, { mimetype: WEBSITE_TEMPLATE.mime, folders: ['assets', 'previews', 'licenses', 'pages'], limits: Object.fromEntries(['compressed', 'expanded', 'entry', 'entries', 'ratio', 'folders', 'depth'].map((key) => [key, Math.min(limits[key], PACKAGE_LIMITS[key])])) })
+  // The container is read with the v3 ceilings unless the caller set a stricter limit; v1/v2 are re-checked below.
+  const avCeiling = { compressed: WEBSITE_AV_LIMITS.compressed, expanded: WEBSITE_AV_LIMITS.expanded, entry: WEBSITE_AV_LIMITS.entry }
+  const readLimit = (key) => (Object.hasOwn(avCeiling, key) && options.limits?.[key] === undefined ? avCeiling[key] : Math.min(limits[key], PACKAGE_LIMITS[key]))
+  const files = await readZip(input, { mimetype: WEBSITE_TEMPLATE.mime, folders: ['assets', 'previews', 'licenses', 'pages'], ceiling: avCeiling, limits: Object.fromEntries(['compressed', 'expanded', 'entry', 'entries', 'ratio', 'folders', 'depth'].map((key) => [key, readLimit(key)])) })
   const raw = parseJson(files.get('manifest.json'), limits.jsonBytes, 'manifest_invalid')
   if (!raw || typeof raw !== 'object' || Array.isArray(raw) || raw.format !== WEBSITE_TEMPLATE.format) throw packageError('manifest_invalid', 'El manifiesto no es de una plantilla Website.')
   if (!Number.isInteger(raw.formatVersion) || raw.formatVersion < 1) throw packageError('manifest_invalid', 'Versión de formato no válida.')
@@ -228,8 +266,17 @@ async function validateCore(input, options) {
   try { manifest = websiteManifestSchema.parse(raw) } catch { throw packageError('manifest_invalid', 'El manifiesto de la plantilla no es válido.') }
   if (manifest.formatVersion === 1) limits = { ...limits, assets: 0 }
   // The policy must say exactly what the package carries: SVG needs v2, and v2 without SVG is not produced.
-  const hasSvg = manifest.assets.some((a) => a.mime === 'image/svg+xml')
-  if (hasSvg !== (manifest.assetPolicy === WEBSITE_MEDIA_POLICY.name)) throw packageError('manifest_invalid', hasSvg ? 'Un SVG requiere la política de medios packaged-media-v2.' : 'La política packaged-media-v2 solo se declara con SVG.')
+  // v3 is a superset of v2: SVG may travel in either; v2 still requires an SVG and v3 requires audio or video.
+  const hasSvg = manifest.assets.some((a) => a.mime === 'image/svg+xml'), av = manifest.assets.filter((a) => a.kind), isAv = manifest.assetPolicy === WEBSITE_AV_POLICY.name
+  if (av.length > 0 !== isAv) throw packageError('manifest_invalid', av.length ? 'El audio o video requiere la política de medios packaged-media-v3.' : 'La política packaged-media-v3 solo se declara con audio o video.')
+  if (!isAv && hasSvg !== (manifest.assetPolicy === WEBSITE_MEDIA_POLICY.name)) throw packageError('manifest_invalid', hasSvg ? 'Un SVG requiere la política de medios packaged-media-v2.' : 'La política packaged-media-v2 solo se declara con SVG.')
+  const avPaths = new Set(av.map((a) => a.path))
+  if (!isAv) {
+    if (input.length > limits.compressed) throw packageError('zip_limit_exceeded', 'El paquete supera el tamaño máximo permitido.')
+    if ([...files.values()].reduce((n, b) => n + b.length, 0) > limits.expanded) throw packageError('zip_limit_exceeded', 'El paquete expandido supera el tamaño máximo permitido.')
+  }
+  for (const [path, bytes] of files) if (!avPaths.has(path) && bytes.length > limits.entry) throw packageError('zip_limit_exceeded', 'Un archivo del paquete supera el tamaño máximo permitido.')
+  if (av.length > WEBSITE_AV_LIMITS.assets || av.reduce((n, a) => n + a.bytes, 0) > WEBSITE_AV_LIMITS.bytes) throw packageError('av_limit', `La plantilla admite hasta ${WEBSITE_AV_LIMITS.assets} archivos de audio o video y ${WEBSITE_AV_LIMITS.bytes / MiB} MiB en total.`)
 
   const catalogs = options.builderCatalogs
   if (!catalogs || typeof catalogs !== 'object') throw new TypeError('BUILDER_CATALOGS_REQUIRED')
@@ -258,12 +305,14 @@ async function validateCore(input, options) {
     ...ctxBase,
     error: (code, message, path) => { if (errors.length < 50) errors.push({ code, message, ...(path ? { path } : {}) }) },
     link: (url) => { const host = hostOf(url); if (host) ctxBase.links.add(host) },
-    asset: (value, path) => {
+    asset: (value, path, kind = null) => {
       if (value === '' || value === null || value === undefined) return
       const m = typeof value === 'string' ? ASSET_REF.exec(value) : null
-      if (!m) { ctx.error('prop_invalid', `${path}: las imágenes deben ser activos del paquete (asset:<sha256>), no URLs`, path); return }
-      if (!assetsById.has(m[1])) ctx.error(limits.assets === 0 ? 'asset_limit' : 'asset_missing', `${path}: ${limits.assets === 0 ? 'esta versión no admite imágenes en plantillas' : 'el activo no está declarado'}`, path)
-      else ctxBase.refs.add(m[1])
+      if (!m) { ctx.error('prop_invalid', `${path}: ${kind ? 'el audio y el video' : 'las imágenes'} deben ser activos del paquete (asset:<sha256>), no URLs`, path); return }
+      if (!assetsById.has(m[1])) { ctx.error(limits.assets === 0 ? 'asset_limit' : 'asset_missing', `${path}: ${limits.assets === 0 ? 'esta versión no admite imágenes en plantillas' : 'el activo no está declarado'}`, path); return }
+      // Each field takes only its own media kind: an image field never points at audio/video and vice versa.
+      if ((assetsById.get(m[1]).kind ?? null) !== kind) { ctx.error('prop_invalid', `${path}: el activo no es ${kind === 'video' ? 'un video' : kind === 'audio' ? 'un audio' : 'una imagen'}`, path); return }
+      ctxBase.refs.add(m[1])
     },
   }
 
@@ -271,7 +320,7 @@ async function validateCore(input, options) {
   if (manifest.pages.filter((p) => p.isHome).length !== 1 || !manifest.pages.some((p) => p.isHome && p.path === '/')) throw packageError('home_missing', 'Debe haber exactamente una página de inicio en la ruta "/".')
   if (new Set(manifest.pages.map((p) => p.path)).size !== manifest.pages.length || new Set(manifest.pages.map((p) => p.file)).size !== manifest.pages.length) throw packageError('manifest_invalid', 'Las páginas repiten ruta o archivo.')
   const pageFiles = new Set(manifest.pages.map((p) => p.file))
-  const known = new Set([...pageFiles, 'theme.json', 'components.json', ...manifest.assets.map((a) => a.path), ...manifest.licenses.map((l) => l.path)])
+  const known = new Set([...pageFiles, 'theme.json', 'components.json', ...manifest.assets.flatMap((a) => [a.path, ...(a.poster ? [a.poster.path] : [])]), ...manifest.licenses.map((l) => l.path)])
   for (const path of declared.keys()) if (!known.has(path) && !/^previews\/[a-z0-9_-]+\.png$/.test(path)) throw packageError('undeclared_entry', `La plantilla contiene una entrada no admitida: ${path}`)
   for (const file of pageFiles) if (!declared.has(file)) throw packageError('checksum_mismatch', 'Una página del manifiesto no está en el inventario.')
 
@@ -281,6 +330,7 @@ async function validateCore(input, options) {
   const licensesById = new Map(manifest.licenses.map(l => [l.id, l]))
   let assetBytes = 0
   for (const a of manifest.assets) {
+    if (a.kind) { await checkAudiovisualAsset(a, declared, files, ctx, licensesById); continue }
     const ext = WEBSITE_ASSET_EXTENSIONS[a.mime]
     if (a.id !== `asset-${a.sha256}` || a.path !== `assets/${a.sha256}.${ext}` || !declared.has(a.path)) throw packageError('asset_missing', 'Un activo no coincide con su identificador o ruta.')
     const record = declared.get(a.path), bytes = files.get(a.path)
@@ -349,13 +399,13 @@ async function validateCore(input, options) {
   const report = {
     requirements: describeRequirements({ manifest, pages: pages.map((page) => page.sections), theme, components }),
     pages: reportPages, blockTypes: Object.fromEntries(Object.keys(ctx.types).sort().map((k) => [k, ctx.types[k]])),
-    assets: manifest.assets.map((a) => ({ id: a.id, path: a.path, mime: a.mime, width: a.width, height: a.height, bytes: a.bytes })),
+    assets: manifest.assets.map((a) => ({ id: a.id, path: a.path, mime: a.mime, width: a.width, height: a.height, bytes: a.bytes, ...(a.kind ? { kind: a.kind, durationMs: a.durationMs } : {}) })),
     forms: [...manifest.forms].sort(), externalLinks: [...ctxBase.links].sort(), siteKind: manifest.siteKind, builder: { name: manifest.builder.name, min: manifest.builder.min },
     components: Object.entries(components ?? {}).map(([id, def]) => ({ id, name: def.name, uses: usage.get(id) ?? 0 })).sort((a, b) => (a.id < b.id ? -1 : 1)),
     formatVersion: manifest.formatVersion, assetPolicy: manifest.assetPolicy ?? null, limitsVersion: WEBSITE_LIMITS_VERSION,
     licenses: manifest.licenses.map(l => ({ id: l.id, redistribution: l.redistribution })),
   }
-  return { manifest, report, errors, warnings, content: { pages, theme, components, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path) })), licenses: manifest.licenses.map(l => ({ ...l, notice: new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) })) } }
+  return { manifest, report, errors, warnings, content: { pages, theme, components, assets: manifest.assets.map(a => ({ ...a, data: files.get(a.path), ...(a.poster ? { posterData: files.get(a.poster.path) } : {}) })), licenses: manifest.licenses.map(l => ({ ...l, notice: new TextDecoder('utf-8', { fatal: true }).decode(files.get(l.path)) })) } }
 }
 
 // Contract API (Annex B): never throws on hostile input; `digest` is always the sha256 of the bytes.

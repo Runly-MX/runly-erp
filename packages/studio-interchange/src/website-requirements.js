@@ -6,6 +6,7 @@ const FOCAL = /^(?:tablet|mobile)?[Ff]ocal[XY]$/
 
 export const REQUIREMENT_LABELS = Object.freeze({
   svg: 'imágenes SVG',
+  audiovisual: 'audio y video',
   components: 'componentes sincronizados',
   motion: 'animaciones y efectos de movimiento',
   'fluid-type': 'tipografía fluida',
@@ -37,6 +38,7 @@ function scan(node, found, depth = 0) {
 export function describeRequirements({ manifest, pages = [], theme = null, components = null }) {
   const found = new Set()
   if ((manifest?.assets ?? []).some((asset) => asset?.mime === 'image/svg+xml')) found.add('svg')
+  if ((manifest?.assets ?? []).some((asset) => asset?.kind === 'video' || asset?.kind === 'audio')) found.add('audiovisual')
   if (components && Object.keys(components).length) found.add('components')
   if (isObject(theme?.fluid) && theme.fluid.enabled === true) found.add('fluid-type')
   for (const list of pages) for (const section of Array.isArray(list) ? list : []) scan(section, found)

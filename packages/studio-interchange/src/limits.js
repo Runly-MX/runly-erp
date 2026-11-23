@@ -22,12 +22,13 @@ export const PACKAGE_LIMITS = Object.freeze({
 
 // Callers can only be stricter than the format: each override is clamped to the
 // format limit. A malformed override is a programming error, not hostile input.
-export function resolveLimits(overrides = {}) {
+// `ceiling` lets a format raise container limits it re-checks itself (Website packaged-media-v3).
+export function resolveLimits(overrides = {}, ceiling = PACKAGE_LIMITS) {
   if (overrides === null || typeof overrides !== 'object' || Array.isArray(overrides)) throw new TypeError('INVALID_LIMITS')
-  const limits = { ...PACKAGE_LIMITS }
+  const limits = { ...ceiling }
   for (const [key, value] of Object.entries(overrides)) {
-    if (!Object.hasOwn(PACKAGE_LIMITS, key) || !Number.isInteger(value) || value < 0) throw new TypeError(`INVALID_LIMITS:${key}`)
-    limits[key] = Math.min(value, PACKAGE_LIMITS[key])
+    if (!Object.hasOwn(ceiling, key) || !Number.isInteger(value) || value < 0) throw new TypeError(`INVALID_LIMITS:${key}`)
+    limits[key] = Math.min(value, ceiling[key])
   }
   return Object.freeze(limits)
 }
