@@ -4,7 +4,7 @@
 N=${N:-5}; OUT=${OUT:?}
 for i in $(seq 1 "$N"); do
   for profile in ${PROFILES:-desktop mid}; do
-    for v in ctl head; do
+    for v in ${VARIANTS:-ctl head}; do
       port=4173; [ "$v" = head ] && port=4174
       d="$OUT/$v/$profile/$i"; mkdir -p "$d"
       PERF_BASE="http://localhost:$port" PERF_OUT="$d" PERF_STATE="$d/state.json" node measure.mjs "$profile" cold > "$d/cold.log" 2>&1
