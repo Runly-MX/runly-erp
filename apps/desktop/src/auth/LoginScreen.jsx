@@ -6,6 +6,8 @@ import { supabase } from '../lib/supabase'
 import { TextField, PasswordField, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { runly } from '../lib/runly'
+import { useQueryClient } from '@tanstack/react-query'
+import { instanceStatusQuery } from '../lib/instanceStatusQuery'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
 import { useThemeStore } from '../stores/theme'
@@ -46,6 +48,7 @@ function isValidIdentifier(value) {
 
 export function LoginScreen({ returnTo = '/app' }) {
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const destination = normalizeAuthReturnPath(returnTo)
   const { session, loading: authLoading } = useAuth()
   const [identifier, setIdentifier] = useState('')
@@ -72,7 +75,7 @@ export function LoginScreen({ returnTo = '/app' }) {
 
   useEffect(() => {
     let mounted = true
-    runly.instance.status()
+    queryClient.fetchQuery(instanceStatusQuery)
       .then((data) => {
         if (!mounted) return
         if (!data?.initialized) {
@@ -83,7 +86,7 @@ export function LoginScreen({ returnTo = '/app' }) {
     return () => {
       mounted = false
     }
-  }, [navigate])
+  }, [navigate, queryClient])
 
   useEffect(() => {
     if (authLoading) return

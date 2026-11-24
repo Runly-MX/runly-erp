@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAuth } from '../auth/AuthProvider.jsx'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { runly } from '../lib/runly.js'
+import { instanceStatusQuery } from "../lib/instanceStatusQuery"
 import { companyFetch } from '../lib/companyFetch.js'
 import { PublicPageLoader, storePublicSiteHint } from '../components/PublicPageLoader.jsx'
 import { PublicWebsite404 } from './PublicWebsite404.jsx'
@@ -716,9 +717,7 @@ export function PublicWebsiteEntry() {
   // Check instance initialization independently — the website resolve endpoint
   // does not always return initialized:false for fresh installs.
   const instanceQuery = useQuery({
-    queryKey: ['instance-status-public'],
-    queryFn:  runly.instance.status,
-    staleTime: 30_000,
+    ...instanceStatusQuery,
     retry: 1,
   })
 

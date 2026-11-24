@@ -14,6 +14,15 @@ const _sessionVault = new SessionVault(_vaultDb)
 // Exported so a register opened by link can provide its cashier session.
 export const AuthContext = createContext(null)
 
+// hydrateSession() and onAuthStateChange(SIGNED_IN) fire together on page load and ask for the
+// same profile: share the in-flight request. Only concurrent callers share it, nothing is cached.
+const meInflight = new Map()
+function fetchMeOnce(token) {
+  const key = token + "|" + (getActiveCompanyId() ?? "")
+  if (!meInflight.has(key)) meInflight.set(key, runly.auth.me(token).finally(() => meInflight.delete(key)))
+  return meInflight.get(key)
+}
+
 export function AuthProvider({ children }) {
   const queryClient = useQueryClient()
   const [session, setSession] = useState(null)
@@ -131,7 +140,7 @@ export function AuthProvider({ children }) {
           }).catch(() => {})
 
           const requestedCompanyId = getActiveCompanyId()
-          runly.auth.me(currentSession.access_token)
+          fetchMeOnce(currentSession.access_token)
             .then(profile => {
               if (!mounted || currentAuthId !== currentSession?.user?.id || requestedCompanyId !== getActiveCompanyId()) return
               setUserProfile(profile)
@@ -187,7 +196,7 @@ export function AuthProvider({ children }) {
         // hydrateSession() already loads the profile for the initial session.
         if (eventName === 'INITIAL_SESSION') return
         const requestedCompanyId = getActiveCompanyId()
-        runly.auth.me(session.access_token)
+        fetchMeOnce(session.access_token)
           .then(profile => {
             if (!mounted || currentAuthId !== authUserId || requestedCompanyId !== getActiveCompanyId()) return
             setUserProfile(profile)

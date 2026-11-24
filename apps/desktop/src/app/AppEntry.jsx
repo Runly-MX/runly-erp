@@ -30,6 +30,7 @@ import { ProfileScreen } from "./ProfileScreen";
 import { LegacyPublicRedirect } from "./LegacyPublicRedirect.jsx";
 import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
 import { runly } from "../lib/runly";
+import { instanceStatusQuery } from "../lib/instanceStatusQuery";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { registerServiceWorker } from "../lib/webPush";
 import { BootLoaderOverlay } from "../components/BootLoaderOverlay";
@@ -113,8 +114,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
     if (requiresServerSetup) return undefined
 
     let mounted = true;
-    runly.instance
-      .status()
+    queryClient
+      .fetchQuery(instanceStatusQuery)
       .then((data) => {
         applyBrandTheme(data?.branding?.primaryColor);
         if (mounted) setBranding(data?.branding ?? null);

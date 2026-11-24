@@ -3,16 +3,14 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LoginScreen } from "../auth/LoginScreen";
 import { ApiErrorScreen } from "../components/ApiErrorScreen";
-import { runly } from "../lib/runly";
+import { instanceStatusQuery } from "../lib/instanceStatusQuery";
 import { SetupWizard } from "../setup/SetupWizard";
 import { useBootLoader } from "../stores/bootLoader";
 
 function useInstanceStatus() {
   return useQuery({
-    queryKey: ["instance-status"],
-    queryFn: runly.instance.status,
+    ...instanceStatusQuery,
     retry: 1,
-    staleTime: 30_000,
     gcTime: 60_000,
   });
 }
