@@ -14,14 +14,14 @@ const ROOT = path.resolve(import.meta.dirname, '..', '..', '..', '..')
 const SECRET = 's'.repeat(40)
 const KEY = 'custom.ref_solicitudes'
 
-async function setup(t, { runtime = {} } = {}) {
+async function setup(t, { runtime = {}, profile = null } = {}) {
   const base = await fs.mkdtemp(path.join(ROOT, '.tmp-supervisor-'))
   t.after(() => fs.rm(base, { recursive: true, force: true }))
   await fs.cp(path.join(ROOT, 'apps/api/src/secure-runtime/fixtures/solicitudes'), path.join(base, 'modules', KEY), { recursive: true })
   const calls = { run: [], killed: [] }
   const fake = () => ({ start: async () => {}, stop: async () => {}, stats: () => ({}), killModule: async (k) => { calls.killed.push(k); return 1 },
     run: async (job) => { calls.run.push(job); if (runtime.hang) await new Promise(() => {}); if (runtime.busy) throw Object.assign(new Error('busy'), { code: 'RUNTIME_BUSY' }); return { ok: true, result: { total: 0 }, ms: 1 } } })
-  const make = () => createSupervisor({ secret: SECRET, modulesDir: path.join(base, 'modules'), stateDir: path.join(base, 'state'), gatewayPort: 1, gatewayHost: 'gw', runtimeFactory: fake, reapOrphans: async () => { calls.reaped = (calls.reaped ?? 0) + 1; return 0 } })
+  const make = () => createSupervisor({ secret: SECRET, modulesDir: path.join(base, 'modules'), stateDir: path.join(base, 'state'), gatewayPort: 1, gatewayHost: 'gw', runtimeFactory: fake, ...(profile ? { profileCheck: profile } : {}), reapOrphans: async () => { calls.reaped = (calls.reaped ?? 0) + 1; return 0 } })
   let sup = await make()
   let port = await sup.listen()
   t.after(() => sup.close())
@@ -87,4 +87,20 @@ test('revocation kills the module jobs; saturation is refused; audit is written'
   const audit = await fs.readFile(path.join(s.base, 'state', 'audit.jsonl'), 'utf8')
   assert.match(audit, /module\.cancelled/)
   assert.ok(!/callToken|x{40}/.test(audit), 'audit never contains call tokens')
+})
+
+test('fails closed: where the container profile is not enforced no job runs and nothing is started', async (t) => {
+  const { send, job, calls } = await setup(t, { profile: async () => ({ ok: false, failed: ['read-only-root'] }) })
+  const r = await send('POST', '/v1/jobs', job())
+  assert.equal(r.status, 503)
+  assert.equal(r.body.error.code, 'RUNTIME_DISABLED')
+  assert.deepEqual(r.body.failed, ['read-only-root'])
+  assert.equal(calls.run.length, 0)
+  const health = await send('GET', '/v1/health')
+  assert.equal(health.body.profiles.standard.ok, false)
+})
+
+test('a throwing profile probe also disables custom code', async (t) => {
+  const { send, job } = await setup(t, { profile: async () => { throw new Error('docker unreachable') } })
+  assert.equal((await send('POST', '/v1/jobs', job())).status, 503)
 })

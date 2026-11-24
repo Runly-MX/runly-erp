@@ -19,6 +19,7 @@ import { createHmac, timingSafeEqual } from 'node:crypto'
 import { z } from 'zod'
 import { hashModuleDirectory } from '../../api/src/lib/module-trust.js'
 import { createIsolatedRuntime, RUNNER_IMAGE } from '../../api/src/secure-runtime/isolated/orchestrator.js'
+import { verifyHardeningProfile } from '../../api/src/secure-runtime/isolated/profile-check.js'
 
 export const PROFILES = Object.freeze({
   standard: { image: RUNNER_IMAGE, memoryMb: 128, cpus: 0.5, pids: 64, maxTimeoutMs: 10_000 },
@@ -45,7 +46,7 @@ async function reapOrphanContainers() {
   return ids.length
 }
 
-export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPort, gatewayHost, maxConcurrent = 4, maxQueue = 8, runtimeFactory = createIsolatedRuntime, reapOrphans = reapOrphanContainers, now = () => Date.now() }) {
+export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPort, gatewayHost, maxConcurrent = 4, maxQueue = 8, runtimeFactory = createIsolatedRuntime, reapOrphans = reapOrphanContainers, profileCheck = runtimeFactory === createIsolatedRuntime ? verifyHardeningProfile : async () => ({ ok: true, failed: [] }), now = () => Date.now() }) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('SUPERVISOR_SECRET_REQUIRED')
   await fs.mkdir(stateDir, { recursive: true })
   const ledgerPath = path.join(stateDir, 'jobs.jsonl'), auditPath = path.join(stateDir, 'audit.jsonl')
@@ -77,6 +78,16 @@ export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPo
     }
     return runtimes.get(name)
   }
+  // Fail closed: jobs run only where the container profile is actually enforced.
+  const gates = new Map() // profile -> Promise<{ ok, failed }>
+  function profileGate(name) {
+    if (!gates.has(name)) {
+      const p = PROFILES[name]
+      gates.set(name, Promise.resolve(profileCheck({ image: p.image, pids: p.pids, memoryMb: p.memoryMb })).catch(() => ({ ok: false, failed: ['probe-error'] }))
+        .then(async (gate) => { await audit(gate.ok ? 'profile.verified' : 'profile.failed', { profile: name, failed: gate.failed }); return gate }))
+    }
+    return gates.get(name)
+  }
   const cancelledModules = new Map() // moduleKey -> cancelled-at
 
   function verify(req, body) {
@@ -103,6 +114,8 @@ export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPo
     if (hash !== job.packageHash) { await audit('job.rejected', { jobId: job.jobId, moduleKey: job.moduleKey, reason: 'PACKAGE_HASH_MISMATCH' }); return [409, { error: 'PACKAGE_HASH_MISMATCH' }] }
     const profile = PROFILES[job.profile]
     if (job.timeoutMs > profile.maxTimeoutMs) return [422, { error: 'JOB_CONTRACT_INVALID' }]
+    const gate = await profileGate(job.profile)
+    if (!gate.ok) { await audit('job.rejected', { jobId: job.jobId, moduleKey: job.moduleKey, reason: 'PROFILE_NOT_ENFORCED' }); return [503, { ok: false, error: { code: 'RUNTIME_DISABLED' }, failed: gate.failed }] }
     jobs.set(job.jobId, { jobId: job.jobId, moduleKey: job.moduleKey, state: 'ACCEPTED' })
     await append(ledgerPath, { jobId: job.jobId, moduleKey: job.moduleKey, state: 'ACCEPTED' })
     const startedAt = now()
@@ -140,7 +153,7 @@ export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPo
         await audit('module.cancelled', { moduleKey: cancel[1], killed })
         return reply(200, { cancelled: cancel[1], killed })
       }
-      if (req.method === 'GET' && req.url === '/v1/health') return reply(200, { ok: true, runtimes: Object.fromEntries([...runtimes].map(([k, rt]) => [k, rt.stats()])) })
+      if (req.method === 'GET' && req.url === '/v1/health') return reply(200, { ok: true, profiles: Object.fromEntries(await Promise.all([...gates].map(async ([k, g]) => [k, await g]))), runtimes: Object.fromEntries([...runtimes].map(([k, rt]) => [k, rt.stats()])) })
       return reply(404, { error: 'NOT_FOUND' })
     } catch { return reply(500, { error: 'SUPERVISOR_FAILED' }) }
   })
