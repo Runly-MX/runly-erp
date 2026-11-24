@@ -15,6 +15,7 @@ import { createProfileSignatureRouter } from "./routes/profile-signature-routes.
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
+import { privateJsonTransport } from "./lib/private-json-transport.js";
 import { createHealthRoutes } from './routes/health-routes.js';
 import { createReadinessService, createPoolReadinessProbe, isModuleRuntimeReady } from './services/readiness-service.js';
 import { config as loadEnv } from "dotenv";
@@ -925,6 +926,8 @@ app.use(
     exposeHeaders: ["X-Runly-Company", "X-Runly-Company-Id", "X-Runly-Catalog-Request", "X-Label-Count", "X-Label-Overflow"],
   }),
 );
+
+for (const path of ["/blueprints", "/runtime/modules"]) app.use(path, ...privateJsonTransport());
 
 // Operational routes precede module delegation and cannot be claimed by a module.
 app.use('*', createPublicCompanyFence({ prisma }));
