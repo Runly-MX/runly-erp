@@ -30,6 +30,9 @@ jobs:
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm db:generate
+        env:
+          # Client generation only reads the URL; it does not connect to a DB.
+          DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/runly_ci
       - name: Security suites
         run: pnpm test:security
 
@@ -49,6 +52,8 @@ jobs:
           package-manager-cache: false
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - run: pnpm db:generate
+        env:
+          DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/runly_ci
       - name: Module authority and quarantine
         run: node scripts/security/verify-module-security.mjs
       - name: PostgREST exposure
