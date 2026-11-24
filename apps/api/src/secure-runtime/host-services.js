@@ -34,9 +34,22 @@ export function createGatewayHostServices({ filesService, prisma = null, relatio
         throw error
       }
     }
+    // Some owning resolvers still show soft-deleted rows by id (their own detail
+    // screens do). A reference to a deleted record must not resolve: filter by the
+    // catalog's own soft-delete column. The table comes from the trusted catalog
+    // constant, never from the module.
+    const withoutDeleted = async ({ companyId, type }, ids, entries) => {
+      const connection = externalTarget(type)?.connection
+      if (!ids.length || connection?.softDelete !== 'enabled' || !/^[a-z][a-z0-9_]{1,40}$/.test(connection.table)) return entries
+      const live = new Set((await prisma.$queryRawUnsafe(`SELECT id::text AS id FROM "${connection.table}" WHERE id = ANY($1::uuid[]) AND company_id = $2::uuid AND enabled = true`, ids, companyId)).map((r) => r.id))
+      return entries.filter(([id]) => live.has(id))
+    }
     services.relations = {
       async resolve(input) {
-        return run(input, async (authUserId) => [...(await relationTargets.resolve({ authUserId, companyId: input.companyId, type: input.type, ids: input.ids }))].map(([id, v]) => ({ id, label: v.title, subtitle: v.subtitle })))
+        return run(input, async (authUserId) => {
+          const found = [...(await relationTargets.resolve({ authUserId, companyId: input.companyId, type: input.type, ids: input.ids }))]
+          return (await withoutDeleted(input, found.map(([id]) => id), found)).map(([id, v]) => ({ id, label: v.title, subtitle: v.subtitle }))
+        })
       },
       async search(input) {
         return run(input, async (authUserId) => (await relationTargets.search({ authUserId, companyId: input.companyId, type: input.type, q: input.q, limit: input.limit })).map((r) => ({ id: r.id, label: r.title, subtitle: r.subtitle })))
