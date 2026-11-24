@@ -67,7 +67,7 @@ Matices que no se ocultan:
 | `/runly/*`, `/module-logos/*` | `public, max-age=3600` | Sin hash; una hora y revalida, para que un cambio de marca aparezca sin limpiar caché |
 | `sw-*.js`, `pwa-bootstrap.js`, `runtime-config.js`, manifests | Sin cambios (`no-store` / reglas previas) | Fuera del alcance de lo versionado por hash |
 
-Compresión en nginx: texto (CSS, JS, JSON, SVG, manifests) con `gzip_proxied any`. Esto alcanza también a las respuestas del proxy del sitio público (`/public/site/`, `/p/`, ...), algunas **autenticadas por cookie** (`services/external-identity`: cookie `rx_session`, `SameSite=Lax`; vista previa de Website). Ese es el caso donde BREACH es plausible (secreto en el cuerpo más texto controlado por el atacante, y el navegador adjunta la cookie solo). **Pendiente de decisión y no resuelto en este informe:** excluir de gzip esas rutas del proxy o limitar gzip a archivos estáticos. Hasta decidirlo, la configuración de nginx comprime más de lo que este análisis justifica.
+Compresión en nginx: solo archivos estáticos del ERP (CSS, JS, JSON, SVG, manifests; mínimo 1 KB). **Todas las rutas con `proxy_pass` llevan `gzip off`** (commit `61b6658b4`): el proxy del sitio público sirve JSON autenticado por cookie (`services/external-identity`, cookie `rx_session`, `SameSite=Lax`), el caso donde BREACH es plausible (secreto más texto controlado por el atacante en un mismo cuerpo, con la cookie adjuntada por el navegador). Verificado con nginx real: el chunk de entrada sale en gzip; las rutas proxy no se comprimen. Costo: el HTML del sitio público sigue sin comprimir, como antes.
 
 ### Compresión de la API (`7273cdfb3`)
 
@@ -106,7 +106,6 @@ La autenticación por Bearer reduce el riesgo, no lo elimina por sí sola; por e
 - Navegador real (Chromium, Firefox, WebKit) para la fachada declarativa y las seis plantillas.
 - Decisión sobre el supervisor: permanece experimental y deshabilitado; sin imagen ni perfil de compose. Ver decisión en §9.
 - Rollback seguro: revisión mínima segura y mecanismo de recuperación.
-- Decisión de compresión en las rutas del proxy público (§5).
 - Triage individual de los 37 fallos preexistentes.
 
 ## 9. Decisiones (independientes, provisionales)
