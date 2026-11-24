@@ -241,9 +241,19 @@ export default defineConfig({
           ) {
             return "state-vendor";
           }
+          // Rich-text editing stack: only the editors need it, never the login or ordinary screens.
+          if (
+            id.includes("/node_modules/@tiptap/") ||
+            id.includes("/node_modules/prosemirror-") ||
+            id.includes("/node_modules/yjs/") ||
+            id.includes("/node_modules/y-prosemirror/") ||
+            id.includes("/node_modules/y-protocols/") ||
+            id.includes("/node_modules/lib0/")
+          ) {
+            return "editor-vendor";
+          }
           if (
             id.includes("/node_modules/@radix-ui/") ||
-            id.includes("/node_modules/@tiptap/") ||
             id.includes("/node_modules/lucide-react/") ||
             id.includes("/node_modules/sonner/")
           ) {
