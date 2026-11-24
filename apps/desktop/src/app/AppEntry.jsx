@@ -1,6 +1,3 @@
-import { AcceptInvitationScreen } from '../company/AcceptInvitationScreen.jsx';
-import { SharedResourceScreen } from '../company/SharedResourceScreen.jsx';
-import { McpConnectionScreen } from './McpConnectionScreen.jsx';
 import { lazy, Suspense, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import {
@@ -14,41 +11,43 @@ import { PersistQueryClientProvider } from "@tanstack/react-query-persist-client
 import { RunlyOfflineDatabase, createDexiePersister } from "@runly/offline";
 import { Toaster, TooltipProvider } from "@runly/ui";
 import { AuthProvider } from "../auth/AuthProvider";
-import { ActiveCompanyProvider, ActiveCompanyGate } from "../company/ActiveCompanyProvider";
-import { RealtimeProvider } from "../providers/RealtimeProvider";
 import { OfficeProvider } from "../providers/OfficeProvider";
 import { ImageEditingProvider } from "../providers/ImageEditingProvider";
 import { ViewerSharingProvider } from "../providers/ViewerSharingProvider";
-import { CallsProvider } from "../modules/runly.chat/calls/CallsProvider";
-import { RunlyApp } from "./RunlyApp";
-import { HomeScreen } from "./HomeScreen";
-import { HelpCenterScreen } from "./HelpCenterScreen";
-import WorkScreen from "./WorkScreen";
+const AcceptInvitationScreen = lazy(() => import("../company/AcceptInvitationScreen.jsx").then((m) => ({ default: m.AcceptInvitationScreen })));
+const SharedResourceScreen = lazy(() => import("../company/SharedResourceScreen.jsx").then((m) => ({ default: m.SharedResourceScreen })));
+const McpConnectionScreen = lazy(() => import("./McpConnectionScreen.jsx").then((m) => ({ default: m.McpConnectionScreen })));
+const HomeScreen = lazy(() => import("./HomeScreen").then((m) => ({ default: m.HomeScreen })));
+const HelpCenterScreen = lazy(() => import("./HelpCenterScreen").then((m) => ({ default: m.HelpCenterScreen })));
+const ProfileScreen = lazy(() => import("./ProfileScreen").then((m) => ({ default: m.ProfileScreen })));
+const ModuleOutlet = lazy(() => import("./ModuleOutlet").then((m) => ({ default: m.ModuleOutlet })));
+const GoogleCalendarCallbackScreen = lazy(() => import("./GoogleCalendarCallbackScreen").then((m) => ({ default: m.GoogleCalendarCallbackScreen })));
+const NativeHostDiagnostics = lazy(() => import("../native/NativeHostDiagnostics.jsx").then((m) => ({ default: m.NativeHostDiagnostics })));
+const PublicShell = lazy(() => import("../shell/PublicShell.jsx").then((m) => ({ default: m.PublicShell })));
+const PublicModuleOutlet = lazy(() => import("../shell/PublicModuleOutlet.jsx").then((m) => ({ default: m.PublicModuleOutlet })));
+const PublicWebsiteEntry = lazy(() => import("../shell/PublicWebsiteEntry.jsx").then((m) => ({ default: m.PublicWebsiteEntry })));
+const PublicClientLogin = lazy(() => import("../shell/PublicClientLogin.jsx").then((m) => ({ default: m.PublicClientLogin })));
+const ResetPasswordScreen = lazy(() => import("../auth/ResetPasswordScreen.jsx").then((m) => ({ default: m.ResetPasswordScreen })));
+const WorkScreen = lazy(() => import("./WorkScreen"));
+const PublicNoteScreen = lazy(() => import("../modules/runly.notes/PublicNoteScreen.jsx"));
+const AuthenticatedShell = lazy(() => import("./AuthenticatedShell.jsx"));
+const CompanyScope = lazy(() => import("./AuthenticatedShell.jsx").then((m) => ({ default: m.CompanyScope })));
 const MarketplaceScreen = lazy(() => import('./MarketplaceScreen.jsx'));
-import { ModuleOutlet } from "./ModuleOutlet";
-import { ProfileScreen } from "./ProfileScreen";
 import { LegacyPublicRedirect } from "./LegacyPublicRedirect.jsx";
-import { GoogleCalendarCallbackScreen } from "./GoogleCalendarCallbackScreen";
 import { runly } from "../lib/runly";
 import { instanceStatusQuery } from "../lib/instanceStatusQuery";
 import { applyBrandTheme } from "../lib/brandTheme";
 import { registerServiceWorker } from "../lib/webPush";
+import { AppLoader } from "../components/AppLoader";
 import { BootLoaderOverlay } from "../components/BootLoaderOverlay";
 import { ErrorBoundary } from "../components/ErrorBoundary";
 import { BugReportHost } from "../components/BugReportHost";
 import { useBootLoader } from "../stores/bootLoader";
 import { useBrandingStore } from "../stores/branding";
 import { useThemeStore } from "../stores/theme";
-import { PublicShell } from "../shell/PublicShell.jsx";
-import { PublicModuleOutlet } from "../shell/PublicModuleOutlet.jsx";
-import { PublicWebsiteEntry } from "../shell/PublicWebsiteEntry.jsx";
-import { PublicClientLogin } from "../shell/PublicClientLogin.jsx";
 import { ServerSetup } from "./ServerSetup.jsx";
 import { native } from '../native/index.js';
-import { NativeHostDiagnostics } from '../native/NativeHostDiagnostics.jsx';
 import { AppRouteGuard } from "./AppRouteGuard.jsx";
-import { ResetPasswordScreen } from "../auth/ResetPasswordScreen.jsx";
-import PublicNoteScreen from "../modules/runly.notes/PublicNoteScreen.jsx";
 
 const StandaloneSiteEditor = lazy(() => import("../modules/runly.website/screens/sites/StandaloneSiteEditor.jsx"));
 const GuestCallScreen = lazy(() => import("../modules/runly.chat/calls/guest/GuestCallScreen.jsx"));
@@ -178,14 +177,14 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     left registered and silently does nothing. */}
                 <ErrorBoundary>
                 <Routes>
-                  <Route path="/" element={<PublicWebsiteEntry />} />
+                  <Route path="/" element={<Suspense fallback={null}><PublicWebsiteEntry /></Suspense>} />
                   <Route path="/app/setup" element={<AppRouteGuard mode="setup" />} />
                   <Route path="/app/login" element={<AppRouteGuard mode="login" />} />
-                  <Route path="/app/reset-password" element={<ResetPasswordScreen />} />
-                  <Route path="/app/acceso" element={<PublicClientLogin />} />
+                  <Route path="/app/reset-password" element={<Suspense fallback={null}><ResetPasswordScreen /></Suspense>} />
+                  <Route path="/app/acceso" element={<Suspense fallback={null}><PublicClientLogin /></Suspense>} />
                   <Route
                     path="/app/google/calendar/callback"
-                    element={<GoogleCalendarCallbackScreen />}
+                    element={<Suspense fallback={null}><GoogleCalendarCallbackScreen /></Suspense>}
                   />
                   {/* Legacy public URLs outside /app/p: redirect, keeping query/hash (shared links, QR codes, installed mini apps) */}
                   <Route path="/app/kiosk/:link" element={<LegacyPublicRedirect to={({ link }) => `/app/p/kiosk/${link}`} />} />
@@ -194,8 +193,8 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                   <Route path="/app/sign/custody/:token" element={<LegacyPublicRedirect to={({ token }) => `/app/p/custody/${token}`} />} />
                   <Route path="/app/egress/call" element={<Suspense fallback={null}><EgressCallScreen /></Suspense>} />
                   {/* Public notes under /app/p/ — accessible without auth, served by same SPA */}
-                  <Route path="/app/p" element={<PublicShell />}>
-                    <Route path="notes/:slug" element={<PublicNoteScreen />} />
+                  <Route path="/app/p" element={<Suspense fallback={null}><PublicShell /></Suspense>}>
+                    <Route path="notes/:slug" element={<Suspense fallback={null}><PublicNoteScreen /></Suspense>} />
                     <Route path="call/:token" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="canvas/:token" element={<Suspense fallback={null}><PublicBoardScreen /></Suspense>} />
@@ -224,47 +223,35 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
                     <Route path="mis-boletos" element={<Suspense fallback={null}><MyTicketsScreen /></Suspense>} />
                   </Route>
                   <Route element={<AppRouteGuard mode="access" />}>
-                    <Route path="/app/mcp" element={<McpConnectionScreen />} />
-                    <Route path="/app/accept-invitation" element={<AcceptInvitationScreen />} />
-                    <Route path="/app/shared/:resourceType/:id" element={<SharedResourceScreen />} />
+                    <Route path="/app/mcp" element={<Suspense fallback={null}><McpConnectionScreen /></Suspense>} />
+                    <Route path="/app/accept-invitation" element={<Suspense fallback={null}><AcceptInvitationScreen /></Suspense>} />
+                    <Route path="/app/shared/:resourceType/:id" element={<Suspense fallback={null}><SharedResourceScreen /></Suspense>} />
                     <Route path="/app/editor/sites/:siteId/pages/:pageId" element={
-                      <ActiveCompanyProvider><ActiveCompanyGate>
-                        <Suspense fallback={null}><StandaloneSiteEditor /></Suspense>
-                      </ActiveCompanyGate></ActiveCompanyProvider>
+                      <Suspense fallback={null}><CompanyScope><StandaloneSiteEditor /></CompanyScope></Suspense>
                     } />
                     <Route
                       path="/app"
-                      element={
-                        <ActiveCompanyProvider>
-                          <ActiveCompanyGate>
-                            <RealtimeProvider>
-                              <CallsProvider>
-                                <RunlyApp />
-                              </CallsProvider>
-                            </RealtimeProvider>
-                          </ActiveCompanyGate>
-                        </ActiveCompanyProvider>
-                      }
+                      element={<Suspense fallback={<AppLoader />}><AuthenticatedShell /></Suspense>}
                     >
                       <Route index element={<Navigate to="home" replace />} />
-                      <Route path="home" element={<HomeScreen />} />
+                      <Route path="home" element={<Suspense fallback={null}><HomeScreen /></Suspense>} />
                       <Route path="marketplace" element={<Suspense fallback={null}><MarketplaceScreen /></Suspense>} />
-                      <Route path="m/:moduleKey/*" element={<ModuleOutlet />} />
-                      <Route path="profile" element={<ProfileScreen />} />
-                      <Route path="help" element={<HelpCenterScreen />} />
-                      <Route path="work" element={<WorkScreen />} />
-                      <Route path="native-host" element={<NativeHostDiagnostics />} />
+                      <Route path="m/:moduleKey/*" element={<Suspense fallback={null}><ModuleOutlet /></Suspense>} />
+                      <Route path="profile" element={<Suspense fallback={null}><ProfileScreen /></Suspense>} />
+                      <Route path="help" element={<Suspense fallback={null}><HelpCenterScreen /></Suspense>} />
+                      <Route path="work" element={<Suspense fallback={null}><WorkScreen /></Suspense>} />
+                      <Route path="native-host" element={<Suspense fallback={null}><NativeHostDiagnostics /></Suspense>} />
                     </Route>
                   </Route>
-                  <Route path="/p" element={<PublicShell />}>
-                    <Route path="notes/:slug" element={<PublicNoteScreen />} />
+                  <Route path="/p" element={<Suspense fallback={null}><PublicShell /></Suspense>}>
+                    <Route path="notes/:slug" element={<Suspense fallback={null}><PublicNoteScreen /></Suspense>} />
                     <Route path="call/:token" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="call" element={<Suspense fallback={null}><GuestCallScreen /></Suspense>} />
                     <Route path="files/:token" element={<Suspense fallback={null}><PublicFileScreen /></Suspense>} />
                     <Route path="folders/:token" element={<Suspense fallback={null}><PublicFolderScreen /></Suspense>} />
-                    <Route path="*" element={<PublicModuleOutlet />} />
+                    <Route path="*" element={<Suspense fallback={null}><PublicModuleOutlet /></Suspense>} />
                   </Route>
-                  <Route path="*" element={<PublicWebsiteEntry />} />
+                  <Route path="*" element={<Suspense fallback={null}><PublicWebsiteEntry /></Suspense>} />
                 </Routes>
                 </ErrorBoundary>
                 </ViewerSharingProvider>
