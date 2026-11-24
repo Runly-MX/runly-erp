@@ -152,8 +152,8 @@ Construidas localmente desde el árbol del commit `e73cdf3ad` (árbol de seguimi
 | Imagen | Resultado |
 |---|---|
 | API | Construida (2.6 GB). **`verify-nonroot-image.mjs` 5/5 sobre esta imagen:** instalación limpia (uid/gid 10001 sin capacidades efectivas), actualización desde un volumen de root con datos conservados, volumen con symlink que impide el arranque sin cambiar nada, arranque directo como no root, y arranque real con migraciones, seed y `/health` sobre una base desechable. Idempotencia (el segundo arranque no cambia propietarios) y reversión (la imagen anterior lee el volumen entregado) verificadas en Stage 3 con el mismo script y no repetidas aquí |
-| Worker | WORKER_STATUS |
-| Web | WEB_STATUS |
+| Worker | Construida (2.57 GB). Sin verificación de arranque propia en esta fase |
+| Web | Construida (284 MB) con Atlas 0.11.0. Sin verificación de arranque propia en esta fase |
 | Supervisor | **No existe imagen ni Dockerfile.** No se construyó (R-2) |
 
 **No repetido contra la imagen candidata:** `verify-secure-runtime-api.mjs`, `verify-declarative-data-compat.mjs`, `verify-relations-contract.mjs` y `verify-template-matrix.mjs` corren hoy contra la API del árbol de trabajo (mismo código, `node apps/api/src/index.js`) sobre la pila desechable, no contra la imagen. Feature flags, cuarentena y recuperación de módulos se verificaron por esa vía. Pasarlas contra la imagen es un requisito de F1C (§16).
