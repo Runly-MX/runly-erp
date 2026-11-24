@@ -137,6 +137,24 @@ Measured on a Windows 11 workstation with Docker Desktop (indicative only):
 3. **Windows Docker Desktop.** It reaches the host gateway only through `host.docker.internal`, so the PoC bound the gateway to all interfaces. In production the gateway joins the runner network directly (internal bind), with no host exposure.
 4. **Declarative screens stay native.** `toBlueprints()` maps views to the blueprint shapes `@runly/ui` already renders. Only custom components pay for an iframe.
 
+## Stage 3 evidence (integration, 2026-11-24)
+
+| Decision | Evidence | Result |
+|---|---|---|
+| Gateway inside the real API, off by default (`RUNLY_SECURE_RUNTIME=experimental`) | `integration.js`; with the flag off nothing is mounted (`integration-flag.test.js`) | `verify-secure-runtime-api.mjs` 10/10 |
+| Separate supervisor; the API has no Docker access | `apps/supervisor`: HMAC-signed closed contract, digest-pinned profiles, hash check, at-most-once ledger, orphan reaping, module kill on revocation | `supervisor.test.js` 5/5; job runs end to end through the API |
+| Converted Builder modules operate on their **existing RME3 tables** (new finding: a separate jsonb store would create a second source of truth) | `rme3-table-store.js`, `converter.js` | `verify-declarative-data-compat.mjs` 8/8 on a real Builder module |
+| Warm executor pool | `experiment-warm-pool.mjs`: 445 ms → 122 ms, but files and processes leak between jobs and a cleanup step left a file behind | **Not adopted**: one container per job for untrusted code |
+| Frontend isolation across engines | Same checks in Chromium, Firefox and WebKit | 7/7 each |
+
+Findings that change the plan:
+1. **Declarative storage.** Converted modules use their existing tables. The jsonb store remains only for new declarative-only modules.
+2. **Delete.** Declarative v1 has no logical-delete operation yet, so a Builder module's `delete` permission is kept but unused. This must be added before any module relies on the declarative runtime for archiving.
+3. **External relations.** Only Contacts is allowlisted. HR, inventory, fleet and the other targets need allowlisted host lookups with the user's visibility before modules that use them can convert without review.
+4. **Builder automations.** They are not converted; they keep running in the current runtime. A declarative trigger model for record events is needed.
+5. **Declarative screens.** Connecting them to `RunlyTable` and the other renderers needs a data adapter: the renderers fetch their own REST paths. The blueprint mapping exists; the adapter is the next frontend step.
+6. **Lifecycle module directory.** The module lifecycle only resolves directories inside `<project root>/modules` and ignores `RUNLY_MODULES_DIR`. This is pre-existing and harmless in installer layouts, but a module directory outside the root installs without tables and without an error.
+
 ## Rejected
 
 - **B alone**: Linux-only, high operational cost, still needs the gateway.
