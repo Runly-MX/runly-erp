@@ -103,13 +103,33 @@ try {
     const after = (await s.q(`SELECT cm.company_id, cm.enabled FROM company_module cm JOIN runly_module m ON m.id=cm.module_id WHERE m.key=$1 ORDER BY cm.company_id`, [KEY])).rows
     assert.deepEqual(after, companyModulesBefore)
   })
+  await check('soft delete and restore on the existing table, with business history and correlated audit', async () => {
+    const tmp = (await rt(tA, A, 'records.create', { entity: entity.key, data: { [textField]: 'Para borrar' } })).body.data
+    const del = await rt(tA, A, 'records.delete', { entity: entity.key, id: tmp.id, expectedVersion: tmp.version })
+    assert.equal(del.status, 200, JSON.stringify(del.body))
+    assert.match(del.body.correlationId, /^[0-9a-f-]{36}$/)
+    assert.equal((await rt(tA, A, 'records.get', { entity: entity.key, id: tmp.id })).body.error, 'NOT_FOUND')
+    assert.ok(!(await oldList(apiA)).some((r) => r.id === tmp.id), 'the existing runtime no longer lists it')
+    const row = (await s.q(`SELECT enabled FROM ${SLUG}_${entity.key} WHERE id=$1`, [tmp.id])).rows[0]
+    assert.equal(row.enabled, false, 'the row stays, enabled = false')
+    assert.equal((await rt(tB, B, 'records.restore', { entity: entity.key, id: tmp.id })).body.error, 'NOT_FOUND', 'another company cannot restore it')
+    assert.equal((await rt(tA, A, 'records.restore', { entity: entity.key, id: tmp.id })).status, 200)
+    assert.ok((await oldList(apiA)).some((r) => r.id === tmp.id), 'visible again in the existing runtime')
+    const audit = (await s.q(`SELECT action, after FROM audit_log WHERE module_key=$1 AND action IN ('runtime.records.delete','runtime.records.restore') AND company_id=$2`, [KEY, A])).rows
+    assert.equal(audit.length, 2)
+    for (const a of audit) { const d = typeof a.after === 'string' ? JSON.parse(a.after) : a.after; assert.equal(d.result, 'ok'); assert.ok(d.correlationId && d.moduleRevision && d.at) }
+    const activity = (await s.q(`SELECT type, entity_id, actor_id FROM activity WHERE company_id=$1 AND type LIKE $2 AND entity_id=$3`, [A, `module.${KEY}.%`, tmp.id])).rows
+    assert.deepEqual(activity.map((r) => r.type).sort(), ['create', 'delete', 'restore'].map((v) => `module.${KEY}.${entity.key}.${v}`).sort())
+    assert.ok(activity.every((r) => r.actor_id === adminA.id), 'the actor is the real user, set by the host')
+    await rt(tA, A, 'records.delete', { entity: entity.key, id: tmp.id }) // leave the table as the rollback check expects
+  })
   await check('rollback: removing the declarative package keeps every row and the existing runtime', async () => {
     await rm(join(runtimeDir, KEY), { recursive: true, force: true })
     assert.equal((await rt(tA, A, 'records.list', { entity: entity.key })).body.error, 'MODULE_NOT_AVAILABLE')
     const rows = await oldList(apiA)
     assert.ok(rows.some((r) => r.id === createdId))
     assert.equal(rows.length, 3)
-    assert.equal((await s.q(`SELECT count(*)::int AS n FROM ${SLUG}_${entity.key}`)).rows[0].n, 4)
+    assert.equal((await s.q(`SELECT count(*)::int AS n FROM ${SLUG}_${entity.key}`)).rows[0].n, 5)
   })
 } finally {
   report()
