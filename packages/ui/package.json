@@ -3,7 +3,6 @@
   "version": "0.1.0",
   "license": "UNLICENSED",
   "type": "module",
-  "sideEffects": ["**/*.css"],
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
