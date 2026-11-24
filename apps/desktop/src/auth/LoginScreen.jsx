@@ -170,7 +170,7 @@ export function LoginScreen({ returnTo = '/app' }) {
             <span className="text-sm font-semibold tracking-[0.3em] text-white/80">ERP</span>
           </div>
 
-          <div className="hidden lg:flex flex-col gap-6 max-w-xl">
+          <div className="hidden lg:flex flex-col gap-6 max-w-xl motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-4 duration-700">
             <h1 className="text-[clamp(2.6rem,4.6vw,4.2rem)] font-extrabold leading-[1.02] tracking-tight text-white">
               Todo tu negocio.
               <br />
@@ -194,8 +194,12 @@ export function LoginScreen({ returnTo = '/app' }) {
           </div>
 
           <ul className="hidden lg:flex flex-wrap gap-3" role="list">
-            {MODULE_TILES.map(({ icon: Icon, label, color }) => (
-              <li key={label} className="w-24 h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md text-center">
+            {MODULE_TILES.map(({ icon: Icon, label, color }, i) => (
+              <li
+                key={label}
+                style={{ animationDelay: `${300 + i * 70}ms`, '--tile': color }}
+                className="w-24 h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md text-center transition hover:-translate-y-1 hover:bg-white/[0.08] hover:border-(--tile)/50 hover:shadow-[0_12px_30px_-12px_var(--tile)] motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-3 duration-500 fill-mode-both"
+              >
                 <Icon size={26} strokeWidth={1.75} style={{ color }} aria-hidden="true" />
                 <span className="text-[12px] font-medium leading-tight text-white/85">{label}</span>
               </li>
@@ -205,7 +209,7 @@ export function LoginScreen({ returnTo = '/app' }) {
 
         {/* Form card: gradient hairline border around frosted glass. */}
         <section className="flex-1 flex items-center justify-center mt-8 lg:mt-0">
-          <div className="w-full max-w-md lg:max-w-none rounded-[28px] p-px bg-gradient-to-br from-white/25 via-white/5 to-pink-500/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]">
+          <div className="w-full max-w-md lg:max-w-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-700 rounded-[28px] p-px bg-gradient-to-br from-white/25 via-white/5 to-pink-500/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]">
             <div className="rounded-[27px] bg-[#0b1430]/70 backdrop-blur-2xl px-6 py-8 sm:px-10 sm:py-10">
               <div className="flex flex-col items-center text-center gap-2 mb-8">
                 <img src="/runly/runly-isotipo-dark.png" alt="" className="h-12 w-12 mb-2 object-contain" draggable={false} />
@@ -260,7 +264,7 @@ export function LoginScreen({ returnTo = '/app' }) {
                   style={LOGIN_GRADIENT}
                   disabled={loading || !identifier.trim() || !password}
                   aria-busy={loading}
-                  className="mt-1 h-12 w-full justify-center rounded-md text-[15px] font-semibold shadow-[0_10px_30px_-8px_rgba(249,115,22,.6)] hover:brightness-110"
+                  className="mt-1 h-12 sm:h-12 w-full justify-center rounded-md text-[15px] font-semibold shadow-[0_10px_30px_-8px_rgba(249,115,22,.6)] hover:brightness-110"
                 >
                   {loading ? 'Verificando credenciales...' : 'Iniciar sesión'}
                   {!loading && <ArrowRight size={17} />}
@@ -275,7 +279,7 @@ export function LoginScreen({ returnTo = '/app' }) {
                 type="button"
                 variant="outline"
                 onClick={() => navigate('/app/p/call')}
-                className="h-11 w-full justify-center rounded-md border-white/15 bg-white/[0.04] text-white/90 hover:bg-white/[0.08]"
+                className="h-11 sm:h-11 w-full justify-center rounded-md border-white/15 bg-white/[0.04] text-white/90 hover:bg-white/[0.08]"
               >
                 <Video size={16} />
                 Unirse a una reunión sin cuenta
