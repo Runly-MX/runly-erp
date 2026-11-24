@@ -1,0 +1,324 @@
+{
+ "profile": "desktop",
+ "scenario": "session",
+ "base": "http://localhost:4173",
+ "cpu": 1,
+ "net": null,
+ "sessionQuietMs": 15809,
+ "summary": {
+  "requests": 189,
+  "jsFiles": 134,
+  "jsKB": 2417,
+  "cssKB": 101,
+  "fontKB": 55,
+  "totalKB": 9009,
+  "apiCalls": 30,
+  "apiKB": 5244,
+  "topApi": [
+   [
+    "GET /instance/status",
+    2
+   ],
+   [
+    "GET /user/me",
+    2
+   ],
+   [
+    "POST /realtime/presence",
+    2
+   ],
+   [
+    "GET /runly/runly-loader.html",
+    1
+   ],
+   [
+    "GET /realtime/revision",
+    1
+   ],
+   [
+    "GET /memberships/me",
+    1
+   ],
+   [
+    "GET /chat/mirai/status",
+    1
+   ],
+   [
+    "GET /profile/status",
+    1
+   ],
+   [
+    "GET /notifications/dnd",
+    1
+   ],
+   [
+    "GET /companies/deletions",
+    1
+   ]
+  ],
+  "slowApi": [
+   {
+    "u": "/sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.calendar%2Cr",
+    "ms": 2759,
+    "kb": 198.9
+   },
+   {
+    "u": "/help/resolve?path=%2Fhome",
+    "ms": 1758,
+    "kb": 2.4
+   },
+   {
+    "u": "/home-widgets",
+    "ms": 1743,
+    "kb": 0.4
+   },
+   {
+    "u": "/realtime/presence",
+    "ms": 1742,
+    "kb": 0.6
+   },
+   {
+    "u": "/profile/me/preferences/home.widgets",
+    "ms": 1406,
+    "kb": 0.4
+   },
+   {
+    "u": "/automation-approvals/mine",
+    "ms": 1399,
+    "kb": 0.4
+   },
+   {
+    "u": "/calls/config",
+    "ms": 1374,
+    "kb": 0.4
+   },
+   {
+    "u": "/files/office/status",
+    "ms": 1372,
+    "kb": 0.5
+   }
+  ],
+  "bigApi": [
+   {
+    "u": "/blueprints",
+    "kb": 3510.3
+   },
+   {
+    "u": "/runly/runly-loader.html",
+    "kb": 1027.2
+   },
+   {
+    "u": "/runtime/modules",
+    "kb": 477
+   },
+   {
+    "u": "/sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.calendar%2Cr",
+    "kb": 198.9
+   },
+   {
+    "u": "/user/me",
+    "kb": 8.9
+   }
+  ],
+  "api": [
+   "GET /runly/runly-loader.html",
+   "GET /instance/status",
+   "GET /user/me",
+   "GET /instance/status",
+   "GET /realtime/revision",
+   "GET /memberships/me",
+   "GET /user/me",
+   "GET /chat/mirai/status",
+   "GET /profile/status",
+   "GET /notifications/dnd",
+   "GET /companies/deletions",
+   "GET /notifications/summary",
+   "GET /runtime/modules",
+   "GET /chat/conversations",
+   "GET /profile/me/preferences/app.view",
+   "GET /profile/me/preferences/chat_prefs",
+   "GET /instance/config",
+   "GET /blueprints",
+   "GET /chat/external/inbox?status=open",
+   "GET /help/resolve?path=%2F",
+   "GET /calls/config",
+   "GET /files/office/status",
+   "GET /automation-approvals/mine",
+   "GET /profile/me/preferences/home.widgets",
+   "GET /home-widgets",
+   "GET /help/resolve?path=%2Fhome",
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "GET /sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.ca",
+   "POST /realtime/presence"
+  ]
+ },
+ "perf": {
+  "fcp": 316,
+  "lcp": 5388,
+  "cls": 0.129,
+  "inp": 0,
+  "tbt": 164,
+  "longTasks": 2,
+  "maxLongTask": 168,
+  "ttfb": 3,
+  "dcl": 339
+ },
+ "heap": {
+  "heapMB": 27.4,
+  "listeners": 453,
+  "nodes": 1448,
+  "docs": 2,
+  "scriptSec": 0.66,
+  "taskSec": 1.08,
+  "layouts": 209,
+  "recalcs": 239
+ },
+ "warmReloadMs": 6322,
+ "warm": {
+  "requests": 185,
+  "jsFiles": 134,
+  "jsKB": 0,
+  "cssKB": 0,
+  "fontKB": 0,
+  "totalKB": 4017,
+  "apiCalls": 28,
+  "apiKB": 4016,
+  "topApi": [
+   [
+    "GET /instance/status",
+    2
+   ],
+   [
+    "GET /user/me",
+    2
+   ],
+   [
+    "GET /runly/runly-loader.html",
+    1
+   ],
+   [
+    "GET /realtime/revision",
+    1
+   ],
+   [
+    "GET /memberships/me",
+    1
+   ],
+   [
+    "GET /chat/mirai/status",
+    1
+   ],
+   [
+    "GET /notifications/dnd",
+    1
+   ],
+   [
+    "GET /profile/status",
+    1
+   ],
+   [
+    "GET /companies/deletions",
+    1
+   ],
+   [
+    "GET /notifications/summary",
+    1
+   ]
+  ],
+  "slowApi": [
+   {
+    "u": "/sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.calendar%2Cr",
+    "ms": 2635,
+    "kb": 1.4
+   },
+   {
+    "u": "/help/resolve?path=%2Fhome",
+    "ms": 1714,
+    "kb": 2.4
+   },
+   {
+    "u": "/realtime/presence",
+    "ms": 1586,
+    "kb": 0.6
+   },
+   {
+    "u": "/blueprints",
+    "ms": 1384,
+    "kb": 3510.3
+   },
+   {
+    "u": "/instance/config",
+    "ms": 1358,
+    "kb": 0.6
+   },
+   {
+    "u": "/home-widgets",
+    "ms": 1283,
+    "kb": 0.4
+   },
+   {
+    "u": "/files/office/status",
+    "ms": 1274,
+    "kb": 0.5
+   },
+   {
+    "u": "/calls/config",
+    "ms": 1268,
+    "kb": 0.4
+   }
+  ],
+  "bigApi": [
+   {
+    "u": "/blueprints",
+    "kb": 3510.3
+   },
+   {
+    "u": "/runtime/modules",
+    "kb": 477
+   },
+   {
+    "u": "/user/me",
+    "kb": 8.9
+   },
+   {
+    "u": "/chat/conversations",
+    "kb": 4.2
+   },
+   {
+    "u": "/help/resolve?path=%2Fhome",
+    "kb": 2.4
+   }
+  ],
+  "api": [
+   "GET /runly/runly-loader.html",
+   "GET /instance/status",
+   "GET /user/me",
+   "GET /instance/status",
+   "GET /realtime/revision",
+   "GET /memberships/me",
+   "GET /user/me",
+   "GET /chat/mirai/status",
+   "GET /notifications/dnd",
+   "GET /profile/status",
+   "GET /companies/deletions",
+   "GET /notifications/summary",
+   "GET /runtime/modules",
+   "GET /chat/conversations",
+   "GET /profile/me/preferences/app.view",
+   "GET /profile/me/preferences/home.widgets",
+   "GET /profile/me/preferences/chat_prefs",
+   "GET /automation-approvals/mine",
+   "GET /chat/external/inbox?status=open",
+   "GET /home-widgets",
+   "GET /calls/config",
+   "GET /files/office/status",
+   "GET /instance/config",
+   "GET /blueprints",
+   "GET /help/resolve?path=%2Fhome",
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "GET /sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.ca"
+  ]
+ }
+}

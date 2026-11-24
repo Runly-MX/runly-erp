@@ -1,0 +1,40 @@
+{
+ "profile": "desktop",
+ "scenario": "idle",
+ "base": "http://localhost:4173",
+ "cpu": 1,
+ "net": null,
+ "idle": {
+  "seconds": 90.026,
+  "requests": 19,
+  "perMin": 12.7,
+  "kb": 16,
+  "api": [
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "POST /realtime/presence",
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "POST /realtime/presence",
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "POST /realtime/presence",
+   "POST /realtime/presence",
+   "GET /calls/current",
+   "POST /realtime/presence",
+   "POST /realtime/presence",
+   "GET /companies/deletions",
+   "GET /notifications/summary",
+   "GET /memberships/me",
+   "POST /realtime/presence",
+   "GET /chat/conversations",
+   "GET /calls/current"
+  ],
+  "scriptSecDelta": 0.11,
+  "taskSecDelta": 0.19,
+  "layouts": 2,
+  "recalcs": 7,
+  "heapDelta": 0.3,
+  "listenersDelta": 0
+ }
+}

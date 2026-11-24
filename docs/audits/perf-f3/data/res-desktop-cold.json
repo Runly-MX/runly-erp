@@ -1,0 +1,281 @@
+{
+ "profile": "desktop",
+ "scenario": "cold",
+ "base": "http://localhost:4173",
+ "cpu": 1,
+ "net": null,
+ "loginVisibleMs": 2371,
+ "preLogin": {
+  "requests": 162,
+  "jsFiles": 132,
+  "jsKB": 2408,
+  "cssKB": 100,
+  "fontKB": 55,
+  "totalKB": 6279,
+  "apiCalls": 5,
+  "apiKB": 2121,
+  "topApi": [
+   [
+    "GET /instance/status",
+    3
+   ],
+   [
+    "GET /runly/runly-loader.html",
+    1
+   ],
+   [
+    "GET /runly/runly-loader-dark.html",
+    1
+   ]
+  ],
+  "slowApi": [
+   {
+    "u": "/instance/status",
+    "ms": 778,
+    "kb": 0.9
+   },
+   {
+    "u": "/instance/status",
+    "ms": 544,
+    "kb": 0.9
+   },
+   {
+    "u": "/instance/status",
+    "ms": 540,
+    "kb": 0.9
+   },
+   {
+    "u": "/runly/runly-loader-dark.html",
+    "ms": 41,
+    "kb": 1091.7
+   },
+   {
+    "u": "/runly/runly-loader.html",
+    "ms": 34,
+    "kb": 1027.2
+   }
+  ],
+  "bigApi": [
+   {
+    "u": "/runly/runly-loader-dark.html",
+    "kb": 1091.7
+   },
+   {
+    "u": "/runly/runly-loader.html",
+    "kb": 1027.2
+   },
+   {
+    "u": "/instance/status",
+    "kb": 0.9
+   },
+   {
+    "u": "/instance/status",
+    "kb": 0.9
+   },
+   {
+    "u": "/instance/status",
+    "kb": 0.9
+   }
+  ],
+  "api": [
+   "GET /runly/runly-loader.html",
+   "GET /instance/status",
+   "GET /instance/status",
+   "GET /runly/runly-loader-dark.html",
+   "GET /instance/status"
+  ],
+  "fcp": 316,
+  "lcp": 2416,
+  "cls": 0.001,
+  "inp": 0,
+  "tbt": 114,
+  "longTasks": 1,
+  "maxLongTask": 164,
+  "ttfb": 3,
+  "dcl": 332
+ },
+ "preLoginHeap": {
+  "heapMB": 18.2,
+  "listeners": 209,
+  "nodes": 1061,
+  "docs": 2,
+  "scriptSec": 0.26,
+  "taskSec": 0.67,
+  "layouts": 101,
+  "recalcs": 163
+ },
+ "loginToUrlMs": 94,
+ "loginToQuietMs": 6774,
+ "postLogin": {
+  "requests": 40,
+  "jsFiles": 2,
+  "jsKB": 9,
+  "cssKB": 0,
+  "fontKB": 0,
+  "totalKB": 4228,
+  "apiCalls": 33,
+  "apiKB": 4218,
+  "topApi": [
+   [
+    "GET /user/me",
+    2
+   ],
+   [
+    "GET /sounds/calls/ringtone.mp3",
+    1
+   ],
+   [
+    "GET /sounds/calls/join-call-sound.mp3",
+    1
+   ],
+   [
+    "GET /sounds/calls/exit-call-sound.mp3",
+    1
+   ],
+   [
+    "GET /sounds/notification.mp3",
+    1
+   ],
+   [
+    "POST /auth/login",
+    1
+   ],
+   [
+    "GET https://supabase.example.com/auth/v1/user",
+    1
+   ],
+   [
+    "GET /instance/status",
+    1
+   ],
+   [
+    "GET /realtime/revision",
+    1
+   ],
+   [
+    "GET /memberships/me",
+    1
+   ]
+  ],
+  "slowApi": [
+   {
+    "u": "/sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.calendar%2Cr",
+    "ms": 3034,
+    "kb": 198.9
+   },
+   {
+    "u": "/help/resolve?path=%2Fhome",
+    "ms": 2464,
+    "kb": 2.4
+   },
+   {
+    "u": "/help/resolve?path=%2F",
+    "ms": 2185,
+    "kb": 3
+   },
+   {
+    "u": "/home-widgets",
+    "ms": 2113,
+    "kb": 0.4
+   },
+   {
+    "u": "/realtime/presence",
+    "ms": 2037,
+    "kb": 0.6
+   },
+   {
+    "u": "/profile/me/preferences/home.widgets",
+    "ms": 1753,
+    "kb": 0.4
+   },
+   {
+    "u": "/automation-approvals/mine",
+    "ms": 1750,
+    "kb": 0.4
+   },
+   {
+    "u": "/calls/config",
+    "ms": 1728,
+    "kb": 0.4
+   }
+  ],
+  "bigApi": [
+   {
+    "u": "/blueprints",
+    "kb": 3510.3
+   },
+   {
+    "u": "/runtime/modules",
+    "kb": 477
+   },
+   {
+    "u": "/sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.calendar%2Cr",
+    "kb": 198.9
+   },
+   {
+    "u": "/user/me",
+    "kb": 8.9
+   },
+   {
+    "u": "/chat/conversations",
+    "kb": 4.2
+   }
+  ],
+  "api": [
+   "GET /sounds/calls/ringtone.mp3",
+   "GET /sounds/calls/join-call-sound.mp3",
+   "GET /sounds/calls/exit-call-sound.mp3",
+   "GET /sounds/notification.mp3",
+   "POST /auth/login",
+   "GET https://supabase.example.com/auth/v1/user",
+   "GET /instance/status",
+   "GET /user/me",
+   "GET /realtime/revision",
+   "GET /memberships/me",
+   "GET /user/me",
+   "GET /chat/mirai/status",
+   "GET /profile/status",
+   "GET /notifications/dnd",
+   "GET /companies/deletions",
+   "GET /notifications/summary",
+   "GET /chat/conversations",
+   "GET /instance/config",
+   "GET /profile/me/preferences/app.view",
+   "GET /profile/me/preferences/chat_prefs",
+   "GET /chat/external/inbox?status=open",
+   "GET /runtime/modules",
+   "GET /blueprints",
+   "GET /calls/config",
+   "GET /files/office/status",
+   "GET /profile/me/preferences/home.widgets",
+   "GET /automation-approvals/mine",
+   "GET /home-widgets",
+   "GET /help/resolve?path=%2F",
+   "POST /realtime/presence",
+   "GET /help/resolve?path=%2Fhome",
+   "GET /calls/current",
+   "GET /sync/pull?modules=runly.contacts%2Crunly.hr%2Ccustom.fleet%2Crunly.ca"
+  ]
+ },
+ "postLoginPerf": {
+  "fcp": 316,
+  "lcp": 2416,
+  "cls": 0.129,
+  "inp": 40,
+  "tbt": 149,
+  "longTasks": 2,
+  "maxLongTask": 164,
+  "ttfb": 3,
+  "dcl": 332
+ },
+ "postLoginHeap": {
+  "heapMB": 28.3,
+  "listeners": 463,
+  "nodes": 1448,
+  "docs": 2,
+  "scriptSec": 0.7,
+  "taskSec": 1.45,
+  "layouts": 282,
+  "recalcs": 431
+ }
+}

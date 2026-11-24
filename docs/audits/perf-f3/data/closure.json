@@ -1,0 +1,3446 @@
+{
+ "preLogin": {
+  "js": {
+   "n": 12,
+   "raw": 1006667,
+   "gz": 277858
+  },
+  "css": {
+   "n": 0,
+   "raw": 0,
+   "gz": 0
+  },
+  "files": [
+   {
+    "f": "assets/index-fJiuh2vA.js",
+    "raw": 7195,
+    "gz": 3407
+   },
+   {
+    "f": "assets/react-vendor-RtUt5yOG.js",
+    "raw": 628075,
+    "gz": 189167
+   },
+   {
+    "f": "assets/rolldown-runtime-BcKkbAw3.js",
+    "raw": 1348,
+    "gz": 728
+   },
+   {
+    "f": "assets/desktopRuntime-CJivHfja.js",
+    "raw": 2262,
+    "gz": 1044
+   },
+   {
+    "f": "assets/runtimeConfig-BwdFwD7S.js",
+    "raw": 722,
+    "gz": 516
+   },
+   {
+    "f": "assets/runly-DSuz6ZJ_.js",
+    "raw": 517,
+    "gz": 319
+   },
+   {
+    "f": "assets/src-P_sCThZc.js",
+    "raw": 157183,
+    "gz": 27091
+   },
+   {
+    "f": "assets/supabase-DiYePVGX.js",
+    "raw": 4956,
+    "gz": 2422
+   },
+   {
+    "f": "assets/supabase-vendor-CoabRwkj.js",
+    "raw": 195459,
+    "gz": 49357
+   },
+   {
+    "f": "assets/appConfig-Dy7Njz6q.js",
+    "raw": 287,
+    "gz": 197
+   },
+   {
+    "f": "assets/native-runtime-xs6RqV1a.js",
+    "raw": 633,
+    "gz": 382
+   },
+   {
+    "f": "assets/native-DMBgUSwJ.js",
+    "raw": 8030,
+    "gz": 3228
+   }
+  ]
+ },
+ "appEntry": {
+  "js": {
+   "n": 129,
+   "raw": 8813802,
+   "gz": 2417014
+  },
+  "css": {
+   "n": 7,
+   "raw": 680273,
+   "gz": 95697
+  },
+  "addOverPre": {
+   "n": 118,
+   "raw": 7814330,
+   "gz": 2142563
+  },
+  "files": [
+   {
+    "f": "assets/src-D_sju_4q.js",
+    "raw": 2042467,
+    "gz": 555936,
+    "name": "src",
+    "inPre": false
+   },
+   {
+    "f": "assets/ui-vendor-B_WyHYOq.js",
+    "raw": 1721984,
+    "gz": 482212,
+    "name": "ui-vendor",
+    "inPre": false
+   },
+   {
+    "f": "assets/react-vendor-RtUt5yOG.js",
+    "raw": 628075,
+    "gz": 189167,
+    "name": "react-vendor",
+    "inPre": true
+   },
+   {
+    "f": "assets/runlyBlocks-_Y8PDLJq.js",
+    "raw": 800295,
+    "gz": 174789,
+    "name": "runlyBlocks",
+    "inPre": false
+   },
+   {
+    "f": "assets/AppEntry-N8-Z8dr2.js",
+    "raw": 615194,
+    "gz": 144913,
+    "name": "AppEntry",
+    "inPre": false
+   },
+   {
+    "f": "assets/pdf-CDNtKY-A.js",
+    "raw": 394091,
+    "gz": 114195,
+    "name": "pdf",
+    "inPre": false
+   },
+   {
+    "f": "assets/atlas-web-builder-Dw7y7b_U.js",
+    "raw": 343573,
+    "gz": 102399,
+    "name": "atlas-web-builder",
+    "inPre": false
+   },
+   {
+    "f": "assets/PieChart-BmrCEpO8.js",
+    "raw": 343066,
+    "gz": 97522,
+    "name": "PieChart",
+    "inPre": false
+   },
+   {
+    "f": "assets/inviteResult-CRLRPiK3.js",
+    "raw": 265189,
+    "gz": 60365,
+    "name": "inviteResult",
+    "inPre": false
+   },
+   {
+    "f": "assets/supabase-vendor-CoabRwkj.js",
+    "raw": 195459,
+    "gz": 49357,
+    "name": "supabase-vendor",
+    "inPre": true
+   },
+   {
+    "f": "assets/proxy-BeFhj6DO.js",
+    "raw": 126600,
+    "gz": 41286,
+    "name": "proxy",
+    "inPre": false
+   },
+   {
+    "f": "assets/NoteEditor-B5YiQYz_.js",
+    "raw": 124298,
+    "gz": 35308,
+    "name": "NoteEditor",
+    "inPre": false
+   },
+   {
+    "f": "assets/AuthProvider-bVsv1Q8p.js",
+    "raw": 107835,
+    "gz": 34672,
+    "name": "AuthProvider",
+    "inPre": false
+   },
+   {
+    "f": "assets/moduleComponentRegistry-UyMiIFPr.js",
+    "raw": 135844,
+    "gz": 32374,
+    "name": "moduleComponentRegistry",
+    "inPre": false
+   },
+   {
+    "f": "assets/state-vendor-n595QkGQ.js",
+    "raw": 109465,
+    "gz": 30423,
+    "name": "state-vendor",
+    "inPre": false
+   },
+   {
+    "f": "assets/src-P_sCThZc.js",
+    "raw": 157183,
+    "gz": 27091,
+    "name": "src",
+    "inPre": true
+   },
+   {
+    "f": "assets/sortable.esm-BjnNYIyd.js",
+    "raw": 49330,
+    "gz": 15935,
+    "name": "sortable.esm",
+    "inPre": false
+   },
+   {
+    "f": "assets/habitiaTemplate-BXhdGE_9.js",
+    "raw": 47031,
+    "gz": 15517,
+    "name": "habitiaTemplate",
+    "inPre": false
+   },
+   {
+    "f": "assets/MiraiProposalCard-C1XpzeOv.js",
+    "raw": 55932,
+    "gz": 14103,
+    "name": "MiraiProposalCard",
+    "inPre": false
+   },
+   {
+    "f": "assets/purify.es-B0LuI4JX.js",
+    "raw": 28006,
+    "gz": 11018,
+    "name": "purify.es",
+    "inPre": false
+   },
+   {
+    "f": "assets/EventFormModal-B0HRr9MJ.js",
+    "raw": 28873,
+    "gz": 9342,
+    "name": "EventFormModal",
+    "inPre": false
+   },
+   {
+    "f": "assets/browser-BeC9ePHX.js",
+    "raw": 23471,
+    "gz": 8801,
+    "name": "browser",
+    "inPre": false
+   },
+   {
+    "f": "assets/CallsProvider-CsufF5Uv.js",
+    "raw": 24210,
+    "gz": 8245,
+    "name": "CallsProvider",
+    "inPre": false
+   },
+   {
+    "f": "assets/NewMeetingDialog-DeNLmVb4.js",
+    "raw": 23779,
+    "gz": 7610,
+    "name": "NewMeetingDialog",
+    "inPre": false
+   },
+   {
+    "f": "assets/runtimeModules-BBjtres2.js",
+    "raw": 29026,
+    "gz": 6740,
+    "name": "runtimeModules",
+    "inPre": false
+   },
+   {
+    "f": "assets/field-types-F1lc3ab0.js",
+    "raw": 18156,
+    "gz": 6159,
+    "name": "field-types",
+    "inPre": false
+   },
+   {
+    "f": "assets/notePageExport-DPlTqBTc.js",
+    "raw": 17882,
+    "gz": 5844,
+    "name": "notePageExport",
+    "inPre": false
+   },
+   {
+    "f": "assets/EntityPreviewPopover-A3I3lVmJ.js",
+    "raw": 16938,
+    "gz": 5716,
+    "name": "EntityPreviewPopover",
+    "inPre": false
+   },
+   {
+    "f": "assets/InventoryGeolocation-qqXNGVxQ.js",
+    "raw": 14083,
+    "gz": 5180,
+    "name": "InventoryGeolocation",
+    "inPre": false
+   },
+   {
+    "f": "assets/time-BuatF_c4.js",
+    "raw": 14924,
+    "gz": 4783,
+    "name": "time",
+    "inPre": false
+   },
+   {
+    "f": "assets/integrations-BOv5C27m.js",
+    "raw": 16247,
+    "gz": 4646,
+    "name": "integrations",
+    "inPre": false
+   },
+   {
+    "f": "assets/RealtimeProvider-COkl2r1Z.js",
+    "raw": 11419,
+    "gz": 3985,
+    "name": "RealtimeProvider",
+    "inPre": false
+   },
+   {
+    "f": "assets/PosDeviceAccess-BzV-aT9B.js",
+    "raw": 13020,
+    "gz": 3791,
+    "name": "PosDeviceAccess",
+    "inPre": false
+   },
+   {
+    "f": "assets/immer-PzzrvrN4.js",
+    "raw": 9753,
+    "gz": 3775,
+    "name": "immer",
+    "inPre": false
+   },
+   {
+    "f": "assets/FileSharingDialog-TmZQszcl.js",
+    "raw": 11931,
+    "gz": 3597,
+    "name": "FileSharingDialog",
+    "inPre": false
+   },
+   {
+    "f": "assets/string-f6JzSHaO.js",
+    "raw": 8409,
+    "gz": 3596,
+    "name": "string",
+    "inPre": false
+   },
+   {
+    "f": "assets/CompanyDeletionPanel-BpfD2cwA.js",
+    "raw": 11475,
+    "gz": 3445,
+    "name": "CompanyDeletionPanel",
+    "inPre": false
+   },
+   {
+    "f": "assets/InventoryAdminTransitionDialog-2ZiwYjD2.js",
+    "raw": 8917,
+    "gz": 3389,
+    "name": "InventoryAdminTransitionDialog",
+    "inPre": false
+   },
+   {
+    "f": "assets/native-DMBgUSwJ.js",
+    "raw": 8030,
+    "gz": 3228,
+    "name": "native",
+    "inPre": true
+   },
+   {
+    "f": "assets/useWebsite-6XEyKezr.js",
+    "raw": 9064,
+    "gz": 2932,
+    "name": "useWebsite",
+    "inPre": false
+   },
+   {
+    "f": "assets/ModuleCard-Dls60HvW.js",
+    "raw": 8762,
+    "gz": 2778,
+    "name": "ModuleCard",
+    "inPre": false
+   },
+   {
+    "f": "assets/ActiveCompanyProvider-DtOa-jLL.js",
+    "raw": 7150,
+    "gz": 2754,
+    "name": "ActiveCompanyProvider",
+    "inPre": false
+   },
+   {
+    "f": "assets/purchases-constants-CZwR7IVd.js",
+    "raw": 7571,
+    "gz": 2668,
+    "name": "purchases-constants",
+    "inPre": false
+   },
+   {
+    "f": "assets/InventoryPurchaseMeta-Bh7RIqcd.js",
+    "raw": 6979,
+    "gz": 2543,
+    "name": "InventoryPurchaseMeta",
+    "inPre": false
+   },
+   {
+    "f": "assets/form-blueprint-Amafif4a.js",
+    "raw": 7097,
+    "gz": 2521,
+    "name": "form-blueprint",
+    "inPre": false
+   },
+   {
+    "f": "assets/supabase-DiYePVGX.js",
+    "raw": 4956,
+    "gz": 2422,
+    "name": "supabase",
+    "inPre": true
+   },
+   {
+    "f": "assets/linear-DqlDL6nI.js",
+    "raw": 5742,
+    "gz": 2367,
+    "name": "linear",
+    "inPre": false
+   },
+   {
+    "f": "assets/usePurchases-W5N6TppL.js",
+    "raw": 7148,
+    "gz": 2297,
+    "name": "usePurchases",
+    "inPre": false
+   },
+   {
+    "f": "assets/NotificationItem-CI041Y5k.js",
+    "raw": 6326,
+    "gz": 2286,
+    "name": "NotificationItem",
+    "inPre": false
+   },
+   {
+    "f": "assets/defaultLocale-BFoDCU3G.js",
+    "raw": 4634,
+    "gz": 2118,
+    "name": "defaultLocale",
+    "inPre": false
+   },
+   {
+    "f": "assets/src-XdegBs2d.js",
+    "raw": 4043,
+    "gz": 1971,
+    "name": "src",
+    "inPre": false
+   },
+   {
+    "f": "assets/PublicNoteDates-sSbY6dBd.js",
+    "raw": 5704,
+    "gz": 1922,
+    "name": "PublicNoteDates",
+    "inPre": false
+   },
+   {
+    "f": "assets/websiteApi-DfCgrBhd.js",
+    "raw": 5272,
+    "gz": 1796,
+    "name": "websiteApi",
+    "inPre": false
+   },
+   {
+    "f": "assets/PosThemeScope-BTQa53pU.js",
+    "raw": 4279,
+    "gz": 1776,
+    "name": "PosThemeScope",
+    "inPre": false
+   },
+   {
+    "f": "assets/canvasLayers-DjaBkld5.js",
+    "raw": 4722,
+    "gz": 1745,
+    "name": "canvasLayers",
+    "inPre": false
+   },
+   {
+    "f": "assets/step-BT1N9Lad.js",
+    "raw": 7730,
+    "gz": 1668,
+    "name": "step",
+    "inPre": false
+   },
+   {
+    "f": "assets/LabelStateBadge-CMhSQszd.js",
+    "raw": 4655,
+    "gz": 1615,
+    "name": "LabelStateBadge",
+    "inPre": false
+   },
+   {
+    "f": "assets/attendanceLabels-DqF7OoYb.js",
+    "raw": 3452,
+    "gz": 1576,
+    "name": "attendanceLabels",
+    "inPre": false
+   },
+   {
+    "f": "assets/useInventoryCustody-Bbw4EmLH.js",
+    "raw": 3868,
+    "gz": 1500,
+    "name": "useInventoryCustody",
+    "inPre": false
+   },
+   {
+    "f": "assets/custody-api-D5hV3OqK.js",
+    "raw": 3494,
+    "gz": 1481,
+    "name": "custody-api",
+    "inPre": false
+   },
+   {
+    "f": "assets/ResourceInvitationControl-bKTVY62e.js",
+    "raw": 3478,
+    "gz": 1478,
+    "name": "ResourceInvitationControl",
+    "inPre": false
+   },
+   {
+    "f": "assets/usePosSettings-XYJ1HTo3.js",
+    "raw": 6166,
+    "gz": 1415,
+    "name": "usePosSettings",
+    "inPre": false
+   },
+   {
+    "f": "assets/chatUtils-Ar8bODuS.js",
+    "raw": 2985,
+    "gz": 1405,
+    "name": "chatUtils",
+    "inPre": false
+   },
+   {
+    "f": "assets/brandTheme-CN6GhsjT.js",
+    "raw": 2763,
+    "gz": 1242,
+    "name": "brandTheme",
+    "inPre": false
+   },
+   {
+    "f": "assets/label-queue-vyiTlmgn.js",
+    "raw": 2627,
+    "gz": 1166,
+    "name": "label-queue",
+    "inPre": false
+   },
+   {
+    "f": "assets/call-ui-DTsGnJpT.js",
+    "raw": 2003,
+    "gz": 1129,
+    "name": "call-ui",
+    "inPre": false
+   },
+   {
+    "f": "assets/createCommentHooks-BClGItRj.js",
+    "raw": 3180,
+    "gz": 1094,
+    "name": "createCommentHooks",
+    "inPre": false
+   },
+   {
+    "f": "assets/UnlinkRelationDialog-14mE79fv.js",
+    "raw": 2166,
+    "gz": 1083,
+    "name": "UnlinkRelationDialog",
+    "inPre": false
+   },
+   {
+    "f": "assets/callSounds-Dq0JXi3S.js",
+    "raw": 2212,
+    "gz": 1082,
+    "name": "callSounds",
+    "inPre": false
+   },
+   {
+    "f": "assets/desktopRuntime-CJivHfja.js",
+    "raw": 2262,
+    "gz": 1044,
+    "name": "desktopRuntime",
+    "inPre": true
+   },
+   {
+    "f": "assets/path-CZufQBSX.js",
+    "raw": 2278,
+    "gz": 978,
+    "name": "path",
+    "inPre": false
+   },
+   {
+    "f": "assets/webPush-DYStqhM6.js",
+    "raw": 2273,
+    "gz": 977,
+    "name": "webPush",
+    "inPre": false
+   },
+   {
+    "f": "assets/NewPurchaseButton-DC0K472h.js",
+    "raw": 2432,
+    "gz": 976,
+    "name": "NewPurchaseButton",
+    "inPre": false
+   },
+   {
+    "f": "assets/canvasImages-ndSMVKQe.js",
+    "raw": 1602,
+    "gz": 927,
+    "name": "canvasImages",
+    "inPre": false
+   },
+   {
+    "f": "assets/siteSections-BDcOAgRj.js",
+    "raw": 1636,
+    "gz": 897,
+    "name": "siteSections",
+    "inPre": false
+   },
+   {
+    "f": "assets/usePrivateWebsiteAssets-v4OHdwUR.js",
+    "raw": 1598,
+    "gz": 867,
+    "name": "usePrivateWebsiteAssets",
+    "inPre": false
+   },
+   {
+    "f": "assets/admin-status-DLO4ilkn.js",
+    "raw": 2132,
+    "gz": 849,
+    "name": "admin-status",
+    "inPre": false
+   },
+   {
+    "f": "assets/useInventoryAdmin-BQS7NIKL.js",
+    "raw": 2599,
+    "gz": 843,
+    "name": "useInventoryAdmin",
+    "inPre": false
+   },
+   {
+    "f": "assets/useInventoryItems-WpY6vrWa.js",
+    "raw": 2965,
+    "gz": 819,
+    "name": "useInventoryItems",
+    "inPre": false
+   },
+   {
+    "f": "assets/ConnectionSections-YXYtHwUZ.js",
+    "raw": 1398,
+    "gz": 816,
+    "name": "ConnectionSections",
+    "inPre": false
+   },
+   {
+    "f": "assets/growth-leads-A7qbrlN_.js",
+    "raw": 1932,
+    "gz": 807,
+    "name": "growth-leads",
+    "inPre": false
+   },
+   {
+    "f": "assets/useGoogleCalendarData-BKytmCrs.js",
+    "raw": 2397,
+    "gz": 787,
+    "name": "useGoogleCalendarData",
+    "inPre": false
+   },
+   {
+    "f": "assets/rolldown-runtime-BcKkbAw3.js",
+    "raw": 1348,
+    "gz": 728,
+    "name": "rolldown-runtime",
+    "inPre": true
+   },
+   {
+    "f": "assets/ThemeToggle-5I7YqMrS.js",
+    "raw": 1383,
+    "gz": 712,
+    "name": "ThemeToggle",
+    "inPre": false
+   },
+   {
+    "f": "assets/useStatusDnd-BHcYARpz.js",
+    "raw": 1639,
+    "gz": 708,
+    "name": "useStatusDnd",
+    "inPre": false
+   },
+   {
+    "f": "assets/company-fetch-YdxkQGjh.js",
+    "raw": 1252,
+    "gz": 690,
+    "name": "company-fetch",
+    "inPre": false
+   },
+   {
+    "f": "assets/UserPicker-DXWZrmbZ.js",
+    "raw": 1682,
+    "gz": 684,
+    "name": "UserPicker",
+    "inPre": false
+   },
+   {
+    "f": "assets/intake-BG_gz-uD.js",
+    "raw": 1132,
+    "gz": 680,
+    "name": "intake",
+    "inPre": false
+   },
+   {
+    "f": "assets/band-DZ4Jagyz.js",
+    "raw": 1536,
+    "gz": 659,
+    "name": "band",
+    "inPre": false
+   },
+   {
+    "f": "assets/noteImageAccess-VWEOjySi.js",
+    "raw": 1140,
+    "gz": 636,
+    "name": "noteImageAccess",
+    "inPre": false
+   },
+   {
+    "f": "assets/FormDialog-DANlQied.js",
+    "raw": 1550,
+    "gz": 631,
+    "name": "FormDialog",
+    "inPre": false
+   },
+   {
+    "f": "assets/useRuntimeModules-CNw58Q4z.js",
+    "raw": 1012,
+    "gz": 608,
+    "name": "useRuntimeModules",
+    "inPre": false
+   },
+   {
+    "f": "assets/miraiPageContext-DXo1mIwT.js",
+    "raw": 1107,
+    "gz": 605,
+    "name": "miraiPageContext",
+    "inPre": false
+   },
+   {
+    "f": "assets/useSavedSignature-CQGXWaWd.js",
+    "raw": 1079,
+    "gz": 589,
+    "name": "useSavedSignature",
+    "inPre": false
+   },
+   {
+    "f": "assets/useExternalInbox-BGvLKkP8.js",
+    "raw": 954,
+    "gz": 586,
+    "name": "useExternalInbox",
+    "inPre": false
+   },
+   {
+    "f": "assets/pageRoute-RrWYxeeW.js",
+    "raw": 988,
+    "gz": 585,
+    "name": "pageRoute",
+    "inPre": false
+   },
+   {
+    "f": "assets/useChatModeration-Dgl3wMmj.js",
+    "raw": 1697,
+    "gz": 575,
+    "name": "useChatModeration",
+    "inPre": false
+   },
+   {
+    "f": "assets/ordinal-CPleeUAT.js",
+    "raw": 1181,
+    "gz": 568,
+    "name": "ordinal",
+    "inPre": false
+   },
+   {
+    "f": "assets/runtimeConfig-BwdFwD7S.js",
+    "raw": 722,
+    "gz": 516,
+    "name": "runtimeConfig",
+    "inPre": true
+   },
+   {
+    "f": "assets/fcm-C_BRcuJ0.js",
+    "raw": 1013,
+    "gz": 510,
+    "name": "fcm",
+    "inPre": false
+   },
+   {
+    "f": "assets/line-BarFS12g.js",
+    "raw": 946,
+    "gz": 462,
+    "name": "line",
+    "inPre": false
+   },
+   {
+    "f": "assets/sortModules-X4q8lHI2.js",
+    "raw": 787,
+    "gz": 454,
+    "name": "sortModules",
+    "inPre": false
+   },
+   {
+    "f": "assets/InventoryAdminStatusBadge-C8Woj6_D.js",
+    "raw": 712,
+    "gz": 446,
+    "name": "InventoryAdminStatusBadge",
+    "inPre": false
+   },
+   {
+    "f": "assets/miraiTabPreference-D83sLfBu.js",
+    "raw": 670,
+    "gz": 444,
+    "name": "miraiTabPreference",
+    "inPre": false
+   },
+   {
+    "f": "assets/systemNotifications-BWhaD3YF.js",
+    "raw": 988,
+    "gz": 431,
+    "name": "systemNotifications",
+    "inPre": false
+   },
+   {
+    "f": "assets/useTrashProviders-CCBozbcu.js",
+    "raw": 666,
+    "gz": 431,
+    "name": "useTrashProviders",
+    "inPre": false
+   },
+   {
+    "f": "assets/InventoryStatusBadge-DVJwU1Kg.js",
+    "raw": 606,
+    "gz": 430,
+    "name": "InventoryStatusBadge",
+    "inPre": false
+   },
+   {
+    "f": "assets/VehicleStatusBadge-BwdRdToG.js",
+    "raw": 693,
+    "gz": 427,
+    "name": "VehicleStatusBadge",
+    "inPre": false
+   },
+   {
+    "f": "assets/native-runtime-xs6RqV1a.js",
+    "raw": 633,
+    "gz": 382,
+    "name": "native-runtime",
+    "inPre": true
+   },
+   {
+    "f": "assets/website-document-LJZdLFg2.js",
+    "raw": 535,
+    "gz": 347,
+    "name": "website-document",
+    "inPre": false
+   },
+   {
+    "f": "assets/CustodyStatusBadge-itYFdhO7.js",
+    "raw": 453,
+    "gz": 338,
+    "name": "CustodyStatusBadge",
+    "inPre": false
+   },
+   {
+    "f": "assets/runly-DSuz6ZJ_.js",
+    "raw": 517,
+    "gz": 319,
+    "name": "runly",
+    "inPre": true
+   },
+   {
+    "f": "assets/custody-links-DaFZxC_o.js",
+    "raw": 488,
+    "gz": 317,
+    "name": "custody-links",
+    "inPre": false
+   },
+   {
+    "f": "assets/load-maplibre-7m-tpToY.js",
+    "raw": 390,
+    "gz": 292,
+    "name": "load-maplibre",
+    "inPre": false
+   },
+   {
+    "f": "assets/useIsDark-66UnRy29.js",
+    "raw": 448,
+    "gz": 282,
+    "name": "useIsDark",
+    "inPre": false
+   },
+   {
+    "f": "assets/RunlySiteFrame-B39I-yuH.js",
+    "raw": 317,
+    "gz": 251,
+    "name": "RunlySiteFrame",
+    "inPre": false
+   },
+   {
+    "f": "assets/navigation-guard-DZPw3sKQ.js",
+    "raw": 312,
+    "gz": 214,
+    "name": "navigation-guard",
+    "inPre": false
+   },
+   {
+    "f": "assets/math-Bi_r_ZWc.js",
+    "raw": 310,
+    "gz": 204,
+    "name": "math",
+    "inPre": false
+   },
+   {
+    "f": "assets/index.browser-D65rSomk.js",
+    "raw": 185,
+    "gz": 198,
+    "name": "index.browser",
+    "inPre": false
+   },
+   {
+    "f": "assets/appConfig-Dy7Njz6q.js",
+    "raw": 287,
+    "gz": 197,
+    "name": "appConfig",
+    "inPre": true
+   },
+   {
+    "f": "assets/init-ZlXS9mIS.js",
+    "raw": 356,
+    "gz": 176,
+    "name": "init",
+    "inPre": false
+   },
+   {
+    "f": "assets/admin-status-CjIj55cG.js",
+    "raw": 274,
+    "gz": 169,
+    "name": "admin-status",
+    "inPre": false
+   },
+   {
+    "f": "assets/companyFetch-C7w66aIc.js",
+    "raw": 185,
+    "gz": 161,
+    "name": "companyFetch",
+    "inPre": false
+   },
+   {
+    "f": "assets/branding-5TbXTYUF.js",
+    "raw": 118,
+    "gz": 120,
+    "name": "branding",
+    "inPre": false
+   },
+   {
+    "f": "assets/item-label-BQecR9Yc.js",
+    "raw": 117,
+    "gz": 114,
+    "name": "item-label",
+    "inPre": false
+   },
+   {
+    "f": "assets/array-BifhSqXX.js",
+    "raw": 107,
+    "gz": 112,
+    "name": "array",
+    "inPre": false
+   },
+   {
+    "f": "assets/inventory-DHWNzYqe.js",
+    "raw": 37,
+    "gz": 57,
+    "name": "inventory",
+    "inPre": false
+   },
+   {
+    "f": "assets/inventory-constants-CBwf3h53.js",
+    "raw": 32,
+    "gz": 52,
+    "name": "inventory-constants",
+    "inPre": false
+   },
+   {
+    "f": "assets/localDate-AuV0nsSn.js",
+    "raw": 26,
+    "gz": 46,
+    "name": "localDate",
+    "inPre": false
+   }
+  ]
+ },
+ "allJs": {
+  "n": 750,
+  "raw": 38260562,
+  "gz": 10791816
+ },
+ "allCss": {
+  "n": 10,
+  "raw": 908780,
+  "gz": 129224
+ },
+ "dynamic": [
+  {
+   "key": "../../node_modules/.pnpm/country-state-city@3.2.1/node_modules/country-state-city/lib/city.js",
+   "file": "assets/city-BsJb5OaL.js",
+   "incN": 2,
+   "incRaw": 8065470,
+   "incGz": 2153283
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/subset-worker.chunk.js",
+   "file": "assets/subset-worker.chunk-E2d3jQ5V.js",
+   "incN": 3,
+   "incRaw": 1821910,
+   "incGz": 735681
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/subset-shared.chunk.js",
+   "file": "assets/subset-shared.chunk-DfBvsxXi.js",
+   "incN": 3,
+   "incRaw": 1821703,
+   "incGz": 735533
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/architectureDiagram-5GKGNRK7.mjs",
+   "file": "assets/architectureDiagram-5GKGNRK7-e_u3wsQv.js",
+   "incN": 28,
+   "incRaw": 1593324,
+   "incGz": 392342
+  },
+  {
+   "key": "src/modules/runly.studio/screens/StudioScreen.jsx",
+   "file": "assets/StudioScreen-CkxcvgsH.js",
+   "incN": 21,
+   "incRaw": 1217152,
+   "incGz": 340028
+  },
+  {
+   "key": "src/modules/runly.notes/components/CanvasEditor.jsx",
+   "file": "assets/CanvasEditor-CrsjOmQB.js",
+   "incN": 8,
+   "incRaw": 1081154,
+   "incGz": 336909
+  },
+  {
+   "key": "src/modules/runly.notes/PublicCanvasView.jsx",
+   "file": "assets/PublicCanvasView-DVZ5cIlC.js",
+   "incN": 8,
+   "incRaw": 1046935,
+   "incGz": 328190
+  },
+  {
+   "key": "src/modules/runly.notes/components/CanvasStage.jsx",
+   "file": "assets/CanvasStage-Bfs_fSGY.js",
+   "incN": 6,
+   "incRaw": 1036008,
+   "incGz": 324285
+  },
+  {
+   "key": "src/modules/runly.notes/lib/canvasExport.js",
+   "file": "assets/canvasExport-C-xmB3Ck.js",
+   "incN": 7,
+   "incRaw": 1035580,
+   "incGz": 324118
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/index.js",
+   "file": "assets/dev-BDVXWj3k.js",
+   "incN": 6,
+   "incRaw": 1033830,
+   "incGz": 323235
+  },
+  {
+   "key": "../../node_modules/.pnpm/maplibre-gl@6.11.2/node_modules/maplibre-gl/dist/maplibre-gl.mjs",
+   "file": "assets/maplibre-gl-BMvi7IqS.js",
+   "incN": 1,
+   "incRaw": 1062457,
+   "incGz": 282271
+  },
+  {
+   "key": "src/modules/runly.canvas/screens/BoardEditor.jsx",
+   "file": "assets/BoardEditor-D-acWG4K.js",
+   "incN": 9,
+   "incRaw": 727628,
+   "incGz": 215525
+  },
+  {
+   "key": "src/modules/runly.chat/calls/CallRoom.jsx",
+   "file": "assets/CallRoom-DING2dm9.js",
+   "incN": 9,
+   "incRaw": 841616,
+   "incGz": 214489
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/gitGraphDiagram-WWUBYQGX.mjs",
+   "file": "assets/gitGraphDiagram-WWUBYQGX-CldC4EXd.js",
+   "incN": 25,
+   "incRaw": 981653,
+   "incGz": 204395
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VX7I27RA.mjs",
+   "file": "assets/diagram-VX7I27RA-BY9j8oQv.js",
+   "incN": 27,
+   "incRaw": 971055,
+   "incGz": 202845
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/wardleyDiagram-VM6X3IG4.mjs",
+   "file": "assets/wardleyDiagram-VM6X3IG4-DIKv7jNm.js",
+   "incN": 25,
+   "incRaw": 977986,
+   "incGz": 202504
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/diagram-S7CK7UJ4.mjs",
+   "file": "assets/diagram-S7CK7UJ4-DwoHf-He.js",
+   "incN": 27,
+   "incRaw": 966926,
+   "incGz": 202464
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/pieDiagram-E7YTZNPT.mjs",
+   "file": "assets/pieDiagram-E7YTZNPT-Cpgjlm0n.js",
+   "incN": 26,
+   "incRaw": 962479,
+   "incGz": 200039
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/diagram-VSXAHHWV.mjs",
+   "file": "assets/diagram-VSXAHHWV-noUd3BEk.js",
+   "incN": 24,
+   "incRaw": 963111,
+   "incGz": 199839
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/cynefinDiagram-5FMLGOSQ.mjs",
+   "file": "assets/cynefinDiagram-5FMLGOSQ-8B73J6rL.js",
+   "incN": 25,
+   "incRaw": 962722,
+   "incGz": 199505
+  },
+  {
+   "key": "src/modules/runly.chat/screens/ChatScreen.jsx",
+   "file": "assets/ChatScreen-CMp-ulqI.js",
+   "incN": 8,
+   "incRaw": 795315,
+   "incGz": 199354
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/diagram-UQ7AKVKN.mjs",
+   "file": "assets/diagram-UQ7AKVKN-Bd_puO0J.js",
+   "incN": 25,
+   "incRaw": 958853,
+   "incGz": 198555
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/diagram-Z3DM3KII.mjs",
+   "file": "assets/diagram-Z3DM3KII-DZinyIBd.js",
+   "incN": 25,
+   "incRaw": 957059,
+   "incGz": 197840
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/pegDiagram-XKGWAZYB.mjs",
+   "file": "assets/pegDiagram-XKGWAZYB-ClSz9xiW.js",
+   "incN": 24,
+   "incRaw": 945404,
+   "incGz": 193190
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/abnfDiagram-VCTEODGH.mjs",
+   "file": "assets/abnfDiagram-VCTEODGH-NODPlYh_.js",
+   "incN": 24,
+   "incRaw": 945244,
+   "incGz": 193148
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/ebnfDiagram-PWID7BFC.mjs",
+   "file": "assets/ebnfDiagram-PWID7BFC-CYGLt13v.js",
+   "incN": 24,
+   "incRaw": 945457,
+   "incGz": 193142
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/railroadDiagram-O6MQD6OU.mjs",
+   "file": "assets/railroadDiagram-O6MQD6OU-BPaQK5Dt.js",
+   "incN": 24,
+   "incRaw": 945057,
+   "incGz": 193022
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/infoDiagram-27XIBGKW.mjs",
+   "file": "assets/infoDiagram-27XIBGKW-CE10eZdZ.js",
+   "incN": 22,
+   "incRaw": 928138,
+   "incGz": 188137
+  },
+  {
+   "key": "../../node_modules/.pnpm/hls.js@1.7.3/node_modules/hls.js/dist/hls.mjs",
+   "file": "assets/hls-BMtioDMk.js",
+   "incN": 1,
+   "incRaw": 574410,
+   "incGz": 176816
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/data/image-YKVTEDFW.js",
+   "file": "assets/image-YKVTEDFW-BFOfPGUS.js",
+   "incN": 3,
+   "incRaw": 533632,
+   "incGz": 176677
+  },
+  {
+   "key": "src/modules/runly.chat/screens/ExternalInboxScreen.jsx",
+   "file": "assets/ExternalInboxScreen-Dv_nsCyK.js",
+   "incN": 7,
+   "incRaw": 694321,
+   "incGz": 176539
+  },
+  {
+   "key": "src/modules/runly.calendar/screens/CalendarScreen.jsx",
+   "file": "assets/CalendarScreen-Cj1WLUKl.js",
+   "incN": 9,
+   "incRaw": 670271,
+   "incGz": 170360
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/cose-bilkent-JH36ORCC.mjs",
+   "file": "assets/cose-bilkent-JH36ORCC-tkwDcLxB.js",
+   "incN": 4,
+   "incRaw": 553161,
+   "incGz": 170107
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+mermaid-to-excalidraw@2.2.2/node_modules/@excalidraw/mermaid-to-excalidraw/dist/index.js",
+   "file": "assets/dist-CKnyp7m7.js",
+   "incN": 19,
+   "incRaw": 683902,
+   "incGz": 169448
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/swimlanes-42K2YHIH.mjs",
+   "file": "assets/swimlanes-42K2YHIH-DsUnoShk.js",
+   "incN": 16,
+   "incRaw": 654873,
+   "incGz": 160582
+  },
+  {
+   "key": "src/modules/runly.chat/calls/guest/GuestCallScreen.jsx",
+   "file": "assets/GuestCallScreen-FCzJ0o6-.js",
+   "incN": 5,
+   "incRaw": 615983,
+   "incGz": 159298
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-D77RDMKH.mjs",
+   "file": "assets/stateDiagram-D77RDMKH-Dplg40wG.js",
+   "incN": 21,
+   "incRaw": 625304,
+   "incGz": 151091
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/swimlanesDiagram-VR7AAH4N.mjs",
+   "file": "assets/swimlanesDiagram-VR7AAH4N-CqBg-6dO.js",
+   "incN": 22,
+   "incRaw": 625192,
+   "incGz": 149533
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/flowDiagram-HODETNUW.mjs",
+   "file": "assets/flowDiagram-HODETNUW-D1GOmSCX.js",
+   "incN": 22,
+   "incRaw": 624918,
+   "incGz": 149361
+  },
+  {
+   "key": "src/modules/runly.core/screens/ModuleBuilderEditor.jsx",
+   "file": "assets/ModuleBuilderEditor-Dn4vpuid.js",
+   "incN": 8,
+   "incRaw": 576623,
+   "incGz": 144240
+  },
+  {
+   "key": "src/modules/runly.chat/calls/egress/EgressCallScreen.jsx",
+   "file": "assets/EgressCallScreen-CPcvqTvi.js",
+   "incN": 3,
+   "incRaw": 554845,
+   "incGz": 142622
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/treemap-WGGIJYW6.mjs",
+   "file": "assets/treemap-WGGIJYW6-DOX3Z9NK.js",
+   "incN": 3,
+   "incRaw": 663655,
+   "incGz": 142492
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/eventmodeling-NTZA5JFV.mjs",
+   "file": "assets/eventmodeling-NTZA5JFV-Bmphd7_A.js",
+   "incN": 3,
+   "incRaw": 663874,
+   "incGz": 142453
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/railroad-ebnf-LZEXJU2U.mjs",
+   "file": "assets/railroad-ebnf-LZEXJU2U-CJutdxmj.js",
+   "incN": 3,
+   "incRaw": 663326,
+   "incGz": 142331
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/railroad-peg-WCYAUIDC.mjs",
+   "file": "assets/railroad-peg-WCYAUIDC-C6PDsESJ.js",
+   "incN": 3,
+   "incRaw": 663255,
+   "incGz": 142301
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/railroad-74A4TZTK.mjs",
+   "file": "assets/railroad-74A4TZTK-BN6H_OM2.js",
+   "incN": 3,
+   "incRaw": 663235,
+   "incGz": 142288
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/treeView-Q6P3EWNA.mjs",
+   "file": "assets/treeView-Q6P3EWNA-BrmLJi8X.js",
+   "incN": 3,
+   "incRaw": 663118,
+   "incGz": 142204
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/architecture-7GRP2DOG.mjs",
+   "file": "assets/architecture-7GRP2DOG-Zft_lChp.js",
+   "incN": 3,
+   "incRaw": 663099,
+   "incGz": 142202
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/railroad-abnf-HS5TGJTU.mjs",
+   "file": "assets/railroad-abnf-HS5TGJTU-CF_9YaOs.js",
+   "incN": 3,
+   "incRaw": 663035,
+   "incGz": 142181
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/pie-WAS4IAKB.mjs",
+   "file": "assets/pie-WAS4IAKB-CzdClUze.js",
+   "incN": 3,
+   "incRaw": 662792,
+   "incGz": 142095
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/wardley-WFR3VGLG.mjs",
+   "file": "assets/wardley-WFR3VGLG-BYH68HU-.js",
+   "incN": 3,
+   "incRaw": 662693,
+   "incGz": 142058
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/cynefin-OW5HDTMX.mjs",
+   "file": "assets/cynefin-OW5HDTMX-Cw-jfJ19.js",
+   "incN": 3,
+   "incRaw": 662660,
+   "incGz": 142024
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/gitGraph-4MIJSDKK.mjs",
+   "file": "assets/gitGraph-4MIJSDKK-H3OOUg1-.js",
+   "incN": 3,
+   "incRaw": 662660,
+   "incGz": 142024
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/info-A6RAGUB7.mjs",
+   "file": "assets/info-A6RAGUB7-GEEnSpd6.js",
+   "incN": 3,
+   "incRaw": 662651,
+   "incGz": 142021
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/radar-RG4KPBEZ.mjs",
+   "file": "assets/radar-RG4KPBEZ-RDNL04jT.js",
+   "incN": 3,
+   "incRaw": 662650,
+   "incGz": 142020
+  },
+  {
+   "key": "../../node_modules/.pnpm/@mermaid-js+parser@1.2.1/node_modules/@mermaid-js/parser/dist/chunks/mermaid-parser.core/packet-AYTQ26CC.mjs",
+   "file": "assets/packet-AYTQ26CC-DNv-mxt3.js",
+   "incN": 3,
+   "incRaw": 662650,
+   "incGz": 142018
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/dagre-GXQ25YYZ.mjs",
+   "file": "assets/dagre-GXQ25YYZ-BagonM64.js",
+   "incN": 17,
+   "incRaw": 591638,
+   "incGz": 140318
+  },
+  {
+   "key": "src/modules/runly.studio/lib/studio-pptx-export.js",
+   "file": "assets/studio-pptx-export-DDPCO4Mu.js",
+   "incN": 9,
+   "incRaw": 409861,
+   "incGz": 138335
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-ZZMXUADV.mjs",
+   "file": "assets/classDiagram-ZZMXUADV-CSot9jNi.js",
+   "incN": 20,
+   "incRaw": 566167,
+   "incGz": 130008
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/classDiagram-v2-VYDZK3BY.mjs",
+   "file": "assets/classDiagram-v2-VYDZK3BY-CSot9jNi.js",
+   "incN": 20,
+   "incRaw": 566167,
+   "incGz": 130008
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/blockDiagram-I7D4REHJ.mjs",
+   "file": "assets/blockDiagram-I7D4REHJ-B1_1CH2D.js",
+   "incN": 16,
+   "incRaw": 565670,
+   "incGz": 129651
+  },
+  {
+   "key": "../../node_modules/.pnpm/jspdf@4.2.1/node_modules/jspdf/dist/jspdf.es.min.js",
+   "file": "assets/jspdf.es.min-CGm7VfJh.js",
+   "incN": 3,
+   "incRaw": 399617,
+   "incGz": 128779
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/stateDiagram-v2-MP3YSRHH.mjs",
+   "file": "assets/stateDiagram-v2-MP3YSRHH-wkAltDDW.js",
+   "incN": 19,
+   "incRaw": 554663,
+   "incGz": 126474
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/kanban-definition-UXKFOSKX.mjs",
+   "file": "assets/kanban-definition-UXKFOSKX-CKengsDQ.js",
+   "incN": 16,
+   "incRaw": 540395,
+   "incGz": 125785
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/erDiagram-RLTQ6QDP.mjs",
+   "file": "assets/erDiagram-RLTQ6QDP-BYbt7X4y.js",
+   "incN": 18,
+   "incRaw": 545045,
+   "incGz": 123538
+  },
+  {
+   "key": "../../node_modules/.pnpm/@zxing+browser@0.2.1_@zxing+library@0.23.0/node_modules/@zxing/browser/esm/index.js",
+   "file": "assets/esm-yWrmtOgX.js",
+   "incN": 2,
+   "incRaw": 477514,
+   "incGz": 122931
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/requirementDiagram-BXWQKSXE.mjs",
+   "file": "assets/requirementDiagram-BXWQKSXE-C4qr70YA.js",
+   "incN": 17,
+   "incRaw": 545236,
+   "incGz": 122615
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/mindmap-definition-YA3MSWOX.mjs",
+   "file": "assets/mindmap-definition-YA3MSWOX-CRvRzOBY.js",
+   "incN": 17,
+   "incRaw": 537676,
+   "incGz": 120860
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/c4Diagram-7LVT6UL2.mjs",
+   "file": "assets/c4Diagram-7LVT6UL2-W2NO-RuN.js",
+   "incN": 12,
+   "incRaw": 528661,
+   "incGz": 118315
+  },
+  {
+   "key": "../../node_modules/.pnpm/country-state-city@3.2.1/node_modules/country-state-city/lib/state.js",
+   "file": "assets/state-CCnOM9Rd.js",
+   "incN": 2,
+   "incRaw": 555738,
+   "incGz": 116124
+  },
+  {
+   "key": "src/modules/runly.website/screens/sites/SitesRouter.jsx",
+   "file": "assets/SitesRouter-CKRE4dyA.js",
+   "incN": 10,
+   "incRaw": 370525,
+   "incGz": 95324
+  },
+  {
+   "key": "src/modules/runly.studio/lib/thumbnail-renderer.js",
+   "file": "assets/thumbnail-renderer-DA6peznm.js",
+   "incN": 6,
+   "incRaw": 301922,
+   "incGz": 92259
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/sequenceDiagram-WJ2MYXX4.mjs",
+   "file": "assets/sequenceDiagram-WJ2MYXX4-CdYV7OeK.js",
+   "incN": 9,
+   "incRaw": 435263,
+   "incGz": 91717
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/PublicInventoryPortalScreen.jsx",
+   "file": "assets/PublicInventoryPortalScreen-BedRQmAH.js",
+   "incN": 20,
+   "incRaw": 290999,
+   "incGz": 86469
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseDocumentDetail.jsx",
+   "file": "assets/PurchaseDocumentDetail-DE7c_jOe.js",
+   "incN": 14,
+   "incRaw": 310076,
+   "incGz": 84856
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsCourseEditor.jsx",
+   "file": "assets/LmsCourseEditor-D3OQpzGe.js",
+   "incN": 19,
+   "incRaw": 274698,
+   "incGz": 82391
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsSpace.jsx",
+   "file": "assets/BookingsSpace-BAKwt2HI.js",
+   "incN": 14,
+   "incRaw": 279512,
+   "incGz": 78117
+  },
+  {
+   "key": "../../node_modules/.pnpm/katex@0.16.47/node_modules/katex/dist/katex.mjs",
+   "file": "assets/katex-DJhrJSbw.js",
+   "incN": 1,
+   "incRaw": 258595,
+   "incGz": 76331
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/xychartDiagram-S5SC5T6Z.mjs",
+   "file": "assets/xychartDiagram-S5SC5T6Z-5W4eOmpZ.js",
+   "incN": 9,
+   "incRaw": 371234,
+   "incGz": 76172
+  },
+  {
+   "key": "src/modules/runly.automations/screens/AutomationEditor.jsx",
+   "file": "assets/AutomationEditor-B3MRN0xe.js",
+   "incN": 5,
+   "incRaw": 271972,
+   "incGz": 75894
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsCertificates.jsx",
+   "file": "assets/LmsCertificates-C9YAs9FI.js",
+   "incN": 10,
+   "incRaw": 242309,
+   "incGz": 74728
+  },
+  {
+   "key": "../../node_modules/.pnpm/emoji-picker-react@4.19.1_react@19.2.5/node_modules/emoji-picker-react/dist/emoji-picker-react.esm.js",
+   "file": "assets/emoji-picker-react.esm-y1kdQvOx.js",
+   "incN": 1,
+   "incRaw": 307503,
+   "incGz": 73496
+  },
+  {
+   "key": "src/modules/runly.ticketing/screens/TicketingEvent.jsx",
+   "file": "assets/TicketingEvent-Z3b9UJQp.js",
+   "incN": 12,
+   "incRaw": 250017,
+   "incGz": 70904
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/vennDiagram-4TSXK5OY.mjs",
+   "file": "assets/vennDiagram-4TSXK5OY-DglqTYIv.js",
+   "incN": 8,
+   "incRaw": 339582,
+   "incGz": 69014
+  },
+  {
+   "key": "src/app/MarketplaceScreen.jsx",
+   "file": "assets/MarketplaceScreen-BZPTYlVY.js",
+   "incN": 10,
+   "incRaw": 223073,
+   "incGz": 63506
+  },
+  {
+   "key": "src/modules/runly.contacts/screens/ContactFormScreen.jsx",
+   "file": "assets/ContactFormScreen-Cu_jtQR7.js",
+   "incN": 10,
+   "incRaw": 214084,
+   "incGz": 63382
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/ganttDiagram-EL5Y4UJY.mjs",
+   "file": "assets/ganttDiagram-EL5Y4UJY-17ytbeE7.js",
+   "incN": 6,
+   "incRaw": 325649,
+   "incGz": 63230
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/ishikawaDiagram-5VMMS53U.mjs",
+   "file": "assets/ishikawaDiagram-5VMMS53U-fVlR_X-U.js",
+   "incN": 8,
+   "incRaw": 315729,
+   "incGz": 60531
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseDocumentEditor.jsx",
+   "file": "assets/PurchaseDocumentEditor-gIbozw3h.js",
+   "incN": 9,
+   "incRaw": 199938,
+   "incGz": 59052
+  },
+  {
+   "key": "src/modules/runly.lms/public/SharedCourseScreen.jsx",
+   "file": "assets/SharedCourseScreen-DwpeM6TY.js",
+   "incN": 25,
+   "incRaw": 173748,
+   "incGz": 57110
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/timeline-definition-24CTP7MA.mjs",
+   "file": "assets/timeline-definition-24CTP7MA-BcFpMqpy.js",
+   "incN": 8,
+   "incRaw": 305173,
+   "incGz": 56608
+  },
+  {
+   "key": "src/modules/runly.automations/screens/AutomationsList.jsx",
+   "file": "assets/AutomationsList-BHI5-3La.js",
+   "incN": 7,
+   "incRaw": 180556,
+   "incGz": 55321
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsPlayer.jsx",
+   "file": "assets/LmsPlayer-D81dtRvm.js",
+   "incN": 23,
+   "incRaw": 162692,
+   "incGz": 53032
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseDocumentList.jsx",
+   "file": "assets/PurchaseDocumentList-AeqFsEv1.js",
+   "incN": 9,
+   "incRaw": 172068,
+   "incGz": 52067
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsCoursePage.jsx",
+   "file": "assets/LmsCoursePage-s2Kq78hZ.js",
+   "incN": 24,
+   "incRaw": 159483,
+   "incGz": 51987
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/WalletDetailScreen.jsx",
+   "file": "assets/WalletDetailScreen-BdH9vRt2.js",
+   "incN": 9,
+   "incRaw": 174982,
+   "incGz": 51320
+  },
+  {
+   "key": "src/modules/runly.pos/device/PosDeviceScreen.jsx",
+   "file": "assets/PosDeviceScreen-CQ-MomEj.js",
+   "incN": 15,
+   "incRaw": 166883,
+   "incGz": 49873
+  },
+  {
+   "key": "../../node_modules/.pnpm/canvg@3.0.11/node_modules/canvg/lib/index.es.js",
+   "file": "assets/index.es-BX3Bzifu.js",
+   "incN": 2,
+   "incRaw": 151672,
+   "incGz": 48551
+  },
+  {
+   "key": "src/modules/runly.projects/screens/ProjectsScreen.jsx",
+   "file": "assets/ProjectsScreen-pp0Kxpfa.js",
+   "incN": 5,
+   "incRaw": 217834,
+   "incGz": 48484
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/journeyDiagram-3NMN7TZE.mjs",
+   "file": "assets/journeyDiagram-3NMN7TZE-D8bMp7l-.js",
+   "incN": 8,
+   "incRaw": 276744,
+   "incGz": 48464
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseSettingsScreen.jsx",
+   "file": "assets/PurchaseSettingsScreen-Cr6eXWV3.js",
+   "incN": 5,
+   "incRaw": 163413,
+   "incGz": 48010
+  },
+  {
+   "key": "src/modules/runly.contacts/screens/ContactDetailScreen.jsx",
+   "file": "assets/ContactDetailScreen-BzIrBSmQ.js",
+   "incN": 6,
+   "incRaw": 172768,
+   "incGz": 47985
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/WalletsScreen.jsx",
+   "file": "assets/WalletsScreen-CD_3cXRt.js",
+   "incN": 8,
+   "incRaw": 156464,
+   "incGz": 46856
+  },
+  {
+   "key": "src/modules/runly.pos/screens/CajaScreen.jsx",
+   "file": "assets/CajaScreen-BRY11pK8.js",
+   "incN": 15,
+   "incRaw": 157245,
+   "incGz": 46629
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/quadrantDiagram-AXDQQJYC.mjs",
+   "file": "assets/quadrantDiagram-AXDQQJYC-BTVpaJB_.js",
+   "incN": 4,
+   "incRaw": 279432,
+   "incGz": 46577
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/ReceiptsScreen.jsx",
+   "file": "assets/ReceiptsScreen-BQCgDRsV.js",
+   "incN": 7,
+   "incRaw": 157890,
+   "incGz": 46464
+  },
+  {
+   "key": "../../node_modules/.pnpm/html2canvas@1.4.1/node_modules/html2canvas/dist/html2canvas.js",
+   "file": "assets/html2canvas-BW6Oin2k.js",
+   "incN": 1,
+   "incRaw": 199468,
+   "incGz": 46332
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsLessonEditor.jsx",
+   "file": "assets/LmsLessonEditor-DL1GPtuR.js",
+   "incN": 16,
+   "incRaw": 141430,
+   "incGz": 45803
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/sankeyDiagram-P5KCCOFB.mjs",
+   "file": "assets/sankeyDiagram-P5KCCOFB-DBReCeLA.js",
+   "incN": 4,
+   "incRaw": 268694,
+   "incGz": 45102
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/CategoriesScreen.jsx",
+   "file": "assets/CategoriesScreen-BejkPsKD.js",
+   "incN": 6,
+   "incRaw": 151678,
+   "incGz": 44831
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseSupplierDetail.jsx",
+   "file": "assets/PurchaseSupplierDetail-BcMsJEZL.js",
+   "incN": 8,
+   "incRaw": 145726,
+   "incGz": 44734
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/RecurringScreen.jsx",
+   "file": "assets/RecurringScreen-B8MXRtZ1.js",
+   "incN": 7,
+   "incRaw": 149057,
+   "incGz": 44640
+  },
+  {
+   "key": "src/modules/runly.activity/ActivityFeedScreen.jsx",
+   "file": "assets/ActivityFeedScreen-9lexsxUL.js",
+   "incN": 5,
+   "incRaw": 154793,
+   "incGz": 44245
+  },
+  {
+   "key": "src/modules/runly.lms/public/EvaluationPublicScreen.jsx",
+   "file": "assets/EvaluationPublicScreen-vci_j-Vk.js",
+   "incN": 15,
+   "incRaw": 131649,
+   "incGz": 43366
+  },
+  {
+   "key": "src/modules/runly.files/screens/FilesScreen.jsx",
+   "file": "assets/FilesScreen-B3YLcXlI.js",
+   "incN": 3,
+   "incRaw": 170269,
+   "incGz": 43077
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsAssessmentEditor.jsx",
+   "file": "assets/LmsAssessmentEditor-Ju4fiw01.js",
+   "incN": 16,
+   "incRaw": 123736,
+   "incGz": 41548
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryLabelsScreen.jsx",
+   "file": "assets/InventoryLabelsScreen-D1sLFo6t.js",
+   "incN": 10,
+   "incRaw": 142897,
+   "incGz": 40386
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventorySummaryScreen.jsx",
+   "file": "assets/InventorySummaryScreen-B5hG1CXC.js",
+   "incN": 5,
+   "incRaw": 143134,
+   "incGz": 37519
+  },
+  {
+   "key": "src/modules/runly.core/screens/ModuleCatalog.jsx",
+   "file": "assets/ModuleCatalog-DskWky5S.js",
+   "incN": 4,
+   "incRaw": 147225,
+   "incGz": 36555
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsAssessmentActivityEditor.jsx",
+   "file": "assets/LmsAssessmentActivityEditor-CiyZCRkx.js",
+   "incN": 14,
+   "incRaw": 109158,
+   "incGz": 36096
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosFloorPlannerScreen.jsx",
+   "file": "assets/PosFloorPlannerScreen-CMdICRQD.js",
+   "incN": 3,
+   "incRaw": 126257,
+   "incGz": 34454
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryItemForm.jsx",
+   "file": "assets/InventoryItemForm-CBScjq_P.js",
+   "incN": 17,
+   "incRaw": 94235,
+   "incGz": 33689
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryScreen.jsx",
+   "file": "assets/InventoryScreen-Bol_Deei.js",
+   "incN": 13,
+   "incRaw": 111736,
+   "incGz": 32236
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsCandidateRecord.jsx",
+   "file": "assets/LmsCandidateRecord-gzb3fbdm.js",
+   "incN": 12,
+   "incRaw": 100944,
+   "incGz": 32212
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsAssessmentRunner.jsx",
+   "file": "assets/LmsAssessmentRunner-CT6x-4vZ.js",
+   "incN": 12,
+   "incRaw": 95697,
+   "incGz": 31477
+  },
+  {
+   "key": "src/modules/runly.pos/restaurant/RestaurantOrderScreen.jsx",
+   "file": "assets/RestaurantOrderScreen-P95Yzt4x.js",
+   "incN": 9,
+   "incRaw": 97918,
+   "incGz": 28992
+  },
+  {
+   "key": "src/modules/runly.catalog/screens/CatalogProductDetailScreen.jsx",
+   "file": "assets/CatalogProductDetailScreen-DmyYUoln.js",
+   "incN": 6,
+   "incRaw": 108135,
+   "incGz": 28891
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsReview.jsx",
+   "file": "assets/LmsReview-D0SujFTb.js",
+   "incN": 10,
+   "incRaw": 88445,
+   "incGz": 28637
+  },
+  {
+   "key": "../../node_modules/.pnpm/jszip@3.10.1/node_modules/jszip/dist/jszip.min.js",
+   "file": "assets/jszip.min-DAt-kTT9.js",
+   "incN": 2,
+   "incRaw": 95853,
+   "incGz": 28232
+  },
+  {
+   "key": "src/modules/runly.website/screens/TemplatePreviewScreen.jsx",
+   "file": "assets/TemplatePreviewScreen-BbXPk0hM.js",
+   "incN": 3,
+   "incRaw": 84232,
+   "incGz": 27374
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryIntakeScreen.jsx",
+   "file": "assets/InventoryIntakeScreen-f6cApmjo.js",
+   "incN": 13,
+   "incRaw": 85290,
+   "incGz": 27176
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/AccountScreen.jsx",
+   "file": "assets/AccountScreen-C5EfrZ6S.js",
+   "incN": 4,
+   "incRaw": 110875,
+   "incGz": 27059
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteFormsScreen.jsx",
+   "file": "assets/WebsiteFormsScreen-CIue4uro.js",
+   "incN": 5,
+   "incRaw": 103600,
+   "incGz": 26089
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryScanScreen.jsx",
+   "file": "assets/InventoryScanScreen-FlLBhOrq.js",
+   "incN": 7,
+   "incRaw": 86184,
+   "incGz": 25499
+  },
+  {
+   "key": "src/modules/runly.notes/NotesScreen.jsx",
+   "file": "assets/NotesScreen-BZ9dDn5G.js",
+   "incN": 1,
+   "incRaw": 98279,
+   "incGz": 23571
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendancePeople.jsx",
+   "file": "assets/AttendancePeople-jex-2Nnr.js",
+   "incN": 7,
+   "incRaw": 81339,
+   "incGz": 22948
+  },
+  {
+   "key": "src/modules/runly.canvas/screens/PublicBoardScreen.jsx",
+   "file": "assets/PublicBoardScreen-D-zIFUB0.js",
+   "incN": 5,
+   "incRaw": 73705,
+   "incGz": 22833
+  },
+  {
+   "key": "src/modules/runly.website/screens/sites/StandaloneSiteEditor.jsx",
+   "file": "assets/StandaloneSiteEditor-DW_TVg0m.js",
+   "incN": 5,
+   "incRaw": 77269,
+   "incGz": 21976
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosOrdersScreen.jsx",
+   "file": "assets/PosOrdersScreen-BAmO2SgY.js",
+   "incN": 9,
+   "incRaw": 66274,
+   "incGz": 21605
+  },
+  {
+   "key": "src/modules/runly.pos/screens/ComanderoScreen.jsx",
+   "file": "assets/ComanderoScreen-wgHIiAjK.js",
+   "incN": 9,
+   "incRaw": 61345,
+   "incGz": 21166
+  },
+  {
+   "key": "src/modules/runly.pos/restaurant/RestaurantTablesScreen.jsx",
+   "file": "assets/RestaurantTablesScreen-CieifIjv.js",
+   "incN": 9,
+   "incRaw": 61079,
+   "incGz": 20985
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteTemplatesScreen.jsx",
+   "file": "assets/WebsiteTemplatesScreen-DgA6cyU7.js",
+   "incN": 3,
+   "incRaw": 62433,
+   "incGz": 20619
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryCatalogsScreen.jsx",
+   "file": "assets/InventoryCatalogsScreen-hmegLD1j.js",
+   "incN": 7,
+   "incRaw": 76365,
+   "incGz": 20333
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendanceSetup.jsx",
+   "file": "assets/AttendanceSetup-iX4yhTp7.js",
+   "incN": 8,
+   "incRaw": 60550,
+   "incGz": 19740
+  },
+  {
+   "key": "src/modules/runly.attendance/kiosk/KioskScreen.jsx",
+   "file": "assets/KioskScreen-C2VV63JM.js",
+   "incN": 3,
+   "incRaw": 61740,
+   "incGz": 19022
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsHome.jsx",
+   "file": "assets/LmsHome-CFf_932R.js",
+   "incN": 9,
+   "incRaw": 49945,
+   "incGz": 18813
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryItemDetail.jsx",
+   "file": "assets/InventoryItemDetail-DgENYPy2.js",
+   "incN": 10,
+   "incRaw": 65739,
+   "incGz": 18681
+  },
+  {
+   "key": "src/modules/runly.pos/screens/CocinaScreen.jsx",
+   "file": "assets/CocinaScreen-BnRoRU9u.js",
+   "incN": 7,
+   "incRaw": 53578,
+   "incGz": 18321
+  },
+  {
+   "key": "src/modules/runly.hr/screens/HrScreen.jsx",
+   "file": "assets/HrScreen-C-QiZnkR.js",
+   "incN": 6,
+   "incRaw": 71147,
+   "incGz": 18136
+  },
+  {
+   "key": "src/modules/runly.attendance/phone/PhoneKeyScreen.jsx",
+   "file": "assets/PhoneKeyScreen-ep_4JQD4.js",
+   "incN": 3,
+   "incRaw": 66747,
+   "incGz": 18124
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsAgenda.jsx",
+   "file": "assets/BookingsAgenda-BEeaIlzm.js",
+   "incN": 7,
+   "incRaw": 52857,
+   "incGz": 17829
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/BudgetsScreen.jsx",
+   "file": "assets/BudgetsScreen-Bkg_GfBL.js",
+   "incN": 5,
+   "incRaw": 54799,
+   "incGz": 17776
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsAssessmentResults.jsx",
+   "file": "assets/LmsAssessmentResults-D18_e8FR.js",
+   "incN": 9,
+   "incRaw": 44266,
+   "incGz": 17612
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsReservations.jsx",
+   "file": "assets/BookingsReservations-BO1Kxd0w.js",
+   "incN": 7,
+   "incRaw": 48539,
+   "incGz": 16783
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteBlogPostEditorScreen.jsx",
+   "file": "assets/WebsiteBlogPostEditorScreen-BTwr3RjY.js",
+   "incN": 5,
+   "incRaw": 58138,
+   "incGz": 16751
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendanceReports.jsx",
+   "file": "assets/AttendanceReports-EWkSjdUO.js",
+   "incN": 11,
+   "incRaw": 51297,
+   "incGz": 16731
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchasesDashboard.jsx",
+   "file": "assets/PurchasesDashboard-BmOx4K0f.js",
+   "incN": 5,
+   "incRaw": 56572,
+   "incGz": 16605
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthFormsScreen.jsx",
+   "file": "assets/GrowthFormsScreen-Lg0hWm2k.js",
+   "incN": 2,
+   "incRaw": 68996,
+   "incGz": 16232
+  },
+  {
+   "key": "../../node_modules/.pnpm/image-blob-reduce@3.0.1/node_modules/image-blob-reduce/dist/image-blob-reduce.esm.mjs",
+   "file": "assets/image-blob-reduce.esm-Fj7y_Tzy.js",
+   "incN": 1,
+   "incRaw": 45388,
+   "incGz": 16184
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosAdminScreen.jsx",
+   "file": "assets/PosAdminScreen-FKwDT-rC.js",
+   "incN": 3,
+   "incRaw": 78996,
+   "incGz": 16068
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosSettingsScreen.jsx",
+   "file": "assets/PosSettingsScreen-FKwDT-rC.js",
+   "incN": 3,
+   "incRaw": 78996,
+   "incGz": 16068
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteSettingsScreen.jsx",
+   "file": "assets/WebsiteSettingsScreen-C9l7O4wl.js",
+   "incN": 3,
+   "incRaw": 59470,
+   "incGz": 15599
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/CategoriesScreen.jsx",
+   "file": "assets/CategoriesScreen-DNnXSLHO.js",
+   "incN": 3,
+   "incRaw": 45727,
+   "incGz": 15026
+  },
+  {
+   "key": "src/modules/runly.canvas/screens/CanvasHome.jsx",
+   "file": "assets/CanvasHome-Bus5CCxz.js",
+   "incN": 5,
+   "incRaw": 49785,
+   "incGz": 14552
+  },
+  {
+   "key": "src/modules/runly.bookings/public/ManageBookingScreen.jsx",
+   "file": "assets/ManageBookingScreen-B43vgpgC.js",
+   "incN": 5,
+   "incRaw": 45471,
+   "incGz": 14357
+  },
+  {
+   "key": "src/modules/runly.identity/screens/RoleEditorScreen.jsx",
+   "file": "assets/RoleEditorScreen-DE2s7rnp.js",
+   "incN": 2,
+   "incRaw": 39638,
+   "incGz": 14163
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsRooms.jsx",
+   "file": "assets/BookingsRooms-W7njbtIM.js",
+   "incN": 7,
+   "incRaw": 36377,
+   "incGz": 13730
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendanceKiosks.jsx",
+   "file": "assets/AttendanceKiosks-rH2SJZPJ.js",
+   "incN": 7,
+   "incRaw": 39148,
+   "incGz": 13402
+  },
+  {
+   "key": "../../node_modules/.pnpm/country-state-city@3.2.1/node_modules/country-state-city/lib/country.js",
+   "file": "assets/country-CZ3rjubt.js",
+   "incN": 2,
+   "incRaw": 96302,
+   "incGz": 13357
+  },
+  {
+   "key": "src/modules/runly.identity/screens/RolesScreen.jsx",
+   "file": "assets/RolesScreen-hh_DKi8E.js",
+   "incN": 2,
+   "incRaw": 36973,
+   "incGz": 13338
+  },
+  {
+   "key": "src/modules/runly.catalog/screens/CatalogProductsScreen.jsx",
+   "file": "assets/CatalogProductsScreen-UBjmwv8J.js",
+   "incN": 4,
+   "incRaw": 36951,
+   "incGz": 13195
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/VehiclesScreen.jsx",
+   "file": "assets/VehiclesScreen-B0nbg9sK.js",
+   "incN": 6,
+   "incRaw": 46335,
+   "incGz": 13097
+  },
+  {
+   "key": "../../node_modules/.pnpm/pica@7.1.1/node_modules/pica/dist/pica.js",
+   "file": "assets/pica-aNYSFOuu.js",
+   "incN": 1,
+   "incRaw": 31766,
+   "incGz": 12385
+  },
+  {
+   "key": "src/modules/runly.core/screens/ModuleBuilder.jsx",
+   "file": "assets/ModuleBuilder-Dq6t8q74.js",
+   "incN": 2,
+   "incRaw": 38753,
+   "incGz": 12074
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsAssessments.jsx",
+   "file": "assets/LmsAssessments-_PVIinBs.js",
+   "incN": 6,
+   "incRaw": 29079,
+   "incGz": 11894
+  },
+  {
+   "key": "src/modules/runly.bookings/public/PublicBookingScreen.jsx",
+   "file": "assets/PublicBookingScreen-CVLcqiE-.js",
+   "incN": 5,
+   "incRaw": 37821,
+   "incGz": 11826
+  },
+  {
+   "key": "src/modules/runly.ticketing/public/TicketPortalScreen.jsx",
+   "file": "assets/TicketPortalScreen-BBz1Kgi9.js",
+   "incN": 4,
+   "incRaw": 36936,
+   "incGz": 11770
+  },
+  {
+   "key": "src/modules/runly.ticketing/screens/TicketingCheckin.jsx",
+   "file": "assets/TicketingCheckin-DJOVqlQI.js",
+   "incN": 4,
+   "incRaw": 34467,
+   "incGz": 11737
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryCustodyDetailScreen.jsx",
+   "file": "assets/InventoryCustodyDetailScreen-Cmgm5-Av.js",
+   "incN": 2,
+   "incRaw": 47442,
+   "incGz": 11664
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendancePunches.jsx",
+   "file": "assets/AttendancePunches-CuePHpKl.js",
+   "incN": 7,
+   "incRaw": 32071,
+   "incGz": 11497
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthAnalyticsScreen.jsx",
+   "file": "assets/GrowthAnalyticsScreen-HqYN5pP6.js",
+   "incN": 2,
+   "incRaw": 41863,
+   "incGz": 11483
+  },
+  {
+   "key": "src/modules/runly.notifications/NotificationSettingsScreen.jsx",
+   "file": "assets/NotificationSettingsScreen-6KzOR4-S.js",
+   "incN": 1,
+   "incRaw": 42834,
+   "incGz": 11427
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthMonitorsScreen.jsx",
+   "file": "assets/GrowthMonitorsScreen-DpJ-dsP6.js",
+   "incN": 2,
+   "incRaw": 42600,
+   "incGz": 11052
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendanceSummary.jsx",
+   "file": "assets/AttendanceSummary-Dvq4-iqR.js",
+   "incN": 6,
+   "incRaw": 32100,
+   "incGz": 10970
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryAreasScreen.jsx",
+   "file": "assets/InventoryAreasScreen-BcrqoPn_.js",
+   "incN": 4,
+   "incRaw": 41517,
+   "incGz": 10858
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/mr-IN-4XWMNGQC.js",
+   "file": "assets/mr-IN-4XWMNGQC-D1rUgGtg.js",
+   "incN": 1,
+   "incRaw": 42213,
+   "incGz": 10597
+  },
+  {
+   "key": "src/modules/runly.studio/lib/studio-motion-export.js",
+   "file": "assets/studio-motion-export-CFsd6xLI.js",
+   "incN": 5,
+   "incRaw": 29300,
+   "incGz": 10288
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteThemeScreen.jsx",
+   "file": "assets/WebsiteThemeScreen-CCe_r1SA.js",
+   "incN": 6,
+   "incRaw": 37317,
+   "incGz": 10115
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/uk-UA-TJS2TMRH.js",
+   "file": "assets/uk-UA-TJS2TMRH-BycsB18z.js",
+   "incN": 1,
+   "incRaw": 31610,
+   "incGz": 10048
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsResults.jsx",
+   "file": "assets/LmsResults-D7X1KNz7.js",
+   "incN": 5,
+   "incRaw": 24287,
+   "incGz": 9937
+  },
+  {
+   "key": "src/modules/runly.catalog/screens/CatalogInventoryScreen.jsx",
+   "file": "assets/CatalogInventoryScreen-CfFImzof.js",
+   "incN": 4,
+   "incRaw": 28044,
+   "incGz": 9927
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ru-RU-BLG6HZG5.js",
+   "file": "assets/ru-RU-BLG6HZG5-Bo6CHYvR.js",
+   "incN": 1,
+   "incRaw": 30711,
+   "incGz": 9819
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsResources.jsx",
+   "file": "assets/BookingsResources-CD7PSzDc.js",
+   "incN": 5,
+   "incRaw": 27445,
+   "incGz": 9815
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/el-GR-HIKPLEXI.js",
+   "file": "assets/el-GR-HIKPLEXI-sjeC7iYI.js",
+   "incN": 1,
+   "incRaw": 29640,
+   "incGz": 9542
+  },
+  {
+   "key": "src/modules/runly.bookings/screens/BookingsHome.jsx",
+   "file": "assets/BookingsHome-Bove9oYP.js",
+   "incN": 6,
+   "incRaw": 23268,
+   "incGz": 9430
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/AccountsScreen.jsx",
+   "file": "assets/AccountsScreen-BfHOKqyX.js",
+   "incN": 4,
+   "incRaw": 33637,
+   "incGz": 9365
+  },
+  {
+   "key": "../../node_modules/.pnpm/modern-screenshot@4.7.0/node_modules/modern-screenshot/dist/index.mjs",
+   "file": "assets/dist--IBOn9rI.js",
+   "incN": 1,
+   "incRaw": 23924,
+   "incGz": 9286
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/GroupScreen.jsx",
+   "file": "assets/GroupScreen-BVKVN3A-.js",
+   "incN": 4,
+   "incRaw": 33795,
+   "incGz": 9258
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ku-TR-5XJDIERL.js",
+   "file": "assets/ku-TR-5XJDIERL-C2b16RTt.js",
+   "incN": 1,
+   "incRaw": 29292,
+   "incGz": 9202
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/km-KH-M5T5JKUE.js",
+   "file": "assets/km-KH-M5T5JKUE-Y2nPGtTI.js",
+   "incN": 1,
+   "incRaw": 36613,
+   "incGz": 9193
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/pl-PL-YJHOWAAW.js",
+   "file": "assets/pl-PL-YJHOWAAW-fjB8MayY.js",
+   "incN": 1,
+   "incRaw": 22471,
+   "incGz": 9132
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ko-KR-RQX37SNF.js",
+   "file": "assets/ko-KR-RQX37SNF-CBzf8PB8.js",
+   "incN": 1,
+   "incRaw": 23850,
+   "incGz": 9096
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ar-SA-XORAP2EK.js",
+   "file": "assets/ar-SA-XORAP2EK-J6ftrE0R.js",
+   "incN": 1,
+   "incRaw": 25635,
+   "incGz": 9049
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/hi-IN-ZHZNZWFC.js",
+   "file": "assets/hi-IN-ZHZNZWFC-D4KjnaLy.js",
+   "incN": 1,
+   "incRaw": 32319,
+   "incGz": 9049
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/sk-SK-DY6IPO5U.js",
+   "file": "assets/sk-SK-DY6IPO5U-CV2WWfN2.js",
+   "incN": 1,
+   "incRaw": 22281,
+   "incGz": 9019
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/en-OZCJJ2HN.js",
+   "file": "assets/en-OZCJJ2HN-CFqLk4v1.js",
+   "incN": 2,
+   "incRaw": 23056,
+   "incGz": 8962
+  },
+  {
+   "key": "src/modules/runly.chat/components/MiraiSidebarHost.jsx",
+   "file": "assets/MiraiSidebarHost-DyhE-Fc2.js",
+   "incN": 2,
+   "incRaw": 25678,
+   "incGz": 8906
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/de-DE-DMRXZ2SZ.js",
+   "file": "assets/de-DE-DMRXZ2SZ-DnzOPjuC.js",
+   "incN": 1,
+   "incRaw": 23307,
+   "incGz": 8898
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ro-RO-L575VRQA.js",
+   "file": "assets/ro-RO-L575VRQA-Dd_4iJIT.js",
+   "incN": 1,
+   "incRaw": 23113,
+   "incGz": 8856
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/fr-FR-YE4VDJFI.js",
+   "file": "assets/fr-FR-YE4VDJFI-DBSiur38.js",
+   "incN": 1,
+   "incRaw": 23416,
+   "incGz": 8802
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/zh-CN-4MXUOFTH.js",
+   "file": "assets/zh-CN-4MXUOFTH-Ce2nkYj8.js",
+   "incN": 1,
+   "incRaw": 19021,
+   "incGz": 8799
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/zh-TW-U5VF4CCU.js",
+   "file": "assets/zh-TW-U5VF4CCU-BDWL2xTV.js",
+   "incN": 1,
+   "incRaw": 18957,
+   "incGz": 8782
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ja-JP-K2DI4W6B.js",
+   "file": "assets/ja-JP-K2DI4W6B-R-Yxr6xl.js",
+   "incN": 1,
+   "incRaw": 23371,
+   "incGz": 8739
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/sl-SI-5DZSRA47.js",
+   "file": "assets/sl-SI-5DZSRA47-FbUkmy_-.js",
+   "incN": 1,
+   "incRaw": 21330,
+   "incGz": 8487
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/it-IT-MDEQ2SG3.js",
+   "file": "assets/it-IT-MDEQ2SG3-rAygTaD6.js",
+   "incN": 1,
+   "incRaw": 22027,
+   "incGz": 8486
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/sv-SE-V32YHALQ.js",
+   "file": "assets/sv-SE-V32YHALQ-BU4rm_YQ.js",
+   "incN": 1,
+   "incRaw": 21482,
+   "incGz": 8476
+  },
+  {
+   "key": "src/modules/runly.attendance/screens/AttendanceRequests.jsx",
+   "file": "assets/AttendanceRequests-B4n3y_wW.js",
+   "incN": 6,
+   "incRaw": 24396,
+   "incGz": 8463
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ta-IN-5JRAGQAO.js",
+   "file": "assets/ta-IN-5JRAGQAO-D6N-t081.js",
+   "incN": 1,
+   "incRaw": 35233,
+   "incGz": 8448
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryMapScreen.jsx",
+   "file": "assets/InventoryMapScreen-Bjb0XycK.js",
+   "incN": 6,
+   "incRaw": 26305,
+   "incGz": 8442
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/es-ES-AQYVXC32.js",
+   "file": "assets/es-ES-AQYVXC32-tRcdJ7Fo.js",
+   "incN": 1,
+   "incRaw": 21319,
+   "incGz": 8389
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/fa-IR-527GAKUP.js",
+   "file": "assets/fa-IR-527GAKUP-B1aM3PaM.js",
+   "incN": 1,
+   "incRaw": 24209,
+   "incGz": 8380
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/cs-CZ-DGZA5IKG.js",
+   "file": "assets/cs-CZ-DGZA5IKG-BjMq30Js.js",
+   "incN": 1,
+   "incRaw": 19492,
+   "incGz": 8306
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/eu-ES-3TOEU5DE.js",
+   "file": "assets/eu-ES-3TOEU5DE-t1RWTVUF.js",
+   "incN": 1,
+   "incRaw": 21168,
+   "incGz": 8136
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/nb-NO-BMB73KRH.js",
+   "file": "assets/nb-NO-BMB73KRH-DBJAgt_X.js",
+   "incN": 1,
+   "incRaw": 20071,
+   "incGz": 8127
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/pt-BR-APOPYZJ7.js",
+   "file": "assets/pt-BR-APOPYZJ7-DfaLv8S3.js",
+   "incN": 1,
+   "incRaw": 21006,
+   "incGz": 8123
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/pa-IN-D2I375G4.js",
+   "file": "assets/pa-IN-D2I375G4-BEqSlwk4.js",
+   "incN": 1,
+   "incRaw": 27943,
+   "incGz": 7917
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/FleetSummaryScreen.jsx",
+   "file": "assets/FleetSummaryScreen-B7GPAc_6.js",
+   "incN": 4,
+   "incRaw": 26776,
+   "incGz": 7898
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/tr-TR-7QYBXDBO.js",
+   "file": "assets/tr-TR-7QYBXDBO-CRfAk4UN.js",
+   "incN": 1,
+   "incRaw": 19473,
+   "incGz": 7890
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/ca-ES-YNNMFRQX.js",
+   "file": "assets/ca-ES-YNNMFRQX-DyXsnT99.js",
+   "incN": 1,
+   "incRaw": 19756,
+   "incGz": 7820
+  },
+  {
+   "key": "src/modules/runly.pfm/screens/OverviewScreen.jsx",
+   "file": "assets/OverviewScreen-BJZbaCAG.js",
+   "incN": 5,
+   "incRaw": 26817,
+   "incGz": 7774
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/oc-FR-ATFBDMF6.js",
+   "file": "assets/oc-FR-ATFBDMF6-BoSUcXod.js",
+   "incN": 1,
+   "incRaw": 19806,
+   "incGz": 7747
+  },
+  {
+   "key": "src/modules/runly.lms/screens/LmsCourses.jsx",
+   "file": "assets/LmsCourses-Bdht_zDs.js",
+   "incN": 3,
+   "incRaw": 19712,
+   "incGz": 7746
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/lv-LV-MD7N5VHD.js",
+   "file": "assets/lv-LV-MD7N5VHD-DmhN934h.js",
+   "incN": 1,
+   "incRaw": 19105,
+   "incGz": 7705
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/pt-PT-W56WCN7P.js",
+   "file": "assets/pt-PT-W56WCN7P-CYbEGVvz.js",
+   "incN": 1,
+   "incRaw": 19618,
+   "incGz": 7705
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/gl-ES-KMXUYGUN.js",
+   "file": "assets/gl-ES-KMXUYGUN-9sIWQgFa.js",
+   "incN": 1,
+   "incRaw": 19353,
+   "incGz": 7654
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteOrdersScreen.jsx",
+   "file": "assets/WebsiteOrdersScreen-Daq8PNPp.js",
+   "incN": 3,
+   "incRaw": 22625,
+   "incGz": 7632
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/id-ID-22TWZNLA.js",
+   "file": "assets/id-ID-22TWZNLA-BnKndnN1.js",
+   "incN": 1,
+   "incRaw": 19646,
+   "incGz": 7608
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/hu-HU-VIYZI3X4.js",
+   "file": "assets/hu-HU-VIYZI3X4-D_FUiVWj.js",
+   "incN": 1,
+   "incRaw": 18051,
+   "incGz": 7514
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/he-IL-4MU5N22B.js",
+   "file": "assets/he-IL-4MU5N22B-CzveDLAl.js",
+   "incN": 1,
+   "incRaw": 20290,
+   "incGz": 7481
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthPropertiesScreen.jsx",
+   "file": "assets/GrowthPropertiesScreen-BGqwcIbD.js",
+   "incN": 2,
+   "incRaw": 26007,
+   "incGz": 7471
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/fi-FI-M3WLVDFP.js",
+   "file": "assets/fi-FI-M3WLVDFP-BPWIwC-o.js",
+   "incN": 1,
+   "incRaw": 18372,
+   "incGz": 7454
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/kab-KAB-2S7ZURK7.js",
+   "file": "assets/kab-KAB-2S7ZURK7-St6xmFtJ.js",
+   "incN": 1,
+   "incRaw": 18750,
+   "incGz": 7453
+  },
+  {
+   "key": "../../node_modules/.pnpm/dxf-parser@1.1.2/node_modules/dxf-parser/dist/index.js",
+   "file": "assets/dist-D4TDUt_C.js",
+   "incN": 1,
+   "incRaw": 25287,
+   "incGz": 7382
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/bg-BG-AAABLFCY.js",
+   "file": "assets/bg-BG-AAABLFCY-BeMmnx1O.js",
+   "incN": 1,
+   "incRaw": 20731,
+   "incGz": 7319
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/nl-NL-F2257BLQ.js",
+   "file": "assets/nl-NL-F2257BLQ-DazD6yRl.js",
+   "incN": 1,
+   "incRaw": 16694,
+   "incGz": 6844
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/AiImportScreen.jsx",
+   "file": "assets/AiImportScreen-CO3YODPb.js",
+   "incN": 3,
+   "incRaw": 25840,
+   "incGz": 6824
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthLeadDetailScreen.jsx",
+   "file": "assets/GrowthLeadDetailScreen-ox2iqR-V.js",
+   "incN": 1,
+   "incRaw": 24375,
+   "incGz": 6722
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/nn-NO-NCORG7TS.js",
+   "file": "assets/nn-NO-NCORG7TS-CKNkGnNU.js",
+   "incN": 1,
+   "incRaw": 15922,
+   "incGz": 6642
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/bn-BD-PM4AC5WG.js",
+   "file": "assets/bn-BD-PM4AC5WG-FroenQML.js",
+   "incN": 1,
+   "incRaw": 23567,
+   "incGz": 6623
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteMenusScreen.jsx",
+   "file": "assets/WebsiteMenusScreen-Cxc6dfUF.js",
+   "incN": 3,
+   "incRaw": 23404,
+   "incGz": 6454
+  },
+  {
+   "key": "src/modules/runly.core/screens/InstanceSettings.jsx",
+   "file": "assets/InstanceSettings-CXYDjFrZ.js",
+   "incN": 3,
+   "incRaw": 18515,
+   "incGz": 6243
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/PublicCustodySignScreen.jsx",
+   "file": "assets/PublicCustodySignScreen-CAEzZJLe.js",
+   "incN": 3,
+   "incRaw": 21984,
+   "incGz": 6224
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/da-DK-N76F4QAJ.js",
+   "file": "assets/da-DK-N76F4QAJ-Cs1HdIzD.js",
+   "incN": 1,
+   "incRaw": 14377,
+   "incGz": 5990
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosReservationsScreen.jsx",
+   "file": "assets/PosReservationsScreen-DWBmnuui.js",
+   "incN": 2,
+   "incRaw": 17920,
+   "incGz": 5908
+  },
+  {
+   "key": "src/modules/runly.lms/public/CertificateVerifyScreen.jsx",
+   "file": "assets/CertificateVerifyScreen-nc4Mbccq.js",
+   "incN": 4,
+   "incRaw": 14770,
+   "incGz": 5801
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/vi-VN-Y5CQ2EKQ.js",
+   "file": "assets/vi-VN-Y5CQ2EKQ-mtdJDy5V.js",
+   "incN": 1,
+   "incRaw": 13826,
+   "incGz": 5720
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteBlogScreen.jsx",
+   "file": "assets/WebsiteBlogScreen-DIxgNATc.js",
+   "incN": 3,
+   "incRaw": 17536,
+   "incGz": 5518
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosAppointmentsScreen.jsx",
+   "file": "assets/PosAppointmentsScreen-CcBEkRMX.js",
+   "incN": 2,
+   "incRaw": 16837,
+   "incGz": 5498
+  },
+  {
+   "key": "src/modules/runly.ticketing/screens/TicketingEvents.jsx",
+   "file": "assets/TicketingEvents-B_6xX2Iu.js",
+   "incN": 3,
+   "incRaw": 13512,
+   "incGz": 5423
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/lt-LT-MGUBX6CA.js",
+   "file": "assets/lt-LT-MGUBX6CA-CdhKlCTp.js",
+   "incN": 1,
+   "incRaw": 12470,
+   "incGz": 5305
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/my-MM-O4Z74GN5.js",
+   "file": "assets/my-MM-O4Z74GN5-D8a4bc50.js",
+   "incN": 1,
+   "incRaw": 17541,
+   "incGz": 5255
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/th-TH-55ACRHDJ.js",
+   "file": "assets/th-TH-55ACRHDJ-Bcl3gtbV.js",
+   "incN": 1,
+   "incRaw": 15487,
+   "incGz": 5141
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/PublicInventoryItemScreen.jsx",
+   "file": "assets/PublicInventoryItemScreen-BR8cOfj3.js",
+   "incN": 2,
+   "incRaw": 18872,
+   "incGz": 5088
+  },
+  {
+   "key": "src/modules/runly.core/screens/WebPushSettingsScreen.jsx",
+   "file": "assets/WebPushSettingsScreen-DfRsM22I.js",
+   "incN": 3,
+   "incRaw": 13869,
+   "incGz": 4887
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/ImportWizard.jsx",
+   "file": "assets/ImportWizard-Cv5gn4VH.js",
+   "incN": 2,
+   "incRaw": 16515,
+   "incGz": 4849
+  },
+  {
+   "key": "src/modules/runly.identity/screens/UserEditScreen.jsx",
+   "file": "assets/UserEditScreen-B_2aaEIG.js",
+   "incN": 1,
+   "incRaw": 15469,
+   "incGz": 4567
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseApprovalsScreen.jsx",
+   "file": "assets/PurchaseApprovalsScreen-CCrRKFTR.js",
+   "incN": 4,
+   "incRaw": 10178,
+   "incGz": 4328
+  },
+  {
+   "key": "src/modules/runly.company/screens/CompanyBranding.jsx",
+   "file": "assets/CompanyBranding-BFPAAwF6.js",
+   "incN": 1,
+   "incRaw": 14959,
+   "incGz": 4313
+  },
+  {
+   "key": "src/modules/runly.catalog/screens/CatalogCategoriesScreen.jsx",
+   "file": "assets/CatalogCategoriesScreen-COm2iY8B.js",
+   "incN": 1,
+   "incRaw": 12841,
+   "incGz": 4166
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsitePaymentsScreen.jsx",
+   "file": "assets/WebsitePaymentsScreen-CaqbnDf8.js",
+   "incN": 3,
+   "incRaw": 12538,
+   "incGz": 4163
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/kk-KZ-UJPYGRQQ.js",
+   "file": "assets/kk-KZ-UJPYGRQQ-BVoc2i9O.js",
+   "incN": 1,
+   "incRaw": 10090,
+   "incGz": 4134
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/kaa-6BPSNM3R.js",
+   "file": "assets/kaa-6BPSNM3R-B28RZoUz.js",
+   "incN": 1,
+   "incRaw": 10133,
+   "incGz": 4122
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+api@2.11.1/node_modules/@tauri-apps/api/window.js",
+   "file": "assets/window-DV7vJpli.js",
+   "incN": 3,
+   "incRaw": 15270,
+   "incGz": 4111
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/zh-HK-RBTGIU3U.js",
+   "file": "assets/zh-HK-RBTGIU3U-BqTucwPS.js",
+   "incN": 1,
+   "incRaw": 9048,
+   "incGz": 4028
+  },
+  {
+   "key": "src/modules/runly.contacts/screens/ContactsScreen.jsx",
+   "file": "assets/ContactsScreen-C7lfpWut.js",
+   "incN": 2,
+   "incRaw": 10669,
+   "incGz": 4007
+  },
+  {
+   "key": "src/modules/runly.ticketing/public/MyTicketsScreen.jsx",
+   "file": "assets/MyTicketsScreen-CowLLVK-.js",
+   "incN": 2,
+   "incRaw": 10804,
+   "incGz": 3966
+  },
+  {
+   "key": "src/modules/runly.company/screens/CompanyProfile.jsx",
+   "file": "assets/CompanyProfile-SG8SbVjx.js",
+   "incN": 1,
+   "incRaw": 15777,
+   "incGz": 3910
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/MembershipsScreen.jsx",
+   "file": "assets/MembershipsScreen-ojRE0LBl.js",
+   "incN": 2,
+   "incRaw": 15874,
+   "incGz": 3821
+  },
+  {
+   "key": "src/shell/trash/TrashScreen.jsx",
+   "file": "assets/TrashScreen-DBC1trJQ.js",
+   "incN": 1,
+   "incRaw": 11386,
+   "incGz": 3785
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryCustodyScreen.jsx",
+   "file": "assets/InventoryCustodyScreen-BS_ZGMHY.js",
+   "incN": 2,
+   "incRaw": 9328,
+   "incGz": 3741
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosSessionsScreen.jsx",
+   "file": "assets/PosSessionsScreen-DfGZkKGa.js",
+   "incN": 1,
+   "incRaw": 15523,
+   "incGz": 3715
+  },
+  {
+   "key": "src/modules/runly.company/screens/CompanyOverview.jsx",
+   "file": "assets/CompanyOverview-1ESIVIOv.js",
+   "incN": 1,
+   "incRaw": 17371,
+   "incGz": 3714
+  },
+  {
+   "key": "src/modules/runly.purchases/screens/PurchaseSuppliersScreen.jsx",
+   "file": "assets/PurchaseSuppliersScreen-C_hBteul.js",
+   "incN": 2,
+   "incRaw": 11051,
+   "incGz": 3600
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/az-AZ-NAUU3Z4Y.js",
+   "file": "assets/az-AZ-NAUU3Z4Y-C0HncjEQ.js",
+   "incN": 1,
+   "incRaw": 8574,
+   "incGz": 3525
+  },
+  {
+   "key": "src/shell/connections/ModuleConnectionsScreen.jsx",
+   "file": "assets/ModuleConnectionsScreen-z3WtexvN.js",
+   "incN": 1,
+   "incRaw": 10481,
+   "incGz": 3451
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/ReportDetailScreen.jsx",
+   "file": "assets/ReportDetailScreen-N5-KoTI_.js",
+   "incN": 2,
+   "incRaw": 8879,
+   "incGz": 3401
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/GroupsScreen.jsx",
+   "file": "assets/GroupsScreen-DzdjlLfu.js",
+   "incN": 2,
+   "incRaw": 9438,
+   "incGz": 3320
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/si-LK-KT7GGO6D.js",
+   "file": "assets/si-LK-KT7GGO6D-B684r1a-.js",
+   "incN": 1,
+   "incRaw": 8548,
+   "incGz": 3294
+  },
+  {
+   "key": "src/modules/runly.core/screens/SmtpSettingsScreen.jsx",
+   "file": "assets/SmtpSettingsScreen-CUtBuB_v.js",
+   "incN": 2,
+   "incRaw": 10138,
+   "incGz": 3294
+  },
+  {
+   "key": "src/modules/runly.notifications/NotificationsInboxScreen.jsx",
+   "file": "assets/NotificationsInboxScreen-CCf1-rjY.js",
+   "incN": 1,
+   "incRaw": 9353,
+   "incGz": 3109
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/ReportFormPage.jsx",
+   "file": "assets/ReportFormPage-D8cLNY8N.js",
+   "incN": 1,
+   "incRaw": 17242,
+   "incGz": 3102
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/DriversScreen.jsx",
+   "file": "assets/DriversScreen-Ddtz7AMU.js",
+   "incN": 3,
+   "incRaw": 8583,
+   "incGz": 3089
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryDeregistrationsScreen.jsx",
+   "file": "assets/InventoryDeregistrationsScreen-Cm6m6Xox.js",
+   "incN": 1,
+   "incRaw": 10238,
+   "incGz": 3077
+  },
+  {
+   "key": "src/modules/runly.identity/screens/UsersScreen.jsx",
+   "file": "assets/UsersScreen-DhpRP2h8.js",
+   "incN": 1,
+   "incRaw": 7890,
+   "incGz": 2902
+  },
+  {
+   "key": "src/modules/runly.chat/screens/ChatTemplatesScreen.jsx",
+   "file": "assets/ChatTemplatesScreen-Ct3clXu-.js",
+   "incN": 1,
+   "incRaw": 9361,
+   "incGz": 2849
+  },
+  {
+   "key": "src/modules/runly.company/screens/CompanyMembers.jsx",
+   "file": "assets/CompanyMembers-Dgmtr5zc.js",
+   "incN": 1,
+   "incRaw": 10170,
+   "incGz": 2821
+  },
+  {
+   "key": "src/modules/runly.company/screens/CompanyAddress.jsx",
+   "file": "assets/CompanyAddress-MxVfNaJP.js",
+   "incN": 1,
+   "incRaw": 12128,
+   "incGz": 2763
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/InsuranceScreen.jsx",
+   "file": "assets/InsuranceScreen-BkkUBx39.js",
+   "incN": 2,
+   "incRaw": 7180,
+   "incGz": 2723
+  },
+  {
+   "key": "src/modules/runly.growth/public/StatusPageScreen.jsx",
+   "file": "assets/StatusPageScreen-bYrdfaCi.js",
+   "incN": 2,
+   "incRaw": 7096,
+   "incGz": 2586
+  },
+  {
+   "key": "src/modules/runly.identity/screens/UserDetailScreen.jsx",
+   "file": "assets/UserDetailScreen-C4u21lJx.js",
+   "incN": 1,
+   "incRaw": 6085,
+   "incGz": 2519
+  },
+  {
+   "key": "src/modules/runly.growth/screens/GrowthLeadsScreen.jsx",
+   "file": "assets/GrowthLeadsScreen-CxjhhDIj.js",
+   "incN": 1,
+   "incRaw": 7407,
+   "incGz": 2502
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosStationsScreen.jsx",
+   "file": "assets/PosStationsScreen-Cn3NAgo2.js",
+   "incN": 1,
+   "incRaw": 7411,
+   "incGz": 2405
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/CatalogsScreen.jsx",
+   "file": "assets/CatalogsScreen-A5_t6L2E.js",
+   "incN": 3,
+   "incRaw": 5568,
+   "incGz": 2174
+  },
+  {
+   "key": "src/modules/runly.files/screens/PublicFolderScreen.jsx",
+   "file": "assets/PublicFolderScreen-CuN1r52E.js",
+   "incN": 1,
+   "incRaw": 6495,
+   "incGz": 2084
+  },
+  {
+   "key": "src/modules/runly.fleet/screens/ReportsScreen.jsx",
+   "file": "assets/ReportsScreen-4NiRcB-W.js",
+   "incN": 2,
+   "incRaw": 6537,
+   "incGz": 2079
+  },
+  {
+   "key": "src/modules/runly.identity/screens/IdentityOverview.jsx",
+   "file": "assets/IdentityOverview-CtLHpBMQ.js",
+   "incN": 1,
+   "incRaw": 6760,
+   "incGz": 2024
+  },
+  {
+   "key": "src/modules/runly.identity/screens/UserCreateScreen.jsx",
+   "file": "assets/UserCreateScreen-BaKJPQbG.js",
+   "incN": 1,
+   "incRaw": 5478,
+   "incGz": 2007
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+plugin-store@2.4.3/node_modules/@tauri-apps/plugin-store/dist-js/index.js",
+   "file": "assets/dist-js-BM6sINsW.js",
+   "incN": 3,
+   "incRaw": 4862,
+   "incGz": 1976
+  },
+  {
+   "key": "src/modules/runly.documents/screens/GeneratedDocumentsScreen.jsx",
+   "file": "assets/GeneratedDocumentsScreen-Bh0aZ-oL.js",
+   "incN": 1,
+   "incRaw": 4578,
+   "incGz": 1898
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryMediaScreen.jsx",
+   "file": "assets/InventoryMediaScreen-DffR1P1a.js",
+   "incN": 1,
+   "incRaw": 3618,
+   "incGz": 1808
+  },
+  {
+   "key": "src/modules/runly.inventory/screens/InventoryAssignmentsScreen.jsx",
+   "file": "assets/InventoryAssignmentsScreen-B27efGJn.js",
+   "incN": 1,
+   "incRaw": 4513,
+   "incGz": 1799
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+plugin-haptics@2.3.3/node_modules/@tauri-apps/plugin-haptics/dist-js/index.js",
+   "file": "assets/dist-js-D5P6BOxL.js",
+   "incN": 3,
+   "incRaw": 4233,
+   "incGz": 1767
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+plugin-notification@2.4.0/node_modules/@tauri-apps/plugin-notification/dist-js/index.js",
+   "file": "assets/dist-js-hM41oWR7.js",
+   "incN": 2,
+   "incRaw": 4620,
+   "incGz": 1759
+  },
+  {
+   "key": "src/modules/runly.identity/screens/ChatReportsScreen.jsx",
+   "file": "assets/ChatReportsScreen-DhsfJqrr.js",
+   "incN": 1,
+   "incRaw": 4292,
+   "incGz": 1749
+  },
+  {
+   "key": "src/modules/runly.files/screens/PublicFileScreen.jsx",
+   "file": "assets/PublicFileScreen-Bvl7jZ4R.js",
+   "incN": 1,
+   "incRaw": 3864,
+   "incGz": 1493
+  },
+  {
+   "key": "../../node_modules/.pnpm/@ffmpeg+ffmpeg@0.12.15/node_modules/@ffmpeg/ffmpeg/dist/esm/index.js",
+   "file": "assets/esm-BVadwRPX.js",
+   "incN": 1,
+   "incRaw": 3042,
+   "incGz": 1233
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+plugin-sql@2.4.0/node_modules/@tauri-apps/plugin-sql/dist-js/index.js",
+   "file": "assets/dist-js-Bs4J99ZI.js",
+   "incN": 2,
+   "incRaw": 2810,
+   "incGz": 1206
+  },
+  {
+   "key": "src/modules/runly.ledger/screens/TypesScreen.jsx",
+   "file": "assets/TypesScreen-BSls5YMJ.js",
+   "incN": 1,
+   "incRaw": 2549,
+   "incGz": 1183
+  },
+  {
+   "key": "src/modules/runly.documents/screens/DocumentTemplatesScreen.jsx",
+   "file": "assets/DocumentTemplatesScreen-DLWeaUNg.js",
+   "incN": 1,
+   "incRaw": 2199,
+   "incGz": 1104
+  },
+  {
+   "key": "src/app/BootFailure.jsx",
+   "file": "assets/BootFailure-CSWkRJ0l.js",
+   "incN": 1,
+   "incRaw": 2321,
+   "incGz": 1051
+  },
+  {
+   "key": "src/modules/runly.files/screens/OfficeEditorScreen.jsx",
+   "file": "assets/OfficeEditorScreen-B09iV-1M.js",
+   "incN": 1,
+   "incRaw": 1866,
+   "incGz": 1050
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+api@2.11.1/node_modules/@tauri-apps/api/app.js",
+   "file": "assets/app-CtgxlP2i.js",
+   "incN": 3,
+   "incRaw": 1887,
+   "incGz": 1035
+  },
+  {
+   "key": "../../node_modules/.pnpm/canvas-roundrect-polyfill@0.0.1/node_modules/canvas-roundrect-polyfill/roundRect.js",
+   "file": "assets/roundRect-D01gJrlt.js",
+   "incN": 1,
+   "incRaw": 2878,
+   "incGz": 994
+  },
+  {
+   "key": "../../packages/ui/src/index.js",
+   "file": "assets/src-Hubdufrk.js",
+   "incN": 2,
+   "incRaw": 1479,
+   "incGz": 909
+  },
+  {
+   "key": "../../node_modules/.pnpm/@ffmpeg+util@0.12.2/node_modules/@ffmpeg/util/dist/esm/index.js",
+   "file": "assets/esm-DnWjBR4N.js",
+   "incN": 1,
+   "incRaw": 1744,
+   "incGz": 902
+  },
+  {
+   "key": "src/modules/runly.chat/screens/ChatOfficeEditorScreen.jsx",
+   "file": "assets/ChatOfficeEditorScreen-DdzOsIn0.js",
+   "incN": 1,
+   "incRaw": 1380,
+   "incGz": 817
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/directory-open-4ed118d0.js",
+   "file": "assets/directory-open-4ed118d0-1i309Asm.js",
+   "incN": 1,
+   "incRaw": 1515,
+   "incGz": 768
+  },
+  {
+   "key": "../../packages/ui/src/lib/downloadHlsAsMp4.js",
+   "file": "assets/downloadHlsAsMp4-CeEL5KRr.js",
+   "incN": 1,
+   "incRaw": 1193,
+   "incGz": 745
+  },
+  {
+   "key": "../../node_modules/.pnpm/mermaid@11.17.2/node_modules/mermaid/dist/chunks/mermaid.core/sizeCapture-INFHLROL.mjs",
+   "file": "assets/sizeCapture-INFHLROL-3uHXrFqA.js",
+   "incN": 2,
+   "incRaw": 1027,
+   "incGz": 654
+  },
+  {
+   "key": "../../node_modules/.pnpm/pdfjs-dist@5.4.296/node_modules/pdfjs-dist/build/pdf.mjs",
+   "file": "assets/pdf-DTfKIt_O.js",
+   "incN": 1,
+   "incRaw": 1147,
+   "incGz": 619
+  },
+  {
+   "key": "../../node_modules/.pnpm/@tauri-apps+api@2.11.1/node_modules/@tauri-apps/api/core.js",
+   "file": "assets/core-bFlccbFC.js",
+   "incN": 2,
+   "incRaw": 1070,
+   "incGz": 571
+  },
+  {
+   "key": "../../node_modules/.pnpm/@excalidraw+excalidraw@0.18.1_@types+react-dom@19.2.3_@types+react@19.2.14__@types+react@19.2_d7xxiaviqcp7fd7bm4hu5g4ba4/node_modules/@excalidraw/excalidraw/dist/dev/locales/percentages-YKFLWNK2.js",
+   "file": "assets/percentages-YKFLWNK2-DPS2V47M.js",
+   "incN": 2,
+   "incRaw": 714,
+   "incGz": 515
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/file-save-745eba88.js",
+   "file": "assets/file-save-745eba88-Bwdfz6OZ.js",
+   "incN": 1,
+   "incRaw": 856,
+   "incGz": 492
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/file-save-3189631c.js",
+   "file": "assets/file-save-3189631c-CO9S4HFW.js",
+   "incN": 1,
+   "incRaw": 692,
+   "incGz": 444
+  },
+  {
+   "key": "src/modules/runly.pos/screens/PosHomeRedirect.jsx",
+   "file": "assets/PosHomeRedirect-DRsgwepV.js",
+   "incN": 1,
+   "incRaw": 761,
+   "incGz": 422
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/directory-open-01563666.js",
+   "file": "assets/directory-open-01563666-D4xXyWb_.js",
+   "incN": 1,
+   "incRaw": 583,
+   "incGz": 361
+  },
+  {
+   "key": "src/modules/runly.pos/retail/LegacyTerminalEntry.jsx",
+   "file": "assets/LegacyTerminalEntry-BY5G03Y_.js",
+   "incN": 1,
+   "incRaw": 491,
+   "incGz": 351
+  },
+  {
+   "key": "src/modules/runly.website/screens/WebsiteTemplateDetailScreen.jsx",
+   "file": "assets/WebsiteTemplateDetailScreen-BgnXqFE1.js",
+   "incN": 1,
+   "incRaw": 460,
+   "incGz": 332
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/file-open-002ab408.js",
+   "file": "assets/file-open-002ab408-BHUWm0Sh.js",
+   "incN": 1,
+   "incRaw": 526,
+   "incGz": 326
+  },
+  {
+   "key": "src/modules/runly.automations/screens/LegacyAutomationsRedirect.jsx",
+   "file": "assets/LegacyAutomationsRedirect-D8LqsdCm.js",
+   "incN": 1,
+   "incRaw": 419,
+   "incGz": 313
+  },
+  {
+   "key": "../../node_modules/.pnpm/browser-fs-access@0.29.1/node_modules/browser-fs-access/dist/file-open-7c801643.js",
+   "file": "assets/file-open-7c801643-DZtJT5zp.js",
+   "incN": 1,
+   "incRaw": 445,
+   "incGz": 311
+  },
+  {
+   "key": "src/modules/runly.notes/lib/canvasLayers.js",
+   "file": "assets/canvasLayers-_cX4KkAx.js",
+   "incN": 1,
+   "incRaw": 483,
+   "incGz": 281
+  },
+  {
+   "key": "src/modules/runly.notes/lib/canvasImages.js",
+   "file": "assets/canvasImages-Cd7JK5Kl.js",
+   "incN": 1,
+   "incRaw": 136,
+   "incGz": 138
+  },
+  {
+   "key": "__vite-browser-external",
+   "file": "assets/__vite-browser-external-CitKSmYk.js",
+   "incN": 1,
+   "incRaw": 103,
+   "incGz": 116
+  },
+  {
+   "key": "../../node_modules/.pnpm/dompurify@3.4.16/node_modules/dompurify/dist/purify.es.mjs",
+   "file": "assets/purify.es-BDGsngS2.js",
+   "incN": 1,
+   "incRaw": 50,
+   "incGz": 70
+  },
+  {
+   "key": "src/modules/runly.notes/components/NoteEditor.jsx",
+   "file": "assets/NoteEditor-jxe3_Ow-.js",
+   "incN": 1,
+   "incRaw": 54,
+   "incGz": 66
+  },
+  {
+   "key": "src/lib/runly.js",
+   "file": "assets/runly-BpOpEC7R.js",
+   "incN": 1,
+   "incRaw": 44,
+   "incGz": 60
+  },
+  {
+   "key": "src/app/AppEntry.jsx",
+   "file": "assets/AppEntry-N8-Z8dr2.js",
+   "incN": 0,
+   "incRaw": 0,
+   "incGz": 0
+  }
+ ]
+}

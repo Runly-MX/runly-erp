@@ -1,0 +1,410 @@
+{
+ "profile": "mid",
+ "scenario": "nav",
+ "base": "http://localhost:4173",
+ "cpu": 4,
+ "net": {
+  "d": 1600000,
+  "l": 150
+ },
+ "rounds": [
+  {
+   "r": 1,
+   "modules": {
+    "home": {
+     "navMs": 2705,
+     "longTasks": 2,
+     "longMs": 302,
+     "requests": 1,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 1,
+     "apiCalls": 1,
+     "apiKB": 1,
+     "heap": {
+      "heapMB": 22.7,
+      "listeners": 468,
+      "nodes": 1449,
+      "docs": 2,
+      "scriptSec": 3.74,
+      "taskSec": 6.08,
+      "layouts": 19,
+      "recalcs": 110
+     }
+    },
+    "inventario": {
+     "navMs": 3927,
+     "longTasks": 12,
+     "longMs": 2161,
+     "requests": 26,
+     "jsFiles": 13,
+     "jsKB": 35,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 62,
+     "apiCalls": 13,
+     "apiKB": 27,
+     "heap": {
+      "heapMB": 28.1,
+      "listeners": 502,
+      "nodes": 1621,
+      "docs": 2,
+      "scriptSec": 6.21,
+      "taskSec": 9.2,
+      "layouts": 25,
+      "recalcs": 149
+     }
+    },
+    "compras": {
+     "navMs": 2526,
+     "longTasks": 5,
+     "longMs": 571,
+     "requests": 11,
+     "jsFiles": 5,
+     "jsKB": 17,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 39,
+     "apiCalls": 6,
+     "apiKB": 22,
+     "heap": {
+      "heapMB": 24.8,
+      "listeners": 458,
+      "nodes": 1781,
+      "docs": 2,
+      "scriptSec": 7.24,
+      "taskSec": 10.66,
+      "layouts": 30,
+      "recalcs": 196
+     }
+    },
+    "chat": {
+     "navMs": 4844,
+     "longTasks": 10,
+     "longMs": 1213,
+     "requests": 22,
+     "jsFiles": 7,
+     "jsKB": 197,
+     "cssKB": 0,
+     "fontKB": 34,
+     "totalKB": 250,
+     "apiCalls": 13,
+     "apiKB": 17,
+     "heap": {
+      "heapMB": 27.8,
+      "listeners": 538,
+      "nodes": 1749,
+      "docs": 2,
+      "scriptSec": 9.25,
+      "taskSec": 13.16,
+      "layouts": 36,
+      "recalcs": 251
+     }
+    },
+    "calendario": {
+     "navMs": 2825,
+     "longTasks": 5,
+     "longMs": 653,
+     "requests": 14,
+     "jsFiles": 6,
+     "jsKB": 42,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 84,
+     "apiCalls": 8,
+     "apiKB": 42,
+     "heap": {
+      "heapMB": 27.4,
+      "listeners": 555,
+      "nodes": 2101,
+      "docs": 2,
+      "scriptSec": 10.51,
+      "taskSec": 14.94,
+      "layouts": 41,
+      "recalcs": 303
+     }
+    },
+    "studio": {
+     "navMs": 7328,
+     "longTasks": 13,
+     "longMs": 1326,
+     "requests": 27,
+     "jsFiles": 17,
+     "jsKB": 335,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 584,
+     "apiCalls": 9,
+     "apiKB": 249,
+     "heap": {
+      "heapMB": 35.1,
+      "listeners": 542,
+      "nodes": 2307,
+      "docs": 2,
+      "scriptSec": 12.16,
+      "taskSec": 21.1,
+      "layouts": 52,
+      "recalcs": 473
+     }
+    },
+    "website": {
+     "navMs": 50,
+     "longTasks": 0,
+     "longMs": 0,
+     "requests": 0,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 37.4,
+      "listeners": 589,
+      "nodes": 3768,
+      "docs": 2,
+      "scriptSec": 12.7,
+      "taskSec": 24.08,
+      "layouts": 53,
+      "recalcs": 547
+     }
+    },
+    "builder": {
+     "navMs": 36,
+     "longTasks": 0,
+     "longMs": 0,
+     "requests": 0,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 37.4,
+      "listeners": 593,
+      "nodes": 3792,
+      "docs": 2,
+      "scriptSec": 12.87,
+      "taskSec": 26.14,
+      "layouts": 53,
+      "recalcs": 622
+     }
+    }
+   }
+  },
+  {
+   "r": 2,
+   "modules": {
+    "home": {
+     "navMs": 1597,
+     "longTasks": 3,
+     "longMs": 320,
+     "requests": 2,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 385,
+     "totalKB": 385,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 33.2,
+      "listeners": 506,
+      "nodes": 2077,
+      "docs": 2,
+      "scriptSec": 13.31,
+      "taskSec": 27.63,
+      "layouts": 59,
+      "recalcs": 652
+     }
+    },
+    "inventario": {
+     "navMs": 58,
+     "longTasks": 2,
+     "longMs": 535,
+     "requests": 0,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 34.9,
+      "listeners": 464,
+      "nodes": 1573,
+      "docs": 2,
+      "scriptSec": 14.03,
+      "taskSec": 28.64,
+      "layouts": 62,
+      "recalcs": 660
+     }
+    },
+    "compras": {
+     "navMs": 41,
+     "longTasks": 2,
+     "longMs": 144,
+     "requests": 0,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 33.3,
+      "listeners": 438,
+      "nodes": 1728,
+      "docs": 2,
+      "scriptSec": 14.44,
+      "taskSec": 29.24,
+      "layouts": 66,
+      "recalcs": 683
+     }
+    },
+    "chat": {
+     "navMs": 816,
+     "longTasks": 4,
+     "longMs": 595,
+     "requests": 2,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 34.9,
+      "listeners": 518,
+      "nodes": 1689,
+      "docs": 2,
+      "scriptSec": 15.26,
+      "taskSec": 30.35,
+      "layouts": 70,
+      "recalcs": 711
+     }
+    },
+    "calendario": {
+     "navMs": 1138,
+     "longTasks": 2,
+     "longMs": 228,
+     "requests": 1,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 4,
+     "apiCalls": 1,
+     "apiKB": 4,
+     "heap": {
+      "heapMB": 33.8,
+      "listeners": 506,
+      "nodes": 1808,
+      "docs": 2,
+      "scriptSec": 15.73,
+      "taskSec": 31.07,
+      "layouts": 74,
+      "recalcs": 727
+     }
+    },
+    "studio": {
+     "navMs": 39,
+     "longTasks": 4,
+     "longMs": 1446,
+     "requests": 0,
+     "jsFiles": 0,
+     "jsKB": 0,
+     "cssKB": 0,
+     "fontKB": 0,
+     "totalKB": 0,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 36.8,
+      "listeners": 559,
+      "nodes": 3641,
+      "docs": 2,
+      "scriptSec": 16.76,
+      "taskSec": 33.11,
+      "layouts": 80,
+      "recalcs": 734
+     }
+    },
+    "website": {
+     "navMs": 7467,
+     "longTasks": 0,
+     "longMs": 0,
+     "requests": 44,
+     "jsFiles": 33,
+     "jsKB": 421,
+     "cssKB": 32,
+     "fontKB": 0,
+     "totalKB": 453,
+     "apiCalls": 0,
+     "apiKB": 0,
+     "heap": {
+      "heapMB": 3.5,
+      "listeners": 20,
+      "nodes": 229,
+      "docs": 1,
+      "scriptSec": 0.09,
+      "taskSec": 0.48,
+      "layouts": 2,
+      "recalcs": 9
+     }
+    },
+    "builder": {
+     "navMs": 15674,
+     "longTasks": 15,
+     "longMs": 2826,
+     "requests": 39,
+     "jsFiles": 2,
+     "jsKB": 9,
+     "cssKB": 0,
+     "fontKB": 25,
+     "totalKB": 67,
+     "apiCalls": 25,
+     "apiKB": 33,
+     "heap": {
+      "heapMB": 20.5,
+      "listeners": 399,
+      "nodes": 914,
+      "docs": 2,
+      "scriptSec": 3.27,
+      "taskSec": 5.35,
+      "layouts": 225,
+      "recalcs": 265
+     }
+    }
+   }
+  }
+ ],
+ "baseline": {
+  "heapMB": 20.4,
+  "listeners": 401,
+  "nodes": 929,
+  "docs": 2,
+  "scriptSec": 3.2,
+  "taskSec": 4.96,
+  "layouts": 16,
+  "recalcs": 75
+ },
+ "final": {
+  "heapMB": 20.5,
+  "listeners": 399,
+  "nodes": 914,
+  "docs": 2,
+  "scriptSec": 3.27,
+  "taskSec": 5.4,
+  "layouts": 225,
+  "recalcs": 265
+ }
+}
