@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { createHash } from 'node:crypto'
 import { fileURLToPath, pathToFileURL } from 'node:url'
+import { assertModuleCodeTrusted, ModuleQuarantinedError } from '../lib/module-trust.js'
 import {
   resolveModuleRoots,
   resolveProjectRootInfo,
@@ -193,6 +194,7 @@ function toPageAsView(pageDeclaration) {
 }
 
 async function importLocalModule(filePath) {
+  await assertModuleCodeTrusted(filePath)
   const url = new URL(pathToFileURL(filePath).href)
   url.searchParams.set('t', Date.now())
   return import(url.href)
@@ -289,6 +291,9 @@ export async function loadModuleManifest({ manifestPath, source }) {
       error: null,
     }
   } catch (error) {
+    if (error instanceof ModuleQuarantinedError) {
+      return { key: null, manifest: null, status: 'ERROR', error: toRecordError('MODULE_QUARANTINED', error.message) }
+    }
     const importMessage = toErrorMessage(error)
     const packageResolutionHint = importMessage.includes("@runly/module-engine")
       ? ' Module package resolution must be fixed through workspace/dependency linking; discovery does not rewrite source imports.'

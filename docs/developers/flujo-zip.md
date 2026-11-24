@@ -110,6 +110,13 @@ export async function up({ sql, query, companyIds, moduleKey }) {
 - El archivo debe ser **autocontenido**: sin `import`.
 - No edites una migración ya aplicada: la actualización se bloquea. Crea otra con un número mayor.
 
+## Quién puede instalar código
+
+Un ZIP es código que se ejecuta en el servidor para todas las empresas de la instancia, así que **subir o revisar un ZIP** (y instalar desde un catálogo que no sea el oficial de Runly) lo puede hacer **solo el propietario de la plataforma**. Un administrador de empresa recibe un error 403 aunque tenga el permiso de subir módulos.
+
+- El **Constructor** sigue publicando para administradores: el código lo genera Runly a partir de la definición. Tus pantallas React solo entran desde un ZIP que subió el propietario; en el editor visual se pueden conservar o quitar, no agregar ni modificar.
+- Runly registra los bytes exactos que se instalaron. Si un módulo se instaló antes de este control, o sus archivos cambiaron en el servidor, queda **en cuarentena**: su código no se ejecuta, sus datos no se tocan. Se recupera volviendo a publicarlo desde el Constructor, reinstalándolo desde el catálogo oficial o con la aprobación del propietario después de revisar el código.
+
 ## Qué revisa Runly antes de aplicar
 
 - **Bloquea** si el paquete no es válido (falta el manifiesto, la clave no coincide, un archivo no se puede leer), si la estructura instalada fue modificada fuera de Runly, si se quitaría una entidad completa o si editaste una migración de datos ya aplicada.

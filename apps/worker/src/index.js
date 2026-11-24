@@ -25,6 +25,7 @@ import { purgeExpiredEvidence } from '../../api/src/routes/attendance/attendance
 import { createLmsSessionService } from '../../api/src/routes/lms/lms-session-service.js'
 import { createLmsNotifier } from '../../api/src/routes/lms/lms-notify.js'
 import { resolveModulesDir } from '../../api/src/services/module-upload-service.js'
+import { configureModuleTrust } from '../../api/src/lib/module-trust.js'
 import { resolveGoogleCalendarConfig } from '../../api/src/routes/calendar/google/google-config.js'
 import { createGoogleTokenCrypto } from '../../api/src/routes/calendar/google/google-token-crypto.js'
 import { createGoogleCalendarConnectionService } from '../../api/src/routes/calendar/google/google-connection-service.js'
@@ -100,6 +101,8 @@ const pgPool = new pg.Pool({
 })
 const prismaAdapter = new PrismaPg(pgPool)
 const prisma = withAccentInsensitiveSearch(new PrismaClient({ adapter: prismaAdapter }))
+// Same quarantine as the API: the worker also imports module automations and event handlers (F1B.1).
+configureModuleTrust({ prisma, modulesDir: await resolveModulesDir() })
 const workerSupabaseAdmin = createSupabaseAdminClient(process.env)
 const companyDeletionService = createCompanyDeletionService({ prisma, supabaseAdmin: workerSupabaseAdmin,
   resources: createCompanyDeletionResources({ supabaseAdmin: workerSupabaseAdmin }),

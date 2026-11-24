@@ -1,3 +1,4 @@
+import { assertModuleCodeTrusted } from '../lib/module-trust.js'
 import { isOfficialCoreModuleKey, isOfficialModuleKey } from './module-manifests-service.js'
 import { getPermissionPresentation } from '../permission-catalog.js'
 import { getModuleHandler } from './module-cleanup-registry.js'
@@ -1470,6 +1471,7 @@ export function createModuleLifecycleService({ prisma }) {
       return { ran: false, reason: 'no seed.js found' }
     }
 
+    await assertModuleCodeTrusted(seedPath)
     const url = new URL(pathToFileURL(seedPath).href)
     url.searchParams.set('t', Date.now())
     const mod = await import(url.href)
@@ -1512,6 +1514,7 @@ export function createModuleLifecycleService({ prisma }) {
       return { ran: false, reason: 'no teardown.js found' }
     }
 
+    await assertModuleCodeTrusted(teardownPath)
     const url = new URL(pathToFileURL(teardownPath).href)
     url.searchParams.set('t', Date.now())
     const mod = await import(url.href)

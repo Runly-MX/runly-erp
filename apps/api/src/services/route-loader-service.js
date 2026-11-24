@@ -603,6 +603,12 @@ export function createRouteLoaderService({ prisma, authMiddleware, requirePermis
       return result
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
+      if (err?.code === 'MODULE_QUARANTINED') {
+        // Not a load error to persist: the code is held back until trusted (module-trust.js).
+        console.warn(`[route-loader] ${key}: quarantined (${err.reason})`)
+        setModuleRouteStatus(key, 'QUARANTINED', { reason: err.reason })
+        return { loaded: false, reason: 'quarantined', error: message }
+      }
       console.error(`[route-loader] ${key}: ${message}`)
       if (err instanceof RouteCollisionError) {
         const collision = {

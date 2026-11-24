@@ -57,6 +57,9 @@ import {
 import { createModulePackagePurgeService } from "../services/module-package-purge-service.js";
 import { createModulePackageStagingService } from "../services/module-package-staging-service.js";
 import { moduleCodeAuthorityDenied, ownerCodeAuthority } from "../lib/module-code-authority.js";
+import { isQuarantinedCustomModule } from "../lib/module-trust.js";
+import { registerModuleTrustRoutes } from "./module-trust-routes.js";
+import { invalidateModuleCaches } from "../services/module-cache-service.js";
 import { createModulePackageService, PREVIEW_TTL_MS, previewBundlePath } from "../services/module-package-service.js";
 import { createModuleSchemaMigrationService } from "../services/module-schema-migration-service.js";
 import { createModuleDashboardQueryService } from "../services/module-dashboard-query-service.js";
@@ -2484,6 +2487,8 @@ export function createModulesRouter({
     if (!/^[\w.-]+$/.test(key)) {
       return c.json({ error: "Clave de modulo invalida." }, 400);
     }
+    // A quarantined module's browser code is not served either (module-trust.js).
+    if (await isQuarantinedCustomModule(key)) return c.json({ error: "MODULE_QUARANTINED" }, 423);
 
     const moduleRow = await prisma.runlyModule.findUnique({
       where: { key },
@@ -2539,6 +2544,7 @@ export function createModulesRouter({
     c.header("Content-Type", "text/css; charset=utf-8");
     c.header("Cache-Control", "no-cache");
     if (!/^[\w.-]+$/.test(key)) return c.body("");
+    if (await isQuarantinedCustomModule(key)) return c.body("");
     const moduleRow = await prisma.runlyModule.findUnique({
       where: { key },
       select: { status: true, enabled: true, hasBundle: true },
@@ -2768,6 +2774,8 @@ export function createModulesRouter({
     const cssPath = path.join(path.dirname(previewBundlePath(modulesDir, key, previewId)), "bundle.css");
     return c.body(await fs.readFile(cssPath, "utf8").catch(() => ""));
   });
+
+  registerModuleTrustRoutes(app, { prisma, authMiddleware, requirePermission, routeLoader, cacheInvalidator: invalidateModuleCaches });
 
   // POST /modules/:key/upload — extract a custom module ZIP to ATLAS_MODULES_DIR
   app.post(

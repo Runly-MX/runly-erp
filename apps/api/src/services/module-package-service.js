@@ -29,6 +29,7 @@ import { buildUpdateReport, describeStructure, invalidPackageReport } from './mo
 import { invalidateModuleCaches } from './module-cache-service.js'
 import { acquireModuleLock as acquireModuleLockWithRecovery, ModulePackageLockBusyError } from './module-package-lock-service.js'
 import { isModuleCodeAuthority } from '../lib/module-code-authority.js'
+import { trustModulePackage } from '../lib/module-trust.js'
 
 export class ModulePackagePublishError extends Error {
   constructor(message, details = {}) {
@@ -266,6 +267,9 @@ export function createModulePackageService({
           })
         }
 
+        // Identical bytes, now re-published through a code authority (lifts a quarantine).
+        await trustModulePackage({ key, moduleDir: currentDir, authority, actorId })
+
         stage = 'RECONCILE_METADATA'
         const reconcileResult = await reconcilePublishedPackage({ key, staged, moduleRow, activeBefore, publicationPlan, actorId })
 
@@ -325,6 +329,8 @@ export function createModulePackageService({
       if (currentExists) await renameWithRetry(currentDir, backupDir)
       await renameWithRetry(staged.packageDir, currentDir)
       packageSwapped = true
+      // The swapped-in bytes passed a code authority: they may run (module-trust.js).
+      await trustModulePackage({ key, moduleDir: currentDir, authority, actorId })
 
       stage = 'PUBLISH_BUNDLE'
       await bundlerSvc.publishStagedBundle(key, stagedBundle)

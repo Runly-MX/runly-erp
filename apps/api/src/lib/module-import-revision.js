@@ -2,6 +2,7 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { register } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { assertModuleCodeTrusted } from './module-trust.js'
 
 let hooksRegistered = false
 
@@ -41,6 +42,8 @@ export async function moduleRevision(moduleDir) {
 // Imports a module entry file so replaced code is actually re-evaluated
 // (see module-import-hooks.js).
 export async function importModuleFile(filePath, moduleDir) {
+  // Quarantined or unknown code never runs (module-trust.js).
+  await assertModuleCodeTrusted(filePath)
   ensureHooks()
   const url = new URL(pathToFileURL(filePath).href)
   url.searchParams.set('runly-rev', await moduleRevision(moduleDir))

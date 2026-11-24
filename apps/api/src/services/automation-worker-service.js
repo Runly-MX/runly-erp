@@ -16,6 +16,7 @@ import { createAutomationHttpService } from "./automation-http-service.js";
 import { createNotificationService } from "./notification-service.js";
 import { nextOccurrence } from "./automation-schedule-math.js";
 import { createSystemAutomationsService, SYSTEM_MODULE_KEY } from "./system-automations-service.js";
+import { assertModuleCodeTrusted } from "../lib/module-trust.js";
 
 const DEFAULT_TIME_ZONE = "America/Mexico_City";
 const JOB_BATCH = 20;
@@ -37,6 +38,7 @@ export function createAutomationWorker({ prisma, resolveModulesDir, moduleServic
     const stat = await fs.stat(file).catch(() => null);
     if (!stat) return null;
     const cacheKey = `${file}:${stat.mtimeMs}`;
+    await assertModuleCodeTrusted(file);
     if (!runtimeCache.has(cacheKey)) runtimeCache.set(cacheKey, await import(`${pathToFileURL(file).href}?v=${stat.mtimeMs}`));
     return runtimeCache.get(cacheKey);
   }

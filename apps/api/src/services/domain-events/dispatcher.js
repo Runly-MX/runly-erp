@@ -20,6 +20,7 @@ import { createAutomationApprovalsService } from '../automation-approvals-servic
 import { createSystemAutomationsService } from '../system-automations-service.js'
 import { createAutomationHttpService } from '../automation-http-service.js'
 import { createNotificationService } from '../notification-service.js'
+import { assertModuleCodeTrusted } from '../../lib/module-trust.js'
 
 export const MAX_ATTEMPTS = 8
 const BATCH = 50
@@ -46,6 +47,7 @@ export function createDomainEventDispatcher({ prisma, resolveModulesDir, importH
     const stat = await fs.stat(file).catch(() => null)
     if (!stat) return null
     const cacheKey = `${file}:${stat.mtimeMs}`
+    await assertModuleCodeTrusted(file)
     if (!handlerCache.has(cacheKey)) {
       const mod = await import(`${pathToFileURL(file).href}?v=${stat.mtimeMs}`)
       handlerCache.set(cacheKey, mod.handlers ?? mod.default ?? null)

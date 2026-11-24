@@ -150,6 +150,8 @@ import { createModuleBundlerService } from "./services/module-bundler-service.js
 import { createModuleLifecycleService } from "./services/module-lifecycle-service.js";
 import { coreModules } from "./manifests/official/core-modules.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
+import { configureModuleTrust } from "./lib/module-trust.js";
+import { resolveModulesDir as resolveCustomModulesDir } from "./services/module-upload-service.js";
 import { createModuleServices } from "./services/module-services/module-services.js";
 import { createModuleFilesCapability } from "./services/module-files-service.js";
 import { createModuleAiCapability } from "./services/ai/module-ai-capability.js";
@@ -225,6 +227,8 @@ pgPool.on("error", (err) => {
 const prismaAdapter = new PrismaPg(pgPool);
 // Every `contains` + mode insensitive also ignores accents ("telefono" finds "Teléfono").
 const prisma = withAccentInsensitiveSearch(new PrismaClient({ adapter: prismaAdapter }));
+// Before any custom module is discovered or loaded: untrusted code stays quarantined (F1B.1).
+configureModuleTrust({ prisma, modulesDir: await resolveCustomModulesDir() });
 
 const getAllActivePermissionKeys = createPermissionKeysCache({
   prisma,
