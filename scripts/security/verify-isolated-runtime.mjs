@@ -8,6 +8,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, writeFileSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 import { spawn } from 'node:child_process'
+import { lookup } from 'node:dns/promises'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
 import { createHostSigner } from '../../apps/api/src/secure-runtime/protocol.js'
@@ -62,7 +63,7 @@ try {
 
   let probe
   await check('probe: non-root, no host secrets, token not in environment', async () => {
-    const r = await runtime.run({ extDir: PROBES, handler: 'backend/probe.mjs', token: token(A, userA, ['records.read']), input: { otherCompany: B, selfId: userA }, timeoutMs: 25_000 })
+    const r = await runtime.run({ extDir: PROBES, handler: 'backend/probe.mjs', token: token(A, userA, ['records.read']), input: { otherCompany: B, selfId: userA, publicIp: (await lookup('one.one.one.one', { family: 4 })).address }, timeoutMs: 25_000 })
     assert.equal(r.ok, true, JSON.stringify(r)); probe = r.result; metrics.probe = probe
     assert.equal(probe.uid, 65534)
     assert.deepEqual(probe.secretsInEnv, [])
@@ -77,6 +78,7 @@ try {
   })
   await check('probe: no internet, no database, no host; only the gateway proxy', async () => {
     for (const k of ['internet', 'dnsInternet', 'postgresByName', 'hostGateway']) assert.equal(probe[k].ok, false, k)
+    assert.notEqual(probe.internet.code, 'ERR_INVALID_ARG_TYPE', 'the egress probe needs a real public address')
     assert.equal(probe.gatewayDirect.ok, true); assert.equal(probe.gatewayDirect.value, 401, 'the gateway itself still demands a token')
   })
   await check('probe: cannot pick another company nor use an ungranted capability', async () => {

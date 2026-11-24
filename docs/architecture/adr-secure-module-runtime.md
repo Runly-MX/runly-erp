@@ -1,6 +1,6 @@
 # ADR: Secure Module Runtime for RME3
 
-- Status: **Proposed** (F1B.3, for review). No runtime infrastructure is built until this is accepted.
+- Status: **Direction accepted** (F1B Stage 2, 2026-11-23); reference implementation validated on disposable infrastructure. Not the general runtime yet: no module is migrated and nothing is deployed. Evidence: "Stage 2 evidence" below and `docs/audits/RUNLY_PLATFORM_F1B_STAGE2_RESULTS.md`.
 - Date: 2026-11-23
 - Context documents: `docs/architecture/2026-11-23-rme3-threat-model.md`, `docs/architecture/2026-11-23-rme3-capability-gateway-contract.md`, `docs/audits/RUNLY_PLATFORM_F1B_SECURITY_RESULTS.md`.
 
@@ -109,6 +109,33 @@ isolated browser surface for custom components regardless of A or C.
 
 Each step is shipped and verified in staging before the next; no step deletes
 module data.
+
+## Stage 2 evidence (reference implementation, `apps/api/src/secure-runtime/`)
+
+| Claim | Evidence | Result |
+|---|---|---|
+| Declarative modules need no user JavaScript and no container | `declarative/` schema + allowlisted expression interpreter; reference fixture runs entirely through the gateway | `gateway.test.js` 8/8; vertical 7/7 |
+| The module cannot choose tenant, identity, permissions or trust | Host-signed Ed25519 call tokens, single-use nonces, strict argument schemas | Forged payload, foreign signer, injected `companyId`, replay, other package hash: all rejected (`gateway.test.js`) |
+| Code modules run without Prisma, DB credentials or host secrets | Per-job container, uid 65534, all caps dropped, read-only root, tmpfs noexec, `--internal` network with a gateway-only proxy, token on stdin | `verify-isolated-runtime.mjs` 12/12 (no secrets in env or `/proc/self/environ`, no Docker socket, no host FS, no internet/DB/host; memory, CPU, PID and time limits enforced) |
+| Custom components cannot reach the shell's session | `sandbox="allow-scripts"` opaque origin, hash CSP, MessageChannel bridge | `verify-isolated-frontend.mjs` 7/7 in Chromium |
+| Works end to end across companies on real PostgreSQL | Gateway pg store, contacts relation, runly.files visibility, notifications, events, audit, runner, frame | `verify-secure-runtime-vertical.mjs` 7/7 |
+
+Measured on a Windows 11 workstation with Docker Desktop (indicative only):
+- **Gateway in-process:** p50 0.09 ms, p95 0.15 ms.
+- **Gateway over local HTTP:** p50 0.66 ms, p95 1.2 ms.
+- **Isolated job, cold:** about 1.0 s.
+- **Isolated job, repeated (no warm pool):** median about 0.9 s.
+- **Idle executor:** 9.6 MiB of its 128 MiB limit.
+- **Busy loop:** capped at about 51% CPU (`--cpus 0.5`).
+- **Concurrency:** 8 jobs on 4 slots finish in 3.8 s, and overflow beyond the queue is refused.
+- **Isolated component ready:** about 250 ms.
+
+### Findings that adjust the design
+
+1. **Per-job container cost.** At about 0.9–1 s per job, this suits background and automation work, not request-path calls. Before code modules serve interactive requests, step M4 must add a bounded warm pool. It would keep one container per module (never shared across modules), restart it after each job or after N jobs, and never share it across companies. That pool needs its own isolation review.
+2. **Orchestration.** The orchestrator needs the Docker CLI, which is root-equivalent on the host. It must live in a dedicated, minimal supervisor service with a fixed command surface that only the API can reach, never in the general API process in production. Module code never reaches it: there is no socket, and the network is internal.
+3. **Windows Docker Desktop.** It reaches the host gateway only through `host.docker.internal`, so the PoC bound the gateway to all interfaces. In production the gateway joins the runner network directly (internal bind), with no host exposure.
+4. **Declarative screens stay native.** `toBlueprints()` maps views to the blueprint shapes `@runly/ui` already renders. Only custom components pay for an iframe.
 
 ## Rejected
 

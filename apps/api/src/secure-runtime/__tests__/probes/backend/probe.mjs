@@ -28,7 +28,7 @@ export default async function probe({ capabilities, input }) {
     dockerSocket: await attempt(() => fs.stat('/var/run/docker.sock')),
     hostRepo: await attempt(() => fs.readdir('/app')),
     mounts: (await attempt(() => fs.readFile('/proc/self/mounts', 'utf8'))).value?.split('\n').filter((l) => / \/(ext|runner|tmp) /.test(l)).map((l) => l.split(' ').slice(1, 4).join(' ')),
-    internet: await attempt(() => tcp('1.1.1.1', 443)),
+    internet: await attempt(() => tcp(input.publicIp, 443)), // resolved by the host at run time (no IP literal in the repo)
     dnsInternet: await attempt(() => tcp('example.com', 80)),
     postgresByName: await attempt(() => tcp(input.dbHost ?? 'supabase-db', 5432)),
     hostGateway: await attempt(() => tcp('host.docker.internal', input.hostPort ?? 5432)),
