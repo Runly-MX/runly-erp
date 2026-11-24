@@ -1,7 +1,7 @@
 {
   "schema": 1,
   "contract": "studio-realtime-1",
-  "version": "2026.11.22.2",
+  "version": "2026.11.24.1",
   "files": {
     ".env.local.example": {
       "sha256": "f14fce75ddc7c65eaf60eb3742c6e71e84089a135415aed5ddda8004089ace2a",
@@ -162,13 +162,14 @@
       ]
     },
     "docker-compose.yml": {
-      "sha256": "f8ce98921ca26944080947f91947ade701fa8e0772eb2cd37eae5f72740c414a",
+      "sha256": "cdf8870e748684b63283de1a6d48110b454fa88ca1e64636bd656e67e7d78241",
       "modes": [
         "local",
         "external"
       ],
       "legacyGitBlobs": [
         "037a6f94961c8d0973e38ee4e2d543b1ca7e5db8",
+        "0ab1980154290a43ce948d1e0beb6bf9646de5be",
         "0e76e72353d67068db2728294b346ebb42a9c82a",
         "183d6f0996800e17a320d2b57574be81bdab8055",
         "2aa18ce7f319cd17238b4a8525373c67ef33099a",
