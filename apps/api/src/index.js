@@ -151,6 +151,9 @@ import { createModuleLifecycleService } from "./services/module-lifecycle-servic
 import { coreModules } from "./manifests/official/core-modules.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
 import { configureModuleTrust } from "./lib/module-trust.js";
+import { createSecureRuntimeIntegration } from "./secure-runtime/integration.js";
+import { createSupervisorClient } from "./secure-runtime/supervisor-client.js";
+import { startGatewayServer } from "./secure-runtime/gateway/server.js";
 import { resolveModulesDir as resolveCustomModulesDir } from "./services/module-upload-service.js";
 import { createModuleServices } from "./services/module-services/module-services.js";
 import { createModuleFilesCapability } from "./services/module-files-service.js";
@@ -2598,7 +2601,21 @@ function mountWithAuth(baseApp, router) {
   baseApp.route("/", secured);
 }
 
+// Experimental Secure Runtime (F1B Stage 3): nothing is mounted unless
+// RUNLY_SECURE_RUNTIME=experimental. The frame route is public (iframes load
+// without credentials) so it is registered before the first mountWithAuth;
+// the API itself has no Docker access, only a signed supervisor client.
+const secureRuntime = createSecureRuntimeIntegration({ prisma, pool: pgPool, filesService,
+  supervisor: createSupervisorClient({ url: process.env.RUNLY_SUPERVISOR_URL, secret: process.env.RUNLY_SUPERVISOR_SECRET }) });
+if (secureRuntime.enabled) {
+  app.route("/", secureRuntime.createPublicRouter());
+  if (process.env.RUNLY_GATEWAY_BIND) {
+    const [gatewayHost, gatewayPort] = process.env.RUNLY_GATEWAY_BIND.split(":");
+    await startGatewayServer({ gateway: secureRuntime.gateway, host: gatewayHost, port: Number(gatewayPort) });
+  }
+}
 mountWithAuth(app, createCompanyRouter({ prisma, supabaseAdmin, requirePermission, cacheDel }));
+if (secureRuntime.enabled) mountWithAuth(app, secureRuntime.createRouter({ requireActiveCompany }));
 mountWithAuth(app, createAutomationApprovalsRouter({ prisma, requirePermission }));
 mountWithAuth(app, createHomeWidgetsRouter({ prisma, requireActiveCompany }));
 mountWithAuth(app, createDetailViewsRouter({ prisma, requireActiveCompany }));

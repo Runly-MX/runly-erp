@@ -63,15 +63,16 @@ export function createIsolatedRuntime({ image = RUNNER_IMAGE, gatewayPort, gatew
   function release() { const next = queue.shift(); if (next) next(); else running-- }
 
   // extDir: the module's trusted package directory (module-trust.js decides).
-  async function run({ extDir, handler, token, input = {}, timeoutMs = 5000 }) {
+  async function run({ extDir, handler, token, input = {}, timeoutMs = 5000, moduleKey = null }) {
     if (!/^backend\/[a-z0-9_-]+\.mjs$/.test(handler)) throw Object.assign(new Error('Handler inválido.'), { code: 'HANDLER_INVALID' })
+    if (moduleKey !== null && !/^custom\.[a-z][a-z0-9_]{1,40}$/.test(moduleKey)) throw Object.assign(new Error('Módulo inválido.'), { code: 'HANDLER_INVALID' })
     await acquire()
     const name = `runly-rt-job-${randomBytes(6).toString('hex')}`
     const startedAt = performance.now()
     let timedOut = false
     const killer = setTimeout(() => { timedOut = true; docker(['kill', name]) }, timeoutMs)
     try {
-      const result = await docker(['run', '-i', '--rm', '--name', name, '--network', network, ...hardening,
+      const result = await docker(['run', '-i', '--rm', '--name', name, '--label', `runly.runtime=${id}`, ...(moduleKey ? ['--label', `runly.module=${moduleKey}`] : []), '--network', network, ...hardening,
         '--memory', `${lim.memoryMb}m`, '--memory-swap', `${lim.memoryMb}m`, '--cpus', String(lim.cpus),
         '--tmpfs', '/tmp:rw,noexec,nosuid,size=16m', '--workdir', '/tmp',
         ...mount(path.resolve(extDir), '/ext'), ...mount(CONTAINER_DIR, '/runner'),
@@ -87,5 +88,14 @@ export function createIsolatedRuntime({ image = RUNNER_IMAGE, gatewayPort, gatew
     } finally { clearTimeout(killer); release() }
   }
 
-  return { start, stop, run, network, proxy, stats: () => ({ running, queued: queue.length }) }
+  // Revocation: kill every running job of a module now (labels set by run()).
+  async function killModule(moduleKey) {
+    if (!/^custom\.[a-z][a-z0-9_]{1,40}$/.test(moduleKey)) return 0
+    const listed = await docker(['ps', '-q', '--filter', `label=runly.runtime=${id}`, '--filter', `label=runly.module=${moduleKey}`])
+    const ids = listed.stdout.split(/\s+/).filter(Boolean)
+    if (ids.length) await docker(['kill', ...ids])
+    return ids.length
+  }
+
+  return { start, stop, run, killModule, network, proxy, stats: () => ({ running, queued: queue.length }) }
 }
