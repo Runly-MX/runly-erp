@@ -1,0 +1,102 @@
+[
+  {
+    "template": "visitas",
+    "classification": "DECLARATIVE_WITH_REVIEW",
+    "install": "ok",
+    "preserved": 14,
+    "transformed": 0,
+    "review": [
+      "views.tm_0.visita.kanban: Vista KANBAN personalizada: no se convierte todavía.",
+      "views.tm_0.dashboard: Vista DASHBOARD personalizada: no se convierte todavía."
+    ],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  },
+  {
+    "template": "prestamo-herramientas",
+    "classification": "DECLARATIVE_WITH_REVIEW",
+    "install": "ok",
+    "preserved": 14,
+    "transformed": 0,
+    "review": [
+      "views.tm_1.prestamo.kanban: Vista KANBAN personalizada: no se convierte todavía.",
+      "views.tm_1.dashboard: Vista DASHBOARD personalizada: no se convierte todavía.",
+      "connections.prestamo_herramienta: connections no tiene equivalente declarativo todavía."
+    ],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  },
+  {
+    "template": "mantenimiento",
+    "classification": "DECLARATIVE_WITH_REVIEW",
+    "install": "ok",
+    "preserved": 14,
+    "transformed": 1,
+    "review": [
+      "views.tm_2.orden.kanban: Vista KANBAN personalizada: no se convierte todavía.",
+      "views.tm_2.dashboard: Vista DASHBOARD personalizada: no se convierte todavía."
+    ],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  },
+  {
+    "template": "solicitudes",
+    "classification": "DECLARATIVE_WITH_REVIEW",
+    "install": "ok",
+    "preserved": 12,
+    "transformed": 1,
+    "review": [
+      "views.tm_3.solicitud.kanban: Vista KANBAN personalizada: no se convierte todavía.",
+      "views.tm_3.dashboard: Vista DASHBOARD personalizada: no se convierte todavía."
+    ],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  },
+  {
+    "template": "inventory-lite",
+    "classification": "DECLARATIVE_WITH_REVIEW",
+    "install": "ok",
+    "preserved": 13,
+    "transformed": 1,
+    "review": [
+      "views.tm_4.item.kanban: Vista KANBAN personalizada: no se convierte todavía.",
+      "views.tm_4.dashboard: Vista DASHBOARD personalizada: no se convierte todavía."
+    ],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  },
+  {
+    "template": "simple-crud",
+    "classification": "FULLY_DECLARATIVE",
+    "install": "ok",
+    "preserved": 11,
+    "transformed": 0,
+    "review": [],
+    "unsupported": [],
+    "execution": "ok",
+    "legacyParity": "ok",
+    "isolation": "ok",
+    "rollback": "ok",
+    "failures": []
+  }
+]
