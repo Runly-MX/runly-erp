@@ -241,17 +241,8 @@ export default defineConfig({
           ) {
             return "state-vendor";
           }
-          // Rich-text editing stack: only the editors need it, never the login or ordinary screens.
-          if (
-            id.includes("/node_modules/@tiptap/") ||
-            id.includes("/node_modules/prosemirror-") ||
-            id.includes("/node_modules/yjs/") ||
-            id.includes("/node_modules/y-prosemirror/") ||
-            id.includes("/node_modules/y-protocols/") ||
-            id.includes("/node_modules/lib0/")
-          ) {
-            return "editor-vendor";
-          }
+          // The rich-text editing stack (tiptap, prosemirror, yjs) is deliberately not grouped: a manual
+          // chunk for it also captured a second copy of React and was imported by every screen.
           if (
             id.includes("/node_modules/@radix-ui/") ||
             id.includes("/node_modules/lucide-react/") ||
