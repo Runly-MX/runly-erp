@@ -37,7 +37,7 @@ const normalize = (c, error) => {
   return c.json({ error: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) }, e.status)
 }
 
-export function createSecureRuntimeIntegration({ prisma, pool, filesService, supervisor = null, env = process.env }) {
+export function createSecureRuntimeIntegration({ prisma, pool, filesService, relationTargets = null, activityService = null, supervisor = null, env = process.env }) {
   if (!isSecureRuntimeEnabled(env)) return { enabled: false }
   const modulesDir = env.RUNLY_SECURE_RUNTIME_MODULES_DIR ? path.resolve(env.RUNLY_SECURE_RUNTIME_MODULES_DIR) : null
   const frameAncestors = String(env.RUNLY_SECURE_RUNTIME_FRAME_ANCESTORS ?? '').split(/\s+/).filter(Boolean)
@@ -49,7 +49,7 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, sup
     if (!tableStores.has(def)) tableStores.set(def, createRme3TableStore({ pool, def }))
     return tableStores.get(def)
   }
-  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), storeFor, services: createGatewayHostServices({ filesService }) })
+  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), storeFor, services: createGatewayHostServices({ filesService, prisma, relationTargets, activityService }) })
   const registry = new Map() // key -> { def, dir, hash }
   const inflight = new Map() // companyId -> count
 

@@ -29,9 +29,22 @@ export function createRme3TableStore({ pool, def, statementTimeoutMs = 2000 }) {
       const { rows } = await pool.query(`SELECT ${select(m)} FROM ${m.table} WHERE "company_id" = $1 AND "enabled" = true ${state && stateCol ? `AND ${stateCol} = $3` : ''} ORDER BY "created_at" DESC LIMIT $2`, state && stateCol ? [ctx.companyId, limit, state] : [ctx.companyId, limit])
       return rows.map((r) => toRow(m, r))
     },
-    async getRecord(ctx, entityKey, id) {
+    async getRecord(ctx, entityKey, id, { deleted = false } = {}) {
       const m = meta(entityKey)
-      return toRow(m, (await pool.query(`SELECT ${select(m)} FROM ${m.table} WHERE "id" = $1 AND "company_id" = $2 AND "enabled" = true`, [id, ctx.companyId])).rows[0])
+      return toRow(m, (await pool.query(`SELECT ${select(m)} FROM ${m.table} WHERE "id" = $1 AND "company_id" = $2 AND "enabled" = $3`, [id, ctx.companyId, !deleted])).rows[0])
+    },
+    // Soft delete is the Builder's own: enabled = false. The row is never removed.
+    async softDelete(ctx, entityKey, id, version) {
+      const m = meta(entityKey)
+      return tx(async (c) => {
+        const { rows } = await c.query(`UPDATE ${m.table} SET "enabled" = false, "updated_at" = now() WHERE "id" = $1 AND "company_id" = $2 AND "enabled" = true AND to_char("updated_at" AT TIME ZONE 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.US"Z"') = $3 RETURNING ${select(m)}`, [id, ctx.companyId, version])
+        if (!rows[0]) { const e = new Error('VERSION_CONFLICT'); e.code = 'VERSION_CONFLICT'; throw e }
+        return toRow(m, rows[0])
+      })
+    },
+    async restore(ctx, entityKey, id) {
+      const m = meta(entityKey)
+      return tx(async (c) => toRow(m, (await c.query(`UPDATE ${m.table} SET "enabled" = true, "updated_at" = now() WHERE "id" = $1 AND "company_id" = $2 AND "enabled" = false RETURNING ${select(m)}`, [id, ctx.companyId])).rows[0]))
     },
     async createRecord(ctx, entityKey, data) {
       const m = meta(entityKey), cols = writable(m, data)

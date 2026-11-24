@@ -11,7 +11,8 @@ export const CLASSIFICATIONS = ['FULLY_DECLARATIVE', 'DECLARATIVE_WITH_REVIEW', 
 
 const SAME = { text: 'text', textarea: 'longtext', number: 'number', boolean: 'boolean', date: 'date', datetime: 'datetime', email: 'email', phone: 'phone' }
 // Builder external relation keys (module-compiler external-relations.js) the declarative runtime can resolve.
-const EXTERNAL = { contact: 'runly.contacts:contact' }
+// Any catalog type the declarative runtime allows (schema.js DECLARATIVE_EXTERNAL_TYPES) maps to external:<type>.
+const externalTarget = (type) => (Object.hasOwn(RELATION_TARGETS, `external:${type}`) ? `external:${type}` : null)
 const TRANSFORMED = {
   markdown: ['longtext', 'Markdown se muestra como texto largo: el formato no se renderiza.'],
   richtext: ['longtext', 'El texto enriquecido se muestra como texto largo: el formato no se renderiza.'],
@@ -34,7 +35,7 @@ export function convertModuleDefinition(raw) {
     if (!p.entity || !p.action) { add(`permissions.${p.key}`, 'review', 'Permiso sin entidad o acción: no se convierte.'); continue }
     if (!permsByEntity.has(p.entity)) permsByEntity.set(p.entity, {})
     permsByEntity.get(p.entity)[p.action] = p.key
-    add(`permissions.${p.key}`, p.action === 'delete' ? 'review' : 'preserved', p.action === 'delete' ? 'La baja lógica no existe aún en declarative/v1; el permiso se conserva pero no hay operación que lo use.' : `${p.entity}.${p.action}`)
+    add(`permissions.${p.key}`, 'preserved', p.action === 'delete' ? `${p.entity}.delete: baja lógica (enabled = false) y restauración con este mismo permiso` : `${p.entity}.${p.action}`)
   }
   for (const entity of def.entities) {
     const base = `entities.${entity.key}`
@@ -50,7 +51,7 @@ export function convertModuleDefinition(raw) {
       else if (f.type === 'relation') {
         out.type = 'relation'
         if (f.targetEntity) out.target = `entity:${f.targetEntity}`
-        else if (f.targetExternal && Object.hasOwn(RELATION_TARGETS, EXTERNAL[f.targetExternal] ?? f.targetExternal)) out.target = EXTERNAL[f.targetExternal] ?? f.targetExternal
+        else if (f.targetExternal && externalTarget(f.targetExternal)) out.target = externalTarget(f.targetExternal)
         else { add(path, 'review', `Relación a ${f.targetExternal ?? f.targetModel ?? 'destino desconocido'} no está en la lista permitida; el dato se conserva en la tabla y no se edita desde el runtime declarativo.${f.required ? ' Es obligatoria: no se podrán crear registros desde el runtime declarativo.' : ''}`); continue }
       } else { add(path, 'review', `${NOT_REPRESENTABLE[f.type] ?? `Tipo ${f.type} no soportado.`}${f.required ? ' Es obligatorio: no se podrán crear registros desde el runtime declarativo.' : ''}`); continue }
       if (out.type === 'enum') {

@@ -9,7 +9,9 @@
 // for that operation, valid arguments, quota and time budget. Company and user
 // come only from the token; a companyId/userId in the arguments is rejected.
 import { z } from 'zod'
+import { randomUUID } from 'node:crypto'
 import { GatewayError, PROTOCOL_VERSION } from '../protocol.js'
+import { externalTypeOf } from '../declarative/schema.js'
 import { applyTransition, entityOf, permissionKey, prepareRecord, RecordError } from '../declarative/runtime.js'
 
 const uuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
@@ -23,6 +25,10 @@ const OPERATIONS = {
   'records.create': { cap: 'records.write', perm: 'create', write: true, args: z.strictObject({ entity: ident, data }) },
   'records.update': { cap: 'records.write', perm: 'update', write: true, args: z.strictObject({ entity: ident, id: uuid, data, expectedVersion: z.union([z.number().int().positive(), z.string().max(64)]).optional() }) },
   'records.transition': { cap: 'records.write', perm: null, write: true, args: z.strictObject({ entity: ident, id: uuid, action: ident }) },
+  // Soft delete only (the row stays, enabled = false / deleted_at). Restoring needs the same permission.
+  'records.delete': { cap: 'records.write', perm: 'delete', write: true, args: z.strictObject({ entity: ident, id: uuid, expectedVersion: z.union([z.number().int().positive(), z.string().max(64)]).optional() }) },
+  'records.restore': { cap: 'records.write', perm: 'delete', write: true, args: z.strictObject({ entity: ident, id: uuid }) },
+  'relations.search': { cap: 'relations.resolve', perm: 'read', args: z.strictObject({ entity: ident, field: ident, q: z.string().trim().max(100).optional(), limit: z.number().int().min(1).max(50).optional() }) },
   'relations.resolve': { cap: 'relations.resolve', perm: 'read', args: z.strictObject({ entity: ident, field: ident, ids: z.array(uuid).min(1).max(50) }) },
   'files.describe': { cap: 'files.describe', perm: 'read', args: z.strictObject({ ids: z.array(uuid).min(1).max(20) }) },
   'files.attach': { cap: 'files.attach', perm: 'update', write: true, args: z.strictObject({ entity: ident, id: uuid, fileId: uuid }) },
@@ -36,6 +42,13 @@ export const allPermissionKeys = (def) => [...new Set([...Object.values(def.perm
 const DEFAULT_LIMITS = { callsPerMinute: 120, notificationsPerMinute: 20, timeoutMs: 3000 }
 
 const toRecord = (row) => ({ id: row.id, data: row.data, attachments: (row.attachments ?? []).map((a) => ({ fileId: a.fileId })), version: row.version, createdAt: row.createdAt, updatedAt: row.updatedAt })
+
+// Security audit record. Every field is set by the host from the verified token
+// or from arguments already validated as identifiers/UUIDs; module-supplied text
+// and values (record data, titles, tokens) are never copied in.
+function auditDetails(claims, operation, args, extra) {
+  return { operation, entity: args?.entity ?? null, recordId: args?.id ?? null, job: claims.job ?? null, moduleRevision: claims.pkg, at: new Date().toISOString(), ...extra }
+}
 
 // storeFor(def): record storage for a module (existing RME3 tables for converted
 // Builder modules, gateway/stores.js otherwise). Everything else uses `store`.
@@ -87,6 +100,18 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
     } finally { clearTimeout(timer) }
   }
 
+  // Business history (what users see in the activity feed). Text is composed
+  // here from the trusted package definition; nothing the module sends is used.
+  const ACTIVITY = { 'records.create': 'creó', 'records.update': 'actualizó', 'records.transition': 'cambió de estado', 'records.delete': 'eliminó', 'records.restore': 'restauró' }
+  async function recordActivity(claims, entry, operation, args, result) {
+    if (!services.activity?.publish || !ACTIVITY[operation]) return
+    const entity = entry.def.entities.find((e) => e.key === args.entity)
+    const recordId = args.id ?? result?.id ?? result?.record?.id
+    try {
+      await services.activity.publish({ companyId: claims.cid, actorId: claims.uid, type: `module.${entry.def.key}.${args.entity}.${operation.split('.')[1]}`.slice(0, 100), summary: `${entry.def.name}: ${ACTIVITY[operation]} ${entity?.label ?? args.entity}`.slice(0, 500), entityType: `${entry.def.key}:${args.entity}`.slice(0, 100), entityId: recordId })
+    } catch { await store.audit(claims, 'runtime.activity_failed', { operation, reason: 'ACTIVITY_PUBLISH_FAILED' }).catch(() => {}) }
+  }
+
   async function perform(operation, args, claims, entry, permissions) {
     const def = entry.def
     const ctx = { companyId: claims.cid, profileId: claims.uid, moduleKey: claims.mod }
@@ -125,9 +150,31 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
         }
         return { record: toRecord(updated), effects: effects.map((e) => (e.notify ? { notify: true } : { emit: e.emit })) }
       }
+      case 'records.delete': {
+        const entity = entityOf(def, args.entity)
+        const row = await loadRecord(entity.key, args.id)
+        if (args.expectedVersion !== undefined && String(args.expectedVersion) !== String(row.version)) throw new GatewayError('VERSION_CONFLICT', 'El registro cambió; recarga antes de eliminar.', 409)
+        const deleted = await records.softDelete(ctx, entity.key, args.id, row.version)
+        return { id: deleted.id, deleted: true }
+      }
+      case 'records.restore': {
+        const entity = entityOf(def, args.entity)
+        const restored = await records.restore(ctx, entity.key, args.id)
+        if (!restored) throw new GatewayError('NOT_FOUND', 'Registro eliminado no encontrado.', 404)
+        return toRecord(restored)
+      }
+      case 'relations.search': {
+        const field = entityOf(def, args.entity).fields.find((f) => f.key === args.field)
+        const type = field?.type === 'relation' ? externalTypeOf(field.target) : null
+        if (!type) throw new GatewayError('INVALID_ARGS', 'El campo no es una relación externa declarada.', 422)
+        if (!services.relations?.search) throw new GatewayError('CAPABILITY_UNAVAILABLE', 'Relaciones no disponibles.', 503)
+        return services.relations.search({ ...ctx, type, q: args.q ?? '', limit: args.limit ?? 20 })
+      }
       case 'relations.resolve': {
         const field = entityOf(def, args.entity).fields.find((f) => f.key === args.field)
         if (field?.type !== 'relation') throw new GatewayError('INVALID_ARGS', 'El campo no es una relación declarada.', 422)
+        const externalType = externalTypeOf(field.target)
+        if (externalType && services.relations?.resolve) return services.relations.resolve({ ...ctx, type: externalType, ids: args.ids })
         if (field.target.startsWith('entity:')) {
           const target = entityOf(def, field.target.slice('entity:'.length))
           need('read', target.key)
@@ -172,6 +219,8 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
   // The single entry point for module calls.
   async function call({ operation, token, nonce, idempotencyKey = null, args }) {
     let claims = null
+    const correlationId = randomUUID()
+    let parsedArgs = null
     try {
       claims = signer.verify(token)
       signer.consumeNonce(nonce)
@@ -183,6 +232,7 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
       if (!claims.caps.includes(spec.cap) || !entry.approved.has(spec.cap)) throw new GatewayError('CAPABILITY_DENIED', `Capacidad no concedida: ${spec.cap}`, 403)
       const parsed = spec.args.safeParse(args)
       if (!parsed.success) throw new GatewayError('INVALID_ARGS', 'Argumentos inválidos.', 422, parsed.error.issues.slice(0, 5).map((i) => ({ path: i.path.join('.'), message: i.message })))
+      parsedArgs = parsed.data
       const permissions = new Set(claims.perms)
       // Before quota and idempotency: a revoked permission never gets a cached answer.
       if (spec.perm) {
@@ -200,15 +250,17 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
       const response = { v: PROTOCOL_VERSION, data: result }
       if (spec.write) {
         await store.putIdempotent(claims, `${claims.uid}:${idempotencyKey}`, response)
-        await store.audit(claims, `runtime.${operation}`, { ok: true, job: claims.job ?? null })
+        await store.audit(claims, `runtime.${operation}`, auditDetails(claims, operation, parsedArgs, { result: 'ok', correlationId }))
+        await recordActivity(claims, entry, operation, parsedArgs, result)
       }
-      return response
+      return { ...response, correlationId }
     } catch (raw) {
       const error = raw instanceof GatewayError ? raw
         : raw instanceof RecordError ? new GatewayError(raw.code === 'FORBIDDEN' ? 'PERMISSION_DENIED' : raw.code, raw.message, raw.status)
         : raw?.code === 'VERSION_CONFLICT' ? new GatewayError('VERSION_CONFLICT', 'El registro cambió; recarga antes de guardar.', 409)
         : new GatewayError('CAPABILITY_FAILED', 'La operación falló.', 500)
-      if (claims?.mod && claims?.cid) await store.audit(claims, `runtime.denied.${operation}`, { code: error.code }).catch(() => {})
+      if (claims?.mod && claims?.cid) await store.audit(claims, `runtime.denied.${operation}`, auditDetails(claims, operation, parsedArgs, { result: 'denied', reason: error.code, correlationId })).catch(() => {})
+      error.correlationId = correlationId
       throw error
     }
   }

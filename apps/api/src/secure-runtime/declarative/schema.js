@@ -2,6 +2,7 @@
 // strict schemas: unknown keys are rejected, nothing in it is ever executed as
 // code. Expressions are JSON trees checked by expressions.js.
 import { z } from 'zod'
+import { EXTERNAL_RELATION_TARGETS } from '@runly/module-compiler'
 import { checkExpression } from './expressions.js'
 
 export const DECLARATIVE_SCHEMA = 'runly.declarative/v1'
@@ -9,7 +10,15 @@ const ident = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)
 const text = (max = 120) => z.string().trim().min(1).max(max)
 const expr = z.record(z.string(), z.unknown())
 export const CAPABILITIES = ['records.read', 'records.write', 'relations.resolve', 'files.describe', 'files.attach', 'notifications.publish', 'events.emit']
-export const RELATION_TARGETS = { 'runly.contacts:contact': { label: 'Contacto' } }
+// Relations to Runly entities go through the platform's relation-targets catalog
+// (owning module's own permission and visibility), never through its tables.
+// Adding a type here is a reviewed step: it must exist in EXTERNAL_RELATION_TARGETS.
+export const DECLARATIVE_EXTERNAL_TYPES = ['contact', 'hr_employee', 'inventory_item']
+export const RELATION_TARGETS = {
+  'runly.contacts:contact': { label: 'Contacto', legacy: 'contact' }, // v1 spelling, same provider as external:contact
+  ...Object.fromEntries(DECLARATIVE_EXTERNAL_TYPES.map((type) => [`external:${type}`, { label: EXTERNAL_RELATION_TARGETS[type].label, type }])),
+}
+export const externalTypeOf = (target) => RELATION_TARGETS[target]?.type ?? RELATION_TARGETS[target]?.legacy ?? null
 
 const field = z.strictObject({
   key: ident,

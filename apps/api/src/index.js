@@ -160,6 +160,7 @@ import { createModuleFilesCapability } from "./services/module-files-service.js"
 import { createModuleAiCapability } from "./services/ai/module-ai-capability.js";
 import { createMiraiService } from "./routes/chat/mirai-service.js";
 import { createRelationTargetsService } from "./services/relation-targets-service.js";
+import { createActivityService } from "./services/activity-service.js";
 import { createRelationTargetsRouter } from "./routes/relation-targets-routes.js";
 import { createConnectionsRouter } from "./routes/connections-routes.js";
 import { createTrashRouter } from "./routes/trash-routes.js";
@@ -2605,7 +2606,7 @@ function mountWithAuth(baseApp, router) {
 // RUNLY_SECURE_RUNTIME=experimental. The frame route is public (iframes load
 // without credentials) so it is registered before the first mountWithAuth;
 // the API itself has no Docker access, only a signed supervisor client.
-const secureRuntime = createSecureRuntimeIntegration({ prisma, pool: pgPool, filesService,
+const secureRuntime = createSecureRuntimeIntegration({ prisma, pool: pgPool, filesService, relationTargets, activityService: createActivityService({ prisma }),
   supervisor: createSupervisorClient({ url: process.env.RUNLY_SUPERVISOR_URL, secret: process.env.RUNLY_SUPERVISOR_SECRET }) });
 if (secureRuntime.enabled) {
   app.route("/", secureRuntime.createPublicRouter());

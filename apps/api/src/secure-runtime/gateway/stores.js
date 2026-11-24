@@ -10,9 +10,20 @@ export function createMemoryStore({ contacts = [], members = [] } = {}) {
   return {
     records, events, notifications, audits,
     async listRecords(ctx, entity, { state, stateField, limit }) {
-      return [...records.values()].filter((r) => r.ns === ns(ctx) && r.entity === entity && (!state || r.data[stateField] === state)).slice(0, limit)
+      return [...records.values()].filter((r) => r.ns === ns(ctx) && r.entity === entity && !r.deleted && (!state || r.data[stateField] === state)).slice(0, limit)
     },
-    async getRecord(ctx, entity, id) { const r = records.get(id); return r && r.ns === ns(ctx) && r.entity === entity ? r : null },
+    async getRecord(ctx, entity, id, { deleted = false } = {}) { const r = records.get(id); return r && r.ns === ns(ctx) && r.entity === entity && Boolean(r.deleted) === deleted ? r : null },
+    // Soft delete only: the row stays and can be restored.
+    async softDelete(ctx, entity, id, version) {
+      const row = await this.getRecord(ctx, entity, id)
+      if (!row || row.version !== version) { const e = new Error('VERSION_CONFLICT'); e.code = 'VERSION_CONFLICT'; throw e }
+      Object.assign(row, { deleted: true, version: version + 1, updatedAt: stamp() }); return row
+    },
+    async restore(ctx, entity, id) {
+      const row = await this.getRecord(ctx, entity, id, { deleted: true })
+      if (!row) return null
+      Object.assign(row, { deleted: false, version: row.version + 1, updatedAt: stamp() }); return row
+    },
     async createRecord(ctx, entity, data) {
       const row = { id: randomUUID(), ns: ns(ctx), entity, data, attachments: [], version: 1, createdBy: ctx.profileId, createdAt: stamp(), updatedAt: stamp() }
       records.set(row.id, row); return row
@@ -59,6 +70,7 @@ export function createPgStore({ pool, statementTimeoutMs = 2000 }) {
         id uuid PRIMARY KEY DEFAULT uuidv7(), company_id uuid NOT NULL, module_key text NOT NULL, entity text NOT NULL,
         data jsonb NOT NULL, attachments jsonb NOT NULL DEFAULT '[]', version integer NOT NULL DEFAULT 1, created_by uuid,
         created_at timestamptz NOT NULL DEFAULT now(), updated_at timestamptz NOT NULL DEFAULT now());
+      ALTER TABLE ${S}.record ADD COLUMN IF NOT EXISTS deleted_at timestamptz;
       CREATE INDEX IF NOT EXISTS record_scope_idx ON ${S}.record (company_id, module_key, entity, created_at DESC);
       CREATE TABLE IF NOT EXISTS ${S}.event (id uuid PRIMARY KEY DEFAULT uuidv7(), company_id uuid NOT NULL, module_key text NOT NULL, event text NOT NULL, payload jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now());
       CREATE TABLE IF NOT EXISTS ${S}.idempotency (module_key text NOT NULL, company_id uuid NOT NULL, key text NOT NULL, response jsonb NOT NULL, created_at timestamptz NOT NULL DEFAULT now(), PRIMARY KEY (module_key, company_id, key));
@@ -70,12 +82,22 @@ export function createPgStore({ pool, statementTimeoutMs = 2000 }) {
     ensure,
     async listRecords(ctx, entity, { state, stateField, limit }) {
       await ensure()
-      const { rows } = await pool.query(`SELECT * FROM ${S}.record WHERE company_id=$1 AND module_key=$2 AND entity=$3 AND ($4::text IS NULL OR data->>$5 = $4) ORDER BY created_at DESC LIMIT $6`, [ctx.companyId, ctx.moduleKey, entity, state ?? null, stateField ?? '', limit])
+      const { rows } = await pool.query(`SELECT * FROM ${S}.record WHERE company_id=$1 AND module_key=$2 AND entity=$3 AND deleted_at IS NULL AND ($4::text IS NULL OR data->>$5 = $4) ORDER BY created_at DESC LIMIT $6`, [ctx.companyId, ctx.moduleKey, entity, state ?? null, stateField ?? '', limit])
       return rows.map(map)
     },
-    async getRecord(ctx, entity, id) {
+    async getRecord(ctx, entity, id, { deleted = false } = {}) {
       await ensure()
-      return map((await pool.query(`SELECT * FROM ${S}.record WHERE id=$1 AND company_id=$2 AND module_key=$3 AND entity=$4`, [id, ctx.companyId, ctx.moduleKey, entity])).rows[0])
+      return map((await pool.query(`SELECT * FROM ${S}.record WHERE id=$1 AND company_id=$2 AND module_key=$3 AND entity=$4 AND (deleted_at IS NOT NULL) = $5`, [id, ctx.companyId, ctx.moduleKey, entity, deleted])).rows[0])
+    },
+    async softDelete(ctx, entity, id, version) {
+      await ensure()
+      const { rows } = await pool.query(`UPDATE ${S}.record SET deleted_at=now(), version=version+1, updated_at=now() WHERE id=$1 AND company_id=$2 AND module_key=$3 AND entity=$4 AND version=$5 AND deleted_at IS NULL RETURNING *`, [id, ctx.companyId, ctx.moduleKey, entity, version])
+      if (!rows[0]) { const e = new Error('VERSION_CONFLICT'); e.code = 'VERSION_CONFLICT'; throw e }
+      return map(rows[0])
+    },
+    async restore(ctx, entity, id) {
+      await ensure()
+      return map((await pool.query(`UPDATE ${S}.record SET deleted_at=NULL, version=version+1, updated_at=now() WHERE id=$1 AND company_id=$2 AND module_key=$3 AND entity=$4 AND deleted_at IS NOT NULL RETURNING *`, [id, ctx.companyId, ctx.moduleKey, entity])).rows[0])
     },
     async createRecord(ctx, entity, data) {
       await ensure()
