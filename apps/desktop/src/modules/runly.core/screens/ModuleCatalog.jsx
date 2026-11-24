@@ -79,7 +79,9 @@ export default function ModuleCatalog() {
   const canInstallModules = hasPermission("core.modules.create");
   const canDisableModules = hasPermission("core.modules.update");
   const canUninstallModules = hasPermission("core.modules.delete");
-  const canUploadModules = hasPermission("core.modules.upload");
+  // Module ZIPs are server code for every company: only the platform owner may upload them (the API enforces it).
+  const isPlatformOwner = Boolean(userProfile?.isPlatformOwner);
+  const canUploadModules = isPlatformOwner && hasPermission("core.modules.upload");
   const canPurgeModules = hasPermission("core.modules.purge");
   const canUseModuleBuilder = hasPermission("core.modules.builder");
 
@@ -859,6 +861,7 @@ export default function ModuleCatalog() {
         canDisableModules={canDisableModules}
         canUninstallModules={canUninstallModules}
         canPurgeModules={canPurgeModules}
+        isPlatformOwner={isPlatformOwner}
         lifecycleMutation={lifecycleMutation}
         queryClient={queryClient}
         navigate={navigate}

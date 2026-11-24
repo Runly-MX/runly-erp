@@ -637,6 +637,15 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
           headers: withAuthHeaders(token),
           body: JSON.stringify({ confirmation }),
         }),
+      // Module code trust / quarantine (F1B). decision: "approve" | "quarantine" (platform owner only).
+      getModuleTrust: (key, token) =>
+        request(`/modules/${encodeURIComponent(key)}/trust`, { headers: withAuthHeaders(token) }),
+      decideModuleTrust: (key, decision, token, reason = null) =>
+        request(`/modules/${encodeURIComponent(key)}/trust`, {
+          method: "POST",
+          headers: withAuthHeaders(token),
+          body: JSON.stringify({ decision, ...(reason ? { reason } : {}) }),
+        }),
       purgeModuleDryRun: (key, token) =>
         request(`/modules/${encodeURIComponent(key)}/purge/dry-run`, {
           method: "POST",

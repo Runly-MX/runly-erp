@@ -57,8 +57,10 @@ export default function ModuleBuilderEditor() {
   const id = wildcard?.match(/^module-builder\/([^/]+)$/)?.[1] ?? null;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const { session } = useAuth();
+  const { session, userProfile } = useAuth();
   const token = session?.access_token;
+  // Uploading a code package is reserved to the platform owner (the API enforces it).
+  const isPlatformOwner = Boolean(userProfile?.isPlatformOwner);
 
   const [definition, setDefinition] = useState(null);
   const [activeTab, setActiveTab] = useState("general");
@@ -472,10 +474,11 @@ export default function ModuleBuilderEditor() {
         downloading={exportMutation.isPending}
         converting={detachMutation.isPending}
         onConvert={() => flushPendingSave().then(() => detachMutation.mutate(undefined, { onSuccess: () => setDeveloperOpen(false) }))}
-        onUpload={() => {
+        onUpload={isPlatformOwner ? () => {
           setDeveloperOpen(false);
           flushPendingSave().then(() => setUpdateOpen(true));
-        }}
+        } : null}
+        uploadReserved={!isPlatformOwner}
         onReattach={(confirm) => reattachMutation.mutate(confirm)}
         reattaching={reattachMutation.isPending}
         reattachBlocked={reattachBlocked}

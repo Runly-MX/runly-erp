@@ -100,7 +100,7 @@ function ReattachAction({ reattaching, reattachBlocked, onReattach, downloadingI
 }
 
 export function DeveloperModeDialog({
-  open, onOpenChange, advanced, onDownload, downloading, onConvert, converting, onUpload,
+  open, onOpenChange, advanced, onDownload, downloading, onConvert, converting, onUpload, uploadReserved = false,
   onReattach, reattaching, reattachBlocked, onDownloadInstalled, downloadingInstalled,
 }) {
   // Remount the convert confirmation each time the dialog opens.
@@ -181,10 +181,15 @@ export function DeveloperModeDialog({
                       </p>
                     )}
                     {index === 2 && advanced && onUpload && (
-                      <Button size="sm" variant="outline" className="mt-2" onClick={onUpload}>
+                      <Button type="button" size="sm" variant="outline" className="mt-2" onClick={onUpload}>
                         <Upload className="h-4 w-4" />
                         Subir actualización
                       </Button>
+                    )}
+                    {index === 2 && uploadReserved && (
+                      <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">
+                        Un paquete con código se ejecuta en el servidor para todas las empresas, por eso solo el propietario de la plataforma puede subirlo. Envíale tu ZIP para que lo revise e instale.
+                      </p>
                     )}
                   </div>
                 </li>

@@ -51,6 +51,7 @@ import {
   statusLabel,
 } from "../lib/moduleCatalogHelpers";
 import { ModuleBackupsSection } from "./ModuleBackupsSection";
+import { ModuleTrustSection } from "./ModuleTrustSection";
 
 // ---- Sheet action panel ----
 function SheetActions({
@@ -60,6 +61,7 @@ function SheetActions({
   canDisableModules,
   canUninstallModules,
   canPurgeModules,
+  isPlatformOwner = false,
   lifecycleMutation,
   queryClient,
   navigate,
@@ -545,6 +547,10 @@ export function ModuleDetailSheet({
                       ))}
                     </div>
                   </div>
+                )}
+
+                {module.key?.startsWith("custom.") && module.status === "INSTALLED" && (
+                  <ModuleTrustSection moduleKey={module.key} token={token} isPlatformOwner={isPlatformOwner} />
                 )}
 
                 {module.key?.startsWith("custom.") && module.status === "INSTALLED" && (
