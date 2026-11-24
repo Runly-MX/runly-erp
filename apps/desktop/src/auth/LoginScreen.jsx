@@ -14,7 +14,7 @@ import { native } from '../native/index.js'
 import { getApiUrl } from '../lib/runtimeConfig.js'
 import { LoginAurora } from './LoginAurora.jsx'
 
-const LOGO = '/runly/runly-logo-dark.png'
+const LOGO = '/runly/runly-logo-dark-sm.png'
 const LOGIN_GRADIENT = { backgroundImage: 'linear-gradient(90deg,#f97316,#ec4899)' }
 
 // Marketing tiles describing what Runly covers, not this instance's installed
@@ -212,7 +212,7 @@ export function LoginScreen({ returnTo = '/app' }) {
           <div className="w-full max-w-md lg:max-w-none motion-safe:animate-in motion-safe:fade-in motion-safe:zoom-in-95 duration-700 rounded-[28px] p-px bg-gradient-to-br from-white/25 via-white/5 to-pink-500/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]">
             <div className="rounded-[27px] bg-[#0b1430]/70 backdrop-blur-2xl px-6 py-8 sm:px-10 sm:py-10">
               <div className="flex flex-col items-center text-center gap-2 mb-8">
-                <img src="/runly/runly-isotipo-dark.png" alt="" className="h-12 w-12 mb-2 object-contain" draggable={false} />
+                <img src="/runly/runly-isotipo-dark-sm.png" alt="" className="h-12 w-12 mb-2 object-contain" draggable={false} />
                 <h2 className="text-[1.75rem] font-bold tracking-tight text-white">Bienvenido de nuevo</h2>
                 <p className="text-sm text-white/65">Ingresa a tu espacio de trabajo</p>
               </div>

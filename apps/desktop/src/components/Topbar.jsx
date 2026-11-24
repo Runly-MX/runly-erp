@@ -89,13 +89,13 @@ export function Topbar({
             className="h-8 w-8 rounded-xl flex items-center justify-center shrink-0 cursor-pointer transition-opacity duration-150 hover:opacity-80 overflow-hidden"
           >
             <img
-              src="/runly/runly-isotipo-light.png"
+              src="/runly/runly-isotipo-light-sm.png"
               alt="Runly ERP"
               className="w-full h-full object-contain dark:hidden"
               draggable={false}
             />
             <img
-              src="/runly/runly-isotipo-dark.png"
+              src="/runly/runly-isotipo-dark-sm.png"
               alt="Runly ERP"
               className="hidden w-full h-full object-contain dark:block"
               draggable={false}

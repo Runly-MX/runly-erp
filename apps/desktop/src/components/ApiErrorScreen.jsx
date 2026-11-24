@@ -275,13 +275,13 @@ export function ApiErrorScreen({ error, onRetry, fullScreen = true, context, com
       {fullScreen && (
         <div className="fixed left-5 top-5 z-10 sm:left-7 sm:top-7">
           <img
-            src="/runly/runly-logo-light.png"
+            src="/runly/runly-logo-light-sm.png"
             alt="Runly ERP"
             draggable={false}
             className="h-6 w-auto object-contain dark:hidden sm:h-7"
           />
           <img
-            src="/runly/runly-logo-dark.png"
+            src="/runly/runly-logo-dark-sm.png"
             alt="Runly ERP"
             draggable={false}
             className="hidden h-6 w-auto object-contain dark:block sm:h-7"

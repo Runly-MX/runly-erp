@@ -112,11 +112,6 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
   useEffect(() => {
     if (requiresServerSetup) return undefined
 
-    // A local/warm API can resolve this in well under the loader's own
-    // animation cycle — without a floor, the Runly loader iframe (a heavy,
-    // hand-built HTML asset) gets unmounted before it ever paints.
-    const MIN_LOADER_MS = 900;
-    const startedAt = Date.now();
     let mounted = true;
     runly.instance
       .status()
@@ -126,10 +121,7 @@ function App({ initialServerUrl = null, requiresServerSetup = false, bootstrapEr
       })
       .catch(() => applyBrandTheme())
       .finally(() => {
-        const wait = Math.max(0, MIN_LOADER_MS - (Date.now() - startedAt));
-        setTimeout(() => {
-          if (mounted) setBrandReady(true);
-        }, wait);
+        if (mounted) setBrandReady(true);
       });
     return () => {
       mounted = false;

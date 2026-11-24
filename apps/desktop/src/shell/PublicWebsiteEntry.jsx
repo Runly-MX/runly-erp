@@ -137,7 +137,7 @@ function ComingSoonScreen({ siteName, onLoginClick, isLoggedIn, onGoToApp }) {
           borderBottom: '1px solid rgba(17,16,16,.07)',
         }}>
           <img
-            src="/runly/runly-logo-light.png"
+            src="/runly/runly-logo-light-sm.png"
             alt="Runly ERP"
             style={{ height: 28, width: 'auto', display: 'block', objectFit: 'contain' }}
           />

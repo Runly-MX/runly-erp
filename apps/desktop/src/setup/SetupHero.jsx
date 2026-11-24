@@ -39,8 +39,8 @@ const FEATURES = [
 export function SetupHero() {
   const isDark = useThemeStore((s) => s.isDark);
   const logo = isDark
-    ? "/runly/runly-logo-dark.png"
-    : "/runly/runly-logo-light.png";
+    ? "/runly/runly-logo-dark-sm.png"
+    : "/runly/runly-logo-light-sm.png";
 
   return (
     <section
