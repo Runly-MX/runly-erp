@@ -17,12 +17,14 @@ const base = await mkdtemp(resolve('.tmp-declarative-compat-'))
 const runtimeDir = join(base, 'secure-modules')
 await mkdir(runtimeDir, { recursive: true })
 Object.assign(process.env, { RUNLY_SECURE_RUNTIME: 'experimental', RUNLY_SECURE_RUNTIME_MODULES_DIR: runtimeDir, RUNLY_SECURE_RUNTIME_FRAME_ANCESTORS: 'http://127.0.0.1:5173' })
-// Like an installer deployment (/app + /app/modules/custom): the lifecycle only
-// resolves module directories inside <project root>/modules.
-const modulesDir = join(base, 'modules', 'custom')
-process.env.RUNLY_PROJECT_ROOT = base
-await writeFile(join(base, 'package.json'), '{}')
-await writeFile(join(base, 'pnpm-workspace.yaml'), '')
+// Modules live OUTSIDE the project root (RUNLY_MODULES_DIR), like a supported
+// external configuration: install must find the folder, create the tables and
+// never report success without them (F1B Stage 4 regression).
+const modulesDir = join(base, 'external-modules')
+process.env.RUNLY_PROJECT_ROOT = join(base, 'root')
+await mkdir(join(base, 'root', 'modules'), { recursive: true })
+await writeFile(join(base, 'root', 'package.json'), '{}')
+await writeFile(join(base, 'root', 'pnpm-workspace.yaml'), '')
 await mkdir(modulesDir, { recursive: true })
 const s = await bootSecurityStack({ modulesDir }).catch(async (e) => { await rm(base, { recursive: true, force: true }); throw e })
 const { check, report } = checks()
