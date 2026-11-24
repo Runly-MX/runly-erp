@@ -155,6 +155,40 @@ Findings that change the plan:
 5. **Declarative screens.** Connecting them to `RunlyTable` and the other renderers needs a data adapter: the renderers fetch their own REST paths. The blueprint mapping exists; the adapter is the next frontend step.
 6. **Lifecycle module directory.** The module lifecycle only resolves directories inside `<project root>/modules` and ignores `RUNLY_MODULES_DIR`. This is pre-existing and harmless in installer layouts, but a module directory outside the root installs without tables and without an error.
 
+## Stage 4 decision (2026-11-25): final shape of the experimental infrastructure
+
+Status: accepted for **experimental, flag-gated, fail-closed** use. Not accepted for general activation. P0-01 stays contained, not closed; RME3 and Module Builder Next stay NO GO.
+
+### Decisions in force
+
+| Decision | Detail |
+|---|---|
+| Hybrid architecture | Declarative runtime in the API (no container); custom code in throwaway containers through a separate supervisor; custom frontend in an opaque-origin frame |
+| One source of truth | Converted Builder modules keep using their RME3 tables; no parallel copies |
+| Declarative by default | Class A and B operations never start a container. A failing supervisor preflight does not affect them |
+| Rejected: reusable warm executors | Isolation would depend on cleanup that failed silently in the experiment |
+| Supervisor separate from the API | Neither the API nor modules hold the Docker socket |
+| Experimental, fail-closed activation | Flag off: nothing mounted. Unapproved or altered package: `MODULE_NOT_AVAILABLE`, never a fallback to in-process execution. Profile not enforced: custom code off |
+
+### Added in Stage 4
+
+| Area | Decision |
+|---|---|
+| Relations | One contract for Runly entities: `external:<type>` through the platform's relation-targets catalog. No per-module adapter and no table access (`2026-11-25-declarative-relations-and-data-contract.md`) |
+| Soft delete | `records.delete`/`records.restore`, soft only, own permission; in RME3 tables it is the Builder's `enabled` flag |
+| Data adapter | `records.query` plus a REST facade in the shape Runly UI already consumes; the shared renderer is not duplicated or loaded for modules that do not use it |
+| Audit and history | Security audit entries carry module revision, result, reason, date and a host-made correlation id; business history is composed by the host and attributed to the real user |
+| Profile preflight | The supervisor refuses custom code unless the kernel reports the full profile (13 checks) |
+| Job guarantee | At-most-once execution; effects reconciled through the audit trail; no exactly-once claim |
+| Install consistency | The module lifecycle resolves folders in the same authorized roots as discovery (`RUNLY_MODULES_DIR`), refuses symlinks that leave them, and never registers a non-official module without its folder |
+
+### Still open (not decided here)
+
+- Docker rootless or remapped namespaces on a Linux host: untested; the supervisor's root-equivalent privilege is delimited, not removed.
+- Interactive custom backend code (about 1 s per job).
+- Automations, Kanban and Dashboard views of the Builder do not convert; they keep running in the current runtime.
+- Native shells (Tauri, PWA) and physical devices.
+
 ## Rejected
 
 - **B alone**: Linux-only, high operational cost, still needs the gateway.

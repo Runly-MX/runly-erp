@@ -1,0 +1,340 @@
+{
+  "total": 40,
+  "byFile": [
+    [
+      "apps/api/src/lib/__tests__/client-ip.test.js",
+      17
+    ],
+    [
+      "docs/deployment/trusted-proxies.md",
+      2
+    ],
+    [
+      "infra/installer/lib/trusted-proxies.mjs",
+      1
+    ],
+    [
+      "infra/installer/lib/trusted-proxies.test.mjs",
+      20
+    ]
+  ],
+  "summary": {
+    "documentation-rfc5737": 11,
+    "public-looking-fictional-test-address": 15,
+    "private-rfc1918": 39,
+    "invalid-on-purpose": 6
+  },
+  "findings": [
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 15,
+      "classes": [
+        "documentation-rfc5737",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 20,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 20,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 21,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 22,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 22,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 22,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 26,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 26,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 27,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 27,
+      "classes": [
+        "private-rfc1918",
+        "documentation-rfc5737"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 31,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 32,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 32,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "apps/api/src/lib/__tests__/client-ip.test.js",
+      "line": 32,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address"
+      ]
+    },
+    {
+      "file": "docs/deployment/trusted-proxies.md",
+      "line": 14,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "docs/deployment/trusted-proxies.md",
+      "line": 14,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.mjs",
+      "line": 50,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 15,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 15,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 16,
+      "classes": [
+        "private-rfc1918",
+        "public-looking-fictional-test-address",
+        "invalid-on-purpose"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 23,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 25,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 26,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 38,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 48,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 53,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 69,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 72,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 80,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 88,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 90,
+      "classes": [
+        "private-rfc1918"
+      ]
+    },
+    {
+      "file": "infra/installer/lib/trusted-proxies.test.mjs",
+      "line": 109,
+      "classes": [
+        "private-rfc1918"
+      ]
+    }
+  ]
+}
