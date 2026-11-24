@@ -175,13 +175,14 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
       quota(claims, operation)
       if (spec.write) {
         if (!idempotencyKey || !/^[A-Za-z0-9_-]{8,64}$/.test(idempotencyKey)) throw new GatewayError('IDEMPOTENCY_KEY_REQUIRED', 'Las escrituras necesitan una clave de idempotencia.', 400)
-        const previous = await store.getIdempotent(claims, idempotencyKey)
+        // Scoped to module + company (store) + user: one user's key never returns another's response.
+        const previous = await store.getIdempotent(claims, `${claims.uid}:${idempotencyKey}`)
         if (previous) return previous
       }
       const result = await withTimeout(perform(operation, parsed.data, claims, entry, permissions))
       const response = { v: PROTOCOL_VERSION, data: result }
       if (spec.write) {
-        await store.putIdempotent(claims, idempotencyKey, response)
+        await store.putIdempotent(claims, `${claims.uid}:${idempotencyKey}`, response)
         await store.audit(claims, `runtime.${operation}`, { ok: true, job: claims.job ?? null })
       }
       return response
