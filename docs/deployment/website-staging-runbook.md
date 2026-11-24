@@ -11,7 +11,7 @@ Estado: APTO en laboratorio local desechable para los recorridos de `pnpm test:w
 
 `pnpm test:website:e2e` construye un laboratorio nuevo (PostgreSQL, Auth, Storage, API y Vite reales, usuarios de dos empresas), ejecuta cinco scripts en orden y elimina contenedores y volúmenes propios al terminar, también si falla. Dependencias deliberadas: `functional-browser` crea el sitio base; `sections-browser` añade un segundo sitio; `dependencies` concede permisos y escribe `dependencies-fixture.json`; `dependencies-browser` lo consume; `final` comprueba aislamiento entre empresas, salida pública sin credenciales y accesibilidad. Prerrequisitos: Docker, imágenes base ya descargadas (los scripts usan `--pull=never`), `pnpm install`. Windows (usa `taskkill`).
 
-Prueba adicional de empaquetado: `node scripts/test-website-origin-installer.mjs` valida con Nginx real `infra/nginx/spa.conf` y `infra/installer/nginx/spa.conf` (gateway por hostname, sitio público sin acceso al shell del ERP).
+Prueba adicional de empaquetado: `node scripts/test-website-origin-installer.mjs` valida con Nginx real `infra/nginx/spa.conf` (la copia `infra/installer/nginx/spa.conf` se retiró: no tenía consumidores en instalador, compose ni Dockerfile) (gateway por hostname, sitio público sin acceso al shell del ERP).
 
 ## Qué publica cada comando (verificado leyendo el código, sin ejecutarlos)
 

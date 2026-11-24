@@ -24,7 +24,7 @@ try {
   docker(['network','create','--label','runly.test=website-origin',network]);networkCreated=true
   const api=prefix+'-api';docker(['run','--pull=never','--detach','--rm','--name',api,'--label','runly.test=website-origin','--network',network,'--network-alias','api','--mount',`type=bind,source=${temp},target=/fixture,readonly`,'node:22.22.3-alpine','node','/fixture/server.mjs']);owned.push(api)
   browser=await chromium.launch({headless:true})
-  for(const [index,file]of ['infra/nginx/spa.conf','infra/installer/nginx/spa.conf'].entries()) {
+  for(const [index,file]of ['infra/nginx/spa.conf'].entries()) {
     const config=join(temp,`nginx-${index}.conf`);writeFileSync(config,readFileSync(file))
     const web=prefix+'-web-'+index
     docker(['run','--pull=never','--detach','--rm','--name',web,'--label','runly.test=website-origin','--network',network,'-p','127.0.0.1::80','--mount',`type=bind,source=${config},target=/etc/nginx/conf.d/default.conf,readonly`,'--mount',`type=bind,source=${join(temp,'www')},target=/usr/share/nginx/html,readonly`,'nginx:alpine']);owned.push(web)
