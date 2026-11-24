@@ -2,6 +2,8 @@
 // from the host-signed call token (ctx), never from module arguments.
 import { randomUUID } from 'node:crypto'
 
+// LIKE patterns use '!' as their escape character (ESCAPE '!').
+export const escapeLike = (text) => String(text).replace(/[!%_]/g, '!$&')
 const ns = (ctx) => `${ctx.companyId}:${ctx.moduleKey}`
 
 export function createMemoryStore({ contacts = [], members = [] } = {}) {
@@ -11,6 +13,13 @@ export function createMemoryStore({ contacts = [], members = [] } = {}) {
     records, events, notifications, audits,
     async listRecords(ctx, entity, { state, stateField, limit }) {
       return [...records.values()].filter((r) => r.ns === ns(ctx) && r.entity === entity && !r.deleted && (!state || r.data[stateField] === state)).slice(0, limit)
+    },
+    async queryRecords(ctx, entity, { limit, offset, search, sort, filters }) {
+      let rows = [...records.values()].filter((r) => r.ns === ns(ctx) && r.entity === entity && !r.deleted)
+      for (const [key, value] of filters) rows = rows.filter((r) => String(r.data[key] ?? '') === String(value))
+      if (search) rows = rows.filter((r) => search.keys.some((k) => String(r.data[k] ?? '').toLowerCase().includes(search.text.toLowerCase())))
+      if (sort) rows.sort((a, b) => (a.data[sort.key] > b.data[sort.key] ? 1 : a.data[sort.key] < b.data[sort.key] ? -1 : 0) * (sort.dir === 'desc' ? -1 : 1))
+      return { rows: rows.slice(offset, offset + limit), total: rows.length }
     },
     async getRecord(ctx, entity, id, { deleted = false } = {}) { const r = records.get(id); return r && r.ns === ns(ctx) && r.entity === entity && Boolean(r.deleted) === deleted ? r : null },
     // Soft delete only: the row stays and can be restored.
@@ -84,6 +93,17 @@ export function createPgStore({ pool, statementTimeoutMs = 2000 }) {
       await ensure()
       const { rows } = await pool.query(`SELECT * FROM ${S}.record WHERE company_id=$1 AND module_key=$2 AND entity=$3 AND deleted_at IS NULL AND ($4::text IS NULL OR data->>$5 = $4) ORDER BY created_at DESC LIMIT $6`, [ctx.companyId, ctx.moduleKey, entity, state ?? null, stateField ?? '', limit])
       return rows.map(map)
+    },
+    async queryRecords(ctx, entity, { limit, offset, search, sort, filters }) {
+      await ensure()
+      const args = [ctx.companyId, ctx.moduleKey, entity]
+      const p = (v) => { args.push(v); return `$${args.length}` }
+      const where = ['company_id=$1', 'module_key=$2', 'entity=$3', 'deleted_at IS NULL']
+      for (const [key, value] of filters) where.push(`data->>${p(key)} = ${p(String(value))}`)
+      if (search?.keys.length) { const like = p(`%${escapeLike(search.text)}%`); where.push(`(${search.keys.map((k) => `data->>${p(k)} ILIKE ${like} ESCAPE '!'`).join(' OR ')})`) }
+      const order = sort ? `data->${p(sort.key)} ${sort.dir === 'desc' ? 'DESC' : 'ASC'} NULLS LAST, created_at DESC` : 'created_at DESC'
+      const { rows } = await pool.query(`SELECT *, count(*) OVER()::int AS __total FROM ${S}.record WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`, args)
+      return { rows: rows.map(map), total: rows[0]?.__total ?? 0 }
     },
     async getRecord(ctx, entity, id, { deleted = false } = {}) {
       await ensure()

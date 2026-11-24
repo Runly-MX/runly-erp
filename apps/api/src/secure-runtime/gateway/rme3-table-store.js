@@ -3,6 +3,7 @@
 // (file_asset by entity id), history and audit stay where they are. Columns
 // come only from the declarative definition (validated identifiers) and every
 // query is scoped to the token's company and to enabled rows.
+import { escapeLike } from './stores.js'
 const IDENT = /^[a-z][a-z0-9_]{0,62}$/
 const q = (name) => { if (!IDENT.test(name)) throw new Error(`UNSAFE_IDENTIFIER:${name}`); return `"${name}"` }
 
@@ -28,6 +29,18 @@ export function createRme3TableStore({ pool, def, statementTimeoutMs = 2000 }) {
       const stateCol = stateField ? m.fields.find((f) => f.key === stateField)?.col : null
       const { rows } = await pool.query(`SELECT ${select(m)} FROM ${m.table} WHERE "company_id" = $1 AND "enabled" = true ${state && stateCol ? `AND ${stateCol} = $3` : ''} ORDER BY "created_at" DESC LIMIT $2`, state && stateCol ? [ctx.companyId, limit, state] : [ctx.companyId, limit])
       return rows.map((r) => toRow(m, r))
+    },
+    async queryRecords(ctx, entityKey, { limit, offset, search, sort, filters }) {
+      const m = meta(entityKey)
+      const col = (key) => m.fields.find((f) => f.key === key).col
+      const args = [ctx.companyId]
+      const p = (v) => { args.push(v); return `$${args.length}` }
+      const where = ['"company_id" = $1', '"enabled" = true']
+      for (const [key, value] of filters) where.push(`${col(key)}::text = ${p(String(value))}`)
+      if (search?.keys.length) { const like = p(`%${escapeLike(search.text)}%`); where.push(`(${search.keys.map((k) => `${col(k)}::text ILIKE ${like} ESCAPE '!'`).join(' OR ')})`) }
+      const order = sort ? `${col(sort.key)} ${sort.dir === 'desc' ? 'DESC' : 'ASC'} NULLS LAST, "created_at" DESC` : '"created_at" DESC'
+      const { rows } = await pool.query(`SELECT ${select(m)}, count(*) OVER()::int AS "__total" FROM ${m.table} WHERE ${where.join(' AND ')} ORDER BY ${order} LIMIT ${Math.trunc(limit)} OFFSET ${Math.trunc(offset)}`, args)
+      return { rows: rows.map((r) => toRow(m, r)), total: rows[0]?.__total ?? 0 }
     },
     async getRecord(ctx, entityKey, id, { deleted = false } = {}) {
       const m = meta(entityKey)

@@ -13,6 +13,7 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
 import { createHostSigner, GatewayError } from './protocol.js'
+import { createRestFacade } from './rest-facade.js'
 import { allPermissionKeys, createCapabilityGateway, GATEWAY_OPERATIONS } from './gateway/gateway.js'
 import { createPgStore } from './gateway/stores.js'
 import { createRme3TableStore } from './gateway/rme3-table-store.js'
@@ -34,7 +35,7 @@ export function isSecureRuntimeEnabled(env = process.env) {
 
 const normalize = (c, error) => {
   const e = error instanceof GatewayError ? error : new GatewayError('CAPABILITY_FAILED', 'La operación falló.', 500)
-  return c.json({ error: e.code, message: e.message, ...(e.details ? { details: e.details } : {}) }, e.status)
+  return c.json({ error: e.code, message: e.message, ...(e.details ? { details: e.details } : {}), ...(e.correlationId ? { correlationId: e.correlationId } : {}) }, e.status)
 }
 
 export function createSecureRuntimeIntegration({ prisma, pool, filesService, relationTargets = null, activityService = null, supervisor = null, env = process.env }) {
@@ -117,20 +118,25 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, rel
         return c.json({ data: { key: entry.def.key, name: entry.def.name, version: entry.def.version, grants: [...(gateway.moduleOf(entry.def.key)?.approved ?? [])], views: entry.def.entities.map((e) => toBlueprints(entry.def, e)) } })
       } catch (error) { return normalize(c, error) }
     })
+    // One call path for the JSON endpoint and the REST facade: the host derives
+    // company, user and permissions from the session; the module chooses none.
+    const invoke = (c, entry, operation, args) => {
+      const ctx = hostContext(c, entry)
+      return withCompanySlot(ctx.companyId, async () => {
+        const token = gateway.issueCallToken({ moduleKey: entry.def.key, ...ctx, capabilities: [...gateway.moduleOf(entry.def.key).approved], ttlMs: 30_000 })
+        const idempotencyKey = c.req.header('Idempotency-Key') ?? randomUUID().replaceAll('-', '')
+        return gateway.call({ operation, token, nonce: randomUUID().replaceAll('-', ''), idempotencyKey, args })
+      })
+    }
     app.post('/secure-runtime/v1/modules/:key/call', guard, async (c) => {
       try {
         const entry = await moduleFor(c.req.param('key'))
         const body = await c.req.json().catch(() => null)
         if (!body || typeof body.operation !== 'string' || !GATEWAY_OPERATIONS.includes(body.operation)) throw new GatewayError('INVALID_ARGS', 'Operación no válida.', 422)
-        const ctx = hostContext(c, entry)
-        return await withCompanySlot(ctx.companyId, async () => {
-          const token = gateway.issueCallToken({ moduleKey: entry.def.key, ...ctx, capabilities: [...gateway.moduleOf(entry.def.key).approved], ttlMs: 30_000 })
-          const idempotencyKey = c.req.header('Idempotency-Key') ?? randomUUID().replaceAll('-', '')
-          const result = await gateway.call({ operation: body.operation, token, nonce: randomUUID().replaceAll('-', ''), idempotencyKey, args: body.args })
-          return c.json(result)
-        })
+        return c.json(await invoke(c, entry, body.operation, body.args))
       } catch (error) { return normalize(c, error) }
     })
+    app.route('/', createRestFacade({ guard, moduleFor, invoke, normalize }))
     app.post('/secure-runtime/v1/modules/:key/extensions/:ext/run', guard, async (c) => {
       try {
         if (!supervisor) throw new GatewayError('RUNTIME_UNAVAILABLE', 'El ejecutor aislado no está configurado.', 503)

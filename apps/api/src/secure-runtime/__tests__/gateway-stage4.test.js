@@ -115,3 +115,20 @@ test('a failing activity feed never fails the operation and is itself audited', 
   await create(call, token(A, userA))
   assert.ok(store.audits.some((a) => a.action === 'runtime.activity_failed'))
 })
+
+test('records.query: pagination, search, sorting and filters over declared fields only', async () => {
+  const { call, token } = setup()
+  const tok = token(A, userA)
+  for (const [titulo, monto] of [['Alfa', 3], ['Beta', 1], ['Gama', 2], ['100%', 9]]) await call(tok, 'records.create', { entity: 'solicitud', data: { titulo, monto, solicitante: userA } })
+  const q = async (args) => (await call(tok, 'records.query', { entity: 'solicitud', ...args })).data
+  const first = await q({ pageSize: 3, sortBy: 'titulo', sortDir: 'asc' })
+  assert.equal(first.total, 4); assert.deepEqual(first.items.map((r) => r.data.titulo), ['100%', 'Alfa', 'Beta'])
+  assert.deepEqual((await q({ page: 2, pageSize: 3, sortBy: 'titulo', sortDir: 'asc' })).items.map((r) => r.data.titulo), ['Gama'])
+  assert.deepEqual((await q({ sortBy: 'monto', sortDir: 'desc', pageSize: 2 })).items.map((r) => r.data.monto), [9, 3])
+  assert.deepEqual((await q({ search: 'ET' })).items.map((r) => r.data.titulo), ['Beta'])
+  assert.deepEqual((await q({ filters: { monto: 2 } })).items.map((r) => r.data.titulo), ['Gama'])
+  await assert.rejects(call(tok, 'records.query', { entity: 'solicitud', sortBy: 'constructor' }), (e) => e.code === 'INVALID_ARGS')
+  await assert.rejects(call(tok, 'records.query', { entity: 'solicitud', filters: { __proto__x: 1 } }), (e) => e.code === 'INVALID_ARGS')
+  await assert.rejects(call(tok, 'records.query', { entity: 'solicitud', pageSize: 1000 }), (e) => e.code === 'INVALID_ARGS')
+  assert.equal((await call(token(B, userB), 'records.query', { entity: 'solicitud' })).data.total, 0, 'company scope')
+})

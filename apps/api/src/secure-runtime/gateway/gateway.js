@@ -21,6 +21,8 @@ const data = z.record(z.string(), z.unknown()).refine((v) => JSON.stringify(v).l
 // operation -> { capability, permission action (or function), args schema, write }
 const OPERATIONS = {
   'records.list': { cap: 'records.read', perm: 'read', args: z.strictObject({ entity: ident, state: ident.optional(), limit: z.number().int().min(1).max(100).optional() }) },
+  // Paged read for the Runly UI table: only declared fields can be searched, filtered or sorted.
+  'records.query': { cap: 'records.read', perm: 'read', args: z.strictObject({ entity: ident, page: z.number().int().min(1).max(10_000).optional(), pageSize: z.number().int().min(1).max(100).optional(), search: z.string().trim().max(100).optional(), sortBy: ident.optional(), sortDir: z.enum(['asc', 'desc']).optional(), filters: z.record(ident, z.union([z.string().max(200), z.number().finite(), z.boolean()])).refine((v) => Object.keys(v).length <= 10, 'Demasiados filtros.').optional() }) },
   'records.get': { cap: 'records.read', perm: 'read', args: z.strictObject({ entity: ident, id: uuid }) },
   'records.create': { cap: 'records.write', perm: 'create', write: true, args: z.strictObject({ entity: ident, data }) },
   'records.update': { cap: 'records.write', perm: 'update', write: true, args: z.strictObject({ entity: ident, id: uuid, data, expectedVersion: z.union([z.number().int().positive(), z.string().max(64)]).optional() }) },
@@ -127,6 +129,15 @@ export function createCapabilityGateway({ signer, store, storeFor = null, servic
         const entity = entityOf(def, args.entity)
         if (args.state && !entity.states?.values.some((v) => v.value === args.state)) throw new GatewayError('INVALID_ARGS', 'Estado desconocido.', 422)
         return (await records.listRecords(ctx, entity.key, { state: args.state, stateField: entity.states?.field, limit: args.limit ?? 50 })).map(toRecord)
+      }
+      case 'records.query': {
+        const entity = entityOf(def, args.entity)
+        const known = new Set(entity.fields.map((f) => f.key))
+        for (const key of [args.sortBy, ...Object.keys(args.filters ?? {})]) if (key && !known.has(key)) throw new GatewayError('INVALID_ARGS', 'Campo desconocido.', 422)
+        const page = args.page ?? 1, pageSize = args.pageSize ?? 20
+        const textKeys = entity.fields.filter((f) => ['text', 'longtext', 'email', 'phone', 'enum'].includes(f.type)).map((f) => f.key)
+        const { rows, total } = await records.queryRecords(ctx, entity.key, { limit: pageSize, offset: (page - 1) * pageSize, search: args.search ? { text: args.search, keys: textKeys } : null, sort: args.sortBy ? { key: args.sortBy, dir: args.sortDir ?? 'asc' } : null, filters: Object.entries(args.filters ?? {}) })
+        return { items: rows.map(toRecord), total, page, pageSize }
       }
       case 'records.get': return toRecord(await loadRecord(entityOf(def, args.entity).key, args.id))
       case 'records.create': {

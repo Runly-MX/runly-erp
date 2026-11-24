@@ -103,9 +103,9 @@ export function toBlueprints(def, entity) {
     return { key, label: f.label, type: uiType(f), required: Boolean(f.required), readOnly: Boolean(f.readOnly) || key === entity.states?.field, ...(f.options ? { options: f.options } : {}), ...(f.target ? { relation: { target: f.target } } : {}) }
   }
   return {
-    table: { kind: 'TABLE', key: `${def.key}.${entity.key}.list`, entity: entity.key, columns: entity.views.list.columns.map(fieldSpec) },
-    form: { kind: 'FORM', key: `${def.key}.${entity.key}.form`, entity: entity.key, sections: entity.views.form.sections.map((s) => ({ title: s.title, fields: s.fields.map(fieldSpec) })) },
-    detail: { kind: 'ENTITY', key: `${def.key}.${entity.key}.detail`, entity: entity.key, fields: entity.views.detail.fields.map(fieldSpec),
+    table: { kind: 'TABLE', apiPath: entity.key, key: `${def.key}.${entity.key}.list`, entity: entity.key, columns: entity.views.list.columns.map(fieldSpec) },
+    form: { kind: 'FORM', apiPath: entity.key, key: `${def.key}.${entity.key}.form`, entity: entity.key, sections: entity.views.form.sections.map((s) => ({ title: s.title, fields: s.fields.map(fieldSpec) })) },
+    detail: { kind: 'ENTITY', apiPath: entity.key, key: `${def.key}.${entity.key}.detail`, entity: entity.key, fields: entity.views.detail.fields.map(fieldSpec),
       actions: (entity.states?.transitions ?? []).map((t) => ({ key: t.action, label: t.label, from: t.from, permission: permissionKey(def, entity, t.permission) })) },
   }
 }
