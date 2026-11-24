@@ -32,6 +32,68 @@ Atlas 0.6.3 incluye la misma marca con logo a `FooterBlock` y `SiteFooterBlock`:
 
 El historial de paquetes guardados no consume el cupo de cinco cargas pendientes sin vincular. Cada revisión retenida sigue contando en la cuota de almacenamiento; un guardado no requiere borrar versiones o assets anteriores.
 
+## SVG compatibles: guía para generar y transferir assets
+
+Antes de generar SVG para Website, consulta `runly_website_contract`: debe anunciar `svg` y la política `packaged-media-v2`. El SVG se muestra como imagen (`<img>`), no como código inline. Studio y las capturas de recursos siguen requiriendo formatos raster. Las siguientes reglas describen el sanitizador actual; el contrato del servidor conectado determina las capacidades disponibles.
+
+### Qué puede generar una IA
+
+- XML UTF-8 con una raíz `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">`. El `viewBox` es obligatorio, con cuatro números y ancho y alto positivos; usa dimensiones explícitas sencillas.
+- Elementos admitidos: `svg`, `g`, `defs`, `path`, `rect`, `circle`, `ellipse`, `line`, `polyline`, `polygon`, `text`, `tspan`, `linearGradient`, `radialGradient`, `stop`, `clipPath`, `mask`, `use`, `title`, `desc`, `symbol`. Respeta las mayúsculas de los nombres SVG.
+- Atributos de presentación como `fill`, `stroke`, `stroke-width`, `opacity`, `fill-opacity`, `stroke-opacity`, `transform`, `stop-color` y `stop-opacity`. Usa `currentColor` cuando corresponda; no depende de insertar el SVG inline.
+- Degradados, máscaras y recortes con IDs locales, por ejemplo `stroke="url(#wave)"` y `<linearGradient id="wave">`. Las referencias deben apuntar a IDs del mismo archivo. Los IDs cumplen `^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$`.
+- Reutilización local con `<use href="#shape"/>`; no encadenes referencias a otro `use` ni al ancestro que lo contiene. Evita referencias cíclicas o pendientes.
+
+Prefiere atributos de presentación directos. El atributo `style="fill:#fff;opacity:0.5"` admite únicamente propiedades de la lista permitida y se normaliza a atributos; otras propiedades se descartan. Esto no habilita hojas CSS ni el elemento `<style>`. Atributos desconocidos y metadatos del editor pueden eliminarse: no dependas de ellos para conservar la apariencia.
+
+Ejemplo compatible de una onda con degradado local, sin filtros:
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 40">
+  <defs>
+    <linearGradient id="wave">
+      <stop offset="0" stop-color="#B9F34C" stop-opacity="0"/>
+      <stop offset="0.5" stop-color="#B9F34C"/>
+      <stop offset="1" stop-color="#B9F34C" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+  <path d="M0 20 C25 0 50 40 100 20" fill="none" stroke="url(#wave)" stroke-width="2"/>
+</svg>
+```
+
+### Qué se rechaza y cómo evitarlo
+
+`SVG_FORBIDDEN_CONTENT` significa contenido activo **o no soportado**; no demuestra por sí solo que el archivo sea malicioso. La lista permitida es cerrada: un elemento fuera de ella se rechaza, aunque esté dentro de `defs` y nadie lo utilice.
+
+| Construcción | Regla para generar el asset |
+|---|---|
+| `filter`, `feGaussianBlur` y demás primitivas `fe*` | No generar desenfoques, sombras ni brillos mediante filtros SVG. Para efectos compatibles, usar geometría, opacidades y degradados admitidos. |
+| `pattern`, `marker`, `switch` | No soportados. Dibujar la geometría explícitamente; mantener el límite de elementos. |
+| `script`, atributos `onload`, `onclick` y cualquier `on*` | Sin JavaScript ni manejadores de eventos. |
+| `foreignObject`, HTML, `iframe`, `object`, `embed` | Sin contenido HTML ni documentos incrustados. |
+| `image`, `feImage`, `a`, `link` | Sin imágenes incrustadas, enlaces ni dependencias externas. |
+| `animate`, `animateTransform`, `animateMotion`, `set` | SVG estático, sin animación SMIL. |
+| `<style>`, `@import`, `expression()`, `image()` | Sin hojas CSS ni expresiones; usar atributos de presentación admitidos. |
+| URLs HTTP/HTTPS, `data:`, `javascript:`, `vbscript:` | Sin referencias externas ni datos embebidos. `url(#id)` local sí está admitido; `href` solo se admite en `use` con un fragmento local. |
+| DOCTYPE, entidades personalizadas, CDATA e instrucciones de proceso | Omitirlas. La declaración XML UTF-8 básica es opcional; preferir empezar directamente con `<svg>`. |
+
+Por ejemplo, `<filter id="gl"><feGaussianBlur stdDeviation="11"/></filter>` provoca `SVG_FORBIDDEN_CONTENT` con detalle `filter`, incluso si no existe ningún `filter="url(#gl)"` que lo aplique. Un filtro sin uso puede eliminarse en una copia autorizada sin cambiar el dibujo; si se usa, rediseñar el efecto puede cambiar la apariencia. No modificar originales rechazados ni convertirlos a PNG sin autorización del usuario.
+
+### Límites, errores y comprobación
+
+Los límites actuales son 256 KiB por SVG, 5 000 elementos, profundidad de 32, lados de hasta 8 192 px según el `viewBox`, y `attrBytes: 32768` anunciado por el contrato; además, el sanitizador limita cada valor de atributo a 8 192 caracteres. Consulta los límites remotos antes de generar archivos grandes.
+
+| Código | Qué comprobar |
+|---|---|
+| `SVG_INVALID_XML` | UTF-8 válido, una sola raíz, etiquetas bien anidadas, atributos entre comillas y sin duplicados. |
+| `SVG_FORBIDDEN_CONTENT` | Elementos y atributos anteriores, protocolos, namespaces, entidades y valores no admitidos; registrar el detalle si está disponible. |
+| `SVG_TOO_COMPLEX` | Tamaño, elementos, profundidad, dimensiones y cadenas de `use`. |
+| `SVG_NO_VIEWBOX` | `viewBox` presente con cuatro números y dimensiones positivas. |
+
+El sanitizador procesa datos; nunca ejecutar scripts de un SVG para inspeccionarlo. Para transferir, calcular bytes y SHA-256 del archivo real, llamar `runly_website_asset_prepare` con `image/svg+xml`, realizar PUT binario exacto y confirmar con `runly_website_asset_confirm`. La confirmación puede rechazar un archivo que ya se transfirió: registrar el código y continuar con los demás cuando así se haya pedido; no contar un PUT exitoso como asset confirmado.
+
+El Hub conserva el SVG sanitizado: su `sha256`, `bytes` y `websiteReference` pueden diferir del archivo enviado; `provenance.sourceSha256` conserva el hash de origen. Usar siempre el `assetId` y la referencia devueltos, y comprobar la biblioteca con `runly_website_asset_list`. Si se prepara una copia corregida autorizada, calcular de nuevo su tamaño y hash y crear otra transferencia; no reutilizar los del original.
+
 ## Licencias de assets: formulario y MCP
 
 En la Biblioteca multimedia del portal, la licencia es opcional: dejarla vacía envía `LicenseRef-Unknown`. Esto permite cargar material sin elegir una licencia pública ni inventar condiciones de uso. El cambio del formulario no vuelve opcional el campo técnico del MCP: `runly_website_asset_prepare` y el servicio de transferencia todavía requieren `license`.
