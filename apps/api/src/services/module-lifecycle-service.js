@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto'
 import { pathToFileURL } from 'node:url'
 import {
   resolveProjectRoot,
+  getDiscoveryRootInfo,
   loadModuleManifest,
   loadModuleModels,
   loadModuleViews,
@@ -519,22 +520,30 @@ export function createModuleLifecycleService({ prisma }) {
   }
 
   async function resolveModuleDirectory({ moduleKey, lifecycleConfig }) {
-    const projectRoot = await resolveProjectRoot()
+    const roots = await getDiscoveryRootInfo()
+    const projectRoot = roots.projectRoot
     const modulesRoot = path.resolve(projectRoot, 'modules')
+    // RUNLY_MODULES_DIR may place custom modules outside the project root (installer layout).
+    const allowedRoots = [modulesRoot, path.resolve(roots.customModulesDir), path.resolve(roots.officialModulesDir)]
     const discovery = toPlainObject(lifecycleConfig).discovery
     const localPath = typeof discovery?.localPath === 'string' ? discovery.localPath.trim() : ''
     const candidates = []
     if (localPath) {
       candidates.push(path.resolve(projectRoot, localPath))
     }
-    candidates.push(path.resolve(modulesRoot, 'custom', moduleKey))
-    candidates.push(path.resolve(modulesRoot, 'official', moduleKey))
+    candidates.push(path.resolve(roots.customModulesDir, moduleKey))
+    candidates.push(path.resolve(roots.officialModulesDir, moduleKey))
 
     for (const candidate of candidates) {
-      if (!candidate || !isWithinPath(modulesRoot, candidate)) continue
+      if (!candidate || !allowedRoots.some((root) => isWithinPath(root, candidate))) continue
       try {
         const stat = await fs.stat(candidate)
-        if (stat.isDirectory()) return candidate
+        if (!stat.isDirectory()) continue
+        // A symlink may not lead outside the allowed roots (traversal through links).
+        const real = await fs.realpath(candidate)
+        const realRoots = await Promise.all(allowedRoots.map((r) => fs.realpath(r).catch(() => r)))
+        if (!realRoots.some((root) => isWithinPath(root, real))) continue
+        return candidate
       } catch {
         continue
       }
@@ -754,6 +763,14 @@ export function createModuleLifecycleService({ prisma }) {
           manifest: installManifest,
         })
       }
+    }
+
+    if (!moduleDir && requestedKey && !isOfficialModuleKey(requestedKey)) {
+      // Never register a module without its tables: fail instead of a silent partial install.
+      throw new ModuleLifecycleError(
+        `No se encontró la carpeta del módulo "${requestedKey}" dentro de las raíces autorizadas; la instalación se canceló sin cambios.`,
+        409
+      )
     }
 
     if (!moduleDir) {
