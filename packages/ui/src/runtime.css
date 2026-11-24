@@ -537,6 +537,14 @@ body,
   18% { opacity: 1; }
   100% { transform: translateX(320%) skewX(-18deg); opacity: 0; }
 }
+/* Login showcase cards (apps/desktop LoginShowcase.jsx): slow vertical bob. */
+@keyframes authFloat {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, -10px, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .auth-float { animation: none !important; }
+}
 
 /* iOS Safari: `100dvh` on a position:fixed root can resolve to the SHORT
    viewport and fail to grow when the browser toolbar auto-hides, leaving a

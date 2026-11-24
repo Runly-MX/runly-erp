@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Layers, Building2, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Server, Video, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
 import { supabase } from '../lib/supabase'
 import { TextField, PasswordField, Button, AuthAtmosphere, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
@@ -12,12 +12,13 @@ import { useThemeStore } from '../stores/theme'
 import { ThemeToggle } from '../components/ThemeToggle'
 import { RUNLY_EDITION_NAME } from '../lib/appConfig.js'
 import { native } from '../native/index.js'
+import { getApiUrl } from '../lib/runtimeConfig.js'
+import { LoginShowcase } from './LoginShowcase.jsx'
 
-const SIDEBAR_FEATURES = [
-  { icon: Server, label: 'Autoalojado en tu infraestructura' },
-  { icon: Layers, label: 'Módulos que crecen con tu operación' },
-  { icon: Building2, label: 'Multi-empresa desde el primer día' },
-]
+function apiHost() {
+  try { return new URL(getApiUrl(), window.location.href).host }
+  catch { return window.location.host }
+}
 
 const CTA_GRADIENT = { backgroundImage: 'linear-gradient(120deg,#FD6016,#E4262A)' }
 
@@ -38,6 +39,8 @@ export function LoginScreen({ returnTo = '/app' }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+  const [capsLock, setCapsLock] = useState(false)
+  const instanceHost = apiHost()
   const [forgotOpen, setForgotOpen] = useState(false)
   const [forgotEmail, setForgotEmail] = useState('')
   // 'form' | 'sending' | 'sent' | 'error' — 'error' is only for a real
@@ -136,55 +139,30 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   return (
-    <div className="relative h-dvh overflow-hidden bg-background text-foreground">
+    <div className="relative min-h-dvh overflow-x-hidden bg-background text-foreground">
       <AuthAtmosphere />
 
-      {/* Caps how wide the layout grows on ultra-wide monitors — past this
-          point extra space becomes side margins instead of stretching the
-          hero column and pushing the form card further from it. */}
-      <div className="relative h-dvh max-w-350 mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)]">
-        {/* Hero — desktop only; matches the setup wizard's atmosphere so both
-            auth-adjacent screens read as one product. Never shows a specific
-            company's branding: this screen is shared across every company on
-            the instance, before one is picked/activated. */}
-        <section className="hidden lg:flex relative z-10 flex-col justify-between gap-10 px-13 py-12">
-          <img
-            src={logo}
-            alt="Runly"
-            className="h-7.5 w-auto object-contain"
-            draggable={false}
-          />
+      {/* Caps how wide the layout grows on ultra-wide monitors. Below lg only
+          the form column renders, and the page scrolls so the mobile keyboard
+          never hides the submit button. */}
+      <div className="relative min-h-dvh max-w-350 mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-6">
+        {/* Hero — desktop only. Never shows a specific company's branding:
+            this screen is shared across every company on the instance. */}
+        <section className="hidden lg:flex relative z-10 flex-col justify-between gap-8 px-13 py-12">
+          <img src={logo} alt="Runly" className="h-7.5 w-auto self-start object-contain" draggable={false} />
 
-          <div className="flex flex-col gap-8 max-w-md">
-            <div className="flex flex-col gap-4">
-              <h1 className="text-[clamp(2rem,3.6vw,3rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
-                Bienvenido de vuelta a Runly.
-              </h1>
-              <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[36ch]">
-                Ingresa para continuar donde lo dejaste.
-              </p>
-            </div>
+          <div className="flex flex-col gap-3 max-w-lg">
+            <h1 className="text-[clamp(2rem,3.4vw,2.9rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
+              Toda tu operación,{' '}
+              <span className="bg-clip-text text-transparent" style={CTA_GRADIENT}>en un solo lugar.</span>
+            </h1>
+            <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[44ch]">
+              Ventas, agenda, inventario y tu equipo trabajando sobre los mismos datos, en tu propia infraestructura.
+            </p>
+          </div>
 
-            <ul className="flex flex-col gap-3" role="list">
-              {SIDEBAR_FEATURES.map(({ icon: Icon, label }) => (
-                <li
-                  key={label}
-                  className="flex items-center gap-3.5 rounded-2xl px-4 py-3.5 glass"
-                >
-                  <span
-                    className="shrink-0 w-8 h-8 rounded-md grid place-items-center text-(--brand-primary)"
-                    style={{
-                      background:
-                        'linear-gradient(140deg,rgba(253,96,22,.24),rgba(249,162,27,.10))',
-                      border: '1px solid rgba(253,96,22,.32)',
-                    }}
-                  >
-                    <Icon size={15} aria-hidden="true" />
-                  </span>
-                  <span className="text-sm font-medium text-foreground">{label}</span>
-                </li>
-              ))}
-            </ul>
+          <div className="max-w-2xl w-full">
+            <LoginShowcase />
           </div>
 
           <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
@@ -194,30 +172,18 @@ export function LoginScreen({ returnTo = '/app' }) {
         </section>
 
         {/* Form panel */}
-        <section className="relative z-10 h-dvh box-border flex px-4 py-4 sm:px-8 sm:py-8 lg:px-10">
-          <div className="relative w-full max-w-md mx-auto my-auto lg:max-w-none lg:my-0 flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
+        <section className="relative z-10 min-h-dvh flex flex-col px-4 sm:px-8 lg:px-10 pt-[calc(var(--sat)+1rem)] pb-[calc(var(--sab)+1rem)]">
+          <div className="w-full max-w-md mx-auto my-auto flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
             <div className="flex items-center gap-4 mb-7">
-              <img
-                src={logo}
-                alt="Runly"
-                className="h-6 w-auto object-contain lg:hidden"
-                draggable={false}
-              />
+              <img src={logo} alt="Runly" className="h-6 w-auto object-contain lg:hidden" draggable={false} />
               <div className="ml-auto">
                 <ThemeToggle />
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5 mb-7">
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Runly ERP
-              </p>
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">
-                Bienvenido de nuevo
-              </h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">
-                Ingresa para continuar donde lo dejaste.
-              </p>
+              <h2 className="text-2xl font-bold tracking-tight text-foreground">Bienvenido de nuevo</h2>
+              <p className="text-sm text-muted-foreground leading-relaxed">Ingresa a tu espacio de trabajo.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -234,15 +200,29 @@ export function LoginScreen({ returnTo = '/app' }) {
                 placeholder="tu@empresa.com o usuario"
                 required
               />
-              <PasswordField
-                id="password"
-                icon={Lock}
-                label="Contraseña"
-                autoComplete="current-password"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••"
-              />
+              <div className="flex flex-col gap-1.5">
+                <PasswordField
+                  id="password"
+                  icon={Lock}
+                  label="Contraseña"
+                  autoComplete="current-password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  onKeyUp={(e) => setCapsLock(e.getModifierState?.('CapsLock') ?? false)}
+                  hint={capsLock ? 'Bloq Mayús está activado.' : undefined}
+                  placeholder="••••••••"
+                />
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForgotEmail(identifier.trim())
+                    setForgotOpen(true)
+                  }}
+                  className="self-end text-[13px] font-medium text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
 
               {error && (
                 <p role="alert" className="text-sm text-destructive">
@@ -258,50 +238,52 @@ export function LoginScreen({ returnTo = '/app' }) {
                 disabled={loading || !identifier.trim() || !password}
                 aria-busy={loading}
               >
-                {loading ? 'Verificando credenciales...' : 'Acceder al sistema'}
+                {loading ? 'Verificando credenciales...' : 'Iniciar sesión'}
                 {!loading && <ArrowRight size={15} />}
               </Button>
             </form>
 
-            <div className="text-center space-y-2 mt-6">
-              <button
-                type="button"
-                onClick={() => {
-                  setForgotEmail(identifier.trim())
-                  setForgotOpen(true)
-                }}
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
-              >
-                ¿Olvidaste tu contraseña?
-              </button>
-              <button
-                type="button"
-                onClick={() => navigate('/app/p/call')}
-                className="block w-full text-sm text-muted-foreground hover:text-foreground transition-colors duration-150 cursor-pointer"
-              >
-                ¿Tienes un ID de reunión? Unirse sin cuenta
-              </button>
+            <div className="flex items-center gap-3 my-5 text-[11px] uppercase tracking-widest text-muted-foreground">
+              <span className="h-px flex-1 bg-border" />o<span className="h-px flex-1 bg-border" />
+            </div>
+
+            <Button type="button" variant="outline" className="w-full justify-center" onClick={() => navigate('/app/p/call')}>
+              <Video size={15} />
+              Unirse a una reunión sin cuenta
+            </Button>
+
+            <div className="mt-6 pt-4 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+              <span className="flex items-center gap-1.5 min-w-0">
+                <Server size={13} className="shrink-0" aria-hidden="true" />
+                <span className="truncate" title={instanceHost}>{instanceHost}</span>
+              </span>
               {isTauriRuntime() || native.isRemoteHost() ? (
-                <Button variant="ghost"
+                <button
                   type="button"
                   onClick={() => handleChangeServer()}
-                  className="text-sm text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
+                  className="ml-auto font-medium text-(--brand-primary) hover:text-(--brand-primary-hover) cursor-pointer"
                 >
                   Cambiar instancia
-                </Button>
+                </button>
               ) : null}
               {native.isRemoteHost() && (
-                <Button variant="ghost" type="button"
+                <button
+                  type="button"
                   onClick={() => handleChangeServer('device')}
-                  className="text-sm text-muted-foreground"
+                  className="hover:text-foreground cursor-pointer"
                 >
                   Permisos del dispositivo
-                </Button>
+                </button>
               )}
             </div>
           </div>
+
+          <p className="lg:hidden mt-4 text-center text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
+            Runly ERP · {RUNLY_EDITION_NAME}
+          </p>
         </section>
       </div>
+
 
       <Dialog open={forgotOpen} onOpenChange={(open) => (open ? setForgotOpen(true) : closeForgotDialog())}>
         <DialogContent size="sm">
