@@ -12,7 +12,8 @@ import {
   ErrorState,
   PageHeader,
 } from "@runly/ui";
-import { Code2, Globe, HelpCircle, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { Code2, ExternalLink, Globe, HelpCircle, Pencil, Plus, RefreshCw, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 
 import { describeVerification } from "../lib/verify-message.js";
@@ -103,6 +104,7 @@ export default function GrowthPropertiesScreen() {
     userProfile?.isAdmin || permissions.includes("growth.properties.manage"),
   );
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editTarget, setEditTarget] = useState(null);
   const [snippetTarget, setSnippetTarget] = useState(null);
@@ -173,6 +175,10 @@ export default function GrowthPropertiesScreen() {
     p.kind === "external_sdk" ? (
       <Button key="delete" type="button" variant="outline" size="sm" onClick={() => setDeleteTarget(p)}>
         <Trash2 className="mr-1.5 h-3.5 w-3.5" />Eliminar
+      </Button>
+    ) : p.websiteSiteId ? (
+      <Button key="open" type="button" variant="outline" size="sm" title="Este sitio se administra y elimina en el modulo Web" onClick={() => navigate(`/app/m/runly.website/sites/${p.websiteSiteId}`)}>
+        <ExternalLink className="mr-1.5 h-3.5 w-3.5" />Abrir en Web
       </Button>
     ) : null,
   ];
