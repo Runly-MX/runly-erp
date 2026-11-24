@@ -147,7 +147,19 @@ Después: despliegue del usuario y prueba real desde ChatGPT.
 - Bloque 2 hecho: Atlas `6ac1493` + `c08de3e` (0.11.0, 327/327 pruebas, build). Falta publicar en npm.
 - Bloque 3 hecho salvo el pin de Atlas y el catálogo (requieren 0.11.0 publicado): ERP `c8618c622`.
   Las pruebas `*-postgres` de Website necesitan su runner desechable y no se corrieron.
-- Bloque 4 bloqueado por una decisión: el Hub limita los paquetes `website_template` a 25 MiB
-  (`TYPE_MAX_BYTES`, `WEBSITE_VALIDATION_LIMITS.compressed`) y el escritor aislado intercambia el
-  paquete en base64 con 40 MiB de salida y 512 MB de heap. Un paquete v3 de hasta 160 MiB no pasa por
-  ese camino tal como está.
+- Decisión: plantillas de hasta 160 MiB (opción 1). Hub `ac23f6d`:
+  - el sandbox intercambia los medios como bytes crudos (adjuntos de entrada y marco binario de salida);
+  - el audio y el video nunca van en línea;
+  - las ejecuciones pesadas pasan de una en una;
+  - la API sube a 1536m;
+  - Storage (`FILE_SIZE_LIMIT` y los buckets `mk-*`) y las restricciones de base de datos suben a
+    160 MiB; esto también corrige la biblioteca para archivos de más de 25 MiB;
+  - `WEBSITE_VALIDATION_LIMITS` ya no pasa `compressed`, porque recortaría v3 al techo v1/v2.
+- Medido: 126 MiB de video pasan por write y open aislados en unos 4 s, con un pico del proceso hijo
+  de 784/713 MiB (`tests/website-av-pipeline.test.js`).
+- Interchange (`0.1.0-source.70076e5ec…`) y Atlas 0.11.0 publicados. En el ERP, `9e390a20b` fija
+  Atlas 0.11.0, registra los catálogos 0.11.0, descarga hasta 160 MiB y compila el desktop.
+- Pendiente del bloque 4 en el Hub: el pin del interchange. `shared-registry-adopt.mjs` exige un
+  manifiesto del conjunto completo en una sola revisión, y la publicación fue de un solo paquete.
+  Además, el token local de GitHub Packages da 401. Después del pin: catálogo
+  (`adopt-website-catalog.mjs`), `documentMedia`, contrato, herramientas, editor y plugins dev.26.
