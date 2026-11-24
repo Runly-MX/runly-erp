@@ -50,6 +50,8 @@ test('publication requires enabled Actions in the official ERP repository', () =
 
 test('release CLI supports only release options and rejects obsolete authentication selectors', () => {
   assert.deepEqual(parseReleaseArguments([]), {});
+  assert.deepEqual(parseReleaseArguments(['--package', 'studio-interchange']), { package: 'studio-interchange' });
+  assert.throws(() => parseReleaseArguments(['--package', '../outside']), /ARGUMENT_INVALID/);
   assert.deepEqual(parseReleaseArguments(['--revision', revision, '--publish', '--repository', 'Runly-MX/runly-erp', '--output', 'artifacts']), { revision, publish: true, repository: 'Runly-MX/runly-erp', output: 'artifacts' });
   for (const args of [['--auth-mode', 'bootstrap'], ['--auth-mode', 'github-token'], ['--unknown'], ['--revision'], ['--output', '--publish'], ['--publish', '--publish']]) {
     assert.throws(() => parseReleaseArguments(args), /ARGUMENT_INVALID/);
@@ -59,7 +61,7 @@ test('release CLI supports only release options and rejects obsolete authenticat
 test('release workflow has one native token publisher and preserves protected preparation', () => {
   const workflow = readFileSync(new URL('../../.github/workflows/shared-packages.yml', import.meta.url), 'utf8');
   assert.deepEqual([...workflow.matchAll(/^  (\w+):\r?$/gm)].map(match => match[1]), ['workflow_dispatch', 'prepare', 'publish']);
-  assert.deepEqual([...workflow.matchAll(/^      (\w+):\r?$/gm)].map(match => match[1]), ['revision', 'publish']);
+  assert.deepEqual([...workflow.matchAll(/^      (\w+):\r?$/gm)].map(match => match[1]), ['revision', 'publish', 'package']);
   assert.deepEqual([...workflow.matchAll(/secrets\.(\w+)/g)].map(match => match[1]), ['GITHUB_TOKEN']);
   assert.deepEqual([...workflow.matchAll(/vars\.(\w+)/g)].map(match => match[1]), ['RUNLY_SHARED_PUBLISH_ENABLED']);
   assert.match(workflow, /environment: shared-packages\s/);

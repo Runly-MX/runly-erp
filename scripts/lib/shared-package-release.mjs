@@ -14,7 +14,7 @@ export function parseReleaseArguments(args) {
   const options = {};
   for (let index = 0; index < args.length; index++) {
     const flag = args[index];
-    if (!['--revision', '--repository', '--output', '--publish'].includes(flag)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
+    if (!['--revision', '--repository', '--output', '--publish', '--package'].includes(flag)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
     const key = flag.slice(2);
     if (Object.hasOwn(options, key)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
     if (flag === '--publish') options[key] = true;
@@ -24,6 +24,7 @@ export function parseReleaseArguments(args) {
       options[key] = value;
     }
   }
+  if (options.package && !PACKAGES.includes(options.package)) throw Error('SHARED_RELEASE_ARGUMENT_INVALID');
   return options;
 }
 export function validatePublishAuthorization({ actions, enabled, tokenPresent, workflowRepository }) {

@@ -10,6 +10,10 @@ on:
         description: Publish after enabling the protected shared-packages environment
         default: false
         type: boolean
+      package:
+        description: Optional single package (empty releases all shared packages)
+        default: ''
+        type: string
 permissions:
   contents: read
 concurrency:
@@ -46,14 +50,18 @@ jobs:
       - run: pnpm install --frozen-lockfile --ignore-scripts
       - name: Directed package tests
         run: |
-          pnpm --filter @runly/core --filter @runly/module-engine test
+          pnpm --filter @runly/core --filter @runly/module-engine --filter @runly/studio-interchange test
           node --test packages/module-compiler/src/__tests__/archive.test.js packages/module-compiler/src/__tests__/package-contracts.test.js packages/module-compiler/src/__tests__/static-inspection.test.js
           node --test packages/module-compiler/src/__tests__/entity-list.test.js packages/module-compiler/src/__tests__/entity-list-integration.test.js
           node --test scripts/tests/shared-package-release.test.mjs
       - name: Build and validate package contents
         env:
           REVISION: ${{ inputs.revision }}
-        run: pnpm release:shared --revision "$REVISION"
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          args=(--revision "$REVISION")
+          if [[ -n "$PACKAGE" ]]; then args+=(--package "$PACKAGE"); fi
+          pnpm release:shared "${args[@]}"
       - uses: actions/upload-artifact@v7
         if: always()
         with:
@@ -88,7 +96,11 @@ jobs:
           NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RUNLY_SHARED_PUBLISH_ENABLED: ${{ vars.RUNLY_SHARED_PUBLISH_ENABLED }}
           REVISION: ${{ inputs.revision }}
-        run: pnpm release:shared --revision "$REVISION" --publish
+          PACKAGE: ${{ inputs.package }}
+        run: |
+          args=(--revision "$REVISION" --publish)
+          if [[ -n "$PACKAGE" ]]; then args+=(--package "$PACKAGE"); fi
+          pnpm release:shared "${args[@]}"
       - uses: actions/upload-artifact@v7
         with:
           name: published-shared-package-manifest

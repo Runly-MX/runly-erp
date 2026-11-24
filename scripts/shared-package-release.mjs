@@ -10,6 +10,7 @@ import { PACKAGES, REGISTRY, releaseVersion, rewriteManifest, validatePackage, d
 
 const root = fileURLToPath(new URL('../', import.meta.url));
 const options = parseReleaseArguments(process.argv.slice(2));
+const selectedPackages = options.package ? [options.package] : PACKAGES;
 const git = argv => execFileSync('git', argv, { cwd: root, encoding: 'utf8' }).trim();
 const revision = git(['rev-parse', 'HEAD']);
 if (git(['status', '--porcelain'])) throw Error('SHARED_RELEASE_REQUIRES_CLEAN_TREE');
@@ -29,11 +30,11 @@ try {
   writeFileSync(join(temp, 'source.tar'), execFileSync('git', ['archive', '--format=tar', revision, ...PACKAGES.map(name => `packages/${name}`)], { cwd: root, maxBuffer: 64 * 1024 * 1024 }));
   execFileSync('tar', ['-xf', 'source.tar'], { cwd: temp });
   const manifests = PACKAGES.map(name => JSON.parse(readFileSync(join(temp, 'packages', name, 'package.json'))));
-  const versions = Object.fromEntries(manifests.map(m => [m.name, releaseVersion(m.version, revision)]));
+  const versions = Object.fromEntries(manifests.filter(m => selectedPackages.includes(m.name.slice('@runly/'.length))).map(m => [m.name, releaseVersion(m.version, revision)]));
   const require = createRequire(resolve(root, 'packages/module-compiler/package.json'));
   const { build } = require('esbuild');
   const artifacts = [];
-  for (const name of PACKAGES) {
+  for (const name of selectedPackages) {
     const directory = join(temp, 'packages', name);
     const manifest = rewriteManifest(manifests.find(m => m.name === `@runly/${name}`), versions, revision, repository);
     // Tests are run against the checkout by Actions, never shipped to consumers.
@@ -74,8 +75,9 @@ try {
     artifacts.push(identity);
   }
   const { PREVIEW_RUNTIME_CONTRACT } = await import(pathToFileURL(join(temp, 'packages/preview-runtime/src/contracts.js')).href);
-  const preview = { contract: PREVIEW_RUNTIME_CONTRACT, capabilitiesDigest: digest(JSON.stringify(PREVIEW_RUNTIME_CONTRACT)), artifactDigest: artifacts.find(a => a.package === '@runly/preview-runtime').contentDigest };
-  const manifest = { schemaVersion: 3, distribution: 'github-packages', registry: REGISTRY, registryScope: '@runly-mx', logicalScope: '@runly', repository, revision, dirty: false, packages: PACKAGES, artifacts, preview };
+  const previewArtifact = artifacts.find(a => a.package === '@runly/preview-runtime');
+  const preview = previewArtifact ? { contract: PREVIEW_RUNTIME_CONTRACT, capabilitiesDigest: digest(JSON.stringify(PREVIEW_RUNTIME_CONTRACT)), artifactDigest: previewArtifact.contentDigest } : undefined;
+  const manifest = { schemaVersion: 3, distribution: 'github-packages', registry: REGISTRY, registryScope: '@runly-mx', logicalScope: '@runly', repository, revision, dirty: false, packages: selectedPackages, artifacts, preview };
   writeFileSync(join(output, 'manifest.json'), JSON.stringify(manifest, null, 2) + '\n');
   if (publish) {
     // Check ALL existing versions before the first write. Network/auth errors
