@@ -10,6 +10,7 @@
 // restarts; jobs that were running when the supervisor died are recorded as
 // INTERRUPTED and never re-run automatically.
 import http from 'node:http'
+import { spawn } from 'node:child_process'
 import fs from 'node:fs/promises'
 import { createReadStream } from 'node:fs'
 import path from 'node:path'
@@ -34,7 +35,17 @@ const jobSchema = z.strictObject({
   callToken: z.string().min(20).max(8192),
 })
 
-export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPort, gatewayHost, maxConcurrent = 4, maxQueue = 8, runtimeFactory = createIsolatedRuntime, now = () => Date.now() }) {
+// After a crash the per-job timeout timers are gone with the process, so any
+// job container still alive is an orphan: kill them all on start (their jobs
+// are INTERRUPTED in the ledger and never re-run).
+async function reapOrphanContainers() {
+  const run = (args) => new Promise((done) => { const c = spawn('docker', args, { windowsHide: true }); let out = ''; c.stdout.on('data', (d) => { out += d }); c.on('close', () => done(out)); c.on('error', () => done('')) })
+  const ids = (await run(['ps', '-q', '--filter', 'label=runly.runtime'])).split(/\s+/).filter(Boolean)
+  if (ids.length) await run(['kill', ...ids])
+  return ids.length
+}
+
+export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPort, gatewayHost, maxConcurrent = 4, maxQueue = 8, runtimeFactory = createIsolatedRuntime, reapOrphans = reapOrphanContainers, now = () => Date.now() }) {
   if (typeof secret !== 'string' || secret.length < 32) throw new Error('SUPERVISOR_SECRET_REQUIRED')
   await fs.mkdir(stateDir, { recursive: true })
   const ledgerPath = path.join(stateDir, 'jobs.jsonl'), auditPath = path.join(stateDir, 'audit.jsonl')
@@ -54,6 +65,8 @@ export async function createSupervisor({ secret, modulesDir, stateDir, gatewayPo
     await audit('job.interrupted', { jobId, moduleKey: job.moduleKey })
   }
 
+  const reaped = await reapOrphans()
+  if (reaped) await audit('orphans.reaped', { containers: reaped })
   const runtimes = new Map() // profile -> runtime
   async function runtimeFor(name) {
     if (!runtimes.has(name)) {

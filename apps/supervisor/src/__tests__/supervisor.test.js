@@ -21,7 +21,7 @@ async function setup(t, { runtime = {} } = {}) {
   const calls = { run: [], killed: [] }
   const fake = () => ({ start: async () => {}, stop: async () => {}, stats: () => ({}), killModule: async (k) => { calls.killed.push(k); return 1 },
     run: async (job) => { calls.run.push(job); if (runtime.hang) await new Promise(() => {}); if (runtime.busy) throw Object.assign(new Error('busy'), { code: 'RUNTIME_BUSY' }); return { ok: true, result: { total: 0 }, ms: 1 } } })
-  const make = () => createSupervisor({ secret: SECRET, modulesDir: path.join(base, 'modules'), stateDir: path.join(base, 'state'), gatewayPort: 1, gatewayHost: 'gw', runtimeFactory: fake })
+  const make = () => createSupervisor({ secret: SECRET, modulesDir: path.join(base, 'modules'), stateDir: path.join(base, 'state'), gatewayPort: 1, gatewayHost: 'gw', runtimeFactory: fake, reapOrphans: async () => { calls.reaped = (calls.reaped ?? 0) + 1; return 0 } })
   let sup = await make()
   let port = await sup.listen()
   t.after(() => sup.close())
@@ -71,6 +71,7 @@ test('at most once: duplicate jobIds are refused, interrupted jobs are not re-ru
   await new Promise((r) => setTimeout(r, 200))
   await s.restart()
   await pending
+  assert.equal(s.calls.reaped, 2, 'orphan containers are reaped on every start')
   const again = await s.send('POST', '/v1/jobs', j)
   assert.equal(again.status, 409); assert.equal(again.body.state, 'INTERRUPTED')
   const ledger = await fs.readFile(path.join(s.base, 'state', 'jobs.jsonl'), 'utf8')
