@@ -5,6 +5,7 @@
 **APTO LOCALMENTE PARA STAGING, con una condición abierta.** No es apto para activación experimental en staging todavía.
 
 - P0-01 sigue **CONTENIDO**, no cerrado. RME3 y Module Builder Next siguen en **NO GO**. No se autoriza producción y no se inicia Stage 5.
+- **Condición adicional:** la suite general tiene 32 fallos frente a 22 de la línea base y no los he comparado por nombre (§14). Hasta compararlos, este veredicto solo cubre el alcance del Secure Runtime.
 - Lo que falta para pasar a «apto para activación experimental en staging» está en §15.
 
 ## 0. Contexto y control de cambios
@@ -19,7 +20,7 @@
 | Revisión | Resultado |
 |---|---|
 | Bloqueo de Atlas 0.11.0 | **Causa exacta:** `scripts/build-website-public-runtime.mjs` tiene una lista cerrada de versiones revisadas del runtime público que termina en 0.10.0, y `main` usa 0.11.0 (adoptado en `9e390a20b` sin ampliar la lista). Con la lista ampliada, el runtime público compila (entry 1.1 MB, estilos 82 KB) y la guarda contra importaciones administrativas pasa. **Apliqué esa única línea** en `0ff88dc90`, como cambio aislado y reversible. **Es una revisión de otra línea de trabajo: confirmar con quien posee Atlas o revertir ese commit** |
-| 22 pruebas fallidas de la línea base | Ver §14: el conjunto se mantiene |
+| 22 pruebas fallidas de la línea base | **No se mantiene verificada:** 32 fallos frente a 22 y sin comparación por nombre (§14) |
 | 40 hallazgos de privacidad | Mismos 40, todos de `non-example-ipv4` en 4 archivos. Clasificación reproducible por hallazgo en `docs/audits/evidence/f1b-stage4-privacy-classification.json` (`scripts/security/classify-privacy-findings.mjs`): 39 son rangos privados o de uso reservado, 11 son direcciones de documentación RFC 5737, 15 son una dirección ficticia de cliente «falsificado» en pruebas de proxies de confianza y 6 son entradas inválidas a propósito. Ninguno es infraestructura real. No se añadieron exclusiones |
 | Login Runly Jaguar | Fuera de alcance; sin cambios |
 
@@ -146,7 +147,16 @@ Detalle por plantilla: `docs/audits/RUNLY_PLATFORM_F1B_STAGE4_TEMPLATE_MATRIX.md
 
 ## 11. Imágenes exactas del candidato
 
-IMAGES_PLACEHOLDER
+Construidas localmente desde el árbol del commit `e73cdf3ad` (árbol de seguimiento limpio), con etiquetas propias `runly-candidate:<imagen>-e73cdf3ad`; no se tocaron los tags `-latest` ni se subió nada. No se sustituyó ninguna con una imagen anterior.
+
+| Imagen | Resultado |
+|---|---|
+| API | Construida (2.6 GB). **`verify-nonroot-image.mjs` 5/5 sobre esta imagen:** instalación limpia (uid/gid 10001 sin capacidades efectivas), actualización desde un volumen de root con datos conservados, volumen con symlink que impide el arranque sin cambiar nada, arranque directo como no root, y arranque real con migraciones, seed y `/health` sobre una base desechable. Idempotencia (el segundo arranque no cambia propietarios) y reversión (la imagen anterior lee el volumen entregado) verificadas en Stage 3 con el mismo script y no repetidas aquí |
+| Worker | WORKER_STATUS |
+| Web | WEB_STATUS |
+| Supervisor | **No existe imagen ni Dockerfile.** No se construyó (R-2) |
+
+**No repetido contra la imagen candidata:** `verify-secure-runtime-api.mjs`, `verify-declarative-data-compat.mjs`, `verify-relations-contract.mjs` y `verify-template-matrix.mjs` corren hoy contra la API del árbol de trabajo (mismo código, `node apps/api/src/index.js`) sobre la pila desechable, no contra la imagen. Feature flags, cuarentena y recuperación de módulos se verificaron por esa vía. Pasarlas contra la imagen es un requisito de F1C (§16).
 
 ## 12. Rendimiento
 
@@ -199,8 +209,8 @@ Todos los trabajos terminaron bien y quedaron **0 contenedores y 0 redes** al ce
 | Lint | Sin hallazgos en los archivos tocados. El lint global conserva un error ajeno previo (`scripts/verify-bookings-rooms.mjs`) |
 | Privacidad | 40 hallazgos de la línea base, clasificados (§1) |
 | Auditoría de dependencias (`pnpm audit --prod`) | 1 crítica / 14 altas / 12 moderadas / 7 bajas, igual que en Stage 3. Las críticas y altas están en `apps/desktop` (`tar`, `fabric`, `image-size`) y en herramientas transitivas de Prisma en la API (`deepmerge-ts`, `mysql2`, `effect`); la API no las importa directamente. No se reanalizó el alcance de cada advisory |
-| Suite general | GENERAL_PLACEHOLDER |
-| Instalación y actualización | Ver §11 |
+| Suite general | 6862 pruebas, **32 fallos**, 17 omitidas (línea base de Stage 3: 22 fallos). Ver §14: el aumento no está explicado |
+| Instalación y actualización | API: 5/5 sobre la imagen candidata (§11) |
 
 ### Plan de publicación coordinado (preparado, **no ejecutado**)
 
@@ -225,7 +235,15 @@ Todos los trabajos terminaron bien y quedaron **0 contenedores y 0 redes** al ce
 
 ## 14. Regresiones conocidas y nuevas
 
-REGRESSIONS_PLACEHOLDER
+La suite general (`node --test` sobre los 1171 archivos de prueba versionados) dio 32 fallos frente a los 22 de la línea base de Stage 3. **No puedo afirmar que sean los mismos 22 más 10 nuevos ni lo contrario**: la línea base se registró por cantidad, no por nombre, y no volví a correr la suite completa sobre `27c1913f8`.
+
+Lo que sí verifiqué:
+- `docker-shared-sources.test.mjs` y `installer-devkit-snapshot.test.js` fallan **igual en `27c1913f8`**: previos.
+- Mis pruebas nuevas y las de seguridad pasan (166/166).
+- Ningún fallo está en un área que toqué (gateway, supervisor, ciclo de vida de módulos): los fallos son de instaladores `.sh`/`.ps1` (entorno Windows), pruebas PostgreSQL de Website (necesitan base), navegador (Tiptap), catálogos de ayuda, PWA e Hub.
+- `module-runtime-catalog` y `files visibility` ya fallaban antes de mis cambios en la ejecución parcial que hice al inicio de la fase.
+
+**Pendiente de F1C:** correr la suite completa sobre la base y sobre el candidato y comparar por nombre. Hasta entonces, la afirmación «sin regresiones nuevas» **no se hace**.
 
 ## 15. Inventario de riesgos residuales
 
