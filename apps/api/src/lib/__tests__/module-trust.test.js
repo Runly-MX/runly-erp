@@ -78,3 +78,19 @@ test('the owner can quarantine and approve; staging copies are not gated', async
   await fs.writeFile(path.join(staged, 'x.js'), 'export const ok = 1\n')
   assert.equal((await importModuleFile(path.join(staged, 'x.js'), staged)).ok, 1)
 })
+
+// Stage 2 review: module-local node_modules and symlinks cannot slip past the hash.
+test('a change inside the module node_modules or a symlink in the package quarantines it', async (t) => {
+  const { dir } = await setup(t)
+  await fs.mkdir(path.join(dir, 'node_modules', 'dep'), { recursive: true })
+  await fs.writeFile(path.join(dir, 'node_modules', 'dep', 'index.js'), 'export default 1\n')
+  await trustModulePackage({ key: KEY, moduleDir: dir, authority: 'platform-owner' })
+  assert.equal((await moduleTrustStatus(KEY, dir)).state, 'trusted')
+  await fs.writeFile(path.join(dir, 'node_modules', 'dep', 'index.js'), 'export default 2\n')
+  assert.equal((await moduleTrustStatus(KEY, dir)).reason, 'CODE_CHANGED_SINCE_TRUSTED')
+  await fs.writeFile(path.join(dir, 'node_modules', 'dep', 'index.js'), 'export default 1\n')
+  const target = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-trust-target-'))
+  t.after(() => fs.rm(target, { recursive: true, force: true }))
+  await fs.symlink(target, path.join(dir, 'linked'), 'junction')
+  assert.equal((await moduleTrustStatus(KEY, dir)).reason, 'SYMLINK_IN_PACKAGE')
+})

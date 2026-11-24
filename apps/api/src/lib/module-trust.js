@@ -17,10 +17,11 @@
 import { createHash } from 'node:crypto'
 import fs from 'node:fs/promises'
 import path from 'node:path'
-import { moduleRevision } from './module-import-revision.js'
 
 export const MODULE_TRUST_PREFIX = 'module.trust.'
-const SKIPPED_DIRS = new Set(['node_modules', '.bundle', '.git'])
+// Only build output is excluded. node_modules stays hashed: Node resolves a
+// module's bare imports from its own node_modules first (Stage 2 review).
+const SKIPPED_DIRS = new Set(['.bundle', '.git'])
 const KEEP_HASHES = 10 // rollback/backup restore of a recently trusted revision stays allowed
 const RECORD_TTL_MS = 30_000
 
@@ -41,7 +42,10 @@ export async function hashModuleDirectory(directory) {
   async function walk(current) {
     for (const entry of await fs.readdir(current, { withFileTypes: true })) {
       const absolute = path.join(current, entry.name)
+      // A symlink is neither hashed nor followable safely: an import would follow it. Fail closed.
+      if (entry.isSymbolicLink()) throw Object.assign(new Error('SYMLINK_IN_PACKAGE'), { code: 'SYMLINK_IN_PACKAGE' })
       if (entry.isDirectory()) { if (!SKIPPED_DIRS.has(entry.name)) await walk(absolute) } else if (entry.isFile()) files.push(absolute)
+      else throw Object.assign(new Error('UNSUPPORTED_FILE_IN_PACKAGE'), { code: 'UNSUPPORTED_FILE_IN_PACKAGE' })
     }
   }
   await walk(directory)
@@ -93,9 +97,28 @@ async function writeRecord(key, record) {
   records.set(key, { value: record, at: config.now() })
 }
 
+// Cheap change detector over exactly the hashed files (count, sizes, mtimes):
+// the full hash is recomputed whenever any of them changes.
+async function revisionOf(directory) {
+  let count = 0, bytes = 0, latest = 0
+  async function walk(current) {
+    for (const entry of await fs.readdir(current, { withFileTypes: true })) {
+      if (entry.isSymbolicLink()) { count = -1; return }
+      const absolute = path.join(current, entry.name)
+      if (entry.isDirectory()) { if (!SKIPPED_DIRS.has(entry.name)) await walk(absolute) } else {
+        const stat = await fs.stat(absolute)
+        count++; bytes += stat.size; latest = Math.max(latest, stat.mtimeMs)
+      }
+      if (count < 0) return
+    }
+  }
+  await walk(directory)
+  return `${count}:${bytes}:${Math.floor(latest)}`
+}
+
 export async function currentModuleHash(moduleDir) {
   const dir = path.resolve(moduleDir)
-  const rev = await moduleRevision(dir)
+  const rev = await revisionOf(dir)
   const cached = hashes.get(dir)
   if (cached && cached.rev === rev) return cached.hash
   const hash = await hashModuleDirectory(dir)
@@ -116,7 +139,9 @@ export function installedModuleOf(filePath) {
 
 export async function moduleTrustStatus(key, moduleDir) {
   const record = await readModuleTrust(key)
-  const hash = await currentModuleHash(moduleDir).catch(() => null)
+  let hash = null, hashError = null
+  try { hash = await currentModuleHash(moduleDir) } catch (error) { hashError = error?.code ?? 'PACKAGE_UNREADABLE' }
+  if (hashError) return { state: 'quarantined', reason: hashError, hash: null, record }
   if (!record) return { state: 'quarantined', reason: 'NO_TRUST_RECORD', hash, record: null }
   if (record.state !== 'trusted') return { state: 'quarantined', reason: record.reason ?? 'QUARANTINED_BY_OWNER', hash, record }
   if (!hash || !record.trustedHashes.includes(hash)) return { state: 'quarantined', reason: 'CODE_CHANGED_SINCE_TRUSTED', hash, record }
