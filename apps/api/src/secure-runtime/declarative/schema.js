@@ -13,14 +13,17 @@ export const RELATION_TARGETS = { 'runly.contacts:contact': { label: 'Contacto' 
 
 const field = z.strictObject({
   key: ident,
-  type: z.enum(['text', 'longtext', 'number', 'date', 'boolean', 'enum', 'relation', 'user']),
+  type: z.enum(['text', 'longtext', 'number', 'date', 'datetime', 'email', 'phone', 'boolean', 'enum', 'relation', 'user']),
   label: text(),
   required: z.boolean().optional(),
   // Text length or numeric upper bound; payloads stay capped at 16 KB by the gateway.
   max: z.number().finite().positive().max(1e12).optional(),
   min: z.number().finite().optional(),
-  options: z.array(z.strictObject({ value: ident, label: text() })).max(50).optional(),
-  target: z.enum(Object.keys(RELATION_TARGETS)).optional(),
+  // Option values are stored data (converted modules keep them as they are, e.g. 'ACTIVE').
+  options: z.array(z.strictObject({ value: z.string().regex(/^[A-Za-z0-9_][A-Za-z0-9_-]{0,63}$/), label: text() })).max(50).optional(),
+  // Another entity of this module ('entity:<key>') or an allowlisted Runly entity.
+  target: z.union([z.enum(Object.keys(RELATION_TARGETS)), z.string().regex(/^entity:[a-z][a-z0-9_]{0,39}$/)]).optional(),
+  default: z.union([z.string().max(500), z.number().finite(), z.boolean()]).optional(),
   readOnly: z.boolean().optional(),
 })
 
@@ -32,6 +35,10 @@ const automationStep = z.union([
 
 const entity = z.strictObject({
   key: ident,
+  // Existing RME3 table this entity reads and writes in place (converted Builder modules).
+  table: z.string().regex(/^[a-z][a-z0-9_]{0,62}$/).optional(),
+  // Per-entity permission keys (Builder modules have one set per entity).
+  permissions: z.record(ident, z.string().regex(/^[a-z][a-z0-9_.]{2,80}$/)).optional(),
   label: text(),
   pluralLabel: text(),
   fields: z.array(field).min(1).max(60),
@@ -58,6 +65,7 @@ export const declarativeModuleSchema = z.strictObject({
   permissions: z.record(ident, z.string().regex(/^[a-z][a-z0-9_.]{2,80}$/)),
   capabilities: z.array(z.enum(CAPABILITIES)).max(CAPABILITIES.length),
   events: z.strictObject({ emits: z.array(z.string().regex(/^[a-z][a-z0-9_.]{2,80}$/)).max(20) }).optional(),
+  navigation: z.array(z.strictObject({ label: text(), entity: ident, permission: z.string().regex(/^[a-z][a-z0-9_.]{2,80}$/) })).max(20).optional(),
   entities: z.array(entity).min(1).max(10),
   extensions: z.strictObject({
     backend: z.array(z.strictObject({ key: ident, handler: z.string().regex(/^backend\/[a-z0-9_-]+\.mjs$/), capabilities: z.array(z.enum(CAPABILITIES)), timeoutMs: z.number().int().min(100).max(10_000) })).max(5).optional(),
@@ -86,7 +94,9 @@ export function loadDeclarativeModule(raw) {
     for (const f of ent.fields) {
       if (f.type === 'enum' && !f.options?.length) issues.push({ path: `entities.${ent.key}.${f.key}`, message: 'Un enum necesita opciones.' })
       if (f.type === 'relation' && !f.target) issues.push({ path: `entities.${ent.key}.${f.key}`, message: 'Una relación necesita destino.' })
+      if (f.target?.startsWith('entity:') && !def.entities.some((e) => `entity:${e.key}` === f.target)) issues.push({ path: `entities.${ent.key}.${f.key}`, message: `Entidad de relación inexistente: ${f.target}` })
     }
+    if (ent.table && !ent.table.startsWith(`${def.key.slice('custom.'.length)}_`)) issues.push({ path: `entities.${ent.key}.table`, message: 'La tabla debe pertenecer al módulo.' })
     ent.views.list.columns.forEach((k) => ref(k, `entities.${ent.key}.views.list`))
     ent.views.form.sections.forEach((s) => s.fields.forEach((k) => ref(k, `entities.${ent.key}.views.form`)))
     ent.views.detail.fields.forEach((k) => ref(k, `entities.${ent.key}.views.detail`))
@@ -99,7 +109,7 @@ export function loadDeclarativeModule(raw) {
       if (!values.has(ent.states.initial)) issues.push({ path: `entities.${ent.key}.states.initial`, message: 'Estado inicial inexistente.' })
       for (const t of ent.states.transitions) {
         if (!values.has(t.to) || t.from.some((s) => !values.has(s))) issues.push({ path: `entities.${ent.key}.states.${t.action}`, message: 'Transición con estados inexistentes.' })
-        if (!Object.hasOwn(def.permissions, t.permission)) issues.push({ path: `entities.${ent.key}.states.${t.action}`, message: `Permiso no declarado: ${t.permission}` })
+        if (!Object.hasOwn(def.permissions, t.permission) && !Object.hasOwn(ent.permissions ?? {}, t.permission)) issues.push({ path: `entities.${ent.key}.states.${t.action}`, message: `Permiso no declarado: ${t.permission}` })
         if (t.when) check(t.when, `entities.${ent.key}.states.${t.action}.when`)
       }
     }
@@ -113,7 +123,7 @@ export function loadDeclarativeModule(raw) {
       }
     }
   }
-  for (const action of ['read', 'create', 'update']) if (!Object.hasOwn(def.permissions, action)) issues.push({ path: 'permissions', message: `Falta el permiso ${action}.` })
+  for (const action of ['read', 'create', 'update']) for (const ent of def.entities) if (!Object.hasOwn(ent.permissions ?? {}, action) && !Object.hasOwn(def.permissions, action)) issues.push({ path: `entities.${ent.key}.permissions`, message: `Falta el permiso ${action}.` })
   if (issues.length) throw new DefinitionError(issues)
   return Object.freeze(def)
 }

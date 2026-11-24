@@ -13,8 +13,9 @@ import path from 'node:path'
 import { randomUUID } from 'node:crypto'
 import { Hono } from 'hono'
 import { createHostSigner, GatewayError } from './protocol.js'
-import { createCapabilityGateway, GATEWAY_OPERATIONS } from './gateway/gateway.js'
+import { allPermissionKeys, createCapabilityGateway, GATEWAY_OPERATIONS } from './gateway/gateway.js'
 import { createPgStore } from './gateway/stores.js'
+import { createRme3TableStore } from './gateway/rme3-table-store.js'
 import { loadDeclarativeModule, CAPABILITIES } from './declarative/schema.js'
 import { toBlueprints } from './declarative/runtime.js'
 import { renderIsolatedFrame } from './frontend/frame-document.js'
@@ -41,7 +42,14 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, sup
   const modulesDir = env.RUNLY_SECURE_RUNTIME_MODULES_DIR ? path.resolve(env.RUNLY_SECURE_RUNTIME_MODULES_DIR) : null
   const frameAncestors = String(env.RUNLY_SECURE_RUNTIME_FRAME_ANCESTORS ?? '').split(/\s+/).filter(Boolean)
   const signer = createHostSigner()
-  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), services: createGatewayHostServices({ filesService }) })
+  // Converted Builder modules (entities with `table`) read/write their existing RME3 tables.
+  const tableStores = new WeakMap()
+  const storeFor = (def) => {
+    if (!def.entities.every((e) => e.table)) return null
+    if (!tableStores.has(def)) tableStores.set(def, createRme3TableStore({ pool, def }))
+    return tableStores.get(def)
+  }
+  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), storeFor, services: createGatewayHostServices({ filesService }) })
   const registry = new Map() // key -> { def, dir, hash }
   const inflight = new Map() // companyId -> count
 
@@ -85,7 +93,7 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, sup
     const tenant = c.get('tenantContext')
     const profileId = c.get('userContext')?.profile?.id ?? c.get('userId')
     if (!tenant?.companyId || !profileId) throw new GatewayError('CONTEXT_INVALID', 'Selecciona una empresa.', 400)
-    const modulePerms = Object.values(entry.def.permissions)
+    const modulePerms = allPermissionKeys(entry.def)
     const held = new Set(tenant.isAdmin ? modulePerms : modulePerms.filter((p) => tenant.permissionSet?.has?.(p)))
     return { companyId: tenant.companyId, profileId, permissionSet: held }
   }

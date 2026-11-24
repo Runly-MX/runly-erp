@@ -10,7 +10,7 @@
 // come only from the token; a companyId/userId in the arguments is rejected.
 import { z } from 'zod'
 import { GatewayError, PROTOCOL_VERSION } from '../protocol.js'
-import { applyTransition, entityOf, prepareRecord, RecordError } from '../declarative/runtime.js'
+import { applyTransition, entityOf, permissionKey, prepareRecord, RecordError } from '../declarative/runtime.js'
 
 const uuid = z.string().regex(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)
 const ident = z.string().regex(/^[a-z][a-z0-9_]{0,39}$/)
@@ -21,7 +21,7 @@ const OPERATIONS = {
   'records.list': { cap: 'records.read', perm: 'read', args: z.strictObject({ entity: ident, state: ident.optional(), limit: z.number().int().min(1).max(100).optional() }) },
   'records.get': { cap: 'records.read', perm: 'read', args: z.strictObject({ entity: ident, id: uuid }) },
   'records.create': { cap: 'records.write', perm: 'create', write: true, args: z.strictObject({ entity: ident, data }) },
-  'records.update': { cap: 'records.write', perm: 'update', write: true, args: z.strictObject({ entity: ident, id: uuid, data, expectedVersion: z.number().int().positive().optional() }) },
+  'records.update': { cap: 'records.write', perm: 'update', write: true, args: z.strictObject({ entity: ident, id: uuid, data, expectedVersion: z.union([z.number().int().positive(), z.string().max(64)]).optional() }) },
   'records.transition': { cap: 'records.write', perm: null, write: true, args: z.strictObject({ entity: ident, id: uuid, action: ident }) },
   'relations.resolve': { cap: 'relations.resolve', perm: 'read', args: z.strictObject({ entity: ident, field: ident, ids: z.array(uuid).min(1).max(50) }) },
   'files.describe': { cap: 'files.describe', perm: 'read', args: z.strictObject({ ids: z.array(uuid).min(1).max(20) }) },
@@ -31,11 +31,15 @@ const OPERATIONS = {
 }
 export const GATEWAY_OPERATIONS = Object.keys(OPERATIONS)
 
+export const allPermissionKeys = (def) => [...new Set([...Object.values(def.permissions), ...def.entities.flatMap((e) => Object.values(e.permissions ?? {}))])]
+
 const DEFAULT_LIMITS = { callsPerMinute: 120, notificationsPerMinute: 20, timeoutMs: 3000 }
 
 const toRecord = (row) => ({ id: row.id, data: row.data, attachments: (row.attachments ?? []).map((a) => ({ fileId: a.fileId })), version: row.version, createdAt: row.createdAt, updatedAt: row.updatedAt })
 
-export function createCapabilityGateway({ signer, store, services = {}, limits = {}, now = () => Date.now() }) {
+// storeFor(def): record storage for a module (existing RME3 tables for converted
+// Builder modules, gateway/stores.js otherwise). Everything else uses `store`.
+export function createCapabilityGateway({ signer, store, storeFor = null, services = {}, limits = {}, now = () => Date.now() }) {
   const config = { ...DEFAULT_LIMITS, ...limits }
   const modules = new Map() // key -> { def, approved:Set, packageHash, grantVersion, revoked }
   const buckets = new Map() // key -> { start, count }
@@ -59,7 +63,7 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
   function issueCallToken({ moduleKey, companyId, profileId, permissionSet, capabilities, jobId = null, ttlMs }) {
     const entry = modules.get(moduleKey)
     if (!entry || entry.revoked) throw new GatewayError('MODULE_REVOKED', 'El módulo no está habilitado en el runtime.', 403)
-    const held = Object.values(entry.def.permissions).filter((key) => permissionSet.has(key))
+    const held = allPermissionKeys(entry.def).filter((key) => permissionSet.has(key))
     const caps = capabilities.filter((cap) => entry.approved.has(cap))
     return signer.issue({ mod: moduleKey, pkg: entry.packageHash, gv: entry.grantVersion, cid: companyId, uid: profileId, perms: held, caps, job: jobId }, ttlMs)
   }
@@ -86,9 +90,10 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
   async function perform(operation, args, claims, entry, permissions) {
     const def = entry.def
     const ctx = { companyId: claims.cid, profileId: claims.uid, moduleKey: claims.mod }
-    const need = (action) => { if (!permissions.has(def.permissions[action])) throw new GatewayError('PERMISSION_DENIED', 'No tienes permiso para esta operación.', 403) }
+    const records = storeFor?.(def) ?? store
+    const need = (action, entityKey = args.entity) => { const key = permissionKey(def, entityKey ? def.entities.find((e) => e.key === entityKey) : null, action); if (!key || !permissions.has(key)) throw new GatewayError('PERMISSION_DENIED', 'No tienes permiso para esta operación.', 403) }
     const loadRecord = async (entity, id) => {
-      const row = await store.getRecord(ctx, entity, id)
+      const row = await records.getRecord(ctx, entity, id)
       if (!row) throw new GatewayError('NOT_FOUND', 'Registro no encontrado.', 404)
       return row
     }
@@ -96,24 +101,24 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
       case 'records.list': {
         const entity = entityOf(def, args.entity)
         if (args.state && !entity.states?.values.some((v) => v.value === args.state)) throw new GatewayError('INVALID_ARGS', 'Estado desconocido.', 422)
-        return (await store.listRecords(ctx, entity.key, { state: args.state, stateField: entity.states?.field, limit: args.limit ?? 50 })).map(toRecord)
+        return (await records.listRecords(ctx, entity.key, { state: args.state, stateField: entity.states?.field, limit: args.limit ?? 50 })).map(toRecord)
       }
       case 'records.get': return toRecord(await loadRecord(entityOf(def, args.entity).key, args.id))
       case 'records.create': {
         const entity = entityOf(def, args.entity)
-        return toRecord(await store.createRecord(ctx, entity.key, prepareRecord(entity, args.data, { mode: 'create' })))
+        return toRecord(await records.createRecord(ctx, entity.key, prepareRecord(entity, args.data, { mode: 'create' })))
       }
       case 'records.update': {
         const entity = entityOf(def, args.entity)
         const row = await loadRecord(entity.key, args.id)
-        if (args.expectedVersion && args.expectedVersion !== row.version) throw new GatewayError('VERSION_CONFLICT', 'El registro cambió; recarga antes de guardar.', 409)
-        return toRecord(await store.updateRecord(ctx, entity.key, args.id, prepareRecord(entity, args.data, { mode: 'update', current: row.data }), row.version))
+        if (args.expectedVersion !== undefined && String(args.expectedVersion) !== String(row.version)) throw new GatewayError('VERSION_CONFLICT', 'El registro cambió; recarga antes de guardar.', 409)
+        return toRecord(await records.updateRecord(ctx, entity.key, args.id, prepareRecord(entity, args.data, { mode: 'update', current: row.data }), row.version))
       }
       case 'records.transition': {
         const entity = entityOf(def, args.entity)
         const row = await loadRecord(entity.key, args.id)
         const { data: next, effects } = applyTransition(def, entity, row.data, args.action, { grantedPermissions: permissions })
-        const updated = await store.updateRecord(ctx, entity.key, args.id, next, row.version)
+        const updated = await records.updateRecord(ctx, entity.key, args.id, next, row.version)
         for (const effect of effects) {
           if (effect.notify?.to) await deliverNotification(ctx, [effect.notify.to], effect.notify.title, effect.notify.body)
           if (effect.emit) await store.insertEvent(ctx, effect.emit, { entity: entity.key, recordId: args.id, action: args.action })
@@ -123,6 +128,13 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
       case 'relations.resolve': {
         const field = entityOf(def, args.entity).fields.find((f) => f.key === args.field)
         if (field?.type !== 'relation') throw new GatewayError('INVALID_ARGS', 'El campo no es una relación declarada.', 422)
+        if (field.target.startsWith('entity:')) {
+          const target = entityOf(def, field.target.slice('entity:'.length))
+          need('read', target.key)
+          const labelField = target.fields.find((f) => f.type === 'text')?.key
+          const rows = await Promise.all(args.ids.map((id) => records.getRecord(ctx, target.key, id)))
+          return rows.filter(Boolean).map((r) => ({ id: r.id, label: labelField ? String(r.data[labelField] ?? '') : r.id }))
+        }
         return store.resolveRelation(ctx, field.target, args.ids)
       }
       case 'files.describe': {
@@ -136,6 +148,7 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
         const visible = services.files?.describe ? await services.files.describe({ ...ctx, permissionSet: permissions, ids: [args.fileId] }) : []
         if (!visible.some((f) => f.id === args.fileId)) throw new GatewayError('NOT_FOUND', 'Archivo no encontrado en esta empresa.', 404)
         const attachments = (row.attachments ?? []).some((a) => a.fileId === args.fileId) ? row.attachments : [...(row.attachments ?? []), { fileId: args.fileId }]
+        if (records !== store) throw new GatewayError('CAPABILITY_UNAVAILABLE', 'Los adjuntos de este módulo se gestionan con sus rutas de archivos existentes.', 409)
         return toRecord(await store.updateRecord(ctx, entity.key, args.id, row.data, row.version, attachments))
       }
       case 'notifications.publish': return deliverNotification(ctx, args.to, args.title, args.body ?? null)
@@ -171,7 +184,11 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
       const parsed = spec.args.safeParse(args)
       if (!parsed.success) throw new GatewayError('INVALID_ARGS', 'Argumentos inválidos.', 422, parsed.error.issues.slice(0, 5).map((i) => ({ path: i.path.join('.'), message: i.message })))
       const permissions = new Set(claims.perms)
-      if (spec.perm && !permissions.has(entry.def.permissions[spec.perm])) throw new GatewayError('PERMISSION_DENIED', 'No tienes permiso para esta operación.', 403)
+      // Before quota and idempotency: a revoked permission never gets a cached answer.
+      if (spec.perm) {
+        const key = permissionKey(entry.def, parsed.data.entity ? entry.def.entities.find((e) => e.key === parsed.data.entity) : null, spec.perm)
+        if (!key || !permissions.has(key)) throw new GatewayError('PERMISSION_DENIED', 'No tienes permiso para esta operación.', 403)
+      }
       quota(claims, operation)
       if (spec.write) {
         if (!idempotencyKey || !/^[A-Za-z0-9_-]{8,64}$/.test(idempotencyKey)) throw new GatewayError('IDEMPOTENCY_KEY_REQUIRED', 'Las escrituras necesitan una clave de idempotencia.', 400)
@@ -189,6 +206,7 @@ export function createCapabilityGateway({ signer, store, services = {}, limits =
     } catch (raw) {
       const error = raw instanceof GatewayError ? raw
         : raw instanceof RecordError ? new GatewayError(raw.code === 'FORBIDDEN' ? 'PERMISSION_DENIED' : raw.code, raw.message, raw.status)
+        : raw?.code === 'VERSION_CONFLICT' ? new GatewayError('VERSION_CONFLICT', 'El registro cambió; recarga antes de guardar.', 409)
         : new GatewayError('CAPABILITY_FAILED', 'La operación falló.', 500)
       if (claims?.mod && claims?.cid) await store.audit(claims, `runtime.denied.${operation}`, { code: error.code }).catch(() => {})
       throw error

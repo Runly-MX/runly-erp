@@ -9,6 +9,14 @@ export class RecordError extends Error {
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const DATE = /^\d{4}-\d{2}-\d{2}$/
+const DATETIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2}(\.\d{1,6})?)?(Z|[+-]\d{2}:\d{2})$/
+const EMAIL = /^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/
+const PHONE = /^\+?[0-9 ()-]{6,24}$/
+
+// Permission key for an action: the entity's own set (converted Builder modules) or the module's.
+export function permissionKey(def, entity, action) {
+  return entity?.permissions?.[action] ?? def.permissions[action] ?? null
+}
 
 export function entityOf(def, key) {
   const entity = def.entities.find((e) => e.key === key)
@@ -32,6 +40,9 @@ function coerce(field, value) {
       return value
     }
     case 'date': if (typeof value !== 'string' || !DATE.test(value)) throw new RecordError('FIELD_INVALID', `${field.label}: fecha AAAA-MM-DD.`); return value
+    case 'datetime': if (typeof value !== 'string' || !DATETIME.test(value) || Number.isNaN(Date.parse(value))) throw new RecordError('FIELD_INVALID', `${field.label}: fecha y hora ISO con zona.`); return value
+    case 'email': if (typeof value !== 'string' || value.length > 254 || !EMAIL.test(value)) throw new RecordError('FIELD_INVALID', `${field.label}: correo no válido.`); return value
+    case 'phone': if (typeof value !== 'string' || !PHONE.test(value)) throw new RecordError('FIELD_INVALID', `${field.label}: teléfono no válido.`); return value
     case 'boolean': if (typeof value !== 'boolean') throw new RecordError('FIELD_INVALID', `${field.label}: se esperaba sí/no.`); return value
     case 'enum': if (!field.options.some((o) => o.value === value)) throw new RecordError('FIELD_INVALID', `${field.label}: opción no válida.`); return value
     case 'relation': case 'user': if (typeof value !== 'string' || !UUID.test(value)) throw new RecordError('FIELD_INVALID', `${field.label}: referencia no válida.`); return value.toLowerCase()
@@ -52,6 +63,7 @@ export function prepareRecord(entity, input, { mode, current = {} }) {
     if (field.readOnly) throw new RecordError('FIELD_READ_ONLY', `${field.label} no se puede editar.`)
     next[key] = coerce(field, value)
   }
+  if (mode === 'create') for (const field of entity.fields) if (field.default !== undefined && (next[field.key] === undefined || next[field.key] === null) && field.key !== stateField) next[field.key] = coerce(field, field.default)
   if (mode === 'create' && stateField) next[stateField] = entity.states.initial
   for (const field of entity.fields) if (field.required && (next[field.key] === null || next[field.key] === undefined)) throw new RecordError('FIELD_REQUIRED', `${field.label} es obligatorio.`)
   for (const rule of entity.validations ?? []) if (evaluateExpression(rule.rule, next) !== true) throw new RecordError('VALIDATION_FAILED', rule.message)
@@ -62,8 +74,8 @@ export function prepareRecord(entity, input, { mode, current = {} }) {
 export function applyTransition(def, entity, record, action, { grantedPermissions }) {
   const transition = entity.states?.transitions.find((t) => t.action === action)
   if (!transition) throw new RecordError('ACTION_UNKNOWN', 'Acción desconocida.')
-  const permissionKey = def.permissions[transition.permission]
-  if (!grantedPermissions.has(permissionKey)) throw new RecordError('FORBIDDEN', 'No tienes permiso para esta acción.')
+  const requiredKey = permissionKey(def, entity, transition.permission)
+  if (!requiredKey || !grantedPermissions.has(requiredKey)) throw new RecordError('FORBIDDEN', 'No tienes permiso para esta acción.')
   const state = record[entity.states.field]
   if (!transition.from.includes(state)) throw new RecordError('TRANSITION_NOT_ALLOWED', `No se puede ${transition.label.toLowerCase()} desde este estado.`)
   if (transition.when && evaluateExpression(transition.when, record) !== true) throw new RecordError('TRANSITION_CONDITION', 'No se cumplen las condiciones de la acción.')
@@ -85,7 +97,7 @@ export function applyTransition(def, entity, record, action, { grantedPermission
 // use Runly UI directly, without an iframe.
 export function toBlueprints(def, entity) {
   const fields = new Map(entity.fields.map((f) => [f.key, f]))
-  const uiType = (f) => ({ text: 'text', longtext: 'textarea', number: 'number', date: 'date', boolean: 'boolean', enum: 'select', relation: 'relation', user: 'user' })[f.type]
+  const uiType = (f) => ({ text: 'text', longtext: 'textarea', number: 'number', date: 'date', datetime: 'datetime', email: 'email', phone: 'phone', boolean: 'boolean', enum: 'select', relation: 'relation', user: 'user' })[f.type]
   const fieldSpec = (key) => {
     const f = fields.get(key)
     return { key, label: f.label, type: uiType(f), required: Boolean(f.required), readOnly: Boolean(f.readOnly) || key === entity.states?.field, ...(f.options ? { options: f.options } : {}), ...(f.target ? { relation: { target: f.target } } : {}) }
@@ -94,6 +106,6 @@ export function toBlueprints(def, entity) {
     table: { kind: 'TABLE', key: `${def.key}.${entity.key}.list`, entity: entity.key, columns: entity.views.list.columns.map(fieldSpec) },
     form: { kind: 'FORM', key: `${def.key}.${entity.key}.form`, entity: entity.key, sections: entity.views.form.sections.map((s) => ({ title: s.title, fields: s.fields.map(fieldSpec) })) },
     detail: { kind: 'ENTITY', key: `${def.key}.${entity.key}.detail`, entity: entity.key, fields: entity.views.detail.fields.map(fieldSpec),
-      actions: (entity.states?.transitions ?? []).map((t) => ({ key: t.action, label: t.label, from: t.from, permission: def.permissions[t.permission] })) },
+      actions: (entity.states?.transitions ?? []).map((t) => ({ key: t.action, label: t.label, from: t.from, permission: permissionKey(def, entity, t.permission) })) },
   }
 }
