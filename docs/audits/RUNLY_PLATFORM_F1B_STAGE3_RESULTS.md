@@ -23,7 +23,7 @@
 Detalle de los 40 hallazgos de privacidad:
 - 35 son rangos privados o reservados (RFC 1918, loopback, link-local, CGNAT);
 - 12 son direcciones de documentación (RFC 5737);
-- el resto son `1.2.3.4` de prueba, `999.1.1.1` (inválida a propósito) o `0.0.0.0`.
+- el resto son una dirección ficticia de prueba, una dirección inválida a propósito y la dirección no especificada.
 
 ## 2. Capability Gateway integrado (experimental)
 
