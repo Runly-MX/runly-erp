@@ -43,6 +43,14 @@ try {
     const again = await run(volumes[1])
     assert.ok(!/Handing/.test(again.err + again.out), 'second start must not chown again')
   })
+  await check('a symlink in the modules volume stops the start (never followed, nothing changed)', async () => {
+    const vol = `runly-nonroot-link-${id}`; volumes.push(vol)
+    await docker(['run', '--rm', '-v', `${vol}:/d`, '--entrypoint', 'sh', IMAGE, '-c', 'mkdir -p /d/custom.x && ln -s /etc /d/custom.x/escape && chown -R 0:0 /d'])
+    const r = await docker(['run', '--rm', ...HARDENED, '-v', `${vol}:/app/modules/custom`, '-e', 'RUNLY_SKIP_DB_INIT=1', IMAGE, 'sh', '-c', 'echo started'])
+    assert.notEqual(r.code, 0); assert.match(r.err, /symbolic link/); assert.ok(!/started/.test(r.out))
+    const owner = await docker(['run', '--rm', '-v', `${vol}:/d`, '--entrypoint', 'sh', IMAGE, '-c', 'stat -c %u /d/custom.x'])
+    assert.equal(owner.out, '0', 'ownership left untouched')
+  })
   await check('started directly as non-root: nothing is changed and it still runs', async () => {
     const r = await docker(['run', '--rm', '--cap-drop', 'ALL', '--security-opt', 'no-new-privileges', '--user', '10001:10001', '-v', `${volumes[0]}:/app/modules/custom`, IMAGE, 'sh', '-c', 'id -u; touch /app/modules/custom/.w2 && echo ok'])
     assert.equal(r.code, 0, r.err); assert.equal(r.out, '10001\nok')
