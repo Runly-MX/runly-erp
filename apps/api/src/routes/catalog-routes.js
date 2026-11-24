@@ -43,30 +43,6 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
     };
   };
 
-  app.get("/module-catalog", requirePermission("core.modules.read"), async (c) => {
-    try {
-      return c.json({ data: await catalog.list() });
-    } catch (error) {
-      return fail(c, error, "No se pudo cargar el catálogo de módulos.");
-    }
-  });
-
-  app.post("/module-catalog/:key/install", requirePermission("core.modules.manage"), async (c) => {
-    try {
-      return c.json({ data: await catalog.install({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null }) });
-    } catch (error) {
-      return fail(c, error, "No se pudo instalar el módulo.");
-    }
-  });
-
-  app.post("/module-catalog/:key/update", requirePermission("core.modules.manage"), async (c) => {
-    try {
-      return c.json({ data: await catalog.update({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null }) });
-    } catch (error) {
-      return fail(c, error, "No se pudo actualizar el módulo.");
-    }
-  });
-
   // Installing, updating or re-pointing the catalog changes code for the whole
   // instance (RunlyModule is instance-global; companies only enable/disable it).
   // Same authority as other instance-level settings: system admin or the admin
@@ -80,6 +56,30 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
     }
     await next();
   };
+  app.get("/module-catalog", requirePermission("core.modules.read"), async (c) => {
+    try {
+      return c.json({ data: await catalog.list() });
+    } catch (error) {
+      return fail(c, error, "No se pudo cargar el catálogo de módulos.");
+    }
+  });
+
+  app.post("/module-catalog/:key/install", requirePermission("core.modules.manage"), requireInstanceAuthority, async (c) => {
+    try {
+      return c.json({ data: await catalog.install({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null, tenant: c.get("tenantContext") }) });
+    } catch (error) {
+      return fail(c, error, "No se pudo instalar el módulo.");
+    }
+  });
+
+  app.post("/module-catalog/:key/update", requirePermission("core.modules.manage"), requireInstanceAuthority, async (c) => {
+    try {
+      return c.json({ data: await catalog.update({ key: c.req.param("key"), ...(await body(c)), actorId: actor(c), companyId: c.get("companyId") ?? null, tenant: c.get("tenantContext") }) });
+    } catch (error) {
+      return fail(c, error, "No se pudo actualizar el módulo.");
+    }
+  });
+
   const v2Body = async (c) => {
     const data = await c.req.json().catch(() => ({}));
     return {
@@ -101,7 +101,7 @@ export function createCatalogRouter({ prisma, requirePermission, bundlerSvc = nu
   for (const action of ["install", "update"]) {
     app.post(`/module-catalog/v2/:key/${action}`, requirePermission("core.modules.manage"), requireInstanceAuthority, async (c) => {
       try {
-        return c.json({ data: await catalogV2[action]({ key: c.req.param("key"), ...(await v2Body(c)), actorId: actor(c) }) });
+        return c.json({ data: await catalogV2[action]({ key: c.req.param("key"), ...(await v2Body(c)), actorId: actor(c), tenant: c.get("tenantContext") }) });
       } catch (error) {
         return fail(c, error, action === "install" ? "No se pudo instalar el módulo." : "No se pudo actualizar el módulo.");
       }

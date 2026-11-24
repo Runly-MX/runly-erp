@@ -47,6 +47,7 @@ test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con e
   const buffer = await zip.generateAsync({ type: 'nodebuffer', compression: 'DEFLATE' })
 
   const permissionCalls = []
+  let tenant = { isAdmin: true, isCompanyAdmin: true, isPlatformOwner: false }
   const app = createModulesRouter({
     prisma: {
       runlyModule: {
@@ -70,8 +71,9 @@ test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con e
       auditLog: { create: async () => ({}) },
     },
     authMiddleware: async (_c, next) => next(),
-    requirePermission: (permission) => async (_c, next) => {
+    requirePermission: (permission) => async (c, next) => {
       permissionCalls.push(permission)
+      c.set('tenantContext', tenant)
       await next()
     },
     bundlerSvc: {
@@ -84,12 +86,24 @@ test('POST /modules/:key/upload recibe multipart, extrae el ZIP y responde con e
     },
   })
 
-  const form = new FormData()
-  form.append('file', new Blob([buffer], { type: 'application/zip' }), 'custom.uploadroute.zip')
-  const response = await app.fetch(new Request('http://localhost/custom.uploadroute/upload', {
-    method: 'POST',
-    body: form,
-  }))
+  const upload = (route = 'upload') => {
+    const form = new FormData()
+    form.append('file', new Blob([buffer], { type: 'application/zip' }), 'custom.uploadroute.zip')
+    return app.fetch(new Request(`http://localhost/custom.uploadroute/${route}`, { method: 'POST', body: form }))
+  }
+
+  // P0-01: a company admin holds core.modules.upload but cannot authorize server code.
+  for (const route of ['upload', 'upload/check']) {
+    const denied = await upload(route)
+    assert.equal(denied.status, 403)
+    assert.equal((await denied.json()).error, 'MODULE_CODE_AUTHORITY_REQUIRED')
+  }
+  await assert.rejects(fs.access(path.join(modulesDir, 'custom.uploadroute')))
+  assert.deepEqual(await fs.readdir(path.join(modulesDir, '.staging')).catch(() => []), [])
+  permissionCalls.length = 0
+
+  tenant = { isAdmin: true, isCompanyAdmin: true, isPlatformOwner: true }
+  const response = await upload()
   const body = await response.json()
 
   assert.equal(response.status, 200, JSON.stringify(body))

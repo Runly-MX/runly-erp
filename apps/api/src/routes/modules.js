@@ -56,6 +56,7 @@ import {
 } from "../services/module-upload-service.js";
 import { createModulePackagePurgeService } from "../services/module-package-purge-service.js";
 import { createModulePackageStagingService } from "../services/module-package-staging-service.js";
+import { moduleCodeAuthorityDenied, ownerCodeAuthority } from "../lib/module-code-authority.js";
 import { createModulePackageService, PREVIEW_TTL_MS, previewBundlePath } from "../services/module-package-service.js";
 import { createModuleSchemaMigrationService } from "../services/module-schema-migration-service.js";
 import { createModuleDashboardQueryService } from "../services/module-dashboard-query-service.js";
@@ -2561,6 +2562,8 @@ export function createModulesRouter({
     authMiddleware,
     requirePermission("core.modules.upload"),
     async (c) => {
+      const authority = ownerCodeAuthority(c.get("tenantContext"));
+      if (!authority) return moduleCodeAuthorityDenied(c);
       const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
       if (!packageSvc?.checkZip) return c.json({ error: "MODULE_PACKAGE_PUBLISH_UNAVAILABLE" }, 503);
       const modulesDir = await resolveModulesDir();
@@ -2576,6 +2579,7 @@ export function createModulesRouter({
           fileBuffer: Buffer.from(await file.arrayBuffer()),
           modulesDir,
           decisions: parseDecisions(body.decisions),
+          authority,
           inspect: (staged) => builderSync.evaluateUpload({ moduleKey: key, dir: staged.packageDir, manifest: staged.manifest }),
         });
         return c.json({ data: { moduleKey: key, ...report } });
@@ -2771,6 +2775,9 @@ export function createModulesRouter({
     authMiddleware,
     requirePermission("core.modules.upload"),
     async (c) => {
+      // P0-01: the ZIP's JS runs in this process for every company.
+      const authority = ownerCodeAuthority(c.get("tenantContext"));
+      if (!authority) return moduleCodeAuthorityDenied(c);
       const key = await resolvePersistedModuleKey(prisma, c.req.param("key"));
       if (!packageSvc) {
         return c.json({ error: "MODULE_PACKAGE_PUBLISH_UNAVAILABLE" }, 503);
@@ -2800,6 +2807,7 @@ export function createModulesRouter({
           modulesDir,
           actorId,
           decisions: parseDecisions(body.decisions),
+          authority,
         });
         // Builder projects keep React-screen-only changes and switch to
         // developer mode for anything else, so a Builder publish never

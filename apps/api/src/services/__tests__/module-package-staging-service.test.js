@@ -22,11 +22,29 @@ async function zipOf(files) {
   return zip.generateAsync({ type: 'nodebuffer' })
 }
 
+// P0-01: staging import()s the manifest, so authority is checked before any byte is written.
+test('refuses to stage (and so to execute) a package without a code authority', async (t) => {
+  const root = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-stage-'))
+  t.after(() => fs.rm(root, { recursive: true, force: true }))
+  const canary = path.join(root, 'executed.txt')
+  // Inert canary: the manifest only writes a marker file if it is ever imported.
+  const body = `import fs from 'node:fs'\nfs.writeFileSync(${JSON.stringify(canary)}, 'x')\n${manifest()}`
+  const service = createModulePackageStagingService()
+  for (const authority of [undefined, null, '', 'company-admin', 'PLATFORM-OWNER']) {
+    await assert.rejects(
+      service.stageZipPackage({ authority, key: 'custom.atomic', modulesDir: root, fileBuffer: await zipOf({ 'module.manifest.js': body }) }),
+      { code: 'MODULE_CODE_AUTHORITY_REQUIRED', statusCode: 403 },
+    )
+  }
+  await assert.rejects(fs.access(canary), 'the package code must never run')
+  assert.deepEqual(await fs.readdir(path.join(root, '.staging')).catch(() => []), [])
+})
+
 test('stages and inspects a valid package, then cleans it', async (t) => {
   const root = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-stage-'))
   t.after(() => fs.rm(root, { recursive: true, force: true }))
   const service = createModulePackageStagingService()
-  const staged = await service.stageZipPackage({
+  const staged = await service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.atomic', modulesDir: root,
     fileBuffer: await zipOf({ 'custom.atomic/module.manifest.js': manifest(), 'custom.atomic/README.md': 'ok' }),
   })
@@ -43,7 +61,7 @@ test('rejects malformed ZIP and leaves no staging residue', async (t) => {
   t.after(() => fs.rm(root, { recursive: true, force: true }))
   const service = createModulePackageStagingService()
   await assert.rejects(
-    service.stageZipPackage({ key: 'custom.atomic', modulesDir: root, fileBuffer: Buffer.from('broken') }),
+    service.stageZipPackage({ authority: 'platform-owner', key: 'custom.atomic', modulesDir: root, fileBuffer: Buffer.from('broken') }),
     { code: 'INVALID_ZIP' },
   )
   const staged = await fs.readdir(path.join(root, '.staging')).catch(() => [])
@@ -59,7 +77,7 @@ test('stages a package whose key uses an underscore, matching the compiler MODUL
   const root = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-stage-'))
   t.after(() => fs.rm(root, { recursive: true, force: true }))
   const service = createModulePackageStagingService()
-  const staged = await service.stageZipPackage({
+  const staged = await service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.vehicle_control', modulesDir: root,
     fileBuffer: await zipOf({ 'module.manifest.js': manifest('custom.vehicle_control') }),
   })
@@ -71,12 +89,12 @@ test('rejects traversal, duplicate normalized paths and wrong manifest keys', as
   t.after(() => fs.rm(root, { recursive: true, force: true }))
   const service = createModulePackageStagingService()
 
-  await assert.rejects(service.stageZipPackage({
+  await assert.rejects(service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.atomic', modulesDir: root,
     fileBuffer: await zipOf({ 'module.manifest.js': manifest(), '../escape.txt': 'bad' }),
   }), { code: 'UNSAFE_ZIP_ENTRY' })
 
-  await assert.rejects(service.stageZipPackage({
+  await assert.rejects(service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.atomic', modulesDir: root,
     fileBuffer: await zipOf({ 'module.manifest.js': manifest('custom.other') }),
   }), { code: 'MANIFEST_KEY_MISMATCH' })
@@ -85,7 +103,7 @@ test('rejects traversal, duplicate normalized paths and wrong manifest keys', as
   duplicate.file('module.manifest.js', manifest())
   duplicate.file('Readme.md', 'one')
   duplicate.file('README.md', 'two')
-  await assert.rejects(service.stageZipPackage({
+  await assert.rejects(service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.atomic', modulesDir: root,
     fileBuffer: await duplicate.generateAsync({ type: 'nodebuffer' }),
   }), { code: 'DUPLICATE_ZIP_ENTRY' })
@@ -95,7 +113,7 @@ test('rejects a malformed manifest and removes its operation directory', async (
   const root = await fs.mkdtemp(path.join(REPO_ROOT, '.tmp-stage-'))
   t.after(() => fs.rm(root, { recursive: true, force: true }))
   const service = createModulePackageStagingService()
-  await assert.rejects(service.stageZipPackage({
+  await assert.rejects(service.stageZipPackage({ authority: 'platform-owner',
     key: 'custom.atomic', modulesDir: root,
     fileBuffer: await zipOf({ 'module.manifest.js': 'export default {' }),
   }), { code: 'INVALID_MANIFEST' })

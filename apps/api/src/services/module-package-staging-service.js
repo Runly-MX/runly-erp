@@ -9,6 +9,7 @@ import {
   loadModuleViews,
 } from './module-discovery-service.js'
 import { hasActiveLock } from './module-package-lock-service.js'
+import { isModuleCodeAuthority } from '../lib/module-code-authority.js'
 
 const MAX_COMPRESSED_BYTES = 50 * 1024 * 1024
 const MAX_UNCOMPRESSED_BYTES = 150 * 1024 * 1024
@@ -130,7 +131,11 @@ export function createModulePackageStagingService({ now = () => Date.now() } = {
     return removed
   }
 
-  async function stageZipPackage({ key, fileBuffer, modulesDir }) {
+  async function stageZipPackage({ key, fileBuffer, modulesDir, authority }) {
+    // Fail closed before anything is extracted or import()ed (P0-01).
+    if (!isModuleCodeAuthority(authority)) {
+      throw new ModulePackageStageError('MODULE_CODE_AUTHORITY_REQUIRED', { stage: 'AUTHORIZE', statusCode: 403 })
+    }
     if (!MODULE_KEY_PATTERN.test(key)) {
       throw new ModulePackageStageError('INVALID_MODULE_KEY')
     }

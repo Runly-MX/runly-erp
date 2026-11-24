@@ -28,6 +28,7 @@ async function readComponentFiles(packageDir) {
 import { buildUpdateReport, describeStructure, invalidPackageReport } from './module-update-report.js'
 import { invalidateModuleCaches } from './module-cache-service.js'
 import { acquireModuleLock as acquireModuleLockWithRecovery, ModulePackageLockBusyError } from './module-package-lock-service.js'
+import { isModuleCodeAuthority } from '../lib/module-code-authority.js'
 
 export class ModulePackagePublishError extends Error {
   constructor(message, details = {}) {
@@ -37,6 +38,14 @@ export class ModulePackagePublishError extends Error {
     this.stage = details.stage ?? 'UNKNOWN'
     this.statusCode = details.statusCode ?? 500
     this.details = details
+  }
+}
+
+function assertCodeAuthority(authority) {
+  if (!isModuleCodeAuthority(authority)) {
+    throw new ModulePackagePublishError('MODULE_CODE_AUTHORITY_REQUIRED', {
+      code: 'MODULE_CODE_AUTHORITY_REQUIRED', stage: 'AUTHORIZE', statusCode: 403, originalPackagePreserved: true,
+    })
   }
 }
 
@@ -140,7 +149,8 @@ export function createModulePackageService({
     })
   }
 
-  async function publishZip({ key, fileBuffer, modulesDir, actorId = null, decisions = {} }) {
+  async function publishZip({ key, fileBuffer, modulesDir, actorId = null, decisions = {}, authority }) {
+    assertCodeAuthority(authority)
     await stagingService.cleanupStaleStaging(modulesDir)
     const release = await acquireModuleLock(modulesDir, key)
     let staged = null
@@ -154,7 +164,7 @@ export function createModulePackageService({
     let stage = 'UPLOAD'
     try {
       stage = 'EXTRACT'
-      staged = await stagingService.stageZipPackage({ key, fileBuffer, modulesDir })
+      staged = await stagingService.stageZipPackage({ key, fileBuffer, modulesDir, authority })
 
       const moduleRow = await prisma.runlyModule.findUnique({
         where: { key },
@@ -380,7 +390,7 @@ export function createModulePackageService({
         action: 'core.module.package.upload',
         key, actorId,
         before: null,
-        after: { packageHash: staged.packageHash, files: staged.inspection.files },
+        after: { packageHash: staged.packageHash, files: staged.inspection.files, codeAuthority: authority },
       })
       await writeAudit({
         action: currentExists ? 'core.module.package.update' : 'core.module.package.publish',
@@ -451,14 +461,16 @@ export function createModulePackageService({
   // database schema or the published bundle.
   // `inspect(staged)` lets the caller add its own findings (the Builder
   // project impact) while the staged copy still exists.
-  async function checkZip({ key, fileBuffer, modulesDir, inspect = null, decisions = {} }) {
+  async function checkZip({ key, fileBuffer, modulesDir, inspect = null, decisions = {}, authority }) {
+    // Checking stages (and so import()s) the package too: same authority as publishing.
+    assertCodeAuthority(authority)
     await stagingService.cleanupStaleStaging(modulesDir)
     const previewsDir = path.join(modulesDir, PREVIEWS_DIRNAME, key)
     await removeExpiredPreviews(previewsDir)
     let staged = null
     try {
       try {
-        staged = await stagingService.stageZipPackage({ key, fileBuffer, modulesDir })
+        staged = await stagingService.stageZipPackage({ key, fileBuffer, modulesDir, authority })
       } catch (error) {
         return invalidPackageReport(error)
       }

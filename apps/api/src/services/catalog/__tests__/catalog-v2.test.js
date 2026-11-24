@@ -10,6 +10,9 @@ import { releaseStatementBytes, snapshotStatementBytes, snapshotDigest, keyIdOf 
 import { createTrustStore, COMMUNITY_CATALOG_PUBLIC_KEYS } from '../catalog-trust-store.js'
 import { OFFICIAL_CATALOG_PUBLIC_KEYS } from '../catalog-public-key.js'
 import { createCatalogV2Service } from '../catalog-v2-service.js'
+// Community/managed installs need the platform owner (P0-01); official ones only instance authority.
+const OWNER = { isPlatformOwner: true }
+const COMPANY_ADMIN = { isCompanyAdmin: true, isAdmin: true, isPlatformOwner: false }
 
 // Synthetic keys only; the pinned production official key is never used to sign.
 const pair = () => { const k = generateKeyPairSync('ed25519'); return { privateKey: k.privateKey, publicKey: k.publicKey.export({ format: 'der', type: 'spki' }).toString('base64') } }
@@ -101,21 +104,23 @@ test('community installs need explicit admin consent and exact confirmation; off
   const f = fixture()
   const e1 = entryFor(communityZip)
   f.set(envelope({ entries: [e1] }))
-  await assert.rejects(f.service.install({ key: e1.key, version: e1.version }), (e) => e.code === 'community_consent_required')
-  await assert.rejects(f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: 'other' }), (e) => e.code === 'community_consent_required')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: e1.key, version: e1.version }), (e) => e.code === 'community_consent_required')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: 'other' }), (e) => e.code === 'community_consent_required')
   assert.deepEqual(f.counts(), { published: 0, installed: 0 })
-  const result = await f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) })
+  await assert.rejects(f.service.install({ tenant: COMPANY_ADMIN, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'MODULE_CODE_AUTHORITY_REQUIRED' && e.status === 403)
+  assert.deepEqual(f.counts(), { published: 0, installed: 0 })
+  const result = await f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) })
   assert.equal(result.trust, 'community-verified'); assert.equal(result.official, false)
   assert.equal(JSON.parse(f.configs.get('catalog.installed.custom.communitytest')).source, 'v2')
   const e2 = entryFor(communityZip2)
   f.set(envelopeAfter(envelope({ entries: [e1] }), { sequence: 2, entries: [e1, e2] }))
   const list = await f.service.list()
   assert.equal(list.modules[0].state, 'update'); assert.equal(f.installed().version, '0.1.0', 'listing never installs')
-  await assert.rejects(f.service.update({ key: e2.key, version: e2.version }), (e) => e.code === 'community_consent_required')
-  assert.equal((await f.service.update({ key: e2.key, version: e2.version, acceptCommunity: true, confirmation: confirmationOf(e2) })).version, '0.2.0')
+  await assert.rejects(f.service.update({ tenant: OWNER, key: e2.key, version: e2.version }), (e) => e.code === 'community_consent_required')
+  assert.equal((await f.service.update({ tenant: OWNER, key: e2.key, version: e2.version, acceptCommunity: true, confirmation: confirmationOf(e2) })).version, '0.2.0')
   const o = fixture(), oe = entryFor(officialZip, { trust: 'official', key: official })
   o.set(envelope({ entries: [oe] }))
-  assert.equal((await o.service.install({ key: oe.key, version: oe.version })).official, true)
+  assert.equal((await o.service.install({ tenant: COMPANY_ADMIN, key: oe.key, version: oe.version })).official, true)
 })
 
 test('replay, rollback, equivocation, broken chain and v2→v1 downgrade keep the last good snapshot', async () => {
@@ -126,7 +131,7 @@ test('replay, rollback, equivocation, broken chain and v2→v1 downgrade keep th
   f.set(second); assert.equal((await f.service.list()).sequence, 2)
   f.set(first); let list = await f.service.list()
   assert.equal(list.alert, 'catalog_v2_rollback'); assert.equal(list.sequence, 2, 'old snapshot never replaces state')
-  await assert.rejects(f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_v2_rollback')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_v2_rollback')
   f.set(envelopeAfter(first, { sequence: 2, entries: [e1], generatedAt: at(5000) }))
   assert.equal((await f.service.list()).alert, 'catalog_v2_equivocation')
   f.set(envelope({ sequence: 3, previous: { sequence: 2, sha256: 'f'.repeat(64) }, entries: [e1] }))
@@ -148,11 +153,11 @@ test('offline shows the last verified sync; installs still need the signed bytes
   f.offline(true)
   const offline = await f.service.list()
   assert.equal(offline.offline, true); assert.equal(offline.lastSync, fresh.lastSync); assert.equal(offline.modules.length, 1)
-  await assert.rejects(f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_package_unreachable' && e.details.phase === 'downloading')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_package_unreachable' && e.details.phase === 'downloading')
   f.offline(false); f.tick(8 * DAY)
   const stale = await f.service.list()
   assert.equal(stale.stale, true)
-  await assert.rejects(f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_v2_stale')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_v2_stale')
 })
 
 test('compatibility and signed metadata are enforced against the instance and the ZIP', async () => {
@@ -161,20 +166,20 @@ test('compatibility and signed metadata are enforced against the instance and th
   f.set(envelope({ entries: [tooNew] }))
   const listed = (await f.service.list()).modules[0]
   assert.equal(listed.compatibility.compatible, false); assert.deepEqual(listed.compatibility.reasons, ['runly_version'])
-  await assert.rejects(f.service.install({ key: tooNew.key, version: tooNew.version, acceptCommunity: true, confirmation: confirmationOf(tooNew) }), (e) => e.code === 'catalog_incompatible')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: tooNew.key, version: tooNew.version, acceptCommunity: true, confirmation: confirmationOf(tooNew) }), (e) => e.code === 'catalog_incompatible')
   const g = fixture(), wrongContract = entryFor(communityZip, { patch: { compatibility: { runly: { min: '0.1.0', max: null }, contracts: { ...contracts, compiler: 99 } } } })
   g.set(envelope({ entries: [wrongContract] }))
   assert.deepEqual((await g.service.list()).modules[0].compatibility.reasons, ['contracts'])
   const h = fixture(), forged = entryFor(communityZip, { patch: { capabilities: ['forged.capability'] } })
   h.set(envelope({ entries: [forged] }))
-  await assert.rejects(h.service.install({ key: forged.key, version: forged.version, acceptCommunity: true, confirmation: confirmationOf(forged) }), (e) => e.code === 'catalog_metadata_mismatch')
+  await assert.rejects(h.service.install({ tenant: OWNER, key: forged.key, version: forged.version, acceptCommunity: true, confirmation: confirmationOf(forged) }), (e) => e.code === 'catalog_metadata_mismatch')
   const i = fixture(), e1 = entryFor(communityZip)
   i.files.set(e1.sha256, Buffer.concat([communityZip.zip, Buffer.from('x')]))
   i.set(envelope({ entries: [e1] }))
-  await assert.rejects(i.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'package_not_authentic')
+  await assert.rejects(i.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'package_not_authentic')
   const j = fixture(), mismatch = entryFor(communityZip, { patch: { version: '0.9.0' } })
   j.set(envelope({ entries: [mismatch] }))
-  await assert.rejects(j.service.install({ key: mismatch.key, version: '0.9.0', acceptCommunity: true, confirmation: confirmationOf(mismatch) }), (e) => e.code === 'catalog_manifest_mismatch')
+  await assert.rejects(j.service.install({ tenant: OWNER, key: mismatch.key, version: '0.9.0', acceptCommunity: true, confirmation: confirmationOf(mismatch) }), (e) => e.code === 'catalog_manifest_mismatch')
 })
 
 test('revoked release, publisher and key block installs and warn without uninstalling', async () => {
@@ -182,7 +187,7 @@ test('revoked release, publisher and key block installs and warn without uninsta
   const e1 = entryFor(communityZip)
   const first = envelope({ entries: [e1] })
   f.set(first)
-  await f.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) })
+  await f.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) })
   const revoked = envelopeAfter(first, { sequence: 2, entries: [entryFor(communityZip2)], revocations: [{ type: 'release', target: { key: e1.key, version: e1.version, sha256: e1.sha256 }, reason: 'Vulnerabilidad', revokedAt: at(), sequence: 2, replacement: { key: e1.key, version: '0.2.0' } }] })
   f.set(revoked)
   const module = (await f.service.list()).modules.find((m) => m.key === e1.key)
@@ -190,7 +195,7 @@ test('revoked release, publisher and key block installs and warn without uninsta
   assert.equal(f.installed().status, 'INSTALLED', 'never uninstalled automatically')
   const g = fixture()
   g.set(envelope({ entries: [e1], revocations: [{ type: 'release', target: { key: e1.key, version: e1.version, sha256: e1.sha256 }, reason: 'Vulnerabilidad', revokedAt: at(), sequence: 1, replacement: null }] }))
-  await assert.rejects(g.service.install({ key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_release_revoked')
+  await assert.rejects(g.service.install({ tenant: OWNER, key: e1.key, version: e1.version, acceptCommunity: true, confirmation: confirmationOf(e1) }), (e) => e.code === 'catalog_release_revoked')
   const p = fixture()
   p.set(envelope({ entries: [e1], publishers: [{ handle: 'acme-labs', displayName: 'Acme Labs', verified: true, state: 'revoked', reason: 'Suplantación', revokedAt: at() }], revocations: [{ type: 'publisher', target: { publisher: 'acme-labs' }, reason: 'Suplantación', revokedAt: at(), sequence: 1, replacement: null }] }))
   assert.equal((await p.service.list()).modules[0].revocation.type, 'publisher')

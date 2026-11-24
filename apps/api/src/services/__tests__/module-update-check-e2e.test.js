@@ -38,7 +38,7 @@ test("a Builder ZIP extended with a React screen is reviewed and previewed witho
     preflightPackage: async () => ({ schemaMigration: { required: false, canAutoApply: true, operations: [], drift: [] } }),
   });
 
-  const report = await service.checkZip({ key: "custom.visitas", fileBuffer: zip, modulesDir });
+  const report = await service.checkZip({ authority: 'platform-owner', key: "custom.visitas", fileBuffer: zip, modulesDir });
   assert.equal(report.valid, true, JSON.stringify(report.blockers));
   assert.equal(report.blocked, false);
   assert.equal(report.installed, false);

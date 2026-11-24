@@ -25,6 +25,7 @@ import { validateOfficialEnvelope, officialSnapshotDigest, OFFICIAL_CATALOG_ID }
 import { createTrustStore, normalizePin, CatalogTrustError } from './catalog-trust-store.js'
 import { createHighWaterStore, domainKey, sequenceDecision } from './catalog-sequence.js'
 import rootPackage from '../../../../../package.json' with { type: 'json' }
+import { catalogCodeAuthority, MODULE_CODE_AUTHORITY_ERROR } from '../../lib/module-code-authority.js'
 
 const STATE_KEY = 'catalog.v2.state'
 const OFFICIAL_STATE_KEY = 'catalog.official.state'
@@ -398,7 +399,7 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
     })
   }
 
-  async function apply({ key, version, confirmation, acceptCommunity = false, acceptStale = false, grants = [], decisions = {}, actorId = null, companyId = null, expect }) {
+  async function apply({ key, version, confirmation, acceptCommunity = false, acceptStale = false, grants = [], decisions = {}, actorId = null, companyId = null, tenant = null, expect }) {
     const phases = []
     return withPhases(phases, async () => {
       const current = await prisma.runlyModule.findUnique({ where: { key }, select: { status: true, version: true } })
@@ -406,12 +407,15 @@ export function createCatalogV2Service({ prisma, bundlerSvc = null, routeLoader 
       if (expect === 'install' && installed) throw new CatalogError('El módulo ya está instalado.', 409, 'already_installed')
       if (expect === 'update' && (!installed || compareVersions(version, current.version) <= 0)) throw new CatalogError('No hay una versión más nueva para actualizar.', 409, 'no_update')
       const { entry, described, buffer, domain } = await resolveVerified({ key, version, confirmation, acceptCommunity, acceptStale, phases })
+      // Community/managed publishers are third-party code for every company: owner only (P0-01).
+      const authority = catalogCodeAuthority({ official: described.official, tenant })
+      if (!authority) throw new CatalogError(MODULE_CODE_AUTHORITY_ERROR, 403, 'MODULE_CODE_AUTHORITY_REQUIRED')
       const requested = new Set(consumedServiceKeys(entry))
       if (!Array.isArray(grants) || new Set(grants).size !== grants.length || grants.some((grant) => !requested.has(grant))) throw new CatalogError('Grant no solicitado por el ZIP verificado.', 422, 'catalog_unexpected_grant')
       const modulesDir = await resolveModulesDir()
       if (!modulesDir || !wiring.packageSvc) throw new CatalogError('Esta instancia no puede instalar paquetes de módulos.', 503, 'packages_unavailable')
       // The official package pipeline owns staging, schema preflight (409 decisions), backups and swap.
-      const publishResult = await wiring.packageSvc.publishZip({ key, fileBuffer: buffer, modulesDir, actorId, decisions })
+      const publishResult = await wiring.packageSvc.publishZip({ key, fileBuffer: buffer, modulesDir, actorId, decisions, authority })
       phases.push('installing')
       const row = await prisma.runlyModule.findUnique({ where: { key } })
       let installedNow = false

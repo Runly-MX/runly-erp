@@ -88,7 +88,7 @@ async function fixture(t, {
 
 test('publishes a first package without installing or activating it', async (t) => {
   const ctx = await fixture(t, { status: 'UNINSTALLED', enabled: false, currentExists: false })
-  const result = await ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  const result = await ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   assert.equal(result.outcome, 'PUBLISHED')
   assert.equal(await fs.readFile(path.join(ctx.current, 'version.txt'), 'utf8'), 'v2')
   assert.deepEqual(ctx.routeCalls, [])
@@ -102,7 +102,7 @@ test('publishes a first package without installing or activating it', async (t) 
 // column) already identifies the row, so entityId should simply be absent.
 test('never sends a non-UUID entityId to AuditLog', async (t) => {
   const ctx = await fixture(t, { status: 'UNINSTALLED', enabled: false, currentExists: false })
-  await ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  await ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   assert.ok(ctx.auditCalls.length > 0)
   for (const call of ctx.auditCalls) assert.equal(call.entityId, undefined)
 })
@@ -119,7 +119,7 @@ test('publishZip recovers from a stale lock left by a crashed process', async (t
   await fs.writeFile(path.join(lockDir, 'owner.json'), JSON.stringify({
     pid: 4242, hostname: 'some-other-crashed-host', startedAt: new Date(Date.now() - 20 * 60_000).toISOString(),
   }))
-  const result = await ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  const result = await ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   assert.equal(result.outcome, 'PUBLISHED')
 })
 
@@ -137,7 +137,7 @@ test('NO_CHANGES still reconciles metadata, bundle and runtime when the DB schem
   await fs.mkdir(ctx.current)
   await fs.writeFile(path.join(ctx.current, 'version.txt'), 'v2') // matches stageZipPackage's staged output exactly
 
-  const result = await ctx.service.publishZip({
+  const result = await ctx.service.publishZip({ authority: 'platform-owner',
     key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root, actorId: null,
   })
   assert.equal(result.outcome, 'NO_CHANGES')
@@ -158,7 +158,7 @@ test('NO_CHANGES still applies a schema migration the DB is genuinely missing (c
   await fs.mkdir(ctx.current)
   await fs.writeFile(path.join(ctx.current, 'version.txt'), 'v2')
 
-  const result = await ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  const result = await ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   assert.equal(result.outcome, 'NO_CHANGES')
   assert.equal(appliedPlans.length, 1, 'the missing migration is applied exactly once even though the package itself needed no swap')
   assert.equal(result.reconciliation.schemaApplied, true)
@@ -166,7 +166,7 @@ test('NO_CHANGES still applies a schema migration the DB is genuinely missing (c
 
 test('atomically updates a package and removes staging and backup after success', async (t) => {
   const ctx = await fixture(t)
-  const result = await ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  const result = await ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   assert.equal(result.outcome, 'UPDATED')
   assert.equal(await fs.readFile(path.join(ctx.current, 'version.txt'), 'utf8'), 'v2')
   assert.deepEqual(await fs.readdir(path.join(ctx.root, '.staging')), [])
@@ -178,7 +178,7 @@ test('bundle preflight failure leaves the old package and runtime untouched', as
   const ctx = await fixture(t)
   ctx.bundlerSvc.buildBundleFromDirectory = async () => { throw new Error('bad JSX') }
   await assert.rejects(
-    ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
+    ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
     (error) => error.details.failedStage === 'BUILD_BUNDLE' && error.details.originalPackagePreserved,
   )
   assert.equal(await fs.readFile(path.join(ctx.current, 'version.txt'), 'utf8'), 'v1')
@@ -188,7 +188,7 @@ test('bundle preflight failure leaves the old package and runtime untouched', as
 test('dependency preflight failure leaves the old package untouched', async (t) => {
   const ctx = await fixture(t, { preflight: async () => { throw new Error('DEPENDENCY_CYCLE_DETECTED') } })
   await assert.rejects(
-    ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
+    ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
     (error) => error.details.failedStage === 'PREFLIGHT' && error.details.originalPackagePreserved,
   )
   assert.equal(await fs.readFile(path.join(ctx.current, 'version.txt'), 'utf8'), 'v1')
@@ -202,7 +202,7 @@ test('bundle or runtime publication failure restores old package, bundle and run
     return reloads === 1 ? { loaded: false, error: 'new route broken' } : { loaded: true }
   }
   await assert.rejects(
-    ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
+    ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
     (error) => error.details.failedStage === 'RELOAD_RUNTIME'
       && error.details.previousPackageRestored
       && error.details.bundleRestored
@@ -217,7 +217,7 @@ test('reports rollback failure explicitly', async (t) => {
   ctx.bundlerSvc.publishStagedBundle = async () => { throw new Error('storage unavailable') }
   ctx.bundlerSvc.restorePublishedBundle = async () => { throw new Error('restore unavailable') }
   await assert.rejects(
-    ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
+    ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root }),
     (error) => error.stage === 'ROLLBACK'
       && error.details.failedStage === 'PUBLISH_BUNDLE'
       && error.details.rollbackError === 'restore unavailable',
@@ -228,10 +228,10 @@ test('preserves disabled lifecycle and serializes publication by module key', as
   let unblock
   const gate = new Promise((resolve) => { unblock = resolve })
   const ctx = await fixture(t, { status: 'INSTALLED', enabled: false, reconcile: () => gate })
-  const first = ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
+  const first = ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(1), modulesDir: ctx.root })
   await new Promise((resolve) => setTimeout(resolve, 20))
   await assert.rejects(
-    ctx.service.publishZip({ key: ctx.key, fileBuffer: Buffer.of(2), modulesDir: ctx.root }),
+    ctx.service.publishZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.of(2), modulesDir: ctx.root }),
     { code: 'MODULE_PACKAGE_BUSY' },
   )
   unblock({ ok: true })
@@ -246,7 +246,7 @@ test('checkZip reviews a package without publishing it and always removes the st
   let builtInto = null
   ctx.bundlerSvc.buildBundleFromDirectory = async (_key, _dir, { outputDir }) => { builtInto = outputDir; return { built: true } }
   const staging = await fs.readdir(path.join(ctx.root, '.staging')).catch(() => [])
-  const report = await ctx.service.checkZip({ key: ctx.key, fileBuffer: Buffer.from('zip'), modulesDir: ctx.root })
+  const report = await ctx.service.checkZip({ authority: 'platform-owner', key: ctx.key, fileBuffer: Buffer.from('zip'), modulesDir: ctx.root })
   assert.equal(report.blocked, false)
   assert.deepEqual(report.changes, ['Se agregará la columna nota en atomic_item.'])
   assert.equal(report.currentVersion, '1.0.0')

@@ -13,6 +13,9 @@ import { signEntry, sha256Of } from '../catalog-crypto.js'
 import { validateCatalogIndex, verifyCatalogManifest } from '../catalog-schema.js'
 import { readCatalogBytes, publicAddress, resolveCatalogAddress } from '../catalog-download.js'
 import { createCatalogService, compareVersions } from '../catalog-service.js'
+// Community/managed installs need the platform owner (P0-01); official ones only instance authority.
+const OWNER = { isPlatformOwner: true }
+const COMPANY_ADMIN = { isCompanyAdmin: true, isAdmin: true, isPlatformOwner: false }
 
 const keys = generateKeyPairSync('ed25519')
 const publicKey = keys.publicKey.export({format:'der',type:'spki'}).toString('base64')
@@ -95,20 +98,23 @@ test('ETag/cache/offline retain verified evidence; managed key cannot claim offi
  assert.deepEqual(list.modules[0].consumes,manifest.consumes??{})
  f.setMode('etag');assert.equal((await f.service.list()).offline,false)
  f.setMode('offline');const offline=await f.service.list();assert.equal(offline.offline,true);assert.equal(offline.modules[0].verified,true)
- await assert.rejects(f.service.install({key:entry.key}),/Sin conexión/)
+ await assert.rejects(f.service.install({ tenant: OWNER, key:entry.key}),/Sin conexión/)
 })
 test('only the pinned key classifies a verified package as official',async()=>{
  // Synthetic constructor pin only; the real production trust anchor is unchanged.
  const pinned=fixture({official:true}),managed=fixture()
  assert.equal((await pinned.service.list()).modules[0].official,true)
  assert.equal((await managed.service.list()).modules[0].official,false)
- assert.equal((await pinned.service.install({key:entry.key})).official,true)
+ assert.equal((await pinned.service.install({ tenant: COMPANY_ADMIN, key:entry.key})).official,true)
 })
 test('install and update use exact verified ZIP; unexpected grants fail before publishing',async()=>{
  const f=fixture()
- await assert.rejects(f.service.install({key:entry.key,grants:['runly.inventory:items.read']}),/Grant/)
+ await assert.rejects(f.service.install({ tenant: OWNER, key:entry.key,grants:['runly.inventory:items.read']}),/Grant/)
  assert.deepEqual(f.counts(),{installed:0,published:0})
- const result=await f.service.install({key:entry.key});assert.equal(result.official,false);assert.equal(result.installed,true)
+ await assert.rejects(f.service.install({ tenant: COMPANY_ADMIN, key:entry.key}),(e)=>e.code==='MODULE_CODE_AUTHORITY_REQUIRED'&&e.status===403)
+ await assert.rejects(f.service.install({key:entry.key}),(e)=>e.code==='MODULE_CODE_AUTHORITY_REQUIRED')
+ assert.deepEqual(f.counts(),{installed:0,published:0})
+ const result=await f.service.install({ tenant: OWNER, key:entry.key});assert.equal(result.official,false);assert.equal(result.installed,true)
  f.setCurrent({key:entry.key,version:'0.0.1',status:'INSTALLED',manifest})
- const update=await f.service.update({key:entry.key});assert.equal(update.version,entry.version);assert.equal(f.counts().published,2)
+ const update=await f.service.update({ tenant: OWNER, key:entry.key});assert.equal(update.version,entry.version);assert.equal(f.counts().published,2)
 })

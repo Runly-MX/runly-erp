@@ -15,6 +15,9 @@ import { officialSnapshotBytes, officialSnapshotDigest, validateOfficialEnvelope
 import { createTrustStore } from '../catalog-trust-store.js'
 import { sequenceDecision } from '../catalog-sequence.js'
 import { createCatalogV2Service, catalogUrlProblem } from '../catalog-v2-service.js'
+// Community/managed installs need the platform owner (P0-01); official ones only instance authority.
+const OWNER = { isPlatformOwner: true }
+const COMPANY_ADMIN = { isCompanyAdmin: true, isAdmin: true, isPlatformOwner: false }
 
 const pair = () => { const k = generateKeyPairSync('ed25519'); return { privateKey: k.privateKey, publicKey: k.publicKey.export({ format: 'der', type: 'spki' }).toString('base64') } }
 const official = pair(), nextOfficial = pair(), community = pair(), managed = pair()
@@ -105,7 +108,7 @@ test('official snapshot: pinned key, signed compatibility, structured trust and 
   assert.equal(list.catalogs.official.sequence, 1); assert.equal(list.catalogs.community.sequence, 1)
   assert.equal(byKey['custom.billing'].scope, 'instance')
   // Official installs need no community consent; the bytes come from the official feed.
-  const result = await f.service.install({ key: 'custom.billing', version: '0.1.0' })
+  const result = await f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' })
   assert.deepEqual([result.official, result.phases], [true, ['downloading', 'verifying', 'preflight', 'installing', 'enabled']])
   assert.ok(f.requested.some((url) => url.startsWith('https://hub.example/api/v1/marketplace/catalog/packages/')))
   assert.equal(JSON.parse(f.configs.get('catalog.installed.custom.billing')).source, 'official')
@@ -124,7 +127,7 @@ test('official signature tampering, wrong key, wrong trust domain and cross-doma
     const f = fixture({ urls: only })
     f.feed(OFFICIAL_URL, envelope)
     await assert.rejects(f.service.list(), (e) => e.code === code, code)
-    await assert.rejects(f.service.install({ key: 'custom.billing', version: '0.1.0' }), (e) => e.code === code)
+    await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' }), (e) => e.code === code)
     assert.deepEqual(f.counts(), { published: 0, installed: 0 })
   }
   const f = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL } })
@@ -155,7 +158,7 @@ test('anti-rollback per trust domain: rollback, equivocation, mirrors; legitimat
   f.feed(OFFICIAL_URL, one)
   let list = await f.service.list()
   assert.deepEqual([list.alert, list.catalogs.official.sequence, list.modules[0].version], ['catalog_official_rollback', 2, '0.2.0'])
-  await assert.rejects(f.service.install({ key: 'custom.billing', version: '0.2.0' }), (e) => e.code === 'catalog_official_rollback')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.2.0' }), (e) => e.code === 'catalog_official_rollback')
   f.feed(OFFICIAL_URL, officialAfter(one, { sequence: 2, modules: [officialModule(billing)], generatedAt: at(9000) }))
   assert.equal((await f.service.list()).alert, 'catalog_official_equivocation')
   // Hub rollback to the 0.1.0 content: a NEW snapshot, sequence 3, chained to 2.
@@ -173,25 +176,25 @@ test('revoked installed release warns without uninstalling; install, reinstall a
   const f = fixture({ urls: { 'catalog.official.url': OFFICIAL_URL } })
   const first = officialEnvelope({ modules: [officialModule(billing)] })
   f.feed(OFFICIAL_URL, first)
-  await f.service.install({ key: 'custom.billing', version: '0.1.0' })
+  await f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' })
   const revoked = { key: 'custom.billing', version: '0.1.0', sha256: sha256Of(billing.zip), reason: 'Vulnerabilidad confirmada', revoked_at: at(2000) }
   f.feed(OFFICIAL_URL, officialAfter(first, { sequence: 2, modules: [officialModule(billing2)], revocations: [revoked] }))
   const module = (await f.service.list()).modules.find((m) => m.key === 'custom.billing')
   assert.deepEqual([module.state, module.installedVersion, module.installedWarning.reason, module.installedNotice], ['update', '0.1.0', 'Vulnerabilidad confirmada', null])
   assert.match(module.installedWarning.message, /revocada/)
   assert.equal(f.modules.get('custom.billing').status, 'INSTALLED', 'never uninstalled automatically')
-  await assert.rejects(f.service.install({ key: 'custom.billing', version: '0.1.0' }), (e) => ['already_installed', 'not_in_catalog'].includes(e.code))
+  await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' }), (e) => ['already_installed', 'not_in_catalog'].includes(e.code))
   // Fresh instance: the revoked version cannot be (re)installed even if a feed still lists it.
   const g = fixture({ urls: { 'catalog.official.url': OFFICIAL_URL } })
   g.feed(OFFICIAL_URL, officialEnvelope({ modules: [officialModule(billing)], revocations: [revoked] }))
-  await assert.rejects(g.service.install({ key: 'custom.billing', version: '0.1.0' }), (e) => e.code === 'catalog_release_revoked')
+  await assert.rejects(g.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' }), (e) => e.code === 'catalog_release_revoked')
   // Update toward a revoked community version is blocked.
   const h = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL }, rows: [{ key: 'custom.notes', version: '0.1.0', status: 'INSTALLED' }] })
   const n2 = communityEntry(notes2)
   h.feed(COMMUNITY_URL, communityEnvelope({ entries: [communityEntry(notes), n2], revocations: [{ type: 'release', target: { key: n2.key, version: n2.version, sha256: n2.sha256 }, reason: 'Regresión de seguridad', revokedAt: at(), sequence: 1, replacement: null }] }))
   const listed = (await h.service.list()).modules[0]
   assert.equal(listed.version, '0.1.0', 'a revoked version is never offered as the update')
-  await assert.rejects(h.service.update({ key: n2.key, version: n2.version, acceptCommunity: true, confirmation: `acme-labs/${n2.key}@${n2.version}:${n2.sha256}` }), (e) => e.code === 'catalog_release_revoked')
+  await assert.rejects(h.service.update({ tenant: OWNER, key: n2.key, version: n2.version, acceptCommunity: true, confirmation: `acme-labs/${n2.key}@${n2.version}:${n2.sha256}` }), (e) => e.code === 'catalog_release_revoked')
 })
 
 test('withdrawn is not a security incident: installed copy keeps working, no new installs', async () => {
@@ -200,14 +203,14 @@ test('withdrawn is not a security incident: installed copy keeps working, no new
   const first = communityEnvelope({ entries: [live] })
   f.feed(COMMUNITY_URL, first)
   const offered = (await f.service.list()).modules[0]
-  await f.service.install({ key: offered.key, version: offered.version, ...consent(offered) })
+  await f.service.install({ tenant: OWNER, key: offered.key, version: offered.version, ...consent(offered) })
   f.feed(COMMUNITY_URL, communityAfter(first, { sequence: 2, entries: [communityEntry(notes, { status: 'withdrawn', listed: false })] }))
   const module = (await f.service.list()).modules[0]
   assert.deepEqual([module.state, module.installedWarning, module.installedNotice.type, module.availability, module.revocation], ['installed', null, 'withdrawn', 'withdrawn', null])
   const g = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL } })
   g.feed(COMMUNITY_URL, communityEnvelope({ entries: [communityEntry(notes, { status: 'withdrawn', listed: false })] }))
   assert.equal((await g.service.list()).modules.length, 0, 'withdrawn is not offered as a new installation')
-  await assert.rejects(g.service.install({ key: 'custom.notes', version: '0.1.0', acceptCommunity: true, confirmation: offered.confirmation }), (e) => e.code === 'catalog_release_withdrawn' && e.status === 410)
+  await assert.rejects(g.service.install({ tenant: OWNER, key: 'custom.notes', version: '0.1.0', acceptCommunity: true, confirmation: offered.confirmation }), (e) => e.code === 'catalog_release_withdrawn' && e.status === 410)
 })
 
 test('built-in platform modules are never downloaded from a catalog', async () => {
@@ -216,7 +219,7 @@ test('built-in platform modules are never downloaded from a catalog', async () =
   f.feed(OFFICIAL_URL, officialEnvelope({ modules: [builtIn] }))
   const module = (await f.service.list()).modules[0]
   assert.deepEqual([module.state, module.builtIn], ['built-in', true])
-  await assert.rejects(f.service.update({ key: 'runly.inventory', version: '9.0.0' }), (e) => e.code === 'catalog_builtin_module')
+  await assert.rejects(f.service.update({ tenant: OWNER, key: 'runly.inventory', version: '9.0.0' }), (e) => e.code === 'catalog_builtin_module')
   assert.equal(f.requested.filter((u) => u.includes('/packages/')).length, 0)
 })
 
@@ -227,13 +230,13 @@ test('dependencies are declared, shown and enforced; spoofed dependency surface 
   const module = (await f.service.list()).modules.find((m) => m.key === 'custom.notes')
   assert.deepEqual(module.compatibility.reasons, ['dependencies'])
   assert.deepEqual(module.compatibility.details.dependencies.map((d) => [d.key, d.status]), [['runly.core', 'satisfied'], ['custom.billing', 'install-first'], ['custom.ghost', 'missing'], ['runly.unknownplatform', 'missing']])
-  await assert.rejects(f.service.install({ key: 'custom.notes', version: '0.1.0', ...consent(module) }), (e) => e.code === 'catalog_incompatible')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.notes', version: '0.1.0', ...consent(module) }), (e) => e.code === 'catalog_incompatible')
   assert.deepEqual(f.counts(), { published: 0, installed: 0 }, 'no dependency is installed implicitly')
   // The signed entry hides the ZIP dependency on runly.core.
   const g = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL } })
   g.feed(COMMUNITY_URL, communityEnvelope({ entries: [communityEntry(notes, { patch: { dependencies: [] } })] }))
   const hidden = (await g.service.list()).modules[0]
-  await assert.rejects(g.service.install({ key: 'custom.notes', version: '0.1.0', ...consent(hidden) }), (e) => e.code === 'catalog_metadata_mismatch' && e.details.phase === 'verifying')
+  await assert.rejects(g.service.install({ tenant: OWNER, key: 'custom.notes', version: '0.1.0', ...consent(hidden) }), (e) => e.code === 'catalog_metadata_mismatch' && e.details.phase === 'verifying')
 })
 
 test('artifact digest mismatch, substitution and malicious ZIP never reach the installer', async () => {
@@ -246,7 +249,7 @@ test('artifact digest mismatch, substitution and malicious ZIP never reach the i
     f.feed(COMMUNITY_URL, communityEnvelope({ entries: [e] }))
     prepare(f, e)
     const m = (await f.service.list()).modules[0]
-    await assert.rejects(f.service.install({ key: m.key, version: m.version, ...consent(m) }), (error) => error.code === code && error.details.phase === 'verifying', label)
+    await assert.rejects(f.service.install({ tenant: OWNER, key: m.key, version: m.version, ...consent(m) }), (error) => error.code === code && error.details.phase === 'verifying', label)
     assert.deepEqual(f.counts(), { published: 0, installed: 0 }, label)
   }
   const f = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL } })
@@ -254,7 +257,7 @@ test('artifact digest mismatch, substitution and malicious ZIP never reach the i
   f.feed(COMMUNITY_URL, communityEnvelope({ entries: [malicious] }))
   const m = (await f.service.list()).modules[0]
   assert.equal(inspectModuleZip(evil).valid, false)
-  await assert.rejects(f.service.install({ key: m.key, version: m.version, ...consent(m) }), (error) => error.code === 'catalog_manifest_mismatch')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: m.key, version: m.version, ...consent(m) }), (error) => error.code === 'catalog_manifest_mismatch')
   assert.deepEqual(f.counts(), { published: 0, installed: 0 })
 })
 
@@ -294,7 +297,7 @@ test('trust store: official/community separation, rotation windows and local rev
   assert.equal(after.trust.find((k) => k.domain === 'official').state, 'revoked')
   const list = await f.service.list()
   assert.equal(list.alert, 'catalog_official_signature_untrusted', 'content signed by a locally revoked key is no longer trusted')
-  await assert.rejects(f.service.install({ key: 'custom.billing', version: '0.1.0' }), (e) => e.code === 'catalog_official_signature_untrusted')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0' }), (e) => e.code === 'catalog_official_signature_untrusted')
 })
 
 test('preflight shows phases without side effects; install failures report the failing phase', async () => {
@@ -306,7 +309,7 @@ test('preflight shows phases without side effects; install failures report the f
   const failing = fixture({ urls: { 'catalog.v2.url': COMMUNITY_URL }, publishZip: async () => { throw Object.assign(new Error('Decisiones de esquema requeridas.'), { statusCode: 409, code: 'MODULE_SCHEMA_DECISIONS_REQUIRED', details: { structure: [{ field: 'x' }] } }) } })
   failing.feed(COMMUNITY_URL, communityEnvelope({ entries: [communityEntry(notes)] }))
   const m = (await failing.service.list()).modules[0]
-  await assert.rejects(failing.service.install({ key: m.key, version: m.version, ...consent(m) }), (e) => e.code === 'MODULE_SCHEMA_DECISIONS_REQUIRED' && e.status === 409 && e.details.phase === 'preflight' && e.details.structure.length === 1)
+  await assert.rejects(failing.service.install({ tenant: OWNER, key: m.key, version: m.version, ...consent(m) }), (e) => e.code === 'MODULE_SCHEMA_DECISIONS_REQUIRED' && e.status === 409 && e.details.phase === 'preflight' && e.details.structure.length === 1)
 })
 
 test('freshness: a verified copy serves installs while fresh, needs acknowledgement when stale, never when too old', async () => {
@@ -318,19 +321,19 @@ test('freshness: a verified copy serves installs while fresh, needs acknowledgem
   const cached = await f.service.list()
   assert.deepEqual([cached.offline, cached.catalogs.community.cachedView, cached.catalogs.community.freshness, cached.modules.length], [true, true, 'fresh', 2])
   const notesModule = cached.modules.find((m) => m.key === 'custom.notes')
-  assert.equal((await f.service.install({ key: 'custom.notes', version: '0.1.0', ...consent({ confirmation: `acme-labs/custom.notes@0.1.0:${sha256Of(notes.zip)}` }) })).phases.at(-1), 'enabled', 'fresh verified copy: install allowed, bytes still verified')
+  assert.equal((await f.service.install({ tenant: OWNER, key: 'custom.notes', version: '0.1.0', ...consent({ confirmation: `acme-labs/custom.notes@0.1.0:${sha256Of(notes.zip)}` }) })).phases.at(-1), 'enabled', 'fresh verified copy: install allowed, bytes still verified')
   assert.ok(notesModule)
   f.tick(30 * HOUR)
   const billingModule = (await f.service.list()).modules.find((m) => m.key === 'custom.billing')
   assert.equal((await f.service.list()).catalogs.community.freshness, 'stale')
-  await assert.rejects(f.service.install({ key: 'custom.billing', version: '0.1.0', ...consent(billingModule) }), (e) => e.code === 'catalog_stale_confirmation_required' && e.status === 428 && Boolean(e.details.verifiedAt))
-  assert.equal((await f.service.install({ key: 'custom.billing', version: '0.1.0', ...consent(billingModule), acceptStale: true })).phases.at(-1), 'enabled')
+  await assert.rejects(f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0', ...consent(billingModule) }), (e) => e.code === 'catalog_stale_confirmation_required' && e.status === 428 && Boolean(e.details.verifiedAt))
+  assert.equal((await f.service.install({ tenant: OWNER, key: 'custom.billing', version: '0.1.0', ...consent(billingModule), acceptStale: true })).phases.at(-1), 'enabled')
   f.tick(50 * HOUR)
   const expired = await f.service.list()
   assert.equal(expired.catalogs.community.freshness, 'expired', 'still visible (maxCacheAgeDays) but marked')
   const update = expired.modules.find((m) => m.key === 'custom.notes')
   assert.equal(update.state, 'update')
-  await assert.rejects(f.service.update({ key: 'custom.notes', version: '0.2.0', ...consent(update), acceptStale: true }), (e) => e.code === 'catalog_too_old')
+  await assert.rejects(f.service.update({ tenant: OWNER, key: 'custom.notes', version: '0.2.0', ...consent(update), acceptStale: true }), (e) => e.code === 'catalog_too_old')
   assert.equal(f.modules.get('custom.notes').status, 'INSTALLED', 'installed modules never depend on catalog freshness')
   f.feedDown(false); f.offline(true)
   await f.service.configureSource({ policy: { allowCachedView: false } })

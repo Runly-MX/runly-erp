@@ -16,6 +16,7 @@ import { CatalogVerificationError, verifyPackage } from './catalog-crypto.js'
 import { DEFAULT_CATALOG_URL, OFFICIAL_CATALOG_PUBLIC_KEYS } from './catalog-public-key.js'
 import { readCatalogBytes, CatalogDownloadError } from './catalog-download.js'
 import { validateCatalogIndex, verifyCatalogManifest } from './catalog-schema.js'
+import { catalogCodeAuthority, MODULE_CODE_AUTHORITY_ERROR } from '../../lib/module-code-authority.js'
 
 export class CatalogError extends Error {
   constructor(message, status = 400, code = 'catalog_error', details = null) {
@@ -143,7 +144,7 @@ export function createCatalogService({ prisma, bundlerSvc = null, routeLoader = 
   }
 
   // install and update share the flow; `expect` guards against the wrong action.
-  async function apply({ key, grants = [], decisions = {}, actorId = null, companyId = null, expect }) {
+  async function apply({ key, grants = [], decisions = {}, actorId = null, companyId = null, tenant = null, expect }) {
     const index = await loadIndex()
     if (index.offline) throw new CatalogError('Sin conexión con el catálogo: no se puede descargar el módulo ahora.', 503, 'catalog_offline')
     const entry = sanitizeEntries(index.payload).find((item) => item.key === key)
@@ -154,11 +155,14 @@ export function createCatalogService({ prisma, bundlerSvc = null, routeLoader = 
     if (expect === 'update' && state !== 'update') throw new CatalogError('No hay una versión más nueva para actualizar.', 409, 'no_update')
 
     const { buffer, official, metadata } = await downloadVerified(entry, index.url)
+    // Extra (non-pinned) keys are instance-configurable: only the pinned official key or the owner (P0-01).
+    const authority = catalogCodeAuthority({ official, tenant })
+    if (!authority) throw new CatalogError(MODULE_CODE_AUTHORITY_ERROR, 403, 'MODULE_CODE_AUTHORITY_REQUIRED')
     const requested = new Set(consumedServiceKeys(metadata))
     if (!Array.isArray(grants) || new Set(grants).size !== grants.length || grants.some(grant => !requested.has(grant)) || moduleServices.describe(grants).some(service=>!service.known)) throw new CatalogError('Grant no solicitado por el ZIP verificado.', 422, 'catalog_unexpected_grant')
     const modulesDir = await resolveModulesDir()
     if (!modulesDir || !wiring.packageSvc) throw new CatalogError('Esta instancia no puede instalar paquetes de módulos.', 503, 'packages_unavailable')
-    const publishResult = await wiring.packageSvc.publishZip({ key, fileBuffer: buffer, modulesDir, actorId, decisions })
+    const publishResult = await wiring.packageSvc.publishZip({ key, fileBuffer: buffer, modulesDir, actorId, decisions, authority })
     let installed = false
     const row = await prisma.runlyModule.findUnique({ where: { key } })
     if (row && row.status !== 'INSTALLED') {
