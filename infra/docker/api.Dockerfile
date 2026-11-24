@@ -81,6 +81,14 @@ COPY scripts/diagnose-studio-catalog.mjs scripts/diagnose-studio-catalog.mjs
 COPY apps/desktop/public/module-logos apps/desktop/public/module-logos
 COPY apps/desktop/public/runly/runly-logo-email.png apps/desktop/public/runly/runly-logo-email.png
 COPY infra/docker/api-entrypoint.sh /entrypoint.sh
-RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
+COPY infra/docker/drop-privileges.sh /drop-privileges.sh
+# Non-root runtime (F1B Stage 2): dedicated uid/gid 10001 (not 1000, which is
+# often a real user on the host). Only the module and bundle directories are
+# writable by it; the code tree stays root-owned and read-only for the process.
+RUN sed -i 's/\r$//' /entrypoint.sh /drop-privileges.sh && chmod 0755 /entrypoint.sh /drop-privileges.sh \
+  && apk add --no-cache su-exec \
+  && addgroup -S -g 10001 runly && adduser -S -D -H -u 10001 -G runly runly \
+  && mkdir -p /app/modules/custom /app/apps/api/bundles && chown -R runly:runly /app/modules/custom /app/apps/api/bundles
 EXPOSE 4010
+ENTRYPOINT ["/drop-privileges.sh"]
 CMD ["/entrypoint.sh"]

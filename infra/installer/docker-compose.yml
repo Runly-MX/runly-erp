@@ -5,6 +5,15 @@
 # manual `docker compose` invocations against an existing install are unaffected.
 name: ${RUNLY_COMPOSE_PROJECT_NAME:-runlyerp}
 
+# Least privilege for the API and worker (F1B Stage 2). The image starts as
+# root only to hand /app/modules/custom and the bundle cache to uid 10001
+# (CHOWN/FOWNER/DAC_OVERRIDE), then drops to it (SETUID/SETGID); the running
+# process has no capabilities. See infra/docker/drop-privileges.sh.
+x-runly-least-privilege: &runly-least-privilege
+  cap_drop: [ALL]
+  cap_add: [CHOWN, FOWNER, DAC_OVERRIDE, SETUID, SETGID]
+  security_opt: ["no-new-privileges:true"]
+
 services:
   collabora:
     image: collabora/code:26.04.2.4.1
@@ -25,6 +34,7 @@ services:
         max-file: "3"
 
   runly-api-external:
+    <<: *runly-least-privilege
     image: ${RUNLY_API_IMAGE:-raulbellosom/runlyerp:api-latest}
     container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-api-external
     profiles: ["external"]
@@ -48,6 +58,7 @@ services:
     restart: unless-stopped
 
   runly-worker-external:
+    <<: *runly-least-privilege
     image: ${RUNLY_WORKER_IMAGE:-raulbellosom/runlyerp:worker-latest}
     container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-worker-external
     profiles: ["external"]
@@ -75,6 +86,7 @@ services:
     restart: unless-stopped
 
   runly-api-local:
+    <<: *runly-least-privilege
     image: ${RUNLY_API_LOCAL_IMAGE:-raulbellosom/runlyerp:api-latest}
     container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-api-local
     profiles: ["local"]
@@ -95,6 +107,7 @@ services:
     restart: unless-stopped
 
   runly-worker-local:
+    <<: *runly-least-privilege
     image: ${RUNLY_WORKER_LOCAL_IMAGE:-raulbellosom/runlyerp:worker-latest}
     container_name: ${RUNLY_CONTAINER_PREFIX:-runly}-worker-local
     profiles: ["local"]

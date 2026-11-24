@@ -63,4 +63,11 @@ COPY apps/api apps/api
 COPY apps/shared apps/shared
 COPY apps/worker apps/worker
 COPY apps/desktop/public/runly/runly-logo-email.png apps/desktop/public/runly/runly-logo-email.png
+COPY infra/docker/drop-privileges.sh /drop-privileges.sh
+# Same non-root transition as the API image (uid/gid 10001, see drop-privileges.sh).
+RUN sed -i 's/\r$//' /drop-privileges.sh && chmod 0755 /drop-privileges.sh \
+  && apk add --no-cache su-exec \
+  && addgroup -S -g 10001 runly && adduser -S -D -H -u 10001 -G runly runly \
+  && mkdir -p /app/modules/custom /app/apps/api/bundles && chown -R runly:runly /app/modules/custom /app/apps/api/bundles
+ENTRYPOINT ["/drop-privileges.sh"]
 CMD ["pnpm", "--filter", "@runly/worker", "start"]
