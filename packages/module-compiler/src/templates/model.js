@@ -40,8 +40,9 @@ function fieldToDefineModelField(field) {
   if (field.searchable === true) parts.push('    searchable: true')
   if (field.maxLength) parts.push(`    maxLength: ${field.maxLength}`)
   if (field.default !== undefined) {
-    const val = typeof field.default === 'string' ? `'${field.default}'` : JSON.stringify(field.default)
-    parts.push(`    default: ${val}`)
+    // JSON.stringify is a safe JS literal for strings too: a raw '…' let a
+    // Builder default close the quote and run code when the model is imported.
+    parts.push(`    default: ${JSON.stringify(field.default)}`)
   }
   if (Array.isArray(field.options) && field.options.length > 0) {
     const opts = field.options.map((o) => JSON.stringify(o)).join(', ')

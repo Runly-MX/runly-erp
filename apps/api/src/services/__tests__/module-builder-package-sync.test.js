@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { compileModule } from "@runly/module-compiler";
-import { createBuilderPackageSync } from "../module-builder-package-sync.js";
+import { createBuilderPackageSync, extensionFileHashes, extensionsDigestKey } from "../module-builder-package-sync.js";
 
 const REPO_ROOT = path.resolve(import.meta.dirname, "..", "..", "..", "..", "..");
 const KEY = "custom.visitas";
@@ -40,8 +40,14 @@ async function install(t, { withScreen = false, touchApi = false } = {}) {
 
 function fakePrisma(project) {
   const updates = [];
+  const config = new Map();
   return {
     updates,
+    config,
+    instanceConfig: {
+      upsert: async ({ where, create }) => { config.set(where.key, create.value); },
+      deleteMany: async ({ where }) => { config.delete(where.key); },
+    },
     moduleBuilderProject: {
       findUnique: async () => project,
       update: async ({ data }) => { updates.push(data); Object.assign(project, data); return project; },
@@ -61,6 +67,8 @@ test("an upload that only adds React screens keeps the Builder and captures them
   assert.deepEqual(project.definition.extensions.views, [{ file: "views/panel.custom.js" }]);
   assert.deepEqual(project.definition.extensions.files.map((file) => file.path).sort(), ["components/Panel.jsx", "components/index.js", "views/panel.custom.js"]);
   assert.equal(project.definition.extensions.navigation[0].path, "/app/m/custom.visitas/panel");
+  // Only this captured set may be published later (F1B.0).
+  assert.deepEqual(JSON.parse(prisma.config.get(extensionsDigestKey(KEY))), extensionFileHashes(project.definition.extensions));
   // The next Builder publish reproduces the screens.
   const republished = compileModule(project.definition);
   assert.ok(republished.files.some((file) => file.path === "components/Panel.jsx"));

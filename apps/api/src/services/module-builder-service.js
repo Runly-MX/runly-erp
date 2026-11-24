@@ -25,7 +25,7 @@ import { createModulePackageWiring } from './module-package-wiring-service.js'
 import { invalidateModuleCaches } from './module-cache-service.js'
 import { buildDefinitionFromTemplate, BUILDER_TEMPLATE_CATALOG, BUILDER_TEMPLATE_KEYS } from './module-builder-templates.js'
 import { buildPreview } from './module-builder-preview-service.js'
-import { createBuilderPackageSync } from './module-builder-package-sync.js'
+import { createBuilderPackageSync, extensionFileHashes, extensionsDigestKey, unrecordedExtensionFiles } from './module-builder-package-sync.js'
 import { createModuleServices } from './module-services/module-services.js'
 import { MODULE_CODE_AUTHORITY } from '../lib/module-code-authority.js'
 
@@ -37,6 +37,17 @@ export class ModuleBuilderError extends Error {
     this.statusCode = statusCode
     this.details = details
   }
+}
+
+// Extension files are developer code (views/*.custom.js is import()ed by the
+// API when the package is staged; components/** runs in every user's browser).
+// They may only enter a project from a ZIP the platform owner uploaded
+// (module-builder-package-sync.js). A visual edit may keep them as stored or
+// remove them, never add or change them (F1B.0).
+const EXTENSIONS_READ_ONLY = 'El código personalizado de un módulo solo puede llegar desde un paquete autorizado por el propietario de la plataforma. Desde el editor visual solo se puede conservar o quitar.'
+export function guardClientExtensions(incoming, stored = null) {
+  if (!unrecordedExtensionFiles(incoming, extensionFileHashes(stored)).length) return
+  throw new ModuleBuilderError(EXTENSIONS_READ_ONLY, { code: 'BUILDER_EXTENSIONS_READ_ONLY', statusCode: 403 })
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -173,6 +184,7 @@ export function createModuleBuilderService({ prisma, bundlerSvc = null, routeLoa
     if (!BUILDER_TEMPLATE_KEYS.includes(template) && !definition) {
       throw new ModuleBuilderError('Plantilla desconocida.', { code: 'UNKNOWN_BUILDER_TEMPLATE', statusCode: 422 })
     }
+    guardClientExtensions(definition?.extensions)
     const draft = definition ?? buildDefinitionFromTemplate(template, { moduleKey: resolvedKey, name: trimmedName, description, icon, color })
     draft.key = resolvedKey
 
@@ -196,6 +208,7 @@ export function createModuleBuilderService({ prisma, bundlerSvc = null, routeLoa
     if (project.status === 'PUBLISHED' && project.detachedAt) {
       throw new ModuleBuilderError('Este proyecto está en modo desarrollador (se edita como código) y ya no admite edición visual.', { code: 'BUILDER_PROJECT_DETACHED', statusCode: 409 })
     }
+    if (definition && Object.prototype.hasOwnProperty.call(definition, 'extensions')) guardClientExtensions(definition.extensions, project.definition?.extensions)
     const nextDefinition = { ...(definition ?? project.definition), key: project.moduleKey }
     // React screens captured from an uploaded ZIP live in `extensions`. An
     // editor that loaded the draft before the capture autosaves without the
@@ -313,6 +326,15 @@ export function createModuleBuilderService({ prisma, bundlerSvc = null, routeLoa
     const withIds = assignFieldIds(project.definition, [project.publishedDefinition])
     if (withIds.changed) {
       await prisma.moduleBuilderProject.update({ where: { id: project.id }, data: { definition: withIds.definition } })
+    }
+    // Extensions compile into server-imported views and browser code: only the
+    // exact set captured from an authorized package may be published (F1B.0).
+    if (withIds.definition.extensions?.files?.length) {
+      const recorded = await prisma.instanceConfig.findUnique({ where: { key: extensionsDigestKey(project.moduleKey) }, select: { value: true } })
+      let hashes = []
+      try { hashes = JSON.parse(recorded?.value ?? '[]') } catch { hashes = [] }
+      const unverified = unrecordedExtensionFiles(withIds.definition.extensions, Array.isArray(hashes) ? hashes : [])
+      if (unverified.length) throw new ModuleBuilderError(EXTENSIONS_READ_ONLY, { code: 'BUILDER_EXTENSIONS_UNVERIFIED', statusCode: 403, details: { files: unverified } })
     }
     const compiled = compileDefinition(withIds.definition)
     const modulesDir = await resolveModulesDir()

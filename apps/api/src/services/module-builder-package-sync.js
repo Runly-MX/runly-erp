@@ -5,6 +5,7 @@
 // other change switches the project to developer mode so a Builder publish
 // can never overwrite hand-written code. Also backs "Volver al modo visual".
 // See docs/superpowers/specs/2026-09-28-rme3-builder-code-extensions-design.md.
+import { createHash } from "node:crypto";
 import fs from "node:fs/promises";
 import path from "node:path";
 import JSZip from "jszip";
@@ -12,6 +13,19 @@ import { classifyModulePackage, hasExtensions, normalizeModuleDefinition } from 
 import { loadModuleManifest } from "./module-discovery-service.js";
 
 const SKIPPED_DIRS = new Set([".bundle", "node_modules", ".git"]);
+
+// Server-side record of the extension files captured from an authorized package
+// (F1B.0). A project may later drop some of them (the editor removes screens one
+// by one) but publishing refuses any file whose path+content is not recorded, so
+// code a client wrote into a definition is never compiled into a package.
+export const extensionsDigestKey = (moduleKey) => `builder.extensions.${moduleKey}`;
+export function extensionFileHashes(extensions) {
+  return [...new Set((extensions?.files ?? []).map((file) => createHash("sha256").update(`${file?.path}\0${file?.content}`).digest("hex")))].sort();
+}
+export function unrecordedExtensionFiles(extensions, recordedHashes) {
+  const allowed = new Set(recordedHashes ?? []);
+  return (extensions?.files ?? []).filter((file) => !allowed.has(extensionFileHashes({ files: [file] })[0])).map((file) => file?.path);
+}
 
 // encoding null returns Buffers (backup ZIP); classification uses text.
 export async function readPackageFiles(dir, { base = dir, encoding = "utf8" } = {}) {
@@ -106,6 +120,10 @@ export function createBuilderPackageSync({ prisma }) {
     } catch {
       publishedDefinition = null;
     }
+    const hashes = hasExtensions(extensions) ? JSON.stringify(extensionFileHashes(extensions)) : null;
+    const digestKey = extensionsDigestKey(project.moduleKey);
+    if (hashes) await prisma.instanceConfig.upsert({ where: { key: digestKey }, update: { value: hashes }, create: { key: digestKey, value: hashes } });
+    else await prisma.instanceConfig.deleteMany({ where: { key: digestKey } });
     return prisma.moduleBuilderProject.update({
       where: { id: project.id },
       data: {

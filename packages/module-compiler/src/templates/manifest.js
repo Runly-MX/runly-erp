@@ -104,7 +104,7 @@ export default defineRunlyModule({
   icon: '${config.icon}',
   color: '${config.color}',
   pwa: {
-    shortName: '${config.pwa.shortName}',
+    shortName: ${JSON.stringify(config.pwa.shortName)},
     startPath: '${config.pwa.startPath}',
   },
   dependencies: ${JSON.stringify(config.dependencies ?? [{ key: 'runly.core' }])},
