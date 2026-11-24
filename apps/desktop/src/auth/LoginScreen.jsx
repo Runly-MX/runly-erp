@@ -73,6 +73,21 @@ export function LoginScreen({ returnTo = '/app' }) {
     return () => root.classList.toggle('dark', useThemeStore.getState().isDark)
   }, [])
 
+  // The form is already usable: fetch the authenticated shell and the landing screen while the
+  // person types, so signing in does not start a download waterfall. Idle time only, never blocks the form.
+  useEffect(() => {
+    const prefetch = () => {
+      import("../app/AuthenticatedShell.jsx").catch(() => {})
+      import("../app/HomeScreen").catch(() => {})
+    }
+    if (typeof window.requestIdleCallback === "function") {
+      const id = window.requestIdleCallback(prefetch, { timeout: 4000 })
+      return () => window.cancelIdleCallback(id)
+    }
+    const id = setTimeout(prefetch, 2000)
+    return () => clearTimeout(id)
+  }, [])
+
   useEffect(() => {
     let mounted = true
     queryClient.fetchQuery(instanceStatusQuery)
