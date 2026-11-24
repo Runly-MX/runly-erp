@@ -1,19 +1,32 @@
 import { useState } from 'react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Server, Video, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react'
+import { Video, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle, ShieldCheck, Layers, CalendarCheck, ShoppingCart, Package, PenTool, BarChart3 } from 'lucide-react'
 import { supabase } from '../lib/supabase'
-import { TextField, PasswordField, Button, AuthAtmosphere, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
+import { TextField, PasswordField, Button, Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@runly/ui'
 import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { runly } from '../lib/runly'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
 import { useThemeStore } from '../stores/theme'
-import { ThemeToggle } from '../components/ThemeToggle'
 import { RUNLY_EDITION_NAME } from '../lib/appConfig.js'
 import { native } from '../native/index.js'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { LoginShowcase } from './LoginShowcase.jsx'
+import { LoginAurora } from './LoginAurora.jsx'
+
+const LOGO = '/runly/runly-logo-dark.png'
+const LOGIN_GRADIENT = { backgroundImage: 'linear-gradient(90deg,#f97316,#ec4899)' }
+
+// Marketing tiles describing what Runly covers, not this instance's installed
+// modules: the screen renders before sign-in and must not query them.
+const MODULE_TILES = [
+  { icon: Layers, label: 'Operaciones', color: '#38bdf8' },
+  { icon: CalendarCheck, label: 'Reservas', color: '#e879f9' },
+  { icon: ShoppingCart, label: 'Ventas', color: '#fb923c' },
+  { icon: Package, label: 'Inventario', color: '#fbbf24' },
+  { icon: PenTool, label: 'Studio', color: '#c084fc' },
+  { icon: BarChart3, label: 'Reportes', color: '#4ade80' },
+]
 
 function apiHost() {
   try { return new URL(getApiUrl(), window.location.href).host }
@@ -49,8 +62,13 @@ export function LoginScreen({ returnTo = '/app' }) {
   // used to enumerate accounts.
   const [forgotPhase, setForgotPhase] = useState('form')
   const [forgotError, setForgotError] = useState('')
-  const isDark = useThemeStore((s) => s.isDark)
-  const logo = isDark ? '/runly/runly-logo-dark.png' : '/runly/runly-logo-light.png'
+
+  // The login is dark-only; restore the user's theme when leaving it.
+  useEffect(() => {
+    const root = document.documentElement
+    root.classList.add('dark')
+    return () => root.classList.toggle('dark', useThemeStore.getState().isDark)
+  }, [])
 
   useEffect(() => {
     let mounted = true
@@ -139,68 +157,75 @@ export function LoginScreen({ returnTo = '/app' }) {
   }
 
   return (
-    <div className="relative min-h-dvh overflow-x-hidden bg-background text-foreground">
-      <AuthAtmosphere />
+    <div className="relative min-h-dvh overflow-x-hidden text-foreground">
+      <LoginAurora />
 
-      {/* Caps how wide the layout grows on ultra-wide monitors. Below lg only
-          the form column renders, and the page scrolls so the mobile keyboard
-          never hides the submit button. */}
-      <div className="relative min-h-dvh max-w-350 mx-auto lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,460px)] lg:gap-6">
-        {/* Hero — desktop only. Never shows a specific company's branding:
-            this screen is shared across every company on the instance. */}
-        <section className="hidden lg:flex relative z-10 flex-col justify-between gap-8 px-13 py-12">
-          <img src={logo} alt="Runly" className="h-7.5 w-auto self-start object-contain" draggable={false} />
+      <div className="relative z-10 min-h-dvh max-w-350 mx-auto flex flex-col lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(0,480px)] lg:gap-10 px-4 sm:px-8 lg:px-14 pt-[calc(var(--sat)+1.25rem)] pb-[calc(var(--sab)+1.25rem)] lg:py-12">
+        {/* Hero. Never shows a specific company's branding: this screen is
+            shared across every company on the instance. */}
+        <section className="flex flex-col lg:justify-between gap-10">
+          <div className="flex items-center gap-4">
+            <img src={LOGO} alt="Runly" className="h-7 lg:h-8 w-auto object-contain" draggable={false} />
+            <span className="h-6 w-px bg-white/25" />
+            <span className="text-sm font-semibold tracking-[0.3em] text-white/80">ERP</span>
+          </div>
 
-          <div className="flex flex-col gap-3 max-w-lg">
-            <h1 className="text-[clamp(2rem,3.4vw,2.9rem)] font-bold leading-[1.08] tracking-tight text-foreground text-pretty">
-              Toda tu operación,{' '}
-              <span className="bg-clip-text text-transparent" style={CTA_GRADIENT}>en un solo lugar.</span>
+          <div className="hidden lg:flex flex-col gap-6 max-w-xl">
+            <h1 className="text-[clamp(2.6rem,4.6vw,4.2rem)] font-extrabold leading-[1.02] tracking-tight text-white">
+              Todo tu negocio.
+              <br />
+              En{' '}
+              <span className="relative inline-block">
+                movimiento.
+                <svg aria-hidden="true" viewBox="0 0 300 16" preserveAspectRatio="none" className="absolute left-[4%] -bottom-3 w-[92%] h-3.5">
+                  <path d="M3 11 C 80 3, 200 3, 297 9" fill="none" stroke="url(#login-underline)" strokeWidth="5" strokeLinecap="round" />
+                  <defs>
+                    <linearGradient id="login-underline" x1="0" x2="1">
+                      <stop offset="0" stopColor="#f97316" />
+                      <stop offset="1" stopColor="#ec4899" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+              </span>
             </h1>
-            <p className="text-[15px] leading-relaxed text-muted-foreground max-w-[44ch]">
-              Ventas, agenda, inventario y tu equipo trabajando sobre los mismos datos, en tu propia infraestructura.
+            <p className="text-lg leading-relaxed text-white/70 max-w-[40ch]">
+              Una plataforma modular, flexible y escalable para gestionar y hacer crecer tu operación.
             </p>
           </div>
 
-          <div className="max-w-2xl w-full">
-            <LoginShowcase />
-          </div>
-
-          <div className="flex items-center justify-between text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            <span>Runly ERP · {RUNLY_EDITION_NAME}</span>
-            <span>v0.1.0</span>
-          </div>
+          <ul className="hidden lg:flex flex-wrap gap-3" role="list">
+            {MODULE_TILES.map(({ icon: Icon, label, color }) => (
+              <li key={label} className="w-24 h-24 flex flex-col items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/[0.04] backdrop-blur-md text-center">
+                <Icon size={26} strokeWidth={1.75} style={{ color }} aria-hidden="true" />
+                <span className="text-[12px] font-medium leading-tight text-white/85">{label}</span>
+              </li>
+            ))}
+          </ul>
         </section>
 
-        {/* Form panel */}
-        <section className="relative z-10 min-h-dvh flex flex-col px-4 sm:px-8 lg:px-10 pt-[calc(var(--sat)+1rem)] pb-[calc(var(--sab)+1rem)]">
-          <div className="w-full max-w-md mx-auto my-auto flex flex-col rounded-[26px] glass-shell px-6 py-7 sm:px-9 sm:py-9">
-            <div className="flex items-center gap-4 mb-7">
-              <img src={logo} alt="Runly" className="h-6 w-auto object-contain lg:hidden" draggable={false} />
-              <div className="ml-auto">
-                <ThemeToggle />
+        {/* Form card: gradient hairline border around frosted glass. */}
+        <section className="flex-1 flex items-center justify-center mt-8 lg:mt-0">
+          <div className="w-full max-w-md lg:max-w-none rounded-[28px] p-px bg-gradient-to-br from-white/25 via-white/5 to-pink-500/40 shadow-[0_30px_80px_-20px_rgba(0,0,0,.7)]">
+            <div className="rounded-[27px] bg-[#0b1430]/70 backdrop-blur-2xl px-6 py-8 sm:px-10 sm:py-10">
+              <div className="flex flex-col items-center text-center gap-2 mb-8">
+                <img src="/runly/runly-isotipo-dark.png" alt="" className="h-12 w-12 mb-2 object-contain" draggable={false} />
+                <h2 className="text-[1.75rem] font-bold tracking-tight text-white">Bienvenido de nuevo</h2>
+                <p className="text-sm text-white/65">Ingresa a tu espacio de trabajo</p>
               </div>
-            </div>
 
-            <div className="flex flex-col gap-1.5 mb-7">
-              <h2 className="text-2xl font-bold tracking-tight text-foreground">Bienvenido de nuevo</h2>
-              <p className="text-sm text-muted-foreground leading-relaxed">Ingresa a tu espacio de trabajo.</p>
-            </div>
-
-            <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
-              <TextField
-                id="identifier"
-                icon={User}
-                label="Correo o nombre de usuario"
-                type="text"
-                autoComplete="username"
-                autoCapitalize="none"
-                spellCheck={false}
-                value={identifier}
-                onChange={e => setIdentifier(e.target.value)}
-                placeholder="tu@empresa.com o usuario"
-                required
-              />
-              <div className="flex flex-col gap-1.5">
+              <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+                <TextField
+                  id="identifier"
+                  icon={User}
+                  label="Correo o usuario"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  spellCheck={false}
+                  value={identifier}
+                  onChange={e => setIdentifier(e.target.value)}
+                  placeholder="tu@empresa.com o usuario"
+                />
                 <PasswordField
                   id="password"
                   icon={Lock}
@@ -218,72 +243,76 @@ export function LoginScreen({ returnTo = '/app' }) {
                     setForgotEmail(identifier.trim())
                     setForgotOpen(true)
                   }}
-                  className="self-end text-[13px] font-medium text-(--brand-primary) hover:text-(--brand-primary-hover) transition-colors duration-150 cursor-pointer"
+                  className="-mt-1 self-end text-[13px] font-medium text-sky-400 hover:text-sky-300 transition-colors duration-150 cursor-pointer"
                 >
                   ¿Olvidaste tu contraseña?
                 </button>
+
+                {error && (
+                  <p role="alert" className="text-sm text-red-400">
+                    {error}
+                  </p>
+                )}
+
+                <Button
+                  type="submit"
+                  variant="gradient"
+                  style={LOGIN_GRADIENT}
+                  disabled={loading || !identifier.trim() || !password}
+                  aria-busy={loading}
+                  className="mt-1 h-12 w-full justify-center rounded-md text-[15px] font-semibold shadow-[0_10px_30px_-8px_rgba(249,115,22,.6)] hover:brightness-110"
+                >
+                  {loading ? 'Verificando credenciales...' : 'Iniciar sesión'}
+                  {!loading && <ArrowRight size={17} />}
+                </Button>
+              </form>
+
+              <div className="flex items-center gap-3 my-6 text-xs text-white/50">
+                <span className="h-px flex-1 bg-white/15" />o también<span className="h-px flex-1 bg-white/15" />
               </div>
 
-              {error && (
-                <p role="alert" className="text-sm text-destructive">
-                  {error}
-                </p>
-              )}
-
               <Button
-                type="submit"
-                variant="gradient"
-                style={CTA_GRADIENT}
-                className="w-full justify-center"
-                disabled={loading || !identifier.trim() || !password}
-                aria-busy={loading}
+                type="button"
+                variant="outline"
+                onClick={() => navigate('/app/p/call')}
+                className="h-11 w-full justify-center rounded-md border-white/15 bg-white/[0.04] text-white/90 hover:bg-white/[0.08]"
               >
-                {loading ? 'Verificando credenciales...' : 'Iniciar sesión'}
-                {!loading && <ArrowRight size={15} />}
+                <Video size={16} />
+                Unirse a una reunión sin cuenta
               </Button>
-            </form>
 
-            <div className="flex items-center gap-3 my-5 text-[11px] uppercase tracking-widest text-muted-foreground">
-              <span className="h-px flex-1 bg-border" />o<span className="h-px flex-1 bg-border" />
-            </div>
-
-            <Button type="button" variant="outline" className="w-full justify-center" onClick={() => navigate('/app/p/call')}>
-              <Video size={15} />
-              Unirse a una reunión sin cuenta
-            </Button>
-
-            <div className="mt-6 pt-4 border-t border-border flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
-              <span className="flex items-center gap-1.5 min-w-0">
-                <Server size={13} className="shrink-0" aria-hidden="true" />
-                <span className="truncate" title={instanceHost}>{instanceHost}</span>
-              </span>
-              {isTauriRuntime() || native.isRemoteHost() ? (
-                <button
-                  type="button"
-                  onClick={() => handleChangeServer()}
-                  className="ml-auto font-medium text-(--brand-primary) hover:text-(--brand-primary-hover) cursor-pointer"
-                >
-                  Cambiar instancia
-                </button>
-              ) : null}
+              <div className="mt-6 flex items-center gap-2 rounded-md border border-white/10 bg-white/[0.03] px-4 py-2.5 text-xs text-white/70">
+                <ShieldCheck size={15} className="shrink-0 text-emerald-400" aria-hidden="true" />
+                <span className="truncate">
+                  Conexión segura · <span title={instanceHost}>{instanceHost}</span>
+                </span>
+                {isTauriRuntime() || native.isRemoteHost() ? (
+                  <button
+                    type="button"
+                    onClick={() => handleChangeServer()}
+                    className="ml-auto shrink-0 font-medium text-orange-400 hover:text-orange-300 cursor-pointer"
+                  >
+                    Cambiar
+                  </button>
+                ) : null}
+              </div>
               {native.isRemoteHost() && (
                 <button
                   type="button"
                   onClick={() => handleChangeServer('device')}
-                  className="hover:text-foreground cursor-pointer"
+                  className="mt-3 w-full text-center text-xs text-white/55 hover:text-white cursor-pointer"
                 >
                   Permisos del dispositivo
                 </button>
               )}
             </div>
           </div>
-
-          <p className="lg:hidden mt-4 text-center text-[11px] uppercase tracking-[0.14em] text-muted-foreground">
-            Runly ERP · {RUNLY_EDITION_NAME}
-          </p>
         </section>
-      </div>
 
+        <p className="mt-6 lg:col-span-2 text-center lg:text-left text-[11px] uppercase tracking-[0.16em] text-white/45">
+          Runly ERP · {RUNLY_EDITION_NAME}
+        </p>
+      </div>
 
       <Dialog open={forgotOpen} onOpenChange={(open) => (open ? setForgotOpen(true) : closeForgotDialog())}>
         <DialogContent size="sm">
