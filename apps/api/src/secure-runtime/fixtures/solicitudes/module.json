@@ -1,0 +1,63 @@
+{
+  "schema": "runly.declarative/v1",
+  "key": "custom.ref_solicitudes",
+  "name": "Solicitudes (referencia)",
+  "version": "0.1.0",
+  "permissions": {
+    "read": "ref_solicitudes.solicitud.read",
+    "create": "ref_solicitudes.solicitud.create",
+    "update": "ref_solicitudes.solicitud.update",
+    "approve": "ref_solicitudes.solicitud.approve"
+  },
+  "capabilities": ["records.read", "records.write", "relations.resolve", "files.describe", "files.attach", "notifications.publish", "events.emit"],
+  "events": { "emits": ["ref_solicitudes.solicitud.aprobada"] },
+  "entities": [
+    {
+      "key": "solicitud",
+      "label": "Solicitud",
+      "pluralLabel": "Solicitudes",
+      "fields": [
+        { "key": "titulo", "type": "text", "label": "Título", "required": true, "max": 120 },
+        { "key": "detalle", "type": "longtext", "label": "Detalle", "max": 2000 },
+        { "key": "monto", "type": "number", "label": "Monto", "min": 0, "max": 1000000 },
+        { "key": "proveedor", "type": "relation", "label": "Proveedor", "target": "runly.contacts:contact" },
+        { "key": "solicitante", "type": "user", "label": "Solicitante", "required": true },
+        { "key": "estado", "type": "enum", "label": "Estado", "options": [
+          { "value": "borrador", "label": "Borrador" }, { "value": "enviada", "label": "Enviada" },
+          { "value": "aprobada", "label": "Aprobada" }, { "value": "rechazada", "label": "Rechazada" } ] },
+        { "key": "resolucion", "type": "text", "label": "Resolución", "readOnly": true, "max": 200 }
+      ],
+      "validations": [
+        { "rule": { "op": "or", "args": [ { "op": "empty", "args": [ { "field": "monto" } ] }, { "op": "lte", "args": [ { "field": "monto" }, { "value": 1000000 } ] } ] }, "message": "El monto no puede superar 1,000,000." },
+        { "rule": { "op": "gte", "args": [ { "op": "len", "args": [ { "field": "titulo" } ] }, { "value": 3 } ] }, "message": "El título necesita al menos 3 caracteres." }
+      ],
+      "states": {
+        "field": "estado",
+        "initial": "borrador",
+        "values": [ { "value": "borrador", "label": "Borrador" }, { "value": "enviada", "label": "Enviada" }, { "value": "aprobada", "label": "Aprobada" }, { "value": "rechazada", "label": "Rechazada" } ],
+        "transitions": [
+          { "action": "enviar", "label": "Enviar", "from": ["borrador"], "to": "enviada", "permission": "create",
+            "when": { "op": "not", "args": [ { "op": "empty", "args": [ { "field": "titulo" } ] } ] } },
+          { "action": "aprobar", "label": "Aprobar", "from": ["enviada"], "to": "aprobada", "permission": "approve" },
+          { "action": "rechazar", "label": "Rechazar", "from": ["enviada"], "to": "rechazada", "permission": "approve" }
+        ]
+      },
+      "automations": [
+        { "key": "aviso_aprobacion", "on": "transition:aprobar", "steps": [
+          { "set": { "field": "resolucion", "value": { "op": "concat", "args": [ { "value": "Aprobada: " }, { "field": "titulo" } ] } } },
+          { "notify": { "toField": "solicitante", "title": "Tu solicitud fue aprobada" } },
+          { "emit": "ref_solicitudes.solicitud.aprobada" }
+        ] }
+      ],
+      "views": {
+        "list": { "columns": ["titulo", "monto", "proveedor", "estado"] },
+        "form": { "sections": [ { "title": "Solicitud", "fields": ["titulo", "detalle", "monto", "proveedor", "solicitante"] } ] },
+        "detail": { "fields": ["titulo", "detalle", "monto", "proveedor", "solicitante", "estado", "resolucion"] }
+      }
+    }
+  ],
+  "extensions": {
+    "backend": [ { "key": "resumen", "handler": "backend/resumen.mjs", "capabilities": ["records.read"], "timeoutMs": 4000 } ],
+    "frontend": [ { "key": "panel", "entry": "frontend/panel.js", "capabilities": ["records.read"] } ]
+  }
+}
