@@ -1,0 +1,37 @@
+Tiptap ProseMirror clipboard validates context attributes and retains ordinary editing in Chrome
+[file] apps\\api\\src\\routes\\website\\__tests__\\website-backend-closure-postgres.test.js
+[file] apps\\api\\src\\routes\\website\\__tests__\\website-imports-postgres.test.js
+[file] apps\\api\\src\\routes\\website\\__tests__\\website-postgres.test.js
+[file] apps\\api\\src\\routes\\website\\__tests__\\website-releases-postgres.test.js
+[file] apps\\api\\src\\routes\\website\\__tests__\\website-templates-postgres.test.js
+a shared-contract-only change selects API, worker and web without publishing
+alias and current-only catalogs cover exactly the official manifest keys
+all official modules declare a valid PWA identity
+bootstrap entrypoints distribute the installer env-compat dependency
+call-transcript-analysis-service.analyzeTranscript
+consumer rejects stale revisions, duplicates, traversal, corrupt tarballs and contract drift
+consumer validates six artifacts before serving exact metadata and bytes read-only
+contactsProposalModule.isAvailable
+contains module PWA identity
+covers every entity type runly.files accepts
+external ps1 pins one commit, verifies the loader and downloads the complete verified release
+external sh pins one commit, verifies the loader and downloads the complete verified release
+external: upgrades the reused November release without discarding installed state or private configuration
+fallbacks do not recreate an old name when its Runly counterpart was discovered
+files visibility
+generateManifest
+has an entry for every module with help and no orphans
+help capabilities.json (public "Lo que puedes hacer" section)
+includes a module's proposals (runly.contacts) in the saved analysis when the module is available and Groq returned some
+installer devkit snapshot stays in sync with the export generator
+integrated Marketplace isolates feeds, opens the real import dialog and asks before changing resources
+is available when the module is globally installed+enabled and not disabled for this company
+is unavailable when explicitly disabled for this company (CompanyModule override)
+legacy scripts upgrade together and preserve configuration, data, secrets, selected images and mode
+local ps1 pins one commit, verifies the loader and downloads the complete verified release
+local sh pins one commit, verifies the loader and downloads the complete verified release
+local: upgrades the reused November release without discarding installed state or private configuration
+max width leaves the table minimum and stays within 200..420
+runly.growth is an official core module with analytics, leads, sites and forms navigation
+runtime catalog matches the installed versions (run scripts/generate-module-runtime-catalog.mjs)
+sensibilidad declarada por adaptador: misma matriz que la confirmación web
