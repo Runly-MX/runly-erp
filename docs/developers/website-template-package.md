@@ -31,3 +31,31 @@ Los marcadores `@contact` y `@newsletter` no son integraciones. ERP W3 importa c
 Atlas 0.6.3 incluye la misma marca con logo a `FooterBlock` y `SiteFooterBlock`: `logoSrc`, `logoAlt`, `logoHeight`, `showBrandName`, `brandDirection`, `brandGap` y `brandHref`. `showBrand` sigue ocultando toda la marca y `tagline` conserva el texto adicional del pie. Para usarlos, el contrato debe anunciar 0.6.3 y se guarda una revisión con ese digest. Los catálogos anteriores permanecen inmutables.
 
 El historial de paquetes guardados no consume el cupo de cinco cargas pendientes sin vincular. Cada revisión retenida sigue contando en la cuota de almacenamiento; un guardado no requiere borrar versiones o assets anteriores.
+
+## Licencias de assets: formulario y MCP
+
+En la Biblioteca multimedia del portal, la licencia es opcional: dejarla vacía envía `LicenseRef-Unknown`. Esto permite cargar material sin elegir una licencia pública ni inventar condiciones de uso. El cambio del formulario no vuelve opcional el campo técnico del MCP: `runly_website_asset_prepare` y el servicio de transferencia todavía requieren `license`.
+
+El identificador técnico admite entre 1 y 128 caracteres del conjunto `A-Z`, `a-z`, `0-9`, `.`, `+`, `:`, `-` (expresión `^[A-Za-z0-9.+:-]{1,128}$`). No admite espacios ni texto libre; una frase como «Propiedad del cliente» produce `INVALID_LICENSE`. Usa un identificador SPDX cuando corresponda, por ejemplo `CC-BY-4.0`, o una referencia propia como `LicenseRef-Client-Owned`. Si no se declara licencia, el cliente MCP debe enviar `LicenseRef-Unknown`, como hace el portal.
+
+`LicenseRef-Client-Owned` identifica una declaración propia; no convierte el material en dominio público ni otorga permisos de redistribución. La descripción legible puede conservarse en `provenance.licenseLabel`. `rights.author` indica el autor declarado y `rights.notice` conserva el aviso; `rights.redistribution` se mantiene en `unknown` si no hay autorización expresa. No cambies a `allowed` por haber elegido un identificador o generado una imagen con IA.
+
+Ejemplo de metadata de licencia propia para la preparación, junto con los IDs, MIME, bytes y SHA-256 reales del archivo:
+
+```json
+{
+  "license": "LicenseRef-Client-Owned",
+  "rights": {
+    "author": "Cliente",
+    "notice": "Material propio del cliente",
+    "redistribution": "unknown"
+  },
+  "provenance": {
+    "client": "codex",
+    "originalName": "logo.svg",
+    "licenseLabel": "Propiedad del cliente"
+  }
+}
+```
+
+La carga privada y la distribución pública son pasos distintos: una licencia sin especificar permite almacenar y editar, pero no acredita derechos para publicar. Consulta el schema MCP expuesto en la conexión antes de omitir campos; que el portal permita dejarlos vacíos no cambia ese contrato.
