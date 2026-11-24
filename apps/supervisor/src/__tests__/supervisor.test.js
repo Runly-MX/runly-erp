@@ -19,8 +19,8 @@ async function setup(t, { runtime = {}, profile = null } = {}) {
   t.after(() => fs.rm(base, { recursive: true, force: true }))
   await fs.cp(path.join(ROOT, 'apps/api/src/secure-runtime/fixtures/solicitudes'), path.join(base, 'modules', KEY), { recursive: true })
   const calls = { run: [], killed: [] }
-  const fake = () => ({ start: async () => {}, stop: async () => {}, stats: () => ({}), killModule: async (k) => { calls.killed.push(k); return 1 },
-    run: async (job) => { calls.run.push(job); if (runtime.hang) await new Promise(() => {}); if (runtime.busy) throw Object.assign(new Error('busy'), { code: 'RUNTIME_BUSY' }); return { ok: true, result: { total: 0 }, ms: 1 } } })
+  const fake = () => ({ start: async () => { if (runtime.startHang) await new Promise(() => {}) }, stop: async () => {}, stats: () => ({}), killModule: async (k) => { calls.killed.push(k); return 1 },
+    run: async (job) => { calls.run.push(job); calls.effects = (calls.effects ?? 0) + 1; if (runtime.hold) await runtime.hold; if (runtime.hang) await new Promise(() => {}); if (runtime.busy) throw Object.assign(new Error('busy'), { code: 'RUNTIME_BUSY' }); return { ok: true, result: { total: 0 }, ms: 1 } } })
   const make = () => createSupervisor({ secret: SECRET, modulesDir: path.join(base, 'modules'), stateDir: path.join(base, 'state'), gatewayPort: 1, gatewayHost: 'gw', runtimeFactory: fake, ...(profile ? { profileCheck: profile } : {}), reapOrphans: async () => { calls.reaped = (calls.reaped ?? 0) + 1; return 0 } })
   let sup = await make()
   let port = await sup.listen()
@@ -103,4 +103,54 @@ test('fails closed: where the container profile is not enforced no job runs and 
 test('a throwing profile probe also disables custom code', async (t) => {
   const { send, job } = await setup(t, { profile: async () => { throw new Error('docker unreachable') } })
   assert.equal((await send('POST', '/v1/jobs', job())).status, 503)
+})
+
+// Fault injection between the steps of a job. The guarantee is at-most-once
+// EXECUTION; when the process dies after the effect the outcome is unknown
+// (INTERRUPTED) and is reconciled through the audit entries that carry the jobId.
+test('crash after the claim and before the container starts: interrupted, never run', async (t) => {
+  const s = await setup(t, { runtime: { startHang: true } })
+  const j = s.job()
+  const pending = s.send('POST', '/v1/jobs', j).catch(() => null)
+  await new Promise((r) => setTimeout(r, 150))
+  await s.restart(); await pending
+  assert.equal(s.calls.effects ?? 0, 0)
+  const again = await s.send('POST', '/v1/jobs', j)
+  assert.equal(again.status, 409); assert.equal(again.body.state, 'INTERRUPTED')
+})
+
+test('crash after the external effect and before the result is recorded: one effect, never a second', async (t) => {
+  const s = await setup(t, { runtime: { hang: true } })
+  const j = s.job()
+  const pending = s.send('POST', '/v1/jobs', j).catch(() => null)
+  await new Promise((r) => setTimeout(r, 150))
+  assert.equal(s.calls.effects, 1)
+  await s.restart(); await pending
+  assert.equal((await s.send('POST', '/v1/jobs', j)).status, 409, 'the caller retry is refused')
+  assert.equal((await s.send('POST', '/v1/jobs', j)).body.state, 'INTERRUPTED', 'outcome unknown, not guessed')
+  assert.equal(s.calls.effects, 1)
+  const audit = await fs.readFile(path.join(s.base, 'state', 'audit.jsonl'), 'utf8')
+  assert.ok(audit.includes(j.jobId) && audit.includes('job.interrupted'), 'the jobId is the reconciliation key')
+})
+
+test('a torn last ledger line after a crash does not lose earlier states or block startup', async (t) => {
+  const s = await setup(t)
+  const done = s.job()
+  assert.equal((await s.send('POST', '/v1/jobs', done)).status, 200)
+  await fs.appendFile(path.join(s.base, 'state', 'jobs.jsonl'), '{"jobId":"torn","state":"RUN')
+  await s.restart()
+  const again = await s.send('POST', '/v1/jobs', done)
+  assert.equal(again.status, 409); assert.equal(again.body.state, 'SUCCEEDED')
+})
+
+test('cancellation while the job runs: the late result is discarded and the job fails as cancelled', async (t) => {
+  let release
+  const hold = new Promise((r) => { release = r })
+  const s = await setup(t, { runtime: { hold } })
+  const pending = s.send('POST', '/v1/jobs', s.job())
+  await new Promise((r) => setTimeout(r, 150))
+  await s.send('POST', `/v1/modules/${KEY}/cancel`)
+  release()
+  const r = await pending
+  assert.equal(r.body.error.code, 'JOB_CANCELLED')
 })
