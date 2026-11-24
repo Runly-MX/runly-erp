@@ -59,14 +59,15 @@ export function createGrowthPropertyService({ prisma, now = () => new Date() }) 
       prisma.websiteSite.findMany({ where: { companyId, enabled: true } }),
     ]);
 
-    const mirroredSiteIds = new Set(
-      properties.filter((p) => p.websiteSiteId).map((p) => p.websiteSiteId),
-    );
+    // A module-site mirror lives only while its website site does: archiving the site in runly.website hides it here.
+    const liveSiteIds = new Set(websiteSites.map((site) => site.id));
+    const visible = properties.filter((p) => !p.websiteSiteId || liveSiteIds.has(p.websiteSiteId));
+    const mirroredSiteIds = new Set(visible.filter((p) => p.websiteSiteId).map((p) => p.websiteSiteId));
     const missing = websiteSites.filter((site) => !mirroredSiteIds.has(site.id));
-    if (missing.length === 0) return sortByCreatedAt(properties);
+    if (missing.length === 0) return sortByCreatedAt(visible);
 
     const created = await Promise.all(missing.map((site) => mirrorWebsiteSite({ companyId, site })));
-    return sortByCreatedAt([...properties, ...created]);
+    return sortByCreatedAt([...visible, ...created]);
   }
 
   async function resolveProperty({ companyId, propertyId }) {

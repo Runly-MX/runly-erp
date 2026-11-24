@@ -83,6 +83,18 @@ test("resolveProperty mirrors a WebsiteSite on first call and reuses it on the s
   assert.equal(second.id, first.id);
 });
 
+test("listProperties hides a module-site mirror once its website site is archived", async () => {
+  const prisma = createPrismaStub({
+    growthProperties: [
+      { id: "ext", companyId: COMPANY_ID, kind: "external_sdk", enabled: true, createdAt: "2026-01-01" },
+      { id: "web", companyId: COMPANY_ID, kind: "website_module", websiteSiteId: SITE_ID, enabled: true, createdAt: "2026-01-02" },
+    ],
+    websiteSites: [{ id: SITE_ID, companyId: COMPANY_ID, enabled: false }],
+  });
+  const list = await createGrowthPropertyService({ prisma }).listProperties({ companyId: COMPANY_ID });
+  assert.deepEqual(list.map((p) => p.id), ["ext"]);
+});
+
 test("resolveProperty returns null when neither a GrowthProperty nor a WebsiteSite match", async () => {
   const prisma = createPrismaStub();
   const service = createGrowthPropertyService({ prisma });
