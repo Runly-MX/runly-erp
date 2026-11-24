@@ -33,8 +33,9 @@ test('commerce: the account portal works on any site kind, the cart needs a stor
   await assert.rejects(exportWebsiteTemplate({ title: 'Blog con carrito', catalog, siteKind: 'blog', builderVersion: '0.9.3', theme, pages: pages([section('CartBlock', {})]) }), { reason: 'block_unknown' })
 })
 
-test('commerce: embedded video stays excluded from templates', async () => {
-  await assert.rejects(exportWebsiteTemplate({ title: 'Video', catalog, siteKind: 'website', builderVersion: '0.9.3', theme, pages: pages([section('VideoBlock', {})]) }), { reason: 'block_unknown' })
+test('commerce: embedded video stays excluded from templates; VideoBlock travels only with a packaged file', async () => {
+  // Atlas >= 0.11 catalogs know VideoBlock (with `file`); a third-party URL is still never portable.
+  await assert.rejects(exportWebsiteTemplate({ title: 'Video', catalog, siteKind: 'website', builderVersion: '0.9.3', theme, pages: pages([section('VideoBlock', { src: 'https://youtu.be/abc' })]) }), { reason: 'prop_invalid' })
 })
 
 test('commerce: requirement sentences name the cart and the accounts for installations that cannot open the template', () => {

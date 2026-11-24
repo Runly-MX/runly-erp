@@ -17,7 +17,7 @@ export const RESOURCE_TYPES = Object.freeze(['studio_template', 'automation', 'w
 export const TYPE_NAMESPACE = Object.freeze({ studio_template: 'studio', automation: 'automation', website_template: 'website', solution: 'solution' })
 export const FORMAT_NAME = TYPE_NAMESPACE
 // Feed section 9 (A-1): maximum package size per type, enforced by the schema.
-export const TYPE_MAX_BYTES = Object.freeze({ studio_template: 26_214_400, automation: 204_800, website_template: 26_214_400, solution: 262_144 })
+export const TYPE_MAX_BYTES = Object.freeze({ studio_template: 26_214_400, automation: 204_800, website_template: 167_772_160, solution: 262_144 })
 export const MAX_SNAPSHOT_VALIDITY_MS = 7 * 24 * 60 * 60 * 1000
 export const MAX_SNAPSHOT_BYTES = 4 * 1024 * 1024
 

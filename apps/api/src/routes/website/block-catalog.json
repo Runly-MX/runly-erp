@@ -10882,6 +10882,7 @@
       "group": "base",
       "slots": [],
       "defaultProps": {
+        "file": "",
         "src": "",
         "poster": "",
         "caption": "",
@@ -10896,6 +10897,10 @@
         "muted": false
       },
       "fields": {
+        "file": {
+          "type": "video",
+          "label": "Archivo de video (biblioteca)"
+        },
         "src": {
           "type": "link",
           "label": "URL del video (YouTube, Vimeo o .mp4)"
@@ -10982,6 +10987,62 @@
         "muted": {
           "type": "toggle",
           "label": "Silenciado"
+        }
+      }
+    },
+    {
+      "type": "AudioBlock",
+      "label": "Audio",
+      "category": "media",
+      "group": "base",
+      "slots": [],
+      "defaultProps": {
+        "file": "",
+        "title": "",
+        "caption": "",
+        "width": "100%",
+        "align": "left",
+        "loop": false
+      },
+      "fields": {
+        "file": {
+          "type": "audio",
+          "label": "Archivo de audio (biblioteca)"
+        },
+        "title": {
+          "type": "text",
+          "label": "Título"
+        },
+        "caption": {
+          "type": "text",
+          "label": "Descripción (opcional)"
+        },
+        "width": {
+          "type": "select",
+          "label": "Ancho",
+          "options": [
+            "100%",
+            "75%",
+            "50%",
+            "33%",
+            "25%",
+            "480px",
+            "320px",
+            "auto"
+          ]
+        },
+        "align": {
+          "type": "select",
+          "label": "Alineación",
+          "options": [
+            "left",
+            "center",
+            "right"
+          ]
+        },
+        "loop": {
+          "type": "toggle",
+          "label": "Repetir en bucle"
         }
       }
     },
