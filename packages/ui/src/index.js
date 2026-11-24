@@ -443,3 +443,4 @@ export {
 export { resolveRecordLabel } from "./runly-renderer/record-label.js";
 
 export { RuntimeAdaptersProvider } from "./lib/module-runtime/RuntimeAdapters.jsx";
+export { IsolatedComponent } from "./secure-runtime/IsolatedComponent.jsx";

@@ -86,6 +86,10 @@ Use the project's default automatic JSX runtime. Do not add `/** @jsxRuntime cla
 `/** @jsx createElement */`, or `import { createElement } from 'react'` in custom module
 components.
 
+### Experimental: isolated custom components (Secure Runtime)
+
+`IsolatedComponent` (`@runly/ui`) renders a module's custom component in a sandboxed, opaque-origin iframe served by `GET /secure-runtime/v1/frames/:key/:component` (only with `RUNLY_SECURE_RUNTIME=experimental`). The component talks to Runly only through `window.runly.call(operation, args)` over a private MessageChannel; the host checks every call against `allowedOperations` and the gateway. It is revoked on unmount and whenever `companyId` or `sessionKey` changes. Not for production modules yet: see `docs/architecture/adr-secure-module-runtime.md`.
+
 ### Available imports in components
 
 There are two categories. Use **Category A** (external) whenever possible — it keeps module bundles small and avoids duplicate code.

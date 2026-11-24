@@ -20,7 +20,10 @@ import { renderIsolatedFrame } from '../../apps/api/src/secure-runtime/frontend/
 import { checks } from './lib/disposable-stack.mjs'
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..')
-const { chromium } = createRequire(path.join(ROOT, 'package.json'))('playwright')
+const engineArg = process.argv.indexOf('--browser')
+const ENGINE = engineArg > 0 ? process.argv[engineArg + 1] : 'chromium'
+if (!['chromium', 'firefox', 'webkit'].includes(ENGINE)) throw new Error('--browser chromium|firefox|webkit')
+const engine = createRequire(path.join(ROOT, 'package.json'))('playwright')[ENGINE]
 const def = loadDeclarativeModule(JSON.parse(readFileSync(path.join(ROOT, 'apps/api/src/secure-runtime/fixtures/solicitudes/module.json'), 'utf8')))
 const A = randomUUID(), B = randomUUID(), userA = randomUUID(), userB = randomUUID()
 const gateway = createCapabilityGateway({ signer: createHostSigner(), store: createMemoryStore() })
@@ -68,13 +71,13 @@ const hostServer = await listen(async (req, res) => {
 })
 hostOrigin = `http://127.0.0.1:${hostServer.address().port}`
 
-const browser = await chromium.launch()
+const browser = await engine.launch()
 const { check, report } = checks()
 const metrics = {}
 try {
   const page = await browser.newPage()
-  const cdp = await page.context().newCDPSession(page)
-  await cdp.send('Performance.enable')
+  const cdp = ENGINE === 'chromium' ? await page.context().newCDPSession(page) : null
+  await cdp?.send('Performance.enable')
   await page.goto(hostOrigin)
   const frameFor = (name) => page.frames().find((f) => f.url().endsWith(`/frame/${name}`))
   await page.waitForFunction(() => document.querySelectorAll('iframe').length === 2)
@@ -122,9 +125,11 @@ try {
     await page.waitForTimeout(300)
     assert.equal(hostCalls.length, before)
   })
-  const m = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]))
-  metrics.hostHeapMb = Math.round(m.JSHeapUsedSize / 1024 / 1024 * 10) / 10
-  metrics.frames = m.Frames
+  if (cdp) {
+    const m = Object.fromEntries((await cdp.send('Performance.getMetrics')).metrics.map((x) => [x.name, x.value]))
+    metrics.hostHeapMb = Math.round(m.JSHeapUsedSize / 1024 / 1024 * 10) / 10
+  }
+  metrics.engine = ENGINE
 } finally {
   report()
   console.log(JSON.stringify({ ...metrics, probe: undefined }))
