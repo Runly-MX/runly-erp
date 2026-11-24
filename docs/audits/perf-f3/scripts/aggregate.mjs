@@ -11,7 +11,7 @@ const metrics = {
   'post-login TBT ms': (c) => c.postLoginPerf.tbt, 'post-login CLS': (c) => c.postLoginPerf.cls,
 }
 const sess = { 'warm reload ms': (s) => s.warmReloadMs, 'warm reload KB': (s) => s.warm.totalKB, 'warm reload requests': (s) => s.warm.requests,
-  'warm API calls': (s) => s.warm.apiCalls, 'session first-load KB': (s) => s.summary.totalKB, 'session first-load requests': (s) => s.summary.requests }
+  'warm API calls': (s) => s.warm.apiCalls, 'hot navigation ms': (s) => s.hotNavMs, 'hot navigation KB': (s) => s.hot.totalKB, 'hot navigation requests': (s) => s.hot.requests, 'session first-load KB': (s) => s.summary.totalKB, 'session first-load requests': (s) => s.summary.requests }
 const rows = {}
 for (const v of fs.readdirSync(root).filter((d) => fs.statSync(path.join(root, d)).isDirectory()))
   for (const p of fs.readdirSync(path.join(root, v)))

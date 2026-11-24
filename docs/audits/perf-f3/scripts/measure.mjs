@@ -116,6 +116,11 @@ try {
     await s.page.reload({ waitUntil: 'load' });
     await quiesce(s.page, s.log, 2000, 120000);
     out.warmReloadMs = Date.now() - t1 - 2000; out.warm = summarize(s.log);
+    // Normal navigation with a hot HTTP cache (reload() revalidates every subresource, so it hides immutable caching).
+    s.log.length = 0; const t2 = Date.now();
+    await s.page.goto(`${BASE}/app/`, { waitUntil: "load" });
+    await quiesce(s.page, s.log, 2000, 120000);
+    out.hotNavMs = Date.now() - t2 - 2000; out.hot = summarize(s.log);
   } else if (scenario === 'idle') {
     const s = await setup(browser, STATE);
     await s.page.goto(`${BASE}/app/`, { waitUntil: 'load', timeout: 120000 });
