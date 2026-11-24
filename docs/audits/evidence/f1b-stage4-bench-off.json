@@ -1,0 +1,27 @@
+{
+  "mode": "off",
+  "apiBootMs": 5477,
+  "rssIdleMb": 317,
+  "existingRuntimeList": {
+    "sequential": {
+      "n": 200,
+      "p50": 8.48,
+      "p95": 12.7,
+      "p99": 27.44,
+      "unit": "ms"
+    },
+    "concurrent": {
+      "n": 300,
+      "p50": 16.66,
+      "p95": 31.48,
+      "p99": 38.94,
+      "unit": "ms",
+      "concurrency": 20,
+      "requests": 300,
+      "failures": 0,
+      "throughputPerSec": 946
+    }
+  },
+  "cpuSecondsDuringMeasurements": 1.82,
+  "rssAfterMb": 348
+}

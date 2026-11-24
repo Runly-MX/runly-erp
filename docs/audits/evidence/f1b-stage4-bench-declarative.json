@@ -1,0 +1,47 @@
+{
+  "mode": "declarative",
+  "apiBootMs": 5478,
+  "rssIdleMb": 317,
+  "existingRuntimeList": {
+    "sequential": {
+      "n": 200,
+      "p50": 9.36,
+      "p95": 15.69,
+      "p99": 21.66,
+      "unit": "ms"
+    },
+    "concurrent": {
+      "n": 300,
+      "p50": 18.36,
+      "p95": 52.57,
+      "p99": 56.68,
+      "unit": "ms",
+      "concurrency": 20,
+      "requests": 300,
+      "failures": 0,
+      "throughputPerSec": 711
+    }
+  },
+  "declarativeRestList": {
+    "sequential": {
+      "n": 200,
+      "p50": 8.06,
+      "p95": 11.07,
+      "p99": 28.49,
+      "unit": "ms"
+    },
+    "concurrent": {
+      "n": 300,
+      "p50": 17.86,
+      "p95": 22.64,
+      "p99": 23.97,
+      "unit": "ms",
+      "concurrency": 20,
+      "requests": 300,
+      "failures": 0,
+      "throughputPerSec": 944
+    }
+  },
+  "cpuSecondsDuringMeasurements": 3.77,
+  "rssAfterMb": 365
+}

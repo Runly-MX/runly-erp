@@ -42,6 +42,8 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, rel
   if (!isSecureRuntimeEnabled(env)) return { enabled: false }
   const modulesDir = env.RUNLY_SECURE_RUNTIME_MODULES_DIR ? path.resolve(env.RUNLY_SECURE_RUNTIME_MODULES_DIR) : null
   const frameAncestors = String(env.RUNLY_SECURE_RUNTIME_FRAME_ANCESTORS ?? '').split(/\s+/).filter(Boolean)
+  // Per module and company. 120/min suits a few users; a busy company raises it (bounded) per instance.
+  const callsPerMinute = Math.min(6000, Math.max(10, Number.parseInt(env.RUNLY_SECURE_RUNTIME_CALLS_PER_MINUTE ?? '', 10) || 120))
   const signer = createHostSigner()
   // Converted Builder modules (entities with `table`) read/write their existing RME3 tables.
   const tableStores = new WeakMap()
@@ -50,7 +52,7 @@ export function createSecureRuntimeIntegration({ prisma, pool, filesService, rel
     if (!tableStores.has(def)) tableStores.set(def, createRme3TableStore({ pool, def }))
     return tableStores.get(def)
   }
-  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), storeFor, services: createGatewayHostServices({ filesService, prisma, relationTargets, activityService }) })
+  const gateway = createCapabilityGateway({ signer, store: createPgStore({ pool }), storeFor, services: createGatewayHostServices({ filesService, prisma, relationTargets, activityService }), limits: { callsPerMinute } })
   const registry = new Map() // key -> { def, dir, hash }
   const inflight = new Map() // companyId -> count
 

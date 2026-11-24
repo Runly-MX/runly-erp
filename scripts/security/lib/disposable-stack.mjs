@@ -47,10 +47,12 @@ export async function bootSecurityStack({ modulesDir = null, beforeApi = null, k
       GROQ_API_KEY: '', TAVILY_API_KEY: '', LIVEKIT_URL: '', SMTP_HOST: '',
       ...(modulesDir ? { RUNLY_MODULES_DIR: modulesDir } : {}),
     }
+    const apiSpawnedAt = Date.now()
     api = spawn(process.execPath, [resolve('apps/api/src/index.js')], { env: { ...process.env, ...apiEnv }, stdio: ['ignore', 'pipe', 'pipe'] })
     api.stdout.on('data', (chunk) => apiLog.push(String(chunk))); api.stderr.on('data', (chunk) => apiLog.push(String(chunk)))
     let up = false
     for (let i = 0; i < 160 && !up; i++) { try { up = (await fetch(`${stack.urls.api}/health`)).ok } catch { /* booting */ } if (!up) await new Promise((r) => setTimeout(r, 500)) }
+    const apiReadyAt = Date.now()
     if (!up) throw Error('API_DID_NOT_START (see api.log in the private stack directory)')
 
     async function createCompany(name) {
@@ -75,7 +77,7 @@ export async function bootSecurityStack({ modulesDir = null, beforeApi = null, k
         return { status: res.status, body: await res.json().catch(() => null) }
       }
     }
-    return { ...ctx, urls: stack.urls, close, createCompany, adminRole, createUser, login, client, apiLog }
+    return { ...ctx, apiPid: api.pid, apiBootMs: apiReadyAt - apiSpawnedAt, urls: stack.urls, close, createCompany, adminRole, createUser, login, client, apiLog }
   } catch (error) { await close(); throw error }
 }
 

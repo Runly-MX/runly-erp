@@ -1,0 +1,52 @@
+{
+  "image": "pinned by digest",
+  "rounds": [
+    {
+      "concurrentJobs": 1,
+      "ok": 1,
+      "wallMs": 886,
+      "perJobMs": {
+        "p50": 886,
+        "p95": 886,
+        "max": 886
+      },
+      "runningDuring": null
+    },
+    {
+      "concurrentJobs": 4,
+      "ok": 4,
+      "wallMs": 1765,
+      "perJobMs": {
+        "p50": 1598,
+        "p95": 1765,
+        "max": 1765
+      },
+      "runningDuring": null
+    },
+    {
+      "concurrentJobs": 8,
+      "ok": 8,
+      "wallMs": 3376,
+      "perJobMs": {
+        "p50": 2371,
+        "p95": 3376,
+        "max": 3376
+      },
+      "runningDuring": null
+    },
+    {
+      "concurrentJobs": 16,
+      "ok": 16,
+      "wallMs": 6135,
+      "perJobMs": {
+        "p50": 3869,
+        "p95": 6135,
+        "max": 6135
+      },
+      "runningDuring": null
+    }
+  ],
+  "startMs": 715,
+  "leftoverJobContainers": 0,
+  "leftoverNetworks": 0
+}
