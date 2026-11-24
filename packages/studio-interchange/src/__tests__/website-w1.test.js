@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createHash } from 'node:crypto'
-import { readFileSync } from 'node:fs'
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 import sharp from 'sharp'
@@ -127,6 +126,6 @@ test('W1: Atlas 0.3.5 parses and round-trips portable sections; cycles, orphans 
   assert.throws(() => atlasPageToSections({ ...page, layoutId:'custom-layout' }), /NOT_PORTABLE/)
   const tokens=websiteThemeToAtlasTokens(inspected.content.theme)
   assert.equal(tokens.font.sans,'Lato'); assert.equal(tokens.color.bg,'#efebea'); assert.equal(tokens.spacing[4],'16px')
-  const erp=blockCatalog(), hub=JSON.parse(readFileSync(new URL('../../../../../runly-developer-hub/packages/contracts/website-builder-catalogs/0.3.5.json',import.meta.url),'utf8'))
-  assert.deepEqual(erp,hub,'W1 does not silently replace the pinned catalog')
+  // SHA-256 of JSON.stringify(Hub's pinned 0.3.5 catalog), independent of sibling checkouts.
+  assert.equal(sha(JSON.stringify(blockCatalog())), '91f492ea1d9274b6fd4af11f2af5271f7e9bdba71b2e99417f33ee4301afd715', 'W1 does not silently replace the pinned catalog')
 })
