@@ -43,6 +43,7 @@ Antes de generar SVG para Website, consulta `runly_website_contract`: debe anunc
 - Atributos de presentación como `fill`, `stroke`, `stroke-width`, `opacity`, `fill-opacity`, `stroke-opacity`, `transform`, `stop-color` y `stop-opacity`. Usa `currentColor` cuando corresponda; no depende de insertar el SVG inline.
 - Degradados, máscaras y recortes con IDs locales, por ejemplo `stroke="url(#wave)"` y `<linearGradient id="wave">`. Las referencias deben apuntar a IDs del mismo archivo. Los IDs cumplen `^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$`.
 - Reutilización local con `<use href="#shape"/>`; no encadenes referencias a otro `use` ni al ancestro que lo contiene. Evita referencias cíclicas o pendientes.
+- Filtros visuales cuando el contrato remoto anuncie `svg.limits.filterPrimitives`: `filter`, `feGaussianBlur`, `feDropShadow`, `feOffset`, `feFlood`, `feBlend`, `feComposite`, `feMerge` y `feMergeNode`. Un servidor sin esos límites todavía puede rechazarlos; actualizar esta guía no actualiza el paquete fijado en el servidor.
 
 Prefiere atributos de presentación directos. El atributo `style="fill:#fff;opacity:0.5"` admite únicamente propiedades de la lista permitida y se normaliza a atributos; otras propiedades se descartan. Esto no habilita hojas CSS ni el elemento `<style>`. Atributos desconocidos y metadatos del editor pueden eliminarse: no dependas de ellos para conservar la apariencia.
 
@@ -67,7 +68,7 @@ Ejemplo compatible de una onda con degradado local, sin filtros:
 
 | Construcción | Regla para generar el asset |
 |---|---|
-| `filter`, `feGaussianBlur` y demás primitivas `fe*` | No generar desenfoques, sombras ni brillos mediante filtros SVG. Para efectos compatibles, usar geometría, opacidades y degradados admitidos. |
+| Primitivas `fe*` fuera de la lista de filtros admitidos | No generar `feImage`, `feTurbulence`, `feDisplacementMap` ni otras primitivas no anunciadas. Para efectos compatibles, usar los filtros documentados, geometría, opacidades y degradados. |
 | `pattern`, `marker`, `switch` | No soportados. Dibujar la geometría explícitamente; mantener el límite de elementos. |
 | `script`, atributos `onload`, `onclick` y cualquier `on*` | Sin JavaScript ni manejadores de eventos. |
 | `foreignObject`, HTML, `iframe`, `object`, `embed` | Sin contenido HTML ni documentos incrustados. |
@@ -77,7 +78,41 @@ Ejemplo compatible de una onda con degradado local, sin filtros:
 | URLs HTTP/HTTPS, `data:`, `javascript:`, `vbscript:` | Sin referencias externas ni datos embebidos. `url(#id)` local sí está admitido; `href` solo se admite en `use` con un fragmento local. |
 | DOCTYPE, entidades personalizadas, CDATA e instrucciones de proceso | Omitirlas. La declaración XML UTF-8 básica es opcional; preferir empezar directamente con `<svg>`. |
 
-Por ejemplo, `<filter id="gl"><feGaussianBlur stdDeviation="11"/></filter>` provoca `SVG_FORBIDDEN_CONTENT` con detalle `filter`, incluso si no existe ningún `filter="url(#gl)"` que lo aplique. Un filtro sin uso puede eliminarse en una copia autorizada sin cambiar el dibujo; si se usa, rediseñar el efecto puede cambiar la apariencia. No modificar originales rechazados ni convertirlos a PNG sin autorización del usuario.
+Los validadores anteriores a la ampliación de filtros rechazan incluso `<filter id="gl"><feGaussianBlur stdDeviation="11"/></filter>` con detalle `filter`. El sanitizador ampliado lo acepta sin eliminarlo, aunque nadie lo utilice. No modificar originales rechazados ni convertirlos a PNG sin autorización del usuario; comprobar primero si el servidor desplegado tiene el soporte necesario.
+
+### Filtros visuales admitidos y sus límites
+
+Declarar cada `filter` dentro de `defs` y aplicarlo con `filter="url(#id)"`. Solo se admite una referencia local por atributo, o `filter="none"`; no se permiten filtros anidados ni cadenas CSS. Las primitivas van directamente dentro del filtro, excepto `feMergeNode`, que va dentro de `feMerge`. Los estilos inline permitidos también pueden contener la referencia local `filter`.
+
+| Elemento | Atributos propios admitidos |
+|---|---|
+| `filter` | `id`, `x`, `y`, `width`, `height`, `filterUnits`, `primitiveUnits`, `color-interpolation-filters` |
+| `feGaussianBlur` | `in`, `result`, `stdDeviation` (uno o dos números), `edgeMode` (`none` o `duplicate`) |
+| `feDropShadow` | `in`, `result`, `stdDeviation`, `dx`, `dy`, `flood-color`, `flood-opacity` |
+| `feOffset` | `in`, `result`, `dx`, `dy` |
+| `feFlood` | `result`, `flood-color`, `flood-opacity` |
+| `feBlend` | `in`, `in2`, `result`, `mode`: `normal`, `multiply`, `screen`, `darken`, `lighten` |
+| `feComposite` | `in`, `in2`, `result`, `operator`: `over`, `in`, `out`, `atop`, `xor`, `arithmetic`; coeficientes `k1`–`k4` entre -10 y 10 |
+| `feMerge` / `feMergeNode` | `result` en el grupo; `in` en cada nodo |
+
+`in` e `in2` solo pueden referir `SourceGraphic`, `SourceAlpha` o un `result` anterior del mismo filtro. Los nombres de resultados deben ser IDs válidos, únicos en ese filtro, sin reutilizar nombres reservados. No hay referencias posteriores, externas ni recursivas. Los atributos propios no admitidos se descartan: no depender de ellos para el efecto.
+
+Los límites publicados en `svg.limits` son: `filters: 16` (definiciones y aplicaciones explícitas), `filterPrimitives: 64` en todo el archivo, `filterSteps: 16` por filtro (incluye nodos de mezcla), `filterBlur: 64` por eje de `stdDeviation`, `filterOffset: 256` en valor absoluto para `dx`/`dy`, `filterRegionScale: 4` y `filterPixels: 16777216`. Valores negativos de desenfoque y dimensiones no positivas se rechazan. `flood-opacity` debe estar entre 0 y 1.
+
+`filterUnits` admite `objectBoundingBox` (predeterminado) y `userSpaceOnUse`; `primitiveUnits` solo admite `userSpaceOnUse`. En coordenadas relativas o porcentajes, posiciones y tamaños no exceden cuatro veces el sistema de referencia; en unidades de usuario, no exceden 8 192 en valor absoluto. Para el presupuesto de píxeles de regiones relativas, el validador usa las dimensiones del `viewBox`; no es una medición del coste real de cada dibujo. Las primitivas conservan sus regiones predeterminadas, sin regiones individuales configurables. `color-interpolation-filters` admite `sRGB` o `linearRGB`.
+
+Ejemplo de un desenfoque compatible con el sanitizador ampliado:
+
+```xml
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <defs>
+    <filter id="blur" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3"/>
+    </filter>
+  </defs>
+  <circle cx="50" cy="50" r="20" fill="#B9F34C" filter="url(#blur)"/>
+</svg>
+```
 
 ### Límites, errores y comprobación
 
@@ -87,7 +122,7 @@ Los límites actuales son 256 KiB por SVG, 5 000 elementos, profundidad de 32, l
 |---|---|
 | `SVG_INVALID_XML` | UTF-8 válido, una sola raíz, etiquetas bien anidadas, atributos entre comillas y sin duplicados. |
 | `SVG_FORBIDDEN_CONTENT` | Elementos y atributos anteriores, protocolos, namespaces, entidades y valores no admitidos; registrar el detalle si está disponible. |
-| `SVG_TOO_COMPLEX` | Tamaño, elementos, profundidad, dimensiones y cadenas de `use`. |
+| `SVG_TOO_COMPLEX` | Tamaño, elementos, profundidad, dimensiones, cadenas de `use` y límites de operaciones, regiones o valores de filtros. |
 | `SVG_NO_VIEWBOX` | `viewBox` presente con cuatro números y dimensiones positivas. |
 
 El sanitizador procesa datos; nunca ejecutar scripts de un SVG para inspeccionarlo. Para transferir, calcular bytes y SHA-256 del archivo real, llamar `runly_website_asset_prepare` con `image/svg+xml`, realizar PUT binario exacto y confirmar con `runly_website_asset_confirm`. La confirmación puede rechazar un archivo que ya se transfirió: registrar el código y continuar con los demás cuando así se haya pedido; no contar un PUT exitoso como asset confirmado.

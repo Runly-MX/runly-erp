@@ -3,13 +3,28 @@ import { packageError } from './errors.js'
 // Allowlist SVG sanitizer. Pure, dependency-free, safe on hostile bytes. It does NOT use a general XML
 // parser on purpose: DOCTYPE, entities, CDATA, processing instructions and namespaces are rejected, so
 // there is no XXE / entity-expansion surface. Output is canonical: sanitizeSvg(output) === output.
-export const SVG_LIMITS = Object.freeze({ bytes: 256 * 1024, elements: 5000, depth: 32, side: 8192, attrBytes: 32 * 1024 })
+export const SVG_LIMITS = Object.freeze({ bytes: 256 * 1024, elements: 5000, depth: 32, side: 8192, attrBytes: 32 * 1024, filters: 16, filterPrimitives: 64, filterSteps: 16, filterBlur: 64, filterOffset: 256, filterRegionScale: 4, filterPixels: 16 * 1024 * 1024 })
 
-const ELEMENTS = new Set(['svg', 'g', 'defs', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'linearGradient', 'radialGradient', 'stop', 'clipPath', 'mask', 'use', 'title', 'desc', 'symbol'])
+const FILTER_ELEMENTS = new Set(['feGaussianBlur', 'feDropShadow', 'feOffset', 'feFlood', 'feBlend', 'feComposite', 'feMerge', 'feMergeNode'])
+const ELEMENTS = new Set(['svg', 'g', 'defs', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'linearGradient', 'radialGradient', 'stop', 'clipPath', 'mask', 'use', 'title', 'desc', 'symbol', 'filter', ...FILTER_ELEMENTS])
 const TEXT_ELEMENTS = new Set(['text', 'tspan', 'title', 'desc'])
 // Active or unsupported constructs: hard reject so a malicious upload is visible, never silently cleaned.
-const FORBIDDEN = new Set(['script', 'foreignobject', 'style', 'image', 'a', 'animate', 'animatetransform', 'animatemotion', 'set', 'iframe', 'object', 'embed', 'filter', 'pattern', 'marker', 'switch', 'feimage', 'html', 'link'])
+const FORBIDDEN = new Set(['script', 'foreignobject', 'style', 'image', 'a', 'animate', 'animatetransform', 'animatemotion', 'set', 'iframe', 'object', 'embed', 'pattern', 'marker', 'switch', 'feimage', 'html', 'link'])
+const FILTER_ATTRS = {
+  filter: ['id', 'x', 'y', 'width', 'height', 'filterUnits', 'primitiveUnits', 'color-interpolation-filters'],
+  feGaussianBlur: ['in', 'result', 'stdDeviation', 'edgeMode'],
+  feDropShadow: ['in', 'result', 'stdDeviation', 'dx', 'dy', 'flood-color', 'flood-opacity'],
+  feOffset: ['in', 'result', 'dx', 'dy'],
+  feFlood: ['result', 'flood-color', 'flood-opacity'],
+  feBlend: ['in', 'in2', 'result', 'mode'],
+  feComposite: ['in', 'in2', 'result', 'operator', 'k1', 'k2', 'k3', 'k4'],
+  feMerge: ['result'],
+  feMergeNode: ['in'],
+}
+const FILTER_ONLY_ATTRS = new Set(Object.values(FILTER_ATTRS).flat().filter((a) => !['id', 'x', 'y', 'width', 'height', 'dx', 'dy'].includes(a)))
 const ATTRS = new Set(['id', 'viewBox', 'width', 'height', 'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'fx', 'fy', 'd', 'points', 'transform', 'fill', 'fill-opacity', 'fill-rule', 'clip-rule', 'stroke', 'stroke-width', 'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray', 'stroke-dashoffset', 'stroke-opacity', 'opacity', 'offset', 'stop-color', 'stop-opacity', 'gradientUnits', 'gradientTransform', 'spreadMethod', 'clipPathUnits', 'maskUnits', 'maskContentUnits', 'clip-path', 'mask', 'href', 'preserveAspectRatio', 'font-family', 'font-size', 'font-weight', 'font-style', 'text-anchor', 'dx', 'dy', 'letter-spacing', 'color', 'display', 'visibility', 'role', 'aria-label', 'aria-hidden', 'mask-type'])
+ATTRS.add('filter')
+for (const name of FILTER_ONLY_ATTRS) ATTRS.add(name)
 const STYLE_PROPS = new Set([...ATTRS].filter((a) => !['id', 'viewBox', 'width', 'height', 'href', 'd', 'points', 'x', 'y', 'cx', 'cy', 'r', 'rx', 'ry', 'x1', 'y1', 'x2', 'y2', 'fx', 'fy', 'role', 'aria-label', 'aria-hidden', 'preserveAspectRatio', 'offset', 'dx', 'dy'].includes(a)))
 const ID = /^[A-Za-z_][A-Za-z0-9_.:-]{0,63}$/
 // Any url() must be a local fragment; anything else in a value is data, never a reference.
@@ -51,7 +66,50 @@ function styleToAttrs(value, attrs, tag, warnings) {
   }
 }
 
+function checkFilterAttrs(tag, attrs, state, limits) {
+  const number = (value, min, max, name) => {
+    if (!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(value) || !Number.isFinite(Number(value))) throw fail('svg_forbidden_content', 'Valor de filtro no válido.', [name])
+    if (Number(value) < min || Number(value) > max) throw fail('svg_too_complex', 'El filtro supera los límites permitidos.', [name])
+    return Number(value)
+  }
+  const choice = (name, options) => {
+    if (attrs.has(name) && !options.includes(attrs.get(name))) throw fail('svg_forbidden_content', 'Opción de filtro no admitida.', [name])
+  }
+  for (const name of attrs.keys()) if (!FILTER_ATTRS[tag].includes(name)) attrs.delete(name)
+  if (tag === 'filter') {
+    choice('filterUnits', ['objectBoundingBox', 'userSpaceOnUse'])
+    choice('primitiveUnits', ['userSpaceOnUse'])
+    choice('color-interpolation-filters', ['sRGB', 'linearRGB'])
+    const relative = attrs.get('filterUnits') !== 'userSpaceOnUse'
+    const region = (name, fallback) => {
+      const raw = attrs.get(name) ?? fallback
+      const percent = raw.endsWith('%')
+      const value = number(percent ? raw.slice(0, -1) : raw, -limits.side * 100, limits.side * 100, name) / (percent ? 100 : 1)
+      const bound = relative || percent ? limits.filterRegionScale : limits.side
+      if (Math.abs(value) > bound || (['width', 'height'].includes(name) && value <= 0)) throw fail('svg_too_complex', 'La región del filtro supera los límites permitidos.', [name])
+    }
+    region('x', '-10%'); region('y', '-10%')
+    region('width', '120%'); region('height', '120%')
+    return
+  }
+  for (const name of ['in', 'in2']) if (attrs.has(name) && !['SourceGraphic', 'SourceAlpha'].includes(attrs.get(name)) && !state.results.has(attrs.get(name))) throw fail('svg_forbidden_content', 'El filtro referencia una entrada desconocida o posterior.', [name])
+  if (attrs.has('result') && (!ID.test(attrs.get('result')) || ['SourceGraphic', 'SourceAlpha', 'BackgroundImage', 'BackgroundAlpha', 'FillPaint', 'StrokePaint'].includes(attrs.get('result')) || state.results.has(attrs.get('result')))) throw fail('svg_forbidden_content', 'Resultado de filtro no válido o repetido.', ['result'])
+  if (attrs.has('stdDeviation')) {
+    const values = attrs.get('stdDeviation').trim().split(/[\s,]+/)
+    if (values.length < 1 || values.length > 2) throw fail('svg_forbidden_content', 'Desenfoque no válido.', ['stdDeviation'])
+    for (const value of values) number(value, 0, limits.filterBlur, 'stdDeviation')
+  }
+  for (const name of ['dx', 'dy']) if (attrs.has(name)) number(attrs.get(name), -limits.filterOffset, limits.filterOffset, name)
+  if (attrs.has('flood-opacity')) number(attrs.get('flood-opacity'), 0, 1, 'flood-opacity')
+  if (attrs.has('flood-color') && !/^(?:#[0-9a-f]{3,8}|[a-z]+|(?:rgb|hsl)a?\([\d.,%\s+-]+\))$/i.test(attrs.get('flood-color'))) throw fail('svg_forbidden_content', 'Color de filtro no admitido.', ['flood-color'])
+  choice('edgeMode', ['none', 'duplicate'])
+  choice('mode', ['normal', 'multiply', 'screen', 'darken', 'lighten'])
+  choice('operator', ['over', 'in', 'out', 'atop', 'xor', 'arithmetic'])
+  for (const name of ['k1', 'k2', 'k3', 'k4']) if (attrs.has(name)) number(attrs.get(name), -10, 10, name)
+}
+
 export function sanitizeSvg(input, limits = SVG_LIMITS) {
+  limits = { ...SVG_LIMITS, ...limits }
   const bytes = Buffer.isBuffer(input) ? input : Buffer.from(input ?? [])
   if (!bytes.length || bytes.length > limits.bytes) throw fail('svg_too_complex', 'El SVG está vacío o supera el tamaño permitido.', ['bytes'])
   let src
@@ -63,8 +121,8 @@ export function sanitizeSvg(input, limits = SVG_LIMITS) {
   if (decl) { if (!/^\s*<\?xml\s+version="1\.[01]"(?:\s+encoding="(?:UTF|utf)-8")?(?:\s+standalone="(?:yes|no)")?\s*\?>$/.test(decl[0])) throw fail('svg_forbidden_content', 'Declaración XML no admitida.', ['xml-decl']); pos = decl[0].length }
   const tagRe = /<(\/?)([A-Za-z][A-Za-z0-9:_.-]*)((?:\s+[A-Za-z_:][A-Za-z0-9_:.-]*\s*=\s*(?:"[^"]*"|'[^']*'))*)\s*(\/?)>/y
   const attrRe = /([A-Za-z_:][A-Za-z0-9_:.-]*)\s*=\s*(?:"([^"]*)"|'([^']*)')/g
-  const out = [], stack = [], idUse = new Map(), useTargets = []
-  let root = null, elements = 0, skip = 0 // skip: depth inside a namespaced/metadata subtree being dropped
+  const out = [], stack = [], idUse = new Map(), useTargets = [], filterRegions = [], filterIds = new Set(), filterTargets = []
+  let root = null, elements = 0, skip = 0, filters = 0, filterPrimitives = 0 // skip: depth inside a namespaced/metadata subtree being dropped
   const emitText = (raw) => {
     if (!raw) return
     noStray(raw)
@@ -101,12 +159,23 @@ export function sanitizeSvg(input, limits = SVG_LIMITS) {
       const top = stack.pop()
       if (!top || top.tag !== rawTag) throw fail('svg_invalid_xml', 'Etiquetas mal anidadas.')
       if (top.id) idUse.set(top.id, top.hasUse)
+      if (top.result) top.filterState.results.add(top.result)
       out.push(`</${rawTag}>`)
       continue
     }
     if (!root) { if (rawTag !== 'svg') throw fail('svg_invalid_xml', 'El elemento raíz debe ser <svg>.'); root = true } else if (!stack.length) throw fail('svg_invalid_xml', 'El SVG tiene más de un elemento raíz.')
     if (++elements > limits.elements) throw fail('svg_too_complex', 'El SVG tiene demasiados elementos.', ['elements'])
     if (stack.length >= limits.depth) throw fail('svg_too_complex', 'El SVG está anidado a demasiada profundidad.', ['depth'])
+    const parent = stack[stack.length - 1]
+    let filterState = stack.find((frame) => frame.tag === 'filter')?.filterState
+    if (rawTag === 'filter') {
+      if (filterState || parent?.tag !== 'defs') throw fail('svg_forbidden_content', 'Los filtros deben declararse dentro de defs, sin anidarse.', ['filter'])
+      if (++filters > limits.filters) throw fail('svg_too_complex', 'Demasiados filtros SVG.', ['filters'])
+      filterState = { steps: 0, results: new Set() }
+    } else if (FILTER_ELEMENTS.has(rawTag)) {
+      if (!filterState || (rawTag === 'feMergeNode' ? parent?.tag !== 'feMerge' : parent?.tag !== 'filter')) throw fail('svg_forbidden_content', 'Primitiva de filtro fuera de contexto.', [rawTag])
+      if (++filterPrimitives > limits.filterPrimitives || ++filterState.steps > limits.filterSteps) throw fail('svg_too_complex', 'Demasiadas operaciones de filtro.', ['filter-primitives'])
+    } else if (filterState) throw fail('svg_forbidden_content', 'Elemento no admitido dentro de un filtro.', [rawTag])
     const attrs = new Map(), seen = new Set(), pending = []
     let styleValue = null
     for (const a of rawAttrs.matchAll(attrRe)) {
@@ -124,6 +193,17 @@ export function sanitizeSvg(input, limits = SVG_LIMITS) {
     }
     for (const [name, value] of pending) { if (name === 'href' && attrs.has('href')) throw fail('svg_invalid_xml', 'Atributo repetido.'); attrs.set(name, cleanValue(name, value, lower, warnings)) }
     if (styleValue !== null) styleToAttrs(styleValue, attrs, lower, warnings)
+    if (FILTER_ATTRS[rawTag]) {
+      checkFilterAttrs(rawTag, attrs, filterState, limits)
+      if (rawTag === 'filter') { filterRegions.push(new Map(attrs)); if (attrs.has('id')) filterIds.add(attrs.get('id')) }
+    } else {
+      for (const name of FILTER_ONLY_ATTRS) attrs.delete(name)
+      if (attrs.has('filter') && attrs.get('filter') !== 'none') {
+        const target = /^url\(#([A-Za-z_][A-Za-z0-9_.:-]{0,63})\)$/.exec(attrs.get('filter'))
+        if (!target || !['svg', 'g', 'path', 'rect', 'circle', 'ellipse', 'line', 'polyline', 'polygon', 'text', 'tspan', 'use'].includes(rawTag)) throw fail('svg_forbidden_content', 'Referencia de filtro no admitida.', ['filter'])
+        if (filterTargets.push(target[1]) > limits.filters) throw fail('svg_too_complex', 'Demasiadas aplicaciones de filtros.', ['filter-uses'])
+      }
+    }
     if (rawTag === 'svg') {
       const vb = /^\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*$/.exec(attrs.get('viewBox') ?? '')
       if (!vb || !(Number(vb[3]) > 0) || !(Number(vb[4]) > 0) || vb.slice(1).some((n) => !Number.isFinite(Number(n)))) throw fail('svg_no_viewbox', 'El SVG necesita un viewBox válido (por ejemplo "0 0 24 24").')
@@ -135,7 +215,8 @@ export function sanitizeSvg(input, limits = SVG_LIMITS) {
     if (lower === 'use') { useTargets.push(attrs.get('href')); for (const a of stack) a.hasUse = true }
     if (selfClose && attrs.has('id')) idUse.set(attrs.get('id'), lower === 'use')
     out.push(`<${rawTag}${sorted.map(([k, v]) => ` ${k}="${escapeAttr(v)}"`).join('')}${selfClose ? '/>' : '>'}`)
-    if (!selfClose) stack.push({ tag: rawTag, id: attrs.get('id'), hasUse: lower === 'use' })
+    if (selfClose && attrs.has('result')) filterState.results.add(attrs.get('result'))
+    if (!selfClose) stack.push({ tag: rawTag, id: attrs.get('id'), hasUse: lower === 'use', filterState, result: attrs.get('result') })
   }
   if (!root || stack.length) throw fail('svg_invalid_xml', 'El SVG no es XML válido.')
   // A <use> may not reach another <use> (or itself through an ancestor): that is how exponential expansion bombs are built.
@@ -147,6 +228,15 @@ export function sanitizeSvg(input, limits = SVG_LIMITS) {
   const vb = /viewBox="\s*(-?[\d.]+)[\s,]+(-?[\d.]+)[\s,]+([\d.]+)[\s,]+([\d.]+)\s*"/.exec(svg)
   const width = Math.max(1, Math.round(Number(vb[3]))), height = Math.max(1, Math.round(Number(vb[4])))
   if (width > limits.side || height > limits.side) throw fail('svg_too_complex', 'El viewBox del SVG supera el tamaño permitido.', ['viewBox'])
+  for (const target of filterTargets) if (!filterIds.has(target)) throw fail('svg_forbidden_content', 'El filtro no existe en el SVG.', ['filter'])
+  for (const region of filterRegions) {
+    const relative = region.get('filterUnits') !== 'userSpaceOnUse'
+    const size = (name, side) => {
+      const value = region.get(name) ?? '120%'
+      return value.endsWith('%') ? Number(value.slice(0, -1)) / 100 * side : Number(value) * (relative ? side : 1)
+    }
+    if (size('width', width) * size('height', height) > limits.filterPixels) throw fail('svg_too_complex', 'La región del filtro tiene demasiados píxeles.', ['filter-region'])
+  }
   const data = Buffer.from(svg, 'utf8')
   return { data, width, height, viewBox: `${vb[1]} ${vb[2]} ${vb[3]} ${vb[4]}`, recolorable: /(?:fill|stroke)="currentColor"/.test(svg), warnings: [...warnings].sort() }
 }

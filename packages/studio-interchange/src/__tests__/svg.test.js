@@ -38,6 +38,37 @@ test('SVG: clean export is canonical, sized by viewBox, recolorable and idempote
 })
 
 const wrap = (inner, attrs = '') => `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10"${attrs}>${inner}</svg>`
+const filtered = (steps, attrs = '') => wrap(`<defs><filter id="fx" ${attrs}>${steps}</filter></defs><rect width="10" height="10" filter="url(#fx)"/>`)
+
+test('SVG filters: common visual operations survive canonicalization and package round-trip', async () => {
+  const input = filtered('<feGaussianBlur in="SourceAlpha" stdDeviation="2 3" result="blur"/><feOffset in="blur" dx="2" dy="3" result="offset"/><feFlood flood-color="#123456" flood-opacity="0.5" result="color"/><feComposite in="color" in2="offset" operator="in" result="shadow"/><feBlend in="shadow" in2="SourceGraphic" mode="multiply" result="blend"/><feDropShadow in="blend" stdDeviation="1" dx="1" dy="1" flood-color="black" result="drop"/><feMerge><feMergeNode in="drop"/><feMergeNode in="SourceGraphic"/></feMerge>', 'filterUnits="userSpaceOnUse" x="-5" y="-5" width="20" height="20" color-interpolation-filters="sRGB"')
+  const master = sanitizeSvg(Buffer.from(input)).data
+  const text = master.toString()
+  for (const attr of ['stdDeviation="2 3"', 'in2="offset"', 'filter="url(#fx)"', 'filterUnits="userSpaceOnUse"', 'flood-color="#123456"']) assert.ok(text.includes(attr), attr)
+  assert.deepEqual(validateSvg(master).data, master)
+  const { bytes, validation } = await svgTemplate(master)
+  assert.equal(validation.ok, true, JSON.stringify(validation.errors))
+  const inspected = await inspectWebsiteTemplate(bytes, { builderCatalogs: builderCatalogs() })
+  assert.equal(inspected.ok, true)
+  assert.deepEqual(inspected.content.assets[0].data, master)
+})
+
+test('SVG filters: unused blur definitions are valid and inline filter references are preserved', () => {
+  const unused = wrap('<defs><filter id="gl"><feGaussianBlur stdDeviation="11"/></filter></defs><path d="M0 5h10" stroke="currentColor"/>')
+  assert.ok(sanitizeSvg(Buffer.from(unused)).data.toString().includes('stdDeviation="11"'))
+  assert.ok(sanitizeSvg(Buffer.from(filtered('<feGaussianBlur/>').replace('filter="url(#fx)"', 'style="filter:url(#fx)"'))).data.toString().includes('filter="url(#fx)"'))
+  assert.ok(sanitizeSvg(Buffer.from(filtered('<feGaussianBlur stdDeviation="64 64" edgeMode="duplicate"/><feOffset dx="-256" dy="256"/><feComposite operator="arithmetic" k1="-10" k2="10"/>', 'width="400%" height="400%" primitiveUnits="userSpaceOnUse"'))).data.length > 0)
+})
+
+test('SVG filters: blur renders as a visual effect, not a dropped attribute', async () => {
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><defs><filter id="blur" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="4"/></filter></defs><rect x="24" y="24" width="16" height="16" fill="#fff" filter="url(#blur)"/></svg>'
+  const render = async (input) => sharp(sanitizeSvg(Buffer.from(input)).data).ensureAlpha().raw().toBuffer()
+  const blurred = await render(svg), plain = await render(svg.replace(' filter="url(#blur)"', ''))
+  const outsideAlpha = (32 * 64 + 21) * 4 + 3
+  assert.equal(plain[outsideAlpha], 0)
+  assert.ok(blurred[outsideAlpha] > 0)
+})
+
 const HOSTILE = [
   ['svg_forbidden_content', 'script', wrap('<script>alert(1)</script>')],
   ['svg_forbidden_content', 'onload', wrap('<rect/>', ' onload="alert(1)"')],
@@ -74,6 +105,43 @@ const HOSTILE = [
   ['svg_invalid_xml', 'stray text', wrap('hello')],
   ['svg_invalid_xml', 'not utf8', Buffer.from([0x3c, 0x73, 0xff, 0xfe])],
   ['svg_too_complex', 'empty', Buffer.alloc(0)],
+  ['svg_forbidden_content', 'external filter', wrap('<rect filter="url(https://evil.test/f.svg#fx)"/>')],
+  ['svg_forbidden_content', 'filter image', filtered('<feImage href="https://evil.test/a.png"/>')],
+  ['svg_forbidden_content', 'unsupported primitive', filtered('<feTurbulence/>')],
+  ['svg_forbidden_content', 'filter script', filtered('<script/>')],
+  ['svg_forbidden_content', 'filter event', filtered('<feGaussianBlur onload="x()"/>')],
+  ['svg_forbidden_content', 'primitive outside filter', wrap('<feGaussianBlur stdDeviation="2"/>')],
+  ['svg_forbidden_content', 'nested filters', filtered('<filter><feGaussianBlur/></filter>')],
+  ['svg_forbidden_content', 'nested primitives', filtered('<feGaussianBlur><feOffset/></feGaussianBlur>')],
+  ['svg_forbidden_content', 'merge node outside merge', filtered('<feMergeNode in="SourceGraphic"/>')],
+  ['svg_forbidden_content', 'forward filter input', filtered('<feOffset in="later"/><feGaussianBlur result="later"/>')],
+  ['svg_forbidden_content', 'self merge input', filtered('<feMerge result="loop"><feMergeNode in="loop"/></feMerge>')],
+  ['svg_forbidden_content', 'duplicate result', filtered('<feOffset result="a"/><feOffset result="a"/>')],
+  ['svg_forbidden_content', 'reserved result', filtered('<feOffset result="SourceGraphic"/>')],
+  ['svg_forbidden_content', 'missing filter target', wrap('<rect filter="url(#missing)"/>')],
+  ['svg_forbidden_content', 'bad blur value', filtered('<feGaussianBlur stdDeviation="NaN"/>')],
+  ['svg_forbidden_content', 'bad blur arity', filtered('<feGaussianBlur stdDeviation="1 2 3"/>')],
+  ['svg_forbidden_content', 'external flood color', filtered('<feFlood flood-color="url(https://evil.test/x)"/>')],
+  ['svg_forbidden_content', 'bad blend mode', filtered('<feBlend mode="invalid"/>')],
+  ['svg_forbidden_content', 'infinite blur', filtered('<feGaussianBlur stdDeviation="1e999"/>')],
+  ['svg_forbidden_content', 'external inline filter', wrap('<rect style="filter:url(https://evil.test/f.svg#fx)"/>')],
+  ['svg_forbidden_content', 'bad filter units', filtered('<feOffset/>', 'filterUnits="invalid"')],
+  ['svg_forbidden_content', 'bad filter edge mode', filtered('<feGaussianBlur edgeMode="wrap"/>')],
+  ['svg_forbidden_content', 'bad composite operator', filtered('<feComposite operator="invalid"/>')],
+  ['svg_forbidden_content', 'unsupported primitive units', filtered('<feOffset/>', 'primitiveUnits="objectBoundingBox"')],
+  ['svg_too_complex', 'huge blur', filtered('<feGaussianBlur stdDeviation="65"/>')],
+  ['svg_too_complex', 'negative blur', filtered('<feGaussianBlur stdDeviation="-1"/>')],
+  ['svg_too_complex', 'huge offset', filtered('<feOffset dx="257"/>')],
+  ['svg_too_complex', 'huge composite coefficient', filtered('<feComposite operator="arithmetic" k1="11"/>')],
+  ['svg_too_complex', 'invalid flood opacity', filtered('<feFlood flood-opacity="1.1"/>')],
+  ['svg_too_complex', 'huge filter region', filtered('<feGaussianBlur/>', 'width="10000%"')],
+  ['svg_too_complex', 'negative filter region', filtered('<feOffset/>', 'width="-1"')],
+  ['svg_too_complex', 'huge absolute region', filtered('<feOffset/>', 'filterUnits="userSpaceOnUse" width="8192" height="8192"')],
+  ['svg_too_complex', 'huge relative region pixels', filtered('<feOffset/>').replace('0 0 10 10', '0 0 8192 8192')],
+  ['svg_too_complex', 'too many filter steps', filtered('<feGaussianBlur/>'.repeat(17))],
+  ['svg_too_complex', 'too many filters', wrap(`<defs>${Array.from({ length: 17 }, (_, i) => `<filter id="f${i}"/>`).join('')}</defs>`)],
+  ['svg_too_complex', 'too many total primitives', wrap(`<defs>${Array.from({ length: 5 }, (_, i) => `<filter id="f${i}">${'<feOffset/>'.repeat(13)}</filter>`).join('')}</defs>`)],
+  ['svg_too_complex', 'too many filter applications', wrap(`<defs><filter id="fx"><feOffset/></filter></defs>${'<rect filter="url(#fx)"/>'.repeat(17)}`)],
 ]
 for (const [reason, name, input] of HOSTILE) {
   test(`SVG hostile: ${name} -> ${reason}`, () => {
