@@ -64,7 +64,13 @@ function buildApp({ prismaOverrides, capture = {} } = {}) {
   const prisma = buildPrisma(prismaOverrides);
   const StripeImpl = buildStripeImpl(capture);
   const decryptPasswordImpl = (v) => `decrypted:${v}`;
-  const app = createPublicCheckoutRouter({ prisma, StripeImpl, decryptPasswordImpl });
+  // Checkout persists a pending order first (website-orders-service.js); record what it is given.
+  const orders = {
+    place: async (args) => { capture.order = args; return { id: "order-1", orderNumber: "W-0001" }; },
+    attachSession: async (id, sessionId) => { capture.attached = { id, sessionId }; },
+    cancel: async (id) => { capture.cancelled = id; },
+  };
+  const app = createPublicCheckoutRouter({ prisma, StripeImpl, decryptPasswordImpl, orders });
   return { app, capture };
 }
 
@@ -87,6 +93,10 @@ describe("POST /checkout — price/currency/name come from the catalog, never th
     assert.equal(lineItem.quantity, 2);
     assert.equal(capture.sessionParams.allow_promotion_codes, true);
     assert.equal(capture.sessionParams.discounts, undefined);
+    // The stored order carries the catalog price too, never the client's.
+    assert.equal(capture.order.companyId, COMPANY_ID);
+    assert.deepEqual(capture.order.lines.map((l) => [l.price, l.currency, l.name, l.qty]), [[500, "MXN", "Producto real", 2]]);
+    assert.equal(capture.sessionParams.client_reference_id, "order-1");
   });
 
   it("uses the variant price when variantId is given, and validates it belongs to the product", async () => {

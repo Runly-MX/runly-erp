@@ -14,7 +14,8 @@ import { createPublicCatalogRouter } from "../public-website.js";
 function fakePrisma({ companiesBySlug = {} } = {}) {
   return {
     company: {
-      findUnique: async ({ where }) => companiesBySlug[where.slug] ?? null,
+      // Only enabled companies resolve (public-website.js scope()).
+      findFirst: async ({ where }) => (where.enabled === true ? companiesBySlug[where.slug] ?? null : null),
     },
     instanceConfig: {
       // No primary company configured — the Host-based fallback resolves to
@@ -23,10 +24,13 @@ function fakePrisma({ companiesBySlug = {} } = {}) {
     },
     $queryRaw: async (strings, ...values) => {
       const text = Array.isArray(strings) ? strings.join(" ") : String(strings);
-      if (/website_site/i.test(text)) return []; // domain-map lookup: no matches
-      if (/catalog_category/i.test(text) && values.includes("company-acme")) {
-        return [{ id: "cat-1", name: "Ropa", slug: "ropa", parent_id: null, cover_asset_id: null, position: 0, product_count: 3 }];
+      // Category queries also join website_site for per-site eligibility, so match them first.
+      if (/catalog_category/i.test(text)) {
+        return values.includes("company-acme")
+          ? [{ id: "cat-1", name: "Ropa", slug: "ropa", parent_id: null, cover_asset_id: null, position: 0, product_count: 3 }]
+          : [];
       }
+      if (/website_site/i.test(text)) return []; // domain-map lookup: no matches
       return [];
     },
   };

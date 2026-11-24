@@ -1067,6 +1067,27 @@ export const PERMISSION_CATALOG = {
     groupKey: "website",
     order: 7,
   },
+  "website.domains.manage": {
+    displayNameEs: "Gestionar nombres de sitios", descriptionEs: "Permite asignar y cambiar los nombres de dominio de los sitios publicados.", groupKey: "website", order: 8,
+  },
+  "website.forms.read": {
+    displayNameEs: "Ver formularios", descriptionEs: "Permite ver los formularios de los sitios web.", groupKey: "website", order: 9,
+  },
+  "website.forms.create": {
+    displayNameEs: "Crear formularios", descriptionEs: "Permite crear formularios en los sitios web.", groupKey: "website", order: 10,
+  },
+  "website.forms.update": {
+    displayNameEs: "Editar formularios", descriptionEs: "Permite modificar los formularios de los sitios web.", groupKey: "website", order: 11,
+  },
+  "website.forms.delete": {
+    displayNameEs: "Desactivar formularios", descriptionEs: "Permite desactivar formularios de los sitios web.", groupKey: "website", order: 12,
+  },
+  "website.submissions.read": {
+    displayNameEs: "Ver respuestas de formularios", descriptionEs: "Permite ver las respuestas que los visitantes envían en los formularios.", groupKey: "website", order: 13,
+  },
+  "website.submissions.delete": {
+    displayNameEs: "Gestionar retención de respuestas", descriptionEs: "Permite eliminar respuestas de formularios y administrar su retención.", groupKey: "website", order: 14,
+  },
   "website.pages.read": {
     displayNameEs: "Ver paginas",
     descriptionEs: "Permite ver las paginas del sitio web.",
@@ -1523,6 +1544,9 @@ export const PERMISSION_CATALOG = {
   },
   "bookings.access": {
     displayNameEs: "Acceder a Reservaciones", descriptionEs: "Permite entrar a los sistemas de reservaciones donde la persona es administradora, agente o lectora.", groupKey: "bookings", order: 10,
+  },
+  "bookings.reserve": {
+    displayNameEs: "Reservar salas y recursos", descriptionEs: "Permite reservar salas y recursos de la empresa para uno mismo.", groupKey: "bookings", order: 15,
   },
   "bookings.spaces.manage": {
     displayNameEs: "Crear sistemas y recursos de reservaciones", descriptionEs: "Permite crear sistemas de reservaciones y administrar los recursos de la empresa (personal, salas, equipos, mesas) y sus horarios.", groupKey: "bookings", order: 20,
