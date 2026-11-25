@@ -57,7 +57,7 @@ const FAST = [
 
 const dist = join(tmpdir(), `runly-gates-dist-${process.pid}`)
 const RELEASE = [
-  ['web build', node, ['apps/desktop/scripts/build-web.mjs', '--outDir', dist, '--emptyOutDir'], { cwd: join(root, 'apps/desktop') }],
+  ['web build', node, ['scripts/build-web.mjs', '--outDir', dist, '--emptyOutDir'], { cwd: join(root, 'apps/desktop') }],
   ['performance guards (built bundle)', node, ['scripts/ci/perf-guards.mjs', '--dist', dist]],
   ['security suites', 'pnpm', ['test:security'], { shell: process.platform === 'win32' }],
 ]
