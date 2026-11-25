@@ -1790,3 +1790,12 @@ textarea.sr-only {
     height: 2.25rem;
   }
 }
+
+/* Decorative continuous Tailwind animations stop under reduced motion; spinners keep running (they signal progress). */
+@media (prefers-reduced-motion: reduce) {
+  .animate-ping,
+  .animate-bounce,
+  .animate-pulse {
+    animation: none;
+  }
+}
