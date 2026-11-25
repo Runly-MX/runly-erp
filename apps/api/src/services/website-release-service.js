@@ -5,7 +5,7 @@ import { createWebsiteDraftService,normalizeWebsiteDocument,websiteDocumentHash 
 import {createWebsiteFormScopeService} from './website-form-scope-service.js'
 import {conformTemplateDocument} from './website-template-conform.js'
 import {isEffectProp,isValidEffect} from './website-block-effects.js'
-import { BLOCK_CATALOG } from '../routes/website/page-document.js'
+import { BLOCK_CATALOG, LIBRARY_FILE_REF } from '../routes/website/page-document.js'
 import { releaseBytesHash } from './website-release-storage.js'
 import { pageUrl as bookingPageUrl } from '../routes/bookings/bookings-links.js'
 import { eventUrl as ticketEventUrl } from '../routes/ticketing/ticketing-links.js'
@@ -250,6 +250,7 @@ export function createWebsiteReleaseService({prisma,storage,runtime,readFile,aft
                 if((['text','textarea','link','image','color'].includes(field.type)&&typeof value!=='string')||
                   (field.type==='number'&&(typeof value!=='number'||!Number.isFinite(value)))||
                   (field.type==='toggle'&&typeof value!=='boolean')||
+                  (['audio','video'].includes(field.type)&&!(typeof value==='string'&&LIBRARY_FILE_REF.test(value)))||
                   (field.type==='select'&&!field.options?.includes(value)))throw failure('invalid_block_property',422)
               }
               block.props=await visit(block.props)

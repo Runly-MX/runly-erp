@@ -48,3 +48,15 @@ test('rechaza tipos, props, opciones, enlaces e HTML inseguros con rutas precisa
   })
   assert.throws(() => sectionsToDocument({ id: 'p', slug: 'p', title: 'P', sections: [] }), PageDocumentError)
 })
+
+test('audio y video: solo archivos de la biblioteca; blob:, data:, URLs escritas y rutas se rechazan', () => {
+  const id = '0192d5e0-7c1a-7b2e-9f3a-5c8d1e2f3a4b'
+  const doc = (type, file) => () => sectionsToDocument({ id: 'p', slug: 'p', title: 'P', sections: [{ type, props: { file } }] })
+  for (const type of ['AudioBlock', 'VideoBlock']) {
+    assert.doesNotThrow(doc(type, `file:${id}`))
+    assert.doesNotThrow(doc(type, ''))
+    for (const bad of ['blob:https://erp.example.com/6f1c', 'data:audio/mpeg;base64,AAAA', 'https://cdn.example.com/a.mp3', '/media/a.mp3', 'file:///etc/passwd', 'file:not-a-uuid', 'javascript:alert(1)', 42]) {
+      assert.throws(doc(type, bad), PageDocumentError, `${type} acepta ${String(bad)}`)
+    }
+  }
+})

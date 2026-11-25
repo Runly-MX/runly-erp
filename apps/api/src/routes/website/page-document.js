@@ -12,6 +12,7 @@ export const BLOCK_CATALOG = catalog
 export const MAX_BLOCKS = 300
 const MAX_DEPTH = 6
 const TEXT_LIMITS = { text: 2000, textarea: 8000, 'rich-text': 20000 }
+export const LIBRARY_FILE_REF = /^file:[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const SAFE_HREF = /^(https?:\/\/|mailto:|tel:|\/(?!\/)|#)/i
 const UNSAFE_TEXT = /javascript:|vbscript:|data:text\/html|expression\s*\(/i
 const UNSAFE_HTML = /<\s*\/?\s*(script|iframe|object|embed|style|link|meta|form|base)\b|\son[a-z]+\s*=|javascript:|vbscript:|data:text\/html/i
@@ -66,6 +67,13 @@ function checkProp(field, value, path, problems) {
       return
     case 'background':
       checkBackground(value, path, problems)
+      return
+    case 'audio':
+    case 'video':
+      // Library files only (the Atlas contract): a persisted blob: or data: URL, a typed https URL or a path would outlive
+      // the editor session or bypass the library. The editor shows library files through blob: URLs and maps them back
+      // to file:<id> before saving.
+      if (typeof value !== 'string' || !(value === '' || LIBRARY_FILE_REF.test(value))) problems.push(`${path}: solo un archivo de la biblioteca (file:<id>)`)
       return
     case 'link':
     case 'image':
