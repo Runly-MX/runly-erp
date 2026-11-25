@@ -1,6 +1,6 @@
 # F3.2 results: load architecture and bundles (in progress)
 
-Estado: **parcial, no cerrado.** Código medido: commits `f0`..HEAD de esta serie (ver tabla). Control: `119eac8e9` (instalación limpia). Fecha: 2026-11-24. Metodología, entorno y límites de laboratorio: igual que `RUNLY_PERFORMANCE_F3_1_RESULTS.md` §2 (perfil `mid` es una aproximación de laboratorio, no un teléfono; base remota de desarrollo).
+Estado: **parcial, no cerrado.** Código medido: `4e50b506d`, `9794cf89b`, `3ab7aa152` y `c14397e98` (el grupo `editor-vendor` de `239c62962` se revirtió en `3ab7aa152`). Control: `119eac8e9` (instalación limpia). Fecha: 2026-11-24. Metodología, entorno y límites de laboratorio: igual que `RUNLY_PERFORMANCE_F3_1_RESULTS.md` §2 (perfil `mid` es una aproximación de laboratorio, no un teléfono; base remota de desarrollo).
 
 ## 1. Cambios
 
