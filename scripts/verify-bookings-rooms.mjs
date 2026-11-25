@@ -31,7 +31,7 @@ function suites(label, files, env) {
   if (run.status !== 0) console.log(run.stdout.split('\n').filter((l) => /not ok|expected|actual/.test(l)).slice(0, 20).join('\n'))
 }
 // A Wednesday at least 2 days ahead: YYYY-MM-DD and an instant at a Mexico City hour (UTC-6).
-const wed = (() => { const d = new Date(Date.now() + 2 * 86400000); while (d.getUTCDay() !== 3) d.setUTCDate(d.getUTCDate() + 1); return d.toISOString().slice(0, 10) })()
+const wed = (() => { const d = new Date(Date.now() + 2 * 86400000); while (d.getUTCDay() !== 3) d.setUTCDate(d.getUTCDate() + 1); return [d.getUTCFullYear(), String(d.getUTCMonth() + 1).padStart(2, '0'), String(d.getUTCDate()).padStart(2, '0')].join('-') })()
 const local = (hour, minute = 0) => new Date(`${wed}T${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}:00-06:00`).toISOString()
 
 try {
