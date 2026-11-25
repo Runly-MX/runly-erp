@@ -119,3 +119,32 @@ La autenticación por Bearer reduce el riesgo, no lo elimina por sí sola; por e
 | Activación en staging | NO APTO | Depende de las filas anteriores |
 
 No se declara P0 cerrado en producción. Revertir a una versión anterior a la cuarentena reabre P0-01.
+
+## Anexo: triage de los 37 fallos preexistentes (2026-11-25)
+
+Suite completa, una ejecución (`node scripts/ci/full-suite-baseline.mjs`, 576 s): **6932 pruebas, 6897 aprobadas, 18 fallidas, 17 omitidas**. De los 37 nombres fallidos del baseline quedan **7** (5 archivos de Postgres de Website, 1 prueba de navegador y 1 catálogo generado). Ninguna aserción se redujo ni se desactivó; cada cambio indica el contrato correcto.
+
+| Familia | Causa raíz | Clase | Resolución |
+|---|---|---|---|
+| `contactsProposalModule.isAvailable`, `analyzeTranscript` | La habilitación por empresa pasó a listar los módulos instalados (`runlyModule.findMany`; los módulos personalizados son opt-in por empresa, `4ee290770`) y la fixture no lo simulaba | Fixture obsoleta | Fixture con `findMany` |
+| `files visibility` (cobertura de tipos) | **`TicketEvent` se aceptaba como entidad de archivos sin regla de acceso** (deny por defecto: solo quien lo subió) | **Defecto real** | Regla `permission("ticketing.events.manage")` |
+| Ancho máximo de la tabla | `TREE_MAX` pasó de 420 a 560 a propósito (explorador unificado) | Prueba obsoleta | Valores del límite |
+| Sensibilidad por adaptador | Website marca `publication.rollback/unpublish` como sensibles (correcto: cambian lo público) | Prueba obsoleta | Contrato ampliado a `website.publication.*` |
+| Capacidades de ayuda, catálogo de identidad, icono PWA de Website, navegación de Growth, scaffold | Artefactos generados o catálogos sin actualizar al añadir `runly.ticketing`, `runly.bookings`, `PanelsTopLeft`, «Monitores» | Deriva de generados | Entrada `runly.ticketing` en `capabilities.json`; claves current-only; icono permitido; expectativas |
+| Registro de módulos Runly | Misma causa que identidad | Deriva | Resuelto por lo anterior |
+| Snapshot del devkit, fuentes compartidas de Docker, entrypoints/upgrades del instalador (11 pruebas) | Snapshot desactualizado frente al exportador; `build-push` ejecuta ahora la comprobación del release del instalador, que la fixture no tiene; los bootstraps son cargadores generados y la dependencia se declara en `release-files.json` | Deriva + fixture + prueba obsoleta | Snapshot regenerado, fixture con sustituto neutro, prueba contra el manifest del release. **No eran del entorno** |
+| Consumidor de artefactos compartidos (2) | `tar` GNU de Git Bash lee `C:\...` como host remoto (también en el verificador real); la fixture asumía que `preview-runtime` era el último paquete | Portabilidad + fixture | Ruta relativa en verificador y prueba; búsqueda por nombre |
+| Portapapeles TipTap/ProseMirror (seguridad) | El bundle de la prueba arrastraba `import.meta.glob` (solo Vite) y el proveedor simulado no tenía `setComposing` | Infraestructura de prueba + fixture | Definición vacía de `glob` en esbuild; proveedor con el contrato real. **Pasa en Chrome real** |
+| Marketplace integrado (navegador) | El diálogo de importación de Studio se rediseñó (ya no hay «Desde Marketplace» ni «Revisar») | Prueba obsoleta | **Pendiente**: reescribir contra el flujo nuevo (equipo de Studio) |
+| Catálogo de runtime de módulos | React 19.3.0 instalado frente a 19.3.1 en el catálogo; depende de los cambios de dependencias de otra sesión sin confirmar | Concurrencia | **Pendiente** tras fijar dependencias: `node scripts/generate-module-runtime-catalog.mjs` |
+| 5 archivos `website-*-postgres` | Exigen un contenedor Docker desechable etiquetado; lanzan error sin él (guarda de seguridad) | Infraestructura opt-in | Sin cambios; ejecutar con `RUNLY_WEBSITE_TEST_DATABASE_URL` y `RUNLY_WEBSITE_TEST_DISPOSABLE` |
+
+Regresión propia detectada y corregida por esta suite: `callSounds.test.js` esperaba la descarga de audios al desbloquear (comportamiento anterior a F3.2); ahora sigue el flujo «el shell autenticado activa, el gesto desbloquea».
+
+## Anexo: controles de calidad incorporados (2026-11-25)
+
+- `node scripts/ci/run-gates.mjs fast` (43 s, sin build, base de datos ni navegador): ESLint de errores, privacidad (0 hallazgos; las 40 de proxies de confianza se resolvieron con IP de ejemplo y constantes RFC 1918 permitidas por archivo y valor), alcance por empresa (14 `fetch` directos revisados y justificados), política de dependencias, UUID, propiedad del esquema de Supabase, guardas de rendimiento y 21 pruebas de contrato.
+- `run-gates.mjs release` (66 s): lo anterior más build web, presupuestos del bundle y suites de seguridad (166/166); con `RUNLY_CONTRACT_API` añade el contrato HTTP de payloads y autorización; con `--full-suite` compara la suite completa con `docs/audits/evidence/suite-failures-baseline.txt` (una falla nueva rompe el gate; las corregidas se reportan).
+- `.github/workflows/quality-gates.yml`: `fast` en cada PR y push a main; `release` en etiquetas `v*` o manual. YAML validado; **no se ha ejecutado en GitHub** (sin push).
+- Guardas de regresión de rendimiento (`scripts/ci/perf-guards.mjs`, con prueba de mutación): imágenes del login (≤ 8 KB las pequeñas, ≤ 32 KB las medianas), loaders HTML ≤ 16 KB sin base64 duplicado, `index.html` ≤ 8 KB, sin imágenes de tamaño completo en pantallas de arranque, sin esperas artificiales de arranque, sonidos no descargados antes de autenticarse, sin librerías pesadas (motion, TipTap/ProseMirror, Excalidraw, MapLibre, hls.js, LiveKit) importadas estáticamente en el login ni en su cierre de JS compilado, que se limita a 580 KB gzip (medido: 525). Son presupuestos de regresión, no los objetivos de optimización.
+- Seguridad: el runtime experimental sigue apagado por defecto (solo `RUNLY_SECURE_RUNTIME=experimental` lo activa) y el cliente del supervisor devuelve `null` sin URL y secreto de 32 caracteres; una prueba nueva demuestra que el estado de cuarentena no depende de la bandera. P0 **no** se declara cerrado en producción.
