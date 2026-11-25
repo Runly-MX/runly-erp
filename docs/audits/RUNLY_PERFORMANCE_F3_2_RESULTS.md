@@ -87,3 +87,57 @@ Paso 3 (subpath exports de `@runly/ui` y compatibilidad con RME3/SDK/Hub), paso 
 
 
 > **Nota de trazabilidad (2026-11-24, `RUNLY_BUILD_REPRODUCIBILITY_REPORT.md`):** varias cifras de JavaScript de este informe se midieron en árboles con un `.env` local que contiene `NODE_ENV=development`, lo que empaquetaba la versión de desarrollo de Excalidraw (+3.1 MB sin comprimir) y alteraba el reparto de chunks. Las cifras no se han modificado; el informe de reproducibilidad explica cuáles se ven afectadas. La referencia limpia actual del login crítico es 611 KB (control 2207 KB).
+
+## 9. Matriz de precarga del shell (2026-11-24)
+
+Build limpio de `33ef31881` sin `.env` (`pnpm build:web`), servidor de laboratorio con la política de nginx, API aislada. Script `docs/audits/perf-f3/scripts/prefetch-matrix.mjs`, datos crudos `docs/audits/perf-f3/data/prefetch-matrix.jsonl`. Medianas de **3 ejecuciones** por celda (sin dispersión publicada; muestra pequeña). `none` = A (sin precarga), `idle` = B (la precarga anterior), `adaptive` = C (solo con señal de intención, respeta `saveData` y conexiones lentas, pausada si la página está oculta), `selective` = D (como C, solo el shell).
+
+| scenario | profile | strategy | n | JS at form KB | JS before submit KB | JS total KB | transfer total KB | submit→usable ms |
+|---|---|---|---|---|---|---|---|---|
+| immediate | desktop | adaptive | 3 | 607 | 658 | 1638 | 2478 | 5017 |
+| immediate | desktop | idle | 3 | 1627 | 1627 | 1638 | 2129 | 4627 |
+| immediate | desktop | none | 3 | 607 | 607 | 1638 | 2677 | 4961 |
+| immediate | desktop | selective | 3 | 607 | 658 | 1638 | 2677 | 5157 |
+| no-network-api | desktop | adaptive | 3 | 607 | 1627 | 1638 | 2479 | 4304 |
+| no-network-api | desktop | idle | 3 | 1627 | 1627 | 1638 | 2478 | 4311 |
+| no-network-api | desktop | none | 3 | 607 | 607 | 1638 | 2326 | 4824 |
+| no-network-api | desktop | selective | 3 | 607 | 1595 | 1638 | 2677 | 4812 |
+| savedata | desktop | adaptive | 3 | 607 | 607 | 1638 | 2677 | 4863 |
+| savedata | desktop | idle | 3 | 607 | 607 | 1638 | 2677 | 4804 |
+| savedata | desktop | none | 3 | 607 | 607 | 1638 | 2326 | 4895 |
+| savedata | desktop | selective | 3 | 607 | 607 | 1638 | 2677 | 4844 |
+| typing | desktop | adaptive | 3 | 607 | 1627 | 1638 | 2478 | 4288 |
+| typing | desktop | idle | 3 | 1303 | 1627 | 1638 | 2478 | 4787 |
+| typing | desktop | none | 3 | 607 | 607 | 1638 | 2326 | 5363 |
+| typing | desktop | selective | 3 | 607 | 1595 | 1638 | 2677 | 4822 |
+| typing | mid | adaptive | 3 | 607 | 857 | 1638 | 2105 | 14168 |
+| typing | mid | idle | 3 | 607 | 861 | 1638 | 2105 | 14067 |
+| typing | mid | none | 3 | 607 | 607 | 1638 | 2105 | 18893 |
+| typing | mid | selective | 3 | 607 | 859 | 1638 | 2105 | 15305 |
+| visit-only | desktop | adaptive | 3 | 607 | 607 | 607 | 1256 | - |
+| visit-only | desktop | idle | 3 | 1124 | 1627 | 1627 | 2291 | - |
+| visit-only | desktop | none | 3 | 607 | 607 | 607 | 1256 | - |
+| visit-only | desktop | selective | 3 | 607 | 607 | 607 | 1256 | - |
+
+Lectura:
+- **Visitante que solo ve el formulario** (rebote): `none`, `adaptive` y `selective` descargan 607 KB de JS; `idle` descarga **1627 KB** (+1020 KB de JS y +1035 KB de transferencia total) sin que nadie interactúe. Es el coste que la precarga anterior imponía a quien no inicia sesión.
+- **Usuario que escribe sus credenciales:** en el perfil móvil simulado el tiempo del envío hasta la pantalla utilizable es 18.9 s sin precarga, 14.2 s con `adaptive`, 14.1 s con `idle` y 15.3 s con `selective`; en escritorio 5.4, 4.3, 4.8 y 4.8 s. `adaptive` e `idle` son equivalentes para quien interactúa; con n=3 no distingo entre ellos.
+- **Inicio inmediato** (relleno y envío a la vez, p. ej. gestor de contraseñas): ninguna estrategia mejora (≈5.0 s); `adaptive` solo añade 51 KB antes del envío.
+- **`saveData`:** `adaptive`, `selective` e `idle` no precargan (607 KB antes del envío).
+- **Sin Network Information API** (Safari, Firefox): `adaptive` espera la intención y entonces precarga; no hay descarga automática por falta de datos.
+- La transferencia total hasta la pantalla utilizable es la misma (≈1638 KB de JS) en todas las estrategias que llegan a ella: la precarga **mueve** la descarga, no la elimina. Lo que cambia es quién la paga (el que no inicia sesión ya no) y cuándo.
+
+**Decisión: `adaptive` (C)** es el valor por defecto (`lib/shellPrefetch.js`): iguala a `idle` para quien interactúa, elimina el coste del rebote y respeta `saveData`. `selective` ahorra ~32 KB pero es más lenta en el perfil móvil simulado.
+
+No cubierto: sesión existente (no pasa por el formulario), PWA, hosts nativos, Safari real (solo se simuló la ausencia de la API), una condición de 3G real y el uso con red intermitente.
+
+## 10. Estado frente a los presupuestos (build limpio, `33ef31881`)
+
+| Presupuesto | Resultado | Cumple |
+|---|---|---|
+| Login completo 500 KB transferidos | 1256 KB de transferencia total (607 KB de JS, el resto CSS, imágenes y fuentes) | **No** |
+| JS estático posterior al login 500 KB gzip | ≈1030 KB adicionales de JS tras el login (1638 menos 607) | **No** |
+| CLS ≤ 0.1 | 0.00 en el login (A/B de F3.1 y F3.2) | Sí |
+| Sin espera artificial de arranque | Eliminada (`5688dda00`) | Sí |
+
+Contribuyentes restantes de la ruta crítica de login: ver `RUNLY_PROVIDERS_MATRIX.md` §4 (React DOM y Router 127 KB, Radix 92 KB, Supabase completo 49 KB, framer-motion 39 KB, barrel de `@runly/ui` 68 KB). El siguiente trabajo con mejor relación esfuerzo/beneficio es importar solo `auth` de Supabase y diferir framer-motion en el login.
