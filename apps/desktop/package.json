@@ -18,7 +18,7 @@
     "build": "node scripts/windows-host.mjs",
     "publish:release": "node scripts/publish-release.mjs",
     "release": "pnpm build && pnpm publish:release",
-    "build:web": "vite build",
+    "build:web": "node scripts/build-web.mjs",
     "preview": "vite preview",
     "lint": "echo lint-pending",
     "postinstall": "node -e \"try{const{cpSync,existsSync}=require('fs'),src=require.resolve('pdfjs-dist/build/pdf.worker.min.mjs');existsSync(src)&&cpSync(src,'public/pdf.worker.min.mjs');}catch{} try{const{cpSync,mkdirSync}=require('fs'),path=require('path'),umd=require.resolve('@ffmpeg/core'),esm=path.join(path.dirname(path.dirname(umd)),'esm');mkdirSync('public/ffmpeg',{recursive:true});cpSync(path.join(esm,'ffmpeg-core.js'),'public/ffmpeg/ffmpeg-core.js');cpSync(path.join(esm,'ffmpeg-core.wasm'),'public/ffmpeg/ffmpeg-core.wasm');}catch{}\"",
