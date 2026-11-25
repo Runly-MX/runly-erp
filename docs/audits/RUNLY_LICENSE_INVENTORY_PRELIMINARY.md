@@ -70,3 +70,23 @@ Imagen `collabora/code` ejecutada como contenedor aparte (MPL-2.0 en su núcleo 
 
 ### Inventario Rust
 `apps/desktop/src-tauri/Cargo.lock`: 625 crates registrados, licencias no verificadas (`cargo metadata` no resuelve sin red/caché). Siguiente paso: `cargo about` o `cargo deny` con red.
+
+### Matriz de FFmpeg y decisión técnica propuesta (2026-11-25)
+
+Binario distribuido: un solo archivo, `ffmpeg-core.wasm` de `@ffmpeg/core` 0.12.10 (32 MB, `--enable-gpl`, con x264, x265, libvpx, LAME, Opus, Vorbis y libass), más `ffmpeg-core.js`, copiados a `public/ffmpeg/` en `postinstall` y cargados bajo demanda por `loadFfmpeg` (`packages/ui/src/lib/loadFfmpeg.js`). **x265 no lo usa ninguna función del código**; x264 solo la ruta de respaldo MP4 de Studio. Consumidores en el código: Studio (`studio-motion-export.js`), LMS (`hlsPackage.js`) y descarga HLS a MP4 (`downloadHlsAsMp4.js`).
+
+| Función | Ruta principal | Qué hace FFmpeg | Componente que necesita | ¿Núcleo LGPL basta? | Respaldo sin FFmpeg posible |
+|---|---|---|---|---|---|
+| MP4 de Studio | WebCodecs `VideoEncoder` H.264 (`avc1.*`) | Solo **remux** `-c copy` (`in.h264` a MP4) | Ninguno de codificación (muxer MP4) | **Sí** | Muxer MP4 en JS |
+| MP4 de Studio, navegador sin H.264 | JPEG frames a `libx264` | **Codifica** con x264 | **x264 (GPL)** | **No** | Sin equivalente nativo; alternativa: ofrecer WebM o GIF cuando falte H.264 |
+| WebM de Studio | WebCodecs VP9/VP8 | Remux `-c copy` (`in.ivf` a WebM) | Ninguno de codificación | **Sí** | Muxer WebM en JS |
+| WebM de Studio, navegador sin VP8/VP9 | JPEG frames a `libvpx` | Codifica VP8 | libvpx (BSD-3, sin patentes activas conocidas) | **Sí** (núcleo LGPL con libvpx) | — |
+| GIF de Studio | PNG frames | `palettegen` + `paletteuse` (filtros) | Ninguno externo | **Sí** | Codificador GIF en JS |
+| LMS: paquete HLS a MP4 | `-c:v copy`; audio `-c:a copy` si AAC/MP3 | Remux; audio no compatible se recodifica a **AAC nativo** (`aac`, LGPL) | Ninguno GPL | **Sí** | — |
+| Descarga HLS a MP4 (UI) | `-f concat -c copy` | Remux | Ninguno GPL | **Sí** | — |
+| Audio | Remux o AAC nativo | — | Ninguno GPL | **Sí** | — |
+| Animaciones de Studio | Mismo bucle de fotogramas que GIF/MP4/WebM | — | Ver filas anteriores | — | — |
+
+**Decisión técnica propuesta (no implementada):** (1) compilar un núcleo ffmpeg.wasm **LGPL** propio (sin `--enable-gpl`, sin x264/x265/lame; con libvpx, muxers, `aac` nativo y filtros de paleta) y usarlo para todo salvo la codificación x264; (2) conservar la ruta WebCodecs como principal; (3) para navegadores sin H.264, ofrecer WebM o GIF en lugar de codificar MP4 con x264 en WebAssembly, o mantener el núcleo GPL cargándolo **solo** en esa ruta de respaldo y cumpliendo la oferta de fuente. Ningún cambio de interfaz para los usuarios con navegadores modernos (Chromium, Safari y Firefox recientes exponen H.264 en WebCodecs). Reducción esperada del componente GPL: de «todo el binario distribuido» a «solo una ruta de respaldo, o nada».
+
+**Para revisión legal (no se afirma cumplimiento ni incumplimiento):** (a) obligaciones de código fuente correspondiente del binario GPL actual (versión de ffmpeg y de cada biblioteca, parches y configuración de compilación del paquete `@ffmpeg/core`); (b) si cargar el WASM como archivo aparte basta como «agregación» frente a un programa propietario; (c) patentes y licencias de H.264/AAC (x264 y la ruta de respaldo no las otorgan; los codificadores del navegador siguen sus propios términos); (d) aviso de licencia en la distribución de escritorio (Tauri) y en la PWA.
