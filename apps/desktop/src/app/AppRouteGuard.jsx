@@ -1,11 +1,14 @@
+import { lazy, Suspense } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "../auth/AuthProvider";
 import { LoginScreen } from "../auth/LoginScreen";
-import { ApiErrorScreen } from "../components/ApiErrorScreen";
+import { LazyApiErrorScreen as ApiErrorScreen } from "../components/LazyApiErrorScreen";
 import { instanceStatusQuery } from "../lib/instanceStatusQuery";
-import { SetupWizard } from "../setup/SetupWizard";
 import { useBootLoader } from "../stores/bootLoader";
+
+// First-run only; keeps motion out of the login chunk graph.
+const SetupWizard = lazy(() => import("../setup/SetupWizard").then((m) => ({ default: m.SetupWizard })));
 
 function useInstanceStatus() {
   return useQuery({
@@ -40,7 +43,7 @@ export function AppRouteGuard({ mode }) {
   }
 
   if (mode === "setup") {
-    if (!data?.initialized) return <SetupWizard />;
+    if (!data?.initialized) return <Suspense fallback={null}><SetupWizard /></Suspense>;
     const nextPath = session ? "/app" : "/app/login";
     return (
       <Navigate

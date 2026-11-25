@@ -1,5 +1,5 @@
 import { Component } from "react";
-import { ApiErrorScreen } from "./ApiErrorScreen";
+import { LazyApiErrorScreen as ApiErrorScreen } from "./LazyApiErrorScreen";
 
 /**
  * ErrorBoundary

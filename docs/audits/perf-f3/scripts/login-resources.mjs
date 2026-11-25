@@ -15,5 +15,6 @@ const by = {}
 for (const r of done) { const k = r.type; by[k] ??= { n: 0, b: 0 }; by[k].n++; by[k].b += r.bytes }
 console.log(Object.entries(by).map(([k, v]) => `${k}: ${v.n} req ${(v.b / 1024) | 0} KB`).join('\n'))
 console.log('TOTAL', (done.reduce((a, r) => a + r.bytes, 0) / 1024) | 0, 'KB')
+console.log(done.filter(r => r.type === 'Script' && process.env.SHOW_JS).sort((a, b) => b.bytes - a.bytes).slice(0, 12).map(r => `${(r.bytes / 1024).toFixed(1)} KB ${r.url.replace(base, '').slice(0, 70)}`).join('\n'))
 console.log(done.filter(r => r.type !== 'Script').sort((a, b) => b.bytes - a.bytes).slice(0, 25).map(r => `${(r.bytes / 1024).toFixed(1)} KB ${r.type} ${r.status} ${r.url.replace(base, '').slice(0, 90)}`).join('\n'))
 await b.close()

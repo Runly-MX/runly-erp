@@ -171,3 +171,21 @@ Estado: **ABIERTA, sin cambios de código por decisión técnica.**
 - Un único cliente compartido (`apps/desktop/src/lib/supabase.js`, `Proxy` + `authorizeRealtimeClient`) sirve a 20 archivos y a Realtime (Chat, Notes, Canvas, actividad), Storage (imágenes de notas) y al token de los canales. `createIsolatedRealtimeClient` ya crea un segundo cliente, sin sesión, solo para credenciales acotadas.
 - Alternativa soportada: usar `@supabase/auth-js` en el login y cargar `supabase-js` bajo demanda. Obliga a (1) añadir `auth-js` como dependencia directa (cambio de lockfile), (2) tener dos clientes con sesión sobre la misma clave de almacenamiento (`sb-*-auth-token`), o (3) reconstruir el cliente completo a partir del auth-js ya creado, lo que no es una API pública. Cualquiera de las tres introduce el riesgo de carreras de renovación de token y de sesión duplicada que se pidió evitar, y el ahorro esperado es como mucho ~20-25 KB gzip (≈3 % de los 799 KB del login; la diferencia exacta no se midió porque `auth-js` no es importable sin añadir la dependencia).
 - Conclusión: no compensa a este coste. Reabrir solo si el presupuesto de JS crítico queda inalcanzable sin ello; la vía menos arriesgada sería un cliente único creado con `auth-js` + módulos de Realtime/Storage inyectados, que requiere una pasada propia sobre `authorizedRealtime.js` y las pruebas de sesión (login, logout, renovación, recuperación, PWA, nativo).
+
+## Anexo: Framer Motion (`motion/react`) fuera del login (2026-11-25)
+
+Estado: **VERIFICADA LOCALMENTE** (payload y navegador Chromium; sin dispositivos físicos).
+
+- Hallazgo: el chunk `proxy` (motion) pesa 124 KB, **39.5 KB gzip**, y se descargaba en el login aunque `LoginScreen` solo usa animaciones CSS (`motion-safe:animate-in`). Entraba por imports estáticos de `ApiErrorScreen` (desde `ErrorBoundary` y `AppRouteGuard`) y `SetupWizard` (`AppRouteGuard`). El resto de usuarios (`AppLauncher`, `CommandPalette`, `CornerMenu`, `HrCatalogsScreen`) ya están en el shell cargado bajo demanda.
+- Decisión: no migrar a `LazyMotion` ni reescribir a CSS. `ApiErrorScreen` usa muelles, animaciones repetidas y `AnimatePresence` en ~15 elementos: reescribirlo es refactorización extensa con riesgo visual para una pantalla casi nunca vista. Se carga bajo demanda en su lugar.
+- Cambios: `LazyApiErrorScreen.jsx` (carga perezosa + respaldo plano «No se pudo mostrar el detalle del error» con «Reintentar» si el chunk no carga, para no dejar pantalla en blanco justo cuando se necesita), usado por `ErrorBoundary` y `AppRouteGuard`; `SetupWizard` lazy con `Suspense`. Sin cambios de dependencias ni de lockfile. `prefers-reduced-motion` no cambia: el componente movido conserva `useReducedMotion`.
+- Medición (`login-resources.mjs`, mismo método que el anexo anterior):
+
+| | Antes | Después |
+|---|---|---|
+| JavaScript del login | 612 KB (126 solicitudes) | 551 KB (113 solicitudes) |
+| Transferencia total | 799 KB | **738 KB (-61 KB, -7.6 %)** |
+
+Acumulado desde 1256 KB: -41 %.
+- Pruebas: lint de los archivos tocados limpio; `error-screen-lazy.mjs` en navegador: con `/instance/status` abortado se muestra la pantalla de error completa («Sin conexión»…), y con su chunk además bloqueado, el respaldo plano con botón «Reintentar».
+- Limitaciones: la pantalla de error aparece unos ms después (descarga de ~40 KB solo en ese caso); el asistente de configuración inicial y el flujo de primer uso no se recorrieron en navegador (la API no estaba disponible); no se midió latencia ni móviles físicos.
