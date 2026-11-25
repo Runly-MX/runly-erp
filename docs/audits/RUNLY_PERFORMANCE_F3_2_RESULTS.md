@@ -84,3 +84,6 @@ Paso 3 (subpath exports de `@runly/ui` y compatibilidad con RME3/SDK/Hub), paso 
 - Quedan sin tratar los `import * as` de `module-icon-registry`, `icon-library/registry`, `DetailHero`, `StatStrip`, `FormPreviewPanel`, `DetailViewDesignerParts`, y los de canvas y `builderHelpers`: ninguno estaba en la ruta del login; sí lo estarán cuando se abran esas pantallas. Su ahorro no se midió.
 
 **Presupuesto:** login crítico 687 KB de JS (sin comprimir la transferencia total 1.3 MB): sigue **sin cumplir** los 500 KB.
+
+
+> **Nota de trazabilidad (2026-11-24, `RUNLY_BUILD_REPRODUCIBILITY_REPORT.md`):** varias cifras de JavaScript de este informe se midieron en árboles con un `.env` local que contiene `NODE_ENV=development`, lo que empaquetaba la versión de desarrollo de Excalidraw (+3.1 MB sin comprimir) y alteraba el reparto de chunks. Las cifras no se han modificado; el informe de reproducibilidad explica cuáles se ven afectadas. La referencia limpia actual del login crítico es 611 KB (control 2207 KB).

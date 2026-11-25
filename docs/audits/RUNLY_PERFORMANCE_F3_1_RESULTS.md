@@ -109,3 +109,6 @@ Ver clasificación completa en `RUNLY_PLATFORM_F1B_CONSOLIDATION_RESULTS.md` sec
 ## 7. Reproducción
 
 `docs/audits/perf-f3/scripts/`: `runs.sh` (A/B intercalado), `measure.mjs`, `aggregate.mjs`, `serve.mjs` (`PERF_IMMUTABLE=1`), `visual.mjs`.
+
+
+> **Nota de trazabilidad (2026-11-24, `RUNLY_BUILD_REPRODUCIBILITY_REPORT.md`):** varias cifras de JavaScript de este informe se midieron en árboles con un `.env` local que contiene `NODE_ENV=development`, lo que empaquetaba la versión de desarrollo de Excalidraw (+3.1 MB sin comprimir) y alteraba el reparto de chunks. Las cifras no se han modificado; el informe de reproducibilidad explica cuáles se ven afectadas. La referencia limpia actual del login crítico es 611 KB (control 2207 KB).

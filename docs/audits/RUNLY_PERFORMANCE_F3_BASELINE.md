@@ -309,3 +309,6 @@ node scripts/apilat.mjs                                     # latencia y payload
 ```
 
 `compose.mjs` atribuye bytes de un chunk a paquetes mediante sourcemap (build con `--sourcemap`). Datos de esta auditoría: `docs/audits/perf-f3/data/`.
+
+
+> **Nota de trazabilidad (2026-11-24, `RUNLY_BUILD_REPRODUCIBILITY_REPORT.md`):** varias cifras de JavaScript de este informe se midieron en árboles con un `.env` local que contiene `NODE_ENV=development`, lo que empaquetaba la versión de desarrollo de Excalidraw (+3.1 MB sin comprimir) y alteraba el reparto de chunks. Las cifras no se han modificado; el informe de reproducibilidad explica cuáles se ven afectadas. La referencia limpia actual del login crítico es 611 KB (control 2207 KB).
