@@ -245,7 +245,6 @@ export default defineConfig({
           // chunk for it also captured a second copy of React and was imported by every screen.
           if (
             id.includes("/node_modules/@radix-ui/") ||
-            id.includes("/node_modules/lucide-react/") ||
             id.includes("/node_modules/sonner/")
           ) {
             return "ui-vendor";
