@@ -88,6 +88,6 @@ describe('sync/pull tombstones', () => {
     assert.equal(wheres[0].enabled, true)
     assert.equal(first.records[0].deleted, true)
     await svc.pull({ authUserId: 'a', companyId: COMPANY_ID, modules: ['runly.calendar'], cursor: new Date(T0 - 1).toISOString() })
-    assert.equal(wheres.at(-1).enabled, undefined)
+    assert.equal(wheres.filter((w) => w.updatedAt).at(-1).enabled, undefined)
   })
 })
