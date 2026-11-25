@@ -10,14 +10,16 @@ import { fileURLToPath } from 'node:url'
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..')
 const baselinePath = join(root, 'docs/audits/evidence/suite-failures-baseline.txt')
-const dirs = ['apps/', 'packages/', 'scripts/', 'infra/']
-const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...dirs], { cwd: root, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
+// Default test discovery from the repository root (node_modules excluded). Directory arguments are treated as files by `node --test`.
+const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap'], { cwd: root, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
 const output = `${run.stdout ?? ''}\n${run.stderr ?? ''}`
 const failing = new Set()
 for (const line of output.split(/\r?\n/)) {
   const m = /^\s*not ok \d+ - (.+?)(?:\s+#.*)?$/.exec(line)
   if (!m) continue
   const name = m[1].trim()
+  // scripts/test-*.mjs are end-to-end drivers that need a running stack (Docker, browsers); Node's default discovery picks them up by name only.
+  if (/^scripts[\\/]test-[\w-]+\.mjs$/.test(name)) continue
   // A failing file is reported as its path; keep it distinguishable from test names.
   failing.add(/(?:^|[\\/])[\w.-]+\.(?:test\.)?(?:js|mjs)$/.test(name) && /[\\/]/.test(name) ? `[file] ${name.replaceAll('\\\\', '\\')}` : name)
 }

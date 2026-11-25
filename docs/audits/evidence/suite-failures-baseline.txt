@@ -1,0 +1,7 @@
+[file] apps\api\src\routes\website\__tests__\website-backend-closure-postgres.test.js
+[file] apps\api\src\routes\website\__tests__\website-imports-postgres.test.js
+[file] apps\api\src\routes\website\__tests__\website-postgres.test.js
+[file] apps\api\src\routes\website\__tests__\website-releases-postgres.test.js
+[file] apps\api\src\routes\website\__tests__\website-templates-postgres.test.js
+integrated Marketplace isolates feeds, opens the real import dialog and asks before changing resources
+runtime catalog matches the installed versions (run scripts/generate-module-runtime-catalog.mjs)

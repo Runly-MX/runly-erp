@@ -90,7 +90,8 @@ describe("call sounds", () => {
   it("preloads and unlocks without any media playback or Media Session changes", async () => {
     const state = browser();
     const sounds = await isolatedSounds();
-    sounds.preloadCallSounds();
+    // The authenticated shell enables the sounds (nothing is downloaded before login); the first gesture then unlocks audio.
+    sounds.enableCallSounds();
     assert.equal(state.context, undefined);
     assert.equal(await sounds.unlockCallSounds(), true);
     await flush();

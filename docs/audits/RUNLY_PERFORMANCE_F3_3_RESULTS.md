@@ -122,3 +122,27 @@ Estado: **IMPLEMENTADA, verificada con datos reales a nivel de payload; sin veri
 Cumple el objetivo de 40 KB gzip. Quedan 14 KB de `lifecycle_config` por fila y 60 KB de manifest (navegación, descripciones) como siguiente margen si hiciera falta.
 - Pruebas: `runtime-modules-slim.test.js` (2/2), lint de los archivos tocados limpio, 13/14 de las pruebas de escritorio relacionadas. La que falla, `marketplace-browser`, es una prueba de navegador que da `TimeoutError` también sin estos cambios (necesita servidor web).
 - Pendiente: medición en navegador y respuesta HTTP real (API local no levantada), revocación, cambio de empresa, cuarentena y 304 con la respuesta slim (dependen de la misma autorización que la ruta completa, sin prueba específica); consumidores externos (Hub, MCP); catálogo con `lifecycle` y ModuleBuilder no ejercitados en UI. No se mide latencia.
+
+## 10. Validación HTTP real de `/blueprints` y `/runtime/modules?slim=1` (2026-11-25)
+
+Estado: **VERIFICADA LOCALMENTE** (API aislada en 4021, base de desarrollo en solo lectura, usuario de pruebas con dos empresas). Reproducible: `COMPANY_A=<id> COMPANY_B=<id> node docs/audits/perf-f3/scripts/http-contract.mjs <api>`; 17 comprobaciones, todas aprobadas.
+
+| Comprobación | Resultado |
+|---|---|
+| Sin token: `/blueprints` y `/runtime/modules` | 401 |
+| `/runtime/modules` completa (contrato sin parámetros) | 200, gzip, `Cache-Control: private, no-cache`, `Vary` con empresa; 129 178 B gzip / 488 113 B |
+| `/runtime/modules?slim=1` | **15 715 B gzip** / 114 640 B (presupuesto 40 KB) |
+| slim frente a completa | Mismos módulos y orden; solo difieren las claves omitidas del manifest (`navigation`, `authorizedRoutes`, `compatibility` y estado idénticos) |
+| ETag con `If-None-Match` | 304 sin cuerpo; el ETag de una consulta no valida otra (200) |
+| Empresa B frente a A | Representación propia (35 frente a 30 módulos); el ETag de A no da 304 para B |
+| Empresa a la que el usuario no pertenece | 403 sin datos |
+| `/blueprints` sin parámetros | Mantiene `module.manifest` (880 076 B gzip) |
+| `/blueprints?slim=1&schema=0` | 13 172 B gzip (presupuesto 20 KB), sin `manifest` ni `schema` |
+| Filtrada frente a sin filtrar | Subconjunto de lo ya autorizado |
+| Módulo visible solo en A, pedido desde B | Respuesta idéntica a la de un módulo inexistente (vacía) |
+
+**Cuarentena sin ruido, sin ejecución.** El módulo `custom.estrato` está en cuarentena (`NO_TRUST_RECORD`): `GET /modules/custom.estrato/bundle.js` responde **423 `MODULE_QUARANTINED`**, pero el cargador del shell lo pedía y lo registraba como error en cada carga. Ahora `/blueprints` añade `module.quarantined: true` a las filas de módulos con bundle cuya confianza no se cumple (misma comprobación que usa la ruta del bundle, con caché de 5 s) y `ModuleBundleLoader` no los solicita. Es solo una pista para evitar peticiones inútiles: la puerta sigue siendo el 423 del servidor (el script lo vuelve a comprobar) y un fallo en la comprobación no marca nada. Pruebas: `quarantine-flags.test.js`.
+
+**Cachés del cliente.** `useRuntimeModules`/`useEntityBranding` (`["runtime-modules", usuario]`) y el cargador de bundles (`["blueprints", token]`) no llevan la empresa en la clave, pero `applyActiveCompany` ejecuta `clearCompanyQueryCache` en cualquier cambio de empresa, que elimina todas las consultas salvo `instance-status` y `memberships-me`; verificado en navegador (cambio de empresa con el selector real, anexo F3.2). Los dos consumidores de `runtime-modules` piden la misma forma (slim).
+
+**Pendiente:** revocación de permisos en caliente (requiere un segundo usuario con permisos restringidos y mutaciones; no se escribe sobre empresas reales); instalación, desinstalación y actualización de módulos con las respuestas filtradas; Hub y MCP como consumidores; Module Builder y catálogo en uso real de escritura.
