@@ -103,15 +103,22 @@ test('PostgreSQL vertical slice: OFF, leases, OCR results, current ACL, revision
   await assert.rejects(service.complete(interrupted.id, interrupted.lease, { pages: [page('stale')] }), /autorizado/);
   await service.request(args, { reprocess: true });
   const expired = await service.claim('test-worker');
+  await service.checkpoint(expired.id,expired.lease,{page:page('Checkpoint persistente ABC120XYZ'),totalUnits:2});
+  await service.checkpoint(expired.id,expired.lease,{page:page('Checkpoint persistente ABC120XYZ'),totalUnits:2});
+  assert.equal((await service.result(args)).completedUnits,1);
   await pool.query("UPDATE runly_content.job SET lease_until=now()-interval '1 second' WHERE id=$1", [expired.id]);
   assert.equal(await service.claim('test-worker'), null);
   await pool.query('UPDATE runly_content.job SET available_at=now() WHERE id=$1', [expired.id]);
   await service.heartbeat('restarted-worker', worker);
   const recovered = await service.claim('restarted-worker');
+  assert.deepEqual(recovered.resumeUnits,[1]);
   assert.notEqual(recovered.lease, expired.lease);
   await assert.rejects(service.complete(expired.id, expired.lease, { pages: [page('stale')] }), /autorizado/);
   await service.complete(recovered.id, recovered.lease, { pages: [], errorCode: 'LIMIT' });
-  assert.equal((await service.result(args)).state, 'failed');
+  assert.equal((await service.result(args)).state, 'partial');
+  const approximate=await service.search(args,{q:'ABC12OXYZ',searchIn:'ocr'});
+  assert.equal(approximate.data[0].id,file.id);
+  assert.equal(approximate.data[0].contentMatch.approximate,true);
   await db.fileAsset.update({ where: { id: file.id }, data: { enabled: false } });
   await assert.rejects(service.result(args), /no encontrado/);
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM runly_content.page')).rows[0].n, 0);
@@ -131,6 +138,8 @@ test('PostgreSQL vertical slice: OFF, leases, OCR results, current ACL, revision
   assert.equal((await service.result(args)).pages.length, 0);
   await service.purge(companyId, args.activeContext);
   assert.equal((await pool.query('SELECT count(*)::int AS n FROM runly_content.job')).rows[0].n, 0);
+  assert.ok((await service.status('instance')).indexBytes>=0);
+  assert.equal((await pool.query('SELECT coalesce(sum(jobs),0)::int AS n FROM runly_content.totals')).rows[0].n,0);
 });
 
 test('worker routes fail closed with missing, incorrect or multibyte credentials', { skip: !url }, async () => {
@@ -139,6 +148,31 @@ test('worker routes fail closed with missing, incorrect or multibyte credentials
     const response = await app.request('/content/worker/claim', { method: 'POST', headers: { Authorization: authorization }, body: JSON.stringify({ id: 'test' }) });
     assert.equal(response.status, 401);
   }
+});
+
+test('ranked cursor is opaque, scoped and paginates exact before controlled approximate matches', {skip:!url},async()=>{
+  await service.savePolicy('instance',policy,args.activeContext);
+  await service.savePolicy(companyId,policy,args.activeContext);
+  await pool.query(`WITH files AS (
+    INSERT INTO file_asset(bucket,object_key,original_name,mime_type,size_bytes,entity_type,module_key,entity_id,uploaded_by_id,access_scope)
+    SELECT 'test','cursor-'||n,'Cursor '||n,'text/plain',50,'AtlasFile','runly.files',$1,$2,'RESTRICTED' FROM generate_series(1,51) n
+    RETURNING *), jobs AS (
+    INSERT INTO runly_content.job(company_id,file_id,revision,object_key,state,quality)
+    SELECT entity_id,id,content_revision,object_key,'done','balanced' FROM files ON CONFLICT(file_id,revision) DO UPDATE SET state='done' RETURNING *)
+    INSERT INTO runly_content.page(job_id,unit,source,reference,text,normalized,engine)
+    SELECT id,1,'digital','Documento',CASE WHEN object_key='cursor-51' THEN 'CURS0R987' ELSE 'CURSOR987' END,
+      CASE WHEN object_key='cursor-51' THEN 'curs0r987' ELSE 'cursor987' END,'{}'::jsonb FROM jobs`,[companyId,owner]);
+  const first=await service.search(args,{q:'CURSOR987',searchIn:'content'});
+  assert.equal(first.data.length,50);assert.ok(first.data.every(file=>!file.contentMatch.approximate));
+  assert.ok(first.nextCursor);assert.ok(!Buffer.from(first.nextCursor,'base64url').toString().includes('cursor987'));
+  const second=await service.search(args,{q:'CURSOR987',searchIn:'content',cursor:first.nextCursor});
+  assert.equal(second.data.length,1);assert.equal(second.data[0].contentMatch.approximate,true);
+  await assert.rejects(service.search({...args,activeContext:{...args.activeContext,profileId:viewer}},{q:'CURSOR987',searchIn:'content',cursor:first.nextCursor}),/Cursor inválido/);
+  await assert.rejects(service.search(args,{q:'OTHER987',searchIn:'content',cursor:first.nextCursor}),/Cursor inválido/);
+  const invisible=await service.search({...args,activeContext:{...args.activeContext,profileId:viewer,isAdmin:false}},{q:'CURSOR987',searchIn:'content'});
+  assert.equal(invisible.data.length,0);
+  await pool.query("DELETE FROM file_asset WHERE object_key LIKE 'cursor-%'");
+  await service.savePolicy('instance',{profile:'OFF'},args.activeContext);
 });
 
 test('current folder ACL, ownership and company moves apply to existing derived text', { skip: !url }, async () => {
@@ -167,9 +201,10 @@ test('current folder ACL, ownership and company moves apply to existing derived 
 
 test('real isolated Docker worker: historical image -> download -> OCR -> indexed search', { skip: !url || process.env.CI_CONTENT_DOCKER !== '1', timeout: 300000 }, async () => {
   const run = promisify(execFile);
+  const image = process.env.CI_CONTENT_WORKER_IMAGE || 'runly-content-test';
   const corpusDir = fileURLToPath(new URL('../../../../content-worker', import.meta.url));
   const generated = await run('docker', ['run','--rm','--network','none','--mount',`type=bind,source=${corpusDir},target=/tests,readonly`,
-    '--workdir','/tests','runly-content-test','python3','-c',"from test_worker import label; import sys; label().save(sys.stdout.buffer, 'PNG')"], { encoding: 'buffer', maxBuffer: 2000000 });
+    '--workdir','/tests',image,'python3','-c',"from test_worker import label; import sys; label().save(sys.stdout.buffer, 'PNG')"], { encoding: 'buffer', maxBuffer: 2000000 });
   originalBytes = generated.stdout;
   const workerToken = 'synthetic-test-worker-key-with-no-production-access';
   const app = createContentIntelligenceRouter({ prisma: db, filesService, supabaseAdmin: storage,
@@ -183,7 +218,7 @@ test('real isolated Docker worker: historical image -> download -> OCR -> indexe
   const startWorker = (containerName, id, cpus = '1', memory = '1g') => run('docker', ['run','--detach','--name',containerName,'--cpus',cpus,'--memory',memory,'--pids-limit','64','--read-only',
     '--tmpfs','/tmp:size=268435456,mode=1777,noexec,nosuid,nodev','--cap-drop','ALL','--security-opt','no-new-privileges:true',
     '--env',`RUNLY_CONTENT_API_URL=http://host.docker.internal:${port}`,'--env',`RUNLY_CONTENT_WORKER_TOKEN=${workerToken}`,
-    '--env',`RUNLY_CONTENT_WORKER_ID=${id}`,'--mount',`type=bind,source=${fileURLToPath(new URL('../../../../content-worker/worker.py', import.meta.url))},target=/app/worker.py,readonly`, 'runly-content-test']);
+    '--env',`RUNLY_CONTENT_WORKER_ID=${id}`,'--mount',`type=bind,source=${fileURLToPath(new URL('../../../../content-worker/worker.py', import.meta.url))},target=/app/worker.py,readonly`, image]);
   try {
     // OFF uploads do not queue; explicit historical activation later discovers the same original.
     const historic = await db.fileAsset.create({ data: { bucket: 'test', objectKey: 'historic.png', originalName: 'Etiqueta histórica.png', mimeType: 'image/png', sizeBytes: originalBytes.length,

@@ -1,10 +1,12 @@
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { z } from 'zod';
 import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
 import { fileKindWhere } from '../files/query.js';
 import { isFilesOrigin } from '../files/visibility.js';
 import { recordFilesWhere } from '../files/record-folders.js';
 import { createContentPressure } from './resource-pressure.js';
+import { searchQuery } from './search-query.js';
+import { toInternalSupabaseUrl } from '../../lib/supabase-public-url.js';
 
 const uuid = z.uuid();
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -34,9 +36,28 @@ const resultSchema = z.strictObject({
 
 export function createContentIntelligence({ prisma, filesService, supabaseAdmin }) {
   const pressure = createContentPressure();
+  // Candidate cursors can refer to invisible files. Encrypt them so neither IDs
+  // nor ranks become a permissions side channel; restart requires a fresh search.
+  const cursorKey=randomBytes(32);
+  function encodeCursor(candidate,scope) {
+    const nonce=randomBytes(12),cipher=createCipheriv('aes-256-gcm',cursorKey,nonce);
+    const encrypted=Buffer.concat([cipher.update(JSON.stringify({...candidate,scope,expires:Date.now()+900000})),cipher.final()]);
+    return Buffer.concat([nonce,cipher.getAuthTag(),encrypted]).toString('base64url');
+  }
+  function decodeCursor(value,scope) {
+    try {
+      if(String(value).length>1024)throw Error();
+      const bytes=Buffer.from(String(value),'base64url'),decipher=createDecipheriv('aes-256-gcm',cursorKey,bytes.subarray(0,12));
+      decipher.setAuthTag(bytes.subarray(12,28));
+      const cursor=JSON.parse(Buffer.concat([decipher.update(bytes.subarray(28)),decipher.final()]).toString());
+      uuid.parse(cursor.id);z.number().int().min(0).max(100).parse(cursor.rank);
+      if(cursor.scope!==scope||cursor.expires<Date.now())throw Error();
+      return cursor;
+    } catch {throw new ContentError('Cursor inválido. Reinicia la búsqueda.');}
+  }
   async function policy(scope, db = prisma) {
     const rows = await db.$queryRaw`SELECT config FROM runly_content.policy WHERE scope = ${scope}`;
-    return rows[0]?.config ?? DEFAULT_POLICY;
+    return policySchema.parse(rows[0]?.config ?? DEFAULT_POLICY);
   }
   async function effective(companyId, db = prisma) {
     const [instance, company] = await Promise.all([policy('instance', db), policy(companyId, db)]);
@@ -68,7 +89,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return file;
   }
   async function enqueue(db, file, p, { manual = false, priority = 20, quality = p.quality, reprocess = false } = {}) {
-    if (p.profile === 'OFF' || p.paused || !processingAllowed(p, file, manual) || file.sizeBytes > p.maxFileBytes) return false;
+    if (p.profile === 'OFF' || p.paused || !processingAllowed({ ...p, automaticProcessing: priority>=40 ? p.historical : p.automaticProcessing }, file, manual) || file.sizeBytes > p.maxFileBytes) return false;
     // All queue writers share this lock, including historical discovery.
     await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
     const [capacity] = await db.$queryRaw`SELECT coalesce(sum(jobs),0)::int AS total,
@@ -86,6 +107,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const p = await effective(file.entityId);
     if (p.profile === 'OFF' || p.paused) throw new ContentError('El procesamiento está desactivado o pausado.', 409);
     if (!supportedFile(file)) throw new ContentError('Formato no compatible.', 415);
+    if (!processingAllowed(p,file,true)) throw new ContentError('La política no permite procesar este tipo de archivo.',409);
     if (file.sizeBytes > p.maxFileBytes) throw new ContentError('El archivo excede el límite.', 413);
     const [worker] = await prisma.$queryRaw`SELECT id FROM runly_content.worker WHERE heartbeat_at > now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2 LIMIT 1`;
     if (!worker) throw new ContentError('El worker está desconectado. Instala o inicia el servicio opcional.', 409);
@@ -121,34 +143,44 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const companyId = args.activeContext.companyId;
     if (!(await effective(companyId)).searchEnabled) return { data: [], nextCursor: null };
     const q = String(query.q ?? '').trim().slice(0, 200);
-    const normalized = normalizeText(q);
+    const { normalized,terms,exact:tsquery,expanded } = searchQuery(q);
     if (!normalized) return { data: [], nextCursor: null };
-    const cursor = query.cursor ? uuid.parse(query.cursor) : null;
+    const cursorScope=hash(JSON.stringify([companyId,args.activeContext.profileId,normalized,query.searchIn]));
+    const cursor=query.cursor?decodeCursor(query.cursor,cursorScope):null;
     const source = query.searchIn === 'ocr' ? 'ocr' : null;
-    const terms = normalized.split(' ').filter(Boolean);
-    const tsquery = q.includes('"') ? terms.join(' <-> ') : terms.map(t => `${t}:*`).join(' & ');
     const folderId = query.folderId && query.folderId !== 'root' ? uuid.parse(query.folderId) : null;
     // Bounded candidate batches. No unauthorized counts, snippets or score side channels.
     const candidates = await prisma.$queryRaw`WITH matches AS (
-      SELECT j.file_id AS id FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
+      SELECT j.file_id AS id,max(CASE WHEN p.normalized ~ ${`\\m${normalized.replace(/ /g,'\\s+')}\\M`} THEN 100
+        WHEN p.search_vector @@ to_tsquery('simple',${tsquery}) THEN 80 ELSE 30 END)::int AS rank
+      FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
       JOIN file_asset current ON current.id=j.file_id
       WHERE j.company_id=${companyId}::uuid AND current.enabled AND j.company_id=current.entity_id
         AND j.revision=current.content_revision AND j.object_key=current.object_key
         AND j.state IN ('done','partial','empty') AND (${source}::text IS NULL OR p.source=${source})
-        AND p.search_vector @@ to_tsquery('simple',${tsquery})
-      UNION
-      SELECT id FROM file_asset WHERE ${query.searchIn === 'all'} AND entity_id=${companyId}::uuid AND enabled
+        AND p.search_vector @@ to_tsquery('simple',${expanded}) GROUP BY j.file_id
+      UNION ALL
+      SELECT id,90 AS rank FROM file_asset WHERE ${query.searchIn === 'all'} AND entity_id=${companyId}::uuid AND enabled
         AND lower(original_name) LIKE ${`%${q.toLowerCase().replace(/[\\%_]/g, '\\$&')}%`}
-    ) SELECT f.id FROM matches JOIN file_asset f ON f.id=matches.id
+    ), ranked AS (SELECT id,max(rank)::int AS rank FROM matches GROUP BY id)
+    SELECT f.id,ranked.rank FROM ranked JOIN file_asset f ON f.id=ranked.id
       WHERE f.entity_id=${companyId}::uuid AND f.enabled
-      AND (${cursor}::uuid IS NULL OR f.id > ${cursor}::uuid)
+      AND (${cursor?.id??null}::uuid IS NULL OR ranked.rank<${cursor?.rank??0} OR (ranked.rank=${cursor?.rank??0} AND f.id>${cursor?.id??null}::uuid))
       AND (${folderId}::uuid IS NULL OR f.folder_id=${folderId}::uuid)
       AND (${query.folderId !== 'root'} OR f.folder_id IS NULL)
       AND (${query.mime ?? ''}='' OR f.mime_type LIKE ${`${query.mime ?? ''}%`})
       AND (${query.moduleKey ?? ''}='' OR f.module_key=${query.moduleKey ?? ''})
-      ORDER BY f.id LIMIT 50`;
+      ORDER BY ranked.rank DESC,f.id LIMIT 50`;
     const data = [];
     const recordFilter = query.record ? await recordFilesWhere(prisma, companyId, String(query.record)) : null;
+    const candidatePages = candidates.length ? await prisma.$queryRaw`SELECT DISTINCT ON (j.file_id) j.file_id,p.unit,p.reference,p.source,p.text,
+      p.search_vector @@ to_tsquery('simple',${tsquery}) AS exact FROM runly_content.page p
+      JOIN runly_content.job j ON j.id=p.job_id JOIN file_asset f ON f.id=j.file_id
+      WHERE j.file_id=ANY(${candidates.map(candidate=>candidate.id)}::uuid[]) AND f.enabled AND j.company_id=${companyId}::uuid
+      AND j.revision=f.content_revision AND j.object_key=f.object_key AND j.state IN ('done','partial','empty')
+      AND (${source}::text IS NULL OR p.source=${source}) AND p.search_vector @@ to_tsquery('simple',${expanded})
+      ORDER BY j.file_id,exact DESC,p.unit` : [];
+    const byFile = new Map(candidatePages.map(page=>[page.file_id,page]));
     for (const candidate of candidates) {
       let file;
       try { file = await authorized({ ...args, id: candidate.id }); }
@@ -162,16 +194,12 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       }
       if ((query.kind || recordFilter) && !await prisma.fileAsset.findFirst({ where: { id: file.id,
         AND: [fileKindWhere(query.kind), ...(recordFilter ? [recordFilter] : [])] }, select: { id: true } })) continue;
-      const pages = await prisma.$queryRaw`SELECT p.unit,p.reference,p.source,p.text FROM runly_content.page p
-        JOIN runly_content.job j ON j.id=p.job_id JOIN file_asset f ON f.id=j.file_id
-        WHERE j.file_id=${file.id}::uuid AND f.enabled AND j.company_id=${companyId}::uuid
-        AND j.revision=f.content_revision AND j.object_key=f.object_key AND j.state IN ('done','partial','empty')
-        AND (${source}::text IS NULL OR p.source=${source}) AND p.search_vector @@ to_tsquery('simple',${tsquery}) ORDER BY p.unit LIMIT 1`;
-      const match = pages[0];
+      const match = byFile.get(file.id);
       const at = match ? Math.max(0, normalizeText(match.text).indexOf(terms[0]) - 60) : 0;
-      data.push({ ...file, contentMatch: match ? { source: match.source, page: match.unit, reference: match.reference, snippet: match.text.slice(at, at + 240), terms } : null });
+      data.push({ ...file, contentMatch: match ? { source: match.source, page: match.unit, reference: match.reference, snippet: match.text.slice(at, at + 240), terms,
+        approximate:!match.exact } : null });
     }
-    return { data, nextCursor: candidates.length === 50 ? candidates.at(-1).id : null };
+    return { data, nextCursor: candidates.length === 50 ? encodeCursor(candidates.at(-1),cursorScope) : null };
   }
   async function status(scope) {
     const instance = await policy('instance');
@@ -189,11 +217,13 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
         AND (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY finished_at DESC LIMIT 1000) recent`;
     const backfill = await prisma.$queryRaw`SELECT company_id AS "companyId",kind,state,cursor,discovered,enqueued,omitted,updated_at AS "updatedAt" FROM runly_content.backfill
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY updated_at DESC LIMIT 100`;
+    const storage=scope==='instance'?await prisma.$queryRaw`SELECT coalesce(sum(pg_indexes_size(oid)),0)::float AS "indexBytes"
+      FROM pg_class WHERE relnamespace='runly_content'::regnamespace AND relkind='r'`:[];
     return { config: local ?? instance, effective: local ? effectivePolicy(instance, local) : instance,
       workers: scope === 'instance' ? workers : workers.map(w => ({ connected: w.connected, heartbeatAt: w.heartbeatAt,
         capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages, models: w.capabilities.models, protocol: w.capabilities.protocol } })),
       counts, recent, rate, backfill, engine: ENGINE_VERSION,
-      ...(scope==='instance' ? { pressure: await pressure.observe() } : {}) };
+      ...(scope==='instance' ? { pressure: await pressure.observe(),indexBytes:storage[0].indexBytes } : {}) };
   }
   async function backfill(companyId, action, filters, context) {
     uuid.parse(companyId);
@@ -309,14 +339,16 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
           continue;
         }
         const minimumMiB = job.quality==='accurate' ? 384 : 256;
-        if (Math.min(p.memoryMiB,(worker.capabilities.memoryLimit ?? 0)/1048576)<minimumMiB) {
+        const effectiveMemoryMiB = Math.min(p.memoryMiB,Math.floor((worker.capabilities.memoryLimit ?? 0)*0.85/1048576));
+        if (effectiveMemoryMiB<minimumMiB) {
           await db.$executeRaw`UPDATE runly_content.job SET state='failed',error_code='RESOURCES',updated_at=now() WHERE id=${job.id}::uuid`;
           continue;
         }
         const [companyActive] = await db.$queryRaw`SELECT count(*)::int AS n FROM runly_content.job WHERE company_id=${job.company_id}::uuid AND state='processing'`;
         if (companyActive.n >= p.concurrency) continue;
         const lease = randomBytes(32).toString('hex');
-        const snapshot = { ...p, quality: job.quality, allowOcr: p.automaticOcr || (job.manual && p.manualOcr) };
+        const snapshot = { ...p,memoryMiB:effectiveMemoryMiB,threads:Math.min(p.threads,Math.max(1,Math.ceil(worker.capabilities.cpuLimit??1))),
+          quality: job.quality, allowOcr: p.automaticOcr || (job.manual && p.manualOcr) };
         const pipeline = hash(JSON.stringify({ version: ENGINE_VERSION, quality: job.quality, languages: p.languages,
           maxPages: p.maxPages, maxPixels: p.maxPixels, digitalExtraction: p.digitalExtraction, allowOcr: snapshot.allowOcr,
           imageOcr: p.imageOcr, pdfOcr: p.pdfOcr, models: worker.capabilities.models }));
@@ -359,7 +391,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     if (job.size_bytes > p.maxFileBytes) throw new ContentError('Archivo excesivo.', 413);
     const { data, error } = await supabaseAdmin.storage.from(job.bucket).createSignedUrl(job.object_key, 60);
     if (error || !data?.signedUrl) throw new ContentError('No se pudo leer el original.', 422);
-    const response = await fetch(data.signedUrl, { redirect: 'error', signal: AbortSignal.timeout(30000) });
+    const response = await fetch(toInternalSupabaseUrl(data.signedUrl), { redirect: 'error', signal: AbortSignal.timeout(30000) });
     if (!response.ok || !response.body) throw new ContentError('No se pudo leer el original.', 422);
     if (Number(response.headers.get('content-length')) > p.maxFileBytes) {
       await response.body.cancel();

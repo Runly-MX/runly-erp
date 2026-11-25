@@ -7,7 +7,10 @@ import { createRequireInstanceAdmin } from '../lib/platform-owner.js';
 import { ContentError, createContentIntelligence } from '../services/content-intelligence/service.js';
 
 const filtersSchema = z.strictObject({ folderId: z.uuid().optional(), mime: z.string().max(100).optional(),
-  fromDate: z.iso.datetime().optional(), toDate: z.iso.datetime().optional() });
+  fromDate: z.iso.datetime().optional(), toDate: z.iso.datetime().optional(),
+  mode: z.enum(['all','never','failed','lowQuality','oldEngine']).default('all'),
+  belowConfidence: z.number().min(0).max(100).default(70), quality: z.enum(['fast','balanced','accurate']).optional(),
+});
 
 export function createContentIntelligenceRouter({ prisma, filesService, supabaseAdmin, authMiddleware, requirePermission, env = process.env }) {
   const app = new Hono();
@@ -53,6 +56,10 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
     z.strictObject({ confirm: z.literal('PURGAR') }).parse(await c.req.json());
     return c.json({ data: await service.purge(c.get('companyId'), tenantActiveContext(c)) });
   }));
+  app.post('/content/admin/retry', authMiddleware, manageCompany, wrap(async c => {
+    const input = filtersSchema.parse(await c.req.json());
+    return c.json({ data: await service.backfill(c.get('companyId'),'start',{...input,mode:input.mode==='all'?'failed':input.mode},tenantActiveContext(c)) });
+  }));
 
   const workerAuth = async (c, next) => {
     const expected = env.RUNLY_CONTENT_WORKER_TOKEN;
@@ -66,6 +73,9 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
       engine: z.string().max(120), languages: z.array(z.string().max(30)).max(100), models: z.record(z.string(), z.string().max(128)),
       cpuLimit: z.number().positive().nullable(), memoryLimit: z.number().positive().nullable(),
       memoryUsed: z.number().nonnegative(), governor: z.enum(['ready','paused','unknown']),
+      protocol: z.number().int().min(1).max(2).default(1),
+      cpuUsedPercent: z.number().nonnegative().nullable().optional(),
+      tempFreeBytes: z.number().nonnegative().optional(),
     }) }).parse(await c.req.json());
     await service.heartbeat(input.id, input.capabilities);
     return c.json({ ok: true });
@@ -85,5 +95,6 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
     return c.json(await service.renew(c.req.param('id'), c.req.header('X-Content-Lease'), progress));
   }));
   app.post('/content/worker/jobs/:id/result', workerAuth, wrap(async c => c.json(await service.complete(c.req.param('id'), c.req.header('X-Content-Lease'), await c.req.json()))));
+  app.post('/content/worker/jobs/:id/checkpoint', workerAuth, wrap(async c => c.json(await service.checkpoint(c.req.param('id'),c.req.header('X-Content-Lease'),await c.req.json()))));
   return app;
 }

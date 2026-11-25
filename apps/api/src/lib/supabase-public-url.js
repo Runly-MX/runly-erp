@@ -57,6 +57,15 @@ export function toPublicSupabaseUrl(url, env = process.env) {
   return parsedUrl.toString();
 }
 
+// Backend streaming consumers must connect to Kong internally, even when the
+// shared client has already rewritten a signed URL for a browser.
+export function toInternalSupabaseUrl(url, env = process.env) {
+  return toPublicSupabaseUrl(url, {
+    SUPABASE_URL: env.RUNLY_SUPABASE_PUBLIC_URL,
+    RUNLY_SUPABASE_PUBLIC_URL: env.SUPABASE_URL,
+  });
+}
+
 // Wraps a supabase-js client's Storage API so every signed/public URL it
 // mints is transparently rewritten for the browser via toPublicSupabaseUrl.
 // This includes createSignedUploadUrl — the signed PUT target handed to the

@@ -19,9 +19,9 @@ import warnings
 import zipfile
 from xml.etree import ElementTree as ET
 
-from PIL import Image, ImageFilter, ImageOps, ImageSequence, ImageStat
+from PIL import Image, ImageChops, ImageFilter, ImageOps, ImageSequence, ImageStat, UnidentifiedImageError
 
-ENGINE = "runly-local-1"
+ENGINE = "runly-local-2"
 MAX_TEXT = 1_000_000
 OMP_ENV = {**os.environ, "OMP_THREAD_LIMIT": "1", "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"}
 warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -110,7 +110,7 @@ def office_pages(path, mime, limit):
 
 
 def model_info():
-    folders = [Path("/usr/share/tesseract-ocr/5/tessdata"), Path("/usr/share/tessdata")]
+    folders = [Path("/opt/content-tessdata-fast"), Path("/usr/share/tesseract-ocr/5/tessdata"), Path("/usr/share/tessdata")]
     models = {}
     for folder in folders:
         for model in folder.glob("*.traineddata"):
@@ -120,13 +120,14 @@ def model_info():
     return models
 
 
-def page_result(unit, reference, text, source="digital", words=None, confidence=None, languages="", quality="balanced"):
+def page_result(unit, reference, text, source="digital", words=None, confidence=None, languages="", quality="balanced", canvas=None, second_passes=0):
     if len(text) > 200000:
         raise ProcessingError("LIMIT")
     return {"unit": unit, "reference": reference, "text": text, "source": source,
             "words": words or [], "confidence": confidence,
             "engine": {"version": ENGINE, "languages": languages, "model":
-                       ("tessdata_best:e2aad9b983032bb1beff9133104a67cdbb87ca4d" if quality == "accurate" else "debian-tesseract-5") if source == "ocr" else "native"}}
+                       ("tessdata_best:e2aad9b983032bb1beff9133104a67cdbb87ca4d" if quality == "accurate" else "tessdata_fast:65727574dfcd264acbb0c3e07860e4e9e9b22185") if source == "ocr" else "native",
+                       **({"canvas": canvas} if canvas else {}), "secondPasses": second_passes}}
 
 
 def tesseract(image, directory, languages, psm, timeout, quality):
@@ -153,10 +154,22 @@ def tesseract(image, directory, languages, psm, timeout, quality):
     return text, words, average
 
 
-def recognize(image, directory, policy):
+def recognition_score(result):
+    # Coverage matters: one confident word must not replace a complete readable line.
+    return sum(len(word['text'])*max(0,word['confidence']-40)/60 for word in result[1])
+
+
+def adaptive_binary(gray):
+    local = gray.filter(ImageFilter.BoxBlur(15))
+    return ImageChops.subtract(local,gray).point(lambda difference: 0 if difference>10 else 255)
+
+
+def recognize(image, directory, policy, details=None):
     if image.width * image.height > policy["maxPixels"]:
         raise ProcessingError("LIMIT")
     image = ImageOps.exif_transpose(image).convert("RGB")
+    if details is not None:
+        details.update(width=image.width, height=image.height, secondPasses=0)
     transforms = []
     # Map processed boxes back to the displayed original (after EXIF orientation).
     def rotate(angle):
@@ -206,12 +219,16 @@ def recognize(image, directory, policy):
     if policy["quality"] != "fast" and (best[2] < 78 or len(best[0]) < 20):
         variant = gray.filter(ImageFilter.MedianFilter(3)) if ImageStat.Stat(gray).stddev[0] < 55 else gray
         alternative = tesseract(variant, directory, languages, 11, min(45, policy["timeoutSeconds"]), policy["quality"])
-        if alternative[2] > best[2] and alternative[0].strip():
+        if details is not None:
+            details['secondPasses'] += 1
+        if recognition_score(alternative) > recognition_score(best) and alternative[0].strip():
             best = alternative
     if policy["quality"] == "accurate" and best[2] < 85:
-        variant = gray.point(lambda p: 0 if p < 160 else 255)
+        variant = adaptive_binary(gray) if ImageStat.Stat(gray).stddev[0]<65 else gray.point(lambda p: 0 if p < 160 else 255)
         alternative = tesseract(variant, directory, languages, 6, min(60, policy["timeoutSeconds"]), policy["quality"])
-        if alternative[2] > best[2] and alternative[0].strip():
+        if details is not None:
+            details['secondPasses'] += 1
+        if recognition_score(alternative) > recognition_score(best) and alternative[0].strip():
             best = alternative
     def inverse(x, y):
         for transform in reversed(transforms):
@@ -235,12 +252,27 @@ def recognize(image, directory, policy):
     return best
 
 
-def extract(path, mime, policy, progress=lambda value: None):
+def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, resume_units=()):
     data = Path(path).read_bytes()
     if len(data) > policy["maxFileBytes"]:
         raise ProcessingError("LIMIT")
     Image.MAX_IMAGE_PIXELS = policy["maxPixels"]
     pages, partial = [], False
+    completed = set(resume_units)
+    characters = 0
+    second_passes = 0
+    def emit(page, total):
+        nonlocal characters, second_passes
+        if page['unit'] in completed:
+            return
+        characters += len(page['text'])
+        second_passes += page['engine'].get('secondPasses',0)
+        if characters > MAX_TEXT:
+            raise ProcessingError('LIMIT')
+        if checkpoint:
+            checkpoint(page,total)
+        else:
+            pages.append(page)
     with tempfile.TemporaryDirectory(prefix="content-") as directory:
         if data.startswith(b"%PDF-"):
             if mime != "application/pdf":
@@ -249,55 +281,72 @@ def extract(path, mime, policy, progress=lambda value: None):
             count = int(re.search(r"Pages:\s+(\d+)", info)[1])
             partial = count > policy["maxPages"]
             for unit in range(1, min(count, policy["maxPages"]) + 1):
+                if unit in completed:
+                    continue
                 text = command(["pdftotext", "-f", str(unit), "-l", str(unit), "-layout", "-enc", "UTF-8", str(path), "-"], 20).strip()
-                if len(re.sub(r"\s", "", text)) >= 20:
-                    pages.append(page_result(unit, f"Página {unit}", text))
-                elif policy["allowOcr"]:
+                if text and policy.get('digitalExtraction', True):
+                    emit(page_result(unit, f"Página {unit}", text), min(count, policy['maxPages']))
+                elif policy["allowOcr"] and policy.get('pdfOcr', True):
                     prefix = str(Path(directory) / "page")
                     # scale-to prevents giant pages allocating unbounded raster memory.
                     raster_edge = min(3500, int(math.sqrt(policy["maxPixels"])))
                     command(["pdftoppm", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(raster_edge), "-png", str(path), prefix], 30)
-                    with Image.open(prefix + ".png") as image:
-                        text, words, confidence = recognize(image, directory, policy)
-                    pages.append(page_result(unit, f"Página {unit}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"]))
+                    with Image.open(prefix + ".png", formats=['PNG']) as image:
+                        details = {}
+                        text, words, confidence = recognize(image, directory, policy, details)
+                    canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'pdf-raster'}
+                    emit(page_result(unit, f"Página {unit}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),min(count,policy['maxPages']))
                     Path(prefix + ".png").unlink(missing_ok=True)
                 else:
                     # A digital-only pass must not report a scanned page as fully processed.
                     partial = True
                     if text:
-                        pages.append(page_result(unit, f"Página {unit}", text))
+                        emit(page_result(unit, f"Página {unit}", text),min(count,policy['maxPages']))
                 progress(min(99, int(100 * unit / min(count, policy["maxPages"]))))
         elif data.startswith(b"PK\x03\x04"):
+            if not policy.get('digitalExtraction', True):
+                raise ProcessingError('UNSUPPORTED')
             if "openxmlformats-officedocument" not in mime:
                 raise ProcessingError("UNSUPPORTED")
             units, partial = office_pages(path, mime, policy["maxPages"])
-            pages = [page_result(i+1, reference, text) for i, (reference, text) in enumerate(units)]
+            for i, (reference,text) in enumerate(units):
+                emit(page_result(i+1,reference,text),len(units))
         elif mime.startswith("image/") and mime != "image/svg+xml":
-            if not policy["allowOcr"]:
+            if not policy["allowOcr"] or not policy.get('imageOcr', True):
                 raise ProcessingError("UNSUPPORTED")
-            with Image.open(path) as image:
+            try:
+                opened=Image.open(path,formats=['JPEG','PNG','WEBP','TIFF'])
+            except UnidentifiedImageError:
+                raise ProcessingError('UNSUPPORTED') from None
+            with opened as image:
                 if image.format not in ("JPEG", "PNG", "WEBP", "TIFF"):
                     raise ProcessingError("UNSUPPORTED")
                 partial = getattr(image, "n_frames", 1) > policy["maxPages"]
                 for i, frame in enumerate(ImageSequence.Iterator(image)):
                     if i >= policy["maxPages"]:
                         break
-                    text, words, confidence = recognize(frame, directory, policy)
-                    pages.append(page_result(i+1, f"Imagen {i+1}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"]))
+                    if i+1 in completed:
+                        continue
+                    details = {}
+                    text, words, confidence = recognize(frame, directory, policy, details)
+                    canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'exif-oriented-image'}
                     total = min(getattr(image, 'n_frames', 1), policy["maxPages"])
+                    emit(page_result(i+1, f"Imagen {i+1}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),total)
                     progress(min(99, int(100 * (i+1) / total)))
         elif mime.startswith("text/") or mime in ("application/json", "application/xml", "image/svg+xml"):
+            if not policy.get('digitalExtraction', True):
+                raise ProcessingError('UNSUPPORTED')
             if b"\x00" in data or not data:
                 raise ProcessingError("UNSUPPORTED")
             text = data.decode("utf-8-sig", errors="strict")
             if mime in ("application/xml", "text/xml", "image/svg+xml"):
                 text = xml_text(data)
-            pages = [page_result(1, "Documento", text)]
+            emit(page_result(1, "Documento", text),1)
         else:
             raise ProcessingError("UNSUPPORTED")
     if sum(len(p["text"]) for p in pages) > MAX_TEXT:
         raise ProcessingError("LIMIT")
-    return {"pages": pages, "partial": partial}
+    return {"pages": pages, "partial": partial, 'metrics': {'secondPasses': second_passes, 'cpuMs':0, 'peakRssBytes':0}}
 
 
 class NoRedirect(urllib.request.HTTPRedirectHandler):
@@ -345,9 +394,72 @@ def resources():
     return limit, used or 0, cpu
 
 
-def run_job(job):
+def stop_process(process):
+    if process.is_alive():
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            process.kill()
+    process.join()
+
+
+def supervise(job, worker_id, capabilities):
+    import multiprocessing
+    # The parent owns the temporary tree: SIGKILL/OOM in the child cannot orphan it.
+    with tempfile.TemporaryDirectory(prefix='content-job-') as workdir:
+        process = multiprocessing.get_context('fork').Process(target=run_job,args=(job,workdir))
+        process.start()
+        start = time.monotonic()
+        try:
+            while process.is_alive():
+                process.join(15)
+                if not process.is_alive():
+                    break
+                _, used, _ = resources()
+                capabilities['memoryUsed'] = used
+                try:
+                    api('heartbeat',{'id':worker_id,'capabilities':capabilities})
+                    api(f"jobs/{job['id']}/heartbeat",{'progress':0},job['lease'])
+                except Exception:
+                    stop_process(process)
+                    break
+            if process.exitcode:
+                code = 'TIMEOUT' if time.monotonic()-start>=job['policy']['timeoutSeconds'] else 'PARSER'
+                try:
+                    api(f"jobs/{job['id']}/result",{'pages':[],'errorCode':code},job['lease'])
+                except Exception:
+                    pass
+        finally:
+            stop_process(process)
+            process.close()
+
+
+def cpu_sample(previous):
+    try:
+        usage = int(dict(line.split() for line in Path('/sys/fs/cgroup/cpu.stat').read_text().splitlines())['usage_usec'])
+        now = time.monotonic()
+        _,_,limit = resources()
+        percent = None
+        if previous and limit and now>previous[1]:
+            percent = max(0,100*(usage-previous[0])/(1000000*(now-previous[1])*limit))
+        return (usage,now),percent
+    except (OSError,KeyError,ValueError):
+        return None,None
+
+
+def next_cpu_debt(previous, percent, budget, elapsed):
+    # Seconds of idle owed to the configured average CPU budget. Debt survives
+    # heartbeat intervals: a long job at a 10% budget cannot resume after 10s.
+    if percent is None or elapsed<=0:
+        return previous
+    return max(0,previous+(percent/max(1,budget)-1)*elapsed)
+
+
+def run_job(job, workdir=None):
     # Each job runs in its own process: deadline kills parsers AND Python ZIP/XML/image work.
     os.setsid()
+    if workdir:
+        tempfile.tempdir = workdir
     def deadline(_signum, _frame):
         os.killpg(os.getpgrp(), signal.SIGKILL)
     signal.signal(signal.SIGALRM, deadline)
@@ -355,12 +467,21 @@ def run_job(job):
     payload = {"pages": [], "errorCode": "PARSER"}
     try:
         policy = job["policy"]
+        memory_bytes = policy.get('memoryMiB',512)*1048576
+        resource.setrlimit(resource.RLIMIT_AS,(memory_bytes,memory_bytes))
+        threads = min(4,max(1,policy.get('threads',1)))
+        OMP_ENV['OMP_THREAD_LIMIT'] = str(threads)
+        OMP_ENV['OMP_NUM_THREADS'] = str(threads)
         raw = api(f"jobs/{job['id']}/source", lease=job["lease"], binary_limit=policy["maxFileBytes"])
         with tempfile.TemporaryDirectory(prefix="original-") as directory:
             path = Path(directory) / "source"
             path.write_bytes(raw)
             payload = extract(path, job["mimeType"], policy,
-                              lambda value: api(f"jobs/{job['id']}/heartbeat", {"progress": value}, job["lease"]))
+                              lambda value: api(f"jobs/{job['id']}/heartbeat", {"progress": value}, job["lease"]),
+                              checkpoint=lambda page,total: api(f"jobs/{job['id']}/checkpoint", {'page':page,'totalUnits':total},job['lease']),
+                              resume_units=job.get('resumeUnits',()))
+    except MemoryError:
+        payload = {'pages':[],'errorCode':'RESOURCES'}
     except ProcessingError as error:
         payload = {"pages": [], "errorCode": error.code}
     except urllib.error.HTTPError:
@@ -368,29 +489,45 @@ def run_job(job):
     except Exception:
         pass
     try:
+        own,children = resource.getrusage(resource.RUSAGE_SELF),resource.getrusage(resource.RUSAGE_CHILDREN)
+        payload['metrics'] = {**payload.get('metrics', {}), 'cpuMs': int(1000*(own.ru_utime+own.ru_stime+children.ru_utime+children.ru_stime)),
+                              'peakRssBytes': int(1024*max(own.ru_maxrss,children.ru_maxrss)), 'secondPasses':payload.get('metrics',{}).get('secondPasses',0)}
         api(f"jobs/{job['id']}/result", payload, job["lease"])
     except Exception:
         pass  # Expired/revoked leases cannot publish results; durable retry recovers.
 
 
 def main():
-    import multiprocessing
     resource.setrlimit(resource.RLIMIT_CORE, (0, 0))
     resource.setrlimit(resource.RLIMIT_FSIZE, (64_000_000, 64_000_000))
     models = model_info()
     worker_id = os.environ.get("RUNLY_CONTENT_WORKER_ID", "local-1")
-    paused = False
+    resource_paused = False
+    cpu_paused = False
+    cpu_debt = 0
+    previous_cpu = None
+    cpu_budget = 80
+    def shutdown(_signum,_frame):
+        raise KeyboardInterrupt()
+    signal.signal(signal.SIGTERM,shutdown)
     while True:
         try:
             limit, used, cpu = resources()
             free_tmp = os.statvfs(tempfile.gettempdir()).f_bavail * os.statvfs(tempfile.gettempdir()).f_frsize
+            prior_cpu=previous_cpu
+            previous_cpu,cpu_percent = cpu_sample(previous_cpu)
+            elapsed=previous_cpu[1]-prior_cpu[1] if previous_cpu and prior_cpu else 0
+            cpu_debt=next_cpu_debt(cpu_debt,cpu_percent,cpu_budget,elapsed)
             # Hysteresis: pause at 80%, resume below 65%. Missing cgroup limits fail closed.
-            paused = not limit or not cpu or free_tmp < 100_000_000 or used > limit * (0.65 if paused else 0.8)
+            resource_paused = not limit or not cpu or free_tmp < 100_000_000 or used > limit * (0.65 if resource_paused else 0.8)
+            cpu_paused = cpu_debt>0.01 or (cpu_percent is not None and cpu_percent > (cpu_budget*0.8 if cpu_paused else cpu_budget))
+            paused=resource_paused or cpu_paused
             capabilities = {"engine": ENGINE, "languages": sorted(k for k in models if ':' not in k), "models": models, "cpuLimit": cpu,
-                            "memoryLimit": limit, "memoryUsed": used, "governor": "paused" if paused else "ready"}
+                            "memoryLimit": limit, "memoryUsed": used, "governor": "paused" if paused else "ready",'protocol':2,
+                            'cpuUsedPercent':cpu_percent,'tempFreeBytes':free_tmp}
             api("heartbeat", {"id": worker_id, "capabilities": capabilities})
             if paused:
-                time.sleep(10)
+                time.sleep(10 if resource_paused else max(0.25,min(10,cpu_debt)))
                 continue
             job = api("claim", {"id": worker_id}).get("data")
             if not job:
@@ -402,35 +539,8 @@ def main():
             if job['policy']['quality'] == 'accurate' and any('best:' + lang not in models for lang in job['policy']['languages']):
                 api(f"jobs/{job['id']}/result", {"pages": [], "errorCode": "UNSUPPORTED"}, job["lease"])
                 continue
-            process = multiprocessing.Process(target=run_job, args=(job,))
-            process.start()
-            start = time.monotonic()
-            while process.is_alive():
-                process.join(15)
-                if not process.is_alive():
-                    break
-                try:
-                    api("heartbeat", {"id": worker_id, "capabilities": capabilities})
-                    api(f"jobs/{job['id']}/heartbeat", {"progress": 0}, job["lease"])
-                    if time.monotonic() - start > job["policy"]["timeoutSeconds"]:
-                        raise ProcessingError("TIMEOUT")
-                except Exception:
-                    # The Python job and every native parser share this isolated process group.
-                    try:
-                        os.killpg(process.pid, signal.SIGKILL)
-                    except ProcessLookupError:
-                        pass
-                    process.join()
-                    try:
-                        api(f"jobs/{job['id']}/result", {"pages": [], "errorCode": "TIMEOUT"}, job["lease"])
-                    except Exception:
-                        pass
-            if process.exitcode:
-                try:
-                    code = 'TIMEOUT' if time.monotonic()-start >= job['policy']['timeoutSeconds'] else 'PARSER'
-                    api(f"jobs/{job['id']}/result", {"pages": [], "errorCode": code}, job["lease"])
-                except Exception:
-                    pass
+            cpu_budget = job['policy'].get('cpuBudgetPercent',80)
+            supervise(job,worker_id,capabilities)
         except Exception:
             print("content-worker: connection or processing unavailable", flush=True)
             time.sleep(10)

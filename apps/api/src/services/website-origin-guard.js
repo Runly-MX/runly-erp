@@ -5,6 +5,9 @@ export function createWebsiteOriginGuard({gateway,adminHosts=[]}) {
    try {
      const host=await gateway.authority(c)
      if(admin.has(host))return next()
+     // Operational worker endpoints authenticate their own dedicated secret and
+     // lease. Internal Docker DNS is not a published website/admin hostname.
+     if(c.req.path.startsWith('/content/worker/'))return next()
      // Unknown public hosts are no more privileged than registered ones.
      // Never expose the administrative router merely because a binding is absent.
      // bookings/frame-policy is an nginx gate: it must answer 403 itself on a website host (a 404 here becomes a 500).

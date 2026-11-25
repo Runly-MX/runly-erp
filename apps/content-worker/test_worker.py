@@ -10,7 +10,8 @@ import unittest
 from pathlib import Path
 import zipfile
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
-from worker import ProcessingError, cgroup_number, command, extract, resources, safe_xml
+from worker import ProcessingError, cgroup_number, command, extract, resources, safe_xml, next_cpu_debt
+FONT = next(str(path) for path in [Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),Path('/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf'),Path('/usr/share/fonts/dejavu/DejaVuSans.ttf')] if path.exists())
 
 POLICY = {"quality": "balanced", "languages": ["spa", "eng"], "allowOcr": True,
           "maxPixels": 16000000, "maxPages": 10, "maxFileBytes": 10485760, "timeoutSeconds": 120}
@@ -21,7 +22,7 @@ MEASUREMENTS = []
 def label():
     image = Image.new("RGB", (1800, 800), "white")
     draw = ImageDraw.Draw(image)
-    font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 50)
+    font = ImageFont.truetype(FONT, 50)
     draw.multiline_text((70, 110), TRUTH, fill="black", font=font, spacing=30)
     return image
 
@@ -79,6 +80,14 @@ class Corpus(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def test_cpu_debt_proportional_and_low_budget_is_not_reset_by_heartbeat(self):
+        self.assertAlmostEqual(next_cpu_debt(0,100,80,2),0.5)
+        self.assertAlmostEqual(next_cpu_debt(.5,0,80,.5),0)
+        debt=next_cpu_debt(0,100,10,5)
+        self.assertEqual(debt,45)
+        self.assertEqual(next_cpu_debt(debt,0,10,10),35)
+        self.assertEqual(next_cpu_debt(debt,None,10,10),45)
+
     def test_ocr_modes_ground_truth_and_coordinates(self):
         label().save(self.path, "PNG")
         original = self.path.read_bytes()
@@ -111,7 +120,7 @@ class Corpus(unittest.TestCase):
     def test_spanish_and_english(self):
         image = label()
         ImageDraw.Draw(image).text((70, 550), "Español: número, información. English: invoice date.",
-                                  font=ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", 42), fill="black")
+                                  font=ImageFont.truetype(FONT, 42), fill="black")
         image.save(self.path, "PNG")
         text = extract(self.path, "image/png", POLICY)["pages"][0]["text"]
         self.assertIn("información", text)
@@ -120,6 +129,13 @@ class Corpus(unittest.TestCase):
     def test_empty_image(self):
         Image.new("RGB", (500, 500), "white").save(self.path, "PNG")
         self.assertEqual(extract(self.path, "image/png", POLICY)["pages"][0]["text"], "")
+
+    def test_exif_canvas_matches_browser_oriented_image(self):
+        exif=Image.Exif();exif[274]=6
+        label().rotate(90,expand=True).save(self.path,'JPEG',exif=exif)
+        page=extract(self.path,'image/jpeg',POLICY)['pages'][0]
+        self.assertEqual((page['engine']['canvas']['width'],page['engine']['canvas']['height']),(1800,800))
+        self.assertIn('ABC123XYZ',page['text'])
 
     def test_pdf_native_scanned_and_hybrid(self):
         for kinds in (["digital"], ["image"], ["digital", "image"]):
@@ -134,6 +150,28 @@ class Corpus(unittest.TestCase):
         result = extract(self.path, "application/pdf", {**POLICY, "maxPages": 1})
         self.assertTrue(result["partial"])
         self.assertEqual(len(result["pages"]), 1)
+
+    def test_checkpoints_resume_without_retaining_all_pages(self):
+        make_pdf(self.path,['digital','image'])
+        saved=[]
+        result=extract(self.path,'application/pdf',POLICY,checkpoint=lambda page,total:saved.append((page,total)),resume_units=[1])
+        self.assertEqual(result['pages'],[])
+        self.assertEqual([page['unit'] for page,total in saved],[2])
+        self.assertEqual(saved[0][1],2)
+        self.assertEqual(saved[0][0]['engine']['canvas']['coordinateSpace'],'pdf-raster')
+
+    def test_parent_cleans_temp_after_child_is_killed(self):
+        import worker
+        from unittest.mock import patch
+        def killed(job,workdir):
+            import os,signal
+            os.setsid()
+            (Path(workdir)/'orphan').write_bytes(b'synthetic')
+            os.kill(os.getpid(),signal.SIGKILL)
+        with tempfile.TemporaryDirectory() as root:
+            with patch.object(worker,'run_job',killed),patch.object(worker,'api',return_value={}),patch.object(tempfile,'tempdir',root):
+                worker.supervise({'id':'synthetic','lease':'synthetic','policy':POLICY},'test',{})
+            self.assertEqual(list(Path(root).iterdir()),[])
 
     def test_light_does_not_call_ocr_on_scan(self):
         make_pdf(self.path, ["image"])
@@ -178,6 +216,10 @@ class Corpus(unittest.TestCase):
         self.path.write_bytes(b"%PDF-1.4 not an image")
         with self.assertRaises(ProcessingError):
             extract(self.path, "image/png", POLICY)
+        Image.new('RGB',(10,10)).save(self.path,'BMP')
+        with self.assertRaises(ProcessingError) as error:
+            extract(self.path,'image/png',POLICY)
+        self.assertEqual(error.exception.code,'UNSUPPORTED')
 
     def test_command_timeout(self):
         with self.assertRaises(ProcessingError) as error:

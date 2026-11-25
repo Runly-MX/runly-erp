@@ -1,0 +1,4 @@
+# Release wheels: CPython 3.13, musllinux x86_64/aarch64. No runtime downloads.
+pillow==13.0.0 \
+    --hash=sha256:a2a14cd73d5e6c927f644b0110ee81f59c4ef506259ec9183904747f2caacc81 \
+    --hash=sha256:08b826a9bf1265c76de04a42061d61ea6b109418b7826f28ff1ecdfaa26c5502
