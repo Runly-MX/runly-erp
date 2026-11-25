@@ -99,6 +99,13 @@ test("runly.growth is an official core module with analytics, leads, sites and f
       permissionKey: "growth.access",
     },
     {
+      label: "Monitores",
+      path: "/monitors",
+      icon: "Activity",
+      layout: "main",
+      permissionKey: "growth.access",
+    },
+    {
       label: "Formularios",
       path: "/forms",
       icon: "FileText",

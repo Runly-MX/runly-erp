@@ -1153,5 +1153,39 @@
         "text": "Cada reservación aparece en el calendario del sistema, sin datos de contacto del cliente."
       }
     ]
+  },
+  "runly.ticketing": {
+    "highlights": [
+      {
+        "icon": "CalendarClock",
+        "title": "Eventos con funciones",
+        "text": "Cada presentación con su fecha, hora y lugares; puedes moverla sin invalidar los boletos."
+      },
+      {
+        "icon": "QrCode",
+        "title": "Boletos con código QR",
+        "text": "Gratuitos o con precio, sin sobreventa; reenvía el mismo QR o reemite uno nuevo si se pierde."
+      },
+      {
+        "icon": "Globe",
+        "title": "Página pública",
+        "text": "Publica el evento y entrega boletos gratuitos en línea, o insértalo en tu sitio web."
+      },
+      {
+        "icon": "MailCheck",
+        "title": "Entrega por correo",
+        "text": "El comprador y cada asistente reciben su boleto con QR en su correo."
+      },
+      {
+        "icon": "ScanLine",
+        "title": "Control de acceso",
+        "text": "Lee el QR con la cámara o escribe el folio: cada boleto entra una sola vez."
+      },
+      {
+        "icon": "CalendarDays",
+        "title": "En tu Calendario",
+        "text": "Cada función aparece en el calendario del equipo del evento y se actualiza si cambia."
+      }
+    ]
   }
 }

@@ -60,7 +60,7 @@ describe('generateManifest', () => {
     const out = generateManifest(config)
     assert.ok(out.includes("icon: 'ContactRound'"))
     assert.ok(out.includes("color: '#0f766e'"))
-    assert.ok(out.includes("shortName: 'CRM'"))
+    assert.ok(out.includes('shortName: "CRM"'))
     assert.ok(out.includes("startPath: '/crm-contacts'"))
   })
 })

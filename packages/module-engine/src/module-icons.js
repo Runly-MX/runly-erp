@@ -208,6 +208,7 @@ export const MODULE_ICON_NAMES = Object.freeze([
   'GitBranch',
   'Heart',
   'Info',
+  'PanelsTopLeft',
   'Rocket',
   'ScrollText',
   'Sparkles',
