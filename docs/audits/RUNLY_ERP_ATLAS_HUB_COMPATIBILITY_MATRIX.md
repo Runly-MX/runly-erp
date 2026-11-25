@@ -56,3 +56,15 @@ Regla: **ERP siempre antes que el Hub**; si el Hub se adelanta, publica plantill
 | 327 pruebas de Atlas | Pasan (ejecución anterior); las pruebas de medios tienen ahora 7 casos |
 
 No cubierto: reproducción real de audio y video en WebKit y Firefox, MCP del Hub con `AudioBlock`, Marketplace de extremo a extremo.
+
+## 7. Actualización 2026-11-25 (verificada en los repositorios locales)
+
+| Pieza | Estado |
+|---|---|
+| Atlas | `v0.11.1` (`893d34c`, publicado), sobre 0.11.0 más correcciones de geometría responsiva |
+| ERP | Adopta Atlas 0.11.1 (`87a6d528d`); catálogo registrado en `apps/api/src/routes/website/builder-catalogs.js` |
+| Hub | Adopta Atlas 0.11.1 (`7697e7a`, catálogos `0.11.1.json` y `0.11.1-erp.json` registrados); working tree limpio |
+
+El orden «ERP antes que el Hub» de la sección 5 **ya se cumplió** para 0.11.x: ambos adoptan el mismo Atlas publicado y registran los catálogos 0.11.1, por lo que la combinación ERP 0.11.1 + Hub 0.11.1 es la compatible. Combinaciones con Atlas anterior en uno de los dos lados siguen fallando cerradas por catálogo no registrado (sección 3).
+
+Condiciones de 0.11.0 que siguen abiertas (no resueltas en esta sesión): (1) el Hub no tiene una validación propia del campo `file` de `AudioBlock`/`VideoBlock` (rechazo de `blob:`/URLs/esquemas ejecutables); la regla existe en la API de ERP (`page-document.js`, `7ab16940f`) y en Atlas, pero no se probó que el Hub la aplique al validar un paquete de plantilla; (2) reproducción real de audio/video en WebKit y Firefox; (3) `test-editor-ui` de Atlas, fallo preexistente.
