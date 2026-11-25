@@ -45,4 +45,13 @@ describe("notification counters", () => {
     await new Promise((resolve) => setTimeout(resolve, 1100));
     assert.equal(invalidations, 4); // exactly one trailing refresh after the burst
   });
+
+  it("reconciliation with minAgeMs does not mark just-fetched data stale", () => {
+    const c = client();
+    refreshNotifications(c, { minAgeMs: 10_000 });
+    assert.equal(c.getQueryState(KEY).isInvalidated, false);
+    const d = client();
+    refreshNotifications(d);
+    assert.equal(d.getQueryState(KEY).isInvalidated, true);
+  });
 });

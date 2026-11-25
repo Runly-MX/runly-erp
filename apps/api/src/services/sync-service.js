@@ -215,20 +215,22 @@ export function createSyncService({ prisma }) {
     const records = []
     let hasMore = false
 
-    for (const moduleKey of modules) {
-      const mod = SYNC_MODULE_REGISTRY[moduleKey]
-      if (!mod) continue
-      for (const handler of mod.handlers) {
-        const rows = await handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })
-        if (rows.length > RECORDS_LIMIT) {
-          hasMore = true
-          rows.splice(RECORDS_LIMIT)
-        }
-        for (const row of rows) {
-          records.push({ moduleKey, entityType: handler.entityType, ...handler.toRecord(row) })
-        }
+    // Handlers are independent reads: run them concurrently (Promise.all keeps the
+    // module/handler order, so the response is identical to the sequential one).
+    const jobs = modules.flatMap((moduleKey) =>
+      (SYNC_MODULE_REGISTRY[moduleKey]?.handlers ?? []).map((handler) => ({ moduleKey, handler })))
+    const fetched = await Promise.all(jobs.map(({ handler }) =>
+      handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })))
+    jobs.forEach(({ moduleKey, handler }, i) => {
+      const rows = fetched[i]
+      if (rows.length > RECORDS_LIMIT) {
+        hasMore = true
+        rows.splice(RECORDS_LIMIT)
       }
-    }
+      for (const row of rows) {
+        records.push({ moduleKey, entityType: handler.entityType, ...handler.toRecord(row) })
+      }
+    })
 
     const nextCursor =
       records.length > 0

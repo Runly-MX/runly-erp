@@ -11,6 +11,7 @@ import { LedgerSQLiteStore, isTauriAvailable } from './ledger-sqlite.js'
 import { LedgerSyncAdapter } from './ledger-sync-adapter.js'
 import { createDatabaseLifecycle } from './database-lifecycle.js'
 
+const INITIAL_SYNC_DELAY_MS = 4000
 const PULL_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 const LEDGER_MODULE_KEY = 'runly.ledger'
 
@@ -182,7 +183,8 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
       if (detector.isOnline()) runSync()
     }, PULL_INTERVAL_MS)
 
-    if (initialOnline) runSync()
+    // Defer the first sync so the ~200 KB pull does not compete with the Home/shell requests.
+    const initialSyncTimer = initialOnline ? setTimeout(runSync, INITIAL_SYNC_DELAY_MS) : null
 
     setControls({
       // onChange above already runs a sync when the probe flips to online.
@@ -194,6 +196,7 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
       setControls()
       detector.destroy()
       clearInterval(intervalRef.current)
+      clearTimeout(initialSyncTimer)
       onTransportReady?.(null)
       setSyncing(false)
       lifecycle.dispose(disposeLedgerRuntime).catch((err) => {

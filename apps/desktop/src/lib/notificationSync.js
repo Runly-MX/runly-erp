@@ -50,20 +50,23 @@ export function applyReadChange(queryClient, { all = false, category = null } = 
   return () => { for (const [key, value] of snapshot) queryClient.setQueryData(key, value); };
 }
 
-function refreshNow(queryClient) {
-  queryClient.invalidateQueries({ queryKey: ["notifications"] }, { cancelRefetch: false });
-  queryClient.invalidateQueries({ queryKey: ["notifications-inbox"] }, { cancelRefetch: false });
+function refreshNow(queryClient, minAgeMs = 0) {
+  // minAgeMs: reconciliation callers (first Realtime join, visibility, online) skip data fetched
+  // moments ago; event-driven callers pass 0 and always refetch.
+  const predicate = minAgeMs ? (q) => Date.now() - q.state.dataUpdatedAt >= minAgeMs : undefined;
+  queryClient.invalidateQueries({ queryKey: ["notifications"], predicate }, { cancelRefetch: false });
+  queryClient.invalidateQueries({ queryKey: ["notifications-inbox"], predicate }, { cancelRefetch: false });
 }
 
 // Leading + trailing refresh, at most one per window: the first event refreshes
 // immediately, the rest of a burst collapses into one trailing refresh that is
 // guaranteed to run after the last event. Only mounted (enabled) queries refetch.
-export function refreshNotifications(queryClient) {
+export function refreshNotifications(queryClient, { minAgeMs = 0 } = {}) {
   let state = schedulers.get(queryClient);
   if (!state) { state = { last: 0, timer: null }; schedulers.set(queryClient, state); }
   if (state.timer) return;
   const wait = REFRESH_WINDOW_MS - (Date.now() - state.last);
-  const run = () => { state.timer = null; state.last = Date.now(); refreshNow(queryClient); };
+  const run = () => { state.timer = null; state.last = Date.now(); refreshNow(queryClient, minAgeMs); };
   if (wait <= 0) run();
   else state.timer = setTimeout(run, wait);
 }

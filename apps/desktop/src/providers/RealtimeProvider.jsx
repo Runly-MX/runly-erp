@@ -330,7 +330,8 @@ export function RealtimeProvider({ children }) {
         // Every (re)join, including after a dropped socket, reconciles with HTTP: a
         // broadcast sent while this client was away is not replayed by Realtime.
         if (status !== 'SUBSCRIBED') return
-        refreshNotifications(queryClient)
+        // First join coincides with the initial fetch: skip data fetched in the last 10 s.
+        refreshNotifications(queryClient, { minAgeMs: joinedOnce ? 0 : 10_000 })
         // The first join coincides with the initial fetch; later ones may have missed messages.
         if (joinedOnce) invalidateRealtimeQuery(queryClient, ['chat-conversations'])
         joinedOnce = true
@@ -435,7 +436,7 @@ export function RealtimeProvider({ children }) {
   // migration, so the subscription could not deliver in any installation.
   useEffect(() => {
     if (!userProfile?.id) return undefined
-    const onVisible = () => { if (document.visibilityState === 'visible') refreshNotifications(queryClient) }
+    const onVisible = () => { if (document.visibilityState === 'visible') refreshNotifications(queryClient, { minAgeMs: 10_000 }) }
     const onOnline = () => refreshNotifications(queryClient)
     document.addEventListener('visibilitychange', onVisible)
     window.addEventListener('online', onOnline)
