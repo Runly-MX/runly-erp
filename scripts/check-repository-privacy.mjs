@@ -29,6 +29,11 @@ const ssrfAddresses = new Map([
   ['apps/api/src/routes/notes/__tests__/append-to-note.test.js', new Set([[10, 0, 0, 9], [93, 184, 216, 34]].map(parts => parts.join('.')))],
   ['apps/api/src/services/__tests__/automation-http-service.test.js', new Set([[10, 1, 2, 3], [172, 20, 0, 1], [192, 168, 1, 5], [169, 254, 169, 254], [100, 64, 0, 1], [10, 0, 0, 1], [8, 8, 8, 8], [93, 184, 216, 34], [10, 0, 0, 5]].map(parts => parts.join('.')))],
   ['apps/api/src/services/catalog/__tests__/catalog-security.test.js', new Set([[8, 8, 8, 8]].map(parts => parts.join('.')))],
+  // Trusted-proxy configuration: RFC 1918 / Docker default-network constants used as examples of an allowlist, never connected to.
+  ['apps/api/src/lib/__tests__/client-ip.test.js', new Set([[10, 0, 0, 0], [10, 0, 0, 5], [172, 18, 0, 0], [172, 18, 0, 3]].map(parts => parts.join('.')))],
+  ['docs/deployment/trusted-proxies.md', new Set([[10, 0, 0, 5], [172, 18, 0, 0]].map(parts => parts.join('.')))],
+  ['infra/installer/lib/trusted-proxies.mjs', new Set([[10, 0, 0, 0]].map(parts => parts.join('.')))],
+  ['infra/installer/lib/trusted-proxies.test.mjs', new Set([[10, 0, 0, 0], [10, 0, 0, 1], [10, 0, 0, 5], [10, 9, 0, 0], [172, 18, 0, 0]].map(parts => parts.join('.')))],
 ])
 const reservedHost = (host) => /(?:^|\.)(?:example\.(?:com|net|org)|example|test|invalid|localhost)$/.test(host)
 

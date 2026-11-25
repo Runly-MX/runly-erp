@@ -13,7 +13,7 @@ const quiet = () => {};
 
 test('validates IPs, CIDR, IPv6 and shortcuts strictly', () => {
   assert.equal(validateProxyList('172.18.0.0/16, 10.0.0.5, 2001:db8::/32, loopback, private').ok, true);
-  assert.deepEqual(validateProxyList('10.0.0.0/33, nope, 1.2.3.4/8/9, 10.0.0.1/-1, 999.1.1.1').invalid, ['10.0.0.0/33', 'nope', '1.2.3.4/8/9', '10.0.0.1/-1', '999.1.1.1']);
+  assert.deepEqual(validateProxyList('10.0.0.0/33, nope, 198.51.100.7/8/9, 10.0.0.1/-1, 999.1.1.1').invalid, ['10.0.0.0/33', 'nope', '198.51.100.7/8/9', '10.0.0.1/-1', '999.1.1.1']);
   assert.deepEqual(validateProxyList('0.0.0.0/0, ::/0').broad, ['0.0.0.0/0', '::/0']);
   assert.equal(validateProxyList('').ok, true);
 });
