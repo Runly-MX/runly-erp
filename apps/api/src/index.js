@@ -153,7 +153,8 @@ import { createModuleBundlerService } from "./services/module-bundler-service.js
 import { createModuleLifecycleService } from "./services/module-lifecycle-service.js";
 import { coreModules } from "./manifests/official/core-modules.js";
 import { createRouteLoaderService } from "./services/route-loader-service.js";
-import { configureModuleTrust } from "./lib/module-trust.js";
+import { configureModuleTrust, isQuarantinedCustomModule } from "./lib/module-trust.js";
+import { flagQuarantinedModules } from "./lib/quarantine-flags.js";
 import { createSecureRuntimeIntegration } from "./secure-runtime/integration.js";
 import { createSupervisorClient } from "./secure-runtime/supervisor-client.js";
 import { startGatewayServer } from "./secure-runtime/gateway/server.js";
@@ -2168,7 +2169,15 @@ app.get("/blueprints", authMiddleware, async (c) => {
     });
   }
 
-  return c.json({ data: applyBlueprintQuery([...mergedByKey.values()], c.req.query()) });
+  // Short-lived per-module answer: the trust check stats the module directory.
+  const flagged = await flagQuarantinedModules([...mergedByKey.values()], async (key) => {
+    const hit = cacheGet(`quarantined:${key}`);
+    if (hit !== undefined) return hit;
+    const value = await isQuarantinedCustomModule(key);
+    cacheSet(`quarantined:${key}`, value, 5);
+    return value;
+  });
+  return c.json({ data: applyBlueprintQuery(flagged, c.req.query()) });
 });
 
 app.get(

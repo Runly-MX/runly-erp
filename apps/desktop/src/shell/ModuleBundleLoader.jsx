@@ -81,7 +81,7 @@ export function ModuleBundleLoader({ children }) {
   useEffect(() => {
     if (!blueprintData?.data) return
     const toLoad = blueprintData.data.filter(
-      (bp) => bp.module?.has_bundle && bp.module?.key && !loadedRef.current.has(bp.module.key)
+      (bp) => bp.module?.has_bundle && !bp.module?.quarantined && bp.module?.key && !loadedRef.current.has(bp.module.key)
     )
     if (!toLoad.length) return
     let cancelled = false
