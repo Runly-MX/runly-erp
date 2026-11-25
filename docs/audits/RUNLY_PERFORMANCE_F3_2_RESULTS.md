@@ -13,7 +13,7 @@ Estado: **parcial, no cerrado.** Código medido: `4e50b506d`, `9794cf89b`, `3ab7
 
 Solo el primer paso solo **no** habría bastado: `sideEffects` solo, sobre el `AppEntry` estático, dejó el JS en 2243 KB (más archivos). Hace falta el corte de `AppEntry` **y** el campo de efectos.
 
-Intento descartado: un grupo manual `editor-vendor` para tiptap/prosemirror/yjs. Rolldown metió en él una segunda copia de React/React-DOM 19.3.1 y 554 chunks lo importaban, así que el login seguía descargando 185 KB de editor. Se revirtió; queda comentado en `vite.config.js`.
+Intento descartado: un grupo manual `editor-vendor` para tiptap/prosemirror/yjs. Rolldown emitió dentro de él el React core y react-dom (no una segunda copia: la misma, en el chunk equivocado), así que 554 chunks lo importaban y el login seguía descargando 185 KB de editor (ver `RUNLY_REACT_VERSION_MATRIX.md` §4). Se revirtió; queda comentado en `vite.config.js`.
 
 ## 2. Resultados (mediana, mín..máx, n=5)
 
