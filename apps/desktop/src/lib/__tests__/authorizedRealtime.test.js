@@ -120,3 +120,44 @@ test('one tracked heartbeat carries the revision and falls back to the GET when 
     Object.assign(globalThis, original)
   }
 })
+
+test('removing a protected channel twice (module cleanup racing logout removeAllChannels) never reaches the native removeChannel', async () => {
+  const original = { fetch: globalThis.fetch, setInterval: globalThis.setInterval, clearInterval: globalThis.clearInterval }
+  const timers = new Set(), sockets = [], nativeRemovals = []
+  globalThis.setInterval = (fn) => { timers.add(fn); return fn }
+  globalThis.clearInterval = (fn) => timers.delete(fn)
+  globalThis.fetch = async () => ({ ok: true, json: async () => ({ revision: '1', identityProtocol: 1, data: {} }) })
+  const client = {
+    auth: { getSession: async () => ({ data: { session: { access_token: 'fixture-only' } } }) },
+    channel: (topic) => {
+      const socket = { topic: `realtime:${topic}`, on() { return socket }, subscribe() { return socket }, async unsubscribe() { return 'ok' }, teardown() { socket.torn = true } }
+      sockets.push(socket)
+      return socket
+    },
+    getChannels: () => sockets,
+    // Same contract as realtime-js: unsubscribe, then teardown() on whatever object it was given.
+    removeChannel: async (channel) => {
+      nativeRemovals.push(channel)
+      const status = await channel.unsubscribe()
+      if (status === 'ok') channel.teardown()
+      sockets.splice(sockets.indexOf(channel), 1)
+      return status
+    },
+  }
+  try {
+    authorizeRealtimeClient(client)
+    const channel = client.channel('chat:presence:room').subscribe()
+    await new Promise(setImmediate)
+    const socket = sockets[0]
+    // Logout: AuthProvider.removeAllChannels() while the module's own cleanup removes the same channel, before and after.
+    await Promise.all([client.removeChannel(channel), client.removeAllChannels(), client.removeChannel(channel)])
+    await client.removeChannel(channel)
+    assert.equal(nativeRemovals.filter((c) => c !== socket).length, 0, 'only the real socket may reach the native removeChannel')
+    assert.equal(nativeRemovals.length, 1, 'the socket is removed once, not once per caller')
+    assert.equal(socket.torn, true)
+    assert.equal(timers.size, 0)
+    assert.equal(client.getChannels().length, 0)
+  } finally {
+    Object.assign(globalThis, original)
+  }
+})

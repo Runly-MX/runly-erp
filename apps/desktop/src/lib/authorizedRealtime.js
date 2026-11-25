@@ -2,6 +2,9 @@ import { getApiUrl } from './runtimeConfig.js'
 
 const protectedTopic = /^(?:note:(?:ydoc|canvas):|canvas:board:|chat:(?:presence|conv|company):|company:|user:)/
 const installed = new WeakSet()
+// Every wrapper this module ever handed out. `channels` only holds the live ones, so it cannot tell a wrapper
+// that was already removed from a native channel (the native removeChannel calls teardown(), which wrappers lack).
+const wrappers = new WeakSet()
 
 // Keep the Supabase channel API used by existing modules. Broadcasts still use
 // Supabase; writes/presence pass through Hono to avoid cached socket grants.
@@ -84,6 +87,7 @@ export function authorizeRealtimeClient(client) {
     let tracked = false, presence = {}
     const sender = crypto.randomUUID()
     const emitPresence = (event, payload) => bindings.filter(([type, filter]) => type === 'presence' && filter.event === event).forEach(([, , fn]) => fn(payload))
+    let closing
     const wrapper = {
       topic: `realtime:${topic}`,
       get state() { return socket?.state ?? 'closed' },
@@ -113,13 +117,16 @@ export function authorizeRealtimeClient(client) {
         syncTicker()
         return wrapper
       },
-      async unsubscribe() {
-        closed = true
-        channels.delete(wrapper)
-        syncTicker()
-        if (tracked) await wrapper.untrack()
-        return socket ? nativeRemove(socket) : 'ok'
-      },
+      // Idempotent: module cleanup and the logout removeAllChannels() both remove the same channel.
+      unsubscribe() { return (closing ??= close()) },
+    }
+
+    async function close() {
+      closed = true
+      channels.delete(wrapper)
+      syncTicker()
+      if (tracked) await wrapper.untrack()
+      return socket ? nativeRemove(socket) : 'ok'
     }
 
     async function heartbeat(withRevision = false) {
@@ -166,9 +173,10 @@ export function authorizeRealtimeClient(client) {
       finally { busy = false }
     }
     channels.add(wrapper)
+    wrappers.add(wrapper)
     return wrapper
   }
-  client.removeChannel = (channel) => channels.has(channel) ? channel.unsubscribe() : nativeRemove(channel)
+  client.removeChannel = (channel) => wrappers.has(channel) ? channel.unsubscribe() : nativeRemove(channel)
   client.removeAllChannels = () => Promise.all([...client.getChannels()].map((channel) => client.removeChannel(channel)))
   client.getChannels = () => [...nativeChannels().filter((ch) => !protectedTopic.test(ch.topic.replace(/^realtime:/, ''))), ...channels]
   return client

@@ -2,9 +2,9 @@
 import { chromium } from 'playwright'
 const base = process.argv[2]
 const b = await chromium.launch(); const ctx = await b.newContext({ viewport: { width: 1440, height: 900 } })
-await ctx.addInitScript((id) => { try { localStorage.setItem('runly-active-company', id) } catch {} }, process.env.PERF_COMPANY_ID)
+await ctx.addInitScript((id) => { Error.stackTraceLimit = 50; try { localStorage.setItem('runly-active-company', id) } catch {} }, process.env.PERF_COMPANY_ID)
 const p = await ctx.newPage(); const errs = []
-p.on('pageerror', (e) => errs.push(`${e.message}\n${(e.stack || '').split('\n').slice(0, 5).join('\n')}`))
+p.on('pageerror', (e) => errs.push(`${e.message}\n${(e.stack || '').split('\n').slice(0, 14).join('\n')}`))
 await p.goto(base + '/app/login'); await p.locator('#identifier').fill(process.env.E2E_USER_EMAIL); await p.locator('input[type="password"]').fill(process.env.E2E_USER_PASSWORD); await p.locator('button[type="submit"]').click()
 await p.waitForURL((u) => !/login/.test(u.pathname), { timeout: 60000 }); await p.waitForTimeout(6000)
 const before = errs.length
