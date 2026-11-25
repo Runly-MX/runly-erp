@@ -25,6 +25,7 @@ const CONTRACT_TESTS = [
   'apps/api/src/lib/__tests__/blueprint-query.test.js',
   'apps/api/src/lib/__tests__/runtime-modules-slim.test.js',
   'apps/api/src/lib/__tests__/quarantine-flags.test.js',
+  'apps/api/src/lib/__tests__/quarantine-independent-of-flags.test.js',
   'apps/api/src/lib/__tests__/client-ip.test.js',
   'apps/desktop/src/lib/__tests__/authorizedRealtime.test.js',
   'apps/desktop/src/modules/runly.chat/calls/__tests__/callSoundsDeferred.test.js',
