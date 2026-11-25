@@ -12,9 +12,10 @@ import {buildWebsitePublicRuntime,buildWebsiteSsr} from '../build-website-public
 
 test('published Atlas renders responsive geometry in the real ERP public runtime and SSR',async()=>{
   const output=resolve('.artifacts/website-public-runtime/atlas-review')
-  const files=await buildWebsitePublicRuntime(output)
+  const candidate=process.env.WEBSITE_TEST_ATLAS_ROOT?{atlasRoot:process.env.WEBSITE_TEST_ATLAS_ROOT}:{}
+  const files=await buildWebsitePublicRuntime(output,candidate)
   assert.equal(files['entry.js'].rendererVersion,createRequire(new URL('../../apps/api/package.json',import.meta.url))('@raulbellosom/atlas-web-builder/package.json').version)
-  await buildWebsiteSsr(output,files['entry.js'].hash)
+  await buildWebsiteSsr(output,files['entry.js'].hash,candidate)
   const {renderPage}=await import(pathToFileURL(resolve(output,'ssr.mjs')))
   const sharp=createRequire(new URL('../../packages/studio-interchange/package.json',import.meta.url))('sharp')
   const logo='data:image/png;base64,'+(await sharp({create:{width:10,height:20,channels:4,background:'#fa7700'}}).png().toBuffer()).toString('base64')

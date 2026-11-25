@@ -8,7 +8,7 @@ async function candidateAliases(atlasRoot) {
   if(!atlasRoot)return undefined
   if(process.env.NODE_ENV==='production')throw new Error('WEBSITE_EDITOR_CANDIDATE_LOCAL_ONLY')
   const pkg=JSON.parse(await readFile(resolve(atlasRoot,'package.json'),'utf8'))
-  if(pkg.name!=='@raulbellosom/atlas-web-builder'||pkg.version!=='0.9.0')throw new Error('WEBSITE_RESPONSIVE_CANDIDATE_REQUIRED')
+  if(pkg.name!=='@raulbellosom/atlas-web-builder'||!['0.9.0','0.11.0'].includes(pkg.version))throw new Error('WEBSITE_RESPONSIVE_CANDIDATE_REQUIRED')
   const consumer=createRequire(new URL('../apps/desktop/package.json',import.meta.url))
   return {'@raulbellosom/atlas-web-builder':resolve(atlasRoot,'dist/atlas-web-builder.js'),'@raulbellosom/atlas-web-builder/styles':resolve(atlasRoot,'dist/style.css'),...Object.fromEntries(['react','react/jsx-runtime','react/jsx-dev-runtime','react-dom','react-dom/client','react-dom/server'].map(name=>[name,consumer.resolve(name)]))}
 }
