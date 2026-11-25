@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { Document, Page, pdfjs } from "react-pdf";
+import "react-pdf/dist/Page/TextLayer.css";
 import {
   ChevronLeft,
   ChevronRight,
@@ -76,18 +77,19 @@ function NativePdfViewer({ url }) {
   );
 }
 
-export function PDFViewer({ url }) {
+export function PDFViewer({ url, renderOverlay = null, requestedPage = null }) {
   const [useNative] = useState(supportsNativePdfViewer);
-  if (useNative) return <NativePdfViewer url={url} />;
-  return <CustomPdfViewer url={url} />;
+  if (useNative && !renderOverlay) return <NativePdfViewer url={url} />;
+  return <CustomPdfViewer url={url} renderOverlay={renderOverlay} requestedPage={requestedPage} />;
 }
 
-function CustomPdfViewer({ url }) {
+function CustomPdfViewer({ url, renderOverlay, requestedPage }) {
   const [numPages, setNumPages] = useState(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [containerWidth, setContainerWidth] = useState(null);
   const [zoom, setZoom] = useState(1);
   const [rotation, setRotation] = useState(0);
+  const [baseRotation, setBaseRotation] = useState(0);
   const [flipX, setFlipX] = useState(false);
   const [flipY, setFlipY] = useState(false);
   const containerRef = useRef(null);
@@ -101,6 +103,10 @@ function CustomPdfViewer({ url }) {
     setFlipX(false);
     setFlipY(false);
   }, [url]);
+
+  useEffect(() => {
+    if (Number.isInteger(requestedPage) && numPages) setPageNumber(Math.max(1, Math.min(numPages, requestedPage)));
+  }, [requestedPage, numPages]);
 
   // Re-rendering the PDF page is expensive and blanks the canvas, so ignore the
   // sub-pixel width jitter the container emits while the dialog opens (and the
@@ -189,17 +195,19 @@ function CustomPdfViewer({ url }) {
           }
         >
           {containerWidth && (
-            <div style={flipStyle}>
+            <div className="relative my-4 w-fit" style={flipStyle}>
               <Page
                 pageNumber={pageNumber}
                 width={containerWidth}
                 scale={zoom}
-                rotate={normalizedRotation}
+                rotate={renderOverlay ? (baseRotation + normalizedRotation) % 360 : normalizedRotation}
+                onLoadSuccess={page => setBaseRotation(page.rotate)}
                 renderAnnotationLayer={false}
-                renderTextLayer={false}
+                renderTextLayer={Boolean(renderOverlay)}
                 loading={null}
-                className="my-4 shadow-lg"
+                className="shadow-lg"
               />
+              {renderOverlay?.({ pageNumber, rotation: normalizedRotation })}
             </div>
           )}
         </Document>

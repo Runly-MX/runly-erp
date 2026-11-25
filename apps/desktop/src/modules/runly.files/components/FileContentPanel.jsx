@@ -1,23 +1,21 @@
 import { useState } from 'react';
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Button, EmptyState, ErrorState, SearchInput } from '@runly/ui';
 import { toast } from 'sonner';
 import { runly } from '../../../lib/runly';
 import { useAuth } from '../../../auth/AuthProvider';
-import { useActiveCompany } from '../../../company/ActiveCompanyProvider';
+import { useFileContent } from '../hooks/useFileContent';
 
 const LABELS = { disabled: 'Procesamiento desactivado', unprocessed: 'Sin procesar', pending: 'Pendiente', processing: 'Procesando', done: 'Texto disponible',
   partial: 'Procesamiento parcial', empty: 'Sin texto detectable', failed: 'Error de procesamiento', unsupported: 'No compatible', cancelled: 'Cancelado' };
 
-export function FileContentPanel({ file }) {
+export function FileContentPanel({ file,viewer=null }) {
   const { session, userProfile } = useAuth();
-  const { activeCompanyId } = useActiveCompany();
   const token = session?.access_token;
   const client = useQueryClient();
-  const [search, setSearch] = useState('');
-  const result = useQuery({ queryKey: ['file-content', userProfile?.id, activeCompanyId, file.id, file.contentRevision],
-    queryFn: () => runly.contentIntelligence.result(file.id, token), enabled: Boolean(token),
-    refetchInterval: query => ['pending', 'processing'].includes(query.state.data?.data?.state) ? 4000 : false });
+  const [localSearch, setLocalSearch] = useState('');
+  const search=viewer?.query??localSearch,setSearch=viewer?.setQuery??setLocalSearch;
+  const result=useFileContent(file);
   const data = result.isError ? null : result.data?.data;
   const canProcess = Boolean(userProfile?.isAdmin || userProfile?.permissions?.includes('files.assets.update'));
   const canCancel = Boolean(userProfile?.isAdmin || file.uploadedById === userProfile?.id);
@@ -26,6 +24,10 @@ export function FileContentPanel({ file }) {
     : runly.contentIntelligence.process(file.id, { quality, reprocess: true }, token),
   onSuccess: () => client.invalidateQueries({ queryKey: ['file-content'] }), onError: error => toast.error(error.message) });
   const text = (data?.pages ?? []).map(page => `${page.reference}\n${page.text}`).join('\n\n');
+  const copy=async()=>{
+    try {await navigator.clipboard.writeText(text);toast.success('Texto copiado');}
+    catch {toast.error('No se pudo copiar. Puedes seleccionar el texto.');}
+  };
   const pages = (data?.pages ?? []).filter(page => !search || page.text.toLocaleLowerCase().includes(search.toLocaleLowerCase()));
   const download = () => {
     const url = URL.createObjectURL(new Blob([text], { type: 'text/plain;charset=utf-8' }));
@@ -41,10 +43,11 @@ export function FileContentPanel({ file }) {
         <Button size="sm" variant="outline" disabled={action.isPending || ['pending','processing'].includes(data?.state)} onClick={() => action.mutate('accurate')}>Alta precisión</Button>
       </>}
       {canCancel && ['pending','processing'].includes(data?.state) && <Button size="sm" variant="outline" disabled={action.isPending} onClick={() => action.mutate('cancel')}>Cancelar</Button>}
-      {text && <><Button size="sm" variant="outline" onClick={() => navigator.clipboard.writeText(text).then(() => toast.success('Texto copiado')).catch(() => toast.error('No se pudo copiar.'))}>Copiar texto</Button><Button size="sm" variant="outline" onClick={download}>Descargar texto</Button></>}
+      {text && <><Button size="sm" variant="outline" onClick={copy}>Copiar texto</Button><Button size="sm" variant="outline" onClick={download}>Descargar texto</Button></>}
     </div>
     {text ? <>
       <SearchInput value={search} onChange={e => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar en el texto…" />
+      {viewer && <div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" disabled={!viewer.count} onClick={()=>viewer.navigate(-1)}>Coincidencia anterior</Button><span className="text-xs" role="status">{viewer.count?`${viewer.index+1} de ${viewer.count}`:'Sin coincidencias'}</span><Button size="sm" variant="outline" disabled={!viewer.count} onClick={()=>viewer.navigate(1)}>Coincidencia siguiente</Button></div>}
       <div className="max-h-80 space-y-4 overflow-auto text-sm" tabIndex={0}>
         {pages.map(page => <article key={page.unit}><p className="text-xs text-muted-foreground">{page.reference} · {page.source === 'ocr' ? 'OCR' : 'Texto digital'}{page.confidence != null ? ` · Confianza heurística ${Math.round(page.confidence)}` : ''}</p><p className="whitespace-pre-wrap break-words select-text">{page.text}</p></article>)}
         {!pages.length && <EmptyState title="Sin coincidencias en el texto" />}

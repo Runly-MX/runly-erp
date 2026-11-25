@@ -26,8 +26,9 @@ import { CreateDocumentDialog } from "../components/CreateDocumentDialog";
 import { FileSharingDialog } from "../components/FileSharingDialog";
 import { FileInvitations } from "../components/FileInvitations";
 import { FilesSelectionBar } from "../components/FilesSelectionBar";
-import { AdvancedFileViewer, getFileKind } from "@runly/ui";
+import { getFileKind } from "@runly/ui";
 import { FileDetailPanel } from "../components/FileDetailPanel";
+import { FilesContentViewer } from '../components/FilesContentViewer';
 import { FileRenameModal } from "../components/FileRenameModal";
 import { FilesUploadDialog } from "../components/FilesUploadDialog";
 import { FILES_WORKSPACES } from "../components/FilesSidebar";
@@ -856,7 +857,7 @@ export default function FilesScreen() {
         canRetry={uploads.canRetry}
       />
 
-      <AdvancedFileViewer
+      <FilesContentViewer
         open={viewerOpen}
         onOpenChange={setViewerOpen}
         files={viewerFiles}

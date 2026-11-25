@@ -103,6 +103,10 @@ export function AdvancedFileViewer({
   // (or below, on narrow screens) the player, e.g. a synced transcript. `getMedia()`
   // returns the live <video>. The viewer adds the show/hide toggle.
   renderSidePanel = null,
+  contentPanelKinds = ["video"],
+  renderImageOverlay = null,
+  renderPdfOverlay = null,
+  requestedPdfPage = null,
 }) {
   const editing = useContext(ViewerImageEditingContext);
   const sharing = useContext(ViewerSharingContext);
@@ -377,7 +381,7 @@ export function AdvancedFileViewer({
     return () => { cancelled = true; };
   }, [wantsOriginal, signedUrl, originalShown, setNaturalSize]);
   const imageSrc = contentUrl && originalShown !== signedUrl ? contentUrl : signedUrl;
-  const sidePanel = kind === "video" && renderSidePanel ? renderSidePanel(file, { getMedia }) : null;
+  const sidePanel = contentPanelKinds.includes(kind) && renderSidePanel ? renderSidePanel(file, { getMedia }) : null;
   const hasInlinePreview = ["image", "pdf", "video", "audio", "xml"].includes(kind) || (kind === "archive" && isZipFile(file));
   const focusPanel = (e) => {
     e.preventDefault();
@@ -455,7 +459,7 @@ export function AdvancedFileViewer({
                   onClick={() => setSidePanelOpen((v) => !v)}
                   aria-label={sidePanelOpen ? "Ocultar panel lateral" : "Mostrar panel lateral"}
                   aria-pressed={sidePanelOpen}
-                  title={sidePanelOpen ? "Ocultar transcripción" : "Mostrar transcripción"}
+                  title={sidePanelOpen ? "Ocultar texto" : "Mostrar texto"}
                   className={barBtn}
                 >
                   <PanelRight className="h-3.5 w-3.5" />
@@ -547,19 +551,23 @@ export function AdvancedFileViewer({
                             fit-relative effective scale (zoom 1 == fits the
                             visible area). Hidden until measured to avoid a
                             one-frame full-resolution flash. */}
+                        <div className="relative shrink-0" style={{ ...t.imageStyle, visibility: t.naturalSize ? "visible" : "hidden" }}>
                         <img
                           src={imageSrc}
                           alt={file?.originalName ?? "Archivo"}
                           draggable={false}
                           onLoad={(e) => t.setNaturalSize({ w: e.currentTarget.naturalWidth, h: e.currentTarget.naturalHeight })}
                           className="will-change-transform block [-webkit-touch-callout:none]"
-                          style={{ ...t.imageStyle, visibility: t.naturalSize ? "visible" : "hidden" }}
+                          style={{ width: "100%", height: "100%", maxWidth: "none" }}
                         />
+                        {renderImageOverlay?.(file, { naturalSize: t.naturalSize })}
+                        </div>
                       </div>
                     </div>
                   )}
 
-                  {ready && kind === "pdf" && <PDFViewer url={signedUrl} />}
+                  {ready && kind === "pdf" && <PDFViewer url={signedUrl} requestedPage={requestedPdfPage}
+                    renderOverlay={renderPdfOverlay ? context => renderPdfOverlay(file, context) : null} />}
 
                   {/* HLS: hls.js/native attaches via useHlsPlayback above, no src prop. */}
                   {ready && kind === "video" && (
@@ -678,6 +686,12 @@ export function AdvancedFileViewer({
               ))}
             </ContextMenuContent>
           </ContextMenu>
+
+          {ready && kind !== "video" && sidePanel && sidePanelOpen && (
+            <div className="max-h-[35dvh] min-h-0 shrink-0 overflow-auto border-t border-[hsl(var(--border))] bg-[hsl(var(--background))]">
+              {sidePanel}
+            </div>
+          )}
 
           {/* ── BOTTOM TOOLBAR ───────────────────────────── */}
           {/* Reserved at the same height once a file is loaded, so the modal's
