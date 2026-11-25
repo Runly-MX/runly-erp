@@ -37,7 +37,7 @@
     "hono": "^4.13.16",
     "jszip": "^3.10.1",
     "livekit-server-sdk": "^2.18.0",
-    "lucide-react": "latest",
+    "lucide-react": "1.59.0",
     "lucide-static": "1.63.0",
     "motion": "^12.38.0",
     "node-cache": "^5.1.2",
@@ -49,8 +49,8 @@
     "pdfkit": "^0.18.0",
     "pizzip": "^3.3.0",
     "qrcode": "^1.5.4",
-    "react": "latest",
-    "react-dom": "latest",
+    "react": "19.3.1",
+    "react-dom": "19.3.1",
     "react-hook-form": "^7.75.0",
     "rrule": "2.8.1",
     "sharp": "^0.35.5",
@@ -61,6 +61,6 @@
     "y-protocols": "^1.0.7",
     "yauzl": "^3.4.0",
     "yjs": "^13.6.31",
-    "zod": "latest"
+    "zod": "4.6.7"
   }
 }

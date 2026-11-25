@@ -114,7 +114,7 @@ importers:
         version: 4.6.7
     devDependencies:
       concurrently:
-        specifier: latest
+        specifier: 10.0.6
         version: 10.0.6
       eslint:
         specifier: ^9
@@ -210,7 +210,7 @@ importers:
         specifier: ^2.18.0
         version: 2.18.0
       lucide-react:
-        specifier: latest
+        specifier: 1.59.0
         version: 1.59.0(@types/react@19.2.14)(react@19.3.1)
       lucide-static:
         specifier: 1.63.0
@@ -246,10 +246,10 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       react:
-        specifier: latest
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: latest
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       react-hook-form:
         specifier: ^7.75.0
@@ -282,7 +282,7 @@ importers:
         specifier: ^13.6.31
         version: 13.6.31
       zod:
-        specifier: latest
+        specifier: 4.6.7
         version: 4.6.7
 
   apps/desktop:
@@ -351,7 +351,7 @@ importers:
         specifier: ^2.105.1
         version: 2.105.1
       '@tanstack/react-query':
-        specifier: latest
+        specifier: 5.104.4
         version: 5.104.4(@types/react@19.2.14)(react@19.3.1)
       '@tanstack/react-query-persist-client':
         specifier: ^5.101.0
@@ -471,7 +471,7 @@ importers:
         specifier: 2.21.0
         version: 2.21.0(@types/dom-mediacapture-record@1.0.22)
       lucide-react:
-        specifier: latest
+        specifier: 1.59.0
         version: 1.59.0(@types/react@19.2.14)(react@19.3.1)
       maplibre-gl:
         specifier: ^6.11.2
@@ -492,10 +492,10 @@ importers:
         specifier: ^1.5.4
         version: 1.5.4
       react:
-        specifier: latest
+        specifier: 19.3.1
         version: 19.3.1
       react-dom:
-        specifier: latest
+        specifier: 19.3.1
         version: 19.3.1(react@19.3.1)
       react-hook-form:
         specifier: ^7.75.0
@@ -519,7 +519,7 @@ importers:
         specifier: ^13.6.31
         version: 13.6.31
       zustand:
-        specifier: latest
+        specifier: 5.0.15
         version: 5.0.15(@types/react@19.2.14)(immer@11.1.8)(react@19.3.1)(use-sync-external-store@1.6.0(react@19.3.1))
     devDependencies:
       '@tailwindcss/postcss':
@@ -529,22 +529,22 @@ importers:
         specifier: ^4.2.4
         version: 4.2.4(vite@8.3.4(@types/node@25.6.0)(jiti@2.6.1))
       '@tauri-apps/cli':
-        specifier: latest
+        specifier: 2.12.3
         version: 2.12.3
       '@vitejs/plugin-react':
-        specifier: latest
+        specifier: 6.1.2
         version: 6.1.2(vite@8.3.4(@types/node@25.6.0)(jiti@2.6.1))
       autoprefixer:
-        specifier: latest
+        specifier: 10.6.1
         version: 10.6.1(postcss@8.5.30)
       postcss:
-        specifier: latest
+        specifier: 8.5.30
         version: 8.5.30
       tailwindcss:
         specifier: ^4.2.4
         version: 4.3.1
       vite:
-        specifier: latest
+        specifier: 8.3.4
         version: 8.3.4(@types/node@25.6.0)(jiti@2.6.1)
 
   apps/worker:
@@ -746,7 +746,7 @@ importers:
         specifier: ^0.7.1
         version: 0.7.1
       clsx:
-        specifier: latest
+        specifier: 2.1.1
         version: 2.1.1
       country-state-city:
         specifier: ^3.2.1
@@ -761,7 +761,7 @@ importers:
         specifier: ^1.7.3
         version: 1.7.3
       lucide-react:
-        specifier: latest
+        specifier: 1.59.0
         version: 1.59.0(@types/react@19.2.14)(react@19.2.5)
       qrcode:
         specifier: ^1.5.4
@@ -798,7 +798,7 @@ importers:
   packages/validators:
     dependencies:
       zod:
-        specifier: latest
+        specifier: 4.6.7
         version: 4.6.7
 
   packages/website-blocks:
