@@ -94,6 +94,7 @@ El ahorro es de transferencia; no se demuestra mejora de latencia en este labora
 - Verificación de revocación, cuarentena, instalación y cambio de empresa con las respuestas filtradas.
 - Hub, MCP, offline y hosts nativos como consumidores no auditados.
 - F3.3 sobre datos y PostgreSQL (§12 del encargo): cascadas de solicitudes, `sync/pull` (199 KB), N+1, índices y pool: **no iniciado**; la medición necesita una base cercana a la API, no la remota de desarrollo.
+- Seguimiento parcial en `RUNLY_PERFORMANCE_F3_4_RESULTS.md` (notificaciones, sync/pull, perfil).
 
 ## 8. Seguridad de los filtros de /blueprints: estado a 2026-11-24
 
