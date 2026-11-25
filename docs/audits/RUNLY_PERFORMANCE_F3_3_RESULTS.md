@@ -94,3 +94,13 @@ El ahorro es de transferencia; no se demuestra mejora de latencia en este labora
 - Verificación de revocación, cuarentena, instalación y cambio de empresa con las respuestas filtradas.
 - Hub, MCP, offline y hosts nativos como consumidores no auditados.
 - F3.3 sobre datos y PostgreSQL (§12 del encargo): cascadas de solicitudes, `sync/pull` (199 KB), N+1, índices y pool: **no iniciado**; la medición necesita una base cercana a la API, no la remota de desarrollo.
+
+## 8. Seguridad de los filtros de /blueprints: estado a 2026-11-24
+
+Estado de la fase: **IMPLEMENTADA, no aceptada.**
+
+Verificado (prueba unitaria `blueprint-query.test.js`, 6/6): para cualquier combinación de parámetros la salida es un subconjunto de las filas ya autorizadas, no aparecen campos nuevos, y un módulo sin acceso responde igual que uno inexistente (sin diferencias de forma, error ni metadatos). `slim=1` solo elimina `module.manifest` y `module.lifecycleConfig`; `schema=0` solo elimina `schema`. Sin parámetros la respuesta es el mismo array.
+
+No verificado (requiere API y datos en ejecución; la API local no estaba levantada y no se arrancó): aislamiento entre dos empresas, usuarios con permisos distintos y revocación en vivo, instalación/desinstalación/actualización en caliente, cuarentena, 304 con ETag por URL, offline y consumidores externos (Hub, MCP).
+
+Procedimiento reproducible: con dos usuarios de empresas distintas, pedir `/blueprints?moduleKey=<módulo del otro>` y comparar byte a byte con `?moduleKey=inexistente`; revocar el permiso y repetir tras invalidar la caché.
