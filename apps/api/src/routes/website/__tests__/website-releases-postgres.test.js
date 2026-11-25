@@ -266,12 +266,15 @@ test('history cursor is scoped to the same tenant and site',async()=>{
 test('a real loopback HTTP server resolves a Host header without public DNS and keeps Catalog accessible',async()=>{
  const f=await fixture(),r=await f.prepare();await f.activate(r)
  const product=await db.catalogProduct.create({data:{id:await uuid(),companyId:f.company.id,name:'Public fixture',slug:'public-fixture',price:10,published:true}})
+ // New sites use explicit catalog selection (20261218120000): a published product stays hidden until the site includes it.
+ const hiddenFirst=await db.$queryRaw`SELECT count(*)::int n FROM website_catalog_product WHERE site_id=${f.site.id}::uuid AND product_id=${product.id}::uuid`;assert.equal(hiddenFirst[0].n,0)
+ await db.websiteCatalogProduct.create({data:{companyId:f.company.id,siteId:f.site.id,productId:product.id,included:true}})
  const app=new Hono();app.use('*',createWebsiteOriginGuard({prisma:db,gateway:f.publication.gateway}));app.route('/public/website',createPublicWebsiteRouter({prisma:db,publicationContext:f.publication}));app.route('/public/catalog',createPublicCatalogRouter({prisma:db}));const site=createDistServeService({prisma:db,publicationContext:f.publication});app.get('/public/site/',c=>site.serve(c,'/'))
  let server;const address=await new Promise(resolve=>{server=serve({fetch:app.fetch,hostname:'127.0.0.1',port:0},resolve)})
  try {
    const httpFetch=(url,options)=>new Promise((resolve,reject)=>{const req=request(url,options,res=>{let text='';res.setEncoding('utf8');res.on('data',v=>text+=v);res.on('end',()=>resolve({status:res.statusCode,text:async()=>text,json:async()=>JSON.parse(text)}))});req.on('error',reject);req.end()})
    const base=`http://127.0.0.1:${address.port}`,headers={Host:f.host.hostname,'X-Runly-Company':f.company.slug}
-   const html=await httpFetch(base+'/public/site/',{headers});assert.equal(html.status,200);assert.match(await html.text(),/runly-public-root/)
+   const html=await httpFetch(base+'/public/site/',{headers});assert.equal(html.status,200,await html.text());assert.match(await html.text(),/runly-public-root/)
    const data=await httpFetch(base+'/public/website/resolve?path=/',{headers});assert.equal((await data.json()).releaseId,r.id)
    const catalog=await httpFetch(base+'/public/catalog/products',{headers});assert.equal(catalog.status,200);assert.equal((await catalog.json()).data[0].id,product.id)
    assert.equal((await httpFetch(base+'/public/site/',{headers:{Host:'unknown.example.test'}})).status,404)

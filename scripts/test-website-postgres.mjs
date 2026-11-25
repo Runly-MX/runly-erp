@@ -1,6 +1,6 @@
 // Own disposable container only. Never reads DATABASE_URL, .env or an external stack.
 import { execFileSync, spawnSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync, rmSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve, dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -73,11 +73,19 @@ try {
   psql(scopeMigration)
   console.log('FormScope migration rollback/retention verified')
   // Later Website migrations (catalog selection, registry projection, local hostnames) so current application code runs.
-  for (const later of ['20261218120000_website_catalog_selection', '20261219120000_website_registry_projection', '20261220090000_website_local_hostnames', '20270105000000_website_custom_domains', '20270105100000_website_domain_kind_custom', '20270105200000_website_domain_guard_custom', '20270106100000_website_domain_primary', '20270106200000_website_domain_release_window']) psql(readFileSync(join(root, 'prisma/migrations', later, 'migration.sql'), 'utf8'))
+  for (const later of ['20261218120000_website_catalog_selection', '20261219120000_website_registry_projection', '20261220090000_website_local_hostnames', '20261222090000_website_free_deleted_page_routes', '20270105000000_website_custom_domains', '20270105100000_website_domain_kind_custom', '20270105200000_website_domain_guard_custom', '20270106100000_website_domain_primary', '20270106200000_website_domain_release_window', '20270107100000_growth_property_alert_recipients', '20270113000000_website_orders']) psql(readFileSync(join(root, 'prisma/migrations', later, 'migration.sql'), 'utf8'))
+  // Public Catalog search uses atlas_unaccent (migration 20260902000000_chat_message_search, which also needs Chat tables): create only the function.
+  psql("CREATE EXTENSION IF NOT EXISTS unaccent; CREATE OR REPLACE FUNCTION atlas_unaccent(text) RETURNS text LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT SET search_path = public AS $$ SELECT unaccent('unaccent'::regdictionary, $1) $$;")
   console.log('Later Website migrations applied')
   execFileSync(process.execPath, [join(root,'node_modules/prisma/build/index.js'),'generate','--schema',join(root,'prisma/schema.prisma')], { cwd: temp, stdio: ['ignore','pipe','pipe'] })
   console.log('Prisma client generated from current schema; application config not loaded')
-  const result = spawnSync(process.execPath, ['--test',...(process.argv.includes('--imports-only')?['apps/api/src/routes/website/__tests__/website-imports-postgres.test.js']:process.argv.includes('--templates-only')?['apps/api/src/routes/website/__tests__/website-templates-postgres.test.js']:process.argv.includes('--closure-only')?['apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:process.argv.includes('--backend-closure')?['apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:['apps/api/src/routes/website/__tests__/website-postgres.test.js','apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-imports-postgres.test.js'])], { cwd: root, env: { ...process.env, RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name,RUNLY_WEBSITE_TEST_SKIP_BROWSER:process.argv.includes('--skip-browser')?'1':'0' }, stdio: 'inherit' })
+  // The public runtime is a build artifact (apps/api/public/website-runtime, produced by the Docker build): build it into the temp folder when absent.
+  let runtimeDir = process.env.RUNLY_WEBSITE_RUNTIME_DIR
+  if (!runtimeDir && !existsSync(join(root, 'apps/api/public/website-runtime/entry.js'))) {
+    runtimeDir = join(temp, 'website-runtime')
+    execFileSync(process.execPath, [join(root, 'scripts/build-website-public-runtime.mjs'), runtimeDir], { cwd: root, stdio: ['ignore', 'pipe', 'pipe'] })
+  }
+  const result = spawnSync(process.execPath, ['--test',...(process.argv.includes('--imports-only')?['apps/api/src/routes/website/__tests__/website-imports-postgres.test.js']:process.argv.includes('--templates-only')?['apps/api/src/routes/website/__tests__/website-templates-postgres.test.js']:process.argv.includes('--closure-only')?['apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:process.argv.includes('--backend-closure')?['apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-backend-closure-postgres.test.js']:['apps/api/src/routes/website/__tests__/website-postgres.test.js','apps/api/src/routes/website/__tests__/website-releases-postgres.test.js','apps/api/src/routes/website/__tests__/website-imports-postgres.test.js'])], { cwd: root, env: { ...process.env, ...(runtimeDir ? { RUNLY_WEBSITE_RUNTIME_DIR: runtimeDir } : {}), RUNLY_WEBSITE_TEST_DATABASE_URL: url, RUNLY_WEBSITE_TEST_DISPOSABLE: name,RUNLY_WEBSITE_TEST_SKIP_BROWSER:process.argv.includes('--skip-browser')?'1':'0' }, stdio: 'inherit' })
   process.exitCode = result.status ?? 1
   if(result.status===0&&process.argv.includes('--browser')){
     const browser=spawnSync(process.execPath,['scripts/website-s4-browser-lab.mjs'],{cwd:root,env:{...process.env,RUNLY_WEBSITE_TEST_DATABASE_URL:url,RUNLY_WEBSITE_TEST_DISPOSABLE:name},stdio:'inherit'});process.exitCode=browser.status??1
