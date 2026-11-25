@@ -55,7 +55,7 @@ test('sensibilidad declarada por adaptador: misma matriz que la confirmación we
         assert.equal(isSensitive(adapter, definition, {}), ['studio_template_update','studio_template_publish'].includes(definition.key));
         if(definition.key==='studio_template_save') assert.equal(isSensitive(adapter,definition,{scope:'company'}),true);
       } else if (moduleKey === 'runly.website') {
-        assert.equal(isSensitive(adapter, definition, {}), definition.key === 'website.pages.publish', 'Publicar expone páginas');
+        assert.equal(isSensitive(adapter, definition, {}), definition.key === 'website.pages.publish' || definition.key.startsWith('website.publication.'), 'Publicar, revertir o despublicar cambia lo que se ve en público');
         if (definition.key === 'website.site.setup') assert.equal(isSensitive(adapter, definition, { useBuilder: true }), true, 'Cambiar el origen público es sensible');
       } else if (moduleKey === 'runly.catalog') {
         assert.equal(isSensitive(adapter, definition, { data: {} }), false);

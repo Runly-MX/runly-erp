@@ -57,6 +57,8 @@ export const FILE_ACCESS_RULES = {
   InvDocumentTemplate: permission("inventory.custody.read"),
   GrowthLead: permission("growth.leads.read"),
   GeneratedDocument: permission("documents.generated.read"),
+  // Event cover: people who manage events read it here; the public page serves it through its own signed route.
+  TicketEvent: permission("ticketing.events.manage"),
   purchase_order: permission("purchases.order.read"),
   purchase_invoice: permission("purchases.invoice.read"),
   purchase_receipt: permission("purchases.receipt.read"),

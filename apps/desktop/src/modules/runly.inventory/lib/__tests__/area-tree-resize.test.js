@@ -2,11 +2,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { clampTreeWidth, keyboardTreeWidth, maxTreeWidth, TREE_DEFAULT } from '../area-tree-resize.js'
 
-test('max width leaves the table minimum and stays within 200..420', () => {
-  assert.equal(maxTreeWidth(1600), 420)
+test('max width leaves the table minimum and stays within 200..560', () => {
+  assert.equal(maxTreeWidth(1600), 560)
   assert.equal(maxTreeWidth(900), 404)
   assert.equal(maxTreeWidth(600), 200)
-  assert.equal(maxTreeWidth(0), 420)
+  assert.equal(maxTreeWidth(0), 560)
 })
 
 test('clamp respects dynamic max and falls back to default on garbage', () => {

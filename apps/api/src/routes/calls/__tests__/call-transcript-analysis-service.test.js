@@ -159,7 +159,7 @@ describe("call-transcript-analysis-service.analyzeTranscript", () => {
     const transcript = { id: "t1", status: "READY", companyId: "c1" };
     const prisma = {
       ...basePrisma({ transcript, segments: [{ startMs: 0, text: "hola" }] }),
-      runlyModule: { findUnique: async () => ({ id: "mod-contacts", status: "INSTALLED", enabled: true }) },
+      runlyModule: { findUnique: async () => ({ id: "mod-contacts", status: "INSTALLED", enabled: true }), findMany: async () => [{ id: "mod-contacts", key: "runly.contacts" }] },
       companyModule: { findMany: async () => [] },
       contact: { findMany: async () => [] }, // no existing match -> "create"
     };
@@ -183,7 +183,7 @@ describe("call-transcript-analysis-service.analyzeTranscript", () => {
     const transcript = { id: "t1", status: "READY", companyId: "c1" };
     const prisma = {
       ...basePrisma({ transcript, segments: [{ startMs: 0, text: "hola" }] }),
-      runlyModule: { findUnique: async () => ({ id: "mod-contacts", status: "INSTALLED", enabled: true }) },
+      runlyModule: { findUnique: async () => ({ id: "mod-contacts", status: "INSTALLED", enabled: true }), findMany: async () => [{ id: "mod-contacts", key: "runly.contacts" }] },
       // Explicitly disabled for THIS company (CompanyModule override).
       companyModule: { findMany: async () => [{ moduleId: "mod-contacts" }] },
     };

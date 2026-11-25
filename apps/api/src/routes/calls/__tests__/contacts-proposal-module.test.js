@@ -39,6 +39,8 @@ function basePrisma(overrides = {}) {
   return {
     runlyModule: {
       findUnique: async () => ({ id: MODULE_ID, status: "INSTALLED", enabled: true }),
+      // Company enablement also lists installed non-core modules (custom ones are opt-in per company).
+      findMany: async () => [{ id: MODULE_ID, key: "runly.contacts" }],
     },
     companyModule: {
       findMany: async () => [], // no per-company override -> enabled by default
