@@ -19,6 +19,11 @@ test('moduleKey and kind only remove rows; module comes from the row or its embe
   assert.deepEqual(applyBlueprintQuery(rows, { moduleKey: 'zzz' }), [])
 })
 
+test('key returns exactly the requested views', () => {
+  assert.deepEqual(applyBlueprintQuery(rows, { key: 'b.table' }).map((r) => r.key), ['b.table'])
+  assert.deepEqual(applyBlueprintQuery(rows, { key: 'b.table', moduleKey: 'a' }), [])
+})
+
 test('slim drops only manifest and lifecycleConfig; schema=0 drops only schema; originals are untouched', () => {
   const slim = applyBlueprintQuery(rows, { slim: '1' })
   assert.deepEqual(slim[0].module, { key: 'a', has_bundle: true })

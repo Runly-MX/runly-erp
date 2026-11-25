@@ -243,7 +243,8 @@ export function useRunlyFormRelations({
         const found = localRows.find((row) => String(row?.key ?? "").trim() === viewKey);
         if (found) return found;
       }
-      const response = await fetch(joinUrl(apiBaseUrl, "/blueprints"), {
+      // Only the requested view, without the embedded module manifest.
+      const response = await fetch(joinUrl(apiBaseUrl, `/blueprints?key=${encodeURIComponent(viewKey)}&slim=1`), {
         method: "GET",
         headers: buildApiHeaders(token, companyId),
       });
