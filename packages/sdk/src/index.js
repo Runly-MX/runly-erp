@@ -653,8 +653,9 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     runtime: {
-      modules: (token) =>
-        request("/runtime/modules", {
+      // { slim: true } drops manifest keys the shell never reads (blueprints, permissions, acl...); see apps/api/src/lib/runtime-modules-slim.js.
+      modules: (token, { slim = false } = {}) =>
+        request(`/runtime/modules${slim ? "?slim=1" : ""}`, {
           headers: withAuthHeaders(token),
         }),
     },

@@ -42,7 +42,7 @@ export function useEntityBranding() {
   const authUserId = session?.user?.id ?? "anonymous";
   const { data: byModule } = useQuery({
     queryKey: ["runtime-modules", authUserId],
-    queryFn: () => runly.runtime.modules(token),
+    queryFn: () => runly.runtime.modules(token, { slim: true }),
     enabled: Boolean(token),
     staleTime: 60000,
     select: selectBranding,

@@ -14,7 +14,7 @@ export function useRuntimeModules() {
 
   const modulesQuery = useQuery({
     queryKey: ["runtime-modules", authUserId],
-    queryFn: () => runly.runtime.modules(token),
+    queryFn: () => runly.runtime.modules(token, { slim: true }),
     enabled: Boolean(token),
     staleTime: 60000,
     // A failed refetch (API restart, expired token before refresh, company

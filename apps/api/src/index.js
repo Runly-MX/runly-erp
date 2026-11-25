@@ -17,6 +17,7 @@ import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { privateJsonTransport } from "./lib/private-json-transport.js";
 import { applyBlueprintQuery } from "./lib/blueprint-query.js";
+import { isSlimRuntimeQuery, slimRuntimeModules } from "./lib/runtime-modules-slim.js";
 import { createHealthRoutes } from './routes/health-routes.js';
 import { createReadinessService, createPoolReadinessProbe, isModuleRuntimeReady } from './services/readiness-service.js';
 import { config as loadEnv } from "dotenv";
@@ -2062,12 +2063,11 @@ app.get("/runtime/modules", authMiddleware, async (c) => {
     }
   }
 
-  return c.json({
-    data: serializeModulesForResponse(visibleModules, tenant, {
-      filterByPermission: true,
-      filterNavigation: true,
-    }),
+  const serialized = serializeModulesForResponse(visibleModules, tenant, {
+    filterByPermission: true,
+    filterNavigation: true,
   });
+  return c.json({ data: isSlimRuntimeQuery(c.req.query()) ? slimRuntimeModules(serialized) : serialized });
 });
 
 app.get("/blueprints", authMiddleware, async (c) => {

@@ -104,3 +104,21 @@ Verificado (prueba unitaria `blueprint-query.test.js`, 6/6): para cualquier comb
 No verificado (requiere API y datos en ejecución; la API local no estaba levantada y no se arrancó): aislamiento entre dos empresas, usuarios con permisos distintos y revocación en vivo, instalación/desinstalación/actualización en caliente, cuarentena, 304 con ETag por URL, offline y consumidores externos (Hub, MCP).
 
 Procedimiento reproducible: con dos usuarios de empresas distintas, pedir `/blueprints?moduleKey=<módulo del otro>` y comparar byte a byte con `?moduleKey=inexistente`; revocar el permiso y repetir tras invalidar la caché.
+
+## 9. `/runtime/modules?slim=1` (2026-11-24)
+
+Estado: **IMPLEMENTADA, verificada con datos reales a nivel de payload; sin verificar en navegador.**
+
+- Contrato: sin parámetros la respuesta es idéntica. `?slim=1` quita de `manifest` las claves `blueprints`, `permissions`, `acl`, `views`, `models` y `connections` (`apps/api/src/lib/runtime-modules-slim.js`). Se aplica después de autorización, filtro por empresa y filtrado de navegación; no añade nada ni cambia permisos, `authorizedRoutes`, `compatibility` ni el estado. Una sola fuente de verdad: los blueprints siguen en `/blueprints`.
+- Qué pesa (40 módulos, 426 KB de manifest): `blueprints` 315 KB (74 %), `permissions` 30, `acl` 23, `navigation` 22, `lifecycle` 13. Ningún consumidor del shell lee las claves quitadas (búsqueda en desktop, `@runly/ui`, core y SDK); el catálogo lee `manifest.lifecycle`, que se conserva.
+- Consumidores migrados: `useRuntimeModules` y `useEntityBranding` (comparten la clave de caché `runtime-modules`, ambos piden slim para no mezclar formas). SDK: `runtime.modules(token, { slim: true })`; el valor por defecto sigue siendo la respuesta completa.
+- Medición (filas reales de `runly_module` con la misma función, sin `compatibility` ni filtrado de navegación por usuario, por lo que es una aproximación):
+
+| | Sin comprimir | gzip |
+|---|---|---|
+| Completa | 469 326 B | 128 742 B |
+| `slim=1` | 92 086 B | 14 933 B (-88 %) |
+
+Cumple el objetivo de 40 KB gzip. Quedan 14 KB de `lifecycle_config` por fila y 60 KB de manifest (navegación, descripciones) como siguiente margen si hiciera falta.
+- Pruebas: `runtime-modules-slim.test.js` (2/2), lint de los archivos tocados limpio, 13/14 de las pruebas de escritorio relacionadas. La que falla, `marketplace-browser`, es una prueba de navegador que da `TimeoutError` también sin estos cambios (necesita servidor web).
+- Pendiente: medición en navegador y respuesta HTTP real (API local no levantada), revocación, cambio de empresa, cuarentena y 304 con la respuesta slim (dependen de la misma autorización que la ruta completa, sin prueba específica); consumidores externos (Hub, MCP); catálogo con `lifecycle` y ModuleBuilder no ejercitados en UI. No se mide latencia.
