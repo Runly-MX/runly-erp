@@ -72,3 +72,20 @@ Resumen del informe `RUNLY_PLATFORM_STABILIZATION_RC1.md`. `[x]` solo con eviden
 | 16 | [ ] | Tauri sin ejecutar |
 | 17 | [ ] | GitHub Actions sin ejecutar (sin push) |
 | 18 | [~] | SBOM npm y Rust, avisos y textos de licencia; faltan contenedores, binarios y revisión jurídica |
+
+## Estado tras la preparación de staging (2026-11-25, segunda intervención)
+
+SHA de staging `e57d7f817`; detalle en `RUNLY_PLATFORM_STABILIZATION_RC1.md` sección 18 y `docs/deployment/RUNLY_RC1_STAGING_RUNBOOK.md`. Solo cambian los puntos con evidencia nueva.
+
+| # | Estado | Evidencia o bloqueador |
+|---|---|---|
+| 1 | [x] | Árbol limpio (worktree aislado) en `e57d7f817`; `git diff --name-only adbfdbb10 e57d7f817` sin código de producto. Verified: 2026-11-25 |
+| 2 | [ ] | Sin cambio |
+| 3 | [x] | Sin cambio. Las 22 omitidas clasificadas (sección 18): ninguna bloquea staging; las de seguridad y aislamiento deben ejecutarse en staging antes de producción |
+| 5 | [~] | Sin cambio (worker sin arranque funcional) |
+| 8 | [~] | Integración S3 + MinIO + restic **pasa** (`pnpm test:recovery-s3`, 1/1, 50 s, con guardia contra skip). Faltan archivos de Storage y arranque de la API sobre la base restaurada. Verified: 2026-11-25 |
+| 9 | [~] | Sin cambio (revocación en caliente con segundo usuario pendiente) |
+| 11 | [~] | Comprobaciones de Chromium listadas en el runbook sección 4; borrados duros acotados como limitación del RC |
+| 14 | [~] | Sandbox del Hub con validador de árbol limpio: 34/35 (la que falla es el pin de revisión del corpus) y 17/17 casos del corpus sin el pin. Audio, video, `asset:`, URLs prohibidas, importación y validación en verde. Sin publicar. Verified: 2026-11-25 |
+| 17 | [ ] | **Quality Gates está en rojo en GitHub** (checkout superficial vs. pruebas que usan `git show`). Corrección local `fetch-depth: 0` verificada con un clon `--depth 1` (3 fallos antes, 11/11 después); pendiente publicarla y ver Actions en verde. Security, UUID y esquema Supabase en verde |
+| 18 | [~] | Se añade el listado de paquetes de las tres imágenes (`docs/audits/evidence/container-packages-adbfdbb108cf.txt`); faltan SBOM CycloneDX de contenedores y la revisión jurídica |

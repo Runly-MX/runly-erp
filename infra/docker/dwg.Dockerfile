@@ -9,9 +9,11 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends build-essential curl ca-certificates xz-utils \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /build
+# make -j2 y no -j$(nproc): LibreDWG genera fuentes C enormes; con todos los nucleos el builder de
+# buildx (limite de memoria de Docker Desktop) muere con "error reading from server: EOF".
 RUN curl -fsSL "https://ftp.gnu.org/gnu/libredwg/libredwg-${LIBREDWG_VERSION}.tar.xz" | tar -xJ --strip-components=1 \
     && ./configure --prefix=/opt/libredwg --disable-bindings --disable-static --disable-docs --disable-werror \
-    && make -j"$(nproc)" \
+    && make -j2 \
     && make install
 
 FROM python:3.11-slim-bookworm

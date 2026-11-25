@@ -7,13 +7,13 @@ Fecha: 2026-11-25. Alcance de esta intervención: preparar un candidato identifi
 | Destino | Veredicto | Por qué |
 |---|---|---|
 | Desarrollo local | **APTO** | Gates fast y release en verde; suites de seguridad 166/166; imágenes construidas y arrancadas; sync, Website y backup verificados contra bases desechables. |
-| Staging controlado | **APTO CON CONDICIONES** | Condiciones C1 a C5 abajo. Ninguna es un defecto conocido del candidato; son comprobaciones que dependen de infraestructura o decisiones que no se podían ejecutar aquí. |
+| Staging controlado | **APTO CON CONDICIONES** | Condiciones C1 a C5 abajo y la corrección de CI de la sección 18 (Quality Gates está en rojo en GitHub hasta publicarla). Ninguna es un defecto conocido del candidato; son comprobaciones que dependen de infraestructura o decisiones que no se podían ejecutar aquí. |
 | Producción | **NO APTO todavía** | Faltan: ensayo de actualización desde la versión desplegada con una copia de sus datos, memoria y rendimiento en navegador con datos reales de pruebas, pruebas en teléfonos reales, CI de GitHub sobre el SHA y la validación real del sandbox del Hub. |
 | Distribución comercial | **NO APTO** | Revisión jurídica pendiente (GPL de `ffmpeg-core.wasm`, GPL del paquete `country-state-city` y datos ODbL, 112 paquetes sin archivo de licencia, sonidos, logos y modelos sin procedencia registrada, SBOM de contenedores). Una aprobación técnica para staging no implica aprobación jurídica. |
 
 Condiciones para staging:
 
-- **C1.** Desplegar solo desde el SHA confirmado (sección 1), sin los trabajos concurrentes sin confirmar (Content Intelligence consolidación).
+- **C1.** Desplegar solo desde el SHA `e57d7f817` e imágenes `adbfdbb108cf`, con `RUNLY_INSTALLER_REF` fijo. **Nunca desde `main`**: el remoto ya contiene la consolidación de Content Intelligence y su migración `20270116` (sección 18).
 - **C2.** Orden ERP, luego paquetes compartidos, luego Hub (sección 10). No actualizar el Hub hasta ejecutar su sandbox real.
 - **C3.** Con los secretos y la base de staging, repetir el arranque de las imágenes y el ensayo de actualización con una copia de los datos de staging, no de producción.
 - **C4.** Tratar como **no aceptadas** las capacidades offline listadas en la sección 6 como limitadas.
@@ -24,7 +24,7 @@ Condiciones para staging:
 | Repositorio | SHA | Estado |
 |---|---|---|
 | Runly ERP, código del candidato (imágenes) | `adbfdbb10` (`adbfdbb108cf`) | Todos los commits de esta intervención son propios |
-| Runly ERP, HEAD tras las correcciones de CI y documentación | ver sección 17 | Después de `adbfdbb10` solo cambian pruebas, scripts de CI y documentación; **ningún archivo de `apps/*/src` fuera de pruebas** (verificado con `git diff --name-only adbfdbb10 HEAD`). Las imágenes siguen siendo válidas |
+| Runly ERP, SHA de staging definitivo | `e57d7f817` (el HEAD `a6f4675f2` citado antes ya incluía código de otra sesión; ver sección 18) | Después de `adbfdbb10` solo cambian pruebas, scripts de CI y documentación; **ningún archivo de `apps/*/src` fuera de pruebas** (verificado con `git diff --name-only adbfdbb10 HEAD`). Las imágenes siguen siendo válidas |
 | Atlas Web Builder | `893d34c`, `v0.11.1` | Limpio. Sin cambios en esta intervención |
 | Runly Developer Hub | `1f1e864` | Contiene mi sincronización de documentación `adc6924`; el resto son commits de otra sesión |
 | runly-web | `e96f4dc` | Contiene mi sincronización de ayuda |
@@ -59,7 +59,7 @@ Secretos: las variables de entorno de las tres imágenes no contienen valores se
 | Validación de audio/video (`studio-interchange`) | 22 casos rechazados, pasan; el Hub usa este mismo validador |
 | Privacidad | 9/9 con la nueva excepción exacta por línea para los textos de licencia |
 | Realtime autorizado | 7/7 |
-| Recuperación (`scripts/recovery`) | 16/16 unitarias; la integración S3 (MinIO + restic) **no pudo ejecutarse**: termina en silencio antes de crear contenedores, defecto del arnés no investigado |
+| Recuperación (`scripts/recovery`) | 16/16 unitarias; integración S3 (MinIO + restic) **1/1 ejecutada** con `pnpm test:recovery-s3` (sección 18: el "silencio" era un skip con exit 0) |
 | Suite general (una sola vez, sobre el árbol de trabajo) | **6916 pruebas: 6894 aprobadas, 0 fallidas, 22 omitidas**; 0 nombres fallidos; la línea base de fallos conocidos quedó **vacía** (sección 15) |
 
 Bloqueadas por infraestructura: sandbox real del Hub (necesita un manifiesto de paquetes compartidos de un árbol limpio), integración S3 de recuperación, CI de GitHub, dispositivos físicos.
@@ -69,7 +69,7 @@ Bloqueadas por infraestructura: sandbox real del Hub (necesita un manifiesto de 
 - **Cuarentena, instalación, módulos no confiables, bundles no autorizados, staging de paquetes, RBAC granular:** cubiertos por las 166 pruebas de seguridad y por las comprobaciones HTTP de F3 (423 para un módulo en cuarentena).
 - **Secure Runtime:** sigue experimental y apagado por defecto (prueba `integration-flag`); el supervisor de código personalizado no se activó. No se inició otra etapa.
 - **Revocación y aislamiento multiempresa en sync:** con base real, otra empresa nunca aparece en el caché local y una solicitud sin pertenencia (resolución de empresa que rechaza) recibe 403 sin ninguna lectura de datos (`sync-postgres.test.js`).
-- **Rollback seguro:** el rollback debe volver solo a una imagen que contenga los cierres de F1B (usuario no root, cuarentena sin registro de confianza, permisos). Las imágenes anteriores a `e73cdf3ad` (`runly-candidate:*-e73cdf3ad` y anteriores) no deben usarse como destino de rollback sin reabrir esa revisión.
+- **Rollback seguro:** el rollback debe volver solo a una imagen que contenga los cierres de F1B (usuario no root, cuarentena sin registro de confianza, permisos). Las imágenes anteriores a `e73cdf3ad` (las `runly-candidate:*-e73cdf3ad` sí son el piso válido; la redacción previa decía "y anteriores" por error) no deben usarse como destino de rollback sin reabrir esa revisión.
 - **No verificado en esta intervención:** recuperación autorizada de módulos y suscripciones Realtime por empresa contra una API real; el segundo usuario para revocación en caliente.
 
 ## 6. Integridad de sincronización offline
@@ -152,7 +152,7 @@ Para revisión legal: obligaciones de fuente correspondiente del binario GPL; si
 | Teléfonos reales | Producción | Sección 14 |
 | GitHub Actions sobre el SHA | Producción | Sección 15 |
 | Revisión jurídica y SBOM de contenedores | Distribución comercial | Sección 11 |
-| Integración S3 de recuperación | Recuperación probada | Depurar el arnés (termina en silencio) |
+| ~~Integración S3 de recuperación~~ | Resuelto (sección 18) | Pasa; falta restaurar archivos y arrancar la API sobre la base restaurada |
 
 ## 14. Pruebas físicas para tus teléfonos
 
@@ -194,3 +194,55 @@ Despliegue de staging (a ejecutar por ti en el servidor): construir o publicar l
 Rollback: (1) detener la actualización antes de migrar si el chequeo previo falla; (2) respaldo diario verificado antes de actualizar; (3) volver a las imágenes anteriores **que contengan los cierres de seguridad de F1B** y restaurar la base del respaldo, porque las migraciones son hacia adelante y no se deshacen; (4) no volver a una versión anterior a `e73cdf3ad`; (5) Atlas y Hub se revierten después de ERP en orden inverso al de actualización y solo a una combinación de la matriz ERP-Atlas-Hub con catálogos registrados en ambos.
 
 Commits de ERP de esta intervención (y la anterior), del más reciente al más antiguo: ver `git log 1bc2b5a78..HEAD`; los de este Bloque son `adbfdbb10` (sync PostgreSQL), `09d9cbd9a` (arnés Website), `381a6279b` (Marketplace de Studio), `a9640c146` (SBOM de Rust) y el commit de CI y privacidad posterior. En otros repositorios: runly-web `e96f4dc`, Hub `adc6924`, Atlas ninguno.
+
+## 18. Preparación de staging (segunda intervención, 2026-11-25)
+
+Procedimientos completos en `docs/deployment/RUNLY_RC1_STAGING_RUNBOOK.md`. Resumen de hallazgos:
+
+**SHA definitivo: `e57d7f8171ab2347d58591adb30516bcb075a308`.** Es `adbfdbb10` más tres commits que solo tocan pruebas, scripts de CI, SBOM y docs (`git diff --name-only adbfdbb10 e57d7f817`: ningún archivo de `apps/*/src` ni de `packages` fuera de pruebas, ni `prisma`, ni `infra`). Sus imágenes siguen siendo las de `adbfdbb108cf`. **Corrección a la sección 1:** el HEAD `a6f4675f2` que cité como "solo docs" ya incluía `f22ca6f16` y `8943a404f` (código de la otra sesión); el último commit sin esos cambios es `e57d7f817`.
+
+**Hallazgo: el remoto ya tiene la consolidación.** `git ls-remote origin main` devuelve `28079331e` (local = remoto; runly-web, Hub y Atlas también coinciden). La migración `20270116` y el código de consolidación están en `origin/main`. Se mantienen fuera del candidato por SHA e imagen, no por falta de push.
+
+**Hallazgo: Quality Gates está en rojo en GitHub** (ejecuciones sobre `28079331e`, `ea1675b23` y `1bc2b5a78`). Fallan tres pruebas de instalador (`installer-release.test.js`: "upgrades the reused November release", local y externo, y "legacy scripts upgrade together") porque `actions/checkout` hace un clon de profundidad 1 y las pruebas leen versiones anteriores con `git show <sha>:<ruta>`. Reproducido con un clon `--depth 1` (3 fallos) y corregido con `fetch-depth: 0` (11/11). **Sin publicar**: el cambio en `.github/workflows/quality-gates.yml` está solo local. Security Gates, UUID Policy y Supabase Schema Ownership pasan. El resto del gate fast (lint, privacidad, alcance por empresa, dependencias, UUID, esquema, guards de rendimiento) pasó en CI.
+
+Gate fast en un árbol limpio del SHA (worktree aislado, `node_modules` enlazados): 8/8 en verde. Una prueba (devkit del instalador) falló solo por saltos de línea CRLF de `core.autocrlf=true` en Windows; con checkout LF pasa. En Linux (CI) no ocurre.
+
+### Las 22 pruebas omitidas
+
+Todas se omiten por su propia condición; ninguna se forzó ni se eliminó. No se repitió la suite general: se ejecutó solo el conjunto de archivos con condiciones de omisión (unas 55 suites), que confirma la clasificación. El conteo exacto de 22 depende de las variables de entorno que tenía la corrida general y no se reprodujo.
+
+| Clase | Pruebas | Variable o dependencia | Relevancia |
+|---|---|---|---|
+| PostgreSQL desechable | Bookings (9 archivos), Ticketing (5), Catalog y Commerce (5), Studio (2), compilador de listas, preflight de esquema, Connections (2), Trash, Office, Purchases (4), Content Intelligence (5) | `*_TEST_DATABASE_URL` o `DATABASE_URL` | **Integridad de datos.** Website y Sync sí se ejecutaron (86/86, 9/9). Las demás **no se ejecutaron en este RC**: ejecutarlas en staging |
+| PostgreSQL, seguridad y aislamiento | `user-isolation.integration` (aislamiento por empresa y recurso), `company-deletion.integration`, `files-workspace`, `cross-tenant-security` (`RUN_CROSS_TENANT_TESTS=1`, contra una base viva) | misma | **Seguridad e integridad.** Sin evidencia de ejecución en este RC |
+| Servicios externos | MCP integrado e Inspector (URL real), worker Docker de contenido, migración de MirAI (`RUN_MIRAI_MIGRATION_TEST`) | servidor, Docker, red | No bloquean; el MCP real requiere una conexión desde ChatGPT o Claude |
+| Navegador | pantalla MCP, formularios de empresa y SMTP, visitante de chat, plantillas de Website en navegador, rendimiento en teléfono | Chromium o Playwright (`RUN_VISITOR_BROWSER_TESTS`) | UI; no bloquean |
+| Infraestructura Docker | pipeline de backup y frescura (`RUN_BACKUP_PIPELINE_TESTS=1`), recuperación S3 (`RUN_RECOVERY_S3_TESTS=1`) | Docker, imágenes locales | **Recuperación.** S3: ejecutada y pasa (abajo). Pipeline de backup: no ejecutada en este RC |
+
+**Ninguna es bloqueador de staging**: los casos de integridad de Website, sync y backup se ejecutaron con sus propias bases. **Para producción** son bloqueadores las de seguridad y aislamiento sin evidencia (`user-isolation`, `company-deletion`, `files-workspace`, `cross-tenant`) y el pipeline de backup, hasta ejecutarlas contra la base de staging.
+
+### Arnés de recuperación S3
+
+**No era un defecto de propagación de errores, de inicialización ni de detección de Docker.** La prueba `recovery-s3.integration.test.mjs` se salta a sí misma salvo que `RUN_RECOVERY_S3_TESTS=1`, y `node --test` sale con 0 cuando una prueba se omite (`# skipped 1`, sin crear contenedores). Es el mismo patrón del falso positivo de la suite general. Con la variable y las imágenes locales (`runly-backup-recovery:verification`, `minio/minio`, `postgres:17-alpine`) la prueba **pasa en 50 s**: extracción de snapshots completos y heredados, restauración de un volcado en PostgreSQL aislado, repositorio sin cambios (solo lectura) y rechazo de credenciales incorrectas sin filtrarlas.
+
+Corrección: `scripts/test-recovery-s3.mjs` (`pnpm test:recovery-s3`) activa la puerta y **falla** si hay omitidas, fallidas, canceladas, sin resumen o menos de una aprobada (`scripts/lib/node-test-summary.mjs`, con prueba dirigida `scripts/__tests__/node-test-summary.test.mjs`). Ejecutado: "recovery S3 integration executed: 1 passed". Pendiente: restaurar archivos de Storage y arrancar la API sobre la base restaurada.
+
+### Sandbox del Hub
+
+Manifiesto de paquetes compartidos construido desde un árbol limpio de `e57d7f817` (`dirty:false`, 8 paquetes) y validador preparado con ese manifiesto. Pruebas dirigidas con `MARKETPLACE_VALIDATOR_ROOT` y `HUB_TEST_INTERCHANGE_DIR` (AudioBlock, `VideoBlock.file`, recursos `asset:` declarados, URLs prohibidas, importación, validación y la tubería de 126 MiB de audio y video; archivos `website-av-pipeline`, `website-capabilities`, `marketplace-validation`, wiring e instalación): **34/35**. La que falla fija la revisión del corpus inmutable (`a448509`) a la del validador: el corpus no cambia, así que ese pin se incumple por diseño con cualquier otro SHA. Se repitió el mismo bucle de casos sin el pin: **17/17 con el resultado esperado y el mismo digest**. No se publicó ninguna plantilla ni paquete. Mejora sugerida (repo del Hub, no hecha): separar la revisión del corpus de la del validador en esa prueba.
+
+### Offline, GitHub Actions, legal
+
+Detalle en el runbook (secciones 4, 7 y 8). Borrados duros: no se propagan, pero la edición offline de un registro borrado recibe `NOT_FOUND` del servidor y no lo resucita (`sync-push-service.js`); el riesgo es mostrar datos borrados sin conexión, y el RC no promete borrados exactos offline. Workflow: permisos mínimos (`contents: read`), `pnpm install --frozen-lockfile --ignore-scripts`, Node 22, pnpm 9.15.0, sin caché a propósito, y propaga errores (`run-gates` sale con 1 si falla una compuerta); las acciones no están fijadas por SHA (endurecimiento pendiente). Paquetes del sistema de las tres imágenes en `docs/audits/evidence/container-packages-adbfdbb108cf.txt`.
+
+### Release: fallo de la imagen DWG
+
+`docker buildx` terminó con `error reading from server: EOF` durante `make -j"$(nproc)"` de LibreDWG: el daemon de BuildKit murió, no fue la red ni el tarball (la descarga ya había terminado). Docker dispone de unos 5 GB y la máquina tiene 16 núcleos; LibreDWG genera fuentes C enormes y `-j16` agota la memoria del builder (causa inferida de esas cifras; no se reprodujo el fallo con `-j16`). Corrección: `make -j2` en `infra/docker/dwg.Dockerfile`. Verificado: el `docker build` local de la imagen completa termina bien en 617 s y `dwg2dxf --version` responde `0.13.3`. La imagen `dwg-latest` **no** se publicó desde aquí: repetir `pnpm docker:release:dwg`.
+
+### Veredicto de preparación para staging
+
+**LISTO PARA EJECUTAR EN STAGING, con condiciones.** Cumple: SHA y artefactos fijados, gate fast verde en árbol limpio, validador del Hub preparado y probado, recuperación S3 ejecutada y blindada contra el falso positivo, procedimientos de actualización y rollback con su piso de seguridad, e inventario legal. Condiciones antes de abrir el staging a usuarios: (1) publicar la corrección de `quality-gates.yml` y ver Actions en verde; (2) ejecutar en staging las pruebas de seguridad y aislamiento omitidas y el pipeline de backup; (3) ensayo de actualización con copia de datos (C3); (4) comprobaciones offline en navegador; (5) repetir `pnpm docker:release:dwg`. Siguiente paso: ejecutar el candidato en staging, no otra auditoría.
+
+### Commits de esta intervención
+
+Ver `git log e57d7f817..HEAD` filtrando `rc1`: un único commit de ERP con el arnés S3, la corrección de CI, `make -j2`, el runbook y estos documentos. Ningún cambio en runly-web, Hub ni Atlas (el worktree `_rc/erp` y el validador `_rc/validator` son temporales y están fuera de los repositorios).
