@@ -20,7 +20,9 @@ test('Tiptap ProseMirror clipboard validates context attributes and retains ordi
       builder.onResolve({ filter: /^react(?:-dom)?(?:\/.*)?$/ }, args => ({ path: desktop.resolve(args.path) }));
     } }],
     loader: { '.css': 'empty', '.svg': 'dataurl', '.png': 'dataurl', '.woff2': 'dataurl', '.ttf': 'dataurl' },
-    define: { 'process.env.NODE_ENV': '"production"' },
+    // import.meta.glob is a Vite-only API reached through unrelated app imports (runtimeModules); esbuild has no equivalent.
+    define: { 'process.env.NODE_ENV': '"production"', 'import.meta.glob': '__viteGlobStub' },
+    banner: { js: 'var __viteGlobStub = () => ({});' },
     bundle: true, write: false, format: 'iife', platform: 'browser', logLevel: 'silent', metafile: true,
   });
   const browser = await chromium.launch({ channel: 'chrome', headless: true });

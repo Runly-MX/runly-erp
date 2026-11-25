@@ -111,7 +111,7 @@ window.runNotesCollabFixture = async () => {
   const editors = [];
   try {
     for (const [index, ydoc, awareness] of [[0, a, awarenessA], [1, b, awarenessB]]) {
-      editors.push(new Editor({ element: mounts[index], extensions: buildExtensions({ readOnly: true, ydoc, provider: { awareness }, userName: `Fixture ${index}`, userColor: '#123456' }) }));
+      editors.push(new Editor({ element: mounts[index], extensions: buildExtensions({ readOnly: true, ydoc, provider: { awareness, setComposing() {} }, userName: `Fixture ${index}`, userColor: '#123456' }) }));
     }
     const [first, second] = editors;
     first.commands.setContent('<p>Desde A</p>');
