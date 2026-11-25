@@ -12,6 +12,53 @@ Estado: **inventario parcial, generado automáticamente, sin revisión jurídica
 | Binarios distribuidos (ffmpeg-core.wasm, modelos de voz, fuentes, iconos, imágenes) | Solo los dos avisos de abajo; resto pendiente |
 | Dependencias de los repositorios Atlas Web Builder y Developer Hub | **No incluido** |
 
+## Formatos y textos
+
+- SBOM CycloneDX 1.5 (SPDX por componente cuando la licencia declarada es un identificador): `docs/sbom/runly-npm-prod.cdx.json` (1323 versiones de producción con hash SHA-512 del lockfile) y `docs/sbom/runly-desktop-cargo.cdx.json` (crates, hash SHA-256, **licencias sin resolver**). Generar con `node scripts/generate-sbom.mjs`. Es una lista de componentes del lockfile, **no** un SBOM de lo que contiene cada artefacto distribuido.
+- Textos de licencia y NOTICE tomados de los propios paquetes: `docs/THIRD_PARTY_LICENSE_TEXTS.md` (`node scripts/generate-license-texts.mjs`). MIT, BSD y Apache-2.0 exigen conservar el aviso de copyright y el texto; Apache-2.0 además los NOTICE. Los paquetes que no traen archivo de licencia están listados allí.
+
+## Licencias que requieren revisión (28 versiones)
+
+Expresiones compuestas, copyleft, MPL o sin declarar. Decidir, caso por caso, qué alternativa aplica y si el paquete llega al navegador o a un binario distribuido.
+
+- @bufbuild/protobuf@1.10.1: (Apache-2.0 AND BSD-3-Clause)
+- @ffmpeg/core@0.12.10: GPL-2.0-or-later
+- @img/sharp-win32-x64@0.35.5: Apache-2.0 AND LGPL-3.0-or-later
+- @maplibre/mlt@1.3.0: (MIT OR Apache-2.0)
+- @tauri-apps/api@2.11.1: Apache-2.0 OR MIT
+- @tauri-apps/api@2.12.1: Apache-2.0 OR MIT
+- @tauri-apps/plugin-haptics@2.3.3: MIT OR Apache-2.0
+- @tauri-apps/plugin-notification@2.4.0: MIT OR Apache-2.0
+- @tauri-apps/plugin-sql@2.4.0: MIT OR Apache-2.0
+- @tauri-apps/plugin-store@2.4.3: MIT OR Apache-2.0
+- @zxing/text-encoding@0.9.0: (Unlicense OR Apache-2.0)
+- argparse@2.0.1: Python-2.0
+- buffers@0.1.1: NOASSERTION
+- chainsaw@0.1.0: MIT/X11
+- country-state-city@3.2.1: GPL-3.0
+- dompurify@3.4.16: (MPL-2.0 OR Apache-2.0)
+- fractional-indexing@3.2.0: CC0-1.0
+- jszip@3.10.1: (MIT OR GPL-3.0-or-later)
+- khroma@2.1.0: NOASSERTION
+- lightningcss-win32-x64-msvc@1.32.0: MPL-2.0
+- lightningcss@1.32.0: MPL-2.0
+- pako@1.0.11: (MIT AND Zlib)
+- pako@2.0.3: (MIT AND Zlib)
+- pako@2.2.0: (MIT AND Zlib)
+- pizzip@3.3.0: (MIT OR GPL-3.0)
+- traverse@0.3.9: MIT/X11
+- victory-vendor@37.3.6: MIT AND ISC
+- web-push@3.6.7: MPL-2.0
+
+## Fuentes
+
+- Fuentes de Studio (`apps/desktop/public/studio-fonts/`, 124 archivos): 28 familias, cada una con su texto SIL OFL junto a los archivos (bebasneue, bitter, caveat, cormorantgaramond, dancingscript, dmsans, greatvibes, ibmplexmono, inter, jetbrainsmono, kalam, lato, librebaskerville, lobster, lora, merriweather, montserrat, nunito, opensans, oswald, pacifico, playfairdisplay, poppins, raleway, roboto, sacramento, sourcesans3, spacemono). Pendiente verificar los avisos de copyright por familia.
+- Fuentes de la interfaz: se piden a Google Fonts (`apps/desktop/index.html`: Plus Jakarta Sans, Playfair Display, Space Grotesk, DM Sans, Merriweather, Hanken Grotesk, JetBrains Mono); todas OFL, pero cargarlas desde un tercero es una cuestión de privacidad a decidir.
+
+## Recursos sin inventariar
+
+Sonidos (`apps/desktop/public/sounds/`: notificación y llamadas), logos de módulos, iconos de PWA, `og-image.png`, iconos de `lucide-react` (ISC, en npm) y modelos de voz (Piper) no tienen procedencia ni licencia registradas en el repositorio. **Pendiente de confirmar con el autor o la fuente.**
+
 ## Avisos específicos
 
 - **Datos geográficos (`country-state-city` 3.2.1).** El código del paquete npm es GPL-3.0; los datos proceden de la base `dr5hn/countries-states-cities-database`, publicada bajo Open Database License (ODbL). Aviso exigido para uso público de obras producidas: «Contains information from Countries States Cities Database (https://github.com/dr5hn/countries-states-cities-database), which is made available here under the Open Database License (ODbL).» Pendiente de decisión jurídica y de sustitución del paquete (ver RUNLY_LICENSE_INVENTORY_PRELIMINARY.md).
