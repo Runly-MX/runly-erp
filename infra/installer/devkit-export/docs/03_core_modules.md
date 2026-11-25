@@ -16,6 +16,21 @@ Permissions: `core.access`, `core.read`, `core.manage`, `core.modules.read|creat
 
 Navigation: Modulos (`/modules`), Configuracion (`/settings`)
 
+### Platform owner
+
+Spec: `docs/superpowers/specs/2026-10-18-platform-owner-design.md`.
+
+- One owner per instance, stored in `InstanceConfig` key `platform_owner_profile_id` (a `UserProfile.id`). `/setup/initialize` makes the installing admin the owner; migration `20261110000000_platform_owner` backfills existing instances (global `system.admin` first, else the oldest enabled `runly.admin` membership).
+- Instance-wide settings (`PUT /instance/config`, every `/settings/notifications/webpush*`) accept only the owner when more than one company is enabled; on a single-company instance that company's admins keep access. Gate: `createRequireInstanceAdmin` in `apps/api/src/lib/platform-owner.js`.
+- Only the owner (or a legacy global `system.admin`) can assign the `system.admin` role.
+- `GET /platform/owner` and `POST /platform/owner/transfer { profileId }` (owner only; target must be an enabled, non-bot user with an enabled membership; writes AuditLog `platform.owner.transferred`). SDK: `runly.platform.getOwner` / `transferOwner`.
+- The owner's account, or their last enabled membership, cannot be disabled or deleted (409 "Transfiere la propiedad de la plataforma antes de dar de baja esta cuenta.").
+- Recovery on the server (uses `DATABASE_URL`, prints only the display name):
+
+```bash
+node --env-file=.env scripts/set-platform-owner.mjs --email admin@example.com
+```
+
 ## runly.identity
 
 Owns identity and access control: users, roles, permissions, profiles, memberships.
@@ -165,7 +180,13 @@ Core module (`core: true`, `uninstallable: false`, color `#0f766e`). Owns the ac
 Depends on: `runly.core`, `runly.contacts`. Consumes (optional): `runly.files`, `runly.inventory`. Works without Inventario, Flotilla or Finanzas installed.
 
 Process model:
-- **Capabilities** (what is used): `requests`, `quotes`, `approvals`, `purchaseOrders`, `receipts`, `invoices`, `payments`, `inventoryRelations`. Navigation, routes, tabs, buttons and endpoints all honour them; the backend enforces them (`CAPABILITY_DISABLED` 409).
+- **Capabilities** (what is used): `requests`, `quotes`, `approvals`, `purchaseOrders`, `receipts`, `invoices`, `payments`, `inventoryRelations`. Navigation, routes, tabs, buttons and endpoints all honour them; the backend enforces them on every write (`CAPABILITY_DISABLED` 409). Reads (lists and details) stay available when a capability is off so historical documents keep their evidence; responses carry `capabilityEnabled: false` and the client shows them read-only (2026-10-29, see `docs/superpowers/specs/2026-10-29-purchases-integrity-audit.md`).
+- **Concurrency**: order/invoice edits and transitions are guarded writes (status + `updatedAt` version); clients may send `expectedUpdatedAt` and a conflicting write answers `STALE_DOCUMENT` 409. Receipts lock the order row; approval decisions only apply to a still-pending approval.
+- **Reception and closure** (2026-10-29): only GOODS lines are received; closing an order with goods pending needs `closeShort` + reason when receipts are on (`RECEIPT_PENDING` 409). A case closes itself when all its documents are final in presets without the case capability; with it, manual close refuses open documents (`CASE_HAS_OPEN_DOCUMENTS` 409). See `docs/superpowers/specs/2026-10-29-purchases-phase2-operational-flow.md`.
+- **Payments** (2026-10-29): each payment is an immutable `purchase_payment` movement (PAYMENT, legacy OPENING, REVERSAL with reason); `purchase_invoice.paid_amount` is the cache updated in the same transaction. Endpoints `/purchases/invoices/:id/payments`, `/purchases/payments/:id/reverse` (permission `purchases.payment.reverse`), idempotency keys, events `purchases.invoice.payment.recorded|reversed`. See `docs/superpowers/specs/2026-10-29-purchases-phase3-payments.md`.
+- **Corrections and receipt reversals** (2026-10-29): registered orders/invoices accept audited corrections of administrative fields only (`/corrections`, `/revisions`, permissions `purchases.order.correct` / `purchases.invoice.correct`), with a version per document; receipts are reversed (partially or totally) by compensating rows (`/purchases/receipts/:id/reverse`, `purchases.receipt.reverse`). See `docs/superpowers/specs/2026-10-29-purchases-phase4-corrections.md`.
+- **Item links**: one live order and one live invoice per item; links to cancelled documents remain as history and free the item (`DOCUMENT_CANCELLED` 409 for new links to a cancelled document).
+- **Relations**: `GET /purchases/relations/:id/impact` previews an unlink; structural links (`CONTAINS`, `RECEIVED_BY`) answer `RELATION_PROTECTED` 409, and links with derived copies (`sourceRelationId`) need `DELETE ...?dependents=keep|remove` or answer `RELATION_HAS_DEPENDENTS` 409.
 - **Workflow** (how stages are ordered): `REQUEST → QUOTES → APPROVAL → PURCHASE_ORDER → RECEIPT → INVOICE → PAYMENT → CLOSE`, each stage `REQUIRED | OPTIONAL | CONDITIONAL | DISABLED`. Presets: Simple, Básico, Compras + Inventario, Completo, Personalizado. Stored per company.
 - **Policies** (when a conditional stage becomes mandatory): pure `evaluatePolicies()` in `purchase-policies.js`; unsatisfied requirements block `issue` / `pay` / `close` with `POLICY_BLOCKED` 409.
 

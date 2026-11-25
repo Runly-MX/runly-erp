@@ -37,6 +37,10 @@ test('a shared-contract-only change selects API, worker and web without publishi
     mkdirSync(join(directory, 'infra/docker'), { recursive: true });
     mkdirSync(join(directory, 'apps/shared/studio'), { recursive: true });
     writeFileSync(join(directory, 'infra/docker/build-push.mjs'), readFileSync(join(root, 'infra/docker/build-push.mjs')));
+    // build-push also runs the installer-release check; this fixture has no installer files, and that check
+    // has its own tests, so a neutral stand-in keeps this test about image selection only.
+    mkdirSync(join(directory, 'scripts'), { recursive: true });
+    writeFileSync(join(directory, 'scripts/generate-installer-release.mjs'), 'process.exit(0)\n');
     writeFileSync(join(directory, 'apps/shared/studio/document.js'), 'export const version = 1;\n');
     writeFileSync(join(directory, '.gitignore'), 'infra/docker/.release-state.json\n');
     git(['init', '-b', 'main']);

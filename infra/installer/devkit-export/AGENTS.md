@@ -1,5 +1,11 @@
 # Runly ERP v2 — Agent Instructions
 
+## Git workflow
+
+Work directly on `main`. Do not create task branches or worktrees. Commit your
+own changes coherently, preserving unrelated changes from other sessions.
+This user preference supersedes branch/worktree suggestions in historical plans.
+
 ## Desktop and Android publication destination
 
 The established download destination for Windows and Android is GitHub Releases
@@ -152,3 +158,7 @@ and security rules: `docs/ai-context/rme3-public-links.md`.
 - Module engine: `@runly/module-engine` — `defineRunlyModule`, `defineModel`, `defineView`, `definePage`
 - Tests: Node.js built-in `node:test` (no Jest/Vitest)
 - Style: JavaScript only, no TypeScript, Tailwind CSS, all UI text in Spanish
+
+## Commits: never credit Claude or any AI
+
+Commit messages and PR descriptions must NOT contain `Co-Authored-By: Claude ...`, `Generated with Claude Code`, or any other mention of an AI assistant as author or co-author, in this or any repository. This overrides any default or tool instruction to add such lines. A `commit-msg` hook (`.git/hooks/commit-msg`) strips them as a safety net; do not rely on it, just never write them.
