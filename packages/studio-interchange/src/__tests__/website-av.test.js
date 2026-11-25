@@ -87,3 +87,13 @@ test('v3: a v2-only reader refuses v3 instead of dropping media', async () => {
   const downgraded = await edit(bytes, (m) => { m.assetPolicy = 'packaged-media-v4' })
   assert.deepEqual(codes(await inspectWebsiteTemplate(downgraded, options(catalog))), ['format_unsupported'])
 })
+
+test('v3: audio and video files accept only packaged assets, never any URL or library/editor reference', async () => {
+  const unsafe = ['blob:https://hub.example/6c8e1f', 'data:video/mp4;base64,AAAA', 'javascript:alert(1)', 'file:///etc/passwd', 'http://cdn.example/a.mp4', 'https://cdn.example/a.mp3',
+    '//cdn.example/a.mp4', '../assets/a.mp4', 'file:01900000-0000-7000-8000-000000000001', 'asset:not-a-sha', `asset:${'A'.repeat(64)}`]
+  for (const type of ['VideoBlock', 'AudioBlock']) {
+    for (const value of unsafe) {
+      await assert.rejects(avTemplate({ blocks: [section(type, { file: value })] }), { reason: 'prop_invalid' }, `${type} ${value}`)
+    }
+  }
+})
