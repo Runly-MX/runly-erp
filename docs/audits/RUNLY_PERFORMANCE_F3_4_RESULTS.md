@@ -67,3 +67,11 @@ Ver `RUNLY_LICENSE_INVENTORY_PRELIMINARY.md` (sección final) y `docs/THIRD_PART
 ## Pendiente
 
 React compartido (perfiles y memoria), Marketplace en navegador, Postgres de Website en Docker, SBOM de contenedores y de Atlas/Hub, sincronización de documentación en runly-web y Hub, validación del campo `file` de audio/video dentro del Hub, y las decisiones sobre `country-state-city` y FFmpeg.
+
+---
+
+# Anexo C.2 (2026-11-25)
+
+- **Sync offline, casos límite:** el retroceso de 1 ms **sí** podía atascarse con más de 500 filas con el mismo `updatedAt` (1200 empatadas: solo llegaban 500, sin error). Corregido con un cursor compuesto aditivo `"<ISO>~<entidad>~<id>"` (orden estable por `updatedAt, id`; el formato simple sigue aceptado), comprobado con 1200 empatadas, dos entidades truncadas a la vez e interferencias de 20+ páginas (el motor devuelve `complete:false`, persiste el cursor de cada página y el proveedor continúa a los 15 s sin marcar «sincronizado»). Un registro con cambio local pendiente ya no se sobrescribe. Calendario envía los deshabilitados como `deleted:true` en pulls incrementales.
+- **No cubierto:** borrados duros en servidor (sin change log; diseño propuesto: tabla `sync_tombstone(company_id, module, entity, id, deleted_at)` escrita por los servicios y leída por el handler como filas `deleted:true`); más de 500 filas empatadas ya avanzan, pero no se probó contra PostgreSQL real; cambio de empresa y revocación se apoyan en el alcance por empresa del servidor y en bases locales por empresa.
+- **Geo, FFmpeg, SBOM, Hub, documentación y checklist:** ver `RUNLY_GEO_SERVICE_PLAN.md`, `RUNLY_LICENSE_INVENTORY_PRELIMINARY.md`, `THIRD_PARTY_NOTICES.md`, `docs/sbom/`, `RUNLY_ERP_ATLAS_HUB_COMPATIBILITY_MATRIX.md` y `RUNLY_RC_ACCEPTANCE_CHECKLIST.md`.
