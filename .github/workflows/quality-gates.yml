@@ -1,0 +1,51 @@
+name: Quality Gates
+
+# Two tiers, both defined in scripts/ci/run-gates.mjs and runnable locally with the same command:
+#   fast    every pull request and push to main: lint, privacy, company scope, policies, performance guards (source),
+#           curated contract tests. No build, database or browser; about a minute.
+#   release manual run or a version tag: fast + web build + bundle budgets (login static JS closure and heavy-library
+#           check) + security suites. Add the optional full-suite comparison with `full_suite`.
+# Every gate is green on main when it is added; a red gate is a regression, not a known failure.
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: Gate tier to run
+        type: choice
+        options: [fast, release]
+        default: release
+      full_suite:
+        description: Also run the whole suite and compare with the recorded baseline (about 6 minutes)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 9.15.0
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: pnpm db:generate
+        env:
+          # Client generation only reads the URL; it does not connect to a DB.
+          DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/runly_ci
+      - name: Gates
+        env:
+          TIER: ${{ (startsWith(github.ref, 'refs/tags/v') && 'release') || (github.event_name == 'workflow_dispatch' && inputs.tier) || 'fast' }}
+          FULL_SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.full_suite && '--full-suite' || '' }}
+        run: node scripts/ci/run-gates.mjs "$TIER" $FULL_SUITE
