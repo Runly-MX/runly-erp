@@ -2,6 +2,7 @@
 import { chromium } from 'playwright'
 const base = process.argv[2], top = Number(process.argv[3] ?? 12)
 const b = await chromium.launch(); const ctx = await b.newContext(); const page = await ctx.newPage()
+if (process.env.NOPREFETCH) await ctx.addInitScript(() => { window.requestIdleCallback = () => 0; window.cancelIdleCallback = () => {} })
 const cdp = await ctx.newCDPSession(page); await cdp.send('Network.enable')
 const reqs = new Map(), done = []
 cdp.on('Network.requestWillBeSent', e => reqs.set(e.requestId, { url: e.request.url, type: e.type }))
