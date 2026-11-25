@@ -198,3 +198,40 @@ Pendientes que impiden staging/producción: SLO, ensayo prolongado, cobertura de
 seguridad nativa/vendorizada, corpus real, búsqueda/ACL a gran escala, PDF/Office
 complejos y matriz completa de accesibilidad/gestos. La matriz conserva otros
 pendientes funcionales. El estado final de Git y commits se registra en el anexo.
+
+## Estabilización final (2026-11-25, tercera ronda)
+
+**Migración `20270116000000_content_intelligence_consolidation`:** el commit
+`f22ca6f16` (sha256 `4a4792df...`) fue editado por `51f54127a` (sha256 `7f55e99f...`,
+solo la condición del governor `IN ('ready','paused')`). `_prisma_migrations` de la
+base persistente de desarrollo no la contiene; solo los laboratorios desechables
+aplicaron la primera versión y se recrean. No se reescribe ni se añade otra migración;
+si algún entorno persistente la aplicó con el hash anterior, necesita una migración
+forward con `CREATE OR REPLACE` de esa función. No verificado en entornos fuera de este equipo.
+
+**Auditoría `pnpm audit --prod`** ([JSON](audits/content-intelligence-stage2/pnpm-audit-prod.json)):
+1 crítico, 14 altos, ninguno en OCR/API/worker. `tar` (crítico+altos) llega por
+`fabric>canvas/jsdom`, dependencias de Node no empaquetadas en el navegador ni usadas
+en runtime; `fabric` <7.2 (XSS en exportación SVG) y `image-size` (DoS en pptxgenjs)
+son de Studio y requieren salto mayor de versión: deuda abierta de Studio, sin
+mitigación aplicada. `mysql2`, `effect`, `deepmerge-ts` provienen del CLI de Prisma
+(sin MySQL en uso). No se suprimió ni se bajó severidad de nada. El CVE musl del
+worker sigue como en la sección de seguridad.
+
+**Rendimiento:** ver la ronda A/B intercalada en BENCHMARK.md. SLO <10% no demostrado.
+
+### Veredictos por ambiente
+
+| Ambiente | Veredicto |
+|---|---|
+| Desarrollo local | APTO |
+| Pruebas aisladas | APTO |
+| Staging | NO APTO: SLO sin demostrar, sin corpus real, sin operación prolongada, sin ensayo de instalación/actualización en VPS |
+| Producción piloto | NO APTO |
+| Producción general | NO APTO |
+
+No realizado en esta ronda (no se simula): corpus real de fotografías/facturas,
+operación sostenida de horas/días, reinicios de ERP/Postgres/Storage durante carga,
+dispositivo táctil físico, ensayo en staging real y corrección de las CVE de Studio.
+Política de activación recomendada: Nivel 0 por defecto; Nivel 1 (una empresa, concurrencia 1,
+sin histórico masivo) solo tras staging; Nivel 2 después de medir en host dedicado.

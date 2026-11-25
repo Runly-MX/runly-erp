@@ -49,3 +49,37 @@ representativa y repetida antes de staging.
 Se conserva como fallo metodológico una ronda anterior sin calentamiento uniforme
 y otra con solo 128 MiB para Storage, que provocó reinicio e invalidó esa comparación.
 Se corrigió la asignación del laboratorio; no se cambió una instalación operativa.
+
+## Ronda A/B intercalada (2026-11-25, reemplaza la lectura de la tabla anterior)
+
+La tabla anterior (24 muestras por endpoint, una pasada, escenarios en serie) no
+sustenta un p95. `scripts/content-intelligence-erp-ab.mjs` rota los seis escenarios
+dentro de cada una de 8 repeticiones, mide 30 rondas por bloque tras 4 de calentamiento
+y junta 1,440 muestras por escenario (seis endpoints). Mismo laboratorio sintético y
+mismos límites de contenedor; host compartido. Intervalo: bootstrap 95% del cociente
+p95(escenario)/p95(absent). Datos: `erp-ab-4x8.json`, `erp-ab-2x4.json`.
+
+| Presupuesto | Escenario | p50 ms | p95 ms | p99 ms | p95 vs absent | IC95 | Errores |
+|---|---|---:|---:|---:|---:|---|---:|
+| 4/8 | absent | 17.5 | 59.3 | 92.4 | 1.000 | - | 0 |
+| 4/8 | idle | 17.7 | 62.3 | 98.2 | 1.051 | 0.97-1.15 | 0 |
+| 4/8 | new | 18.4 | 61.2 | 85.9 | 1.032 | 0.96-1.12 | 0 |
+| 4/8 | historical | 17.4 | 59.0 | 90.3 | 0.994 | 0.92-1.08 | 0 |
+| 4/8 | accurate | 18.4 | 64.7 | 105.9 | 1.092 | 1.02-1.20 | 0 |
+| 4/8 | pressure | 18.5 | 66.9 | 105.9 | 1.128 | 1.04-1.25 | 0 |
+| 2/4 | absent | 15.0 | 52.8 | 138.1 | 1.000 | - | 0 |
+| 2/4 | idle | 15.0 | 66.8 | 151.1 | 1.266 | 0.82-1.81 | 0 |
+| 2/4 | new | 15.1 | 53.0 | 105.4 | 1.005 | 0.70-1.16 | 0 |
+| 2/4 | historical | 15.3 | 54.0 | 112.0 | 1.023 | 0.71-1.23 | 0 |
+| 2/4 | accurate | 15.3 | 54.1 | 108.3 | 1.026 | 0.72-1.24 | 0 |
+| 2/4 | pressure | 15.5 | 57.9 | 127.0 | 1.098 | 0.77-1.34 | 0 |
+
+Lectura honesta: en archivos nuevos e histórico las estimaciones puntuales quedan
+dentro del 10% (4/8: +3.2% y -0.6%; 2/4: +0.5% y +2.3%), pero el piso de ruido del
+laboratorio es mayor que el presupuesto: "idle" (un worker que no hace nada) marca
++26.6% en 2/4 con IC 0.82-1.81, y 4/8 alta precisión/presión tienen el IC inferior
+por encima de 1.0 (+9.2% y +12.8%). Por tanto el objetivo p95 <10% **no queda
+demostrado**; no se afinaron umbrales del governor sobre esta evidencia porque la
+variación entre idle y absent impide atribuir causa. Para certificarlo hace falta un
+host dedicado (sin otros trabajos), poblaciones reales de Inventario/Compras/POS y
+más repeticiones. Sin errores HTTP ni timeouts en 17,280 solicitudes medidas.
