@@ -242,7 +242,7 @@ export function AuthProvider({ children }) {
     if (!activeSession?.access_token) return null
     const requestedCompanyId = getActiveCompanyId()
     try {
-      const profile = await runly.auth.me(activeSession.access_token)
+      const profile = await fetchMeOnce(activeSession.access_token)
       if (currentIdentityRef.current !== activeSession.user?.id || requestedCompanyId !== getActiveCompanyId()) return null
       setUserProfile(profile)
       setProfileSettled(true)
