@@ -192,6 +192,13 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
               </p>
             </div>
           ) : null}
+          {phase === 'choose' && fromMarket && resource ? (
+            <div role="status" className="rounded-lg border border-[hsl(var(--border))] p-4 text-sm">
+              <p className="font-medium">{resource.title}</p>
+              {resource.description ? <p className="mt-0.5 text-[hsl(var(--muted-foreground))]">{resource.description}</p> : null}
+              <p className="mt-2 text-xs text-[hsl(var(--muted-foreground))]">Nada se descarga ni se guarda hasta que pulses Revisar.</p>
+            </div>
+          ) : null}
           {phase === 'cancelled' ? (
             <div role="status" className="rounded-lg border border-[hsl(var(--border))] p-4 text-sm">
               <p className="font-medium">Importación cancelada</p>
@@ -227,6 +234,7 @@ export function StudioImportDialog({ open, onOpenChange, token, onImported, init
           {phase === 'cancelled' ? <Button onClick={fromMarket ? retryMarket : reset}>{fromMarket ? 'Volver a revisar' : 'Elegir otro archivo'}</Button> : null}
           {phase === 'blocked' ? <Button onClick={reset}>Elegir otro recurso</Button> : null}
           {phase === 'choose' ? <Button variant="outline" onClick={() => onOpenChange(false)}>Cerrar</Button> : null}
+          {phase === 'choose' && fromMarket && resource ? <Button onClick={inspectMarket}>Revisar</Button> : null}
           {['review', 'prepared'].includes(phase) && shown ? <Button variant="ghost" onClick={reset}>{fromMarket ? 'Elegir otro recurso' : 'Elegir otro archivo'}</Button> : null}
           {phase === 'review' && !assess?.cannotImport ? <Button disabled={!canPrepare} onClick={prepare} className="gap-1.5">Revisar e importar</Button> : null}
           {phase === 'prepared' ? <Button disabled={!canConfirm} onClick={() => confirm(prepared.id, prepared.digest, needsAcceptance && accepted)}>{fromMarket ? 'Crear copia' : 'Importar'}</Button> : null}

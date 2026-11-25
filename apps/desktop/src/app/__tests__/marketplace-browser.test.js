@@ -56,7 +56,8 @@ test('integrated Marketplace isolates feeds, opens the real import dialog and as
     await page.getByText('Plantilla de prueba', { exact: true }).waitFor()
     await page.getByRole('button', { name: 'Importar copia editable' }).click()
     await page.getByRole('dialog').waitFor()
-    assert.equal(await page.getByRole('radio', { name: /Desde Marketplace/ }).getAttribute('aria-checked'), 'true')
+    // Opened from a card: the dialog names the chosen release and waits for an explicit Revisar.
+    await page.getByRole('dialog').getByText('Plantilla de prueba', { exact: true }).waitFor()
     assert.ok(await page.getByRole('button', { name: 'Revisar', exact: true }).isEnabled())
     assert.equal(calls.some(([method]) => method === 'POST'), false, 'opening a card never creates or prepares anything')
     await page.keyboard.press('Escape')
