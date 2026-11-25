@@ -18,7 +18,7 @@ for (const c of sbom.components) {
   const files = root && existsSync(root) ? readdirSync(root).filter((f) => FILE.test(f)) : []
   if (!files.length) { missing.push(`${c.name}@${c.version} (${c.licenses[0].license?.id ?? c.licenses[0].expression})`); continue }
   for (const f of files) {
-    const text = readFileSync(join(root, f), 'utf8').replace(/\r\n/g, '\n').trim()
+    const text = readFileSync(join(root, f), 'utf8').replace(/\r\n/g, '\n').replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email omitted>').trim()
     if (!text) continue
     const kind = /^notice/i.test(f) ? 'NOTICE' : 'LICENSE'
     const h = createHash('sha1').update(kind + text).digest('hex')
