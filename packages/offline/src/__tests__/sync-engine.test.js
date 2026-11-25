@@ -480,4 +480,23 @@ describe('SyncEngine', () => {
     await engine.pull({ modules: ['runly.contacts'] })
     assert.ok(calls <= 2)
   })
+
+  it('reports complete=false when the page cap is reached with rows still pending', async () => {
+    let n = 0
+    const engine = new SyncEngine({ companyId: COMPANY_ID, db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok',
+      fetchImpl: async () => { n++; return { ok: true, json: async () => ({ records: [{ moduleKey: 'runly.contacts', entityType: 'contact', id: `c${n}`, data: { id: `c${n}`, companyId: COMPANY_ID }, version: `2026-06-06T10:00:${String(n).padStart(2, '0')}.000Z`, deleted: false }], nextCursor: `2026-06-06T10:00:${String(n).padStart(2, '0')}.000Z`, hasMore: true }) } } })
+    const result = await engine.pull({ modules: ['runly.contacts'] })
+    assert.equal(result.complete, false)
+    assert.equal(result.pulled, 20)
+    const state = await db.sync_state.toArray()
+    assert.ok(state.some((s) => s.serverCursor === '2026-06-06T10:00:20.000Z')) // resumable from the last persisted page
+  })
+
+  it('does not overwrite a record with a local change still waiting to be pushed', async () => {
+    await db.offline_records.put({ moduleKey: 'runly.contacts', entityType: 'contact', id: 'c1', data: { id: 'c1', name: 'Local', companyId: COMPANY_ID }, version: 'v0', dirty: true })
+    const record = { moduleKey: 'runly.contacts', entityType: 'contact', id: 'c1', data: { id: 'c1', name: 'Server', companyId: COMPANY_ID }, version: '2026-06-06T10:00:00Z', deleted: false }
+    const engine = new SyncEngine({ companyId: COMPANY_ID, db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok', fetchImpl: makeFetch(makeResponse([record])) })
+    await engine.pull({ modules: ['runly.contacts'] })
+    assert.equal((await db.offline_records.get(['runly.contacts', 'contact', 'c1'])).data.name, 'Local')
+  })
 })

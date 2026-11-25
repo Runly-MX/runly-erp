@@ -8,18 +8,47 @@ export class SyncServiceError extends Error {
 }
 
 const RECORDS_LIMIT = 500
+// Folds the cursor condition into `where` without clobbering an existing OR (ledger categories).
+function attachAfter(where, cursor, entityKey) {
+  const cond = afterCursor(cursor, entityKey)
+  if (cond.OR) where.AND = [...(where.AND ?? []), { OR: cond.OR }]
+  else Object.assign(where, cond)
+}
+const ORDER = [{ updatedAt: 'asc' }, { id: 'asc' }]
+
+// Cursor formats (the client treats it as an opaque string):
+//   "<ISO>"                   plain: rows with updatedAt > ISO (clients and responses before the composite form)
+//   "<ISO>~<entityKey>~<id>"  composite: the entity named by entityKey resumes strictly after (updatedAt, id),
+//                             so any number of rows sharing one updatedAt can be paged; every other entity
+//                             re-reads from updatedAt >= ISO (idempotent upserts on the client).
+export function parseCursor(cursor) {
+  if (!cursor) return null
+  const [iso, key, ...rest] = String(cursor).split('~')
+  const at = new Date(iso)
+  if (Number.isNaN(at.getTime())) return null
+  return { at, key: key ?? null, id: key ? rest.join('~') : null }
+}
+
+// Prisma `where` fragment for one entity (entityKey = "<moduleKey>/<entityType>").
+export function afterCursor(cursor, entityKey) {
+  const c = parseCursor(cursor)
+  if (!c) return {}
+  if (!c.key) return { updatedAt: { gt: c.at } }
+  if (c.key !== entityKey) return { updatedAt: { gte: c.at } }
+  return { OR: [{ updatedAt: { gt: c.at } }, { updatedAt: c.at, id: { gt: c.id } }] }
+}
 const FETCH_CONCURRENCY = 4
 
 function makeHandler(entityType, prismaKey) {
   return {
     entityType,
-    async fetch({ prisma, companyId, cursor, limit }) {
+    async fetch({ prisma, companyId, cursor, limit, entityKey }) {
       const where = { companyId }
-      if (cursor) where.updatedAt = { gt: new Date(cursor) }
+      attachAfter(where, cursor, entityKey)
       return prisma[prismaKey].findMany({
         where,
         take: limit,
-        orderBy: { updatedAt: 'asc' },
+        orderBy: ORDER,
       })
     },
     toRecord(row) {
@@ -54,38 +83,41 @@ const SYNC_MODULE_REGISTRY = {
     handlers: [
       {
         entityType: 'calendar',
-        async fetch({ prisma, companyId, userId, cursor, limit }) {
-          const where = { companyId, ownerId: userId, enabled: true }
-          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+        async fetch({ prisma, companyId, userId, cursor, limit, entityKey }) {
+          const where = { companyId, ownerId: userId }
+          // First pull: live rows only. Incremental pulls also carry disabled rows as tombstones.
+          if (!cursor) where.enabled = true
+          attachAfter(where, cursor, entityKey)
           return prisma.calendarCalendar.findMany({
             where,
             take: limit,
-            orderBy: { updatedAt: 'asc' },
+            orderBy: ORDER,
           })
         },
         toRecord(row) {
-          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: row.enabled === false }
         },
       },
       {
         entityType: 'event',
-        async fetch({ prisma, companyId, userId, cursor, limit }) {
+        async fetch({ prisma, companyId, userId, cursor, limit, entityKey }) {
           const owned = await prisma.calendarCalendar.findMany({
             where: { companyId, ownerId: userId, enabled: true },
             select: { id: true },
           })
           const calendarIds = owned.map((c) => c.id)
           if (!calendarIds.length) return []
-          const where = { calendarId: { in: calendarIds }, enabled: true }
-          if (cursor) where.updatedAt = { gt: new Date(cursor) }
+          const where = { calendarId: { in: calendarIds } }
+          if (!cursor) where.enabled = true
+          attachAfter(where, cursor, entityKey)
           return prisma.calendarEvent.findMany({
             where,
             take: limit,
-            orderBy: { updatedAt: 'asc' },
+            orderBy: ORDER,
           })
         },
         toRecord(row) {
-          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
+          return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: row.enabled === false }
         },
       },
     ],
@@ -106,7 +138,7 @@ const SYNC_MODULE_REGISTRY = {
     handlers: [
       {
         entityType: 'account',
-        async fetch({ prisma, companyId, userId, cursor, limit }) {
+        async fetch({ prisma, companyId, userId, cursor, limit, entityKey }) {
           const accessible = await prisma.$queryRaw`
             SELECT a.id FROM ledger_account a
             WHERE a.company_id = ${companyId}::uuid
@@ -125,8 +157,8 @@ const SYNC_MODULE_REGISTRY = {
           const ids = accessible.map((r) => r.id)
           if (ids.length === 0) return []
           const where = { companyId, id: { in: ids } }
-          if (cursor) where.updatedAt = { gt: new Date(cursor) }
-          return prisma.ledgerAccount.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+          attachAfter(where, cursor, entityKey)
+          return prisma.ledgerAccount.findMany({ where, take: limit, orderBy: ORDER })
         },
         toRecord(row) {
           return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
@@ -134,7 +166,7 @@ const SYNC_MODULE_REGISTRY = {
       },
       {
         entityType: 'transaction',
-        async fetch({ prisma, companyId, userId, cursor, limit }) {
+        async fetch({ prisma, companyId, userId, cursor, limit, entityKey }) {
           const accessible = await prisma.$queryRaw`
             SELECT a.id FROM ledger_account a
             WHERE a.company_id = ${companyId}::uuid
@@ -153,8 +185,8 @@ const SYNC_MODULE_REGISTRY = {
           const ids = accessible.map((r) => r.id)
           if (ids.length === 0) return []
           const where = { companyId, accountId: { in: ids } }
-          if (cursor) where.updatedAt = { gt: new Date(cursor) }
-          return prisma.ledgerTransaction.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+          attachAfter(where, cursor, entityKey)
+          return prisma.ledgerTransaction.findMany({ where, take: limit, orderBy: ORDER })
         },
         toRecord(row) {
           return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
@@ -162,11 +194,11 @@ const SYNC_MODULE_REGISTRY = {
       },
       {
         entityType: 'category',
-        async fetch({ prisma, companyId, userId, cursor, limit }) {
+        async fetch({ prisma, companyId, userId, cursor, limit, entityKey }) {
           // Matches categories-service.js: system categories (ownerId null) + own personal ones.
           const where = { companyId, OR: [{ ownerId: null }, { ownerId: userId }] }
-          if (cursor) where.updatedAt = { gt: new Date(cursor) }
-          return prisma.ledgerCategory.findMany({ where, take: limit, orderBy: { updatedAt: 'asc' } })
+          attachAfter(where, cursor, entityKey)
+          return prisma.ledgerCategory.findMany({ where, take: limit, orderBy: ORDER })
         },
         toRecord(row) {
           return { id: row.id, data: row, version: row.updatedAt.toISOString(), deleted: false }
@@ -226,22 +258,24 @@ export function createSyncService({ prisma }) {
     await Promise.all(Array.from({ length: Math.min(FETCH_CONCURRENCY, jobs.length) }, async () => {
       while (next < jobs.length) {
         const i = next++
-        fetched[i] = await jobs[i].handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })
+        fetched[i] = await jobs[i].handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1, entityKey: `${jobs[i].moduleKey}/${jobs[i].handler.entityType}` })
       }
     }))
-    // A truncated entity resumes from its own last row, not from the newest row of another entity:
-    // otherwise its remaining rows older than that newest row would never be pulled.
-    // 1 ms before the last row (timestamps have ms precision, the filter is "gt") so rows tied at the
-    // boundary are not skipped; rows re-sent after it are idempotent upserts on the client.
-    let resumeFrom = null
+    // A truncated entity resumes from its own last row (exact composite cursor on updatedAt + id), not from the
+    // newest row of another entity, so neither older rows of that entity nor rows tied at the page boundary are
+    // skipped, and any number of rows sharing one updatedAt still advances. With several truncated entities the
+    // earliest last row wins; the others re-read from that time (idempotent upserts on the client).
+    let resume = null
     jobs.forEach(({ moduleKey, handler }, i) => {
       const rows = fetched[i]
       if (rows.length > RECORDS_LIMIT) {
         hasMore = true
         rows.splice(RECORDS_LIMIT)
-        const last = handler.toRecord(rows[rows.length - 1]).version
-        const from = new Date(Date.parse(last) - 1).toISOString()
-        if (resumeFrom === null || from < resumeFrom) resumeFrom = from
+        const last = rows[rows.length - 1]
+        const at = handler.toRecord(last).version
+        if (resume === null || at < resume.at || (at === resume.at && last.id < resume.id)) {
+          resume = { at, id: last.id, key: `${moduleKey}/${handler.entityType}` }
+        }
       }
       for (const row of rows) {
         records.push({ moduleKey, entityType: handler.entityType, ...handler.toRecord(row) })
@@ -249,7 +283,7 @@ export function createSyncService({ prisma }) {
     })
 
     const nextCursor = hasMore
-      ? resumeFrom
+      ? `${resume.at}~${resume.key}~${resume.id}`
       : records.length > 0
         ? records.reduce((max, r) => (r.version > max ? r.version : max), records[0].version)
         : cursor ?? null

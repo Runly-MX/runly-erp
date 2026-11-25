@@ -16,7 +16,7 @@ const url = process.env.CI_CONTENT_DATABASE_URL;
 let db, pool, service, companyId, otherCompany, owner, viewer, file, args, filesService, storage;
 let originalBytes = Buffer.from('synthetic original');
 const policy = { profile: 'SMART', historical: true, concurrency: 2 };
-const worker = { engine: 'test', languages: ['spa','eng'], models: {}, cpuLimit: 1, memoryLimit: 536870912, memoryUsed: 100000000, governor: 'ready' };
+const worker = { engine: 'test', protocol: 2, languages: ['spa','eng'], models: {}, cpuLimit: 1, memoryLimit: 536870912, memoryUsed: 100000000, governor: 'ready' };
 const page = text => ({ unit: 1, source: 'ocr', reference: 'Imagen 1', text, engine: { version: 'test', languages: 'spa+eng', model: 'synthetic' } });
 
 before(async () => {
@@ -41,6 +41,7 @@ before(async () => {
     CREATE TABLE audit_log(id uuid PRIMARY KEY DEFAULT uuidv7(),company_id uuid,actor_id uuid,module_key text,entity_type text,entity_id uuid,action text,
       before jsonb,after jsonb,metadata jsonb,created_at timestamp DEFAULT now());`);
   await pool.query(await readFile(new URL('../../../../../prisma/migrations/20270115000000_content_intelligence/migration.sql', import.meta.url), 'utf8'));
+  await pool.query(await readFile(new URL('../../../../../prisma/migrations/20270116000000_content_intelligence_consolidation/migration.sql', import.meta.url), 'utf8'));
   db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
   const ids = (await pool.query("SELECT uuidv7() AS a, uuidv7() AS b, uuidv7() AS c, uuidv7() AS d")).rows[0];
   [companyId,otherCompany,owner,viewer] = [ids.a,ids.b,ids.c,ids.d];

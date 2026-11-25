@@ -28,15 +28,18 @@ export class SyncEngine {
     try {
       // The server truncates each entity at a page limit and says so with hasMore; keep pulling until
       // it is drained. Stop if the cursor stops advancing (cannot loop forever on a pathological tie).
-      let pulled = 0, nextCursor = null, previous
+      // The cursor of every page is persisted, so an interrupted or capped pull resumes where it stopped.
+      // `complete` is false while the server still has rows (page cap hit, or a cursor that did not advance).
+      let pulled = 0, nextCursor = null, previous, complete = true
       for (let page = 0; page < MAX_PULL_PAGES; page++) {
         const result = await this.#pullPage({ modules })
         pulled += result.pulled
         nextCursor = result.nextCursor
-        if (!result.hasMore || !nextCursor || nextCursor === previous) break
+        complete = !result.hasMore
+        if (complete || !nextCursor || nextCursor === previous) break
         previous = nextCursor
       }
-      return { pulled, nextCursor }
+      return { pulled, nextCursor, complete }
     } finally {
       this.#pulling = false
     }
@@ -81,6 +84,10 @@ export class SyncEngine {
               .equals([rec.moduleKey, rec.entityType, rec.id])
               .delete()
           } else {
+            // A record with a local change still waiting to be pushed keeps the local copy; the server
+            // version is applied by a later pull once the queued mutation has been sent.
+            const local = await this.#db.offline_records.get([rec.moduleKey, rec.entityType, rec.id])
+            if (local?.dirty) continue
             await this.#db.offline_records.put({
               moduleKey: rec.moduleKey,
               entityType: rec.entityType,

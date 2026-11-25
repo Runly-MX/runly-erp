@@ -4,6 +4,7 @@ import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, policyS
 import { fileKindWhere } from '../files/query.js';
 import { isFilesOrigin } from '../files/visibility.js';
 import { recordFilesWhere } from '../files/record-folders.js';
+import { createContentPressure } from './resource-pressure.js';
 
 const uuid = z.uuid();
 const hash = value => createHash('sha256').update(value).digest('hex');
@@ -32,6 +33,7 @@ const resultSchema = z.strictObject({
 });
 
 export function createContentIntelligence({ prisma, filesService, supabaseAdmin }) {
+  const pressure = createContentPressure();
   async function policy(scope, db = prisma) {
     const rows = await db.$queryRaw`SELECT config FROM runly_content.policy WHERE scope = ${scope}`;
     return rows[0]?.config ?? DEFAULT_POLICY;
@@ -99,7 +101,8 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const file = await authorized(args);
     const p = await effective(file.entityId);
     if (!p.searchEnabled) return { state: 'disabled', pages: [] };
-    const [job] = await prisma.$queryRaw`SELECT id,state,progress,error_code AS "errorCode",quality,updated_at AS "updatedAt"
+    const [job] = await prisma.$queryRaw`SELECT id,state,progress,error_code AS "errorCode",quality,updated_at AS "updatedAt",
+      completed_units AS "completedUnits",total_units AS "totalUnits",derived_bytes::float AS "derivedBytes",elapsed_ms AS "elapsedMs"
       FROM runly_content.job WHERE file_id=${file.id}::uuid AND company_id=${file.entityId}::uuid
       AND revision=${file.contentRevision} AND object_key=${file.objectKey}`;
     if (!job) return { state: p.profile === 'OFF' ? 'disabled' : supportedFile(file) ? 'unprocessed' : 'unsupported', pages: [] };
@@ -184,12 +187,13 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       coalesce(sum(elapsed_ms),0)::int AS "elapsedMs",max(finished_at) AS "lastActivity"
       FROM (SELECT elapsed_ms,finished_at FROM runly_content.attempt WHERE finished_at>now()-interval '15 minutes'
         AND (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY finished_at DESC LIMIT 1000) recent`;
-    const backfill = await prisma.$queryRaw`SELECT company_id AS "companyId",kind,state,cursor,discovered,updated_at AS "updatedAt" FROM runly_content.backfill
+    const backfill = await prisma.$queryRaw`SELECT company_id AS "companyId",kind,state,cursor,discovered,enqueued,omitted,updated_at AS "updatedAt" FROM runly_content.backfill
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY updated_at DESC LIMIT 100`;
     return { config: local ?? instance, effective: local ? effectivePolicy(instance, local) : instance,
       workers: scope === 'instance' ? workers : workers.map(w => ({ connected: w.connected, heartbeatAt: w.heartbeatAt,
         capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages, models: w.capabilities.models, protocol: w.capabilities.protocol } })),
-      counts, recent, rate, backfill, engine: ENGINE_VERSION };
+      counts, recent, rate, backfill, engine: ENGINE_VERSION,
+      ...(scope==='instance' ? { pressure: await pressure.observe() } : {}) };
   }
   async function backfill(companyId, action, filters, context) {
     uuid.parse(companyId);
@@ -198,7 +202,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return prisma.$transaction(async db => {
       if (action === 'start') {
         await db.$executeRaw`INSERT INTO runly_content.backfill(company_id,state,filters) VALUES (${companyId}::uuid,'running',${JSON.stringify(filters ?? {})}::jsonb)
-          ON CONFLICT (company_id,kind) DO UPDATE SET state='running',cursor=NULL,discovered=0,filters=EXCLUDED.filters,updated_at=now()`;
+          ON CONFLICT (company_id,kind) DO UPDATE SET state='running',cursor=NULL,discovered=0,enqueued=0,omitted=0,filters=EXCLUDED.filters,updated_at=now()`;
       } else {
         const state = { pause: 'paused', resume: 'running', cancel: 'cancelled' }[action];
         if (!state) throw new ContentError('Acción inválida.');
@@ -211,15 +215,15 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     });
   }
   async function discover(db) {
-    const [globalPending] = await db.$queryRaw`SELECT count(*)::int AS n FROM runly_content.job WHERE state IN ('pending','processing')`;
+    const [globalPending] = await db.$queryRaw`SELECT coalesce(sum(jobs),0)::int AS n FROM runly_content.totals WHERE state IN ('pending','processing')`;
     if (globalPending.n >= 4000) return;
     const scans = await db.$queryRaw`SELECT * FROM runly_content.backfill WHERE state='running'
       AND (kind='historical' OR updated_at<now()-interval '15 seconds') ORDER BY updated_at LIMIT 4 FOR UPDATE SKIP LOCKED`;
     for (const scan of scans) {
       const p = await effective(scan.company_id, db);
-      if (p.profile === 'OFF' || p.paused || (scan.kind === 'historical' && !p.historical)) continue;
+      if (p.profile === 'OFF' || p.paused || !p.schedules.every(schedule=>withinSchedule(schedule)) || (scan.kind === 'historical' && !p.historical)) continue;
       const [pending] = await db.$queryRaw`SELECT count(*)::int AS n FROM runly_content.job WHERE company_id=${scan.company_id}::uuid AND state IN ('pending','processing')`;
-      const room = Math.min(10, p.maxPending - pending.n);
+      const room = Math.min(10, p.maxPending - pending.n,4000-globalPending.n);
       if (room <= 0) continue;
       const files = await db.fileAsset.findMany({ where: { entityId: scan.company_id, enabled: true,
         ...(scan.cursor ? { id: { gt: scan.cursor } } : {}),
@@ -230,11 +234,25 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
           ...(scan.filters.toDate ? { lte: new Date(scan.filters.toDate) } : {}),
         } } : {}),
       }, orderBy: { id: 'asc' }, take: room });
-      for (const file of files) await enqueue(db, file, p, { priority: scan.kind === 'new' ? 10 : 40 });
+      let enqueued=0,omitted=0;
+      const existing = files.length ? await db.$queryRaw`SELECT j.file_id,j.state,
+        min(p.confidence) AS confidence,bool_or(p.engine->>'version'<>${ENGINE_VERSION}) AS old_engine
+        FROM runly_content.job j LEFT JOIN runly_content.page p ON p.job_id=j.id
+        WHERE j.file_id=ANY(${files.map(file=>file.id)}::uuid[]) GROUP BY j.file_id,j.state` : [];
+      const byFile = new Map(existing.map(job=>[job.file_id,job]));
+      for (const file of files) {
+        const previous=byFile.get(file.id),mode=scan.filters.mode??'all';
+        const selected=mode==='all' || (mode==='never'&&!previous) || (mode==='failed'&&previous?.state==='failed')
+          || (mode==='lowQuality'&&previous?.confidence!=null&&previous.confidence<(scan.filters.belowConfidence??70))
+          || (mode==='oldEngine'&&previous?.old_engine);
+        if (selected && await enqueue(db,file,{...p,automaticProcessing:scan.kind==='historical'?p.historical:p.automaticProcessing},{
+          priority:scan.kind==='new'?10:40,quality:scan.filters.quality??p.quality,reprocess:['failed','lowQuality','oldEngine'].includes(mode),
+        })) { enqueued++;globalPending.n++; } else omitted++;
+      }
       const finished = files.length < room && scan.kind === 'historical';
       const nextCursor = !files.length && scan.kind === 'new' ? null : files.at(-1)?.id ?? scan.cursor;
       await db.$executeRaw`UPDATE runly_content.backfill SET cursor=${nextCursor}::uuid,
-        discovered=discovered+${files.length},state=${finished ? 'done' : 'running'},updated_at=now()
+        discovered=discovered+${files.length},enqueued=enqueued+${enqueued},omitted=omitted+${omitted},state=${finished ? 'done' : 'running'},updated_at=now()
         WHERE company_id=${scan.company_id}::uuid AND kind=${scan.kind}`;
     }
   }
@@ -243,13 +261,23 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       ON CONFLICT(id) DO UPDATE SET capabilities=EXCLUDED.capabilities,heartbeat_at=now()`;
   }
   async function claim(workerId) {
+    if ((await pressure.observe()).paused) return null;
     return prisma.$transaction(async db => {
       await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
       const global = policySchema.parse(await policy('instance', db));
-      if (global.profile === 'OFF' || global.paused) return null;
       const [worker] = await db.$queryRaw`SELECT id,capabilities FROM runly_content.worker WHERE id=${workerId}
         AND heartbeat_at>now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2`;
       if (!worker) return null;
+      const maintenance = await db.$queryRaw`INSERT INTO runly_content.maintenance(key) VALUES ('retention')
+        ON CONFLICT(key) DO UPDATE SET last_run=now() WHERE runly_content.maintenance.last_run<now()-interval '5 minutes' RETURNING key`;
+      if (maintenance.length) await db.$executeRaw`DELETE FROM runly_content.job WHERE id IN (
+        SELECT j.id FROM runly_content.job j JOIN runly_content.policy cp ON cp.scope=j.company_id::text
+        WHERE j.state NOT IN ('pending','processing') AND j.updated_at<now()-make_interval(days=>least(${global.retentionDays},coalesce((cp.config->>'retentionDays')::int,365)))
+        ORDER BY j.updated_at LIMIT 50)`;
+      if (global.profile === 'OFF' || global.paused) return null;
+      await db.$executeRaw`UPDATE runly_content.attempt a SET finished_at=now(),error_code='LEASE_EXPIRED',
+        elapsed_ms=least(coalesce((j.policy_snapshot->>'timeoutSeconds')::int,120)*1000,greatest(0,extract(epoch FROM (now()-a.started_at))*1000))::int
+        FROM runly_content.job j WHERE a.job_id=j.id AND a.number=j.attempts AND a.finished_at IS NULL AND j.state='processing' AND j.lease_until<now()`;
       await db.$executeRaw`UPDATE runly_content.job SET state=CASE WHEN attempts>=${global.retries} THEN 'failed' ELSE 'pending' END,
         lease_hash=NULL,lease_until=NULL,error_code='LEASE_EXPIRED',available_at=now()+interval '30 seconds',updated_at=now()
         WHERE state='processing' AND lease_until<now()`;
@@ -278,6 +306,11 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
         if (!file) { await db.$executeRaw`DELETE FROM runly_content.job WHERE id=${job.id}::uuid`; continue; }
         if (!processingAllowed({ ...p, automaticProcessing: job.priority>=40 ? p.historical : p.automaticProcessing }, file, job.manual)) {
           await db.$executeRaw`UPDATE runly_content.job SET state='unsupported',error_code='POLICY',updated_at=now() WHERE id=${job.id}::uuid`;
+          continue;
+        }
+        const minimumMiB = job.quality==='accurate' ? 384 : 256;
+        if (Math.min(p.memoryMiB,(worker.capabilities.memoryLimit ?? 0)/1048576)<minimumMiB) {
+          await db.$executeRaw`UPDATE runly_content.job SET state='failed',error_code='RESOURCES',updated_at=now() WHERE id=${job.id}::uuid`;
           continue;
         }
         const [companyActive] = await db.$queryRaw`SELECT count(*)::int AS n FROM runly_content.job WHERE company_id=${job.company_id}::uuid AND state='processing'`;
@@ -349,23 +382,52 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       cancel: reason => reader.cancel(reason),
     });
   }
+  async function savePage(db, id, page, p, totalUnits = null) {
+    if (page.unit>p.maxPages || (totalUnits && totalUnits>p.maxPages)) throw new ContentError('Demasiadas páginas.');
+    const [existing] = await db.$queryRaw`SELECT coalesce(sum(length(text)),0)::int AS chars FROM runly_content.page WHERE job_id=${id}::uuid AND unit<>${page.unit}`;
+    if (existing.chars+page.text.length>1000000) throw new ContentError('Resultado excesivo.');
+    await db.$executeRaw`INSERT INTO runly_content.page(job_id,unit,source,reference,text,normalized,words,confidence,engine)
+      VALUES (${id}::uuid,${page.unit},${page.source},${page.reference},${page.text},${normalizeText(page.text)},
+      ${JSON.stringify(page.words)}::jsonb,${page.confidence},${JSON.stringify(page.engine)}::jsonb)
+      ON CONFLICT(job_id,unit) DO UPDATE SET source=EXCLUDED.source,reference=EXCLUDED.reference,text=EXCLUDED.text,
+        normalized=EXCLUDED.normalized,words=EXCLUDED.words,confidence=EXCLUDED.confidence,engine=EXCLUDED.engine`;
+    await db.$executeRaw`UPDATE runly_content.job SET
+      completed_units=(SELECT count(*) FROM runly_content.page WHERE job_id=${id}::uuid),
+      derived_bytes=(SELECT coalesce(sum(octet_length(text)+octet_length(normalized)+pg_column_size(words)+pg_column_size(engine)),0) FROM runly_content.page WHERE job_id=${id}::uuid),
+      total_units=coalesce(${totalUnits}::int,total_units),updated_at=now() WHERE id=${id}::uuid`;
+  }
+  async function checkpoint(id, lease, input) {
+    const { page, totalUnits } = z.strictObject({ page: pageSchema, totalUnits: z.number().int().min(1).max(200).nullable().default(null) }).parse(input);
+    return prisma.$transaction(async db => {
+      const { p } = await leased(db,id,lease);
+      await savePage(db,id,page,p,totalUnits);
+      await db.$executeRaw`UPDATE runly_content.job SET lease_until=now()+interval '90 seconds',
+        progress=CASE WHEN total_units>0 THEN least(99,completed_units*100/total_units) ELSE progress END WHERE id=${id}::uuid`;
+      return { saved: page.unit };
+    });
+  }
   async function complete(id, lease, input) {
     const result = resultSchema.parse(input);
     if (result.pages.reduce((n, page) => n + page.text.length, 0) > 1000000 || new Set(result.pages.map(p => p.unit)).size !== result.pages.length) throw new ContentError('Resultado excesivo o duplicado.');
     return prisma.$transaction(async db => {
       const { job, p } = await leased(db, id, lease);
       if (result.pages.length > p.maxPages) throw new ContentError('Demasiadas páginas.');
-      await db.$executeRaw`DELETE FROM runly_content.page WHERE job_id=${id}::uuid`;
       for (const page of result.pages) {
-        await db.$executeRaw`INSERT INTO runly_content.page(job_id,unit,source,reference,text,normalized,words,confidence,engine)
-          VALUES (${id}::uuid,${page.unit},${page.source},${page.reference},${page.text},${normalizeText(page.text)},
-          ${JSON.stringify(page.words)}::jsonb,${page.confidence},${JSON.stringify(page.engine)}::jsonb)`;
+        await savePage(db,id,page,p);
       }
-      const retry = result.errorCode && !result.pages.length && job.attempts < p.retries && !['UNSUPPORTED','LIMIT'].includes(result.errorCode);
-      const state = retry ? 'pending' : result.errorCode === 'UNSUPPORTED' ? 'unsupported'
-        : result.errorCode && !result.pages.length ? 'failed' : result.partial ? 'partial'
-          : result.pages.some(page => page.text.trim()) ? 'done' : 'empty';
-      await db.$executeRaw`UPDATE runly_content.job SET state=${state},progress=${retry ? 0 : 100},error_code=${result.errorCode ?? null},
+      const [saved] = await db.$queryRaw`SELECT count(*)::int AS units,coalesce(bool_or(length(trim(text))>0),false) AS "hasText"
+        FROM runly_content.page WHERE job_id=${id}::uuid`;
+      const retry = result.errorCode && job.attempts < p.retries && !['UNSUPPORTED','LIMIT'].includes(result.errorCode);
+      const state = retry ? 'pending' : result.errorCode === 'UNSUPPORTED' && !saved.units ? 'unsupported'
+        : result.errorCode && !saved.units ? 'failed' : result.partial || result.errorCode ? 'partial'
+          : saved.hasText ? 'done' : 'empty';
+      await db.$executeRaw`UPDATE runly_content.attempt SET finished_at=now(),
+        elapsed_ms=least(${p.timeoutSeconds*1000},greatest(0,extract(epoch FROM (now()-started_at))*1000))::int,
+        cpu_ms=${result.metrics?.cpuMs ?? 0},peak_rss_bytes=${result.metrics?.peakRssBytes ?? null}::bigint,
+        second_passes=${result.metrics?.secondPasses ?? 0},error_code=${result.errorCode ?? null}
+        WHERE job_id=${id}::uuid AND number=${job.attempts}`;
+      await db.$executeRaw`UPDATE runly_content.job SET state=${state},progress=CASE WHEN ${Boolean(retry)} THEN progress ELSE 100 END,error_code=${result.errorCode ?? null},
+        elapsed_ms=(SELECT coalesce(sum(elapsed_ms),0) FROM runly_content.attempt WHERE job_id=${id}::uuid),finished_at=CASE WHEN ${Boolean(retry)} THEN NULL ELSE now() END,
         lease_hash=NULL,lease_until=NULL,available_at=now()+make_interval(secs=>${Math.min(900, 15 * 2 ** job.attempts)}),updated_at=now() WHERE id=${id}::uuid`;
       return { state };
     }, { timeout: 15000 });
@@ -378,5 +440,5 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       return { ok: true };
     });
   }
-  return { policy, effective, savePolicy, request, result, cancel, search, status, backfill, heartbeat, claim, renew, download, complete, purge };
+  return { policy, effective, savePolicy, request, result, cancel, search, status, backfill, heartbeat, claim, renew, download, checkpoint, complete, purge };
 }

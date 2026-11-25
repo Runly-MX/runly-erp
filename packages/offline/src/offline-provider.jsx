@@ -12,6 +12,7 @@ import { LedgerSyncAdapter } from './ledger-sync-adapter.js'
 import { createDatabaseLifecycle } from './database-lifecycle.js'
 
 const INITIAL_SYNC_DELAY_MS = 4000
+const CONTINUE_SYNC_DELAY_MS = 15_000
 const PULL_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
 const LEDGER_MODULE_KEY = 'runly.ledger'
 
@@ -124,6 +125,8 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
       return ledgerSyncAdapter
     }
 
+    let continueTimer = null
+
     function runSync() {
       return lifecycle.run(async (isActive) => {
         setSyncing(true)
@@ -143,14 +146,21 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
             console.warn('[runly/offline] Push failed', err?.message ?? err)
           })
           if (!isActive()) return
-          await engine.pull({ modules: OFFLINE_MODULES.filter((moduleKey) => moduleKey !== LEDGER_MODULE_KEY) })
+          const pullResult = await engine.pull({ modules: OFFLINE_MODULES.filter((moduleKey) => moduleKey !== LEDGER_MODULE_KEY) })
           if (!isActive()) return
+          // Not complete (page cap or stalled cursor): continue from the saved cursor soon, and do not report "synced".
+          const incomplete = pullResult?.complete === false
+          // Only while it makes progress; a stalled cursor waits for the regular interval instead of looping.
+          if (incomplete && pullResult.pulled > 0) {
+            clearTimeout(continueTimer)
+            continueTimer = setTimeout(runSync, CONTINUE_SYNC_DELAY_MS)
+          }
           if (ledgerSyncAdapter) {
             await ledgerSyncAdapter.pull().catch((err) => {
               console.warn('[runly/offline] Ledger pull failed', err?.message ?? err)
             })
           }
-          if (isActive()) setLastSyncAt(new Date().toISOString())
+          if (isActive() && !incomplete) setLastSyncAt(new Date().toISOString())
         } catch (err) {
           console.warn('[runly/offline] Pull failed', err?.message ?? err)
         } finally {
@@ -203,6 +213,7 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
       detector.destroy()
       clearInterval(intervalRef.current)
       clearTimeout(initialSyncTimer)
+      clearTimeout(continueTimer)
       onTransportReady?.(null)
       setSyncing(false)
       lifecycle.dispose(disposeLedgerRuntime).catch((err) => {
