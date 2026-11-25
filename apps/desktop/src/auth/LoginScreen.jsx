@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Video, Mail, Lock, User, ArrowRight, CheckCircle2, AlertCircle, ShieldCheck, Layers, CalendarCheck, ShoppingCart, Package, PenTool, BarChart3 } from 'lucide-react'
@@ -8,6 +8,7 @@ import { clearServerUrl, isTauriRuntime } from '../lib/serverStore.js'
 import { runly } from '../lib/runly'
 import { useQueryClient } from '@tanstack/react-query'
 import { instanceStatusQuery } from '../lib/instanceStatusQuery'
+import { startShellPrefetch } from '../lib/shellPrefetch'
 import { useAuth } from './AuthProvider'
 import { normalizeAuthReturnPath } from './authReturnPath.js'
 import { useThemeStore } from '../stores/theme'
@@ -49,6 +50,7 @@ function isValidIdentifier(value) {
 export function LoginScreen({ returnTo = '/app' }) {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const formRef = useRef(null)
   const destination = normalizeAuthReturnPath(returnTo)
   const { session, loading: authLoading } = useAuth()
   const [identifier, setIdentifier] = useState('')
@@ -73,20 +75,8 @@ export function LoginScreen({ returnTo = '/app' }) {
     return () => root.classList.toggle('dark', useThemeStore.getState().isDark)
   }, [])
 
-  // The form is already usable: fetch the authenticated shell and the landing screen while the
-  // person types, so signing in does not start a download waterfall. Idle time only, never blocks the form.
-  useEffect(() => {
-    const prefetch = () => {
-      import("../app/AuthenticatedShell.jsx").catch(() => {})
-      import("../app/HomeScreen").catch(() => {})
-    }
-    if (typeof window.requestIdleCallback === "function") {
-      const id = window.requestIdleCallback(prefetch, { timeout: 4000 })
-      return () => window.cancelIdleCallback(id)
-    }
-    const id = setTimeout(prefetch, 2000)
-    return () => clearTimeout(id)
-  }, [])
+  // Warm the authenticated shell while the person fills the form (policy and strategies in lib/shellPrefetch.js).
+  useEffect(() => startShellPrefetch(formRef.current ?? document), [])
 
   useEffect(() => {
     let mounted = true
@@ -235,7 +225,7 @@ export function LoginScreen({ returnTo = '/app' }) {
                 <p className="text-sm text-white/65">Ingresa a tu espacio de trabajo</p>
               </div>
 
-              <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
+              <form ref={formRef} onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
                 <TextField
                   id="identifier"
                   icon={User}
