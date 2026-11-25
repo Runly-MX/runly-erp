@@ -3,9 +3,7 @@
   "version": "0.1.0",
   "license": "UNLICENSED",
   "type": "module",
-  "sideEffects": [
-    "**/*.css"
-  ],
+  "sideEffects": ["**/*.css"],
   "main": "src/index.js",
   "exports": {
     ".": "./src/index.js",
@@ -62,12 +60,12 @@
     "tailwind-merge": "^3.5.0"
   },
   "peerDependencies": {
-    "react": ">=19.2.5 <20",
-    "react-dom": ">=19.2.5 <20"
+    "react": "latest",
+    "react-dom": "latest"
   },
   "devDependencies": {
-    "react": "19.3.1",
-    "react-dom": "19.3.1"
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
   },
   "private": true,
   "publishConfig": {
