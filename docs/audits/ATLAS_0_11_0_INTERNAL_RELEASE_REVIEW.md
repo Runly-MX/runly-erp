@@ -73,3 +73,10 @@ No se ejecutó el barrido de navegador de Atlas (`verify-phase2-browser`, `verif
 ## 7. Qué cambia en el bloqueo
 
 `0ff88dc90` deja de ser un bloqueador sin evidencia: la versión consumida corresponde al código fuente y no se encontraron defectos de seguridad en lo nuevo. Quedan **condiciones de publicación** (1, 2 y 4), que pasan a la lista de aceptación F1C. No se requiere una nueva versión de Atlas.
+
+## 8. Seguimiento de las condiciones (2026-11-24)
+
+- **Condición 2 (blob: y URLs en audio/video): resuelta en ERP** (`7ab16940f`): los campos `file` de `AudioBlock` y `VideoBlock` solo guardan `file:<uuid>` (o vacío) al validar la página y al publicar; `blob:` queda como vista temporal del editor, que ya traduce a `file:<id>` antes de guardar. Pruebas negativas en ERP y en Atlas (`b280fb8`, solo pruebas, sin nueva versión).
+- **Condición 4 (navegador): parcial.** Pasan `verify-motion-responsive` (Chromium y WebKit), `verify-phase2-browser` y `test-compositions-browser`. `test-editor-ui` falla igual en 0.10.0 y 0.11.0 (preexistente). Firefox y reproducción real de audio/video no cubiertos.
+- **Condición 1 (Hub):** preparada y documentada en `RUNLY_ERP_ATLAS_HUB_COMPATIBILITY_MATRIX.md`; la adopción es posterior a la publicación de ERP.
+- Observación 1 (`//host` aceptado por el validador de URLs de medios de Atlas) sigue sin cambio de código; el contrato de ERP ya no admite URLs escritas en esos campos.
