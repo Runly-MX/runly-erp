@@ -1,6 +1,6 @@
 # Matriz de versiones de React
 
-Fecha: 2026-11-24. Estado: unificación aplicada en ERP (`82c7ff827`); Hub y Atlas no se tocaron.
+Fecha: 2026-11-24. Estado: **decisión preparada, NO aplicada** (el intento `82c7ff827` se revirtió en `1b7cbc784`, ver §6). Hub y Atlas no se tocaron.
 
 ## 1. Situación encontrada
 
@@ -28,7 +28,7 @@ El lockfile tenía por tanto 19.2.5, 19.2.7, 19.3.0, 19.3.1 y 18.3.1. Causas: do
 | Atlas | Peer `>=18.0.0`, sin copia propia | Sus pruebas cubren consumidores React 18 y 19 |
 | `storefront-sdk` | 18.3.1 en pruebas, a propósito | Es un SDK que se publica para sitios con React 18; conservar su objetivo de prueba |
 
-## 3. Decisión
+## 3. Decisión (propuesta; ver §6 para por qué no está aplicada)
 
 **React y React DOM 19.3.1 exactos** en `apps/desktop`, `apps/api`, `packages/ui` (desarrollo), `packages/offline` (desarrollo) y `packages/preview-runtime` (nueva dependencia de desarrollo); en `@runly/ui` el peer pasa de `latest` a `>=19.2.5 <20`.
 
@@ -37,7 +37,7 @@ Por qué 19.3.1 y no «la mayor» ni la menor:
 - No hay una restricción de contrato que la excluya: todos los peers del ecosistema aceptan 19.x (`>=18`, `>=19 <20`, `^19`).
 - No se eligió por ser la mayor: se eligió por ser la que el código entregado ya usa.
 
-Verificación sobre la unificación: instalación limpia con `--frozen-lockfile`, build web (chunks equivalentes al anterior, mismo tamaño total dentro de la variación de nombres), 724 pruebas de `packages/*` (722 pasan, 0 fallan, 2 omitidas) y el smoke autenticado de 12 pantallas sin errores nuevos.
+Verificación realizada sobre el intento revertido: instalación limpia con `--frozen-lockfile`, build web (chunks equivalentes al anterior, mismo tamaño total dentro de la variación de nombres), 724 pruebas de `packages/*` (722 pasan, 0 fallan, 2 omitidas) y el smoke autenticado de 12 pantallas sin errores nuevos.
 
 No verificado: Hub con React 19.3.1 (su propio árbol), módulos RME3 de terceros ya compilados contra una versión distinta, SSR e hidratación de un sitio publicado de extremo a extremo (solo cubiertos por las pruebas existentes), y colaboración/llamadas en navegador.
 
@@ -55,3 +55,13 @@ Experimento descartado (`239c62962`): un grupo manual `editor-vendor` (`@tiptap`
 - Alinear el Hub (React de `preview-runtime`, Atlas 0.10.0 a 0.11.0).
 - Decidir si `@runly/ui` debe declarar React como peer sin dependencia de desarrollo propia en el Hub.
 - Probar un módulo RME3 compilado antes del cambio contra el ERP nuevo (compatibilidad de shims).
+
+## 6. Hallazgo de reproducibilidad: especificadores `latest` (bloquea aplicar la unificación)
+
+Declaran `latest` (o `*`): `react`, `react-dom`, `lucide-react`, `zod` (api); `@tanstack/react-query`, `zustand`, `lucide-react`, `react`, `react-dom`, `vite`, `@vitejs/plugin-react`, `@tauri-apps/cli`, `autoprefixer`, `postcss` (desktop); `clsx`, `lucide-react`, `react`, `react-dom` (ui); `zod` (validators); `concurrently` (raíz).
+
+**Con cero cambios de manifiesto, `pnpm install --lockfile-only` ya modifica el lockfile** (254 líneas añadidas, 227 eliminadas): mueve rolldown 1.2.13 a 1.2.19, `lucide-react`, `@tanstack/query-core` y otros, porque `pnpm` vuelve a resolver las etiquetas `latest`. Mi primer intento de fijar React (`82c7ff827`) arrastró esa deriva: además de la unificación de React cambió el bundler y unificó `lucide-react` 1.59/1.78 en 1.78 (el bundle de iconos pasó de 762 KB a 843 KB sin comprimir), y el cierre estático del login creció de 747 a 837 KB gzip. Eso mezclaba efectos, así que **se revirtió**; las mediciones de F3.2 siguen correspondiendo al lockfile original.
+
+Hay además una **duplicación real**: `lucide-react` está resuelto en dos versiones distintas (1.59.0 para `@runly/ui` y 1.78.0 para `apps/desktop`), sin `dedupe` para él en Vite.
+
+Plan para aplicarlo bien (cambio separado): (1) congelar todos los `latest` a la versión que hoy está en el lockfile de cada importador; (2) decidir una sola versión de `lucide-react` y medir; (3) fijar React a 19.3.1; (4) añadir una puerta de CI que rechace `latest` y `*` en manifiestos; (5) reconstruir y repetir el A/B.
