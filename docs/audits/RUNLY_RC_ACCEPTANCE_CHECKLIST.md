@@ -46,3 +46,29 @@ Bloqueadores de publicación (B) y mejoras que pueden esperar (M).
 ## Bloqueadores externos conocidos
 
 Revisión jurídica de GPL/ODbL y avisos; teléfonos reales; imágenes Docker del RC; decisión sobre las migraciones de otras sesiones presentes en el árbol.
+
+
+## Estado tras Bloque D (2026-11-25)
+
+Resumen del informe `RUNLY_PLATFORM_STABILIZATION_RC1.md`. `[x]` solo con evidencia; el resto sigue abierto.
+
+| # | Estado | Evidencia o bloqueador |
+|---|---|---|
+| 1 | [x] | SHA del código `adbfdbb10`; solo cambian pruebas, scripts y documentación después. `pnpm install --frozen-lockfile` no se repitió (lockfile sin tocar). Verified: 2026-11-25 |
+| 2 | [ ] | Dos builds web idénticos no se compararon; gate release en verde |
+| 3 | [x] | Suite general 6916 pruebas, 0 fallidas, línea base vacía. Verified: 2026-11-25 |
+| 4 | [x] | Imágenes API, worker y web desde `adbfdbb10` (`32d4d8794f7b`, `94a6a0890f4e`, `0873a407f7d2`). Verified: 2026-11-25 |
+| 5 | [~] | API: arranque real con migraciones, seed y `/health` (5/5 no root). Web: arranca con API simulada. Worker: solo usuario y capacidades; falta arranque con el stack |
+| 6 | [x] | 5 suites de PostgreSQL de Website, 86/86 en contenedor desechable. Verified: 2026-11-25 |
+| 7 | [~] | Esquema completo aplicado sobre base vacía (imagen y sync) e historial histórico. Falta el ensayo de actualización con copia de datos de staging |
+| 8 | [~] | Backup y restauración de PostgreSQL verificados con datos de prueba (filas, FK, índices, checksum). Falta ruta S3 con restic (la integración falla en el arnés), archivos y arranque tras restaurar |
+| 9 | [~] | Seguridad 166/166, revocación y aislamiento de sync con base real. Falta revocación en caliente con segundo usuario contra una API real |
+| 10 | [ ] | Instalación, actualización y desinstalación de módulos contra una API real no ejecutadas aquí |
+| 11 | [~] | Sync offline contra PostgreSQL real 9/9; falta Chromium con IndexedDB real |
+| 12 | [ ] | Sin medición nueva en navegador |
+| 13 | [ ] | Memoria sin medir |
+| 14 | [~] | Atlas 0.11.1 en ERP y Hub; 22 casos del validador compartido; falta el sandbox real del Hub |
+| 15 | [ ] | Teléfonos físicos pendientes (lista en el informe) |
+| 16 | [ ] | Tauri sin ejecutar |
+| 17 | [ ] | GitHub Actions sin ejecutar (sin push) |
+| 18 | [~] | SBOM npm y Rust, avisos y textos de licencia; faltan contenedores, binarios y revisión jurídica |

@@ -16,8 +16,18 @@ const baselinePath = join(root, 'docs/audits/evidence/suite-failures-baseline.tx
 const DEFAULT_PATTERNS = [/(^|\/)[^/]*\.test\.[cm]?js$/, /(^|\/)[^/]*-test\.[cm]?js$/, /(^|\/)[^/]*_test\.[cm]?js$/, /(^|\/)test-[^/]*\.[cm]?js$/, /(^|\/)test\.[cm]?js$/, /(^|\/)test\/.*\.[cm]?js$/]
 const files = spawnSync('git', ['ls-files', '--cached', '--others', '--exclude-standard'], { cwd: root, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).stdout.split('\n').map((f) => f.trim())
   .filter((f) => f && existsSync(join(root, f)) && DEFAULT_PATTERNS.some((re) => re.test(f)) && !/^scripts\/test-/.test(f))
-const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files], { cwd: root, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
-const output = `${run.stdout ?? ''}\n${run.stderr ?? ''}`
+// Batches keep the command line under the Windows limit; a run that produces no summary is an error, never a pass.
+let output = ''
+const totals = { tests: 0, pass: 0, fail: 0, skipped: 0 }
+for (let i = 0; i < files.length; i += 100) {
+  const run = spawnSync(process.execPath, ['--test', '--test-reporter=tap', ...files.slice(i, i + 100)], { cwd: root, encoding: 'utf8', maxBuffer: 512 * 1024 * 1024 })
+  const chunk = `${run.stdout ?? ''}
+${run.stderr ?? ''}`
+  const seen = Object.fromEntries([...chunk.matchAll(/^# (tests|pass|fail|skipped) (\d+)/gm)].map((m) => [m[1], Number(m[2])]))
+  if (run.error || seen.tests === undefined) { console.error(`Suite batch ${i / 100 + 1} produced no summary (${run.error?.message ?? `exit ${run.status}`}).`); process.exit(2) }
+  for (const key of Object.keys(totals)) totals[key] += seen[key] ?? 0
+  output += chunk
+}
 const failing = new Set()
 for (const line of output.split(/\r?\n/)) {
   const m = /^\s*not ok \d+ - (.+?)(?:\s+#.*)?$/.exec(line)
@@ -28,8 +38,6 @@ for (const line of output.split(/\r?\n/)) {
   // A failing file is reported as its path; keep it distinguishable from test names.
   failing.add(/(?:^|[\\/])[\w.-]+\.(?:test\.)?(?:js|mjs)$/.test(name) && /[\\/]/.test(name) ? `[file] ${name.replaceAll('\\\\', '\\')}` : name)
 }
-const summary = /^# (tests|pass|fail|skipped) (\d+)/gm
-const totals = Object.fromEntries([...output.matchAll(summary)].map((m) => [m[1], Number(m[2])]))
 console.log(`Suite: ${totals.tests ?? '?'} tests, ${totals.pass ?? '?'} pass, ${totals.fail ?? '?'} fail, ${totals.skipped ?? '?'} skipped; ${failing.size} distinct failing names`)
 if (process.argv.includes('--write')) {
   writeFileSync(baselinePath, [...failing].sort().join('\n') + '\n')
