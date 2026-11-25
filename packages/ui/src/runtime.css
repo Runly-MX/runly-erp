@@ -1791,11 +1791,10 @@ textarea.sr-only {
   }
 }
 
-/* Decorative continuous Tailwind animations stop under reduced motion; spinners keep running (they signal progress). */
+/* Moving decorative animations stop under reduced motion; spinners and opacity pulses (skeletons) stay, they signal loading. */
 @media (prefers-reduced-motion: reduce) {
   .animate-ping,
-  .animate-bounce,
-  .animate-pulse {
+  .animate-bounce {
     animation: none;
   }
 }

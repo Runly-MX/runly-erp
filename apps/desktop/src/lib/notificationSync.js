@@ -63,10 +63,12 @@ function refreshNow(queryClient, minAgeMs = 0) {
 // guaranteed to run after the last event. Only mounted (enabled) queries refetch.
 export function refreshNotifications(queryClient, { minAgeMs = 0 } = {}) {
   let state = schedulers.get(queryClient);
-  if (!state) { state = { last: 0, timer: null }; schedulers.set(queryClient, state); }
-  if (state.timer) return;
+  if (!state) { state = { last: 0, timer: null, minAgeMs }; schedulers.set(queryClient, state); }
+  // A pending trailing refresh takes the strictest request (an event must not be swallowed by a lenient reconciliation).
+  if (state.timer) { state.minAgeMs = Math.min(state.minAgeMs, minAgeMs); return; }
+  state.minAgeMs = minAgeMs;
   const wait = REFRESH_WINDOW_MS - (Date.now() - state.last);
-  const run = () => { state.timer = null; state.last = Date.now(); refreshNow(queryClient, minAgeMs); };
+  const run = () => { state.timer = null; state.last = Date.now(); refreshNow(queryClient, state.minAgeMs); };
   if (wait <= 0) run();
   else state.timer = setTimeout(run, wait);
 }

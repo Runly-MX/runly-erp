@@ -1,6 +1,6 @@
 import { createHash, randomBytes } from 'node:crypto';
 import { z } from 'zod';
-import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, policySchema, supportedFile } from './policy.js';
+import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
 import { fileKindWhere } from '../files/query.js';
 import { isFilesOrigin } from '../files/visibility.js';
 import { recordFilesWhere } from '../files/record-folders.js';
@@ -10,18 +10,25 @@ const hash = value => createHash('sha256').update(value).digest('hex');
 export class ContentError extends Error {
   constructor(message, status = 400) { super(message); this.status = status; }
 }
-const resultSchema = z.strictObject({
-  pages: z.array(z.object({
+export const pageSchema = z.object({
     unit: z.number().int().min(1).max(200),
     source: z.enum(['digital', 'ocr']), reference: z.string().max(160),
     text: z.string().max(200000),
     words: z.array(z.object({ text: z.string().max(500), x: z.number().nonnegative(), y: z.number().nonnegative(),
       width: z.number().nonnegative(), height: z.number().nonnegative(), confidence: z.number().min(0).max(100) })).max(20000).default([]),
     confidence: z.number().min(0).max(100).nullable().default(null),
-    engine: z.object({ version: z.string().max(120), languages: z.string().max(100), model: z.string().max(200) }),
-  })).max(200),
+    engine: z.object({ version: z.string().max(120), languages: z.string().max(100), model: z.string().max(200),
+      canvas: z.object({ width: z.number().positive().max(40000000), height: z.number().positive().max(40000000),
+        coordinateSpace: z.enum(['exif-oriented-image','pdf-raster']), pageWidth: z.number().positive().optional(), pageHeight: z.number().positive().optional(),
+      }).optional(), secondPasses: z.number().int().min(0).max(10).optional(),
+    }),
+  });
+const resultSchema = z.strictObject({
+  pages: z.array(pageSchema).max(200).default([]),
   partial: z.boolean().default(false),
   errorCode: z.enum(['UNSUPPORTED', 'LIMIT', 'TIMEOUT', 'PARSER', 'DOWNLOAD', 'RESOURCES']).optional(),
+  metrics: z.object({ cpuMs: z.number().int().nonnegative().max(3600000), peakRssBytes: z.number().int().nonnegative(),
+    secondPasses: z.number().int().min(0).max(2000) }).optional(),
 });
 
 export function createContentIntelligence({ prisma, filesService, supabaseAdmin }) {
@@ -30,7 +37,8 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return rows[0]?.config ?? DEFAULT_POLICY;
   }
   async function effective(companyId, db = prisma) {
-    return effectivePolicy(await policy('instance', db), await policy(companyId, db));
+    const [instance, company] = await Promise.all([policy('instance', db), policy(companyId, db)]);
+    return effectivePolicy(instance, company);
   }
   async function audit(db, context, action, metadata) {
     await db.auditLog.create({ data: { actorId: context.profileId, companyId: context.companyId,
@@ -58,13 +66,12 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return file;
   }
   async function enqueue(db, file, p, { manual = false, priority = 20, quality = p.quality, reprocess = false } = {}) {
-    if (p.profile === 'OFF' || p.paused || !supportedFile(file) || file.sizeBytes > p.maxFileBytes) return false;
-    if (manual && !p.manualOcr) throw new ContentError('El reconocimiento manual está desactivado.', 409);
+    if (p.profile === 'OFF' || p.paused || !processingAllowed(p, file, manual) || file.sizeBytes > p.maxFileBytes) return false;
     // All queue writers share this lock, including historical discovery.
     await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
-    const [capacity] = await db.$queryRaw`SELECT count(*)::int AS total,
-      count(*) FILTER (WHERE company_id=${file.entityId}::uuid)::int AS company
-      FROM runly_content.job WHERE state IN ('pending','processing')`;
+    const [capacity] = await db.$queryRaw`SELECT coalesce(sum(jobs),0)::int AS total,
+      coalesce(sum(jobs) FILTER (WHERE company_id=${file.entityId}::uuid),0)::int AS company
+      FROM runly_content.totals WHERE state IN ('pending','processing')`;
     if (capacity.total >= 4000 || capacity.company >= p.maxPending) return false;
     if (reprocess) await db.$executeRaw`DELETE FROM runly_content.job WHERE file_id=${file.id}::uuid AND state NOT IN ('pending','processing')`;
     const added = await db.$executeRaw`INSERT INTO runly_content.job(company_id,file_id,revision,object_key,manual,priority,quality)
@@ -78,7 +85,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     if (p.profile === 'OFF' || p.paused) throw new ContentError('El procesamiento está desactivado o pausado.', 409);
     if (!supportedFile(file)) throw new ContentError('Formato no compatible.', 415);
     if (file.sizeBytes > p.maxFileBytes) throw new ContentError('El archivo excede el límite.', 413);
-    const [worker] = await prisma.$queryRaw`SELECT id FROM runly_content.worker WHERE heartbeat_at > now()-interval '90 seconds' AND capabilities->>'governor'='ready' LIMIT 1`;
+    const [worker] = await prisma.$queryRaw`SELECT id FROM runly_content.worker WHERE heartbeat_at > now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2 LIMIT 1`;
     if (!worker) throw new ContentError('El worker está desconectado. Instala o inicia el servicio opcional.', 409);
     const queued = await prisma.$transaction(async db => {
       const ok = await enqueue(db, file, p, { manual: true, priority: 0, quality: quality ?? p.quality, reprocess });
@@ -168,14 +175,21 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const local = scope === 'instance' ? null : await policy(scope);
     const workers = await prisma.$queryRaw`SELECT id,capabilities,heartbeat_at AS "heartbeatAt",
       heartbeat_at > now()-interval '90 seconds' AS connected FROM runly_content.worker ORDER BY heartbeat_at DESC LIMIT 4`;
-    const counts = await prisma.$queryRaw`SELECT state,count(*)::int AS count FROM runly_content.job
+    const counts = await prisma.$queryRaw`SELECT state,sum(jobs)::int AS count,sum(derived_bytes)::float AS "derivedBytes",sum(units)::int AS units FROM runly_content.totals
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) GROUP BY state`;
+    const recent = await prisma.$queryRaw`SELECT state,error_code AS "errorCode",completed_units AS "completedUnits",total_units AS "totalUnits",
+      elapsed_ms AS "elapsedMs",updated_at AS "updatedAt" FROM runly_content.job WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid)
+      ORDER BY updated_at DESC LIMIT 20`;
+    const [rate] = await prisma.$queryRaw`SELECT count(*)::int AS completed,
+      coalesce(sum(elapsed_ms),0)::int AS "elapsedMs",max(finished_at) AS "lastActivity"
+      FROM (SELECT elapsed_ms,finished_at FROM runly_content.attempt WHERE finished_at>now()-interval '15 minutes'
+        AND (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY finished_at DESC LIMIT 1000) recent`;
     const backfill = await prisma.$queryRaw`SELECT company_id AS "companyId",kind,state,cursor,discovered,updated_at AS "updatedAt" FROM runly_content.backfill
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY updated_at DESC LIMIT 100`;
     return { config: local ?? instance, effective: local ? effectivePolicy(instance, local) : instance,
       workers: scope === 'instance' ? workers : workers.map(w => ({ connected: w.connected, heartbeatAt: w.heartbeatAt,
-        capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages } })),
-      counts, backfill, engine: ENGINE_VERSION };
+        capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages, models: w.capabilities.models, protocol: w.capabilities.protocol } })),
+      counts, recent, rate, backfill, engine: ENGINE_VERSION };
   }
   async function backfill(companyId, action, filters, context) {
     uuid.parse(companyId);
@@ -233,8 +247,8 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
       const global = policySchema.parse(await policy('instance', db));
       if (global.profile === 'OFF' || global.paused) return null;
-      const [worker] = await db.$queryRaw`SELECT id FROM runly_content.worker WHERE id=${workerId}
-        AND heartbeat_at>now()-interval '90 seconds' AND capabilities->>'governor'='ready'`;
+      const [worker] = await db.$queryRaw`SELECT id,capabilities FROM runly_content.worker WHERE id=${workerId}
+        AND heartbeat_at>now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2`;
       if (!worker) return null;
       await db.$executeRaw`UPDATE runly_content.job SET state=CASE WHEN attempts>=${global.retries} THEN 'failed' ELSE 'pending' END,
         lease_hash=NULL,lease_until=NULL,error_code='LEASE_EXPIRED',available_at=now()+interval '30 seconds',updated_at=now()
@@ -255,16 +269,36 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
         j.priority - EXTRACT(EPOCH FROM (now()-j.created_at))/60, j.created_at LIMIT 20 FOR UPDATE OF j SKIP LOCKED`;
       for (const job of jobs) {
         const p = await effective(job.company_id, db);
-        if (p.profile === 'OFF' || p.paused) continue;
+        if (p.profile === 'OFF' || p.paused || !p.schedules.every(schedule => withinSchedule(schedule))) continue;
+        const [usage] = await db.$queryRaw`SELECT coalesce(sum(elapsed_ms),0)::float AS ms FROM runly_content.attempt
+          WHERE started_at>=date_trunc('day',now() AT TIME ZONE ${p.schedule.timeZone}) AT TIME ZONE ${p.schedule.timeZone}
+          AND company_id=${job.company_id}::uuid`;
+        if (usage.ms>=p.dailyProcessingSeconds*1000) continue;
         const file = await db.fileAsset.findFirst({ where: { id: job.file_id, entityId: job.company_id, enabled: true, contentRevision: job.revision, objectKey: job.object_key } });
         if (!file) { await db.$executeRaw`DELETE FROM runly_content.job WHERE id=${job.id}::uuid`; continue; }
+        if (!processingAllowed({ ...p, automaticProcessing: job.priority>=40 ? p.historical : p.automaticProcessing }, file, job.manual)) {
+          await db.$executeRaw`UPDATE runly_content.job SET state='unsupported',error_code='POLICY',updated_at=now() WHERE id=${job.id}::uuid`;
+          continue;
+        }
         const [companyActive] = await db.$queryRaw`SELECT count(*)::int AS n FROM runly_content.job WHERE company_id=${job.company_id}::uuid AND state='processing'`;
         if (companyActive.n >= p.concurrency) continue;
         const lease = randomBytes(32).toString('hex');
+        const snapshot = { ...p, quality: job.quality, allowOcr: p.automaticOcr || (job.manual && p.manualOcr) };
+        const pipeline = hash(JSON.stringify({ version: ENGINE_VERSION, quality: job.quality, languages: p.languages,
+          maxPages: p.maxPages, maxPixels: p.maxPixels, digitalExtraction: p.digitalExtraction, allowOcr: snapshot.allowOcr,
+          imageOcr: p.imageOcr, pdfOcr: p.pdfOcr, models: worker.capabilities.models }));
+        if (job.pipeline_key !== pipeline) {
+          await db.$executeRaw`DELETE FROM runly_content.page WHERE job_id=${job.id}::uuid`;
+          await db.$executeRaw`UPDATE runly_content.job SET completed_units=0,total_units=NULL,derived_bytes=0,progress=0 WHERE id=${job.id}::uuid`;
+        }
         await db.$executeRaw`UPDATE runly_content.job SET state='processing',attempts=attempts+1,worker_id=${workerId},
+          pipeline_key=${pipeline},policy_snapshot=${JSON.stringify(snapshot)}::jsonb,started_at=now(),finished_at=NULL,
           lease_hash=${hash(lease)},lease_until=now()+interval '90 seconds',updated_at=now() WHERE id=${job.id}::uuid`;
+        await db.$executeRaw`INSERT INTO runly_content.attempt(job_id,number,company_id,engine)
+          VALUES (${job.id}::uuid,${job.attempts+1},${job.company_id}::uuid,${JSON.stringify({ version: ENGINE_VERSION, quality: job.quality, models: worker.capabilities.models })}::jsonb)`;
+        const completed = await db.$queryRaw`SELECT unit FROM runly_content.page WHERE job_id=${job.id}::uuid ORDER BY unit`;
         return { id: job.id, lease, name: file.originalName, mimeType: file.mimeType, sizeBytes: file.sizeBytes,
-          policy: { ...p, quality: job.quality, allowOcr: p.automaticOcr || (job.manual && p.manualOcr) }, engine: ENGINE_VERSION };
+          policy: snapshot, resumeUnits: completed.map(page => page.unit), engine: ENGINE_VERSION };
       }
       return null;
     }, { timeout: 15000 });

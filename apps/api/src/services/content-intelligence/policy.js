@@ -8,6 +8,23 @@ export const policySchema = z.strictObject({
   paused: z.boolean().default(false),
   historical: z.boolean().default(false),
   manualOcr: z.boolean().default(true),
+  automaticProcessing: z.boolean().default(true),
+  autoOcr: z.boolean().default(true),
+  digitalExtraction: z.boolean().default(true),
+  imageOcr: z.boolean().default(true),
+  pdfOcr: z.boolean().default(true),
+  allowedMimeTypes: z.array(z.string().regex(/^(image|text|application)\/[a-z0-9.+-]+$/)).max(30).default([]),
+  memoryMiB: z.number().int().min(128).max(4096).default(512),
+  threads: z.number().int().min(1).max(4).default(1),
+  cpuBudgetPercent: z.number().int().min(10).max(100).default(80),
+  dailyProcessingSeconds: z.number().int().min(60).max(86400).default(86400),
+  retentionDays: z.number().int().min(1).max(3650).default(365),
+  schedule: z.object({
+    timeZone: z.string().max(80).refine(value => { try { new Intl.DateTimeFormat('en', { timeZone: value }); return true; } catch { return false; } }).default('America/Mexico_City'),
+    windows: z.array(z.object({ days: z.array(z.number().int().min(0).max(6)).min(1).max(7),
+      start: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/), end: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/),
+    })).max(14).default([]),
+  }).default({ timeZone: 'America/Mexico_City', windows: [] }),
   concurrency: z.number().int().min(1).max(4).default(1),
   maxFileBytes: z.number().int().min(1024).max(64 * 1024 * 1024).default(10 * 1024 * 1024),
   maxPages: z.number().int().min(1).max(200).default(50),
@@ -18,13 +35,13 @@ export const policySchema = z.strictObject({
 });
 
 export const DEFAULT_POLICY = policySchema.parse({});
-export const ENGINE_VERSION = 'runly-local-1';
+export const ENGINE_VERSION = 'runly-local-2';
 
 export function effectivePolicy(instance = {}, company = {}) {
   const global = policySchema.parse(instance);
   const local = policySchema.parse(company);
   const result = { ...local };
-  for (const key of ['concurrency', 'maxFileBytes', 'maxPages', 'maxPixels', 'timeoutSeconds', 'retries', 'maxPending']) {
+  for (const key of ['concurrency', 'maxFileBytes', 'maxPages', 'maxPixels', 'timeoutSeconds', 'retries', 'maxPending', 'memoryMiB', 'threads', 'cpuBudgetPercent', 'dailyProcessingSeconds', 'retentionDays']) {
     result[key] = Math.min(local[key], global[key]);
   }
   if (global.profile === 'OFF') result.profile = 'OFF';
@@ -32,12 +49,43 @@ export function effectivePolicy(instance = {}, company = {}) {
   result.paused = global.paused || local.paused;
   result.searchEnabled = global.searchEnabled && local.searchEnabled;
   result.manualOcr = global.manualOcr && local.manualOcr;
+  for (const key of ['automaticProcessing', 'digitalExtraction', 'imageOcr', 'pdfOcr']) result[key] = global[key] && local[key];
   result.historical = global.historical && local.historical;
-  result.languages = local.languages.filter(lang => global.languages.includes(lang));
+  const permittedLanguages = new Set(global.languages);
+  result.languages = local.languages.filter(lang => permittedLanguages.has(lang));
   if (!result.languages.length) result.profile = 'OFF';
-  if (result.profile === 'LIGHT') result.concurrency = 1;
-  result.automaticOcr = ['SMART', 'DEDICATED', 'CUSTOM'].includes(result.profile);
+  if (result.profile === 'LIGHT') { result.concurrency = 1; result.threads = 1; }
+  result.automaticOcr = global.autoOcr && local.autoOcr && ['SMART', 'DEDICATED', 'CUSTOM'].includes(result.profile);
+  result.schedules = [global.schedule, local.schedule];
+  result.allowedMimeTypes = global.allowedMimeTypes.length && local.allowedMimeTypes.length
+    ? local.allowedMimeTypes.filter(type => global.allowedMimeTypes.includes(type))
+    : global.allowedMimeTypes.length ? global.allowedMimeTypes : local.allowedMimeTypes;
+  result.noAllowedTypes = Boolean(global.allowedMimeTypes.length && local.allowedMimeTypes.length && !result.allowedMimeTypes.length);
   return result;
+}
+
+export function withinSchedule(schedule, now = new Date()) {
+  if (!schedule.windows.length) return true;
+  const parts = Object.fromEntries(new Intl.DateTimeFormat('en-US', { timeZone: schedule.timeZone,
+    weekday: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).formatToParts(now).map(p => [p.type, p.value]));
+  const day = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].indexOf(parts.weekday);
+  const minute = Number(parts.hour) * 60 + Number(parts.minute);
+  const minutes = value => Number(value.slice(0,2))*60+Number(value.slice(3));
+  return schedule.windows.some(window => {
+    const start=minutes(window.start),end=minutes(window.end);
+    if (start===end) return window.days.includes(day);
+    if (start<end) return window.days.includes(day) && minute>=start && minute<end;
+    return (window.days.includes(day) && minute>=start) || (window.days.includes((day+6)%7) && minute<end);
+  });
+}
+
+export function processingAllowed(policy, file, manual = false) {
+  if (!supportedFile(file) || policy.noAllowedTypes || (policy.allowedMimeTypes.length && !policy.allowedMimeTypes.includes(file.mimeType))) return false;
+  if (!manual && !policy.automaticProcessing) return false;
+  const allowOcr = manual ? policy.manualOcr : policy.automaticOcr;
+  if (file.mimeType.startsWith('image/') && file.mimeType !== 'image/svg+xml') return allowOcr && policy.imageOcr;
+  if (file.mimeType === 'application/pdf') return policy.digitalExtraction || (allowOcr && policy.pdfOcr);
+  return policy.digitalExtraction;
 }
 
 export function normalizeText(text) {

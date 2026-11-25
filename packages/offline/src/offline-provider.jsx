@@ -184,7 +184,13 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
     }, PULL_INTERVAL_MS)
 
     // Defer the first sync so the ~200 KB pull does not compete with the Home/shell requests.
+    // Pending offline changes keep priority: with any queued, sync (push first, then pull) starts at once.
     const initialSyncTimer = initialOnline ? setTimeout(runSync, INITIAL_SYNC_DELAY_MS) : null
+    if (initialOnline) {
+      transport.mutationQueue.getPendingCount().then((count) => {
+        if (count > 0 && lifecycle.isActive()) { clearTimeout(initialSyncTimer); runSync() }
+      }).catch(() => {})
+    }
 
     setControls({
       // onChange above already runs a sync when the probe flips to online.

@@ -8,6 +8,7 @@ export class SyncServiceError extends Error {
 }
 
 const RECORDS_LIMIT = 500
+const FETCH_CONCURRENCY = 4
 
 function makeHandler(entityType, prismaKey) {
   return {
@@ -215,25 +216,41 @@ export function createSyncService({ prisma }) {
     const records = []
     let hasMore = false
 
-    // Handlers are independent reads: run them concurrently (Promise.all keeps the
-    // module/handler order, so the response is identical to the sequential one).
+    // Handlers are independent reads: run them concurrently; results are indexed by job, so the
+    // module/handler order of the response is identical to the sequential one.
     const jobs = modules.flatMap((moduleKey) =>
       (SYNC_MODULE_REGISTRY[moduleKey]?.handlers ?? []).map((handler) => ({ moduleKey, handler })))
-    const fetched = await Promise.all(jobs.map(({ handler }) =>
-      handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })))
+    const fetched = new Array(jobs.length)
+    let next = 0
+    // At most FETCH_CONCURRENCY reads in flight per request, so one pull cannot hog the connection pool.
+    await Promise.all(Array.from({ length: Math.min(FETCH_CONCURRENCY, jobs.length) }, async () => {
+      while (next < jobs.length) {
+        const i = next++
+        fetched[i] = await jobs[i].handler.fetch({ prisma, companyId, userId, cursor, limit: RECORDS_LIMIT + 1 })
+      }
+    }))
+    // A truncated entity resumes from its own last row, not from the newest row of another entity:
+    // otherwise its remaining rows older than that newest row would never be pulled.
+    // 1 ms before the last row (timestamps have ms precision, the filter is "gt") so rows tied at the
+    // boundary are not skipped; rows re-sent after it are idempotent upserts on the client.
+    let resumeFrom = null
     jobs.forEach(({ moduleKey, handler }, i) => {
       const rows = fetched[i]
       if (rows.length > RECORDS_LIMIT) {
         hasMore = true
         rows.splice(RECORDS_LIMIT)
+        const last = handler.toRecord(rows[rows.length - 1]).version
+        const from = new Date(Date.parse(last) - 1).toISOString()
+        if (resumeFrom === null || from < resumeFrom) resumeFrom = from
       }
       for (const row of rows) {
         records.push({ moduleKey, entityType: handler.entityType, ...handler.toRecord(row) })
       }
     })
 
-    const nextCursor =
-      records.length > 0
+    const nextCursor = hasMore
+      ? resumeFrom
+      : records.length > 0
         ? records.reduce((max, r) => (r.version > max ? r.version : max), records[0].version)
         : cursor ?? null
 

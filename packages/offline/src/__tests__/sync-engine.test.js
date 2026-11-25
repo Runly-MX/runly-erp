@@ -457,4 +457,27 @@ describe('SyncEngine', () => {
     assert.equal(conflicts[0].status, 'PENDING')
     assert.ok(conflicts[0].detectedAt)
   })
+
+  it('keeps pulling while the server reports hasMore and stops when drained', async () => {
+    const rec = (id, v) => ({ moduleKey: 'runly.contacts', entityType: 'contact', id, data: { id, companyId: COMPANY_ID }, version: v, deleted: false })
+    const pages = [
+      { records: [rec('a', '2026-06-06T10:00:00.000Z')], nextCursor: '2026-06-06T09:59:59.999Z', hasMore: true },
+      { records: [rec('b', '2026-06-06T11:00:00.000Z')], nextCursor: '2026-06-06T11:00:00.000Z', hasMore: false },
+    ]
+    const urls = []
+    const engine = new SyncEngine({ companyId: COMPANY_ID, db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok',
+      fetchImpl: async (url) => { urls.push(url); return { ok: true, json: async () => pages[urls.length - 1] } } })
+    const { pulled } = await engine.pull({ modules: ['runly.contacts'] })
+    assert.equal(pulled, 2)
+    assert.equal(urls.length, 2)
+    assert.ok(urls[1].includes('cursor=2026-06-06T09%3A59%3A59.999Z'))
+  })
+
+  it('stops when hasMore is set but the cursor does not advance', async () => {
+    let calls = 0
+    const engine = new SyncEngine({ companyId: COMPANY_ID, db, apiBaseUrl: 'http://localhost:4010', getToken: async () => 'tok',
+      fetchImpl: async () => { calls++; return { ok: true, json: async () => ({ records: [], nextCursor: '2026-06-06T10:00:00.000Z', hasMore: true }) } } })
+    await engine.pull({ modules: ['runly.contacts'] })
+    assert.ok(calls <= 2)
+  })
 })

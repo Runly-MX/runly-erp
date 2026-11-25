@@ -22,6 +22,7 @@ const npx = process.platform === 'win32' ? 'npx.cmd' : 'npx'
 // Stable, fast contract tests that guard the stabilization work. Add a test here when it protects a contract that
 // regressed once; do not add anything that needs a browser, a database or the network.
 const CONTRACT_TESTS = [
+  'apps/api/src/services/__tests__/sync-pagination.test.js',
   'apps/desktop/src/lib/__tests__/notificationSync.test.js',
   'apps/api/src/lib/__tests__/blueprint-query.test.js',
   'apps/api/src/lib/__tests__/runtime-modules-slim.test.js',

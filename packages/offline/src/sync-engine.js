@@ -1,5 +1,7 @@
 import { MutationQueue } from './mutation-queue.js'
 
+const MAX_PULL_PAGES = 20
+
 export class SyncEngine {
   #db
   #apiBaseUrl
@@ -24,8 +26,25 @@ export class SyncEngine {
     if (this.#pulling) return { pulled: 0, nextCursor: null }
     this.#pulling = true
     try {
+      // The server truncates each entity at a page limit and says so with hasMore; keep pulling until
+      // it is drained. Stop if the cursor stops advancing (cannot loop forever on a pathological tie).
+      let pulled = 0, nextCursor = null, previous
+      for (let page = 0; page < MAX_PULL_PAGES; page++) {
+        const result = await this.#pullPage({ modules })
+        pulled += result.pulled
+        nextCursor = result.nextCursor
+        if (!result.hasMore || !nextCursor || nextCursor === previous) break
+        previous = nextCursor
+      }
+      return { pulled, nextCursor }
+    } finally {
+      this.#pulling = false
+    }
+  }
+
+  async #pullPage({ modules }) {
     const token = await this.#getToken()
-    if (!token || !this.#companyId) return { pulled: 0, nextCursor: null }
+    if (!token || !this.#companyId) return { pulled: 0, nextCursor: null, hasMore: false }
 
     // Find the oldest stored cursor across requested modules so we don't
     // miss records changed before a newer module's cursor.
@@ -48,7 +67,7 @@ export class SyncEngine {
       throw new Error(`Pull failed: ${response.status}`)
     }
 
-    const { records, nextCursor } = await response.json()
+    const { records, nextCursor, hasMore } = await response.json()
     const now = new Date().toISOString()
 
     await this.#db.transaction(
@@ -93,10 +112,7 @@ export class SyncEngine {
       },
     )
 
-    return { pulled: records.length, nextCursor }
-    } finally {
-      this.#pulling = false
-    }
+    return { pulled: records.length, nextCursor, hasMore: hasMore === true }
   }
 
   async push() {
