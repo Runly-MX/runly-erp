@@ -1,6 +1,6 @@
 # Matriz de versiones de React
 
-Fecha: 2026-11-24. Estado: **decisión preparada, NO aplicada** (el intento `82c7ff827` se revirtió en `1b7cbc784`, ver §6). Hub y Atlas no se tocaron.
+Fecha: 2026-11-24. Estado: **aplicada en ERP** en `3663b8e20` (React y React DOM 19.3.1 en ui, offline y preview-runtime; apps ya en 19.3.1 tras congelar `latest` en `df74f17a3`). El primer intento (`82c7ff827`) se revirtió porque arrastraba la deriva de `latest`; ver §6 y `RUNLY_DEPENDENCY_POLICY.md`. Hub y Atlas no se tocaron.
 
 ## 1. Situación encontrada
 
@@ -65,3 +65,10 @@ Declaran `latest` (o `*`): `react`, `react-dom`, `lucide-react`, `zod` (api); `@
 Hay además una **duplicación real**: `lucide-react` está resuelto en dos versiones distintas (1.59.0 para `@runly/ui` y 1.78.0 para `apps/desktop`), sin `dedupe` para él en Vite.
 
 Plan para aplicarlo bien (cambio separado): (1) congelar todos los `latest` a la versión que hoy está en el lockfile de cada importador; (2) decidir una sola versión de `lucide-react` y medir; (3) fijar React a 19.3.1; (4) añadir una puerta de CI que rechace `latest` y `*` en manifiestos; (5) reconstruir y repetir el A/B.
+
+## 7. Resultado de la aplicación correcta (2026-11-24)
+
+- Lockfile: solo desaparecen react/react-dom 19.2.5, 19.2.7 y 19.3.0 y scheduler 0.27.0; ningún otro paquete cambia de versión. Quedan 19.3.1 y 18.3.1 (`storefront-sdk`, a propósito).
+- Build en instalación limpia: JS crítico del login 606 KB (antes 611 KB), JS total gzip -0.3 %. Equivale a la comprobación de que ya había una sola instancia efectiva.
+- 913 pruebas de `packages/*` pasan (2 omitidas).
+- Siguen sin verificarse: Hub con 19.3.1, módulos RME3 compilados antes del cambio y SSR/hidratación de extremo a extremo.
