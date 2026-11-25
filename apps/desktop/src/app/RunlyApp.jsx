@@ -7,6 +7,7 @@ import { OfflineProvider } from "@runly/offline";
 import { useThemeStore } from "../stores/theme";
 import { useLauncherStore } from "../stores/launcher";
 import { Topbar } from "../components/Topbar";
+import { enableCallSounds } from "../modules/runly.chat/calls/callSounds.js";
 import { CompanyDeletionBanner } from "../company/CompanyDeletionPanel.jsx";
 import { AppLauncher } from "../components/AppLauncher";
 import { CommandPalette } from "../components/CommandPalette";
@@ -207,6 +208,7 @@ export function RunlyApp() {
   const { canInstall, install, manualInstallReady } =
     usePwaInstall(pwaModuleKey);
   usePushAutoSubscribe();
+  useEffect(() => { enableCallSounds(); }, []);
 
   const showSidebar =
     !isFullscreen &&

@@ -141,3 +141,24 @@ No cubierto: sesión existente (no pasa por el formulario), PWA, hosts nativos, 
 | Sin espera artificial de arranque | Eliminada (`5688dda00`) | Sí |
 
 Contribuyentes restantes de la ruta crítica de login: ver `RUNLY_PROVIDERS_MATRIX.md` §4 (React DOM y Router 127 KB, Radix 92 KB, Supabase completo 49 KB, framer-motion 39 KB, barrel de `@runly/ui` 68 KB). El siguiente trabajo con mejor relación esfuerzo/beneficio es importar solo `auth` de Supabase y diferir framer-motion en el login.
+
+## Anexo: descomposición de la transferencia del login (2026-11-25)
+
+Medido con `perf-f3/scripts/login-resources.mjs` (Chromium escritorio, build local servido con gzip, API no disponible, una carga en frío, 6 s tras mostrar el formulario). La suma reproduce la última medición (1256 KB; JS 612 KB).
+
+| Tipo | Antes | Después |
+|---|---|---|
+| JavaScript (126 solicitudes) | 613 KB | 612 KB |
+| **Audio (4 archivos de llamadas y notificación)** | **457 KB** (ringtone 351) | **0** |
+| CSS (4, de ellos `styles` 65 KB) | 68 KB | 68 KB |
+| Imágenes (isotipos `-sm`/`-md` del loader y logo `-sm`) | 56 KB | 56 KB |
+| Fuentes (Google: Plus Jakarta Sans y Sora, `woff2`) | 52 KB | 52 KB |
+| API (`/instance/status` y loaders HTML) | 7 KB | 7 KB |
+| HTML | 1 KB | 1 KB |
+| **Total** | **1256 KB** | **799 KB (-36 %)** |
+
+Causa: `useCallSoundUnlock` (montado en `AppEntry`, antes de autenticarse) llamaba a `preloadCallSounds()` y el primer clic del formulario disparaba además la descarga de los cuatro buffers. Corrección: los audios se descargan solo cuando el shell autenticado monta `enableCallSounds()` (`RunlyApp`); el desbloqueo de Web Audio en el primer gesto se conserva para iOS. Prueba: `callSoundsDeferred.test.js`.
+
+Quedan sin tocar por riesgo/valor: `styles.css` 65 KB (CSS global; separar el crítico exige otro análisis), fuentes de Google (terceros; 52 KB, autoalojarlas es otra decisión), isotipos `-md` del loader animado (43 KB, branding). Pendiente: comprobar en navegador con sesión que el timbre y los sonidos siguen precargados tras iniciar sesión y la primera llamada entrante en iOS.
+
+Caché de `runtime-modules`: los dos únicos consumidores (`useRuntimeModules`, `useEntityBranding`) comparten la clave `["runtime-modules", usuario]` y ambos piden `slim`; el valor por defecto del SDK es la respuesta completa pero no tiene otros llamadores, así que no hay mezcla de formas.

@@ -68,6 +68,21 @@ async function loadBuffer(name, context) {
   return bufferPromises.get(name);
 }
 
+// The four sounds weigh ~460 KB; none is needed on the login screen. Downloads start only once a session exists
+// (enableCallSounds, from the authenticated shell). Unlocking audio on the first gesture still works before that.
+let soundsEnabled = false;
+
+function prefetchBuffers(context) {
+  void Promise.allSettled(Object.keys(CALL_SOUND_URLS).map((name) => loadBuffer(name, context)));
+}
+
+export function enableCallSounds() {
+  if (soundsEnabled) return;
+  soundsEnabled = true;
+  preloadCallSounds();
+  if (audioContext && audioContext.state === "running") prefetchBuffers(audioContext);
+}
+
 // Unlock only Web Audio inside a user gesture. Playing silent HTML audio here
 // claims iOS's Now Playing UI even when the user is only navigating the app.
 // HTML audio remains available for real sounds (including ringtone retries).
@@ -77,10 +92,8 @@ export async function unlockCallSounds() {
     if (!context) return false;
     if (context.state !== "running") await context.resume();
     if (context.state !== "running") return false;
-    // Fetch/decode without starting a source or delaying gesture completion.
-    void Promise.allSettled(
-      Object.keys(CALL_SOUND_URLS).map((name) => loadBuffer(name, context)),
-    );
+    // Fetch/decode without starting a source or delaying gesture completion (only after login, see enableCallSounds).
+    if (soundsEnabled) prefetchBuffers(context);
     return true;
   } catch {
     return false;
