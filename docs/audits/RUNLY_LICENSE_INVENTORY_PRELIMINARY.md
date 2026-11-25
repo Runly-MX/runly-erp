@@ -50,3 +50,23 @@ La columna «Dónde llega» es lo que se verificó en el código; no sustituye l
 ## 4. Riesgos de interpretación
 
 La licencia declarada en `package.json` puede no coincidir con el texto real ni con el binario que se distribuye; varios paquetes combinan código con licencias distintas. Este inventario sirve para ordenar la revisión, no para decidir compatibilidad.
+
+## Hallazgos y decisiones propuestas (2026-11-25, Bloque C; sin revisión jurídica)
+
+### country-state-city
+- **Código:** el paquete npm es GPL-3.0 (verificado en su `package.json` y `LICENSE`). Se carga en el navegador bajo demanda (`packages/ui/src/lib/geoData.js`: regiones ~650 KB, ciudades 8 MB solo tras elegir estado).
+- **Datos:** el README del paquete declara como fuente `dr5hn/countries-states-cities-database`, cuya `LICENSE` es la **Open Database License (ODbL)** (verificado en el repositorio; el texto no indica versión, se asume 1.0). La ODbL exige aviso de atribución al usar públicamente obras producidas y conservar avisos; sus obligaciones de «compartir igual» recaen sobre la base de datos adaptada, no sobre el código que la consulta (criterio a confirmar por el frente legal).
+- **Propuesta (no implementada):** dejar de depender del paquete GPL y servir los datos de la fuente ODbL con procedencia propia: script reproducible que descarga una versión fijada del repositorio upstream, la divide por país (`geo/<ISO2>.json` con estados y ciudades) y la publica como estático; `geoData.js` conserva la misma interfaz (`Country`, `State`, `City`) y carga por país. Beneficios: se elimina el GPL del navegador, se baja de 8 MB a unos KB por país y se documenta la procedencia. Riesgo: cobertura y formato deben compararse con los formularios actuales (campos de dirección). No se hizo en esta sesión porque exige descargar la base upstream y validar formularios; **no se sustituye por otro dataset de procedencia desconocida**.
+- Mientras tanto: aviso ODbL añadido a `docs/THIRD_PARTY_NOTICES.md`.
+
+### @ffmpeg/core (ffmpeg.wasm)
+- **Verificado en el binario** `ffmpeg-core.wasm` (32 MB): contiene la cadena `enable-gpl` y los códecs x264, x265, libvpx, LAME, Opus, Vorbis y libass; no `enable-nonfree` ni fdk-aac. Es una compilación **GPL** (coherente con la licencia GPL-2.0-or-later del paquete).
+- **Cómo llega:** `postinstall` lo copia a `apps/desktop/public/ffmpeg/` (ignorado por git) y se carga como archivo aparte, bajo demanda.
+- **Usos reales:** Studio (exportación MP4 de respaldo con `libx264`, WebM con `libvpx`), LMS (remux HLS a MP4 con `-c copy` y AAC nativo) y descarga HLS a MP4 (`-c copy`). Solo el MP4 de respaldo necesita un componente GPL (x264); remux, AAC nativo y VP8 funcionan con un núcleo **LGPL**.
+- **Opciones para el frente legal:** (a) mantener el núcleo GPL como componente separado cumpliendo la oferta de fuente correspondiente (versión, parches y configuración de la compilación); (b) compilar un núcleo LGPL propio (sin `--enable-gpl`, sin x264/x265) y dejar el MP4 de respaldo de Studio en WebM o en codificación nativa del navegador; (c) mantener ambos y cargar el GPL solo para el respaldo MP4. Ninguna implica suponer incumplimiento actual. No se eliminó funcionalidad multimedia.
+
+### Collabora (CODE)
+Imagen `collabora/code` ejecutada como contenedor aparte (MPL-2.0 en su núcleo con componentes de terceros); se inventaría con el SBOM de contenedores, **pendiente** (no se reconstruyeron ni inspeccionaron imágenes).
+
+### Inventario Rust
+`apps/desktop/src-tauri/Cargo.lock`: 625 crates registrados, licencias no verificadas (`cargo metadata` no resuelve sin red/caché). Siguiente paso: `cargo about` o `cargo deny` con red.
