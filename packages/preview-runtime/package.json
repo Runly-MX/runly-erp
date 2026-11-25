@@ -28,5 +28,9 @@
     "registry": "https://npm.pkg.github.com",
     "access": "restricted",
     "tag": "source"
+  },
+  "devDependencies": {
+    "react": "19.3.1",
+    "react-dom": "19.3.1"
   }
 }
