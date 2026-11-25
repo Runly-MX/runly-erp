@@ -27,6 +27,20 @@ const exceptions = new Map([
   ['runly.inventory/components/catalogs/CatalogImportDialog.jsx', 'Template download includes explicit active company header'],
   ['runly.inventory/components/InventoryItemImportDialog.jsx', 'Template download includes explicit active company header'],
   ['runly.inventory/hooks/useInventoryCustody.js', 'Signed document template download; business calls use SDK'],
+  ['runly.growth/components/MonitorConnectionDialog.jsx', 'Example snippet shown as text; no request is made'],
+  ['runly.inventory/components/catalogs/ModelsPanel.jsx', 'Export call sends the explicit active company header'],
+  ['runly.inventory/components/InventoryExportDialog.jsx', 'Export call sends the explicit active company header'],
+  ['runly.inventory/lib/guest-api.js', 'Guest capability session (Authorization: Guest); endpoints scoped by the guest token'],
+  ['runly.inventory/lib/guest-table-transport.js', 'Injected guest transport over the guest session token'],
+  ['runly.lms/hooks/useLmsCertDocx.js', 'Signed certificate download'],
+  ['runly.lms/hooks/useLmsCertPdf.js', 'Signed certificate download'],
+  ['runly.lms/lib/directUpload.js', 'Presigned storage upload URL'],
+  ['runly.notes/lib/noteImageAccess.js', 'Note media: explicit active company header, or the public slug route without credentials'],
+  ['runly.studio/components/DesignEditor.jsx', 'Signed asset URL download'],
+  ['runly.studio/components/editor/image/useImageTools.js', 'Signed asset URL download'],
+  ['runly.studio/lib/fabric-adapter.js', 'Signed asset URL download'],
+  ['runly.studio/lib/studio-sync.js', 'transport.fetch is the SDK-backed Studio transport, not the global fetch'],
+  ['runly.website/screens/wizard/WizardStepIdentity.jsx', 'Company logo read through its signed URL'],
 ]);
 let checked = 0;
 const failures = [];
