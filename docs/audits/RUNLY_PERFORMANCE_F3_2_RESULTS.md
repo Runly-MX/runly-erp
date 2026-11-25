@@ -189,3 +189,27 @@ Estado: **VERIFICADA LOCALMENTE** (payload y navegador Chromium; sin dispositivo
 Acumulado desde 1256 KB: -41 %.
 - Pruebas: lint de los archivos tocados limpio; `error-screen-lazy.mjs` en navegador: con `/instance/status` abortado se muestra la pantalla de error completa («Sin conexión»…), y con su chunk además bloqueado, el respaldo plano con botón «Reintentar».
 - Limitaciones: la pantalla de error aparece unos ms después (descarga de ~40 KB solo en ese caso); el asistente de configuración inicial y el flujo de primer uso no se recorrieron en navegador (la API no estaba disponible); no se midió latencia ni móviles físicos.
+
+## Anexo: validación del arranque y la autenticación (2026-11-25)
+
+Estado: **VERIFICADA LOCALMENTE** (Chromium escritorio, un solo navegador; API aislada en el puerto 4021 contra la base de desarrollo, solo lectura; build web del commit `d19f82d3a` servido con `serve.mjs`). Script reproducible: `perf-f3/scripts/auth-flow.mjs <base>` (variables `E2E_USER_*`, `PERF_COMPANY_ID`, `PERF_OTHER_COMPANY_ID`).
+
+| Comprobación | Resultado |
+|---|---|
+| Arranque sin sesión muestra el formulario de login | Aprobada |
+| Sin descarga de audios antes de autenticarse | Aprobada (0 archivos) |
+| Inicio de sesión llega al shell (`/app/home`) | Aprobada |
+| Audios (4) descargados tras autenticarse | Aprobada (ringtone, join, exit, notification) |
+| Restauración de sesión existente (recarga de `/app`) sin formulario | Aprobada; los audios se precargan también al restaurar |
+| Navegación inicial: Home, Calendario, Contactos | Aprobada |
+| Cambio de empresa (empresa de pruebas a «Racoon Devs», solo lectura) | Aprobada: las llamadas llevan la empresa nueva y ninguna de la anterior |
+| `/app/setup` con la instancia inicializada | Aprobada: redirige sin mostrar el asistente |
+| Cierre de sesión por el menú de usuario y recarga posterior | Aprobada: vuelve al login y se queda |
+| `ApiErrorScreen` y respaldo plano (anexo anterior) | Aprobada |
+| Errores de carga de componentes dinámicos | Sin fallos de `assets/*.js|css` ni de `React.lazy` en ninguna fase |
+
+Hallazgos (ninguno es un defecto de las optimizaciones; sin cambios de código):
+1. `[ModuleBundleLoader] failed to load bundle for custom.estrato`: el módulo está en cuarentena en esta API (`[route-loader] custom.estrato: quarantined (NO_TRUST_RECORD)`, F1B), por lo que su bundle se rechaza. Comportamiento esperado de la cuarentena; solo genera ruido en consola.
+2. **Preexistente**: al cerrar sesión, 3 `pageerror` `TypeError: e.teardown is not a function` en `RealtimeClient.removeChannel` (supabase-vendor). Reproducido con el build anterior a F3.2 (`apps/desktop/dist`, mismo `supabase-vendor`), así que no lo introducen F3.1/F3.2. El cierre de sesión se completa. Sospecha: algún canal que `removeAllChannels()` entrega al `removeChannel` nativo (`lib/authorizedRealtime.js:171-172`) sin el método `teardown` que exige el `realtime-js` parcheado. Pendiente de corrección propia con prueba de regresión; reproducción: `perf-f3/scripts/logout-error.mjs`.
+
+Pendiente (no permitido por el entorno o fuera de alcance): asistente de configuración inicial real (requiere una instancia sin inicializar), recuperación de contraseña, otros navegadores y móviles físicos, primera llamada entrante tras iniciar sesión (audio con gesto del usuario, iOS).
