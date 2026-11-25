@@ -21,7 +21,8 @@ export function FilesContentViewer(props) {
   const [selection,setSelection]=useState({fileId:null,query:'',index:0});
   const current=selection.fileId===file?.id?selection:{fileId:file?.id,query:'',index:0};
   const pages=content.isError?[]:content.data?.data?.pages??[];
-  const hits=useMemo(()=>matchingWords(pages,current.query),[pages,current.query]);
+  const query=current.query;
+  const hits=useMemo(()=>matchingWords(pages,query),[pages,query]);
   const active=hits[Math.min(current.index,Math.max(0,hits.length-1))];
   const viewer={query:current.query,setQuery:query=>setSelection({fileId:file?.id,query,index:0}),
     count:hits.length,index:Math.min(current.index,Math.max(0,hits.length-1)),

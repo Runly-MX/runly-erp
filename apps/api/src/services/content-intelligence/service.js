@@ -36,8 +36,8 @@ const resultSchema = z.strictObject({
 
 export function createContentIntelligence({ prisma, filesService, supabaseAdmin }) {
   const pressure = createContentPressure();
-  // Candidate cursors can refer to invisible files. Encrypt them so neither IDs
-  // nor ranks become a permissions side channel; restart requires a fresh search.
+  // Cursors contain authorized positions only; encrypt ranks and scope them to
+  // the caller/query. Restart requires a fresh search.
   const cursorKey=randomBytes(32);
   function encodeCursor(candidate,scope) {
     const nonce=randomBytes(12),cipher=createCipheriv('aes-256-gcm',cursorKey,nonce);
@@ -109,7 +109,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     if (!supportedFile(file)) throw new ContentError('Formato no compatible.', 415);
     if (!processingAllowed(p,file,true)) throw new ContentError('La política no permite procesar este tipo de archivo.',409);
     if (file.sizeBytes > p.maxFileBytes) throw new ContentError('El archivo excede el límite.', 413);
-    const [worker] = await prisma.$queryRaw`SELECT id FROM runly_content.worker WHERE heartbeat_at > now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2 LIMIT 1`;
+    const [worker] = await prisma.$queryRaw`SELECT id FROM runly_content.worker WHERE heartbeat_at > now()-interval '90 seconds' AND capabilities->>'governor' IN ('ready','paused') AND coalesce((capabilities->>'protocol')::int,1)>=2 LIMIT 1`;
     if (!worker) throw new ContentError('El worker está desconectado. Instala o inicia el servicio opcional.', 409);
     const queued = await prisma.$transaction(async db => {
       const ok = await enqueue(db, file, p, { manual: true, priority: 0, quality: quality ?? p.quality, reprocess });
@@ -149,7 +149,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const cursor=query.cursor?decodeCursor(query.cursor,cursorScope):null;
     const source = query.searchIn === 'ocr' ? 'ocr' : null;
     const folderId = query.folderId && query.folderId !== 'root' ? uuid.parse(query.folderId) : null;
-    // Bounded candidate batches. No unauthorized counts, snippets or score side channels.
+    // Bounded candidates. Current ACL is still checked before returning any text.
     const candidates = await prisma.$queryRaw`WITH matches AS (
       SELECT j.file_id AS id,max(CASE WHEN p.normalized ~ ${`\\m${normalized.replace(/ /g,'\\s+')}\\M`} THEN 100
         WHEN p.search_vector @@ to_tsquery('simple',${tsquery}) THEN 80 ELSE 30 END)::int AS rank
@@ -170,6 +170,9 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       AND (${query.folderId !== 'root'} OR f.folder_id IS NULL)
       AND (${query.mime ?? ''}='' OR f.mime_type LIKE ${`${query.mime ?? ''}%`})
       AND (${query.moduleKey ?? ''}='' OR f.module_key=${query.moduleKey ?? ''})
+      AND (${query.workspace !== 'mine'} OR f.uploaded_by_id=${args.activeContext.profileId}::uuid)
+      AND (${query.workspace !== 'shared'} OR EXISTS(SELECT 1 FROM file_asset_share s WHERE s.file_id=f.id
+        AND s.user_id=${args.activeContext.profileId}::uuid AND s.status='ACCEPTED'))
       ORDER BY ranked.rank DESC,f.id LIMIT 50`;
     const data = [];
     const recordFilter = query.record ? await recordFilesWhere(prisma, companyId, String(query.record)) : null;
@@ -199,7 +202,9 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       data.push({ ...file, contentMatch: match ? { source: match.source, page: match.unit, reference: match.reference, snippet: match.text.slice(at, at + 240), terms,
         approximate:!match.exact } : null });
     }
-    return { data, nextCursor: candidates.length === 50 ? encodeCursor(candidates.at(-1),cursorScope) : null };
+    // Never expose that a page of invisible candidates exists. Mixed-visibility
+    // broad searches can be incomplete until visibility is pushed into ranking.
+    return { data, nextCursor: data.length === 50 ? encodeCursor(candidates.at(-1),cursorScope) : null };
   }
   async function status(scope) {
     const instance = await policy('instance');

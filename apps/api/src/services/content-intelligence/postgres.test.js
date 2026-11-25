@@ -65,8 +65,10 @@ test('PostgreSQL vertical slice: OFF, leases, OCR results, current ACL, revision
   await service.savePolicy('instance', policy, args.activeContext);
   await service.savePolicy(companyId, policy, args.activeContext);
   await assert.rejects(service.request(args), /desconectado/);
-  await service.heartbeat('test-worker', worker);
+  await service.heartbeat('test-worker',{...worker,governor:'paused'});
   await service.request(args);
+  assert.equal(await service.claim('test-worker'),null);
+  await service.heartbeat('test-worker', worker);
   await assert.rejects(service.request(args), /cola/);
   const job = await service.claim('test-worker');
   assert.ok(job.lease);
@@ -90,6 +92,8 @@ test('PostgreSQL vertical slice: OFF, leases, OCR results, current ACL, revision
   assert.equal((await service.search(stranger, { q: 'ABC123' })).data.length, 0);
   await pool.query("INSERT INTO file_asset_share(file_id,user_id,status) VALUES ($1,$2,'ACCEPTED')", [file.id,viewer]);
   assert.equal((await service.result(stranger)).pages.length, 1);
+  assert.equal((await service.search(stranger,{q:'ABC123',workspace:'shared'})).data.length,1);
+  assert.equal((await service.search(stranger,{q:'ABC123',workspace:'mine'})).data.length,0);
   await pool.query("UPDATE file_asset_share SET status='REVOKED' WHERE user_id=$1", [viewer]);
   await assert.rejects(service.result(stranger), /no encontrado/);
   const foreign = { ...args, activeContext: { ...args.activeContext, companyId: otherCompany } };
@@ -171,6 +175,7 @@ test('ranked cursor is opaque, scoped and paginates exact before controlled appr
   await assert.rejects(service.search(args,{q:'OTHER987',searchIn:'content',cursor:first.nextCursor}),/Cursor inválido/);
   const invisible=await service.search({...args,activeContext:{...args.activeContext,profileId:viewer,isAdmin:false}},{q:'CURSOR987',searchIn:'content'});
   assert.equal(invisible.data.length,0);
+  assert.equal(invisible.nextCursor,null,'No pagination signal may reveal invisible candidate counts');
   await pool.query("DELETE FROM file_asset WHERE object_key LIKE 'cursor-%'");
   await service.savePolicy('instance',{profile:'OFF'},args.activeContext);
 });
@@ -197,6 +202,24 @@ test('current folder ACL, ownership and company moves apply to existing derived 
   await assert.rejects(service.result(reader), /no encontrado/);
   assert.equal((await service.search(args, { q: 'FOLDERSECRET987' })).data.length, 0);
   await service.savePolicy('instance', { profile: 'OFF' }, args.activeContext);
+});
+
+test('live paused workers accept bounded new-file admission and resume without a historical scan', {skip:!url},async()=>{
+  await service.savePolicy('instance',policy,args.activeContext);
+  await service.savePolicy(companyId,policy,args.activeContext);
+  await pool.query("UPDATE runly_content.worker SET heartbeat_at=now()-interval '100 seconds'");
+  await service.heartbeat('test-worker',{...worker,governor:'paused'});
+  const entry=await db.fileAsset.create({data:{bucket:'test',objectKey:'paused.png',originalName:'Pausa.png',mimeType:'image/png',sizeBytes:1000,
+    entityType:'AtlasFile',moduleKey:'runly.files',entityId:companyId,uploadedById:owner,accessScope:'RESTRICTED'}});
+  const result=await service.result({...args,id:entry.id});
+  assert.equal(result.state,'pending');
+  assert.equal(await service.claim('test-worker'),null);
+  await service.heartbeat('test-worker',worker);
+  const job=await service.claim('test-worker');
+  await service.complete(job.id,job.lease,{pages:[page('PAUSED987')]});
+  assert.equal((await service.result({...args,id:entry.id})).state,'done');
+  await db.fileAsset.delete({where:{id:entry.id}});
+  await service.savePolicy('instance',{profile:'OFF'},args.activeContext);
 });
 
 test('real isolated Docker worker: historical image -> download -> OCR -> indexed search', { skip: !url || process.env.CI_CONTENT_DOCKER !== '1', timeout: 300000 }, async () => {

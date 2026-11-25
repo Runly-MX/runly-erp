@@ -4,6 +4,8 @@ node_modules
 .github
 .superpowers
 .tmp
+# Local evidence can contain private env files and browser sessions.
+.artifacts
 # Credentials are mounted at runtime, never copied into an image.
 .secrets
 **/.secrets

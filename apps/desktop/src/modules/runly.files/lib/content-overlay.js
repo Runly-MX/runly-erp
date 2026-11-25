@@ -4,8 +4,17 @@ export function contentTerms(text) {
 export function matchingWords(pages,query) {
   const terms=contentTerms(query);
   if (!terms.length) return [];
-  return pages.flatMap(page=>(page.words??[]).map((word,index)=>({...word,unit:page.unit,index}))
-    .filter(word=>contentTerms(word.text).some(value=>terms.some(term=>value.includes(term))))).slice(0,1000);
+  const hits=[];
+  for (const page of pages) {
+    for (let index=0;index<(page.words?.length??0);index++) {
+      const word=page.words[index];
+      if (contentTerms(word.text).some(value=>terms.some(term=>value.includes(term)))) {
+        hits.push({...word,unit:page.unit,index});
+        if (hits.length===1000) return hits;
+      }
+    }
+  }
+  return hits;
 }
 export function overlayRotation(width,height,rotation=0) {
   const angle=((rotation%360)+360)%360;

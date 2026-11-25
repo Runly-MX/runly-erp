@@ -80,7 +80,7 @@ BEGIN
     OR (jsonb_array_length(coalesce(g->'allowedMimeTypes','[]'))>0 AND NOT (g->'allowedMimeTypes' ? NEW.mime_type))
     OR (jsonb_array_length(coalesce(c->'allowedMimeTypes','[]'))>0 AND NOT (c->'allowedMimeTypes' ? NEW.mime_type))
     OR NOT EXISTS(SELECT 1 FROM runly_content.worker WHERE heartbeat_at>now()-interval '90 seconds'
-      AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2)
+      AND capabilities->>'governor' IN ('ready','paused') AND coalesce((capabilities->>'protocol')::int,1)>=2)
     THEN RETURN NEW; END IF;
   is_image := NEW.mime_type LIKE 'image/%' AND NEW.mime_type<>'image/svg+xml';
   IF is_image AND (g->>'profile'='LIGHT' OR c->>'profile'='LIGHT'
