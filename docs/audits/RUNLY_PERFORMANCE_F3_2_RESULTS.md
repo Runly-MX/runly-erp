@@ -60,7 +60,7 @@ Smoke autenticado de 12 pantallas (home, work, profile, help, notes, inventory, 
 
 ## 5. Hallazgos para seguir
 
-- El build contiene **varias versiones de React** instaladas (19.2.5, 19.2.7, 19.3.0, 19.3.1) y un grupo manual capturó una copia aparte de React-DOM. Conviene unificar con `pnpm` overrides antes de seguir cortando chunks; es un riesgo de compatibilidad con los módulos RME3 (que usan shims de React).
+- React: unificado a 19.3.1 en ERP (`82c7ff827`); ver `RUNLY_REACT_VERSION_MATRIX.md`. El bundle de ERP ya tenía una sola copia por `resolve.dedupe`; lo que había eran versiones distintas en el lockfile.
 - `lucide-react` entra completo (762 KB sin comprimir) por 10 archivos con `import * as`; sustituirlos por un registro controlado es el siguiente paso (D.4).
 - `country-state-city` (GPL-3.0, 2.1 MB): decisión de sustitución pendiente del frente legal.
 - Excalidraw: con instalación limpia se resuelve `prod`; el `dev` de F3.0 era un artefacto del `node_modules` desfasado del repo principal. Falta verificarlo funcionalmente.
