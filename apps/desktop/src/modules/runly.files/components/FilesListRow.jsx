@@ -17,6 +17,7 @@ import {
 import { Folder, GripVertical, Users } from "lucide-react";
 import { useItemDropTarget } from "../lib/dnd";
 import { gridTemplate } from "../hooks/useFilesColumns";
+import { ContentMatchSnippet } from './ContentMatchSnippet';
 
 const HOVER =
   "[&[data-drop-hover=true]]:bg-[var(--brand-primary)]/20 [&[data-drop-hover=true]]:ring-1 [&[data-drop-hover=true]]:ring-[var(--brand-primary)]";
@@ -113,6 +114,7 @@ export function FilesListRow({
             <span className="truncate">{name}</span>
             {isFolder && data.scope === "COMPANY" && <Users className="h-3 w-3 shrink-0 text-[hsl(var(--muted-foreground))]" />}
           </p>
+          {data.contentMatch && <ContentMatchSnippet match={data.contentMatch} />}
           <p className="truncate text-xs text-[hsl(var(--muted-foreground))]">
             {isFolder ? summary : formatBytes(data.sizeBytes)}
             {layout.compact && <span> · {shortDate(when)}</span>}

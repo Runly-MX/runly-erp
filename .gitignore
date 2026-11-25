@@ -158,3 +158,5 @@ apps/api/public/website-runtime/
 .artifacts/website-w3/
 .artifacts/website-responsive-foundation/
 .artifacts/website-integration/
+# Local Content Intelligence corpus, native models and build diagnostics.
+.artifacts/content-intelligence/

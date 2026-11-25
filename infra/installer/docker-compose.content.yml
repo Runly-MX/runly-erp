@@ -1,0 +1,25 @@
+# Optional overlay for source-free installations; the image must be supplied by infrastructure.
+# Keep the same RUNLY_CONTENT_WORKER_TOKEN in the API's existing private env file.
+services:
+  content-worker:
+    profiles: [content]
+    image: ${RUNLY_CONTENT_WORKER_IMAGE:?Provide the verified content-worker image or digest}
+    environment:
+      RUNLY_CONTENT_API_URL: http://api:4010
+      RUNLY_CONTENT_WORKER_TOKEN: ${RUNLY_CONTENT_WORKER_TOKEN:?Configure a separate worker token}
+      RUNLY_CONTENT_WORKER_ID: ${RUNLY_CONTENT_WORKER_ID:-local-1}
+    cpus: ${RUNLY_CONTENT_CPUS:-0.5}
+    mem_limit: ${RUNLY_CONTENT_MEMORY:-512m}
+    pids_limit: 64
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    tmpfs:
+      - /tmp:size=268435456,mode=1777,noexec,nosuid,nodev
+    init: true
+    restart: unless-stopped
+    logging:
+      driver: local
+      options:
+        max-size: 5m
+        max-file: '2'

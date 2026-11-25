@@ -109,6 +109,9 @@ export function FilesTile({
             Deshabilitado
           </span>
         )}
+        {data.contentMatch && <span className="absolute bottom-1 left-1 right-1 truncate rounded bg-background/90 px-1.5 text-xs" title={data.contentMatch.snippet}>
+          {data.contentMatch.source === 'ocr' ? 'OCR' : 'Contenido'} · {data.contentMatch.reference}
+        </span>}
       </div>
       <span
         className={cn(

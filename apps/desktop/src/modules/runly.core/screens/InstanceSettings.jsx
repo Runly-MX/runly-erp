@@ -19,6 +19,7 @@ import { CURRENCY_OPTIONS, TIME_ZONE_OPTIONS } from "../../../lib/localeCatalogs
 import { CoreSettingsTabs } from "../components/CoreSettingsTabs";
 import { InstanceScopeAlert, PlatformOwnerCard } from "../components/PlatformOwnerCard";
 import { usePlatformOwner } from "../lib/usePlatformOwner";
+import { ContentIntelligenceSettings } from '../components/ContentIntelligenceSettings';
 
 export default function InstanceSettings() {
   const { session, userProfile } = useAuth();
@@ -76,6 +77,8 @@ export default function InstanceSettings() {
           description="Ajusta la configuracion general y las integraciones de tu instancia."
         />
         <CoreSettingsTabs />
+        <ContentIntelligenceSettings enabled={canManage} />
+        <ContentIntelligenceSettings scope="company" enabled={hasPermission} />
 
         {!hasPermission && (
           <ErrorState message="Necesitas permiso core.manage para modificar la configuracion de la instancia." />

@@ -93,6 +93,7 @@ export default function FilesScreen() {
     workspace: inFolders ? "" : workspace,
     folderId: folder ?? "",
     q: searchParams.get("q") || "",
+    searchIn: searchParams.get('searchIn') || 'metadata',
     kind: searchParams.get("kind") || "",
     moduleKey: searchParams.get("moduleKey") || "",
     record: workspace === "modules" ? searchParams.get("record") || "" : "",
@@ -158,12 +159,15 @@ export default function FilesScreen() {
     }
   }
 
+  const contentSearch = Boolean(queryParams.q && queryParams.searchIn !== 'metadata');
   const filesQuery = useInfiniteQuery({
     queryKey: ["files-list", session?.user?.id, queryParams],
-    queryFn: ({ pageParam }) => runly.files.list({ ...queryParams, page: pageParam, pageSize: PAGE_SIZE }, token),
+    queryFn: ({ pageParam }) => contentSearch
+      ? runly.contentIntelligence.search({ ...queryParams, cursor: typeof pageParam === 'string' ? pageParam : '' }, token)
+      : runly.files.list({ ...queryParams, page: pageParam, pageSize: PAGE_SIZE }, token),
     initialPageParam: 1,
     getNextPageParam: (last) =>
-      last?.pagination && last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined,
+      contentSearch ? last?.nextCursor ?? undefined : last?.pagination && last.pagination.page < last.pagination.totalPages ? last.pagination.page + 1 : undefined,
     enabled: Boolean(token) && canReadFiles && workspace !== "invitations",
     // Kept fresh by the files.changed push (RealtimeProvider), not by polling.
   });
@@ -174,7 +178,7 @@ export default function FilesScreen() {
       .flatMap((p) => p?.data ?? [])
       .filter((f) => !seen.has(f.id) && seen.add(f.id));
   }, [filesQuery.data]);
-  const total = filesQuery.data?.pages?.[0]?.pagination?.total ?? 0;
+  const total = contentSearch ? files.length : filesQuery.data?.pages?.[0]?.pagination?.total ?? 0;
   const moduleOptions = [
     "files",
     "company",
@@ -203,6 +207,7 @@ export default function FilesScreen() {
     search: queryParams.q,
     filters: {
       enabled: queryParams.enabled,
+      searchIn: queryParams.searchIn,
       kind: queryParams.kind,
       moduleKey: queryParams.moduleKey,
     },

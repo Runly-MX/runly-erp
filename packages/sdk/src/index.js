@@ -162,6 +162,16 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     health: () => request("/health"),
+    contentIntelligence: {
+      search: (query, token) => request(`/content/search${toQueryString(query)}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      result: (id, token) => request(`/content/files/${encodeURIComponent(id)}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      process: (id, data, token) => request(`/content/files/${encodeURIComponent(id)}/process`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      cancel: (id, token) => request(`/content/files/${encodeURIComponent(id)}/cancel`, { method: 'POST', headers: withAuthHeaders(token), onlineOnly: true }),
+      status: (scope, token) => request(`/content/admin/${scope === 'instance' ? 'instance' : 'company'}`, { headers: withAuthHeaders(token), onlineOnly: true }),
+      configure: (scope, config, token) => request(`/content/admin/${scope === 'instance' ? 'instance' : 'company'}`, { method: 'PUT', headers: withAuthHeaders(token), body: JSON.stringify(config), onlineOnly: true }),
+      backfill: (data, token) => request('/content/admin/backfill', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      purge: (token) => request('/content/admin/purge', { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify({ confirm: 'PURGAR' }), onlineOnly: true }),
+    },
     instance: { status: () => request("/instance/status") },
     setup: {
       initialize: (formData) =>

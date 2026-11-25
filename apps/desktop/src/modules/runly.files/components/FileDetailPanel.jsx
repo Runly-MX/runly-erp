@@ -15,6 +15,7 @@ import {
 import { getOfficeFormat } from "@runly/core";
 import { ExternalLink, FileSearch } from "lucide-react";
 import { resolveFileOrigin } from "../lib/file-origin-resolver";
+import { FileContentPanel } from './FileContentPanel';
 
 const ACCESS_LABELS = {
   private: "Privado (tú y las personas invitadas)",
@@ -56,6 +57,7 @@ export function FileDetailPanel({
           </SheetTitle>
           <SheetDescription>{file.originalName}</SheetDescription>
         </SheetHeader>
+        <FileContentPanel key={`${file.id}:${file.contentRevision}`} file={file} />
         {office?.enabled && file.enabled !== false && getOfficeFormat(file) && (
           <Button onClick={() => office.open(file.id)}>
             Abrir en Office

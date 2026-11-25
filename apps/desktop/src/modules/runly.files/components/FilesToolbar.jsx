@@ -37,6 +37,10 @@ function SegButton({ label, active, disabled, onClick, children }) {
 }
 
 const FILTERS = [
+  { key: 'searchIn', label: 'Buscar en', icon: File, options: [
+    { value: 'all', label: 'Nombre y contenido' }, { value: 'metadata', label: 'Nombre y metadatos' },
+    { value: 'content', label: 'Contenido del archivo' }, { value: 'ocr', label: 'Texto OCR' },
+  ] },
   {
     key: "enabled",
     label: "Estado",

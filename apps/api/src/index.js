@@ -199,6 +199,7 @@ import { getCachedSignedUrls } from "./lib/signed-url-cache.js";
 import { wrapStorageForPublicUrls } from "./lib/supabase-public-url.js";
 import { buildAvatarUrlMapByFileIds } from "./lib/avatar-url-map.js";
 import { PLATFORM_OWNER_KEY, createRequireInstanceAdmin } from "./lib/platform-owner.js";
+import { createContentIntelligenceRouter } from './routes/content-intelligence.js';
 import { createPlatformOwnerRouter } from "./routes/platform-owner-routes.js";
 
 const currentDir = path.dirname(fileURLToPath(import.meta.url));
@@ -1950,6 +1951,7 @@ app.put(
 // for files, LMS permissions for course submissions and certificate templates.
 app.route("/", createOfficeRouter({ officeService, authMiddleware, requirePermission, requireOfficeAccess: requireAnyPermission(["files.assets.read", "lms.access", "lms.grade", "lms.course.manage", "inventory.template.manage", "documents.templates.update"]) }));
 app.route("/", createFilesRouter({ prisma, supabaseAdmin, filesService, authMiddleware, requirePermission, broadcaster }));
+app.route('/', createContentIntelligenceRouter({ prisma, filesService, supabaseAdmin, authMiddleware, requirePermission }));
 app.route("/", createIdentitySessionsRouter({ prisma, supabaseAdmin, authMiddleware, requirePermission }));
 
 
