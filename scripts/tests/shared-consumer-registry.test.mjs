@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname, resolve, relative } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { PACKAGES, REGISTRY, rewriteManifest, digest, inventory } from '../lib/shared-package-release.mjs';
 import { readConsumerArtifacts, startConsumerRegistry, assertIndependentConsumerLock } from '../lib/shared-consumer-registry.mjs';
@@ -19,7 +19,8 @@ function fixture(t) {
     writeFileSync(join(directory, 'package.json'), JSON.stringify(metadata));
     writeFileSync(join(directory, 'src/index.js'), 'export const fixture = true;');
     const files = inventory(directory), file = `${name}.tgz`;
-    execFileSync('tar', ['-czf', join(root, file), 'package'], { cwd: staging, windowsHide: true });
+    // Relative output path: GNU tar (Git Bash on Windows) reads an absolute 'C:\...' as a remote host.
+    execFileSync('tar', ['-czf', relative(staging, join(root, file)), 'package'], { cwd: staging, windowsHide: true });
     const bytes = readFileSync(join(root, file));
     return { package: `@runly/${name}`, registryPackage: `@runly-mx/${name}`, version,
       sourceRevision: revision, file, files, contentDigest: digest(JSON.stringify(files)),
@@ -28,7 +29,7 @@ function fixture(t) {
   const contract = { schemaVersion: 3 };
   const manifest = { schemaVersion: 3, dirty: false, registry: REGISTRY, logicalScope: '@runly', registryScope: '@runly-mx',
     repository: 'Runly-MX/runly-erp', revision, packages: PACKAGES, artifacts,
-    preview: { contract, capabilitiesDigest: digest(JSON.stringify(contract)), artifactDigest: artifacts.at(-1).contentDigest } };
+    preview: { contract, capabilitiesDigest: digest(JSON.stringify(contract)), artifactDigest: artifacts.find(a => a.package === '@runly/preview-runtime').contentDigest } };
   const path = join(root, 'manifest.json');
   const save = () => writeFileSync(path, JSON.stringify(manifest));
   save(); return { root, path, manifest, save };

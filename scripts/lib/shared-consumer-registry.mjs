@@ -51,8 +51,9 @@ export function readConsumerArtifacts(manifestPath) {
     if (!inventoryPaths.has('package.json')) fail();
     let metadata;
     try {
-      metadata = JSON.parse(execFileSync('tar', ['-xOf', file, 'package/package.json'],
-        { encoding: 'utf8', windowsHide: true, timeout: 15_000, maxBuffer: 2 * 1024 * 1024 }));
+      metadata = JSON.parse(// cwd + relative name: GNU tar (Git Bash on Windows) reads an absolute 'C:\...' path as a remote host.
+      execFileSync('tar', ['-xOf', basename(file), 'package/package.json'],
+        { cwd: dirname(file), encoding: 'utf8', windowsHide: true, timeout: 15_000, maxBuffer: 2 * 1024 * 1024 }));
     } catch { fail(); }
     if (metadata.name !== artifact.registryPackage || metadata.version !== artifact.version ||
         metadata.rme3LogicalName !== artifact.package || metadata.rme3SourceRevision !== manifest.revision ||
