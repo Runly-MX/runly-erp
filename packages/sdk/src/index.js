@@ -666,10 +666,13 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
         }),
     },
     blueprints: {
-      list: (token) =>
-        request("/blueprints", {
-          headers: withAuthHeaders(token),
-        }),
+      // params (all optional): { moduleKey, kind, slim, schema } narrow the response; see apps/api/src/lib/blueprint-query.js.
+      list: (token, params = {}) => {
+        const query = new URLSearchParams();
+        for (const [key, value] of Object.entries(params)) if (value !== undefined && value !== null && value !== "") query.set(key, Array.isArray(value) ? value.join(",") : String(value));
+        const qs = query.toString();
+        return request(`/blueprints${qs ? `?${qs}` : ""}`, { headers: withAuthHeaders(token) });
+      },
     },
     collaboration: {
       listInvitations: (params, token) => request(`/collaboration/invitations${toQueryString(params)}`, { headers: withAuthHeaders(token) }),

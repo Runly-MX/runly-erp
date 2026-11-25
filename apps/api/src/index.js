@@ -16,6 +16,7 @@ import { serve } from "@hono/node-server";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
 import { privateJsonTransport } from "./lib/private-json-transport.js";
+import { applyBlueprintQuery } from "./lib/blueprint-query.js";
 import { createHealthRoutes } from './routes/health-routes.js';
 import { createReadinessService, createPoolReadinessProbe, isModuleRuntimeReady } from './services/readiness-service.js';
 import { config as loadEnv } from "dotenv";
@@ -2167,7 +2168,7 @@ app.get("/blueprints", authMiddleware, async (c) => {
     });
   }
 
-  return c.json({ data: [...mergedByKey.values()] });
+  return c.json({ data: applyBlueprintQuery([...mergedByKey.values()], c.req.query()) });
 });
 
 app.get(

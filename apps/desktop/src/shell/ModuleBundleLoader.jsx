@@ -72,7 +72,8 @@ export function ModuleBundleLoader({ children }) {
 
   const { data: blueprintData } = useQuery({
     queryKey: ['blueprints', token],
-    queryFn: () => runly.blueprints.list(token),
+    // Only module/bundle metadata is read here: no schemas and no embedded manifests.
+    queryFn: () => runly.blueprints.list(token, { slim: 1, schema: 0 }),
     enabled: Boolean(token),
     staleTime: 5 * 60 * 1000,
   })

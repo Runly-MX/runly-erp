@@ -68,7 +68,8 @@ export function BlueprintCrudScreen() {
 
   const blueprintsQuery = useQuery({
     queryKey: ["blueprints", moduleKey, authUserId],
-    queryFn: () => runly.blueprints.list(token),
+    // Only this module's rows, without the embedded manifest (it is the module screen: nothing else is read).
+    queryFn: () => runly.blueprints.list(token, { moduleKey, slim: 1 }),
     enabled: Boolean(token),
     staleTime: 30000,
   });
