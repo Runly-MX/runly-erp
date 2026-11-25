@@ -2,13 +2,13 @@
   "libraries": [
     {
       "name": "react",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "category": "shared",
       "imports": "useState, useEffect, useMemo, useCallback, useRef, useContext, createContext, forwardRef, memo, Fragment"
     },
     {
       "name": "react-dom",
-      "version": "19.3.0",
+      "version": "19.3.1",
       "category": "shared",
       "imports": "createPortal, flushSync"
     },
@@ -32,7 +32,7 @@
     },
     {
       "name": "@tanstack/react-query",
-      "version": "5.104.2",
+      "version": "5.104.4",
       "category": "shared",
       "imports": "useQuery, useMutation, useQueryClient"
     },
@@ -56,7 +56,7 @@
     },
     {
       "name": "lucide-react",
-      "version": "1.56.0",
+      "version": "1.59.0",
       "category": "shared",
       "imports": "Iconos por uso en docs/iconos.md: Plus, Pencil, Trash2, Search, Calendar ..."
     },
