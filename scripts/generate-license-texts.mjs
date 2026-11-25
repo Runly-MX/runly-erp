@@ -18,7 +18,7 @@ for (const c of sbom.components) {
   const files = root && existsSync(root) ? readdirSync(root).filter((f) => FILE.test(f)) : []
   if (!files.length) { missing.push(`${c.name}@${c.version} (${c.licenses[0].license?.id ?? c.licenses[0].expression})`); continue }
   for (const f of files) {
-    const text = readFileSync(join(root, f), 'utf8').replace(/\r\n/g, '\n').replace(/[\w.+-]+@[\w-]+(?:\.[\w-]+)+/g, '<email omitted>').trim()
+    const text = readFileSync(join(root, f), 'utf8').replace(/\r\n/g, '\n').trim()
     if (!text) continue
     const kind = /^notice/i.test(f) ? 'NOTICE' : 'LICENSE'
     const h = createHash('sha1').update(kind + text).digest('hex')
@@ -40,4 +40,10 @@ ${missing.map((m) => `- ${m}`).join('\n') || '(none)'}
 
 ${parts.join('\n\n')}
 `)
+
+// Authentic copyright lines of third parties are kept verbatim. The privacy scanner exempts, for this one file only, the exact lines whose
+// sha256 is listed here (any edited line, or any other address, is still a finding). See scripts/check-repository-privacy.mjs.
+const PERSONAL = /\b[A-Z0-9._%+-]+@(?:gmail|hotmail|outlook|yahoo)\.[A-Z.]+\b/i
+const attribution = [...new Set([...groups.values()].flatMap((g) => g.text.split('\n')).concat(missing).filter((l) => PERSONAL.test(l)).map((l) => createHash('sha256').update(l).digest('hex')))].sort()
+writeFileSync('scripts/privacy-third-party-attribution.json', JSON.stringify({ file: 'docs/THIRD_PARTY_LICENSE_TEXTS.md', lineSha256: attribution }, null, 1) + '\n')
 console.log('groups', groups.size, 'missing', missing.length, 'of', sbom.components.length)

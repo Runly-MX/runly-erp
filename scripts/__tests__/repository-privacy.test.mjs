@@ -102,3 +102,14 @@ test('la comprobación staged lee el índice, aunque el archivo de trabajo esté
     rmSync(cwd, { recursive: true, force: true })
   }
 })
+
+test('los textos de licencia de terceros se conservan verbatim solo en sus líneas registradas', () => {
+  const file = 'docs/THIRD_PARTY_LICENSE_TEXTS.md'
+  const content = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8')
+  assert.deepEqual(inspectFile(file, content), [])
+  assert.equal(inspectFile('docs/other.md', content)[0].rule, 'personal-email') // the exemption belongs to this file only
+  const line = content.split(/\r?\n/).find((l) => /@(?:gmail|hotmail|outlook|yahoo)\./i.test(l))
+  assert.ok(line, 'the collected texts keep at least one authentic attribution line')
+  assert.equal(inspectFile(file, content.replace(line, line.replace(/[^\s<(]+@/, 'someone@'))).length > 0, true) // an altered line is a finding
+  assert.equal(inspectFile(file, `${content}\nsomeone@` + 'gmail.com')[0].rule, 'personal-email')
+})

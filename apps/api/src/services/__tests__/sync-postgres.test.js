@@ -18,7 +18,9 @@ const { SyncEngine } = await import('../../../../../packages/offline/src/sync-en
 
 const url = process.env.RUNLY_SYNC_TEST_DATABASE_URL
 const marker = process.env.RUNLY_SYNC_TEST_DISPOSABLE
-if (!url || !/^runly-sync-test-[a-f0-9-]+$/.test(marker ?? '') || new URL(url).hostname !== '127.0.0.1') throw new Error('Run through scripts/test-sync-postgres.mjs (disposable loopback database only)')
+// Not configured (plain `node --test`): do nothing. Only scripts/test-sync-postgres.mjs provides a disposable loopback database.
+if (!url || !marker) { console.log('sync-postgres: skipped (run scripts/test-sync-postgres.mjs)'); process.exit(0) }
+if (!/^runly-sync-test-[a-f0-9-]+$/.test(marker) || new URL(url).hostname !== '127.0.0.1') throw new Error('Refusing a database that is not the disposable loopback container')
 if (execFileSync('docker', ['inspect', '--format', '{{index .Config.Labels "runly.test"}}', marker], { encoding: 'utf8' }).trim() !== 'sync') throw new Error('Not the labelled disposable container')
 
 let db, svc, seq = 0

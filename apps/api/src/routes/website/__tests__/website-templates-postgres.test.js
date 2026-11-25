@@ -29,6 +29,8 @@ import { allTemplates } from '../../../../../desktop/src/website/runlyTemplates/
 
 const url = process.env.RUNLY_WEBSITE_TEST_DATABASE_URL
 const marker = process.env.RUNLY_WEBSITE_TEST_DISPOSABLE
+// Not configured (plain `node --test`): skip. scripts/test-website-postgres.mjs provides the disposable database and runs every assertion.
+if (!process.env.RUNLY_WEBSITE_TEST_DATABASE_URL) { console.log('website postgres: skipped (run scripts/test-website-postgres.mjs)'); process.exit(0) }
 if (!url || new URL(url).hostname !== '127.0.0.1' || new URL(url).pathname !== '/website_s2_test' || !/^runly-website-test-[a-f0-9-]+$/.test(marker ?? '')) throw new Error('Disposable runner required')
 if (execFileSync('docker', ['port', marker, '5432/tcp'], { encoding: 'utf8' }).trim() !== `127.0.0.1:${new URL(url).port}`) throw new Error('Not the disposable database')
 

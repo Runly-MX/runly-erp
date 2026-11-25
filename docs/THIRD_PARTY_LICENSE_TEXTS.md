@@ -418,7 +418,7 @@ decode-named-character-reference@1.3.0, hast-util-to-jsx-runtime@2.3.6, markdown
 ```text
 (The MIT License)
 
-Copyright (c) Titus Wormer <<email omitted>>
+Copyright (c) Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -447,7 +447,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2018-2021 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2018-2021 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -503,7 +503,7 @@ estree-util-is-identifier-name@3.0.0, mdast-util-frontmatter@2.0.1, mdast-util-g
 ```text
 (The MIT License)
 
-Copyright (c) 2020 Titus Wormer <<email omitted>>
+Copyright (c) 2020 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -532,7 +532,7 @@ ansi-regex@5.0.1, ansi-styles@4.3.0, arrify@2.0.1, camelcase@5.3.1, decompress-r
 ```text
 MIT License
 
-Copyright (c) Sindre Sorhus <<email omitted>> (sindresorhus.com)
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -644,7 +644,7 @@ comma-separated-tokens@2.0.3, hast-util-whitespace@3.0.0, is-alphabetical@2.0.1,
 ```text
 (The MIT License)
 
-Copyright (c) 2016 Titus Wormer <<email omitted>>
+Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -671,7 +671,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 prosemirror-commands@1.7.1, prosemirror-dropcursor@1.8.2, prosemirror-gapcursor@1.4.1, prosemirror-history@1.5.0, prosemirror-inputrules@1.5.1, prosemirror-keymap@1.2.3, prosemirror-model@1.25.11, prosemirror-schema-list@1.5.1, prosemirror-state@1.4.4, prosemirror-transform@1.12.0, prosemirror-view@1.42.3
 
 ```text
-Copyright (C) 2015-2017 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2015-2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -699,7 +699,7 @@ THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2018 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -755,7 +755,7 @@ bail@2.0.2, ccount@2.0.1, character-entities-html4@2.1.0, character-entities-leg
 ```text
 (The MIT License)
 
-Copyright (c) 2015 Titus Wormer <<email omitted>>
+Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -817,7 +817,7 @@ c12@3.3.4, defu@6.1.7, destr@2.0.5, get-port-please@3.2.0, jiti@2.6.1, ohash@2.0
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -845,7 +845,7 @@ env-paths@3.0.0, escape-string-regexp@5.0.0, is-plain-obj@4.1.0, is-stream@2.0.1
 ```text
 MIT License
 
-Copyright (c) Sindre Sorhus <<email omitted>> (https://sindresorhus.com)
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -1363,7 +1363,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2020 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1419,7 +1419,7 @@ postgres-array@2.0.0, postgres-array@3.0.4, postgres-bytea@1.0.1, postgres-date@
 ```text
 The MIT License (MIT)
 
-Copyright (c) Ben Drucker <<email omitted>> (bendrucker.me)
+Copyright (c) Ben Drucker <bvdrucker@gmail.com> (bendrucker.me)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1463,7 +1463,7 @@ THE SOFTWARE IS PROVIDED *AS IS*, WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @jridgewell/gen-mapping@0.3.13, @jridgewell/remapping@2.3.5, @jridgewell/sourcemap-codec@1.5.5, @jridgewell/trace-mapping@0.3.31
 
 ```text
-Copyright 2024 Justin Ridgewell <<email omitted>>
+Copyright 2024 Justin Ridgewell <justin@ridgewell.name>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1574,7 +1574,7 @@ clsx@1.1.1, clsx@2.1.1, empathic@2.0.0, escalade@3.2.0
 ```text
 MIT License
 
-Copyright (c) Luke Edwards <<email omitted>> (lukeed.com)
+Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -1617,7 +1617,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 data-urls@3.0.2, html-encoding-sniffer@3.0.0, whatwg-encoding@2.0.0, whatwg-mimetype@3.0.0
 
 ```text
-Copyright © Domenic Denicola <<email omitted>>
+Copyright © Domenic Denicola <d@domenic.me>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -1633,7 +1633,7 @@ dequal@2.0.3, kleur@4.1.5, mri@1.2.0, uvu@0.5.6
 ```text
 The MIT License (MIT)
 
-Copyright (c) Luke Edwards <<email omitted>> (lukeed.com)
+Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (lukeed.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1734,34 +1734,6 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 ### LICENSE text shared by 3 package(s)
 
-@codemirror/lang-go@6.0.1, @codemirror/lang-yaml@6.1.3, @lezer/yaml@1.0.4
-
-```text
-MIT License
-
-Copyright (C) 2024 by Marijn Haverbeke <<email omitted>> and others
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in
-all copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
-THE SOFTWARE.
-```
-
-### LICENSE text shared by 3 package(s)
-
 @fast-csv/format@4.3.5, @fast-csv/parse@4.3.6, fast-csv@4.3.6
 
 ```text
@@ -1795,8 +1767,8 @@ accepts@2.0.0, mime-types@2.1.35, mime-types@3.0.2
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2015 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -1905,7 +1877,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 console-control-strings@1.1.0, gauge@3.0.2, has-unicode@2.0.1
 
 ```text
-Copyright (c) 2014, Rebecca Turner <<email omitted>>
+Copyright (c) 2014, Rebecca Turner <me@re-becca.org>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -1947,7 +1919,7 @@ decamelize@1.2.0, object-assign@4.1.1, path-is-absolute@1.0.1
 ```text
 The MIT License (MIT)
 
-Copyright (c) Sindre Sorhus <<email omitted>> (sindresorhus.com)
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (sindresorhus.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -1975,7 +1947,7 @@ estree-util-visit@2.0.0, micromark-extension-gfm-footnote@2.1.0, unist-util-posi
 ```text
 (The MIT License)
 
-Copyright (c) 2021 Titus Wormer <<email omitted>>
+Copyright (c) 2021 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2002,7 +1974,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 form-data@2.5.6, form-data@4.0.6, sqlstring@2.3.3
 
 ```text
-Copyright (c) 2012 Felix Geisendörfer (<email omitted>) and contributors
+Copyright (c) 2012 Felix Geisendörfer (felix@debuggable.com) and contributors
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -2057,7 +2029,7 @@ longest-streak@3.1.0, stringify-entities@4.0.4, trim-lines@3.0.1
 ```text
 (The MIT License)
 
-Copyright (c) 2015 Titus Wormer <mailto:<email omitted>>
+Copyright (c) 2015 Titus Wormer <mailto:tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -2420,6 +2392,34 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+### LICENSE text shared by 2 package(s)
+
+@codemirror/lang-go@6.0.1, @codemirror/lang-yaml@6.1.3
+
+```text
+MIT License
+
+Copyright (C) 2024 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
 ```
 
 ### LICENSE text shared by 2 package(s)
@@ -2947,7 +2947,7 @@ SOFTWARE.
 
 ```text
 Copyright 2019 - present Christopher J. Brody and other contributors, as listed in: https://github.com/xmldom/xmldom/graphs/contributors
-Copyright 2012 - 2017 @jindw <<email omitted>> and other contributors, as listed in: https://github.com/jindw/xmldom/graphs/contributors
+Copyright 2012 - 2017 @jindw <jindw@xidea.org> and other contributors, as listed in: https://github.com/jindw/xmldom/graphs/contributors
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -2989,7 +2989,7 @@ agent-base@7.1.4, https-proxy-agent@7.0.6
 ```text
 (The MIT License)
 
-Copyright (c) 2013 Nathan Rajlich <<email omitted>>
+Copyright (c) 2013 Nathan Rajlich <nathan@tootallnate.net>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -3016,7 +3016,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 aproba@2.1.0, wide-align@1.1.5
 
 ```text
-Copyright (c) 2015, Rebecca Turner <<email omitted>>
+Copyright (c) 2015, Rebecca Turner <me@re-becca.org>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -3127,8 +3127,8 @@ body-parser@2.4.0, type-is@2.1.0
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2014-2015 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -3157,7 +3157,7 @@ brace-expansion@1.1.21, brace-expansion@2.1.7
 ```text
 MIT License
 
-Copyright (c) 2013 Julian Gruber <<email omitted>>
+Copyright (c) 2013 Julian Gruber <julian@juliangruber.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3204,7 +3204,7 @@ ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 combined-stream@1.0.8, delayed-stream@1.0.0
 
 ```text
-Copyright (c) 2011 Debuggable Limited <<email omitted>>
+Copyright (c) 2011 Debuggable Limited <felix@debuggable.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3232,7 +3232,7 @@ commander@7.2.0, commander@8.3.0
 ```text
 (The MIT License)
 
-Copyright (c) 2011 TJ Holowaychuk <<email omitted>>
+Copyright (c) 2011 TJ Holowaychuk <tj@vision-media.ca>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -3290,8 +3290,8 @@ cookie@0.7.2, cookie@1.1.1
 ```text
 (The MIT License)
 
-Copyright (c) 2012-2014 Roman Shtylman <<email omitted>>
-Copyright (c) 2015 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2012-2014 Roman Shtylman <shtylman@gmail.com>
+Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -3348,7 +3348,7 @@ cross-spawn@7.0.6, proper-lockfile@4.1.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2018 Made With MOXY Lda <<email omitted>>
+Copyright (c) 2018 Made With MOXY Lda <hello@moxy.studio>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -3740,7 +3740,7 @@ lib0@0.2.117, y-protocols@1.0.7
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2019 Kevin Jahns <<email omitted>>.
+Copyright (c) 2019 Kevin Jahns <kevin.jahns@protonmail.com>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4230,8 +4230,8 @@ mime-db@1.52.0, mime-db@1.54.0
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2015-2022 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2015-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -4258,7 +4258,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 orderedmap@2.1.1, w3c-keyname@2.2.8
 
 ```text
-Copyright (C) 2016 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4286,7 +4286,7 @@ parse-entities@4.0.2, property-information@7.1.0
 ```text
 (The MIT License)
 
-Copyright (c) Titus Wormer <mailto:<email omitted>>
+Copyright (c) Titus Wormer <mailto:tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -4429,7 +4429,7 @@ remark-parse@11.0.0, remark-stringify@11.0.0
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Titus Wormer <<email omitted>>
+Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4484,8 +4484,8 @@ retry@0.12.0, retry@0.13.1
 
 ```text
 Copyright (c) 2011:
-Tim Koschützki (<email omitted>)
-Felix Geisendörfer (<email omitted>)
+Tim Koschützki (tim@debuggable.com)
+Felix Geisendörfer (felix@debuggable.com)
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -4768,7 +4768,7 @@ unified@11.0.5, vfile@6.0.3
 ```text
 (The MIT License)
 
-Copyright (c) 2015 Titus Wormer <<email omitted>>
+Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4835,7 +4835,7 @@ yargs@15.4.1, yargs@17.7.3
 ```text
 MIT License
 
-Copyright 2010 James Halliday (<email omitted>); Modified work Copyright 2014 Contributors (<email omitted>)
+Copyright 2010 James Halliday (mail@substack.net); Modified work Copyright 2014 Contributors (ben@npmjs.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4948,7 +4948,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2025 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2025 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -4976,7 +4976,7 @@ THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2018-2023 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2018-2023 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -5004,7 +5004,7 @@ THE SOFTWARE.
 ```text
 MIT License
 
-Copyright (C) 2018-2022 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2018-2022 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -5198,8 +5198,8 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## color-convert
 
-Copyright (c) 2011-2016 Heather Arthur <<email omitted>>.
-Copyright (c) 2016-2021 Josh Junon <<email omitted>>.
+Copyright (c) 2011-2016 Heather Arthur <fayearthur@gmail.com>.
+Copyright (c) 2016-2021 Josh Junon <josh@junon.me>.
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -5222,7 +5222,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ## color-string
 
-Copyright (c) 2011 Heather Arthur <<email omitted>>
+Copyright (c) 2011 Heather Arthur <fayearthur@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -5260,7 +5260,7 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 @jridgewell/resolve-uri@3.1.2
 
 ```text
-Copyright 2019 Justin Ridgewell <<email omitted>>
+Copyright 2019 Justin Ridgewell <jridgewell@google.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -5332,7 +5332,35 @@ THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLI
 ```text
 MIT License
 
-Copyright (C) 2020 by Marijn Haverbeke <<email omitted>>, Arun Srinivasan <<email omitted>>, and others
+Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>, Arun Srinivasan <rulfzid@gmail.com>, and others
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+THE SOFTWARE.
+```
+
+### LICENSE text shared by 1 package(s)
+
+@lezer/yaml@1.0.4
+
+```text
+MIT License
+
+Copyright (C) 2024 by Marijn Haverbeke <marijnh@gmail.com> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -5996,7 +6024,7 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ```text
 MIT License
 
-Copyright (C) 2024 by Marijn Haverbeke <<email omitted>>
+Copyright (C) 2024 by Marijn Haverbeke <marijn@haverbeke.berlin>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -6108,7 +6136,7 @@ SOFTWARE.
 ```text
 MIT License
 
-Copyright (c) 2020 <email omitted>
+Copyright (c) 2020 lynweklm@gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -6137,7 +6165,7 @@ SOFTWARE.
 The MIT License (MIT)
 
 Copyright (c) 2022 Paul Miller (https://paulmillr.com)
-Copyright (c) 2016 Thomas Pornin <<email omitted>>
+Copyright (c) 2016 Thomas Pornin <pornin@bolet.org>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the “Software”), to deal
@@ -6943,7 +6971,7 @@ Creator: Person: Daniel Thompson-Yvetot
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2019 Kevin Jahns <<email omitted>>.
+Copyright (c) 2019 Kevin Jahns <kevin.jahns@protonmail.com>.
 Copyright (c) 2025 Tiptap GmbH.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -7573,7 +7601,7 @@ For more information, please refer to <http://unlicense.org/>
 abab@2.0.6
 
 ```text
-Copyright © 2019 W3C and Jeff Carpenter \<<email omitted>\>
+Copyright © 2019 W3C and Jeff Carpenter \<jeffcarp@chromium.org\>
 
 Both the original source code and new contributions in this repository are released under the [3-Clause BSD license](https://opensource.org/licenses/BSD-3-Clause).
 
@@ -8287,7 +8315,7 @@ balanced-match@1.0.2
 ```text
 (MIT)
 
-Copyright (c) 2013 Julian Gruber &lt;<email omitted>&gt;
+Copyright (c) 2013 Julian Gruber &lt;julian@juliangruber.com&gt;
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -8460,7 +8488,7 @@ binary-extensions@2.3.0
 ```text
 MIT License
 
-Copyright (c) Sindre Sorhus <<email omitted>> (https://sindresorhus.com)
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 Copyright (c) Paul Miller (https://paulmillr.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
@@ -8551,7 +8579,7 @@ browserify-zlib@0.2.0
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2014-2015 Devon Govett <<email omitted>>
+Copyright (c) 2014-2015 Devon Govett <devongovett@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -8729,8 +8757,8 @@ bytes@3.1.2
 ```text
 (The MIT License)
 
-Copyright (c) 2012-2014 TJ Holowaychuk <<email omitted>>
-Copyright (c) 2015 Jed Watson <<email omitted>>
+Copyright (c) 2012-2014 TJ Holowaychuk <tj@vision-media.ca>
+Copyright (c) 2015 Jed Watson <jed.watson@me.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -8787,7 +8815,7 @@ canvg@3.0.11
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2010 - present Gabe Lerner (<email omitted>) - https://github.com/canvg/canvg
+Copyright (c) 2010 - present Gabe Lerner (gabelerner@gmail.com) - https://github.com/canvg/canvg
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -9133,7 +9161,7 @@ SOFTWARE.
 clone@2.1.2
 
 ```text
-Copyright © 2011-2015 Paul Vorbach <<email omitted>>
+Copyright © 2011-2015 Paul Vorbach <paul@vorba.ch>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the “Software”), to deal in
@@ -9158,7 +9186,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 color-convert@2.0.1
 
 ```text
-Copyright (c) 2011-2016 Heather Arthur <<email omitted>>
+Copyright (c) 2011-2016 Heather Arthur <fayearthur@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -9230,7 +9258,7 @@ confbox@0.2.4
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -9264,7 +9292,7 @@ cookie-signature@1.2.2
 ```text
 (The MIT License)
 
-Copyright (c) 2012–2024 LearnBoost <<email omitted>> and other contributors;
+Copyright (c) 2012–2024 LearnBoost <tj@learnboost.com> and other contributors;
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -9346,7 +9374,7 @@ cors@2.8.6
 ```text
 (The MIT License)
 
-Copyright (c) 2013 Troy Goode <<email omitted>>
+Copyright (c) 2013 Troy Goode <troygoode@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -10282,7 +10310,7 @@ Apache License
 crelt@1.0.6
 
 ```text
-Copyright (C) 2020 by Marijn Haverbeke <<email omitted>>
+Copyright (C) 2020 by Marijn Haverbeke <marijn@haverbeke.berlin>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -10951,7 +10979,7 @@ debug@4.4.3
 ```text
 (The MIT License)
 
-Copyright (c) 2014-2017 TJ Holowaychuk <<email omitted>>
+Copyright (c) 2014-2017 TJ Holowaychuk <tj@vision-media.ca>
 Copyright (c) 2018-2021 Josh Junon
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software
@@ -11069,7 +11097,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 delegates@1.0.0
 
 ```text
-Copyright (c) 2015 TJ Holowaychuk <<email omitted>>
+Copyright (c) 2015 TJ Holowaychuk <tj@vision-media.ca>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -11363,7 +11391,7 @@ devlop@1.1.0
 ```text
 (The MIT License)
 
-Copyright (c) 2023 Titus Wormer <<email omitted>>
+Copyright (c) 2023 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -11414,7 +11442,7 @@ diff@5.2.2
 ```text
 BSD 3-Clause License
 
-Copyright (c) 2009-2015, Kevin Decker <<email omitted>>
+Copyright (c) 2009-2015, Kevin Decker <kpdecker@gmail.com>
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without
@@ -11452,7 +11480,7 @@ dijkstrajs@1.0.3
 Dijkstra path-finding functions. Adapted from the Dijkstar Python project.
 
 Copyright (C) 2008
-  Wyatt Baldwin <<email omitted>>
+  Wyatt Baldwin <self@wyattbaldwin.com>
   All rights reserved
 
 Licensed under the MIT license.
@@ -13146,7 +13174,7 @@ ee-first@1.1.1
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2014 Jonathan Ong <email omitted>
+Copyright (c) 2014 Jonathan Ong me@jongleberry.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -13590,7 +13618,7 @@ eventsource-parser@3.1.1
 ```text
 MIT License
 
-Copyright (c) 2026 Espen Hovlandsdal <<email omitted>>
+Copyright (c) 2026 Espen Hovlandsdal <espen@hovlandsdal.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -13703,9 +13731,9 @@ express@5.3.0
 ```text
 (The MIT License)
 
-Copyright (c) 2009-2014 TJ Holowaychuk <<email omitted>>
-Copyright (c) 2013-2014 Roman Shtylman <<email omitted>>
-Copyright (c) 2014-2015 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2009-2014 TJ Holowaychuk <tj@vision-media.ca>
+Copyright (c) 2013-2014 Roman Shtylman <shtylman+expressjs@gmail.com>
+Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -13734,7 +13762,7 @@ exsolve@1.0.8
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -13769,7 +13797,7 @@ Which is licensed:
 """
 (The MIT License)
 
-Copyright (c) 2021 Titus Wormer <mailto:<email omitted>>
+Copyright (c) 2021 Titus Wormer <mailto:tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -14156,7 +14184,7 @@ finalhandler@2.1.1
 ```text
 (The MIT License)
 
-Copyright (c) 2014-2022 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -14419,8 +14447,8 @@ fresh@2.0.0
 ```text
 (The MIT License)
 
-Copyright (c) 2012 TJ Holowaychuk <<email omitted>>
-Copyright (c) 2016-2017 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2012 TJ Holowaychuk <tj@vision-media.ca>
+Copyright (c) 2016-2017 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -14650,7 +14678,7 @@ giget@3.2.0
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -14748,7 +14776,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 - https://github.com/isaacs/node-mkdirp
 
 """
-Copyright (c) 2011-2023 James Halliday (<email omitted>) and Isaac Z. Schlueter (<email omitted>)
+Copyright (c) 2011-2023 James Halliday (mail@substack.net) and Isaac Z. Schlueter (i@izs.me)
 
 This project is free software released under the MIT license:
 
@@ -15280,8 +15308,8 @@ http-errors@2.0.1
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2014 Jonathan Ong <email omitted>
-Copyright (c) 2016 Douglas Christopher Wilson <email omitted>
+Copyright (c) 2014 Jonathan Ong me@jongleberry.com
+Copyright (c) 2016 Douglas Christopher Wilson doug@somethingdoug.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -15596,7 +15624,7 @@ import-meta-resolve@4.2.0
 ```text
 (The MIT License)
 
-Copyright (c) Titus Wormer <mailto:<email omitted>>
+Copyright (c) Titus Wormer <mailto:tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -15721,7 +15749,7 @@ inline-style-parser@0.2.7
 ```text
 (The MIT License)
 
-Copyright (c) 2012 TJ Holowaychuk <<email omitted>>
+Copyright (c) 2012 TJ Holowaychuk <tj@vision-media.ca>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -15789,7 +15817,7 @@ THE SOFTWARE.
 ipaddr.js@1.9.1
 
 ```text
-Copyright (C) 2011-2017 whitequark <<email omitted>>
+Copyright (C) 2011-2017 whitequark <whitequark@whitequark.org>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -15817,7 +15845,7 @@ is-binary-path@2.1.0
 ```text
 MIT License
 
-Copyright (c) 2019 Sindre Sorhus <<email omitted>> (https://sindresorhus.com), Paul Miller (https://paulmillr.com)
+Copyright (c) 2019 Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com), Paul Miller (https://paulmillr.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -15889,7 +15917,7 @@ isomorphic.js@0.2.5
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2020 Kevin Jahns <<email omitted>>.
+Copyright (c) 2020 Kevin Jahns <kevin.jahns@protonmail.com>.
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -16117,33 +16145,33 @@ Original source code is copyright (c) 2019-2025 Remy Rylan
 
 All JSON Schema documentation and descriptions are copyright (c):
 
-2009 [draft-0] IETF Trust <https://www.ietf.org/>, Kris Zyp <<email omitted>>,
+2009 [draft-0] IETF Trust <https://www.ietf.org/>, Kris Zyp <kris@sitepen.com>,
 and SitePen (USA) <https://www.sitepen.com/>.
 
-2009 [draft-1] IETF Trust <https://www.ietf.org/>, Kris Zyp <<email omitted>>,
+2009 [draft-1] IETF Trust <https://www.ietf.org/>, Kris Zyp <kris@sitepen.com>,
 and SitePen (USA) <https://www.sitepen.com/>.
 
-2010 [draft-2] IETF Trust <https://www.ietf.org/>, Kris Zyp <<email omitted>>,
+2010 [draft-2] IETF Trust <https://www.ietf.org/>, Kris Zyp <kris@sitepen.com>,
 and SitePen (USA) <https://www.sitepen.com/>.
 
-2010 [draft-3] IETF Trust <https://www.ietf.org/>, Kris Zyp <<email omitted>>,
-Gary Court <<email omitted>>, and SitePen (USA) <https://www.sitepen.com/>.
+2010 [draft-3] IETF Trust <https://www.ietf.org/>, Kris Zyp <kris@sitepen.com>,
+Gary Court <gary.court@gmail.com>, and SitePen (USA) <https://www.sitepen.com/>.
 
 2013 [draft-4] IETF Trust <https://www.ietf.org/>), Francis Galiegue
-<<email omitted>>, Kris Zyp <<email omitted>>, Gary Court
-<<email omitted>>, and SitePen (USA) <https://www.sitepen.com/>.
+<fgaliegue@gmail.com>, Kris Zyp <kris@sitepen.com>, Gary Court
+<gary.court@gmail.com>, and SitePen (USA) <https://www.sitepen.com/>.
 
-2018 [draft-7] IETF Trust <https://www.ietf.org/>, Austin Wright <<email omitted>>,
-Henry Andrews <<email omitted>>, Geraint Luff <<email omitted>>, and
+2018 [draft-7] IETF Trust <https://www.ietf.org/>, Austin Wright <aaa@bzfx.net>,
+Henry Andrews <henry@cloudflare.com>, Geraint Luff <luffgd@gmail.com>, and
 Cloudflare, Inc. <https://www.cloudflare.com/>.
 
 2019 [draft-2019-09] IETF Trust <https://www.ietf.org/>, Austin Wright
-<<email omitted>>, Henry Andrews <<email omitted>>, Ben Hutton
-<<email omitted>>, and Greg Dennis <<email omitted>>.
+<aaa@bzfx.net>, Henry Andrews <andrews_henry@yahoo.com>, Ben Hutton
+<bh7@sanger.ac.uk>, and Greg Dennis <gregsdennis@yahoo.com>.
 
 2020 [draft-2020-12] IETF Trust <https://www.ietf.org/>, Austin Wright
-<<email omitted>>, Henry Andrews <<email omitted>>, Ben Hutton
-<<email omitted>>, and Greg Dennis <<email omitted>>.
+<aaa@bzfx.net>, Henry Andrews <andrews_henry@yahoo.com>, Ben Hutton
+<ben@jsonschema.dev>, and Greg Dennis <gregsdennis@yahoo.com>.
 
 All rights reserved.
 
@@ -16204,7 +16232,7 @@ jsonwebtoken@9.0.3
 ```text
 The MIT License (MIT)
  
-Copyright (c) 2015 Auth0, Inc. <<email omitted>> (http://auth0.com)
+Copyright (c) 2015 Auth0, Inc. <support@auth0.com> (http://auth0.com)
  
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17169,7 +17197,7 @@ THE SOFTWARE.
 listenercount@1.0.1
 
 ```text
-Copyright (c) MMXV jden <<email omitted>>
+Copyright (c) MMXV jden <jason@denizac.org>
 
 Permission to use, copy, modify, and/or distribute this software for any purpose with or without fee is hereby granted, provided that the above copyright notice and this permission notice appear in all copies.
 
@@ -17266,7 +17294,7 @@ loose-envify@1.4.0
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2015 Andres Suarez <<email omitted>>
+Copyright (c) 2015 Andres Suarez <zertosh@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17294,7 +17322,7 @@ lru-memoizer@2.3.0
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2016 JOSE FERNANDO ROMANIELLO <<email omitted>> (http://joseoncode.com)
+Copyright (c) 2016 JOSE FERNANDO ROMANIELLO <jfromaniello@gmail.com> (http://joseoncode.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -17594,8 +17622,8 @@ mdast-util-phrasing@4.1.0
 ```text
 (The MIT License)
 
-Copyright (c) 2017 Titus Wormer <<email omitted>>
-Copyright (c) 2017 Victor Felder <<email omitted>>
+Copyright (c) 2017 Titus Wormer <tituswormer@gmail.com>
+Copyright (c) 2017 Victor Felder <victor@draft.li>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -17624,9 +17652,9 @@ merge-descriptors@2.0.0
 ```text
 MIT License
 
-Copyright (c) Jonathan Ong <<email omitted>>
-Copyright (c) Douglas Christopher Wilson <<email omitted>>
-Copyright (c) Sindre Sorhus <<email omitted>> (https://sindresorhus.com)
+Copyright (c) Jonathan Ong <me@jongleberry.com>
+Copyright (c) Douglas Christopher Wilson <doug@somethingdoug.com>
+Copyright (c) Sindre Sorhus <sindresorhus@gmail.com> (https://sindresorhus.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -17815,7 +17843,7 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 mkdirp@0.5.6
 
 ```text
-Copyright 2010 James Halliday (<email omitted>)
+Copyright 2010 James Halliday (mail@substack.net)
 
 This project is free software released under the MIT/X11 license:
 
@@ -17843,7 +17871,7 @@ THE SOFTWARE.
 mkdirp@1.0.4
 
 ```text
-Copyright James Halliday (<email omitted>) and Isaac Z. Schlueter (<email omitted>)
+Copyright James Halliday (mail@substack.net) and Isaac Z. Schlueter (i@izs.me)
 
 This project is free software released under the MIT license:
 
@@ -17943,7 +17971,7 @@ THE SOFTWARE.
 mysql2@3.15.3
 
 ```text
-Copyright (c) 2016 Andrey Sidorov (<email omitted>) and contributors
+Copyright (c) 2016 Andrey Sidorov (sidorares@yandex.ru) and contributors
 
  Permission is hereby granted, free of charge, to any person obtaining a copy
  of this software and associated documentation files (the "Software"), to deal
@@ -18015,7 +18043,7 @@ nanoid@5.1.16
 ```text
 The MIT License (MIT)
 
-Copyright 2017 Andrey Sitnik <<email omitted>>
+Copyright 2017 Andrey Sitnik <andrey@sitnik.es>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
@@ -18321,8 +18349,8 @@ on-finished@2.4.1
 ```text
 (The MIT License)
 
-Copyright (c) 2013 Jonathan Ong <<email omitted>>
-Copyright (c) 2014 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2013 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2014 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -18433,7 +18461,7 @@ THE SOFTWARE.
 parse5@7.3.0
 
 ```text
-Copyright (c) 2013-2019 Ivan Nikulin (<email omitted>, https://github.com/inikulin)
+Copyright (c) 2013-2019 Ivan Nikulin (ifaaan@gmail.com, https://github.com/inikulin)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -18461,8 +18489,8 @@ parseurl@1.3.3
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2014-2017 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2014-2017 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -18519,7 +18547,7 @@ path-to-regexp@8.4.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2014 Blake Embrey (<email omitted>)
+Copyright (c) 2014 Blake Embrey (hello@blakeembrey.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -18547,7 +18575,7 @@ pathe@2.0.3
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>> - Daniel Roe <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io> - Daniel Roe <daniel@roe.dev>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19587,7 +19615,7 @@ pkg-types@2.3.1
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>> - Daniel Roe <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io> - Daniel Roe <daniel@roe.dev>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19823,7 +19851,7 @@ SOFTWARE.**
 prosemirror-changeset@2.4.1
 
 ```text
-Copyright (C) 2017 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2017 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19849,7 +19877,7 @@ THE SOFTWARE.
 prosemirror-tables@1.8.5
 
 ```text
-Copyright (C) 2015-2016 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2015-2016 by Marijn Haverbeke <marijnh@gmail.com> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -19923,7 +19951,7 @@ psl@1.15.0
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2017 Lupo Montero <email omitted>
+Copyright (c) 2017 Lupo Montero lupomontero@gmail.com
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -20018,7 +20046,7 @@ queue@6.0.2
 
 ```text
 The MIT License (MIT)
-Copyright (c) 2014 Jesse Tane <<email omitted>>
+Copyright (c) 2014 Jesse Tane <jesse.tane@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -20054,7 +20082,7 @@ THIS SOFTWARE.
 raf@3.4.1
 
 ```text
-Copyright 2013 Chris Dickinson <<email omitted>>
+Copyright 2013 Chris Dickinson <chris@neversaw.us>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -20070,8 +20098,8 @@ range-parser@1.3.0
 ```text
 (The MIT License)
 
-Copyright (c) 2012-2014 TJ Holowaychuk <<email omitted>>
-Copyright (c) 2015-2016 Douglas Christopher Wilson <<email omitted>
+Copyright (c) 2012-2014 TJ Holowaychuk <tj@vision-media.ca>
+Copyright (c) 2015-2016 Douglas Christopher Wilson <doug@somethingdoug.com
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -20100,8 +20128,8 @@ raw-body@3.0.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2013-2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2014-2022 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2013-2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2014-2022 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20129,7 +20157,7 @@ rc9@3.0.1
 ```text
 MIT License
 
-Copyright (c) Pooya Parsa <<email omitted>>
+Copyright (c) Pooya Parsa <pooya@pi0.io>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20494,7 +20522,7 @@ require-directory@2.1.1
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2011 Troy Goode <<email omitted>>
+Copyright (c) 2011 Troy Goode <troygoode@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a
 copy of this software and associated documentation files (the
@@ -20523,7 +20551,7 @@ require-from-string@2.0.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) Vsevolod Strukchinsky <<email omitted>> (github.com/floatdrop)
+Copyright (c) Vsevolod Strukchinsky <floatdrop@gmail.com> (github.com/floatdrop)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20637,7 +20665,7 @@ Please either apply this, the MIT license, or the license in './FEEL-FREE.md'
 rope-sequence@1.3.4
 
 ```text
-Copyright (C) 2016 by Marijn Haverbeke <<email omitted>>
+Copyright (C) 2016 by Marijn Haverbeke <marijn@haverbeke.berlin>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -20696,7 +20724,7 @@ rrule@2.8.1
 rrule.js: Library for working with recurrence rules for calendar dates.
 =======================================================================
 
-Copyright 2010, Jakub Roztocil <<email omitted>> and Lars Schöning
+Copyright 2010, Jakub Roztocil <jakub@roztocil.name> and Lars Schöning
 
 Redistribution and use in source and binary forms, with or without
 modification, are permitted provided that the following conditions are met:
@@ -20730,8 +20758,8 @@ SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 python-dateutil - Extensions to the standard Python datetime module.
 ====================================================================
 
-Copyright (c) 2003-2011 - Gustavo Niemeyer <<email omitted>>
-Copyright (c) 2012 - Tomi Pieviläinen <<email omitted>>
+Copyright (c) 2003-2011 - Gustavo Niemeyer <gustavo@niemeyer.net>
+Copyright (c) 2012 - Tomi Pieviläinen <tomi.pievilainen@iki.fi>
 
 All rights reserved.
 
@@ -21008,7 +21036,7 @@ sade@1.8.1
 ```text
 The MIT License (MIT)
 
-Copyright (c) Luke Edwards <<email omitted>> (https://lukeed.com)
+Copyright (c) Luke Edwards <luke.edwards05@gmail.com> (https://lukeed.com)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -21036,7 +21064,7 @@ safer-buffer@2.1.2
 ```text
 MIT License
 
-Copyright (c) 2018 Nikita Skovoroda <<email omitted>>
+Copyright (c) 2018 Nikita Skovoroda <chalkerx@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22749,7 +22777,7 @@ set-cookie-parser@2.7.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2015 Nathan Friedly <<email omitted>> (http://nfriedly.com/)
+Copyright (c) 2015 Nathan Friedly <nathan@nfriedly.com> (http://nfriedly.com/)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -22824,7 +22852,7 @@ shebang-command@2.0.0
 ```text
 MIT License
 
-Copyright (c) Kevin Mårtensson <<email omitted>> (github.com/kevva)
+Copyright (c) Kevin Mårtensson <kevinmartensson@gmail.com> (github.com/kevva)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
@@ -22886,7 +22914,7 @@ sliced@1.0.1
 ```text
 (The MIT License)
 
-Copyright (c) 2012 [Aaron Heckmann](<email omitted>)
+Copyright (c) 2012 [Aaron Heckmann](aaron.heckmann+github@gmail.com)
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -22941,7 +22969,7 @@ SOFTWARE.
 split2@4.2.0
 
 ```text
-Copyright (c) 2014-2018, Matteo Collina <<email omitted>>
+Copyright (c) 2014-2018, Matteo Collina <hello@matteocollina.com>
 
 Permission to use, copy, modify, and/or distribute this software for any
 purpose with or without fee is hereby granted, provided that the above
@@ -22963,8 +22991,8 @@ statuses@2.0.2
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2014 Jonathan Ong <<email omitted>>
-Copyright (c) 2016 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2014 Jonathan Ong <me@jongleberry.com>
+Copyright (c) 2016 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23073,7 +23101,7 @@ SOFTWARE.
 style-mod@4.1.3
 
 ```text
-Copyright (C) 2018 by Marijn Haverbeke <<email omitted>> and others
+Copyright (C) 2018 by Marijn Haverbeke <marijn@haverbeke.berlin> and others
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23101,7 +23129,7 @@ style-to-js@1.1.21
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2020 Menglin "Mark" Xu <<email omitted>>
+Copyright (c) 2020 Menglin "Mark" Xu <mark@remarkablemark.org>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -23130,7 +23158,7 @@ style-to-object@1.0.14
 ```text
 The MIT License (MIT)
 
-Copyright (c) 2017 Menglin "Mark" Xu <<email omitted>>
+Copyright (c) 2017 Menglin "Mark" Xu <mark@remarkablemark.org>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -23460,7 +23488,7 @@ toidentifier@1.0.1
 ```text
 MIT License
 
-Copyright (c) 2016 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2016 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23533,12 +23561,12 @@ SOFTWARE.
 traverse@0.3.9
 
 ```text
-Copyright 2010 James Halliday (<email omitted>)
+Copyright 2010 James Halliday (mail@substack.net)
 
 This project is free software released under the MIT/X11 license:
 http://www.opensource.org/licenses/mit-license.php 
 
-Copyright 2010 James Halliday (<email omitted>)
+Copyright 2010 James Halliday (mail@substack.net)
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23566,7 +23594,7 @@ trough@2.2.0
 ```text
 (The MIT License)
 
-Copyright (c) 2016 Titus Wormer <<email omitted>>
+Copyright (c) 2016 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal
@@ -23728,7 +23756,7 @@ unist-util-is@6.0.1
 ```text
 (The MIT license)
 
-Copyright (c) 2015 Titus Wormer <<email omitted>>
+Copyright (c) 2015 Titus Wormer <tituswormer@gmail.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -23757,7 +23785,7 @@ universalify@0.2.0
 ```text
 (The MIT License)
 
-Copyright (c) 2017, Ryan Zimmerman <<email omitted>>
+Copyright (c) 2017, Ryan Zimmerman <opensrc@ryanzim.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the 'Software'), to deal in
@@ -23784,7 +23812,7 @@ unpipe@1.0.0
 ```text
 (The MIT License)
 
-Copyright (c) 2015 Douglas Christopher Wilson <<email omitted>>
+Copyright (c) 2015 Douglas Christopher Wilson <doug@somethingdoug.com>
 
 Permission is hereby granted, free of charge, to any person obtaining
 a copy of this software and associated documentation files (the
@@ -23834,7 +23862,7 @@ WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 ---
 
-Commits in this fork are (c) Ziggy Jonsson (<email omitted>)
+Commits in this fork are (c) Ziggy Jonsson (ziggy.jonsson.nyc@gmail.com)
 and fall under same licence structure as the original repo (MIT)
 ```
 
@@ -23845,7 +23873,7 @@ util-deprecate@1.0.2
 ```text
 (The MIT License)
 
-Copyright (c) 2014 Nathan Rajlich <<email omitted>>
+Copyright (c) 2014 Nathan Rajlich <nathan@tootallnate.net>
 
 Permission is hereby granted, free of charge, to any person
 obtaining a copy of this software and associated documentation
@@ -24130,7 +24158,7 @@ THIS SOFTWARE.
 ws@8.21.3
 
 ```text
-Copyright (c) 2011 Einar Otto Stangvik <<email omitted>>
+Copyright (c) 2011 Einar Otto Stangvik <einaros@gmail.com>
 Copyright (c) 2013 Arnout Kazemier and contributors
 Copyright (c) 2016 Luigi Pinca and contributors
 
@@ -24240,7 +24268,7 @@ yjs@13.6.31
 The MIT License (MIT)
 
 Copyright (c) 2023
-  - Kevin Jahns <<email omitted>>.
+  - Kevin Jahns <kevin.jahns@protonmail.com>.
   - Chair of Computer Science 5 (Databases & Information Systems), RWTH Aachen University, Germany
 
 Permission is hereby granted, free of charge, to any person obtaining a copy

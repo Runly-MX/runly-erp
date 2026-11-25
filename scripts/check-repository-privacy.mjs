@@ -17,6 +17,12 @@ const brandingFiles = new Set([
   'packages/ui/src/components/ModuleSidebar.jsx',
 ])
 const hash = (value) => createHash('sha256').update(value).digest('hex')
+const thirdParty = (() => {
+  try {
+    const j = JSON.parse(readFileSync(new URL('./privacy-third-party-attribution.json', import.meta.url), 'utf8'))
+    return { file: j.file, lines: new Set(j.lineSha256) }
+  } catch { return { file: null, lines: new Set() } }
+})()
 // Reviewed SSRF classification constants and adversarial fixtures, never connection
 // defaults. Keep each exception bound to its exact file and address.
 const ssrfAddresses = new Map([
@@ -80,7 +86,10 @@ export function inspectFile(file, content) {
     // line is exempt; other emails or any alteration still produce a finding.
     const ralewayAttribution = file === 'apps/desktop/public/studio-fonts/raleway-OFL.txt'
       && number === 1 && hash(line) === '2ae03d31fee8db801cb9d71227eee1db0fba49b62fe0c2f9649c57ee92d0be15'
-    if (/\b[A-Z0-9._%+-]+@(?:gmail|hotmail|outlook|yahoo)\.[A-Z.]+\b/i.test(line) && !ralewayAttribution) add(number, 'personal-email')
+    // Authentic third-party copyright lines in the generated license texts: exempt only the exact lines (by sha256)
+    // recorded by scripts/generate-license-texts.mjs, in that one file. An edited line or any other address is still a finding.
+    const thirdPartyAttribution = file === thirdParty.file && thirdParty.lines.has(hash(line))
+    if (/\b[A-Z0-9._%+-]+@(?:gmail|hotmail|outlook|yahoo)\.[A-Z.]+\b/i.test(line) && !ralewayAttribution && !thirdPartyAttribution) add(number, 'personal-email')
     if (/[A-Za-z]:[/\\]Users[/\\](?!<|Public\b|USER\b|your-user\b|example\b)[^/\\\s`]+|(?<![\w/])\/Users\/(?!<|your-user\/|example\/)[^/\s`]+/.test(line)) add(number, 'personal-workstation-path')
     if (/-----BEGIN (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/.test(line)) add(number, 'private-key')
     if (/\b(?:gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{30,}|AKIA[A-Z0-9]{16}|eyJ[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,}\.[A-Za-z0-9_-]{15,})\b/.test(line)) add(number, 'credential-pattern')
