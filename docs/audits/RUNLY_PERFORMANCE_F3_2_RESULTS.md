@@ -72,3 +72,15 @@ Paso 3 (subpath exports de `@runly/ui` y compatibilidad con RME3/SDK/Hub), paso 
 ## 7. Reproducción
 
 `docs/audits/perf-f3/scripts/`: `login-closure.mjs`, `smoke.mjs`, `runs.sh`, `aggregate.mjs`.
+
+## 8. Actualización posterior (iconos y variación entre instalaciones)
+
+**Variación entre instalaciones del mismo lockfile.** Al medir de nuevo en un worktree recién creado e instalado (`--frozen-lockfile`) obtuve cifras absolutas distintas a las de las secciones anteriores para los **mismos commits**: control `119eac8e9` 2398 KB de JS en el login (antes 2207), etapa con shell lazy 1684 KB (antes 1557), etapa con `sideEffects` 1019 KB (antes 944), etapa final 845 KB (antes 769). La reducción relativa se mantiene (**-65 %**: 2398 a 845 KB), pero **el valor absoluto depende del estado de `node_modules`** aunque el lockfile sea idéntico (el reparto de React entre chunks cambia: `react-vendor` 127 KB gzip en un entorno y 185 KB en otro). Es otro caso de irreproducibilidad del entorno; los números absolutos de F3.1/F3.2 deben leerse con ese margen y toda comparación futura debe hacerse en un mismo worktree limpio. Método de esta sección: JS de ruta crítica con la precarga desactivada (`NOPREFETCH=1 node login-closure.mjs`), una sola carga por build; **no es una mediana de 5 ejecuciones**.
+
+**Iconos.**
+- Sustituir `import * as Lucide` por imports con nombre en `field-icon-inference.js` (`75b60eef3`) **no cambió** el JS crítico (845 KB antes y después): la librería completa entraba por otra vía.
+- Causa real: `lucide-react` estaba en el grupo manual `ui-vendor`, y el shim `ext-lucide-react` (`export * from 'lucide-react'`, entrada de build para módulos RME3) comparte ese grafo, así que el grupo retenía los **761 KB** de la librería completa en el login. Sacarla del grupo (`vite.config.js`) deja a la aplicación empaquetar solo los iconos que importa: **JS crítico 845 a 687 KB (-19 %)** y `ui-vendor` de 300 a 98 KB gzip, a costa de más archivos pequeños (66 a 126 archivos; con HTTP/2 y caché inmutable es barato, pero el A/B de solicitudes está pendiente).
+- Se conserva la capacidad de los módulos: el shim sigue exportando **6470 nombres, idéntico antes y después** (comprobado importando el shim construido); los iconos de los módulos del menú se ven en una captura de Home.
+- Quedan sin tratar los `import * as` de `module-icon-registry`, `icon-library/registry`, `DetailHero`, `StatStrip`, `FormPreviewPanel`, `DetailViewDesignerParts`, y los de canvas y `builderHelpers`: ninguno estaba en la ruta del login; sí lo estarán cuando se abran esas pantallas. Su ahorro no se midió.
+
+**Presupuesto:** login crítico 687 KB de JS (sin comprimir la transferencia total 1.3 MB): sigue **sin cumplir** los 500 KB.
