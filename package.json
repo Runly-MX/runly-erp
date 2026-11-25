@@ -124,7 +124,7 @@
       "body-parser@>=2.0.0 <2.4.0": "2.4.0",
       "fast-uri@>=3.0.0 <3.1.8": "3.1.8",
       "valibot@>=1.0.0 <1.4.2": "1.4.2",
-      "@raulbellosom/atlas-web-builder": "0.11.0"
+      "@raulbellosom/atlas-web-builder": "0.11.1"
     },
     "patchedDependencies": {
       "@supabase/realtime-js@2.105.1": "patches/@supabase__realtime-js@2.105.1.patch"
