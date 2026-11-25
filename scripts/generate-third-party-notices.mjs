@@ -6,7 +6,11 @@ const parse = (file) => readFileSync(file, 'utf8').trim().split('\n').slice(1)
   .map((l) => { const m = l.match(/^("(?:[^"]*)"|[^,]*),(.*),([^,]*)$/); return m && { license: m[1].replace(/^"|"$/g, '') || '(sin declarar)', name: m[2], version: m[3] } })
   .filter(Boolean)
 const npm = parse(dir + 'licenses-npm-prod.csv')
-const rust = existsSync(dir + 'licenses-rust.csv') ? parse(dir + 'licenses-rust.csv') : []
+const cargoSbom = existsSync('docs/sbom/runly-desktop-cargo.cdx.json') ? JSON.parse(readFileSync('docs/sbom/runly-desktop-cargo.cdx.json', 'utf8')).components : []
+const rustResolved = cargoSbom.some((c) => c.licenses)
+const rust = rustResolved
+  ? cargoSbom.map((c) => ({ license: c.licenses?.[0]?.expression ?? c.licenses?.[0]?.license?.id ?? '(sin declarar)', name: c.name, version: c.version }))
+  : existsSync(dir + 'licenses-rust.csv') ? parse(dir + 'licenses-rust.csv') : []
 const tally = (rows) => Object.entries(rows.reduce((a, r) => ({ ...a, [r.license]: (a[r.license] ?? 0) + 1 }), {})).sort((a, b) => b[1] - a[1])
 const table = (rows) => ['| Paquete | Versión | Licencia declarada |', '|---|---|---|', ...rows.sort((a, b) => a.name.localeCompare(b.name)).map((r) => `| ${r.name} | ${r.version} | ${r.license} |`)].join('\n')
 const sbom = existsSync('docs/sbom/runly-npm-prod.cdx.json') ? JSON.parse(readFileSync('docs/sbom/runly-npm-prod.cdx.json', 'utf8')).components : []
@@ -22,7 +26,7 @@ Estado: **inventario parcial, generado automáticamente, sin revisión jurídica
 | Ámbito | Estado |
 |---|---|
 | Dependencias npm de producción (\`pnpm licenses list --prod\`) | Incluido (${npm.length} filas, un renglón por versión) |
-| Crates de Rust del shell de escritorio (Tauri) | ${rust.length ? `Parcial: ${rust.length} crates por nombre y versión (de Cargo.lock); licencias NO verificadas (cargo metadata requiere red o caché)` : 'No generado'} |
+| Crates de Rust del shell de escritorio (Tauri) | ${rust.length ? `${rustResolved ? `Incluido: ${rust.length} crates con la licencia declarada en sus metadatos (cargo metadata, todas las plataformas; 5 MPL-2.0, 2 con LGPL-2.1 como alternativa dentro de una expresión OR)` : `Parcial: ${rust.length} crates por nombre y versión; licencias NO verificadas`}` : 'No generado'} |
 | Imágenes de contenedor y paquetes del sistema (Node, nginx, Postgres, LiveKit, Collabora, Piper, LibreDWG, Ollama) | **No incluido** |
 | Binarios distribuidos (ffmpeg-core.wasm, modelos de voz, fuentes, iconos, imágenes) | Solo los dos avisos de abajo; resto pendiente |
 | Dependencias de los repositorios Atlas Web Builder y Developer Hub | **No incluido** |

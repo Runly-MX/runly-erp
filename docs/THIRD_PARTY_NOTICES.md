@@ -7,7 +7,7 @@ Estado: **inventario parcial, generado automáticamente, sin revisión jurídica
 | Ámbito | Estado |
 |---|---|
 | Dependencias npm de producción (`pnpm licenses list --prod`) | Incluido (1153 filas, un renglón por versión) |
-| Crates de Rust del shell de escritorio (Tauri) | Parcial: 625 crates por nombre y versión (de Cargo.lock); licencias NO verificadas (cargo metadata requiere red o caché) |
+| Crates de Rust del shell de escritorio (Tauri) | Incluido: 625 crates con la licencia declarada en sus metadatos (cargo metadata, todas las plataformas; 5 MPL-2.0, 2 con LGPL-2.1 como alternativa dentro de una expresión OR) |
 | Imágenes de contenedor y paquetes del sistema (Node, nginx, Postgres, LiveKit, Collabora, Piper, LibreDWG, Ollama) | **No incluido** |
 | Binarios distribuidos (ffmpeg-core.wasm, modelos de voz, fuentes, iconos, imágenes) | Solo los dos avisos de abajo; resto pendiente |
 | Dependencias de los repositorios Atlas Web Builder y Developer Hub | **No incluido** |
@@ -95,7 +95,38 @@ Sonidos (`apps/desktop/public/sounds/`: notificación y llamadas), logos de mód
 - MIT AND ISC: 1
 
 ### Rust
-- (no verificada): 625
+- MIT OR Apache-2.0: 317
+- MIT: 143
+- Apache-2.0 OR MIT: 66
+- Unicode-3.0: 18
+- Zlib OR Apache-2.0 OR MIT: 17
+- Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT: 15
+- Unlicense OR MIT: 6
+- MPL-2.0: 5
+- BSD-3-Clause: 3
+- Apache-2.0: 3
+- ISC: 3
+- MIT OR Apache-2.0 OR Zlib: 3
+- Zlib: 2
+- Apache-2.0 OR ISC OR MIT: 2
+- BSD-3-Clause OR MIT OR Apache-2.0: 2
+- MIT OR Apache-2.0 OR LGPL-2.1-or-later: 2
+- Apache-2.0 OR BSL-1.0 OR MIT: 2
+- BSD-2-Clause OR Apache-2.0 OR MIT: 2
+- 0BSD OR MIT OR Apache-2.0: 1
+- BSD-3-Clause OR MIT: 1
+- BSD-3-Clause AND MIT: 1
+- Apache-2.0 AND MIT: 1
+- CC0-1.0 OR MIT-0 OR Apache-2.0: 1
+- (Apache-2.0 OR MIT) AND BSD-3-Clause: 1
+- Apache-2.0  OR  MIT: 1
+- MIT OR Zlib OR Apache-2.0: 1
+- Apache-2.0 AND ISC: 1
+- Apache-2.0 OR BSL-1.0: 1
+- Apache-2.0 WITH LLVM-exception: 1
+- CC0-1.0: 1
+- (MIT OR Apache-2.0) AND Unicode-3.0: 1
+- CDLA-Permissive-2.0: 1
 
 ## npm (producción)
 
@@ -1259,628 +1290,628 @@ Sonidos (`apps/desktop/public/sounds/`: notificación y llamadas), logos de mód
 
 | Paquete | Versión | Licencia declarada |
 |---|---|---|
-| adler2 | 2.0.1 | (no verificada) |
-| ahash | 0.7.8 | (no verificada) |
-| aho-corasick | 1.1.4 | (no verificada) |
-| alloc-no-stdlib | 2.0.4 | (no verificada) |
-| alloc-stdlib | 0.2.2 | (no verificada) |
-| allocator-api2 | 0.2.21 | (no verificada) |
-| android_system_properties | 0.1.5 | (no verificada) |
-| anyhow | 1.0.102 | (no verificada) |
-| arrayvec | 0.7.6 | (no verificada) |
-| async-broadcast | 0.7.2 | (no verificada) |
-| async-channel | 2.5.0 | (no verificada) |
-| async-executor | 1.14.0 | (no verificada) |
-| async-io | 2.6.0 | (no verificada) |
-| async-lock | 3.4.2 | (no verificada) |
-| async-process | 2.5.0 | (no verificada) |
-| async-recursion | 1.1.1 | (no verificada) |
-| async-signal | 0.2.14 | (no verificada) |
-| async-task | 4.7.1 | (no verificada) |
-| async-trait | 0.1.92 | (no verificada) |
-| atk | 0.18.2 | (no verificada) |
-| atk-sys | 0.18.2 | (no verificada) |
-| atoi | 2.0.0 | (no verificada) |
-| atomic-waker | 1.1.2 | (no verificada) |
-| autocfg | 1.5.0 | (no verificada) |
-| base64 | 0.21.7 | (no verificada) |
-| base64 | 0.22.1 | (no verificada) |
-| base64ct | 1.8.3 | (no verificada) |
-| bit-set | 0.8.0 | (no verificada) |
-| bit-vec | 0.8.0 | (no verificada) |
-| bitflags | 1.3.2 | (no verificada) |
-| bitflags | 2.11.1 | (no verificada) |
-| bitvec | 1.0.1 | (no verificada) |
-| block-buffer | 0.10.4 | (no verificada) |
-| block2 | 0.6.2 | (no verificada) |
-| blocking | 1.7.0 | (no verificada) |
-| borsh | 1.6.1 | (no verificada) |
-| borsh-derive | 1.6.1 | (no verificada) |
-| brotli | 8.0.2 | (no verificada) |
-| brotli-decompressor | 5.0.0 | (no verificada) |
-| bumpalo | 3.20.2 | (no verificada) |
-| bytecheck | 0.6.12 | (no verificada) |
-| bytecheck_derive | 0.6.12 | (no verificada) |
-| bytemuck | 1.25.0 | (no verificada) |
-| byteorder | 1.5.0 | (no verificada) |
-| bytes | 1.11.1 | (no verificada) |
-| cairo-rs | 0.18.5 | (no verificada) |
-| cairo-sys-rs | 0.18.2 | (no verificada) |
-| camino | 1.2.2 | (no verificada) |
-| cargo_metadata | 0.19.2 | (no verificada) |
-| cargo_toml | 0.22.3 | (no verificada) |
-| cargo-platform | 0.1.9 | (no verificada) |
-| cc | 1.2.61 | (no verificada) |
-| cesu8 | 1.1.0 | (no verificada) |
-| cfb | 0.7.3 | (no verificada) |
-| cfg_aliases | 0.2.1 | (no verificada) |
-| cfg-expr | 0.15.8 | (no verificada) |
-| cfg-if | 1.0.4 | (no verificada) |
-| chacha20 | 0.10.2 | (no verificada) |
-| chrono | 0.4.44 | (no verificada) |
-| combine | 4.6.7 | (no verificada) |
-| concurrent-queue | 2.5.0 | (no verificada) |
-| const-oid | 0.9.6 | (no verificada) |
-| const-random | 0.1.18 | (no verificada) |
-| const-random-macro | 0.1.16 | (no verificada) |
-| cookie | 0.18.1 | (no verificada) |
-| core-foundation | 0.10.1 | (no verificada) |
-| core-foundation-sys | 0.8.7 | (no verificada) |
-| core-graphics | 0.25.0 | (no verificada) |
-| core-graphics-types | 0.2.0 | (no verificada) |
-| cpufeatures | 0.2.17 | (no verificada) |
-| cpufeatures | 0.3.1 | (no verificada) |
-| crc | 3.4.0 | (no verificada) |
-| crc-catalog | 2.5.0 | (no verificada) |
-| crc32fast | 1.5.0 | (no verificada) |
-| crossbeam-channel | 0.5.15 | (no verificada) |
-| crossbeam-queue | 0.3.12 | (no verificada) |
-| crossbeam-utils | 0.8.21 | (no verificada) |
-| crunchy | 0.2.4 | (no verificada) |
-| crypto-common | 0.1.7 | (no verificada) |
-| cssparser | 0.36.0 | (no verificada) |
-| cssparser-macros | 0.6.1 | (no verificada) |
-| ctor | 0.8.0 | (no verificada) |
-| ctor-proc-macro | 0.0.7 | (no verificada) |
-| darling | 0.23.0 | (no verificada) |
-| darling_core | 0.23.0 | (no verificada) |
-| darling_macro | 0.23.0 | (no verificada) |
-| dbus | 0.9.11 | (no verificada) |
-| der | 0.7.10 | (no verificada) |
-| deranged | 0.5.8 | (no verificada) |
-| derive_more | 2.1.1 | (no verificada) |
-| derive_more-impl | 2.1.1 | (no verificada) |
-| digest | 0.10.7 | (no verificada) |
-| dirs | 6.0.0 | (no verificada) |
-| dirs-sys | 0.5.0 | (no verificada) |
-| dispatch2 | 0.3.1 | (no verificada) |
-| displaydoc | 0.2.5 | (no verificada) |
-| dlopen2 | 0.8.2 | (no verificada) |
-| dlopen2_derive | 0.4.3 | (no verificada) |
-| dlv-list | 0.5.2 | (no verificada) |
-| dom_query | 0.27.0 | (no verificada) |
-| dotenvy | 0.15.7 | (no verificada) |
-| dpi | 0.1.2 | (no verificada) |
-| dtoa | 1.0.11 | (no verificada) |
-| dtoa-short | 0.3.5 | (no verificada) |
-| dtor | 0.3.0 | (no verificada) |
-| dtor-proc-macro | 0.0.6 | (no verificada) |
-| dunce | 1.0.5 | (no verificada) |
-| dyn-clone | 1.0.20 | (no verificada) |
-| either | 1.16.0 | (no verificada) |
-| embed_plist | 1.2.2 | (no verificada) |
-| embed-resource | 3.0.9 | (no verificada) |
-| encoding_rs | 0.8.35 | (no verificada) |
-| endi | 1.1.1 | (no verificada) |
-| enumflags2 | 0.7.12 | (no verificada) |
-| enumflags2_derive | 0.7.12 | (no verificada) |
-| equivalent | 1.0.2 | (no verificada) |
-| erased-serde | 0.4.10 | (no verificada) |
-| errno | 0.3.14 | (no verificada) |
-| etcetera | 0.8.0 | (no verificada) |
-| event-listener | 5.4.1 | (no verificada) |
-| event-listener-strategy | 0.5.4 | (no verificada) |
-| fastrand | 2.4.1 | (no verificada) |
-| fdeflate | 0.3.7 | (no verificada) |
-| field-offset | 0.3.6 | (no verificada) |
-| find-msvc-tools | 0.1.9 | (no verificada) |
-| flate2 | 1.1.9 | (no verificada) |
-| flume | 0.11.1 | (no verificada) |
-| fnv | 1.0.7 | (no verificada) |
-| foldhash | 0.1.5 | (no verificada) |
-| foldhash | 0.2.0 | (no verificada) |
-| foreign-types | 0.5.0 | (no verificada) |
-| foreign-types-macros | 0.2.3 | (no verificada) |
-| foreign-types-shared | 0.3.1 | (no verificada) |
-| form_urlencoded | 1.2.2 | (no verificada) |
-| funty | 2.0.0 | (no verificada) |
-| futures-channel | 0.3.32 | (no verificada) |
-| futures-core | 0.3.32 | (no verificada) |
-| futures-executor | 0.3.32 | (no verificada) |
-| futures-intrusive | 0.5.0 | (no verificada) |
-| futures-io | 0.3.32 | (no verificada) |
-| futures-lite | 2.6.1 | (no verificada) |
-| futures-macro | 0.3.32 | (no verificada) |
-| futures-sink | 0.3.32 | (no verificada) |
-| futures-task | 0.3.32 | (no verificada) |
-| futures-util | 0.3.32 | (no verificada) |
-| gdk | 0.18.2 | (no verificada) |
-| gdk-pixbuf | 0.18.5 | (no verificada) |
-| gdk-pixbuf-sys | 0.18.0 | (no verificada) |
-| gdk-sys | 0.18.2 | (no verificada) |
-| gdkwayland-sys | 0.18.2 | (no verificada) |
-| gdkx11 | 0.18.2 | (no verificada) |
-| gdkx11-sys | 0.18.2 | (no verificada) |
-| generic-array | 0.14.7 | (no verificada) |
-| getrandom | 0.2.17 | (no verificada) |
-| getrandom | 0.3.4 | (no verificada) |
-| getrandom | 0.4.2 | (no verificada) |
-| gio | 0.18.4 | (no verificada) |
-| gio-sys | 0.18.1 | (no verificada) |
-| glib | 0.18.5 | (no verificada) |
-| glib-macros | 0.18.5 | (no verificada) |
-| glib-sys | 0.18.1 | (no verificada) |
-| glob | 0.3.3 | (no verificada) |
-| gobject-sys | 0.18.0 | (no verificada) |
-| gtk | 0.18.2 | (no verificada) |
-| gtk-sys | 0.18.2 | (no verificada) |
-| gtk3-macros | 0.18.2 | (no verificada) |
-| hashbrown | 0.12.3 | (no verificada) |
-| hashbrown | 0.14.5 | (no verificada) |
-| hashbrown | 0.15.5 | (no verificada) |
-| hashbrown | 0.17.0 | (no verificada) |
-| hashlink | 0.10.0 | (no verificada) |
-| heck | 0.4.1 | (no verificada) |
-| heck | 0.5.0 | (no verificada) |
-| hermit-abi | 0.5.3 | (no verificada) |
-| hex | 0.4.3 | (no verificada) |
-| hkdf | 0.12.4 | (no verificada) |
-| hmac | 0.12.1 | (no verificada) |
-| home | 0.5.12 | (no verificada) |
-| html5ever | 0.38.0 | (no verificada) |
-| http | 1.4.0 | (no verificada) |
-| http-body | 1.0.1 | (no verificada) |
-| http-body-util | 0.1.3 | (no verificada) |
-| httparse | 1.10.1 | (no verificada) |
-| hyper | 1.9.0 | (no verificada) |
-| hyper-rustls | 0.27.9 | (no verificada) |
-| hyper-util | 0.1.20 | (no verificada) |
-| iana-time-zone | 0.1.65 | (no verificada) |
-| iana-time-zone-haiku | 0.1.2 | (no verificada) |
-| ico | 0.5.0 | (no verificada) |
-| icu_collections | 2.2.0 | (no verificada) |
-| icu_locale_core | 2.2.0 | (no verificada) |
-| icu_normalizer | 2.2.0 | (no verificada) |
-| icu_normalizer_data | 2.2.0 | (no verificada) |
-| icu_properties | 2.2.0 | (no verificada) |
-| icu_properties_data | 2.2.0 | (no verificada) |
-| icu_provider | 2.2.0 | (no verificada) |
-| id-arena | 2.3.0 | (no verificada) |
-| ident_case | 1.0.1 | (no verificada) |
-| idna | 1.1.0 | (no verificada) |
-| idna_adapter | 1.2.2 | (no verificada) |
-| indexmap | 1.9.3 | (no verificada) |
-| indexmap | 2.14.0 | (no verificada) |
-| infer | 0.19.0 | (no verificada) |
-| ipnet | 2.12.0 | (no verificada) |
-| iri-string | 0.7.12 | (no verificada) |
-| is-docker | 0.2.0 | (no verificada) |
-| is-wsl | 0.4.0 | (no verificada) |
-| itoa | 1.0.18 | (no verificada) |
-| javascriptcore-rs | 1.1.2 | (no verificada) |
-| javascriptcore-rs-sys | 1.1.1 | (no verificada) |
-| jni | 0.21.1 | (no verificada) |
-| jni-sys | 0.3.1 | (no verificada) |
-| jni-sys | 0.4.1 | (no verificada) |
-| jni-sys-macros | 0.4.1 | (no verificada) |
-| js-sys | 0.3.97 | (no verificada) |
-| json-patch | 3.0.1 | (no verificada) |
-| jsonptr | 0.6.3 | (no verificada) |
-| keyboard-types | 0.7.0 | (no verificada) |
-| lazy_static | 1.5.0 | (no verificada) |
-| leb128fmt | 0.1.0 | (no verificada) |
-| libappindicator | 0.9.0 | (no verificada) |
-| libappindicator-sys | 0.9.0 | (no verificada) |
-| libc | 0.2.186 | (no verificada) |
-| libdbus-sys | 0.2.7 | (no verificada) |
-| libloading | 0.7.4 | (no verificada) |
-| libm | 0.2.16 | (no verificada) |
-| libredox | 0.1.16 | (no verificada) |
-| libsqlite3-sys | 0.30.1 | (no verificada) |
-| linux-raw-sys | 0.12.1 | (no verificada) |
-| litemap | 0.8.2 | (no verificada) |
-| lock_api | 0.4.14 | (no verificada) |
-| log | 0.4.29 | (no verificada) |
-| lru-slab | 0.1.2 | (no verificada) |
-| mac-notification-sys | 0.6.15 | (no verificada) |
-| markup5ever | 0.38.0 | (no verificada) |
-| md-5 | 0.10.6 | (no verificada) |
-| memchr | 2.8.0 | (no verificada) |
-| memoffset | 0.9.1 | (no verificada) |
-| mime | 0.3.17 | (no verificada) |
-| miniz_oxide | 0.8.9 | (no verificada) |
-| mio | 1.2.0 | (no verificada) |
-| muda | 0.19.1 | (no verificada) |
-| ndk | 0.9.0 | (no verificada) |
-| ndk-sys | 0.6.0+11769913 | (no verificada) |
-| new_debug_unreachable | 1.0.6 | (no verificada) |
-| nix | 0.31.3 | (no verificada) |
-| notify-rust | 4.18.0 | (no verificada) |
-| num_enum | 0.7.6 | (no verificada) |
-| num_enum_derive | 0.7.6 | (no verificada) |
-| num-bigint-dig | 0.8.6 | (no verificada) |
-| num-conv | 0.2.1 | (no verificada) |
-| num-integer | 0.1.46 | (no verificada) |
-| num-iter | 0.1.45 | (no verificada) |
-| num-traits | 0.2.19 | (no verificada) |
-| objc2 | 0.6.4 | (no verificada) |
-| objc2-app-kit | 0.3.2 | (no verificada) |
-| objc2-cloud-kit | 0.3.2 | (no verificada) |
-| objc2-core-data | 0.3.2 | (no verificada) |
-| objc2-core-foundation | 0.3.2 | (no verificada) |
-| objc2-core-graphics | 0.3.2 | (no verificada) |
-| objc2-core-image | 0.3.2 | (no verificada) |
-| objc2-core-location | 0.3.2 | (no verificada) |
-| objc2-core-text | 0.3.2 | (no verificada) |
-| objc2-encode | 4.1.0 | (no verificada) |
-| objc2-exception-helper | 0.1.1 | (no verificada) |
-| objc2-foundation | 0.3.2 | (no verificada) |
-| objc2-io-surface | 0.3.2 | (no verificada) |
-| objc2-quartz-core | 0.3.2 | (no verificada) |
-| objc2-ui-kit | 0.3.2 | (no verificada) |
-| objc2-user-notifications | 0.3.2 | (no verificada) |
-| objc2-web-kit | 0.3.2 | (no verificada) |
-| once_cell | 1.21.4 | (no verificada) |
-| open | 5.3.4 | (no verificada) |
-| option-ext | 0.2.0 | (no verificada) |
-| ordered-multimap | 0.7.3 | (no verificada) |
-| ordered-stream | 0.2.0 | (no verificada) |
-| os_info | 3.15.0 | (no verificada) |
-| os_pipe | 1.2.3 | (no verificada) |
-| pango | 0.18.3 | (no verificada) |
-| pango-sys | 0.18.0 | (no verificada) |
-| parking | 2.2.1 | (no verificada) |
-| parking_lot | 0.12.5 | (no verificada) |
-| parking_lot_core | 0.9.12 | (no verificada) |
-| pathdiff | 0.2.3 | (no verificada) |
-| pem-rfc7468 | 0.7.0 | (no verificada) |
-| percent-encoding | 2.3.2 | (no verificada) |
-| phf | 0.13.1 | (no verificada) |
-| phf_codegen | 0.13.1 | (no verificada) |
-| phf_generator | 0.13.1 | (no verificada) |
-| phf_macros | 0.13.1 | (no verificada) |
-| phf_shared | 0.13.1 | (no verificada) |
-| pin-project-lite | 0.2.17 | (no verificada) |
-| piper | 0.2.5 | (no verificada) |
-| pkcs1 | 0.7.5 | (no verificada) |
-| pkcs8 | 0.10.2 | (no verificada) |
-| pkg-config | 0.3.33 | (no verificada) |
-| plain | 0.2.3 | (no verificada) |
-| plist | 1.9.0 | (no verificada) |
-| png | 0.17.16 | (no verificada) |
-| png | 0.18.1 | (no verificada) |
-| polling | 3.11.0 | (no verificada) |
-| potential_utf | 0.1.5 | (no verificada) |
-| powerfmt | 0.2.0 | (no verificada) |
-| ppv-lite86 | 0.2.21 | (no verificada) |
-| precomputed-hash | 0.1.1 | (no verificada) |
-| prettyplease | 0.2.37 | (no verificada) |
-| proc-macro-crate | 1.3.1 | (no verificada) |
-| proc-macro-crate | 2.0.2 | (no verificada) |
-| proc-macro-crate | 3.5.0 | (no verificada) |
-| proc-macro-error | 1.0.4 | (no verificada) |
-| proc-macro-error-attr | 1.0.4 | (no verificada) |
-| proc-macro2 | 1.0.106 | (no verificada) |
-| ptr_meta | 0.1.4 | (no verificada) |
-| ptr_meta_derive | 0.1.4 | (no verificada) |
-| quick-xml | 0.39.2 | (no verificada) |
-| quinn | 0.11.11 | (no verificada) |
-| quinn-proto | 0.11.17 | (no verificada) |
-| quinn-udp | 0.5.15 | (no verificada) |
-| quote | 1.0.45 | (no verificada) |
-| r-efi | 5.3.0 | (no verificada) |
-| r-efi | 6.0.0 | (no verificada) |
-| radium | 0.7.0 | (no verificada) |
-| rand | 0.10.2 | (no verificada) |
-| rand | 0.8.6 | (no verificada) |
-| rand | 0.9.5 | (no verificada) |
-| rand_chacha | 0.3.1 | (no verificada) |
-| rand_chacha | 0.9.0 | (no verificada) |
-| rand_core | 0.10.1 | (no verificada) |
-| rand_core | 0.6.4 | (no verificada) |
-| rand_core | 0.9.5 | (no verificada) |
-| rand_pcg | 0.10.2 | (no verificada) |
-| raw-window-handle | 0.6.2 | (no verificada) |
-| redox_syscall | 0.5.18 | (no verificada) |
-| redox_syscall | 0.7.5 | (no verificada) |
-| redox_users | 0.5.2 | (no verificada) |
-| ref-cast | 1.0.25 | (no verificada) |
-| ref-cast-impl | 1.0.25 | (no verificada) |
-| regex | 1.12.3 | (no verificada) |
-| regex-automata | 0.4.14 | (no verificada) |
-| regex-syntax | 0.8.10 | (no verificada) |
-| rend | 0.4.2 | (no verificada) |
-| reqwest | 0.12.28 | (no verificada) |
-| reqwest | 0.13.3 | (no verificada) |
-| ring | 0.17.14 | (no verificada) |
-| rkyv | 0.7.46 | (no verificada) |
-| rkyv_derive | 0.7.46 | (no verificada) |
-| rsa | 0.9.10 | (no verificada) |
-| rust_decimal | 1.42.0 | (no verificada) |
-| rust-ini | 0.21.3 | (no verificada) |
-| rustc_version | 0.4.1 | (no verificada) |
-| rustc-hash | 2.1.2 | (no verificada) |
-| rustix | 1.1.4 | (no verificada) |
-| rustls | 0.23.44 | (no verificada) |
-| rustls-pki-types | 1.15.1 | (no verificada) |
-| rustls-webpki | 0.103.15 | (no verificada) |
-| rustversion | 1.0.22 | (no verificada) |
-| ryu | 1.0.23 | (no verificada) |
-| same-file | 1.0.6 | (no verificada) |
-| schemars | 0.8.22 | (no verificada) |
-| schemars | 0.9.0 | (no verificada) |
-| schemars | 1.2.1 | (no verificada) |
-| schemars_derive | 0.8.22 | (no verificada) |
-| scopeguard | 1.2.0 | (no verificada) |
-| seahash | 4.1.0 | (no verificada) |
-| selectors | 0.36.1 | (no verificada) |
-| semver | 1.0.28 | (no verificada) |
-| serde | 1.0.228 | (no verificada) |
-| serde_core | 1.0.228 | (no verificada) |
-| serde_derive | 1.0.228 | (no verificada) |
-| serde_derive_internals | 0.29.1 | (no verificada) |
-| serde_json | 1.0.149 | (no verificada) |
-| serde_repr | 0.1.20 | (no verificada) |
-| serde_spanned | 0.6.9 | (no verificada) |
-| serde_spanned | 1.1.1 | (no verificada) |
-| serde_urlencoded | 0.7.1 | (no verificada) |
-| serde_with | 3.19.0 | (no verificada) |
-| serde_with_macros | 3.19.0 | (no verificada) |
-| serde-untagged | 0.1.9 | (no verificada) |
-| serialize-to-javascript | 0.1.2 | (no verificada) |
-| serialize-to-javascript-impl | 0.1.2 | (no verificada) |
-| servo_arc | 0.4.3 | (no verificada) |
-| sha1 | 0.10.6 | (no verificada) |
-| sha2 | 0.10.9 | (no verificada) |
-| shared_child | 1.1.1 | (no verificada) |
-| shlex | 1.3.0 | (no verificada) |
-| sigchld | 0.2.4 | (no verificada) |
-| signal-hook | 0.3.18 | (no verificada) |
-| signal-hook-registry | 1.4.8 | (no verificada) |
-| signature | 2.2.0 | (no verificada) |
-| simd-adler32 | 0.3.9 | (no verificada) |
-| simdutf8 | 0.1.5 | (no verificada) |
-| siphasher | 1.0.2 | (no verificada) |
-| slab | 0.4.12 | (no verificada) |
-| smallvec | 1.15.1 | (no verificada) |
-| socket2 | 0.6.3 | (no verificada) |
-| softbuffer | 0.4.8 | (no verificada) |
-| soup3 | 0.5.0 | (no verificada) |
-| soup3-sys | 0.5.0 | (no verificada) |
-| spin | 0.9.8 | (no verificada) |
-| spki | 0.7.3 | (no verificada) |
-| sqlx | 0.8.6 | (no verificada) |
-| sqlx-core | 0.8.6 | (no verificada) |
-| sqlx-macros | 0.8.6 | (no verificada) |
-| sqlx-macros-core | 0.8.6 | (no verificada) |
-| sqlx-mysql | 0.8.6 | (no verificada) |
-| sqlx-postgres | 0.8.6 | (no verificada) |
-| sqlx-sqlite | 0.8.6 | (no verificada) |
-| stable_deref_trait | 1.2.1 | (no verificada) |
-| string_cache | 0.9.0 | (no verificada) |
-| string_cache_codegen | 0.6.1 | (no verificada) |
-| stringprep | 0.1.5 | (no verificada) |
-| strsim | 0.11.1 | (no verificada) |
-| subtle | 2.6.1 | (no verificada) |
-| swift-rs | 1.0.7 | (no verificada) |
-| syn | 1.0.109 | (no verificada) |
-| syn | 2.0.117 | (no verificada) |
-| syn | 3.0.5 | (no verificada) |
-| sync_wrapper | 1.0.2 | (no verificada) |
-| synstructure | 0.13.2 | (no verificada) |
-| system-deps | 6.2.2 | (no verificada) |
-| tao | 0.35.0 | (no verificada) |
-| tao-macros | 0.1.3 | (no verificada) |
-| tap | 1.0.1 | (no verificada) |
-| target-lexicon | 0.12.16 | (no verificada) |
-| tauri | 2.11.5 | (no verificada) |
-| tauri-build | 2.6.3 | (no verificada) |
-| tauri-codegen | 2.6.3 | (no verificada) |
-| tauri-macros | 2.6.3 | (no verificada) |
-| tauri-plugin | 2.6.0 | (no verificada) |
-| tauri-plugin-deep-link | 2.4.10 | (no verificada) |
-| tauri-plugin-haptics | 2.3.3 | (no verificada) |
-| tauri-plugin-notification | 2.4.0 | (no verificada) |
-| tauri-plugin-opener | 2.5.5 | (no verificada) |
-| tauri-plugin-shell | 2.3.5 | (no verificada) |
-| tauri-plugin-sql | 2.4.0 | (no verificada) |
-| tauri-plugin-store | 2.4.3 | (no verificada) |
-| tauri-runtime | 2.11.3 | (no verificada) |
-| tauri-runtime-wry | 2.11.4 | (no verificada) |
-| tauri-utils | 2.9.3 | (no verificada) |
-| tauri-winres | 0.3.6 | (no verificada) |
-| tauri-winrt-notification | 0.7.3 | (no verificada) |
-| tempfile | 3.27.0 | (no verificada) |
-| tendril | 0.5.0 | (no verificada) |
-| thiserror | 1.0.69 | (no verificada) |
-| thiserror | 2.0.18 | (no verificada) |
-| thiserror-impl | 1.0.69 | (no verificada) |
-| thiserror-impl | 2.0.18 | (no verificada) |
-| time | 0.3.47 | (no verificada) |
-| time-core | 0.1.8 | (no verificada) |
-| time-macros | 0.2.27 | (no verificada) |
-| tiny-keccak | 2.0.2 | (no verificada) |
-| tinystr | 0.8.3 | (no verificada) |
-| tinyvec | 1.11.0 | (no verificada) |
-| tinyvec_macros | 0.1.1 | (no verificada) |
-| tokio | 1.52.1 | (no verificada) |
-| tokio-macros | 2.7.0 | (no verificada) |
-| tokio-rustls | 0.26.5 | (no verificada) |
-| tokio-stream | 0.1.18 | (no verificada) |
-| tokio-util | 0.7.18 | (no verificada) |
-| toml | 0.8.2 | (no verificada) |
-| toml | 0.9.12+spec-1.1.0 | (no verificada) |
-| toml | 1.1.2+spec-1.1.0 | (no verificada) |
-| toml_datetime | 0.6.3 | (no verificada) |
-| toml_datetime | 0.7.5+spec-1.1.0 | (no verificada) |
-| toml_datetime | 1.1.1+spec-1.1.0 | (no verificada) |
-| toml_edit | 0.19.15 | (no verificada) |
-| toml_edit | 0.20.2 | (no verificada) |
-| toml_edit | 0.25.11+spec-1.1.0 | (no verificada) |
-| toml_parser | 1.1.2+spec-1.1.0 | (no verificada) |
-| toml_writer | 1.1.1+spec-1.1.0 | (no verificada) |
-| tower | 0.5.3 | (no verificada) |
-| tower-http | 0.6.8 | (no verificada) |
-| tower-layer | 0.3.3 | (no verificada) |
-| tower-service | 0.3.3 | (no verificada) |
-| tracing | 0.1.44 | (no verificada) |
-| tracing-attributes | 0.1.31 | (no verificada) |
-| tracing-core | 0.1.36 | (no verificada) |
-| tray-icon | 0.24.2 | (no verificada) |
-| try-lock | 0.2.5 | (no verificada) |
-| typeid | 1.0.3 | (no verificada) |
-| typenum | 1.20.0 | (no verificada) |
-| uds_windows | 1.2.1 | (no verificada) |
-| unic-char-property | 0.9.0 | (no verificada) |
-| unic-char-range | 0.9.0 | (no verificada) |
-| unic-common | 0.9.0 | (no verificada) |
-| unic-ucd-ident | 0.9.0 | (no verificada) |
-| unic-ucd-version | 0.9.0 | (no verificada) |
-| unicode-bidi | 0.3.18 | (no verificada) |
-| unicode-ident | 1.0.24 | (no verificada) |
-| unicode-normalization | 0.1.25 | (no verificada) |
-| unicode-properties | 0.1.4 | (no verificada) |
-| unicode-segmentation | 1.13.2 | (no verificada) |
-| unicode-xid | 0.2.6 | (no verificada) |
-| untrusted | 0.9.0 | (no verificada) |
-| url | 2.5.8 | (no verificada) |
-| urlpattern | 0.3.0 | (no verificada) |
-| utf-8 | 0.7.6 | (no verificada) |
-| utf8_iter | 1.0.4 | (no verificada) |
-| uuid | 1.23.1 | (no verificada) |
-| vcpkg | 0.2.15 | (no verificada) |
-| version_check | 0.9.5 | (no verificada) |
-| version-compare | 0.2.1 | (no verificada) |
-| vswhom | 0.1.0 | (no verificada) |
-| vswhom-sys | 0.1.3 | (no verificada) |
-| walkdir | 2.5.0 | (no verificada) |
-| want | 0.3.1 | (no verificada) |
-| wasi | 0.11.1+wasi-snapshot-preview1 | (no verificada) |
-| wasip2 | 1.0.3+wasi-0.2.9 | (no verificada) |
-| wasip3 | 0.4.0+wasi-0.3.0-rc-2026-01-06 | (no verificada) |
-| wasite | 0.1.0 | (no verificada) |
-| wasm-bindgen | 0.2.120 | (no verificada) |
-| wasm-bindgen-futures | 0.4.70 | (no verificada) |
-| wasm-bindgen-macro | 0.2.120 | (no verificada) |
-| wasm-bindgen-macro-support | 0.2.120 | (no verificada) |
-| wasm-bindgen-shared | 0.2.120 | (no verificada) |
-| wasm-encoder | 0.244.0 | (no verificada) |
-| wasm-metadata | 0.244.0 | (no verificada) |
-| wasm-streams | 0.5.0 | (no verificada) |
-| wasmparser | 0.244.0 | (no verificada) |
-| web_atoms | 0.2.4 | (no verificada) |
-| web-sys | 0.3.97 | (no verificada) |
-| web-time | 1.1.0 | (no verificada) |
-| webkit2gtk | 2.0.2 | (no verificada) |
-| webkit2gtk-sys | 2.0.2 | (no verificada) |
-| webpki-roots | 1.0.9 | (no verificada) |
-| webview2-com | 0.38.2 | (no verificada) |
-| webview2-com-macros | 0.8.1 | (no verificada) |
-| webview2-com-sys | 0.38.2 | (no verificada) |
-| whoami | 1.6.1 | (no verificada) |
-| winapi | 0.3.9 | (no verificada) |
-| winapi-i686-pc-windows-gnu | 0.4.0 | (no verificada) |
-| winapi-util | 0.1.11 | (no verificada) |
-| winapi-x86_64-pc-windows-gnu | 0.4.0 | (no verificada) |
-| window-vibrancy | 0.6.0 | (no verificada) |
-| windows | 0.61.3 | (no verificada) |
-| windows_aarch64_gnullvm | 0.42.2 | (no verificada) |
-| windows_aarch64_gnullvm | 0.48.5 | (no verificada) |
-| windows_aarch64_gnullvm | 0.52.6 | (no verificada) |
-| windows_aarch64_gnullvm | 0.53.1 | (no verificada) |
-| windows_aarch64_msvc | 0.42.2 | (no verificada) |
-| windows_aarch64_msvc | 0.48.5 | (no verificada) |
-| windows_aarch64_msvc | 0.52.6 | (no verificada) |
-| windows_aarch64_msvc | 0.53.1 | (no verificada) |
-| windows_i686_gnu | 0.42.2 | (no verificada) |
-| windows_i686_gnu | 0.48.5 | (no verificada) |
-| windows_i686_gnu | 0.52.6 | (no verificada) |
-| windows_i686_gnu | 0.53.1 | (no verificada) |
-| windows_i686_gnullvm | 0.52.6 | (no verificada) |
-| windows_i686_gnullvm | 0.53.1 | (no verificada) |
-| windows_i686_msvc | 0.42.2 | (no verificada) |
-| windows_i686_msvc | 0.48.5 | (no verificada) |
-| windows_i686_msvc | 0.52.6 | (no verificada) |
-| windows_i686_msvc | 0.53.1 | (no verificada) |
-| windows_x86_64_gnu | 0.42.2 | (no verificada) |
-| windows_x86_64_gnu | 0.48.5 | (no verificada) |
-| windows_x86_64_gnu | 0.52.6 | (no verificada) |
-| windows_x86_64_gnu | 0.53.1 | (no verificada) |
-| windows_x86_64_gnullvm | 0.42.2 | (no verificada) |
-| windows_x86_64_gnullvm | 0.48.5 | (no verificada) |
-| windows_x86_64_gnullvm | 0.52.6 | (no verificada) |
-| windows_x86_64_gnullvm | 0.53.1 | (no verificada) |
-| windows_x86_64_msvc | 0.42.2 | (no verificada) |
-| windows_x86_64_msvc | 0.48.5 | (no verificada) |
-| windows_x86_64_msvc | 0.52.6 | (no verificada) |
-| windows_x86_64_msvc | 0.53.1 | (no verificada) |
-| windows-collections | 0.2.0 | (no verificada) |
-| windows-core | 0.61.2 | (no verificada) |
-| windows-core | 0.62.2 | (no verificada) |
-| windows-future | 0.2.1 | (no verificada) |
-| windows-implement | 0.60.2 | (no verificada) |
-| windows-interface | 0.59.3 | (no verificada) |
-| windows-link | 0.1.3 | (no verificada) |
-| windows-link | 0.2.1 | (no verificada) |
-| windows-numerics | 0.2.0 | (no verificada) |
-| windows-registry | 0.5.3 | (no verificada) |
-| windows-result | 0.3.4 | (no verificada) |
-| windows-result | 0.4.1 | (no verificada) |
-| windows-strings | 0.4.2 | (no verificada) |
-| windows-strings | 0.5.1 | (no verificada) |
-| windows-sys | 0.45.0 | (no verificada) |
-| windows-sys | 0.48.0 | (no verificada) |
-| windows-sys | 0.52.0 | (no verificada) |
-| windows-sys | 0.59.0 | (no verificada) |
-| windows-sys | 0.60.2 | (no verificada) |
-| windows-sys | 0.61.2 | (no verificada) |
-| windows-targets | 0.42.2 | (no verificada) |
-| windows-targets | 0.48.5 | (no verificada) |
-| windows-targets | 0.52.6 | (no verificada) |
-| windows-targets | 0.53.5 | (no verificada) |
-| windows-threading | 0.1.0 | (no verificada) |
-| windows-version | 0.1.7 | (no verificada) |
-| winnow | 0.5.40 | (no verificada) |
-| winnow | 0.7.15 | (no verificada) |
-| winnow | 1.0.2 | (no verificada) |
-| winreg | 0.55.0 | (no verificada) |
-| wit-bindgen | 0.51.0 | (no verificada) |
-| wit-bindgen | 0.57.1 | (no verificada) |
-| wit-bindgen-core | 0.51.0 | (no verificada) |
-| wit-bindgen-rust | 0.51.0 | (no verificada) |
-| wit-bindgen-rust-macro | 0.51.0 | (no verificada) |
-| wit-component | 0.244.0 | (no verificada) |
-| wit-parser | 0.244.0 | (no verificada) |
-| writeable | 0.6.3 | (no verificada) |
-| wry | 0.55.0 | (no verificada) |
-| wyz | 0.5.1 | (no verificada) |
-| x11 | 2.21.0 | (no verificada) |
-| x11-dl | 2.21.0 | (no verificada) |
-| yoke | 0.8.2 | (no verificada) |
-| yoke-derive | 0.8.2 | (no verificada) |
-| zbus | 5.19.0 | (no verificada) |
-| zbus_macros | 5.19.0 | (no verificada) |
-| zbus_names | 4.3.4 | (no verificada) |
-| zcheapstr | 1.1.0 | (no verificada) |
-| zerocopy | 0.8.50 | (no verificada) |
-| zerocopy-derive | 0.8.50 | (no verificada) |
-| zerofrom | 0.1.7 | (no verificada) |
-| zerofrom-derive | 0.1.7 | (no verificada) |
-| zeroize | 1.8.2 | (no verificada) |
-| zerotrie | 0.2.4 | (no verificada) |
-| zerovec | 0.11.6 | (no verificada) |
-| zerovec-derive | 0.11.3 | (no verificada) |
-| zmij | 1.0.21 | (no verificada) |
-| zvariant | 5.15.0 | (no verificada) |
-| zvariant_derive | 5.15.0 | (no verificada) |
-| zvariant_utils | 4.2.0 | (no verificada) |
+| adler2 | 2.0.1 | 0BSD OR MIT OR Apache-2.0 |
+| ahash | 0.7.8 | MIT OR Apache-2.0 |
+| aho-corasick | 1.1.4 | Unlicense OR MIT |
+| alloc-no-stdlib | 2.0.4 | BSD-3-Clause |
+| alloc-stdlib | 0.2.2 | BSD-3-Clause |
+| allocator-api2 | 0.2.21 | MIT OR Apache-2.0 |
+| android_system_properties | 0.1.5 | MIT OR Apache-2.0 |
+| anyhow | 1.0.102 | MIT OR Apache-2.0 |
+| arrayvec | 0.7.6 | MIT OR Apache-2.0 |
+| async-broadcast | 0.7.2 | MIT OR Apache-2.0 |
+| async-channel | 2.5.0 | Apache-2.0 OR MIT |
+| async-executor | 1.14.0 | Apache-2.0 OR MIT |
+| async-io | 2.6.0 | Apache-2.0 OR MIT |
+| async-lock | 3.4.2 | Apache-2.0 OR MIT |
+| async-process | 2.5.0 | Apache-2.0 OR MIT |
+| async-recursion | 1.1.1 | MIT OR Apache-2.0 |
+| async-signal | 0.2.14 | Apache-2.0 OR MIT |
+| async-task | 4.7.1 | Apache-2.0 OR MIT |
+| async-trait | 0.1.92 | MIT OR Apache-2.0 |
+| atk | 0.18.2 | MIT |
+| atk-sys | 0.18.2 | MIT |
+| atoi | 2.0.0 | MIT |
+| atomic-waker | 1.1.2 | Apache-2.0 OR MIT |
+| autocfg | 1.5.0 | Apache-2.0 OR MIT |
+| base64 | 0.21.7 | MIT OR Apache-2.0 |
+| base64 | 0.22.1 | MIT OR Apache-2.0 |
+| base64ct | 1.8.3 | Apache-2.0 OR MIT |
+| bit-set | 0.8.0 | Apache-2.0 OR MIT |
+| bit-vec | 0.8.0 | Apache-2.0 OR MIT |
+| bitflags | 1.3.2 | MIT OR Apache-2.0 |
+| bitflags | 2.11.1 | MIT OR Apache-2.0 |
+| bitvec | 1.0.1 | MIT |
+| block-buffer | 0.10.4 | MIT OR Apache-2.0 |
+| block2 | 0.6.2 | MIT |
+| blocking | 1.7.0 | Apache-2.0 OR MIT |
+| borsh | 1.6.1 | MIT OR Apache-2.0 |
+| borsh-derive | 1.6.1 | Apache-2.0 |
+| brotli | 8.0.2 | BSD-3-Clause AND MIT |
+| brotli-decompressor | 5.0.0 | BSD-3-Clause OR MIT |
+| bumpalo | 3.20.2 | MIT OR Apache-2.0 |
+| bytecheck | 0.6.12 | MIT |
+| bytecheck_derive | 0.6.12 | MIT |
+| bytemuck | 1.25.0 | Zlib OR Apache-2.0 OR MIT |
+| byteorder | 1.5.0 | Unlicense OR MIT |
+| bytes | 1.11.1 | MIT |
+| cairo-rs | 0.18.5 | MIT |
+| cairo-sys-rs | 0.18.2 | MIT |
+| camino | 1.2.2 | MIT OR Apache-2.0 |
+| cargo_metadata | 0.19.2 | MIT |
+| cargo_toml | 0.22.3 | Apache-2.0 OR MIT |
+| cargo-platform | 0.1.9 | MIT OR Apache-2.0 |
+| cc | 1.2.61 | MIT OR Apache-2.0 |
+| cesu8 | 1.1.0 | Apache-2.0 OR MIT |
+| cfb | 0.7.3 | MIT |
+| cfg_aliases | 0.2.1 | MIT |
+| cfg-expr | 0.15.8 | MIT OR Apache-2.0 |
+| cfg-if | 1.0.4 | MIT OR Apache-2.0 |
+| chacha20 | 0.10.2 | MIT OR Apache-2.0 |
+| chrono | 0.4.44 | MIT OR Apache-2.0 |
+| combine | 4.6.7 | MIT |
+| concurrent-queue | 2.5.0 | Apache-2.0 OR MIT |
+| const-oid | 0.9.6 | Apache-2.0 OR MIT |
+| const-random | 0.1.18 | MIT OR Apache-2.0 |
+| const-random-macro | 0.1.16 | MIT OR Apache-2.0 |
+| cookie | 0.18.1 | MIT OR Apache-2.0 |
+| core-foundation | 0.10.1 | MIT OR Apache-2.0 |
+| core-foundation-sys | 0.8.7 | MIT OR Apache-2.0 |
+| core-graphics | 0.25.0 | MIT OR Apache-2.0 |
+| core-graphics-types | 0.2.0 | MIT OR Apache-2.0 |
+| cpufeatures | 0.2.17 | MIT OR Apache-2.0 |
+| cpufeatures | 0.3.1 | MIT OR Apache-2.0 |
+| crc | 3.4.0 | MIT OR Apache-2.0 |
+| crc-catalog | 2.5.0 | MIT OR Apache-2.0 |
+| crc32fast | 1.5.0 | MIT OR Apache-2.0 |
+| crossbeam-channel | 0.5.15 | MIT OR Apache-2.0 |
+| crossbeam-queue | 0.3.12 | MIT OR Apache-2.0 |
+| crossbeam-utils | 0.8.21 | MIT OR Apache-2.0 |
+| crunchy | 0.2.4 | MIT |
+| crypto-common | 0.1.7 | MIT OR Apache-2.0 |
+| cssparser | 0.36.0 | MPL-2.0 |
+| cssparser-macros | 0.6.1 | MPL-2.0 |
+| ctor | 0.8.0 | Apache-2.0 OR MIT |
+| ctor-proc-macro | 0.0.7 | Apache-2.0 OR MIT |
+| darling | 0.23.0 | MIT |
+| darling_core | 0.23.0 | MIT |
+| darling_macro | 0.23.0 | MIT |
+| dbus | 0.9.11 | Apache-2.0 OR MIT |
+| der | 0.7.10 | Apache-2.0 OR MIT |
+| deranged | 0.5.8 | MIT OR Apache-2.0 |
+| derive_more | 2.1.1 | MIT |
+| derive_more-impl | 2.1.1 | MIT |
+| digest | 0.10.7 | MIT OR Apache-2.0 |
+| dirs | 6.0.0 | MIT OR Apache-2.0 |
+| dirs-sys | 0.5.0 | MIT OR Apache-2.0 |
+| dispatch2 | 0.3.1 | Zlib OR Apache-2.0 OR MIT |
+| displaydoc | 0.2.5 | MIT OR Apache-2.0 |
+| dlopen2 | 0.8.2 | MIT |
+| dlopen2_derive | 0.4.3 | MIT |
+| dlv-list | 0.5.2 | MIT OR Apache-2.0 |
+| dom_query | 0.27.0 | MIT |
+| dotenvy | 0.15.7 | MIT |
+| dpi | 0.1.2 | Apache-2.0 AND MIT |
+| dtoa | 1.0.11 | MIT OR Apache-2.0 |
+| dtoa-short | 0.3.5 | MPL-2.0 |
+| dtor | 0.3.0 | Apache-2.0 OR MIT |
+| dtor-proc-macro | 0.0.6 | Apache-2.0 OR MIT |
+| dunce | 1.0.5 | CC0-1.0 OR MIT-0 OR Apache-2.0 |
+| dyn-clone | 1.0.20 | MIT OR Apache-2.0 |
+| either | 1.16.0 | MIT OR Apache-2.0 |
+| embed_plist | 1.2.2 | MIT OR Apache-2.0 |
+| embed-resource | 3.0.9 | MIT |
+| encoding_rs | 0.8.35 | (Apache-2.0 OR MIT) AND BSD-3-Clause |
+| endi | 1.1.1 | MIT |
+| enumflags2 | 0.7.12 | MIT OR Apache-2.0 |
+| enumflags2_derive | 0.7.12 | MIT OR Apache-2.0 |
+| equivalent | 1.0.2 | Apache-2.0 OR MIT |
+| erased-serde | 0.4.10 | MIT OR Apache-2.0 |
+| errno | 0.3.14 | MIT OR Apache-2.0 |
+| etcetera | 0.8.0 | MIT OR Apache-2.0 |
+| event-listener | 5.4.1 | Apache-2.0 OR MIT |
+| event-listener-strategy | 0.5.4 | Apache-2.0 OR MIT |
+| fastrand | 2.4.1 | Apache-2.0 OR MIT |
+| fdeflate | 0.3.7 | MIT OR Apache-2.0 |
+| field-offset | 0.3.6 | MIT OR Apache-2.0 |
+| find-msvc-tools | 0.1.9 | MIT OR Apache-2.0 |
+| flate2 | 1.1.9 | MIT OR Apache-2.0 |
+| flume | 0.11.1 | Apache-2.0 OR MIT |
+| fnv | 1.0.7 | Apache-2.0  OR  MIT |
+| foldhash | 0.1.5 | Zlib |
+| foldhash | 0.2.0 | Zlib |
+| foreign-types | 0.5.0 | MIT OR Apache-2.0 |
+| foreign-types-macros | 0.2.3 | MIT OR Apache-2.0 |
+| foreign-types-shared | 0.3.1 | MIT OR Apache-2.0 |
+| form_urlencoded | 1.2.2 | MIT OR Apache-2.0 |
+| funty | 2.0.0 | MIT |
+| futures-channel | 0.3.32 | MIT OR Apache-2.0 |
+| futures-core | 0.3.32 | MIT OR Apache-2.0 |
+| futures-executor | 0.3.32 | MIT OR Apache-2.0 |
+| futures-intrusive | 0.5.0 | MIT OR Apache-2.0 |
+| futures-io | 0.3.32 | MIT OR Apache-2.0 |
+| futures-lite | 2.6.1 | Apache-2.0 OR MIT |
+| futures-macro | 0.3.32 | MIT OR Apache-2.0 |
+| futures-sink | 0.3.32 | MIT OR Apache-2.0 |
+| futures-task | 0.3.32 | MIT OR Apache-2.0 |
+| futures-util | 0.3.32 | MIT OR Apache-2.0 |
+| gdk | 0.18.2 | MIT |
+| gdk-pixbuf | 0.18.5 | MIT |
+| gdk-pixbuf-sys | 0.18.0 | MIT |
+| gdk-sys | 0.18.2 | MIT |
+| gdkwayland-sys | 0.18.2 | MIT |
+| gdkx11 | 0.18.2 | MIT |
+| gdkx11-sys | 0.18.2 | MIT |
+| generic-array | 0.14.7 | MIT |
+| getrandom | 0.2.17 | MIT OR Apache-2.0 |
+| getrandom | 0.3.4 | MIT OR Apache-2.0 |
+| getrandom | 0.4.2 | MIT OR Apache-2.0 |
+| gio | 0.18.4 | MIT |
+| gio-sys | 0.18.1 | MIT |
+| glib | 0.18.5 | MIT |
+| glib-macros | 0.18.5 | MIT |
+| glib-sys | 0.18.1 | MIT |
+| glob | 0.3.3 | MIT OR Apache-2.0 |
+| gobject-sys | 0.18.0 | MIT |
+| gtk | 0.18.2 | MIT |
+| gtk-sys | 0.18.2 | MIT |
+| gtk3-macros | 0.18.2 | MIT |
+| hashbrown | 0.12.3 | MIT OR Apache-2.0 |
+| hashbrown | 0.14.5 | MIT OR Apache-2.0 |
+| hashbrown | 0.15.5 | MIT OR Apache-2.0 |
+| hashbrown | 0.17.0 | MIT OR Apache-2.0 |
+| hashlink | 0.10.0 | MIT OR Apache-2.0 |
+| heck | 0.4.1 | MIT OR Apache-2.0 |
+| heck | 0.5.0 | MIT OR Apache-2.0 |
+| hermit-abi | 0.5.3 | MIT OR Apache-2.0 |
+| hex | 0.4.3 | MIT OR Apache-2.0 |
+| hkdf | 0.12.4 | MIT OR Apache-2.0 |
+| hmac | 0.12.1 | MIT OR Apache-2.0 |
+| home | 0.5.12 | MIT OR Apache-2.0 |
+| html5ever | 0.38.0 | MIT OR Apache-2.0 |
+| http | 1.4.0 | MIT OR Apache-2.0 |
+| http-body | 1.0.1 | MIT |
+| http-body-util | 0.1.3 | MIT |
+| httparse | 1.10.1 | MIT OR Apache-2.0 |
+| hyper | 1.9.0 | MIT |
+| hyper-rustls | 0.27.9 | Apache-2.0 OR ISC OR MIT |
+| hyper-util | 0.1.20 | MIT |
+| iana-time-zone | 0.1.65 | MIT OR Apache-2.0 |
+| iana-time-zone-haiku | 0.1.2 | MIT OR Apache-2.0 |
+| ico | 0.5.0 | MIT |
+| icu_collections | 2.2.0 | Unicode-3.0 |
+| icu_locale_core | 2.2.0 | Unicode-3.0 |
+| icu_normalizer | 2.2.0 | Unicode-3.0 |
+| icu_normalizer_data | 2.2.0 | Unicode-3.0 |
+| icu_properties | 2.2.0 | Unicode-3.0 |
+| icu_properties_data | 2.2.0 | Unicode-3.0 |
+| icu_provider | 2.2.0 | Unicode-3.0 |
+| id-arena | 2.3.0 | MIT OR Apache-2.0 |
+| ident_case | 1.0.1 | MIT OR Apache-2.0 |
+| idna | 1.1.0 | MIT OR Apache-2.0 |
+| idna_adapter | 1.2.2 | Apache-2.0 OR MIT |
+| indexmap | 1.9.3 | Apache-2.0 OR MIT |
+| indexmap | 2.14.0 | Apache-2.0 OR MIT |
+| infer | 0.19.0 | MIT |
+| ipnet | 2.12.0 | MIT OR Apache-2.0 |
+| iri-string | 0.7.12 | MIT OR Apache-2.0 |
+| is-docker | 0.2.0 | MIT |
+| is-wsl | 0.4.0 | MIT |
+| itoa | 1.0.18 | MIT OR Apache-2.0 |
+| javascriptcore-rs | 1.1.2 | MIT |
+| javascriptcore-rs-sys | 1.1.1 | MIT |
+| jni | 0.21.1 | MIT OR Apache-2.0 |
+| jni-sys | 0.3.1 | MIT OR Apache-2.0 |
+| jni-sys | 0.4.1 | MIT OR Apache-2.0 |
+| jni-sys-macros | 0.4.1 | MIT OR Apache-2.0 |
+| js-sys | 0.3.97 | MIT OR Apache-2.0 |
+| json-patch | 3.0.1 | MIT OR Apache-2.0 |
+| jsonptr | 0.6.3 | MIT OR Apache-2.0 |
+| keyboard-types | 0.7.0 | MIT OR Apache-2.0 |
+| lazy_static | 1.5.0 | MIT OR Apache-2.0 |
+| leb128fmt | 0.1.0 | MIT OR Apache-2.0 |
+| libappindicator | 0.9.0 | Apache-2.0 OR MIT |
+| libappindicator-sys | 0.9.0 | Apache-2.0 OR MIT |
+| libc | 0.2.186 | MIT OR Apache-2.0 |
+| libdbus-sys | 0.2.7 | Apache-2.0 OR MIT |
+| libloading | 0.7.4 | ISC |
+| libm | 0.2.16 | MIT |
+| libredox | 0.1.16 | MIT |
+| libsqlite3-sys | 0.30.1 | MIT |
+| linux-raw-sys | 0.12.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| litemap | 0.8.2 | Unicode-3.0 |
+| lock_api | 0.4.14 | MIT OR Apache-2.0 |
+| log | 0.4.29 | MIT OR Apache-2.0 |
+| lru-slab | 0.1.2 | MIT OR Apache-2.0 OR Zlib |
+| mac-notification-sys | 0.6.15 | MIT OR Apache-2.0 |
+| markup5ever | 0.38.0 | MIT OR Apache-2.0 |
+| md-5 | 0.10.6 | MIT OR Apache-2.0 |
+| memchr | 2.8.0 | Unlicense OR MIT |
+| memoffset | 0.9.1 | MIT |
+| mime | 0.3.17 | MIT OR Apache-2.0 |
+| miniz_oxide | 0.8.9 | MIT OR Zlib OR Apache-2.0 |
+| mio | 1.2.0 | MIT |
+| muda | 0.19.1 | Apache-2.0 OR MIT |
+| ndk | 0.9.0 | MIT OR Apache-2.0 |
+| ndk-sys | 0.6.0+11769913 | MIT OR Apache-2.0 |
+| new_debug_unreachable | 1.0.6 | MIT |
+| nix | 0.31.3 | MIT |
+| notify-rust | 4.18.0 | MIT OR Apache-2.0 |
+| num_enum | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
+| num_enum_derive | 0.7.6 | BSD-3-Clause OR MIT OR Apache-2.0 |
+| num-bigint-dig | 0.8.6 | MIT OR Apache-2.0 |
+| num-conv | 0.2.1 | MIT OR Apache-2.0 |
+| num-integer | 0.1.46 | MIT OR Apache-2.0 |
+| num-iter | 0.1.45 | MIT OR Apache-2.0 |
+| num-traits | 0.2.19 | MIT OR Apache-2.0 |
+| objc2 | 0.6.4 | MIT |
+| objc2-app-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-cloud-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-data | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-foundation | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-graphics | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-image | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-location | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-core-text | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-encode | 4.1.0 | MIT |
+| objc2-exception-helper | 0.1.1 | Zlib OR Apache-2.0 OR MIT |
+| objc2-foundation | 0.3.2 | MIT |
+| objc2-io-surface | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-quartz-core | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-ui-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-user-notifications | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| objc2-web-kit | 0.3.2 | Zlib OR Apache-2.0 OR MIT |
+| once_cell | 1.21.4 | MIT OR Apache-2.0 |
+| open | 5.3.4 | MIT |
+| option-ext | 0.2.0 | MPL-2.0 |
+| ordered-multimap | 0.7.3 | MIT |
+| ordered-stream | 0.2.0 | MIT OR Apache-2.0 |
+| os_info | 3.15.0 | MIT |
+| os_pipe | 1.2.3 | MIT |
+| pango | 0.18.3 | MIT |
+| pango-sys | 0.18.0 | MIT |
+| parking | 2.2.1 | Apache-2.0 OR MIT |
+| parking_lot | 0.12.5 | MIT OR Apache-2.0 |
+| parking_lot_core | 0.9.12 | MIT OR Apache-2.0 |
+| pathdiff | 0.2.3 | MIT OR Apache-2.0 |
+| pem-rfc7468 | 0.7.0 | Apache-2.0 OR MIT |
+| percent-encoding | 2.3.2 | MIT OR Apache-2.0 |
+| phf | 0.13.1 | MIT |
+| phf_codegen | 0.13.1 | MIT |
+| phf_generator | 0.13.1 | MIT |
+| phf_macros | 0.13.1 | MIT |
+| phf_shared | 0.13.1 | MIT |
+| pin-project-lite | 0.2.17 | Apache-2.0 OR MIT |
+| piper | 0.2.5 | MIT OR Apache-2.0 |
+| pkcs1 | 0.7.5 | Apache-2.0 OR MIT |
+| pkcs8 | 0.10.2 | Apache-2.0 OR MIT |
+| pkg-config | 0.3.33 | MIT OR Apache-2.0 |
+| plain | 0.2.3 | MIT OR Apache-2.0 |
+| plist | 1.9.0 | MIT |
+| png | 0.17.16 | MIT OR Apache-2.0 |
+| png | 0.18.1 | MIT OR Apache-2.0 |
+| polling | 3.11.0 | Apache-2.0 OR MIT |
+| potential_utf | 0.1.5 | Unicode-3.0 |
+| powerfmt | 0.2.0 | MIT OR Apache-2.0 |
+| ppv-lite86 | 0.2.21 | MIT OR Apache-2.0 |
+| precomputed-hash | 0.1.1 | MIT |
+| prettyplease | 0.2.37 | MIT OR Apache-2.0 |
+| proc-macro-crate | 1.3.1 | MIT OR Apache-2.0 |
+| proc-macro-crate | 2.0.2 | MIT OR Apache-2.0 |
+| proc-macro-crate | 3.5.0 | MIT OR Apache-2.0 |
+| proc-macro-error | 1.0.4 | MIT OR Apache-2.0 |
+| proc-macro-error-attr | 1.0.4 | MIT OR Apache-2.0 |
+| proc-macro2 | 1.0.106 | MIT OR Apache-2.0 |
+| ptr_meta | 0.1.4 | MIT |
+| ptr_meta_derive | 0.1.4 | MIT |
+| quick-xml | 0.39.2 | MIT |
+| quinn | 0.11.11 | MIT OR Apache-2.0 |
+| quinn-proto | 0.11.17 | MIT OR Apache-2.0 |
+| quinn-udp | 0.5.15 | MIT OR Apache-2.0 |
+| quote | 1.0.45 | MIT OR Apache-2.0 |
+| r-efi | 5.3.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
+| r-efi | 6.0.0 | MIT OR Apache-2.0 OR LGPL-2.1-or-later |
+| radium | 0.7.0 | MIT |
+| rand | 0.10.2 | MIT OR Apache-2.0 |
+| rand | 0.8.6 | MIT OR Apache-2.0 |
+| rand | 0.9.5 | MIT OR Apache-2.0 |
+| rand_chacha | 0.3.1 | MIT OR Apache-2.0 |
+| rand_chacha | 0.9.0 | MIT OR Apache-2.0 |
+| rand_core | 0.10.1 | MIT OR Apache-2.0 |
+| rand_core | 0.6.4 | MIT OR Apache-2.0 |
+| rand_core | 0.9.5 | MIT OR Apache-2.0 |
+| rand_pcg | 0.10.2 | MIT OR Apache-2.0 |
+| raw-window-handle | 0.6.2 | MIT OR Apache-2.0 OR Zlib |
+| redox_syscall | 0.5.18 | MIT |
+| redox_syscall | 0.7.5 | MIT |
+| redox_users | 0.5.2 | MIT |
+| ref-cast | 1.0.25 | MIT OR Apache-2.0 |
+| ref-cast-impl | 1.0.25 | MIT OR Apache-2.0 |
+| regex | 1.12.3 | MIT OR Apache-2.0 |
+| regex-automata | 0.4.14 | MIT OR Apache-2.0 |
+| regex-syntax | 0.8.10 | MIT OR Apache-2.0 |
+| rend | 0.4.2 | MIT |
+| reqwest | 0.12.28 | MIT OR Apache-2.0 |
+| reqwest | 0.13.3 | MIT OR Apache-2.0 |
+| ring | 0.17.14 | Apache-2.0 AND ISC |
+| rkyv | 0.7.46 | MIT |
+| rkyv_derive | 0.7.46 | MIT |
+| rsa | 0.9.10 | MIT OR Apache-2.0 |
+| rust_decimal | 1.42.0 | MIT |
+| rust-ini | 0.21.3 | MIT |
+| rustc_version | 0.4.1 | MIT OR Apache-2.0 |
+| rustc-hash | 2.1.2 | Apache-2.0 OR MIT |
+| rustix | 1.1.4 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| rustls | 0.23.44 | Apache-2.0 OR ISC OR MIT |
+| rustls-pki-types | 1.15.1 | MIT OR Apache-2.0 |
+| rustls-webpki | 0.103.15 | ISC |
+| rustversion | 1.0.22 | MIT OR Apache-2.0 |
+| ryu | 1.0.23 | Apache-2.0 OR BSL-1.0 |
+| same-file | 1.0.6 | Unlicense OR MIT |
+| schemars | 0.8.22 | MIT |
+| schemars | 0.9.0 | MIT |
+| schemars | 1.2.1 | MIT |
+| schemars_derive | 0.8.22 | MIT |
+| scopeguard | 1.2.0 | MIT OR Apache-2.0 |
+| seahash | 4.1.0 | MIT |
+| selectors | 0.36.1 | MPL-2.0 |
+| semver | 1.0.28 | MIT OR Apache-2.0 |
+| serde | 1.0.228 | MIT OR Apache-2.0 |
+| serde_core | 1.0.228 | MIT OR Apache-2.0 |
+| serde_derive | 1.0.228 | MIT OR Apache-2.0 |
+| serde_derive_internals | 0.29.1 | MIT OR Apache-2.0 |
+| serde_json | 1.0.149 | MIT OR Apache-2.0 |
+| serde_repr | 0.1.20 | MIT OR Apache-2.0 |
+| serde_spanned | 0.6.9 | MIT OR Apache-2.0 |
+| serde_spanned | 1.1.1 | MIT OR Apache-2.0 |
+| serde_urlencoded | 0.7.1 | MIT OR Apache-2.0 |
+| serde_with | 3.19.0 | MIT OR Apache-2.0 |
+| serde_with_macros | 3.19.0 | MIT OR Apache-2.0 |
+| serde-untagged | 0.1.9 | MIT OR Apache-2.0 |
+| serialize-to-javascript | 0.1.2 | MIT OR Apache-2.0 |
+| serialize-to-javascript-impl | 0.1.2 | MIT OR Apache-2.0 |
+| servo_arc | 0.4.3 | MIT OR Apache-2.0 |
+| sha1 | 0.10.6 | MIT OR Apache-2.0 |
+| sha2 | 0.10.9 | MIT OR Apache-2.0 |
+| shared_child | 1.1.1 | MIT |
+| shlex | 1.3.0 | MIT OR Apache-2.0 |
+| sigchld | 0.2.4 | MIT |
+| signal-hook | 0.3.18 | Apache-2.0 OR MIT |
+| signal-hook-registry | 1.4.8 | MIT OR Apache-2.0 |
+| signature | 2.2.0 | Apache-2.0 OR MIT |
+| simd-adler32 | 0.3.9 | MIT |
+| simdutf8 | 0.1.5 | MIT OR Apache-2.0 |
+| siphasher | 1.0.2 | MIT OR Apache-2.0 |
+| slab | 0.4.12 | MIT |
+| smallvec | 1.15.1 | MIT OR Apache-2.0 |
+| socket2 | 0.6.3 | MIT OR Apache-2.0 |
+| softbuffer | 0.4.8 | MIT OR Apache-2.0 |
+| soup3 | 0.5.0 | MIT |
+| soup3-sys | 0.5.0 | MIT |
+| spin | 0.9.8 | MIT |
+| spki | 0.7.3 | Apache-2.0 OR MIT |
+| sqlx | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-core | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-macros | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-macros-core | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-mysql | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-postgres | 0.8.6 | MIT OR Apache-2.0 |
+| sqlx-sqlite | 0.8.6 | MIT OR Apache-2.0 |
+| stable_deref_trait | 1.2.1 | MIT OR Apache-2.0 |
+| string_cache | 0.9.0 | MIT OR Apache-2.0 |
+| string_cache_codegen | 0.6.1 | MIT OR Apache-2.0 |
+| stringprep | 0.1.5 | MIT OR Apache-2.0 |
+| strsim | 0.11.1 | MIT |
+| subtle | 2.6.1 | BSD-3-Clause |
+| swift-rs | 1.0.7 | MIT OR Apache-2.0 |
+| syn | 1.0.109 | MIT OR Apache-2.0 |
+| syn | 2.0.117 | MIT OR Apache-2.0 |
+| syn | 3.0.5 | MIT OR Apache-2.0 |
+| sync_wrapper | 1.0.2 | Apache-2.0 |
+| synstructure | 0.13.2 | MIT |
+| system-deps | 6.2.2 | MIT OR Apache-2.0 |
+| tao | 0.35.0 | Apache-2.0 |
+| tao-macros | 0.1.3 | MIT OR Apache-2.0 |
+| tap | 1.0.1 | MIT |
+| target-lexicon | 0.12.16 | Apache-2.0 WITH LLVM-exception |
+| tauri | 2.11.5 | Apache-2.0 OR MIT |
+| tauri-build | 2.6.3 | Apache-2.0 OR MIT |
+| tauri-codegen | 2.6.3 | Apache-2.0 OR MIT |
+| tauri-macros | 2.6.3 | Apache-2.0 OR MIT |
+| tauri-plugin | 2.6.0 | Apache-2.0 OR MIT |
+| tauri-plugin-deep-link | 2.4.10 | Apache-2.0 OR MIT |
+| tauri-plugin-haptics | 2.3.3 | Apache-2.0 OR MIT |
+| tauri-plugin-notification | 2.4.0 | Apache-2.0 OR MIT |
+| tauri-plugin-opener | 2.5.5 | Apache-2.0 OR MIT |
+| tauri-plugin-shell | 2.3.5 | Apache-2.0 OR MIT |
+| tauri-plugin-sql | 2.4.0 | Apache-2.0 OR MIT |
+| tauri-plugin-store | 2.4.3 | Apache-2.0 OR MIT |
+| tauri-runtime | 2.11.3 | Apache-2.0 OR MIT |
+| tauri-runtime-wry | 2.11.4 | Apache-2.0 OR MIT |
+| tauri-utils | 2.9.3 | Apache-2.0 OR MIT |
+| tauri-winres | 0.3.6 | MIT |
+| tauri-winrt-notification | 0.7.3 | MIT OR Apache-2.0 |
+| tempfile | 3.27.0 | MIT OR Apache-2.0 |
+| tendril | 0.5.0 | MIT OR Apache-2.0 |
+| thiserror | 1.0.69 | MIT OR Apache-2.0 |
+| thiserror | 2.0.18 | MIT OR Apache-2.0 |
+| thiserror-impl | 1.0.69 | MIT OR Apache-2.0 |
+| thiserror-impl | 2.0.18 | MIT OR Apache-2.0 |
+| time | 0.3.47 | MIT OR Apache-2.0 |
+| time-core | 0.1.8 | MIT OR Apache-2.0 |
+| time-macros | 0.2.27 | MIT OR Apache-2.0 |
+| tiny-keccak | 2.0.2 | CC0-1.0 |
+| tinystr | 0.8.3 | Unicode-3.0 |
+| tinyvec | 1.11.0 | Zlib OR Apache-2.0 OR MIT |
+| tinyvec_macros | 0.1.1 | MIT OR Apache-2.0 OR Zlib |
+| tokio | 1.52.1 | MIT |
+| tokio-macros | 2.7.0 | MIT |
+| tokio-rustls | 0.26.5 | MIT OR Apache-2.0 |
+| tokio-stream | 0.1.18 | MIT |
+| tokio-util | 0.7.18 | MIT |
+| toml | 0.8.2 | MIT OR Apache-2.0 |
+| toml | 0.9.12+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml_datetime | 0.6.3 | MIT OR Apache-2.0 |
+| toml_datetime | 0.7.5+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml_datetime | 1.1.1+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml_edit | 0.19.15 | MIT OR Apache-2.0 |
+| toml_edit | 0.20.2 | MIT OR Apache-2.0 |
+| toml_edit | 0.25.11+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml_parser | 1.1.2+spec-1.1.0 | MIT OR Apache-2.0 |
+| toml_writer | 1.1.1+spec-1.1.0 | MIT OR Apache-2.0 |
+| tower | 0.5.3 | MIT |
+| tower-http | 0.6.8 | MIT |
+| tower-layer | 0.3.3 | MIT |
+| tower-service | 0.3.3 | MIT |
+| tracing | 0.1.44 | MIT |
+| tracing-attributes | 0.1.31 | MIT |
+| tracing-core | 0.1.36 | MIT |
+| tray-icon | 0.24.2 | MIT OR Apache-2.0 |
+| try-lock | 0.2.5 | MIT |
+| typeid | 1.0.3 | MIT OR Apache-2.0 |
+| typenum | 1.20.0 | MIT OR Apache-2.0 |
+| uds_windows | 1.2.1 | MIT |
+| unic-char-property | 0.9.0 | MIT OR Apache-2.0 |
+| unic-char-range | 0.9.0 | MIT OR Apache-2.0 |
+| unic-common | 0.9.0 | MIT OR Apache-2.0 |
+| unic-ucd-ident | 0.9.0 | MIT OR Apache-2.0 |
+| unic-ucd-version | 0.9.0 | MIT OR Apache-2.0 |
+| unicode-bidi | 0.3.18 | MIT OR Apache-2.0 |
+| unicode-ident | 1.0.24 | (MIT OR Apache-2.0) AND Unicode-3.0 |
+| unicode-normalization | 0.1.25 | MIT OR Apache-2.0 |
+| unicode-properties | 0.1.4 | MIT OR Apache-2.0 |
+| unicode-segmentation | 1.13.2 | MIT OR Apache-2.0 |
+| unicode-xid | 0.2.6 | MIT OR Apache-2.0 |
+| untrusted | 0.9.0 | ISC |
+| url | 2.5.8 | MIT OR Apache-2.0 |
+| urlpattern | 0.3.0 | MIT |
+| utf-8 | 0.7.6 | MIT OR Apache-2.0 |
+| utf8_iter | 1.0.4 | Apache-2.0 OR MIT |
+| uuid | 1.23.1 | Apache-2.0 OR MIT |
+| vcpkg | 0.2.15 | MIT OR Apache-2.0 |
+| version_check | 0.9.5 | MIT OR Apache-2.0 |
+| version-compare | 0.2.1 | MIT |
+| vswhom | 0.1.0 | MIT |
+| vswhom-sys | 0.1.3 | MIT |
+| walkdir | 2.5.0 | Unlicense OR MIT |
+| want | 0.3.1 | MIT |
+| wasi | 0.11.1+wasi-snapshot-preview1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wasip2 | 1.0.3+wasi-0.2.9 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wasip3 | 0.4.0+wasi-0.3.0-rc-2026-01-06 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wasite | 0.1.0 | Apache-2.0 OR BSL-1.0 OR MIT |
+| wasm-bindgen | 0.2.120 | MIT OR Apache-2.0 |
+| wasm-bindgen-futures | 0.4.70 | MIT OR Apache-2.0 |
+| wasm-bindgen-macro | 0.2.120 | MIT OR Apache-2.0 |
+| wasm-bindgen-macro-support | 0.2.120 | MIT OR Apache-2.0 |
+| wasm-bindgen-shared | 0.2.120 | MIT OR Apache-2.0 |
+| wasm-encoder | 0.244.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wasm-metadata | 0.244.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wasm-streams | 0.5.0 | MIT OR Apache-2.0 |
+| wasmparser | 0.244.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| web_atoms | 0.2.4 | MIT OR Apache-2.0 |
+| web-sys | 0.3.97 | MIT OR Apache-2.0 |
+| web-time | 1.1.0 | MIT OR Apache-2.0 |
+| webkit2gtk | 2.0.2 | MIT |
+| webkit2gtk-sys | 2.0.2 | MIT |
+| webpki-roots | 1.0.9 | CDLA-Permissive-2.0 |
+| webview2-com | 0.38.2 | MIT |
+| webview2-com-macros | 0.8.1 | MIT |
+| webview2-com-sys | 0.38.2 | MIT |
+| whoami | 1.6.1 | Apache-2.0 OR BSL-1.0 OR MIT |
+| winapi | 0.3.9 | MIT OR Apache-2.0 |
+| winapi-i686-pc-windows-gnu | 0.4.0 | MIT OR Apache-2.0 |
+| winapi-util | 0.1.11 | Unlicense OR MIT |
+| winapi-x86_64-pc-windows-gnu | 0.4.0 | MIT OR Apache-2.0 |
+| window-vibrancy | 0.6.0 | Apache-2.0 OR MIT |
+| windows | 0.61.3 | MIT OR Apache-2.0 |
+| windows_aarch64_gnullvm | 0.42.2 | MIT OR Apache-2.0 |
+| windows_aarch64_gnullvm | 0.48.5 | MIT OR Apache-2.0 |
+| windows_aarch64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
+| windows_aarch64_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_aarch64_msvc | 0.42.2 | MIT OR Apache-2.0 |
+| windows_aarch64_msvc | 0.48.5 | MIT OR Apache-2.0 |
+| windows_aarch64_msvc | 0.52.6 | MIT OR Apache-2.0 |
+| windows_aarch64_msvc | 0.53.1 | MIT OR Apache-2.0 |
+| windows_i686_gnu | 0.42.2 | MIT OR Apache-2.0 |
+| windows_i686_gnu | 0.48.5 | MIT OR Apache-2.0 |
+| windows_i686_gnu | 0.52.6 | MIT OR Apache-2.0 |
+| windows_i686_gnu | 0.53.1 | MIT OR Apache-2.0 |
+| windows_i686_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
+| windows_i686_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_i686_msvc | 0.42.2 | MIT OR Apache-2.0 |
+| windows_i686_msvc | 0.48.5 | MIT OR Apache-2.0 |
+| windows_i686_msvc | 0.52.6 | MIT OR Apache-2.0 |
+| windows_i686_msvc | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_gnu | 0.42.2 | MIT OR Apache-2.0 |
+| windows_x86_64_gnu | 0.48.5 | MIT OR Apache-2.0 |
+| windows_x86_64_gnu | 0.52.6 | MIT OR Apache-2.0 |
+| windows_x86_64_gnu | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_gnullvm | 0.42.2 | MIT OR Apache-2.0 |
+| windows_x86_64_gnullvm | 0.48.5 | MIT OR Apache-2.0 |
+| windows_x86_64_gnullvm | 0.52.6 | MIT OR Apache-2.0 |
+| windows_x86_64_gnullvm | 0.53.1 | MIT OR Apache-2.0 |
+| windows_x86_64_msvc | 0.42.2 | MIT OR Apache-2.0 |
+| windows_x86_64_msvc | 0.48.5 | MIT OR Apache-2.0 |
+| windows_x86_64_msvc | 0.52.6 | MIT OR Apache-2.0 |
+| windows_x86_64_msvc | 0.53.1 | MIT OR Apache-2.0 |
+| windows-collections | 0.2.0 | MIT OR Apache-2.0 |
+| windows-core | 0.61.2 | MIT OR Apache-2.0 |
+| windows-core | 0.62.2 | MIT OR Apache-2.0 |
+| windows-future | 0.2.1 | MIT OR Apache-2.0 |
+| windows-implement | 0.60.2 | MIT OR Apache-2.0 |
+| windows-interface | 0.59.3 | MIT OR Apache-2.0 |
+| windows-link | 0.1.3 | MIT OR Apache-2.0 |
+| windows-link | 0.2.1 | MIT OR Apache-2.0 |
+| windows-numerics | 0.2.0 | MIT OR Apache-2.0 |
+| windows-registry | 0.5.3 | MIT OR Apache-2.0 |
+| windows-result | 0.3.4 | MIT OR Apache-2.0 |
+| windows-result | 0.4.1 | MIT OR Apache-2.0 |
+| windows-strings | 0.4.2 | MIT OR Apache-2.0 |
+| windows-strings | 0.5.1 | MIT OR Apache-2.0 |
+| windows-sys | 0.45.0 | MIT OR Apache-2.0 |
+| windows-sys | 0.48.0 | MIT OR Apache-2.0 |
+| windows-sys | 0.52.0 | MIT OR Apache-2.0 |
+| windows-sys | 0.59.0 | MIT OR Apache-2.0 |
+| windows-sys | 0.60.2 | MIT OR Apache-2.0 |
+| windows-sys | 0.61.2 | MIT OR Apache-2.0 |
+| windows-targets | 0.42.2 | MIT OR Apache-2.0 |
+| windows-targets | 0.48.5 | MIT OR Apache-2.0 |
+| windows-targets | 0.52.6 | MIT OR Apache-2.0 |
+| windows-targets | 0.53.5 | MIT OR Apache-2.0 |
+| windows-threading | 0.1.0 | MIT OR Apache-2.0 |
+| windows-version | 0.1.7 | MIT OR Apache-2.0 |
+| winnow | 0.5.40 | MIT |
+| winnow | 0.7.15 | MIT |
+| winnow | 1.0.2 | MIT |
+| winreg | 0.55.0 | MIT |
+| wit-bindgen | 0.51.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-bindgen | 0.57.1 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-bindgen-core | 0.51.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-bindgen-rust | 0.51.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-bindgen-rust-macro | 0.51.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-component | 0.244.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| wit-parser | 0.244.0 | Apache-2.0 WITH LLVM-exception OR Apache-2.0 OR MIT |
+| writeable | 0.6.3 | Unicode-3.0 |
+| wry | 0.55.0 | Apache-2.0 OR MIT |
+| wyz | 0.5.1 | MIT |
+| x11 | 2.21.0 | MIT |
+| x11-dl | 2.21.0 | MIT |
+| yoke | 0.8.2 | Unicode-3.0 |
+| yoke-derive | 0.8.2 | Unicode-3.0 |
+| zbus | 5.19.0 | MIT |
+| zbus_macros | 5.19.0 | MIT |
+| zbus_names | 4.3.4 | MIT |
+| zcheapstr | 1.1.0 | MIT |
+| zerocopy | 0.8.50 | BSD-2-Clause OR Apache-2.0 OR MIT |
+| zerocopy-derive | 0.8.50 | BSD-2-Clause OR Apache-2.0 OR MIT |
+| zerofrom | 0.1.7 | Unicode-3.0 |
+| zerofrom-derive | 0.1.7 | Unicode-3.0 |
+| zeroize | 1.8.2 | Apache-2.0 OR MIT |
+| zerotrie | 0.2.4 | Unicode-3.0 |
+| zerovec | 0.11.6 | Unicode-3.0 |
+| zerovec-derive | 0.11.3 | Unicode-3.0 |
+| zmij | 1.0.21 | MIT |
+| zvariant | 5.15.0 | MIT |
+| zvariant_derive | 5.15.0 | MIT |
+| zvariant_utils | 4.2.0 | MIT |

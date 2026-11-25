@@ -35,11 +35,20 @@ for (const [license, pkgs] of Object.entries(licenses)) {
 npm.sort((a, b) => a['bom-ref'].localeCompare(b['bom-ref']))
 writeFileSync('docs/sbom/runly-npm-prod.cdx.json', JSON.stringify(spec(npm, 'runly-npm-production', 'npm production dependency closure from pnpm-lock.yaml; not the shipped bundles'), null, 1))
 
-// cargo
+// cargo: with CARGO_METADATA=<file from `cargo metadata --format-version 1 --locked --filter-platform x86_64-pc-windows-msvc`> the
+// crates carry their declared licenses; without it only Cargo.lock names, versions and checksums are listed.
+const meta = process.env.CARGO_METADATA ? JSON.parse(readFileSync(process.env.CARGO_METADATA, 'utf8')) : null
+const declared = new Map((meta?.packages ?? []).map((p) => [`${p.name}@${p.version}`, p.license]))
+const lic = (name, version) => {
+  if (!meta) return {}
+  const l = declared.get(`${name}@${version}`)
+  if (!l) return { licenses: [{ expression: 'NOASSERTION' }] }
+  return { licenses: [{ expression: l.replace(/\//g, ' OR ') }] }
+}
 const crates = readFileSync('apps/desktop/src-tauri/Cargo.lock', 'utf8').split('[[package]]').slice(1)
   .map((b) => ({ name: /name = "(.*)"/.exec(b)?.[1], version: /version = "(.*)"/.exec(b)?.[1], source: /source = "(.*)"/.exec(b)?.[1], sum: /checksum = "(.*)"/.exec(b)?.[1] }))
   .filter((c) => c.source)
-  .map((c) => ({ type: 'library', 'bom-ref': `pkg:cargo/${c.name}@${c.version}`, name: c.name, version: c.version, purl: `pkg:cargo/${c.name}@${c.version}`, ...(c.sum ? { hashes: [{ alg: 'SHA-256', content: c.sum }] } : {}) }))
+  .map((c) => ({ type: 'library', 'bom-ref': `pkg:cargo/${c.name}@${c.version}`, name: c.name, version: c.version, purl: `pkg:cargo/${c.name}@${c.version}`, ...lic(c.name, c.version), ...(c.sum ? { hashes: [{ alg: 'SHA-256', content: c.sum }] } : {}) }))
   .sort((a, b) => a['bom-ref'].localeCompare(b['bom-ref']))
-writeFileSync('docs/sbom/runly-desktop-cargo.cdx.json', JSON.stringify(spec(crates, 'runly-desktop-cargo', 'Cargo.lock registry crates of the Tauri shell; licenses unresolved (cargo metadata needs network)'), null, 1))
+writeFileSync('docs/sbom/runly-desktop-cargo.cdx.json', JSON.stringify(spec(crates, 'runly-desktop-cargo', 'Cargo.lock registry crates of the Tauri shell' + (meta ? '; licenses from cargo metadata (declared, all platforms)' : '; licenses unresolved')), null, 1))
 console.log('npm components', npm.length, 'with hash', npm.filter((c) => c.hashes).length, '| cargo', crates.length)
