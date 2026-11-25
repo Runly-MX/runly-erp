@@ -1,0 +1,1804 @@
+{
+  "synthetic": true,
+  "workerImageId": "sha256:9adaf170bd50acebfe77842e2fa652de689a8fb7043a2e867a675dffbce47ee4",
+  "scope": "Real ERP API + PostgreSQL + Auth/Storage/REST/Kong/Realtime/imgproxy, dedicated containers; not a VM/host capacity claim",
+  "results": [
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "absent",
+      "seconds": 7.5045785,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 27.801299999999173,
+          "p95": 32.666299999999865,
+          "p99": 34.07039999999961
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 61.215400000000045,
+          "p95": 125.19919999999911,
+          "p99": 129.40200000000004
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 19.92779999999948,
+          "p95": 27.132700000000114,
+          "p99": 27.860900000000584
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 22.684099999999944,
+          "p95": 29.179000000000087,
+          "p99": 29.191200000000208
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 13.253300000000309,
+          "p95": 16.432600000000093,
+          "p99": 21.07090000000062
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 9.577100000000428,
+          "p95": 10.681700000000092,
+          "p99": 10.789699999999357
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "120MB / 0B",
+          "CPUPerc": "0.02%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "43.61%",
+          "MemUsage": "335MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "7.65MB / 6.85MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "959MB / 540MB",
+          "CPUPerc": "0.03%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "14.75%",
+          "MemUsage": "188.8MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "248MB / 606MB",
+          "PIDs": "40"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46419091,
+        "contentIndexBytes": 1064960,
+        "jobs": {
+          "unsupported": 12,
+          "pending": 0,
+          "cancelled": 235,
+          "processing": 0,
+          "empty": 6,
+          "done": 1084
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "idle",
+      "seconds": 6.872233499999998,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 24.563399999999092,
+          "p95": 74.7546999999995,
+          "p99": 140.85890000000109
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 51.05619999999908,
+          "p95": 115.71240000000034,
+          "p99": 164.52760000000126
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 17.042100000000573,
+          "p95": 24.79319999999825,
+          "p99": 132.1232999999993
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 19.48999999999978,
+          "p95": 70.51479999999901,
+          "p99": 135.79719999999907
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.738900000000285,
+          "p95": 17.963799999999537,
+          "p99": 45.8072000000011
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.067200000001321,
+          "p95": 13.017400000000634,
+          "p99": 39.20939999999973
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "120MB / 0B",
+          "CPUPerc": "0.01%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "45.49%",
+          "MemUsage": "349.3MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "13MB / 13.6MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "961MB / 540MB",
+          "CPUPerc": "0.03%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "15.05%",
+          "MemUsage": "192.6MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "252MB / 611MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "40.5MB / 12.3kB",
+          "CPUPerc": "0.00%",
+          "Container": "runly-content-erp-bench",
+          "ID": "91b92dc2a08d",
+          "MemPerc": "9.23%",
+          "MemUsage": "47.26MiB / 512MiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "4.06kB / 4.25kB",
+          "PIDs": "1"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46419091,
+        "contentIndexBytes": 1064960,
+        "jobs": {
+          "unsupported": 12,
+          "pending": 0,
+          "cancelled": 235,
+          "processing": 0,
+          "empty": 6,
+          "done": 1084
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "new",
+      "seconds": 7.1893422,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 25.257399999998597,
+          "p95": 34.95510000000286,
+          "p99": 36.615200000000186
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 52.02470000000176,
+          "p95": 105.62059999999838,
+          "p99": 159.71039999999994
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 17.835399999999936,
+          "p95": 28.21099999999933,
+          "p99": 33.429400000000896
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.7003999999979,
+          "p95": 31.886700000002747,
+          "p99": 36.45880000000034
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 11.496299999998882,
+          "p95": 14.359700000000885,
+          "p99": 14.40190000000075
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.166800000002695,
+          "p95": 10.613000000001193,
+          "p99": 10.901299999997718
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "125MB / 0B",
+          "CPUPerc": "0.03%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "45.53%",
+          "MemUsage": "349.6MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "19.6MB / 20.8MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "963MB / 541MB",
+          "CPUPerc": "0.04%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "17.88%",
+          "MemUsage": "228.9MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "256MB / 617MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "61.3MB / 3.43MB",
+          "CPUPerc": "24.09%",
+          "Container": "runly-content-erp-bench",
+          "ID": "91b92dc2a08d",
+          "MemPerc": "12.85%",
+          "MemUsage": "65.79MiB / 512MiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "96.6kB / 22.9kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46460051,
+        "contentIndexBytes": 1073152,
+        "jobs": {
+          "pending": 16,
+          "unsupported": 12,
+          "cancelled": 235,
+          "processing": 1,
+          "done": 1086,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 3,
+        "finished": 2,
+        "ocr": 2
+      }
+    },
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "historical",
+      "seconds": 6.9799839,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 22.950199999999313,
+          "p95": 26.064800000000105,
+          "p99": 26.475899999997637
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 47.802899999995134,
+          "p95": 92.14919999999984,
+          "p99": 98.11549999999988
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.634899999997288,
+          "p95": 18.096799999999348,
+          "p99": 18.487700000005134
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.84910000000673,
+          "p95": 20.60349999999744,
+          "p99": 24.35570000000007
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.122799999997369,
+          "p95": 12.417700000005425,
+          "p99": 13.991500000003725
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.114600000000792,
+          "p95": 9.749100000000908,
+          "p99": 10.347600000000966
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "130MB / 0B",
+          "CPUPerc": "2.25%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "46.44%",
+          "MemUsage": "356.7MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "27.2MB / 28.2MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "964MB / 542MB",
+          "CPUPerc": "1.59%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "20.60%",
+          "MemUsage": "263.7MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "261MB / 624MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "63.5MB / 8.05MB",
+          "CPUPerc": "21.93%",
+          "Container": "runly-content-erp-bench",
+          "ID": "91b92dc2a08d",
+          "MemPerc": "19.70%",
+          "MemUsage": "100.9MiB / 512MiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "194kB / 49.6kB",
+          "PIDs": "3"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46509203,
+        "contentIndexBytes": 1073152,
+        "jobs": {
+          "pending": 9,
+          "unsupported": 19,
+          "cancelled": 245,
+          "processing": 1,
+          "done": 1088,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 3,
+        "finished": 2,
+        "ocr": 2
+      }
+    },
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "accurate",
+      "seconds": 6.840888899999998,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.877699999997276,
+          "p95": 28.181799999998475,
+          "p99": 82.42829999999958
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 48.7013999999981,
+          "p95": 102.4204000000027,
+          "p99": 118.7934000000023
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.397400000001653,
+          "p95": 25.410900000002584,
+          "p99": 73.95610000000306
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.491199999996752,
+          "p95": 25.622800000004645,
+          "p99": 79.71970000000147
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.260399999999208,
+          "p95": 12.22320000000036,
+          "p99": 14.04819999999745
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.43250000000262,
+          "p95": 10.204799999999523,
+          "p99": 10.324000000000524
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "130MB / 0B",
+          "CPUPerc": "1.60%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "48.66%",
+          "MemUsage": "373.7MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "34.5MB / 35.5MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "965MB / 544MB",
+          "CPUPerc": "0.86%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "22.88%",
+          "MemUsage": "292.8MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "266MB / 631MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "88.4MB / 11.9MB",
+          "CPUPerc": "7.79%",
+          "Container": "runly-content-erp-bench",
+          "ID": "91b92dc2a08d",
+          "MemPerc": "16.47%",
+          "MemUsage": "84.32MiB / 512MiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "289kB / 72.3kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46574739,
+        "contentIndexBytes": 1073152,
+        "jobs": {
+          "pending": 9,
+          "unsupported": 19,
+          "cancelled": 255,
+          "processing": 1,
+          "empty": 6,
+          "done": 1090
+        }
+      },
+      "processing": {
+        "started": 3,
+        "finished": 2,
+        "ocr": 2
+      }
+    },
+    {
+      "budget": {
+        "cpus": 2,
+        "gb": 4,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 4096
+      },
+      "scenario": "pressure",
+      "seconds": 7.122404000000002,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.52440000000206,
+          "p95": 38.42569999999978,
+          "p99": 68.48270000000048
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 48.230499999997846,
+          "p95": 107.56900000000314,
+          "p99": 156.5867999999973
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 16.29710000000341,
+          "p95": 29.38669999999547,
+          "p99": 58.79469999999856
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.860599999999977,
+          "p95": 30.98660000000382,
+          "p99": 62.10319999999774
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.02060000000347,
+          "p95": 17.481800000001385,
+          "p99": 24.31749999999738
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.658400000000256,
+          "p95": 15.083899999997811,
+          "p99": 19.801500000001397
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "145MB / 0B",
+          "CPUPerc": "0.23%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "48.96%",
+          "MemUsage": "376MiB / 768MiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "41.6MB / 42.6MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "970MB / 544MB",
+          "CPUPerc": "0.08%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "23.73%",
+          "MemUsage": "303.7MiB / 1.25GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "270MB / 638MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "99.1MB / 19.7MB",
+          "CPUPerc": "23.68%",
+          "Container": "runly-content-erp-bench",
+          "ID": "91b92dc2a08d",
+          "MemPerc": "65.90%",
+          "MemUsage": "337.4MiB / 512MiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "294kB / 80.7kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46615699,
+        "contentIndexBytes": 1073152,
+        "jobs": {
+          "pending": 12,
+          "cancelled": 265,
+          "unsupported": 19,
+          "processing": 0,
+          "empty": 6,
+          "done": 1090
+        }
+      },
+      "processing": {
+        "started": 0,
+        "finished": 0,
+        "ocr": 0
+      }
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "absent",
+      "seconds": 7.073243700000006,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.080300000001444,
+          "p95": 31.93289999999979,
+          "p99": 52.52139999999781
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 48.69180000000051,
+          "p95": 76.26929999999993,
+          "p99": 90.02449999999953
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.719800000006217,
+          "p95": 20.239499999996042,
+          "p99": 43.01510000000417
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.359299999996438,
+          "p95": 29.61830000000191,
+          "p99": 49.36560000000463
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.307600000000093,
+          "p95": 13.950499999991735,
+          "p99": 14.120300000009593
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.29879999998957,
+          "p95": 10.414000000004307,
+          "p99": 10.54320000000007
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "154MB / 0B",
+          "CPUPerc": "0.01%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "21.30%",
+          "MemUsage": "327.1MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "47.7MB / 49.4MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "973MB / 545MB",
+          "CPUPerc": "0.04%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "12.10%",
+          "MemUsage": "309.9MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "274MB / 644MB",
+          "PIDs": "40"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46632083,
+        "contentIndexBytes": 1089536,
+        "jobs": {
+          "unsupported": 19,
+          "cancelled": 277,
+          "pending": 0,
+          "processing": 0,
+          "empty": 6,
+          "done": 1090
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "idle",
+      "seconds": 6.98235579999999,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.48750000000291,
+          "p95": 27.789000000004307,
+          "p99": 30.72159999998985
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 45.62630000000354,
+          "p95": 52.49460000000545,
+          "p99": 52.61229999999341
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.978600000002189,
+          "p95": 19.68989999999758,
+          "p99": 20.82280000000901
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.298500000004424,
+          "p95": 25.717400000008638,
+          "p99": 28.440199999997276
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.777899999986403,
+          "p95": 14.237300000007963,
+          "p99": 14.590400000000955
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.214099999997416,
+          "p95": 12.53870000000461,
+          "p99": 13.608500000002095
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "155MB / 0B",
+          "CPUPerc": "0.01%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "23.33%",
+          "MemUsage": "358.3MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "53MB / 56.1MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "973MB / 545MB",
+          "CPUPerc": "0.07%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "12.03%",
+          "MemUsage": "308MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "278MB / 649MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "37.1MB / 0B",
+          "CPUPerc": "1.39%",
+          "Container": "runly-content-erp-bench",
+          "ID": "c1dba05bddf1",
+          "MemPerc": "4.36%",
+          "MemUsage": "44.66MiB / 1GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "3.99kB / 4.32kB",
+          "PIDs": "1"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46632083,
+        "contentIndexBytes": 1089536,
+        "jobs": {
+          "unsupported": 19,
+          "cancelled": 277,
+          "pending": 0,
+          "processing": 0,
+          "empty": 6,
+          "done": 1090
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "new",
+      "seconds": 7.169006399999998,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.60250000000815,
+          "p95": 27.756999999997788,
+          "p99": 32.713100000008126
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 46.22370000000228,
+          "p95": 56.27469999999448,
+          "p99": 63.075599999996484
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.249100000000908,
+          "p95": 19.20810000000347,
+          "p99": 21.03210000001127
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.48660000000382,
+          "p95": 24.27169999999751,
+          "p99": 25.82269999998971
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.875099999990198,
+          "p95": 11.834499999997206,
+          "p99": 12.353600000002189
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.999400000000605,
+          "p95": 10.060700000001816,
+          "p99": 12.194900000002235
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "155MB / 0B",
+          "CPUPerc": "3.03%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "23.46%",
+          "MemUsage": "360.3MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "59.9MB / 63.5MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "973MB / 546MB",
+          "CPUPerc": "3.39%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "12.83%",
+          "MemUsage": "328.5MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "283MB / 655MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "42.2MB / 24.6kB",
+          "CPUPerc": "35.89%",
+          "Container": "runly-content-erp-bench",
+          "ID": "c1dba05bddf1",
+          "MemPerc": "7.43%",
+          "MemUsage": "76.08MiB / 1GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "149kB / 38.6kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46746771,
+        "contentIndexBytes": 1097728,
+        "jobs": {
+          "pending": 7,
+          "unsupported": 19,
+          "cancelled": 277,
+          "processing": 1,
+          "done": 1095,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 6,
+        "finished": 5,
+        "ocr": 5
+      }
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "historical",
+      "seconds": 7.235406299999988,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.860899999999674,
+          "p95": 34.121100000003935,
+          "p99": 37.47499999999127
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 49.13000000000466,
+          "p95": 63.00330000001122,
+          "p99": 115.93799999999464
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.46830000000773,
+          "p95": 20.23619999999937,
+          "p99": 28.354800000000978
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.211699999999837,
+          "p95": 23.684399999998277,
+          "p99": 32.04439999999886
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.821200000005774,
+          "p95": 14.466400000004796,
+          "p99": 18.27400000000489
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.599799999996321,
+          "p95": 9.024400000009337,
+          "p99": 12.005000000004657
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "158MB / 0B",
+          "CPUPerc": "3.43%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "23.63%",
+          "MemUsage": "362.9MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "68.4MB / 71.3MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "975MB / 548MB",
+          "CPUPerc": "1.89%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "13.23%",
+          "MemUsage": "338.6MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "288MB / 663MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "53.1MB / 8.34MB",
+          "CPUPerc": "5.44%",
+          "Container": "runly-content-erp-bench",
+          "ID": "c1dba05bddf1",
+          "MemPerc": "6.23%",
+          "MemUsage": "63.8MiB / 1GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "448kB / 137kB",
+          "PIDs": "1"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46804115,
+        "contentIndexBytes": 1105920,
+        "jobs": {
+          "unsupported": 20,
+          "cancelled": 284,
+          "pending": 0,
+          "processing": 0,
+          "empty": 6,
+          "done": 1107
+        }
+      },
+      "processing": {
+        "started": 12,
+        "finished": 12,
+        "ocr": 7
+      }
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "accurate",
+      "seconds": 6.918762500000011,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 21.85439999999653,
+          "p95": 29.65350000000035,
+          "p99": 36.497199999997974
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 47.986900000003516,
+          "p95": 61.281199999997625,
+          "p99": 81.71959999999672
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.362200000003213,
+          "p95": 18.50199999999313,
+          "p99": 20.071799999990617
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.653599999990547,
+          "p95": 20.29639999999199,
+          "p99": 26.453099999998813
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.290900000007241,
+          "p95": 15.229099999996834,
+          "p99": 18.88060000000405
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.28629999999248,
+          "p95": 8.14770000000135,
+          "p99": 15.781600000002072
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "158MB / 0B",
+          "CPUPerc": "0.05%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "23.58%",
+          "MemUsage": "362.2MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "76MB / 78.7MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "976MB / 550MB",
+          "CPUPerc": "2.11%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "13.24%",
+          "MemUsage": "338.9MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "293MB / 670MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "60.3MB / 12.8MB",
+          "CPUPerc": "47.93%",
+          "Container": "runly-content-erp-bench",
+          "ID": "c1dba05bddf1",
+          "MemPerc": "9.23%",
+          "MemUsage": "94.47MiB / 1GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "566kB / 164kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46869651,
+        "contentIndexBytes": 1105920,
+        "jobs": {
+          "pending": 9,
+          "unsupported": 20,
+          "cancelled": 284,
+          "processing": 0,
+          "done": 1111,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 4,
+        "finished": 4,
+        "ocr": 4
+      }
+    },
+    {
+      "budget": {
+        "cpus": 4,
+        "gb": 8,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 8192
+      },
+      "scenario": "pressure",
+      "seconds": 7.386779899999994,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.89199999999255,
+          "p95": 31.7041999999783,
+          "p99": 33.726499999989755
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 52.1478000000061,
+          "p95": 76.43439999999828,
+          "p99": 79.92109999997774
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 16.459699999992154,
+          "p95": 18.93959999998333,
+          "p99": 22.265299999999115
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.027299999987008,
+          "p95": 22.52499999999418,
+          "p99": 23.122099999993225
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.56260000000475,
+          "p95": 11.404999999998836,
+          "p99": 12.588999999978114
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.434800000017276,
+          "p95": 9.57149999999092,
+          "p99": 10.761799999978393
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "164MB / 0B",
+          "CPUPerc": "0.24%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "25.19%",
+          "MemUsage": "387MiB / 1.5GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "83.2MB / 85.9MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "992MB / 551MB",
+          "CPUPerc": "0.14%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "13.70%",
+          "MemUsage": "350.7MiB / 2.5GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "297MB / 677MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "83.4MB / 23.2MB",
+          "CPUPerc": "49.26%",
+          "Container": "runly-content-erp-bench",
+          "ID": "c1dba05bddf1",
+          "MemPerc": "32.12%",
+          "MemUsage": "328.9MiB / 1GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "608kB / 185kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46926995,
+        "contentIndexBytes": 1105920,
+        "jobs": {
+          "cancelled": 292,
+          "unsupported": 20,
+          "pending": 11,
+          "processing": 0,
+          "empty": 6,
+          "done": 1113
+        }
+      },
+      "processing": {
+        "started": 1,
+        "finished": 1,
+        "ocr": 1
+      }
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "absent",
+      "seconds": 7.033771700000012,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 22.93100000001141,
+          "p95": 28.42970000000787,
+          "p99": 48.10109999999986
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 46.149299999990035,
+          "p95": 56.05259999999544,
+          "p99": 82.13039999999455
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.974799999996321,
+          "p95": 20.16120000000228,
+          "p99": 37.91029999998864
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.671899999986636,
+          "p95": 21.85109999999986,
+          "p99": 46.54920000000857
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 10.066800000000512,
+          "p95": 14.507199999992736,
+          "p99": 14.676199999987148
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.004599999985658,
+          "p95": 11.40490000002319,
+          "p99": 11.722299999993993
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "193MB / 0B",
+          "CPUPerc": "0.07%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "10.50%",
+          "MemUsage": "322.6MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "89.3MB / 92.7MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.01GB / 551MB",
+          "CPUPerc": "0.31%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.27%",
+          "MemUsage": "357.9MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "301MB / 683MB",
+          "PIDs": "40"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46926995,
+        "contentIndexBytes": 1105920,
+        "jobs": {
+          "cancelled": 303,
+          "pending": 0,
+          "unsupported": 20,
+          "processing": 0,
+          "empty": 6,
+          "done": 1113
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "idle",
+      "seconds": 7.0932700999999945,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 23.463099999993574,
+          "p95": 34.27599999998347,
+          "p99": 34.28859999999986
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 46.27090000000317,
+          "p95": 62.90690000000177,
+          "p99": 76.36050000000978
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 16.69539999999688,
+          "p95": 26.80329999999958,
+          "p99": 29.262000000016997
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.032399999996414,
+          "p95": 31.52430000001914,
+          "p99": 31.70100000000093
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.570899999991525,
+          "p95": 17.47039999999106,
+          "p99": 21.896099999983562
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 8.346900000004098,
+          "p95": 15.591000000014901,
+          "p99": 15.98530000000028
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "193MB / 0B",
+          "CPUPerc": "0.01%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "11.71%",
+          "MemUsage": "359.7MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "94.6MB / 99.4MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.01GB / 551MB",
+          "CPUPerc": "2.15%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.31%",
+          "MemUsage": "359.6MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "305MB / 688MB",
+          "PIDs": "40"
+        },
+        {
+          "BlockIO": "56.6MB / 0B",
+          "CPUPerc": "0.00%",
+          "Container": "runly-content-erp-bench",
+          "ID": "5b41faa861f8",
+          "MemPerc": "1.46%",
+          "MemUsage": "29.99MiB / 2GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "4.06kB / 4.25kB",
+          "PIDs": "1"
+        }
+      ],
+      "database": {
+        "connections": 40,
+        "databaseBytes": 46918803,
+        "contentIndexBytes": 1105920,
+        "jobs": {
+          "cancelled": 303,
+          "pending": 0,
+          "unsupported": 20,
+          "processing": 0,
+          "empty": 6,
+          "done": 1113
+        }
+      },
+      "processing": null
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "new",
+      "seconds": 7.305577300000005,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 25.366199999989476,
+          "p95": 49.1420999999973,
+          "p99": 62.015299999999115
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 47.831199999985984,
+          "p95": 95.12679999999818,
+          "p99": 96.32269999998971
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 16.042499999981374,
+          "p95": 25.82170000000042,
+          "p99": 32.75299999999697
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 18.45319999998901,
+          "p95": 33.64440000001923,
+          "p99": 41.37060000002384
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.8916999999783,
+          "p95": 12.934000000008382,
+          "p99": 20.409899999998743
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.343800000002375,
+          "p95": 9.880899999989197,
+          "p99": 20.222299999993993
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "195MB / 0B",
+          "CPUPerc": "0.04%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "11.73%",
+          "MemUsage": "360.2MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "102MB / 107MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.02GB / 553MB",
+          "CPUPerc": "0.71%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.54%",
+          "MemUsage": "371MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "310MB / 694MB",
+          "PIDs": "41"
+        },
+        {
+          "BlockIO": "86.7MB / 7.68MB",
+          "CPUPerc": "55.07%",
+          "Container": "runly-content-erp-bench",
+          "ID": "5b41faa861f8",
+          "MemPerc": "2.04%",
+          "MemUsage": "41.72MiB / 2GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "241kB / 56.6kB",
+          "PIDs": "1"
+        }
+      ],
+      "database": {
+        "connections": 41,
+        "databaseBytes": 47000723,
+        "contentIndexBytes": 1114112,
+        "jobs": {
+          "pending": 9,
+          "cancelled": 303,
+          "unsupported": 20,
+          "processing": 1,
+          "done": 1120,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 9,
+        "finished": 8,
+        "ocr": 7
+      }
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "historical",
+      "seconds": 6.842476300000009,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 22.262799999996787,
+          "p95": 28.500499999994645,
+          "p99": 39.789099999994505
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 46.6192999999912,
+          "p95": 61.04570000001695,
+          "p99": 94.75359999999637
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 14.996599999984028,
+          "p95": 20.29609999997774,
+          "p99": 30.14309999998659
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 17.178000000014435,
+          "p95": 22.7666999999783,
+          "p99": 34.321300000010524
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.166000000026543,
+          "p95": 15.614300000015646,
+          "p99": 24.683000000019092
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.434999999997672,
+          "p95": 11.108399999997346,
+          "p99": 11.505799999984447
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "198MB / 0B",
+          "CPUPerc": "0.01%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "11.96%",
+          "MemUsage": "367.3MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "110MB / 115MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.02GB / 554MB",
+          "CPUPerc": "0.03%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.44%",
+          "MemUsage": "366.4MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "315MB / 702MB",
+          "PIDs": "41"
+        },
+        {
+          "BlockIO": "92.3MB / 15MB",
+          "CPUPerc": "97.49%",
+          "Container": "runly-content-erp-bench",
+          "ID": "5b41faa861f8",
+          "MemPerc": "12.79%",
+          "MemUsage": "262MiB / 2GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "494kB / 121kB",
+          "PIDs": "3"
+        }
+      ],
+      "database": {
+        "connections": 41,
+        "databaseBytes": 47066259,
+        "contentIndexBytes": 1122304,
+        "jobs": {
+          "pending": 5,
+          "unsupported": 25,
+          "cancelled": 306,
+          "processing": 1,
+          "done": 1128,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 7,
+        "finished": 6,
+        "ocr": 6
+      }
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "accurate",
+      "seconds": 7.1598440999999875,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 22.188799999974435,
+          "p95": 24.413000000000466,
+          "p99": 24.938099999999395
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 48.20829999999842,
+          "p95": 54.202699999994365,
+          "p99": 56.51170000000275
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.08629999999539,
+          "p95": 19.676399999996647,
+          "p99": 20.444900000002235
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 16.9429999999993,
+          "p95": 22.28620000000228,
+          "p99": 22.32620000001043
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 8.855000000010477,
+          "p95": 12.316800000000512,
+          "p99": 12.551899999991292
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 7.337200000009034,
+          "p95": 9.815900000015972,
+          "p99": 10.393100000015693
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "198MB / 0B",
+          "CPUPerc": "0.03%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "11.98%",
+          "MemUsage": "367.9MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "117MB / 122MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.02GB / 555MB",
+          "CPUPerc": "1.33%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.60%",
+          "MemUsage": "374.2MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "319MB / 709MB",
+          "PIDs": "41"
+        },
+        {
+          "BlockIO": "129MB / 15.2MB",
+          "CPUPerc": "63.12%",
+          "Container": "runly-content-erp-bench",
+          "ID": "5b41faa861f8",
+          "MemPerc": "5.81%",
+          "MemUsage": "119MiB / 2GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "732kB / 175kB",
+          "PIDs": "3"
+        }
+      ],
+      "database": {
+        "connections": 41,
+        "databaseBytes": 47205523,
+        "contentIndexBytes": 1130496,
+        "jobs": {
+          "pending": 5,
+          "unsupported": 25,
+          "cancelled": 312,
+          "processing": 1,
+          "done": 1134,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 7,
+        "finished": 6,
+        "ocr": 6
+      }
+    },
+    {
+      "budget": {
+        "cpus": 8,
+        "gb": 16,
+        "boundedContainers": 9,
+        "allocatedMemoryMiB": 16384
+      },
+      "scenario": "pressure",
+      "seconds": 7.127745999999985,
+      "errors": [],
+      "requests": 144,
+      "latency": {
+        "/files?limit=20": {
+          "samples": 24,
+          "p50": 21.987200000003213,
+          "p95": 31.354300000006333,
+          "p99": 53.257800000021234
+        },
+        "/content/search?q=ABC123XYZ&searchIn=ocr": {
+          "samples": 24,
+          "p50": 45.81459999998333,
+          "p95": 68.6079000000027,
+          "p99": 75.71969999998691
+        },
+        "/inventory/items?limit=20": {
+          "samples": 24,
+          "p50": 15.224799999996321,
+          "p95": 27.62739999999758,
+          "p99": 42.23949999999604
+        },
+        "/purchases/dashboard": {
+          "samples": 24,
+          "p50": 15.97510000001057,
+          "p95": 25.698100000008708,
+          "p99": 40.32399999999325
+        },
+        "/pos/sessions?limit=20": {
+          "samples": 24,
+          "p50": 9.321000000025379,
+          "p95": 17.648700000019744,
+          "p99": 22.139200000005076
+        },
+        "/user/me": {
+          "samples": 24,
+          "p50": 6.9707000000053085,
+          "p95": 13.5059000000183,
+          "p99": 16.981199999980163
+        }
+      },
+      "stats": [
+        {
+          "BlockIO": "199MB / 0B",
+          "CPUPerc": "0.02%",
+          "Container": "runly-content-stage2-api-1",
+          "ID": "fb988447405d",
+          "MemPerc": "11.88%",
+          "MemUsage": "365.1MiB / 3GiB",
+          "Name": "runly-content-stage2-api-1",
+          "NetIO": "124MB / 129MB",
+          "PIDs": "23"
+        },
+        {
+          "BlockIO": "1.03GB / 556MB",
+          "CPUPerc": "0.04%",
+          "Container": "runly-content-ci-supabase-db",
+          "ID": "2d95575ed29f",
+          "MemPerc": "7.58%",
+          "MemUsage": "373.1MiB / 4.807GiB",
+          "Name": "runly-content-ci-supabase-db",
+          "NetIO": "324MB / 715MB",
+          "PIDs": "41"
+        },
+        {
+          "BlockIO": "152MB / 28.7MB",
+          "CPUPerc": "97.93%",
+          "Container": "runly-content-erp-bench",
+          "ID": "5b41faa861f8",
+          "MemPerc": "17.32%",
+          "MemUsage": "354.7MiB / 2GiB",
+          "Name": "runly-content-erp-bench",
+          "NetIO": "739kB / 188kB",
+          "PIDs": "2"
+        }
+      ],
+      "database": {
+        "connections": 41,
+        "databaseBytes": 47254675,
+        "contentIndexBytes": 1130496,
+        "jobs": {
+          "unsupported": 25,
+          "pending": 12,
+          "cancelled": 318,
+          "processing": 0,
+          "done": 1134,
+          "empty": 6
+        }
+      },
+      "processing": {
+        "started": 0,
+        "finished": 0,
+        "ocr": 0
+      }
+    }
+  ]
+}

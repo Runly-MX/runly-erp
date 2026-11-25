@@ -1,0 +1,2702 @@
+{
+  "prefix": "bulk-stage2-1795619911888",
+  "originals": 1000,
+  "synthetic": true,
+  "workerCount": 4,
+  "workerCpu": 0.5,
+  "workerMemoryMiB": 1024,
+  "quality": "balanced",
+  "maximumQueue": 20,
+  "samples": [
+    {
+      "seconds": 0.388,
+      "registered": 1000,
+      "terminal": 2,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 0,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 5.613,
+      "registered": 1000,
+      "terminal": 6,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 3,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 10.949,
+      "registered": 1000,
+      "terminal": 7,
+      "queued": 16,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 4,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 16.081,
+      "registered": 1000,
+      "terminal": 10,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 7,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 21.214,
+      "registered": 1000,
+      "terminal": 11,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 8,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 26.349,
+      "registered": 1000,
+      "terminal": 13,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 11,
+      "digital": 3,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 31.483,
+      "registered": 1000,
+      "terminal": 16,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 11,
+      "digital": 5,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 36.604,
+      "registered": 1000,
+      "terminal": 17,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 11,
+      "digital": 6,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 41.781,
+      "registered": 1000,
+      "terminal": 20,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 14,
+      "digital": 6,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 46.945,
+      "registered": 1000,
+      "terminal": 22,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 14,
+      "digital": 8,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 52.165,
+      "registered": 1000,
+      "terminal": 25,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 15,
+      "digital": 10,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 57.285,
+      "registered": 1000,
+      "terminal": 27,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 17,
+      "digital": 10,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 62.42,
+      "registered": 1000,
+      "terminal": 30,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 20,
+      "digital": 10,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 67.587,
+      "registered": 1000,
+      "terminal": 34,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 20,
+      "digital": 14,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 72.745,
+      "registered": 1000,
+      "terminal": 38,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 23,
+      "digital": 15,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 77.884,
+      "registered": 1000,
+      "terminal": 39,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 24,
+      "digital": 15,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 83.019,
+      "registered": 1000,
+      "terminal": 40,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 25,
+      "digital": 15,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 88.193,
+      "registered": 1000,
+      "terminal": 42,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 27,
+      "digital": 15,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 93.35,
+      "registered": 1000,
+      "terminal": 45,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 28,
+      "digital": 17,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 98.47,
+      "registered": 1000,
+      "terminal": 48,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 28,
+      "digital": 20,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 103.579,
+      "registered": 1000,
+      "terminal": 49,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 29,
+      "digital": 20,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 108.68,
+      "registered": 1000,
+      "terminal": 52,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 32,
+      "digital": 20,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 113.787,
+      "registered": 1000,
+      "terminal": 52,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 32,
+      "digital": 20,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 118.914,
+      "registered": 1000,
+      "terminal": 55,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 34,
+      "digital": 21,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 124.05,
+      "registered": 1000,
+      "terminal": 56,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 35,
+      "digital": 21,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 129.189,
+      "registered": 1000,
+      "terminal": 61,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 36,
+      "digital": 25,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 134.304,
+      "registered": 1000,
+      "terminal": 62,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 37,
+      "digital": 25,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 139.492,
+      "registered": 1000,
+      "terminal": 65,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 40,
+      "digital": 25,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 144.595,
+      "registered": 1000,
+      "terminal": 66,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 41,
+      "digital": 25,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 149.73,
+      "registered": 1000,
+      "terminal": 68,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 41,
+      "digital": 27,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 154.829,
+      "registered": 1000,
+      "terminal": 71,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 42,
+      "digital": 29,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 159.935,
+      "registered": 1000,
+      "terminal": 73,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 43,
+      "digital": 30,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 165.06,
+      "registered": 1000,
+      "terminal": 76,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 46,
+      "digital": 30,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 170.167,
+      "registered": 1000,
+      "terminal": 77,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 47,
+      "digital": 30,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 175.333,
+      "registered": 1000,
+      "terminal": 79,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 48,
+      "digital": 31,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 180.449,
+      "registered": 1000,
+      "terminal": 81,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 49,
+      "digital": 32,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 185.601,
+      "registered": 1000,
+      "terminal": 85,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 50,
+      "digital": 35,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 190.737,
+      "registered": 1000,
+      "terminal": 87,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 52,
+      "digital": 35,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 196.026,
+      "registered": 1000,
+      "terminal": 88,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 53,
+      "digital": 35,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 204.293,
+      "registered": 1000,
+      "terminal": 90,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 54,
+      "digital": 36,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 209.748,
+      "registered": 1000,
+      "terminal": 95,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 55,
+      "digital": 40,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 215.75,
+      "registered": 1000,
+      "terminal": 95,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 55,
+      "digital": 40,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 221.841,
+      "registered": 1000,
+      "terminal": 97,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 57,
+      "digital": 40,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 227.765,
+      "registered": 1000,
+      "terminal": 99,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 59,
+      "digital": 40,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 233.435,
+      "registered": 1000,
+      "terminal": 101,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 61,
+      "digital": 40,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 243.349,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 248.845,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 254.115,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 259.348,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 264.489,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 269.594,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 274.702,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 279.822,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 284.951,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 290.063,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 295.189,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 300.303,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 305.416,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 310.541,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 315.694,
+      "registered": 1000,
+      "terminal": 107,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 62,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 320.812,
+      "registered": 1000,
+      "terminal": 108,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 63,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 325.954,
+      "registered": 1000,
+      "terminal": 110,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 65,
+      "digital": 45,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 331.07,
+      "registered": 1000,
+      "terminal": 111,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 66,
+      "digital": 46,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 336.197,
+      "registered": 1000,
+      "terminal": 120,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 70,
+      "digital": 50,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 341.361,
+      "registered": 1000,
+      "terminal": 134,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 79,
+      "digital": 55,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 346.483,
+      "registered": 1000,
+      "terminal": 151,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 86,
+      "digital": 65,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 351.653,
+      "registered": 1000,
+      "terminal": 158,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 93,
+      "digital": 65,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 356.784,
+      "registered": 1000,
+      "terminal": 173,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 99,
+      "digital": 74,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 361.898,
+      "registered": 1000,
+      "terminal": 188,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 108,
+      "digital": 80,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 367.012,
+      "registered": 1000,
+      "terminal": 202,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 118,
+      "digital": 84,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 373.016,
+      "registered": 1000,
+      "terminal": 214,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 124,
+      "digital": 90,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 378.117,
+      "registered": 1000,
+      "terminal": 222,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 131,
+      "digital": 91,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 383.233,
+      "registered": 1000,
+      "terminal": 231,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 136,
+      "digital": 95,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 388.355,
+      "registered": 1000,
+      "terminal": 243,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 143,
+      "digital": 100,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 393.512,
+      "registered": 1000,
+      "terminal": 252,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 147,
+      "digital": 105,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 398.803,
+      "registered": 1000,
+      "terminal": 264,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 154,
+      "digital": 110,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 403.913,
+      "registered": 1000,
+      "terminal": 274,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 159,
+      "digital": 115,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 409.089,
+      "registered": 1000,
+      "terminal": 286,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 166,
+      "digital": 120,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 414.226,
+      "registered": 1000,
+      "terminal": 291,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 171,
+      "digital": 120,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 419.404,
+      "registered": 1000,
+      "terminal": 299,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 174,
+      "digital": 125,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 424.599,
+      "registered": 1000,
+      "terminal": 303,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 179,
+      "digital": 125,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 429.771,
+      "registered": 1000,
+      "terminal": 313,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 183,
+      "digital": 130,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 434.882,
+      "registered": 1000,
+      "terminal": 324,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 189,
+      "digital": 135,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 440.015,
+      "registered": 1000,
+      "terminal": 334,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 194,
+      "digital": 140,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 445.158,
+      "registered": 1000,
+      "terminal": 346,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 201,
+      "digital": 145,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 450.381,
+      "registered": 1000,
+      "terminal": 354,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 208,
+      "digital": 146,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 455.77,
+      "registered": 1000,
+      "terminal": 360,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 211,
+      "digital": 150,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 460.963,
+      "registered": 1000,
+      "terminal": 372,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 217,
+      "digital": 155,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 466.279,
+      "registered": 1000,
+      "terminal": 383,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 223,
+      "digital": 160,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 471.407,
+      "registered": 1000,
+      "terminal": 396,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 231,
+      "digital": 165,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 476.889,
+      "registered": 1000,
+      "terminal": 406,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 236,
+      "digital": 170,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 482.163,
+      "registered": 1000,
+      "terminal": 418,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 243,
+      "digital": 175,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 487.799,
+      "registered": 1000,
+      "terminal": 431,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 252,
+      "digital": 180,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 492.909,
+      "registered": 1000,
+      "terminal": 446,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 261,
+      "digital": 185,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 498.07,
+      "registered": 1000,
+      "terminal": 458,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 268,
+      "digital": 190,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 503.292,
+      "registered": 1000,
+      "terminal": 471,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 276,
+      "digital": 195,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 508.437,
+      "registered": 1000,
+      "terminal": 482,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 282,
+      "digital": 200,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 513.571,
+      "registered": 1000,
+      "terminal": 497,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 292,
+      "digital": 205,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 518.78,
+      "registered": 1000,
+      "terminal": 505,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 295,
+      "digital": 210,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 523.923,
+      "registered": 1000,
+      "terminal": 517,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 302,
+      "digital": 215,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 529.062,
+      "registered": 1000,
+      "terminal": 530,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 310,
+      "digital": 220,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 534.185,
+      "registered": 1000,
+      "terminal": 542,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 317,
+      "digital": 225,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 539.312,
+      "registered": 1000,
+      "terminal": 555,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 325,
+      "digital": 230,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 544.431,
+      "registered": 1000,
+      "terminal": 568,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 333,
+      "digital": 235,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 549.568,
+      "registered": 1000,
+      "terminal": 575,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 335,
+      "digital": 240,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 554.681,
+      "registered": 1000,
+      "terminal": 587,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 342,
+      "digital": 245,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 559.794,
+      "registered": 1000,
+      "terminal": 600,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 350,
+      "digital": 250,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 564.957,
+      "registered": 1000,
+      "terminal": 613,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 358,
+      "digital": 255,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 570.082,
+      "registered": 1000,
+      "terminal": 626,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 366,
+      "digital": 260,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 575.195,
+      "registered": 1000,
+      "terminal": 630,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 369,
+      "digital": 261,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 580.32,
+      "registered": 1000,
+      "terminal": 642,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 377,
+      "digital": 265,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 585.477,
+      "registered": 1000,
+      "terminal": 659,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 384,
+      "digital": 275,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 590.668,
+      "registered": 1000,
+      "terminal": 671,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 392,
+      "digital": 280,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 595.789,
+      "registered": 1000,
+      "terminal": 683,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 398,
+      "digital": 285,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 600.924,
+      "registered": 1000,
+      "terminal": 698,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 408,
+      "digital": 290,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 606.116,
+      "registered": 1000,
+      "terminal": 708,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 413,
+      "digital": 295,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 611.458,
+      "registered": 1000,
+      "terminal": 716,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 419,
+      "digital": 298,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 616.714,
+      "registered": 1000,
+      "terminal": 722,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 422,
+      "digital": 300,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 621.872,
+      "registered": 1000,
+      "terminal": 734,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 429,
+      "digital": 305,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 627.154,
+      "registered": 1000,
+      "terminal": 746,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 436,
+      "digital": 310,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 632.305,
+      "registered": 1000,
+      "terminal": 757,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 442,
+      "digital": 315,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 637.475,
+      "registered": 1000,
+      "terminal": 769,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 449,
+      "digital": 320,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 642.631,
+      "registered": 1000,
+      "terminal": 782,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 457,
+      "digital": 325,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 647.787,
+      "registered": 1000,
+      "terminal": 795,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 465,
+      "digital": 330,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 652.937,
+      "registered": 1000,
+      "terminal": 814,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 475,
+      "digital": 339,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 658.099,
+      "registered": 1000,
+      "terminal": 827,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 482,
+      "digital": 345,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 663.316,
+      "registered": 1000,
+      "terminal": 839,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 489,
+      "digital": 350,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 668.539,
+      "registered": 1000,
+      "terminal": 853,
+      "queued": 18,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 498,
+      "digital": 355,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 673.989,
+      "registered": 1000,
+      "terminal": 863,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 504,
+      "digital": 360,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 679.288,
+      "registered": 1000,
+      "terminal": 874,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 510,
+      "digital": 364,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 684.773,
+      "registered": 1000,
+      "terminal": 881,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 517,
+      "digital": 365,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 689.996,
+      "registered": 1000,
+      "terminal": 890,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 520,
+      "digital": 370,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 695.305,
+      "registered": 1000,
+      "terminal": 901,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 526,
+      "digital": 375,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 700.828,
+      "registered": 1000,
+      "terminal": 911,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 531,
+      "digital": 380,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 706.032,
+      "registered": 1000,
+      "terminal": 919,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 538,
+      "digital": 381,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 711.295,
+      "registered": 1000,
+      "terminal": 928,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 543,
+      "digital": 385,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 716.601,
+      "registered": 1000,
+      "terminal": 938,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 548,
+      "digital": 390,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 721.834,
+      "registered": 1000,
+      "terminal": 950,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 555,
+      "digital": 395,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 727.046,
+      "registered": 1000,
+      "terminal": 962,
+      "queued": 19,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 562,
+      "digital": 400,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 732.233,
+      "registered": 1000,
+      "terminal": 974,
+      "queued": 20,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 569,
+      "digital": 405,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 737.525,
+      "registered": 1000,
+      "terminal": 983,
+      "queued": 17,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 573,
+      "digital": 410,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 742.743,
+      "registered": 1000,
+      "terminal": 994,
+      "queued": 6,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 580,
+      "digital": 414,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 747.975,
+      "registered": 1000,
+      "terminal": 999,
+      "queued": 1,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 584,
+      "digital": 415,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    },
+    {
+      "seconds": 753.153,
+      "registered": 1000,
+      "terminal": 1000,
+      "queued": 0,
+      "failed": 0,
+      "partial": 0,
+      "ocr": 585,
+      "digital": 415,
+      "formats": {
+        "text/plain": 83,
+        "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+        "application/pdf": 166,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+        "image/png": 502
+      }
+    }
+  ],
+  "restart": true,
+  "pauseResume": true,
+  "uploadSeconds": 43.734,
+  "seconds": 753.154,
+  "final": {
+    "seconds": 753.153,
+    "registered": 1000,
+    "terminal": 1000,
+    "queued": 0,
+    "failed": 0,
+    "partial": 0,
+    "ocr": 585,
+    "digital": 415,
+    "formats": {
+      "text/plain": 83,
+      "application/vnd.openxmlformats-officedocument.presentationml.presentation": 83,
+      "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": 83,
+      "application/pdf": 166,
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document": 83,
+      "image/png": 502
+    }
+  },
+  "dockerStats": [
+    {
+      "BlockIO": "273MB / 140MB",
+      "CPUPerc": "0.00%",
+      "Container": "runly-content-historical-1",
+      "ID": "911a7bd391ae",
+      "MemPerc": "4.76%",
+      "MemUsage": "48.7MiB / 1GiB",
+      "Name": "runly-content-historical-1",
+      "NetIO": "4.4MB / 1.5MB",
+      "PIDs": "1"
+    },
+    {
+      "BlockIO": "287MB / 167MB",
+      "CPUPerc": "0.00%",
+      "Container": "runly-content-historical-2",
+      "ID": "82523e398b77",
+      "MemPerc": "3.53%",
+      "MemUsage": "36.15MiB / 1GiB",
+      "Name": "runly-content-historical-2",
+      "NetIO": "5.08MB / 1.64MB",
+      "PIDs": "1"
+    },
+    {
+      "BlockIO": "236MB / 161MB",
+      "CPUPerc": "0.00%",
+      "Container": "runly-content-historical-3",
+      "ID": "194f95857632",
+      "MemPerc": "4.73%",
+      "MemUsage": "48.42MiB / 1GiB",
+      "Name": "runly-content-historical-3",
+      "NetIO": "5.04MB / 1.61MB",
+      "PIDs": "1"
+    },
+    {
+      "BlockIO": "316MB / 176MB",
+      "CPUPerc": "1.34%",
+      "Container": "runly-content-historical-4",
+      "ID": "2ad0a4638810",
+      "MemPerc": "3.70%",
+      "MemUsage": "37.86MiB / 1GiB",
+      "Name": "runly-content-historical-4",
+      "NetIO": "5.06MB / 1.56MB",
+      "PIDs": "1"
+    }
+  ],
+  "attempts": {
+    "attempts": 1005,
+    "cpuMs": 637630,
+    "peakProcessRssBytes": 146292736,
+    "secondPasses": 0
+  },
+  "runtimeUpgrade": "Four workers were replaced during this run to deploy proportional CPU cooldown; elapsed time includes lost-lease recovery. The script also restarted one worker after 200 completions.",
+  "verification": {
+    "originals": 1000,
+    "revisionChanges": 0,
+    "sourceBytes": 16344847,
+    "smallestBytes": 33,
+    "largestBytes": 58612,
+    "derivedBytes": 765185,
+    "states": {
+      "done": 1000
+    },
+    "ocrCanvases": [
+      {
+        "width": 1400,
+        "height": 700,
+        "coordinateSpace": "exif-oriented-image"
+      },
+      {
+        "width": 2705,
+        "height": 3500,
+        "coordinateSpace": "pdf-raster"
+      }
+    ]
+  }
+}

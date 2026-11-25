@@ -1,164 +1,200 @@
-# Content Intelligence: evidencia del checkpoint
+# Content Intelligence: consolidación y evidencia
 
-Fecha de evaluación: 2026-11-25. Clasificación: **APTO PARA PRUEBAS** con corpus
-sintético en entorno aislado. **V1 no está completa ni es apta para producción**.
+Evaluación: 2026-11-25. **APTO PARA PRUEBAS AISLADAS. V1 incompleta.**
+No se hizo push, publicación de imágenes ni despliegue operativo. Todo el ERP
+utilizado en esta etapa es un laboratorio aislado, con empresa y usuarios sintéticos.
 
-## Resultado funcional
+## Resultado ejecutivo
 
-Se implementó y ejecutó el circuito real: archivo histórico registrado en
-PostgreSQL, autorización, descubrimiento paginado, trabajo persistente, worker
-Docker no root, descarga mediante lease, OCR local, almacenamiento de páginas y
-búsqueda HTTP por `ABC123XYZ`. No se alteró el original ni su revisión. El Storage
-del ensayo es una fixture binaria local, no un bucket operativo. La API usa el
-servicio real de permisos de Archivos; la identidad del ensayo es sintética.
-Esto es E2E del backend/worker, no E2E de login, navegador o Supabase Storage real.
+Se consolidó la integración existente, sin duplicar Storage, autorización,
+configuración ni cola. Ahora hay checkpoints por página, reanudación, controles
+administrativos ampliados, horarios, presupuestos, retención, estadísticas reales,
+modelos reproducibles, búsqueda con ranking y coincidencia aproximada limitada,
+y overlays del visor de imagen/PDF. La reducción de hallazgos del escáner es real,
+pero su cobertura de los componentes compilados es incompleta y se declara.
 
-Las nueve pruebas Node pasan, incluida integración PostgreSQL y Docker. Sus
-aserciones cubren OFF, activación persistente, ausencia de worker, duplicados,
-concurrencia, tokens de lease incorrectos/antiguos, recuperación, cancelación,
-progreso monotónico, versiones, deshabilitación/restauración, empresas distintas,
-compartición revocada, carpeta movida, propietario cambiado, traslado de empresa,
-backfill y purga. Los tokens multibyte incorrectos producen 401, no un fallo de
-comparación de buffers. Se aplicó la migración real en PostgreSQL 18 aislado.
-No se aplicaron migraciones a una instalación existente.
+El ERP con Auth y Storage reales pasó el recorrido de navegador. La carga de
+18 escenarios no certificó el objetivo de degradación p95 inferior al 10%.
+No corresponde elevar la clasificación a staging ni generar un RC integral.
 
-Las trece pruebas Python pasan: etiqueta, tres modos, rotación 90°, inclinación y
-bajo contraste, español/inglés, imagen vacía, PDF digital/escaneado/híbrido,
-límite de páginas y estado parcial, LIGHT sin OCR, TXT/CSV/Markdown/JSON/SVG,
-DOCX/XLSX/PPTX, timeout, ZIP bomb, entidades XML (incluido UTF-16), límites de
-archivo/píxeles, firmas incompatibles y plazo duro del grupo de procesos. Los ejemplos Office son paquetes mínimos
-sintéticos; aún faltan documentos complejos de aplicaciones reales.
+## Requisitos, cambios y arquitectura
 
-## OCR medido
+La [matriz completa](CONTENT_INTELLIGENCE_STAGE2_MATRIX.md) mantiene estados al
+inicio/cierre y límites de evidencia. Las instrucciones completas de instalación,
+administración, actualización y rollback están en
+[CONTENT_INTELLIGENCE_V1.md](CONTENT_INTELLIGENCE_V1.md).
 
-En la etiqueta canónica, los tres modos recuperaron exactamente `ABC123XYZ`.
-CER: 0.0188679; WER: 0.1111111, calculados con distancia de edición sobre el
-ground truth del generador. Es una muestra pequeña; no representa precisión
-universal. La etiqueta inclinada y la girada también recuperaron esa serie.
+Una sola API Hono autoriza el archivo vigente mediante FilesService. PostgreSQL
+conserva políticas, trabajos, leases, páginas, intentos, cursores y totales. Un
+worker Python por proceso descarga solo el original autorizado mediante lease;
+no recibe credenciales DB/Storage. Tesseract/Poppler se ejecutan localmente.
+React usa el SDK y los componentes compartidos. Los archivos originales permanecen intactos.
 
-Texto real del ensayo equilibrado:
+Cambios principales:
 
-```text
-RUNLY INVENTARIO
-Service Tag ABC123XYZ
-Numero de serie OO 11 S5 B8 Z2
-Factura MXN 1250.50 Fecha 2026-11-25
-```
+- El proceso padre posee los temporales y mata/recolecta el grupo de parsers.
+- Checkpoints idempotentes por unidad, fingerprint de pipeline y `resumeUnits`.
+- RLIMIT_AS heredado, cgroups, CPU media, histéresis, límites de tmp/PIDs/hilos y
+  pausa por presión del proceso API. No se mide presión del host ni PostgreSQL.
+- Presupuestos y switches se intersectan entre instancia y empresa; perfiles y
+  calidad son independientes. Protocolos de worker antiguos no reciben trabajos.
+- Ventanas con zona horaria/medianoche, cuotas diarias, retención acotada,
+  filtros históricos por tipo/carpeta/fecha/estado/confianza/motor/calidad.
+- Totales por trigger, historial reciente y métricas por intento; índices para
+  actualización reciente y finalización, sin conteos completos en cada dashboard.
+- Ranking exacto antes de prefijos y variantes de un solo carácter en identificadores.
+  Cursor cifrado, temporal y ligado al usuario/empresa/consulta; snippets en lote.
+  La autorización central aún hace consultas por candidato (máximo 50).
+- Visor con texto seleccionable, copia/descarga, búsqueda/navegación, rectángulos
+  OCR, zoom y rotación compartidos; sin posiciones inventadas para texto sin cajas.
 
-El ground truth contiene `O0 I1`, por lo que `OO 11` son errores reales y se
-conservan. Una etiqueta adicional rasterizada desde SVG con otra tipografía
-produjo `ABCI23XYZ` en lugar de `ABC123XYZ`, incluso usando el modelo best.
-No se sustituyeron caracteres para hacer pasar la búsqueda. El E2E usa el corpus
-canónico reproducible; ese caso tipográfico queda como limitación de calidad.
-
-La primera rasterización del PDF a 2400 px también produjo una serie incorrecta.
-Se aumentó la resolución dentro del presupuesto y se recortan solo márgenes
-vacíos grandes, manteniendo offsets inversos. El corpus final de PDF pasa.
-Los modelos best no redujeron CER/WER de la etiqueta canónica; no se promete
-que el perfil de alta precisión mejore cada documento.
-
-## Recursos y lote histórico
-
-Pruebas reales con cuotas de contenedor y red deshabilitada para el corpus
-(doce pruebas en esta medición; la comprobación de plazo duro se añadió después):
-
-| CPU worker | RAM límite | Suite (12 pruebas) | Etiqueta rápido/equilibrado/alta (s) | RSS Python máximo |
-|---:|---:|---:|---|---:|
-| 0.25 | 512 MiB | 30.875 s | 1.067 / 2.045 / 2.637 | 148408 KiB |
-| 0.5 | 1024 MiB | 15.328 s | 0.623 / 1.052 / 1.253 | 149836 KiB |
-| 1 | 2048 MiB | 8.601 s | 0.314 / 0.577 / 0.722 | 149564 KiB |
-
-El mayor RSS de un hijo nativo fue aproximadamente 150000 KiB. No se dispone de
-`memory.peak` en el cgroup de este entorno: esos RSS no son una medición de la
-suma máxima simultánea de todos los procesos. Docker impuso las cuotas indicadas;
-los ensayos terminaron sin OOM. Las cuotas del worker no equivalen a haber probado
-el ERP completo en servidores 2 CPU/4 GB, 4 CPU/8 GB y 8 CPU/16 GB. Los demás
-procesos y PostgreSQL se ejecutaron fuera de esos presupuestos y compartieron host.
-
-El lote histórico de **1,000 archivos TXT**, con cuatro workers y concurrencia
-global cuatro, terminó en **149.088 segundos**: aproximadamente 6.71 archivos/s.
-Se observaron como máximo **20 trabajos pendientes o activos**, el límite fijado.
-Un worker tenía 1 CPU/1 GiB y los otros tres 0.25 CPU/512 MiB cada uno.
-La consulta de estadísticas durante ese lote tuvo p95 4.4914 ms; **no es la
-latencia p95 del ERP**. La primera ejecución con un worker agotó el plazo de
-220 segundos y no completó el lote; se preserva ese fallo metodológico aquí.
-
-`EXPLAIN (ANALYZE, BUFFERS)` de una búsqueda presente en los 1,000 documentos
-eligió Seq Scan y tardó 0.228 ms, con 40 bloques en caché. Esa consulta no es
-selectiva; no demuestra el rendimiento de GIN a escala. Faltan planes de consultas
-selectivas, crecimiento de índices y corpus mixtos mucho mayores.
-
-No se obtuvo una línea base del ERP antes del cambio porque no había API/web
-operativas de prueba. No se midieron p50/p95/p99 del ERP, subidas reales,
-latencia sin worker frente a OCR/backfill, ni el objetivo de degradación <10%.
-No se inventan resultados para esos requisitos pendientes.
+El laboratorio descubrió y corrigió dos fallos de integración no cubiertos por el
+router aislado: el filtro de dominios bloqueaba el DNS interno del worker, y el
+backend intentaba descargar usando la URL pública reescrita de Storage. El prefijo
+operativo conserva autenticación dedicada; la URL de Storage se convierte al origen
+interno configurado únicamente para la descarga backend. Se añadieron regresiones.
 
 ## Seguridad y dependencias
 
-Docker Scout v1.24.0 indexó 295 paquetes y notificó **50 vulnerabilidades únicas
-altas/críticas**, con 77 resultados SARIF repartidos en siete identidades de
-paquete. Pillow aparece como paquete Debian y como paquete PyPI; no son siete
-componentes necesariamente independientes. Se necesita comprobar aplicabilidad y
-backports antes de cualquier uso con documentos operativos.
+[Informe por CVE/paquete, alcance y mitigación](audits/content-intelligence-stage2/SECURITY.md),
+[datos estructurados](audits/content-intelligence-stage2/vulnerabilities.json) y
+[SBOM SPDX](audits/content-intelligence-stage2/sbom.spdx.json).
 
-| Identidad reportada | CVE únicas reportadas para esa identidad |
-|---|---:|
-| Pillow Debian 11.1.0-5+deb13u4 | 27 |
-| Pillow PyPI 11.1.0 (misma instalación detectada) | 41 |
-| OpenSSL Debian 3.5.9-1~deb13u1 | 3 |
-| libxml2 Debian con parches de distribución | 2 |
-| Expat Debian 2.9.0-1~deb13u1 | 2 |
-| Poppler Debian 25.03.0-5+deb13u4 | 1 |
-| Tesseract Debian 5.5.0-1 | 1 |
+Antes: 50 CVE únicos altos/críticos, 77 hallazgos SARIF, 295 paquetes detectados.
+Después: un CVE alto, cero críticos reportados, 58 paquetes detectados por Scout.
+Sin exclusiones. Scout no detectó Tesseract/Poppler compilados: el SBOM los añade
+con fuente/hash y **no presenta esa adición como análisis de vulnerabilidades**.
+Las bibliotecas integradas en wheels también requieren revisión adicional.
 
-Las cantidades por fila se superponen. No se descartaron alertas como falsos
-positivos sin comprobarlas. Los límites de contenedor reducen el alcance de un
-parser fallido, pero no resuelven esas vulnerabilidades. La imagen no queda
-aprobada para producción por usar Debian estable.
+El CVE final es musl CVE-2026-107891. Scout indica r6; el
+[tracker oficial de Alpine](https://security.alpinelinux.org/vuln/CVE-2026-107891)
+identifica 1.2.6-r3 corregido en Alpine 3.24 y r6 en edge. Se conserva la discrepancia.
+La imagen API del laboratorio tiene 81 CVE altos/críticos propios; el JSON distingue
+intersecciones. No se atribuyen todos esos hallazgos al worker ni se afirma haber
+corregido la seguridad completa del ERP.
 
-El aislamiento comprobado es el de rutas y visibilidad de archivos. Faltan pruebas
-contra una instalación real de Supabase/RLS, enlaces compartidos, firewall de
-egress, fallos de disco y reinicio del host completo. El worker no tiene claves de
-DB/Storage, no es root y no recibe permisos administrativos de usuario.
+Imagen multistage Alpine 3.24, Python 3.13.18, Pillow 13.0.0, Tesseract 5.5.4,
+Poppler 26.11.0. Fuentes/modelos fijados por hash; sin descargas al ejecutar.
+Se retiraron pip, SQLite y herramientas de compilación del runtime. No se añadieron
+OpenCV, HEIC ni dependencias npm de producción. Se preservan licencias nativas.
+Solo se verificó ejecución amd64; arm64 requiere validación propia.
 
-## Estado por fase
+Verificado: UID 10001, capabilities vacías, no-new-privileges, filesystem de solo
+lectura, tmpfs 256 MiB, 64 PIDs, cgroups, plazos, ZIP bombs, XML externo/UTF-16,
+píxeles y limpieza tras SIGKILL. Image.open restringe plugins a JPEG/PNG/WebP/TIFF.
+El worker no tiene socket Docker. Compose no implementa un firewall de salida:
+eso continúa siendo responsabilidad de infraestructura.
 
-| Fase | Estado real |
-|---|---|
-| 0 Auditoría/línea base | Auditoría de puntos de integración y plan escritos; baseline ERP pendiente |
-| 1 Arquitectura | Servicio transversal, contratos internos y separación API/worker funcionales |
-| 2 Opcionalidad/perfiles | OFF y políticas funcionales, overlays fuente/instalador validados; imagen no publicada |
-| 3 Extracción | Formatos prioritarios del corpus funcionales; HEIC no soportado |
-| 4 Precisión | Pipeline adaptativo y modelos reproducibles; calidad limitada, perspectiva/regiones pendientes |
-| 5 Cola/recursos | Cola, límites, leases, reintentos, cancelación y reparto probados; horarios/presupuestos por tiempo y checkpoints de página pendientes |
-| 6 Histórico | Cursor persistente, lotes, límite y lote de 1000 probados; filtros de calidad/motor/fallos, estimaciones y estadísticas completas pendientes |
-| 7 Búsqueda | FTS, prefijos, frases, normalización, cursor y ACL funcionales; ranking, subcadenas/fuzzy y escala pendientes |
-| 8 Archivos UX | Integrado en buscador, snippets resaltados y panel de texto; QA visual, capturas y overlays pendientes |
-| 9 Administración | Políticas persistentes por ámbito y monitoreo básico; controles avanzados/estadísticas pendientes |
-| 10 Seguridad | Aislamiento central probado; alertas nativas sin resolver bloquean producción |
-| 11 Integraciones | Factory interna documentada; búsqueda global y consumidores de otros módulos no implementados |
-| 12 QA/rendimiento | Pruebas Node/Python, Docker y lote reales; faltan navegador, Storage real y benchmarks ERP completos |
-| 13 Instalación/cierre | Migración aditiva, overlays y manual de rollback listos; publicación y actualización real no ejecutadas |
+## Reconocimiento y formatos
 
-## Frontend y comprobaciones
+[Resultados por caso y comparación](audits/content-intelligence-stage2/OCR.md).
+Doce casos sintéticos, tres modos, 36 extracciones con ground truth. En 1 CPU/1 GiB:
 
-La compilación Vite completa pasó. ESLint de los archivos nuevos pasó. El primer
-escaneo React Doctor no incluía todos los archivos sin añadir a Git. El escaneo
-final informó **78/100 y nueve advertencias**, sin errores: bucles con awaits,
-consultas independientes secuenciales, búsqueda sobre listas pequeñas, estado
-editable inicializado desde props, claves de fragmentos por posición y complejidad
-del panel. Los awaits de escritura son deliberadamente secuenciales dentro de
-transacciones y lotes acotados; no se paralelizaron mutaciones de cola para
-silenciar el analizador. Se corrigieron sus avisos de API Zod obsoleta. El control de
-privacidad pasó sin hallazgos después de excluir del versionado los artefactos
-locales de build/corpus. Un primer control detectó valores de configuración del
-build local; esos archivos nunca se prepararon para commit ni se publicaron.
+| Modo | CER medio | WER medio | Identificadores exactos | Tiempo de 12 casos |
+|---|---:|---:|---:|---:|
+| Rápido | 11.774% | 12.857% | 16/19 | 5.982 s |
+| Equilibrado | 0.146% | 1.190% | 18/19 | 10.793 s |
+| Alta precisión | 0.146% | 1.190% | 19/19 | 13.615 s |
 
-No hay capturas de Archivos o administración ni validación de controles en
-navegador. Un build correcto no se presenta como validación de UX. Las salidas
-locales de pruebas, corpus, SARIF y builds quedan en `.artifacts/content-intelligence/`
-(ignorado), y el corpus puede regenerarse desde el código versionado.
+Los promedios son por caso, incluida la imagen vacía. Alta precisión recuperó un
+identificador adicional; no mejoró CER/WER medio ni la etiqueta canónica. Se
+conservan errores O/0 e I/1 del texto original. No se promete superioridad universal.
+RSS máximo por proceso: aproximadamente 73 MiB rápido/equilibrado y 81 MiB alta;
+no es el pico agregado simultáneo del contenedor. El JSON incluye CPU y segundas pasadas.
 
-Los cambios se mantienen en `main`; no se crearon ramas/worktrees y no se hizo
-push ni despliegue. Los SHA y el estado final de Git se entregan en la respuesta
-de cierre para evitar que este informe necesite referenciar su propio commit.
+Se verificaron JPEG/PNG/WebP/TIFF, EXIF, imágenes vacías, rotación/inclinación,
+PDF digital/escaneado/híbrido entre páginas, DOCX/XLSX/PPTX mínimos, TXT/CSV/MD,
+XML/JSON/SVG y límites. PDF con cualquier texto extraíble ya no se rasteriza por
+tener menos de 20 caracteres. No se duplica OCR/texto digital entre páginas.
+Un encabezado digital sobre una imagen escaneada en la misma página todavía puede
+ocultar texto de la imagen: no se anuncia detección híbrida por regiones.
+No hay HEIC, perspectiva avanzada ni PDF buscable derivado. Office complejo,
+documentos protegidos y fotografías de campo necesitan un corpus adicional.
+
+## Recursos y benchmarks del ERP
+
+[Metodología, tabla completa y límites](audits/content-intelligence-stage2/BENCHMARK.md).
+Se midieron 18 escenarios (2/4, 4/8 y 8/16 CPU/GB), con nueve contenedores acotados,
+seis endpoints reales y 24 muestras por endpoint después de calentamiento.
+Sin worker, instalado inactivo, nuevos, histórico, alta precisión y presión artificial.
+El JSON incluye p50/p95/p99, errores, throughput, snapshots CPU/RAM, conexiones,
+tamaño de DB e índices. Sin errores HTTP en esa carga. Inventario/Compras/POS no
+tienen una población empresarial representativa; no se certifica capacidad real.
+
+El p95 de Archivos, por ejemplo, pasó de 28.4 a 49.1 ms durante archivos nuevos en el
+presupuesto 8/16. Otras rondas fueron mejores que la base. No se ocultan esos picos
+ni se interpreta una muestra pequeña como cumplimiento del SLO <10%.
+Una ronda previa asignó solo 128 MiB a Storage y provocó un reinicio; se descartó
+como comparación y se corrigió el reparto del laboratorio. No es un OOM del worker.
+
+Consumo depende del documento y calidad, no solo del perfil. OFF no requiere worker;
+LIGHT limita la concurrencia/hilos a uno y evita OCR automático; SMART/CUSTOM permiten
+presupuestos conservadores; DEDICATED no crea contenedores ni amplía cuotas físicas.
+Un proceso ejecuta un trabajo. La prueba masiva usa cuatro workers explícitos;
+el perfil por sí solo no aporta ese paralelismo.
+
+## Histórico y recuperación
+
+La prueba anterior de 149.088 s fueron 1,000 TXT, **cero documentos con OCR**, cuatro
+workers y cola máxima 20. Su consulta de estadísticas p95 4.49 ms no era p95 del ERP.
+No es una referencia de velocidad para fotografías ni PDF escaneados.
+
+El [lote mixto real](audits/content-intelligence-stage2/HISTORICAL.md) finalizó
+1,000 archivos: 585 con OCR y 415 digitales; cero fallidos, parciales u omitidos.
+Cola máxima 20, cuatro workers de 0.5 CPU/1 GiB y 753.154 s de procesamiento y
+recuperación, incluyendo pausa/reanudación y actualización/reinicios del worker.
+No es una medición pura de velocidad de una única versión.
+
+La evidencia de esta etapa incluye pausa/reanudación, filtros, recuperación de
+leases, checkpoints, originales previos a activación, cancelación y revalidación
+de revisión/empresa/objeto. Los resultados del lote mixto y sus interrupciones se
+registran en el anexo de cierre. No se afirma haber probado días de funcionamiento.
+
+## UX, responsive y accesibilidad
+
+Playwright ejecutó login real, guardado/persistencia de políticas, subida a Storage,
+OCR, búsqueda solo por serie y visor. Cuatro anchos: 1440, 768, 390 y 320 px, sin
+overflow horizontal de documento en las comprobaciones. Se verificó foco de teclado
+en el diálogo, modo oscuro y contexto móvil con `hasTouch` y taps reales.
+Los rectángulos comparten geometría con imagen/canvas después de zoom/rotación.
+No se sustituye esto por snapshots de componentes o solo build.
+
+Capturas reales del laboratorio:
+
+- [Administración escritorio](audits/content-intelligence-stage2/screenshots/settings-1440.png),
+  [móvil](audits/content-intelligence-stage2/screenshots/settings-390.png),
+  [320 px](audits/content-intelligence-stage2/screenshots/settings-320.png).
+- [Visor escritorio](audits/content-intelligence-stage2/screenshots/viewer-1440.png),
+  [móvil](audits/content-intelligence-stage2/screenshots/viewer-390.png),
+  [oscuro y rotado](audits/content-intelligence-stage2/screenshots/viewer-dark-rotated.png),
+  [táctil](audits/content-intelligence-stage2/screenshots/viewer-touch-390.png).
+- [JPEG con EXIF](audits/content-intelligence-stage2/screenshots/exif-viewer-390.png),
+  [PDF rotado escritorio](audits/content-intelligence-stage2/screenshots/pdf-rotated-1440.png),
+  [PDF móvil](audits/content-intelligence-stage2/screenshots/pdf-rotated-390.png).
+
+No se verificaron todas las combinaciones de navegador, lectores de pantalla,
+archivos complejos y gestos multitáctiles. TIFF multipágina muestra la primera imagen.
+
+## Regresión, privacidad y límites de salida
+
+19 pruebas Node de Content Intelligence/overlays aprobadas, incluida PostgreSQL y
+Docker; 17 pruebas Python aprobadas, con EXIF, limpieza y deuda de CPU.
+La suite de seguridad general aprobó 166 pruebas. Build web y lint de los archivos
+afectados aprobados. React Doctor informó advertencias de complejidad, índices de
+claves y encadenamiento de efectos; no se presenta un score global como garantía.
+Privacidad del repositorio se verifica antes de los commits; los informes públicos
+omiten correos de proveedores del SBOM y no incluyen secretos ni sesiones.
+
+Migración nueva: `20270116000000_content_intelligence_consolidation`, aditiva.
+Se probó en PostgreSQL aislado; la migración original entregada queda intacta.
+La base sin OCR sigue independiente del overlay. Instalar/actualizar exige nuevas
+imágenes API/web/worker y aplicar migraciones; no se inicia histórico automáticamente.
+Rollback conservador verificado: guardar OFF, detener worker y conservar API/web
+actuales y tablas. Bajar a API/worker de la primera etapa requiere restaurar
+políticas y función SQL compatibles; esa reversión binaria no está verificada.
+No borrar originales ni hacer rollback SQL destructivo sin un backup verificado.
+
+Pendientes que impiden staging/producción: SLO, ensayo prolongado, cobertura de
+seguridad nativa/vendorizada, corpus real, búsqueda/ACL a gran escala, PDF/Office
+complejos y matriz completa de accesibilidad/gestos. La matriz conserva otros
+pendientes funcionales. El estado final de Git y commits se registra en el anexo.
