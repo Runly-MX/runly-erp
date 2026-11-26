@@ -246,3 +246,10 @@ Detalle en el runbook (secciones 4, 7 y 8). Borrados duros: no se propagan, pero
 ### Commits de esta intervención
 
 Ver `git log e57d7f817..HEAD` filtrando `rc1`: un único commit de ERP con el arnés S3, la corrección de CI, `make -j2`, el runbook y estos documentos. Ningún cambio en runly-web, Hub ni Atlas (el worktree `_rc/erp` y el validador `_rc/validator` son temporales y están fuera de los repositorios).
+
+## 19. Sincronizacion remota y revision RC1-r1 (2026-11-26)
+
+- `origin/main`: `28079331e` a `64e6389a8` (push normal). Ramas publicadas: `rc/rc1` = `e57d7f817` (RC1 original, recuperable) y `rc/rc1-r1` = `9e637d98a` (RC1 mas un commit que solo cambia `.github/workflows`; el codigo de las imagenes `adbfdbb108cf` no cambia).
+- GitHub Actions: Quality Gates tier release verde en `main` (45854778857) y en `rc/rc1-r1` (45854773067); Security, UUID y Schema Ownership verdes en main, `rc/rc1` y `rc/rc1-r1`. El Quality Gates anterior de main (45652909456) fallaba por el clon superficial (`fetch-depth`).
+- Hub: la prueba de revision del corpus pasa con la raiz fijada (16/16); solo falla si `MARKETPLACE_VALIDATOR_ROOT` apunta a otra revision. Sin cambios en el Hub.
+- DWG: `make -j2` esta en `origin/main`; no hay imagen atribuible a un SHA en esta maquina. Comandos de staging, rollback y pendientes: `docs/deployment/RUNLY_RC1_STAGING_RUNBOOK.md` seccion 9.

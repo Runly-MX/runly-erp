@@ -6,7 +6,8 @@ Fecha: 2026-11-25. Complementa `docs/audits/RUNLY_PLATFORM_STABILIZATION_RC1.md`
 
 | Elemento | Valor |
 |---|---|
-| SHA de staging (ERP) | `e57d7f8171ab2347d58591adb30516bcb075a308` |
+| SHA de staging (ERP), revision definitiva **RC1-r1** | `9e637d98aed813877d29a4d56ceee8f7f81d932b`, rama remota `rc/rc1-r1`. Es `e57d7f817` mas un commit que solo toca `.github/workflows` (fetch-depth 0 y acciones fijadas por SHA); `apps/`, `packages/`, `prisma/` e `infra/` son identicos (`git diff e57d7f817 9e637d98a -- apps packages prisma infra` vacio) |
+| RC1 original (trazabilidad) | `e57d7f8171ab2347d58591adb30516bcb075a308`, rama remota `rc/rc1`. Su Quality Gates falla en las pruebas del instalador por el clon superficial; por eso existe r1 |
 | Codigo de las imagenes | `adbfdbb108cf` (`apps/`, `packages/`, `prisma/`, `infra/` son identicos entre este y el SHA de staging; solo cambian pruebas, scripts de CI y docs, verificado con `git diff --name-only`) |
 | Imagen API | `runly-notifications:api-adbfdbb108cf`, `sha256:32d4d8794f7b...` |
 | Imagen worker | `runly-notifications:worker-adbfdbb108cf`, `sha256:94a6a0890f4e...` |
@@ -89,11 +90,15 @@ set HUB_TEST_INTERCHANGE_DIR=<raiz>/e57d7f817/node_modules/@runly/studio-interch
 node --test tests/website-av-pipeline.test.js tests/website-capabilities.test.js tests/marketplace-validation.test.js tests/marketplace-validator-wiring.test.js tests/marketplace-validator-install.test.js
 ```
 
+**Estado 2026-11-26 (discrepancia de la prueba de revision).** La prueba `website templates (H6a)` compara `tests/fixtures/marketplace-validation/website/expected.json` (revision `a448509d`, corpus E1b inmutable, el mismo que `expected.json` de Studio) con el `validator.lock.json` de la raiz del validador. Con la raiz por defecto (`.artifacts/marketplace-validator/a448509d...`) las dos coinciden y `tests/marketplace-validation.test.js` pasa 16/16 (los 17 casos del corpus se repiten sin cambios). La falla aparece solo cuando `MARKETPLACE_VALIDATOR_ROOT` apunta a otra raiz presente en `.artifacts` (por ejemplo `aad51d79`: esperado `aad51d79`, real `a448509d`): el pin funciona como esta disenado, no hay artefacto desalineado. No se quito el pin ni se regenero el corpus; adoptar una raiz nueva exige regenerar el corpus desde ese mismo SHA. Las 12 fallas restantes de `tests/integration/*` y `website-catalog-identities` son de entorno (sin base de datos: `Invalid URL`), no del pin. No se publico ninguna plantilla ni paquete.
+
 Orden de actualizacion: ERP (API, worker, web), paquetes compartidos del SHA ya publicado, Hub con su sandbox, y solo entonces plantillas con audio y video. El Hub nunca antes que ERP. No se publico ningun paquete ni plantilla.
 
 ## 7. Sincronizar los repositorios (no ejecutados)
 
-Estado verificado con `git ls-remote`: ERP `origin/main` = `28079331e`; runly-web `e96f4dc`, Hub `1f1e864` y Atlas `893d34c` ya coinciden con el remoto (ahead 0). **No hay nada que empujar de los cuatro repositorios salvo los commits de esta intervencion en ERP**, y esos cambian CI, scripts y un Dockerfile, no el codigo de las imagenes.
+**Ejecutado el 2026-11-26** (push normal, sin force ni PR): `origin/main` paso de `28079331e` a `64e6389a8` (tres commits: `04b5895d1`, `2f24cfe0f`, `64e6389a8`), y se publicaron `rc/rc1` y `rc/rc1-r1`. runly-web `e96f4dc`, Hub `1f1e864` y Atlas `893d34c` coinciden con su remoto (ahead 0). Los commits cambian CI, scripts, docs y un Dockerfile, no el codigo de las imagenes. Resultados de Actions en la seccion 9.
+
+Referencia historica del paso previo al push:
 
 ```text
 git -C <erp> status --short
@@ -119,3 +124,99 @@ Despues de empujar: Actions > Quality Gates > Run workflow > tier `release`, `fu
 | Para revision juridica | fuente correspondiente del GPL de FFmpeg y si basta cargarlo como archivo aparte; patentes H.264 y AAC; alcance de "compartir igual" de la ODbL en archivos derivados por pais; MPL-2.0 en cinco crates; `Apache-2.0 AND LGPL-3.0-or-later` en `@img/sharp-win32-x64`; textos y avisos exigidos en la distribucion |
 
 No se sustituyo FFmpeg ni se activo el servicio geografico.
+
+## 9. Estado remoto, DWG y comandos de staging (2026-11-26)
+
+### Referencias y Actions
+
+| Referencia | SHA | Quality Gates | Otros workflows |
+|---|---|---|---|
+| `origin/main` | `64e6389a8` | push (fast) verde; `workflow_dispatch` tier `release` verde (run 45854778857) | Security, UUID, Schema Ownership verdes |
+| `rc/rc1` (RC1 original) | `e57d7f817` | no ejecutado: falla por clon superficial, motivo de r1 | Security, UUID, Schema Ownership verdes |
+| `rc/rc1-r1` (candidato definitivo) | `9e637d98a` | `workflow_dispatch` tier `release` verde (run 45854773067) | Security, UUID, Schema Ownership verdes |
+
+El ultimo Quality Gates de `28079331e` en main fallaba (run 45652909456: `git show <sha>` sobre un clon superficial, `invalid object name`). La correccion es `fetch-depth: 0`; los cinco workflows usan ahora acciones fijadas por SHA completo (`actions/checkout` v7, `pnpm/action-setup` v6, `actions/setup-node` v6, `actions/upload-artifact` v7, comentario con la version), permisos `contents: read`, `pnpm install --frozen-lockfile`. No se ejecuto el tier release con `full_suite` (opcional, ~6 minutos): `gh workflow run quality-gates.yml --ref rc/rc1-r1 -f tier=release -f full_suite=true`.
+
+Recuperar el RC1 exacto en cualquier momento: `git fetch origin rc/rc1-r1 && git checkout 9e637d98aed813877d29a4d56ceee8f7f81d932b` (o `git archive` de ese SHA a un directorio limpio).
+
+### Imagenes
+
+Las imagenes locales `runly-notifications:{api,worker,web}-adbfdbb108cf` (ids en la seccion 1) son las del RC1; r1 no cambia su contenido. Ningun commit posterior a `e57d7f817` (consolidacion de Content Intelligence, migracion `20270116`) esta en ellas.
+
+### DWG
+
+El Dockerfile ya lleva `make -j2` (commit `04b5895d1`, en `origin/main`), asi que el limite es reproducible. En esta maquina solo existe `runly-dwg-test:latest` (`0fd684d63718`, creada el 2026-11-02, `dwg2dxf 0.13.3`): es anterior al cambio y **no se puede atribuir a un SHA**, por eso no se declara como artefacto del RC. `node infra/docker/build-push.mjs --dwg --dry-run` confirma que el mecanismo de release publica solo DWG (`raulbellosom/runlyerp:dwg-latest`, entradas `apps/dwg/`, `infra/docker/dwg.Dockerfile`). Publicacion (no ejecutada, requiere decision y sesion de Docker autenticada): `pnpm docker:release:dwg` desde un arbol limpio en el SHA a publicar.
+
+### Comandos de staging
+
+Sustituir `<...>`; todo en una copia aislada, nunca produccion. Linux/Git Bash.
+
+```text
+# 1. Version desplegada (solo lectura, en el servidor)
+cd <directorio-del-installer>
+cat .runly-installer/state.json
+docker compose ps --format json
+docker inspect --format '{{.Config.Image}} {{.Image}}' <contenedor-api> <contenedor-worker> <contenedor-web>
+
+# 2. Backup verificado (ver BACKUP_RESTORE_REHEARSAL_COMMANDS.md para el detalle)
+pg_dump -Fc -f <backup>/runly.dump "<DIRECT_URL>"
+pg_restore --list <backup>/runly.dump > /dev/null
+node scripts/rehearsal/verify-backup-restore.mjs <argumentos del runbook de backup>
+
+# 3. Staging aislado (misma maquina, otro proyecto Compose)
+export RUNLY_COMPOSE_PROJECT_NAME=runly-rc1-staging
+node scripts/rehearsal/replica-guard.mjs --env-file=<env-staging>
+
+# 4. Actualizar al RC1-r1 con imagenes locales
+export RUNLY_INSTALLER_REF=9e637d98aed813877d29a4d56ceee8f7f81d932b
+export RUNLY_API_IMAGE=runly-notifications:api-adbfdbb108cf
+export RUNLY_WORKER_IMAGE=runly-notifications:worker-adbfdbb108cf
+export RUNLY_WEB_EXTERNAL_IMAGE=runly-notifications:web-adbfdbb108cf
+bash ./update-local.sh            # en una instalacion local; update-external.sh en una externa
+# el actualizador migra (pnpm db:migrate, pnpm db:seed), recrea contenedores y comprueba /health
+
+# 5. Health y readiness
+curl -fsS http://127.0.0.1:<puerto-api>/health
+docker compose ps
+docker compose logs --tail=100 api worker
+
+# 6. Pruebas dirigidas
+node scripts/ci/run-gates.mjs fast
+node docs/audits/perf-f3/scripts/http-contract.mjs <argumentos de la prueba>
+```
+
+Si `update-local.sh` no aplica las imagenes locales sin `--skip-pull`, usar `node ./setup-local.mjs --skip-pull` (o `setup-external.mjs`) tras el refresco, como indica el README del Installer.
+
+### Rollback seguro
+
+```text
+# Delta de migraciones: decide si basta con imagenes
+psql "<DIRECT_URL>" -Atc "SELECT migration_name FROM _prisma_migrations WHERE finished_at IS NOT NULL ORDER BY 1" > aplicadas.txt
+ls prisma/migrations | grep -v lock > en-rc.txt
+comm -13 aplicadas.txt en-rc.txt
+
+# Solo imagenes (delta aditivo): volver a la version guardada en el paso 1, nunca anterior a e73cdf3ad
+export RUNLY_INSTALLER_REF=<sha-40-de-la-version-previa>
+export RUNLY_API_IMAGE=<imagen-previa-api> RUNLY_WORKER_IMAGE=<imagen-previa-worker> RUNLY_WEB_EXTERNAL_IMAGE=<imagen-previa-web>
+bash ./update-local.sh
+
+# Imagenes mas base: restaurar el dump en una base NUEVA, validar y solo entonces cambiar la conexion
+createdb runly_restore && pg_restore -d runly_restore <backup>/runly.dump
+
+# Migracion fallida sin cambios aplicados (dentro de la imagen de la API)
+pnpm prisma migrate resolve --rolled-back <migracion>
+```
+
+Una migracion fallida no se revierte sola y, si el estado de Studio Realtime lo requiere, la repeticion se detiene con `STUDIO_FAILURE_REQUIRES_REVIEW`: ver `INSTALLER_UPDATE_SCRIPTS_BEHAVIOR.md` y `STUDIO_REALTIME_MIGRATION_RECOVERY.md`.
+
+### Pendientes de aceptacion (lista unica)
+
+1. Backup completo restaurado y actualizacion desde la version realmente desplegada (requiere identificarla, paso 1).
+2. Seguridad y aislamiento en staging: cuarentena 423, usuario no root, RBAC.
+3. IndexedDB real, revocacion de permisos y cambio de usuario (seccion 4).
+4. Worker integrado: tareas reales del paso 8 del procedimiento.
+5. Memoria y rendimiento movil; telefonos fisicos; Tauri si se distribuye escritorio.
+6. Borrados duros offline: limitacion documentada (seccion 4), no se promete exactitud.
+7. SBOM de contenedores con `syft` o `docker scout sbom` (no instalados aqui).
+8. Revision juridica (seccion 8).
+9. Publicar DWG (`pnpm docker:release:dwg`) solo tras decision; plantillas y paquetes del Hub no se publicaron.
