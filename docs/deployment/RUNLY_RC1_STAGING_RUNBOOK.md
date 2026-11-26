@@ -143,9 +143,9 @@ Recuperar el RC1 exacto en cualquier momento: `git fetch origin rc/rc1-r1 && git
 
 Las imagenes locales `runly-notifications:{api,worker,web}-adbfdbb108cf` (ids en la seccion 1) son las del RC1; r1 no cambia su contenido. Ningun commit posterior a `e57d7f817` (consolidacion de Content Intelligence, migracion `20270116`) esta en ellas.
 
-### DWG
+### DWG (verificado 2026-11-26: no hay nada que publicar)
 
-El Dockerfile ya lleva `make -j2` (commit `04b5895d1`, en `origin/main`), asi que el limite es reproducible. En esta maquina solo existe `runly-dwg-test:latest` (`0fd684d63718`, creada el 2026-11-02, `dwg2dxf 0.13.3`): es anterior al cambio y **no se puede atribuir a un SHA**, por eso no se declara como artefacto del RC. `node infra/docker/build-push.mjs --dwg --dry-run` confirma que el mecanismo de release publica solo DWG (`raulbellosom/runlyerp:dwg-latest`, entradas `apps/dwg/`, `infra/docker/dwg.Dockerfile`). Publicacion (no ejecutada, requiere decision y sesion de Docker autenticada): `pnpm docker:release:dwg` desde un arbol limpio en el SHA a publicar.
+El artefacto oficial ya esta publicado y es valido: `raulbellosom/runlyerp:dwg-latest`, indice OCI `sha256:1d9d6e08cd42ccb7278fba60560122eefd80627f50355bb161efb10fb12fbfd8` (linux/amd64 mas atestacion, creada 2026-11-03), publicada desde `0da044a1dd4c175e3dad6a4876f5bc58c3893a60` segun `infra/docker/.release-state.json`. `apps/dwg` no cambio desde entonces; `dwg.Dockerfile` solo anade `make -j2` y un comentario (afecta la paralelizacion de la compilacion, no el resultado). `dwg2dxf 0.13.3`, usuario `runly` no root, `/health` responde `{"ok":true}` (puerto 8091). El compose del Installer la referencia como `${RUNLY_DWG_IMAGE:-raulbellosom/runlyerp:dwg-latest}`. No se reconstruyo ni se republico; `pnpm docker:release:dwg` solo haria falta si cambian `apps/dwg/` o su Dockerfile. Licencia: LibreDWG es GPL-3.0 y corre como proceso externo; la oferta de fuente correspondiente sigue pendiente de revision juridica (seccion 8). Para fijar por digest: `RUNLY_DWG_IMAGE=raulbellosom/runlyerp@sha256:1d9d6e08cd42ccb7278fba60560122eefd80627f50355bb161efb10fb12fbfd8`.
 
 ### Comandos de staging
 
@@ -220,3 +220,68 @@ Una migracion fallida no se revierte sola y, si el estado de Studio Realtime lo 
 7. SBOM de contenedores con `syft` o `docker scout sbom` (no instalados aqui).
 8. Revision juridica (seccion 8).
 9. Publicar DWG (`pnpm docker:release:dwg`) solo tras decision; plantillas y paquetes del Hub no se publicaron.
+
+## 10. Aceptacion en un solo entorno (2026-11-26)
+
+Entorno unico: la instancia temporal de la seccion 11, con bases desechables para las pruebas que crean y borran datos (nunca sobre datos reales). Cada prueba usa un contenedor PostgreSQL propio, su URL va por variable de entorno y no se imprime. Orden sugerido: A a H. No repetir la suite general.
+
+```text
+# A. Aislamiento de usuarios y de empresas (crea su propio contenedor Postgres y lo destruye)
+pnpm test:isolation:fresh
+
+# B. Eliminacion de empresas (base desechable)
+RUNLY_LIFECYCLE_TEST_DATABASE_URL=<url-base-desechable> node --test apps/api/src/services/__tests__/company-deletion.integration.test.js
+
+# C. Files Workspace (base desechable)
+FILES_TEST_DATABASE_URL=<url-base-desechable> node --test apps/api/src/services/__tests__/files-workspace.test.js
+
+# D. Sincronizacion offline contra PostgreSQL (crea su contenedor)
+node scripts/test-sync-postgres.mjs
+
+# E. Recuperacion S3 y pipeline de backup (contenedores y MinIO desechables)
+pnpm test:recovery-s3
+node scripts/rehearsal/verify-backup-restore.mjs --api-image=runly-notifications:api-adbfdbb108cf --worker-image=runly-notifications:worker-adbfdbb108cf --backup-image=raulbellosom/runlyerp:backup-latest
+
+# F. Contrato HTTP y revocacion de permisos contra la instancia temporal (dos empresas del usuario de prueba)
+E2E_USER_EMAIL=<usuario-prueba> E2E_USER_PASSWORD=<clave-prueba> COMPANY_A=<id-empresa-a> COMPANY_B=<id-empresa-b> node docs/audits/perf-f3/scripts/http-contract.mjs http://127.0.0.1:<puerto-api>
+pnpm rbac:verify-catalog
+# revocacion manual: con un segundo usuario, quitar el permiso en Identidad y repetir la consulta; debe devolver 403
+
+# G. Actualizacion sin Internet (imagenes del RC, red interna de Docker)
+node scripts/verify-offline-runtime-e2e.mjs --api-image=runly-notifications:api-adbfdbb108cf --worker-image=runly-notifications:worker-adbfdbb108cf --legacy-api-image=<imagen-previa-api> --legacy-worker-image=<imagen-previa-worker>
+```
+
+H. A mano en el navegador, sobre la instancia temporal (IndexedDB real, cambio de usuario y empresa, primer sync con mas de 500 filas, corte de red a mitad): tabla de la seccion 4. Comunicacion API, Worker y Web: pasos 7 a 9 del procedimiento (`/health`, enlace profundo de la web, una notificacion consumida por el worker). Memoria y rendimiento: `docker stats --no-stream` con la instancia en reposo y durante una navegacion del usuario de prueba, y en el telefono real con la instancia accesible por tunel o por la red local (decision del propietario).
+
+## 11. Instancia temporal sin staging dedicado
+
+Instalacion local desechable con el candidato fijado por SHA (el SHA es descargable: repositorio publico, `raw.githubusercontent.com` responde 200). No toca produccion: directorio, proyecto Compose y puertos propios, datos sinteticos.
+
+```text
+mkdir -p ~/runly-rc1-staging && cd ~/runly-rc1-staging
+curl -fsSLo bootstrap-local.sh https://raw.githubusercontent.com/Runly-MX/runly-erp/9e637d98aed813877d29a4d56ceee8f7f81d932b/infra/installer/bootstrap-local.sh
+chmod +x bootstrap-local.sh
+export RUNLY_INSTALLER_REF=9e637d98aed813877d29a4d56ceee8f7f81d932b
+export RUNLY_COMPOSE_PROJECT_NAME=runly-rc1-staging
+export RUNLY_API_IMAGE=runly-notifications:api-adbfdbb108cf
+export RUNLY_WORKER_IMAGE=runly-notifications:worker-adbfdbb108cf
+export RUNLY_WEB_EXTERNAL_IMAGE=runly-notifications:web-adbfdbb108cf
+./bootstrap-local.sh --skip-run       # descarga y verifica el Installer del SHA, sin arrancar
+npm run runly:local:quick             # migra, siembra y arranca reutilizando las imagenes locales
+```
+
+Verificar que `.env.local` use puertos libres distintos de los de desarrollo (4010 y 5173) y que `docker compose -p runly-rc1-staging ps` muestre solo este proyecto. Para probar la actualizacion desde la version desplegada: instalar primero con el SHA y las imagenes de esa version (paso 1 de la seccion 9) y repetir el bloque anterior con el RC.
+
+Limpieza al terminar (solo esta instancia): `docker compose -p runly-rc1-staging down` (anadir `-v` solo para borrar sus datos desechables).
+
+## 12. Candidato definitivo (identificacion)
+
+| Elemento | Valor |
+|---|---|
+| SHA definitivo | `9e637d98aed813877d29a4d56ceee8f7f81d932b` (`rc/rc1-r1`) |
+| SHA de codigo | `e57d7f8171ab2347d58591adb30516bcb075a308` (RC1, `rc/rc1`); imagenes construidas de `adbfdbb108cf`, mismo contenido en `apps`, `packages`, `prisma`, `infra` |
+| SHA de CI y documentacion | r1 anade solo `.github/workflows`; la documentacion y el runbook viven en `main` (`02727be5b`), no dentro del RC |
+| Relacion con main | r1 y main descienden de `e57d7f817`; main esta por delante (consolidacion, CI y docs) e incluye la consolidacion de Content Intelligence que **no** forma parte del RC |
+| Migraciones | 298 carpetas, ultima `20270115000000_content_intelligence`; main anade `20270116000000_content_intelligence_consolidation` |
+| Paquetes compartidos | ocho: core, module-engine, module-compiler, ui, sdk, preview-runtime, studio-interchange, website-blocks (`shared-packages.release.json`); versiones `<base>-source.<sha completo>` del SHA publicado por el workflow, no por este equipo; no se publico ninguno |
+| No desplegar desde main | `RUNLY_INSTALLER_REF` obligatorio con el SHA de arriba |
