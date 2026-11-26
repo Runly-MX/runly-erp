@@ -222,6 +222,38 @@ test('live paused workers accept bounded new-file admission and resume without a
   await service.savePolicy('instance',{profile:'OFF'},args.activeContext);
 });
 
+test('resilience and isolation: stale heartbeat, duplicate requests, deletion mid-job and cross-company text', {skip:!url},async()=>{
+  await service.savePolicy('instance',policy,args.activeContext);
+  await service.savePolicy(companyId,policy,args.activeContext);
+  await service.savePolicy(otherCompany,policy,{...args.activeContext,companyId:otherCompany});
+  await pool.query("UPDATE runly_content.worker SET heartbeat_at=now()-interval '120 seconds'");
+  const make=(company,name)=>db.fileAsset.create({data:{bucket:'test',objectKey:name,originalName:name,mimeType:'image/png',sizeBytes:1000,
+    entityType:'AtlasFile',moduleKey:'runly.files',entityId:company,uploadedById:owner,accessScope:'RESTRICTED'}});
+  const mine=await make(companyId,'iso-a.png'),theirs=await make(otherCompany,'iso-b.png');
+  const ctx=(entry,company)=>({...args,id:entry.id,activeContext:{...args.activeContext,companyId:company}});
+  const jobs=id=>pool.query('SELECT count(*)::int AS n FROM runly_content.job WHERE file_id=$1',[id]).then(r=>r.rows[0].n);
+  await assert.rejects(service.request(ctx(mine,companyId)),/desconectado/,'an expired heartbeat must count as no worker');
+  assert.equal(await service.claim('test-worker'),null);
+  assert.equal(await jobs(mine.id),0);
+  await service.heartbeat('test-worker',worker);
+  await Promise.allSettled([service.request(ctx(mine,companyId)),service.request(ctx(mine,companyId))]);
+  assert.equal(await jobs(mine.id),1,'duplicate requests must not create duplicate jobs');
+  await service.request(ctx(theirs,otherCompany)).catch(()=>{});
+  const claimed=[];
+  for(let i=0;i<3;i++){const job=await service.claim('test-worker');if(job)claimed.push(job);}
+  assert.ok(claimed.length>=1);
+  const byFile=async job=>(await pool.query('SELECT file_id FROM runly_content.job WHERE id=$1',[job.id])).rows[0].file_id;
+  const doomed=claimed[0];
+  const doomedFile=await byFile(doomed);
+  await db.fileAsset.delete({where:{id:doomedFile}});
+  await assert.rejects(service.complete(doomed.id,doomed.lease,{pages:[page('DELETEDMIDJOB987')]}),/autorizado|no encontrado/);
+  assert.equal((await pool.query("SELECT count(*)::int AS n FROM runly_content.page WHERE text LIKE '%DELETEDMIDJOB987%'")).rows[0].n,0,'no derived text may outlive a deleted file');
+  for(const job of claimed.filter(job=>job.id!==doomed.id))await service.complete(job.id,job.lease,{pages:[page('CROSSCOMPANY987')]}).catch(()=>{});
+  const foreignOnly=(await service.search(args,{q:'CROSSCOMPANY987'})).data.every(entry=>entry.id!==theirs.id);
+  assert.ok(foreignOnly,'text of another company must not be searchable');
+  await service.savePolicy('instance',{profile:'OFF'},args.activeContext);
+});
+
 test('real isolated Docker worker: historical image -> download -> OCR -> indexed search', { skip: !url || process.env.CI_CONTENT_DOCKER !== '1', timeout: 300000 }, async () => {
   const run = promisify(execFile);
   const image = process.env.CI_CONTENT_WORKER_IMAGE || 'runly-content-test';
