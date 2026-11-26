@@ -235,3 +235,48 @@ operación sostenida de horas/días, reinicios de ERP/Postgres/Storage durante c
 dispositivo táctil físico, ensayo en staging real y corrección de las CVE de Studio.
 Política de activación recomendada: Nivel 0 por defecto; Nivel 1 (una empresa, concurrencia 1,
 sin histórico masivo) solo tras staging; Nivel 2 después de medir en host dedicado.
+
+## Certificación local autónoma (2026-11-26, laptop de desarrollo)
+
+Alcance de esta ronda: verificación automatizada en el laboratorio aislado ya
+existente (`runly-content-*`). No hubo push, despliegue ni cambios fuera del
+laboratorio. Los resultados son evidencia de laboratorio compartido, no de producción.
+
+Realizado y verificado:
+
+- Regresión nueva en PostgreSQL real (`postgres.test.js`, 6 pruebas activas, 0 fallos):
+  heartbeat vencido cuenta como worker ausente (sin trabajos creados ni reclamados),
+  solicitudes duplicadas simultáneas producen un solo trabajo, un archivo eliminado
+  durante el procesamiento rechaza el resultado y no deja texto derivado, y el texto
+  reconocido de otra empresa no es buscable. Se suman a las pruebas previas de
+  revocación, carpetas, propietario, cambio de empresa y cursores ligados a usuario/consulta.
+- 11 pruebas Node de servicio aprobadas (7 omitidas por requerir Docker/entorno) y
+  17 pruebas Python del worker aprobadas dentro de la imagen `runly-content-test`.
+- Reinicio de la base del laboratorio con el API en marcha: el API siguió en ejecución
+  sin reinicios y `/health` volvió a 200 en 7 s. **Limitación:** `/health` no consulta la
+  base, así que esto no demuestra recuperación de consultas; queda sin certificar.
+
+Bloqueado o no realizado (con motivo):
+
+| Área | Estado | Motivo |
+|---|---|---|
+| Operación prolongada y benchmarks nuevos | BLOQUEADO | Con 31.6 GB totales solo había 2.8 GB libres y contenedores de otros proyectos activos; repetir A/B contaminaría la medición y degradaría el equipo. No se ajustó el Governor. |
+| Corpus ampliado (perspectiva, reflejos, facturas multipágina) | No realizado | Requiere generador de imágenes en la imagen del worker; el corpus de 12 casos sigue siendo el vigente. |
+| Reinicios de worker/Storage durante carga, backfill interrumpido | No realizado | Sin script de orquestación; solo se cubren a nivel de servicio (leases, checkpoints). |
+| Instalación nueva vs. actualización desde versión anterior | No realizado | Sin laboratorio de dos versiones. |
+| Matriz visual 1280 px y claro/oscuro completo | No realizado | Playwright existente cubre 1440/768/390/320 en la ronda anterior. |
+
+### Gates por dimensión
+
+| Dimensión | Veredicto |
+|---|---|
+| Funcionalidad, permisos y aislamiento | APTO CON CONDICIONES (laboratorio; sin RLS/Storage reales con dos usuarios en esta ronda) |
+| Seguridad | APTO CON CONDICIONES (sin cambios; CVE musl y deuda de Studio vigentes) |
+| Precisión | APTO CON CONDICIONES (solo corpus sintético) |
+| Resiliencia | NO APTO para certificar (parcial) |
+| Rendimiento, operación prolongada, instalación, actualización | BLOQUEADO / sin evidencia nueva |
+
+Ambientes: desarrollo local y laboratorio aislado APTO; staging, piloto y producción NO APTO.
+
+Próximos pasos que sí necesitan al propietario: un host dedicado con memoria libre para
+repetir A/B y la operación sostenida, y fotografías reales autorizadas para el corpus.
