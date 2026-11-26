@@ -280,3 +280,55 @@ Ambientes: desarrollo local y laboratorio aislado APTO; staging, piloto y produc
 
 Próximos pasos que sí necesitan al propietario: un host dedicado con memoria libre para
 repetir A/B y la operación sostenida, y fotografías reales autorizadas para el corpus.
+
+## Etapa 3: cierre funcional y herramientas de certificación (2026-11-26)
+
+Laptop de desarrollo (Docker con 4.8 GB). Sin push ni despliegue.
+
+### Ejecutado y verificado
+
+- Corpus sintético reproducible (`apps/content-worker/corpus.py`, semilla fija, tamaños
+  smoke/standard/extended, ground truth y transformaciones por archivo, `--real DIR` para
+  fotografías autorizadas fuera de Git) y evaluador (`evaluate.py`: CER, WER, identificadores
+  exactos, recall/precisión de búsqueda, tiempo, RSS, segundas pasadas).
+- Corpus Standard (104 archivos, 96 con texto, imagen `runly-content-test`, 2 CPU / 3 GB), sintético:
+
+| Modo | CER | WER | Ids exactos | Recall búsqueda | s medio | 2das pasadas |
+|---|---|---|---|---|---|---|
+| fast | 0.082 | 0.130 | 0.846 | 0.818 | 0.36 | 0 |
+| balanced | 0.063 | 0.103 | 0.875 | 0.852 | 0.62 | 4 |
+| accurate | 0.050 | 0.086 | 0.952 | 0.943 | 0.69 | 9 |
+
+  Por tipo, la ganancia de `accurate` está en etiquetas de dispositivo con transformaciones
+  (CER 0.169 a 0.115) y facturas (0.127 a 0.000). En el corpus Smoke (12 casos limpios)
+  `accurate` fue peor que `fast` (CER 0.021 vs 0.011): el corpus era demasiado fácil y no
+  separa los modos. La superioridad de alta precisión solo está respaldada por Standard
+  sintético; no por fotografías reales. Documentos Office muestran CER 0.042 en los tres modos
+  (sin investigar; el texto extraído difiere del verdadero en un detalle de formato).
+  Resultados: `docs/audits/content-intelligence-stage3/`.
+- Resource Governor: la decisión se extrajo a `governor_decision` (función pura) con 7 pruebas
+  deterministas: sin límites cgroup, disco lleno, histéresis de memoria y CPU, métrica no
+  disponible, deuda de CPU y contenedor menor al solicitado. 17 pruebas previas del worker siguen aprobadas.
+- Estado operativo exclusivo en Administración (`operationalState`, 8 pruebas Node de política
+  aprobadas): desactivado, worker no instalado, desconectado, pausado manualmente, fuera de
+  horario, pausado por recursos, operativo. No se verificó en navegador esta ronda.
+- Driver de certificación `scripts/content-certification/run.mjs`: lista, preflight de
+  recursos (verificado: omite con motivo en este equipo), guardas de aislamiento, informes JSON/MD.
+
+### Preparado, NO ejecutado
+
+Escenarios `erp-ab`, `historical`, `e2e-browser`, `worker-restart`, `postgres-restart`,
+`storage-interrupt`, `backfill-pause-resume`, `soak`, perfiles 2x4/4x8/8x16, corpus Extended,
+RLS/Storage reales con dos usuarios, instalación nueva/actualización/rollback con dos versiones.
+Los de interrupción solo se comprobaron con `node --check`: pueden contener errores de primera
+ejecución. Runbook: `CONTENT_INTELLIGENCE_CERTIFICATION_RUNBOOK.md`.
+
+### Pendiente de implementación (sin cambios esta ronda)
+
+HEIC/HEIF, corrección de perspectiva en el worker, PDF buscable, ETA de histórico, vulnerabilidades
+de Studio (`fabric`, `image-size`), CVE musl del worker; no se re-escaneó la imagen.
+
+### Clasificación
+
+Estado funcional: **Candidato funcional pendiente de certificación**.
+Estado operativo: **APTO PARA PRUEBAS AISLADAS** (sin cambios; la evidencia nueva no lo eleva).

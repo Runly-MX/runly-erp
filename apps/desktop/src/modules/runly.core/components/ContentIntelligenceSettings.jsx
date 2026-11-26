@@ -14,6 +14,9 @@ const NUMBERS = [['concurrency', 'Trabajos simultáneos', 1, 4], ['maxPages', 'P
   ['timeoutSeconds', 'Tiempo máximo por trabajo (segundos)', 10, 900], ['retries', 'Intentos máximos', 1, 5], ['maxPending', 'Pendientes máximos', 1, 1000],
   ['memoryMiB','Presupuesto de memoria por trabajo (MiB)',128,4096],['threads','Hilos internos máximos',1,4],['cpuBudgetPercent','Uso medio del presupuesto de CPU (%)',10,100],
   ['dailyProcessingSeconds','Procesamiento diario por empresa (segundos)',60,86400],['retentionDays','Retención de resultados (días)',1,3650]];
+const OPERATIONAL = { disabled: ['Desactivado', 'secondary'], 'not-installed': ['Worker no instalado', 'secondary'], disconnected: ['Worker desconectado', 'secondary'],
+  'paused-manual': ['Pausado manualmente', 'secondary'], 'outside-schedule': ['Fuera del horario autorizado', 'secondary'],
+  'paused-resources': ['Pausado por recursos', 'secondary'], operational: ['Operativo', 'success'] };
 const STATES = { pending:'Pendientes',processing:'Procesando',done:'Texto disponible',partial:'Parciales',empty:'Sin texto',failed:'Fallidos',unsupported:'Omitidos',cancelled:'Cancelados' };
 const MODES = [{value:'all',label:'Todos los elegibles'},{value:'never',label:'Nunca procesados'},{value:'failed',label:'Fallidos'},
   {value:'lowQuality',label:'Confianza baja'},{value:'oldEngine',label:'Motor anterior'}];
@@ -40,7 +43,9 @@ function PolicyForm({ status, scope, token }) {
   const connected = status.workers.find(worker=>worker.connected);
   const physical = connected?.capabilities;
   const compatible = physical?.protocol>=2;
+  const [operationalLabel, operationalVariant] = OPERATIONAL[status.operational] ?? OPERATIONAL.disabled;
   return <div className="space-y-4">
+    <Badge variant={operationalVariant} role="status">{operationalLabel}</Badge>
     <div className="flex flex-wrap gap-2"><Badge variant={compatible ? 'success' : 'secondary'}>{physical ? compatible?'Worker conectado':'Actualizar worker':status.workers.length?'Worker desconectado':'Worker no registrado'}</Badge><Badge variant="secondary">{status.engine}</Badge></div>
     {!compatible && <div className="rounded-lg border border-dashed p-3 text-xs space-y-2"><p>La activación requiere un worker compatible instalado por infraestructura.</p><p>Desde el repositorio, configura el secreto privado en API y worker y ejecuta:</p><code className="block break-words whitespace-pre-wrap">docker compose -f docker-compose.yml -f infra/docker/content.compose.yml --profile content up -d --build content-worker</code><p>En instalaciones sin fuentes utiliza el overlay docker-compose.content.yml con una imagen verificada. No se instala desde este interruptor.</p></div>}
     <p className="text-xs text-muted-foreground">{scope === 'instance' ? 'Límites de la instancia. Cada empresa debe activar su propia política.' : 'Política de esta empresa. Los límites efectivos se reducen a los autorizados por la instancia.'}</p>

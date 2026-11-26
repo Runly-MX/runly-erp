@@ -455,6 +455,23 @@ def next_cpu_debt(previous, percent, budget, elapsed):
     return max(0,previous+(percent/max(1,budget)-1)*elapsed)
 
 
+def governor_decision(limit, used, cpu, free_tmp, cpu_percent, cpu_debt, cpu_budget, was_resource_paused, was_cpu_paused):
+    """Pure pause decision (no I/O) so it can be tested deterministically.
+
+    Memory hysteresis: pause above 80% of the cgroup limit, resume below 65%.
+    Missing cgroup limits or unreadable metrics fail closed ('no-limits').
+    Returns (resource_paused, cpu_paused, reason).
+    """
+    if not limit or not cpu:
+        return True, False, 'no-limits'
+    if free_tmp < 100_000_000:
+        return True, False, 'disk'
+    if used > limit * (0.65 if was_resource_paused else 0.8):
+        return True, False, 'memory'
+    over = cpu_debt > 0.01 or (cpu_percent is not None and cpu_percent > (cpu_budget * 0.8 if was_cpu_paused else cpu_budget))
+    return False, over, 'cpu' if over else 'ready'
+
+
 def run_job(job, workdir=None):
     # Each job runs in its own process: deadline kills parsers AND Python ZIP/XML/image work.
     os.setsid()
@@ -518,9 +535,7 @@ def main():
             previous_cpu,cpu_percent = cpu_sample(previous_cpu)
             elapsed=previous_cpu[1]-prior_cpu[1] if previous_cpu and prior_cpu else 0
             cpu_debt=next_cpu_debt(cpu_debt,cpu_percent,cpu_budget,elapsed)
-            # Hysteresis: pause at 80%, resume below 65%. Missing cgroup limits fail closed.
-            resource_paused = not limit or not cpu or free_tmp < 100_000_000 or used > limit * (0.65 if resource_paused else 0.8)
-            cpu_paused = cpu_debt>0.01 or (cpu_percent is not None and cpu_percent > (cpu_budget*0.8 if cpu_paused else cpu_budget))
+            resource_paused,cpu_paused,_reason=governor_decision(limit,used,cpu,free_tmp,cpu_percent,cpu_debt,cpu_budget,resource_paused,cpu_paused)
             paused=resource_paused or cpu_paused
             capabilities = {"engine": ENGINE, "languages": sorted(k for k in models if ':' not in k), "models": models, "cpuLimit": cpu,
                             "memoryLimit": limit, "memoryUsed": used, "governor": "paused" if paused else "ready",'protocol':2,

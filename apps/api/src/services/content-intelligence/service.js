@@ -1,6 +1,6 @@
 import { createHash, randomBytes, createCipheriv, createDecipheriv } from 'node:crypto';
 import { z } from 'zod';
-import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
+import { DEFAULT_POLICY, ENGINE_VERSION, effectivePolicy, normalizeText, operationalState, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
 import { fileKindWhere } from '../files/query.js';
 import { isFilesOrigin } from '../files/visibility.js';
 import { recordFilesWhere } from '../files/record-folders.js';
@@ -224,7 +224,8 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY updated_at DESC LIMIT 100`;
     const storage=scope==='instance'?await prisma.$queryRaw`SELECT coalesce(sum(pg_indexes_size(oid)),0)::float AS "indexBytes"
       FROM pg_class WHERE relnamespace='runly_content'::regnamespace AND relkind='r'`:[];
-    return { config: local ?? instance, effective: local ? effectivePolicy(instance, local) : instance,
+    const effectiveNow = local ? effectivePolicy(instance, local) : instance;
+    return { config: local ?? instance, effective: effectiveNow, operational: operationalState(effectiveNow, workers),
       workers: scope === 'instance' ? workers : workers.map(w => ({ connected: w.connected, heartbeatAt: w.heartbeatAt,
         capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages, models: w.capabilities.models, protocol: w.capabilities.protocol } })),
       counts, recent, rate, backfill, engine: ENGINE_VERSION,

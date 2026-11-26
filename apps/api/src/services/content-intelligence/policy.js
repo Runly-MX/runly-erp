@@ -95,3 +95,15 @@ export function normalizeText(text) {
 export function supportedFile(file) {
   return /^(image\/(jpeg|png|webp|tiff)|application\/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/[a-z.+-]+|image\/svg\+xml)$/.test(file.mimeType);
 }
+
+// Single, mutually exclusive operator-facing state. Order matters: what the admin chose wins over infrastructure facts.
+export function operationalState(effective, workers = [], now = new Date()) {
+  if (effective.profile === 'OFF') return 'disabled';
+  if (effective.paused) return 'paused-manual';
+  if (!workers.length) return 'not-installed';
+  const live = workers.find(w => w.connected && Number(w.capabilities?.protocol ?? 1) >= 2);
+  if (!live) return 'disconnected';
+  if (!withinSchedule(effective.schedule, now)) return 'outside-schedule';
+  if (live.capabilities?.governor === 'paused') return 'paused-resources';
+  return 'operational';
+}

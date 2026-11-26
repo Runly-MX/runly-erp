@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { DEFAULT_POLICY, effectivePolicy, normalizeText, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
+import { DEFAULT_POLICY, effectivePolicy, normalizeText, operationalState, policySchema, processingAllowed, supportedFile, withinSchedule } from './policy.js';
 
 test('OFF requires explicit activation at both scopes', () => {
   assert.equal(effectivePolicy({}, { profile: 'SMART' }).profile, 'OFF');
@@ -50,4 +50,19 @@ test('file switches, language/type intersection and budgets are enforced indepen
   assert.equal(processingAllowed(light,{mimeType:'image/png'}),false);
   assert.equal(processingAllowed(light,{mimeType:'image/png'},true),true);
   assert.equal(processingAllowed({...light,digitalExtraction:false},{mimeType:'text/plain'}),false);
+});
+
+test('operational state is exclusive and ordered', () => {
+  const live = { connected: true, capabilities: { protocol: 2, governor: 'ready' } };
+  const smart = { ...DEFAULT_POLICY, profile: 'SMART' };
+  const at = new Date('2026-11-26T12:00:00Z');
+  assert.equal(operationalState({ ...smart, profile: 'OFF' }, [live], at), 'disabled');
+  assert.equal(operationalState({ ...smart, paused: true }, [live], at), 'paused-manual');
+  assert.equal(operationalState(smart, [], at), 'not-installed');
+  assert.equal(operationalState(smart, [{ ...live, connected: false }], at), 'disconnected');
+  assert.equal(operationalState(smart, [{ connected: true, capabilities: { protocol: 1 } }], at), 'disconnected');
+  const night = { ...smart, schedule: { timeZone: 'UTC', windows: [{ days: [0,1,2,3,4,5,6], start: '22:00', end: '23:00' }] } };
+  assert.equal(operationalState(night, [live], at), 'outside-schedule');
+  assert.equal(operationalState(smart, [{ ...live, capabilities: { protocol: 2, governor: 'paused' } }], at), 'paused-resources');
+  assert.equal(operationalState(smart, [live], at), 'operational');
 });
