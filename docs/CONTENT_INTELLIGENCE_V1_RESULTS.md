@@ -550,3 +550,21 @@ el giro OSD espurio y marcadores de prueba con glifos ambiguos (I/l, Q/O) que vo
 Reflejos, sombras y etiquetas pequeñas siguen débiles; sin OpenCV la perspectiva es limitada; sin corpus Extended ni fotos reales;
 HEIC no se visualiza en Chrome/Firefox; la capa PDF solo admite Windows-1252; la copia buscable re-rasteriza las páginas escaneadas;
 certificación integral, dos usuarios reales con RLS y anfitrión dedicado siguen pendientes.
+
+## Etapa 4D: seguridad, endurecimiento y Release Candidate (2026-11-26)
+
+Informe completo: `CONTENT_INTELLIGENCE_V1_SECURITY_REVIEW.md` y `CONTENT_INTELLIGENCE_V1_RELEASE_CANDIDATE.md`. Evidencia: `audits/content-intelligence-stage4d/`.
+Alcance congelado. Clasificaciones: funcional «funcionalmente completo en laboratorio», seguridad «pendiente de certificación», operativo «APTO PARA PRUEBAS AISLADAS».
+
+Defectos reales encontrados y corregidos en esta etapa (todos con prueba):
+- `pdftoppm` ignoraba el CropBox: overlay y capa de texto de PDF buscables desplazados (97 px en el caso medido). Ahora `-cropbox`; prueba contra verdad por maquetación con MediaBox, CropBox y rotaciones 0/90/180/270.
+- El desfase horizontal de 6.9 pt observado en 4C **no** era de la transformación: el borde izquierdo de la caja de Tesseract empieza 5.7 pt (≈ 0.5 glifo) tarde frente a la tinta medida en el raster; el resto de la cadena (CropBox, rotación, zoom, escala) coincide con la verdad dentro de 0.6 alturas de palabra en horizontal y 0.35 en vertical.
+- Capa de texto de PDF buscables en páginas con texto girado: ahora orientada; Unicode exacto (probado con ñ, ú, ¿, €, £, ★ y paréntesis/barras).
+- Rutas de administración de empresa respondían 500 a un miembro sin administración (middleware que descartaba la respuesta del guardián); ahora 403.
+- Parser: errores de librería ahora siempre con código estable; PDF cifrado y con contraseña rechazados.
+- Derivados: objetos de Storage ya no pueden quedar huérfanos (trigger + drenaje); un archivo solo desactivado conserva su copia.
+- Descubrimiento histórico: índice parcial; 245 → 10 buffers con 50 empresas intercaladas (0.193 → 0.043 ms).
+- Visor: la barra inferior de herramientas se recortaba a ambos lados en 320 px (centrado con desbordamiento); ahora desplazable desde el inicio.
+
+Seguridad: 32/32 comprobaciones con usuarios y tokens reales en dos empresas; sin exposición cruzada ni acceso a derivados; ventana residual de 60 s de las URL firmadas y de hasta 3600 s del token de acceso tras cerrar sesión (comportamiento de plataforma).
+HEIC pasa a capacidad explícita apagada por defecto hasta evaluar libheif/libde265/x265; HEIC se ve en Chromium y Firefox reutilizando la variante de imagen existente.

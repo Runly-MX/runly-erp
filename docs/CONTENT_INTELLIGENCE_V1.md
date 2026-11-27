@@ -139,16 +139,16 @@ la cola si su tipo declarado figura en la lista de admisión.
 | Formato | Tratamiento | Límites y notas |
 |---|---|---|
 | JPEG, PNG, WebP, TIFF | OCR local con coordenadas | EXIF aplicado antes del OCR; el lienzo guardado es la imagen ya orientada |
-| HEIC / HEIF (HEVC) | OCR local con coordenadas | Imagen principal únicamente, ya girada por el contenedor (`irot`/`imir`), 8 bits RGB. Si el archivo trae más imágenes de primer nivel (ráfagas, colecciones) se marca como parcial. Miniaturas, mapas de profundidad y auxiliares nunca se decodifican. El límite de píxeles se comprueba en la cabecera, antes de decodificar. Archivos dañados terminan en `PARSER`. AVIF y HEIF con otros códecs se rechazan como no compatibles |
+| HEIC / HEIF (HEVC) | OCR local con coordenadas. **Capacidad explícita, apagada por defecto** (`RUNLY_CONTENT_HEIC=on` en el worker; apagada, las bibliotecas nativas ni se cargan y el archivo termina `unsupported`) | Imagen principal únicamente, ya girada por el contenedor (`irot`/`imir`), 8 bits RGB. Si el archivo trae más imágenes de primer nivel (ráfagas, colecciones) se marca como parcial. Miniaturas, mapas de profundidad y auxiliares nunca se decodifican. El límite de píxeles se comprueba en la cabecera, antes de decodificar. Archivos dañados terminan en `PARSER`. AVIF y HEIF con otros códecs se rechazan como no compatibles |
 | PDF | Texto digital página por página; OCR solo en páginas sin texto | Hasta `maxPages`; rotación `/Rotate` aplicada por el rasterizador |
 | DOCX | Cuerpo (tablas como filas `celda \| celda`), encabezados y pies de página como referencias propias | Sin coordenadas visuales; sin macros |
 | XLSX | Una referencia por hoja con su nombre real, celdas `A1: valor` | Solo el valor almacenado: las fórmulas nunca se evalúan; las celdas de error se omiten; las hojas se ordenan numéricamente |
 | PPTX | Una referencia por diapositiva (cuadros de texto y tablas) | Sin notas del orador ni coordenadas |
 | Texto, JSON, XML, SVG | Texto digital | SVG solo como texto, nunca renderizado |
 
-Las fotografías HEIC no se muestran en navegadores sin soporte HEIC (Chrome, Firefox): el
-texto reconocido se busca, lee y copia desde el panel, y el visor no dibuja capa sobre una
-imagen que no puede mostrar. Safari sí la muestra y usa las mismas coordenadas.
+El visor muestra las fotografías HEIC en cualquier navegador pidiendo la variante `content` (1600 px) del servicio de transformación de imágenes que ya usa
+el resto del producto; el original no cambia y se descarga tal cual, y las coordenadas escalan sobre la misma proporción. Verificado en Chromium y Firefox.
+Si la instalación no tiene ese servicio, la foto no se muestra pero el texto reconocido se busca, lee y copia desde el panel.
 El histórico descubre selectivamente los HEIC omitidos antes de este soporte (filtro `mime`
 del recorrido); no reindexa el resto de archivos.
 
@@ -164,8 +164,10 @@ asíncrona y produce una **copia independiente**; el original nunca se modifica.
   una capa de texto. Un PDF sin páginas reconocidas por OCR termina en `NOT_NEEDED`.
 - Los PDF cifrados se rechazan (`ENCRYPTED`); no se elude ninguna restricción. Un PDF con firma
   digital se copia, pero la copia **no conserva la validez de la firma** y el panel lo avisa.
-- Los caracteres fuera de Windows-1252 se escriben como `?` en la capa invisible y se cuentan
-  (`droppedCharacters`); con español/inglés es poco frecuente, pero ocurre con lecturas corruptas.
+- La capa de texto conserva Unicode exacto: cada página usa una tabla de códigos de un byte (hasta unos 190 símbolos distintos, además del ASCII) declarada en un
+  `ToUnicode`, de modo que un lector extrae el texto reconocido tal cual (acentos, €, £, ¿, ★). Lo que no cabe en una página se cuenta (`droppedCharacters`) y nunca se sustituye.
+- Las páginas escaneadas con texto girado reciben la capa con la misma orientación (el worker guarda `analysis.orientation`); un resultado anterior a 4D sin ese dato se trata como horizontal: reprocesar para corregirlo.
+- PDF cifrado o con contraseña: `ENCRYPTED` (copia) o `unsupported` (lectura). Nunca se elude. El CropBox del PDF se respeta al rasterizar (`pdftoppm -cropbox`), igual que el visor.
 - Límites: máximo 5 copias en preparación por empresa, mismo `maxFileBytes`, `maxPages`, memoria,
   CPU, programación y tiempo máximo que el resto del procesamiento; resultado de hasta 64 MiB.
   Una sola copia por archivo y revisión (`runly_content.derivative`, único por archivo/revisión);
@@ -173,8 +175,15 @@ asíncrona y produce una **copia independiente**; el original nunca se modifica.
 - Se guarda en el mismo bucket privado bajo `content-derivatives/<empresa>/<archivo>/<revisión>.pdf`
   y solo se entrega con URL firmada de 60 s tras la misma autorización que el original. Desactivar
   el procesamiento impide generar copias nuevas; las existentes siguen disponibles mientras el original
-  exista. Una revisión nueva, un archivo desactivado o la depuración de la empresa eliminan la copia
-  (fila y objeto).
+  exista. Una revisión nueva del archivo, la depuración explícita de la empresa o la eliminación definitiva del archivo eliminan la copia (fila y objeto).
+  Un archivo simplemente desactivado la conserva, sin servirla, y la vuelve a servir si se restaura con la misma revisión. Desactivar el procesamiento o la búsqueda **no** borra copias ni texto.
+  Todo borrado de fila registra su objeto en `runly_content.derivative_orphan` (trigger) y se drena aparte: nunca se borra por prefijo.
+
+## Aislamiento de red del worker
+
+Las composiciones (`infra/docker/content.compose.yml`, `infra/installer/docker-compose.content.yml`) colocan al worker en una red Docker `content-private`
+marcada `internal: true` donde solo está la API: sin base de datos, sin Storage, sin internet. La API se une a esa red además de la predeterminada.
+El resto de banderas (usuario 10001, `cap_drop: ALL`, `no-new-privileges`, solo lectura, `pids_limit`, `/tmp` sin ejecución) se verificó en un contenedor real.
 
 ## API y contratos internos
 
@@ -258,7 +267,7 @@ archivo y revisión (sin retención al desmontar).
 ## Dependencias y seguridad
 
 Sin nuevas dependencias npm. Se reutilizan Hono, Zod, Prisma/pg, Storage y UI.
-El worker añade Python/Pillow, Tesseract y Poppler sobre Alpine 3.24, más `pillow-heif` 1.9.0 (BSD-3, rueda con hash fijado para x86_64/aarch64) para HEIC/HEIF. Su rueda incluye libheif 1.23.7 y libde265 1.1.3 (LGPL-3, decodificación) y x265 (GPL-2, codificador que el worker nunca invoca): conservar sus avisos al distribuir la imagen. Sin AVIF, sin red, sin código ejecutable. La imagen pasa de 337 MB a 377 MB. Versiones
+El worker añade Python/Pillow, Tesseract y Poppler sobre Alpine 3.24, más `pillow-heif` 1.9.0 (BSD-3, rueda con hash fijado para x86_64/aarch64) para HEIC/HEIF. Su rueda incluye libheif 1.23.7 y libde265 1.1.3 (LGPL-3, decodificación) y x265 (GPL-2, codificador que el worker nunca invoca): conservar sus avisos al distribuir la imagen. Sin AVIF, sin red, sin código ejecutable. La imagen pasa de 337 MB a 377 MB. Versiones, hashes y evaluación de CVE de las bibliotecas nativas: `CONTENT_INTELLIGENCE_V1_SECURITY_REVIEW.md` §3. Versiones
 observadas: Python 3.13.18, Pillow 13.0.0, Tesseract 5.5.4 y
 Poppler 26.11.0. Sus licencias son respectivamente PSF,
 HPND, Apache-2.0 y GPL-2.0-or-later; conservar avisos/licencias al distribuir la imagen.

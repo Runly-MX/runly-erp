@@ -706,7 +706,7 @@ export function AdvancedFileViewer({
               shape stays uniform across file kinds — only images populate it.
               Skipped for PDF: PDFViewer renders its own bottom toolbar. */}
           {ready && kind !== "pdf" && (
-            <div className={`flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto transition-opacity duration-200 ${chromeCls}`}>
+            <div className={`flex items-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto [&>:first-child]:ml-auto [&>:last-child]:mr-auto transition-opacity duration-200 ${chromeCls}`}>
               {kind === "image" && <ViewerImageToolbar t={t} />}
             </div>
           )}

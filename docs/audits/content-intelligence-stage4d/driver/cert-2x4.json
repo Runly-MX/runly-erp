@@ -1,0 +1,153 @@
+{
+ "profile": "2x4",
+ "at": "2026-11-27T04:50:58.943Z",
+ "host": {
+  "ok": true,
+  "dockerGb": 4.8,
+  "hostFreeGb": 3.8,
+  "neededGb": 4,
+  "reason": ""
+ },
+ "workerImage": "runly-content-stage4c:candidate",
+ "results": [
+  {
+   "id": "corpus-smoke",
+   "profile": "2x4",
+   "about": "Smoke corpus: CER/WER/identifiers/search per quality mode",
+   "status": "passed",
+   "seconds": 48.259,
+   "checks": [
+    {
+     "name": "corpus evaluated",
+     "ok": true,
+     "detail": "d:\\RacoonDevs\\runly\\docs\\audits\\content-intelligence-stage4d\\driver/ocr-smoke-2x4.md"
+    }
+   ]
+  },
+  {
+   "id": "worker-restart",
+   "profile": "2x4",
+   "about": "docker restart of the worker while jobs run",
+   "status": "failed",
+   "seconds": 282.556,
+   "checks": [
+    {
+     "name": "every file reaches a terminal state",
+     "ok": false,
+     "detail": "unfinished=8"
+    },
+    {
+     "name": "post-interruption upload processed",
+     "ok": false,
+     "detail": "[null,null,null]"
+    },
+    {
+     "name": "no duplicate active jobs",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no orphan derived pages",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no expired leases left processing",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "content search answers after recovery",
+     "ok": true,
+     "detail": "hits=43"
+    }
+   ]
+  },
+  {
+   "id": "storage-interrupt",
+   "profile": "2x4",
+   "about": "Stop Storage for 45 s during processing, then recover",
+   "status": "error",
+   "seconds": 66.504,
+   "error": "/files/upload 500: {\"error\":\"No se pudo subir el archivo.\"}"
+  },
+  {
+   "id": "postgres-restart",
+   "profile": "2x4",
+   "about": "Restart PostgreSQL during processing; judged by authenticated queries, uploads, claims, search",
+   "status": "failed",
+   "seconds": 293.362,
+   "checks": [
+    {
+     "name": "every file reaches a terminal state",
+     "ok": false,
+     "detail": "unfinished=11"
+    },
+    {
+     "name": "post-interruption upload processed",
+     "ok": false,
+     "detail": "[null,null,null]"
+    },
+    {
+     "name": "no duplicate active jobs",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no orphan derived pages",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no expired leases left processing",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "content search answers after recovery",
+     "ok": true,
+     "detail": "hits=50"
+    }
+   ]
+  },
+  {
+   "id": "backfill-pause-resume",
+   "profile": "2x4",
+   "about": "Backfill progresses, pauses (no progress), resumes, completes, without duplicates",
+   "status": "passed",
+   "seconds": 126.101,
+   "checks": [
+    {
+     "name": "no new completions while paused (after in-flight drain)",
+     "ok": true,
+     "detail": "354->354"
+    },
+    {
+     "name": "all files terminal after resume",
+     "ok": true,
+     "detail": "10"
+    },
+    {
+     "name": "no duplicate active jobs",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no orphan derived pages",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no expired leases left processing",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "content search answers after recovery",
+     "ok": true,
+     "detail": "hits=50"
+    }
+   ]
+  }
+ ]
+}

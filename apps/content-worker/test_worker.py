@@ -227,7 +227,10 @@ class Corpus(unittest.TestCase):
 
     @unittest.skipUnless(importlib.util.find_spec("pillow_heif"), "pillow-heif is only in the release image")
     def test_heic_by_content_with_limits_and_controlled_failures(self):
+        import os
         import pillow_heif
+        os.environ["RUNLY_CONTENT_HEIC"] = "on"
+        self.addCleanup(os.environ.pop, "RUNLY_CONTENT_HEIC", None)
         pillow_heif.register_heif_opener()
         heic = Path(self.path).with_suffix(".heic")
         label().save(heic, format="HEIF", quality=85)
@@ -239,6 +242,11 @@ class Corpus(unittest.TestCase):
             self.assertFalse(result["partial"])
             self.assertTrue(any("ABC123XYZ" in word["text"] for word in page["words"]))
         original = heic.read_bytes()
+        os.environ["RUNLY_CONTENT_HEIC"] = "off"                           # capability switch: off means the native decoders are never loaded
+        with self.assertRaises(ProcessingError) as disabled:
+            extract(heic, "image/heic", POLICY)
+        self.assertEqual(disabled.exception.code, "UNSUPPORTED")
+        os.environ["RUNLY_CONTENT_HEIC"] = "on"
         self.assertEqual(heic.read_bytes(), original)  # source untouched
         with self.assertRaises(ProcessingError) as limit:
             extract(heic, "image/heic", {**POLICY, "maxPixels": 1000})

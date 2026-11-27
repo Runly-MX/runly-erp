@@ -500,7 +500,10 @@ def heif_kind(data):
 
 def decode_heif(path, policy):
     """Primary image only, upright (libheif applies irot/imir), 8-bit RGB. Auxiliary/depth/thumbnail images are never decoded.
-    Returns (image, extra_images)."""
+    Returns (image, extra_images). HEIC is an explicit capability (RUNLY_CONTENT_HEIC=on): until the bundled native decoders are
+    certified it stays off, and with it off the libraries are never even loaded."""
+    if os.environ.get("RUNLY_CONTENT_HEIC", "off").lower() != "on":
+        raise ProcessingError("UNSUPPORTED")
     try:
         import pillow_heif
     except ImportError:
@@ -997,7 +1000,7 @@ def main():
             paused=resource_paused or cpu_paused
             capabilities = {"engine": ENGINE, "languages": sorted(k for k in models if ':' not in k), "models": models, "cpuLimit": cpu,
                             "memoryLimit": limit, "memoryUsed": used, "governor": "paused" if paused else "ready",'protocol':2,
-                            'cpuUsedPercent':cpu_percent,'tempFreeBytes':free_tmp}
+                            'cpuUsedPercent':cpu_percent,'tempFreeBytes':free_tmp,'heif':os.environ.get("RUNLY_CONTENT_HEIC","off").lower()=="on"}
             api("heartbeat", {"id": worker_id, "capabilities": capabilities})
             if paused:
                 time.sleep(10 if resource_paused else max(0.25,min(10,cpu_debt)))

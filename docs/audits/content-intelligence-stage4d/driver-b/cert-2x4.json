@@ -1,0 +1,63 @@
+{
+ "profile": "2x4",
+ "at": "2026-11-27T05:53:24.656Z",
+ "host": {
+  "ok": true,
+  "dockerGb": 4.8,
+  "hostFreeGb": 4.9,
+  "neededGb": 4,
+  "reason": ""
+ },
+ "workerImage": "runly-content-stage4c:candidate",
+ "results": [
+  {
+   "id": "storage-interrupt",
+   "profile": "2x4",
+   "about": "Stop Storage for 45 s during processing, then recover",
+   "status": "passed",
+   "seconds": 292.721,
+   "checks": [
+    {
+     "name": "queue drained before the scenario",
+     "ok": true,
+     "detail": "164s"
+    },
+    {
+     "name": "writes accepted again after the interruption (retry window 120 s)",
+     "ok": true,
+     "detail": "5s"
+    },
+    {
+     "name": "every file reaches a terminal state (600 s budget)",
+     "ok": true,
+     "detail": "unfinished=0, settled after 50s"
+    },
+    {
+     "name": "post-interruption upload processed",
+     "ok": true,
+     "detail": "[\"done\",\"done\",\"done\"]"
+    },
+    {
+     "name": "no duplicate active jobs",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no orphan derived pages",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "no expired leases left processing",
+     "ok": true,
+     "detail": "0"
+    },
+    {
+     "name": "content search answers after recovery",
+     "ok": true,
+     "detail": "hits=50"
+    }
+   ]
+  }
+ ]
+}

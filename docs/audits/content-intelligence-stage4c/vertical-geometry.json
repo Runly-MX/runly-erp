@@ -1,6 +1,6 @@
 {
- "at": "2026-11-27T03:07:00.729Z",
- "marker": "GE33051X4",
+ "at": "2026-11-27T05:59:40.273Z",
+ "marker": "GE10716X4",
  "metrics": {
   "perspectiveRectificationApplied": true,
   "pdf initial": {
@@ -36,7 +36,7 @@
   "perspective": {
    "overlayCenterPx": [
     516.7,
-    451.1
+    451.2
    ],
    "lateralErrorToLineAxisPx": 0.2,
    "lineHeightPx": 26.4,
@@ -93,7 +93,7 @@
   {
    "name": "drag selection copies exactly the stored OCR words in reading order",
    "ok": true,
-   "detail": "\"Serial DR7037K2 Modelo\""
+   "detail": "\"Serial DR2298K2 Modelo\""
   },
   {
    "name": "mobile: tapping a recognized word selects it (text mode with a finished result)",

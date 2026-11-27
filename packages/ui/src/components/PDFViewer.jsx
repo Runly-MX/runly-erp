@@ -215,7 +215,7 @@ function CustomPdfViewer({ url, renderOverlay, requestedPage }) {
 
       {/* Bottom toolbar: page navigation + zoom / rotate / flip (mirrors the
           image viewer's toolbar in AdvancedFileViewer) */}
-      <div className="flex items-center justify-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto">
+      <div className="flex items-center gap-1.5 px-3 h-12 safe-bottom shrink-0 border-t border-[hsl(var(--border))] bg-[hsl(var(--surface-2))]/60 overflow-x-auto [&>:first-child]:ml-auto [&>:last-child]:mr-auto">
         {/* Page navigation group */}
         <div className="flex items-center rounded-lg bg-[hsl(var(--muted))]/60 p-0.5 shrink-0">
           <ToolbarBtn

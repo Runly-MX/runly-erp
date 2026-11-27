@@ -146,3 +146,18 @@ activar nada, y después ejecutar el rollback conservador.
 Ver la sección "Etapa 3" de `CONTENT_INTELLIGENCE_V1_RESULTS.md`: lo que se
 ejecutó en la laptop de desarrollo con su evidencia, y lo que solo está listo
 para ejecutarse aquí.
+
+## Etapa 4D: flujos añadidos y matriz de la etapa 5
+
+Flujos de laboratorio nuevos (todos exigen las variables `CI_CONTENT_*` de un laboratorio aislado, contenedores `runly-content-*` y usuarios `*.example.test`):
+
+| Flujo | Qué demuestra |
+|---|---|
+| `vertical-isolation.mjs` | Usuarios reales de dos empresas, ACL de archivos, invitaciones, reemplazo de versión, borrado/restauración, URL firmadas, cierre de sesión, purga concurrente. Crea y elimina solo sus propios usuarios y empresa (prefijo `iso-`) |
+| `vertical-searchable.mjs` | PDF buscable de punta a punta con lector independiente (poppler), original intacto, rotación, ciclo de vida |
+| `vertical-geometry.mjs` | Geometría contra verdad independiente, selección por arrastre y táctil, matriz visual |
+| `vertical-heic.mjs` | HEIC en Chromium y Firefox con overlay alineado (requiere `RUNLY_CONTENT_HEIC=on` en el worker del laboratorio) |
+| `vertical-formats.mjs` | HEIC, HEIC dañado, DOCX/XLSX/PPTX, Archivos sin OCR |
+
+La matriz de certificación de la etapa 5, con comandos y criterios, está en `CONTENT_INTELLIGENCE_V1_RELEASE_CANDIDATE.md` §10.
+HEIC permanece apagado en producción hasta cerrar la evaluación de sus bibliotecas nativas (`CONTENT_INTELLIGENCE_V1_SECURITY_REVIEW.md` §3).

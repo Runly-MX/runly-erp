@@ -87,6 +87,7 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
       protocol: z.number().int().min(1).max(2).default(1),
       cpuUsedPercent: z.number().nonnegative().nullable().optional(),
       tempFreeBytes: z.number().nonnegative().optional(),
+      heif: z.boolean().optional(),
     }) }).parse(await c.req.json());
     await service.heartbeat(input.id, input.capabilities);
     return c.json({ ok: true });

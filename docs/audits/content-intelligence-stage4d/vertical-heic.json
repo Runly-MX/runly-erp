@@ -1,0 +1,41 @@
+{
+ "at": "2026-11-27T04:37:07.804Z",
+ "marker": "TMR5777HX",
+ "checks": [
+  {
+   "name": "HEIC photo recognized",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "coordinates present with canvas of the decoded photo",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "chromium: the HEIC photo is displayed (decoded bitmap)",
+   "ok": true,
+   "detail": "1400x700"
+  },
+  {
+   "name": "chromium: overlay sits on the recognized word",
+   "ok": true,
+   "detail": "dx=0.0 dy=0.0"
+  },
+  {
+   "name": "firefox: the HEIC photo is displayed (decoded bitmap)",
+   "ok": true,
+   "detail": "1400x700"
+  },
+  {
+   "name": "firefox: overlay sits on the recognized word",
+   "ok": true,
+   "detail": "dx=0.0 dy=0.0"
+  },
+  {
+   "name": "original HEIC object unchanged",
+   "ok": true,
+   "detail": "8482:modules/runly-files/atlasfile/01a2131c-ba5e-733f-b6ba-79a0e1cf601a/1795754196999-g9hz40uq.heic"
+  }
+ ]
+}

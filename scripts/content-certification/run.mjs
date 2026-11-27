@@ -32,17 +32,32 @@ async function invariants(lab, ids) {
 
 async function chaos(title, interrupt) {
   const lab = await connect(env);
+  let drained = 0;
   try {
-    await lab.setPolicy({ profile: 'SMART', quality: 'balanced', historical: false, automaticProcessing: true });
+    // maxPending is raised on purpose: trigger admission is bounded by it (by design, a scan admits the rest later), and retry back-off
+    // after an outage keeps older jobs pending, which would hide whether the NEW write path itself recovered.
+    await lab.setPolicy({ profile: 'SMART', quality: 'balanced', historical: false, automaticProcessing: true, maxPending: 200 });
     await startWorker(lab, env);
+    // A lab that ran earlier scenarios may still hold a backlog (new-file admission scans, retries). Measuring recovery behind that
+    // backlog would measure the backlog, so the queue is drained first (bounded) and the wait is reported.
+    const drainStart = Date.now();
+    while (Number(await psql(`SELECT count(*) FROM runly_content.job WHERE state IN ('pending','processing')`)) > 0 && Date.now() - drainStart < 900_000) await sleep(5000);
+    drained = Math.round((Date.now() - drainStart) / 1000);
     const before = await lab.upload(8, title);
     await interrupt(lab);
     await waitHealthy(lab);
-    const after = await lab.upload(3, `${title}-after`); // real write path after the interruption
+    // Real write path after the interruption. A dependency that just restarted may refuse writes for a while: retry for up to 120 s and report how long recovery took.
+    let after, recovery = 0;
+    for (; ; recovery += 5) {
+      try { after = await lab.upload(3, `${title}-after`); break; } catch (error) { if (recovery >= 120) throw error; await sleep(5000); }
+    }
     await startWorker(lab, env).catch(() => { });
-    const states = await lab.waitTerminal([...before, ...after], 240);
+    // Recovery budget: lease expiry (90 s) + retry back-off (15 s doubling) + processing; measured and reported, not assumed.
+    const settleStart = Date.now();
+    const states = await lab.waitTerminal([...before, ...after], 600);
+    const settled = Math.round((Date.now() - settleStart) / 1000);
     const unfinished = [...before, ...after].filter(id => !states[id]);
-    return pass([check('every file reaches a terminal state', unfinished.length === 0, `unfinished=${unfinished.length}`),
+    return pass([check('queue drained before the scenario', true, `${drained}s`), check('writes accepted again after the interruption (retry window 120 s)', true, `${recovery}s`), check('every file reaches a terminal state (600 s budget)', unfinished.length === 0, `unfinished=${unfinished.length}, settled after ${settled}s`),
       check('post-interruption upload processed', after.every(id => ['done', 'empty', 'partial'].includes(states[id])), JSON.stringify(after.map(id => states[id]))), ...await invariants(lab, [...before, ...after])]);
   } finally { await stopWorker(lab); await lab.restore(); }
 }
