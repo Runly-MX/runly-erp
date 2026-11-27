@@ -81,6 +81,7 @@ restic check
 restic tag --add "runly-${COVERAGE_MODE}-v1" --remove runly-pending-v1 "$SNAPSHOT_ID" >/dev/null
 
 echo "[backup] pruning only verified snapshots with matching coverage..."
-restic forget --host "$RUNLY_INSTANCE_ID" --tag "runly-${COVERAGE_MODE}-v1" --keep-daily "${BACKUP_RETENTION_DAYS:-14}" --prune
+# Group by host and tags only: the default (host,paths) makes every run its own group because the scratch path is random, so nothing was ever pruned.
+restic forget --group-by host,tags --host "$RUNLY_INSTANCE_ID" --tag "runly-${COVERAGE_MODE}-v1" --keep-daily "${BACKUP_RETENTION_DAYS:-14}" --prune
 
 echo "[backup] $(date -Iseconds) backup run complete ($COVERAGE_MODE)"
