@@ -2,7 +2,7 @@ import { createContext, useContext, useState, useEffect, useRef } from 'react'
 import { supabase } from '../lib/supabase'
 import { runly } from '../lib/runly'
 import { getApiUrl } from '../lib/runtimeConfig.js'
-import { RunlyOfflineDatabase, SessionVault } from '@runly/offline'
+import { RunlyOfflineDatabase, SessionVault, requestOfflineWipe } from '@runly/offline'
 import { isSessionFresh } from './sessionFreshness.js'
 import { useQueryClient } from '@tanstack/react-query'
 import { useChatFloatStore } from '../modules/runly.chat/store/chatFloatStore.js'
@@ -37,6 +37,8 @@ export function AuthProvider({ children }) {
   // company gate waits until this matches the active company.
   const [profileCompanyId, setProfileCompanyId] = useState(null)
   const currentIdentityRef = useRef(null)
+  const profileIdRef = useRef(null)
+  useEffect(() => { profileIdRef.current = userProfile?.id ?? null }, [userProfile])
 
   useEffect(() => {
     let mounted = true
@@ -45,6 +47,8 @@ export function AuthProvider({ children }) {
 
     function changeIdentity(nextId) {
       if (currentAuthId === nextId) return
+      // The previous identity's synced data must not outlive it (logout or switch to another user).
+      requestOfflineWipe(profileIdRef.current)
       currentAuthId = nextId
       currentIdentityRef.current = nextId
       queryClient.cancelQueries()

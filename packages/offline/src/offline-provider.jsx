@@ -10,6 +10,7 @@ import { OFFLINE_MODULES } from './offline-modules.js'
 import { LedgerSQLiteStore, isTauriAvailable } from './ledger-sqlite.js'
 import { LedgerSyncAdapter } from './ledger-sync-adapter.js'
 import { createDatabaseLifecycle } from './database-lifecycle.js'
+import { sweepOfflineDatabases, takeOfflineWipeRequest, wipeOfflineReadData } from './identity-wipe.js'
 
 const INITIAL_SYNC_DELAY_MS = 4000
 const CONTINUE_SYNC_DELAY_MS = 15_000
@@ -46,6 +47,8 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
     })
     let ledgerStore = null
     let ledgerSyncAdapter = null
+    // Databases of other identities are never kept for the next user of this device.
+    sweepOfflineDatabases({ apiBaseUrl, shouldWipe: (owner) => owner !== userId }).catch(() => {})
 
     const getSession = async () => {
       const current = sessionRef.current
@@ -216,7 +219,15 @@ export function OfflineProvider({ children, apiBaseUrl, onTransportReady, sessio
       clearTimeout(continueTimer)
       onTransportReady?.(null)
       setSyncing(false)
-      lifecycle.dispose(disposeLedgerRuntime).catch((err) => {
+      engine.abort()
+      lifecycle.dispose(async () => {
+        await disposeLedgerRuntime()
+        // Runs after any in-flight sync settled, so a late response cannot repopulate what is wiped here.
+        if (takeOfflineWipeRequest(userId)) {
+          await wipeOfflineReadData(database)
+          await sweepOfflineDatabases({ apiBaseUrl, shouldWipe: (owner, name) => owner === userId && name !== databaseName })
+        }
+      }).catch((err) => {
         console.warn('[runly/offline] Cleanup failed', err?.message ?? err)
       })
     }

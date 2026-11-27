@@ -12,12 +12,17 @@ export class SyncEngine {
   #pushing = false
   #mutationQueue
 
+  #abortController = new AbortController()
+
+  abort() { this.#abortController.abort() }
+
   constructor({ db, apiBaseUrl, getToken, companyId, fetchImpl }) {
     this.#db = db
     this.#getToken = getToken
     this.#companyId = companyId
     // fetchImpl is injected for testing; in production globalThis.fetch is used
-    this.#fetchImpl = fetchImpl ?? ((...args) => globalThis.fetch(...args))
+    // Production requests share one signal so abort() cancels everything in flight (logout, identity change).
+    this.#fetchImpl = fetchImpl ?? ((url, options = {}) => globalThis.fetch(url, { ...options, signal: this.#abortController.signal }))
     this.#apiBaseUrl = (apiBaseUrl ?? '').replace(/\/$/, '')
     this.#mutationQueue = new MutationQueue({ db })
   }

@@ -13,21 +13,25 @@ import { id as catalogId } from './catalog/commerce-contracts.js'
 // know exactly which company it's syncing — unlike a bootstrap endpoint,
 // there's no safe "ambiguous" default for a multi-company user's offline data.
 // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
-// Read permission per synced entity. Pull used to check only company membership, so a member without the
-// module's read permission could still download its records. An entity missing here is not served (fail closed).
-const SYNC_READ_PERMISSION = {
-  'runly.contacts': { contact: 'contacts.contacts.read' },
-  'runly.hr': { employee: 'hr.employee.read', department: 'hr.department.read', job_title: 'hr.job_title.read' },
-  'custom.fleet': { vehicle: 'fleet.vehicles.read', driver: 'fleet.drivers.read' },
-  'runly.calendar': { calendar: 'calendar.calendars.read', event: 'calendar.events.read' },
-  'runly.catalog': { product: 'catalog.products.read', category: 'catalog.categories.read' },
-  'runly.ledger': { account: 'ledger.accounts.read', transaction: 'ledger.transactions.read', category: 'ledger.categories.read' },
+// Permission base per synced entity: `<base>.read|create|update|delete`. Pull and push used to check only company
+// membership, so a member without the module's permission could download or write its records through sync.
+// An entity missing here is neither served nor writable (fail closed).
+const SYNC_PERMISSION_BASE = {
+  'runly.contacts': { contact: 'contacts.contacts' },
+  'runly.hr': { employee: 'hr.employee', department: 'hr.department', job_title: 'hr.job_title' },
+  'custom.fleet': { vehicle: 'fleet.vehicles', driver: 'fleet.drivers' },
+  'runly.calendar': { calendar: 'calendar.calendars', event: 'calendar.events' },
+  'runly.catalog': { product: 'catalog.products', category: 'catalog.categories' },
+  'runly.ledger': { account: 'ledger.accounts', transaction: 'ledger.transactions', category: 'ledger.categories' },
 }
-export const syncReadAllowed = (tenant) => (moduleKey, entityType) => {
+const syncAllowed = (tenant, action) => (moduleKey, entityType) => {
   if (tenant?.isAdmin) return true
-  const key = SYNC_READ_PERMISSION[moduleKey.replace(/^atlas./, 'runly.')]?.[entityType]
-  return Boolean(key && tenant?.permissionSet?.has(key))
+  const base = SYNC_PERMISSION_BASE[String(moduleKey ?? '').replace(/^atlas./, 'runly.')]?.[entityType]
+  return Boolean(base && tenant?.permissionSet?.has(`${base}.${action}`))
 }
+export const syncReadAllowed = (tenant) => syncAllowed(tenant, 'read')
+export const syncWriteAllowed = (tenant, operation) =>
+  syncAllowed(tenant, { CREATE: 'create', UPDATE: 'update', DELETE: 'delete' }[operation] ?? 'denied')
 
 export function createSyncRouter({ prisma, getUserContext, resolveTenantContext, catalogWriteService }) {
   const app = new Hono()
@@ -122,6 +126,10 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext,
               continue
             }
           }
+        }
+        if (!syncWriteAllowed(tenant, mutation.operation)(mutation.moduleKey, mutation.entityType)) {
+          results[index] = { idempotencyKey: mutation.idempotencyKey, status: 'PERMISSION_DENIED', record: null }
+          continue
         }
         accepted.push(mutation); positions.push(index)
       }
