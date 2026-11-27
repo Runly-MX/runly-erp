@@ -66,7 +66,7 @@ export function FileContentPanel({ file,viewer=null }) {
     </div>}
     {text ? <>
       <SearchInput value={search} onChange={e => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar en el texto…" />
-      {viewer?.undisplayable && <p className="text-xs text-muted-foreground" role="note">Los navegadores sin soporte HEIC no muestran esta fotografía, pero el texto reconocido se puede buscar, leer y copiar aquí.</p>}
+      {viewer?.undisplayable && <p className="text-xs text-muted-foreground" role="note">Fotografía HEIC: se muestra una copia reducida generada por el servidor de imágenes (el original no cambia y se puede descargar). Si esa copia no está disponible en esta instalación, el texto reconocido sigue pudiéndose buscar, leer y copiar aquí.</p>}
       {viewer?.coordinatesMissing && <p className="text-xs text-muted-foreground" role="note">Este resultado se generó sin coordenadas compatibles: el texto se puede buscar y copiar, pero no se señala sobre la imagen. Reprocesa el archivo para obtener la ubicación.</p>}
       {viewer?.textMode && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Selección de texto reconocido">
         <Button size="sm" variant="outline" disabled={!viewer.selectionCount} onClick={viewer.copySelection}>Copiar selección ({viewer.selectionCount})</Button>

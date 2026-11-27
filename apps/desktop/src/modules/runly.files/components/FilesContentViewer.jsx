@@ -1,15 +1,27 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AdvancedFileViewer } from '@runly/ui';
 import { toast } from 'sonner';
+import { useAuth } from '../../../auth/AuthProvider';
+import { runly } from '../../../lib/runly';
 import { useFileContent } from '../hooks/useFileContent';
 import { findMatches, lineRange, selectionText } from '../lib/content-overlay';
 import { FileContentPanel } from './FileContentPanel';
 import { RecognizedTextLayer } from './RecognizedTextLayer';
 
 const key = (unit, index) => `${unit}:${index}`;
+const isHeif = file => /^image\/(heic|heif)$/i.test(file?.mimeType ?? '') || /\.(heic|heif)$/i.test(file?.originalName ?? '');
 
 export function FilesContentViewer({ initialQuery = '', ...props }) {
   const file = props.files?.[props.activeIndex];
+  const { session } = useAuth();
+  const token = session?.access_token;
+  // Browsers other than Safari cannot decode HEIC. The existing image-transform service (imgproxy) already serves a 1600 px copy that
+  // every browser shows; the original stays untouched and downloadable. Other formats keep the traditional viewer path (null).
+  const resolveVariant = useCallback(async (item, variant) => {
+    if (variant !== 'content' || !isHeif(item) || !token) return null;
+    const response = await runly.files.getSignedUrl(item.id, token, { variant: 'content' });
+    return response?.data?.signedUrl ?? null;
+  }, [token]);
   const content = useFileContent(file, props.open);
   const [selection, setSelection] = useState({ fileId: null, query: '', index: 0 });
   const [textMode, setTextMode] = useState(false);
@@ -41,7 +53,7 @@ export function FilesContentViewer({ initialQuery = '', ...props }) {
   const viewer = { query: current.query, setQuery: query => setSelection({ fileId: file?.id, query, index: 0 }), count: matches.length, index,
     navigate: direction => setSelection({ ...current, query: current.query, index: (index + direction + matches.length) % Math.max(1, matches.length) }),
     textMode, selectionCount: keys.size, copySelection: () => copy(selectedText()), selectAll, clearSelection: () => setKeys([]),
-    undisplayable: /^image\/(heic|heif)$/.test(file?.mimeType ?? ''),
+    undisplayable: isHeif(file),
     coordinatesMissing: pages.some(page => (page.wordCount ?? page.words?.length ?? 0) > 0 && !page.engine?.canvas) };
   // Ctrl/Cmd+C copies the selected recognized words; Ctrl/Cmd+A selects all; Escape clears. Never while typing in a field.
   useEffect(() => {
@@ -59,7 +71,7 @@ export function FilesContentViewer({ initialQuery = '', ...props }) {
   const layer = (page, extra) => <RecognizedTextLayer file={file} page={page} textMode={textMode} active={active}
     matches={matches.filter(match => match.unit === page?.unit)} selected={new Set([...keys].filter(k => k.startsWith(`${page?.unit}:`)).map(k => Number(k.split(':')[1])))}
     onWord={toggle} onLine={pickLine} onRange={pickRange} {...extra} />;
-  return <AdvancedFileViewer {...props} contentPanelKinds={['image', 'pdf']} requestedPdfPage={active?.unit}
+  return <AdvancedFileViewer {...props} onResolveImageVariant={props.onResolveImageVariant ?? resolveVariant} contentPanelKinds={['image', 'pdf']} requestedPdfPage={active?.unit}
     textMode={{ active: textMode, onToggle: () => setTextMode(value => !value) }}
     renderSidePanel={source => <FileContentPanel file={source} viewer={viewer} />}
     renderImageOverlay={(_source, { naturalSize }) => layer(pages[0], { natural: naturalSize })}
