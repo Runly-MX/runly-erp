@@ -291,3 +291,37 @@ Las imagenes web y worker no cambian. La API de staging corre `runly-rc1-fix:api
 **Pendientes:** actualizacion desde la version desplegada (hay que identificarla), telefono fisico por HTTPS, memoria en dispositivo real, Tauri, revision juridica, SBOM de contenedores, diagnostico de los tres fallos del ensayo de backup y la retencion.
 
 **Veredicto:** APTO PARA STAGING con los tres arreglos aplicados a la API; **no apto para produccion** hasta reconstruir la API, publicar el Installer corregido y cerrar la retencion de backup y las pruebas desactualizadas.
+
+## 21. RC1-r2 (2026-11-27): cierre tecnico y aceptacion automatizada
+
+**Candidato:** `rc/rc1-r2` = `148a236f76974064ba94b6d3c50f60a540c46402`, sobre `rc/rc1-r1` (`9e637d98a`). Tres commits: `c8aff4ed4` (correcciones), `264cf7043` (manifiesto del Installer 2026.11.26.2) y `148a236f7` (solo `scripts/rehearsal`, sin efecto en imagenes). No contiene Content Intelligence ni otros trabajos de `main`. **Estado remoto:** publicado con push normal; `origin/main` no se toco (la otra sesion tiene commits locales sin publicar mezclados con los propios; las correcciones estan tambien en `main` local y se integran con `git merge rc/rc1-r2`).
+
+**GitHub Actions sobre `148a236f7`:** Quality Gates (tier release, run 46023889951), Security Gates, UUID Policy y Supabase Schema Ownership en verde; lo mismo sobre `264cf7043`. No se repitio localmente la suite de 6916 pruebas.
+
+**Imagenes (construidas de `264cf7043`, secuencialmente, contrato `studio-realtime-1`):** API `runly-rc1r2:api-264cf704309c` `e4a20fc6a445`, worker `bfcb2674b508`, web `39f9c8c70fa4`, backup `e6161cc26dc2`. DWG no se reconstruyo. Nada se publico en registros. Staging corre estas imagenes (IDs verificados) sin archivos superpuestos; la imagen con parche manual se elimino.
+
+**Correcciones:**
+
+| Area | Cambio |
+|---|---|
+| `sync/pull` | solo sirve entidades con el permiso `*.read` del modulo (`3ae266cf5`) |
+| `sync/push` | cada mutacion exige `*.create|update|delete` de su entidad; el resto responde `PERMISSION_DENIED` y el cliente la marca fallida, no se pierde en silencio |
+| Offline al cerrar sesion o cambiar de usuario | se abortan las peticiones en vuelo, se borran registros, estado de sync y cache de la identidad anterior despues de que termine el trabajo en curso (una respuesta tardia no repuebla), se **conservan** las mutaciones pendientes y los conflictos, y al montar se limpian las bases de otras identidades (se borran si no tienen pendientes). Service workers existentes (kiosco, notificaciones) no guardan datos de API |
+| Installer | `prisma migrate deploy` en lugar de `pnpm db:migrate` (imagen sin root); la verificacion de salud usa el puerto y bind reales (shell o `.env`) |
+| Files Workspace | relacion `hrProfileEmployees` eliminada de `manageable()` |
+| Web | la raiz `/` redirige a `/app/` relativo (conserva el puerto publicado; compatible con proxy TLS) |
+| Backup | `restic forget --group-by host,tags` (la agrupacion por ruta temporal aleatoria impedia podar) |
+
+**Contrato 403/404 (Files):** el propio archivo de pruebas ya aceptaba `[403, 404]` para pares sin invitacion; un archivo restringido que el usuario no ve se oculta (404) o se rechaza (403). Se alineo la invitacion pendiente y la comparticion revocada a ese conjunto; ninguna asercion se elimino, y las operaciones sobre un archivo visible siguen exigiendo 403 exacto. Pruebas de aislamiento: el sustituto del registro de dominios y el contexto de inquilino de las rutas de sitio se modelaron como exige el codigo actual (la historia de publicacion es de solo anexar y no admite filas reales de prueba); todas las aserciones se conservaron.
+
+**Aceptacion tecnica automatizada (imagen API r2 salvo indicacion):** aislamiento de usuarios 14/14; eliminacion de empresas 9/9; Files Workspace 8/8; pruebas de permisos de sync y 114 de `@runly/offline` (con fake-indexeddb) en verde; instalador 115/115; **actualizacion real r1 a r2 con el Installer en `148a236f7` y las imagenes r2 termina con codigo 0** (migraciones, semilla, contenedores, salud con puertos no estandar) sin tocar contenedores a mano; ensayo de backup y restauracion **64/64** con 0 hallazgos (retencion verificada: se conserva un completo diario, se olvida el anterior, la restauracion posterior es integra), compuesto de una corrida completa mas la repeticion de los tres tramos corregidos sobre el mismo estado de corrida; worker: 621/621 eventos procesados, sin errores. Navegador real (Chromium) con IndexedDB y dos cuentas: sincronizacion de 602 filas; tras cerrar sesion 0 registros y 1 mutacion pendiente conservada; cierre de sesion con una descarga lenta en vuelo termina en 0 registros; el segundo usuario ve 0 y no hay datos del primero; revocacion con el mismo token efectiva de inmediato.
+
+**Compatibilidad movil simulada (no es aceptacion fisica):** Chromium con Pixel 7 tactil (9 pantallas) y tableta 768 x 1024: sin desbordamiento horizontal, sin errores de consola ni respuestas >= 400, heap 28 a 66 MB. WebKit no esta instalado y no se instalo.
+
+**Limites documentados:** un dispositivo desconectado conserva sus datos locales hasta que vuelve a conectarse o se cierra sesion (la revocacion de permisos solo se aplica al sincronizar); si un dispositivo se desconecta y pierde la sesion sin cerrar, la limpieza ocurre en el siguiente inicio de cualquier usuario. Borrados duros sin tombstone siguen sin reflejarse offline (sin cambios, fuera de alcance). La web no abre sin conexion.
+
+**Pendientes abiertos:** `module-trust.test.js` "a change inside the module node_modules or a symlink..." falla dentro de las imagenes (r1 y r2) porque el detector barato (conteo, tamanos y mtime) no ve una reescritura del mismo tamano en el mismo tick de mtime y reutiliza el hash anterior: no es regresion, es una brecha de deteccion de manipulacion a evaluar; `repository privacy` local falla por `docs/audits/content-intelligence-stage4d/worker-image.spdx.json` (trabajo de otra sesion, no en r2); prueba de seguridad que lee `apps/worker` desde la imagen de la API.
+
+**Separacion de aceptacion:** 1) tecnica automatizada: lo anterior; 2) fisica diferida: iPhone, Android, HTTPS en telefono, camara, PWA y llamadas; 3) juridica pendiente: licencias y avisos (seccion 11); 4) ensayo de actualizacion desde la version de produccion: sin ejecutar, requiere identificarla (el ensayo r1 a r2 fue entre candidatos); 5) mejoras futuras: tombstones, endurecimiento del detector de confianza de modulos, WebKit en CI, SBOM de contenedores.
+
+**Veredicto:** APTO PARA STAGING con r2 (aceptacion automatizada completa); producion sigue pendiente de los puntos 2 a 4.
