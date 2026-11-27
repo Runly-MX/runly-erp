@@ -86,7 +86,6 @@ export function createFilesWorkspace({
       include: {
         invItemFiles: true,
         calendarFiles: true,
-        hrProfileEmployees: true,
         generatedDocuments: true,
       },
     });
@@ -98,7 +97,6 @@ export function createFilesWorkspace({
       file.visibility === "PUBLIC" ||
       file.invItemFiles.length ||
       file.calendarFiles.length ||
-      file.hrProfileEmployees.length ||
       file.generatedDocuments.length ||
       (file.metadata?.sourceEntityId &&
         file.metadata.sourceEntityId !== context.companyId)
