@@ -13,7 +13,7 @@ await mkdir(out, { recursive: true }); await mkdir(scratch, { recursive: true })
 const checks = [], check = (name, ok, detail = '') => { checks.push({ name, ok: Boolean(ok), detail: String(detail) }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${detail}`); };
 const psql = async sql => (await docker(['exec', env.CI_CONTENT_DB_CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-At', '-c', sql])).trim();
 const lab = await connect(env);
-const marker = `SP${Math.floor(10000 + Math.random() * 89999)}K9`;
+const marker = `SP${Math.floor(10000 + Math.random() * 89999)}KR`;
 const worker = args => run('docker', ['run', '--rm', '--network', 'none', '--user', '0', '--entrypoint', ...args], { maxBuffer: 16_000_000 });
 const mounts = ['-v', `${path.resolve('apps/content-worker')}:/app:ro`, '-v', `${path.resolve('scripts/content-certification')}:/fx:ro`, '-v', `${scratch}:/out`, '-w', '/app', '-e', 'PYTHONPATH=/app', '-e', `MARKER=${marker}`, '-e', 'OUT=/out'];
 const truth = JSON.parse((await worker(['python3', ...mounts, env.CI_CONTENT_WORKER_IMAGE, '/fx/fixtures-pdf.py'])).stdout.trim().split('\n').pop());

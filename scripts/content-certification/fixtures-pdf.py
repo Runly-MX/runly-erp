@@ -34,5 +34,11 @@ box = line_box(texts[1], 1)
 scale = 560 / 1400
 truth = {'marker': marker, 'imageBoxPx': box,
          'pageBoxPt': {'xMin': 20 + box[0] * scale, 'xMax': 20 + box[2] * scale, 'yMin': 800 - (400 + 280) + box[1] * scale, 'yMax': 800 - (400 + 280) + box[3] * scale}}
+# The marker word alone, measured from ink (no OCR, no font metrics of the whole string): the word spans from the end of the
+# "Serial" ink plus one space to the right ink edge of the line.
+space = corpus.font(40).getlength(' ')
+serial_only = line_box(texts[1].replace(marker, ' ' * len(marker)), 1)
+word_left_px, word_right_px = serial_only[2] + space, box[2]
+truth['wordBoxPt'] = {'xMin': 20 + word_left_px * scale, 'xMax': 20 + word_right_px * scale, 'yMin': truth['pageBoxPt']['yMin'], 'yMax': truth['pageBoxPt']['yMax']}
 (out / 'truth.json').write_text(json.dumps(truth))
 print(json.dumps(truth))

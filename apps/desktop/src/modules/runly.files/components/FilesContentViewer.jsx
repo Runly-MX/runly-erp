@@ -24,6 +24,13 @@ export function FilesContentViewer({ initialQuery = '', ...props }) {
   wordsByUnit.current = new Map(pages.map(page => [page.unit, page.words ?? []]));
   const setKeys = useCallback(next => setPicked({ fileId: file?.id, keys: [...next] }), [file?.id]);
   const toggle = (unit, wordIndex) => { const next = new Set(keys); const k = key(unit, wordIndex); next.has(k) ? next.delete(k) : next.add(k); setKeys(next); };
+  const dragBase = useRef(new Set());
+  const pickRange = (unit, from, to, start) => {
+    if (start) dragBase.current = new Set(keys);
+    const next = new Set(dragBase.current);
+    for (let i = Math.min(from, to); i <= Math.max(from, to); i++) next.add(key(unit, i));
+    setKeys(next);
+  };
   const pickLine = (unit, wordIndex, words) => { const [a, b] = lineRange(words, wordIndex); const next = new Set(keys); for (let i = a; i <= b; i++) next.add(key(unit, i)); setKeys(next); };
   const selectedText = () => pages.map(page => selectionText(page.words ?? [], new Set([...keys].filter(k => k.startsWith(`${page.unit}:`)).map(k => Number(k.split(':')[1]))))).filter(Boolean).join('\n');
   const copy = async text => {
@@ -34,6 +41,7 @@ export function FilesContentViewer({ initialQuery = '', ...props }) {
   const viewer = { query: current.query, setQuery: query => setSelection({ fileId: file?.id, query, index: 0 }), count: matches.length, index,
     navigate: direction => setSelection({ ...current, query: current.query, index: (index + direction + matches.length) % Math.max(1, matches.length) }),
     textMode, selectionCount: keys.size, copySelection: () => copy(selectedText()), selectAll, clearSelection: () => setKeys([]),
+    undisplayable: /^image\/(heic|heif)$/.test(file?.mimeType ?? ''),
     coordinatesMissing: pages.some(page => (page.wordCount ?? page.words?.length ?? 0) > 0 && !page.engine?.canvas) };
   // Ctrl/Cmd+C copies the selected recognized words; Ctrl/Cmd+A selects all; Escape clears. Never while typing in a field.
   useEffect(() => {
@@ -50,7 +58,7 @@ export function FilesContentViewer({ initialQuery = '', ...props }) {
   });
   const layer = (page, extra) => <RecognizedTextLayer file={file} page={page} textMode={textMode} active={active}
     matches={matches.filter(match => match.unit === page?.unit)} selected={new Set([...keys].filter(k => k.startsWith(`${page?.unit}:`)).map(k => Number(k.split(':')[1])))}
-    onWord={toggle} onLine={pickLine} {...extra} />;
+    onWord={toggle} onLine={pickLine} onRange={pickRange} {...extra} />;
   return <AdvancedFileViewer {...props} contentPanelKinds={['image', 'pdf']} requestedPdfPage={active?.unit}
     textMode={{ active: textMode, onToggle: () => setTextMode(value => !value) }}
     renderSidePanel={source => <FileContentPanel file={source} viewer={viewer} />}

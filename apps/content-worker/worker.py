@@ -361,6 +361,7 @@ def recognize(image, directory, policy, details=None):
     if details is not None:
         details.update(width=image.width, height=image.height, secondPasses=0, perspective="none")
     transforms = []
+    ambiguous = None
     # Map processed boxes back to the displayed original (after EXIF orientation).
     def rotate(angle):
         nonlocal image
@@ -372,8 +373,14 @@ def recognize(image, directory, policy, details=None):
         try:
             osd = command(["tesseract", str(Path(directory) / "orientation.png"), "stdout", "--psm", "0"], 10)
             match = re.search(r"Rotate: (\d+)", osd)
+            confidence = re.search(r"Orientation confidence: ([\d.]+)", osd)
+            # Measured on the synthetic corpus: genuine quarter turns report confidence >= 0.9, spurious 180-degree flips on small
+            # or sparse labels report <= 0.3. 0.6 separates them. Below it the rotation is only a hypothesis: both orientations are read and the better reading wins.
             if match and int(match[1]):
-                rotate(-int(match[1]))
+                if confidence and float(confidence[1]) >= 0.6:
+                    rotate(-int(match[1]))
+                else:
+                    ambiguous = int(match[1])  # weak signal: both orientations are read and the better reading wins
         except ProcessingError:
             pass  # Sparse labels often cannot support reliable orientation detection.
     gray = ImageOps.grayscale(image)
@@ -423,6 +430,13 @@ def recognize(image, directory, policy, details=None):
         if better(alternative, best):
             best = alternative
     chain = transforms
+    if ambiguous and policy["quality"] != "fast":
+        turned = gray.rotate(-ambiguous, expand=True, fillcolor=255, resample=Image.Resampling.BICUBIC)
+        alternative = tesseract(turned, directory, languages, 3, min(45, policy["timeoutSeconds"]), policy["quality"])
+        if details is not None:
+            details['secondPasses'] += 1
+        if better(alternative, best):
+            best, chain = alternative, transforms + [("rotate", -ambiguous, gray.size, turned.size)]
     if policy["quality"] != "fast" and (best[2] < 80 or len(best[0]) < 20 or junk_count(best)):
         quad = find_quad(gray)
         if quad:
@@ -673,7 +687,9 @@ def build_searchable_pdf(source, out, ocr_pages, policy, directory):
     scanned = {page["unit"]: page for page in ocr_pages if page.get("source") == "ocr" and page.get("words") and page.get("canvas")}
     if not scanned:
         raise ProcessingError("NOT_NEEDED")
-    edge = min(3500, int(math.sqrt(policy["maxPixels"])))
+    # The copy is re-rasterized at <=2400 px on its long edge (about 200 dpi for A4) and JPEG 78: legible and searchable,
+    # without inflating the file. Word boxes are fractions of the page, so the raster size never affects alignment.
+    edge = min(2400, int(math.sqrt(policy["maxPixels"])))
     pieces, dropped = [], 0
     for unit in range(1, count + 1):
         piece = Path(directory) / f"piece-{unit}.pdf"
@@ -684,7 +700,7 @@ def build_searchable_pdf(source, out, ocr_pages, policy, directory):
                 raster = raster.convert("RGB")
                 size = raster.size
                 buffer = io.BytesIO()
-                raster.save(buffer, "JPEG", quality=82)
+                raster.save(buffer, "JPEG", quality=78)
             Path(prefix + ".png").unlink(missing_ok=True)
             box = re.search(rf"Page\s+{unit} size:\s+([\d.]+) x ([\d.]+) pts", command(["pdfinfo", "-f", str(unit), "-l", str(unit), str(source)], 10))
             page_size = (float(box[1]), float(box[2])) if box else (size[0] * 0.24, size[1] * 0.24)

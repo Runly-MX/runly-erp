@@ -9,6 +9,10 @@ import { useFileContent } from '../hooks/useFileContent';
 const LABELS = { disabled: 'Procesamiento desactivado', unprocessed: 'Sin procesar', pending: 'Pendiente', processing: 'Procesando', done: 'Texto disponible',
   partial: 'Procesamiento parcial', empty: 'Sin texto detectable', failed: 'Error de procesamiento', unsupported: 'No compatible', cancelled: 'Cancelado' };
 
+const PDF_ERRORS = { ENCRYPTED: 'El PDF está protegido con contraseña o cifrado: no se genera una copia.', NOT_NEEDED: 'Este PDF ya tiene texto seleccionable.',
+  LIMIT: 'El PDF supera los límites de procesamiento.', RESOURCES: 'No hay recursos suficientes en el procesador.', TIMEOUT: 'La generación tardó demasiado.',
+  DOWNLOAD: 'No se pudo leer el original.', UNSUPPORTED: 'No se pudo generar la copia de este PDF.', PARSER: 'No se pudo generar la copia de este PDF.', LEASE_EXPIRED: 'La generación se interrumpió. Inténtalo de nuevo.' };
+
 export function FileContentPanel({ file,viewer=null }) {
   const { session, userProfile } = useAuth();
   const token = session?.access_token;
@@ -23,6 +27,12 @@ export function FileContentPanel({ file,viewer=null }) {
     ? runly.contentIntelligence.cancel(file.id, token)
     : runly.contentIntelligence.process(file.id, { quality, reprocess: true }, token),
   onSuccess: () => client.invalidateQueries({ queryKey: ['file-content'] }), onError: error => toast.error(error.message) });
+  const pdfCopy = data?.searchablePdf ?? null;
+  const makePdf = useMutation({ mutationFn: () => runly.contentIntelligence.generateSearchablePdf(file.id, token),
+    onSuccess: () => client.invalidateQueries({ queryKey: ['file-content'] }), onError: error => toast.error(error.message) });
+  const downloadPdf = useMutation({ mutationFn: () => runly.contentIntelligence.searchablePdfLink(file.id, token),
+    onSuccess: ({ data: link }) => { const anchor = document.createElement('a'); anchor.href = link.url; anchor.download = link.name; anchor.rel = 'noopener'; anchor.click(); },
+    onError: error => toast.error(error.message) });
   const text = (data?.pages ?? []).map(page => `${page.reference}\n${page.text}`).join('\n\n');
   const copy=async()=>{
     try {await navigator.clipboard.writeText(text);toast.success('Texto copiado');}
@@ -45,8 +55,18 @@ export function FileContentPanel({ file,viewer=null }) {
       {canCancel && ['pending','processing'].includes(data?.state) && <Button size="sm" variant="outline" disabled={action.isPending} onClick={() => action.mutate('cancel')}>Cancelar</Button>}
       {text && <><Button size="sm" variant="outline" onClick={copy}>Copiar texto</Button><Button size="sm" variant="outline" onClick={download}>Descargar texto</Button></>}
     </div>
+    {file.mimeType === 'application/pdf' && ['done', 'partial'].includes(data?.state) && <div className="space-y-2" aria-label="PDF con texto reconocido">
+      <div className="flex flex-wrap gap-2">
+        {canProcess && (!pdfCopy || ['failed', 'cancelled'].includes(pdfCopy.state)) && <Button size="sm" variant="outline" disabled={makePdf.isPending} onClick={() => makePdf.mutate()}>Generar PDF buscable</Button>}
+        {pdfCopy?.state === 'done' && <Button size="sm" variant="outline" disabled={downloadPdf.isPending} onClick={() => downloadPdf.mutate()}>Descargar PDF con texto reconocido</Button>}
+      </div>
+      {['pending', 'processing'].includes(pdfCopy?.state) && <p role="status" className="text-xs text-muted-foreground">Generando el PDF buscable… El original no se modifica.</p>}
+      {pdfCopy?.state === 'failed' && <p role="alert" className="text-xs text-destructive">{PDF_ERRORS[pdfCopy.errorCode] ?? 'No se pudo generar la copia.'}</p>}
+      {pdfCopy?.state === 'done' && <p className="text-xs text-muted-foreground">Copia independiente con texto reconocido ({pdfCopy.ocrPages} de {pdfCopy.pages} páginas reconocidas).{pdfCopy.signed ? ' El original está firmado: la copia no conserva la validez de la firma.' : ''}</p>}
+    </div>}
     {text ? <>
       <SearchInput value={search} onChange={e => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar en el texto…" />
+      {viewer?.undisplayable && <p className="text-xs text-muted-foreground" role="note">Los navegadores sin soporte HEIC no muestran esta fotografía, pero el texto reconocido se puede buscar, leer y copiar aquí.</p>}
       {viewer?.coordinatesMissing && <p className="text-xs text-muted-foreground" role="note">Este resultado se generó sin coordenadas compatibles: el texto se puede buscar y copiar, pero no se señala sobre la imagen. Reprocesa el archivo para obtener la ubicación.</p>}
       {viewer?.textMode && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Selección de texto reconocido">
         <Button size="sm" variant="outline" disabled={!viewer.selectionCount} onClick={viewer.copySelection}>Copiar selección ({viewer.selectionCount})</Button>

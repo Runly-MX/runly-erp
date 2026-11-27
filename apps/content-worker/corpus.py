@@ -10,7 +10,7 @@ import json
 import random
 import zipfile
 from pathlib import Path
-from PIL import Image, ImageDraw, ImageEnhance, ImageFilter, ImageFont
+from PIL import Image, ImageChops, ImageDraw, ImageEnhance, ImageFilter, ImageFont
 
 FONTS = ['/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf', '/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf',
          '/usr/share/fonts/dejavu/DejaVuSans.ttf', 'C:/Windows/Fonts/arial.ttf']
@@ -126,6 +126,27 @@ def quad_warp(label, rng, strength=0.18):
     return warped, [(round(x, 1), round(y, 1)) for x, y in quad]
 
 
+def photo_lines(text, size, label_size, quad):
+    """Independent geometry truth: where each text line really is in the photographed label, as a 4-corner polygon in photo pixels.
+    The line is redrawn alone on the label and its ink box measured (no OCR involved), then carried through the same homography."""
+    w, h = label_size
+    forward = _homography([(0, 0), (w, 0), (w, h), (0, h)], quad)
+    blank = render('', size, random.Random(0), '#ffffff').convert('L')
+    out = []
+    for index, line in enumerate(text.split('\n')):
+        only = '\n'.join(item if i == index else '' for i, item in enumerate(text.split('\n')))
+        box = ImageChops.difference(blank, render(only, size, random.Random(0), '#ffffff').convert('L')).point(lambda v: 255 if v > 40 else 0).getbbox()
+        if not box:
+            continue
+        corners = [(box[0], box[1]), (box[2], box[1]), (box[2], box[3]), (box[0], box[3])]
+        polygon = []
+        for x, y in corners:
+            d = forward[6] * x + forward[7] * y + 1
+            polygon += [round((forward[0] * x + forward[1] * y + forward[2]) / d, 1), round((forward[3] * x + forward[4] * y + forward[5]) / d, 1)]
+        out.append({'text': line, 'polygon': polygon})
+    return out
+
+
 def save_image(image, path, jpeg_quality=None):
     if jpeg_quality:
         image.save(path, 'JPEG', quality=jpeg_quality)
@@ -231,9 +252,11 @@ def build(out, size='smoke', seed=20261126, real=None):
         pillow_heif = None
     for n in range(SIZES[size]):
         ids = identifiers(extra_rng); text = device_text(extra_rng, ids); ident = [ids['serial'] if 'Serial' in text else ids['tag'] if 'Asset' in text else ids['service']]
-        label = render(text, extra_rng.choice([34, 40]), extra_rng)
+        label_size = extra_rng.choice([34, 40])
+        label = render(text, label_size, extra_rng)
         photo, quad = quad_warp(label, extra_rng, 0.12 + 0.1 * (n % 3))
-        save_image(photo, out / f'persp-{n:03d}.jpg', 80); add(f'persp-{n:03d}.jpg', 'perspective-label', text, ident, [{'quad': quad}], difficulty='hard', quad=quad)
+        lines = photo_lines(text, label_size, label.size, quad)
+        save_image(photo, out / f'persp-{n:03d}.jpg', 80); add(f'persp-{n:03d}.jpg', 'perspective-label', text, ident, [{'quad': quad}], difficulty='hard', quad=quad, lines=lines)
         tiny = label.resize((int(label.width * .38), int(label.height * .38)), Image.LANCZOS); save_image(tiny, out / f'tiny-{n:03d}.png')
         add(f'tiny-{n:03d}.png', 'small-label', text, ident, [{'scale': .38}], difficulty='hard')
         glare, applied = transform(label, ['reflection', 'shadow', 'blur'], extra_rng); save_image(glare, out / f'glare-{n:03d}.jpg', 75)

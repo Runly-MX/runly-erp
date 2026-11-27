@@ -129,6 +129,53 @@ archivos modificados invalidan el índice anterior de inmediato; cambios de
 permisos se consultan en vivo. Deshabilitar o eliminar el original borra sus
 derivados mediante trigger o cascada. Restaurar puede encolar nuevamente.
 
+## Formatos admitidos
+
+El formato se decide por el contenido real del archivo, no por la extensión ni por el
+tipo declarado. Un tipo incorrecto (por ejemplo una fotografía de iPhone subida como
+`application/octet-stream`) no oculta un formato soportado, pero el archivo solo entra en
+la cola si su tipo declarado figura en la lista de admisión.
+
+| Formato | Tratamiento | Límites y notas |
+|---|---|---|
+| JPEG, PNG, WebP, TIFF | OCR local con coordenadas | EXIF aplicado antes del OCR; el lienzo guardado es la imagen ya orientada |
+| HEIC / HEIF (HEVC) | OCR local con coordenadas | Imagen principal únicamente, ya girada por el contenedor (`irot`/`imir`), 8 bits RGB. Si el archivo trae más imágenes de primer nivel (ráfagas, colecciones) se marca como parcial. Miniaturas, mapas de profundidad y auxiliares nunca se decodifican. El límite de píxeles se comprueba en la cabecera, antes de decodificar. Archivos dañados terminan en `PARSER`. AVIF y HEIF con otros códecs se rechazan como no compatibles |
+| PDF | Texto digital página por página; OCR solo en páginas sin texto | Hasta `maxPages`; rotación `/Rotate` aplicada por el rasterizador |
+| DOCX | Cuerpo (tablas como filas `celda \| celda`), encabezados y pies de página como referencias propias | Sin coordenadas visuales; sin macros |
+| XLSX | Una referencia por hoja con su nombre real, celdas `A1: valor` | Solo el valor almacenado: las fórmulas nunca se evalúan; las celdas de error se omiten; las hojas se ordenan numéricamente |
+| PPTX | Una referencia por diapositiva (cuadros de texto y tablas) | Sin notas del orador ni coordenadas |
+| Texto, JSON, XML, SVG | Texto digital | SVG solo como texto, nunca renderizado |
+
+Las fotografías HEIC no se muestran en navegadores sin soporte HEIC (Chrome, Firefox): el
+texto reconocido se busca, lee y copia desde el panel, y el visor no dibuja capa sobre una
+imagen que no puede mostrar. Safari sí la muestra y usa las mismas coordenadas.
+El histórico descubre selectivamente los HEIC omitidos antes de este soporte (filtro `mime`
+del recorrido); no reindexa el resto de archivos.
+
+## PDF buscables
+
+Acción opcional «Generar PDF buscable» en el panel de texto de un PDF ya reconocido. Es
+asíncrona y produce una **copia independiente**; el original nunca se modifica.
+
+- Las páginas escaneadas se vuelven a rasterizar (máximo 2400 px de lado largo, JPEG 78) y
+  reciben una capa de texto invisible (modo de render 3, Helvetica estándar) alineada
+  palabra por palabra con las coordenadas del OCR ya guardado. No se reconoce de nuevo.
+- Las páginas con texto digital se copian sin cambios (`pdfseparate`/`pdfunite`): nunca se duplica
+  una capa de texto. Un PDF sin páginas reconocidas por OCR termina en `NOT_NEEDED`.
+- Los PDF cifrados se rechazan (`ENCRYPTED`); no se elude ninguna restricción. Un PDF con firma
+  digital se copia, pero la copia **no conserva la validez de la firma** y el panel lo avisa.
+- Los caracteres fuera de Windows-1252 se escriben como `?` en la capa invisible y se cuentan
+  (`droppedCharacters`); con español/inglés es poco frecuente, pero ocurre con lecturas corruptas.
+- Límites: máximo 5 copias en preparación por empresa, mismo `maxFileBytes`, `maxPages`, memoria,
+  CPU, programación y tiempo máximo que el resto del procesamiento; resultado de hasta 64 MiB.
+  Una sola copia por archivo y revisión (`runly_content.derivative`, único por archivo/revisión);
+  repetir la acción devuelve la existente.
+- Se guarda en el mismo bucket privado bajo `content-derivatives/<empresa>/<archivo>/<revisión>.pdf`
+  y solo se entrega con URL firmada de 60 s tras la misma autorización que el original. Desactivar
+  el procesamiento impide generar copias nuevas; las existentes siguen disponibles mientras el original
+  exista. Una revisión nueva, un archivo desactivado o la depuración de la empresa eliminan la copia
+  (fila y objeto).
+
 ## API y contratos internos
 
 Todas las rutas de usuario reciben la empresa activa mediante el middleware
@@ -137,17 +184,20 @@ habitual. Las respuestas son privadas (`Cache-Control: no-store`).
 | Método y ruta | Uso |
 |---|---|
 | GET `/content/search?q=SERIE&searchIn=content` | Búsqueda con cursor; `all`, `content`, `ocr` |
-| GET `/content/files/:id` | Estado y páginas autorizadas |
+| GET `/content/files/:id[?unit=N]` | Estado, páginas autorizadas y `searchablePdf`. Coordenadas hasta un presupuesto acumulado de 1500 palabras; el resto de páginas indica `wordCount`/`wordsOmitted` y se pide con `?unit=N` |
 | POST `/content/files/:id/process` | `{ quality, reprocess }` |
 | POST `/content/files/:id/cancel` | Cancelar con permisos actuales |
+| POST `/content/files/:id/searchable-pdf` | Solicita la copia con texto reconocido (202); devuelve la existente si ya hay una |
+| GET `/content/files/:id/searchable-pdf` | `{ url, name, expiresInSeconds }` firmada, solo si la copia está lista |
 | GET/PUT `/content/admin/instance` | Estado/política global |
 | GET/PUT `/content/admin/company` | Estado/política de empresa activa |
 | POST `/content/admin/backfill` | `{ action: start/pause/resume/cancel, filters }` |
 | POST `/content/admin/purge` | `{ confirm: "PURGAR" }` |
 | POST `/content/admin/retry` | Recorrido filtrado, fallidos por defecto |
 
-El worker usa exclusivamente `/content/worker/heartbeat`, `/claim` y
-`/jobs/:id/source`, `/heartbeat`, `/checkpoint`, `/result`, con Bearer operativo y
+El worker usa exclusivamente `/content/worker/heartbeat`, `/claim`, `/derivative/claim`,
+`/jobs/:id/source`, `/heartbeat`, `/checkpoint`, `/result` y, para copias,
+`/derivatives/:id/source`, `/pages`, `/heartbeat`, `/file` (PUT, hasta 64 MiB) y `/result`, con Bearer operativo y
 `X-Content-Lease` en cada operación del trabajo. No recibe acceso a base de datos,
 Storage, rutas administrativas o identificadores arbitrarios de archivos.
 Las respuestas y los tamaños están acotados. TLS y una red privada son
@@ -196,10 +246,19 @@ coordenadas no se anuncian como puntos PDF. El texto digital sin coordenadas
 se muestra en el panel/capa de texto, sin rectángulos inventados. TIFF multipágina
 solo muestra la primera imagen en el visor actual.
 
+Las coordenadas de una palabra son un rectángulo `{x,y,width,height}` en el lienzo guardado y,
+cuando la lectura se hizo sobre una imagen rectificada por perspectiva, además `polygon`
+(ocho números: las cuatro esquinas reales, en el mismo lienzo). El visor dibuja el polígono
+si existe. El modo de texto admite clic, doble clic (línea), arrastre del ratón entre palabras
+(solo ratón: el toque conserva sus gestos y selecciona palabra a palabra), Ctrl/Cmd+C,
+Ctrl/Cmd+A y Escape, con alternativas accesibles en el panel. Las solicitudes de coordenadas
+son por página, se cancelan al cambiar de archivo y su clave de caché incluye usuario, empresa,
+archivo y revisión (sin retención al desmontar).
+
 ## Dependencias y seguridad
 
 Sin nuevas dependencias npm. Se reutilizan Hono, Zod, Prisma/pg, Storage y UI.
-El worker añade Python/Pillow, Tesseract y Poppler sobre Alpine 3.24. Versiones
+El worker añade Python/Pillow, Tesseract y Poppler sobre Alpine 3.24, más `pillow-heif` 1.9.0 (BSD-3, rueda con hash fijado para x86_64/aarch64) para HEIC/HEIF. Su rueda incluye libheif 1.23.7 y libde265 1.1.3 (LGPL-3, decodificación) y x265 (GPL-2, codificador que el worker nunca invoca): conservar sus avisos al distribuir la imagen. Sin AVIF, sin red, sin código ejecutable. La imagen pasa de 337 MB a 377 MB. Versiones
 observadas: Python 3.13.18, Pillow 13.0.0, Tesseract 5.5.4 y
 Poppler 26.11.0. Sus licencias son respectivamente PSF,
 HPND, Apache-2.0 y GPL-2.0-or-later; conservar avisos/licencias al distribuir la imagen.

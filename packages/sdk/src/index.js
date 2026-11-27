@@ -166,6 +166,8 @@ export function createRunlyClient({ baseUrl, getActiveCompanyId, fetch: fetchImp
       search: (query, token) => request(`/content/search${toQueryString(query)}`, { headers: withAuthHeaders(token), onlineOnly: true }),
       result: (id, token, unit = null, signal) => request(`/content/files/${encodeURIComponent(id)}${unit ? `?unit=${unit}` : ''}`, { headers: withAuthHeaders(token), onlineOnly: true, signal }),
       process: (id, data, token) => request(`/content/files/${encodeURIComponent(id)}/process`, { method: 'POST', headers: withAuthHeaders(token), body: JSON.stringify(data), onlineOnly: true }),
+      generateSearchablePdf: (id, token) => request(`/content/files/${encodeURIComponent(id)}/searchable-pdf`, { method: 'POST', headers: withAuthHeaders(token), onlineOnly: true }),
+      searchablePdfLink: (id, token) => request(`/content/files/${encodeURIComponent(id)}/searchable-pdf`, { headers: withAuthHeaders(token), onlineOnly: true }),
       cancel: (id, token) => request(`/content/files/${encodeURIComponent(id)}/cancel`, { method: 'POST', headers: withAuthHeaders(token), onlineOnly: true }),
       status: (scope, token) => request(`/content/admin/${scope === 'instance' ? 'instance' : 'company'}`, { headers: withAuthHeaders(token), onlineOnly: true }),
       configure: (scope, config, token) => request(`/content/admin/${scope === 'instance' ? 'instance' : 'company'}`, { method: 'PUT', headers: withAuthHeaders(token), body: JSON.stringify(config), onlineOnly: true }),
