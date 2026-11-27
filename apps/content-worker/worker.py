@@ -64,6 +64,41 @@ def xml_text(data):
                     for text in ([node.text] if node.text else []) if text.strip())
 
 
+def _numbered(names, pattern):
+    return sorted((n for n in names if re.fullmatch(pattern, n)), key=lambda n: int(re.search(r"(\d+)\.xml$", n)[1]))
+
+
+def _paragraphs(root):
+    # Table cells are paragraphs too; a row's cells are joined by " | " so the reading order stays row by row.
+    out = []
+    for node in root.iter():
+        if node.tag.endswith("}tr"):
+            cells = ["".join(t.text or "" for t in c.iter() if t.tag.endswith("}t")) for c in node if c.tag.endswith("}tc")]
+            out.append(" | ".join(c for c in cells if c))
+    in_table = {id(p) for tr in root.iter() if tr.tag.endswith("}tr") for p in tr.iter() if p.tag.endswith("}p")}
+    body = []
+    for p in root.iter():
+        if p.tag.endswith("}p") and id(p) not in in_table:
+            body.append("".join(n.text or "" for n in p.iter() if n.tag.endswith("}t")))
+    return body, out
+
+
+def _sheet_names(archive, names):
+    # workbook.xml order + relationships give the real sheet names; never evaluates anything.
+    try:
+        rels = {r.get("Id"): r.get("Target") for r in safe_xml(archive.read("xl/_rels/workbook.xml.rels"))}
+        mapping = {}
+        for sheet in safe_xml(archive.read("xl/workbook.xml")).iter():
+            if sheet.tag.endswith("}sheet"):
+                target = rels.get(sheet.get("{http://schemas.openxmlformats.org/officeDocument/2006/relationships}id"), "")
+                path = "xl/" + target.lstrip("/").removeprefix("xl/")
+                if path in names:
+                    mapping[path] = sheet.get("name", "")
+        return mapping
+    except (KeyError, ET.ParseError):
+        return {}
+
+
 def office_pages(path, mime, limit):
     with zipfile.ZipFile(path) as archive:
         entries = archive.infolist()
@@ -76,13 +111,18 @@ def office_pages(path, mime, limit):
         if "wordprocessingml" in mime:
             if "word/document.xml" not in names:
                 raise ProcessingError("UNSUPPORTED")
-            root = safe_xml(archive.read("word/document.xml"))
-            paragraphs = ["".join(n.text or "" for n in p.iter() if n.tag.endswith("}t"))
-                          for p in root.iter() if p.tag.endswith("}p")]
-            return [("Documento", "\n".join(paragraphs))], False
+            body, rows = _paragraphs(safe_xml(archive.read("word/document.xml")))
+            parts = [("Documento", "\n".join(body + rows))]
+            # Headers and footers are separate references so a hit says where the text lives.
+            for kind, label in (("header", "Encabezado"), ("footer", "Pie de página")):
+                for name in _numbered(names, rf"word/{kind}\d+\.xml")[:limit]:
+                    body, rows = _paragraphs(safe_xml(archive.read(name)))
+                    text = "\n".join(body + rows).strip()
+                    if text:
+                        parts.append((label, text))
+            return parts, False
         if "presentationml" in mime:
-            slides = sorted((name for name in names if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
-                            key=lambda name: int(re.search(r"slide(\d+)\.xml", name)[1]))
+            slides = _numbered(names, r"ppt/slides/slide\d+\.xml")
             return [(f"Diapositiva {i+1}", xml_text(archive.read(name)))
                     for i, name in enumerate(slides[:limit])], len(slides) > limit
         if "spreadsheetml" in mime:
@@ -90,21 +130,25 @@ def office_pages(path, mime, limit):
             if "xl/sharedStrings.xml" in names:
                 shared = ["".join(n.text or "" for n in item.iter() if n.tag.endswith("}t"))
                           for item in safe_xml(archive.read("xl/sharedStrings.xml"))]
-            sheets = sorted(name for name in names if re.fullmatch(r"xl/worksheets/sheet\d+\.xml", name))
+            sheets = _numbered(names, r"xl/worksheets/sheet\d+\.xml")
+            titles = _sheet_names(archive, names)
             pages = []
             for name in sheets[:limit]:
                 cells = []
                 for cell in safe_xml(archive.read(name)).iter():
-                    if not cell.tag.endswith("}c"):
+                    if not cell.tag.endswith("}c") or cell.get("t") == "e":
                         continue
+                    # Only the cached value is read; <f> formulas are never evaluated.
                     value = next((n.text or "" for n in cell if n.tag.endswith("}v")), "")
                     if cell.get("t") == "s" and value.isdigit() and int(value) < len(shared):
                         value = shared[int(value)]
                     elif cell.get("t") == "inlineStr":
                         value = "".join(n.text or "" for n in cell.iter() if n.tag.endswith("}t"))
+                    elif cell.get("t") == "b":
+                        value = "VERDADERO" if value == "1" else "FALSO"
                     if value:
                         cells.append(f"{cell.get('r', '?')}: {value}")
-                pages.append((name, "\n".join(cells)))
+                pages.append((titles.get(name) or name, "\n".join(cells)))
             return pages, len(sheets) > limit
     raise ProcessingError("UNSUPPORTED")
 

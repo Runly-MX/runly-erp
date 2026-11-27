@@ -197,6 +197,33 @@ class Corpus(unittest.TestCase):
                 archive.writestr(name, xml)
             self.assertIn(expected, extract(self.path, "application/vnd.openxmlformats-officedocument." + suffix, POLICY)["pages"][0]["text"])
 
+    def test_office_structure_references_and_no_formula_evaluation(self):
+        w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+        docx = {"word/document.xml": f'<w:document {w}><w:body><w:p><w:r><w:t>Intro DOC1</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:r><w:t>Celda A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>TABLA77</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>',
+                "word/header1.xml": f'<w:hdr {w}><w:p><w:r><w:t>ENCAB55</w:t></w:r></w:p></w:hdr>', "word/footer1.xml": f'<w:ftr {w}><w:p><w:r><w:t>PIE66</w:t></w:r></w:p></w:ftr>'}
+        with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, xml in docx.items():
+                archive.writestr(name, xml)
+        pages = extract(self.path, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", POLICY)["pages"]
+        self.assertEqual([p["reference"] for p in pages], ["Documento", "Encabezado", "Pie de página"])
+        self.assertIn("Celda A | TABLA77", pages[0]["text"])
+        self.assertTrue(all(not p["words"] for p in pages))  # no invented coordinates
+        s = 'xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+        r = 'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"'
+        sheet = lambda body: f'<worksheet {s}><sheetData>{body}</sheetData></worksheet>'
+        xlsx = {"xl/workbook.xml": f'<workbook {s} {r}><sheets><sheet name="Inventario" sheetId="1" r:id="rId1"/><sheet name="Resumen" sheetId="2" r:id="rId2"/></sheets></workbook>',
+                "xl/_rels/workbook.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="worksheets/sheet10.xml"/><Relationship Id="rId2" Target="worksheets/sheet2.xml"/></Relationships>',
+                "xl/sharedStrings.xml": f'<sst {s}><si><t>COMPART88</t></si></sst>',
+                "xl/worksheets/sheet10.xml": sheet('<row r="3"><c r="B3" t="s"><v>0</v></c><c r="C3"><f>SUM(A1:A2)</f><v>42</v></c><c r="D3" t="e"><v>#REF!</v></c></row>'),
+                "xl/worksheets/sheet2.xml": sheet('<row r="1"><c r="A1" t="inlineStr"><is><t>SEGUNDA</t></is></c></row>')}
+        with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:
+            for name, xml in xlsx.items():
+                archive.writestr(name, xml)
+        pages = extract(self.path, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", POLICY)["pages"]
+        by_ref = {p["reference"]: p["text"] for p in pages}
+        self.assertEqual(by_ref["Inventario"], "B3: COMPART88\nC3: 42")  # cached value only, error cell skipped
+        self.assertIn("A1: SEGUNDA", by_ref["Resumen"])
+
     def test_zip_bomb_and_xml_entities_rejected(self):
         with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("word/document.xml", "A" * 1000000)

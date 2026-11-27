@@ -173,7 +173,8 @@ def build(out, size='smoke', seed=20261126, real=None):
         add(f'hybrid-{n:03d}.pdf', 'pdf-hybrid', '\n'.join(hybrid), [ids['folio']], [], [{'truth': hybrid[0], 'route': 'digital'}, {'truth': invoice, 'route': 'ocr'}], 'mixed')
         for ext in ('docx', 'xlsx', 'pptx'):
             text = f"Documento {ext} Serie {ids['serial']}"; office(out / f'office-{n:03d}.{ext}', ext, text)
-            add(f'office-{n:03d}.{ext}', 'office', text, [ids['serial']], [], None, 'digital')
+            # Documented extractor contract: spreadsheet cells are referenced as 'A1: value' so a hit says where it lives.
+            add(f'office-{n:03d}.{ext}', 'office', ('A1: ' + text) if ext == 'xlsx' else text, [ids['serial']], [], None, 'digital')
         blank = Image.new('RGB', (1400, 700), '#d0d4d8').filter(ImageFilter.GaussianBlur(3)); save_image(blank, out / f'notext-{n:03d}.png')
         add(f'notext-{n:03d}.png', 'no-text', '', [], [])
     for path in sorted(Path(real).glob('*.*') if real else []):
