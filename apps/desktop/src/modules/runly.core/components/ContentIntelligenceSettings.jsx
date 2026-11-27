@@ -37,6 +37,7 @@ function PolicyForm({ status, scope, token }) {
   const action = useMutation({ mutationFn: operation => operation === 'save'
     ? runly.contentIntelligence.configure(scope, { ...config, schedule, languages: languages.split(',').map(value => value.trim()).filter(Boolean),allowedMimeTypes:types.split(',').map(value=>value.trim()).filter(Boolean) }, token)
     : operation === 'purge' ? runly.contentIntelligence.purge(token)
+      : operation === 'retry' ? runly.contentIntelligence.retry({ quality: filters.quality }, token)
       : runly.contentIntelligence.backfill({ action: operation,filters:filterPayload }, token),
   onSuccess: () => { client.invalidateQueries({ queryKey: ['content-admin'] }); setConfirm(null); toast.success('Cambio aplicado'); },
   onError: error => toast.error(error.message) });
@@ -93,7 +94,12 @@ function PolicyForm({ status, scope, token }) {
       <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">{status.counts.map(item=><div key={item.state}><dt>{STATES[item.state]??item.state}</dt><dd className="text-base font-semibold">{item.count}</dd></div>)}</dl>
       <p>Texto y metadatos derivados: {Math.round(status.counts.reduce((n,item)=>n+(item.derivedBytes??0),0)/1024)} KiB. No incluye el tamaño físico de índices.</p>
       {scope==='instance' && Number.isFinite(status.indexBytes) && <p>Índices de contenido de la instancia: {Math.round(status.indexBytes/1024)} KiB.</p>}
-      <p>Intentos finalizados (hasta los 1,000 más recientes de 15 minutos): {status.rate?.completed??0}. Sin datos suficientes para estimar finalización.</p>
+      <p>Intentos finalizados (hasta los 1,000 más recientes de 15 minutos): {status.rate?.completed??0}. Última actividad: {status.rate?.lastActivity?new Date(status.rate.lastActivity).toLocaleString('es-MX'):'sin actividad reciente'}.</p>
+      {status.history && <div role="group" aria-label="Progreso del histórico" className="space-y-1">
+        <p>Histórico: {status.history.discovered} recorridos de {status.history.eligible==null?'?':`${status.history.eligibleCapped?'más de ':''}${status.history.eligible}`} elegibles · {status.history.enqueued} encolados · {status.history.omitted} omitidos</p>
+        {status.history.progress!=null && <div className="h-2 w-full overflow-hidden rounded bg-muted" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(status.history.progress*100)}><div className="h-full bg-primary" style={{width:`${Math.round(status.history.progress*100)}%`}} /></div>}
+        <p>{status.history.etaSeconds==null?status.history.etaNote:`${status.history.etaNote}: ${status.history.etaSeconds<3600?`${Math.ceil(status.history.etaSeconds/60)} min`:`${(status.history.etaSeconds/3600).toFixed(1)} h`}`}. El procesamiento continúa aunque cierres esta pantalla.</p>
+      </div>}
       {status.backfill.map(item => <p key={`${item.companyId}:${item.kind}`}>{item.kind === 'new' ? 'Archivos nuevos' : 'Histórico'}: {item.state} · {item.discovered} recorridos · {item.enqueued} encolados · {item.omitted} omitidos</p>)}
       {status.recent?.filter(item=>item.errorCode).slice(0,5).map((item,index)=><p key={index}>Incidencia: {item.errorCode} · {STATES[item.state]??item.state}</p>)}
       {status.pressure && <p>Presión de la API: {status.pressure.paused?'procesamiento en pausa':'sin pausa'} · Host completo: sin telemetría.</p>}
@@ -105,6 +111,7 @@ function PolicyForm({ status, scope, token }) {
         <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate('pause')}>Pausar histórico</Button>
         <Button variant="outline" disabled={action.isPending} onClick={() => action.mutate('resume')}>Reanudar histórico</Button>
         <Button variant="outline" disabled={action.isPending} onClick={() => setConfirm('cancel')}>Cancelar histórico</Button>
+        <Button variant="outline" disabled={action.isPending} onClick={() => setConfirm('retry')}>Reintentar fallidos</Button>
         <Button variant="destructive" disabled={action.isPending} onClick={() => setConfirm('purge')}>Purgar derivados</Button>
       </>}
     </div>
@@ -119,7 +126,7 @@ export function ContentIntelligenceSettings({ scope = 'instance', enabled = true
   const { activeCompanyId } = useActiveCompany();
   const token = session?.access_token;
   const status = useQuery({ queryKey: ['content-admin', scope, userProfile?.id, activeCompanyId], queryFn: () => runly.contentIntelligence.status(scope, token),
-    enabled: Boolean(token) && enabled, refetchInterval: 15000 });
+    enabled: Boolean(token) && enabled, refetchInterval: query => query.state.data?.data?.backfill?.some(item => item.state === 'running') || query.state.data?.data?.counts?.some(item => ['pending','processing'].includes(item.state)) ? 15000 : 60000 });
   if (!enabled) return null;
   return <Card className="min-w-0 p-4 space-y-4" aria-label={`Procesamiento de ${scope==='instance'?'instancia':'empresa'}`}><h2 className="text-base font-semibold">Procesamiento inteligente de archivos · {scope==='instance'?'Instancia':'Empresa'}</h2>
     {status.isError ? <ErrorState message={status.error.message} /> : status.data?.data

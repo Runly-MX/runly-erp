@@ -206,6 +206,35 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     // broad searches can be incomplete until visibility is pushed into ranking.
     return { data, nextCursor: data.length === 50 ? encodeCursor(candidates.at(-1),cursorScope) : null };
   }
+  // Capped, cached count: never a full scan per dashboard refresh. `capped` means "at least this many".
+  const eligibleCache = new Map();
+  const SUPPORTED_SQL = String.raw`^(image/(jpeg|png|webp|tiff)|application/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text/[a-z.+-]+|image/svg\+xml)$`;
+  async function eligible(companyId, filters = {}) {
+    const key = `${companyId}:${JSON.stringify(filters)}`, hit = eligibleCache.get(key);
+    if (hit && Date.now() - hit.at < 60000) return hit.value;
+    const CAP = 50000;
+    const [row] = await prisma.$queryRaw`SELECT count(*)::int AS n FROM (SELECT 1 FROM file_asset WHERE entity_id=${companyId}::uuid AND enabled
+      AND mime_type ~ ${SUPPORTED_SQL}
+      AND (${filters.folderId ?? null}::uuid IS NULL OR folder_id=${filters.folderId ?? null}::uuid)
+      AND (${filters.mime ?? null}::text IS NULL OR mime_type LIKE ${(filters.mime ?? '') + '%'})
+      AND created_at>=coalesce(${filters.fromDate ?? null}::timestamp,'-infinity'::timestamp)
+      AND created_at<=coalesce(${filters.toDate ?? null}::timestamp,'infinity'::timestamp) LIMIT ${CAP + 1}) s`;
+    const value = { count: Math.min(row.n, CAP), capped: row.n > CAP };
+    eligibleCache.set(key, { at: Date.now(), value });
+    if (eligibleCache.size > 200) eligibleCache.delete(eligibleCache.keys().next().value);
+    return value;
+  }
+  // Honest progress: null whenever the denominator is only a lower bound or the sample is too small.
+  function historySummary(scan, total, rate) {
+    if (!scan) return null;
+    const known = total && !total.capped;
+    const progress = known && total.count > 0 ? Math.min(1, scan.discovered / total.count) : null;
+    const span = rate?.firstActivity && rate?.lastActivity ? (new Date(rate.lastActivity) - new Date(rate.firstActivity)) / 1000 : 0;
+    const enough = rate?.completed >= 20 && span >= 60;
+    const etaSeconds = scan.state === 'running' && known && enough ? Math.round(Math.max(0, total.count - scan.discovered) * span / rate.completed) : null;
+    return { eligible: total?.count ?? null, eligibleCapped: Boolean(total?.capped), discovered: scan.discovered, enqueued: scan.enqueued, omitted: scan.omitted,
+      progress, etaSeconds, etaNote: etaSeconds == null ? 'Sin datos suficientes para estimar' : 'Estimación según el ritmo de los últimos 15 minutos; no considera horarios ni pausas' };
+  }
   async function status(scope) {
     const instance = await policy('instance');
     const local = scope === 'instance' ? null : await policy(scope);
@@ -217,18 +246,21 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       elapsed_ms AS "elapsedMs",updated_at AS "updatedAt" FROM runly_content.job WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid)
       ORDER BY updated_at DESC LIMIT 20`;
     const [rate] = await prisma.$queryRaw`SELECT count(*)::int AS completed,
-      coalesce(sum(elapsed_ms),0)::int AS "elapsedMs",max(finished_at) AS "lastActivity"
+      coalesce(sum(elapsed_ms),0)::int AS "elapsedMs",max(finished_at) AS "lastActivity",min(finished_at) AS "firstActivity"
       FROM (SELECT elapsed_ms,finished_at FROM runly_content.attempt WHERE finished_at>now()-interval '15 minutes'
         AND (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY finished_at DESC LIMIT 1000) recent`;
     const backfill = await prisma.$queryRaw`SELECT company_id AS "companyId",kind,state,cursor,discovered,enqueued,omitted,updated_at AS "updatedAt" FROM runly_content.backfill
       WHERE (${scope === 'instance'} OR company_id=${scope === 'instance' ? null : scope}::uuid) ORDER BY updated_at DESC LIMIT 100`;
     const storage=scope==='instance'?await prisma.$queryRaw`SELECT coalesce(sum(pg_indexes_size(oid)),0)::float AS "indexBytes"
       FROM pg_class WHERE relnamespace='runly_content'::regnamespace AND relkind='r'`:[];
+    const scan = scope === 'instance' ? null : backfill.find(item => item.kind === 'historical');
+    const [scanRow] = scan ? await prisma.$queryRaw`SELECT filters FROM runly_content.backfill WHERE company_id=${scope}::uuid AND kind='historical'` : [];
+    const history = scan ? historySummary(scan, await eligible(scope, scanRow?.filters ?? {}), rate) : null;
     const effectiveNow = local ? effectivePolicy(instance, local) : instance;
     return { config: local ?? instance, effective: effectiveNow, operational: operationalState(effectiveNow, workers),
       workers: scope === 'instance' ? workers : workers.map(w => ({ connected: w.connected, heartbeatAt: w.heartbeatAt,
         capabilities: { engine: w.capabilities.engine, languages: w.capabilities.languages, models: w.capabilities.models, protocol: w.capabilities.protocol } })),
-      counts, recent, rate, backfill, engine: ENGINE_VERSION,
+      counts, recent, rate, backfill, history, engine: ENGINE_VERSION,
       ...(scope==='instance' ? { pressure: await pressure.observe(),indexBytes:storage[0].indexBytes } : {}) };
   }
   async function backfill(companyId, action, filters, context) {
@@ -470,13 +502,21 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       return { state };
     }, { timeout: 15000 });
   }
+  // Explicit, separate from disabling OCR or search. Deletes derived data only, in bounded batches
+  // (pages cascade from jobs); originals in file_asset/Storage are never touched.
   async function purge(companyId, context) {
-    return prisma.$transaction(async db => {
-      await db.$executeRaw`DELETE FROM runly_content.job WHERE company_id=${companyId}::uuid`;
-      await db.$executeRaw`UPDATE runly_content.backfill SET state='cancelled' WHERE company_id=${companyId}::uuid`;
-      await audit(db, context, 'purge', {});
-      return { ok: true };
+    await prisma.$transaction(async db => {
+      await db.$executeRaw`UPDATE runly_content.backfill SET state='cancelled',updated_at=now() WHERE company_id=${companyId}::uuid`;
+      await audit(db, context, 'purge.start', {});
     });
+    let removed = 0;
+    for (;;) {
+      const n = await prisma.$executeRaw`DELETE FROM runly_content.job WHERE id IN (SELECT id FROM runly_content.job WHERE company_id=${companyId}::uuid LIMIT 500)`;
+      removed += n;
+      if (n < 500) break;
+    }
+    await prisma.$transaction(db => audit(db, context, 'purge.done', { removedJobs: removed }));
+    return { ok: true, removedJobs: removed };
   }
   return { policy, effective, savePolicy, request, result, cancel, search, status, backfill, heartbeat, claim, renew, download, checkpoint, complete, purge };
 }

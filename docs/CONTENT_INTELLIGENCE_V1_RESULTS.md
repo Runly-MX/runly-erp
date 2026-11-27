@@ -332,3 +332,62 @@ de Studio (`fabric`, `image-size`), CVE musl del worker; no se re-escaneó la im
 
 Estado funcional: **Candidato funcional pendiente de certificación**.
 Estado operativo: **APTO PARA PRUEBAS AISLADAS** (sin cambios; la evidencia nueva no lo eleva).
+
+## Etapa 4A: administración e indexación histórica autónoma (2026-11-26)
+
+Laboratorio aislado existente (API en 4059, UI de laboratorio en 5188, worker `runly-content-stage2:candidate`
+con 1 CPU / 1 GB). Sin push ni despliegue.
+
+### Auditoría: lo que ya existía
+Controles de política con validación Zod estricta y recorte por la instancia (`effectivePolicy`): perfil, calidad,
+idiomas, OCR automático/manual/imagen/PDF, extracción digital, concurrencia, hilos, memoria, CPU, límites de archivo,
+páginas, píxeles, timeout, reintentos, horarios, cola máxima, retención. Todos llegan al worker mediante el snapshot
+del trabajo. Políticas por empresa que no pueden ampliar la instancia. Descubrimiento histórico con cursor persistente
+en `runly_content.backfill`, lotes de 10, tope por empresa (`maxPending`) y global (4000), prioridad 10 para nuevos y 40
+para histórico con envejecimiento, pausa/reanudación/cancelación. El descubrimiento corre dentro de `claim`, es decir
+lo impulsa el worker: sin worker no se crean trabajos nuevos (la cola no crece) y al reconectarse continúa desde el cursor.
+Hilo de ejecución sin intervención periódica ni pantalla abierta.
+
+### Completado en esta etapa
+- `status` incluye `history` (elegibles, recorridos, encolados, omitidos, progreso, ETA) y última actividad.
+  El conteo de elegibles es acotado (tope 50 000, "más de N" si se excede), con los mismos filtros del recorrido y
+  caché de 60 s. Progreso y ETA son `null` si el denominador es solo una cota o hay menos de 20 intentos / 60 s de
+  muestra; la ETA no considera horarios ni pausas y la interfaz lo dice.
+- Purga en lotes de 500 trabajos con auditoría de inicio y fin (antes: un solo `DELETE` en una transacción); cancela
+  el recorrido; nunca toca originales. Sigue separada de apagar OCR (`profile OFF`/`paused`) y de `searchEnabled`.
+- Interfaz: progreso histórico con barra y ETA, última actividad, botón "Reintentar fallidos" (SDK `contentIntelligence.retry`
+  sobre la ruta existente) y sondeo de 15 s solo con actividad (60 s en reposo; TanStack no sondea en pestaña oculta).
+- Contratos: `GET /content/admin/{instance,company}` añade `history`, `rate.firstActivity` y `operational`;
+  `POST /content/admin/purge` devuelve `removedJobs`. Sin migración nueva, sin dependencias nuevas.
+
+### Evidencia del flujo vertical
+`scripts/content-certification/vertical-historical.mjs`, API real de Archivos y Content, worker real, PostgreSQL y
+Storage del laboratorio, imágenes con texto único renderizado solo dentro de la imagen (nombre sin texto reconocible).
+Dos ejecuciones; la segunda reinició API y worker durante el recorrido. Todas las comprobaciones pasaron:
+archivos subidos con OCR apagado no crean trabajos; la activación (una vez) genera trabajos sola; la cola con límite 4
+llegó como máximo a 4; al pausar el recorrido no avanza el cursor (6→6, 17→17); el cursor sobrevive al reinicio
+(16→16, estado `running`); la reanudación termina en `done`; los 11 archivos terminan `done`; la fotografía se encuentra
+por texto que solo existe dentro de ella; la imagen subida a mitad del histórico se indexa y se encuentra; un archivo
+de otra empresa (misma cadena de búsqueda, insertado directo en la base) no aparece. Resultado: `docs/audits/content-intelligence-stage4/vertical-historical.json`.
+Cerrar la pantalla no es una condición del script (solo API, sin navegador): el desacople se deduce de que el
+descubrimiento lo ejecuta el worker; no se probó un navegador cerrándose.
+
+### Validación visual
+Capturas reales con Chromium contra la UI de laboratorio (`docs/audits/content-intelligence-stage4/screenshots/`):
+worker ausente 1440 claro y 390 oscuro; worker conectado 1440 claro/oscuro, 390 claro y 320 oscuro; sin desbordamiento
+horizontal en ninguna. Es la sección de **instancia** (badge "Operativo", límites físicos observados). No se capturó
+la sección de empresa con el nuevo panel de progreso histórico ni los estados de error ni un usuario sin permisos.
+
+### Bloqueos y pendientes
+No verificado: panel histórico de empresa en navegador, permisos administrativos de UI con un usuario no admin,
+versión sustituida durante OCR / carpeta movida / URL firmada vencida (cubiertos por pruebas PostgreSQL de la ronda
+anterior, no repetidos aquí), dos empresas reales con RLS/Storage (la segunda empresa fue una fila SQL), escala
+(el lote es de 10 archivos por reclamación; con miles de archivos el ritmo depende del worker, no medido),
+`discover` ejecuta consultas en cada `claim` (sin medir su costo con millones de filas).
+Vulnerabilidades: sin dependencias nuevas; los componentes modificados (servicio API, SDK, interfaz) no se ven
+afectados por las alertas ya registradas (CVE musl del worker, `fabric`/`image-size` de Studio): sin cambios.
+
+### Clasificación
+Funcional: **Candidato funcional pendiente de certificación** (la administración y el histórico autónomo están
+verificados en laboratorio; falta certificación a escala y UI de empresa).
+Operativo: **APTO PARA PRUEBAS AISLADAS**.

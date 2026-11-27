@@ -1,0 +1,72 @@
+{
+ "at": "2026-11-27T00:04:11.915Z",
+ "marker": "QZMWY7V2T9",
+ "maxQueue": 4,
+ "checks": [
+  {
+   "name": "files uploaded while OCR is OFF create no jobs",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "history cursor survives API+worker restart",
+   "ok": true,
+   "detail": "discovered 16->16 state=running"
+  },
+  {
+   "name": "13. history discovery stops while paused",
+   "ok": true,
+   "detail": "state=paused discovered 17->17"
+  },
+  {
+   "name": "4. jobs were generated automatically",
+   "ok": true,
+   "detail": "enqueued=11"
+  },
+  {
+   "name": "6. queue limit respected",
+   "ok": true,
+   "detail": "max pending+processing=4 limit=4"
+  },
+  {
+   "name": "15. history reached completion",
+   "ok": true,
+   "detail": "state=done discovered=22"
+  },
+  {
+   "name": "status exposes bounded history summary",
+   "ok": true,
+   "detail": "{\"eligible\":22,\"eligibleCapped\":false,\"discovered\":22,\"enqueued\":11,\"omitted\":11,\"progress\":1,\"etaSeconds\":null,\"etaNote\":\"Sin datos suficientes para estimar\"}"
+  },
+  {
+   "name": "9. every file reached a terminal state",
+   "ok": true,
+   "detail": "[\"done\",\"done\",\"done\",\"done\",\"done\",\"done\",\"done\",\"done\",\"done\",\"done\",\"done\"]"
+  },
+  {
+   "name": "9/12. all pre-existing and the new image are indexed (done)",
+   "ok": true,
+   "detail": "[]"
+  },
+  {
+   "name": "10. photo found by text that exists only inside it",
+   "ok": true,
+   "detail": "hits=1"
+  },
+  {
+   "name": "12. image uploaded mid-history is searchable",
+   "ok": true,
+   "detail": "hits=1"
+  },
+  {
+   "name": "16. other company data present in DB (control)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "16. other company file never appears in this company search",
+   "ok": true,
+   "detail": "1->1"
+  }
+ ]
+}
