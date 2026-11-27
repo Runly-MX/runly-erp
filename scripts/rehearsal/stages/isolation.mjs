@@ -59,7 +59,8 @@ export async function isolationStage(ctx) {
       return `${findings.length} replica-own key(s) noted, 0 outbound settings`
     })
 
-    const startApi = () => startIfIsolated(async () => proof, () => command('docker', ['run', '-d', '--name', names.api, '--network', names.internal, '--network-alias', 'runly-api', '--env-file', envFile, '--entrypoint', 'node', ctx.images.api, 'apps/api/src/index.js']))
+    // The API only serves its administrative routes to its own hosts (RUNLY_API_URL / RUNLY_APP_URL); the probes reach it as runly-api.
+    const startApi = () => startIfIsolated(async () => proof, () => command('docker', ['run', '-d', '--name', names.api, '--network', names.internal, '--network-alias', 'runly-api', '--env-file', envFile, '-e', 'RUNLY_API_URL=http://runly-api:4010', '--entrypoint', 'node', ctx.images.api, 'apps/api/src/index.js']))
 
     // The certified API fails closed on a restored Storage that has not been through the hardening (no policy, no guard).
     await expect(ctx, 'api-refuses-unprepared-storage', 'The certified API REFUSES to start on the restored, un-hardened Storage (fail closed), and says why', async () => {
