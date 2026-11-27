@@ -36,13 +36,18 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
       return c.json({ error: 'El procesamiento no está disponible. Comprueba la migración y el servicio.' }, 503);
     }
   };
-  app.use('/content/*', bodyLimit({ maxSize: 8 * 1024 * 1024, onError: c => c.json({ error: 'Solicitud excesiva.' }, 413) }));
+  const smallBodies = bodyLimit({ maxSize: 8 * 1024 * 1024, onError: c => c.json({ error: 'Solicitud excesiva.' }, 413) });
+  const derivativeBody = bodyLimit({ maxSize: 64 * 1024 * 1024, onError: c => c.json({ error: 'Solicitud excesiva.' }, 413) });
+  // Only the worker's authenticated derivative upload may carry a large body.
+  app.use('/content/*', (c, next) => c.req.method === 'PUT' && /^\/content\/worker\/derivatives\/[^/]+\/file$/.test(c.req.path) ? derivativeBody(c, next) : smallBodies(c, next));
   app.get('/content/search', authMiddleware, read, wrap(async c => c.json(await service.search(args(c), c.req.query()))));
   app.get('/content/files/:id', authMiddleware, read, wrap(async c => c.json({ data: await service.result(args(c), { unit: c.req.query('unit') && /^\d{1,3}$/.test(c.req.query('unit')) ? c.req.query('unit') : null }) })));
   app.post('/content/files/:id/process', authMiddleware, processFiles, wrap(async c => {
     const input = z.strictObject({ quality: z.enum(['fast','balanced','accurate']).optional(), reprocess: z.boolean().default(false) }).parse(await c.req.json());
     return c.json({ data: await service.request(args(c), input) }, 202);
   }));
+  app.post('/content/files/:id/searchable-pdf', authMiddleware, processFiles, wrap(async c => c.json({ data: await service.requestSearchable(args(c)) }, 202)));
+  app.get('/content/files/:id/searchable-pdf', authMiddleware, read, wrap(async c => c.json({ data: await service.searchableDownload(args(c)) })));
   app.post('/content/files/:id/cancel', authMiddleware, read, wrap(async c => c.json({ data: await service.cancel(args(c)) })));
   app.get('/content/admin/company', authMiddleware, manageCompany, wrap(async c => c.json({ data: await service.status(c.get('companyId')) })));
   app.put('/content/admin/company', authMiddleware, manageCompany, wrap(async c => c.json({ data: await service.savePolicy(c.get('companyId'), await c.req.json(), tenantActiveContext(c)) })));
@@ -96,5 +101,19 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
   }));
   app.post('/content/worker/jobs/:id/result', workerAuth, wrap(async c => c.json(await service.complete(c.req.param('id'), c.req.header('X-Content-Lease'), await c.req.json()))));
   app.post('/content/worker/jobs/:id/checkpoint', workerAuth, wrap(async c => c.json(await service.checkpoint(c.req.param('id'),c.req.header('X-Content-Lease'),await c.req.json()))));
+  app.post('/content/worker/derivative/claim', workerAuth, wrap(async c => {
+    const { id } = z.strictObject({ id: z.string().regex(/^[a-zA-Z0-9_-]{1,64}$/) }).parse(await c.req.json());
+    return c.json({ data: await service.claimDerivative(id) });
+  }));
+  app.get('/content/worker/derivatives/:id/source', workerAuth, wrap(async c => {
+    const data = await service.derivativeSource(c.req.param('id'), c.req.header('X-Content-Lease'));
+    c.header('Content-Type', 'application/octet-stream');
+    c.header('X-Content-Type-Options', 'nosniff');
+    return c.body(data);
+  }));
+  app.get('/content/worker/derivatives/:id/pages', workerAuth, wrap(async c => c.json(await service.derivativePages(c.req.param('id'), c.req.header('X-Content-Lease')))));
+  app.post('/content/worker/derivatives/:id/heartbeat', workerAuth, wrap(async c => c.json(await service.derivativeRenew(c.req.param('id'), c.req.header('X-Content-Lease')))));
+  app.put('/content/worker/derivatives/:id/file', workerAuth, wrap(async c => c.json(await service.derivativeUpload(c.req.param('id'), c.req.header('X-Content-Lease'), new Uint8Array(await c.req.arrayBuffer())))));
+  app.post('/content/worker/derivatives/:id/result', workerAuth, wrap(async c => c.json(await service.derivativeComplete(c.req.param('id'), c.req.header('X-Content-Lease'), await c.req.json()))));
   return app;
 }

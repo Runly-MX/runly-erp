@@ -39,7 +39,9 @@ def child(connection, path, mime, quality):
         connection.send({'text': '\n'.join(page['text'] for page in result['pages']), 'seconds': time.monotonic() - started,
                          'cpuSeconds': own.ru_utime + own.ru_stime + kids.ru_utime + kids.ru_stime,
                          'peakRssKiB': max(own.ru_maxrss, kids.ru_maxrss), 'secondPasses': result['metrics'].get('secondPasses', 0),
-                         'sources': sorted({page.get('source', '') for page in result['pages']})})
+                         'sources': sorted({page.get('source', '') for page in result['pages']}),
+                         'perspective': sorted({page['engine'].get('analysis', {}).get('perspective', '') for page in result['pages'] if page['engine'].get('analysis')}),
+                         'partial': result.get('partial', False)})
     except Exception as error:
         connection.send({'error': type(error).__name__ + ':' + str(getattr(error, 'code', ''))})
     finally:
@@ -75,7 +77,7 @@ def evaluate(corpus, qualities, timeout):
             rows.append({'id': entry['id'], 'kind': entry['kind'], 'quality': quality, 'transforms': entry['transforms'], 'truthChars': len(truth),
                          'cer': distance(truth, actual) / len(truth) if truth else (0.0 if not actual else 1.0),
                          'wer': distance(truth.split(), actual.split()) / len(truth.split()) if truth else 0.0,
-                         'identifiers': len(entry['identifiers']), 'identifiersExact': len(hits),
+                         'difficulty': entry.get('difficulty', ''), 'identifiers': len(entry['identifiers']), 'identifiersExact': len(hits),
                          **{k: v for k, v in result.items() if k != 'text'}, 'text': actual})
     summary = {}
     for quality in qualities:
@@ -102,7 +104,20 @@ def evaluate(corpus, qualities, timeout):
                             'peakRssMiB': max((r['peakRssKiB'] for r in subset), default=0) / 1024,
                             'secondPasses': sum(r['secondPasses'] for r in subset),
                             'searchQueries': queries, 'searchRecall': tp / max(1, tp + fn), 'searchPrecision': tp / max(1, tp + fp)}
-    return {'synthetic': manifest['synthetic'], 'seed': manifest['seed'], 'size': manifest['size'], 'files': len(manifest['entries']), 'summary': summary, 'rows': rows}
+    def breakdown(key):
+        table = {}
+        for quality in qualities:
+            for value in sorted({r[key] for r in rows}):
+                group = [r for r in rows if r['quality'] == quality and r[key] == value and 'error' not in r and r['truthChars']]
+                errors = sum(1 for r in rows if r['quality'] == quality and r[key] == value and 'error' in r)
+                if group or errors:
+                    ids = sum(r['identifiers'] for r in group)
+                    table.setdefault(value, {})[quality] = {'files': len(group), 'errors': errors, 'cerMean': statistics.fmean(r['cer'] for r in group) if group else None,
+                                                            'identifierExact': sum(r['identifiersExact'] for r in group) / max(1, ids),
+                                                            'secondsMean': statistics.fmean(r['seconds'] for r in group) if group else None,
+                                                            'secondPasses': sum(r['secondPasses'] for r in group)}
+        return table
+    return {'synthetic': manifest['synthetic'], 'byKind': breakdown('kind'), 'byDifficulty': breakdown('difficulty'), 'seed': manifest['seed'], 'size': manifest['size'], 'files': len(manifest['entries']), 'summary': summary, 'rows': rows}
 
 
 def markdown(report):
@@ -113,6 +128,11 @@ def markdown(report):
     for quality, s in report['summary'].items():
         lines.append(f"| {quality} | {s['files']} | {s['errors']} | {f(s['cerMean'])} | {f(s['werMean'])} | {f(s['identifierExact'])} | {f(s['searchRecall'])} | "
                      f"{f(s['searchPrecision'])} | {f(s['secondsMean'], 2)} | {f(s['secondsP95'], 2)} | {s['peakRssMiB']:.0f} | {s['secondPasses']} |")
+    for title, key in (('Por tipo', 'byKind'), ('Por dificultad', 'byDifficulty')):
+        lines += ['', f'## {title}', '', '| Grupo | Modo | Archivos | Errores | CER | Ids exactos | s medio | 2das pasadas |', '|---|---|---|---|---|---|---|---|']
+        for group, qualities in report[key].items():
+            for quality, g in qualities.items():
+                lines.append(f"| {group} | {quality} | {g['files']} | {g['errors']} | {f(g['cerMean'])} | {f(g['identifierExact'])} | {f(g['secondsMean'], 2)} | {g['secondPasses']} |")
     return '\n'.join(lines) + '\n'
 
 

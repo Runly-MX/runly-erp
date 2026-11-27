@@ -93,6 +93,39 @@ def transform(image, names, rng):
     return image, applied
 
 
+def _homography(rect, quad):
+    rows = []
+    for (x, y), (u, v) in zip(rect, quad):
+        rows.append([x, y, 1, 0, 0, 0, -x * u, -y * u, u])
+        rows.append([0, 0, 0, x, y, 1, -x * v, -y * v, v])
+    for column in range(8):
+        pivot = max(range(column, 8), key=lambda r: abs(rows[r][column]))
+        rows[column], rows[pivot] = rows[pivot], rows[column]
+        rows[column] = [value / rows[column][column] for value in rows[column]]
+        for r in range(8):
+            if r != column:
+                factor = rows[r][column]
+                rows[r] = [a - factor * b for a, b in zip(rows[r], rows[column])]
+    return [rows[i][8] for i in range(8)]
+
+
+def quad_warp(label, rng, strength=0.18):
+    """Photograph the label from an angle: the whole label becomes a trapezoid on a larger dark surface.
+    Returns (image, quad) where quad are the label corners (tl, tr, br, bl) in the output, the independent geometric truth."""
+    w, h = label.size
+    out_w, out_h = 1500, 1000
+    margin_x, margin_y = 170, 130
+    jitter = lambda scale: rng.uniform(0, scale)
+    quad = [(margin_x + jitter(w * strength), margin_y + jitter(h * strength)),
+            (out_w - margin_x - jitter(w * strength), margin_y + jitter(h * strength * 0.3)),
+            (out_w - margin_x - jitter(w * strength * 0.4), out_h - margin_y - jitter(h * strength * 0.3)),
+            (margin_x + jitter(w * strength * 0.5), out_h - margin_y - jitter(h * strength))]
+    coefficients = _homography(quad, [(0, 0), (w, 0), (w, h), (0, h)])  # output -> source
+    canvas = Image.new('RGB', (out_w, out_h), '#2f353c')
+    warped = label.transform((out_w, out_h), Image.PERSPECTIVE, coefficients, Image.BICUBIC, fillcolor=(47, 53, 60))
+    return warped, [(round(x, 1), round(y, 1)) for x, y in quad]
+
+
 def save_image(image, path, jpeg_quality=None):
     if jpeg_quality:
         image.save(path, 'JPEG', quality=jpeg_quality)
@@ -100,7 +133,7 @@ def save_image(image, path, jpeg_quality=None):
         image.save(path, 'PNG')
 
 
-def pdf(path, pages):
+def pdf(path, pages, rotate=0):
     """pages: list of (text|None, Image|None). Text pages use native text; image pages embed a JPEG."""
     objects = [b'', b'', b'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>']
     kids = []
@@ -117,7 +150,8 @@ def pdf(path, pages):
             for line in text.split('\n'):
                 content += f'BT /F1 14 Tf 40 {y} Td ({line.replace("(", "").replace(")", "")}) Tj ET '.encode(); y -= 22
         objects.append(f'<< /Length {len(content)} >>\nstream\n'.encode() + content + b'\nendstream')
-        objects.append(f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] /Resources << {resources} >> /Contents {len(objects)} 0 R >>'.encode())
+        rotation = f' /Rotate {rotate}' if rotate else ''
+        objects.append(f'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800]{rotation} /Resources << {resources} >> /Contents {len(objects)} 0 R >>'.encode())
         kids.append(len(objects))
     objects[0] = b'<< /Type /Catalog /Pages 2 0 R >>'
     objects[1] = f'<< /Type /Pages /Kids [{" ".join(f"{k} 0 R" for k in kids)}] /Count {len(kids)} >>'.encode()
@@ -138,16 +172,26 @@ def office(path, kind, text):
         archive.writestr(entry, xml % text)
 
 
-MIME = {'png': 'image/png', 'jpg': 'image/jpeg', 'pdf': 'application/pdf', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+def office_rich(path, kind, ids):
+    """DOCX with body paragraph, table row and header: exercises the documented extraction order (body, then table rows)."""
+    w = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"'
+    with zipfile.ZipFile(path, 'w') as archive:
+        archive.writestr('word/document.xml', f'<w:document {w}><w:body><w:p><w:r><w:t>Intro {ids["serial"]}</w:t></w:r></w:p>'
+                         f'<w:tbl><w:tr><w:tc><w:p><w:r><w:t>Celda A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>{ids["tag"]}</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>')
+        archive.writestr('word/header1.xml', f'<w:hdr {w}><w:p><w:r><w:t>Encabezado {ids["host"]}</w:t></w:r></w:p></w:hdr>')
+
+
+MIME = {'heic': 'image/heic', 'png': 'image/png', 'jpg': 'image/jpeg', 'pdf': 'application/pdf', 'docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
         'xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation'}
 
 
 def build(out, size='smoke', seed=20261126, real=None):
     out = Path(out); out.mkdir(parents=True, exist_ok=True)
     rng = random.Random(seed); entries = []
-    def add(name, kind, truth, ids, applied, pages=None, route='ocr'):
+    def add(name, kind, truth, ids, applied, pages=None, route='ocr', **extra):
         ext = name.rsplit('.', 1)[1]
         entries.append({'id': name.rsplit('.', 1)[0], 'file': name, 'mime': MIME[ext], 'kind': kind, 'truth': truth, 'identifiers': ids,
+                        'difficulty': extra.get('difficulty') or ('clean' if not applied else 'moderate' if len(applied) == 1 else 'hard'), **{k: v for k, v in extra.items() if k != 'difficulty'},
                         'transforms': applied, 'expectedRoute': route, 'pages': pages or [{'truth': truth}]})
     for n in range(SIZES[size]):
         variants = [[]] + [rng.sample(TRANSFORMS[:-1], rng.randint(1, 3)) for _ in range(3 if size != 'smoke' else 2)]
@@ -177,6 +221,34 @@ def build(out, size='smoke', seed=20261126, real=None):
             add(f'office-{n:03d}.{ext}', 'office', ('A1: ' + text) if ext == 'xlsx' else text, [ids['serial']], [], None, 'digital')
         blank = Image.new('RGB', (1400, 700), '#d0d4d8').filter(ImageFilter.GaussianBlur(3)); save_image(blank, out / f'notext-{n:03d}.png')
         add(f'notext-{n:03d}.png', 'no-text', '', [], [])
+
+    # Stage 4C additions use their own RNG: every case above keeps its exact previous content for regression comparison.
+    extra_rng = random.Random(seed + 4)
+    try:
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+    except ImportError:
+        pillow_heif = None
+    for n in range(SIZES[size]):
+        ids = identifiers(extra_rng); text = device_text(extra_rng, ids); ident = [ids['serial'] if 'Serial' in text else ids['tag'] if 'Asset' in text else ids['service']]
+        label = render(text, extra_rng.choice([34, 40]), extra_rng)
+        photo, quad = quad_warp(label, extra_rng, 0.12 + 0.1 * (n % 3))
+        save_image(photo, out / f'persp-{n:03d}.jpg', 80); add(f'persp-{n:03d}.jpg', 'perspective-label', text, ident, [{'quad': quad}], difficulty='hard', quad=quad)
+        tiny = label.resize((int(label.width * .38), int(label.height * .38)), Image.LANCZOS); save_image(tiny, out / f'tiny-{n:03d}.png')
+        add(f'tiny-{n:03d}.png', 'small-label', text, ident, [{'scale': .38}], difficulty='hard')
+        glare, applied = transform(label, ['reflection', 'shadow', 'blur'], extra_rng); save_image(glare, out / f'glare-{n:03d}.jpg', 75)
+        add(f'glare-{n:03d}.jpg', 'glare-shadow', text, ident, applied, difficulty='hard')
+        if pillow_heif:
+            heic_image, applied = transform(render(text, 36, extra_rng), ['tilt'] if n % 2 else [], extra_rng); heic_image.save(out / f'photo-{n:03d}.heic', 'HEIF', quality=85)
+            add(f'photo-{n:03d}.heic', 'heic-photo', text, ident, applied)
+        invoice = invoice_text(ids)
+        for turns in (90, 270):  # PDF pages whose /Rotate flag differs from the scan orientation
+            scan = render(invoice, 36, extra_rng)
+            pdf(out / f'scan-rot{turns}-{n:03d}.pdf', [(None, scan)], rotate=turns)
+            add(f'scan-rot{turns}-{n:03d}.pdf', 'pdf-rotated', invoice, [ids['folio']], [{'pdfRotate': turns}], difficulty='moderate', pdfRotate=turns)
+        rich = f"Intro {ids['serial']}\nCelda A | {ids['tag']}"
+        office_rich(out / f'office-rich-{n:03d}.docx', 'docx', ids)
+        add(f'office-rich-{n:03d}.docx', 'office', rich + f"\nEncabezado {ids['host']}", [ids['serial'], ids['tag'], ids['host']], [], difficulty='clean', route='digital')
     for path in sorted(Path(real).glob('*.*') if real else []):
         truth = path.with_suffix('.txt')
         if path.suffix.lower() in ('.png', '.jpg', '.jpeg') and truth.exists():

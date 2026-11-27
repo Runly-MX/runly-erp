@@ -21,7 +21,7 @@ RUN apk upgrade --no-cache && apk add --no-cache leptonica libstdc++ libgomp fon
     && apk del .python-rundeps \
     && rm -rf /usr/local/lib/python3.13/sqlite3 /usr/local/lib/python3.13/lib-dynload/_sqlite3* \
     && addgroup -S -g 10001 content && adduser -S -D -H -u 10001 -G content content && fc-cache -f
-COPY --from=native-build /opt/native/bin/tesseract /opt/native/bin/pdftotext /opt/native/bin/pdftoppm /opt/native/bin/pdfinfo /usr/local/bin/
+COPY --from=native-build /opt/native/bin/tesseract /opt/native/bin/pdftotext /opt/native/bin/pdftoppm /opt/native/bin/pdfinfo /opt/native/bin/pdfseparate /opt/native/bin/pdfunite /usr/local/bin/
 COPY --from=native-build /opt/native/lib/*.so* /usr/local/lib/
 COPY --from=native-build /src-tess/LICENSE /usr/share/licenses/content/tesseract-LICENSE
 COPY --from=native-build /src-poppler/COPYING /usr/share/licenses/content/poppler-COPYING

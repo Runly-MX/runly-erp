@@ -11,7 +11,7 @@ import unittest
 from pathlib import Path
 import zipfile
 from PIL import Image, ImageDraw, ImageFont, ImageEnhance
-from worker import ProcessingError, cgroup_number, command, extract, resources, safe_xml, next_cpu_debt
+from worker import ProcessingError, build_searchable_pdf, cgroup_number, command, extract, resources, safe_xml, next_cpu_debt
 FONT = next(str(path) for path in [Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf'),Path('/usr/share/fonts/ttf-dejavu/DejaVuSans.ttf'),Path('/usr/share/fonts/dejavu/DejaVuSans.ttf')] if path.exists())
 
 POLICY = {"quality": "balanced", "languages": ["spa", "eng"], "allowOcr": True,
@@ -252,6 +252,42 @@ class Corpus(unittest.TestCase):
             extract(heic, "image/avif", POLICY)
         self.assertEqual(avif.exception.code, "UNSUPPORTED")
         heic.unlink()
+
+    def test_searchable_pdf_aligns_text_keeps_digital_pages_and_never_touches_the_original(self):
+        from PIL import ImageChops
+        make_pdf(self.path, ["image", "text", "image"])
+        original = self.path.read_bytes()
+        result = extract(self.path, "application/pdf", POLICY)
+        pages = [{"unit": p["unit"], "source": p["source"], "words": p["words"], "canvas": p["engine"].get("canvas")} for p in result["pages"]]
+        out = Path(self.temp.name) / "searchable.pdf"
+        info = build_searchable_pdf(self.path, out, pages, POLICY, self.temp.name)
+        self.assertEqual(self.path.read_bytes(), original)
+        self.assertEqual((info["pages"], info["ocr"], info["signed"]), (3, 2, False))
+        text = command(["pdftotext", "-layout", str(out), "-"], 20)
+        self.assertIn("ABC123XYZ", text)                    # recognized text is selectable/searchable in the scanned pages
+        self.assertEqual(text.count("DIGITAL987"), 1)       # the digital page is passed through, never duplicated
+        # Where the invisible words sit: pdftotext -bbox must place ABC123XYZ inside the label region of page 1.
+        boxes = command(["pdftotext", "-bbox", "-f", "1", "-l", "1", str(out), "-"], 20)
+        match = re.search(r'xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">ABC123XYZ', boxes)
+        self.assertTrue(match)
+        # The visible page is unchanged: render both and compare.
+        for name, path in (("a", self.path), ("b", out)):
+            command(["pdftoppm", "-f", "1", "-l", "1", "-singlefile", "-r", "40", "-png", str(path), str(Path(self.temp.name) / name)], 20)
+        with Image.open(Path(self.temp.name) / "a.png") as a, Image.open(Path(self.temp.name) / "b.png") as b:
+            self.assertEqual(a.size, b.size)
+            self.assertLess(sum(ImageChops.difference(a.convert("L"), b.convert("L")).histogram()[40:]) / (a.width * a.height), 0.03)
+        with self.assertRaises(ProcessingError) as digital_only:  # a purely digital PDF needs no copy
+            make_pdf(self.path, ["text"])
+            build_searchable_pdf(self.path, out, [], POLICY, self.temp.name)
+        self.assertEqual(digital_only.exception.code, "NOT_NEEDED")
+
+    def test_canvas_is_the_original_bitmap_even_when_orientation_or_perspective_changes_the_working_image(self):
+        from worker import recognize
+        source = label().rotate(90, expand=True)              # OSD will turn it back: working image differs from the canvas
+        details = {}
+        recognize(source, self.temp.name, {**POLICY, "quality": "accurate"}, details)
+        self.assertEqual((details["width"], details["height"]), source.size)
+        self.assertIn(details["perspective"], ("none", "candidate", "applied"))
 
     def test_zip_bomb_and_xml_entities_rejected(self):
         with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:

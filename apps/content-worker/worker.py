@@ -164,14 +164,15 @@ def model_info():
     return models
 
 
-def page_result(unit, reference, text, source="digital", words=None, confidence=None, languages="", quality="balanced", canvas=None, second_passes=0):
+def page_result(unit, reference, text, source="digital", words=None, confidence=None, languages="", quality="balanced", canvas=None, second_passes=0, analysis=None):
     if len(text) > 200000:
         raise ProcessingError("LIMIT")
     return {"unit": unit, "reference": reference, "text": text, "source": source,
             "words": words or [], "confidence": confidence,
             "engine": {"version": ENGINE, "languages": languages, "model":
                        ("tessdata_best:e2aad9b983032bb1beff9133104a67cdbb87ca4d" if quality == "accurate" else "tessdata_fast:65727574dfcd264acbb0c3e07860e4e9e9b22185") if source == "ocr" else "native",
-                       **({"canvas": canvas} if canvas else {}), "secondPasses": second_passes}}
+                       **({"canvas": canvas} if canvas else {}), "secondPasses": second_passes,
+                       **({"analysis": analysis} if analysis else {})}}
 
 
 def tesseract(image, directory, languages, psm, timeout, quality):
@@ -203,9 +204,154 @@ def recognition_score(result):
     return sum(len(word['text'])*max(0,word['confidence']-40)/60 for word in result[1])
 
 
+# Stray symbols glued to letters/digits ("FCWQUG4YR|3") are how Tesseract renders a misread identifier character.
+JUNK = re.compile(r"[A-Za-z0-9][|¦!§\\[\]{}]+[A-Za-z0-9]|[A-Za-z0-9]{3,}[|¦§\]]$")
+
+
+def junk_count(result):
+    return sum(1 for word in result[1] if JUNK.search(word["text"]))
+
+
+def better(candidate, best):
+    """Choose between two readings without trusting length or mean confidence alone:
+    1. fewer corrupted alphanumeric words wins (identifiers are what users search for), provided the candidate keeps most coverage;
+    2. otherwise the coverage-weighted confidence score decides."""
+    if not candidate[0].strip():
+        return False
+    junk_candidate, junk_best = junk_count(candidate), junk_count(best)
+    if junk_candidate != junk_best:
+        return junk_candidate < junk_best and recognition_score(candidate) >= 0.8 * recognition_score(best)
+    return recognition_score(candidate) > recognition_score(best)
+
+
+def analyze(gray):
+    """Cheap, bounded image statistics (thumbnail only). Heuristics for choosing extra work, not a quality guarantee."""
+    thumb = gray.copy()
+    thumb.thumbnail((400, 400))
+    edges = ImageStat.Stat(thumb.filter(ImageFilter.FIND_EDGES))
+    return {"contrast": round(ImageStat.Stat(thumb).stddev[0], 1),
+            "sharpness": round(edges.var[0], 1)}
+
+
 def adaptive_binary(gray):
     local = gray.filter(ImageFilter.BoxBlur(15))
     return ImageChops.subtract(local,gray).point(lambda difference: 0 if difference>10 else 255)
+
+
+def analysis_of(details):
+    return {key: details[key] for key in ("contrast", "sharpness", "perspective") if key in details}
+
+
+def solve_homography(rect, quad):
+    """Eight Pillow PERSPECTIVE coefficients mapping rectified (output) points to source points. Plain Gaussian elimination."""
+    rows = []
+    for (x, y), (u, v) in zip(rect, quad):
+        rows.append([x, y, 1, 0, 0, 0, -x * u, -y * u, u])
+        rows.append([0, 0, 0, x, y, 1, -x * v, -y * v, v])
+    for column in range(8):
+        pivot = max(range(column, 8), key=lambda r: abs(rows[r][column]))
+        if abs(rows[pivot][column]) < 1e-9:
+            return None
+        rows[column], rows[pivot] = rows[pivot], rows[column]
+        rows[column] = [value / rows[column][column] for value in rows[column]]
+        for r in range(8):
+            if r != column:
+                factor = rows[r][column]
+                rows[r] = [a - factor * b for a, b in zip(rows[r], rows[column])]
+    return [rows[i][8] for i in range(8)]
+
+
+def project(coefficients, x, y):
+    a, b, c, d, e, f, g, h = coefficients
+    divisor = g * x + h * y + 1
+    return (a * x + b * y + c) / divisor, (d * x + e * y + f) / divisor
+
+
+def otsu(histogram, total):
+    weight_total = sum(i * count for i, count in enumerate(histogram))
+    background = sum_background = 0
+    best, threshold = 0, 127
+    for level in range(256):
+        background += histogram[level]
+        if not background or background == total:
+            continue
+        sum_background += level * histogram[level]
+        mean_back, mean_front = sum_background / background, (weight_total - sum_background) / (total - background)
+        between = background * (total - background) * (mean_back - mean_front) ** 2
+        if between > best:
+            best, threshold = between, level
+    return threshold
+
+
+def find_quad(gray):
+    """Dominant quadrilateral (label/document on a contrasting surface) on a <=200px thumbnail, or None.
+    Bounded heuristic: largest connected region of one polarity, corners = diagonal extremes, accepted only if the region
+    fills most of its quad, the quad is convex, covers 12-90% of the frame, does not run off the frame and is visibly
+    skewed. It never crops: rectification is only a candidate that must beat the original reading."""
+    thumb = gray.copy()
+    thumb.thumbnail((200, 200))
+    width, height = thumb.size
+    if width < 40 or height < 40:
+        return None
+    scale = gray.width / width
+    pixels = list(thumb.getdata())
+    threshold = otsu(thumb.histogram(), width * height)
+    best = None
+    for bright in (True, False):
+        mask = bytearray(1 if (value > threshold) == bright else 0 for value in pixels)
+        seen = bytearray(width * height)
+        for start in range(width * height):
+            if not mask[start] or seen[start]:
+                continue
+            stack, region = [start], []
+            seen[start] = 1
+            while stack:
+                index = stack.pop()
+                region.append(index)
+                x, y = index % width, index // width
+                for nx, ny in ((x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)):
+                    if 0 <= nx < width and 0 <= ny < height:
+                        neighbor = ny * width + nx
+                        if mask[neighbor] and not seen[neighbor]:
+                            seen[neighbor] = 1
+                            stack.append(neighbor)
+            if len(region) < width * height * 0.08:
+                continue
+            xs, ys = [i % width for i in region], [i // width for i in region]
+            borders = (min(xs) == 0) + (max(xs) == width - 1) + (min(ys) == 0) + (max(ys) == height - 1)
+            if borders >= 2:
+                continue  # the surface behind the subject, not the subject
+            diagonal = [x + y for x, y in zip(xs, ys)]
+            anti = [x - y for x, y in zip(xs, ys)]
+            at = lambda values, pick: (xs[values.index(pick(values))], ys[values.index(pick(values))])
+            corners = [at(diagonal, min), at(anti, max), at(diagonal, max), at(anti, min)]  # tl, tr, br, bl
+            area = abs(sum(corners[i][0] * corners[(i + 1) % 4][1] - corners[(i + 1) % 4][0] * corners[i][1] for i in range(4))) / 2
+            crosses = [(corners[(i + 1) % 4][0] - corners[i][0]) * (corners[(i + 2) % 4][1] - corners[(i + 1) % 4][1])
+                       - (corners[(i + 1) % 4][1] - corners[i][1]) * (corners[(i + 2) % 4][0] - corners[(i + 1) % 4][0]) for i in range(4)]
+            if not (width * height * 0.12 <= area <= width * height * 0.9) or len(region) < area * 0.6 \
+                    or not (all(c > 0 for c in crosses) or all(c < 0 for c in crosses)):
+                continue
+            sides = [math.dist(corners[i], corners[(i + 1) % 4]) for i in range(4)]
+            skew = max(max(sides[0], sides[2]) / max(1, min(sides[0], sides[2])), max(sides[1], sides[3]) / max(1, min(sides[1], sides[3])))
+            tilt = max(abs(math.degrees(math.atan2(corners[1][1] - corners[0][1], corners[1][0] - corners[0][0]))),
+                       abs(math.degrees(math.atan2(corners[2][1] - corners[3][1], corners[2][0] - corners[3][0]))))
+            if (skew < 1.06 and tilt < 3) or min(sides) < min(width, height) * 0.2:
+                continue
+            if best is None or area > best[0]:
+                best = (area, corners)
+    return [(x * scale, y * scale) for x, y in best[1]] if best else None
+
+
+def rectify(gray, quad, policy):
+    top, bottom = math.dist(quad[0], quad[1]), math.dist(quad[3], quad[2])
+    left, right = math.dist(quad[0], quad[3]), math.dist(quad[1], quad[2])
+    width, height = max(top, bottom), max(left, right)
+    shrink = min(1.0, math.sqrt(policy["maxPixels"] / (width * height)), 4000 / max(width, height))
+    size = (max(16, int(width * shrink)), max(16, int(height * shrink)))
+    coefficients = solve_homography([(0, 0), (size[0], 0), (size[0], size[1]), (0, size[1])], quad)
+    if coefficients is None:
+        return None, None
+    return gray.transform(size, Image.Transform.PERSPECTIVE, coefficients, Image.Resampling.BICUBIC, fillcolor=255), coefficients
 
 
 def recognize(image, directory, policy, details=None):
@@ -213,7 +359,7 @@ def recognize(image, directory, policy, details=None):
         raise ProcessingError("LIMIT")
     image = ImageOps.exif_transpose(image).convert("RGB")
     if details is not None:
-        details.update(width=image.width, height=image.height, secondPasses=0)
+        details.update(width=image.width, height=image.height, secondPasses=0, perspective="none")
     transforms = []
     # Map processed boxes back to the displayed original (after EXIF orientation).
     def rotate(angle):
@@ -232,6 +378,8 @@ def recognize(image, directory, policy, details=None):
             pass  # Sparse labels often cannot support reliable orientation detection.
     gray = ImageOps.grayscale(image)
     gray = ImageOps.autocontrast(gray)
+    if details is not None:
+        details.update(analyze(gray))
     if policy["quality"] != "fast":
         # Bounded deskew search on a thumbnail, only when projection gain is meaningful.
         thumb = gray.copy()
@@ -260,23 +408,40 @@ def recognize(image, directory, policy, details=None):
         transforms.append(("scale", before, gray.size))
     languages = "+".join(policy["languages"])
     best = tesseract(gray, directory, languages, 3, min(45, policy["timeoutSeconds"]), policy["quality"])
-    if policy["quality"] != "fast" and (best[2] < 78 or len(best[0]) < 20):
+    if policy["quality"] != "fast" and (best[2] < 78 or len(best[0]) < 20 or junk_count(best)):
         variant = gray.filter(ImageFilter.MedianFilter(3)) if ImageStat.Stat(gray).stddev[0] < 55 else gray
         alternative = tesseract(variant, directory, languages, 11, min(45, policy["timeoutSeconds"]), policy["quality"])
         if details is not None:
             details['secondPasses'] += 1
-        if recognition_score(alternative) > recognition_score(best) and alternative[0].strip():
+        if better(alternative, best):
             best = alternative
-    if policy["quality"] == "accurate" and best[2] < 85:
+    if policy["quality"] == "accurate" and (best[2] < 85 or junk_count(best)):
         variant = adaptive_binary(gray) if ImageStat.Stat(gray).stddev[0]<65 else gray.point(lambda p: 0 if p < 160 else 255)
         alternative = tesseract(variant, directory, languages, 6, min(60, policy["timeoutSeconds"]), policy["quality"])
         if details is not None:
             details['secondPasses'] += 1
-        if recognition_score(alternative) > recognition_score(best) and alternative[0].strip():
+        if better(alternative, best):
             best = alternative
+    chain = transforms
+    if policy["quality"] != "fast" and (best[2] < 80 or len(best[0]) < 20 or junk_count(best)):
+        quad = find_quad(gray)
+        if quad:
+            rectified, coefficients = rectify(gray, quad, policy)
+            if rectified is not None:
+                alternative = tesseract(rectified, directory, languages, 3, min(45, policy["timeoutSeconds"]), policy["quality"])
+                if details is not None:
+                    details['secondPasses'] += 1
+                    details['perspective'] = "candidate"
+                if better(alternative, best):
+                    best, chain = alternative, transforms + [("perspective", coefficients)]
+                    if details is not None:
+                        details['perspective'] = "applied"
+
     def inverse(x, y):
-        for transform in reversed(transforms):
-            if transform[0] == 'crop':
+        for transform in reversed(chain):
+            if transform[0] == 'perspective':
+                x, y = project(transform[1], x, y)
+            elif transform[0] == 'crop':
                 x, y = x+transform[1], y+transform[2]
             elif transform[0] == "scale":
                 x *= transform[1][0] / transform[2][0]
@@ -287,12 +452,14 @@ def recognize(image, directory, policy, details=None):
                 dx, dy = x - after[0] / 2, y - after[1] / 2
                 x, y = c * dx - s * dy + before[0] / 2, s * dx + c * dy + before[1] / 2
         return max(0, x), max(0, y)
+    projective = any(transform[0] == 'perspective' for transform in chain)
     for word in best[1]:
-        corners = [inverse(x, y) for x in (word["x"], word["x"] + word["width"])
-                   for y in (word["y"], word["y"] + word["height"])]
-        word.update(x=min(c[0] for c in corners), y=min(c[1] for c in corners),
-                    width=max(c[0] for c in corners)-min(c[0] for c in corners),
-                    height=max(c[1] for c in corners)-min(c[1] for c in corners))
+        corners = [inverse(x, y) for x, y in ((word["x"], word["y"]), (word["x"] + word["width"], word["y"]),
+                                              (word["x"] + word["width"], word["y"] + word["height"]), (word["x"], word["y"] + word["height"]))]
+        left, top = min(c[0] for c in corners), min(c[1] for c in corners)
+        word.update(x=left, y=top, width=max(c[0] for c in corners) - left, height=max(c[1] for c in corners) - top)
+        if projective:  # a rectangle cannot represent a projectively mapped word: keep the four real corners
+            word["polygon"] = [round(value, 1) for corner in corners for value in corner]
     return best
 
 
@@ -376,7 +543,7 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
                         details = {}
                         text, words, confidence = recognize(image, directory, policy, details)
                     canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'pdf-raster'}
-                    emit(page_result(unit, f"Página {unit}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),min(count,policy['maxPages']))
+                    emit(page_result(unit, f"Página {unit}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses'],analysis_of(details)),min(count,policy['maxPages']))
                     Path(prefix + ".png").unlink(missing_ok=True)
                 else:
                     # A digital-only pass must not report a scanned page as fully processed.
@@ -401,7 +568,7 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
             details = {}
             text, words, confidence = recognize(image, directory, policy, details)
             canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'exif-oriented-image','source':'heif-primary'}
-            emit(page_result(1, "Imagen 1", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),1)
+            emit(page_result(1, "Imagen 1", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses'],analysis_of(details)),1)
         elif mime.startswith("image/") and mime != "image/svg+xml":
             if not policy["allowOcr"] or not policy.get('imageOcr', True):
                 raise ProcessingError("UNSUPPORTED")
@@ -422,7 +589,7 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
                     text, words, confidence = recognize(frame, directory, policy, details)
                     canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'exif-oriented-image'}
                     total = min(getattr(image, 'n_frames', 1), policy["maxPages"])
-                    emit(page_result(i+1, f"Imagen {i+1}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),total)
+                    emit(page_result(i+1, f"Imagen {i+1}", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses'],analysis_of(details)),total)
                     progress(min(99, int(100 * (i+1) / total)))
         elif mime.startswith("text/") or mime in ("application/json", "application/xml", "image/svg+xml"):
             if not policy.get('digitalExtraction', True):
@@ -440,12 +607,117 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
     return {"pages": pages, "partial": partial, 'metrics': {'secondPasses': second_passes, 'cpuMs':0, 'peakRssBytes':0}}
 
 
+# Helvetica (standard-14) advance widths for ASCII 32..126, per 1000 em. Used only to scale the invisible text to the word box.
+HELVETICA = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556,
+             1015, 667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556,
+             333, 556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584]
+SEARCHABLE_ENGINE = "runly-searchable-pdf-1"
+
+
+def helvetica_width(text, size):
+    return sum(HELVETICA[ord(c) - 32] if 32 <= ord(c) <= 126 else 556 for c in text) * size / 1000
+
+
+def pdf_literal(text):
+    """Windows-1252 literal string. Characters outside it become '?' and are counted: nothing is invented, only dropped."""
+    raw = text.encode("cp1252", errors="replace")
+    lost = sum(1 for c in text if c.encode("cp1252", errors="replace") == b"?" and c != "?")
+    return b"(" + raw.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)") + b")", lost
+
+
+def ocr_page_pdf(jpeg, image_size, page_size, words, canvas):
+    """One-page PDF: the scan full-bleed plus an invisible (render mode 3) text layer aligned to each recognized word."""
+    width, height = page_size
+    sx, sy = width / canvas["width"], height / canvas["height"]
+    stream, lost = [], 0
+    for word in words:
+        text = word["text"][:200]
+        if not text.strip():
+            continue
+        size = max(1.0, word["height"] * sy * 0.85)
+        natural = helvetica_width(text + " ", size)
+        horizontal = max(10.0, min(400.0, 100 * (word["width"] * sx) / max(0.1, helvetica_width(text, size))))
+        literal, dropped = pdf_literal(text + " ")
+        lost += dropped
+        x, y = word["x"] * sx, height - (word["y"] + word["height"]) * sy + word["height"] * sy * 0.2
+        stream.append(f"BT /F1 {size:.2f} Tf {horizontal:.1f} Tz 1 0 0 1 {x:.2f} {y:.2f} Tm ".encode() + literal + b" Tj ET")
+    content = f"q {width:.2f} 0 0 {height:.2f} 0 0 cm /Im1 Do Q\n3 Tr\n".encode() + b"\n".join(stream)
+    objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+               f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:.2f} {height:.2f}] /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 4 0 R >>".encode(),
+               f"<< /Length {len(content)} >>\nstream\n".encode() + content + b"\nendstream",
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
+               f"<< /Type /XObject /Subtype /Image /Width {image_size[0]} /Height {image_size[1]} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(jpeg)} >>\nstream\n".encode() + jpeg + b"\nendstream"]
+    out, offsets = bytearray(b"%PDF-1.5\n"), []
+    for number, body in enumerate(objects, 1):
+        offsets.append(len(out))
+        out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+    xref = len(out)
+    out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode() + b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+    out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{xref}\n%%EOF\n".encode()
+    return bytes(out), lost
+
+
+def build_searchable_pdf(source, out, ocr_pages, policy, directory):
+    """Copy of a PDF where scanned pages gain an invisible text layer. Pages that already carry digital text are passed through
+    untouched (pdfseparate/pdfunite), so no text layer is ever duplicated. Encrypted files are refused, never unlocked."""
+    data = Path(source).read_bytes()
+    if not data.startswith(b"%PDF-"):
+        raise ProcessingError("UNSUPPORTED")
+    info = command(["pdfinfo", str(source)], 10)
+    if re.search(r"^Encrypted:\s+yes", info, re.M):
+        raise ProcessingError("ENCRYPTED")
+    count = int(re.search(r"Pages:\s+(\d+)", info)[1])
+    if count > policy["maxPages"]:
+        raise ProcessingError("LIMIT")
+    signed = bool(re.search(rb"/ByteRange\s*\[|/Type\s*/Sig\b", data))
+    scanned = {page["unit"]: page for page in ocr_pages if page.get("source") == "ocr" and page.get("words") and page.get("canvas")}
+    if not scanned:
+        raise ProcessingError("NOT_NEEDED")
+    edge = min(3500, int(math.sqrt(policy["maxPixels"])))
+    pieces, dropped = [], 0
+    for unit in range(1, count + 1):
+        piece = Path(directory) / f"piece-{unit}.pdf"
+        if unit in scanned:
+            prefix = str(Path(directory) / f"raster-{unit}")
+            command(["pdftoppm", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(edge), "-png", str(source), prefix], 30)
+            with Image.open(prefix + ".png", formats=["PNG"]) as raster:
+                raster = raster.convert("RGB")
+                size = raster.size
+                buffer = io.BytesIO()
+                raster.save(buffer, "JPEG", quality=82)
+            Path(prefix + ".png").unlink(missing_ok=True)
+            box = re.search(rf"Page\s+{unit} size:\s+([\d.]+) x ([\d.]+) pts", command(["pdfinfo", "-f", str(unit), "-l", str(unit), str(source)], 10))
+            page_size = (float(box[1]), float(box[2])) if box else (size[0] * 0.24, size[1] * 0.24)
+            if (page_size[0] > page_size[1]) != (size[0] > size[1]):
+                page_size = page_size[::-1]  # the visible page, with /Rotate applied, decides the new page orientation
+            pdf_bytes, lost = ocr_page_pdf(buffer.getvalue(), size, page_size, scanned[unit]["words"], scanned[unit]["canvas"])
+            dropped += lost
+            piece.write_bytes(pdf_bytes)
+        else:
+            command(["pdfseparate", "-f", str(unit), "-l", str(unit), str(source), str(Path(directory) / "piece-%d.pdf")], 30)
+        pieces.append(str(piece))
+    if len(pieces) == 1:
+        Path(out).write_bytes(Path(pieces[0]).read_bytes())
+    else:
+        command(["pdfunite", *pieces, str(out)], 60)
+    return {"pages": count, "ocr": len(scanned), "signed": signed, "dropped": dropped}
+
+
+def searchable_pdf_job(job, path, directory):
+    pages = json.loads(api(f"derivatives/{job['id']}/pages", lease=job["lease"], binary_limit=16_000_000))["pages"]
+    out = Path(directory) / "searchable.pdf"
+    info = build_searchable_pdf(path, out, pages, job["policy"], directory)
+    api(f"derivatives/{job['id']}/file", lease=job["lease"], raw=out.read_bytes())
+    return {"pages": info["pages"], "ocrPages": info["ocr"], "signed": info["signed"],
+            "engine": {"tool": SEARCHABLE_ENGINE, "droppedCharacters": info["dropped"]}}
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     def redirect_request(self, *args):
         raise ProcessingError("DOWNLOAD")
 
 
-def api(path, body=None, lease=None, binary_limit=None):
+def api(path, body=None, lease=None, binary_limit=None, raw=None):
     base = os.environ["RUNLY_CONTENT_API_URL"].rstrip("/")
     token = os.environ["RUNLY_CONTENT_WORKER_TOKEN"]
     target = urllib.parse.urlsplit(base)
@@ -455,9 +727,11 @@ def api(path, body=None, lease=None, binary_limit=None):
     headers = {"Authorization": "Bearer " + token, "Content-Type": "application/json"}
     if lease:
         headers["X-Content-Lease"] = lease
-    request = urllib.request.Request(base + "/content/worker/" + path,
-                                     data=json.dumps(body).encode() if body is not None else None, headers=headers)
-    with urllib.request.build_opener(NoRedirect).open(request, timeout=25) as response:
+    if raw is not None:
+        headers["Content-Type"] = "application/pdf"
+    request = urllib.request.Request(base + "/content/worker/" + path, method="PUT" if raw is not None else None,
+                                     data=raw if raw is not None else json.dumps(body).encode() if body is not None else None, headers=headers)
+    with urllib.request.build_opener(NoRedirect).open(request, timeout=120 if raw is not None else 25) as response:
         limit = binary_limit if binary_limit is not None else 2_000_000
         data = response.read(limit + 1)
         if len(data) > limit:
@@ -510,14 +784,14 @@ def supervise(job, worker_id, capabilities):
                 capabilities['memoryUsed'] = used
                 try:
                     api('heartbeat',{'id':worker_id,'capabilities':capabilities})
-                    api(f"jobs/{job['id']}/heartbeat",{'progress':0},job['lease'])
+                    api(f"{job.get('route','jobs')}/{job['id']}/heartbeat",{'progress':0},job['lease'])
                 except Exception:
                     stop_process(process)
                     break
             if process.exitcode:
                 code = 'TIMEOUT' if time.monotonic()-start>=job['policy']['timeoutSeconds'] else 'PARSER'
                 try:
-                    api(f"jobs/{job['id']}/result",{'pages':[],'errorCode':code},job['lease'])
+                    api(f"{job.get('route','jobs')}/{job['id']}/result",{'errorCode':code} if job.get('kind') else {'pages':[],'errorCode':code},job['lease'])
                 except Exception:
                     pass
         finally:
@@ -572,7 +846,10 @@ def run_job(job, workdir=None):
         os.killpg(os.getpgrp(), signal.SIGKILL)
     signal.signal(signal.SIGALRM, deadline)
     signal.setitimer(signal.ITIMER_REAL, job['policy']['timeoutSeconds'])
-    payload = {"pages": [], "errorCode": "PARSER"}
+    derivative = bool(job.get('kind'))
+    fail = (lambda code: {"errorCode": code}) if derivative else (lambda code: {"pages": [], "errorCode": code})
+    route = job.get('route', 'jobs')
+    payload = fail("PARSER")
     try:
         policy = job["policy"]
         memory_bytes = policy.get('memoryMiB',512)*1048576
@@ -580,23 +857,26 @@ def run_job(job, workdir=None):
         threads = min(4,max(1,policy.get('threads',1)))
         OMP_ENV['OMP_THREAD_LIMIT'] = str(threads)
         OMP_ENV['OMP_NUM_THREADS'] = str(threads)
-        raw = api(f"jobs/{job['id']}/source", lease=job["lease"], binary_limit=policy["maxFileBytes"])
+        raw = api(f"{route}/{job['id']}/source", lease=job["lease"], binary_limit=policy["maxFileBytes"])
         with tempfile.TemporaryDirectory(prefix="original-") as directory:
             path = Path(directory) / "source"
             path.write_bytes(raw)
-            payload = extract(path, job["mimeType"], policy,
+            payload = searchable_pdf_job(job, path, directory) if derivative else extract(path, job["mimeType"], policy,
                               lambda value: api(f"jobs/{job['id']}/heartbeat", {"progress": value}, job["lease"]),
                               checkpoint=lambda page,total: api(f"jobs/{job['id']}/checkpoint", {'page':page,'totalUnits':total},job['lease']),
                               resume_units=job.get('resumeUnits',()))
     except MemoryError:
-        payload = {'pages':[],'errorCode':'RESOURCES'}
+        payload = fail('RESOURCES')
     except ProcessingError as error:
-        payload = {"pages": [], "errorCode": error.code}
+        payload = fail(error.code)
     except urllib.error.HTTPError:
-        payload = {"pages": [], "errorCode": "DOWNLOAD"}
+        payload = fail("DOWNLOAD")
     except Exception:
         pass
     try:
+        if derivative:
+            api(f"{route}/{job['id']}/result", payload, job["lease"])
+            return
         own,children = resource.getrusage(resource.RUSAGE_SELF),resource.getrusage(resource.RUSAGE_CHILDREN)
         payload['metrics'] = {**payload.get('metrics', {}), 'cpuMs': int(1000*(own.ru_utime+own.ru_stime+children.ru_utime+children.ru_stime)),
                               'peakRssBytes': int(1024*max(own.ru_maxrss,children.ru_maxrss)), 'secondPasses':payload.get('metrics',{}).get('secondPasses',0)}
@@ -635,9 +915,13 @@ def main():
             if paused:
                 time.sleep(10 if resource_paused else max(0.25,min(10,cpu_debt)))
                 continue
-            job = api("claim", {"id": worker_id}).get("data")
+            job = api("claim", {"id": worker_id}).get("data") or api("derivative/claim", {"id": worker_id}).get("data")
             if not job:
                 time.sleep(5)
+                continue
+            if job.get('kind'):
+                cpu_budget = job['policy'].get('cpuBudgetPercent', 80)
+                supervise(job, worker_id, capabilities)
                 continue
             if any(lang not in models for lang in job["policy"]["languages"]):
                 api(f"jobs/{job['id']}/result", {"pages": [], "errorCode": "UNSUPPORTED"}, job["lease"])

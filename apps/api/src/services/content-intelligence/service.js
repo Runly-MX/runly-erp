@@ -18,12 +18,14 @@ export const pageSchema = z.object({
     source: z.enum(['digital', 'ocr']), reference: z.string().max(160),
     text: z.string().max(200000),
     words: z.array(z.object({ text: z.string().max(500), x: z.number().nonnegative(), y: z.number().nonnegative(),
-      width: z.number().nonnegative(), height: z.number().nonnegative(), confidence: z.number().min(0).max(100) })).max(20000).default([]),
+      width: z.number().nonnegative(), height: z.number().nonnegative(), confidence: z.number().min(0).max(100),
+      polygon: z.array(z.number().nonnegative()).length(8).optional() })).max(20000).default([]),
     confidence: z.number().min(0).max(100).nullable().default(null),
     engine: z.object({ version: z.string().max(120), languages: z.string().max(100), model: z.string().max(200),
       canvas: z.object({ width: z.number().positive().max(40000000), height: z.number().positive().max(40000000),
         coordinateSpace: z.enum(['exif-oriented-image','pdf-raster']), pageWidth: z.number().positive().optional(), pageHeight: z.number().positive().optional(),
       }).optional(), secondPasses: z.number().int().min(0).max(10).optional(),
+      analysis: z.object({ contrast: z.number().optional(), sharpness: z.number().optional(), perspective: z.enum(['none','candidate','applied']).optional(), heif: z.boolean().optional() }).optional(),
     }),
   });
 const resultSchema = z.strictObject({
@@ -121,6 +123,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
   }
   // Words (coordinates) are the heavy part: return them for a requested page, or for pages while the running
   // total stays under the budget. Other pages report `wordCount` and `wordsOmitted`; the viewer asks per page.
+  const WORD_BUDGET = 1500; // coordinates returned on open; typical pages are 100-600 words, larger documents stream per page
   async function result(args, { unit = null } = {}) {
     const file = await authorized(args);
     const p = await effective(file.entityId);
@@ -132,11 +135,11 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     if (!job) return { state: p.profile === 'OFF' ? 'disabled' : supportedFile(file) ? 'unprocessed' : 'unsupported', pages: [] };
     const requested = unit == null ? null : Number(unit);
     const pages = await prisma.$queryRaw`SELECT unit,source,reference,text,confidence,engine,wc AS "wordCount",
-      CASE WHEN (${requested}::int IS NULL AND total<=20000) OR unit=${requested}::int THEN words ELSE '[]'::jsonb END AS words,
-      NOT ((${requested}::int IS NULL AND total<=20000) OR unit=${requested}::int) AND wc>0 AS "wordsOmitted"
+      CASE WHEN (${requested}::int IS NULL AND total<=${WORD_BUDGET}) OR unit=${requested}::int THEN words ELSE '[]'::jsonb END AS words,
+      NOT ((${requested}::int IS NULL AND total<=${WORD_BUDGET}) OR unit=${requested}::int) AND wc>0 AS "wordsOmitted"
       FROM (SELECT p.*,jsonb_array_length(p.words) AS wc,sum(jsonb_array_length(p.words)) OVER (ORDER BY p.unit) AS total
         FROM runly_content.page p WHERE p.job_id=${job.id}::uuid) q ORDER BY unit`;
-    return { ...job, pages };
+    return { ...job, pages, searchablePdf: await derivativeState(file) };
   }
   async function cancel(args) {
     const file = await authorized(args);
@@ -349,6 +352,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
         SELECT j.id FROM runly_content.job j JOIN runly_content.policy cp ON cp.scope=j.company_id::text
         WHERE j.state NOT IN ('pending','processing') AND j.updated_at<now()-make_interval(days=>least(${global.retentionDays},coalesce((cp.config->>'retentionDays')::int,365)))
         ORDER BY j.updated_at LIMIT 50)`;
+      if (maintenance.length) await cleanStaleDerivatives(db);
       if (global.profile === 'OFF' || global.paused) return null;
       await db.$executeRaw`UPDATE runly_content.attempt a SET finished_at=now(),error_code='LEASE_EXPIRED',
         elapsed_ms=least(coalesce((j.policy_snapshot->>'timeoutSeconds')::int,120)*1000,greatest(0,extract(epoch FROM (now()-a.started_at))*1000))::int
@@ -433,17 +437,19 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
   }
   async function download(id, lease) {
     const { job, p } = await prisma.$transaction(db => leased(db, id, lease));
-    if (job.size_bytes > p.maxFileBytes) throw new ContentError('Archivo excesivo.', 413);
-    const { data, error } = await supabaseAdmin.storage.from(job.bucket).createSignedUrl(job.object_key, 60);
+    return storedStream(job.bucket, job.object_key, job.size_bytes, p.maxFileBytes);
+  }
+  // Bounded stream of a stored object: even incorrect object metadata cannot make the API buffer an oversized file.
+  async function storedStream(bucket, objectKey, sizeBytes, maxBytes) {
+    if (sizeBytes > maxBytes) throw new ContentError('Archivo excesivo.', 413);
+    const { data, error } = await supabaseAdmin.storage.from(bucket).createSignedUrl(objectKey, 60);
     if (error || !data?.signedUrl) throw new ContentError('No se pudo leer el original.', 422);
     const response = await fetch(toInternalSupabaseUrl(data.signedUrl), { redirect: 'error', signal: AbortSignal.timeout(30000) });
     if (!response.ok || !response.body) throw new ContentError('No se pudo leer el original.', 422);
-    if (Number(response.headers.get('content-length')) > p.maxFileBytes) {
+    if (Number(response.headers.get('content-length')) > maxBytes) {
       await response.body.cancel();
       throw new ContentError('Archivo excesivo.', 413);
     }
-    // Stream with an independent byte ceiling: even incorrect object metadata cannot
-    // force the API to buffer an oversized original before rejecting it.
     const reader = response.body.getReader();
     let received = 0;
     return new ReadableStream({
@@ -452,7 +458,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
           const { done, value } = await reader.read();
           if (done) { controller.close(); return; }
           received += value.byteLength;
-          if (received > p.maxFileBytes) { await reader.cancel(); controller.error(new Error('LIMIT')); return; }
+          if (received > maxBytes) { await reader.cancel(); controller.error(new Error('LIMIT')); return; }
           controller.enqueue(value);
         } catch { controller.error(new Error('DOWNLOAD')); }
       },
@@ -522,8 +528,166 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       removed += n;
       if (n < 500) break;
     }
-    await prisma.$transaction(db => audit(db, context, 'purge.done', { removedJobs: removed }));
-    return { ok: true, removedJobs: removed };
+    const removedDerivatives = await removeDerivatives(prisma, companyId);
+    await prisma.$transaction(db => audit(db, context, 'purge.done', { removedJobs: removed, removedDerivatives }));
+    return { ok: true, removedJobs: removed, removedDerivatives };
   }
-  return { policy, effective, savePolicy, request, result, cancel, search, status, backfill, heartbeat, claim, renew, download, checkpoint, complete, purge };
+
+  // ---- Searchable PDF derivatives ------------------------------------------------------------------------------
+  // An independent, optional copy of a PDF with an invisible recognized-text layer. Generated asynchronously by the worker
+  // from the stored OCR result; the original is never modified and the copy dies with its file revision.
+  const DERIVATIVE_MAX_BYTES = 64 * 1048576, DERIVATIVE_COMPANY_QUEUE = 5;
+  async function derivativeState(file) {
+    const [row] = await prisma.$queryRaw`SELECT state,error_code AS "errorCode",size_bytes::float AS "sizeBytes",pages,ocr_pages AS "ocrPages",signed,
+      finished_at AS "finishedAt",updated_at AS "updatedAt" FROM runly_content.derivative
+      WHERE file_id=${file.id}::uuid AND revision=${file.contentRevision} AND object_key=${file.objectKey} AND kind='searchable-pdf'`;
+    return row ?? null;
+  }
+  async function requestSearchable(args) {
+    const file = await authorized(args);
+    if (file.mimeType !== 'application/pdf') throw new ContentError('Solo un PDF puede generar una copia con texto reconocido.', 415);
+    const p = await effective(file.entityId);
+    if (p.profile === 'OFF' || p.paused || !p.manualOcr || !p.pdfOcr) throw new ContentError('El procesamiento de contenido está desactivado para esta empresa.', 409);
+    if (file.sizeBytes > p.maxFileBytes) throw new ContentError('El archivo supera el límite de procesamiento.', 413);
+    const existing = await derivativeState(file);
+    if (existing && ['pending', 'processing', 'done'].includes(existing.state)) return existing;
+    const [job] = await prisma.$queryRaw`SELECT state FROM runly_content.job WHERE file_id=${file.id}::uuid AND company_id=${file.entityId}::uuid
+      AND revision=${file.contentRevision} AND object_key=${file.objectKey}`;
+    if (!job || !['done', 'partial'].includes(job.state)) throw new ContentError('Primero procesa el archivo para reconocer su texto.', 409);
+    const [scanned] = await prisma.$queryRaw`SELECT count(*)::int AS n FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
+      WHERE j.file_id=${file.id}::uuid AND j.revision=${file.contentRevision} AND j.object_key=${file.objectKey} AND p.source='ocr' AND jsonb_array_length(p.words)>0`;
+    if (!scanned.n) throw new ContentError('Este PDF ya tiene texto seleccionable o no se reconoció texto: no necesita una copia.', 409);
+    const rows = await prisma.$transaction(async db => {
+      await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
+      return db.$queryRaw`INSERT INTO runly_content.derivative(company_id,file_id,revision,object_key,requested_by)
+        SELECT ${file.entityId}::uuid,${file.id}::uuid,${file.contentRevision},${file.objectKey},${args.activeContext.profileId ?? null}::uuid
+        WHERE (SELECT count(*) FROM runly_content.derivative WHERE company_id=${file.entityId}::uuid AND state IN ('pending','processing'))<${DERIVATIVE_COMPANY_QUEUE}
+        ON CONFLICT (file_id,revision,kind) DO UPDATE SET state='pending',error_code=NULL,attempts=0,object_key=EXCLUDED.object_key,storage_key=NULL,
+          size_bytes=NULL,finished_at=NULL,updated_at=now() WHERE runly_content.derivative.state IN ('failed','cancelled')
+        RETURNING id`;
+    });
+    if (!rows.length) throw new ContentError('Hay demasiadas copias en preparación. Inténtalo de nuevo en unos minutos.', 409);
+    return derivativeState(file);
+  }
+  async function searchableDownload(args) {
+    const file = await authorized(args);
+    const [row] = await prisma.$queryRaw`SELECT storage_key FROM runly_content.derivative WHERE file_id=${file.id}::uuid AND revision=${file.contentRevision}
+      AND object_key=${file.objectKey} AND kind='searchable-pdf' AND state='done' AND storage_key IS NOT NULL`;
+    if (!row) throw new ContentError('Aún no hay una copia con texto reconocido.', 404);
+    const name = `${file.originalName.replace(/\.pdf$/i, '').replace(/[\\/:*?"<>|\r\n]+/g, ' ').slice(0, 120)} (texto reconocido).pdf`;
+    const { data, error } = await supabaseAdmin.storage.from(file.bucket).createSignedUrl(row.storage_key, 60, { download: name });
+    if (error || !data?.signedUrl) throw new ContentError('No se pudo preparar la descarga.', 422);
+    return { url: data.signedUrl, name, expiresInSeconds: 60 };
+  }
+  async function removeDerivatives(db, companyId) {
+    let total = 0;
+    for (;;) {
+      const rows = await db.$queryRaw`SELECT d.id,d.storage_key,f.bucket FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
+        WHERE d.company_id=${companyId}::uuid LIMIT 200`;
+      if (!rows.length) return total;
+      for (const row of rows) if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
+      await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id=ANY(${rows.map(row => row.id)}::uuid[])`;
+      total += rows.length;
+    }
+  }
+  // A derivative belongs to one file revision: replaced, disabled or deleted originals leave nothing servable behind.
+  async function cleanStaleDerivatives(db) {
+    const rows = await db.$queryRaw`SELECT d.id,d.storage_key,d.bucket FROM (SELECT d.id,d.storage_key,f.bucket FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
+      WHERE d.state<>'processing' AND (NOT f.enabled OR f.content_revision<>d.revision OR f.object_key<>d.object_key) LIMIT 50) d`;
+    for (const row of rows) if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
+    if (rows.length) await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id=ANY(${rows.map(row => row.id)}::uuid[])`;
+  }
+  async function claimDerivative(workerId) {
+    if ((await pressure.observe()).paused) return null;
+    return prisma.$transaction(async db => {
+      await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
+      const global = policySchema.parse(await policy('instance', db));
+      if (global.profile === 'OFF' || global.paused) return null;
+      const [worker] = await db.$queryRaw`SELECT id,capabilities FROM runly_content.worker WHERE id=${workerId}
+        AND heartbeat_at>now()-interval '90 seconds' AND capabilities->>'governor'='ready' AND coalesce((capabilities->>'protocol')::int,1)>=2`;
+      if (!worker) return null;
+      await db.$executeRaw`UPDATE runly_content.derivative SET state=CASE WHEN attempts>=2 THEN 'failed' ELSE 'pending' END,lease_hash=NULL,lease_until=NULL,
+        error_code='LEASE_EXPIRED',updated_at=now() WHERE state='processing' AND lease_until<now()`;
+      const [active] = await db.$queryRaw`SELECT ((SELECT count(*) FROM runly_content.job WHERE state='processing')
+        +(SELECT count(*) FROM runly_content.derivative WHERE state='processing'))::int AS n`;
+      if (active.n >= global.concurrency) return null;
+      const rows = await db.$queryRaw`SELECT d.* FROM runly_content.derivative d JOIN company c ON c.id=d.company_id AND c.enabled
+        WHERE d.state='pending' ORDER BY d.created_at LIMIT 10 FOR UPDATE OF d SKIP LOCKED`;
+      for (const row of rows) {
+        const p = await effective(row.company_id, db);
+        const file = await db.fileAsset.findFirst({ where: { id: row.file_id, entityId: row.company_id, enabled: true, contentRevision: row.revision, objectKey: row.object_key } });
+        if (!file) { await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id=${row.id}::uuid`; continue; }
+        if (p.profile === 'OFF' || p.paused || !p.manualOcr || !p.pdfOcr || file.sizeBytes > p.maxFileBytes || !p.schedules.every(schedule => withinSchedule(schedule))) continue;
+        const effectiveMemoryMiB = Math.min(p.memoryMiB, Math.floor((worker.capabilities.memoryLimit ?? 0) * 0.85 / 1048576));
+        if (effectiveMemoryMiB < 384) {
+          await db.$executeRaw`UPDATE runly_content.derivative SET state='failed',error_code='RESOURCES',updated_at=now(),finished_at=now() WHERE id=${row.id}::uuid`;
+          continue;
+        }
+        const lease = randomBytes(32).toString('hex');
+        const snapshot = { ...p, memoryMiB: effectiveMemoryMiB, threads: Math.min(p.threads, Math.max(1, Math.ceil(worker.capabilities.cpuLimit ?? 1))), quality: 'balanced', allowOcr: true };
+        await db.$executeRaw`UPDATE runly_content.derivative SET state='processing',attempts=attempts+1,worker_id=${workerId},lease_hash=${hash(lease)},
+          lease_until=now()+interval '90 seconds',updated_at=now() WHERE id=${row.id}::uuid`;
+        return { id: row.id, route: 'derivatives', kind: 'searchable-pdf', lease, name: file.originalName, mimeType: file.mimeType, sizeBytes: file.sizeBytes, policy: snapshot, engine: ENGINE_VERSION };
+      }
+      return null;
+    }, { timeout: 15000 });
+  }
+  async function leasedDerivative(db, id, lease) {
+    uuid.parse(id);
+    if (typeof lease !== 'string' || lease.length !== 64) throw new ContentError('Lease inválido.', 409);
+    const [row] = await db.$queryRaw`SELECT d.*,f.bucket,f.size_bytes AS source_bytes FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
+      WHERE d.id=${id}::uuid AND d.lease_hash=${hash(lease)} AND d.state='processing' AND d.lease_until>now()
+      AND f.enabled AND f.entity_id=d.company_id AND f.content_revision=d.revision AND f.object_key=d.object_key FOR UPDATE OF d`;
+    if (!row) throw new ContentError('El trabajo ya no está autorizado.', 409);
+    const p = await effective(row.company_id, db);
+    if (p.profile === 'OFF' || p.paused) throw new ContentError('Procesamiento detenido.', 409);
+    return { row, p };
+  }
+  async function derivativeSource(id, lease) {
+    const { row, p } = await prisma.$transaction(db => leasedDerivative(db, id, lease));
+    return storedStream(row.bucket, row.object_key, row.source_bytes, p.maxFileBytes);
+  }
+  // The worker reads the stored OCR (words per page) instead of recognizing again: reuse is the default, never a second OCR pass.
+  async function derivativePages(id, lease) {
+    const { row } = await prisma.$transaction(db => leasedDerivative(db, id, lease));
+    const pages = await prisma.$queryRaw`SELECT p.unit,p.words,p.source,p.engine->'canvas' AS canvas FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
+      WHERE j.file_id=${row.file_id}::uuid AND j.revision=${row.revision} AND j.object_key=${row.object_key} ORDER BY p.unit`;
+    return { pages };
+  }
+  async function derivativeRenew(id, lease) {
+    return prisma.$transaction(async db => {
+      await leasedDerivative(db, id, lease);
+      await db.$executeRaw`UPDATE runly_content.derivative SET lease_until=now()+interval '90 seconds',updated_at=now() WHERE id=${id}::uuid`;
+      return { ok: true };
+    });
+  }
+  async function derivativeUpload(id, lease, bytes) {
+    const { row, p } = await prisma.$transaction(db => leasedDerivative(db, id, lease));
+    const ceiling = Math.min(DERIVATIVE_MAX_BYTES, p.maxFileBytes * 4);
+    if (!bytes?.byteLength || bytes.byteLength > ceiling || Buffer.from(bytes.subarray(0, 5)).toString('latin1') !== '%PDF-') throw new ContentError('La copia generada no es válida.', 422);
+    const key = `content-derivatives/${row.company_id}/${row.file_id}/${row.revision}.pdf`;
+    const { error } = await supabaseAdmin.storage.from(row.bucket).upload(key, bytes, { contentType: 'application/pdf', upsert: true });
+    if (error) throw new ContentError('No se pudo guardar la copia.', 422);
+    await prisma.$executeRaw`UPDATE runly_content.derivative SET storage_key=${key},size_bytes=${bytes.byteLength},updated_at=now() WHERE id=${id}::uuid`;
+    return { ok: true };
+  }
+  async function derivativeComplete(id, lease, body) {
+    const input = z.strictObject({ errorCode: z.enum(['UNSUPPORTED', 'LIMIT', 'TIMEOUT', 'PARSER', 'DOWNLOAD', 'RESOURCES', 'ENCRYPTED', 'NOT_NEEDED']).optional(),
+      pages: z.number().int().min(0).max(200).default(0), ocrPages: z.number().int().min(0).max(200).default(0), signed: z.boolean().default(false),
+      engine: z.record(z.string(), z.union([z.string().max(120), z.number(), z.boolean()])).default({}) }).parse(body);
+    return prisma.$transaction(async db => {
+      const { row } = await leasedDerivative(db, id, lease);
+      if (input.errorCode || !row.storage_key) {
+        if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
+        await db.$executeRaw`UPDATE runly_content.derivative SET state='failed',error_code=${input.errorCode ?? 'PARSER'},storage_key=NULL,size_bytes=NULL,lease_hash=NULL,lease_until=NULL,
+          updated_at=now(),finished_at=now() WHERE id=${id}::uuid`;
+        return { ok: true, state: 'failed' };
+      }
+      await db.$executeRaw`UPDATE runly_content.derivative SET state='done',error_code=NULL,pages=${input.pages},ocr_pages=${input.ocrPages},signed=${input.signed},
+        engine=${JSON.stringify({ ...input.engine, version: ENGINE_VERSION })}::jsonb,lease_hash=NULL,lease_until=NULL,updated_at=now(),finished_at=now() WHERE id=${id}::uuid`;
+      return { ok: true, state: 'done' };
+    });
+  }
+  return { policy, effective, savePolicy, request, result, cancel, search, status, backfill, heartbeat, claim, renew, download, checkpoint, complete, purge,
+    requestSearchable, searchableDownload, claimDerivative, derivativeSource, derivativePages, derivativeRenew, derivativeUpload, derivativeComplete };
 }
