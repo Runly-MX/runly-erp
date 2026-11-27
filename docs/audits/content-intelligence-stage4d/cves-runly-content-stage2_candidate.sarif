@@ -1,0 +1,202 @@
+{
+  "version": "2.1.0",
+  "$schema": "https://raw.githubusercontent.com/oasis-tcs/sarif-spec/main/sarif-2.1/schema/sarif-schema-2.1.0.json",
+  "runs": [
+    {
+      "tool": {
+        "driver": {
+          "fullName": "Docker Scout",
+          "informationUri": "https://docker.com/products/docker-scout",
+          "name": "docker scout",
+          "rules": [
+            {
+              "id": "CVE-2026-23868",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-23868"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-23868?s=alpine&n=giflib&ns=alpine&t=apk&osn=alpine&osv=3.24&vr=%3C6.1.3-r0",
+              "help": {
+                "text": "\n",
+                "markdown": "> \n\n|                                                                               |\n|Package         pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24  |\n|Affected range  <6.1.3-r0                                                      |\n|Fixed version   6.1.3-r0                                                       |\n"
+              },
+              "properties": {
+                "affected_version": "<6.1.3-r0",
+                "cvssV3_severity": "MEDIUM",
+                "fixed_version": "6.1.3-r0",
+                "purls": [
+                  "pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24"
+                ],
+                "security-severity": "5.1",
+                "tags": [
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2024-45993",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2024-45993"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2024-45993?s=alpine&n=giflib&ns=alpine&t=apk&osn=alpine&osv=3.24&vr=%3C6.1.3-r0",
+              "help": {
+                "text": "\n",
+                "markdown": "> \n\n|                                                                               |\n|Package         pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24  |\n|Affected range  <6.1.3-r0                                                      |\n|Fixed version   6.1.3-r0                                                       |\n"
+              },
+              "properties": {
+                "affected_version": "<6.1.3-r0",
+                "cvssV3_severity": "MEDIUM",
+                "fixed_version": "6.1.3-r0",
+                "purls": [
+                  "pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24"
+                ],
+                "security-severity": "6.5",
+                "tags": [
+                  "MEDIUM"
+                ]
+              }
+            },
+            {
+              "id": "CVE-2026-107891",
+              "name": "OsPackageVulnerability",
+              "shortDescription": {
+                "text": "CVE-2026-107891"
+              },
+              "helpUri": "https://scout.docker.com/v/CVE-2026-107891?s=alpine&n=musl&ns=alpine&t=apk&osn=alpine&osv=3.24&vr=%3C1.2.6-r6",
+              "help": {
+                "text": "\n",
+                "markdown": "> \n\n|                                                                             |\n|Package         pkg:apk/alpine/musl@1.2.6-r3?os_name=alpine&os_version=3.24  |\n|Affected range  <1.2.6-r6                                                    |\n|Fixed version   1.2.6-r6                                                     |\n"
+              },
+              "properties": {
+                "affected_version": "<1.2.6-r6",
+                "cvssV3_severity": "HIGH",
+                "fixed_version": "1.2.6-r6",
+                "purls": [
+                  "pkg:apk/alpine/musl@1.2.6-r3?os_name=alpine&os_version=3.24"
+                ],
+                "security-severity": "8.1",
+                "tags": [
+                  "HIGH"
+                ]
+              }
+            }
+          ],
+          "version": "1.24.0"
+        }
+      },
+      "results": [
+        {
+          "ruleId": "CVE-2026-23868",
+          "ruleIndex": 0,
+          "kind": "fail",
+          "level": "warning",
+          "message": {
+            "text": "Vulnerability    :CVE-2026-23868                                                 \nSeverity         :MEDIUM                                                         \nPackage          :pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24  \nAffected range   :<6.1.3-r0                                                      \nFixed version    :6.1.3-r0                                                       \nEPSS Score       :0.002250                                                       \nEPSS Percentile  :0.078520                                                       \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/lib/apk/db/installed"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/lib/libgif.so.7.2.0"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2024-45993",
+          "ruleIndex": 1,
+          "kind": "fail",
+          "level": "warning",
+          "message": {
+            "text": "Vulnerability    :CVE-2024-45993                                                 \nSeverity         :MEDIUM                                                         \nPackage          :pkg:apk/alpine/giflib@5.2.2-r2?os_name=alpine&os_version=3.24  \nAffected range   :<6.1.3-r0                                                      \nFixed version    :6.1.3-r0                                                       \nEPSS Score       :0.007370                                                       \nEPSS Percentile  :0.505110                                                       \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/lib/apk/db/installed"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/lib/libgif.so.7.2.0"
+                }
+              }
+            }
+          ]
+        },
+        {
+          "ruleId": "CVE-2026-107891",
+          "ruleIndex": 2,
+          "kind": "fail",
+          "level": "error",
+          "message": {
+            "text": "Vulnerability    :CVE-2026-107891                                              \nSeverity         :HIGH                                                         \nPackage          :pkg:apk/alpine/musl@1.2.6-r3?os_name=alpine&os_version=3.24  \nAffected range   :<1.2.6-r6                                                    \nFixed version    :1.2.6-r6                                                     \nEPSS Score       :0.005680                                                     \nEPSS Percentile  :0.408600                                                     \n"
+          },
+          "locations": [
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/lib/apk/db/installed"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/lib/ld-musl-x86_64.so.1"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/sbin/ldconfig"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/bin/getconf"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/bin/getent"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/bin/iconv"
+                }
+              }
+            },
+            {
+              "physicalLocation": {
+                "artifactLocation": {
+                  "uri": "/usr/bin/ldd"
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

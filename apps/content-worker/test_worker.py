@@ -289,6 +289,195 @@ class Corpus(unittest.TestCase):
         self.assertEqual((details["width"], details["height"]), source.size)
         self.assertIn(details["perspective"], ("none", "candidate", "applied"))
 
+    def test_pdf_word_geometry_against_layout_truth_for_mediabox_cropbox_and_rotation(self):
+        """Ground truth comes from where the label bitmap was placed on the page (layout arithmetic) and from measured ink,
+        never from the OCR result. Tolerance: 0.6 word-heights horizontally (Tesseract word boxes can start half a glyph late,
+        measured separately) and 0.35 vertically."""
+        from PIL import ImageChops
+        text_line = TRUTH.split("\n")[1]                                   # "Service Tag ABC123XYZ"
+        blank = Image.new("RGB", (1800, 800), "white")
+        only = blank.copy()
+        ImageDraw.Draw(only).multiline_text((70, 110), "\n" + text_line, fill="black", font=ImageFont.truetype(FONT, 50), spacing=30)
+        ink = ImageChops.difference(blank.convert("L"), only.convert("L")).point(lambda v: 255 if v > 60 else 0)
+        cols = [x for x in range(ink.width) if ink.crop((x, 0, x + 1, ink.height)).getbbox()]
+        start = max(cols[i + 1] for i in range(len(cols) - 1) if cols[i + 1] - cols[i] > 20)   # last word starts after the last wide gap
+        word = ink.crop((start, 0, cols[-1] + 1, ink.height)).getbbox()
+        u, v = (start + cols[-1] + 1) / 2 / 1800, ((word[1] + word[3]) / 2) / 800                  # marker word centre inside the bitmap
+        cases = [((0, 0, 612, 792), None, 0), ((0, 0, 612, 792), (50, 100, 562, 700), 0), ((0, 0, 842, 595), None, 90),
+                 ((0, 0, 612, 792), (50, 100, 562, 700), 180), ((20, 30, 500, 800), (60, 80, 460, 700), 270)]
+        for media, crop, rotate in cases:
+            w = (media[2] - media[0]) - 60
+            x0, y0, h = media[0] + 30, media[1] + 150, w * 800 / 1800
+            jpeg = io.BytesIO()
+            label().save(jpeg, "JPEG", quality=92)
+            raw = jpeg.getvalue()
+            content = f"q {w} 0 0 {h} {x0} {y0} cm /Im1 Do Q".encode()
+            box = crop or media
+            crop_entry = f" /CropBox [{' '.join(map(str, crop))}]" if crop else ""
+            page_dict = (f"<< /Type /Page /Parent 2 0 R /MediaBox [{' '.join(map(str, media))}]{crop_entry} /Rotate {rotate} "
+                         f"/Resources << /XObject << /Im1 5 0 R >> >> /Contents 4 0 R >>").encode()
+            objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>", page_dict,
+                       f"<< /Length {len(content)} >>\nstream\n".encode() + content + b"\nendstream",
+                       f"<< /Type /XObject /Subtype /Image /Width 1800 /Height 800 /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(raw)} >>\nstream\n".encode() + raw + b"\nendstream"]
+            out, offsets = b"%PDF-1.4\n", []
+            for number, body in enumerate(objects, 1):
+                offsets.append(len(out))
+                out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+            at = len(out)
+            out += f"xref\n0 {len(objects) + 1}\n0000000000 65535 f \n".encode() + b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+            out += f"trailer\n<< /Size {len(objects) + 1} /Root 1 0 R >>\nstartxref\n{at}\n%%EOF\n".encode()
+            self.path.write_bytes(out)
+            page = extract(self.path, "application/pdf", {**POLICY, "quality": "balanced"})["pages"][0]
+            canvas = page["engine"]["canvas"]
+            hit = next(w_ for w_ in page["words"] if "ABC123XYZ" in w_["text"])
+            ux, uy = x0 + u * w, y0 + (1 - v) * h                                      # user space, origin bottom-left
+            fx, fy = (ux - box[0]) / (box[2] - box[0]), 1 - (uy - box[1]) / (box[3] - box[1])
+            fx, fy = {0: (fx, fy), 90: (1 - fy, fx), 180: (1 - fx, 1 - fy), 270: (fy, 1 - fx)}[rotate]
+            dx = abs(hit["x"] + hit["width"] / 2 - fx * canvas["width"])
+            dy = abs(hit["y"] + hit["height"] / 2 - fy * canvas["height"])
+            self.assertLessEqual(dx, 0.6 * hit["height"], (media, crop, rotate, "x", dx, hit["height"]))
+            self.assertLessEqual(dy, 0.35 * hit["height"], (media, crop, rotate, "y", dy, hit["height"]))
+            # The searchable copy must put the same word at the same place of the visible page (crop box and rotation included).
+            pages = [{"unit": 1, "source": "ocr", "words": page["words"], "canvas": canvas, "orientation": page["engine"].get("analysis", {}).get("orientation", 0)}]
+            derived = Path(self.temp.name) / "geometry.pdf"
+            build_searchable_pdf(self.path, derived, pages, POLICY, self.temp.name)
+            bbox = command(["pdftotext", "-bbox", str(derived), "-"], 20)
+            size = re.search(r'<page width="([\d.]+)" height="([\d.]+)"', bbox)
+            word_box = re.search(r'xMin="([\d.]+)" yMin="([\d.]+)" xMax="([\d.]+)" yMax="([\d.]+)">ABC123XYZ', bbox)
+            self.assertTrue(word_box, (media, crop, rotate, bbox[:600]))
+            page_w, page_h = float(size[1]), float(size[2])
+            pdx = abs((float(word_box[1]) + float(word_box[3])) / 2 - fx * page_w)
+            pdy = abs((float(word_box[2]) + float(word_box[4])) / 2 - fy * page_h)
+            tolerance = 0.6 * hit["height"] * page_w / canvas["width"]
+            self.assertLessEqual(pdx, tolerance, (media, crop, rotate, "copy x", pdx, tolerance))
+            self.assertLessEqual(pdy, 0.6 * tolerance, (media, crop, rotate, "copy y", pdy))
+            MEASUREMENTS.append({"pdfGeometry": [list(media), crop, rotate, round(dx, 1), round(dy, 1), round(hit["height"], 1)]})
+
+    def test_searchable_text_layer_keeps_unicode_exactly_and_counts_what_it_cannot_encode(self):
+        from worker import ocr_page_pdf
+        words = [{"text": t, "x": 50, "y": 40 + 60 * i, "width": 40 * len(t), "height": 40, "confidence": 90}
+                 for i, t in enumerate(["Año", "ñandú", "¿Qué?", "€1.250,50", "£9", "áéíóú", "Ünï", "straße", "★", "naïve—fin", "a(b)c\d"])]
+        jpeg = io.BytesIO()
+        Image.new("RGB", (60, 80), "white").save(jpeg, "JPEG")
+        pdf_bytes, lost = ocr_page_pdf(jpeg.getvalue(), (60, 80), (600, 800), words, {"width": 600, "height": 800})
+        self.assertEqual(lost, 0)
+        path = Path(self.temp.name) / "unicode.pdf"
+        path.write_bytes(pdf_bytes)
+        text = command(["pdftotext", "-enc", "UTF-8", str(path), "-"], 20)
+        for word in words:
+            self.assertIn(word["text"], text)
+        many = [{"text": "".join(chr(0x4e00 + n + 40 * i) for n in range(40)), "x": 10, "y": 10 + 15 * i, "width": 500, "height": 12, "confidence": 90} for i in range(8)]
+        _, lost = ocr_page_pdf(jpeg.getvalue(), (60, 80), (600, 800), many, {"width": 600, "height": 800})
+        self.assertGreater(lost, 0)                                  # beyond the spare codes of one page: dropped and reported, never substituted
+
+    def test_encrypted_protected_and_signed_pdfs_are_refused_or_flagged_never_bypassed(self):
+        import hashlib
+
+        def rc4(key, data):
+            state, j = list(range(256)), 0
+            for i in range(256):
+                j = (j + state[i] + key[i % len(key)]) % 256
+                state[i], state[j] = state[j], state[i]
+            out, i, j = bytearray(), 0, 0
+            for byte in data:
+                i = (i + 1) % 256
+                j = (j + state[i]) % 256
+                state[i], state[j] = state[j], state[i]
+                out.append(byte ^ state[(state[i] + state[j]) % 256])
+            return bytes(out)
+
+        pad = bytes.fromhex("28BF4E5E4E758A4164004E56FFFA01082E2E00B6D0683E802F0CA9FE6453697A")
+
+        def encrypted(user_password, permissions):
+            """Standard security handler, revision 2 (RC4 40-bit), built only to prove the worker refuses such files."""
+            owner = hashlib.md5(pad).digest() * 2
+            file_id = bytes(range(16))
+            key = hashlib.md5((user_password + pad)[:32] + owner + permissions.to_bytes(4, "little", signed=True) + file_id).digest()[:5]
+            user = rc4(key, pad)
+            objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
+                       b"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 800] >>"]
+            out, offsets = b"%PDF-1.4\n", []
+            for number, body in enumerate(objects, 1):
+                offsets.append(len(out))
+                out += f"{number} 0 obj\n".encode() + body + b"\nendobj\n"
+            enc = f"<< /Filter /Standard /V 1 /R 2 /O <{owner.hex()}> /U <{user.hex()}> /P {permissions} >>".encode()
+            offsets.append(len(out))
+            out += b"4 0 obj\n" + enc + b"\nendobj\n"
+            at = len(out)
+            out += f"xref\n0 5\n0000000000 65535 f \n".encode() + b"".join(f"{o:010d} 00000 n \n".encode() for o in offsets)
+            out += f"trailer\n<< /Size 5 /Root 1 0 R /Encrypt 4 0 R /ID [<{file_id.hex()}> <{file_id.hex()}>] >>\nstartxref\n{at}\n%%EOF\n".encode()
+            return out
+
+        scanned = [{"unit": 1, "source": "ocr", "words": [{"text": "x", "x": 1, "y": 1, "width": 5, "height": 5}], "canvas": {"width": 100, "height": 100}}]
+        out = Path(self.temp.name) / "out.pdf"
+        for label_, password, permissions in (("restrictions only (empty user password)", b"", -3904), ("password protected", b"secret", -3904)):
+            self.path.write_bytes(encrypted(password, permissions))
+            with self.assertRaises(ProcessingError) as refused:
+                build_searchable_pdf(self.path, out, scanned, POLICY, self.temp.name)
+            self.assertEqual(refused.exception.code, "ENCRYPTED", label_)
+            self.assertFalse(out.exists())
+            with self.assertRaises(ProcessingError):                     # text extraction does not bypass it either
+                extract(self.path, "application/pdf", POLICY)
+        make_pdf(self.path, ["image"])
+        self.path.write_bytes(self.path.read_bytes() + b"99 0 obj\n<< /Type /Sig /Filter /Adobe.PPKLite /SubFilter /adbe.pkcs7.detached /ByteRange [0 10 20 30] /Contents <00> >>\nendobj\n")
+        result = extract(self.path, "application/pdf", POLICY)
+        pages = [{"unit": p["unit"], "source": p["source"], "words": p["words"], "canvas": p["engine"].get("canvas")} for p in result["pages"]]
+        self.assertTrue(build_searchable_pdf(self.path, out, pages, POLICY, self.temp.name)["signed"])   # flagged: the copy is not the signed document
+
+    def test_hostile_inputs_fail_in_a_controlled_way_without_side_effects(self):
+        """Each case must end in a ProcessingError (or empty text) quickly, never a crash, a network call or a host path read."""
+        import struct
+        import zlib
+        png = io.BytesIO()
+        label().save(png, "PNG")
+        good = png.getvalue()
+        header = lambda w, h: b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 13) + b"IHDR" + struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0) + struct.pack(">I", zlib.crc32(b"IHDR" + struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)))
+        jpeg = io.BytesIO()
+        label().save(jpeg, "JPEG")
+        exif = Image.Exif()
+        exif[0x010E] = "A" * 60000                                         # oversized metadata field
+        bloated = io.BytesIO()
+        label().save(bloated, "JPEG", exif=exif)
+        svg_remote = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"><image xlink:href="http://127.0.0.1:9/x.png"/><text>SVG-LOCAL</text></svg>'
+        docm = Path(self.temp.name) / "macro.docm"
+        with zipfile.ZipFile(docm, "w") as archive:
+            archive.writestr("word/document.xml", '<w:document xmlns:w="w"><w:p><w:r><w:t>MACRO-DOC</w:t></w:r></w:p></w:document>')
+            archive.writestr("word/vbaProject.bin", b"\xd0\xcf\x11\xe0 Shell(\"calc\")")
+        cases = {
+            "truncated png": (good[: len(good) // 3], "image/png", {"PARSER", "UNSUPPORTED"}),
+            "truncated jpeg": (jpeg.getvalue()[: len(jpeg.getvalue()) // 2], "image/jpeg", {"PARSER", "UNSUPPORTED", None}),
+            "png header claiming 60000x60000": (header(60000, 60000) + good[33:], "image/png", {"LIMIT", "PARSER", "UNSUPPORTED"}),
+            "png with a pdf extension-like wrong mime": (good, "application/pdf", {"UNSUPPORTED"}),
+            "random bytes as pdf": (b"%PDF-1.4\n" + bytes(range(256)) * 40, "application/pdf", {"PARSER", "UNSUPPORTED", "TIMEOUT"}),
+            "empty file": (b"", "image/png", {"UNSUPPORTED", "PARSER", "LIMIT"}),
+        }
+        for name, (data, mime, accepted) in cases.items():
+            self.path.write_bytes(data)
+            try:
+                result = extract(self.path, mime, POLICY)
+                self.assertIn(None, accepted, name)                      # a parse that succeeded must be an accepted outcome
+                self.assertLess(sum(len(p["text"]) for p in result["pages"]), 1000, name)
+            except ProcessingError as error:
+                self.assertIn(error.code, accepted, name)
+        self.path.write_bytes(bloated.getvalue())
+        extract(self.path, "image/jpeg", POLICY)                          # big EXIF is ignored, the image is still read
+        self.path.write_bytes(svg_remote)
+        page = extract(self.path, "image/svg+xml", POLICY)["pages"][0]    # text only: the remote reference is never followed
+        self.assertIn("SVG-LOCAL", page["text"])
+        self.assertEqual(page["words"], [])
+        text = extract(docm, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", POLICY)["pages"][0]["text"]
+        self.assertEqual(text, "MACRO-DOC")                               # macros are neither read nor executed
+        bomb = Path(self.temp.name) / "bomb.docx"
+        with zipfile.ZipFile(bomb, "w", zipfile.ZIP_DEFLATED) as archive:
+            archive.writestr("word/document.xml", "<w:document xmlns:w=\"w\"><w:p><w:r><w:t>" + "A" * 30_000_000 + "</w:t></w:r></w:p></w:document>")
+        with self.assertRaises(ProcessingError):
+            extract(bomb, "application/vnd.openxmlformats-officedocument.wordprocessingml.document", POLICY)
+        files_before = set(Path(tempfile.gettempdir()).glob("content-*"))
+        self.path.write_bytes(b"%PDF-1.4\n" + b"0" * 100)
+        with self.assertRaises(ProcessingError):
+            extract(self.path, "application/pdf", POLICY)
+        self.assertEqual(set(Path(tempfile.gettempdir()).glob("content-*")), files_before)   # no temp tree left behind after a failure
+
     def test_zip_bomb_and_xml_entities_rejected(self):
         with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("word/document.xml", "A" * 1000000)

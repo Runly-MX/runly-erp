@@ -17,11 +17,17 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
   const service = createContentIntelligence({ prisma, filesService, supabaseAdmin });
   const read = requirePermission('files.assets.read');
   const processFiles = requirePermission('files.assets.update');
-  const manageCompany = async (c, next) => requirePermission('files.assets.update')(c, async () => {
-    const tenant = c.get('tenantContext');
-    if (!tenant?.isCompanyAdmin && !tenant?.isPlatformOwner) return c.json({ error: 'Se requiere administración de empresa.' }, 403);
-    return next();
-  });
+  // A middleware that wraps another must return the wrapped middleware's own response (a 403 it produced) and the response of
+  // the check it adds; swallowing either leaves Hono without a response and the client sees a 500.
+  const manageCompany = async (c, next) => {
+    let refused = null;
+    const outcome = await requirePermission('files.assets.update')(c, async () => {
+      const tenant = c.get('tenantContext');
+      if (!tenant?.isCompanyAdmin && !tenant?.isPlatformOwner) { refused = c.json({ error: 'Se requiere administración de empresa.' }, 403); return; }
+      return next();
+    });
+    return refused ?? outcome;
+  };
   const manageInstance = requirePermission('core.instance.update');
   const instanceAdmin = createRequireInstanceAdmin({ prisma });
   const args = c => ({ authUserId: c.get('authUserId'), activeContext: tenantActiveContext(c), id: c.req.param('id') });

@@ -1,0 +1,169 @@
+{
+ "at": "2026-11-27T04:34:09.657Z",
+ "notes": [
+  "signed URL issued before replacement still answers 200 after 13s (TTL 60s; a signed URL is a bearer capability and is not revoked by file replacement)",
+  "after sign-out the access token answers 200 (before 200); a JWT stays valid until it expires unless the API checks the session"
+ ],
+ "checks": [
+  {
+   "name": "setup: real Auth users sign in (A member, A read-only, B admin)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "1. file processed (admin of A)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "1. member of A reads text and coordinates of a company file",
+   "ok": true,
+   "detail": "200"
+  },
+  {
+   "name": "1. member of A finds it by content",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "2. admin of B (own company header) cannot read A file",
+   "ok": true,
+   "detail": "404"
+  },
+  {
+   "name": "2. admin of B claiming company A (not a member) is refused",
+   "ok": true,
+   "detail": "403"
+  },
+  {
+   "name": "2. B search never returns A content or snippets",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "2. B cannot request OCR or a derivative of an A file",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "12. random uuid and malformed ids are refused without detail",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "12. unit query is digits only (no injection through ?unit)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "13. read-only member cannot trigger OCR (process endpoint)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "13. admin endpoints refuse a normal member (company and instance)",
+   "ok": true,
+   "detail": "403,403,403,403"
+  },
+  {
+   "name": "13. worker endpoints refuse user tokens",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "4. file turned RESTRICTED after indexing: member loses text, coordinates and search hit at once",
+   "ok": true,
+   "detail": "404"
+  },
+  {
+   "name": "5. invitation is not access yet (pending shares grant nothing)",
+   "ok": true,
+   "detail": "invitation listed"
+  },
+  {
+   "name": "5. accepted share: access and search return immediately",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "6. share revoked: text, coordinates and search disappear immediately",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "3. member loses membership after indexing: API refuses at once",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "7. scanned PDF processed",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "7. searchable copy generated before the replacement",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "7. member of A downloads the copy with a signed URL",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "7. replaced version: old text is not shown as current (state is new/pending, no old pages)",
+   "ok": true,
+   "detail": "pending"
+  },
+  {
+   "name": "7. replaced version: old derivative is not served",
+   "ok": true,
+   "detail": "404"
+  },
+  {
+   "name": "7. new version is reprocessed independently",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "8. deleted (disabled) while queued/processing: no text, no search hit, no job left",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "9. restored file is reprocessed from scratch",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "15. a signed URL is a bearer capability: it works for whoever holds it inside its 60 s window (documented residual)",
+   "ok": true,
+   "detail": "status 200"
+  },
+  {
+   "name": "14. expired signed URL is refused",
+   "ok": true,
+   "detail": "status 400 after 66 s"
+  },
+  {
+   "name": "11. refresh token is revoked at sign-out (the viewer cannot renew access)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "16. purge racing a derivative leaves no derivative row",
+   "ok": true,
+   "detail": "rows=0"
+  },
+  {
+   "name": "16. purge racing a derivative leaves no undeleted Storage object (drain table empty after maintenance)",
+   "ok": true,
+   "detail": "orphans=0"
+  },
+  {
+   "name": "logs: API logs of the whole run never contain recognized text or the marker",
+   "ok": true,
+   "detail": ""
+  }
+ ]
+}

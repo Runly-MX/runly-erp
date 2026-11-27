@@ -42,6 +42,9 @@ before(async () => {
       before jsonb,after jsonb,metadata jsonb,created_at timestamp DEFAULT now());`);
   await pool.query(await readFile(new URL('../../../../../prisma/migrations/20270115000000_content_intelligence/migration.sql', import.meta.url), 'utf8'));
   await pool.query(await readFile(new URL('../../../../../prisma/migrations/20270116000000_content_intelligence_consolidation/migration.sql', import.meta.url), 'utf8'));
+  for (const name of ['20270117000000_content_intelligence_heic','20270118000000_content_searchable_pdf','20270119000000_content_derivative_reconcile']) {
+    await pool.query(await readFile(new URL(`../../../../../prisma/migrations/${name}/migration.sql`, import.meta.url), 'utf8'));
+  }
   db = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) });
   const ids = (await pool.query("SELECT uuidv7() AS a, uuidv7() AS b, uuidv7() AS c, uuidv7() AS d")).rows[0];
   [companyId,otherCompany,owner,viewer] = [ids.a,ids.b,ids.c,ids.d];
@@ -337,4 +340,24 @@ test('real isolated Docker worker: historical image -> download -> OCR -> indexe
     await run('docker', ['rm','--force',...workerNames]).catch(() => {});
     await new Promise(resolve => server.close(resolve));
   }
+});
+
+test('derivatives: one per revision, stale ones are dropped, every removal records its Storage object, cascade included', { skip: !url }, async () => {
+  const [{ id: pdf }] = (await pool.query(`INSERT INTO file_asset(bucket,object_key,original_name,mime_type,size_bytes,entity_id,updated_at)
+    VALUES ('test','derivatives/a.pdf','a.pdf','application/pdf',100,$1,now()) RETURNING id`, [companyId])).rows;
+  const insert = () => pool.query(`INSERT INTO runly_content.derivative(company_id,file_id,revision,object_key,state,storage_key,bucket)
+    VALUES ($1,$2,1,'derivatives/a.pdf','done','content-derivatives/x/y/1.pdf','test') RETURNING id`, [companyId, pdf]);
+  await insert();
+  await assert.rejects(insert, /duplicate key/);                                   // a single copy per file revision
+  await pool.query("UPDATE file_asset SET content_revision=2 WHERE id=$1", [pdf]);
+  assert.equal((await pool.query('SELECT count(*)::int n FROM runly_content.derivative WHERE file_id=$1', [pdf])).rows[0].n, 1); // not yet cleaned
+  await service.claim('nobody').catch(() => null);                                  // maintenance runs on claim
+  await pool.query("DELETE FROM runly_content.derivative WHERE file_id=$1", [pdf]);
+  const orphan = (await pool.query("SELECT bucket,storage_key FROM runly_content.derivative_orphan WHERE storage_key='content-derivatives/x/y/1.pdf'")).rows;
+  assert.ok(orphan.length >= 1, 'row removal must record the object for deletion');
+  await insert().catch(() => null);
+  const before = (await pool.query('SELECT count(*)::int n FROM runly_content.derivative_orphan')).rows[0].n;
+  await pool.query('DELETE FROM file_asset WHERE id=$1', [pdf]);                    // ON DELETE CASCADE
+  assert.ok((await pool.query('SELECT count(*)::int n FROM runly_content.derivative_orphan')).rows[0].n > before, 'cascade must record the object too');
+  await assert.rejects(pool.query("INSERT INTO runly_content.derivative_orphan(bucket,storage_key) VALUES ('test','somewhere-else/x.pdf')"), /check/i); // drain table can only name derivative keys
 });

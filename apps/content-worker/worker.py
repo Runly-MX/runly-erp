@@ -239,7 +239,7 @@ def adaptive_binary(gray):
 
 
 def analysis_of(details):
-    return {key: details[key] for key in ("contrast", "sharpness", "perspective") if key in details}
+    return {key: details[key] for key in ("contrast", "sharpness", "perspective", "orientation") if key in details}
 
 
 def solve_homography(rect, quad):
@@ -362,6 +362,7 @@ def recognize(image, directory, policy, details=None):
         details.update(width=image.width, height=image.height, secondPasses=0, perspective="none")
     transforms = []
     ambiguous = None
+    orientation = 0  # clockwise quarter turns (degrees) needed to read the page upright: the direction the text runs in the canvas
     # Map processed boxes back to the displayed original (after EXIF orientation).
     def rotate(angle):
         nonlocal image
@@ -379,6 +380,7 @@ def recognize(image, directory, policy, details=None):
             if match and int(match[1]):
                 if confidence and float(confidence[1]) >= 0.6:
                     rotate(-int(match[1]))
+                    orientation = int(match[1])
                 else:
                     ambiguous = int(match[1])  # weak signal: both orientations are read and the better reading wins
         except ProcessingError:
@@ -437,6 +439,7 @@ def recognize(image, directory, policy, details=None):
             details['secondPasses'] += 1
         if better(alternative, best):
             best, chain = alternative, transforms + [("rotate", -ambiguous, gray.size, turned.size)]
+            orientation = ambiguous
     if policy["quality"] != "fast" and (best[2] < 80 or len(best[0]) < 20 or junk_count(best)):
         quad = find_quad(gray)
         if quad:
@@ -466,6 +469,8 @@ def recognize(image, directory, policy, details=None):
                 dx, dy = x - after[0] / 2, y - after[1] / 2
                 x, y = c * dx - s * dy + before[0] / 2, s * dx + c * dy + before[1] / 2
         return max(0, x), max(0, y)
+    if details is not None:
+        details["orientation"] = orientation
     projective = any(transform[0] == 'perspective' for transform in chain)
     for word in best[1]:
         corners = [inverse(x, y) for x, y in ((word["x"], word["y"]), (word["x"] + word["width"], word["y"]),
@@ -515,6 +520,18 @@ def decode_heif(path, policy):
 
 
 def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, resume_units=()):
+    """Public entry: every parser failure leaves as a ProcessingError with a stable code, never as a raw library exception."""
+    try:
+        return _extract(path, mime, policy, progress, checkpoint, resume_units)
+    except ProcessingError:
+        raise
+    except (Image.DecompressionBombWarning, Image.DecompressionBombError):
+        raise ProcessingError("LIMIT") from None
+    except (OSError, ValueError, SyntaxError, EOFError, KeyError, IndexError, ET.ParseError, zipfile.BadZipFile, UnicodeError, ZeroDivisionError):
+        raise ProcessingError("PARSER") from None
+
+
+def _extract(path, mime, policy, progress=lambda value: None, checkpoint=None, resume_units=()):
     data = Path(path).read_bytes()
     if len(data) > policy["maxFileBytes"]:
         raise ProcessingError("LIMIT")
@@ -539,7 +556,14 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
         if data.startswith(b"%PDF-"):
             if mime != "application/pdf":
                 raise ProcessingError("UNSUPPORTED")
-            info = command(["pdfinfo", str(path)], 10)
+            try:
+                info = command(["pdfinfo", str(path)], 10)
+            except ProcessingError as error:
+                if error.code == "PARSER" and b"/Encrypt" in data:
+                    raise ProcessingError("UNSUPPORTED") from None  # protected documents are never opened or bypassed
+                raise
+            if re.search(r"^Encrypted:\s+yes", info, re.M) and not policy.get("readEncrypted", False):
+                raise ProcessingError("UNSUPPORTED")
             count = int(re.search(r"Pages:\s+(\d+)", info)[1])
             partial = count > policy["maxPages"]
             for unit in range(1, min(count, policy["maxPages"]) + 1):
@@ -552,7 +576,7 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
                     prefix = str(Path(directory) / "page")
                     # scale-to prevents giant pages allocating unbounded raster memory.
                     raster_edge = min(3500, int(math.sqrt(policy["maxPixels"])))
-                    command(["pdftoppm", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(raster_edge), "-png", str(path), prefix], 30)
+                    command(["pdftoppm", "-cropbox", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(raster_edge), "-png", str(path), prefix], 30)
                     with Image.open(prefix + ".png", formats=['PNG']) as image:
                         details = {}
                         text, words, confidence = recognize(image, directory, policy, details)
@@ -632,35 +656,77 @@ def helvetica_width(text, size):
     return sum(HELVETICA[ord(c) - 32] if 32 <= ord(c) <= 126 else 556 for c in text) * size / 1000
 
 
-def pdf_literal(text):
-    """Windows-1252 literal string. Characters outside it become '?' and are counted: nothing is invented, only dropped."""
-    raw = text.encode("cp1252", errors="replace")
-    lost = sum(1 for c in text if c.encode("cp1252", errors="replace") == b"?" and c != "?")
-    return b"(" + raw.replace(b"\\", b"\\\\").replace(b"(", b"\\(").replace(b")", b"\\)") + b")", lost
+def unicode_codes(words):
+    """Per-page one-byte code table for the invisible text. ASCII keeps its own code; every other character gets a spare code
+    and is declared in a ToUnicode map, so readers extract the exact recognized Unicode text (no Windows-1252 substitution).
+    Characters beyond the 190 spare codes of one page are dropped and counted, never replaced."""
+    table, spare = {}, [c for c in range(161, 256)] + [c for c in range(1, 32)]
+    for word in words:
+        for char in word["text"][:200] + " ":
+            if char in table:
+                continue
+            if 32 <= ord(char) <= 126:
+                table[char] = ord(char)
+            elif spare:
+                table[char] = spare.pop(0)
+    return table
 
 
-def ocr_page_pdf(jpeg, image_size, page_size, words, canvas):
+def tounicode_cmap(table):
+    def hex16(char):
+        data = char.encode("utf-16-be")
+        return data.hex().upper()
+    entries = [f"<{code:02X}> <{hex16(char)}>" for char, code in sorted(table.items(), key=lambda item: item[1])]
+    chunks = ["\n".join(entries[i:i + 100]) for i in range(0, len(entries), 100)]
+    body = "".join(f"{len(chunk.splitlines())} beginbfchar\n{chunk}\nendbfchar\n" for chunk in chunks)
+    return ("/CIDInit /ProcSet findresource begin 12 dict begin begincmap /CIDSystemInfo << /Registry (Adobe) /Ordering (UCS) /Supplement 0 >> def "
+            "/CMapName /Adobe-Identity-UCS def /CMapType 2 def 1 begincodespacerange <00> <FF> endcodespacerange\n" + body + "endcmap CMapName currentdict /CMap defineresource pop end end").encode("ascii")
+
+
+def pdf_string(text, table):
+    """(encoded literal, dropped characters). Characters without a code are left out and counted."""
+    out, lost = bytearray(), 0
+    for char in text:
+        code = table.get(char)
+        if code is None:
+            lost += 1
+            continue
+        if code in (40, 41, 92):
+            out += b"\\"
+        out.append(code)
+    return b"(" + bytes(out) + b")", lost
+
+
+def ocr_page_pdf(jpeg, image_size, page_size, words, canvas, orientation=0):
     """One-page PDF: the scan full-bleed plus an invisible (render mode 3) text layer aligned to each recognized word."""
     width, height = page_size
     sx, sy = width / canvas["width"], height / canvas["height"]
+    table = unicode_codes(words)
     stream, lost = [], 0
     for word in words:
         text = word["text"][:200]
         if not text.strip():
             continue
-        size = max(1.0, word["height"] * sy * 0.85)
-        natural = helvetica_width(text + " ", size)
-        horizontal = max(10.0, min(400.0, 100 * (word["width"] * sx) / max(0.1, helvetica_width(text, size))))
-        literal, dropped = pdf_literal(text + " ")
+        sideways = orientation in (90, 270)
+        along = (word["height"] * sy) if sideways else (word["width"] * sx)     # extent in the direction the text runs
+        across = (word["width"] * sx) if sideways else (word["height"] * sy)    # extent of the glyph height
+        size = max(1.0, across * 0.85)
+        horizontal = max(10.0, min(400.0, 100 * along / max(0.1, helvetica_width(text, size))))
+        literal, dropped = pdf_string(text + " ", table)
         lost += dropped
-        x, y = word["x"] * sx, height - (word["y"] + word["height"]) * sy + word["height"] * sy * 0.2
-        stream.append(f"BT /F1 {size:.2f} Tf {horizontal:.1f} Tz 1 0 0 1 {x:.2f} {y:.2f} Tm ".encode() + literal + b" Tj ET")
+        cx, cy = (word["x"] + word["width"] / 2) * sx, height - (word["y"] + word["height"] / 2) * sy
+        # Text runs counter-clockwise by `orientation` degrees in the page (90: bottom-to-top, 270: top-to-bottom, 180: upside down).
+        cos, sin = {0: (1, 0), 90: (0, 1), 180: (-1, 0), 270: (0, -1)}.get(orientation, (1, 0))
+        lx, ly = -along / 2, -across / 2 + across * 0.2
+        stream.append(f"BT /F1 {size:.2f} Tf {horizontal:.1f} Tz {cos} {sin} {-sin} {cos} {cx + lx * cos - ly * sin:.2f} {cy + lx * sin + ly * cos:.2f} Tm ".encode() + literal + b" Tj ET")
+    cmap = tounicode_cmap(table)
     content = f"q {width:.2f} 0 0 {height:.2f} 0 0 cm /Im1 Do Q\n3 Tr\n".encode() + b"\n".join(stream)
     objects = [b"<< /Type /Catalog /Pages 2 0 R >>", b"<< /Type /Pages /Kids [3 0 R] /Count 1 >>",
                f"<< /Type /Page /Parent 2 0 R /MediaBox [0 0 {width:.2f} {height:.2f}] /Resources << /Font << /F1 5 0 R >> /XObject << /Im1 6 0 R >> >> /Contents 4 0 R >>".encode(),
                f"<< /Length {len(content)} >>\nstream\n".encode() + content + b"\nendstream",
-               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>",
-               f"<< /Type /XObject /Subtype /Image /Width {image_size[0]} /Height {image_size[1]} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(jpeg)} >>\nstream\n".encode() + jpeg + b"\nendstream"]
+               b"<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /ToUnicode 7 0 R >>",
+               f"<< /Type /XObject /Subtype /Image /Width {image_size[0]} /Height {image_size[1]} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length {len(jpeg)} >>\nstream\n".encode() + jpeg + b"\nendstream",
+               f"<< /Length {len(cmap)} >>\nstream\n".encode() + cmap + b"\nendstream"]
     out, offsets = bytearray(b"%PDF-1.5\n"), []
     for number, body in enumerate(objects, 1):
         offsets.append(len(out))
@@ -677,7 +743,12 @@ def build_searchable_pdf(source, out, ocr_pages, policy, directory):
     data = Path(source).read_bytes()
     if not data.startswith(b"%PDF-"):
         raise ProcessingError("UNSUPPORTED")
-    info = command(["pdfinfo", str(source)], 10)
+    try:
+        info = command(["pdfinfo", str(source)], 10)
+    except ProcessingError as error:
+        if error.code == "PARSER" and b"/Encrypt" in data:  # password-protected: pdfinfo cannot even open it
+            raise ProcessingError("ENCRYPTED") from None
+        raise
     if re.search(r"^Encrypted:\s+yes", info, re.M):
         raise ProcessingError("ENCRYPTED")
     count = int(re.search(r"Pages:\s+(\d+)", info)[1])
@@ -695,7 +766,7 @@ def build_searchable_pdf(source, out, ocr_pages, policy, directory):
         piece = Path(directory) / f"piece-{unit}.pdf"
         if unit in scanned:
             prefix = str(Path(directory) / f"raster-{unit}")
-            command(["pdftoppm", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(edge), "-png", str(source), prefix], 30)
+            command(["pdftoppm", "-cropbox", "-f", str(unit), "-l", str(unit), "-singlefile", "-scale-to", str(edge), "-png", str(source), prefix], 30)
             with Image.open(prefix + ".png", formats=["PNG"]) as raster:
                 raster = raster.convert("RGB")
                 size = raster.size
@@ -706,7 +777,7 @@ def build_searchable_pdf(source, out, ocr_pages, policy, directory):
             page_size = (float(box[1]), float(box[2])) if box else (size[0] * 0.24, size[1] * 0.24)
             if (page_size[0] > page_size[1]) != (size[0] > size[1]):
                 page_size = page_size[::-1]  # the visible page, with /Rotate applied, decides the new page orientation
-            pdf_bytes, lost = ocr_page_pdf(buffer.getvalue(), size, page_size, scanned[unit]["words"], scanned[unit]["canvas"])
+            pdf_bytes, lost = ocr_page_pdf(buffer.getvalue(), size, page_size, scanned[unit]["words"], scanned[unit]["canvas"], int(scanned[unit].get("orientation") or 0))
             dropped += lost
             piece.write_bytes(pdf_bytes)
         else:

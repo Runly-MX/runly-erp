@@ -25,7 +25,7 @@ export const pageSchema = z.object({
       canvas: z.object({ width: z.number().positive().max(40000000), height: z.number().positive().max(40000000),
         coordinateSpace: z.enum(['exif-oriented-image','pdf-raster']), pageWidth: z.number().positive().optional(), pageHeight: z.number().positive().optional(),
       }).optional(), secondPasses: z.number().int().min(0).max(10).optional(),
-      analysis: z.object({ contrast: z.number().optional(), sharpness: z.number().optional(), perspective: z.enum(['none','candidate','applied']).optional(), heif: z.boolean().optional() }).optional(),
+      analysis: z.object({ contrast: z.number().optional(), sharpness: z.number().optional(), perspective: z.enum(['none','candidate','applied']).optional(), heif: z.boolean().optional(), orientation: z.number().int().min(0).max(270).optional() }).optional(),
     }),
   });
 const resultSchema = z.strictObject({
@@ -338,7 +338,9 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     await prisma.$executeRaw`INSERT INTO runly_content.worker(id,capabilities) VALUES (${workerId},${JSON.stringify(capabilities)}::jsonb)
       ON CONFLICT(id) DO UPDATE SET capabilities=EXCLUDED.capabilities,heartbeat_at=now()`;
   }
+  let drainDue = true; // Storage deletions never run inside the claim transaction (it holds the queue lock)
   async function claim(workerId) {
+    if (drainDue) { drainDue = false; drainDerivativeObjects(prisma).catch(() => { drainDue = true; }); }
     if ((await pressure.observe()).paused) return null;
     return prisma.$transaction(async db => {
       await db.$queryRaw`SELECT pg_advisory_xact_lock(71620381)::text`;
@@ -352,7 +354,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
         SELECT j.id FROM runly_content.job j JOIN runly_content.policy cp ON cp.scope=j.company_id::text
         WHERE j.state NOT IN ('pending','processing') AND j.updated_at<now()-make_interval(days=>least(${global.retentionDays},coalesce((cp.config->>'retentionDays')::int,365)))
         ORDER BY j.updated_at LIMIT 50)`;
-      if (maintenance.length) await cleanStaleDerivatives(db);
+      if (maintenance.length) { await cleanStaleDerivatives(db); drainDue = true; }
       if (global.profile === 'OFF' || global.paused) return null;
       await db.$executeRaw`UPDATE runly_content.attempt a SET finished_at=now(),error_code='LEASE_EXPIRED',
         elapsed_ms=least(coalesce((j.policy_snapshot->>'timeoutSeconds')::int,120)*1000,greatest(0,extract(epoch FROM (now()-a.started_at))*1000))::int
@@ -580,22 +582,31 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return { url: data.signedUrl, name, expiresInSeconds: 60 };
   }
   async function removeDerivatives(db, companyId) {
-    let total = 0;
-    for (;;) {
-      const rows = await db.$queryRaw`SELECT d.id,d.storage_key,f.bucket FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
-        WHERE d.company_id=${companyId}::uuid LIMIT 200`;
-      if (!rows.length) return total;
-      for (const row of rows) if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
-      await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id=ANY(${rows.map(row => row.id)}::uuid[])`;
-      total += rows.length;
+    const n = await db.$executeRaw`DELETE FROM runly_content.derivative WHERE company_id=${companyId}::uuid`;
+    await drainDerivativeObjects(db);
+    return n;
+  }
+  // Deletes only Storage objects named in the drain table (filled by a trigger on every derivative-row removal).
+  async function drainDerivativeObjects(db) {
+    for (let round = 0; round < 20; round++) {
+      const rows = await db.$queryRaw`SELECT id,bucket,storage_key FROM runly_content.derivative_orphan ORDER BY created_at LIMIT 100`;
+      if (!rows.length) return;
+      const done = [];
+      for (const row of rows) {
+        const { error } = await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]);
+        if (!error) done.push(row.id);
+      }
+      if (done.length) await db.$executeRaw`DELETE FROM runly_content.derivative_orphan WHERE id=ANY(${done}::uuid[])`;
+      if (done.length < rows.length) return; // Storage unavailable: keep the rest for the next maintenance pass
     }
   }
   // A derivative belongs to one file revision: replaced, disabled or deleted originals leave nothing servable behind.
   async function cleanStaleDerivatives(db) {
-    const rows = await db.$queryRaw`SELECT d.id,d.storage_key,d.bucket FROM (SELECT d.id,d.storage_key,f.bucket FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
-      WHERE d.state<>'processing' AND (NOT f.enabled OR f.content_revision<>d.revision OR f.object_key<>d.object_key) LIMIT 50) d`;
-    for (const row of rows) if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
-    if (rows.length) await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id=ANY(${rows.map(row => row.id)}::uuid[])`;
+    // Revision/object replaced: the copy no longer matches its original. (A merely disabled file keeps its copy; it is never served
+    // while the file is disabled and becomes available again if the file is restored with the same revision.)
+    await db.$executeRaw`DELETE FROM runly_content.derivative WHERE id IN (
+      SELECT d.id FROM runly_content.derivative d JOIN file_asset f ON f.id=d.file_id
+      WHERE d.state<>'processing' AND (f.content_revision<>d.revision OR f.object_key<>d.object_key) LIMIT 50)`;
   }
   async function claimDerivative(workerId) {
     if ((await pressure.observe()).paused) return null;
@@ -650,7 +661,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
   // The worker reads the stored OCR (words per page) instead of recognizing again: reuse is the default, never a second OCR pass.
   async function derivativePages(id, lease) {
     const { row } = await prisma.$transaction(db => leasedDerivative(db, id, lease));
-    const pages = await prisma.$queryRaw`SELECT p.unit,p.words,p.source,p.engine->'canvas' AS canvas FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
+    const pages = await prisma.$queryRaw`SELECT p.unit,p.words,p.source,p.engine->'canvas' AS canvas,(p.engine->'analysis'->>'orientation')::int AS orientation FROM runly_content.page p JOIN runly_content.job j ON j.id=p.job_id
       WHERE j.file_id=${row.file_id}::uuid AND j.revision=${row.revision} AND j.object_key=${row.object_key} ORDER BY p.unit`;
     return { pages };
   }
@@ -668,7 +679,13 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     const key = `content-derivatives/${row.company_id}/${row.file_id}/${row.revision}.pdf`;
     const { error } = await supabaseAdmin.storage.from(row.bucket).upload(key, bytes, { contentType: 'application/pdf', upsert: true });
     if (error) throw new ContentError('No se pudo guardar la copia.', 422);
-    await prisma.$executeRaw`UPDATE runly_content.derivative SET storage_key=${key},size_bytes=${bytes.byteLength},updated_at=now() WHERE id=${id}::uuid`;
+    const updated = await prisma.$executeRaw`UPDATE runly_content.derivative SET storage_key=${key},bucket=${row.bucket},size_bytes=${bytes.byteLength},updated_at=now()
+      WHERE id=${id}::uuid AND state='processing'`;
+    if (!updated) {
+      // The row vanished (purge, replaced revision) while the object was uploading: do not leave the object behind.
+      await supabaseAdmin.storage.from(row.bucket).remove([key]).catch(() => null);
+      throw new ContentError('El trabajo ya no está autorizado.', 409);
+    }
     return { ok: true };
   }
   async function derivativeComplete(id, lease, body) {
@@ -678,7 +695,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     return prisma.$transaction(async db => {
       const { row } = await leasedDerivative(db, id, lease);
       if (input.errorCode || !row.storage_key) {
-        if (row.storage_key) await supabaseAdmin.storage.from(row.bucket).remove([row.storage_key]).catch(() => null);
+        if (row.storage_key) await db.$executeRaw`INSERT INTO runly_content.derivative_orphan(bucket,storage_key) VALUES (${row.bucket},${row.storage_key})`;
         await db.$executeRaw`UPDATE runly_content.derivative SET state='failed',error_code=${input.errorCode ?? 'PARSER'},storage_key=NULL,size_bytes=NULL,lease_hash=NULL,lease_until=NULL,
           updated_at=now(),finished_at=now() WHERE id=${id}::uuid`;
         return { ok: true, state: 'failed' };
