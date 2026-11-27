@@ -1180,7 +1180,7 @@ async function main() {
       "--add-host", "host.docker.internal:host-gateway",
       "--env-file", envFile,
     ];
-    run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:migrate"]);
+    run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "exec", "prisma", "migrate", "deploy"]);
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:seed"]);
     if (transcription.mode === "local") {
       run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:provision-transcriber-role"]);
@@ -1236,7 +1236,10 @@ async function main() {
   console.log("Waiting for the API to answer /health...");
   {
     const healthEnv = await fs.readFile(envFile, "utf8");
-    await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: parseEnvValue(healthEnv, "RUNLY_PUBLIC_BIND_ADDR"), port: parseEnvValue(healthEnv, "RUNLY_API_HOST_PORT") }) });
+    // Compose reads the published port and bind address from the shell or the sibling .env, not only from the env file: probe the same place.
+    const composeEnv = await fs.readFile(path.join(installerDir, ".env"), "utf8").catch(() => "");
+    const setting = (key) => process.env[key] || parseEnvValue(healthEnv, key) || parseEnvValue(composeEnv, key);
+    await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: setting("RUNLY_PUBLIC_BIND_ADDR"), port: setting("RUNLY_API_HOST_PORT") }) });
   }
   probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: ["run", "--rm", ...externalMigrationNetwork(await fs.readFile(envFile, "utf8")), "--add-host", "host.docker.internal:host-gateway", "--env-file", envFile] });
   autoSetupWebsiteDomains({ installerDir, mode: "external", envContent: await fs.readFile(envFile, "utf8") });

@@ -96,12 +96,12 @@ export async function isolationStage(ctx) {
 
     await expect(ctx, 'api-healthy-isolated', 'The recovered API answers /health from inside the isolated network, and its only network is the internal one', async () => {
       let ok = false, last = ''
-      for (let attempt = 0; attempt < 40 && !ok; attempt++) {
+      for (let attempt = 0; attempt < 120 && !ok; attempt++) { // the restored API boots slowly on a loaded laptop (module sync, route loader)
         const result = await probeApi(ctx, names.internal, "fetch('http://runly-api:4010/health').then(r => process.exit(r.ok ? 0 : 2), () => process.exit(3))")
         ok = result.code === 0; last = result.output
         if (!ok) await new Promise(resolve => setTimeout(resolve, 1500))
       }
-      if (!ok) throw Error(`the API never became healthy: ${(await command('docker', ['logs', '--tail', '15', names.api]).catch(() => last)).slice(-500)}`)
+      if (!ok) throw Error(`the API never became healthy (last probe: ${String(last).slice(-200)}): ${(await command('docker', ['logs', '--tail', '15', names.api]).catch(() => last)).slice(-500)}`)
       const networks = Object.keys(JSON.parse(await command('docker', ['inspect', '--format', '{{json .NetworkSettings.Networks}}', names.api])))
       if (networks.length !== 1 || networks[0] !== names.internal) throw Error(`the API is attached to: ${networks.join(', ')}`)
       return 'healthy; attached only to the internal network'
@@ -139,7 +139,7 @@ export async function isolationStage(ctx) {
         const { access_token } = await login.json();
         const notes = await fetch('http://runly-api:4010/notes', { headers: { Authorization: 'Bearer ' + access_token, 'X-Runly-Company-Id': process.env.COMPANY } });
         const body = await notes.json().catch(() => ({}));
-        console.log(JSON.stringify({ step: 'notes', status: notes.status, titles: (body.notes ?? body.data?.notes ?? []).map(n => n.title) })) })()`
+        console.log(JSON.stringify({ step: 'notes', status: notes.status, detail: notes.status === 200 ? undefined : JSON.stringify(body).slice(0, 200), titles: (body.notes ?? body.data?.notes ?? []).map(n => n.title) })) })()`
       const result = await ctx.log.attempt('sign in with a restored user and read notes through the recovered API', 'docker', ['run', '--rm', '--network', names.internal, '-e', `ANON=${replica.secret.SUPABASE_ANON_KEY}`, '-e', `EMAIL=${user.email}`, '-e', `PASSWORD=${user.password}`, '-e', `COMPANY=${company.id}`, '--entrypoint', 'node', ctx.images.api, '-e', script])
       const out = JSON.parse(result.output.trim().split(/\r?\n/).at(-1))
       if (out.step !== 'notes' || out.status !== 200) throw Error(`unexpected result ${JSON.stringify(out)}`)

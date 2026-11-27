@@ -329,6 +329,7 @@ describe('company and resource isolation against PostgreSQL', { skip: !connectio
     const calendar = await db.calendarCalendar.create({ data: { companyId: b.id, ownerId: actor.id, name: 'Scope test' } });
     const event = await db.calendarEvent.create({ data: { calendarId: calendar.id, title: 'Scope test', startAt: new Date() } });
     const sites = [];
+    const domains = new Map();
     try {
       const events = createCalendarEventService({ prisma: db });
       const calendars = createCalendarService({ prisma: db });
@@ -342,6 +343,9 @@ describe('company and resource isolation against PostgreSQL', { skip: !connectio
         const [site] = await db.$queryRaw`INSERT INTO website_site (id, company_id, name, domain, updated_at)
           VALUES (uuidv7(), ${company.id}::uuid, 'Scope test', ${`${company.id}.example.test`}, NOW()) RETURNING id`;
         sites.push(site);
+        // Public resolution goes through the domain registry; its rows are modeled here (publication history is append only,
+        // so real rows could not be cleaned up) while sites, pages and companies stay real PostgreSQL rows.
+        domains.set(`${company.id}.example.test`, { hostname: `${company.id}.example.test`, companyId: company.id, siteId: site.id, kind: 'platform', state: 'assigned', ready: true, registryManaged: false, isPrimary: true });
         await db.$executeRaw`INSERT INTO website_page (id, company_id, site_id, title, slug, route_path, status, published_builder_data, updated_at)
           VALUES (uuidv7(), ${company.id}::uuid, ${site.id}::uuid, 'Booking', 'booking', '/booking', 'published', ${builder}::jsonb, NOW())`;
       }
@@ -349,12 +353,11 @@ describe('company and resource isolation against PostgreSQL', { skip: !connectio
       invalidatePrimaryCache();
       // The seed deliberately leaves setup unfinished. Model only its completed
       // flag here; all website/domain/company queries still hit PostgreSQL.
-      const publicWebsite = createPublicWebsiteRouter({ prisma: {
-        $queryRaw: (...args) => db.$queryRaw(...args),
-        company: db.company,
-        instanceConfig: { findUnique: args => args.where.key === 'initialized'
-          ? Promise.resolve({ value: 'true' }) : db.instanceConfig.findUnique(args) },
-      } });
+      const publicWebsite = createPublicWebsiteRouter({ prisma: new Proxy(db, { get: (target, key) => key === 'instanceConfig'
+        ? { findUnique: args => args.where.key === 'initialized' ? Promise.resolve({ value: 'true' }) : target.instanceConfig.findUnique(args) }
+        : key === 'websiteDomain' ? { findUnique: async ({ where }) => domains.get(where.hostname) ?? null,
+          findFirst: async ({ where }) => [...domains.values()].find((d) => d.siteId === where.siteId && d.isPrimary) ?? null }
+        : (typeof target[key] === 'function' ? target[key].bind(target) : target[key]) }) });
       const publicResponse = await publicWebsite.request('/resolve?path=/booking', { headers: { Host: `${b.id}.example.test` } });
       assert.equal(publicResponse.status, 200);
       const publicBody = await publicResponse.json();
@@ -367,7 +370,7 @@ describe('company and resource isolation against PostgreSQL', { skip: !connectio
       assert.equal((await submit(sites[1].id)).status, 200);
       const booking = await db.calendarEvent.findFirst({ where: { calendarId: calendar.id, sourceModule: 'website' } });
       assert.equal(booking.endAt - booking.startAt, 30 * 60_000);
-      const dist = createDistRoutes({ prisma: db, supabaseAdmin: {}, requirePermission: () => async (c, next) => { c.set('companyId', a.id); await next(); } });
+      const dist = createDistRoutes({ prisma: db, supabaseAdmin: {}, requirePermission: () => async (c, next) => { c.set('companyId', a.id); c.set('userId', actor.id); c.set('tenantContext', { companyId: a.id, isAdmin: true, permissionSet: new Set() }); await next(); } });
       assert.equal((await dist.request(`/website/sites/${sites[1].id}/dist`, { method: 'DELETE' })).status, 404);
       const form = new FormData(); form.append('file', new Blob(['test']), 'site.zip');
       assert.equal((await dist.request(`/website/sites/${sites[1].id}/dist/upload`, { method: 'POST', body: form })).status, 404);

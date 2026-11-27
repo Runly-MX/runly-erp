@@ -33,7 +33,7 @@ test('both installers run the Notes Storage gate before migrations and seed', as
     const source = (await readFile(new URL(`../${file}`, import.meta.url), 'utf8')).replaceAll('\r\n', '\n')
     const gate = source.indexOf('prepareAndVerifyNotesStorage({')
     assert.ok(gate > 0, `${file}: gate call not found`)
-    for (const later of ['"pnpm", "db:migrate"', '"pnpm", "db:seed"', 'prepareExternalStudioRealtime({ image: resolvedApiImage']) {
+    for (const later of ['"prisma", "migrate", "deploy"', '"pnpm", "db:seed"', 'prepareExternalStudioRealtime({ image: resolvedApiImage']) {
       const index = source.lastIndexOf(later)
       assert.ok(index > gate, `${file}: ${later} must come after the Notes Storage gate`)
     }

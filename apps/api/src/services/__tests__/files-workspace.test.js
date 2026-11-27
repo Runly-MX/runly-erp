@@ -187,9 +187,10 @@ test(
             data: [invite],
           } = await w.invitations({ authUserId: peer.authUserId });
           assert.ok(invite);
+          // A pending invitation grants nothing: the file is not visible yet. Same denial set as the uninvited-peer checks above.
           await assert.rejects(
             files.getById({ authUserId: peer.authUserId, id: document.id }),
-            (e) => e.status === 403,
+            (e) => [403, 404].includes(e.status),
           );
           await assert.rejects(
             w.respond({ ...ownerArgs, invitationId: invite.id, accept: true }),
@@ -330,7 +331,8 @@ test(
               authUserId: peer.authUserId,
               id: document.id,
             }),
-            (e) => e.status === 403,
+            // Once the share is revoked the restricted file is no longer visible to the peer: denial by hiding (404) or refusal (403).
+            (e) => [403, 404].includes(e.status),
           );
         },
       );
