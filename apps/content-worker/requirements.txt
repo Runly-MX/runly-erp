@@ -1,4 +1,8 @@
 # Release wheels: CPython 3.13, musllinux x86_64/aarch64. No runtime downloads.
+# pillow-heif is BSD-3 but its wheel bundles libheif (LGPL-3), libde265 (LGPL-3) and x265 (GPL-2, encoder, never called by the worker).
 pillow==13.0.0 \
     --hash=sha256:a2a14cd73d5e6c927f644b0110ee81f59c4ef506259ec9183904747f2caacc81 \
     --hash=sha256:08b826a9bf1265c76de04a42061d61ea6b109418b7826f28ff1ecdfaa26c5502
+pillow-heif==1.9.0 \
+    --hash=sha256:77af8c21abb27d559dfd425f3e535ce38faab20ddc520189b7e796bc878c7cc6 \
+    --hash=sha256:00246de68fc788b4468f8ac2f8b76a789ec3a68215923429b1630105645178f8

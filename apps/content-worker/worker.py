@@ -296,6 +296,43 @@ def recognize(image, directory, policy, details=None):
     return best
 
 
+HEIF_BRANDS = {b"heic", b"heix", b"heim", b"heis", b"hevc", b"hevx", b"mif1", b"msf1"}
+
+
+def heif_kind(data):
+    """Detect ISO-BMFF stills by the real `ftyp` brands, never by the declared MIME or extension.
+    Returns "heif" (HEVC family), "avif" (not decodable here) or None."""
+    if len(data) < 16 or data[4:8] != b"ftyp":
+        return None
+    size = int.from_bytes(data[:4], "big")
+    end = min(len(data), size if 16 <= size <= 512 else 64)
+    brands = {data[8:12], *(data[i:i + 4] for i in range(16, end - 3, 4))}
+    if brands & {b"avif", b"avis"}:
+        return "avif"
+    return "heif" if brands & HEIF_BRANDS else None
+
+
+def decode_heif(path, policy):
+    """Primary image only, upright (libheif applies irot/imir), 8-bit RGB. Auxiliary/depth/thumbnail images are never decoded.
+    Returns (image, extra_images)."""
+    try:
+        import pillow_heif
+    except ImportError:
+        raise ProcessingError("UNSUPPORTED") from None
+    pillow_heif.options.DECODE_THREADS = 1
+    pillow_heif.options.THUMBNAILS = pillow_heif.options.DEPTH_IMAGES = pillow_heif.options.AUX_IMAGES = False
+    try:
+        heif = pillow_heif.open_heif(str(path), convert_hdr_to_8bit=True)
+        width, height = heif.size
+        if width * height > policy["maxPixels"]:  # checked on the header, before any pixel is decoded
+            raise ProcessingError("LIMIT")
+        return heif.to_pillow().convert("RGB"), max(0, len(heif) - 1)
+    except ProcessingError:
+        raise
+    except (ValueError, SyntaxError, OSError, RuntimeError, MemoryError):
+        raise ProcessingError("PARSER") from None
+
+
 def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, resume_units=()):
     data = Path(path).read_bytes()
     if len(data) > policy["maxFileBytes"]:
@@ -355,6 +392,16 @@ def extract(path, mime, policy, progress=lambda value: None, checkpoint=None, re
             units, partial = office_pages(path, mime, policy["maxPages"])
             for i, (reference,text) in enumerate(units):
                 emit(page_result(i+1,reference,text),len(units))
+        elif heif_kind(data[:512]):
+            # HEIC/HEIF is recognized by content: a wrong MIME (iPhone uploads often arrive as octet-stream) must not hide it.
+            if heif_kind(data[:512]) != "heif" or not policy["allowOcr"] or not policy.get('imageOcr', True):
+                raise ProcessingError("UNSUPPORTED")
+            image, extra = decode_heif(path, policy)
+            partial = extra > 0  # burst/collection files: only the primary image is read
+            details = {}
+            text, words, confidence = recognize(image, directory, policy, details)
+            canvas = {'width':details['width'],'height':details['height'],'coordinateSpace':'exif-oriented-image','source':'heif-primary'}
+            emit(page_result(1, "Imagen 1", text, "ocr", words, confidence, "+".join(policy["languages"]), policy["quality"],canvas,details['secondPasses']),1)
         elif mime.startswith("image/") and mime != "image/svg+xml":
             if not policy["allowOcr"] or not policy.get('imageOcr', True):
                 raise ProcessingError("UNSUPPORTED")

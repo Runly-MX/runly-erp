@@ -1,4 +1,5 @@
 """Synthetic, reproducible corpus. Run inside the worker image; no external data."""
+import importlib.util
 import io
 import json
 import multiprocessing
@@ -223,6 +224,34 @@ class Corpus(unittest.TestCase):
         by_ref = {p["reference"]: p["text"] for p in pages}
         self.assertEqual(by_ref["Inventario"], "B3: COMPART88\nC3: 42")  # cached value only, error cell skipped
         self.assertIn("A1: SEGUNDA", by_ref["Resumen"])
+
+    @unittest.skipUnless(importlib.util.find_spec("pillow_heif"), "pillow-heif is only in the release image")
+    def test_heic_by_content_with_limits_and_controlled_failures(self):
+        import pillow_heif
+        pillow_heif.register_heif_opener()
+        heic = Path(self.path).with_suffix(".heic")
+        label().save(heic, format="HEIF", quality=85)
+        for mime in ("image/heic", "application/octet-stream"):  # the real brand decides, not the declared type
+            result = extract(heic, mime, POLICY)
+            page = result["pages"][0]
+            self.assertIn("ABC123XYZ", page["text"])
+            self.assertEqual((page["engine"]["canvas"]["width"], page["engine"]["canvas"]["height"]), (1800, 800))
+            self.assertFalse(result["partial"])
+            self.assertTrue(any("ABC123XYZ" in word["text"] for word in page["words"]))
+        original = heic.read_bytes()
+        self.assertEqual(heic.read_bytes(), original)  # source untouched
+        with self.assertRaises(ProcessingError) as limit:
+            extract(heic, "image/heic", {**POLICY, "maxPixels": 1000})
+        self.assertEqual(limit.exception.code, "LIMIT")
+        heic.write_bytes(original[:700])
+        with self.assertRaises(ProcessingError) as broken:
+            extract(heic, "image/heic", POLICY)
+        self.assertEqual(broken.exception.code, "PARSER")
+        heic.write_bytes(original.replace(b"heic", b"avif", 1))
+        with self.assertRaises(ProcessingError) as avif:
+            extract(heic, "image/avif", POLICY)
+        self.assertEqual(avif.exception.code, "UNSUPPORTED")
+        heic.unlink()
 
     def test_zip_bomb_and_xml_entities_rejected(self):
         with zipfile.ZipFile(self.path, "w", zipfile.ZIP_DEFLATED) as archive:

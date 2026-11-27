@@ -93,7 +93,7 @@ export function normalizeText(text) {
 }
 
 export function supportedFile(file) {
-  return /^(image\/(jpeg|png|webp|tiff)|application\/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/[a-z.+-]+|image\/svg\+xml)$/.test(file.mimeType);
+  return /^(image\/(jpeg|png|webp|tiff|heic|heif)|application\/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text\/[a-z.+-]+|image\/svg\+xml)$/.test(file.mimeType);
 }
 
 // Single, mutually exclusive operator-facing state. Order matters: what the admin chose wins over infrastructure facts.

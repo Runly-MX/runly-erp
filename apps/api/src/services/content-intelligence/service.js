@@ -215,7 +215,7 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
   }
   // Capped, cached count: never a full scan per dashboard refresh. `capped` means "at least this many".
   const eligibleCache = new Map();
-  const SUPPORTED_SQL = String.raw`^(image/(jpeg|png|webp|tiff)|application/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text/[a-z.+-]+|image/svg\+xml)$`;
+  const SUPPORTED_SQL = String.raw`^(image/(jpeg|png|webp|tiff|heic|heif)|application/(pdf|json|xml|vnd\.openxmlformats-officedocument\.(wordprocessingml\.document|spreadsheetml\.sheet|presentationml\.presentation))|text/[a-z.+-]+|image/svg\+xml)$`;
   async function eligible(companyId, filters = {}) {
     const key = `${companyId}:${JSON.stringify(filters)}`, hit = eligibleCache.get(key);
     if (hit && Date.now() - hit.at < 60000) return hit.value;

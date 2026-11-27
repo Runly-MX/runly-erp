@@ -1,0 +1,75 @@
+{
+ "at": "2026-11-27T01:55:34.915Z",
+ "checks": [
+  {
+   "name": "20. Files uploads and lists with content processing OFF (no job created)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "1-2. HEIC photo recognized (state done)",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "corrupt HEIC rejected in a controlled way",
+   "ok": true,
+   "detail": "failed"
+  },
+  {
+   "name": "corrupt HEIC attempts bounded",
+   "ok": true,
+   "detail": "attempts/errorCode=3/PARSER"
+  },
+  {
+   "name": "3. HEIC found by text that exists only inside the photo",
+   "ok": false,
+   "detail": ""
+  },
+  {
+   "name": "5. HEIC result carries coordinates with canvas contract",
+   "ok": false,
+   "detail": "{\"width\":1400,\"height\":700,\"coordinateSpace\":\"exif-oriented-image\"}"
+  },
+  {
+   "name": "17. HEIC original unchanged (stored size equals uploaded bytes)",
+   "ok": true,
+   "detail": "38580"
+  },
+  {
+   "name": "19. DOCX found by content absent from its name",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "19. XLSX found by content absent from its name",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "19. PPTX found by content absent from its name",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "19. DOCX header text found",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "19. XLSX carries a sheet reference and no invented coordinates",
+   "ok": true,
+   "detail": "xl/worksheets/sheet1.xml"
+  },
+  {
+   "name": "historical HEIC previously omitted is processed after enabling support",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "historical discovery did not reindex unrelated files",
+   "ok": true,
+   "detail": "new jobs=2"
+  }
+ ]
+}

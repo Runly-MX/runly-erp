@@ -28,6 +28,10 @@ COPY --from=native-build /src-poppler/COPYING /usr/share/licenses/content/popple
 COPY --from=native-build /usr/local/lib/python3.13/site-packages/PIL /usr/local/lib/python3.13/site-packages/PIL
 COPY --from=native-build /usr/local/lib/python3.13/site-packages/pillow.libs /usr/local/lib/python3.13/site-packages/pillow.libs
 COPY --from=native-build /usr/local/lib/python3.13/site-packages/pillow-13.0.0.dist-info /usr/local/lib/python3.13/site-packages/pillow-13.0.0.dist-info
+COPY --from=native-build /usr/local/lib/python3.13/site-packages/_pillow_heif.cpython-313-*-linux-musl.so /usr/local/lib/python3.13/site-packages/
+COPY --from=native-build /usr/local/lib/python3.13/site-packages/pillow_heif /usr/local/lib/python3.13/site-packages/pillow_heif
+COPY --from=native-build /usr/local/lib/python3.13/site-packages/pillow_heif.libs /usr/local/lib/python3.13/site-packages/pillow_heif.libs
+COPY --from=native-build /usr/local/lib/python3.13/site-packages/pillow_heif-1.9.0.dist-info /usr/local/lib/python3.13/site-packages/pillow_heif-1.9.0.dist-info
 RUN python -m pip uninstall -y pip && apk info -v > /opt/content-packages.txt && tesseract --version >> /opt/content-packages.txt
 WORKDIR /app
 ADD --checksum=sha256:7d4322bd2a7749724879683fc3912cb542f19906c83bcc1a52132556427170b2 https://raw.githubusercontent.com/tesseract-ocr/tessdata_fast/65727574dfcd264acbb0c3e07860e4e9e9b22185/eng.traineddata /opt/content-tessdata-fast/eng.traineddata
