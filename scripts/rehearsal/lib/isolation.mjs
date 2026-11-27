@@ -23,6 +23,18 @@ const tcp = (host, port) => new Promise(resolve => {
 })()
 `
 
+// Docker's default address pools are finite and other projects on a developer laptop can exhaust them
+// ("all predefined address pools have been fully subnetted"). Rehearsal networks therefore carry their own small
+// subnet from a private 10.x range, retrying on overlap.
+export async function createRehearsalNetwork(name, extraArgs = []) {
+  let last
+  for (let attempt = 0; attempt < 12; attempt++) {
+    const subnet = `10.${100 + Math.floor(Math.random() * 100)}.${Math.floor(Math.random() * 250)}.0/24`
+    try { return await command('docker', ['network', 'create', ...extraArgs, '--subnet', subnet, name]) } catch (error) { last = error; if (!/overlap|Pool overlaps|already exists/i.test(String(error.message))) break }
+  }
+  throw last
+}
+
 // Two stand-ins for "production": a TCP service on the host (what a LAN or the host itself would offer) and a container on
 // an ordinary Docker network. Neither carries data; they only accept a connection.
 export async function createProductionSimulator({ image, token }) {
@@ -30,7 +42,7 @@ export async function createProductionSimulator({ image, token }) {
   await new Promise(resolve => hostServer.listen(0, '0.0.0.0', resolve))
   const hostPort = hostServer.address().port
   const network = `runly-prod-sim-${token}`, container = `runly-prod-sim-${token}`
-  await command('docker', ['network', 'create', network])
+  await createRehearsalNetwork(network)
   await command('docker', ['run', '-d', '--name', container, '--network', network, '--entrypoint', 'node', image, '-e',
     "require('node:net').createServer(socket => socket.end('production')).listen(9100, '0.0.0.0')"])
   let address = ''
