@@ -1369,7 +1369,7 @@ async function main() {
     ...addHostArgs,
     ...migrateNetworkArgs,
     "--env-file", localEnvFile,
-    resolvedApiImage, "pnpm", "db:migrate",
+    resolvedApiImage, "pnpm", "exec", "prisma", "migrate", "deploy",
   ]);
   run("docker", [
     "run", "--rm",

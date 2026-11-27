@@ -1180,7 +1180,7 @@ async function main() {
       "--add-host", "host.docker.internal:host-gateway",
       "--env-file", envFile,
     ];
-    run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:migrate"]);
+    run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "exec", "prisma", "migrate", "deploy"]);
     run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:seed"]);
     if (transcription.mode === "local") {
       run("docker", [...dockerRunBase, resolvedApiImage, "pnpm", "db:provision-transcriber-role"]);
