@@ -1436,7 +1436,10 @@ async function main() {
   console.log("Waiting for the API to answer /health...");
   {
     const healthEnv = await fs.readFile(localEnvFile, "utf8");
-    await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: parseEnvValue(healthEnv, "RUNLY_PUBLIC_BIND_ADDR"), port: parseEnvValue(healthEnv, "RUNLY_API_HOST_PORT") }) });
+    // Compose reads the published port and bind address from the shell or the sibling .env, not from .env.local: probe the same place.
+    const composeEnv = await fs.readFile(path.join(installerDir, ".env"), "utf8").catch(() => "");
+    const setting = (key) => process.env[key] || parseEnvValue(healthEnv, key) || parseEnvValue(composeEnv, key);
+    await waitForApiHealth({ url: resolveApiHealthUrl({ bindAddr: setting("RUNLY_PUBLIC_BIND_ADDR"), port: setting("RUNLY_API_HOST_PORT") }) });
   }
   probeNotesStorage({ run, image: resolvedApiImage, dockerRunBase: notesGateBase });
   autoSetupWebsiteDomains({ installerDir, mode: "local", envContent: await fs.readFile(localEnvFile, "utf8") });
