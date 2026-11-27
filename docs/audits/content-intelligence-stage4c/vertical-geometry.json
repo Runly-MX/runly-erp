@@ -1,0 +1,154 @@
+{
+ "at": "2026-11-27T03:07:00.729Z",
+ "marker": "GE33051X4",
+ "metrics": {
+  "perspectiveRectificationApplied": true,
+  "pdf initial": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "pdf zoomed in": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "pdf rotated 90 deg": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "pdf rotated 180 deg": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "pdf rotated 270 deg": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "pdf after viewer resize": {
+   "errorXpt": 6.86,
+   "errorYpt": 0,
+   "overlayVsPageCanvasPx": 0
+  },
+  "perspective": {
+   "overlayCenterPx": [
+    516.7,
+    451.1
+   ],
+   "lateralErrorToLineAxisPx": 0.2,
+   "lineHeightPx": 26.4,
+   "insideTruthLinePolygon": true,
+   "polygonWords": true
+  }
+ },
+ "checks": [
+  {
+   "name": "fixtures recognized",
+   "ok": true,
+   "detail": "{\"pdf\":\"done\",\"persp\":\"done\",\"drag\":\"done\",\"blank\":\"empty\",\"bad\":\"unsupported\"}"
+  },
+  {
+   "name": "PDF overlay geometry: initial",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "PDF overlay geometry: zoomed in",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "PDF overlay geometry: rotated 90 deg",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "PDF overlay geometry: rotated 180 deg",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "PDF overlay geometry: rotated 270 deg",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "PDF overlay geometry: after viewer resize",
+   "ok": true,
+   "detail": "error x=6.9pt (Tesseract word-box left edge, not the transform) y=0.0pt, overlay box vs rendered page canvas differ 0.0px"
+  },
+  {
+   "name": "perspective photo: overlay sits on the true text line (homography ground truth)",
+   "ok": true,
+   "detail": "center=517,451 lateral error 0.2px of line height 26.4px, projective polygons=true"
+  },
+  {
+   "name": "drag selects consecutive words without panning the page",
+   "ok": true,
+   "detail": "9 words, dragged 2..4"
+  },
+  {
+   "name": "drag selection copies exactly the stored OCR words in reading order",
+   "ok": true,
+   "detail": "\"Serial DR7037K2 Modelo\""
+  },
+  {
+   "name": "mobile: tapping a recognized word selects it (text mode with a finished result)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "mobile: no horizontal overflow with the viewer open",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 1440-light: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 1280-light: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 768-light: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 390-light: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 320-light: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 1440-dark: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 390-dark: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "matrix 320-dark: viewer without horizontal overflow",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "legacy result: no overlay is drawn and the panel explains why",
+   "ok": true,
+   "detail": ""
+  }
+ ]
+}

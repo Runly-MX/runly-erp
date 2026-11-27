@@ -36,9 +36,19 @@ truth = {'marker': marker, 'imageBoxPx': box,
          'pageBoxPt': {'xMin': 20 + box[0] * scale, 'xMax': 20 + box[2] * scale, 'yMin': 800 - (400 + 280) + box[1] * scale, 'yMax': 800 - (400 + 280) + box[3] * scale}}
 # The marker word alone, measured from ink (no OCR, no font metrics of the whole string): the word spans from the end of the
 # "Serial" ink plus one space to the right ink edge of the line.
-space = corpus.font(40).getlength(' ')
-serial_only = line_box(texts[1].replace(marker, ' ' * len(marker)), 1)
-word_left_px, word_right_px = serial_only[2] + space, box[2]
+def ink_columns(text, line):
+    lines = text.split(chr(10))
+    only = chr(10).join(item if i == line else '' for i, item in enumerate(lines))
+    blank = corpus.render('', 40, random.Random(0), '#ffffff').convert('L')
+    diff = ImageChops.difference(blank, corpus.render(only, 40, random.Random(0), '#ffffff').convert('L')).point(lambda v: 255 if v > 40 else 0)
+    columns = [x for x in range(diff.width) if diff.crop((x, 0, x + 1, diff.height)).getbbox()]
+    return columns
+
+
+columns = ink_columns(texts[1], 1)
+# The word starts where the first whitespace gap wider than a quarter em ends (gap between "Serial" and the marker).
+word_left_px = next(columns[i + 1] for i in range(len(columns) - 1) if columns[i + 1] - columns[i] > 10)
+word_right_px = box[2]
 truth['wordBoxPt'] = {'xMin': 20 + word_left_px * scale, 'xMax': 20 + word_right_px * scale, 'yMin': truth['pageBoxPt']['yMin'], 'yMax': truth['pageBoxPt']['yMax']}
 (out / 'truth.json').write_text(json.dumps(truth))
 print(json.dumps(truth))

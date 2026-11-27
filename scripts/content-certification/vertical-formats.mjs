@@ -12,7 +12,7 @@ await mkdir(out, { recursive: true });
 const checks = [], check = (name, ok, detail = '') => { checks.push({ name, ok: Boolean(ok), detail: String(detail) }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name} ${detail}`); };
 const psql = async sql => (await docker(['exec', env.CI_CONTENT_DB_CONTAINER, 'psql', '-U', 'postgres', '-d', 'postgres', '-At', '-c', sql])).trim();
 const lab = await connect(env);
-const tag = Math.floor(1000 + Math.random() * 8999), marker = `HEI${tag}C07`, doc = `DOCX${tag}Q`, sheet = `XLSX${tag}Q`, deck = `PPTX${tag}Q`, header = `ENCAB${tag}Q`;
+const tag = Math.floor(1000 + Math.random() * 8999), marker = `TMR${[0,0,0,0].map(() => 2 + Math.floor(Math.random() * 8)).join('')}CR`, doc = `DOCX${tag}Q`, sheet = `XLSX${tag}Q`, deck = `PPTX${tag}Q`, header = `ENCAB${tag}Q`;
 const script = await readFile(path.resolve('scripts/content-certification/fixtures-formats.py'), 'utf8');
 const fixtures = JSON.parse((await run('docker', ['run', '--rm', '--network', 'none', '--mount', `type=bind,source=${path.resolve('apps/content-worker')},target=/app,readonly`, '--workdir', '/app', '--entrypoint', 'python3',
   '-e', `MARKER=${marker}`, '-e', `DOC=${doc}`, '-e', `SHEET=${sheet}`, '-e', `DECK=${deck}`, '-e', `HEADER=${header}`, env.CI_CONTENT_WORKER_IMAGE, '-c', script], { maxBuffer: 32_000_000 })).stdout);

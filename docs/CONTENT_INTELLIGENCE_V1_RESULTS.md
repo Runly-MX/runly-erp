@@ -455,3 +455,98 @@ carga de coordenadas por página, aviso de resultados sin coordenadas.
 
 ### Clasificación
 Funcional: **Candidato funcional pendiente de certificación**. Operativo: **APTO PARA PRUEBAS AISLADAS**.
+
+## Etapa 4C: formatos, reconocimiento avanzado y PDF buscables (2026-11-26)
+
+Clasificación sin cambios: funcional «candidato pendiente de certificación»; operativo «APTO PARA PRUEBAS AISLADAS»;
+staging y producción «NO APTO». Todo se midió en el laboratorio aislado (`runly-content-*`, loopback) con corpus sintético
+y reproducible. No hubo fotografías reales, corpus Extended, anfitrión dedicado ni usuarios reales con RLS.
+Evidencia en `audits/content-intelligence-stage4c/`.
+
+### Cambios
+1. HEIC/HEIF por contenido (`pillow-heif` 1.9.0) y migración `20270117000000` de admisión de cola.
+2. Office: referencias reales (hojas por nombre, encabezados y pies de DOCX, filas de tabla) y orden numérico de hojas.
+3. Selección entre lecturas sin preferir longitud ni confianza media: se penalizan identificadores corruptos (`FCWQUG4YR|3`),
+   las pasadas extra se lanzan solo ante indicios y una orientación OSD dudosa se resuelve leyendo ambas orientaciones.
+4. Candidato de rectificación proyectiva (solo si la lectura es débil) con `polygon` por palabra.
+5. PDF buscables: migración `20270118000000`, 8 rutas y acción en el panel.
+6. Presupuesto de coordenadas al abrir (20 000 → 1500 palabras), selección por arrastre y polígonos en el visor.
+
+### Cobertura real de formatos
+Ver «Formatos admitidos» en `CONTENT_INTELLIGENCE_V1.md`. Probado: HEIC del corpus (con y sin inclinación), HEIC dañado
+(`PARSER`, 3 intentos), tipo declarado `octet-stream` (unitaria), AVIF rechazado (unitaria), límite de píxeles por cabecera (unitaria).
+No probado: rotación `irot` de un iPhone real (el codificador de pillow-heif no la escribe; se confía en libheif), HEIC de varias
+imágenes, HDR de 10 bits y HEIC en un navegador.
+
+### Office (CER 0.042)
+Causa: el extractor de XLSX antepone la referencia de celda (`A1: valor`) y el ground truth del corpus no la declaraba.
+Es representación, no contenido perdido (DOCX y PPTX daban 0.000). El extractor no se alteró para ocultarlo: la referencia
+se documentó como contrato y el corpus ahora la declara. El resultado original sigue en `audits/content-intelligence-stage3/`.
+En Standard (16 archivos Office comparables) el CER pasa de 0.200 a 0.000, lo que incluye DOCX nuevos con encabezado y tabla
+que la versión anterior no leía completos. Búsqueda por contenido ausente del nombre verificada para DOCX, XLSX, PPTX y un encabezado DOCX.
+
+### Reconocimiento: comparativa en el conjunto común
+Solo archivos que ambas versiones procesan sin error (HEIC excluido: la anterior no lo admite). Celdas: CER / identificadores exactos.
+`comparison-standard.md`, `comparison-heldout.md` y `comparison-smoke.md` desglosan por tipo y dificultad.
+
+| OCR, 104 archivos comunes | balanced antes | balanced después | accurate antes | accurate después | fast |
+|---|---|---|---|---|---|
+| Standard, semilla 20261126 (se ajustó el umbral OSD) | 0.128 / 0.795 | 0.099 / 0.830 | 0.122 / 0.839 | 0.095 / 0.875 | sin cambio (0.207 / 0.696) |
+| Held-out, semilla 20270105 (no usada para ajustar) | 0.116 / 0.830 | 0.099 / 0.866 | 0.105 / 0.786 | 0.094 / 0.804 | sin cambio (0.203 / 0.732) |
+
+Costo: +1–3 % de tiempo por archivo (Standard: balanced 1.28 → 1.29 s, accurate 1.54 → 1.56 s); segundas pasadas de accurate 33 → 40; RSS máximo 137 MiB sin cambio.
+La mejora está sobre todo en `small-label` (CER 0.237 → 0.000 al evitar un giro de 180° espurio de OSD) y en `perspective-label`
+(identificadores 0.750 → 0.875 en Standard; 0.625 → 1.000 en held-out, balanced).
+Sin mejora: `glare-shadow` (reflejos y sombras: CER 0.72 y ids 0.125 en Standard) y `device-label` con transformaciones fuertes; `pdf-scanned` conserva CER 0.089.
+En Smoke (12 archivos, n pequeño) accurate pasa de 0.062 a 0.060 y de ids 0.846 a 0.923.
+El umbral OSD de 0.6 se fijó con el corpus Standard y se contrastó con el held-out. Un umbral solo rompía un PDF girado y escaso,
+por eso la orientación dudosa se resuelve comparando ambas lecturas.
+
+### Perspectiva y geometría medida
+- Rectificación aplicada en 3 de unas 480 lecturas Standard. Es una heurística de región dominante (sin OpenCV), no un detector general.
+  No se aplica si la lectura original ya es buena, que es lo habitual en las fotos con perspectiva del corpus.
+- `persp-001` (rectificada, palabras con polígono): el overlay queda a 0.2 px del eje de la línea real (alto de línea 26.4 px) y dentro del polígono verdadero,
+  calculado desde la homografía de generación y no desde el OCR.
+- PDF escaneado de 3 páginas con marcador de posición conocida por maquetación: error del overlay 0.0 pt en vertical y 6.9 pt en horizontal,
+  idéntico en carga inicial, zoom, 90°/180°/270° y cambio de tamaño; la caja del overlay coincide con el canvas renderizado (0.0 px).
+  El desfase horizontal constante es el borde izquierdo de la caja de palabra de Tesseract (162.1 pt frente a 155.2 pt medidos por tinta), no la transformación.
+- CropBox y MediaBox no se probaron por separado: solo `/Rotate` 90 y MediaBox 600×800.
+
+### PDF buscables (laboratorio, 18/18)
+PDF escaneado de 3 páginas: copia de 286 KB (original 122 KB; se re-rasteriza a ≤2400 px), generada en unos 7 s incluyendo la cola.
+Poppler, independiente del generador, encuentra el identificador solo en la página 2, con la caja de palabra a 1 pt en vertical de la verdad medida por tinta,
+y el render de la página 2 difiere en 0.5 % de píxeles. PDF con `/Rotate 90`: la copia tiene el tamaño visible 800×600 y texto.
+Original intacto (sha256 y tamaño). Descarga con URL firmada y autorización por empresa (otra empresa: denegado).
+Una segunda solicitud no crea otra copia, un archivo desactivado no sirve copia y el perfil OFF impide generar. El `/tmp` del worker queda vacío.
+No probado: PDF cifrado (no se fabricó uno; la rama `ENCRYPTED` solo está cubierta por revisión), PDF firmado real, PDF de cientos de páginas,
+otro visor distinto de poppler, el límite de 64 MiB y la muerte del worker durante la generación.
+
+### Visor, selección y visual
+Arrastre con ratón: selecciona palabras consecutivas sin desplazar la página y copia exactamente el OCR guardado.
+Toque en móvil (390 px) con resultado disponible y modo de texto: selección por palabra.
+Capturas: 1440/1280/768/390/320 en claro y 1440/390/320 en oscuro; cuadrícula, lista, visor con modo de texto, PDF (768/390/320), perspectiva,
+resultado antiguo sin coordenadas, sin texto y error. Sin desbordamiento horizontal en los 8 visores medidos.
+Solo se inspeccionaron a ojo dos capturas. La lista en 1280/768/390/320 oscuro y el oscuro de 1280/768 no se capturaron.
+
+### Transferencia
+Documento sintético de 30 páginas × 400 palabras: apertura 896 165 B → 100 175 B (4 páginas con coordenadas); `?unit=7` 38 437 B.
+Las claves de caché incluyen usuario, empresa, archivo y revisión, y no se retienen (`gcTime: 0`).
+
+### Dependencias, imagen y seguridad
+Imagen del worker 337 305 096 B → 376 759 216 B (+39.5 MB: pillow-heif, libheif, libde265, x265, `pdfseparate` y `pdfunite`).
+Docker Scout: 0 críticas, 1 alta (musl CVE-2026-107891) y 2 medias (giflib), idéntico a antes; paquetes 58 → 61.
+Scout no ve las bibliotecas nativas empaquetadas en la rueda (libheif 1.23.7, libde265 1.1.3, x265 4.3): su exposición a CVE no está evaluada.
+libde265 es un decodificador HEVC con historial de errores de memoria. Mitigación: usuario sin privilegios, sin red, sistema de archivos de solo lectura,
+límites de memoria y tiempo por trabajo en proceso aislado y píxeles comprobados en la cabecera. Pendiente para la auditoría 4D.
+LGPL-3 (libheif, libde265) y GPL-2 (x265, no invocado): conservar avisos.
+
+### Pruebas
+Worker: 28 pruebas OK (nuevas: Office estructurado, HEIC con límites y fallos, PDF buscable alineado, lienzo con orientación).
+API y visor: 27 (20 pasan, 7 omitidas por requerir Docker). Flujos de laboratorio: formatos 14/14 (3 corridas), buscable 18/18, geometría 21/21. Build web correcto.
+Defectos propios corregidos durante la etapa: el análisis de imagen sobrescribía las dimensiones del lienzo en imágenes rotadas (lo detectó el PDF girado),
+el giro OSD espurio y marcadores de prueba con glifos ambiguos (I/l, Q/O) que volvían inestables los flujos.
+
+### Limitaciones y pendiente
+Reflejos, sombras y etiquetas pequeñas siguen débiles; sin OpenCV la perspectiva es limitada; sin corpus Extended ni fotos reales;
+HEIC no se visualiza en Chrome/Firefox; la capa PDF solo admite Windows-1252; la copia buscable re-rasteriza las páginas escaneadas;
+certificación integral, dos usuarios reales con RLS y anfitrión dedicado siguen pendientes.

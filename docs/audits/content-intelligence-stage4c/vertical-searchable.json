@@ -1,0 +1,117 @@
+{
+ "at": "2026-11-27T02:32:36.900Z",
+ "marker": "SP78278KR",
+ "truth": {
+  "marker": "SP78278KR",
+  "imageBoxPx": [
+   212,
+   265,
+   563,
+   295
+  ],
+  "pageBoxPt": {
+   "xMin": 104.80000000000001,
+   "xMax": 245.20000000000002,
+   "yMin": 226,
+   "yMax": 238
+  },
+  "wordBoxPt": {
+   "xMin": 153.20000000000002,
+   "xMax": 245.20000000000002,
+   "yMin": 226,
+   "yMax": 238
+  }
+ },
+ "checks": [
+  {
+   "name": "9. scanned 3-page PDF recognized",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "10. identifier found inside page 2 only",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "18. valid session of another company cannot request a derivative",
+   "ok": true,
+   "detail": "/content/files/01a21ad8-8a7f-748f-bf57-a0f98d38151"
+  },
+  {
+   "name": "scan-3p: searchable copy generated",
+   "ok": true,
+   "detail": "{\"state\":\"done\",\"errorCode\":null,\"sizeBytes\":286569,\"pages\":3,\"ocrPages\":3,\"signed\":false,\"finishedAt\":\"2026-11-27T02:32:27.768Z\",\"updatedAt\":\"2026-11-27T02:32:27.768Z\"}"
+  },
+  {
+   "name": "scan-3p: download through authorized signed URL is a PDF",
+   "ok": true,
+   "detail": "286569 bytes name=Escaneo_trimestral (texto reconocido).pdf"
+  },
+  {
+   "name": "15-16. independent reader (poppler) finds and extracts the identifier",
+   "ok": true,
+   "detail": "matches=1"
+  },
+  {
+   "name": "identifier is on page 2 of the derivative",
+   "ok": true,
+   "detail": "p1:0 p2:1 p3:0 "
+  },
+  {
+   "name": "14. text layer sits on the visible text (independent ground truth, tolerance 6 pt)",
+   "ok": true,
+   "detail": "word box [162.060000,228.168180,245.012937,237.871430] vs line box [104.8,226.0,245.2,238.0] verticalCenterError=1.0pt"
+  },
+  {
+   "name": "visual comparison with the original (page 2 render)",
+   "ok": true,
+   "detail": "sameSize=True changedPixelRatio=0.005141210772389283"
+  },
+  {
+   "name": "17. original unchanged (sha256 and stored size)",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "reuse: repeating the request creates no second derivative",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "derivative state recorded (engine, size, pages, retention by revision)",
+   "ok": true,
+   "detail": "{\"state\":\"done\",\"errorCode\":null,\"sizeBytes\":286569,\"pages\":3,\"ocrPages\":3,\"signed\":false,\"finishedAt\":\"2026-11-27T02:32:27.768Z\",\"updatedAt\":\"2026-11-27T02:32:27.768Z\"}"
+  },
+  {
+   "name": "scan-rot90: searchable copy generated",
+   "ok": true,
+   "detail": "{\"state\":\"done\",\"errorCode\":null,\"sizeBytes\":94817,\"pages\":1,\"ocrPages\":1,\"signed\":false,\"finishedAt\":\"2026-11-27T02:32:33.573Z\",\"updatedAt\":\"2026-11-27T02:32:33.573Z\"}"
+  },
+  {
+   "name": "scan-rot90: download through authorized signed URL is a PDF",
+   "ok": true,
+   "detail": "94817 bytes name=Escaneo_girado (texto reconocido).pdf"
+  },
+  {
+   "name": "12. rotated PDF: derivative has the visible (rotated) page size and a text layer",
+   "ok": true,
+   "detail": "Page size:       600 x 800 pts | Page rot:        90 | Page size:       800 x 600 pts | Page rot:        0 | 1 | "
+  },
+  {
+   "name": "lifecycle: a disabled original serves no derivative",
+   "ok": true,
+   "detail": "/content/files/01a21ad8-8aa3-7343-97c1-d"
+  },
+  {
+   "name": "policy OFF prevents generating a new derivative",
+   "ok": true,
+   "detail": "/content/files/01a21ad8-8aa3-7343-97c1-da14593a038b/searchab | /content/files/01a21ad8-8aa3-7343-97c1-da14593a038b/searchab"
+  },
+  {
+   "name": "temp: worker left no temporary files behind",
+   "ok": true,
+   "detail": ""
+  }
+ ]
+}

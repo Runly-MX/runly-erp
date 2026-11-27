@@ -1,0 +1,2000 @@
+{
+ "synthetic": true,
+ "byKind": {
+  "device-label": {
+   "fast": {
+    "files": 3,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.5551224730055159,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 3,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.9611205153244858,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 3,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 1.547372098682293,
+    "secondPasses": 3
+   }
+  },
+  "glare-shadow": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 1.0,
+    "identifierExact": 0.0,
+    "secondsMean": 0.328547635988798,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.6956521739130435,
+    "identifierExact": 0.0,
+    "secondsMean": 1.2891460380051285,
+    "secondPasses": 2
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.717391304347826,
+    "identifierExact": 0.0,
+    "secondsMean": 1.5759104500175454,
+    "secondPasses": 2
+   }
+  },
+  "heic-photo": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.44004875101381913,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.7272410779842176,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.7809650109848008,
+    "secondPasses": 0
+   }
+  },
+  "invoice": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.30061831697821617,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.4768757830024697,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.6779311090358533,
+    "secondPasses": 0
+   }
+  },
+  "office": {
+   "fast": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.017199446767335758,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.016297842244966887,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.01626410346943885,
+    "secondPasses": 0
+   }
+  },
+  "pdf-digital": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.07004854100523517,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.07044701802078635,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.13309825700707734,
+    "secondPasses": 0
+   }
+  },
+  "pdf-hybrid": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 1.3080276630353183,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.3183975419960916,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.380781415035017,
+    "secondPasses": 0
+   }
+  },
+  "pdf-rotated": {
+   "fast": {
+    "files": 2,
+    "errors": 0,
+    "cerMean": 0.42424242424242425,
+    "identifierExact": 0.5,
+    "secondsMean": 1.221679451991804,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 2,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.362121546000708,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 2,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.4414898559916764,
+    "secondPasses": 0
+   }
+  },
+  "pdf-scanned": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 1.1918981410562992,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.3826308170100674,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.4529372209799476,
+    "secondPasses": 0
+   }
+  },
+  "perspective-label": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.32427653402555734,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.7010960830375552,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.7324439579970203,
+    "secondPasses": 0
+   }
+  },
+  "screenshot": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.39030768402153626,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.6440608439734206,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.7586048649973236,
+    "secondPasses": 0
+   }
+  },
+  "small-label": {
+   "fast": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.2868512570275925,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.36113768100040033,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 1,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.46419830300146714,
+    "secondPasses": 0
+   }
+  }
+ },
+ "byDifficulty": {
+  "clean": {
+   "fast": {
+    "files": 9,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.3069171701273363,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 9,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.5217345022182498,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 9,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 0.5485192959895357,
+    "secondPasses": 0
+   }
+  },
+  "hard": {
+   "fast": {
+    "files": 5,
+    "errors": 0,
+    "cerMean": 0.2,
+    "identifierExact": 0.8,
+    "secondsMean": 0.424003748211544,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 5,
+    "errors": 0,
+    "cerMean": 0.1391304347826087,
+    "identifierExact": 0.8,
+    "secondsMean": 0.8728937358013354,
+    "secondPasses": 2
+   },
+   "accurate": {
+    "files": 5,
+    "errors": 0,
+    "cerMean": 0.14347826086956522,
+    "identifierExact": 0.8,
+    "secondsMean": 1.3193002610118127,
+    "secondPasses": 5
+   }
+  },
+  "moderate": {
+   "fast": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.21212121212121213,
+    "identifierExact": 0.8,
+    "secondsMean": 0.9839688405045308,
+    "secondPasses": 0
+   },
+   "balanced": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 1.8959374230034882,
+    "secondPasses": 0
+   },
+   "accurate": {
+    "files": 4,
+    "errors": 0,
+    "cerMean": 0.0,
+    "identifierExact": 1.0,
+    "secondsMean": 2.0034620104997884,
+    "secondPasses": 0
+   }
+  }
+ },
+ "seed": 20261126,
+ "size": "smoke",
+ "files": 19,
+ "summary": {
+  "fast": {
+   "files": 18,
+   "errors": 0,
+   "cerMean": 0.1026936026936027,
+   "werMean": 0.1111111111111111,
+   "identifierExact": 0.9047619047619048,
+   "secondsMean": 0.48989714634565945,
+   "secondsP95": 1.2524584259954281,
+   "peakRssMiB": 125.33203125,
+   "secondPasses": 0,
+   "searchQueries": 9,
+   "searchRecall": 0.8947368421052632,
+   "searchPrecision": 0.7391304347826086
+  },
+  "balanced": {
+   "files": 18,
+   "errors": 0,
+   "cerMean": 0.03864734299516908,
+   "werMean": 0.047619047619047616,
+   "identifierExact": 0.9523809523809523,
+   "secondsMean": 0.924657160610271,
+   "secondsP95": 2.3760326610063203,
+   "peakRssMiB": 136.78125,
+   "secondPasses": 2,
+   "searchQueries": 9,
+   "searchRecall": 0.9473684210526315,
+   "searchPrecision": 0.75
+  },
+  "accurate": {
+   "files": 18,
+   "errors": 0,
+   "cerMean": 0.03985507246376811,
+   "werMean": 0.05555555555555555,
+   "identifierExact": 0.9523809523809523,
+   "secondsMean": 1.0859457228313356,
+   "secondsP95": 2.4529372209799476,
+   "peakRssMiB": 136.70703125,
+   "secondPasses": 5,
+   "searchQueries": 9,
+   "searchRecall": 0.9473684210526315,
+   "searchPrecision": 0.75
+  }
+ },
+ "rows": [
+  {
+   "id": "device-000-0",
+   "kind": "device-label",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.4850241050007753,
+   "cpuSeconds": 0.420949,
+   "peakRssKiB": 53728,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-0",
+   "kind": "device-label",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.8702726690098643,
+   "cpuSeconds": 0.653721,
+   "peakRssKiB": 53920,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-0",
+   "kind": "device-label",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.8181677020038478,
+   "cpuSeconds": 0.7419239999999999,
+   "peakRssKiB": 80760,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-1",
+   "kind": "device-label",
+   "quality": "fast",
+   "transforms": [
+    {
+     "contrast": 0.25
+    },
+    {
+     "rotate": 270
+    },
+    {
+     "jpeg": 70
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.45826040604151785,
+   "cpuSeconds": 0.391399,
+   "peakRssKiB": 53872,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-1",
+   "kind": "device-label",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "contrast": 0.25
+    },
+    {
+     "rotate": 270
+    },
+    {
+     "jpeg": 70
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.6741754710092209,
+   "cpuSeconds": 0.6294339999999999,
+   "peakRssKiB": 54004,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-1",
+   "kind": "device-label",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "contrast": 0.25
+    },
+    {
+     "rotate": 270
+    },
+    {
+     "jpeg": 70
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 1.7469431560020894,
+   "cpuSeconds": 1.6352529999999998,
+   "peakRssKiB": 80840,
+   "secondPasses": 2,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-2",
+   "kind": "device-label",
+   "quality": "fast",
+   "transforms": [
+    {
+     "tilt": -1.9
+    },
+    {
+     "noise": 44
+    },
+    {
+     "reflection": 775
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7220829079742543,
+   "cpuSeconds": 0.662884,
+   "peakRssKiB": 55160,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-2",
+   "kind": "device-label",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "tilt": -1.9
+    },
+    {
+     "noise": 44
+    },
+    {
+     "reflection": 775
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 1.3389134059543721,
+   "cpuSeconds": 1.2395029999999998,
+   "peakRssKiB": 56876,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "device-000-2",
+   "kind": "device-label",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "tilt": -1.9
+    },
+    {
+     "noise": 44
+    },
+    {
+     "reflection": 775
+    }
+   ],
+   "truthChars": 45,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.077005438040942,
+   "cpuSeconds": 1.947943,
+   "peakRssKiB": 80892,
+   "secondPasses": 1,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "SWITCH Serial FCWQUG4YRJ3 Hostname SW-Y3SZ-05"
+  },
+  {
+   "id": "invoice-000",
+   "kind": "invoice",
+   "quality": "fast",
+   "transforms": [
+    {
+     "scale": 0.55
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 2,
+   "identifiersExact": 2,
+   "seconds": 0.30061831697821617,
+   "cpuSeconds": 0.25719000000000003,
+   "peakRssKiB": 43156,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "invoice-000",
+   "kind": "invoice",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "scale": 0.55
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 2,
+   "identifiersExact": 2,
+   "seconds": 0.4768757830024697,
+   "cpuSeconds": 0.440737,
+   "peakRssKiB": 52296,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "invoice-000",
+   "kind": "invoice",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "scale": 0.55
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 2,
+   "identifiersExact": 2,
+   "seconds": 0.6779311090358533,
+   "cpuSeconds": 0.564776,
+   "peakRssKiB": 80968,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "screenshot-000",
+   "kind": "screenshot",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 48,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.39030768402153626,
+   "cpuSeconds": 0.35922,
+   "peakRssKiB": 52860,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Inventario Hostname SW-Y3SZ-05 Estado Disponible"
+  },
+  {
+   "id": "screenshot-000",
+   "kind": "screenshot",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 48,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.6440608439734206,
+   "cpuSeconds": 0.600389,
+   "peakRssKiB": 54180,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Inventario Hostname SW-Y3SZ-05 Estado Disponible"
+  },
+  {
+   "id": "screenshot-000",
+   "kind": "screenshot",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 48,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7586048649973236,
+   "cpuSeconds": 0.7065859999999999,
+   "peakRssKiB": 81188,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Inventario Hostname SW-Y3SZ-05 Estado Disponible"
+  },
+  {
+   "id": "invoice-multi-000",
+   "kind": "pdf-digital",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 200,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.07004854100523517,
+   "cpuSeconds": 0.02332,
+   "peakRssKiB": 19312,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 2 Total MXN 1500.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 3 Total MXN 1750.50"
+  },
+  {
+   "id": "invoice-multi-000",
+   "kind": "pdf-digital",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 200,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.07044701802078635,
+   "cpuSeconds": 0.022778,
+   "peakRssKiB": 19316,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 2 Total MXN 1500.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 3 Total MXN 1750.50"
+  },
+  {
+   "id": "invoice-multi-000",
+   "kind": "pdf-digital",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 200,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.13309825700707734,
+   "cpuSeconds": 0.022857,
+   "peakRssKiB": 19316,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 2 Total MXN 1500.50 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 3 Total MXN 1750.50"
+  },
+  {
+   "id": "scan-000",
+   "kind": "pdf-scanned",
+   "quality": "fast",
+   "transforms": [
+    {
+     "tilt": -1.2
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 1.1918981410562992,
+   "cpuSeconds": 1.105044,
+   "peakRssKiB": 128340,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-000",
+   "kind": "pdf-scanned",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "tilt": -1.2
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.3826308170100674,
+   "cpuSeconds": 2.168549,
+   "peakRssKiB": 139876,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-000",
+   "kind": "pdf-scanned",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "tilt": -1.2
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.4529372209799476,
+   "cpuSeconds": 2.2968409999999997,
+   "peakRssKiB": 139808,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "hybrid-000",
+   "kind": "pdf-hybrid",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 102,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 1.3080276630353183,
+   "cpuSeconds": 1.122511,
+   "peakRssKiB": 128340,
+   "secondPasses": 0,
+   "sources": [
+    "digital",
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Contrato de servicio MX-2026-290077 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "hybrid-000",
+   "kind": "pdf-hybrid",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 102,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.3183975419960916,
+   "cpuSeconds": 2.112499,
+   "peakRssKiB": 140064,
+   "secondPasses": 0,
+   "sources": [
+    "digital",
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Contrato de servicio MX-2026-290077 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "hybrid-000",
+   "kind": "pdf-hybrid",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 102,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.380781415035017,
+   "cpuSeconds": 2.230938,
+   "peakRssKiB": 139828,
+   "secondPasses": 0,
+   "sources": [
+    "digital",
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "Contrato de servicio MX-2026-290077 FACTURA MX-2026-290077 RFC BPK129497M7X Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.015533007041085511,
+   "cpuSeconds": 0.006411999999999999,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento docx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.01312344300094992,
+   "cpuSeconds": 0.005833,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento docx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.01783291099127382,
+   "cpuSeconds": 0.0058249999999999994,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento docx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 36,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.023386059037875384,
+   "cpuSeconds": 0.0064919999999999995,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "A1: Documento xlsx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 36,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.01363289897562936,
+   "cpuSeconds": 0.006298,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "A1: Documento xlsx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 36,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.016138308972585946,
+   "cpuSeconds": 0.00633,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "A1: Documento xlsx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.014630555000621825,
+   "cpuSeconds": 0.005848,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento pptx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.023789552971720695,
+   "cpuSeconds": 0.0062039999999999994,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento pptx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "office-000",
+   "kind": "office",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 32,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.013502583955414593,
+   "cpuSeconds": 0.006245,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Documento pptx Serie FCWQUG4YRJ3"
+  },
+  {
+   "id": "notext-000",
+   "kind": "no-text",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 0,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 0,
+   "identifiersExact": 0,
+   "seconds": 0.3324977899901569,
+   "cpuSeconds": 0.284504,
+   "peakRssKiB": 51016,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": ""
+  },
+  {
+   "id": "notext-000",
+   "kind": "no-text",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 0,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 0,
+   "identifiersExact": 0,
+   "seconds": 0.8985511200153269,
+   "cpuSeconds": 0.771469,
+   "peakRssKiB": 53112,
+   "secondPasses": 1,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": ""
+  },
+  {
+   "id": "notext-000",
+   "kind": "no-text",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 0,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 0,
+   "identifiersExact": 0,
+   "seconds": 1.3496869779773988,
+   "cpuSeconds": 1.1927599999999998,
+   "peakRssKiB": 81056,
+   "secondPasses": 2,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": ""
+  },
+  {
+   "id": "persp-000",
+   "kind": "perspective-label",
+   "quality": "fast",
+   "transforms": [
+    {
+     "quad": [
+      [
+       317.9,
+       203.3
+      ],
+      [
+       1194.0,
+       144.8
+      ],
+      [
+       1272.9,
+       863.1
+      ],
+      [
+       180.9,
+       864.3
+      ]
+     ]
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.32427653402555734,
+   "cpuSeconds": 0.24820699999999998,
+   "peakRssKiB": 43376,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "persp-000",
+   "kind": "perspective-label",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "quad": [
+      [
+       317.9,
+       203.3
+      ],
+      [
+       1194.0,
+       144.8
+      ],
+      [
+       1272.9,
+       863.1
+      ],
+      [
+       180.9,
+       864.3
+      ]
+     ]
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7010960830375552,
+   "cpuSeconds": 0.602892,
+   "peakRssKiB": 59280,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "persp-000",
+   "kind": "perspective-label",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "quad": [
+      [
+       317.9,
+       203.3
+      ],
+      [
+       1194.0,
+       144.8
+      ],
+      [
+       1272.9,
+       863.1
+      ],
+      [
+       180.9,
+       864.3
+      ]
+     ]
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7324439579970203,
+   "cpuSeconds": 0.668285,
+   "peakRssKiB": 80920,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "tiny-000",
+   "kind": "small-label",
+   "quality": "fast",
+   "transforms": [
+    {
+     "scale": 0.38
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.2868512570275925,
+   "cpuSeconds": 0.22301599999999996,
+   "peakRssKiB": 40872,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "tiny-000",
+   "kind": "small-label",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "scale": 0.38
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.36113768100040033,
+   "cpuSeconds": 0.331137,
+   "peakRssKiB": 52248,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "tiny-000",
+   "kind": "small-label",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "scale": 0.38
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.46419830300146714,
+   "cpuSeconds": 0.41141900000000003,
+   "peakRssKiB": 80856,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "glare-000",
+   "kind": "glare-shadow",
+   "quality": "fast",
+   "transforms": [
+    {
+     "reflection": 580
+    },
+    {
+     "shadow": true
+    },
+    {
+     "blur": 1.6
+    }
+   ],
+   "truthChars": 46,
+   "cer": 1.0,
+   "wer": 1.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 0,
+   "seconds": 0.328547635988798,
+   "cpuSeconds": 0.301844,
+   "peakRssKiB": 51568,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": ""
+  },
+  {
+   "id": "glare-000",
+   "kind": "glare-shadow",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "reflection": 580
+    },
+    {
+     "shadow": true
+    },
+    {
+     "blur": 1.6
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.6956521739130435,
+   "wer": 0.8571428571428571,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 0,
+   "seconds": 1.2891460380051285,
+   "cpuSeconds": 1.1863519999999999,
+   "peakRssKiB": 54708,
+   "secondPasses": 2,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "candidate"
+   ],
+   "partial": false,
+   "text": "SE Tag f ati 450"
+  },
+  {
+   "id": "glare-000",
+   "kind": "glare-shadow",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "reflection": 580
+    },
+    {
+     "shadow": true
+    },
+    {
+     "blur": 1.6
+    }
+   ],
+   "truthChars": 46,
+   "cer": 0.717391304347826,
+   "wer": 1.0,
+   "difficulty": "hard",
+   "identifiers": 1,
+   "identifiersExact": 0,
+   "seconds": 1.5759104500175454,
+   "cpuSeconds": 1.3879679999999999,
+   "peakRssKiB": 81036,
+   "secondPasses": 2,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "candidate"
+   ],
+   "partial": false,
+   "text": "SE Tag\" ati 450"
+  },
+  {
+   "id": "photo-000",
+   "kind": "heic-photo",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.44004875101381913,
+   "cpuSeconds": 0.353635,
+   "peakRssKiB": 53984,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "photo-000",
+   "kind": "heic-photo",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7272410779842176,
+   "cpuSeconds": 0.577965,
+   "peakRssKiB": 53696,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "photo-000",
+   "kind": "heic-photo",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 46,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 0.7809650109848008,
+   "cpuSeconds": 0.676585,
+   "peakRssKiB": 80792,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "LAPTOP Service Tag PGRX2SE Model Latitude 7450"
+  },
+  {
+   "id": "scan-rot90-000",
+   "kind": "pdf-rotated",
+   "quality": "fast",
+   "transforms": [
+    {
+     "pdfRotate": 90
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 1.1909004779881798,
+   "cpuSeconds": 1.1264980000000002,
+   "peakRssKiB": 128304,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-929735 RFC GFC999669PNY Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-rot90-000",
+   "kind": "pdf-rotated",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "pdfRotate": 90
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.3760326610063203,
+   "cpuSeconds": 2.177142,
+   "peakRssKiB": 139948,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-929735 RFC GFC999669PNY Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-rot90-000",
+   "kind": "pdf-rotated",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "pdfRotate": 90
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.465749375987798,
+   "cpuSeconds": 2.323683,
+   "peakRssKiB": 139684,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-929735 RFC GFC999669PNY Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-rot270-000",
+   "kind": "pdf-rotated",
+   "quality": "fast",
+   "transforms": [
+    {
+     "pdfRotate": 270
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.8484848484848485,
+   "wer": 1.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 0,
+   "seconds": 1.2524584259954281,
+   "cpuSeconds": 1.1649200000000002,
+   "peakRssKiB": 128300,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "0S'0SZT NXW [8101 T eulbed ANd699666949 34 GEL626-92072-XW VENLOVA"
+  },
+  {
+   "id": "scan-rot270-000",
+   "kind": "pdf-rotated",
+   "quality": "balanced",
+   "transforms": [
+    {
+     "pdfRotate": 270
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.3482104309950955,
+   "cpuSeconds": 2.218077,
+   "peakRssKiB": 139816,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-929735 RFC GFC999669PNY Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "scan-rot270-000",
+   "kind": "pdf-rotated",
+   "quality": "accurate",
+   "transforms": [
+    {
+     "pdfRotate": 270
+    }
+   ],
+   "truthChars": 66,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "moderate",
+   "identifiers": 1,
+   "identifiersExact": 1,
+   "seconds": 2.417230335995555,
+   "cpuSeconds": 2.3035710000000003,
+   "peakRssKiB": 139988,
+   "secondPasses": 0,
+   "sources": [
+    "ocr"
+   ],
+   "perspective": [
+    "none"
+   ],
+   "partial": false,
+   "text": "FACTURA MX-2026-929735 RFC GFC999669PNY Pagina 1 Total MXN 1250.50"
+  },
+  {
+   "id": "office-rich-000",
+   "kind": "office",
+   "quality": "fast",
+   "transforms": [],
+   "truthChars": 60,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 3,
+   "identifiersExact": 3,
+   "seconds": 0.01524816598976031,
+   "cpuSeconds": 0.006679,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Intro FCWJDXYVFLV Celda A | RUNLY10198 Encabezado SW-BEN3-06"
+  },
+  {
+   "id": "office-rich-000",
+   "kind": "office",
+   "quality": "balanced",
+   "transforms": [],
+   "truthChars": 60,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 3,
+   "identifiersExact": 3,
+   "seconds": 0.014645474031567574,
+   "cpuSeconds": 0.00633,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Intro FCWJDXYVFLV Celda A | RUNLY10198 Encabezado SW-BEN3-06"
+  },
+  {
+   "id": "office-rich-000",
+   "kind": "office",
+   "quality": "accurate",
+   "transforms": [],
+   "truthChars": 60,
+   "cer": 0.0,
+   "wer": 0.0,
+   "difficulty": "clean",
+   "identifiers": 3,
+   "identifiersExact": 3,
+   "seconds": 0.017582609958481044,
+   "cpuSeconds": 0.006607999999999999,
+   "peakRssKiB": 20632,
+   "secondPasses": 0,
+   "sources": [
+    "digital"
+   ],
+   "perspective": [],
+   "partial": false,
+   "text": "Intro FCWJDXYVFLV Celda A | RUNLY10198 Encabezado SW-BEN3-06"
+  }
+ ]
+}

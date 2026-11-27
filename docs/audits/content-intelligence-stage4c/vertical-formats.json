@@ -1,5 +1,5 @@
 {
- "at": "2026-11-27T01:55:34.915Z",
+ "at": "2026-11-27T03:27:21.688Z",
  "checks": [
   {
    "name": "20. Files uploads and lists with content processing OFF (no job created)",
@@ -23,18 +23,18 @@
   },
   {
    "name": "3. HEIC found by text that exists only inside the photo",
-   "ok": false,
+   "ok": true,
    "detail": ""
   },
   {
    "name": "5. HEIC result carries coordinates with canvas contract",
-   "ok": false,
+   "ok": true,
    "detail": "{\"width\":1400,\"height\":700,\"coordinateSpace\":\"exif-oriented-image\"}"
   },
   {
    "name": "17. HEIC original unchanged (stored size equals uploaded bytes)",
    "ok": true,
-   "detail": "38580"
+   "detail": "38901"
   },
   {
    "name": "19. DOCX found by content absent from its name",
@@ -69,7 +69,7 @@
   {
    "name": "historical discovery did not reindex unrelated files",
    "ok": true,
-   "detail": "new jobs=2"
+   "detail": "new jobs=3"
   }
  ]
 }
