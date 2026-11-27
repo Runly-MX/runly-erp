@@ -13,6 +13,22 @@ import { id as catalogId } from './catalog/commerce-contracts.js'
 // know exactly which company it's syncing — unlike a bootstrap endpoint,
 // there's no safe "ambiguous" default for a multi-company user's offline data.
 // See docs/superpowers/specs/2026-09-10-multi-tenant-architecture-design.md §5.
+// Read permission per synced entity. Pull used to check only company membership, so a member without the
+// module's read permission could still download its records. An entity missing here is not served (fail closed).
+const SYNC_READ_PERMISSION = {
+  'runly.contacts': { contact: 'contacts.contacts.read' },
+  'runly.hr': { employee: 'hr.employee.read', department: 'hr.department.read', job_title: 'hr.job_title.read' },
+  'custom.fleet': { vehicle: 'fleet.vehicles.read', driver: 'fleet.drivers.read' },
+  'runly.calendar': { calendar: 'calendar.calendars.read', event: 'calendar.events.read' },
+  'runly.catalog': { product: 'catalog.products.read', category: 'catalog.categories.read' },
+  'runly.ledger': { account: 'ledger.accounts.read', transaction: 'ledger.transactions.read', category: 'ledger.categories.read' },
+}
+export const syncReadAllowed = (tenant) => (moduleKey, entityType) => {
+  if (tenant?.isAdmin) return true
+  const key = SYNC_READ_PERMISSION[moduleKey.replace(/^atlas./, 'runly.')]?.[entityType]
+  return Boolean(key && tenant?.permissionSet?.has(key))
+}
+
 export function createSyncRouter({ prisma, getUserContext, resolveTenantContext, catalogWriteService }) {
   const app = new Hono()
   const service = createSyncService({ prisma })
@@ -41,7 +57,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext,
   app.get('/sync/pull', async (c) => {
     try {
       const authUserId = c.get('authUserId')
-      const { companyId, error } = await resolveCompanyId(c)
+      const { companyId, tenant, error } = await resolveCompanyId(c)
       if (error) return error
       const modulesParam = c.req.query('modules') ?? ''
       const cursor = c.req.query('cursor') ?? null
@@ -49,7 +65,7 @@ export function createSyncRouter({ prisma, getUserContext, resolveTenantContext,
         .split(',')
         .map((m) => m.trim())
         .filter(Boolean)
-      const result = await service.pull({ authUserId, companyId, modules, cursor })
+      const result = await service.pull({ authUserId, companyId, modules, cursor, canRead: syncReadAllowed(tenant) })
       return c.json(result)
     } catch (err) {
       return handleError(c, err, 'GET /sync/pull')

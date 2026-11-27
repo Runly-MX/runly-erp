@@ -239,7 +239,8 @@ export function createSyncService({ prisma }) {
     return { companyId: activeCompanyId, userId: profile.id }
   }
 
-  async function pull({ authUserId, companyId: activeCompanyId, modules, cursor }) {
+  // canRead(moduleKey, entityType) is the caller's authorization; omitted only by internal callers and tests.
+  async function pull({ authUserId, companyId: activeCompanyId, modules, cursor, canRead }) {
     if (!modules || modules.length === 0) {
       return { records: [], nextCursor: cursor ?? null, hasMore: false }
     }
@@ -251,7 +252,7 @@ export function createSyncService({ prisma }) {
     // Handlers are independent reads: run them concurrently; results are indexed by job, so the
     // module/handler order of the response is identical to the sequential one.
     const jobs = modules.flatMap((moduleKey) =>
-      (SYNC_MODULE_REGISTRY[moduleKey]?.handlers ?? []).map((handler) => ({ moduleKey, handler })))
+      (SYNC_MODULE_REGISTRY[moduleKey]?.handlers ?? []).filter((handler) => !canRead || canRead(moduleKey, handler.entityType)).map((handler) => ({ moduleKey, handler })))
     const fetched = new Array(jobs.length)
     let next = 0
     // At most FETCH_CONCURRENCY reads in flight per request, so one pull cannot hog the connection pool.
