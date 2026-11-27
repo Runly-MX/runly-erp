@@ -1,0 +1,31 @@
+{
+ "at": "2026-11-27T00:28:41.898Z",
+ "marker": "SN92474PDF",
+ "checks": [
+  {
+   "name": "scanned multipage PDF recognized",
+   "ok": true,
+   "detail": "done"
+  },
+  {
+   "name": "match lives on page 2 with OCR coordinates and canvas",
+   "ok": true,
+   "detail": "unit=2"
+  },
+  {
+   "name": "per-page word loading: requested page returns its words",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "PDF appears in content search with page reference",
+   "ok": true,
+   "detail": ""
+  },
+  {
+   "name": "PDF viewer jumps to the match page and highlights it",
+   "ok": true,
+   "detail": ""
+  }
+ ]
+}

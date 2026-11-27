@@ -119,7 +119,9 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
     if (!queued) throw new ContentError('El archivo ya está en cola o se alcanzó el límite de trabajos.', 409);
     return { queued };
   }
-  async function result(args) {
+  // Words (coordinates) are the heavy part: return them for a requested page, or for pages while the running
+  // total stays under the budget. Other pages report `wordCount` and `wordsOmitted`; the viewer asks per page.
+  async function result(args, { unit = null } = {}) {
     const file = await authorized(args);
     const p = await effective(file.entityId);
     if (!p.searchEnabled) return { state: 'disabled', pages: [] };
@@ -128,7 +130,12 @@ export function createContentIntelligence({ prisma, filesService, supabaseAdmin 
       FROM runly_content.job WHERE file_id=${file.id}::uuid AND company_id=${file.entityId}::uuid
       AND revision=${file.contentRevision} AND object_key=${file.objectKey}`;
     if (!job) return { state: p.profile === 'OFF' ? 'disabled' : supportedFile(file) ? 'unprocessed' : 'unsupported', pages: [] };
-    const pages = await prisma.$queryRaw`SELECT unit,source,reference,text,words,confidence,engine FROM runly_content.page WHERE job_id=${job.id}::uuid ORDER BY unit`;
+    const requested = unit == null ? null : Number(unit);
+    const pages = await prisma.$queryRaw`SELECT unit,source,reference,text,confidence,engine,wc AS "wordCount",
+      CASE WHEN (${requested}::int IS NULL AND total<=20000) OR unit=${requested}::int THEN words ELSE '[]'::jsonb END AS words,
+      NOT ((${requested}::int IS NULL AND total<=20000) OR unit=${requested}::int) AND wc>0 AS "wordsOmitted"
+      FROM (SELECT p.*,jsonb_array_length(p.words) AS wc,sum(jsonb_array_length(p.words)) OVER (ORDER BY p.unit) AS total
+        FROM runly_content.page p WHERE p.job_id=${job.id}::uuid) q ORDER BY unit`;
     return { ...job, pages };
   }
   async function cancel(args) {

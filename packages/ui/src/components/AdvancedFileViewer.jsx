@@ -21,6 +21,7 @@ import {
   Rewind,
   RotateCcw,
   RotateCw,
+  ScanText,
   Share2,
   VolumeX,
   X,
@@ -107,6 +108,7 @@ export function AdvancedFileViewer({
   renderImageOverlay = null,
   renderPdfOverlay = null,
   requestedPdfPage = null,
+  textMode = null,
 }) {
   const editing = useContext(ViewerImageEditingContext);
   const sharing = useContext(ViewerSharingContext);
@@ -454,6 +456,12 @@ export function AdvancedFileViewer({
                   manifest TEXT — opening/sharing it would hand the user
                   "#EXTM3U..." mislabeled as a video. Download stays: it
                   remuxes HLS to a real .mp4 client-side. */}
+              {textMode && ["image", "pdf"].includes(kind) && (
+                <button type="button" onClick={textMode.onToggle} aria-label="Texto reconocido" aria-pressed={textMode.active}
+                  title={textMode.active ? "Ocultar texto reconocido" : "Mostrar y seleccionar texto reconocido"} className={`${barBtn} ${textMode.active ? "bg-white/20" : ""}`}>
+                  <ScanText className="h-3.5 w-3.5" />
+                </button>
+              )}
               {sidePanel && (
                 <button type="button"
                   onClick={() => setSidePanelOpen((v) => !v)}

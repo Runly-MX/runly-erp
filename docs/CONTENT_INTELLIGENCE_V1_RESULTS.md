@@ -391,3 +391,67 @@ afectados por las alertas ya registradas (CVE musl del worker, `fabric`/`image-s
 Funcional: **Candidato funcional pendiente de certificación** (la administración y el histórico autónomo están
 verificados en laboratorio; falta certificación a escala y UI de empresa).
 Operativo: **APTO PARA PRUEBAS AISLADAS**.
+
+## Etapa 4B: búsqueda, visor y selección de texto (2026-11-26)
+
+Laboratorio aislado (API 4059, UI de laboratorio 5188, worker real, PostgreSQL y Storage del laboratorio). Sin push ni despliegue.
+
+### Auditoría inicial (lo que ya existía en `8943a404f` y etapas previas)
+Búsqueda por contenido en Archivos (`searchIn`, fragmento resaltado y referencia solo en la vista de lista; en cuadrícula
+solo un chip "OCR · referencia"), panel lateral de texto con búsqueda, copiar/descargar texto, reprocesar y alta precisión,
+estados (`LABELS`), y una capa SVG que dibujaba únicamente las coincidencias sobre imagen y PDF dentro del visor existente
+(`AdvancedFileViewer`/`PDFViewer`, que ya aplican zoom, pan y rotación por CSS). Ausentes: modo de texto con selección,
+copiar selección, término de búsqueda conservado al abrir el archivo, coincidencias de frases/identificadores partidos,
+carga de coordenadas por página, aviso de resultados sin coordenadas.
+
+### Completado
+- **Contrato de coordenadas.** Cada página guarda `engine.canvas = {width,height,coordinateSpace:"exif-oriented-image"}` y
+  palabras `{text,x,y,width,height,confidence}` en ese lienzo (imagen original ya orientada por EXIF; el worker invierte
+  recorte, escala y rotación del preprocesamiento antes de guardar). La capa SVG usa el lienzo como `viewBox`, de modo que
+  zoom, pan, rotación y tamaño los aplica el visor y no hay desplazamientos manuales. `canvasMatches` solo dibuja si el
+  bitmap mostrado tiene la proporción del lienzo; sin `canvas` (resultados antiguos) no se dibuja nada y el panel avisa y
+  ofrece reprocesar (no hay reindexación masiva).
+- **Modo de texto** (botón ScanText en la barra del visor, `textMode` en `AdvancedFileViewer`): muestra todas las palabras
+  (hasta 2 500 nodos; más allá, solo coincidencias/selección), clic o toque alterna una palabra, doble clic la línea,
+  Ctrl/Cmd+C copia, Ctrl/Cmd+A todo, Escape limpia; el panel ofrece "Copiar selección", "Seleccionar todo" y "Limpiar"
+  (alternativa táctil/teclado). El texto copiado es exactamente el OCR almacenado; los saltos de línea se infieren por geometría.
+  Desactivar el modo deja solo el resaltado de coincidencias. No hay un nodo enfocable por palabra.
+- **Búsqueda en el visor** (`findMatches`): sin acentos/mayúsculas, identificador exacto dentro de una palabra, frases partidas en
+  varias palabras consecutivas, conteo y navegación por coincidencia (no por palabra), tope de 1 000. El término de la búsqueda de
+  Archivos llega al visor (`initialQuery`).
+- **Cuadrícula**: el chip de coincidencia muestra el fragmento con el término resaltado (2 líneas, empieza junto a la coincidencia).
+- **API**: `GET /content/files/:id` limita las palabras a 20 000 acumuladas; las páginas restantes devuelven `wordCount` y
+  `wordsOmitted`, y `?unit=N` entrega las de esa página (la capa las pide sola). SDK `result(id, token, unit, signal)` cancelable.
+  Sin migración ni dependencias nuevas.
+
+### Evidencia
+- Pruebas deterministas de coordenadas/selección/búsqueda: `content-overlay.test.js`, 8 aprobadas (con las demás de Archivos y
+  Content: 27 ejecutadas, 20 aprobadas, 7 omitidas por requerir Docker).
+- Flujo vertical en navegador real (`vertical-viewer.mjs`, `docs/audits/content-intelligence-stage4b/vertical-viewer.json`), todo aprobado:
+  foto cuyo nombre no contiene el texto, indexada por el worker; aparece en la búsqueda; el fragmento resalta el identificador;
+  el visor conserva el término y marca la coincidencia; la posición del overlay coincide con las coordenadas OCR (error 0.0 px)
+  al abrir, con zoom in/out, rotado 90° y 180° y tras cambiar el tamaño de ventana; el modo de texto muestra 6/6 palabras; la
+  selección copia `FCW…A07` idéntico al OCR (portapapeles real); apagar/encender el modo funciona; la búsqueda interna
+  mueve el resaltado; dos pulsaciones de "Alta precisión" dejan un solo trabajo; sin desbordamiento horizontal a 390 px.
+- Flujo PDF escaneado de 3 páginas (`vertical-pdf.mjs`): coincidencia en página 2 con coordenadas, carga por página, búsqueda
+  muestra el PDF, el visor salta a esa página y resalta.
+- Privacidad: una sesión válida con una empresa a la que no pertenece no obtiene texto, coordenadas ni búsqueda (rechazo del
+  middleware). Las pruebas PostgreSQL de rondas anteriores cubren revocación, carpetas, propietario, eliminación y versión.
+- Capturas: `docs/audits/content-intelligence-stage4b/screenshots/` (búsqueda en cuadrícula 1440, visor con overlay, rotado,
+  modo de texto, panel tras reprocesar, modo de texto 390 px, PDF búsqueda y visor).
+
+### No ejecutado / limitaciones
+- Dos usuarios reales con RLS y Storage: no hay segundo usuario en el laboratorio; el rechazo se probó con una empresa ajena.
+  Compartidos, movimientos y sustitución de versión en la UI no se repitieron.
+- Matriz visual incompleta: solo 1440 y 390 en claro; sin 1280/768/320, sin modo oscuro, sin lista, sin estados error/sin texto/
+  worker caído/sin permisos en el visor, sin toque físico ni teclado más allá de Ctrl+C simulado. La captura móvil muestra el panel
+  en estado "Pendiente" (reprocesamiento en curso): el modo de texto en móvil no se capturó con resultado disponible.
+- La selección de texto es por palabra/línea mediante clic o toque, no por arrastre (no hay selección nativa del navegador).
+- Overlay del PDF verificado por presencia y salto de página, sin medir geometría ni rotación de PDF; DOCX/XLSX/PPTX muestran
+  referencias pero no se probaron en el visor. Rotación del usuario en imagen sí medida; EXIF cubierto por la prueba anterior de la etapa 2.
+- Ranking (exacto antes que aproximado) ya existía; no se re-midió en esta ronda. Sin medición de rendimiento del visor
+  (FPS, memoria) ni EXPLAIN de la consulta modificada; el chunk de Archivos pesa 128 kB (38 kB gzip) y el visor no se carga en el login.
+- Vulnerabilidades: sin dependencias nuevas; sin cambios respecto al registro anterior.
+
+### Clasificación
+Funcional: **Candidato funcional pendiente de certificación**. Operativo: **APTO PARA PRUEBAS AISLADAS**.

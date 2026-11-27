@@ -1,3 +1,4 @@
+import { ContentMatchSnippet } from './ContentMatchSnippet';
 import {
   Checkbox,
   ContextMenu,
@@ -109,8 +110,8 @@ export function FilesTile({
             Deshabilitado
           </span>
         )}
-        {data.contentMatch && <span className="absolute bottom-1 left-1 right-1 truncate rounded bg-background/90 px-1.5 text-xs" title={data.contentMatch.snippet}>
-          {data.contentMatch.source === 'ocr' ? 'OCR' : 'Contenido'} · {data.contentMatch.reference}
+        {data.contentMatch && <span className="pointer-events-none absolute bottom-1 left-1 right-1 rounded bg-background/90 px-1.5">
+          <ContentMatchSnippet match={data.contentMatch} tight />
         </span>}
       </div>
       <span

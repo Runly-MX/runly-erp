@@ -858,6 +858,7 @@ export default function FilesScreen() {
       />
 
       <FilesContentViewer
+        initialQuery={contentSearch ? queryParams.q : ''}
         open={viewerOpen}
         onOpenChange={setViewerOpen}
         files={viewerFiles}

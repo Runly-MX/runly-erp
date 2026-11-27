@@ -47,6 +47,13 @@ export function FileContentPanel({ file,viewer=null }) {
     </div>
     {text ? <>
       <SearchInput value={search} onChange={e => setSearch(e.target.value)} onClear={() => setSearch('')} placeholder="Buscar en el texto…" />
+      {viewer?.coordinatesMissing && <p className="text-xs text-muted-foreground" role="note">Este resultado se generó sin coordenadas compatibles: el texto se puede buscar y copiar, pero no se señala sobre la imagen. Reprocesa el archivo para obtener la ubicación.</p>}
+      {viewer?.textMode && <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Selección de texto reconocido">
+        <Button size="sm" variant="outline" disabled={!viewer.selectionCount} onClick={viewer.copySelection}>Copiar selección ({viewer.selectionCount})</Button>
+        <Button size="sm" variant="outline" onClick={viewer.selectAll}>Seleccionar todo</Button>
+        <Button size="sm" variant="outline" disabled={!viewer.selectionCount} onClick={viewer.clearSelection}>Limpiar</Button>
+        <span className="text-xs text-muted-foreground">Toca o haz clic en las palabras; doble clic selecciona la línea.</span>
+      </div>}
       {viewer && <div className="flex flex-wrap items-center gap-2"><Button size="sm" variant="outline" disabled={!viewer.count} onClick={()=>viewer.navigate(-1)}>Coincidencia anterior</Button><span className="text-xs" role="status">{viewer.count?`${viewer.index+1} de ${viewer.count}`:'Sin coincidencias'}</span><Button size="sm" variant="outline" disabled={!viewer.count} onClick={()=>viewer.navigate(1)}>Coincidencia siguiente</Button></div>}
       <div className="max-h-80 space-y-4 overflow-auto text-sm" tabIndex={0}>
         {pages.map(page => <article key={page.unit}><p className="text-xs text-muted-foreground">{page.reference} · {page.source === 'ocr' ? 'OCR' : 'Texto digital'}{page.confidence != null ? ` · Confianza heurística ${Math.round(page.confidence)}` : ''}</p><p className="whitespace-pre-wrap break-words select-text">{page.text}</p></article>)}

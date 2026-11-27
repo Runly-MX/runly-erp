@@ -38,7 +38,7 @@ export function createContentIntelligenceRouter({ prisma, filesService, supabase
   };
   app.use('/content/*', bodyLimit({ maxSize: 8 * 1024 * 1024, onError: c => c.json({ error: 'Solicitud excesiva.' }, 413) }));
   app.get('/content/search', authMiddleware, read, wrap(async c => c.json(await service.search(args(c), c.req.query()))));
-  app.get('/content/files/:id', authMiddleware, read, wrap(async c => c.json({ data: await service.result(args(c)) })));
+  app.get('/content/files/:id', authMiddleware, read, wrap(async c => c.json({ data: await service.result(args(c), { unit: c.req.query('unit') && /^\d{1,3}$/.test(c.req.query('unit')) ? c.req.query('unit') : null }) })));
   app.post('/content/files/:id/process', authMiddleware, processFiles, wrap(async c => {
     const input = z.strictObject({ quality: z.enum(['fast','balanced','accurate']).optional(), reprocess: z.boolean().default(false) }).parse(await c.req.json());
     return c.json({ data: await service.request(args(c), input) }, 202);
