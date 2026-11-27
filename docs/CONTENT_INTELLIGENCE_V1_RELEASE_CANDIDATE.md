@@ -18,7 +18,17 @@ HEIC sigue disponible como capacidad explícita; cuando se enciende, la foto se 
 - HEAD inicial de la etapa: `08ebc346f`.
 - Commits de la etapa 4C (cinco, no seis; el sexto referido en el encargo no existe): `324e4721e` (Office), `2434f5af6` (HEIC), `e371a09f6` (PDF buscables, selección, perspectiva), `22c5e23d2` (acciones, polígonos, drag, flujos), `08ebc346f` (resultados 4C).
   Intercalados en `main` hay commits ajenos de otras sesiones (`3ae266cf5`, `0048f394f`, `cccd9ddc8`) que no se tocaron.
-- Commits de la etapa 4D: ver §21 (se completa al cerrar).
+- Commits de la etapa 4D (desde `08ebc346f`, incluyen cambios ajenos de otras sesiones que no se tocaron; los de esta etapa son los de tipo `fix(content)`, `feat(files)`, `docs(content)`, `chore`):
+- `be480a22e` fix(content):  HEIC as explicit capability off by default, viewer toolbar no longer clips at 320 px, certification driver me
+- `263ae081a` fix(rehearsal):  catalog review step keeps its dollar quoting and regex; isolation networks get their own subnet when Docker's
+- `59ece41bc` feat(files):  HEIC photos display through the existing image-transform variant in every browser; HEIC viewer flow (Chromium
+- `995c4713c` fix(content):  CropBox-aware rasterization, rotated text layers, Unicode PDF text layer with ToUnicode, encrypted/signed PDF
+- `65d30027a` fix(backup):  retention groups snapshots by host and tags so old ones are pruned; rehearsal harness reviews the platform ca
+- `3bded97ef` fix(installer):  API health probe reads the published port and bind address from the shell or the sibling .env like Compose do
+- `c00af43b7` fix(web):  root redirect to /app/ is relative so the published port is kept
+- `4414f81ee` test(files):  a pending invitation and a revoked share deny by hiding (404) or refusal (403), the same denial set the file 
+- `f182be253` test(isolation):  model the website domain registry and tenant context the public site and dist routes now require; every asser
+- `a273d5bd0` fix(offline):  sync push checks create/update/delete permissions; logout or user switch wipes the previous identity's synced
 
 ## 3. Clasificaciones (independientes)
 
@@ -85,16 +95,47 @@ No ejecutado (requiere host dedicado, dos versiones publicadas o datos reales): 
 
 Ningún workflow construye ni publica imágenes Docker ni despliega código en un push.
 
+## 8b. Driver de certificación: resultados y lecciones
+
+Escenarios pequeños ejecutados en el laboratorio (perfil 2x4, `audits/content-intelligence-stage4d/driver*/`):
+
+| Escenario | Resultado final | Notas |
+|---|---|---|
+| `corpus-smoke` | Pasa | |
+| `backfill-pause-resume` | Pasa | |
+| `worker-restart` | Pasa (todos los archivos terminales en 117 s; sin duplicados, páginas huérfanas ni leases vencidos) | Falló encadenado tras otros escenarios |
+| `postgres-restart` | Pasa | Falló una vez encadenado; pasa aislado dos veces |
+| `storage-interrupt` | Pasa (escrituras de nuevo aceptadas a los 5 s; todo terminal en 50 s) | Falló dos veces por el propio driver, ver abajo |
+
+Defectos del **driver** (no del producto) encontrados y corregidos: no reintentaba las escrituras tras la caída de una dependencia (la API responde 500 mientras Storage reinicia: ahora reintenta hasta 120 s y mide la recuperación);
+medía detrás de un atraso de cola de escenarios previos (ahora drena la cola antes y lo informa); la ventana de 240 s era menor que el peor caso de recuperación (expiración de lease de 90 s + espera creciente de reintento; ahora 600 s y se informa el tiempo real);
+y la admisión por trigger está acotada por `maxPending` (a propósito: un recorrido admite el resto después), de modo que con el laboratorio saturado las subidas nuevas quedaban sin trabajo; el escenario sube ese límite para medir la ruta de escritura y no el atraso.
+Comportamiento de producto observado y aceptado: con un atraso grande el recorrido de archivos nuevos admite 10 archivos por pasada de 15 s, así que recuperar un hueco de admisión en una instalación con miles de archivos puede tardar decenas de minutos.
+
 ## 9. Herramientas: preparadas, verificadas y certificadas
 
 | Herramienta | Estado |
 |---|---|
 | `lab.mjs`, `run.mjs --list` | Verificadas (arrancan, validan entorno aislado, listan escenarios) |
-| `run.mjs` escenarios `corpus-smoke`, `worker-restart`, `storage-interrupt`, `postgres-restart`, `backfill-pause-resume` | Verificadas en el laboratorio (resultados en `audits/content-intelligence-stage4d/driver/`) |
+| `run.mjs` escenarios `corpus-smoke`, `worker-restart`, `storage-interrupt`, `postgres-restart`, `backfill-pause-resume` | Verificadas tras corregir el propio driver (§8b); pasan individualmente. Encadenados en una sola ejecución fallaron por arrastre de estado: ejecútalos por separado o con laboratorio limpio |
 | `run.mjs` `corpus-standard`, `historical`, `e2e-browser` | Verificadas en etapas previas; no repetidas en 4D |
 | `run.mjs` `corpus-extended`, `erp-ab`, `soak`, `install-upgrade-rollback` | **Preparadas**, no verificadas: requieren host dedicado o dos versiones |
 | `vertical-*.mjs` (formats, searchable, geometry, isolation, heic, historical, viewer, pdf) | Verificadas y repetibles en laboratorio |
 | Escenarios certificados | **Ninguno**: la certificación es la etapa 5 |
+
+## 9b. Matriz visual (inspección)
+
+Capturas en `audits/content-intelligence-stage4c/screenshots/` (4C, 34) y `stage4d/screenshots/` (HEIC en Chromium y Firefox). Anchos 1440/1280/768/390/320, claro y oscuro (oscuro en 1440/390/320), rejilla, lista, visor con modo de texto, PDF (768/390/320), perspectiva, resultado sin coordenadas, sin texto y error, administración (4A: 1440/390/320, claro/oscuro, worker ausente/conectado).
+Medido por script en todos los visores: sin desbordamiento horizontal. **Inspeccionadas a ojo** en esta etapa: visor 320 claro y oscuro, lista 390, selección táctil 390, administración 320 oscuro, perspectiva 1440, HEIC.
+
+| Hallazgo | Estado |
+|---|---|
+| La barra inferior de herramientas del visor (imagen y PDF) se recortaba a ambos lados en 320 px (centrado con desbordamiento): el botón «−» y el último icono quedaban cortados | Corregido (márgenes automáticos en los extremos en lugar de `justify-center`); reverificado: comienza en el borde y se desplaza |
+| El botón flotante del chat de la plataforma se superpone a controles de la pantalla de administración en 320 px | Elemento de plataforma, fuera del alcance; registrado |
+| En 320 px el encabezado de plataforma apiña iconos (búsqueda sobre aplicaciones) | Plataforma; registrado |
+| Contraste y estados: textos de apoyo en gris sobre blanco/oscuro legibles en las capturas inspeccionadas; sin medición con herramienta de contraste | Parcial |
+| Accesibilidad: botones con nombre accesible (`Texto reconocido`, `Copiar selección (n)`), `role="note"`/`status`/`alert` en mensajes, selección con teclado (Ctrl+C/A, Escape) y alternativas en el panel; sin auditoría con lector de pantalla ni axe | Parcial |
+No se capturó por separado: administración de instancia vs empresa en cada ancho de 4D (se reutilizan las de 4A, sin cambios de interfaz de administración en esta etapa), usuario sin permisos y estado de procesamiento desactivado en móvil.
 
 ## 10. Matriz de certificación de la etapa 5
 
@@ -139,4 +180,4 @@ docker run --rm --network none --entrypoint python3 -v "$PWD/apps/content-worker
 
 ## 13. Commits y estado de Git
 
-Se completa al cerrar la etapa (§2 y siguiente): sin push, sin despliegues, cambios ajenos conservados.
+Sin push ni despliegues. Los cambios de otras sesiones se conservaron (los commits ajenos intercalados no se tocaron). El árbol de trabajo queda limpio al cierre salvo lo indicado en el informe final.
