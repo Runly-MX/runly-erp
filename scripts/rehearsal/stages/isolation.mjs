@@ -2,7 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { command } from '../../fixtures/studio/supabase-stack.mjs'
 import { attachStack } from '../lib/stack-attach.mjs'
-import { assertIsolated, createProductionSimulator, probeEgress, reachable, startIfIsolated } from '../lib/isolation.mjs'
+import { assertIsolated, createProductionSimulator, createRehearsalNetwork, probeEgress, reachable, startIfIsolated } from '../lib/isolation.mjs'
 import { checkReplicaEnv, parseEnv, NEUTRALIZING_OVERRIDES } from '../lib/replica-guard.mjs'
 import { expect, note, rand, save } from './common.mjs'
 
@@ -35,7 +35,7 @@ export async function isolationStage(ctx) {
       return 'refused (ISOLATION_NOT_VERIFIED); no API or Worker container exists'
     })
 
-    await command('docker', ['network', 'create', '--internal', names.internal])
+    await createRehearsalNetwork(names.internal, ['--internal'])
     let proof
     await expect(ctx, 'isolation-gate-passes-internal', 'On an INTERNAL network the probe reaches NOTHING: no Internet, no DNS, no production service on the host, no production container', async () => {
       proof = await assertIsolated({ image: ctx.images.api, network: names.internal, simulator })

@@ -5,11 +5,11 @@
 export const NEUTRALIZATION_STEPS = Object.freeze([
   // Platform catalog (seeded from the official manifests): its only external host is the documentation placeholder shown in a form
   // field. The step does not change data; it fails the whole neutralization if the catalog ever carries any other destination.
-  { id: 'platform-catalog-reviewed', table: 'blueprint', sql: String.raw`DO $ BEGIN
-      IF EXISTS (SELECT 1 FROM public.blueprint WHERE regexp_replace(schema::text, 'https?://www[.]tunegocio[.]com[^"s]*', '', 'g') ~* 'https?://')
-        OR EXISTS (SELECT 1 FROM public.runly_module WHERE regexp_replace(manifest::text, 'https?://www[.]tunegocio[.]com[^"s]*', '', 'g') ~* 'https?://') THEN
+  { id: 'platform-catalog-reviewed', table: 'blueprint', sql: String.raw`DO $$ BEGIN
+      IF EXISTS (SELECT 1 FROM public.blueprint WHERE regexp_replace(schema::text, 'https?://www[.]tunegocio[.]com[^"\s]*', '', 'g') ~* 'https?://')
+        OR EXISTS (SELECT 1 FROM public.runly_module WHERE regexp_replace(manifest::text, 'https?://www[.]tunegocio[.]com[^"\s]*', '', 'g') ~* 'https?://') THEN
         RAISE EXCEPTION 'platform catalog carries an external destination other than the documentation placeholder';
-      END IF; END $`,
+      END IF; END $$`,
     covers: [['blueprint', 'schema', 'platform catalog: only the documentation placeholder host www.tunegocio.com, verified by this step'], ['runly_module', 'manifest', 'platform catalog: only the documentation placeholder host www.tunegocio.com, verified by this step']] },
   { id: 'automations-disabled', table: 'system_automation', sql: 'UPDATE public.system_automation SET enabled = false, webhook_token = NULL',
     covers: [['system_automation', 'definition', 'definition kept for comparison; the automation is disabled and its webhook token removed'], ['system_automation', 'webhook_token', 'removed']] },
