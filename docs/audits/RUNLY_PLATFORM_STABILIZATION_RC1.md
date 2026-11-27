@@ -253,3 +253,41 @@ Ver `git log e57d7f817..HEAD` filtrando `rc1`: un único commit de ERP con el ar
 - GitHub Actions: Quality Gates tier release verde en `main` (45854778857) y en `rc/rc1-r1` (45854773067); Security, UUID y Schema Ownership verdes en main, `rc/rc1` y `rc/rc1-r1`. El Quality Gates anterior de main (45652909456) fallaba por el clon superficial (`fetch-depth`).
 - Hub: la prueba de revision del corpus pasa con la raiz fijada (16/16); solo falla si `MARKETPLACE_VALIDATOR_ROOT` apunta a otra revision. Sin cambios en el Hub.
 - DWG: `make -j2` esta en `origin/main`; no hay imagen atribuible a un SHA en esta maquina. Comandos de staging, rollback y pendientes: `docs/deployment/RUNLY_RC1_STAGING_RUNBOOK.md` seccion 9.
+
+## 20. Ejecucion de staging local (2026-11-26/27)
+
+Instancia `runly-rc1-staging` en `D:\RacoonDevs\runly-rc1-staging`, instalada con el Installer fijado a `9e637d98a` (verificado 2026.11.24.1), imagenes locales del RC, Supabase propio (red `runly-rc1-staging_default`, base sin puerto publicado), datos sinteticos, LiveKit desactivado. Nada de la otra sesion se toco (9 contenedores `runly-content-*` y el resto intactos).
+
+**Defectos encontrados en el RC (3 corregidos en codigo, ninguno empujado):**
+
+| Defecto | Evidencia | Estado |
+|---|---|---|
+| El Installer ejecuta `pnpm db:migrate` (= `prisma migrate deploy && prisma generate`) y con la imagen de la API sin root falla con EACCES al regenerar el cliente: la instalacion y la actualizacion del RC no terminan | `install.log`: migraciones aplicadas y luego `EACCES ... .prisma` | Corregido en `ecfa517a5` (`prisma migrate deploy`, version del Installer 2026.11.26.1; 115 pruebas del Installer en verde). **Requiere publicar el Installer (nuevo SHA) antes de usar `update-local.sh` con estas imagenes** |
+| `GET /sync/pull` solo comprobaba pertenencia a la empresa: un miembro sin `contacts.contacts.read` (o sin HR, flota, catalogo, ledger, calendario) descargaba esos registros | usuario sin permiso: 500 contactos; tras el arreglo 0 y, con permiso concedido, 500; tras revocar, 0 con el mismo token | Corregido en `3ae266cf5` con prueba. Es **bloqueador de produccion** si no entra |
+| `manageable()` de Files Workspace incluye `hrProfileEmployees`, relacion que ya no existe en `FileAsset`: renombrar, compartir o eliminar documentos propios falla con error de Prisma | `files-workspace.test.js` en la imagen del RC | Corregido en `cccd9ddc8` |
+
+Las imagenes web y worker no cambian. La API de staging corre `runly-rc1-fix:api-3ae266cf5` (imagen del RC mas esos tres archivos, `sha256:4027a8ea...`); el RC puro de la API tiene los dos defectos de codigo. Un RC1-r2 limpio exige reconstruir la API y publicar el Installer.
+
+**Pruebas (en la imagen del RC salvo indicacion):**
+
+| Prueba | Resultado |
+|---|---|
+| `user-isolation.integration` | 13/14; la G falla porque el sustituto de la prueba no crea `website_domain` (parte publica del sitio), la parte de calendario antes de la falla pasa. Defecto de la prueba, no de aislamiento |
+| `company-deletion.integration` | 9/9 |
+| `files-workspace` | 6/8 tras el arreglo; 1 espera 403 donde el codigo responde 404 (equivalente en seguridad) y 1 depende de ese primer paso. Pruebas desactualizadas, abiertas |
+| `test:security` (21 archivos) | 151/152; la restante lee `apps/worker` que no existe en la imagen de la API |
+| Sincronizacion offline PostgreSQL (arbol de trabajo) | 9/9 |
+| Recuperacion S3 | 1/1 |
+| Ensayo de backup y restauracion | 60/64; hallazgo real: la retencion no poda (`forget` agrupa por host y ruta temporal distinta, cada corrida es su grupo); 3 fallos del arnes de replica (compuerta de hosts externos en `blueprint`/`runly_module`, API aislada sin sanar, aplicacion recuperada con 404 en notas) sin diagnosticar |
+| Contrato HTTP (dos empresas) | 13/14; falla "company B tiene otra representacion" porque ambas empresas tienen los mismos 29 modulos |
+| Worker | 621 eventos del outbox, 621 procesados (`processed_at`) |
+| Navegador desktop 1440 | login 2 s, sesion restaurada, 12 modulos abren sin errores de consola ni respuestas >= 400, heap 30 a 68 MB |
+| Navegador movil 390 (Pixel 7, tactil) | 9 pantallas sin desbordamiento horizontal, heap 31 a 53 MB |
+| IndexedDB real | sincronizacion de 602 filas (mas de 500 por entidad); cortada tras la primera pagina (501) y reanudada a 602 unicas sin duplicados; cambio de empresa: B muestra 20 filas y ninguna de A; otro usuario sin permiso ve 0 |
+| Revocacion de permisos | `/contacts` 403 y `/sync/pull` 0 registros de inmediato con el mismo token |
+
+**Limites observados (no corregidos):** cerrar sesion borra la boveda pero **no** los registros de IndexedDB (siguen por usuario y empresa en el dispositivo); la web no carga sin conexion (sin service worker, el modo sin conexion es de escritorio); por HTTP fuera de localhost el navegador no es contexto seguro y la app falla tras iniciar sesion (`crypto.randomUUID`), asi que el telefono necesita HTTPS; la raiz `/` de la web redirige a `http://host/app/` sin el puerto (usar `/app/`); la verificacion de salud del Installer ignora `RUNLY_API_HOST_PORT` de `.env` y marca fallo con un puerto distinto de 4010 aunque la API este sana.
+
+**Pendientes:** actualizacion desde la version desplegada (hay que identificarla), telefono fisico por HTTPS, memoria en dispositivo real, Tauri, revision juridica, SBOM de contenedores, diagnostico de los tres fallos del ensayo de backup y la retencion.
+
+**Veredicto:** APTO PARA STAGING con los tres arreglos aplicados a la API; **no apto para produccion** hasta reconstruir la API, publicar el Installer corregido y cerrar la retencion de backup y las pruebas desactualizadas.
